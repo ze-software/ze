@@ -1,0 +1,15 @@
+{
+  "note": "vrrp judge 2026-09-29 re-read after a tag was added to TestEffectivePriorityWithTracking (body unchanged): TestBoundaryPriority accepts 1 and 254 and rejects 0 and 255 through extractGroupSpecs/validateGroups; TestEffectivePriorityWithTracking floors a tracked decrement at 1",
+  "requirement_sha": "42188062644e680e",
+  "tests": {
+    "internal/plugins/vrrp/groups_test.go::TestBoundaryPriority": "30e27105e8a9f202",
+    "internal/plugins/vrrp/groups_test.go::TestBoundaryPriority#2": "30e27105e8a9f202",
+    "internal/plugins/vrrp/groups_test.go::TestEffectivePriorityWithTracking": "30e27105e8a9f202"
+  },
+  "units": {
+    "internal/plugins/vrrp/groups_test.go::TestBoundaryPriority": "fcd4ad07247002db",
+    "internal/plugins/vrrp/groups_test.go::TestBoundaryPriority#2": "fcd4ad07247002db",
+    "internal/plugins/vrrp/groups_test.go::TestEffectivePriorityWithTracking": "0748e903dc3ed0cb"
+  },
+  "verdict": "enforced"
+}

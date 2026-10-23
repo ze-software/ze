@@ -1,0 +1,13 @@
+{
+  "note": "LAN Adj-SID Reserved=0xFFFF decodes identically and encoder sends zero; negative shows Neighbor ID is honoured",
+  "requirement_sha": "cc9fff053c749a50",
+  "tests": {
+    "internal/plugins/ospf/sr/rfc8666_test.go::TestRFC8666LANAdjSIDNeighborIDNotIgnored": "fc78f1bb66bf1d61",
+    "internal/plugins/ospf/sr/rfc8666_test.go::TestRFC8666LANAdjSIDReservedFieldIgnoredOnReceive": "fc78f1bb66bf1d61"
+  },
+  "units": {
+    "internal/plugins/ospf/sr/rfc8666_test.go::TestRFC8666LANAdjSIDNeighborIDNotIgnored": "8123b9b92baad055",
+    "internal/plugins/ospf/sr/rfc8666_test.go::TestRFC8666LANAdjSIDReservedFieldIgnoredOnReceive": "2b177f04f5680f6f"
+  },
+  "verdict": "enforced"
+}

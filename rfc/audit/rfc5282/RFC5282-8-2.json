@@ -1,0 +1,20 @@
+{
+  "code": {
+    "internal/component/ike/engine/initiator.go::espProposalWire": "848f44d837af5887"
+  },
+  "note": "Re-judged 2026-10-19 (independent auditor, after d64411a639 and 08bfef9ee7). Section 8: \"This document further updates [RFC4306] to require that if all of the encryption algorithms in any proposal are authenticated encryption algorithms, then the proposal MUST NOT propose any integrity transforms.\" espProposalWire now resolves through lookupESPEncryption; the AEAD decision and the omission of Transform Type 3 are unchanged, and null is non-AEAD (EncryptionNull in the IsAEAD false arm), so a null proposal keeps its integrity transform as RFC 4303 Section 3.2 needs. The four tagged units (IKE and ESP proposals, both polarities) pass at HEAD; records re-taken in 08bfef9ee7. Verdict stands.",
+  "requirement_sha": "861764685325f277",
+  "tests": {
+    "internal/component/ike/engine/rfc5282_aead_proposal_test.go::TestRFC5282AEADIKEProposalCarriesNoIntegrityTransform": "c9abc80b09e13d14",
+    "internal/component/ike/engine/rfc5282_aead_proposal_test.go::TestRFC5282NonAEADIKEProposalKeepsItsIntegrityTransform": "c9abc80b09e13d14",
+    "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282AEADESPProposalCarriesNoIntegrityTransform": "d2a8fe0dab3c6a2d",
+    "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282NonAEADESPProposalKeepsItsIntegrityTransform": "d2a8fe0dab3c6a2d"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc5282_aead_proposal_test.go::TestRFC5282AEADIKEProposalCarriesNoIntegrityTransform": "452af7dd73f4ff79",
+    "internal/component/ike/engine/rfc5282_aead_proposal_test.go::TestRFC5282NonAEADIKEProposalKeepsItsIntegrityTransform": "cbb537e63edae857",
+    "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282AEADESPProposalCarriesNoIntegrityTransform": "efb43e51f272ad4f",
+    "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282NonAEADESPProposalKeepsItsIntegrityTransform": "04e79c9631651a85"
+  },
+  "verdict": "enforced"
+}

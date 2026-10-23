@@ -1,0 +1,17 @@
+{
+  "note": "RA-BFD2 strict re-read 2026-09-27, raised from weak: the RA-BFD defect is fixed at the producer. Every Poll initiator is choice 1 or choice 3: onStateChange changes both intervals under one PollOutstanding (and can only fire from Down/Init, where Down entry clears PollOutstanding and pollSettling); ApplyEchoSlowdown and revertEchoSlowdownLocked (while Up) return with the flag unchanged unless pollSequenceIdle, which Receive clears only on the Final that ends the Poll (pollSettling set) followed by a packet with F clear. Forbidden second Poll during an outstanding Poll: TestRFC5880EchoSlowdownWaitsForOutstandingPoll (tx and rx stay 10000 during the Up Poll) and TestRFC5880EchoSlowdownRevertWaitsForOutstandingPoll (stays 1000000). Forbidden Poll after the Final before an F-clear packet: both tests assert no Poll and the old intervals. Positive: TestRFC5880EchoSlowdownPollsAfterSettledPoll (P set, both intervals 1000000 in one packet) and TestRFC5880PollInitiatedOnIntervalChange (single packet). Choice 2 is an alternative Ze does not take; Demand mode is not driven, so choice 3 is always available.",
+  "requirement_sha": "61937eab8354f704",
+  "tests": {
+    "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880EchoSlowdownPollsAfterSettledPoll": "4b885928a870b00d",
+    "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880EchoSlowdownRevertWaitsForOutstandingPoll": "4b885928a870b00d",
+    "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880EchoSlowdownWaitsForOutstandingPoll": "4b885928a870b00d",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PollInitiatedOnIntervalChange": "8db25cbb4534cc2d"
+  },
+  "units": {
+    "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880EchoSlowdownPollsAfterSettledPoll": "165a4fb4b38e504d",
+    "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880EchoSlowdownRevertWaitsForOutstandingPoll": "bbd21abf611ec85a",
+    "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880EchoSlowdownWaitsForOutstandingPoll": "d58802160b3e5b8c",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PollInitiatedOnIntervalChange": "ad84cf1942f9600c"
+  },
+  "verdict": "enforced"
+}

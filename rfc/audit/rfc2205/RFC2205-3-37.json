@@ -1,0 +1,13 @@
+{
+  "note": "Single-polarity capability. Forbidden: forwarding PATH or PathTear without a routing query. TestIntegrationRSVPPathCarriage sends PATH and PathTear through SendPath, which calls RouteGetWithOptions, and fails unless the frame's L2 destination is the explicit hop; TestIntegrationRSVPPathAvoidsDataFEC resolves through ResolveRoute and asserts the PATH reaches the selected hop.",
+  "requirement_sha": "dfbe94e25bacd954",
+  "tests": {
+    "internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathAvoidsDataFEC": "900cfdf5bd3d05c0",
+    "internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage": "900cfdf5bd3d05c0"
+  },
+  "units": {
+    "internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathAvoidsDataFEC": "6eb7111ae6cccc8a",
+    "internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage": "a8f5620947d5259e"
+  },
+  "verdict": "enforced"
+}

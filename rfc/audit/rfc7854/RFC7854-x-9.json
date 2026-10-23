@@ -1,0 +1,11 @@
+{
+  "note": "Route Monitoring wraps the body in a full RFC 4271 header of type UPDATE; single-polarity marker",
+  "requirement_sha": "a9fca9f4729a4777",
+  "tests": {
+    "internal/component/bgp/plugins/bmp/rfc7854_sender_test.go::TestBMPSenderRouteMonitoring": "b1d529e5dcb7872e"
+  },
+  "units": {
+    "internal/component/bgp/plugins/bmp/rfc7854_sender_test.go::TestBMPSenderRouteMonitoring": "a166c5963293a5fd"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2131-4.4.5-5",
+    "polarity": "positive",
+    "unit": "internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go::TestDHCPv4RenewalMovesToNewAddressOnVeth",
+    "unit-sha": "6fd8ddb1832a7e04",
+    "claim-sha": "317684d18b6dca11",
+    "route": "revert",
+    "producer": "internal/plugins/iface/dhcp/dhcp_v4_linux.go::removeV4Address",
+    "producer-sha": "b1f223e4cf29fbd4",
+    "break": "body of removeV4Address replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2131-4.4.5-5",
+    "polarity": "negative",
+    "unit": "internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go::TestDHCPv4RenewsRepeatedlyOnVeth",
+    "unit-sha": "d4b4b4db926a8fe0",
+    "claim-sha": "af5742ff9c919bc4",
+    "route": "revert",
+    "producer": "internal/plugins/iface/dhcp/dhcp_v4_linux.go::installV4Lease",
+    "producer-sha": "7dad3ddc82f38b80",
+    "break": "body of installV4Lease replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

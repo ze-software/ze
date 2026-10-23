@@ -1,0 +1,17 @@
+{
+  "note": "Rejudged 2026-09-29. stop_time, the missing absolute time, is now proven: TestRFC8907StopTimeIsEpochSeconds bounds it to [before, after] Unix seconds and TestRFC8907StopTimeIgnoresLocalZone sets time.Local +5h and requires no shift and no timezone argument. start_time stays proven by the old units.",
+  "requirement_sha": "3a30b1b834c434bb",
+  "tests": {
+    "internal/component/tacacs/rfc8907_accounting_test.go::TestRFC8907StartTimeIgnoresLocalZone": "d6e03486f174ca78",
+    "internal/component/tacacs/rfc8907_accounting_test.go::TestRFC8907StartTimeIsEpochSeconds": "d6e03486f174ca78",
+    "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907StopTimeIgnoresLocalZone": "fb302ebfa0d9b135",
+    "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907StopTimeIsEpochSeconds": "fb302ebfa0d9b135"
+  },
+  "units": {
+    "internal/component/tacacs/rfc8907_accounting_test.go::TestRFC8907StartTimeIgnoresLocalZone": "5575bac2053d64e5",
+    "internal/component/tacacs/rfc8907_accounting_test.go::TestRFC8907StartTimeIsEpochSeconds": "05f7a1f59bd3f453",
+    "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907StopTimeIgnoresLocalZone": "46db4b1cef137e88",
+    "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907StopTimeIsEpochSeconds": "d4452373c871d278"
+  },
+  "verdict": "enforced"
+}

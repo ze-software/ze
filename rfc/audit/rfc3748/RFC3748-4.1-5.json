@@ -1,0 +1,13 @@
+{
+  "note": "Clauses: the Response Type matches the Request; or it is a Nak for an unacceptable Type. Clause 1: resp.Type != requests[i].Type fails over the flight. Clause 2 and the forbidden case (answering an unacceptable Type with a non-Nak): a Type-99 Request fails on res.Err, no Response, Response.Type != TypeNAK, or Type-Data != [MS-CHAPv2].",
+  "requirement_sha": "523536c2d5fae6d1",
+  "tests": {
+    "internal/core/eap/rfc3748_walk_test.go::TestRFC3748ResponseTypeMatchesRequest": "08e46d8cbdf7058a",
+    "internal/core/eap/rfc3748_walk_test.go::TestRFC3748ResponseTypeMatchesRequest#2": "08e46d8cbdf7058a"
+  },
+  "units": {
+    "internal/core/eap/rfc3748_walk_test.go::TestRFC3748ResponseTypeMatchesRequest": "cbef4f28c94dea38",
+    "internal/core/eap/rfc3748_walk_test.go::TestRFC3748ResponseTypeMatchesRequest#2": "cbef4f28c94dea38"
+  },
+  "verdict": "enforced"
+}

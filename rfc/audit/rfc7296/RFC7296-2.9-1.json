@@ -1,0 +1,35 @@
+{
+  "code": {
+    "internal/component/ike/engine/ts_narrow.go::closedSubset": "16360f376346ca62",
+    "internal/component/ike/engine/ts_narrow.go::floorWithinProposal": "0d2fb71acab037ab",
+    "internal/component/ike/engine/ts_narrow.go::pairWithinAny": "e1aced2ec1016aae",
+    "internal/component/ike/engine/ts_narrow.go::selectorWithin": "fdd126589416984c"
+  },
+  "note": "Re-judged 2026-10-20 (independent judge, after d5af024e2a, e52de83fbd, f69b6cace8, d822d12769, 7f4f79d49e; HEAD 818c9edb34). Section 2.9: \"When the responder chooses a subset of the traffic proposed by the initiator, it narrows the Traffic Selectors to some subset of the initiator's proposal (provided the set does not become the null set).\" The judge12 gap is closed at the producer: floorWithinProposal now keeps a floor pair only when pairWithinAny(f, crossPairs(proposedI, proposedR)) holds, i.e. one proposed combination covers both halves in prefix (containsNet), port (intersectPort yields inner) and protocol (intersectProto yields inner) via selectorWithin; coveredBy is deleted and has no caller. A floor not inside the proposal falls through to ordinary narrowing, and coversFloor then refuses with TS_UNACCEPTABLE, so a rekey answer is never wider than the proposal and never narrower than the scope in use. Kept floor pairs still pass closedSubset before pairsToWire, so the wire answer and sa.NegotiatedPairs agree. Other paths re-checked: fresh Child SA and CREATE_CHILD_SA (acceptablePairs: intersection with policy, or the combination itself unconfigured, disjoint protocols dropped), transport mode (keepSingleAddress, oneTransportPair after the floor), initiator adoption (checkAnswerWithin against ProposedChildPairs), MOBIKE and VPP (no selector source of their own). TestRFC7296RekeyFloorIsAnsweredOnlyInsideTheProposal asserts the any/any floor answered exactly to a 10/8 any/any proposal (one pair, prefixes, port, protocol) and TS_UNACCEPTABLE with no recorded pair for a TCP/80 proposal over the same prefixes: claims match the body; positive and negative mutant records on floorWithinProposal present. Finding, verdict-neutral: selectorWithin compares each half's own protocol, so a floor recorded as (TSi TCP, TSr any) against a proposal (TSi any, TSr TCP), the same TCP flow, is refused rather than answered: an over-refusal, never a widening. Tests PASS with -race at HEAD.",
+  "requirement_sha": "c05dbf88d2b667b3",
+  "tests": {
+    "internal/component/ike/engine/rfc7296_child_rekey_initiator_answer_test.go::TestChildRekeyInitiatorInstallsTheAnsweredSelectors": "898df03dba5c2897",
+    "internal/component/ike/engine/rfc7296_child_rekey_initiator_answer_test.go::TestChildRekeyInitiatorInstallsTheAnsweredSelectors#2": "898df03dba5c2897",
+    "internal/component/ike/engine/rfc7296_rekey_floor_scope_test.go::TestRFC7296RekeyFloorIsAnsweredOnlyInsideTheProposal": "803557ad2e523b40",
+    "internal/component/ike/engine/rfc7296_rekey_floor_scope_test.go::TestRFC7296RekeyFloorIsAnsweredOnlyInsideTheProposal#2": "803557ad2e523b40",
+    "internal/component/ike/engine/rfc7296_transport_test.go::TestResponderNarrowsBothSelectorsToPolicy": "fabd90e9a9b5f392",
+    "internal/component/ike/engine/rfc7296_transport_test.go::TestResponderNarrowsBothSelectorsToPolicy#2": "fabd90e9a9b5f392",
+    "internal/component/ike/engine/rfc7296_transport_test.go::TestTSUnacceptableIsSentWhenNothingIsAcceptable": "fabd90e9a9b5f392",
+    "internal/component/ike/engine/rfc7296_transport_test.go::TestTSUnacceptableIsSentWhenNothingIsAcceptable#2": "fabd90e9a9b5f392",
+    "internal/component/ike/engine/rfc7296_ts_combinations_test.go::TestRFC7296ResponderAnswersOnlyCombinationsItChose": "85fb834418fe48f0",
+    "internal/component/ike/engine/rfc7296_ts_combinations_test.go::TestRFC7296ResponderAnswersOnlyCombinationsItChose#2": "85fb834418fe48f0"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7296_child_rekey_initiator_answer_test.go::TestChildRekeyInitiatorInstallsTheAnsweredSelectors": "5e722d58e9accc2b",
+    "internal/component/ike/engine/rfc7296_child_rekey_initiator_answer_test.go::TestChildRekeyInitiatorInstallsTheAnsweredSelectors#2": "5e722d58e9accc2b",
+    "internal/component/ike/engine/rfc7296_rekey_floor_scope_test.go::TestRFC7296RekeyFloorIsAnsweredOnlyInsideTheProposal": "5bfa13685406fd3b",
+    "internal/component/ike/engine/rfc7296_rekey_floor_scope_test.go::TestRFC7296RekeyFloorIsAnsweredOnlyInsideTheProposal#2": "5bfa13685406fd3b",
+    "internal/component/ike/engine/rfc7296_transport_test.go::TestResponderNarrowsBothSelectorsToPolicy": "6d7e563cac21a8a0",
+    "internal/component/ike/engine/rfc7296_transport_test.go::TestResponderNarrowsBothSelectorsToPolicy#2": "6d7e563cac21a8a0",
+    "internal/component/ike/engine/rfc7296_transport_test.go::TestTSUnacceptableIsSentWhenNothingIsAcceptable": "799b2ff1ee595ed2",
+    "internal/component/ike/engine/rfc7296_transport_test.go::TestTSUnacceptableIsSentWhenNothingIsAcceptable#2": "799b2ff1ee595ed2",
+    "internal/component/ike/engine/rfc7296_ts_combinations_test.go::TestRFC7296ResponderAnswersOnlyCombinationsItChose": "17a5187c318e24c4",
+    "internal/component/ike/engine/rfc7296_ts_combinations_test.go::TestRFC7296ResponderAnswersOnlyCombinationsItChose#2": "17a5187c318e24c4"
+  },
+  "verdict": "enforced"
+}

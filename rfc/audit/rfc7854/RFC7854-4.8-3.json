@@ -1,0 +1,13 @@
+{
+  "note": "First verdict 2026-09-29. Positive rfc7854_message_layout_test.go::TestRFC7854StatsReportCountNamesTheCountersThatFollow: the 4-octet count at octet 48 equals 3 and exactly three counter TLVs, walked by hand, run to the end with the input types and values. Negative ::TestRFC7854StatsReportCountDisagreeingWithItsCountersIsRefused: the valid report is first accepted, then count+1 (truncated entry) and count-1 (trailing data) are each refused by decodeStatisticsReport.",
+  "requirement_sha": "e9b2e3e5e8e1814b",
+  "tests": {
+    "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854StatsReportCountDisagreeingWithItsCountersIsRefused": "cd090a49b8ac15b0",
+    "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854StatsReportCountNamesTheCountersThatFollow": "cd090a49b8ac15b0"
+  },
+  "units": {
+    "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854StatsReportCountDisagreeingWithItsCountersIsRefused": "401b9ffa12005b7d",
+    "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854StatsReportCountNamesTheCountersThatFollow": "08d98b0054e0521c"
+  },
+  "verdict": "enforced"
+}

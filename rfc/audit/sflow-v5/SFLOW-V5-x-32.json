@@ -1,0 +1,13 @@
+{
+  "note": "positive: every counter unavailable on the first poll is still the sentinel on a poll with different statistics; negative: available counters stay available on a later zero-valued poll",
+  "requirement_sha": "cef80825d6fcc5fc",
+  "tests": {
+    "internal/plugins/flowexport/sflow_v5_counters_test.go::TestSFlowV5AvailableCountersNeverTurnUnavailable": "763d88a16419f274",
+    "internal/plugins/flowexport/sflow_v5_counters_test.go::TestSFlowV5UnavailableCountersCarrySentinelEveryPoll": "763d88a16419f274"
+  },
+  "units": {
+    "internal/plugins/flowexport/sflow_v5_counters_test.go::TestSFlowV5AvailableCountersNeverTurnUnavailable": "b04a9e934cca7756",
+    "internal/plugins/flowexport/sflow_v5_counters_test.go::TestSFlowV5UnavailableCountersCarrySentinelEveryPoll": "6528f60c8c92d034"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,15 @@
+{
+  "note": "The pair over TestConfiguredPathsLimitOpen is a strong test of half the sentence and nothing tests the other half. What it checks: the container knob `session > capability > add-path > limit`, the per-family override, and the interaction with disabled, refused and required families decide the tuples encoded in the OPEN, with an omitted limit advertising none and a disabled or refused family unable to carry an orphan tuple. parseAddPathFromTree (internal/component/bgp/reactor/config_capabilities.go) derives the tuples from addPath.Families, the same slice that reaches the wire. What nothing checks, because no code does it: the draft asks for a knob that specifies \"the maximum number of paths to accept from a sender\", and ze's knob states a number to the peer without bounding what ze accepts. EncodingCaps.PathsLimitRecv is read by internal/core/bgp/context/context.go, internal/component/bgp/format/json.go and internal/component/bgp/reactor/negotiated.go, all of which carry it into a negotiated context or into show output, and no reader drops a received path above it. A peer that ignores the request is not policed. The verdict is weak rather than enforced because the tag ties this body to the whole requirement, and the reading under which \"accept\" means local enforcement is not proven by anything. The absent behavior is disclosed on the summary's Support remaining row. No discrimination record was written, because the owner's open decision on building the receive side can reword this claim, and rewording stales a record. Re-judged 2026-09-27 by QF-2 after the row was replaced by the verbatim \u00a73 sentence; the obligation is the one the note above judged, and the tagged units are unchanged. Weak stands: the receive-side clause, 'the maximum number of paths to accept from a sender', has no enforcing code and no assertion.",
+  "requirement_sha": "02645766ca857604",
+  "tests": {
+    "internal/component/bgp/reactor/config_test.go::TestParsePeerCapabilityPathsLimit": "51ed6b39f4291bcc",
+    "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_config_test.go::TestConfiguredPathsLimitOpen": "a6ede23ac2972069",
+    "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_config_test.go::TestConfiguredPathsLimitOpen#2": "a6ede23ac2972069"
+  },
+  "units": {
+    "internal/component/bgp/reactor/config_test.go::TestParsePeerCapabilityPathsLimit": "373e6f57b2e78b02",
+    "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_config_test.go::TestConfiguredPathsLimitOpen": "adcfd3f308d14d77",
+    "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_config_test.go::TestConfiguredPathsLimitOpen#2": "adcfd3f308d14d77"
+  },
+  "verdict": "weak"
+}

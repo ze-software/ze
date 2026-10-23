@@ -1,0 +1,17 @@
+{
+  "note": "Judge 2026-09-30 (rejudge, 6-2 + rest). Transmit: IPv4 IP_TTL 255 (TestRFC5880SingleHopTransmitTTLIsMaximum) and NEW IPv6 IPV6_UNICAST_HOPS 255 on a [::1] single-hop socket (TestRFC5880SingleHopTransmitHopLimitIsMaximumIPv6; record revert udp_linux.go::applySocketOptionsV6 observed red). Receive: NEW + TestRFC5880SingleHopReceiveTTLMaxAccepted (TTL 255 delivered, RemoteDiscr set; record revert loop.go::passesTTLGate observed red) beside - TestRFC5880SingleHopReceiveTTLNotMaxDiscarded, so a gate dropping every packet now goes red. Both audit gaps closed.",
+  "requirement_sha": "32139905e0aec449",
+  "tests": {
+    "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880SingleHopReceiveTTLNotMaxDiscarded": "4b885928a870b00d",
+    "internal/component/bfd/engine/rfc5880_ttl_accept_test.go::TestRFC5880SingleHopReceiveTTLMaxAccepted": "eee5a7ceba7a97b3",
+    "internal/component/bfd/transport/rfc5880_hop_limit_linux_test.go::TestRFC5880SingleHopTransmitHopLimitIsMaximumIPv6": "950e4412e4c4be74",
+    "internal/component/bfd/transport/rfc5880_test.go::TestRFC5880SingleHopTransmitTTLIsMaximum": "d9ac1972be20f3fd"
+  },
+  "units": {
+    "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880SingleHopReceiveTTLNotMaxDiscarded": "9c9e8bc6130799ea",
+    "internal/component/bfd/engine/rfc5880_ttl_accept_test.go::TestRFC5880SingleHopReceiveTTLMaxAccepted": "3fc8491386083cad",
+    "internal/component/bfd/transport/rfc5880_hop_limit_linux_test.go::TestRFC5880SingleHopTransmitHopLimitIsMaximumIPv6": "e56530bc5e753eba",
+    "internal/component/bfd/transport/rfc5880_test.go::TestRFC5880SingleHopTransmitTTLIsMaximum": "ef87de200994320f"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "positive cases local-smaller, peer-smaller and equal would fail on max() or on always-local; the negative (zero from either side) is a mirror of min rather than a violating input",
+  "requirement_sha": "0293569d42ba01ee",
+  "tests": {
+    "internal/component/bgp/reactor/session_negotiate_test.go::TestNegotiateWith_HoldTimeMinOfBoth": "5e06b3254d47b99a",
+    "internal/component/bgp/reactor/session_negotiate_test.go::TestNegotiateWith_HoldTimeZero": "5e06b3254d47b99a"
+  },
+  "units": {
+    "internal/component/bgp/reactor/session_negotiate_test.go::TestNegotiateWith_HoldTimeMinOfBoth": "baaabc2177269ec9",
+    "internal/component/bgp/reactor/session_negotiate_test.go::TestNegotiateWith_HoldTimeZero": "3f7238095fc6370d"
+  },
+  "verdict": "enforced"
+}

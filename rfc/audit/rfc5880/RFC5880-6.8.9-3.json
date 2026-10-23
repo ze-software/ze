@@ -1,0 +1,19 @@
+{
+  "note": "Judge rejudge 2026-09-30 (bfd engine 2). Engine TestRFC5880EchoSteadySpacingHonorsPeerFloor: local 10 ms, peer 50 ms, no floor change; ticks at 1..49 ms send nothing, 50 ms sends. The targeted break the earlier note named, AdvanceEcho scheduling from DesiredMinEchoTxInterval alone, observed red (echo at 10 ms). Earlier engine and session units unchanged.",
+  "requirement_sha": "35cb2ed06a7d9aac",
+  "tests": {
+    "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880EchoSteadySpacingHonorsPeerFloor": "836d84530c95a8b2",
+    "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880EchoLoweredPeerFloorTakesEffect": "4b885928a870b00d",
+    "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880EchoRaisedPeerFloorDelaysNextEcho": "4b885928a870b00d",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoIntervalHonorsPeerFloor": "8db25cbb4534cc2d",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoIntervalNotBelowLocalTarget": "8db25cbb4534cc2d"
+  },
+  "units": {
+    "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880EchoSteadySpacingHonorsPeerFloor": "004978766e2e2801",
+    "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880EchoLoweredPeerFloorTakesEffect": "2cc5ecb7d17b7c4c",
+    "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880EchoRaisedPeerFloorDelaysNextEcho": "9a4d9ee1dfa10ebb",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoIntervalHonorsPeerFloor": "3b130b5725590d1c",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoIntervalNotBelowLocalTarget": "0066822a29f8a670"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4303-1-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/config_ipsec_test.go::TestIPsecESPRequiresIntegrity",
+    "unit-sha": "effaf30cc29ec955",
+    "claim-sha": "1423e7346a83b540",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/config_ipsec.go::validateESPConfidentiality",
+    "producer-sha": "6c765386d4847d11",
+    "break": "body of validateESPConfidentiality replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4303-1-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/rfc4303_esp_test.go::TestRFC4303IntegrityOnlyESPIsConfigurable",
+    "unit-sha": "ebcc10693727afa9",
+    "claim-sha": "bd6313c74729cefc",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/config_ipsec.go::validateESPConfidentiality",
+    "producer-sha": "6c765386d4847d11",
+    "break": "body of validateESPConfidentiality replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

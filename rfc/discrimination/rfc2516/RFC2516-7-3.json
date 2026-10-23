@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC2516-7-3",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516SessionDownSendsPADTForThatSession",
+    "unit-sha": "00129df8d04b190c",
+    "claim-sha": "df4311055ac1c701",
+    "route": "revert",
+    "producer": "internal/component/l2tp/pppoe/server.go::handleSessionDown",
+    "producer-sha": "a8d6a73d7a8023a9",
+    "break": "body of handleSessionDown replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2516-7-3",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516UnknownSessionIDTerminatesNothing",
+    "unit-sha": "049ac162d809dfa4",
+    "claim-sha": "4fd7e4485119badc",
+    "route": "revert",
+    "producer": "internal/component/l2tp/pppoe/server.go::handleSessionDown",
+    "producer-sha": "a8d6a73d7a8023a9",
+    "break": "body of handleSessionDown replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2516-7-3",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go::TestRFC2516HostKeepsTheSessionUntilLCPTerminates",
+    "unit-sha": "06803a96b5c406f4",
+    "claim-sha": "024dcca280653fe1",
+    "route": "revert",
+    "producer": "internal/component/l2tp/pppoeclient/network_phase.go::keepaliveLoop",
+    "producer-sha": "812f0cf68b9c6738",
+    "break": "body of keepaliveLoop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2516-7-3",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go::TestRFC2516HostStopsUsingTheSessionWhenLCPTerminates",
+    "unit-sha": "25860d4b4992e878",
+    "claim-sha": "ae425c3a25ba84f0",
+    "route": "revert",
+    "producer": "internal/component/l2tp/pppoeclient/dialer.go::superviseNetworkPhase",
+    "producer-sha": "3a4e756a1319dbe2",
+    "break": "body of superviseNetworkPhase replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged 2026-10-21 (round 5 judge). New TestRFC2328SummaryFlushedWhenDeletedOrNoLongerAdvertisableToArea drives OriginateSummaries into a real LSDB: a deleted 10.20.0.0/24 goes to MaxAge and a MaxAge LS Update leaves eth1 while 10.10.0.0/24 stays; when area 0.0.0.2 turns totally stubby its 10.10.0.0/24 summary is flushed and reflooded on eth2 alone, area 0.0.0.1 keeps it below MaxAge with no MaxAge flood. lsdb pair keeps the kept-key negative. Records on FlushStaleSummaryLSAs.",
+  "requirement_sha": "b3e053c740f29b83",
+  "tests": {
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328AdvertisedSummaryNotFlushed": "c4cd81c5b8b7e97a",
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328WithdrawnSummaryFlushedAtMaxAge": "c4cd81c5b8b7e97a",
+    "internal/plugins/ospf/spf/rfc2328_summary_flush_condense_test.go::TestRFC2328SummaryFlushedWhenDeletedOrNoLongerAdvertisableToArea": "0f7a6f96f747c9f1"
+  },
+  "units": {
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328AdvertisedSummaryNotFlushed": "4ed2e5c04af1428f",
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328WithdrawnSummaryFlushedAtMaxAge": "558255b279e86880",
+    "internal/plugins/ospf/spf/rfc2328_summary_flush_condense_test.go::TestRFC2328SummaryFlushedWhenDeletedOrNoLongerAdvertisableToArea": "c26effaec48d33a7"
+  },
+  "verdict": "enforced"
+}

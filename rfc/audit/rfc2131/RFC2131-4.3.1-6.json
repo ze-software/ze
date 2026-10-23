@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: a requested parameter included more than once in a reply (no option ze emits is one the options document allows to repeat). TestEachParameterEmittedOnce counts every option code in the OFFER and ACK with replyOptionCounts and fails on n != 1 (positive); the negative tag sends a DISCOVER whose parameter request list repeats router, DNS and subnet mask, carries a second PRL and an echoed router option, to both a plain and a PXE server, and fails on any option count other than 1, so a duplicated parameter goes red.",
+  "requirement_sha": "6eb6db99deee48c2",
+  "tests": {
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestEachParameterEmittedOnce": "8365c04cdfc2a046",
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestEachParameterEmittedOnce#2": "8365c04cdfc2a046"
+  },
+  "units": {
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestEachParameterEmittedOnce": "52c7fb2820f127ef",
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestEachParameterEmittedOnce#2": "52c7fb2820f127ef"
+  },
+  "verdict": "enforced"
+}

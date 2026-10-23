@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged 2026-10-18 (independent auditor, after 2e4be94ae3). Read at rfc/full/rfc7950.txt Section 9.1: \"If the data type does not have a canonical form, the format of the value MUST match the data type's lexical representation, but the exact format is implementation dependent.\" The types are identityref (Section 9.10.4) and instance-identifier (Section 9.13.3). Both prior findings are fixed. (1) Section 9.13.2 \"All node names in an instance-identifier value MUST be qualified with explicit namespace prefixes\": checkInstanceKeyPrefix now refuses an unprefixed or foreign key prefix; TestRFC7950InstanceIdentifierKeyPrefix (negative) asserts both messages and the accepted rf:name form, and overlay mutants dropping the empty-prefix branch and the entryPrefixed branch each turned it red. (2) Cascade confounding: TestRFC7950IdentityrefFormat now asserts the format check's own message, and TestRFC7950InstanceIdentifierLexical asserts 'not an instance-identifier' for rf:sys and the unprefixed-node message for /sys/mgmt; overlay mutants removing the identifierRefLength check and the leading-slash check turned each red. A probe of further malformed values (rf:1aes, rf:, :aes, trailing space, //rf:sys, an unquoted key value, [0], mismatched and embedded quotes, a space between steps) found each refused with ErrTypeType.",
+  "requirement_sha": "5197d685cf9f142a",
+  "tests": {
+    "internal/component/config/yang/rfc7950_reference_test.go::TestRFC7950IdentityrefFormat": "7a99f94316d0bbbd",
+    "internal/component/config/yang/rfc7950_reference_test.go::TestRFC7950InstanceIdentifierLexical": "7a99f94316d0bbbd",
+    "internal/component/config/yang/rfc7950_reference_walk_test.go::TestRFC7950InstanceIdentifierKeyPrefix": "3f6eac60c1ecbc0c"
+  },
+  "units": {
+    "internal/component/config/yang/rfc7950_reference_test.go::TestRFC7950IdentityrefFormat": "4f5b5bf5fde7c377",
+    "internal/component/config/yang/rfc7950_reference_test.go::TestRFC7950InstanceIdentifierLexical": "e8cd22642eb65df8",
+    "internal/component/config/yang/rfc7950_reference_walk_test.go::TestRFC7950InstanceIdentifierKeyPrefix": "21da8ce3a1548daf"
+  },
+  "verdict": "enforced"
+}

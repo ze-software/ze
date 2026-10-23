@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2205-3.1.5-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205PathTearAddressedFromSenderToSession",
+    "unit-sha": "19bdba6210426ee8",
+    "claim-sha": "e34270b2377b08bb",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/reroute.go::pathTearLocked",
+    "producer-sha": "c52ba35b9241f646",
+    "break": "body of pathTearLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2205-3.1.5-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205PathTearSourceNotTakenFromCarrier",
+    "unit-sha": "040778c21c82562f",
+    "claim-sha": "c8fbf15c10b6df3e",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/reroute.go::pathTearLocked",
+    "producer-sha": "c52ba35b9241f646",
+    "break": "body of pathTearLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

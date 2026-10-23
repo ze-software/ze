@@ -1,0 +1,17 @@
+{
+  "note": "Judged 2026-09-29 (routing child, continuation judge). Positive TestRFC4090NodeBitSetWhenNodeProtectionProvided: node request with an NNHOP bypass armed relays 0x08. Negative TestRFC4090NodeBitClearWhenNodeProtectionNotProvided: node request with only an NHOP bypass up relays 0x08 clear; its record breaks selectBypass, the guard that keeps rroProtectionFlags (which reads the request bit) from claiming node protection over a link bypass. Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 4.4 and the enforced verdict holds unchanged.",
+  "requirement_sha": "0f887a40579fd314",
+  "tests": {
+    "internal/plugins/rsvpte/frr_test.go::TestRROProtectionFlagsReflectState": "9e1595a34e264d7e",
+    "internal/plugins/rsvpte/frr_test.go::TestRROProtectionFlagsReflectState#2": "9e1595a34e264d7e",
+    "internal/plugins/rsvpte/rfc4090_plr_flags_test.go::TestRFC4090NodeBitClearWhenNodeProtectionNotProvided": "8d4223b7e1a9680f",
+    "internal/plugins/rsvpte/rfc4090_plr_flags_test.go::TestRFC4090NodeBitSetWhenNodeProtectionProvided": "8d4223b7e1a9680f"
+  },
+  "units": {
+    "internal/plugins/rsvpte/frr_test.go::TestRROProtectionFlagsReflectState": "9508a9ff6c4a2645",
+    "internal/plugins/rsvpte/frr_test.go::TestRROProtectionFlagsReflectState#2": "9508a9ff6c4a2645",
+    "internal/plugins/rsvpte/rfc4090_plr_flags_test.go::TestRFC4090NodeBitClearWhenNodeProtectionNotProvided": "7eca39f9aafc63ad",
+    "internal/plugins/rsvpte/rfc4090_plr_flags_test.go::TestRFC4090NodeBitSetWhenNodeProtectionProvided": "5bec81bfc9b0dba0"
+  },
+  "verdict": "enforced"
+}

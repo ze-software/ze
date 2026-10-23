@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-21 (round 5 judge). Positive: a withdrawn summary received again at a higher sequence stays at MaxAge in the database with the received sequence (Section 14.1) and a MaxAge LS Update is reflooded; a network-LSA with an own address and another Advertising Router is flushed at MaxAge and reflooded. Negative: a still-originated router-LSA is re-originated at received+1 below MaxAge and never flooded at MaxAge. Records on flushReceivedSelfLSA and handleSelfReceived.",
+  "requirement_sha": "241f5e2dbbf54732",
+  "tests": {
+    "internal/plugins/ospf/lsdb/rfc2328_self_flush_test.go::TestRFC2328SelfOriginatedNoLongerWantedIsFlushed": "1f5af38eb92ae9fa",
+    "internal/plugins/ospf/lsdb/rfc2328_self_flush_test.go::TestRFC2328SelfOriginatedStillWantedIsNotFlushed": "1f5af38eb92ae9fa"
+  },
+  "units": {
+    "internal/plugins/ospf/lsdb/rfc2328_self_flush_test.go::TestRFC2328SelfOriginatedNoLongerWantedIsFlushed": "8de5315ee9786dd3",
+    "internal/plugins/ospf/lsdb/rfc2328_self_flush_test.go::TestRFC2328SelfOriginatedStillWantedIsNotFlushed": "a26dd49abe6aa166"
+  },
+  "verdict": "enforced"
+}

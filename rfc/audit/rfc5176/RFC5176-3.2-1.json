@@ -1,0 +1,13 @@
+{
+  "note": "(a) forbidden: answering an Authorize Only CoA-Request with a CoA-ACK, or not NAKing an unsupported Authorize Only. (b) TestRFC5176ServiceTypeNAKed wantNAK(CoA-NAK, 405) and zero events for Service-Type 17; the same request without Service-Type is ACKed.",
+  "requirement_sha": "1fc697be0d66efdb",
+  "tests": {
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ServiceTypeNAKed": "2b3357f1f1e8ec93",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ServiceTypeNAKed#2": "2b3357f1f1e8ec93"
+  },
+  "units": {
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ServiceTypeNAKed": "3dacc1223c7fc1fe",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ServiceTypeNAKed#2": "3dacc1223c7fc1fe"
+  },
+  "verdict": "enforced"
+}

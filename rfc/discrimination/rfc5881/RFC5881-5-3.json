@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC5881-5-3",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/engine/rfc5881_ttl_wire_linux_test.go::TestRFC5881AuthenticatedControlBelow255IsDiscardedOffTheWire",
+    "unit-sha": "6ebb3fe9b4eacb2f",
+    "claim-sha": "da025482d7dae162",
+    "route": "revert",
+    "producer": "internal/component/bfd/engine/loop.go::passesTTLGate",
+    "producer-sha": "1fb7bea19248a34f",
+    "break": "body of passesTTLGate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5881-5-3",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/transport/rfc5881_ttl_wire_linux_test.go::TestRFC5881ControlLeavesWithTTL255OnTheWire",
+    "unit-sha": "ffc1a13de60917e3",
+    "claim-sha": "fc32b66097173a10",
+    "route": "revert",
+    "producer": "internal/component/bfd/transport/udp_linux.go::applySocketOptions",
+    "producer-sha": "018c89e51ff3391c",
+    "break": "body of applySocketOptions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5881-5-3",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/transport/rfc5881_udp_ttl_linux_test.go::TestUDPSetOutboundTTL255",
+    "unit-sha": "d7404fece48ebc3a",
+    "claim-sha": "4feeabf2aa104609",
+    "route": "revert",
+    "producer": "internal/component/bfd/transport/udp_linux.go::applySocketOptions",
+    "producer-sha": "018c89e51ff3391c",
+    "break": "body of applySocketOptions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

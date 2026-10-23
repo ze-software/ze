@@ -1,0 +1,13 @@
+{
+  "note": "RFC 7606 (Updates: 4271) revises this: the error is handled by treat-as-withdraw, so no NOTIFICATION, subcode or Data field is sent. multicast NEXT_HOP 224.0.0.1 (not a valid host address) withdraws the prefix exactly (7.3); unicast NEXT_HOP announces it",
+  "requirement_sha": "1e31ca92b16e9768",
+  "tests": {
+    "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "fdc816af536ef714",
+    "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "fdc816af536ef714"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "d80d6195ec19508d",
+    "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "d80d6195ec19508d"
+  },
+  "verdict": "enforced"
+}

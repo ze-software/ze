@@ -1,0 +1,17 @@
+{
+  "note": "Both triggers: authenticator failure indication on TestRFC3748PeerEndsAnUnsuccessfulConversation (unproven legacy); peer-decides trigger on TestRFC3748PeerEndsAConversationItRefuses: a wrong Authenticator Response gives Err, no ack, a following EAP-Success concludes nothing with zero MSK and Succeeded false (peer.go handleMSCHAPv2Success sets peerStateFailed, Process discards). Negative: the matching value is acked and concludes.",
+  "requirement_sha": "94f11ea8c917b866",
+  "tests": {
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748PeerEndsAConversationItRefuses": "8ca42a58d78f22be",
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748PeerEndsAConversationItRefuses#2": "8ca42a58d78f22be",
+    "internal/core/eap/rfc3748_walk_test.go::TestRFC3748PeerEndsAnUnsuccessfulConversation": "08e46d8cbdf7058a",
+    "internal/core/eap/rfc3748_walk_test.go::TestRFC3748PeerEndsAnUnsuccessfulConversation#2": "08e46d8cbdf7058a"
+  },
+  "units": {
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748PeerEndsAConversationItRefuses": "bb1d3b2d7c7bbaff",
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748PeerEndsAConversationItRefuses#2": "bb1d3b2d7c7bbaff",
+    "internal/core/eap/rfc3748_walk_test.go::TestRFC3748PeerEndsAnUnsuccessfulConversation": "ace2b57ff667bfb8",
+    "internal/core/eap/rfc3748_walk_test.go::TestRFC3748PeerEndsAnUnsuccessfulConversation#2": "ace2b57ff667bfb8"
+  },
+  "verdict": "enforced"
+}

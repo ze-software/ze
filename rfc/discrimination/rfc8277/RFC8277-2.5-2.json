@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC8277-2.5-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/rfc8277_same_next_hop_test.go::TestRFC8277AddPathSameNextHopKeepsIndependentLabels",
+    "unit-sha": "d87036deda894922",
+    "claim-sha": "e84a396b0cfc7edd",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/storage/pathset.go::setLabels",
+    "producer-sha": "0942c1ada067298a",
+    "break": "body of setLabels replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8277-2.5-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rib/rfc8277_same_next_hop_test.go::TestRFC8277AddPathSameNextHopKeepsIndependentLabels",
+    "unit-sha": "d87036deda894922",
+    "claim-sha": "3c0927b8d2f01e53",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/storage/pathset.go::setLabels",
+    "producer-sha": "0942c1ada067298a",
+    "break": "body of setLabels replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8277-2.5-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/rfc8277_test.go::TestRFC8277AddPathLabelsBoundPerPath",
+    "unit-sha": "138226a7a344adcf",
+    "claim-sha": "e96864f59012e3e5",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/storage/pathset.go::setLabels",
+    "producer-sha": "0942c1ada067298a",
+    "break": "body of setLabels replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,15 @@
+{
+  "note": "c20 judge: discard without ack and keep the earlier copy proven by TestRFC2328MinLSArrivalDiscardsWithoutAck (negative) and the elapsed case by TestRFC2328MinLSArrivalElapsedAccepts; the 'examine the next LSA' clause now by TestRFC2328TooSoonDiscardThenNextLSAExamined: one LS Update [too-soon 4.4.4.4, new 5.5.5.5], 4.4.4.4 keeps its sequence and is not flooded, 5.5.5.5 installed, flooded and the ONLY header acknowledged. Author overlay (continue->return on the TooSoon branch) red on the new unit only; revert record on ReceiveUpdate.",
+  "requirement_sha": "9ee1607ecf336df6",
+  "tests": {
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328MinLSArrivalDiscardsWithoutAck": "c4cd81c5b8b7e97a",
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328MinLSArrivalElapsedAccepts": "c4cd81c5b8b7e97a",
+    "internal/plugins/ospf/lsdb/rfc2328_too_soon_next_lsa_test.go::TestRFC2328TooSoonDiscardThenNextLSAExamined": "9f565246782fd8b5"
+  },
+  "units": {
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328MinLSArrivalDiscardsWithoutAck": "1ccde6bf0d86f810",
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328MinLSArrivalElapsedAccepts": "b2715cbf4447154a",
+    "internal/plugins/ospf/lsdb/rfc2328_too_soon_next_lsa_test.go::TestRFC2328TooSoonDiscardThenNextLSAExamined": "fe95d7b24c6504c5"
+  },
+  "verdict": "enforced"
+}

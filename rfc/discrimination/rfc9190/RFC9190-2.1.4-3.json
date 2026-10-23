@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9190-2.1.4-3",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc9190_handshake_rules_test.go::TestEAPTLS13CompletedExchangeCarriesNoAlert",
+    "unit-sha": "bada471cecb0ac12",
+    "claim-sha": "be73ca420e533baf",
+    "route": "revert",
+    "producer": "internal/core/eap/eap_tls.go::Process",
+    "producer-sha": "a7122cb1288ea14a",
+    "break": "body of Process replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9190-2.1.4-3",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc9190_handshake_rules_test.go::TestEAPTLS13FatalErrorSendsATLSAlert",
+    "unit-sha": "5c80c3a2275da2d7",
+    "claim-sha": "b56b3339ca914a7b",
+    "route": "revert",
+    "producer": "internal/core/eap/eap_tls.go::Process",
+    "producer-sha": "a7122cb1288ea14a",
+    "break": "body of Process replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

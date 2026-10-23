@@ -1,0 +1,19 @@
+{
+  "note": "Rejudged 2026-09-29. With the old units, every text field Ze writes or reads is now refused on NUL, 0x1f, DEL and a non-ASCII byte: authentication port/rem_addr, authorization port/rem_addr/argument, accounting port/rem_addr/argument, authentication reply server_msg, authorization reply server_msg/data/argument, accounting reply server_msg/data (RFC 6.2/7.2 route those data fields to Section 3.7). Negative request cases leave every other field empty/valid, so validateText is the refusing check. Authentication reply data and START/CONTINUE data are correctly excluded (not a printable text encoding). Positive TestRFC8907PrintableTextInEveryField carries all 95 printable characters through each field. Rejudged 2026-10-10 after the validated-construction spec (9cbd3485ca, eaff5d644b, 7c25971594): the changed units only retype the registered handler from []string to command.ValidatedArgs (args read back through Tokens(), a clone of the dispatched tokens) and rename a local const command to commandName; every assertion, input and expected accounting/wire value is byte-identical, so the judgement above stands.",
+  "requirement_sha": "c4518c7c60c9828f",
+  "tests": {
+    "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907ControlCharactersRefusedInEveryField": "fb302ebfa0d9b135",
+    "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907PrintableTextInEveryField": "fb302ebfa0d9b135",
+    "internal/component/tacacs/rfc8907_dispatch_wire_test.go::TestRFC8907TrustedDispatchIdentitiesReachWire": "9a565f1466e18977",
+    "internal/component/tacacs/rfc8907_validation_test.go::TestRFC8907NonPrintableTextRejected": "59ca691aca621600",
+    "internal/component/tacacs/rfc8907_validation_test.go::TestRFC8907PrintableTextRoundTrip": "59ca691aca621600"
+  },
+  "units": {
+    "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907ControlCharactersRefusedInEveryField": "2f78ce5595cd37b7",
+    "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907PrintableTextInEveryField": "3196fc4f383f2370",
+    "internal/component/tacacs/rfc8907_dispatch_wire_test.go::TestRFC8907TrustedDispatchIdentitiesReachWire": "d2f6ac5195cdceda",
+    "internal/component/tacacs/rfc8907_validation_test.go::TestRFC8907NonPrintableTextRejected": "009a3334741c80df",
+    "internal/component/tacacs/rfc8907_validation_test.go::TestRFC8907PrintableTextRoundTrip": "395f1ecdb73e393a"
+  },
+  "verdict": "enforced"
+}

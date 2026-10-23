@@ -1,0 +1,11 @@
+{
+  "note": "collector reads the first message off a live TCP connection and asserts type Initiation; single-polarity marker",
+  "requirement_sha": "b998a062402f9bb5",
+  "tests": {
+    "internal/component/bgp/plugins/bmp/rfc7854_sender_test.go::TestBMPSenderConnects": "b1d529e5dcb7872e"
+  },
+  "units": {
+    "internal/component/bgp/plugins/bmp/rfc7854_sender_test.go::TestBMPSenderConnects": "6fb0f387226d2698"
+  },
+  "verdict": "enforced"
+}

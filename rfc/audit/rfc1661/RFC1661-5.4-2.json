@@ -1,0 +1,23 @@
+{
+  "note": "Sentence: all recognizable and negotiable options are filtered out of the Configure-Reject, but otherwise the options MUST NOT be reordered or modified in any way. (a) Keeping a recognizable option: TestRFC1661ConfigureRejectForUnrecognizedOption sends MRU(1400)+type 99 and bytes.Equal(pkt.Data, optStream(unknown)) goes red if MRU stays. (b) Reordering: TestRFC1661ConfigureRejectDoesNotReorderOptions compares Types in both orders. (c) Modifying: the same test compares each Data, and TestRFC1661LCPRejectEchoesTheRefusedOptionUnmodified / TestRFC1661ClientRejectEchoesTheRefusedOptionUnmodified check the echoed bytes.",
+  "requirement_sha": "725c709d8d815751",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1661_dns_options_test.go::TestRFC1877ConfigureRejectEchoesUnsupportedOnly": "a65c290db4ba68a7",
+    "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPRejectEchoesTheRefusedOptionUnmodified": "2325ea607f732027",
+    "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPRejectEchoesTheRefusedOptionUnmodified#2": "2325ea607f732027",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureRejectDoesNotReorderOptions": "9afaf002f0fd81ec",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureRejectForUnrecognizedOption": "9afaf002f0fd81ec",
+    "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientRejectEchoesTheRefusedOptionUnmodified": "0d3244b2c125eaa3",
+    "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientRejectEchoesTheRefusedOptionUnmodified#2": "0d3244b2c125eaa3"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1661_dns_options_test.go::TestRFC1877ConfigureRejectEchoesUnsupportedOnly": "81d311016702fec4",
+    "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPRejectEchoesTheRefusedOptionUnmodified": "9c86493b35ab748f",
+    "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPRejectEchoesTheRefusedOptionUnmodified#2": "9c86493b35ab748f",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureRejectDoesNotReorderOptions": "73e363618b39fdbb",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureRejectForUnrecognizedOption": "01ea5207dfc1ae98",
+    "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientRejectEchoesTheRefusedOptionUnmodified": "e394fa4de543ba28",
+    "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientRejectEchoesTheRefusedOptionUnmodified#2": "e394fa4de543ba28"
+  },
+  "verdict": "enforced"
+}

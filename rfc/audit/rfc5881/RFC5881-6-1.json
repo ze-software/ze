@@ -1,0 +1,17 @@
+{
+  "note": "Judge 2026-09-30 (rejudge, subnet). \u00a76 \"Implementations MUST ensure that all BFD Control packets are transmitted over the one-hop path being protected by BFD.\" UDP.Send pins single-hop packets on a device-less socket with an IP_PKTINFO/IPV6_PKTINFO ifindex cmsg (pinsToLink, egressLinkOf, pktinfoPin). + TestRFC5881ControlLeavesOnTheProtectedLink; - TestRFC5881ControlNeverFollowsARouteOffTheProtectedLink, - TestRFC5881UnboundLoopControlLeavesOnTheSessionLink (IPv4 /32 detour via o0), and now - TestRFC5881IPv6ControlNeverFollowsARouteOffTheSessionLink (unbound [::], /128 via o0: no frame on o1, one on p1), closing the IPv4-only residual. The Send record went stale with the subnet change and was re-recorded by the judge (observed red); the v6 record reverts pinsToLink. Send failures now Warn once a minute per session (warnSendFailedLocked).",
+  "requirement_sha": "1dbda6fd39343a67",
+  "tests": {
+    "internal/component/bfd/transport/rfc5881_one_hop_path_linux_test.go::TestRFC5881ControlLeavesOnTheProtectedLink": "dd8a6cc8a7382e61",
+    "internal/component/bfd/transport/rfc5881_one_hop_path_linux_test.go::TestRFC5881ControlNeverFollowsARouteOffTheProtectedLink": "dd8a6cc8a7382e61",
+    "internal/component/bfd/transport/rfc5881_one_hop_path_linux_test.go::TestRFC5881UnboundLoopControlLeavesOnTheSessionLink": "dd8a6cc8a7382e61",
+    "internal/component/bfd/transport/rfc5881_one_hop_path_v6_linux_test.go::TestRFC5881IPv6ControlNeverFollowsARouteOffTheSessionLink": "9f7a2e21ac385fbc"
+  },
+  "units": {
+    "internal/component/bfd/transport/rfc5881_one_hop_path_linux_test.go::TestRFC5881ControlLeavesOnTheProtectedLink": "4e88a9a8ab36da3a",
+    "internal/component/bfd/transport/rfc5881_one_hop_path_linux_test.go::TestRFC5881ControlNeverFollowsARouteOffTheProtectedLink": "f4337393245271be",
+    "internal/component/bfd/transport/rfc5881_one_hop_path_linux_test.go::TestRFC5881UnboundLoopControlLeavesOnTheSessionLink": "fd62d363ddde423d",
+    "internal/component/bfd/transport/rfc5881_one_hop_path_v6_linux_test.go::TestRFC5881IPv6ControlNeverFollowsARouteOffTheSessionLink": "4d606a9f1221ca47"
+  },
+  "verdict": "enforced"
+}

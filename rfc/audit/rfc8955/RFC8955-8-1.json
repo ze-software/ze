@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-16: the unit moved verbatim to core rfc8955_vpn_test.go, with only the family identifier renamed (test-local AFI 1/SAFI 134). RFC 8955 Section 8: \"The NLRI format for this address family consists of a fixed-length Route Distinguisher field (8 octets) followed by the Flow Specification NLRI value (Section 4.2).\" The positive decodes RD 100:100 from the 8 octets after the length and the destination component after them, and requires the exact wire back from WriteTo. The negative requires ErrFlowSpecTruncated from core ParseFlowSpecVPN for a length too short to hold the RD.",
+  "requirement_sha": "eb3b19de7abaaff9",
+  "tests": {
+    "internal/core/bgp/nlri/flowspec/rfc8955_vpn_test.go::TestRFC8955VPNNLRIStructure": "ac3a8f469b24e3f2",
+    "internal/core/bgp/nlri/flowspec/rfc8955_vpn_test.go::TestRFC8955VPNNLRIStructure#2": "ac3a8f469b24e3f2"
+  },
+  "units": {
+    "internal/core/bgp/nlri/flowspec/rfc8955_vpn_test.go::TestRFC8955VPNNLRIStructure": "bd95225f6da7c3f4",
+    "internal/core/bgp/nlri/flowspec/rfc8955_vpn_test.go::TestRFC8955VPNNLRIStructure#2": "bd95225f6da7c3f4"
+  },
+  "verdict": "enforced"
+}

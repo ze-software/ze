@@ -1,0 +1,11 @@
+{
+  "note": "Forbidden: an IPFIX UDP datagram sent without a valid UDP checksum. TestRFC7011UDPChecksumEnabledOnSenderSocket (Linux) reads the socket NewSender dials and asserts SO_NO_CHECK clear for IPv4 and UDP_NO_CHECK6_TX clear for IPv6, red if either is set, so the kernel writes the checksum. Single-polarity marker: NewSender never sets either option.",
+  "requirement_sha": "edb4c407110ae739",
+  "tests": {
+    "internal/plugins/flowexport/rfc7011_sender_linux_test.go::TestRFC7011UDPChecksumEnabledOnSenderSocket": "fde3dd6a423425cf"
+  },
+  "units": {
+    "internal/plugins/flowexport/rfc7011_sender_linux_test.go::TestRFC7011UDPChecksumEnabledOnSenderSocket": "4bf2079f343d7eaf"
+  },
+  "verdict": "enforced"
+}

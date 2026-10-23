@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC3748-4.2-10",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc3748_result_indication_test.go::TestRFC3748NoTerminalPacketLeavesMidMethod",
+    "unit-sha": "38a1287bf4f28997",
+    "claim-sha": "b7ecb7f96d170618",
+    "route": "revert",
+    "producer": "internal/core/eap/eap.go::handleMethod",
+    "producer-sha": "fcb74148a4de64e4",
+    "break": "body of handleMethod replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3748-4.2-10",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc3748_result_indication_test.go::TestRFC3748NoTerminalPacketLeavesMidMethod",
+    "unit-sha": "38a1287bf4f28997",
+    "claim-sha": "b4d24168b4a74fa4",
+    "route": "revert",
+    "producer": "internal/core/eap/eap.go::handleMethod",
+    "producer-sha": "fcb74148a4de64e4",
+    "break": "body of handleMethod replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: after No Data Available with no other cache, stopping, sending Serial Queries, or not repeating the Reset Query until a usable load arrives. TestNoDataAvailableKeepsResetQueryMode runs a single-session cacheGroup (no other cache), the cache answers two queries with Error Report code 2, and the test asserts three consecutive queries are pduResetQuery each within 4s at a 1s retry (a router that stopped hits t.Fatal, one that sent a Serial Query fails assert.Equal); the negative asserts that once a complete load is published the next query is pduSerialQuery, which pins the 'until it gets a new usable load' bound. The widened quote adds the SHOULD failover sentence only as the condition's context; this row judges its MUST.",
+  "requirement_sha": "6710360c92babbd0",
+  "tests": {
+    "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestNoDataAvailableKeepsResetQueryMode": "9de8363060757013",
+    "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestNoDataAvailableKeepsResetQueryMode#2": "9de8363060757013"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestNoDataAvailableKeepsResetQueryMode": "0e9dd875028c53d8",
+    "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestNoDataAvailableKeepsResetQueryMode#2": "0e9dd875028c53d8"
+  },
+  "verdict": "enforced"
+}

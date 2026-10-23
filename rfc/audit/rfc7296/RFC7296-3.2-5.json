@@ -1,0 +1,13 @@
+{
+  "note": "zero bit on the wire from the encoded bytes; recipient skips as PayloadRaw; set bit refused",
+  "requirement_sha": "9996d9b1ce413d5c",
+  "tests": {
+    "internal/component/ike/wire/rfc7296_critpayload_test.go::TestCritSenderZeroBitRequestsSkip": "02e1b5b1293a3513",
+    "internal/component/ike/wire/rfc7296_critpayload_test.go::TestCritSenderZeroBitRequestsSkip#2": "02e1b5b1293a3513"
+  },
+  "units": {
+    "internal/component/ike/wire/rfc7296_critpayload_test.go::TestCritSenderZeroBitRequestsSkip": "56a75cf7c3df9c3e",
+    "internal/component/ike/wire/rfc7296_critpayload_test.go::TestCritSenderZeroBitRequestsSkip#2": "56a75cf7c3df9c3e"
+  },
+  "verdict": "enforced"
+}

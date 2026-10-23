@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "SFLOW-V5-x-26",
+    "polarity": "positive",
+    "unit": "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5OutstandingCountersAllSent",
+    "unit-sha": "c82116c89f27bebb",
+    "claim-sha": "b26b073c20acf255",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/sflow/encoder.go::writeCounterDatagrams",
+    "producer-sha": "45a6bb80ad8ddd14",
+    "break": "body of writeCounterDatagrams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "SFLOW-V5-x-26",
+    "polarity": "negative",
+    "unit": "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5TailDatagramNotWithheld",
+    "unit-sha": "44f5a3ce07b23b0e",
+    "claim-sha": "12e367ee37f6e829",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/sflow/encoder.go::writeCounterDatagrams",
+    "producer-sha": "45a6bb80ad8ddd14",
+    "break": "body of writeCounterDatagrams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "SFLOW-V5-x-26",
+    "polarity": "positive",
+    "unit": "internal/plugins/flowexport/sflow_v5_polling_test.go::TestSFlowV5DueCountersAreSent",
+    "unit-sha": "b61b147a4fbd0c8a",
+    "claim-sha": "5c834a73c3bfebda",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/exporter.go::notifySnapshot",
+    "producer-sha": "760461d784934c54",
+    "break": "body of notifySnapshot replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "SFLOW-V5-x-26",
+    "polarity": "negative",
+    "unit": "internal/plugins/flowexport/sflow_v5_polling_test.go::TestSFlowV5DueCountersAreSent",
+    "unit-sha": "b61b147a4fbd0c8a",
+    "claim-sha": "89ddfbbec06fc40e",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/exporter.go::notifySnapshot",
+    "producer-sha": "760461d784934c54",
+    "break": "body of notifySnapshot replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

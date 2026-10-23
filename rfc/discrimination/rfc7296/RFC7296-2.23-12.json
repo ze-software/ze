@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC7296-2.23-12",
+    "polarity": "positive",
+    "unit": "internal/component/ike/dataplane/rfc7296_esp_in_udp_linux_test.go::TestRFC7296ESPInUDPStateHasESPRightAfterUDP",
+    "unit-sha": "38a1b49bdb918ac2",
+    "claim-sha": "bf38f38d4bc59c71",
+    "route": "revert",
+    "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
+    "producer-sha": "20b949de8627ad06",
+    "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.23-12",
+    "polarity": "negative",
+    "unit": "internal/component/ike/dataplane/rfc7296_esp_in_udp_linux_test.go::TestRFC7296ESPInUDPStateRefusesSPIZero",
+    "unit-sha": "d8c6586b41e3ab21",
+    "claim-sha": "599cfcc39b93f5a0",
+    "route": "revert",
+    "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
+    "producer-sha": "20b949de8627ad06",
+    "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.23-12",
+    "polarity": "positive",
+    "unit": "internal/component/ike/transport/nat_test.go::TestNonESPMarker",
+    "unit-sha": "c849e80d30356333",
+    "claim-sha": "9d1d452c966e3499",
+    "route": "revert",
+    "producer": "internal/component/ike/transport/nat.go::StripNonESPMarker",
+    "producer-sha": "8ca0bde9664c9e48",
+    "break": "body of StripNonESPMarker replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.23-12",
+    "polarity": "negative",
+    "unit": "internal/component/ike/transport/nat_test.go::TestNonESPMarkerESPPacket",
+    "unit-sha": "576fc4da03a994ef",
+    "claim-sha": "b8d10b1a8e86afbb",
+    "route": "revert",
+    "producer": "internal/component/ike/transport/nat.go::StripNonESPMarker",
+    "producer-sha": "8ca0bde9664c9e48",
+    "break": "body of StripNonESPMarker replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

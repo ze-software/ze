@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4271-8.2.2-28",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_established_header_error_peer_test.go::TestRFC4271EstablishedHeaderErrorReleasesTheConnection",
+    "unit-sha": "1324002a3d9e931a",
+    "claim-sha": "699fc2e17573898b",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_read.go::notifyHeaderErr",
+    "producer-sha": "ae809d392da3b39f",
+    "break": "body of notifyHeaderErr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-8.2.2-28",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_established_header_error_peer_test.go::TestRFC4271EstablishedValidHeaderKeepsTheConnection",
+    "unit-sha": "dc8d39d75232680e",
+    "claim-sha": "36a4824cd07d9858",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/header.go::ParseHeader",
+    "producer-sha": "d17f39b8b55fb7da",
+    "break": "body of ParseHeader replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

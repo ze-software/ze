@@ -1,0 +1,13 @@
+{
+  "note": "Judge 2026-09-30 (rejudge, netns+pinning). RFC 5880 \u00a76.8.16 \"If enabling session Set bfd.SessionState to Down\". Positive TestRFC5880AdministrativeDisableEnable asserts exact Down after AdminEnable on an AdminDown session. Negative TestRFC5880EnableLandsOnDownWhilePeerSaysUpOrInit (R1 b) pushes the inputs toward the violation: Up session disabled, peer keeps sending Up then Init so bfd.RemoteSessionState is Up/Init (asserted as precondition), AdminEnable still lands on Down and Build() announces Down; an overlay adopting RemoteSessionState reds it (author e4-ov7). Old TestRFC5880AdministrativeCallsAreGuarded untagged (asserted a Ze guard, not this row). Revert records on fsm.go::AdminEnable observed red for both.",
+  "requirement_sha": "66f31b32ebff29aa",
+  "tests": {
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880AdministrativeDisableEnable": "8db25cbb4534cc2d",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EnableLandsOnDownWhilePeerSaysUpOrInit": "8db25cbb4534cc2d"
+  },
+  "units": {
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880AdministrativeDisableEnable": "9facc85ee86d0975",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EnableLandsOnDownWhilePeerSaysUpOrInit": "a8d732d9db49391f"
+  },
+  "verdict": "enforced"
+}

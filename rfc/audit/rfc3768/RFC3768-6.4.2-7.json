@@ -1,0 +1,17 @@
+{
+  "note": "vrrp judge 2026-09-29 (independent): TestV2BackupResetsOrDiscards on VRRPv2: equal, greater and Preempt-off lower each arm the literal local 6.609375 s and stay Backup; Preempt-on lower produces nothing and the earlier timer still promotes. No interval adoption is asserted for v2 (the old wrong v3 row is no longer the evidence).",
+  "requirement_sha": "a71fccb4a5cff07f",
+  "tests": {
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "52489f84876bdb6f",
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "52489f84876bdb6f",
+    "internal/plugins/vrrp/fsm/rfc_verdict_test.go::TestV2BackupResetsOrDiscards": "529420a351d8b685",
+    "internal/plugins/vrrp/fsm/rfc_verdict_test.go::TestV2BackupResetsOrDiscards#2": "529420a351d8b685"
+  },
+  "units": {
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "c06b69f55bb239a3",
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "c06b69f55bb239a3",
+    "internal/plugins/vrrp/fsm/rfc_verdict_test.go::TestV2BackupResetsOrDiscards": "11714486278a4093",
+    "internal/plugins/vrrp/fsm/rfc_verdict_test.go::TestV2BackupResetsOrDiscards#2": "11714486278a4093"
+  },
+  "verdict": "enforced"
+}

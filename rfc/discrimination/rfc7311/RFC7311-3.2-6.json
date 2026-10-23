@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7311-3.2-6",
+    "polarity": "positive",
+    "unit": "internal/core/bgp/attribute/rfc7311_aigp_tlv_test.go::TestRFC7311DuplicateAndUnknownTLVsAreWellFormed",
+    "unit-sha": "f6d3f74c8cbdcebf",
+    "claim-sha": "495667d2089f8695",
+    "route": "revert",
+    "producer": "internal/core/bgp/attribute/aigp.go::ParseAIGP",
+    "producer-sha": "7545844195cd43d6",
+    "break": "body of ParseAIGP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7311-3.2-6",
+    "polarity": "negative",
+    "unit": "internal/core/bgp/attribute/rfc7311_aigp_tlv_test.go::TestRFC7311MalformedVerdictIsForLengthOnly",
+    "unit-sha": "7f6978cb73063662",
+    "claim-sha": "dd8abb0aa03f042c",
+    "route": "revert",
+    "producer": "internal/core/bgp/attribute/aigp.go::ParseAIGP",
+    "producer-sha": "7545844195cd43d6",
+    "break": "body of ParseAIGP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

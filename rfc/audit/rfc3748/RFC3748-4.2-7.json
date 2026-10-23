@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: acting on a Success sent at connection. A Success on a fresh peer fails on eapdWantDiscarded, on Succeeded(), and if the following Identity Request is no longer answered. Positive: the same Success at method end must conclude Done with a non-zero MSK.",
+  "requirement_sha": "575e16cc23a4ce1e",
+  "tests": {
+    "internal/core/eap/rfc3748_discard_test.go::TestRFC3748PeerDiscardsACannedSuccess": "e0e4c426f5444d02",
+    "internal/core/eap/rfc3748_discard_test.go::TestRFC3748PeerDiscardsACannedSuccess#2": "e0e4c426f5444d02"
+  },
+  "units": {
+    "internal/core/eap/rfc3748_discard_test.go::TestRFC3748PeerDiscardsACannedSuccess": "1732f710a011678d",
+    "internal/core/eap/rfc3748_discard_test.go::TestRFC3748PeerDiscardsACannedSuccess#2": "1732f710a011678d"
+  },
+  "verdict": "enforced"
+}

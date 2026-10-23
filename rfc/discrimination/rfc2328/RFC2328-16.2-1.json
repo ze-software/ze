@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC2328-16.2-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/spf/rfc2328_interarea_test.go::TestOSPFABRBackboneOnlyAcceptance",
+    "unit-sha": "7341e82a6862b342",
+    "claim-sha": "85c3725e5889ac89",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/spf/interarea.go::ComputeInterAreaWith",
+    "producer-sha": "aa5588a6b6a755d6",
+    "break": "body of ComputeInterAreaWith replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-16.2-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/spf/rfc2328_interarea_test.go::TestOSPFInterAreaRoute",
+    "unit-sha": "47d65d72bd89d215",
+    "claim-sha": "2bf5d0ce682d3cda",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/spf/interarea.go::ComputeInterAreaWith",
+    "producer-sha": "aa5588a6b6a755d6",
+    "break": "body of ComputeInterAreaWith replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-16.2-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/spf/rfc2328_nonabr_summary_test.go::TestRFC2328NonABRUsesItsAreaSummaries",
+    "unit-sha": "a27370b9bacf3a3c",
+    "claim-sha": "36008a13d6baf010",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/spf/interarea.go::ComputeInterAreaWith",
+    "producer-sha": "aa5588a6b6a755d6",
+    "break": "body of ComputeInterAreaWith replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

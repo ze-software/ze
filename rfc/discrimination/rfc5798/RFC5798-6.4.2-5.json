@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5798-6.4.2-5",
+    "polarity": "negative",
+    "unit": "internal/plugins/vrrp/instance_test.go::TestInstanceOwnerStartupGoesMaster",
+    "unit-sha": "27da7c1ca0de1842",
+    "claim-sha": "2107aa7505177c7a",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/instance.go::doInstallVIPs",
+    "producer-sha": "6c990de7776ea965",
+    "break": "body of doInstallVIPs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5798-6.4.2-5",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/instance_test.go::TestInstanceStartupNonOwnerGoesBackup",
+    "unit-sha": "a595e8f95fb28ae6",
+    "claim-sha": "435c7179c024be87",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/instance.go::execute",
+    "producer-sha": "730531e0948fb65d",
+    "break": "body of execute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC9568-7.2-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/advert_fill_rfc5798_test.go::TestTransmittedAdvertFilledFromInstanceState",
+    "unit-sha": "f89eb5675578ae59",
+    "claim-sha": "811b1d231440754b",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/instance.go::doSendAdvert",
+    "producer-sha": "35341f2b3789c6d3",
+    "break": "body of doSendAdvert replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9568-7.2-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV3IPv4",
+    "unit-sha": "426437dba8db9f30",
+    "claim-sha": "73359712cd6784d0",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/packet/packet.go::WriteTo",
+    "producer-sha": "a5408de5358174ba",
+    "break": "body of WriteTo replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9568-7.2-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV3IPv6",
+    "unit-sha": "b8f6d2a0e2029f2f",
+    "claim-sha": "29c95a4a0301d0a0",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/packet/packet.go::WriteTo",
+    "producer-sha": "a5408de5358174ba",
+    "break": "body of WriteTo replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9568-7.2-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/transport/advert_fill_checksum_test.go::TestSendAdvertFillsFieldsAndChecksum",
+    "unit-sha": "fd87eac6cc3e794d",
+    "claim-sha": "a2e88fea3296240c",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/transport/transport.go::encodeLocked",
+    "producer-sha": "cf0664c9c920f778",
+    "break": "body of encodeLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

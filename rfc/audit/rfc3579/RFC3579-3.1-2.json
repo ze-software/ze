@@ -1,0 +1,13 @@
+{
+  "note": "every sent Access-Request's EAP Length equals the whole run's octets, so a second packet riding along goes red; decoder refuses two separated runs in an Access-Challenge",
+  "requirement_sha": "edb670188ff13459",
+  "tests": {
+    "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapOneEAPPacketPerRadiusPacket": "2f6a0814b0b8b9cb",
+    "internal/component/radius/rfc3579_eap_test.go::TestEAPMessageRefusesASecondRun": "2f94d35bf256e7de"
+  },
+  "units": {
+    "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapOneEAPPacketPerRadiusPacket": "f281f233d932bece",
+    "internal/component/radius/rfc3579_eap_test.go::TestEAPMessageRefusesASecondRun": "87f178769252c1bd"
+  },
+  "verdict": "enforced"
+}

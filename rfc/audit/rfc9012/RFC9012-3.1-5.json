@@ -1,0 +1,13 @@
+{
+  "note": "TestTunnelEndpointLengthsAccepted accepts an AFI-2 endpoint containing exactly sixteen address octets unchanged. TestRFC9012EndpointInvalidTLVsRemovedOnUnicast rejects a short AFI-2 address, removing only its TLV around a valid sibling or selecting exact TreatAsWithdraw without a survivor. tunnelEndpointValid requires a twenty-two-octet endpoint value.",
+  "requirement_sha": "c04b1a8431e71b1f",
+  "tests": {
+    "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9012EndpointInvalidTLVsRemovedOnUnicast": "cd227ea5764f94be",
+    "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestTunnelEndpointLengthsAccepted": "cd227ea5764f94be"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9012EndpointInvalidTLVsRemovedOnUnicast": "3c4a5ad1a9f5bfb6",
+    "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestTunnelEndpointLengthsAccepted": "6d5df34ce0e5416c"
+  },
+  "verdict": "enforced"
+}

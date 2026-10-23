@@ -1,0 +1,11 @@
+{
+  "note": "Re-judged 2026-10-16: the unit changed only in a comment path. RFC 8955 Section 4.2.2.11: \"Type 11 component values MUST be encoded as single octet (numeric_op len=00).\" Single-polarity positive: DSCP 46, 0 and 63 through the config producer each encode as exactly one octet. Core parseNumericComponent also refuses a DSCP valueLen other than 1 on receipt.",
+  "requirement_sha": "9de9fa5f99284bba",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955DSCPValueSingleOctet": "edf3d98f88af0674"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955DSCPValueSingleOctet": "f00b3bbb1bd18d03"
+  },
+  "verdict": "enforced"
+}

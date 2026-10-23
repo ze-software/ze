@@ -1,0 +1,15 @@
+{
+  "note": "c20 judge: eligible router to every eligible neighbor (TestOSPFNBMAEligibleRouterHellosEveryEligibleNeighbor) and DROther skipping priority-0 neighbors (negative TestOSPFNBMAPeriodicHelloSkipsIneligibleNeighbor); DR and Backup sending to the priority-0 neighbor too (TestRFC2328NBMAHelloTargetsByRole dr/backup, red under an overlay gating priority-0 in every state). Ineligible-router clause: the subtest asserts a priority-0 DROther targets both DR and BDR; no producer branch reads the router's own priority (it sends to every eligible neighbor, a superset the sentence allows), so no targeted overlay exists; the assertion fails on any producer that drops DR or BDR from that router's targets, and the unit's revert record is observed red. Single positive for that clause is the sentence's own shape (no MUST NOT).",
+  "requirement_sha": "69cbde79dd83699d",
+  "tests": {
+    "internal/plugins/ospf/iface/rfc2328_dr_test.go::TestOSPFNBMAEligibleRouterHellosEveryEligibleNeighbor": "5f75ed219587e64e",
+    "internal/plugins/ospf/iface/rfc2328_dr_test.go::TestOSPFNBMAPeriodicHelloSkipsIneligibleNeighbor": "5f75ed219587e64e",
+    "internal/plugins/ospf/iface/rfc2328_nbma_hello_roles_test.go::TestRFC2328NBMAHelloTargetsByRole": "d13a91ee25f6176f"
+  },
+  "units": {
+    "internal/plugins/ospf/iface/rfc2328_dr_test.go::TestOSPFNBMAEligibleRouterHellosEveryEligibleNeighbor": "f8a22ef0f176fd01",
+    "internal/plugins/ospf/iface/rfc2328_dr_test.go::TestOSPFNBMAPeriodicHelloSkipsIneligibleNeighbor": "402cc8e4f575a581",
+    "internal/plugins/ospf/iface/rfc2328_nbma_hello_roles_test.go::TestRFC2328NBMAHelloTargetsByRole": "2d724bf5fd9f08ec"
+  },
+  "verdict": "enforced"
+}

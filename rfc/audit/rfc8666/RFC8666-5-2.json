@@ -1,0 +1,13 @@
+{
+  "note": "positive asserts the encoded Flags octet is zero; the other tag sets Flags=0xFF and asserts header, address and Prefix-SID decode unchanged",
+  "requirement_sha": "ea251ec39b07c313",
+  "tests": {
+    "internal/plugins/ospf/sr/rfc8666_test.go::TestRFC8666ExtPrefixRangeFlagsIgnoredOnReceive": "fc78f1bb66bf1d61",
+    "internal/plugins/ospf/sr/rfc8666_test.go::TestRFC8666ExtPrefixRangeFlagsZeroOnSend": "fc78f1bb66bf1d61"
+  },
+  "units": {
+    "internal/plugins/ospf/sr/rfc8666_test.go::TestRFC8666ExtPrefixRangeFlagsIgnoredOnReceive": "66b77c98eb161694",
+    "internal/plugins/ospf/sr/rfc8666_test.go::TestRFC8666ExtPrefixRangeFlagsZeroOnSend": "cbbfcb6917a54a47"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "RFC 9012 Section 11 says: It MUST be possible to filter the Encapsulation Extended Community from outgoing messages. TestRFC9012ConfiguredEncapsulationECEgress configures the actual registered bgp-filter-community SDK runner with exact Encapsulation Extended Community values 030c000000000002 and 030c000000000008. Both values remain present at source receive dispatch; the configured destination's registered egressFilter and applyEgressFilter produce removal operations consumed by the registered Extended Communities handler and genericCommunityHandler during actual ForwardUpdate export. Socket output and downstream Session receipt contain only the unrelated RT, preserving ORIGIN, AS_PATH, NEXT_HOP and NLRI. A destination with a populated no-match policy receives both original Encapsulation ECs, distinguishing configured destination filtering from unconditional removal. Both named cases passed in the retained f688dd08 race run. This proves configurable outgoing filtering without requiring a type-wide matcher or claiming the separate default-EBGP behavior.",
+  "requirement_sha": "7ec539f24ba75d45",
+  "tests": {
+    "internal/component/bgp/reactor/rfc9012_encapsulation_filter_test.go::TestRFC9012ConfiguredEncapsulationECEgress": "4487b162dc622658",
+    "internal/component/bgp/reactor/rfc9012_encapsulation_filter_test.go::TestRFC9012ConfiguredEncapsulationECEgress#2": "4487b162dc622658"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc9012_encapsulation_filter_test.go::TestRFC9012ConfiguredEncapsulationECEgress": "c30125f750d59a37",
+    "internal/component/bgp/reactor/rfc9012_encapsulation_filter_test.go::TestRFC9012ConfiguredEncapsulationECEgress#2": "c30125f750d59a37"
+  },
+  "verdict": "enforced"
+}

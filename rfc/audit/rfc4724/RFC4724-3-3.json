@@ -1,0 +1,17 @@
+{
+  "note": "Sender half: TestGracefulRestartEncodeReservedBits (only F bit 0x80 per family). Receiver half: TestRFC4724ReceiverIgnoresReservedAddressFamilyFlags sets all seven reserved bits (0x7F) with F clear and set and requires the parse equal to the clean one. Judge break: ForwardingState read as flags != 0 turned it red.",
+  "requirement_sha": "82503bdc2d2d8e2e",
+  "tests": {
+    "internal/core/bgp/capability/capability_test.go::TestGracefulRestartEncodeReservedBits": "3b6ab22b8c99761b",
+    "internal/core/bgp/capability/capability_test.go::TestGracefulRestartEncodeReservedBits#2": "3b6ab22b8c99761b",
+    "internal/core/bgp/capability/rfc4724_reserved_bits_test.go::TestRFC4724ReceiverIgnoresReservedAddressFamilyFlags": "dad25bb523dfbd36",
+    "internal/core/bgp/capability/rfc4724_reserved_bits_test.go::TestRFC4724ReceiverIgnoresReservedAddressFamilyFlags#2": "dad25bb523dfbd36"
+  },
+  "units": {
+    "internal/core/bgp/capability/capability_test.go::TestGracefulRestartEncodeReservedBits": "46c5c81f27202784",
+    "internal/core/bgp/capability/capability_test.go::TestGracefulRestartEncodeReservedBits#2": "46c5c81f27202784",
+    "internal/core/bgp/capability/rfc4724_reserved_bits_test.go::TestRFC4724ReceiverIgnoresReservedAddressFamilyFlags": "fbddac27d22d23b8",
+    "internal/core/bgp/capability/rfc4724_reserved_bits_test.go::TestRFC4724ReceiverIgnoresReservedAddressFamilyFlags#2": "fbddac27d22d23b8"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,17 @@
+{
+  "note": "WriteTo zeroes Protocol ID for an empty SPI; ReadFrom discards it; kept when an SPI is present",
+  "requirement_sha": "d6ca06c09ece11ee",
+  "tests": {
+    "internal/component/ike/wire/rfc7296_notify_test.go::TestNtfyEmptySPIProtocolIDIgnoredOnReceipt": "e2c639ea8eaa7585",
+    "internal/component/ike/wire/rfc7296_notify_test.go::TestNtfyEmptySPIProtocolIDIgnoredOnReceipt#2": "e2c639ea8eaa7585",
+    "internal/component/ike/wire/rfc7296_notify_test.go::TestNtfyEmptySPISendsProtocolIDZero": "e2c639ea8eaa7585",
+    "internal/component/ike/wire/rfc7296_notify_test.go::TestNtfyEmptySPISendsProtocolIDZero#2": "e2c639ea8eaa7585"
+  },
+  "units": {
+    "internal/component/ike/wire/rfc7296_notify_test.go::TestNtfyEmptySPIProtocolIDIgnoredOnReceipt": "f7d6898987a0b4cd",
+    "internal/component/ike/wire/rfc7296_notify_test.go::TestNtfyEmptySPIProtocolIDIgnoredOnReceipt#2": "f7d6898987a0b4cd",
+    "internal/component/ike/wire/rfc7296_notify_test.go::TestNtfyEmptySPISendsProtocolIDZero": "75ab36199bb4083e",
+    "internal/component/ike/wire/rfc7296_notify_test.go::TestNtfyEmptySPISendsProtocolIDZero#2": "75ab36199bb4083e"
+  },
+  "verdict": "enforced"
+}

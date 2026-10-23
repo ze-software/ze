@@ -1,0 +1,17 @@
+{
+  "note": "Both halves now asserted. + TestOSPFElectedDRJoinsAllDRouters: priority 5 vs 2 -> StateDR and exactly one JoinAllDRouters(eth0), no leave; TestOSPFElectedBDRJoinsAllDRouters keeps the BDR join. - the same unit: priority dropped to 0, re-election -> DROther and LeaveAllDRouters(eth0); TestOSPFDROtherDoesNotJoinAllDRouters keeps the never-joined case. Records on iface.go::runElectionLocked observed red; author's overlay making membership BDR-only turned the DR positive red. Judge lint fix (unparam on the shared electWith helper): the unit's neighbour priority is 2, not 1; records re-recorded.",
+  "requirement_sha": "30623d7528561f5f",
+  "tests": {
+    "internal/plugins/ospf/iface/rfc2328_dr_alldrouters_test.go::TestOSPFElectedDRJoinsAllDRouters": "192176f0d0cd7d26",
+    "internal/plugins/ospf/iface/rfc2328_dr_alldrouters_test.go::TestOSPFElectedDRJoinsAllDRouters#2": "192176f0d0cd7d26",
+    "internal/plugins/ospf/iface/rfc2328_dr_test.go::TestOSPFDROtherDoesNotJoinAllDRouters": "5f75ed219587e64e",
+    "internal/plugins/ospf/iface/rfc2328_dr_test.go::TestOSPFElectedBDRJoinsAllDRouters": "5f75ed219587e64e"
+  },
+  "units": {
+    "internal/plugins/ospf/iface/rfc2328_dr_alldrouters_test.go::TestOSPFElectedDRJoinsAllDRouters": "bc2e06a2e3571464",
+    "internal/plugins/ospf/iface/rfc2328_dr_alldrouters_test.go::TestOSPFElectedDRJoinsAllDRouters#2": "bc2e06a2e3571464",
+    "internal/plugins/ospf/iface/rfc2328_dr_test.go::TestOSPFDROtherDoesNotJoinAllDRouters": "9c55266719f8fb1e",
+    "internal/plugins/ospf/iface/rfc2328_dr_test.go::TestOSPFElectedBDRJoinsAllDRouters": "62cbb477549a1045"
+  },
+  "verdict": "enforced"
+}

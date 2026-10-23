@@ -1,0 +1,13 @@
+{
+  "note": "(a) forbidden: reading octets past Length as attributes, or processing a datagram shorter than its Length. (b) TestRFC5176LengthFieldGovernsTheOctetsRead asserts a request with eight trailing octets is ACKed, and a datagram four octets short of its Length gets no response.",
+  "requirement_sha": "78ea108345236eb7",
+  "tests": {
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176LengthFieldGovernsTheOctetsRead": "2b3357f1f1e8ec93",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176LengthFieldGovernsTheOctetsRead#2": "2b3357f1f1e8ec93"
+  },
+  "units": {
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176LengthFieldGovernsTheOctetsRead": "4c9381b9f005692f",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176LengthFieldGovernsTheOctetsRead#2": "4c9381b9f005692f"
+  },
+  "verdict": "enforced"
+}

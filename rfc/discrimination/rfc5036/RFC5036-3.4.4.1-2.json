@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5036-3.4.4.1-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/ldp/rfc5036_procedures_test.go::TestRFC5036HopCountAboveMaximumDrawsLoopDetected",
+    "unit-sha": "60021b58ec5b719e",
+    "claim-sha": "02d9f9934290bcad",
+    "route": "revert",
+    "producer": "internal/plugins/ldp/session.go::sendNotification",
+    "producer-sha": "df22317073ef971e",
+    "break": "body of sendNotification replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5036-3.4.4.1-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/ldp/rfc5036_procedures_test.go::TestRFC5036HopCountWithinMaximumIsApplied",
+    "unit-sha": "df743154ef3bfd3b",
+    "claim-sha": "704847a54d9ddd79",
+    "route": "revert",
+    "producer": "internal/plugins/ldp/session.go::processMessages",
+    "producer-sha": "8931a291b7d506b3",
+    "break": "body of processMessages replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

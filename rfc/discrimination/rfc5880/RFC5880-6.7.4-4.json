@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC5880-6.7.4-4",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880MeticulousRejectsUnincrementedSequence",
+    "unit-sha": "2ab6908d4c2ab3e5",
+    "claim-sha": "ef12a3cbb6479598",
+    "route": "revert",
+    "producer": "internal/component/bfd/auth/meticulous.go::Check",
+    "producer-sha": "0d7ec3911e063f57",
+    "break": "body of Check replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.7.4-4",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880MeticulousSequenceIncrementsPerPacket",
+    "unit-sha": "32413f71deba5697",
+    "claim-sha": "95221aafc22ce009",
+    "route": "revert",
+    "producer": "internal/component/bfd/session/auth.go::AdvanceAuthSeq",
+    "producer-sha": "2ec2d770c43827cf",
+    "break": "body of AdvanceAuthSeq replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.7.4-4",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/session/rfc5880_auth_seq_test.go::TestRFC5880MeticulousXmitAuthSeqWrapsAt32Bits",
+    "unit-sha": "7b52866ed949d7d4",
+    "claim-sha": "3e1ab49b7635ae04",
+    "route": "revert",
+    "producer": "internal/component/bfd/session/auth.go::AdvanceAuthSeq",
+    "producer-sha": "2ec2d770c43827cf",
+    "break": "body of AdvanceAuthSeq replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.7.4-4",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/session/rfc5880_auth_wrap_test.go::TestRFC5880MeticulousNonCircularRepeatAtWrapDiscarded",
+    "unit-sha": "e08891c89d4bcb36",
+    "claim-sha": "0e6ac69d522d44b4",
+    "route": "mutant",
+    "producer": "internal/component/bfd/auth/meticulous.go::Check",
+    "producer-sha": "0d7ec3911e063f57",
+    "break": "line 58: \"==\" -\u003e \"!=\""
+  }
+]

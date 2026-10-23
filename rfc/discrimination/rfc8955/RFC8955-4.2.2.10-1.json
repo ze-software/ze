@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8955-4.2.2.10-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go::TestFlowSpecPreferredNumericEmission",
+    "unit-sha": "e62336d056a94b2f",
+    "claim-sha": "20544f19ff338eff",
+    "route": "revert",
+    "producer": "internal/core/bgp/nlri/flowspec/types_numeric.go::writeToAFI",
+    "producer-sha": "60d1d6394148d40e",
+    "break": "body of writeToAFI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8955-4.2.2.10-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc8955_width_wire_test.go::TestFlowSpecPreferredNumericForwarding",
+    "unit-sha": "bc38f727442f52d1",
+    "claim-sha": "04f3f95e6cafeead",
+    "route": "revert",
+    "producer": "internal/core/bgp/nlri/flowspec/types_numeric.go::writeToAFI",
+    "producer-sha": "60d1d6394148d40e",
+    "break": "body of writeToAFI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

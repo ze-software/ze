@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4271-6.3-5",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst",
+    "unit-sha": "ddf47ecc0e1db9e3",
+    "claim-sha": "71b84c0f0d050d10",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/rfc7606.go::validateAttributeFlags",
+    "producer-sha": "473336292a0cad0a",
+    "break": "body of validateAttributeFlags replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-6.3-5",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst",
+    "unit-sha": "ddf47ecc0e1db9e3",
+    "claim-sha": "f6600bb66743b4ae",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/rfc7606.go::validateAttributeFlags",
+    "producer-sha": "473336292a0cad0a",
+    "break": "body of validateAttributeFlags replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

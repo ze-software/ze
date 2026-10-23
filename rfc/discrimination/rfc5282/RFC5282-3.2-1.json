@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5282-3.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADReceiveRefusesADamagedICV",
+    "unit-sha": "fddd62da50b0e0f4",
+    "claim-sha": "20ecd7e0ee9ac9b4",
+    "route": "revert",
+    "producer": "internal/component/ike/crypto/aead.go::OpenIKEAEAD",
+    "producer-sha": "fa847fa99772e737",
+    "break": "body of OpenIKEAEAD replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5282-3.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADSendICVIsSixteenOctets",
+    "unit-sha": "8e014065cedc661d",
+    "claim-sha": "d0b595f6572245b4",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/auth.go::buildSKMessageAEADWithMsgID",
+    "producer-sha": "2bcba23be754aec5",
+    "break": "body of buildSKMessageAEADWithMsgID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

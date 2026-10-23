@@ -1,0 +1,15 @@
+{
+  "note": "Encryptor: TestRFC5282AEADSendSealsUnderSaltThenIV opens the real initiator IKE_AUTH request and responder response with an independent stdlib AES-GCM under salt||IV and refuses IV||salt (same length, order alone); SealIKEAEAD (crypto/aead.go) is the only seal site. Decryptor: TestRFC5282AEADNonceIsSaltThenIV accepts salt||IV, TestRFC5282AEADRefusesAReversedNonce refuses the reversed nonce. The ikeAEADNonce record is a whole-producer panic (reach); discrimination read from the independent-oracle assertions.",
+  "requirement_sha": "03cc06d5f60350ec",
+  "tests": {
+    "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282AEADSendSealsUnderSaltThenIV": "d2a8fe0dab3c6a2d",
+    "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADNonceIsSaltThenIV": "2d69d15f1cde2ecb",
+    "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADRefusesAReversedNonce": "2d69d15f1cde2ecb"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282AEADSendSealsUnderSaltThenIV": "6f9211c6d381e9af",
+    "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADNonceIsSaltThenIV": "3c3543aea0fa581b",
+    "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADRefusesAReversedNonce": "cb7cc91565c4006d"
+  },
+  "verdict": "enforced"
+}

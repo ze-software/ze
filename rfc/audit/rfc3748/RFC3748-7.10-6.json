@@ -1,0 +1,21 @@
+{
+  "note": "EAP-TLS side now closed: TestRFC3748EAPTLSExportsASixtyFourOctetEMSK asserts the MSK equals export octets 0-63 exactly, TLS 1.2 and 1.3, so an MSK hashed from or mixed with the EMSK fails; MS-CHAPv2 MSK asserted octet by octet from the MPPE MasterKey alone. Remain-on-both-ends: the EMSK is held on both ends and appears in no outward value or wire octet (negatives on both methods). All units recorded.",
+  "requirement_sha": "7a1d2dbd0e095562",
+  "tests": {
+    "internal/core/eap/rfc3748_emsk_test.go::TestRFC3748EAPTLSExportsASixtyFourOctetEMSK": "52158d2dcfac6f3e",
+    "internal/core/eap/rfc3748_emsk_test.go::TestRFC3748TheEMSKIsNeverHandedOutward": "52158d2dcfac6f3e",
+    "internal/core/eap/rfc3748_emsk_test.go::TestRFC3748TheEMSKStaysOnBothEndsThatDerivedIt": "52158d2dcfac6f3e",
+    "internal/core/eap/rfc3748_mschapv2_emsk_test.go::TestRFC3748TheMSCHAPv2EMSKIsNeverHandedOutward": "82ca9b4e9bade4f2",
+    "internal/core/eap/rfc3748_mschapv2_emsk_test.go::TestRFC3748TheMSCHAPv2EMSKStaysWhereItWasDerived": "82ca9b4e9bade4f2",
+    "internal/core/eap/rfc3748_remaining_clause_test.go::TestRFC3748MSCHAPv2MSKIsTheRFC3079Derivation": "a4c2ccc90d93cad9"
+  },
+  "units": {
+    "internal/core/eap/rfc3748_emsk_test.go::TestRFC3748EAPTLSExportsASixtyFourOctetEMSK": "d6ebf420f338a34e",
+    "internal/core/eap/rfc3748_emsk_test.go::TestRFC3748TheEMSKIsNeverHandedOutward": "579c906ddfc05d0a",
+    "internal/core/eap/rfc3748_emsk_test.go::TestRFC3748TheEMSKStaysOnBothEndsThatDerivedIt": "7ad959835a867ee3",
+    "internal/core/eap/rfc3748_mschapv2_emsk_test.go::TestRFC3748TheMSCHAPv2EMSKIsNeverHandedOutward": "ac81d2cb4c02ab82",
+    "internal/core/eap/rfc3748_mschapv2_emsk_test.go::TestRFC3748TheMSCHAPv2EMSKStaysWhereItWasDerived": "4e02263e3b3cde01",
+    "internal/core/eap/rfc3748_remaining_clause_test.go::TestRFC3748MSCHAPv2MSKIsTheRFC3079Derivation": "b7a0017ccb0eba21"
+  },
+  "verdict": "enforced"
+}

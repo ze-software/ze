@@ -1,0 +1,21 @@
+{
+  "note": "Transmit clause: TestWriteResetQueryZeroesReservedOverGarbage. Receipt clause: IPv4/IPv6 Prefix reserved fields (existing units) and now the Cache Reset's reserved octets 2-3: TestRTRReservedOctetsIgnoredOnReceipt sends 0xFFFF there over TCP and the sync still ends with errRtrCacheResetReceivedWillDo and serial 0. Negative: 0xFFFF in octets 2-3 of a Cache Response is adopted as its Session ID, so the positive is not a receiver that ignores octets 2-3 everywhere. Router Key is skipped whole; no other received v1 PDU carries a reserved field.",
+  "requirement_sha": "143c7094ef946fee",
+  "tests": {
+    "internal/component/bgp/plugins/rpki/rtr_pdu_reserved_test.go::TestReservedPrefixFieldsPreserveValidation": "d7a1a5261ccc5a89",
+    "internal/component/bgp/plugins/rpki/rtr_pdu_reserved_test.go::TestWriteResetQueryZeroesReservedOverGarbage": "d7a1a5261ccc5a89",
+    "internal/component/bgp/plugins/rpki/rtr_pdu_test.go::TestWriteResetQuery": "c5beca1060fa5391",
+    "internal/component/bgp/plugins/rpki/rtr_pdu_test.go::TestWriteSerialQuery": "c5beca1060fa5391",
+    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRReservedOctetsIgnoredOnReceipt": "f4affe67e61b8df8",
+    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRReservedOctetsIgnoredOnReceipt#2": "f4affe67e61b8df8"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rpki/rtr_pdu_reserved_test.go::TestReservedPrefixFieldsPreserveValidation": "72798b2cc2c5cc7d",
+    "internal/component/bgp/plugins/rpki/rtr_pdu_reserved_test.go::TestWriteResetQueryZeroesReservedOverGarbage": "1356098b10a98b07",
+    "internal/component/bgp/plugins/rpki/rtr_pdu_test.go::TestWriteResetQuery": "a3cc3f0ada1c140e",
+    "internal/component/bgp/plugins/rpki/rtr_pdu_test.go::TestWriteSerialQuery": "1cd570d9509161cf",
+    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRReservedOctetsIgnoredOnReceipt": "ddcab4be31777bdf",
+    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRReservedOctetsIgnoredOnReceipt#2": "ddcab4be31777bdf"
+  },
+  "verdict": "enforced"
+}

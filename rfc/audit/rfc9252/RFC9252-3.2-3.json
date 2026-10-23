@@ -1,0 +1,11 @@
+{
+  "note": "(a) forbidden: the sender emits a non-zero RESERVED2 octet. (b) TestEncodePrefixSIDSRv6_ReservedFieldsZero asserts ps[27]==0, next to a behavior of 0x003e. Single-polarity marker present.",
+  "requirement_sha": "a1052316925d273a",
+  "tests": {
+    "internal/component/bgp/config/routeattr_test.go::TestEncodePrefixSIDSRv6_ReservedFieldsZero": "2be9754894f7f33d"
+  },
+  "units": {
+    "internal/component/bgp/config/routeattr_test.go::TestEncodePrefixSIDSRv6_ReservedFieldsZero": "1157e5aaecaac365"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8907-5.4.3-1",
+    "polarity": "negative",
+    "unit": "internal/component/tacacs/rfc8907_status_test.go::TestRFC8907ErrorIsNotProcessedAsFail",
+    "unit-sha": "87379674f7b29b52",
+    "claim-sha": "4c7d866cbbaf6d77",
+    "route": "revert",
+    "producer": "internal/component/tacacs/authenticator.go::Authenticate",
+    "producer-sha": "4f32ab33835cd7c4",
+    "break": "body of Authenticate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8907-5.4.3-1",
+    "polarity": "positive",
+    "unit": "internal/component/tacacs/rfc8907_status_test.go::TestRFC8907RestartIsProcessedAsFail",
+    "unit-sha": "92fdd5ec7d757641",
+    "claim-sha": "e86920872df8b386",
+    "route": "revert",
+    "producer": "internal/component/tacacs/authenticator.go::Authenticate",
+    "producer-sha": "4f32ab33835cd7c4",
+    "break": "body of Authenticate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

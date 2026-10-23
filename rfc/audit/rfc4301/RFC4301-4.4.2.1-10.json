@@ -1,0 +1,14 @@
+{
+  "code": {},
+  "note": "Positive: AES-GCM entry carries the AEAD algorithm, ICV 128 and key, and neither separate transform. Negative: unknown combined-mode algorithm refused, no state. Builder-level.",
+  "requirement_sha": "73bc4145e86764f6",
+  "tests": {
+    "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemCombinedModeCarriesOneAEADTransform": "9705c65b7b397cd1",
+    "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemUnknownCombinedModeIsRefused": "9705c65b7b397cd1"
+  },
+  "units": {
+    "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemCombinedModeCarriesOneAEADTransform": "7184be9bae6c61e2",
+    "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemUnknownCombinedModeIsRefused": "5c4c0d7d5dd862fe"
+  },
+  "verdict": "enforced"
+}

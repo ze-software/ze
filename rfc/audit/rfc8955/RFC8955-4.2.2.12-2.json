@@ -1,0 +1,16 @@
+{
+  "code": {},
+  "note": "Independent rejudge 2026-10-21 after 74626ae4b4 (unit change in TestRFC8955TextFragmentIPv4ReservedBitsCleared is the VALIDATES comment only; the parser it drives changed). RFC 8955 Section 4.2.2.12, of the four high bits of the fragment bitmask operand: \"0: MUST be set to 0 on NLRI encoding and MUST be ignored during decoding\". Encode: \"fragment 242\" and \"fragment 255\" go through EncodeFlowSpecComponents -> parseFragmentComponentText -> parseBitmaskTermsText -> parseBitmaskOperand, whose parseUint8 accepts 0..255 unmasked, and NewFlowFragmentMatchComponent stores the value, so 0xf2 and 0xff reach core writeToAFI, where `m.Value &= fragmentMask(afi)` (0x0f for IPv4) is the only clearing step. The exact 03 0c 80 02 and 03 0c 80 0f go red (0xf2, 0xff) if that step is removed, and 0x0f also tells the IPv4 mask from the IPv6 0x0e. Config shares parseBitmaskTermsText and writeToAFI. Decode: TestRFC8955FragmentReservedBitsIgnoredOnDecode (unit unchanged) requires 0xF2 to render exactly as 0x02, [[=is-fragment]]; parseNumericComponent masks the value at parse with fragmentMask and formatBitmaskValue also drops undefined bits, so the behaviour is proven at the JSON surface through both guards. TestFlowSpecFragmentReservedHighNibbleZero stays tagged but alone cannot fail (named low-nibble constants only); the row does not depend on it. Recorded break (fragmentMask panics) proves reach; the mask-specific red is established by reading.",
+  "requirement_sha": "0986ccf7d3e364fa",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/flowspec/rfc8955_text_encode_reserved_test.go::TestRFC8955TextFragmentIPv4ReservedBitsCleared": "43cb7c7c29398e0c",
+    "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecFragmentReservedHighNibbleZero": "edf3d98f88af0674",
+    "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955FragmentReservedBitsIgnoredOnDecode": "edf3d98f88af0674"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/flowspec/rfc8955_text_encode_reserved_test.go::TestRFC8955TextFragmentIPv4ReservedBitsCleared": "e406fce6b74d3e3c",
+    "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecFragmentReservedHighNibbleZero": "39d50c5b5e1c6677",
+    "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955FragmentReservedBitsIgnoredOnDecode": "e72cf404f77aaa61"
+  },
+  "verdict": "enforced"
+}

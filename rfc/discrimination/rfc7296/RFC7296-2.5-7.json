@@ -1,0 +1,68 @@
+[
+  {
+    "rid": "RFC7296-2.5-7",
+    "polarity": "positive",
+    "unit": "internal/component/ike/wire/rfc7296_cp_test.go::TestConfigAttributeReservedBitIgnoredOnReceipt",
+    "unit-sha": "ef27c6bdfa4d5bd5",
+    "claim-sha": "b1354d0232b5e75a",
+    "route": "revert",
+    "producer": "internal/component/ike/wire/payload_cp.go::ReadFrom",
+    "producer-sha": "9157358fc124f8a1",
+    "break": "body of ReadFrom replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.5-7",
+    "polarity": "negative",
+    "unit": "internal/component/ike/wire/rfc7296_cp_test.go::TestConfigAttributeReservedBitIgnoredOnReceipt",
+    "unit-sha": "ef27c6bdfa4d5bd5",
+    "claim-sha": "03ad377130bfbca4",
+    "route": "revert",
+    "producer": "internal/component/ike/wire/payload_cp.go::ReadFrom",
+    "producer-sha": "9157358fc124f8a1",
+    "break": "body of ReadFrom replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.5-7",
+    "polarity": "negative",
+    "unit": "internal/component/ike/wire/rfc7296_reserved_fields_test.go::TestRFC7296DefinedOctetBesideReservedIsNotIgnored",
+    "unit-sha": "fa496d61a91099db",
+    "claim-sha": "0d3801a4a50514cf",
+    "route": "revert",
+    "producer": "internal/component/ike/wire/payload_ke.go::ReadFrom",
+    "producer-sha": "1d3fb1ee86f57664",
+    "break": "body of ReadFrom replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.5-7",
+    "polarity": "positive",
+    "unit": "internal/component/ike/wire/rfc7296_reserved_fields_test.go::TestRFC7296EveryReservedOctetIsIgnoredOnReceipt",
+    "unit-sha": "5d1ac64ac4eda2ed",
+    "claim-sha": "d05a1182650065e6",
+    "route": "revert",
+    "producer": "internal/component/ike/wire/payload_auth.go::ReadFrom",
+    "producer-sha": "0e524d02776dafa6",
+    "break": "body of ReadFrom replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.5-7",
+    "polarity": "positive",
+    "unit": "internal/component/ike/wire/rfc7296_test.go::TestReservedFieldsIgnoredOnReceipt",
+    "unit-sha": "0f466806f08024c6",
+    "claim-sha": "5c6463adefe3d57e",
+    "route": "revert",
+    "producer": "internal/component/ike/wire/message.go::ReadFrom",
+    "producer-sha": "0e0d5e02736f5694",
+    "break": "body of ReadFrom replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.5-7",
+    "polarity": "negative",
+    "unit": "internal/component/ike/wire/rfc7296_test.go::TestReservedFieldsIgnoredOnReceipt",
+    "unit-sha": "0f466806f08024c6",
+    "claim-sha": "cf6c0be243f9de01",
+    "route": "revert",
+    "producer": "internal/component/ike/wire/message.go::ReadFrom",
+    "producer-sha": "0e0d5e02736f5694",
+    "break": "body of ReadFrom replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

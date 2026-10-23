@@ -1,0 +1,17 @@
+{
+  "note": "D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV->WriteTLV and field-export renames (TLV code constants verified unchanged). RFC 9552 Section 5.1: \"The presence of unknown or unexpected TLVs MUST NOT result in the NLRI or the BGP-LS Attribute being considered malformed.\" NLRI half: reactor rfc9552_nlri_test units (unchanged). Attribute half: TestRFC9552UnorderedUnexpectedAttributeTLVs walks 0x7FFF, 1088 in a node set, 1026, 1024 without error; TestRFC9552AttributeSyntaxStillRejected keeps the bound: an unknown TLV is tolerated only while its declared length fits (bgpls.ErrBGPLSTruncated).",
+  "requirement_sha": "ab79ddbe147a9641",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552AttributeSyntaxStillRejected": "40036e95d2697aef",
+    "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552UnorderedUnexpectedAttributeTLVs": "40036e95d2697aef",
+    "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRIUnknownTLVOverrunIsDiscarded": "afc246c289705756",
+    "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated": "afc246c289705756"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552AttributeSyntaxStillRejected": "e47aa6584a030d4e",
+    "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552UnorderedUnexpectedAttributeTLVs": "336130c28a5c850d",
+    "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRIUnknownTLVOverrunIsDiscarded": "d14fe0c59160dcc8",
+    "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated": "943698b5ca5db5c0"
+  },
+  "verdict": "enforced"
+}

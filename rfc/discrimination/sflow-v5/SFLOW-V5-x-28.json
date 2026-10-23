@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "SFLOW-V5-x-28",
+    "polarity": "positive",
+    "unit": "internal/plugins/flowexport/sflow/sflow_v5_sequence_test.go::TestSFlowV5FlowSequencePerSourceID",
+    "unit-sha": "26e99b49f25944fa",
+    "claim-sha": "ce1d769a46ac53a2",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/sflow/flow_adapter.go::EncodeFlowSample",
+    "producer-sha": "867f774adfa95509",
+    "break": "body of EncodeFlowSample replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "SFLOW-V5-x-28",
+    "polarity": "positive",
+    "unit": "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5PoolAndSequenceResetTogether",
+    "unit-sha": "f0e56407411cfb27",
+    "claim-sha": "6f4fdb514b77f6ec",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/sflow/flow_adapter.go::EncodeFlowSample",
+    "producer-sha": "867f774adfa95509",
+    "break": "body of EncodeFlowSample replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "SFLOW-V5-x-28",
+    "polarity": "negative",
+    "unit": "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5PoolNeverResetsWithoutSequence",
+    "unit-sha": "f0246bc27682ca73",
+    "claim-sha": "bbc34877567abb3b",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/sflow/flow_adapter.go::EncodeFlowSample",
+    "producer-sha": "867f774adfa95509",
+    "break": "body of EncodeFlowSample replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

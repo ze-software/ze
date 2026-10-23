@@ -1,0 +1,68 @@
+[
+  {
+    "rid": "RFC2865-3-1",
+    "polarity": "negative",
+    "unit": "internal/component/radius/packet_test.go::TestDecodeBadLength",
+    "unit-sha": "318a1fcbe4c60bc6",
+    "claim-sha": "03ddb922b712f4de",
+    "route": "revert",
+    "producer": "internal/component/radius/packet.go::Decode",
+    "producer-sha": "1cfcbbae411360f3",
+    "break": "body of Decode replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2865-3-1",
+    "polarity": "negative",
+    "unit": "internal/component/radius/packet_test.go::TestDecodeTooLong",
+    "unit-sha": "d7fd6fafaf134bc5",
+    "claim-sha": "dc73b378b46b9d4c",
+    "route": "revert",
+    "producer": "internal/component/radius/packet.go::Decode",
+    "producer-sha": "1cfcbbae411360f3",
+    "break": "body of Decode replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2865-3-1",
+    "polarity": "negative",
+    "unit": "internal/component/radius/packet_test.go::TestDecodeTooShort",
+    "unit-sha": "f87a940b4628ed1e",
+    "claim-sha": "1bb42c98e2050210",
+    "route": "revert",
+    "producer": "internal/component/radius/packet.go::Decode",
+    "producer-sha": "1cfcbbae411360f3",
+    "break": "body of Decode replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2865-3-1",
+    "polarity": "positive",
+    "unit": "internal/component/radius/packet_test.go::TestPacketRoundTrip",
+    "unit-sha": "718f128110166a86",
+    "claim-sha": "40891882c2adb8c6",
+    "route": "revert",
+    "producer": "internal/component/radius/packet.go::Decode",
+    "producer-sha": "1cfcbbae411360f3",
+    "break": "body of Decode replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2865-3-1",
+    "polarity": "positive",
+    "unit": "internal/component/radius/rfc2865_wire_rules_test.go::TestRFC2865PacketOfTheMinimumAndMaximumLengthIsAccepted",
+    "unit-sha": "f0c4da9c77c4cef6",
+    "claim-sha": "0d7da49270117635",
+    "route": "revert",
+    "producer": "internal/component/radius/packet.go::Decode",
+    "producer-sha": "1cfcbbae411360f3",
+    "break": "body of Decode replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2865-3-1",
+    "polarity": "negative",
+    "unit": "internal/component/radius/rfc2865_wire_rules_test.go::TestRFC2865PacketOutsideTheLengthBoundsIsRefused",
+    "unit-sha": "3a721716d641460e",
+    "claim-sha": "23b608cb41636d53",
+    "route": "revert",
+    "producer": "internal/component/radius/packet.go::Decode",
+    "producer-sha": "1cfcbbae411360f3",
+    "break": "body of Decode replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

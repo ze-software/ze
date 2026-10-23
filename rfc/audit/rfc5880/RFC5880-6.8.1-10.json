@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: bfd.DetectMult zero. Red: TestRFC5880DetectMultZeroRequestSubstituted Inits with DetectMult 0 and Fatalf if DetectMult()==0 or != DefaultDetectMult; positive keeps the configured 3. Init (session/session.go:256) is the only writer of vars.DetectMult.",
+  "requirement_sha": "0e5a8a8651ce1a63",
+  "tests": {
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880DetectMultConfiguredValue": "8db25cbb4534cc2d",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880DetectMultZeroRequestSubstituted": "8db25cbb4534cc2d"
+  },
+  "units": {
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880DetectMultConfiguredValue": "43ec829f148de834",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880DetectMultZeroRequestSubstituted": "91eca6c7d300deae"
+  },
+  "verdict": "enforced"
+}

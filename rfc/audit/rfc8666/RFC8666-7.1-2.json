@@ -1,0 +1,13 @@
+{
+  "note": "Reserved=0xFFFF decodes identically and encoder sends zero; negative bounds the ignore by showing Weight is honoured",
+  "requirement_sha": "d253623277a116ba",
+  "tests": {
+    "internal/plugins/ospf/sr/rfc8666_test.go::TestRFC8666AdjSIDReservedFieldIgnoredOnReceive": "fc78f1bb66bf1d61",
+    "internal/plugins/ospf/sr/rfc8666_test.go::TestRFC8666AdjSIDWeightOctetNotIgnored": "fc78f1bb66bf1d61"
+  },
+  "units": {
+    "internal/plugins/ospf/sr/rfc8666_test.go::TestRFC8666AdjSIDReservedFieldIgnoredOnReceive": "02164d5ba8af3860",
+    "internal/plugins/ospf/sr/rfc8666_test.go::TestRFC8666AdjSIDWeightOctetNotIgnored": "5273cbceefc73e04"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "Single-polarity accepted: no early-disconnect branch exists after sca in Opened+RTR. TestRFC1661TerminateAckSentAndLinkHeld pins the instant of receipt; TestRFC1661TerminateAckHoldsLinkForRestartTime adds the time bound: after the Terminate-Ack the Restart timer is running (armed by zrc via armRestartTimer, which uses defaultRestartTimer, asserted >= 3 s), and a Configure-Request and an Echo-Request meanwhile keep Stopping with no end and no EventSessionDown. Residual: the armed duration is asserted through the constant, not read off the timer.",
+  "requirement_sha": "376a67e775b4a6f4",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661TerminateAckHoldsLinkForRestartTime": "480d72ff3c4dac57",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661TerminateAckSentAndLinkHeld": "9afaf002f0fd81ec"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661TerminateAckHoldsLinkForRestartTime": "8570eab09b4f3a18",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661TerminateAckSentAndLinkHeld": "3825213225d359e1"
+  },
+  "verdict": "enforced"
+}

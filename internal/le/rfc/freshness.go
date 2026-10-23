@@ -445,7 +445,7 @@ func auditFreshness(in auditFreshnessInput) map[string]Freshness {
 // auditWhere names the record and the field a refusal came from.
 func auditWhere(req Requirement, field string) string {
 	var tb textbuf.Buffer
-	return tb.Str(auditRel).Byte('/').Str(req.RFC).Str(".json: ").Str(req.RID).
+	return tb.Str(auditRecordRel(req.RFC, req.RID)).Str(": ").Str(req.RID).
 		Byte(' ').Str(field).String()
 }
 

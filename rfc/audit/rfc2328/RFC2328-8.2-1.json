@@ -1,0 +1,13 @@
+{
+  "note": "Each listed test has both polarities through deliverDatagram, the Linux receive path. IP checksum: the 'checksum' case fails if a datagram with a broken header checksum is delivered. Destination: accepted for the interface address, AllSPFRouters and AllDRouters (TestOSPFReceiveAcceptsValidIPv4Envelope fails if any is rejected or not delivered), 'destination' case fails if a foreign address is delivered. Protocol: 'protocol' case (17) fails if delivered, while the valid datagrams carry 89. Rejections also assert one drop recorded and nothing on recvCh.",
+  "requirement_sha": "ce131d5ca75ff71f",
+  "tests": {
+    "internal/plugins/ospf/transport/rfc2328_backend_linux_test.go::TestOSPFReceiveAcceptsValidIPv4Envelope": "207326999e5c29e9",
+    "internal/plugins/ospf/transport/rfc2328_backend_linux_test.go::TestOSPFReceiveRejectsInvalidIPv4Envelope": "207326999e5c29e9"
+  },
+  "units": {
+    "internal/plugins/ospf/transport/rfc2328_backend_linux_test.go::TestOSPFReceiveAcceptsValidIPv4Envelope": "fe85c4a36c926d58",
+    "internal/plugins/ospf/transport/rfc2328_backend_linux_test.go::TestOSPFReceiveRejectsInvalidIPv4Envelope": "863cacb2235f9405"
+  },
+  "verdict": "enforced"
+}

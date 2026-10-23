@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC4090-4.1-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/frr_test.go::TestEncodeDecodeFastReroute",
+    "unit-sha": "88934e7218a0179a",
+    "claim-sha": "220ac18bc05f0632",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/frr.go::encodeFastReroute",
+    "producer-sha": "85dc52c31482a0f4",
+    "break": "body of encodeFastReroute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4090-4.1-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/rsvpte/frr_test.go::TestFastRerouteShortBody",
+    "unit-sha": "7a3db1ab61d187ca",
+    "claim-sha": "a27d357e16867857",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/frr.go::decodeFastReroute",
+    "producer-sha": "068de0523382f234",
+    "break": "body of decodeFastReroute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4090-4.1-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC4090FastRerouteClassAndCTypeLiterals",
+    "unit-sha": "4b03ddac913cb749",
+    "claim-sha": "c0e7670e12f9aebe",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/frr.go::encodeFastReroute",
+    "producer-sha": "85dc52c31482a0f4",
+    "break": "body of encodeFastReroute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4090-4.1-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC4090FastRerouteOtherCTypeNotRecognized",
+    "unit-sha": "1f4de3d34d776d87",
+    "claim-sha": "1841034ee4fcf513",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/message_validation.go::knownCType",
+    "producer-sha": "89b1704c6343ea26",
+    "break": "body of knownCType replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

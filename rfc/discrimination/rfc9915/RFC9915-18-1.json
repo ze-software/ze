@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC9915-18-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go::TestRFC9915Section1825ExpiryRemovesAndSolicits",
+    "unit-sha": "6c97fab7ca55afca",
+    "claim-sha": "aa4889be0d1c661d",
+    "route": "revert",
+    "producer": "internal/plugins/iface/dhcp/dhcp_v6_linux.go::expireDue",
+    "producer-sha": "0ad649a249b7ec24",
+    "break": "body of expireDue replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

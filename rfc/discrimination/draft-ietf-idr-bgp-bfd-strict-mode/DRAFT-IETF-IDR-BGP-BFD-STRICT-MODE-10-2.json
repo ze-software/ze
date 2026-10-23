@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-10-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/draft_ietf_idr_bgp_bfd_strict_mode_pending_test.go::TestDraftBFDHoldDownDoesNotGateConnectionOrOPEN",
+    "unit-sha": "f5d6e2c6a8517c51",
+    "claim-sha": "2e13b8c558ca4386",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_bfd_strict.go::advanceAfterOpen",
+    "producer-sha": "948fe3a31d7e7a9c",
+    "break": "body of advanceAfterOpen replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-10-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/draft_ietf_idr_bgp_bfd_strict_mode_pending_test.go::TestDraftBFDHoldDownDoesNotGateConnectionOrOPEN",
+    "unit-sha": "f5d6e2c6a8517c51",
+    "claim-sha": "4fff4a47b0d41dbd",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_bfd_strict.go::advanceAfterOpen",
+    "producer-sha": "948fe3a31d7e7a9c",
+    "break": "body of advanceAfterOpen replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-10-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/session_bfd_strict_test.go::TestSessionBFDStrictEstablishesWhenPeerDoesNotAdvertise",
+    "unit-sha": "522f51afdc1791ed",
+    "claim-sha": "887e7658e22f4665",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_bfd_strict.go::bfdStrictHolds",
+    "producer-sha": "c0468454a7318c84",
+    "break": "body of bfdStrictHolds replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-10-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/session_bfd_strict_test.go::TestSessionBFDStrictWithholdsKeepalive",
+    "unit-sha": "815cc245367e7e93",
+    "claim-sha": "60b6a4317e9d9b04",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_bfd_strict.go::advanceAfterOpen",
+    "producer-sha": "948fe3a31d7e7a9c",
+    "break": "body of advanceAfterOpen replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

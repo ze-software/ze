@@ -1,0 +1,19 @@
+{
+  "note": "Only-one-sub-agent: TestSFlowV5OneSubAgentPerDataSource requires Config.Validate to accept two sflow collectors with sub-agent-id 7 and to refuse 7 and 8, naming sub-agent-id (validateSFlowCollectors; every sflow collector exports every data source); TestSFlowV5DataSourceKeepsOneSubAgent shows one collector's counter and flow factories use its single sub-agent. Constant-association: the sflow_v5_test.go negative keeps ifIndex 3 on one sub-agent over five datagrams. All units recorded.",
+  "requirement_sha": "e1783aa52b81cf35",
+  "tests": {
+    "internal/plugins/flowexport/sflow/sflow_v5_config_test.go::TestSFlowV5OneSubAgentPerDataSource": "c2cd21e69892f0da",
+    "internal/plugins/flowexport/sflow/sflow_v5_config_test.go::TestSFlowV5OneSubAgentPerDataSource#2": "c2cd21e69892f0da",
+    "internal/plugins/flowexport/sflow/sflow_v5_subagent_test.go::TestSFlowV5DataSourceKeepsOneSubAgent": "315e39ecc463c856",
+    "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5DataSourcesCarryTheirSubAgent": "2b3441f1e34ff01f",
+    "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5SubAgentBindingConstantForSession": "2b3441f1e34ff01f"
+  },
+  "units": {
+    "internal/plugins/flowexport/sflow/sflow_v5_config_test.go::TestSFlowV5OneSubAgentPerDataSource": "b735f437b22cb398",
+    "internal/plugins/flowexport/sflow/sflow_v5_config_test.go::TestSFlowV5OneSubAgentPerDataSource#2": "b735f437b22cb398",
+    "internal/plugins/flowexport/sflow/sflow_v5_subagent_test.go::TestSFlowV5DataSourceKeepsOneSubAgent": "942fe6cee1d8dd4e",
+    "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5DataSourcesCarryTheirSubAgent": "dcb1773c1e0d5c55",
+    "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5SubAgentBindingConstantForSession": "4f7849814f539a22"
+  },
+  "verdict": "enforced"
+}

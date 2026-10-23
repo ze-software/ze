@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8956-3.1-2",
+    "polarity": "positive",
+    "unit": "internal/core/bgp/nlri/flowspec/rfc8956_prefix_test.go::TestIPv6FlowPrefixPatternAndPadding",
+    "unit-sha": "605ef53393ab5250",
+    "claim-sha": "824a4e98e3ae953f",
+    "route": "revert",
+    "producer": "internal/core/bgp/nlri/flowspec/types_prefix.go::flowPrefixPattern",
+    "producer-sha": "4ddbcac69db46996",
+    "break": "body of flowPrefixPattern replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8956-3.1-2",
+    "polarity": "negative",
+    "unit": "internal/core/bgp/nlri/flowspec/rfc8956_prefix_test.go::TestIPv6FlowPrefixPatternAndPadding",
+    "unit-sha": "605ef53393ab5250",
+    "claim-sha": "eac1be230ef90ec7",
+    "route": "revert",
+    "producer": "internal/core/bgp/nlri/flowspec/types_prefix.go::flowPrefixPattern",
+    "producer-sha": "4ddbcac69db46996",
+    "break": "body of flowPrefixPattern replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,17 @@
+{
+  "note": "TestRFC4271OutOfOrderAttributesReachTheReceivePathIntact builds interleaved and fully descending UPDATEs, asserts ValidateUpdateRFC7606 None and that every attribute via wireu.WireUpdate.Attrs().Get and the NLRI equal the ascending UPDATE's, value by value. A receiver assuming ascending order goes red; the lazy view the reactor uses is exercised, not only the validator.",
+  "requirement_sha": "6c94d958426964fa",
+  "tests": {
+    "internal/component/bgp/message/rfc4271_out_of_order_receive_test.go::TestRFC4271OutOfOrderAttributesReachTheReceivePathIntact": "4070fa8f7934cc62",
+    "internal/component/bgp/message/rfc4271_out_of_order_receive_test.go::TestRFC4271OutOfOrderAttributesReachTheReceivePathIntact#2": "4070fa8f7934cc62",
+    "internal/component/bgp/message/rfc4271_test.go::TestRFC4271AttributesOutOfOrderAccepted": "abbe4d642c22df9a",
+    "internal/component/bgp/message/rfc4271_test.go::TestRFC4271OutOfOrderDoesNotMaskMalformation": "abbe4d642c22df9a"
+  },
+  "units": {
+    "internal/component/bgp/message/rfc4271_out_of_order_receive_test.go::TestRFC4271OutOfOrderAttributesReachTheReceivePathIntact": "3bba169e97c915a2",
+    "internal/component/bgp/message/rfc4271_out_of_order_receive_test.go::TestRFC4271OutOfOrderAttributesReachTheReceivePathIntact#2": "3bba169e97c915a2",
+    "internal/component/bgp/message/rfc4271_test.go::TestRFC4271AttributesOutOfOrderAccepted": "76fdf7d16b9b80b9",
+    "internal/component/bgp/message/rfc4271_test.go::TestRFC4271OutOfOrderDoesNotMaskMalformation": "01ab490924abc0a0"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,11 @@
+{
+  "note": "Forbidden: a protect policy or SA on an interface with OSPFv3 security disabled. TestIPsecDisabledInterfaceBypass configures an interface with no ipsec block, brings it up, and asserts zero SAs and zero policies, so OSPF falls to the kernel default (bypass); TestIPsecPoliciesInterfaceScopedWildcard asserts an enabled interface's policies are IfIndex-scoped, so they cannot cover the disabled one. Single-polarity marker.",
+  "requirement_sha": "47d8095219ad4c47",
+  "tests": {
+    "internal/plugins/ospf/ipsec_install_test.go::TestIPsecDisabledInterfaceBypass": "976d07eeb9539b2b"
+  },
+  "units": {
+    "internal/plugins/ospf/ipsec_install_test.go::TestIPsecDisabledInterfaceBypass": "dd52a76e2d13724d"
+  },
+  "verdict": "enforced"
+}

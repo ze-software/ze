@@ -1,0 +1,13 @@
+{
+  "note": "New row 2026-09-30 (R35, D-8 fixed). auth_keystore.go: lastKeyIndex (latest sendStart, tie -> later accept end) is shared by signer and verifier; selectSendKey signs with it when no key is active; lastKeyExtendedIndex extends its accept window only when every window of the chain has closed and the last key's accept end passed (a not-yet-open chain is not expiry); noticeLocked notifies once per interface until configure installs a new chain; notification = slog Warn + ospf/last-key-expiration event. Positive TestRFC5709LastKeyExpiredKeepsAdjacency: two engines with the same expired one-key chain, two Hellos signed by one verify on the other, exactly one event each (eth0, key 1, send / receive). Negative TestRFC5709ExpiredKeyRefusedOnceNotLast: after a live Key ID 2 is configured the expired Key ID 1 is refused accept-lifetime, the signer moves to Key ID 2, no event. Revert records on lastKeyExtendedIndex observed red for both polarities. 'Lifetime extended' and 'key deleted' are the same configure path as 'new key configured' and are not separately asserted.",
+  "requirement_sha": "222ba2dc1a5c0029",
+  "tests": {
+    "internal/plugins/ospf/rfc5709_last_key_expiry_test.go::TestRFC5709ExpiredKeyRefusedOnceNotLast": "8881307d09dd1a4e",
+    "internal/plugins/ospf/rfc5709_last_key_expiry_test.go::TestRFC5709LastKeyExpiredKeepsAdjacency": "8881307d09dd1a4e"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc5709_last_key_expiry_test.go::TestRFC5709ExpiredKeyRefusedOnceNotLast": "b4408a78c63fe316",
+    "internal/plugins/ospf/rfc5709_last_key_expiry_test.go::TestRFC5709LastKeyExpiredKeepsAdjacency": "1217f662814f3b24"
+  },
+  "verdict": "enforced"
+}

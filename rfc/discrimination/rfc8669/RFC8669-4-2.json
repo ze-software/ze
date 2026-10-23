@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC8669-4-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc8669_error_log_test.go::TestRFC8669EBGPAcceptedPrefixSIDNoErrorLog",
+    "unit-sha": "b0322eb5efec58d3",
+    "claim-sha": "9a12a1ed7179659b",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
+    "producer-sha": "66c0f3d227b0c731",
+    "break": "line 187: \"return wu, message.RFC7606ActionNone, nil\" -\u003e \"s.logRFC7606Error(\\\"attribute-discard\\\", 40, \\\"spurious\\\"); return wu, message.RFC7606ActionNone, nil\""
+  },
+  {
+    "rid": "RFC8669-4-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc8669_error_log_test.go::TestRFC8669EBGPBoundaryDiscardLoggedAtDefaultLevel",
+    "unit-sha": "baea7eba684c9974",
+    "claim-sha": "42fa47c651f9e159",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_rfc7606_errlog.go::logRFC7606Error",
+    "producer-sha": "7cd28c5f1c4a9539",
+    "break": "body of logRFC7606Error replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8669-4-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc8669_error_log_test.go::TestRFC8669PrefixSIDDiscardBesideAnotherLogsBoth",
+    "unit-sha": "6fe8b8e76fea7fb2",
+    "claim-sha": "60c5b21cde8e83ca",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_rfc7606_errlog.go::logRFC7606Discards",
+    "producer-sha": "e3f12aa2ee83bc33",
+    "break": "line 106: \"entry.Code, result.DiscardDescriptions[i]\" -\u003e \"result.AttrCode, result.Description\""
+  }
+]

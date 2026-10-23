@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC5881-4-8",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/engine/rfc5881_echo_test.go::TestEchoRoundTrip",
+    "unit-sha": "de8d776d1e961c79",
+    "claim-sha": "a2632ed998968b2f",
+    "route": "revert",
+    "producer": "internal/component/bfd/engine/echo.go::sendEchoLocked",
+    "producer-sha": "2212bba65a2ab7fc",
+    "break": "body of sendEchoLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5881-4-8",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/transport/rfc5881_echo_link_linux_test.go::TestRFC5881EchoFrameAddressedToTheRemoteSystem",
+    "unit-sha": "9718f01318cc2efc",
+    "claim-sha": "966d38ab004cfd46",
+    "route": "revert",
+    "producer": "internal/component/bfd/transport/udp.go::destination",
+    "producer-sha": "ed6f4947370582ff",
+    "break": "body of destination replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5881-4-8",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/transport/rfc5881_echo_link_linux_test.go::TestRFC5881EchoNeverSentWhereTheRemoteCannotReceiveIt",
+    "unit-sha": "bbcea3509f641b84",
+    "claim-sha": "6ed54e578051a729",
+    "route": "revert",
+    "producer": "internal/component/bfd/transport/udp.go::pinsToLink",
+    "producer-sha": "aab765122ad6d2ca",
+    "break": "body of pinsToLink replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

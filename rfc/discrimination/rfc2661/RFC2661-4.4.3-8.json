@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2661-4.4.3-8",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661StopCCNRepeatsFirstAssignedTunnelID",
+    "unit-sha": "d460eaad0510b1d0",
+    "claim-sha": "80566e1feca16ccf",
+    "route": "revert",
+    "producer": "internal/component/l2tp/tunnel_fsm.go::writeStopCCNBody",
+    "producer-sha": "a96799aa5f842675",
+    "break": "body of writeStopCCNBody replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2661-4.4.3-8",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661StopCCNRepeatsFirstAssignedTunnelID",
+    "unit-sha": "d460eaad0510b1d0",
+    "claim-sha": "842e5048fed35c22",
+    "route": "revert",
+    "producer": "internal/component/l2tp/tunnel_fsm.go::teardownStopCCN",
+    "producer-sha": "5b260806112bc55c",
+    "break": "body of teardownStopCCN replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

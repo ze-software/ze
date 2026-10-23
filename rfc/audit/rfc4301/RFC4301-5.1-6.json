@@ -1,0 +1,13 @@
+{
+  "note": "Step 3b SPD search. With no kernel SPD cache every packet, including the first of a flow, is looked up in the SPD (SPD-S: the Child SA PROTECT entry; SPD-O: operator BYPASS/DISCARD and the catch-all). Positive: first packets on the PROTECT and BYPASS entries take those entries' dispositions. Negative: a packet selecting no operator entry takes the catch-all's discard (EPERM, XfrmOutPolBlock +1), not a neighbouring entry's bypass. Claims name the cache absence rather than proving a cache. Records as 5.1-4.",
+  "requirement_sha": "61a00d3b97e3843a",
+  "tests": {
+    "internal/component/ike/engine/rfc4301_outbound_steps_linux_test.go::TestRFC4301OutboundPacketIsDiscardedByTheEntryItMatches": "8a9d29661d983142",
+    "internal/component/ike/engine/rfc4301_outbound_steps_linux_test.go::TestRFC4301OutboundPacketTakesTheDispositionOfTheEntryItMatches": "8a9d29661d983142"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc4301_outbound_steps_linux_test.go::TestRFC4301OutboundPacketIsDiscardedByTheEntryItMatches": "3dd4e913175fac34",
+    "internal/component/ike/engine/rfc4301_outbound_steps_linux_test.go::TestRFC4301OutboundPacketTakesTheDispositionOfTheEntryItMatches": "356dd358920fc52b"
+  },
+  "verdict": "enforced"
+}

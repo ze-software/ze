@@ -1,0 +1,13 @@
+{
+  "note": "Judged 2026-09-30. Positive TestRFC4090HeadEndRevertsGlobally: the head-end receiving Notify 25/3 creates the replacement LSP (LSPID 2) itself, keeps the repaired LSP, and sends a PATH with SenderTemplate LSPID 2. Negative TestRFC4090TransitDoesNotReoptimize: a transit receiving the same Notify creates no replacement, sends no PATH (count unchanged) and relays the PathErr 25/3 to the ingress. Level SHOULD over 'is responsible for' (no keyword) follows the section's SHOULD on global mode, accepted under D-3. Recorded red on frr.go::reoptimizeOnNotify (+) and engine.go::handlePathErr (-). Re-judged 2026-10-08 against rfc4090.txt Section 6.5.2: the negative unit changed only by a nil adspec argument to buildPathErr (commit 9b8bfe250c); input bytes and assertions unchanged, still red with handlePathErr disabled.",
+  "requirement_sha": "e4c7ed654d02847d",
+  "tests": {
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090HeadEndRevertsGlobally": "3fb9184431da8daf",
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090TransitDoesNotReoptimize": "3fb9184431da8daf"
+  },
+  "units": {
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090HeadEndRevertsGlobally": "1bc4bca8a6ee0665",
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090TransitDoesNotReoptimize": "5f50b17ac2c80375"
+  },
+  "verdict": "enforced"
+}

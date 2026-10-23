@@ -1,0 +1,13 @@
+{
+  "note": "IMPLEMENTED 2026-07-20. validateIPv6ExtCommunityAttr registers code 25 and applies 7.15's exact rule: malformed unless the length is a non-zero multiple of 20. Negative TestRFC7606IPv6ExtCommunityBadLength pins 0/19/21/30; positive TestRFC7606IPv6ExtCommunityValidLength pins 20/40. Zero is covered explicitly because 0 % 20 == 0 would pass a multiple-of-20 test alone. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quote is the Section 7.15 malformation rule and its handling; the tagged negative pins 0, 19, 21 and 30. Verdict unchanged.",
+  "requirement_sha": "55af35da6259aebc",
+  "tests": {
+    "internal/component/bgp/message/rfc7606_optional_attrs_test.go::TestRFC7606IPv6ExtCommunityBadLength": "abce9f66859f2e88",
+    "internal/component/bgp/message/rfc7606_optional_attrs_test.go::TestRFC7606IPv6ExtCommunityValidLength": "abce9f66859f2e88"
+  },
+  "units": {
+    "internal/component/bgp/message/rfc7606_optional_attrs_test.go::TestRFC7606IPv6ExtCommunityBadLength": "f3322a701a9b2be7",
+    "internal/component/bgp/message/rfc7606_optional_attrs_test.go::TestRFC7606IPv6ExtCommunityValidLength": "8093e22d166e9f12"
+  },
+  "verdict": "enforced"
+}

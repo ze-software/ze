@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "SFLOW-V5-x-14",
+    "polarity": "positive",
+    "unit": "internal/plugins/flowexport/sflow_v5_exporter_test.go::TestSFlowCounterPollAtInterval",
+    "unit-sha": "92d81f42bebc618b",
+    "claim-sha": "89f0a941b49f5746",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/exporter.go::notifySnapshot",
+    "producer-sha": "760461d784934c54",
+    "break": "body of notifySnapshot replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "SFLOW-V5-x-14",
+    "polarity": "positive",
+    "unit": "internal/plugins/flowexport/sflow_v5_polling_test.go::TestSFlowV5CounterGapNeverExceedsInterval",
+    "unit-sha": "a8609677d3c38f65",
+    "claim-sha": "1e184457317b845c",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/exporter.go::notifySnapshot",
+    "producer-sha": "760461d784934c54",
+    "break": "body of notifySnapshot replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "SFLOW-V5-x-14",
+    "polarity": "negative",
+    "unit": "internal/plugins/flowexport/sflow_v5_polling_test.go::TestSFlowV5CounterGapNeverExceedsInterval",
+    "unit-sha": "a8609677d3c38f65",
+    "claim-sha": "e5b0345041805c07",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/exporter.go::notifySnapshot",
+    "producer-sha": "760461d784934c54",
+    "break": "body of notifySnapshot replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

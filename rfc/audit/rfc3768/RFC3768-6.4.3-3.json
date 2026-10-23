@@ -1,0 +1,13 @@
+{
+  "note": "vrrp judge 2026-09-29 re-read after RFC3768-6.4.3-4 tags were added to TestActiveV2RouterAcceptsOnlyWhenItOwnsTheAddress (body unchanged): Forbidden: a v2 non-owner Master accepting packets addressed to the virtual address. The Version 2 test fatals unless exactly one accept-filter call is made and errors unless accept=false for the non-owner and accept=true for the owner.",
+  "requirement_sha": "114dc20e137ad0e5",
+  "tests": {
+    "internal/plugins/vrrp/acceptfilter_test.go::TestActiveV2RouterAcceptsOnlyWhenItOwnsTheAddress": "ac94e88781e5c08d",
+    "internal/plugins/vrrp/acceptfilter_test.go::TestActiveV2RouterAcceptsOnlyWhenItOwnsTheAddress#2": "ac94e88781e5c08d"
+  },
+  "units": {
+    "internal/plugins/vrrp/acceptfilter_test.go::TestActiveV2RouterAcceptsOnlyWhenItOwnsTheAddress": "4ad715554dd0bc0d",
+    "internal/plugins/vrrp/acceptfilter_test.go::TestActiveV2RouterAcceptsOnlyWhenItOwnsTheAddress#2": "4ad715554dd0bc0d"
+  },
+  "verdict": "enforced"
+}

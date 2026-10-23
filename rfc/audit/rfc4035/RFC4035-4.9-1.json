@@ -1,0 +1,13 @@
+{
+  "note": "an A+RRSIG answer must return exactly the A record and a DNSSEC-only answer (RRSIG, NSEC, DNSKEY) must yield no records and no error, so mishandling either way goes red",
+  "requirement_sha": "2358e5a8859362cf",
+  "tests": {
+    "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_StubHandlesDNSSECRRTypes": "1b164a1a570b2a91",
+    "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_StubHandlesDNSSECRRTypes#2": "1b164a1a570b2a91"
+  },
+  "units": {
+    "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_StubHandlesDNSSECRRTypes": "a5da57d36af22e7a",
+    "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_StubHandlesDNSSECRRTypes#2": "a5da57d36af22e7a"
+  },
+  "verdict": "enforced"
+}

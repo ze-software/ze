@@ -1,0 +1,29 @@
+{
+  "note": "Re-judged 2026-10-09 after 180df07922 (only the ModuleLoadAccepted tail changed; cases unchanged) over the goyang fork, now committed in 66e87707f5 (go.mod replace github.com/ze-software/goyang v1.6.4-0.20261009101552-a3cf525c4f98, upstream PR openconfig/goyang#317). The STACK now meets the sentence 'otherwise, the assigned value is one greater than the current highest enum value': vendored EnumType.Set sets last on the first assignment or any higher value (len(e.ToInt) == 0 || value > e.last), so SetNext after an explicit -5 yields -4, and Loader.Resolve (goyang Modules.Process) no longer refuses enumeration { enum p { value -5; } enum q; enum r { value 0; } }. Ze's own producer (assignEnumValues) is unchanged and its tags still discriminate: TestRFC7950EnumImplicitValueFollowsTheHighest pins -4 after -5, 11 after 10 then 3, if-feature counted (2), two typedef levels down, each refused twin differing only in the value; TestRFC7950EnumValueRangeAndUniqueness refuses with ErrEnumValue an implicit value past 2147483647 and an explicit repeat of the implicit -4. Both tags' claims state only what their bodies assert, and the edited comments now say only true things (goyang v1.6.3 history, Ze's own refusals). Still weak: the module that proves the stack fix is exercised only by TestGoyangNumbersAnEnumAfterANegativeValue, which carries no RFC requirement tag, and every tagged positive sidesteps the defect (uniqueness positive uses r value -3; the implicit positives restate q -4 in a restriction goyang builds afresh). Under goyang v1.6.3 every tagged unit stays green (TestGoyangNumbersAnEnumAfterANegativeValue still carries no tag and the uniqueness positive still uses r value -3), so dropping the replace at the next goyang bump (which the go.mod comment plans) reddens no tagged test. Owed to reach enforced: tag that module as a positive of this requirement (or change the uniqueness positive's r to value 0) and record its discrimination against the reverted Set.",
+  "requirement_sha": "af5bfbedbde62bb3",
+  "tests": {
+    "internal/component/config/yang/rfc7950_enum_value_test.go::TestRFC7950EnumImplicitValueFollowsTheHighest": "9328693c7b58fc15",
+    "internal/component/config/yang/rfc7950_enum_value_test.go::TestRFC7950EnumImplicitValueFollowsTheHighest#2": "9328693c7b58fc15",
+    "internal/component/config/yang/rfc7950_enum_value_test.go::TestRFC7950EnumValueRangeAndUniqueness": "9328693c7b58fc15",
+    "internal/component/config/yang/rfc7950_enum_value_test.go::TestRFC7950EnumValueRangeAndUniqueness#2": "9328693c7b58fc15",
+    "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950EnumValueWithinInt32": "b80383bc8bec6c5c",
+    "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950EnumValueWithinInt32#2": "b80383bc8bec6c5c",
+    "internal/component/config/yang/rfc7950_loader_structural_test.go::TestRFC7950EnumRestrictionKeepsTheBaseValue": "f7f46fb0e5438f42",
+    "internal/component/config/yang/rfc7950_loader_structural_test.go::TestRFC7950EnumRestrictionKeepsTheBaseValue#2": "f7f46fb0e5438f42",
+    "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadAccepted": "26cd2578c196b22d",
+    "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadRefused": "26cd2578c196b22d"
+  },
+  "units": {
+    "internal/component/config/yang/rfc7950_enum_value_test.go::TestRFC7950EnumImplicitValueFollowsTheHighest": "9cfe84ddc079134d",
+    "internal/component/config/yang/rfc7950_enum_value_test.go::TestRFC7950EnumImplicitValueFollowsTheHighest#2": "9cfe84ddc079134d",
+    "internal/component/config/yang/rfc7950_enum_value_test.go::TestRFC7950EnumValueRangeAndUniqueness": "ea08c77e9443c04b",
+    "internal/component/config/yang/rfc7950_enum_value_test.go::TestRFC7950EnumValueRangeAndUniqueness#2": "ea08c77e9443c04b",
+    "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950EnumValueWithinInt32": "cc7cdabcebfb50cb",
+    "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950EnumValueWithinInt32#2": "cc7cdabcebfb50cb",
+    "internal/component/config/yang/rfc7950_loader_structural_test.go::TestRFC7950EnumRestrictionKeepsTheBaseValue": "bedbd0565b8aac39",
+    "internal/component/config/yang/rfc7950_loader_structural_test.go::TestRFC7950EnumRestrictionKeepsTheBaseValue#2": "bedbd0565b8aac39",
+    "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadAccepted": "205c57baa94df187",
+    "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadRefused": "9aa285d5018c168d"
+  },
+  "verdict": "weak"
+}

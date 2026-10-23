@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: using an unprotected stream when the operator has configured a protected transport. TestRTRTLSAuthenticatedCache asserts the RTR exchange completes over TLS 1.2 and 1.3 (observed state.Version, queryType, published VRP and ASPA); negative TestRTRTLSNoPlaintextFallback offers a plaintext RTR server at the TLS address and assertRTRTLSRefused asserts syncOnce errors, zero RTR query bytes reach the peer on any connection, and nothing is published, so a plaintext fallback goes red. Availability is the operator's configuration; the refusal of a cache with neither tls nor trusted-network sits in untagged TestRTRTLSConfigRejectsUnsafeTransport and is RFC8210-3-1's concern.",
+  "requirement_sha": "182f0dad42ac7bfc",
+  "tests": {
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go::TestRTRTLSAuthenticatedCache": "cc96e0e57341d7a8",
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go::TestRTRTLSNoPlaintextFallback": "cc96e0e57341d7a8"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go::TestRTRTLSAuthenticatedCache": "46740446577221b8",
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go::TestRTRTLSNoPlaintextFallback": "946a64c1c97da575"
+  },
+  "verdict": "enforced"
+}

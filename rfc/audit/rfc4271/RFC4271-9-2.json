@@ -1,0 +1,17 @@
+{
+  "note": "Positive: a second received route with identical NLRI from the same peer leaves one Adj-RIB-In entry and the new next hop in service. Negative (inputs biased toward the violation): the newer route has a LONGER AS_PATH, so keep-both or keep-better would leave the older 10.0.0.1 selected; the test asserts one entry and 10.0.0.2 in service. Both run through handleReceivedStructured. The HEAD storage negative (removal keyed on NLRI) is a neighbouring rule kept as supplementary; the new pair carries the row.",
+  "requirement_sha": "0ddd41b24ace783a",
+  "tests": {
+    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271ReceivedRouteWithIdenticalNLRIReplacesTheOlder": "e914a6452ddec559",
+    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271ReplacementWithdrawsTheOlderRouteEvenWhenItWasBetter": "e914a6452ddec559",
+    "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271SamePrefixReplacesRatherThanAccumulates": "ab16100811ce8d90",
+    "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271WithdrawRemovesFromAdjRIBIn": "ab16100811ce8d90"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271ReceivedRouteWithIdenticalNLRIReplacesTheOlder": "68cd482462e9f4f3",
+    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271ReplacementWithdrawsTheOlderRouteEvenWhenItWasBetter": "2736bb36fa7477ff",
+    "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271SamePrefixReplacesRatherThanAccumulates": "fd852d268e8d082c",
+    "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271WithdrawRemovesFromAdjRIBIn": "b31ce68fe4addcd8"
+  },
+  "verdict": "enforced"
+}

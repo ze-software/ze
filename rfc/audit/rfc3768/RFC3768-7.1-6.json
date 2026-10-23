@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 3768 Section 7.1 says \"If any one of the above checks fails, the receiver MUST discard the packet\". TestInstanceRxValidAdvertReachesFSM changed only by the checksum-mode plumbing (a Checksum: packet.ChecksumRFC9568 field added to the GroupSpec, AdvertParams or packet.Local literal, or the mode argument added to packet.FillChecksum); every assertion and every isolating input is byte-for-byte the same. The per-check discard proof in TestInstanceRxFailedCheckIsDiscarded is unchanged, and an overlay mutant making instance.lookup hand Decode the rfc5798-compatible mode reddened that test and TestInstanceRxValidAdvertReachesFSM, so the receive path still reaches the checks. Verdict unchanged.",
+  "requirement_sha": "5382391a3b5b9394",
+  "tests": {
+    "internal/plugins/vrrp/instance_test.go::TestInstanceRxDecodeErrorMapsReason": "90d279832a92de75",
+    "internal/plugins/vrrp/instance_test.go::TestInstanceRxValidAdvertReachesFSM": "90d279832a92de75",
+    "internal/plugins/vrrp/rx_discard_test.go::TestInstanceRxFailedCheckIsDiscarded": "c5ce868df163843b",
+    "internal/plugins/vrrp/rx_discard_test.go::TestInstanceRxFailedCheckIsDiscarded#2": "c5ce868df163843b"
+  },
+  "units": {
+    "internal/plugins/vrrp/instance_test.go::TestInstanceRxDecodeErrorMapsReason": "7273926a6ce2e1df",
+    "internal/plugins/vrrp/instance_test.go::TestInstanceRxValidAdvertReachesFSM": "318973084d5842b9",
+    "internal/plugins/vrrp/rx_discard_test.go::TestInstanceRxFailedCheckIsDiscarded": "3c21c5112840bac1",
+    "internal/plugins/vrrp/rx_discard_test.go::TestInstanceRxFailedCheckIsDiscarded#2": "3c21c5112840bac1"
+  },
+  "verdict": "enforced"
+}

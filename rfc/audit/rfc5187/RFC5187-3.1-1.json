@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-21. The store round-trip tags are gone. TestRFC5187LSAIDToPrefixPreservedAcrossRestart: after a real restart the redistributed prefix maps to its pre-restart LSA ID, and a prefix first redistributed afterwards is refused that ID while the preserved one keeps it. Records on restorePrefixLSIDs.",
+  "requirement_sha": "d1e577dcb3f1aabe",
+  "tests": {
+    "internal/plugins/ospf/rfc5187_preserve_restart_test.go::TestRFC5187LSAIDToPrefixPreservedAcrossRestart": "62d65d9bff72dc5d",
+    "internal/plugins/ospf/rfc5187_preserve_restart_test.go::TestRFC5187LSAIDToPrefixPreservedAcrossRestart#2": "62d65d9bff72dc5d"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc5187_preserve_restart_test.go::TestRFC5187LSAIDToPrefixPreservedAcrossRestart": "e65a927e097dfd87",
+    "internal/plugins/ospf/rfc5187_preserve_restart_test.go::TestRFC5187LSAIDToPrefixPreservedAcrossRestart#2": "e65a927e097dfd87"
+  },
+  "verdict": "enforced"
+}

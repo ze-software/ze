@@ -1,0 +1,57 @@
+[
+  {
+    "rid": "RFC5798-6.4.2-7",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMMasterDownPromotion",
+    "unit-sha": "706ed74221ad1376",
+    "claim-sha": "2256e312fbbaae10",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/fsm/fsm.go::promoteToMaster",
+    "producer-sha": "203d2be53b5889c1",
+    "break": "body of promoteToMaster replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5798-6.4.2-7",
+    "polarity": "negative",
+    "unit": "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMStaleTimerGenerationIgnored",
+    "unit-sha": "68efb0324ebf3a8f",
+    "claim-sha": "28a0708aa2399601",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/fsm/fsm.go::Handle",
+    "producer-sha": "2ffd8b034483c3b8",
+    "break": "body of Handle replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5798-6.4.2-7",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/fsm/rfc_verdict_test.go::TestPromotionSetsAdverTimerToOwnInterval",
+    "unit-sha": "b7523bbadbd353f9",
+    "claim-sha": "d31028a7589347df",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/fsm/fsm.go::promoteToMaster",
+    "producer-sha": "203d2be53b5889c1",
+    "break": "body of promoteToMaster replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5798-6.4.2-7",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/promote_install_v6_test.go::TestPromotionInstallsIPv6AddressesOnVirtualMACDevice",
+    "unit-sha": "30abde8dae00ae73",
+    "claim-sha": "9b55a74c52953bda",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/instance.go::doInstallVIPs",
+    "producer-sha": "6c990de7776ea965",
+    "break": "body of doInstallVIPs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5798-6.4.2-7",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/transport/rfc_announce_verdict_test.go::TestAnnounceMasterFramesPerAddress",
+    "unit-sha": "9a946463ff413405",
+    "claim-sha": "2c1938baf9386112",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/transport/na.go::BuildNA",
+    "producer-sha": "56148ef852cbf5a7",
+    "break": "body of BuildNA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

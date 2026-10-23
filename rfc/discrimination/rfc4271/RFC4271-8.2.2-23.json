@@ -1,0 +1,47 @@
+[
+  {
+    "rid": "RFC4271-8.2.2-23",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_manualstop_peer_test.go::TestRFC4271EstablishedManualStopReleasesTheConnection",
+    "unit-sha": "774572a98527e45f",
+    "claim-sha": "3ab77e71c24bcbe3",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/peer.go::shutdownNotify",
+    "producer-sha": "7a38d0a2625b7d2d",
+    "break": "body of shutdownNotify replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-8.2.2-23",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_manualstop_peer_test.go::TestRFC4271EstablishedWithoutManualStopKeepsTheConnection",
+    "unit-sha": "4a291f7c0b69ac65",
+    "claim-sha": "d8d9d5a5436c1922",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_handlers.go::handleKeepalive",
+    "producer-sha": "6efb928b7415db50",
+    "break": "body of handleKeepalive replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-8.2.2-23",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_shutdown_notify_test.go::TestShutdownNotifySendsCeaseFromEveryConnectedState",
+    "unit-sha": "9ecf268c07e1e1a6",
+    "claim-sha": "b30b8aef684287e2",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/peer.go::shutdownNotify",
+    "producer-sha": "7a38d0a2625b7d2d",
+    "break": "body of shutdownNotify replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-8.2.2-23",
+    "polarity": "positive",
+    "unit": "test/reload/signal-stop-cease.ci",
+    "unit-sha": "8039b0eceaa475f9",
+    "claim-sha": "f95ecca2e78a1583",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/peer.go::shutdownNotify",
+    "producer-sha": "7a38d0a2625b7d2d",
+    "break": "body of shutdownNotify replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+    "citation": "expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D0306021741646D696E6973747261746976652053687574646F776E"
+  }
+]

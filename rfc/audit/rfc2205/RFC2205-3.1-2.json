@@ -1,0 +1,13 @@
+{
+  "note": "Rejudged 2026-10-08 against RFC 2205 Appendix A ('All unused fields should be sent as zero and ignored on receipt.'). Single-polarity row, both clauses covered: send, TestRSVPReservedByteZeroOnSend requires raw[5]==0 in a built PATH, plus the Flags nibble sent zero in TestRFC2205UnusedHeaderFieldsIgnoredOnReceipt; receive, the same unit feeds Reserved 0xA5 and all four Flags bits set, re-checksummed, and the egress still installs state and answers with a RESV. Units byte-identical; covers the common-header unused fields only.",
+  "requirement_sha": "f002ecbce4098c46",
+  "tests": {
+    "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC2205UnusedHeaderFieldsIgnoredOnReceipt": "8cea1a3ca4572fd1",
+    "internal/plugins/rsvpte/wire_test.go::TestRSVPReservedByteZeroOnSend": "9e0ed20ca4d343e6"
+  },
+  "units": {
+    "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC2205UnusedHeaderFieldsIgnoredOnReceipt": "29173b4975b4c11f",
+    "internal/plugins/rsvpte/wire_test.go::TestRSVPReservedByteZeroOnSend": "87b69b9f6ada5045"
+  },
+  "verdict": "enforced"
+}

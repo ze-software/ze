@@ -1,0 +1,68 @@
+[
+  {
+    "rid": "RFC4271-8.2.2-15",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/fsm/rfc4271_connect_any_other_event_test.go::TestRFC4271ConnectActiveAnyOtherEventCountsAndDropsToIdle",
+    "unit-sha": "bdca2eb3e2ef3b9c",
+    "claim-sha": "39893f44d01cf892",
+    "route": "revert",
+    "producer": "internal/component/bgp/fsm/fsm.go::handleConnect",
+    "producer-sha": "0464af23cee10e5a",
+    "break": "body of handleConnect replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-8.2.2-15",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/fsm/rfc4271_connect_any_other_event_test.go::TestRFC4271ConnectActiveUnlistedEventKeepsTheState",
+    "unit-sha": "558880512b8873c4",
+    "claim-sha": "5da70b423ab1f798",
+    "route": "revert",
+    "producer": "internal/component/bgp/fsm/fsm.go::handleConnect",
+    "producer-sha": "0464af23cee10e5a",
+    "break": "body of handleConnect replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-8.2.2-15",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_active_any_other_event_peer_test.go::TestRFC4271ActiveAutomaticStopReleasesThePeer",
+    "unit-sha": "a708fa551614abbc",
+    "claim-sha": "4eaa6e891dc30b2f",
+    "route": "revert",
+    "producer": "internal/component/bgp/fsm/fsm.go::handleActive",
+    "producer-sha": "d25b8a681def50c7",
+    "break": "body of handleActive replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-8.2.2-15",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_active_any_other_event_peer_test.go::TestRFC4271ActiveDuplicateStartKeepsThePeer",
+    "unit-sha": "4409825a237c4774",
+    "claim-sha": "161a769e7ff7c58b",
+    "route": "revert",
+    "producer": "internal/component/bgp/fsm/fsm.go::handleActive",
+    "producer-sha": "d25b8a681def50c7",
+    "break": "body of handleActive replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-8.2.2-15",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_connect_any_other_event_peer_test.go::TestRFC4271ConnectAutomaticStopDuringTheDialReleasesThePeer",
+    "unit-sha": "43da36b31207e7cb",
+    "claim-sha": "e6ec9a4bfba69970",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_connection.go::Connect",
+    "producer-sha": "1e9d5cfd6b3548c7",
+    "break": "body of Connect replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-8.2.2-15",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_connect_any_other_event_peer_test.go::TestRFC4271ConnectDuplicateStartDuringTheDialKeepsThePeer",
+    "unit-sha": "f0cdbfa8936d97a0",
+    "claim-sha": "dc9885aa3a8c98d4",
+    "route": "revert",
+    "producer": "internal/component/bgp/fsm/fsm.go::handleConnect",
+    "producer-sha": "0464af23cee10e5a",
+    "break": "body of handleConnect replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

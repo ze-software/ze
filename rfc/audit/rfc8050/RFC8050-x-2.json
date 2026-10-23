@@ -1,0 +1,13 @@
+{
+  "note": "rejudge 2026-10-02 (c33 judge): {single-polarity: positive} (Figure 1 has no alternative encoding to refuse). TestRFC8050AddPathRIBEntryFollowsFigure1 pins the 32-bit field in network order by literal octets 01 02 03 04 on write and value 0x01020304 on read; four distinct octets and a value above 0xFFFF expose a 16-bit width or a reversed order. Judge break: a 16-bit read of the field turns it red, HEAD TestRIBRecordAddPathRoundTrip (PathID 1 and 2) stays green, which was the earlier gap.",
+  "requirement_sha": "9e616d9919bd82c6",
+  "tests": {
+    "internal/mrt/mrt_test.go::TestRIBRecordAddPathRoundTrip": "fb2e8a7edf55af3c",
+    "internal/mrt/rfc8050_layout_test.go::TestRFC8050AddPathRIBEntryFollowsFigure1": "9b52224532bd0e0b"
+  },
+  "units": {
+    "internal/mrt/mrt_test.go::TestRIBRecordAddPathRoundTrip": "8e03d227ce4c4eb5",
+    "internal/mrt/rfc8050_layout_test.go::TestRFC8050AddPathRIBEntryFollowsFigure1": "20999c37aa3c7a0d"
+  },
+  "verdict": "enforced"
+}

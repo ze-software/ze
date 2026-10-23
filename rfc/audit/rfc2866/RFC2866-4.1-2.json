@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden behaviour: User-Password, CHAP-Password, Reply-Message or State in an Accounting-Request. TestRFC2866AcctForbiddenAttributesAbsent checks each of the four (and CHAP-Challenge) on Start, Interim-Update and Stop from buildAcctPacket; the negative shows the packet still carries User-Name, Acct-Session-Id and Acct-Status-Type, so an empty builder cannot pass. The permissive first clause obliges the sender nothing.",
+  "requirement_sha": "53aa9b5ad8561a12",
+  "tests": {
+    "internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go::TestRFC2866AcctForbiddenAttributesAbsent": "8c3f0adb0fe344ac",
+    "internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go::TestRFC2866AcctForbiddenAttributesDoNotEmptyTheRequest": "8c3f0adb0fe344ac"
+  },
+  "units": {
+    "internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go::TestRFC2866AcctForbiddenAttributesAbsent": "a96bb94b5518fa2c",
+    "internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go::TestRFC2866AcctForbiddenAttributesDoNotEmptyTheRequest": "14276aa4976cfe47"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "(a) forbidden: applying an ERROR reply as a result (terminal rejection) instead of behaving as if the server were unreachable. (b) TestRFC8907ErrorUsesBackupServer fails for authentication, authorization and accounting unless the backup is contacted and its status 1 is returned with no error; TestRFC8907FailDoesNotUseBackupServer is the discriminating pair: a FAIL keeps failStatus and never contacts the backup.",
+  "requirement_sha": "258a9c329eaae3ae",
+  "tests": {
+    "internal/component/tacacs/rfc8907_validation_test.go::TestRFC8907ErrorUsesBackupServer": "59ca691aca621600",
+    "internal/component/tacacs/rfc8907_validation_test.go::TestRFC8907FailDoesNotUseBackupServer": "59ca691aca621600"
+  },
+  "units": {
+    "internal/component/tacacs/rfc8907_validation_test.go::TestRFC8907ErrorUsesBackupServer": "bd073161709fb090",
+    "internal/component/tacacs/rfc8907_validation_test.go::TestRFC8907FailDoesNotUseBackupServer": "b7e25b57b82441ea"
+  },
+  "verdict": "enforced"
+}

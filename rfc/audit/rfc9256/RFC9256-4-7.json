@@ -1,0 +1,9 @@
+{
+  "code": {
+    "internal/component/bgp/plugins/nlri/srpolicy/config.go::buildSegmentSubSubTLV": "06f199ddc509585d",
+    "internal/component/bgp/plugins/nlri/srpolicy/config.go::parseSegmentList": "3560fab26d8718a9"
+  },
+  "note": "Re-judged 2026-10-14 (independent auditor) after parseSegmentList gained the 20-bit type-a label check. Gap unchanged: parseSegmentList still accepts only type-a and type-b ('unknown segment type' otherwise) and buildSegmentSubSubTLV emits only Types A and B, so the optional SR Algorithm, SRv6 SID behavior and structure of segment types I, J and K are not produced. Type B endpoint-behavior support is RFC9256-4-2, not evidence here. No tag; the gap authorizes no implementation.",
+  "requirement_sha": "4cf8ed5d1c30a0a8",
+  "verdict": "unimplemented"
+}

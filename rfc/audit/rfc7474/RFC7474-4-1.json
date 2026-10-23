@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged 2026-09-30 (continuation 8, judge): TestVerifyRejectsOutsideAcceptLifetime verifies identical bytes at three clocks: refused accept-lifetime before the window opens (negative), accepted inside (positive), refused after it closes while successor Key ID 2 is live (negative). The successor was added because RFC 5709 s3.2 (row RFC5709-3.2-5) now keeps an expired LAST key; the closed-window refusal of a non-last key is exactly this row. Revert records on acceptsAt re-observed red for both polarities.",
+  "requirement_sha": "05a8f06ed60bbc8e",
+  "tests": {
+    "internal/plugins/ospf/auth_keystore_test.go::TestVerifyRejectsOutsideAcceptLifetime": "daf32645cbe50ccd",
+    "internal/plugins/ospf/auth_keystore_test.go::TestVerifyRejectsOutsideAcceptLifetime#2": "daf32645cbe50ccd",
+    "internal/plugins/ospf/auth_keystore_test.go::TestVerifyRejectsOutsideAcceptLifetime#3": "daf32645cbe50ccd"
+  },
+  "units": {
+    "internal/plugins/ospf/auth_keystore_test.go::TestVerifyRejectsOutsideAcceptLifetime": "0fac8e4f61943a91",
+    "internal/plugins/ospf/auth_keystore_test.go::TestVerifyRejectsOutsideAcceptLifetime#2": "0fac8e4f61943a91",
+    "internal/plugins/ospf/auth_keystore_test.go::TestVerifyRejectsOutsideAcceptLifetime#3": "0fac8e4f61943a91"
+  },
+  "verdict": "enforced"
+}

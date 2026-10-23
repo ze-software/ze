@@ -1,0 +1,17 @@
+{
+  "note": "Rejudged 2026-10-08 after the tagged units shifted byte-identical; re-read against rfc/full/rfc3209.txt and the current producers. Section 4.2.4: \"To establish an LSP tunnel the sender creates a Path message with a LABEL_REQUEST object.\" TestRFC3209IngressPathCarriesLabelRequest reads the PATH the ingress engine sends and asserts LABEL_REQUEST with L3PID 0x0800; TestRFC3209IngressPathNeverWithoutLabelRequest asserts it on the originated PATH, two refreshes and the make-before-break PATH. TestBuildPathRoundTrip proves buildPath appends the object; TestRFC3209NoLabelWithoutLabelRequest proves the neighbouring receiver rule.",
+  "requirement_sha": "f9b13de724c061e3",
+  "tests": {
+    "internal/plugins/rsvpte/rfc3209_build_test.go::TestBuildPathRoundTrip": "af8410d3ed30ac9e",
+    "internal/plugins/rsvpte/rfc3209_relay_test.go::TestRFC3209NoLabelWithoutLabelRequest": "76ac04cc7023e893",
+    "internal/plugins/rsvpte/rfc3209_signaling_test.go::TestRFC3209IngressPathCarriesLabelRequest": "0fabf3da631549e2",
+    "internal/plugins/rsvpte/rfc3209_signaling_test.go::TestRFC3209IngressPathNeverWithoutLabelRequest": "0fabf3da631549e2"
+  },
+  "units": {
+    "internal/plugins/rsvpte/rfc3209_build_test.go::TestBuildPathRoundTrip": "d818651c66d28eb8",
+    "internal/plugins/rsvpte/rfc3209_relay_test.go::TestRFC3209NoLabelWithoutLabelRequest": "30f3a68794f08c36",
+    "internal/plugins/rsvpte/rfc3209_signaling_test.go::TestRFC3209IngressPathCarriesLabelRequest": "1c6e33bdcdc7214f",
+    "internal/plugins/rsvpte/rfc3209_signaling_test.go::TestRFC3209IngressPathNeverWithoutLabelRequest": "f488b946adf71057"
+  },
+  "verdict": "enforced"
+}

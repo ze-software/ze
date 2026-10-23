@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC5072-4.1-4",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPNakOnEqualNonZeroIdentifiers",
+    "unit-sha": "fc0fc93a1e67f867",
+    "claim-sha": "9c1bc0863b78cebf",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/ncp.go::buildNakOrReject",
+    "producer-sha": "312e42cb526a2495",
+    "break": "body of buildNakOrReject replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

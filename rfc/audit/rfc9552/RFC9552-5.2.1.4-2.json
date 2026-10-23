@@ -1,0 +1,11 @@
+{
+  "note": "D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV->WriteTLV and field-export renames (TLV code constants verified unchanged). RFC 9552 Section 5.2.1.4: \"The sub-TLVs within a Node Descriptor MUST be arranged in ascending order by sub-TLV type.\" {single-polarity: positive}: exact 512..517 sequence from bgpls.NodeDescriptor.WriteTo, the encoder the native exporter uses for every Node Descriptor (exportNodeID).",
+  "requirement_sha": "1b082a856151b73f",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752NodeDescriptorSubTLVsAscending": "6c7da98fd78cb69c"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752NodeDescriptorSubTLVsAscending": "1fb1dc7fcaee71a8"
+  },
+  "verdict": "enforced"
+}

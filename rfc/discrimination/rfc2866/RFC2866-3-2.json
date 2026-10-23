@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC2866-3-2",
+    "polarity": "positive",
+    "unit": "internal/component/radius/rfc2866_accounting_test.go::TestRFC2866AccountingRequestAuthFormula",
+    "unit-sha": "22b3cbf9c147a9b9",
+    "claim-sha": "d7b57ef9d0490798",
+    "route": "revert",
+    "producer": "internal/component/radius/packet.go::AccountingRequestAuth",
+    "producer-sha": "c27afd65de139492",
+    "break": "body of AccountingRequestAuth replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2866-3-2",
+    "polarity": "negative",
+    "unit": "internal/component/radius/rfc2866_accounting_test.go::TestRFC2866AccountingRequestAuthRejectsTampering",
+    "unit-sha": "23f504ff82d775fe",
+    "claim-sha": "14d864b375f1f96e",
+    "route": "revert",
+    "producer": "internal/component/radius/packet.go::AccountingRequestAuth",
+    "producer-sha": "c27afd65de139492",
+    "break": "body of AccountingRequestAuth replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2866-3-2",
+    "polarity": "positive",
+    "unit": "internal/component/radius/rfc2866_sent_request_test.go::TestRFC2866SentAccountingRequestCarriesTheSection3Authenticator",
+    "unit-sha": "53710834c790d13a",
+    "claim-sha": "87e7e30fc6dac362",
+    "route": "revert",
+    "producer": "internal/component/radius/client.go::encodeRequest",
+    "producer-sha": "1683398c8195b350",
+    "break": "body of encodeRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

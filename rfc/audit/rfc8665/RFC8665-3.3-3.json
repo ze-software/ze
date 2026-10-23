@@ -1,0 +1,13 @@
+{
+  "note": "forbidden: using an SRLB TLV that carries two SID/Label sub-TLVs. The V4TypeSRLB case of srDecodeRemoteCapabilities calls the same DecodeRangeValue and appends only on rerr == nil; TestRFC8665RangeWithTwoSIDLabelSubTLVsIgnored requires that decoder to reject the two-sub-TLV value, red on a decoder that picks one. Positive accepts exactly one",
+  "requirement_sha": "7d877e03d312ab62",
+  "tests": {
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665RangeWithSingleSIDLabelAccepted": "dcc89abea6ba13ce",
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665RangeWithTwoSIDLabelSubTLVsIgnored": "dcc89abea6ba13ce"
+  },
+  "units": {
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665RangeWithSingleSIDLabelAccepted": "b7c4b8c278be52db",
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665RangeWithTwoSIDLabelSubTLVsIgnored": "2594ec02eb534809"
+  },
+  "verdict": "enforced"
+}

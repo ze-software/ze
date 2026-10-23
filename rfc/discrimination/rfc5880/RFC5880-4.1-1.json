@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC5880-4.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/packet/rfc5880_test.go::TestRFC5880VersionNotOneDiscarded",
+    "unit-sha": "6e1e6b7f89518d60",
+    "claim-sha": "c32f3f70898b9931",
+    "route": "revert",
+    "producer": "internal/component/bfd/packet/control.go::ParseControl",
+    "producer-sha": "2bf7d7d2586a0256",
+    "break": "body of ParseControl replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-4.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/packet/rfc5880_test.go::TestRFC5880VersionOneAccepted",
+    "unit-sha": "6f3e546c37afa361",
+    "claim-sha": "17b0af344921f33f",
+    "route": "revert",
+    "producer": "internal/component/bfd/packet/control.go::WriteTo",
+    "producer-sha": "9ba5d6b9aabfce26",
+    "break": "body of WriteTo replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-4.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/session/rfc5880_transmit_header_test.go::TestRFC5880TransmittedControlCarriesVersionOne",
+    "unit-sha": "22c7300c6a748aa0",
+    "claim-sha": "dc338ec9cf6d4a94",
+    "route": "revert",
+    "producer": "internal/component/bfd/session/fsm.go::Build",
+    "producer-sha": "7804fa2f9f889820",
+    "break": "body of Build replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-4.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/session/rfc5880_transmit_header_test.go::TestRFC5880TransmittedVersionNeverOverwrittenByDiag",
+    "unit-sha": "fa3d277f47370b34",
+    "claim-sha": "be238368929454e4",
+    "route": "revert",
+    "producer": "internal/component/bfd/packet/control.go::WriteTo",
+    "producer-sha": "9ba5d6b9aabfce26",
+    "break": "body of WriteTo replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8665-5-16",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc8665_nexthop_off_best_path_test.go::TestRFC8665NextHopFlagsAppliedOffBestPath",
+    "unit-sha": "af623400d3288d47",
+    "claim-sha": "f3a2ea5de33f1a2f",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/sr_install.go::forwarding",
+    "producer-sha": "423fc2948aa8cbb7",
+    "break": "body of forwarding replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8665-5-16",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/rfc8665_nexthop_off_best_path_test.go::TestRFC8665OffPathAdvertiserFlagsNotAppliedToNextHop",
+    "unit-sha": "dce8d7d4d7711af8",
+    "claim-sha": "55deff67c50c377f",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/sr_install.go::forwarding",
+    "producer-sha": "423fc2948aa8cbb7",
+    "break": "body of forwarding replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

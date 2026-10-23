@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2328-13.2-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc2328_summary_recalc_test.go::TestRFC2328ChangedSummaryRecalculatesRoute",
+    "unit-sha": "6b4c80bcbdb48354",
+    "claim-sha": "c10c0b72e4752667",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/spf/interarea.go::ComputeInterAreaWith",
+    "producer-sha": "aa5588a6b6a755d6",
+    "break": "body of ComputeInterAreaWith replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-13.2-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/rfc2328_summary_recalc_test.go::TestRFC2328SummaryAtInfinityRemovesRoute",
+    "unit-sha": "7edcaec3443a205e",
+    "claim-sha": "33471b2ffa9fa91e",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/spf/interarea.go::ComputeInterAreaWith",
+    "producer-sha": "aa5588a6b6a755d6",
+    "break": "body of ComputeInterAreaWith replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

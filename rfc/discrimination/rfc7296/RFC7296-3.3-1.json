@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC7296-3.3-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_aead_mix_test.go::TestAeadMixInOneProposalIsRefused",
+    "unit-sha": "bb68377e58f1a857",
+    "claim-sha": "32ddd7567903aa7c",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/responder.go::espProposalMatches",
+    "producer-sha": "bec5a1b2e45da33e",
+    "break": "body of espProposalMatches replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,17 @@
+{
+  "note": "Row narrowed to its last two sentences (invariance, unique key); SNMP and loopback moved to gap rows SFLOW-V5-4.3-1/4.3-2. Invariance: TestSFlowV5AgentAddressIsTheAgentKey drives the factory-built counter encoder over three interface sets and requires 192.0.2.1 in every header; TestSFlowDatagramHeaderIPv4 pins the header bytes. No code path derives the address from interfaces, so invariance has no reject path (positive only). Unique key: Config.Validate refuses a missing, 0.0.0.0, :: or second agent address, naming agent-address (parseAgentAddress, differentAgents); TestSFlowV5AgentAddressSpellingsNameOneAgent accepts two spellings of 2001:db8::1 and refuses ::1 vs ::2, which fails if the compare returns to strings (D-8 fixed). All units recorded (revert).",
+  "requirement_sha": "11aaa58d0973777b",
+  "tests": {
+    "internal/plugins/flowexport/sflow/sflow_v5_config_test.go::TestSFlowV5AgentAddressIsTheAgentKey": "c2cd21e69892f0da",
+    "internal/plugins/flowexport/sflow/sflow_v5_config_test.go::TestSFlowV5AgentAddressIsTheAgentKey#2": "c2cd21e69892f0da",
+    "internal/plugins/flowexport/sflow/sflow_v5_config_test.go::TestSFlowV5AgentAddressSpellingsNameOneAgent": "c2cd21e69892f0da",
+    "internal/plugins/flowexport/sflow/sflow_v5_encoder_test.go::TestSFlowDatagramHeaderIPv4": "3fd871610d6c96e0"
+  },
+  "units": {
+    "internal/plugins/flowexport/sflow/sflow_v5_config_test.go::TestSFlowV5AgentAddressIsTheAgentKey": "910296257f50054b",
+    "internal/plugins/flowexport/sflow/sflow_v5_config_test.go::TestSFlowV5AgentAddressIsTheAgentKey#2": "910296257f50054b",
+    "internal/plugins/flowexport/sflow/sflow_v5_config_test.go::TestSFlowV5AgentAddressSpellingsNameOneAgent": "aaa915183529a8af",
+    "internal/plugins/flowexport/sflow/sflow_v5_encoder_test.go::TestSFlowDatagramHeaderIPv4": "b838c197299a0e36"
+  },
+  "verdict": "enforced"
+}

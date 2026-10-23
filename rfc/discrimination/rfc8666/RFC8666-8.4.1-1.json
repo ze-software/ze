@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC8666-8.4.1-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc8666_adjsid_fsm_test.go::TestRFC8666AdjSIDWithdrawnWhenFSMFallsBelowTwoWay",
+    "unit-sha": "95d62f580d9c070f",
+    "claim-sha": "7d1093d2f418ff05",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/sr_adjsid.go::srAdjNeighborLost",
+    "producer-sha": "2e1760bdd5357412",
+    "break": "body of srAdjNeighborLost replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8666-8.4.1-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/rfc8666_sr_origination_v6_test.go::TestOSPFv3ERouterBodyCarriesAdjSID",
+    "unit-sha": "bd5329a168040231",
+    "claim-sha": "448867f5f19124c6",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/sr_origination_v6.go::v6BuildERouterBody",
+    "producer-sha": "1b80dca832c23351",
+    "break": "body of v6BuildERouterBody replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8666-8.4.1-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc8666_test.go::TestRFC8666AdjSIDWithdrawnWhenAdjacencyDrops",
+    "unit-sha": "b42b1d288a01e43c",
+    "claim-sha": "095dc557aa0a5f14",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/sr_adjsid.go::neighborLost",
+    "producer-sha": "7d058e45e7b388cf",
+    "break": "body of neighborLost replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

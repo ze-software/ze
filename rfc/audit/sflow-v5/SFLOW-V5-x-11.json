@@ -1,0 +1,11 @@
+{
+  "note": "asserts the code's estimate sample_pool = min(seq*rate, MaxUint32), not the RFC's 'Total number of packets that could have been sampled'; no packet count the data source saw is observed, and the saturation subtest asserts behaviour the RFC does not state (an XDR unsigned counter wraps; a saturated pool stops advancing)",
+  "requirement_sha": "a5b14faa945270d9",
+  "tests": {
+    "internal/plugins/flowexport/sflow/sflow_v5_flow_adapter_test.go::TestSFlowFlowSamplePoolTracksTotal": "54a4f0a267225efb"
+  },
+  "units": {
+    "internal/plugins/flowexport/sflow/sflow_v5_flow_adapter_test.go::TestSFlowFlowSamplePoolTracksTotal": "5ec5c38d22711c09"
+  },
+  "verdict": "weak"
+}

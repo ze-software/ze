@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2328-13.5-3",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328NBMANeverMulticastsNorReachesTwoWay",
+    "unit-sha": "09d99747d88e13d3",
+    "claim-sha": "fb3021237a1ac6a7",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/lsdb/flooding.go::FlushDelayedAcks",
+    "producer-sha": "850046bad3b9338d",
+    "break": "body of FlushDelayedAcks replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-13.5-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328NBMAUnicastsToEachAdjacency",
+    "unit-sha": "ce5d8294f0e2a26b",
+    "claim-sha": "c983d02aa2770917",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/lsdb/flooding.go::FlushDelayedAcks",
+    "producer-sha": "850046bad3b9338d",
+    "break": "body of FlushDelayedAcks replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

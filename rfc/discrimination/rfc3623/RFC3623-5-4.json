@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC3623-5-4",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc3623_gr_unplanned_test.go::TestUnplannedGraceBeforeHello",
+    "unit-sha": "b8971fcee54ebe2f",
+    "claim-sha": "aa43d953d60fc1d0",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/gr_restarter.go::maybeUnplannedRestart",
+    "producer-sha": "e23294b85eb1fbde",
+    "break": "body of maybeUnplannedRestart replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3623-5-4",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc3623_grace_origination_test.go::TestRFC3623UnplannedGraceLSACarriesUnplannedReason",
+    "unit-sha": "dc7c960c34fe371a",
+    "claim-sha": "261e44ad340402f2",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/gr_restarter.go::maybeUnplannedRestart",
+    "producer-sha": "e23294b85eb1fbde",
+    "break": "body of maybeUnplannedRestart replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC8907-4-4",
+    "polarity": "positive",
+    "unit": "internal/component/tacacs/rfc8907_client_test.go::TestTacacsClientAuthenticatePass",
+    "unit-sha": "62f24f983bdd76d8",
+    "claim-sha": "5218f50fc8b45ee2",
+    "route": "revert",
+    "producer": "internal/component/tacacs/client.go::trySend",
+    "producer-sha": "521ecbc2921e4804",
+    "break": "body of trySend replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8907-4-4",
+    "polarity": "negative",
+    "unit": "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907ReplyChangingSessionIDRefused",
+    "unit-sha": "891d3842b20c7398",
+    "claim-sha": "c522e2814fc1c6b4",
+    "route": "revert",
+    "producer": "internal/component/tacacs/client.go::trySend",
+    "producer-sha": "521ecbc2921e4804",
+    "break": "body of trySend replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8907-4-4",
+    "polarity": "positive",
+    "unit": "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907ReplyKeepingSessionIDAccepted",
+    "unit-sha": "17acc0523a01b11b",
+    "claim-sha": "56de5938e23d2bf3",
+    "route": "revert",
+    "producer": "internal/component/tacacs/client.go::randomSessionID",
+    "producer-sha": "3689504f67ef7c21",
+    "break": "body of randomSessionID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: after a peer Nak with a suggestion, resending the old identifier or none. TestIPv6CPResendsCRWithNakSuggestedID fails when the resent CR lacks the option or opts.InterfaceID != suggested. Negative TestIPv6CPNakInvalidSuggestionNotAdopted fails if an all-zero suggestion is adopted, bounding the rule to usable suggestions.",
+  "requirement_sha": "041756c7bba9b99f",
+  "tests": {
+    "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPNakInvalidSuggestionNotAdopted": "99a68f4293234999",
+    "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPResendsCRWithNakSuggestedID": "99a68f4293234999"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPNakInvalidSuggestionNotAdopted": "9614ddb5c554e086",
+    "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPResendsCRWithNakSuggestedID": "042b811a6567c60c"
+  },
+  "verdict": "enforced"
+}

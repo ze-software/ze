@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC5880-6.1-2",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/engine/rfc5880_role_transmit_test.go::TestRFC5880PassiveSessionSendsOnceThePeerSpoke",
+    "unit-sha": "abbe614de17a8b87",
+    "claim-sha": "8d0841dfbf3aa6f6",
+    "route": "revert",
+    "producer": "internal/component/bfd/engine/loop.go::tick",
+    "producer-sha": "4d6c5e086edd0eba",
+    "break": "body of tick replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/engine/rfc5880_role_transmit_test.go::TestRFC5880PassiveSessionSilentThroughTicksUntilReception",
+    "unit-sha": "33ca97cfaa5a9fd8",
+    "claim-sha": "f156f6e4d9050ef6",
+    "route": "revert",
+    "producer": "internal/component/bfd/engine/loop.go::tick",
+    "producer-sha": "4d6c5e086edd0eba",
+    "break": "body of tick replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleSilentUntilReception",
+    "unit-sha": "ccace5fcdff95ddf",
+    "claim-sha": "397361d43940d418",
+    "route": "revert",
+    "producer": "internal/component/bfd/session/session.go::Init",
+    "producer-sha": "39bd57d2fe6e92b0",
+    "break": "body of Init replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.1-2",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleTransmitsAfterReception",
+    "unit-sha": "8673d8435bb2f5cf",
+    "claim-sha": "4a1ed509fcfb711c",
+    "route": "revert",
+    "producer": "internal/component/bfd/session/fsm.go::onStateChange",
+    "producer-sha": "4ed1ee92b4f69d5a",
+    "break": "body of onStateChange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

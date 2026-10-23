@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2328-9.5.1-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/iface/rfc2328_nbma_hello_state_test.go::TestRFC2328NBMAHelloSentOnceWaiting",
+    "unit-sha": "6f7ddbfced094911",
+    "claim-sha": "4837e43fbf9b7a21",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/iface/iface.go::Start",
+    "producer-sha": "d99ec14a20883d0a",
+    "break": "body of Start replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-9.5.1-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/iface/rfc2328_nbma_hello_state_test.go::TestRFC2328NBMANoHelloWhileDown",
+    "unit-sha": "d740bebf74da1288",
+    "claim-sha": "949fae89b88a5280",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/iface/iface.go::Stop",
+    "producer-sha": "9597e4bdc631f63f",
+    "break": "body of Stop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

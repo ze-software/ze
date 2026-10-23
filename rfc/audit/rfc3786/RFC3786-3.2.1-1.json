@@ -1,0 +1,6 @@
+{
+  "no_code_path": "The ban binds the originator of an Extended LSP (Mode 1 virtual-system operation). Owner decision 2026-09-21 'Keep standard fragment sets': Ze has no Mode 1 configuration, no virtual-system adjacency and no extended-LSP producer (internal/plugins/isis/config.go, lsdb/origination.go), so no code path can specify a neighbor in an Extended LSP. Mirrors RFC3786-x-2.",
+  "note": "Judged 2026-09-30. {not-applicable} accepted; the child spec constraint records x-2's split as a row-text decision.",
+  "requirement_sha": "87f9f7f916ce11f6",
+  "verdict": "not-applicable"
+}

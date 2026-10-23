@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC3748-2-1",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc3748_clause_test.go::TestRFC3748NoNewRequestBeforeAValidResponse",
+    "unit-sha": "2f37dd3c2ac4aac8",
+    "claim-sha": "3d3ea0ad255c9f07",
+    "route": "revert",
+    "producer": "internal/core/eap/eap.go::handleMethod",
+    "producer-sha": "fcb74148a4de64e4",
+    "break": "body of handleMethod replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3748-2-1",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc3748_test.go::TestRFC3748AuthenticatorLockStep",
+    "unit-sha": "50bbfac93c01f2d4",
+    "claim-sha": "d681361b1448d6cf",
+    "route": "revert",
+    "producer": "internal/core/eap/eap.go::handleMethod",
+    "producer-sha": "fcb74148a4de64e4",
+    "break": "body of handleMethod replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden = a retransmit carrying the stale Nr, or a new Ns. reliable_test.go::TestTickRetransmit asserts retransmit Nr==1 (updated) and Ns==0 (unchanged); either violation goes red.",
+  "requirement_sha": "6d53af50862ab104",
+  "tests": {
+    "internal/component/l2tp/rfc2661_reliable_test.go::TestTickRetransmit": "1da6320bfe08bd17",
+    "internal/component/l2tp/rfc2661_reliable_test.go::TestTickRetransmit#2": "1da6320bfe08bd17"
+  },
+  "units": {
+    "internal/component/l2tp/rfc2661_reliable_test.go::TestTickRetransmit": "9d580e39d6c18154",
+    "internal/component/l2tp/rfc2661_reliable_test.go::TestTickRetransmit#2": "9d580e39d6c18154"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "negative: an unmasked 198.51.100.129/25 is emitted as 25,198.51.100.128; positive: a masked prefix is unchanged",
+  "requirement_sha": "fc919baf0a851bcf",
+  "tests": {
+    "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeMaskedPrefixUnchanged": "de280b1c094e08d4",
+    "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeTopologySeparation": "6886dddcc0644d09"
+  },
+  "units": {
+    "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeMaskedPrefixUnchanged": "e8de4dbd26fb2b07",
+    "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeTopologySeparation": "c8103e2c2c3d1705"
+  },
+  "verdict": "enforced"
+}

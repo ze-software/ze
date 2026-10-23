@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: the waiting peer silently discarding the Success or the Failure. Success: peerFinal.Done false or an all-zero MSK fails. Failure: peerFinal.Err nil or Done true fails. Both packets of the quoted 'either of them' are covered.",
+  "requirement_sha": "99bd5133405b5922",
+  "tests": {
+    "internal/core/eap/rfc3748_walk_test.go::TestRFC3748PeerActsOnTheTerminalPacket": "08e46d8cbdf7058a",
+    "internal/core/eap/rfc3748_walk_test.go::TestRFC3748PeerActsOnTheTerminalPacket#2": "08e46d8cbdf7058a"
+  },
+  "units": {
+    "internal/core/eap/rfc3748_walk_test.go::TestRFC3748PeerActsOnTheTerminalPacket": "9421790d202148f2",
+    "internal/core/eap/rfc3748_walk_test.go::TestRFC3748PeerActsOnTheTerminalPacket#2": "9421790d202148f2"
+  },
+  "verdict": "enforced"
+}

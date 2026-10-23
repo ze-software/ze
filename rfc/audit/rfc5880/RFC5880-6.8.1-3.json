@@ -1,0 +1,13 @@
+{
+  "note": "same allocator tests as 6.3-1: nonzero and unique LocalDiscr, skip of 0 and taken values.",
+  "requirement_sha": "beb1c8df1ef9af60",
+  "tests": {
+    "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880DiscriminatorAllocatorSkipsReservedAndTaken": "4b885928a870b00d",
+    "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880DiscriminatorsAreNonZeroAndUnique": "4b885928a870b00d"
+  },
+  "units": {
+    "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880DiscriminatorAllocatorSkipsReservedAndTaken": "b8c705c4718c3093",
+    "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880DiscriminatorsAreNonZeroAndUnique": "fc1d32c23ece625a"
+  },
+  "verdict": "enforced"
+}

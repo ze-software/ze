@@ -1,0 +1,15 @@
+{
+  "note": "Forbidden: a Capability Code other than 5 for Extended Next Hop Encoding. Red on it: TestCapabilityCodeConstants asserts uint8(CodeExtendedNextHop)==5, and TestExtendedNextHopCapability requires a raw code-0x05 TLV to parse as *ExtendedNextHop (require.True on the type assertion). Single-polarity marker on the row.",
+  "requirement_sha": "e936e886b3bcee34",
+  "tests": {
+    "internal/core/bgp/capability/capability_test.go::TestCapabilityCodeConstants": "3b6ab22b8c99761b",
+    "internal/core/bgp/capability/capability_test.go::TestExtendedNextHopCapability": "3b6ab22b8c99761b",
+    "internal/core/bgp/capability/capability_test.go::TestExtendedNextHopRoundTrip": "3b6ab22b8c99761b"
+  },
+  "units": {
+    "internal/core/bgp/capability/capability_test.go::TestCapabilityCodeConstants": "d5913b7c1261a415",
+    "internal/core/bgp/capability/capability_test.go::TestExtendedNextHopCapability": "10454f274bcedd4e",
+    "internal/core/bgp/capability/capability_test.go::TestExtendedNextHopRoundTrip": "ba4f31d076a2e369"
+  },
+  "verdict": "enforced"
+}

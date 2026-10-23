@@ -1,0 +1,68 @@
+[
+  {
+    "rid": "RFC2328-16.2-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/spf/rfc2328_interarea_test.go::TestOSPFInterAreaLSInfinityDropped",
+    "unit-sha": "20c63f5df960931b",
+    "claim-sha": "e937b243b8b5f495",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/spf/interarea.go::v4SummaryReader",
+    "producer-sha": "a8fb07c48ad6da6a",
+    "break": "body of v4SummaryReader replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-16.2-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/spf/rfc2328_interarea_test.go::TestOSPFInterAreaRoute",
+    "unit-sha": "47d65d72bd89d215",
+    "claim-sha": "85a68e2adbeb127e",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/spf/interarea.go::v4SummaryReader",
+    "producer-sha": "a8fb07c48ad6da6a",
+    "break": "body of v4SummaryReader replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-16.2-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/spf/rfc2328_summary_lsinfinity_test.go::TestRFC2328SummaryAdvertisingLSInfinitySkipped",
+    "unit-sha": "4c23d15289641d67",
+    "claim-sha": "f448aa9dbfabde8d",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/spf/interarea.go::v4SummaryReader",
+    "producer-sha": "a8fb07c48ad6da6a",
+    "break": "body of v4SummaryReader replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-16.2-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/spf/rfc2328_summary_lsinfinity_test.go::TestRFC2328SummaryAdvertisingLSInfinitySkipped",
+    "unit-sha": "4c23d15289641d67",
+    "claim-sha": "6f184bd36ff23302",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/spf/interarea.go::ComputeInterAreaWith",
+    "producer-sha": "aa5588a6b6a755d6",
+    "break": "body of ComputeInterAreaWith replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-16.2-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/spf/rfc2328_test.go::TestRFC2328InterAreaSkipsMaxAgeSummary",
+    "unit-sha": "4dff21ed5362c20c",
+    "claim-sha": "e3294057280a5f2b",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/spf/interarea.go::v4SummaryReader",
+    "producer-sha": "a8fb07c48ad6da6a",
+    "break": "body of v4SummaryReader replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-16.2-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/spf/rfc2328_test.go::TestRFC2328InterAreaSkipsSelfSummary",
+    "unit-sha": "6c72f0999e230e34",
+    "claim-sha": "38dad830ccf6935f",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/spf/interarea.go::ComputeInterAreaWith",
+    "producer-sha": "aa5588a6b6a755d6",
+    "break": "body of ComputeInterAreaWith replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

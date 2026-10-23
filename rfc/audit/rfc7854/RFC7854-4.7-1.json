@@ -1,0 +1,15 @@
+{
+  "note": "transmitted Route Mirroring ends with the BGP Message TLV; Information then BGP Message is accepted, BGP Message then Information ends the session",
+  "requirement_sha": "bc13864f8037ae80",
+  "tests": {
+    "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestRFC7854ErroredMirrorWithPDUAccepted": "4c8de7d703105fd1",
+    "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestRFC7854MirrorBGPMessageNotLastEndsSession": "4c8de7d703105fd1",
+    "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854RouteMirroringBGPMessageTLVLast": "94e84131af3555be"
+  },
+  "units": {
+    "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestRFC7854ErroredMirrorWithPDUAccepted": "3bbc3dde4867b1af",
+    "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestRFC7854MirrorBGPMessageNotLastEndsSession": "31fa13382b046a80",
+    "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854RouteMirroringBGPMessageTLVLast": "f90b022da5020ae4"
+  },
+  "verdict": "enforced"
+}

@@ -46,7 +46,7 @@ func TestRFCActionsCarryDiscriminateVerb(t *testing.T) {
 	// owned artifact tree. The real-record replay separately walks the corpus.
 	files, proof := discriminationFixture(t)
 	files[selftestWorkflowRel] = selftestWorkflow
-	files[selftestDiscriminationRel] = discriminationArtifact(t, proof)
+	putDiscrimination(t, files, proof)
 	t.Setenv("ZE_REPO_ROOT", discriminationTree(t, files))
 	env.ResetCache()
 	t.Cleanup(env.ResetCache)
@@ -81,7 +81,7 @@ func TestDiscriminationStatusSeparatesProvenFromUnproven(t *testing.T) {
 	// separate what is proven from what is not.
 	files["test/plugin/gadget.ci"] = "# RFC requirement: " + selftestRIDSend + " negative\n"
 	files[selftestWorkflowRel] = selftestWorkflow
-	files[selftestDiscriminationRel] = discriminationArtifact(t, proof, escape)
+	putDiscrimination(t, files, proof, escape)
 	root := discriminationTree(t, files)
 
 	status, err := discriminationStatusOf(root, selftestStem, "", func(rid string) bool {

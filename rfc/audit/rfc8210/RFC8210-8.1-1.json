@@ -1,0 +1,11 @@
+{
+  "note": "Forbidden: a router that never re-polls. TestRunPollsOnRefreshAfterSuccessRetryAfterFailure (cacheGroup.Run against a real listener, refresh 1s, retry 7200s) waits for a second accept (waitAccept fails the test if none arrives) and asserts it comes within 30s, and that the queries are a Reset Query then a Serial Query. Row carries {single-polarity: positive}.",
+  "requirement_sha": "fb9a9478a7d9e024",
+  "tests": {
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_poll_test.go::TestRunPollsOnRefreshAfterSuccessRetryAfterFailure": "3d3a19a38ac8d5a8"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_poll_test.go::TestRunPollsOnRefreshAfterSuccessRetryAfterFailure": "e28be3114055366b"
+  },
+  "verdict": "enforced"
+}

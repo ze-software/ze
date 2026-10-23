@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: a peer configured for EAP-TLS answering the EAP-TLS Request with anything but an EAP-TLS Response (a Nak, another type). TestRFC5216ConfiguredPeerAnswersEAPTLSWithEAPTLS fatals on Code != CodeResponse or Type != TypeTLS and on TypeData without a handshake record. Negative for the condition: TestRFC5216PeerNotConfiguredForEAPTLSDoesNotAnswerWithEAPTLS fatals if an MS-CHAPv2 peer answers with Type 13 and wantLegacyNak requires the Nak.",
+  "requirement_sha": "f198a45726d00eed",
+  "tests": {
+    "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216ConfiguredPeerAnswersEAPTLSWithEAPTLS": "50ee52d235cf2a36",
+    "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216PeerNotConfiguredForEAPTLSDoesNotAnswerWithEAPTLS": "50ee52d235cf2a36"
+  },
+  "units": {
+    "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216ConfiguredPeerAnswersEAPTLSWithEAPTLS": "79998b55ab5cbc9d",
+    "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216PeerNotConfiguredForEAPTLSDoesNotAnswerWithEAPTLS": "e12cb0e6190ad39b"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,17 @@
+{
+  "note": "TestRFC2516ACRejectsForbiddenLCPOptions and TestRFC2516ClientRejectsForbiddenLCPOptions assert Configure-Reject of ACCM, ACFC and FCS Alternatives verbatim, that neither role requests them, and Ack for MRU/PFC",
+  "requirement_sha": "f6482208703ffa01",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc2516_options_test.go::TestRFC2516ACRejectsForbiddenLCPOptions": "4b1094387e2a428e",
+    "internal/component/l2tp/ppp/rfc2516_options_test.go::TestRFC2516ACRejectsForbiddenLCPOptions#2": "4b1094387e2a428e",
+    "internal/component/l2tp/pppoeclient/rfc1661_client_negotiation_test.go::TestRFC2516ClientRejectsForbiddenLCPOptions": "f877ac02501b6ee0",
+    "internal/component/l2tp/pppoeclient/rfc1661_client_negotiation_test.go::TestRFC2516ClientRejectsForbiddenLCPOptions#2": "f877ac02501b6ee0"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc2516_options_test.go::TestRFC2516ACRejectsForbiddenLCPOptions": "da2f9c13b180d6c5",
+    "internal/component/l2tp/ppp/rfc2516_options_test.go::TestRFC2516ACRejectsForbiddenLCPOptions#2": "da2f9c13b180d6c5",
+    "internal/component/l2tp/pppoeclient/rfc1661_client_negotiation_test.go::TestRFC2516ClientRejectsForbiddenLCPOptions": "a2a03b367049fcea",
+    "internal/component/l2tp/pppoeclient/rfc1661_client_negotiation_test.go::TestRFC2516ClientRejectsForbiddenLCPOptions#2": "a2a03b367049fcea"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC9086-4.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/ls_export/rfc9086_epe_local_descriptors_test.go::TestRFC9086EveryBGPNLRICarriesLocalRouterIDAndASN",
+    "unit-sha": "b790cd7db4608df7",
+    "claim-sha": "63c58e65683f4559",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/ls_export/export_encode.go::exportNodeID",
+    "producer-sha": "7eb61def5fdd7cdc",
+    "break": "body of exportNodeID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9086-4.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/ls_export/rfc9086_epe_local_descriptors_test.go::TestRFC9086NativePeerRequiresLocalRouterID",
+    "unit-sha": "099efc2f9635f16a",
+    "claim-sha": "efd06cb4939bf476",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/epe/epe_source.go::State",
+    "producer-sha": "a1e8aa03a8c6ba43",
+    "break": "body of State replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9086-4.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB",
+    "unit-sha": "8f41c860bd5d880f",
+    "claim-sha": "06d83c16d4cca7b1",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/epe/epe_source.go::publishLocked",
+    "producer-sha": "326f0928961a7220",
+    "break": "body of publishLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9086-4.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerRequiresNodeIdentities",
+    "unit-sha": "d0250f7efba41298",
+    "claim-sha": "da2416390007fc2f",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/epe/epe_source.go::State",
+    "producer-sha": "a1e8aa03a8c6ba43",
+    "break": "body of State replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

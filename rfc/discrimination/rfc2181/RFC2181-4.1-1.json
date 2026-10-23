@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2181-4.1-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/geodns/rfc2181_clarifications_test.go::TestRFC2181ReplySourcedFromTheQueriedAddress",
+    "unit-sha": "0656bb0a6d4ba0e4",
+    "claim-sha": "846ff2549fb39f25",
+    "route": "revert",
+    "producer": "internal/core/dnsserver/manager.go::bind",
+    "producer-sha": "1806132543b520d1",
+    "break": "body of bind replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2181-4.1-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/geodns/rfc2181_server_test.go::TestRFC2181_UDPReplySourceAndPort",
+    "unit-sha": "9a8aa8fdcd10c44e",
+    "claim-sha": "9f59427ac6efddef",
+    "route": "revert",
+    "producer": "internal/core/dnsserver/manager.go::bind",
+    "producer-sha": "1806132543b520d1",
+    "break": "body of bind replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

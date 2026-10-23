@@ -1,0 +1,13 @@
+{
+  "note": "Judge rejudge 2026-09-30 (bfd engine 2). Unit re-read after TestRFC5880InitVariablesAreNotConstants lost its 6.8.1-4 tag (doc comment only, body unchanged). Judgement unchanged: Forbidden: bfd.RemoteMinRxInterval initialised to anything but 1. TestRFC5880InitVariableDefaults fails on RemoteMinRxInterval != 1 after Init. Negative TestRFC5880InitVariablesAreNotConstants shows the value is replaced by the advertised 700000, so the 1 is an initial value.",
+  "requirement_sha": "1be29b393319aa00",
+  "tests": {
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880InitVariableDefaults": "8db25cbb4534cc2d",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880InitVariablesAreNotConstants": "8db25cbb4534cc2d"
+  },
+  "units": {
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880InitVariableDefaults": "a5a2b73d55f078ff",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880InitVariablesAreNotConstants": "0c60ed95615b8c6b"
+  },
+  "verdict": "enforced"
+}

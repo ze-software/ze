@@ -1,0 +1,18 @@
+{
+  "code": {},
+  "note": "Judge rejudge 2026-09-30 (bfd session+engine continuation). Adds TestRFC5880RemoteDiscrClearedDespiteInvalidPackets: on an authenticated Up session an A-bit-clear packet (ErrAuthMismatch) and a Your-Discriminator-0 Up packet (ErrYourDiscriminatorReset) inside the Detection Time leave CheckDetection to clear bfd.RemoteDiscr at its end, so the 'valid, authenticated' clause is asserted; mutant fsm.go discard guard observed red. Expiry clauses and the neighbor-signaled-Down negative stand as before. Digest failures are refused in the engine before Receive (auth rows).",
+  "requirement_sha": "8cfcec714af32cf8",
+  "tests": {
+    "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880RemoteDiscrClearedDespiteInvalidPackets": "73ca576e23cbd659",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteDiscrClearedAfterSilenceWhileDown": "8db25cbb4534cc2d",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteDiscrClearedOnDetectionExpiry": "8db25cbb4534cc2d",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteDiscrKeptOnNeighborSignaledDown": "8db25cbb4534cc2d"
+  },
+  "units": {
+    "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880RemoteDiscrClearedDespiteInvalidPackets": "c2d1d5b3c5502064",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteDiscrClearedAfterSilenceWhileDown": "75282b5531a565a6",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteDiscrClearedOnDetectionExpiry": "dfc97152f33ce514",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteDiscrKeptOnNeighborSignaledDown": "af73e242fdb0835a"
+  },
+  "verdict": "enforced"
+}

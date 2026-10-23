@@ -1,0 +1,13 @@
+{
+  "note": "TestRFC5036HelloReservedBitsZeroOnTransmit checks the 14 reserved bits of the Common Hello Parameters TLV are zero from EncodeHello for all four T/R combinations; TestRFC5036HelloReservedBitsIgnoredOnReceipt sets every reserved bit and checks DecodeHello reads neither T nor R nor a changed hold time.",
+  "requirement_sha": "a7d282a6034073f3",
+  "tests": {
+    "internal/plugins/ldp/rfc5036_test.go::TestRFC5036HelloReservedBitsIgnoredOnReceipt": "0c099031be03877f",
+    "internal/plugins/ldp/rfc5036_test.go::TestRFC5036HelloReservedBitsZeroOnTransmit": "0c099031be03877f"
+  },
+  "units": {
+    "internal/plugins/ldp/rfc5036_test.go::TestRFC5036HelloReservedBitsIgnoredOnReceipt": "5bf1d4aee254b32f",
+    "internal/plugins/ldp/rfc5036_test.go::TestRFC5036HelloReservedBitsZeroOnTransmit": "56341f28cc1858ac"
+  },
+  "verdict": "enforced"
+}

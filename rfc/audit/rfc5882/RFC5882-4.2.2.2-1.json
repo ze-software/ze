@@ -1,0 +1,11 @@
+{
+  "note": "Re-judged 2026-10-12 (independent auditor). SHIFTED by 6e063fb498 (tests: give ten assert-nothing tests a real assertion), whose hunks sit in untagged sibling tests and the import block. The tagged unit is byte-identical (gate-verified) and no helper it calls changed. Verdict stands. Judge rejudge 2026-09-30 (last five). Earlier weak note said Ze acts on the whole session rather than one topology. Re-read \u00a74.2.2.2: the SHOULD is 'action SHOULD be taken in the control protocol to signal the lack of connectivity for the path in the topology over which BFD is running'; the next sentence 'Generally, this can be done without impacting the connectivity of other topologies' carries no keyword and states feasibility, not an obligation to spare the others; \u00a710.2 asks the EBGP session 'should be torn down in accordance with Section 3.2'. Ending the BGP session signals the loss in the BFD topology, so the author's reading holds. + TestBFDClient_TeardownOnDown (Cease/BFD Down on the wire, Idle). {single-polarity: positive} accepted for the same reason as 4.2.2.1-1. Record: bfdTeardown revert observed red.",
+  "requirement_sha": "8a1d333ce5fbaa4e",
+  "tests": {
+    "internal/component/bgp/reactor/rfc5882_peer_bfd_test.go::TestBFDClient_TeardownOnDown": "80ba15c556b70c16"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc5882_peer_bfd_test.go::TestBFDClient_TeardownOnDown": "f22a574b6b14fca1"
+  },
+  "verdict": "enforced"
+}

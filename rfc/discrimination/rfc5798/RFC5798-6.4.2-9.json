@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC5798-6.4.2-9",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix",
+    "unit-sha": "897cb80e504bb312",
+    "claim-sha": "cbe6a37c7cf83f6b",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/fsm/fsm.go::adoptInterval",
+    "producer-sha": "72daecae9db73ce4",
+    "break": "body of adoptInterval replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5798-6.4.2-9",
+    "polarity": "negative",
+    "unit": "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix",
+    "unit-sha": "897cb80e504bb312",
+    "claim-sha": "620cae911fc7e297",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/fsm/fsm.go::Handle",
+    "producer-sha": "2ffd8b034483c3b8",
+    "break": "body of Handle replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5798-6.4.2-9",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/fsm/rfc_verdict_test.go::TestV3BackupAdoptsIntervalOrDiscards",
+    "unit-sha": "d04869ef997a5a5b",
+    "claim-sha": "5660a4f99a7a3fe7",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/fsm/fsm.go::adoptInterval",
+    "producer-sha": "72daecae9db73ce4",
+    "break": "body of adoptInterval replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5798-6.4.2-9",
+    "polarity": "negative",
+    "unit": "internal/plugins/vrrp/fsm/rfc_verdict_test.go::TestV3BackupAdoptsIntervalOrDiscards",
+    "unit-sha": "d04869ef997a5a5b",
+    "claim-sha": "f81ac1778aca48f7",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/fsm/fsm.go::backupAdvert",
+    "producer-sha": "9129ff7404022734",
+    "break": "body of backupAdvert replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

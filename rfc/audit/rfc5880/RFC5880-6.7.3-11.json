@@ -1,0 +1,13 @@
+{
+  "note": "Judge rejudge 2026-09-30 (phase 8: row cites 6.7.3 only; the SHA1 digest units moved to RFC5880-6.7.4-17). Positive TestRFC5880KeyedMD5IndependentDigestAccepted accepts a packet hashed with crypto/md5 outside the product (types 2, 3); negative TestRFC5880KeyedMD5DigestMismatchDiscarded refuses a flipped digest and a digest under another key with ErrDigestMismatch and the floor stays 40. Judge break making the constant-time compare never fail reds the negative.",
+  "requirement_sha": "72900752676efc29",
+  "tests": {
+    "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedMD5DigestMismatchDiscarded": "69049dc5fe6d5288",
+    "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedMD5IndependentDigestAccepted": "69049dc5fe6d5288"
+  },
+  "units": {
+    "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedMD5DigestMismatchDiscarded": "b036247c106b178c",
+    "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedMD5IndependentDigestAccepted": "8852f2c777eb6489"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC1661-2-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661ProtocolWithOddHighOctetTreatedUnrecognized",
+    "unit-sha": "e213f078694f2ff2",
+    "claim-sha": "5fff424f0b824f8c",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/session_run.go::rejectUnsupportedProtocol",
+    "producer-sha": "0e912d3f18f3ad7a",
+    "break": "body of rejectUnsupportedProtocol replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1661-2-1",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661ProtocolWithOddHighOctetTreatedUnrecognized",
+    "unit-sha": "e213f078694f2ff2",
+    "claim-sha": "6189aad719fc07df",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/session_run.go::rejectUnsupportedProtocol",
+    "producer-sha": "0e912d3f18f3ad7a",
+    "break": "body of rejectUnsupportedProtocol replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1661-2-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661CompliantProtocolRecognized",
+    "unit-sha": "80d4e5b51076e4cb",
+    "claim-sha": "c258cfdc747d4df0",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/session_run.go::handleFrame",
+    "producer-sha": "15bf63c906944976",
+    "break": "body of handleFrame replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1661-2-1",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NonCompliantProtocolTreatedUnrecognized",
+    "unit-sha": "0063fe3e54540f83",
+    "claim-sha": "ffc81371cd7e0960",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/session_run.go::handleFrame",
+    "producer-sha": "15bf63c906944976",
+    "break": "body of handleFrame replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

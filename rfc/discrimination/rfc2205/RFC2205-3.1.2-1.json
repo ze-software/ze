@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC2205-3.1.2-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/rsvpte/rfc2205_carrier_test.go::TestRFC2205ReceivedObjectLengthNotMultipleOfFourRejected",
+    "unit-sha": "722ae0911696900e",
+    "claim-sha": "c06d8841f154e3ee",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/wire.go::decodeObjectHeader",
+    "producer-sha": "ed08ee8aa889666f",
+    "break": "body of decodeObjectHeader replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,112 @@
+[
+  {
+    "rid": "RFC4301-4.4.2-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc4301_auth_response_no_ts_test.go::TestRFC4301AuthResponseWithoutTSIsRefused",
+    "unit-sha": "4709d4aa00050344",
+    "claim-sha": "ba95246d0de5c01a",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/transport_mode.go::adoptAuthResponseNegotiation",
+    "producer-sha": "8136af0800c1a317",
+    "break": "line 161: \"!childOffered\" -\u003e \"true\""
+  },
+  {
+    "rid": "RFC4301-4.4.2-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc4301_child_multi_pair_test.go::TestRFC4301TransportStateSelectorIsTheNegotiatedPair",
+    "unit-sha": "ce328c9ca41bb823",
+    "claim-sha": "68c109e279d1bfef",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/child.go::inboundStateSelector",
+    "producer-sha": "ed4e68c91f62396b",
+    "break": "line 957: \"p.UpperProto\" -\u003e \"0\""
+  },
+  {
+    "rid": "RFC4301-4.4.2-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc4301_child_multi_pair_test.go::TestRFC4301TransportStateSelectorIsTheNegotiatedPair",
+    "unit-sha": "ce328c9ca41bb823",
+    "claim-sha": "ff9722e94818689d",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/child.go::inboundStateSelector",
+    "producer-sha": "ed4e68c91f62396b",
+    "break": "line 950: \"len(policies) != 1\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC4301-4.4.2-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc4301_initiator_exact_answer_test.go::TestRFC4301InitiatorInstallsAnAddressRangeExactly",
+    "unit-sha": "83db4dd15b5e0c9b",
+    "claim-sha": "9aee52f0d4260da5",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/ts_narrow.go::rangePrefixes",
+    "producer-sha": "906edd951c7bf752",
+    "break": "line 877: \"last == string(end)\" -\u003e \"true\""
+  },
+  {
+    "rid": "RFC4301-4.4.2-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc4301_initiator_exact_answer_test.go::TestRFC4301InitiatorRefusesAnAnswerItCannotInstallExactly",
+    "unit-sha": "c35cda99c97cd859",
+    "claim-sha": "6edad218cb240964",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/ts_narrow.go::answerSelectors",
+    "producer-sha": "f05bd3544caa0cfb",
+    "break": "line 834: \"ipsec.PortSelectorFromWire(ts.StartPort, ts.EndPort)\" -\u003e \"ipsec.PortSelectorFromWire(ts.StartPort, ts.StartPort)\""
+  },
+  {
+    "rid": "RFC4301-4.4.2-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc4301_pair_protocol_test.go::TestRFC4301MixedProtocolPairInstallsTheIntersection",
+    "unit-sha": "d1e0930c7c24a02f",
+    "claim-sha": "410bc88451cc8ce4",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/child.go::childPolicies",
+    "producer-sha": "2c0d9a26dc943e66",
+    "break": "line 649: \"intersectProto(pair.I.Proto, pair.R.Proto)\" -\u003e \"pair.I.Proto, true\""
+  },
+  {
+    "rid": "RFC4301-4.4.2-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc4301_pair_protocol_test.go::TestRFC4301MixedProtocolPairInstallsTheIntersection",
+    "unit-sha": "d1e0930c7c24a02f",
+    "claim-sha": "a8ff924318077737",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/child.go::childPolicies",
+    "producer-sha": "2c0d9a26dc943e66",
+    "break": "line 649: \"intersectProto(pair.I.Proto, pair.R.Proto)\" -\u003e \"pair.I.Proto, true\""
+  },
+  {
+    "rid": "RFC4301-4.4.2-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_transport_one_pair_test.go::TestRFC4301TransportInitiatorRefusesSeveralPairs",
+    "unit-sha": "16d5b8b01b6b2816",
+    "claim-sha": "7e1f82152a3c7e91",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/ts_narrow.go::recordInitiatorSelectors",
+    "producer-sha": "856e7cab6820dd68",
+    "break": "line 781: \"sa.UseTransportMode \u0026\u0026 len(pairs) \u003e 1\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC4301-4.4.2-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_ts_combinations_test.go::TestRFC4301InitiatorInstallsEveryAnsweredCombination",
+    "unit-sha": "c15c40812c5f35da",
+    "claim-sha": "7c4b60431c21f211",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/ts_narrow.go::answerPairs",
+    "producer-sha": "228ef23627d4c42c",
+    "break": "line 866: \"crossPairs(iSels, rSels)\" -\u003e \"crossPairs(iSels, rSels[:1])\""
+  },
+  {
+    "rid": "RFC4301-4.4.2-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_ts_combinations_test.go::TestRFC4301InitiatorInstallsEveryAnsweredCombination",
+    "unit-sha": "c15c40812c5f35da",
+    "claim-sha": "6f9955d20ba3f643",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/ts_narrow.go::answerPairs",
+    "producer-sha": "228ef23627d4c42c",
+    "break": "line 866: \"crossPairs(iSels, rSels)\" -\u003e \"crossPairs(iSels[:1], rSels[:1])\""
+  }
+]

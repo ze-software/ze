@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: accepting Length > payload. TestRFC5880LengthOverPayloadDiscarded fails unless ParseControl returns ErrLengthOverBuffer for Length = payload + 8; TestRFC5880LengthEqualsPayloadAccepted fails if Length == payload is rejected, which catches a >= mutation. handleInbound returns on the error.",
+  "requirement_sha": "94582eac5357fcf4",
+  "tests": {
+    "internal/component/bfd/packet/rfc5880_test.go::TestRFC5880LengthEqualsPayloadAccepted": "fba3b65e315e32aa",
+    "internal/component/bfd/packet/rfc5880_test.go::TestRFC5880LengthOverPayloadDiscarded": "fba3b65e315e32aa"
+  },
+  "units": {
+    "internal/component/bfd/packet/rfc5880_test.go::TestRFC5880LengthEqualsPayloadAccepted": "3424163edd63d61d",
+    "internal/component/bfd/packet/rfc5880_test.go::TestRFC5880LengthOverPayloadDiscarded": "7692477bf375933c"
+  },
+  "verdict": "enforced"
+}

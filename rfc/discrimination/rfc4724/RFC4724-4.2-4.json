@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4724-4.2-4",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/gr/rfc4724_consecutive_test.go::TestRFC4724ConsecutiveRestartDeletesBeforeMarking",
+    "unit-sha": "84f7f8495bf1c22a",
+    "claim-sha": "a1e534ed89d0149c",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/gr/gr.go::handleStateEvent",
+    "producer-sha": "6f89f01fd929d3fe",
+    "break": "body of handleStateEvent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4724-4.2-4",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/gr/rfc4724_consecutive_test.go::TestRFC4724ConsecutiveRestartDeletesThePreviouslyStaleRoutes",
+    "unit-sha": "6b22b2188da10be1",
+    "claim-sha": "c9f832ee1e2df9e3",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/gr/gr.go::handleStateEvent",
+    "producer-sha": "6f89f01fd929d3fe",
+    "break": "body of handleStateEvent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

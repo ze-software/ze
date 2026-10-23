@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7854-4.7-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854RouteMirroringIsThePerPeerHeaderThenTLVs",
+    "unit-sha": "f3849e32a92986a6",
+    "claim-sha": "61806fc07a941379",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/bmp/msg.go::writeRouteMirroring",
+    "producer-sha": "1414c968026c7012",
+    "break": "body of writeRouteMirroring replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7854-4.7-3",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854RouteMirroringWhoseBodyIsNotTLVsIsRefused",
+    "unit-sha": "092e063ad544d0a6",
+    "claim-sha": "e9a9ab141fb96ae5",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/bmp/msg.go::decodeRouteMirroring",
+    "producer-sha": "12df0cdfaa04eef8",
+    "break": "body of decodeRouteMirroring replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

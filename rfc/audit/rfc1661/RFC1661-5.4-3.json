@@ -1,0 +1,17 @@
+{
+  "note": "Rejudge ppp8 2026-09-30: pppoeclient TestClientLCPRejectRemovesOnlyRejectedOptions and TestClientLCPReplyCorrelation changed only to read frameLog through the locked snapshot() (frameLog race fix); every assertion, input and comparison is unchanged, so the verdict stands. Forbidden: acting on a Reject whose Identifier differs. TestLCPRepliesMatchOutstandingRequest (\"Reject wrong Identifier\") and TestClientLCPReplyCorrelation go red on any state/wire change; positives: the matching Reject yields a new request without MRU (server) and a new-Identifier request without the rejected options (TestClientLCPRejectRemovesOnlyRejectedOptions).",
+  "requirement_sha": "ef8cbb2be56072e4",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest": "6e1e87cfaa4fb86b",
+    "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest#2": "6e1e87cfaa4fb86b",
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "94dbfbde4e1ef3d7",
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation": "94dbfbde4e1ef3d7"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest": "fdaf9e91d2c10be4",
+    "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest#2": "fdaf9e91d2c10be4",
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "4414e892e55bf66d",
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation": "63dcc89441d39416"
+  },
+  "verdict": "enforced"
+}

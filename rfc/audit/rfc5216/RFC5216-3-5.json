@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged 2026-10-12 (independent auditor) after 37dbe54095, where the authenticator with resumption on installs redeemTLS13Only (resumption.go), which refuses every TLS 1.2 ticket. This unit is byte-identical; the file around it changed. Its helpers (tls12Exchange, fullTLS12Flights) gained a tune argument passed as nil to driveTunedEAPTLSFlight, which driveEAPTLSFlight itself calls with nil, and fresh stores offer no ticket, so the producer change never runs here. Verdict stands. Set clause: TestRFC5216SendersWriteZeroReservedFlagBits reads the flags octet of every EAP-TLS packet both roles sent in a full TLS 1.2 conversation and fails on any of bits 0x1f. Reception clause: all five reserved bits set on a Start and on a whole client_hello are ignored by peer and authenticator. Every tagged unit carries a record.",
+  "requirement_sha": "88270eb73714c321",
+  "tests": {
+    "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216SendersWriteZeroReservedFlagBits": "07752e8e18f47c94",
+    "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216ReservedFlagBitsAreIgnoredOnReception": "50ee52d235cf2a36",
+    "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216ReservedFlagBitsAreIgnoredOnReception#2": "50ee52d235cf2a36"
+  },
+  "units": {
+    "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216SendersWriteZeroReservedFlagBits": "93965daf37c42e49",
+    "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216ReservedFlagBitsAreIgnoredOnReception": "1615dc0d237369cf",
+    "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216ReservedFlagBitsAreIgnoredOnReception#2": "1615dc0d237369cf"
+  },
+  "verdict": "enforced"
+}

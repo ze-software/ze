@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: a success status other than 200, a content type other than application/json, a body that is not a JSON object, a member outside Section 2. Red: TestRFC9728ResponseShape fails on w.Code != 200, on Content-Type != application/json, on json.Unmarshal into a map (arrays/scalars refused), and on any member absent from rfc9728Section2Members.",
+  "requirement_sha": "44c087d76814f09c",
+  "tests": {
+    "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728ResponseShape": "70cb12fbb65e4490",
+    "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728ResponseShape#2": "70cb12fbb65e4490"
+  },
+  "units": {
+    "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728ResponseShape": "b867543d24ca8170",
+    "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728ResponseShape#2": "b867543d24ca8170"
+  },
+  "verdict": "enforced"
+}

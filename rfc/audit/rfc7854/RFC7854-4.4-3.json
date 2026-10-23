@@ -1,0 +1,13 @@
+{
+  "note": "sysName is the configured host.domain FQDN, the MIB-II sysName convention, survives rollback, and follows a configuration change",
+  "requirement_sha": "2b65141400495b10",
+  "tests": {
+    "internal/component/bgp/plugins/bmp/rfc7854_identity_test.go::TestRFC7854InitiationSystemNameChanges": "a2bb096767c14b84",
+    "internal/component/bgp/plugins/bmp/rfc7854_identity_test.go::TestRFC7854InitiationUsesConfiguredSystemName": "a2bb096767c14b84"
+  },
+  "units": {
+    "internal/component/bgp/plugins/bmp/rfc7854_identity_test.go::TestRFC7854InitiationSystemNameChanges": "d3dccdd2f753fa5f",
+    "internal/component/bgp/plugins/bmp/rfc7854_identity_test.go::TestRFC7854InitiationUsesConfiguredSystemName": "a362efd6f7b63ff6"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,17 @@
+{
+  "note": "RA-BFD2 strict re-read 2026-09-27 (stale on Receive: echo reschedule and pollSettling added after rescheduleTxLocked, which is still called on every accepted packet). Forbidden: keeping the old, longer wait after a reduction. TestRFC5880RemoteMinRxChangeReschedulesNextTx requires last TX + 400 ms after 900 to 400 ms, and a jittered 900 of 1.2 s rescaled to 300 of 400 ms, already due. TestRFC5880RemoteMinRxReductionHonoredImmediately pins TransmitInterval at 400 ms at once. Negatives: TestRFC5880UnchangedRemoteMinRxKeepsNextTx (no change, deadline kept) and TestRFC5880TransmitIntervalFlooredByLocalDesired (a reduction below the local desired value does not shorten TX). The Demand-mode condition only removes the obligation; Ze runs no Demand mode, so it always honours the reduction.",
+  "requirement_sha": "2ebce90286cf6632",
+  "tests": {
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteMinRxChangeReschedulesNextTx": "8db25cbb4534cc2d",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteMinRxReductionHonoredImmediately": "8db25cbb4534cc2d",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880TransmitIntervalFlooredByLocalDesired": "8db25cbb4534cc2d",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880UnchangedRemoteMinRxKeepsNextTx": "8db25cbb4534cc2d"
+  },
+  "units": {
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteMinRxChangeReschedulesNextTx": "ffcbcc003dae3e02",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteMinRxReductionHonoredImmediately": "e6fde4a312962826",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880TransmitIntervalFlooredByLocalDesired": "ff2ff7839f6e342c",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880UnchangedRemoteMinRxKeepsNextTx": "f9f6d45fb781b26d"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC3209-4.4.3-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/rfc3209_rro_test.go::TestRFC3209RRONewSubobjectIsOwnAddress",
+    "unit-sha": "30f79b9e17e6030b",
+    "claim-sha": "1070c527628168cb",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/rro.go::prependRRO",
+    "producer-sha": "128a23cf9593adb5",
+    "break": "body of prependRRO replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3209-4.4.3-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/rsvpte/rfc3209_rro_test.go::TestRFC3209RRONoSubobjectWithoutOwnAddress",
+    "unit-sha": "3f73012e81f18929",
+    "claim-sha": "a4a3323081579418",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/rro.go::prependRRO",
+    "producer-sha": "128a23cf9593adb5",
+    "break": "body of prependRRO replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3209-4.4.3-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/rsvpte/rfc3209_signaling_test.go::TestRFC3209EngineNeverRecordsNeighborAddress",
+    "unit-sha": "65048ebdb3bf7437",
+    "claim-sha": "f84198a54117fc70",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/engine.go::recordRoute",
+    "producer-sha": "f608d564ea8207ec",
+    "break": "body of recordRoute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3209-4.4.3-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/rfc3209_signaling_test.go::TestRFC3209EngineRecordsOwnAddress",
+    "unit-sha": "d960715eabdfbb5e",
+    "claim-sha": "0d0350d5f72baccf",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/engine.go::recordRoute",
+    "producer-sha": "f608d564ea8207ec",
+    "break": "body of recordRoute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

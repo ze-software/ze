@@ -1,0 +1,17 @@
+{
+  "note": "Positive: a Request with Type and 3 data octets encodes to 8 octets with Length 8, and decodes back. Negative: the same packet with Length 4 (Data only) or 3 (Type-Data only) is refused by DecodePacket; a decoder reading Length as data length would accept both, so the pair discriminates the header-inclusive reading.",
+  "requirement_sha": "0d0558bc9742c4b9",
+  "tests": {
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748LengthCountsTheWholePacket": "8ca42a58d78f22be",
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748LengthCountsTheWholePacket#2": "8ca42a58d78f22be",
+    "internal/core/eap/rfc3748_test.go::TestRFC3748MinimumPacketLength": "c7d9cf3b0751a797",
+    "internal/core/eap/rfc3748_test.go::TestRFC3748MinimumPacketLength#2": "c7d9cf3b0751a797"
+  },
+  "units": {
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748LengthCountsTheWholePacket": "c84bc537ec81c2dc",
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748LengthCountsTheWholePacket#2": "c84bc537ec81c2dc",
+    "internal/core/eap/rfc3748_test.go::TestRFC3748MinimumPacketLength": "a1fafa0bf6d78211",
+    "internal/core/eap/rfc3748_test.go::TestRFC3748MinimumPacketLength#2": "a1fafa0bf6d78211"
+  },
+  "verdict": "enforced"
+}

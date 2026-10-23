@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC2661-5.8-3",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/rfc2661_reliable_test.go::TestTickMaxAttempts",
+    "unit-sha": "4a4fb1370126927f",
+    "claim-sha": "267f1e7a379a84c8",
+    "route": "revert",
+    "producer": "internal/component/l2tp/reliable.go::Tick",
+    "producer-sha": "6b0250e67671ce1a",
+    "break": "body of Tick replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2661-5.8-3",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/rfc2661_reliable_test.go::TestTickMaxAttempts",
+    "unit-sha": "4a4fb1370126927f",
+    "claim-sha": "95c2a19663c9317c",
+    "route": "revert",
+    "producer": "internal/component/l2tp/reliable.go::Tick",
+    "producer-sha": "6b0250e67671ce1a",
+    "break": "body of Tick replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2661-5.8-3",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/rfc2661_retransmit_exhaustion_test.go::TestRFC2661RetransmitExhaustionClearsTunnel",
+    "unit-sha": "3cb87ba62835b2f3",
+    "claim-sha": "999261814c81ce31",
+    "route": "revert",
+    "producer": "internal/component/l2tp/reactor.go::handleTick",
+    "producer-sha": "b6c0db1d86d5fb2c",
+    "break": "body of handleTick replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2661-5.8-3",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/rfc2661_retransmit_exhaustion_test.go::TestRFC2661RetransmitExhaustionClearsTunnel",
+    "unit-sha": "3cb87ba62835b2f3",
+    "claim-sha": "bfa5deef0eebab3b",
+    "route": "revert",
+    "producer": "internal/component/l2tp/reactor.go::handleTick",
+    "producer-sha": "b6c0db1d86d5fb2c",
+    "break": "body of handleTick replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

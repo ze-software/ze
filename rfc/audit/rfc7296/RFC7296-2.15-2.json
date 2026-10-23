@@ -1,0 +1,17 @@
+{
+  "note": "The weak finding (use path unexercised) is closed. Parse side: ipsec TestPSKHasNoNullTerminatorAdded (parseAuthConfig keeps the PSK octets, adds and strips nothing). Use side, new engine/rfc7296_psk_terminator_test.go: positive TestRFC7296PSKIsUsedWithoutANullTerminator compares computePSKAuth's AUTH with an independent stdlib HMAC-SHA2-256 prf(prf(secret,'Key Pad for IKEv2'),SignedOctets) over the secret octets alone (equal) and over secret+0x00 (not equal), and verifyPSKAuth accepts the no-terminator AUTH; negative TestRFC7296PSKWithANullTerminatorAddedIsRefused: verifyPSKAuth refuses the AUTH over secret+0x00 with errAuthFailed, so the receiving side adds no terminator either. Producers read: both pass []byte(sa.PeerCfg.Auth.PSK) to computeAuthFromSharedSecret/verifyAuthFromSharedSecret. Records: computePSKAuth and verifyPSKAuth panic reverts observed red. Judge ran both: PASS. Prose defect, not a proof gap: psktermSecret is 65 octets, while its comment and both claims say 64; the claim wording should be corrected (and the records re-recorded) by the author.",
+  "requirement_sha": "2cc3de1d48a12793",
+  "tests": {
+    "internal/component/ike/engine/rfc7296_psk_terminator_test.go::TestRFC7296PSKIsUsedWithoutANullTerminator": "9ac9eea4104eaaa7",
+    "internal/component/ike/engine/rfc7296_psk_terminator_test.go::TestRFC7296PSKWithANullTerminatorAddedIsRefused": "9ac9eea4104eaaa7",
+    "internal/component/ike/ipsec/rfc7296_test.go::TestPSKHasNoNullTerminatorAdded": "ceba76468bf16893",
+    "internal/component/ike/ipsec/rfc7296_test.go::TestPSKHasNoNullTerminatorAdded#2": "ceba76468bf16893"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7296_psk_terminator_test.go::TestRFC7296PSKIsUsedWithoutANullTerminator": "0cc0f438be919023",
+    "internal/component/ike/engine/rfc7296_psk_terminator_test.go::TestRFC7296PSKWithANullTerminatorAddedIsRefused": "7252b903efd90870",
+    "internal/component/ike/ipsec/rfc7296_test.go::TestPSKHasNoNullTerminatorAdded": "6bffd906d334a3b1",
+    "internal/component/ike/ipsec/rfc7296_test.go::TestPSKHasNoNullTerminatorAdded#2": "6bffd906d334a3b1"
+  },
+  "verdict": "enforced"
+}

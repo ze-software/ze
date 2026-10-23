@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: a request after authentication answered with a Code other than the one the Authentication phase returned. TestPAPReanswerPreservesDecision runs accept and reject, changes the credentials of the repeated request, and asserts replies[1].Code == replies[0].Code for both Ack and Nak; TestPAPReanswersAfterAuthentication asserts the Ack Code on repeats through handleFrame. RFC text note: rfc1334.txt drops the line naming the Network-Layer Protocol phase, so the row quotes the surviving span.",
+  "requirement_sha": "b7a501039118eecb",
+  "tests": {
+    "internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestPAPReanswerPreservesDecision": "8e29592e5f428395",
+    "internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestPAPReanswersAfterAuthentication": "8e29592e5f428395"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestPAPReanswerPreservesDecision": "cfde3f3ee46d6902",
+    "internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestPAPReanswersAfterAuthentication": "7b2de7debcb06a87"
+  },
+  "verdict": "enforced"
+}

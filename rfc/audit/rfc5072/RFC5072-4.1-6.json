@@ -1,0 +1,11 @@
+{
+  "note": "Forbidden: answering equal-zero identifiers with a Nak/Ack, or a Reject not carrying the zero identifier. TestIPv6CPBothZeroIsRejected fails on code != Configure-Reject, a Reject missing the Interface-Identifier option, and opts.InterfaceID != zero. The sentence defines termination as transmitting that Reject, which is asserted. Single-polarity marker present.",
+  "requirement_sha": "3df5305ee54e7405",
+  "tests": {
+    "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPBothZeroIsRejected": "99a68f4293234999"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPBothZeroIsRejected": "acb1a522a0e9169b"
+  },
+  "verdict": "enforced"
+}

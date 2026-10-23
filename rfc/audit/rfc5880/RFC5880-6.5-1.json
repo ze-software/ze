@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: P and F both set. Red: TestRFC5880PollPacketHasNoFinalBit Fatalf on c.Final from Build with PollOutstanding; TestRFC5880FinalReplyClearsPollBit Fatalf on f.Poll from BuildFinal with PollOutstanding true, the state where inheriting P would set both. Build and BuildFinal are the only packets sendLocked is handed (engine/loop.go).",
+  "requirement_sha": "9b837bd97f06d962",
+  "tests": {
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880FinalReplyClearsPollBit": "8db25cbb4534cc2d",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PollPacketHasNoFinalBit": "8db25cbb4534cc2d"
+  },
+  "units": {
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880FinalReplyClearsPollBit": "e298a947dd60ac25",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PollPacketHasNoFinalBit": "8bd7c7a3e3e873e6"
+  },
+  "verdict": "enforced"
+}

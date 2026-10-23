@@ -1,0 +1,19 @@
+{
+  "note": "Rejudged 2026-10-21 over the current tags, units and records. Positive asserts the literal auth field 00 00 00 28 01 02 03 04 and the Packet Length excluding the 8 sequence octets. The negatives are strict framing (an extra byte after seq+digest refused), a 32-bit Key ID mismatch whose IDs share the low octet so only a full 32-bit compare rejects it, and a changed sequence refused.",
+  "requirement_sha": "8c74a5e58d4ef2dc",
+  "tests": {
+    "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthCryptoRejectsExtraTrailerBytes": "b1f49f5bb6bbafb8",
+    "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthCryptoRejectsKeyIDMismatch": "b1f49f5bb6bbafb8",
+    "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SequenceTrailer": "b1f49f5bb6bbafb8",
+    "internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go::TestRFC7474SequenceChangeBreaksDigest": "c6f8189c6e41691b",
+    "internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go::TestRFC7474SequenceIncludedInDigest": "c6f8189c6e41691b"
+  },
+  "units": {
+    "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthCryptoRejectsExtraTrailerBytes": "d92f63f706b0daa0",
+    "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthCryptoRejectsKeyIDMismatch": "3e66930bd14e4a79",
+    "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SequenceTrailer": "c723648fe686fb2a",
+    "internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go::TestRFC7474SequenceChangeBreaksDigest": "a355f044d9f3cc1f",
+    "internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go::TestRFC7474SequenceIncludedInDigest": "ddc153af4ce09c6e"
+  },
+  "verdict": "enforced"
+}

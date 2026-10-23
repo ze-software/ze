@@ -1,0 +1,25 @@
+{
+  "note": "Re-judged 2026-10-14 (independent auditor, D4, owner Q-D4 (a)). RFC 9234 Section 3.1: Customer, RS-Client and Peer \"MAY propagate any route learned from a Customer, or that is locally originated\" to a Provider, an RS and a Peer, and \"All other routes MUST NOT be propagated.\" Producer OTCEgressFilter (role/otc.go) suppresses when the destination remote role is provider, peer or rs and the source role (our role toward the source) is customer, peer, rs-client or rs. TestOTCEgressFilter asserts suppression for every member of both sets: Provider-learned to Provider, Peer-learned to Peer and RS, RS-learned to Provider, RS-Client-learned to Provider, Peer and RS (the rs case the earlier verdict found propagated now asserts suppression); TestOTCEgressSuppressProviderLearnedWithoutMeta covers the config fallback with nil meta. Negatives: Customer-learned reaches a Provider and a Customer, RS-Client-learned reaches a Customer and an RS-Client, so the suppression is scoped. Each set member is pinned by at least one exact assertion, so dropping a role from either set goes red; not every source-destination pair is asserted, which the set-membership producer makes redundant.",
+  "requirement_sha": "dd09c11c76e8af3a",
+  "tests": {
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressFilter": "7b0a9e434ba435f3",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressFilter#2": "7b0a9e434ba435f3",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressFilter#3": "7b0a9e434ba435f3",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressFilter#4": "7b0a9e434ba435f3",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressFilter#5": "7b0a9e434ba435f3",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressFilter#6": "7b0a9e434ba435f3",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressFilter#7": "7b0a9e434ba435f3",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressSuppressProviderLearnedWithoutMeta": "7b0a9e434ba435f3"
+  },
+  "units": {
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressFilter": "4da3b60ddbe7c227",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressFilter#2": "4da3b60ddbe7c227",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressFilter#3": "4da3b60ddbe7c227",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressFilter#4": "4da3b60ddbe7c227",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressFilter#5": "4da3b60ddbe7c227",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressFilter#6": "4da3b60ddbe7c227",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressFilter#7": "4da3b60ddbe7c227",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressSuppressProviderLearnedWithoutMeta": "5ae3d32f3d68b57d"
+  },
+  "verdict": "enforced"
+}

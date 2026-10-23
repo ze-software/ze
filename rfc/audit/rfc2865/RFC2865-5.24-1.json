@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: returning State modified or not at all. TestRadiusAdminStateIsReturnedUnmodified asserts each round's request carries that round's distinct State byte for byte (red on drop, rewrite or stale echo); TestRadiusAdminStateIsNotManufactured asserts no State when the challenge sent none.",
+  "requirement_sha": "c94af1fe87693f71",
+  "tests": {
+    "internal/component/radius/rfc2865_state_echo_test.go::TestRadiusAdminStateIsNotManufactured": "46c459a4f7f9145c",
+    "internal/component/radius/rfc2865_state_echo_test.go::TestRadiusAdminStateIsReturnedUnmodified": "46c459a4f7f9145c"
+  },
+  "units": {
+    "internal/component/radius/rfc2865_state_echo_test.go::TestRadiusAdminStateIsNotManufactured": "97cea1c2341acab7",
+    "internal/component/radius/rfc2865_state_echo_test.go::TestRadiusAdminStateIsReturnedUnmodified": "093cbf916b0b7104"
+  },
+  "verdict": "enforced"
+}

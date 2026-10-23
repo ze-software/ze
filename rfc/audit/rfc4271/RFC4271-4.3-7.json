@@ -1,0 +1,17 @@
+{
+  "note": "HEAD positives (rfc4271_rib_mixed_update_test.go, three paths) prove the prefix named in both WITHDRAWN and NLRI stays installed with no withdrawal published. New negative TestRFC4271MixedUpdateStillAppliesItsOtherWithdrawals drives handleReceivedStructured and asserts the OTHER withdrawn prefix (11/8) still leaves Adj-RIB-In and Loc-RIB, so the treatment is scoped to the duplicated prefix. Judge mutants 2026-09-30 (go test -overlay, tree untouched): skipping the whole legacy WITHDRAWN field when the UPDATE carries NLRI reddens the negative alone; the positives stay green, so the two polarities catch opposite failures.",
+  "requirement_sha": "8f0c5f0b9dc78a9c",
+  "tests": {
+    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271MixedUpdateStillAppliesItsOtherWithdrawals": "e914a6452ddec559",
+    "internal/component/bgp/plugins/rib/rfc4271_rib_mixed_update_test.go::TestRIBInjectSamePrefixInWithdrawnAndNLRIInstallsTheRoute": "dca611e0e7c71b9d",
+    "internal/component/bgp/plugins/rib/rfc4271_rib_mixed_update_test.go::TestRIBPoolPathSamePrefixInWithdrawnAndNLRIInstallsTheRoute": "dca611e0e7c71b9d",
+    "internal/component/bgp/plugins/rib/rfc4271_rib_mixed_update_test.go::TestRIBSamePrefixInWithdrawnAndNLRIInstallsTheRoute": "dca611e0e7c71b9d"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271MixedUpdateStillAppliesItsOtherWithdrawals": "6a9a8986dfb30a3d",
+    "internal/component/bgp/plugins/rib/rfc4271_rib_mixed_update_test.go::TestRIBInjectSamePrefixInWithdrawnAndNLRIInstallsTheRoute": "acbdf7e3aea7bb84",
+    "internal/component/bgp/plugins/rib/rfc4271_rib_mixed_update_test.go::TestRIBPoolPathSamePrefixInWithdrawnAndNLRIInstallsTheRoute": "d5ef9914e9ee614c",
+    "internal/component/bgp/plugins/rib/rfc4271_rib_mixed_update_test.go::TestRIBSamePrefixInWithdrawnAndNLRIInstallsTheRoute": "fb119c704faad911"
+  },
+  "verdict": "enforced"
+}

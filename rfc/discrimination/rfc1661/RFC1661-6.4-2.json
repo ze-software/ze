@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC1661-6.4-2",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestEchoRequestCarriesNegotiatedMagic",
+    "unit-sha": "712890c2062e8070",
+    "claim-sha": "3da72769e75e425d",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/session_run.go::transmitMagic",
+    "producer-sha": "f8e5a4e769b214b4",
+    "break": "body of transmitMagic replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1661-6.4-2",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestEchoRequestCarriesNegotiatedMagic",
+    "unit-sha": "712890c2062e8070",
+    "claim-sha": "ea3205abad0f8880",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/session_run.go::transmitMagic",
+    "producer-sha": "f8e5a4e769b214b4",
+    "break": "body of transmitMagic replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1661-6.4-2",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661EchoReplyDoesNotMirrorPeerMagic",
+    "unit-sha": "924cf1ca2790d6ce",
+    "claim-sha": "9b11a4cfa2b6ded6",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/echo.go::BuildLCPEchoReply",
+    "producer-sha": "709db786de713e49",
+    "break": "body of BuildLCPEchoReply replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1661-6.4-2",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661EchoReplyInOpened",
+    "unit-sha": "ca2feca8b2be99ce",
+    "claim-sha": "b701a9775b495a5a",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/session_run.go::handleLCPPacket",
+    "producer-sha": "7107e02b6fa04b82",
+    "break": "body of handleLCPPacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

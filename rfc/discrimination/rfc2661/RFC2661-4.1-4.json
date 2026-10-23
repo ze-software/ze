@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC2661-4.1-4",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/rfc2661_tunnel_initiator_test.go::TestTunnelInitiatorHandshake",
+    "unit-sha": "8df82bd88e34018a",
+    "claim-sha": "1b8e1319c9f5f20d",
+    "route": "revert",
+    "producer": "internal/component/l2tp/tunnel_initiator.go::initiate",
+    "producer-sha": "7e7444cf437bbcbf",
+    "break": "body of initiate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2661-4.1-4",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/rfc2661_tunnel_initiator_test.go::TestTunnelSCCCNUnknownMandatoryAVP_StopCCN",
+    "unit-sha": "da7182cb9a7f2bbf",
+    "claim-sha": "cc6523fa7e4de928",
+    "route": "revert",
+    "producer": "internal/component/l2tp/tunnel_fsm.go::parseSCCCN",
+    "producer-sha": "484b17cb3f049f01",
+    "break": "body of parseSCCCN replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2661-4.1-4",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/rfc2661_unrecognized_mandatory_avp_test.go::TestUnrecognizedMandatoryAVPInHelloClearsTunnel",
+    "unit-sha": "d46c6ec236c965d2",
+    "claim-sha": "e75f842d2401027e",
+    "route": "revert",
+    "producer": "internal/component/l2tp/tunnel_fsm.go::parseHello",
+    "producer-sha": "cbad43831ea390d9",
+    "break": "body of parseHello replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2661-4.1-4",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/rfc2661_unrecognized_mandatory_avp_test.go::TestUnrecognizedMandatoryAVPInHelloClearsTunnel",
+    "unit-sha": "d46c6ec236c965d2",
+    "claim-sha": "ae0f399c4942c249",
+    "route": "revert",
+    "producer": "internal/component/l2tp/tunnel_fsm.go::parseHello",
+    "producer-sha": "cbad43831ea390d9",
+    "break": "body of parseHello replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

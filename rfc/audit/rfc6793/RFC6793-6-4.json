@@ -1,0 +1,13 @@
+{
+  "note": "TestRFC6793MalformedAS4PathDiscarded: an odd-length AS4_PATH from an OLD speaker contributes nothing and the rewrite proceeds; negative keeps a well-formed one.",
+  "requirement_sha": "9f5f4d7041920059",
+  "tests": {
+    "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793MalformedAS4PathDiscarded": "46921ad87659919b",
+    "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793WellFormedAS4PathNotDiscarded": "46921ad87659919b"
+  },
+  "units": {
+    "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793MalformedAS4PathDiscarded": "011836460c20876e",
+    "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793WellFormedAS4PathNotDiscarded": "72452db2842ed5f3"
+  },
+  "verdict": "enforced"
+}

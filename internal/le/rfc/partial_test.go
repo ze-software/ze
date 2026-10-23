@@ -331,7 +331,7 @@ func TestMalformedPartialCannotPublishWholeCredit(t *testing.T) {
 				t.Fatalf("gate did not refuse malformed scope: %s", report.Text())
 			}
 			from := stampPending(t, root, selftestStem, map[string]any{selftestRIDSend: map[string]any{"verdict": VerdictEnforced, "note": "not a whole proof"}})
-			if _, err := auditStamp(root, selftestStem, from, stampModeNew, stampNow); err == nil {
+			if _, err := auditStamp(root, selftestStem, from, stampModeNew); err == nil {
 				t.Fatal("malformed scope acquired a whole audit")
 			}
 			if len(readStampAudit(t, root)) != 0 {

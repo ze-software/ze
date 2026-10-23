@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC9915-21.24-3",
+    "polarity": "negative",
+    "unit": "internal/plugins/iface/dhcp/rfc9915_dhcp_v6_exchange_linux_test.go::TestRFC9915Section2124SolMaxRTRange",
+    "unit-sha": "2625e6cfa631e3f3",
+    "claim-sha": "81b25ed08b8188be",
+    "route": "revert",
+    "producer": "internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::v6SolMaxRTOption",
+    "producer-sha": "78260e23a0a16421",
+    "break": "body of v6SolMaxRTOption replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

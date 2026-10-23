@@ -1,0 +1,16 @@
+{
+  "code": {},
+  "note": "Re-judged 2026-10-14 (independent auditor). TestReceiverRecordsThePeerUpAddressFamilies changed only by calling mustFabricateLocRIBOpen; it still reads back through the receiver the families the Peer Up OPEN advertised. With TestReceiverKeepsEachPeersAddressFamiliesApart (two peers of one router keep their own family) and TestReceiverRecordsNoFamiliesWhenThePeerUpAdvertisesNone (negative), a receiver that ignored, defaulted or merged the capabilities goes red. Separate finding: the discrimination record for the positive at TestReceiverKeepsEachPeersAddressFamiliesApart is producer-changed and needs re-recording.",
+  "requirement_sha": "b2ca77bfe76964e1",
+  "tests": {
+    "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestReceiverRecordsNoFamiliesWhenThePeerUpAdvertisesNone": "5fb0f6e9f181c421",
+    "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestReceiverRecordsThePeerUpAddressFamilies": "5fb0f6e9f181c421",
+    "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestReceiverKeepsEachPeersAddressFamiliesApart": "eb1b3423b571c819"
+  },
+  "units": {
+    "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestReceiverRecordsNoFamiliesWhenThePeerUpAdvertisesNone": "cef0cb7eb915d31a",
+    "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestReceiverRecordsThePeerUpAddressFamilies": "ae705929981ae428",
+    "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestReceiverKeepsEachPeersAddressFamiliesApart": "f1f1c6512a581a99"
+  },
+  "verdict": "enforced"
+}

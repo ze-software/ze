@@ -1,0 +1,17 @@
+{
+  "note": "NegotiateIKE refuses a registered 64-bit PRF; prfOutputAcceptable floor at 128; every specified PRF at or above it",
+  "requirement_sha": "6c4904d655f48cf6",
+  "tests": {
+    "internal/component/ike/crypto/rfc7296_prffloor_test.go::TestPrfFloorRefusesOutputBelow128Bits": "73f01db67d340370",
+    "internal/component/ike/crypto/rfc7296_prffloor_test.go::TestPrfFloorRefusesOutputBelow128Bits#2": "73f01db67d340370",
+    "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropPRFOutputBelow128BitsRefused": "08f2f5dac8da8a2b",
+    "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropPRFOutputBelow128BitsRefused#2": "08f2f5dac8da8a2b"
+  },
+  "units": {
+    "internal/component/ike/crypto/rfc7296_prffloor_test.go::TestPrfFloorRefusesOutputBelow128Bits": "a90074ea687891fa",
+    "internal/component/ike/crypto/rfc7296_prffloor_test.go::TestPrfFloorRefusesOutputBelow128Bits#2": "a90074ea687891fa",
+    "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropPRFOutputBelow128BitsRefused": "77203506f6c86bbd",
+    "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropPRFOutputBelow128BitsRefused#2": "77203506f6c86bbd"
+  },
+  "verdict": "enforced"
+}

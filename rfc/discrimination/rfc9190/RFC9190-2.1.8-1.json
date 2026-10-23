@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9190-2.1.8-1",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc9190_cached_authorization_test.go::TestEAPTLS13AuthenticatorRefusesAnAnonymousPeerWithARevokedCertificate",
+    "unit-sha": "620992e5072a9f3f",
+    "claim-sha": "b6dd0c7d02829db6",
+    "route": "revert",
+    "producer": "internal/core/eap/revocation.go::checkChainRevocation",
+    "producer-sha": "bc6548ee07f24385",
+    "break": "body of checkChainRevocation replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9190-2.1.8-1",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc9190_nai_test.go::TestEAPTLS13AuthenticatorAcceptsAnAnonymousNAI",
+    "unit-sha": "57282d57c5ad154e",
+    "claim-sha": "733b731345d7ab86",
+    "route": "revert",
+    "producer": "internal/core/eap/eap.go::handleIdentity",
+    "producer-sha": "cd01bb53da5bfe90",
+    "break": "body of handleIdentity replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

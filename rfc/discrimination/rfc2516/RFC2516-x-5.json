@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC2516-x-5",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516RefusingPADSEchoesRelaySessionID",
+    "unit-sha": "125f5bfaff591e98",
+    "claim-sha": "3bffc046ecbc336b",
+    "route": "revert",
+    "producer": "internal/component/l2tp/pppoe/discovery.go::BuildPADSError",
+    "producer-sha": "83b4062b1bac8da6",
+    "break": "body of BuildPADSError replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2516-x-5",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516RefusingPADSEchoesRelaySessionID",
+    "unit-sha": "125f5bfaff591e98",
+    "claim-sha": "cdda2b7d85c163d1",
+    "route": "revert",
+    "producer": "internal/component/l2tp/pppoe/discovery.go::BuildPADSError",
+    "producer-sha": "83b4062b1bac8da6",
+    "break": "body of BuildPADSError replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2516-x-5",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestRelaySessionIDEcho",
+    "unit-sha": "56fa1fd47c68c1c7",
+    "claim-sha": "d541ee45a2b9675c",
+    "route": "revert",
+    "producer": "internal/component/l2tp/pppoe/discovery.go::BuildPADO",
+    "producer-sha": "7a22cb254e8c485f",
+    "break": "body of BuildPADO replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2516-x-5",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestRelaySessionIDNoEcho",
+    "unit-sha": "ae281a23f948cf03",
+    "claim-sha": "0e984d1b7618adcb",
+    "route": "revert",
+    "producer": "internal/component/l2tp/pppoe/discovery.go::BuildPADO",
+    "producer-sha": "7a22cb254e8c485f",
+    "break": "body of BuildPADO replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

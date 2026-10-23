@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: the server sending another fragment before the ACK for the current one arrives. driveFragmentedFlight feeds a Response carrying the previous Identifier after every server fragment and fatals if it draws any packet or moves outOffset; TestRFC5216ServerSendsTheNextFragmentOnlyInAnswerToTheAck fatals unless the packet after each fragment is the continuation Request carrying data with neither S nor L.",
+  "requirement_sha": "9d1231b9f53498ff",
+  "tests": {
+    "internal/core/eap/rfc5216_fragment_ack_test.go::TestRFC5216ServerSendsTheNextFragmentOnlyInAnswerToTheAck": "2d0ca832c5975065",
+    "internal/core/eap/rfc5216_fragment_ack_test.go::TestRFC5216ServerSendsTheNextFragmentOnlyInAnswerToTheAck#2": "2d0ca832c5975065"
+  },
+  "units": {
+    "internal/core/eap/rfc5216_fragment_ack_test.go::TestRFC5216ServerSendsTheNextFragmentOnlyInAnswerToTheAck": "f3dce9dcec1fb16f",
+    "internal/core/eap/rfc5216_fragment_ack_test.go::TestRFC5216ServerSendsTheNextFragmentOnlyInAnswerToTheAck#2": "f3dce9dcec1fb16f"
+  },
+  "verdict": "enforced"
+}

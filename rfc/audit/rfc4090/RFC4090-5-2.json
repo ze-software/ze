@@ -1,0 +1,13 @@
+{
+  "note": "protected tunnel's PATH SESSION_ATTRIBUTE has label recording desired set (SessAttrLabelRecording = 0x02); negative is an unprotected tunnel emitting no SESSION_ATTRIBUTE, a conditioned-off input. Tag prose on TestRFC4090HeadEndSetsLabelRecordingDesired says 0x04, which is the SE Style flag Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 5 and the enforced verdict holds unchanged.",
+  "requirement_sha": "4884ab1a9025906d",
+  "tests": {
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090HeadEndSetsLabelRecordingDesired": "3fb9184431da8daf",
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090UnprotectedPathRequestsNoLabelRecording": "3fb9184431da8daf"
+  },
+  "units": {
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090HeadEndSetsLabelRecordingDesired": "b1bc87a366bd88c1",
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090UnprotectedPathRequestsNoLabelRecording": "3f2f812fad02ff27"
+  },
+  "verdict": "enforced"
+}

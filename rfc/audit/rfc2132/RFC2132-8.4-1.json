@@ -1,0 +1,11 @@
+{
+  "note": "TestIgnoresClientVendorSpecificOption43 asserts the OFFER for a DISCOVER carrying client option 43 is byte-identical to the OFFER without it, through handle(); any action on or rejection of option 43 fails it",
+  "requirement_sha": "4d6f556a84c2243a",
+  "tests": {
+    "internal/plugins/dhcpserver/handler_test.go::TestIgnoresClientVendorSpecificOption43": "3c71d2e2f2b59688"
+  },
+  "units": {
+    "internal/plugins/dhcpserver/handler_test.go::TestIgnoresClientVendorSpecificOption43": "4991674ba9617d98"
+  },
+  "verdict": "enforced"
+}

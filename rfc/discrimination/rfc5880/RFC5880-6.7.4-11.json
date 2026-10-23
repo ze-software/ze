@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5880-6.7.4-11",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/session/rfc5880_test.go::TestRFC5880AuthSequenceFieldFollowsAdvance",
+    "unit-sha": "425863dd7e9166a6",
+    "claim-sha": "f4a3c24ac2b10ac4",
+    "route": "revert",
+    "producer": "internal/component/bfd/session/auth.go::Sign",
+    "producer-sha": "46ea5bd2386e41fc",
+    "break": "body of Sign replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.7.4-11",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/session/rfc5880_test.go::TestRFC5880AuthSequenceFieldIsXmitAuthSeq",
+    "unit-sha": "f9acc7593300bdc2",
+    "claim-sha": "0617d966f5cba340",
+    "route": "revert",
+    "producer": "internal/component/bfd/session/auth.go::Sign",
+    "producer-sha": "46ea5bd2386e41fc",
+    "break": "body of Sign replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

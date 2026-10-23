@@ -1,0 +1,17 @@
+{
+  "note": "Rejudged 2026-09-29. Every service=shell request now carries cmd under a tagged unit: command request cmd=show, session request cmd=, accounting START/STOP cmd=show (TestRFC8907EveryShellRequestCarriesCmd); TestRFC8907ShellRequestNeverLacksCmd covers the edge inputs (empty session cmd, argless 'show' records); old units cover the empty command in splitTacacsArgs.",
+  "requirement_sha": "f2f920e25a78b039",
+  "tests": {
+    "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907EveryShellRequestCarriesCmd": "fb302ebfa0d9b135",
+    "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907ShellRequestNeverLacksCmd": "fb302ebfa0d9b135",
+    "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907CmdArgumentFollowsShellService": "226ab125232efc32",
+    "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907CmdArgumentPresentForEmptyCommand": "226ab125232efc32"
+  },
+  "units": {
+    "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907EveryShellRequestCarriesCmd": "4cc7600757ee3290",
+    "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907ShellRequestNeverLacksCmd": "400e238fbab05863",
+    "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907CmdArgumentFollowsShellService": "013bc5ae53e97bdd",
+    "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907CmdArgumentPresentForEmptyCommand": "18fda4ee84c9c121"
+  },
+  "verdict": "enforced"
+}

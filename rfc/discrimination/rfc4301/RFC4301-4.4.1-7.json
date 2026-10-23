@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4301-4.4.1-7",
+    "polarity": "negative",
+    "unit": "internal/component/ike/ipsec/rfc4301_spd_management_test.go::TestRFC4301SPDInterfaceRefusesWhatItCannotProgram",
+    "unit-sha": "5a8efc2ab0455043",
+    "claim-sha": "e981c0ae72f5e983",
+    "route": "revert",
+    "producer": "internal/component/ike/ipsec/spd_policy.go::parseSPDPolicy",
+    "producer-sha": "633e57f6c14caa5b",
+    "break": "body of parseSPDPolicy replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4301-4.4.1-7",
+    "polarity": "positive",
+    "unit": "internal/component/ike/ipsec/rfc4301_spd_management_test.go::TestRFC4301SPDIsManagedThroughTheConfiguration",
+    "unit-sha": "9c701d7ef1abe2b7",
+    "claim-sha": "23f1818d3c289953",
+    "route": "revert",
+    "producer": "internal/component/ike/ipsec/spd_policy.go::parseSPDPolicy",
+    "producer-sha": "633e57f6c14caa5b",
+    "break": "body of parseSPDPolicy replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

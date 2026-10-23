@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-18 (independent auditor, after 2e4be94ae3). Read at rfc/full/rfc7950.txt Section 9.3.1: \"A decimal64 value is lexically represented as an optional sign (\"+\" or \"-\"), followed by a sequence of decimal digits, optionally followed by a period ('.') as a decimal indicator and a sequence of decimal digits.\" The units changed only from validateYangType to ValidateType, which is the same producer path (validateLeafValue with no leaf). validateDecimal64 tests ^[+-]?\\d+(\\.\\d+)?$ (ASCII digits in Go RE2) before the fraction-digits parse. Positive accepts +1.5, -1.5, -10.5, 1, 0.25, 0.0, 10.50; negative refuses .5, 1., +, -, 1.2.3, abc and the empty string with ErrTypeType and 'expected decimal64', with fraction-digits and range refusals asserted as distinct kinds. Each clause of the sentence has a value that would flip if the regexp lost it; records on validateDecimal64 replay.",
+  "requirement_sha": "9c6be86a13c047a1",
+  "tests": {
+    "internal/component/config/yang/rfc7950_validator_decimal64_test.go::TestRFC7950Decimal64Accepted": "3642eefa967e28a1",
+    "internal/component/config/yang/rfc7950_validator_decimal64_test.go::TestRFC7950Decimal64Refused": "3642eefa967e28a1"
+  },
+  "units": {
+    "internal/component/config/yang/rfc7950_validator_decimal64_test.go::TestRFC7950Decimal64Accepted": "5ad825c9eb6695a9",
+    "internal/component/config/yang/rfc7950_validator_decimal64_test.go::TestRFC7950Decimal64Refused": "feca642954e7f5f0"
+  },
+  "verdict": "enforced"
+}

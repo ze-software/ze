@@ -1,0 +1,13 @@
+{
+  "note": "First verdict 2026-10-21 (round 4 judge). Through lsdb.Install and the engine's SetOnChange wiring to SPF: a new summary-LSA instance with metric 25 moves the inter-area route from 15 to 35, and an instance at LSInfinity removes the route. Records on spf/interarea.go::ComputeInterAreaWith.",
+  "requirement_sha": "cb23f9459faf639c",
+  "tests": {
+    "internal/plugins/ospf/rfc2328_summary_recalc_test.go::TestRFC2328ChangedSummaryRecalculatesRoute": "d2e72c4027796b0e",
+    "internal/plugins/ospf/rfc2328_summary_recalc_test.go::TestRFC2328SummaryAtInfinityRemovesRoute": "d2e72c4027796b0e"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc2328_summary_recalc_test.go::TestRFC2328ChangedSummaryRecalculatesRoute": "c4cde0d19dda0465",
+    "internal/plugins/ospf/rfc2328_summary_recalc_test.go::TestRFC2328SummaryAtInfinityRemovesRoute": "9f5a4997eb941c15"
+  },
+  "verdict": "enforced"
+}

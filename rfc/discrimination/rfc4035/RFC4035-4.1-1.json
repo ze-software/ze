@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4035-4.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/resolve/dns/rfc4035_security_aware_test.go::TestRFC4035SecurityAwareQueryInEveryValidatingMode",
+    "unit-sha": "8095a19f57e46e46",
+    "claim-sha": "afaac4430adc835c",
+    "route": "revert",
+    "producer": "internal/component/resolve/dns/resolver.go::query",
+    "producer-sha": "86b40ee9731b4dba",
+    "break": "body of query replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4035-4.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_QueryCarriesEDNS0DOAndClearAD",
+    "unit-sha": "780383ba14d0bc5e",
+    "claim-sha": "126f82db41d4278e",
+    "route": "revert",
+    "producer": "internal/component/resolve/dns/resolver.go::query",
+    "producer-sha": "86b40ee9731b4dba",
+    "break": "body of query replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

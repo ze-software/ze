@@ -1,0 +1,11 @@
+{
+  "note": "Forbidden behaviour: a NAT-keepalive whose payload is longer than one octet or not 0xFF. TestNATKeepalive runs Keepalive.Run against a real UDP socket and fails unless the datagram read is exactly n == 1 and buf[0] == 0xFF, so both clauses (one octet, value 0xFF) go red on a change of keepaliveByte or of the write length. Single-polarity marker present.",
+  "requirement_sha": "e03b3988d738b573",
+  "tests": {
+    "internal/component/ike/transport/rfc3948_keepalive_test.go::TestNATKeepalive": "d713aac66480f95a"
+  },
+  "units": {
+    "internal/component/ike/transport/rfc3948_keepalive_test.go::TestNATKeepalive": "a170321f204d8470"
+  },
+  "verdict": "enforced"
+}

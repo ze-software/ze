@@ -1,0 +1,13 @@
+{
+  "note": "Single-polarity positive, now on the CRYPTO_AUTH path. New TestRFC5310LifetimeNotAuthenticated signs an LSP with HMAC-SHA-256 (type 3, Key ID 7), sets the Remaining Lifetime to 1, 600 and 0xFFFF with the Fletcher checksum recomputed, and requires VerifyPDU to accept each; a digest that covered the lifetime (lspAuthLayout not zeroing it) goes red. A changed sequence number is refused, so an accept-all verifier also goes red. Recorded red on auth_sign.go lspAuthLayout. The {single-polarity} marker holds (no lifetime-included path exists to refuse). Its prose still names TestISISAuthRotationOverlapAccepts, whose tag was removed: stale annotation text, not a coverage gap.",
+  "requirement_sha": "dac40dbe8e12a096",
+  "tests": {
+    "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthLSPChecksumAfterSign": "6263fe382fc10923",
+    "internal/plugins/isis/packet/rfc5310_auth_lifetime_test.go::TestRFC5310LifetimeNotAuthenticated": "c5d330c7d682a9c1"
+  },
+  "units": {
+    "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthLSPChecksumAfterSign": "286edc3be7c23485",
+    "internal/plugins/isis/packet/rfc5310_auth_lifetime_test.go::TestRFC5310LifetimeNotAuthenticated": "417dacd89c5015f2"
+  },
+  "verdict": "enforced"
+}

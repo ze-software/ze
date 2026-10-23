@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC8907-4.6-1",
+    "polarity": "negative",
+    "unit": "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907OverlongReplyComponentsRejected",
+    "unit-sha": "d0b66911771f94a5",
+    "claim-sha": "e46ad0ff69a09d9a",
+    "route": "revert",
+    "producer": "internal/component/tacacs/reply.go::validateReplyBody",
+    "producer-sha": "aa26ebb72fe8fa1f",
+    "break": "body of validateReplyBody replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8907-4.6-1",
+    "polarity": "positive",
+    "unit": "internal/component/tacacs/rfc8907_validation_test.go::TestRFC8907ExactReplyLengthsAccepted",
+    "unit-sha": "eab7af85be1f374d",
+    "claim-sha": "b26d6cfc1e8e9cf1",
+    "route": "revert",
+    "producer": "internal/component/tacacs/reply.go::validateReplyBody",
+    "producer-sha": "aa26ebb72fe8fa1f",
+    "break": "body of validateReplyBody replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8907-4.6-1",
+    "polarity": "negative",
+    "unit": "internal/component/tacacs/rfc8907_validation_test.go::TestRFC8907TrailingReplyBytesRejected",
+    "unit-sha": "46eebf3fba0fbd31",
+    "claim-sha": "1e7d0ea4ea5db69d",
+    "route": "revert",
+    "producer": "internal/component/tacacs/reply.go::validateReplyBody",
+    "producer-sha": "aa26ebb72fe8fa1f",
+    "break": "body of validateReplyBody replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

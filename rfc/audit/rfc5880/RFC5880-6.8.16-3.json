@@ -1,0 +1,11 @@
+{
+  "note": "Judge rejudge 2026-10-02 (tag move under the 2026-09-30 owner ruling, OWNER RULING 6(b)); judged by an agent that authored neither test. Stale only because the RFC5880-6.8.6-15 negative tag comment was removed from engine TestRFC5880NoPeriodicTransmitWhileAdminDown; body unchanged. Judged under OWNER RULING 3 on that test: sends at the transition, at start+1x+1ns and start+2x+1ns, nothing at exactly 3x nor an hour later; producer session/fsm.go adminDownTransmitDetectionTimes = 3 and Loop.tick; record revert loop.go::tick observed red. {single-polarity: negative} as before.",
+  "requirement_sha": "0a395a36911d8c7e",
+  "tests": {
+    "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880NoPeriodicTransmitWhileAdminDown": "4b885928a870b00d"
+  },
+  "units": {
+    "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880NoPeriodicTransmitWhileAdminDown": "9f186fa5344499a1"
+  },
+  "verdict": "enforced"
+}

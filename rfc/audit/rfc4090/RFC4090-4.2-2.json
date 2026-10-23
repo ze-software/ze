@@ -1,0 +1,13 @@
+{
+  "note": "Judged 2026-09-29 (routing child, continuation judge). Positive: a PATH with DETOUR (Class-Num 63, C-Type 7) draws a PathErr to the PLR with code 13 and value 0x3f07 and no path state. Negative: C-Type 8 is still answered as unknown class (13, 0x3f08), not unknown C-Type (14). Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 4.2 and the enforced verdict holds unchanged.",
+  "requirement_sha": "5e6f3807dc306735",
+  "tests": {
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090DetourOtherCTypeStillUnknownClass": "3fb9184431da8daf",
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090DetourPathErrAsUnknownClass": "3fb9184431da8daf"
+  },
+  "units": {
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090DetourOtherCTypeStillUnknownClass": "7a48c40d27e5360b",
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090DetourPathErrAsUnknownClass": "672c09c2853e9d0e"
+  },
+  "verdict": "enforced"
+}

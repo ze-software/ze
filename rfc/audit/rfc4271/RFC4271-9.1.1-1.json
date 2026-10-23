@@ -1,0 +1,13 @@
+{
+  "note": "The vacuous withNoise ComparePair assertion is gone. The positive now asserts SelectBest picks b for {a,b}, {b,a} and all 120 orders of {a,b}+3 unrelated routes (one ties b on LOCAL_PREF), and that b beats each member pairwise. Judge mutants 2026-09-30 (go test -overlay, tree untouched): a SelectBest that, with more than two candidates, prefers the longer AS_PATH among LOCAL_PREF ties (preference reading the existence of other routes) reddens the positive; swapping LOCAL_PREF after AS_PATH reddens both polarities.",
+  "requirement_sha": "491c118a47efa4a7",
+  "tests": {
+    "internal/component/bgp/plugins/rib/rfc4271_test.go::TestRFC4271DegreeOfPreferenceFollowsOwnAttributes": "0df229125a9cf20f",
+    "internal/component/bgp/plugins/rib/rfc4271_test.go::TestRFC4271DegreeOfPreferenceIgnoresOtherRoutes": "0df229125a9cf20f"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rib/rfc4271_test.go::TestRFC4271DegreeOfPreferenceFollowsOwnAttributes": "7fc6613d820887bc",
+    "internal/component/bgp/plugins/rib/rfc4271_test.go::TestRFC4271DegreeOfPreferenceIgnoresOtherRoutes": "88c4caf53828efca"
+  },
+  "verdict": "enforced"
+}

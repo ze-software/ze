@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-01 (c10 judge). The RIB-level tags (which proved the Loc-RIB copies NEXT_HOP unresolved, RFC4271-9.1.2-3) are gone; resolution is proven where Ze performs it, in sysrib. Positive TestRFC4271BGPNextHopResolvedToTheImmediateNextHop: BGP /24 NEXT_HOP 172.16.5.5 inside an IGP /16 via 10.0.0.1 inside a connected /24 on eth1; the (system-rib, best-change) Add the FIB writer programs carries 10.0.0.1 + eth1, protocol bgp, and no entry ever carries 172.16.5.5 (resolveMember, record observed red). Negative TestRFC4271BGPRouteWithAnUnresolvedNextHopLeavesTheFIB: the IGP /16 is removed, a Withdraw is published and only removes follow for 200 ms (cascadeRecompute, record observed red). Caveat: a BGP route whose NEXT_HOP was NEVER resolvable in the Loc-RIB is published with its raw gateway (fibEntry fibUnproved); the Linux FIB refuses an off-link gateway, so no packet is forwarded along it, but no unit asserts that kernel refusal.",
+  "requirement_sha": "5c4d781d4a326202",
+  "tests": {
+    "internal/component/sysrib/rfc4271_nexthop_resolution_test.go::TestRFC4271BGPNextHopResolvedToTheImmediateNextHop": "17567be36845d627",
+    "internal/component/sysrib/rfc4271_nexthop_resolution_test.go::TestRFC4271BGPRouteWithAnUnresolvedNextHopLeavesTheFIB": "17567be36845d627"
+  },
+  "units": {
+    "internal/component/sysrib/rfc4271_nexthop_resolution_test.go::TestRFC4271BGPNextHopResolvedToTheImmediateNextHop": "5815d8b51b33ad45",
+    "internal/component/sysrib/rfc4271_nexthop_resolution_test.go::TestRFC4271BGPRouteWithAnUnresolvedNextHopLeavesTheFIB": "795207a6a5915d12"
+  },
+  "verdict": "enforced"
+}

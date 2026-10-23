@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: the peer sending its next fragment before an EAP-Request arrives. driveFragmentedFlight feeds the peer an undefined-Code packet after each of its fragments and fatals if probe.Response != nil or peer.outOffset moves; TestRFC5216PeerSendsTheNextFragmentOnlyInAnswerToTheAck fatals unless the packet after each fragment is a continuation Response carrying TLS data without L.",
+  "requirement_sha": "d23b3d324ba1bf2c",
+  "tests": {
+    "internal/core/eap/rfc5216_fragment_ack_test.go::TestRFC5216PeerSendsTheNextFragmentOnlyInAnswerToTheAck": "2d0ca832c5975065",
+    "internal/core/eap/rfc5216_fragment_ack_test.go::TestRFC5216PeerSendsTheNextFragmentOnlyInAnswerToTheAck#2": "2d0ca832c5975065"
+  },
+  "units": {
+    "internal/core/eap/rfc5216_fragment_ack_test.go::TestRFC5216PeerSendsTheNextFragmentOnlyInAnswerToTheAck": "9dc6c0e13c1eea25",
+    "internal/core/eap/rfc5216_fragment_ack_test.go::TestRFC5216PeerSendsTheNextFragmentOnlyInAnswerToTheAck#2": "9dc6c0e13c1eea25"
+  },
+  "verdict": "enforced"
+}

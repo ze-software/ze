@@ -1,0 +1,17 @@
+{
+  "note": "Authenticator clause: TestRFC3748OneMethodPerConversation (a Type-13 Response once MS-CHAPv2 is active draws nil, no success; unproven, no record). Peer clause: TestRFC3748ThePeerKeepsToOneMethod: an EAP-TLS Request to a peer mid-MS-CHAPv2 is discarded (no Response, no Err), and the same peer then acks the MS-CHAPv2 Success with Type 26 and concludes. Records are whole-body panics of handleRequest, so Q2 for the discard is answered by reading, not by the record.",
+  "requirement_sha": "3ead52068e3ce5c5",
+  "tests": {
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748ThePeerKeepsToOneMethod": "8ca42a58d78f22be",
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748ThePeerKeepsToOneMethod#2": "8ca42a58d78f22be",
+    "internal/core/eap/rfc3748_test.go::TestRFC3748OneMethodPerConversation": "c7d9cf3b0751a797",
+    "internal/core/eap/rfc3748_test.go::TestRFC3748OneMethodPerConversation#2": "c7d9cf3b0751a797"
+  },
+  "units": {
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748ThePeerKeepsToOneMethod": "595c925e4ca2da63",
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748ThePeerKeepsToOneMethod#2": "595c925e4ca2da63",
+    "internal/core/eap/rfc3748_test.go::TestRFC3748OneMethodPerConversation": "eaa23a5570ebba14",
+    "internal/core/eap/rfc3748_test.go::TestRFC3748OneMethodPerConversation#2": "eaa23a5570ebba14"
+  },
+  "verdict": "enforced"
+}

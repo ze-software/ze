@@ -1,0 +1,11 @@
+{
+  "note": "single-polarity: the header's first field decodes big-endian to 5, the only datagram_version the XDR union defines; WriteDatagramHeader writes a constant, so any other value fails the assertion",
+  "requirement_sha": "c92c8d3043731588",
+  "tests": {
+    "internal/plugins/flowexport/sflow/sflow_v5_encoder_test.go::TestSFlowDatagramHeaderIPv4": "3fd871610d6c96e0"
+  },
+  "units": {
+    "internal/plugins/flowexport/sflow/sflow_v5_encoder_test.go::TestSFlowDatagramHeaderIPv4": "b838c197299a0e36"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4271-6.3-14",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst",
+    "unit-sha": "ddf47ecc0e1db9e3",
+    "claim-sha": "2bca8d9ed6d99fde",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/rfc7606.go::validateCommunityAttr",
+    "producer-sha": "5f6851f4c47d3328",
+    "break": "body of validateCommunityAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-6.3-14",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst",
+    "unit-sha": "ddf47ecc0e1db9e3",
+    "claim-sha": "a5c6fcee86e83ccf",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/rfc7606.go::validateCommunityAttr",
+    "producer-sha": "5f6851f4c47d3328",
+    "break": "body of validateCommunityAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

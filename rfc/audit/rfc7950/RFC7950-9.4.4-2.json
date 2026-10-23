@@ -1,0 +1,13 @@
+{
+  "note": "negative: widening a typedef's length 2..5 to 1..10 refused naming length; positive: equal 2..5, narrowed 3..4, and split 2..3 | 5..5 load, covering the allowed restriction kinds. Records on Resolve. (2026-10-09: tagged units byte-identical, re-stamped for a file shift; the Resolve revert records no longer verify since 180df07922 changed Resolve, re-record owed.)",
+  "requirement_sha": "b05bfee423d77ea8",
+  "tests": {
+    "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950LengthRestrictionMustNotWiden": "b80383bc8bec6c5c",
+    "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950LengthRestrictionMustNotWiden#2": "b80383bc8bec6c5c"
+  },
+  "units": {
+    "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950LengthRestrictionMustNotWiden": "da209fb07d115ba0",
+    "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950LengthRestrictionMustNotWiden#2": "da209fb07d115ba0"
+  },
+  "verdict": "enforced"
+}

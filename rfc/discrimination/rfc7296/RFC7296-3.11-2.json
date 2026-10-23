@@ -1,0 +1,68 @@
+[
+  {
+    "rid": "RFC7296-3.11-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_delete_spi_size_test.go::TestRFC7296DeleteSPISizeFixedForItsProtocolIsAccepted",
+    "unit-sha": "86da5d2665281507",
+    "claim-sha": "cb79d5f49cb4d9d2",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/delete.go::deleteMalformed",
+    "producer-sha": "cafc746e5a252a05",
+    "break": "body of deleteMalformed replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-3.11-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_delete_spi_size_test.go::TestRFC7296DeleteWrongSPISizeForItsProtocolIsRefused",
+    "unit-sha": "f3f94304fac523be",
+    "claim-sha": "cd8237d2a83b04b1",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/delete.go::deleteMalformed",
+    "producer-sha": "cafc746e5a252a05",
+    "break": "body of deleteMalformed replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-3.11-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_delete_test.go::TestDelMalformedSPISizeDrawsInvalidSyntax",
+    "unit-sha": "241fcfa44da85260",
+    "claim-sha": "627507831872eb65",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/delete.go::deleteMalformed",
+    "producer-sha": "cafc746e5a252a05",
+    "break": "body of deleteMalformed replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-3.11-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_delete_test.go::TestDelWellFormedSPISizeIsAccepted",
+    "unit-sha": "c9bfa730a94a758b",
+    "claim-sha": "a985911d5ad4fe89",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/delete.go::deleteMalformed",
+    "producer-sha": "cafc746e5a252a05",
+    "break": "body of deleteMalformed replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-3.11-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/wire/rfc7296_test.go::TestDeleteSPISizeByProtocol",
+    "unit-sha": "ecc3630ae9bbdc6a",
+    "claim-sha": "1fa0c730023db279",
+    "route": "revert",
+    "producer": "internal/component/ike/wire/payload_delete.go::ReadFrom",
+    "producer-sha": "a8a60fbabba5115a",
+    "break": "body of ReadFrom replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-3.11-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/wire/rfc7296_test.go::TestDeleteSPISizeByProtocol",
+    "unit-sha": "ecc3630ae9bbdc6a",
+    "claim-sha": "fc4bc7f8096e84a2",
+    "route": "revert",
+    "producer": "internal/component/ike/wire/payload_delete.go::ReadFrom",
+    "producer-sha": "a8a60fbabba5115a",
+    "break": "body of ReadFrom replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

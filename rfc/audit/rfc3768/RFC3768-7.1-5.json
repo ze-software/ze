@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 3768 Section 7.1 says \"MUST verify that the Auth Type matches the locally configured authentication method for the virtual router and perform that authentication method.\" TestDecodeGoldenV2 lost only the assertion on the removed MsgOnlyChecksum flag, which carried no RFC 3768 content, and TestNegativeReferenceBugs gained the FillChecksum mode argument and an rfc5798-compatible lookup in N1 alone; verifyReceived returns before any mode is read for version 2, so the VRRPv2 decode under judgement is unchanged. N8 still requires ErrAuthType for Auth Type 1; the golden type 0 decodes. Verdict unchanged.",
+  "requirement_sha": "3fc2826ab40c2fc3",
+  "tests": {
+    "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV2": "5bbc8ddba98cd418",
+    "internal/plugins/vrrp/packet/validate_test.go::TestNegativeReferenceBugs": "5bbc8ddba98cd418"
+  },
+  "units": {
+    "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV2": "66859488ac05cf93",
+    "internal/plugins/vrrp/packet/validate_test.go::TestNegativeReferenceBugs": "5b7b91666d7d74bc"
+  },
+  "verdict": "enforced"
+}

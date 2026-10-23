@@ -1,0 +1,13 @@
+{
+  "note": "TestRFC6793AggregatorWithASTransPromotesAS4Aggregator: with AGGREGATOR.AS AS_TRANS the stored aggregator is the AS4_AGGREGATOR value, not AS_TRANS; negative keeps a real-AS AGGREGATOR.",
+  "requirement_sha": "bc66f6811ededc90",
+  "tests": {
+    "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithASTransPromotesAS4Aggregator": "4e9759edcd069569",
+    "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithRealASIgnoresAS4Attributes": "4e9759edcd069569"
+  },
+  "units": {
+    "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithASTransPromotesAS4Aggregator": "d82348d675d1a7e2",
+    "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithRealASIgnoresAS4Attributes": "408158c19befb73c"
+  },
+  "verdict": "enforced"
+}

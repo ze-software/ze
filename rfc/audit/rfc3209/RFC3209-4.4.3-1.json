@@ -1,0 +1,17 @@
+{
+  "note": "Rejudged 2026-09-29 (routing child). Now proven at the engine, not the helper: TestRFC3209EngineRecordsOwnAddress drives a transit through handlePacket and reads the RRO head of the relayed PATH and the relayed RESV as the router's own 10.0.0.5, rest in order; TestRFC3209EngineNeverRecordsNeighborAddress asserts the head is neither the next hop nor the previous hop.",
+  "requirement_sha": "37ed2660d3aa7ced",
+  "tests": {
+    "internal/plugins/rsvpte/rfc3209_rro_test.go::TestRFC3209RRONewSubobjectIsOwnAddress": "f8c53eadd34f4781",
+    "internal/plugins/rsvpte/rfc3209_rro_test.go::TestRFC3209RRONoSubobjectWithoutOwnAddress": "f8c53eadd34f4781",
+    "internal/plugins/rsvpte/rfc3209_signaling_test.go::TestRFC3209EngineNeverRecordsNeighborAddress": "0fabf3da631549e2",
+    "internal/plugins/rsvpte/rfc3209_signaling_test.go::TestRFC3209EngineRecordsOwnAddress": "0fabf3da631549e2"
+  },
+  "units": {
+    "internal/plugins/rsvpte/rfc3209_rro_test.go::TestRFC3209RRONewSubobjectIsOwnAddress": "3ee645a7ef29792e",
+    "internal/plugins/rsvpte/rfc3209_rro_test.go::TestRFC3209RRONoSubobjectWithoutOwnAddress": "c6f54b3d941ff8ff",
+    "internal/plugins/rsvpte/rfc3209_signaling_test.go::TestRFC3209EngineNeverRecordsNeighborAddress": "96d99808e84b5d4c",
+    "internal/plugins/rsvpte/rfc3209_signaling_test.go::TestRFC3209EngineRecordsOwnAddress": "68b9243382024f44"
+  },
+  "verdict": "enforced"
+}

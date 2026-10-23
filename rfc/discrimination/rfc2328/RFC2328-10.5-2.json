@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2328-10.5-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/neighbor/rfc2328_hello_twoway_test.go::TestRFC2328HelloListingRouterRunsTwoWayReceived",
+    "unit-sha": "df033fc811ea6ec0",
+    "claim-sha": "fb304cb1a5f40e59",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/neighbor/table.go::hello",
+    "producer-sha": "f16554cb0eee8ad8",
+    "break": "body of hello replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-10.5-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/neighbor/rfc2328_hello_twoway_test.go::TestRFC2328HelloNotListingRouterRunsOneWayReceived",
+    "unit-sha": "bdd9fb3f8c4cb4b8",
+    "claim-sha": "0027304293059bcb",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/neighbor/table.go::hello",
+    "producer-sha": "f16554cb0eee8ad8",
+    "break": "body of hello replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

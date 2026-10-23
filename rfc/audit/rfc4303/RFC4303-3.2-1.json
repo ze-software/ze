@@ -1,0 +1,20 @@
+{
+  "code": {
+    "internal/component/ike/crypto/proposal.go::espProposalComplete": "c5f29bdf757e8f55",
+    "internal/component/ike/ipsec/config.go::parseESPProposal": "c1c26a8f4298de48",
+    "internal/plugins/ospf/config_ipsec.go::validateIPsecInterface": "6e594509ae92d153"
+  },
+  "note": "Re-judged 2026-10-19 (independent auditor, after ec006f283e). Section 3.2: \"Note that although both confidentiality and integrity are optional, at least one of these services MUST be selected, hence both algorithms MUST NOT be simultaneously NULL.\" Correction of the prior note: the IKE ESP vocabulary DOES carry the null cipher (ike/ipsec/types.go EncryptionNull \"null\"; crypto.ENCR_NULL = 11), so the OSPFv3 manual path is not the only producer. Every path that can build an ESP SA was read at HEAD. (1) IKE initiator: NegotiateESP -> negotiateESP calls espProposalComplete on each remote proposal before matching; proposal.go:483 refuses ENCR_NULL beside AUTH_NONE with ErrProposalIncomplete. TestIntegrityOnlyESPRefusals asserts exactly that (errors.Is ErrProposalIncomplete); its new 3.2-1 negative claim states no more than the assertion, and the mutant record (line 483 condition -> false) breaks that very guard. (2) IKE responder: matchOfferedESP reads the operator's own proposal; for a non-AEAD cipher (null included) integID comes from lookupIntegrity of a configured hash, and espProposalMatches requires the offer to contain that INTEG id, so a peer's null+none offer never matches. Untagged, sound by reading. (3) IKE config: parseESPProposal refuses null with no hash ('hash is required for non-AEAD encryption'), and HashAlgo has no 'none' word; TestIntegrityOnlyESPConfig asserts this refusal (untagged for 3.2-1). (4) OSPFv3 manual SA: validateIPsecInterface refuses null encryption with no integrity (ErrIPsecAuthAlgo); TestIPsecESPRequiresIntegrity carries the existing 3.2-1 negative and positive, unchanged. (5) Installers: XFRM planStateAlgos sets Auth for non-AEAD ESP and xfrmAuthName refuses an empty name; VPP vppIntegAlg returns ErrNotSupported for a non-AEAD SA without a known hash. Defence in depth only, not tagged. All listed tests pass at HEAD (go test -count=1). Finding, no verdict change: the responder path (2) and config refusal (3) are the IKE refusals a peer or operator actually reaches and neither carries a 3.2-1 tag; the tagged IKE unit proves the initiator check of the peer's accepted proposal.",
+  "requirement_sha": "1d1b19364f28dbeb",
+  "tests": {
+    "internal/component/ike/crypto/rfc4303_integrity_only_test.go::TestIntegrityOnlyESPRefusals": "136da942e7ad3470",
+    "internal/plugins/ospf/config_ipsec_test.go::TestIPsecESPRequiresIntegrity": "5c20e3c0dfa0036c",
+    "internal/plugins/ospf/config_ipsec_test.go::TestIPsecESPRequiresIntegrity#2": "5c20e3c0dfa0036c"
+  },
+  "units": {
+    "internal/component/ike/crypto/rfc4303_integrity_only_test.go::TestIntegrityOnlyESPRefusals": "03b83a17081fb8fe",
+    "internal/plugins/ospf/config_ipsec_test.go::TestIPsecESPRequiresIntegrity": "86bbfd0cbbcea447",
+    "internal/plugins/ospf/config_ipsec_test.go::TestIPsecESPRequiresIntegrity#2": "86bbfd0cbbcea447"
+  },
+  "verdict": "enforced"
+}

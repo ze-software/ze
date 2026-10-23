@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5880-6.7.4-13",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880MeticulousOutsideWindowDiscarded",
+    "unit-sha": "4248b1e63c76d7e0",
+    "claim-sha": "3cb86fedb5e0cfcd",
+    "route": "revert",
+    "producer": "internal/component/bfd/auth/meticulous.go::Check",
+    "producer-sha": "0d7ec3911e063f57",
+    "break": "body of Check replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.7.4-13",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880MeticulousWindowFollowsReceivedDetectMult",
+    "unit-sha": "bb3fdde7aa04c99b",
+    "claim-sha": "3590a62b79fbbcab",
+    "route": "revert",
+    "producer": "internal/component/bfd/auth/meticulous.go::Check",
+    "producer-sha": "0d7ec3911e063f57",
+    "break": "body of Check replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

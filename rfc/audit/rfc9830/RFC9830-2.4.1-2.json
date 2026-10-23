@@ -1,0 +1,13 @@
+{
+  "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PreferenceSubTLV. Forbidden: two Preference sub-TLVs in one encoding. Red: assert.Len(srpAll(repeated, subTLVPreference), 1) for a config naming preference twice. Negative: a config with no preference emits none (assert.Empty), so the count is real.",
+  "requirement_sha": "53932a2d63ef18be",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PreferenceSubTLV": "450f2364530acf19",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PreferenceSubTLV#2": "450f2364530acf19"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PreferenceSubTLV": "b4f8573bcddb0e83",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PreferenceSubTLV#2": "b4f8573bcddb0e83"
+  },
+  "verdict": "enforced"
+}

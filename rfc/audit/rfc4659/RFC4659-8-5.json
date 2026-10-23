@@ -1,0 +1,11 @@
+{
+  "code": {
+    "internal/component/bgp/message/update_build_vpn.go::buildMPReachVPN": "a1027fce5de9716b",
+    "internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange": "c43894606dafdb4c",
+    "internal/component/bgp/reactor/filter_delta_handlers.go::mpReachNextHopHandler": "78b3ebbed1ba7c01",
+    "internal/component/sysrib/sysrib.go::processEvent": "f7f4460f1fb027d9"
+  },
+  "note": "Re-judged 2026-10-21 (independent auditor, authored none of the change). RFC 4659 Section 8: \"When the VPN-IPv6 traffic is to be transported using IPv6 tunneling, the BGP Next Hop Field SHALL contain an IPv6 address.\" mpReachNextHopHandler moved in 7b0bf3a723 and f70588873f, and both hunks are confined to the noNextHop arms (noNextHop = !fam.NeedsNextHop(), FlowSpec only): a 4- or 16-octet Set is now kept for a FlowSpec redirect-to-IP target, any other width is written as the empty field, and the comment above it changed to match. The arms a next-hop family takes (the width table 4/12/16/24/32/48 and familyAdmitsNextHopOctets) are byte-identical, so a VPN-IPv6 or labeled-unicast rewrite behaves as at the last judgement. No ASBR-local label binding, inter-AS forwarding relationship or tunnel-transport-driven next-hop decision exists; buildMPReachVPN encodes the supplied next hop, checkRouteBestChange does not mirror native VPN routes to the Loc-RIB, and sysrib processEvent skips a change carrying NLRI with no valid prefix. No test is tagged. The {gap} annotation is still accurate; the gap stands and does not authorize implementation.",
+  "requirement_sha": "acd4f58ba30443ce",
+  "verdict": "unimplemented"
+}

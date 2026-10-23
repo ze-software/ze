@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-01 (BGP c21 judge): stale only because TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated gained a 5.1-4 tag line; its body is unchanged. Total NLRI Length overrunning MP_REACH gives RFC7606ActionSessionReset; a well-formed section leaves the session up.",
+  "requirement_sha": "d5b9e3f689ac5aff",
+  "tests": {
+    "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRILengthOverrunResetsSession": "afc246c289705756",
+    "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated": "afc246c289705756"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRILengthOverrunResetsSession": "fa85527157149db2",
+    "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated": "943698b5ca5db5c0"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,15 @@
+{
+  "note": "Forbidden: using VRPs or ASPAs after the Expire Interval measured from the last completed End of Data. TestRTRDataExpiryAndRenewal (synctest) asserts the payloads still validate at expire-1s (assertLive) and, after a renewal and an incomplete response, that at the lease deadline cache.Validate is NotFound and aspaCache.isProvider false (\"expired payloads still authorize routes\"), with both consumers notified; the negatives assert a completed EOD renews (assertLive after renewal), an incomplete response neither renews nor publishes, and TestRTRSerialDeltaCannotRenewAnElapsedLease asserts a serial EOD after the deadline returns errRtrDataExpired and publishes nothing even with the expiry timer stopped. The quote now carries the Expire Interval definition sentence, which names the parameter the MUST NOT refers to and adds no obligation.",
+  "requirement_sha": "03600eb2fc1e6469",
+  "tests": {
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_expire_test.go::TestRTRDataExpiryAndRenewal": "51b37202fe4cb34c",
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_expire_test.go::TestRTRDataExpiryAndRenewal#2": "51b37202fe4cb34c",
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_expire_test.go::TestRTRSerialDeltaCannotRenewAnElapsedLease": "51b37202fe4cb34c"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_expire_test.go::TestRTRDataExpiryAndRenewal": "9eeeb83d4b220ab0",
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_expire_test.go::TestRTRDataExpiryAndRenewal#2": "9eeeb83d4b220ab0",
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_expire_test.go::TestRTRSerialDeltaCannotRenewAnElapsedLease": "60186caa30ad7939"
+  },
+  "verdict": "enforced"
+}

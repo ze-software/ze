@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.3.6-5",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/draft_ietf_bess_mup_safi_dsd_prefix_sid_test.go::TestMUPDSDWithPrefixSIDKeptOnReceive",
+    "unit-sha": "07d9ebcb4a96a590",
+    "claim-sha": "e3216cc69cab75af",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/nlri/mup/rfc7606.go::CheckDSDPrefixSID",
+    "producer-sha": "a87854415b552827",
+    "break": "body of CheckDSDPrefixSID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.3.6-5",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/draft_ietf_bess_mup_safi_dsd_prefix_sid_test.go::TestMUPDSDWithoutPrefixSIDWithdrawnOnReceive",
+    "unit-sha": "729099c1ed6af619",
+    "claim-sha": "0dfc5d200fd18780",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/nlri/mup/rfc7606.go::CheckDSDPrefixSID",
+    "producer-sha": "a87854415b552827",
+    "break": "body of CheckDSDPrefixSID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

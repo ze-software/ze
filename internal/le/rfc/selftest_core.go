@@ -6,7 +6,6 @@
 package rfc
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"maps"
@@ -455,7 +454,9 @@ func realTreeCheckDetail(report *CheckReport) string {
 // tree: a fixture with no tagged unit in it would prove only that an absent
 // unit is refused.
 const (
-	selftestDiscriminationRel  = "rfc/discrimination/rfc9999.json"
+	// selftestDiscriminationRel is the file of the proof's requirement,
+	// selftestRIDSend: each requirement's records live in their own file.
+	selftestDiscriminationRel  = "rfc/discrimination/rfc9999/RFC9999-2-1.json"
 	selftestDiscriminationUnit = selftestTestPath +
 		"::TestWidget"
 	selftestCIPath       = "test/plugin/widget.ci"
@@ -497,10 +498,10 @@ const (
 	// it: a reviewer reads it to judge whether the break engages the claim.
 	selftestBreak = "return count -> return 0"
 
-	selftestDiscriminationBroken = `{"rfc":"rfc9999","records":[
+	selftestDiscriminationBroken = `[
 {"rid":"RFC9999-2-1","polarity":"sideways","unit":"internal/sample/widget_test.go::TestWidget",` +
 		`"unit-sha":"0123456789abcdef","route":"mutant"}
-]}`
+]`
 )
 
 // selftestDiscriminationSources is the tree a record is verified against.
@@ -549,16 +550,25 @@ func selftestDiscriminationRecords(tree string) ([]DiscriminationRecord, error) 
 	return records, nil
 }
 
-// selftestDiscriminationText renders those records as the artifact file.
+// selftestDiscriminationFiles renders those records as the artifact files, one
+// per requirement, keyed by the path each lands at.
 //
-// It marshals the schema type itself, so a fixture that no longer matches the
-// schema cannot exist: the two are one declaration.
-func selftestDiscriminationText(records []DiscriminationRecord) (string, error) {
-	raw, err := json.Marshal(discriminationFile{RFC: selftestStem, Records: records})
-	if err != nil {
-		return "", err
+// It renders through the writer's own renderer, so a fixture that no longer
+// matches the schema cannot exist: the two are one declaration.
+func selftestDiscriminationFiles(records []DiscriminationRecord) (map[string]string, error) {
+	byRID := map[string][]DiscriminationRecord{}
+	for index := range records {
+		byRID[records[index].RID] = append(byRID[records[index].RID], records[index])
 	}
-	return string(raw), nil
+	out := make(map[string]string, len(byRID))
+	for rid, held := range byRID {
+		body, err := renderDiscriminationRecords(held)
+		if err != nil {
+			return nil, err
+		}
+		out[discriminationRecordRel(selftestStem, rid)] = body
+	}
+	return out, nil
 }
 
 // runDiscriminationSelftest exercises the recorded-proof artifact: what loads,
@@ -581,11 +591,11 @@ func runDiscriminationSelftest() ([]leroot.SelftestResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	artifact, err := selftestDiscriminationText(records)
+	artifacts, err := selftestDiscriminationFiles(records)
 	if err != nil {
 		return nil, err
 	}
-	if err := writeSelftestFiles(root, map[string]string{selftestDiscriminationRel: artifact}); err != nil {
+	if err := writeSelftestFiles(root, artifacts); err != nil {
 		return nil, err
 	}
 

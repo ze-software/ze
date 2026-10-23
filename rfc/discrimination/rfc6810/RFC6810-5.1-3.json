@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC6810-5.1-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go::TestRFC6810ReservedPrefixOctetsIgnored",
+    "unit-sha": "a2e48774c67ffc1c",
+    "claim-sha": "f46ed8eebc354ae1",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rpki/rtr_pdu.go::parsePrefixPDU",
+    "producer-sha": "6c2e382d0d538dd2",
+    "break": "body of parsePrefixPDU replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC6810-5.1-3",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go::TestRFC6810ReservedPrefixOctetsIgnored",
+    "unit-sha": "a2e48774c67ffc1c",
+    "claim-sha": "3a1ec682b62c4152",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rpki/rtr_pdu.go::parsePrefixPDU",
+    "producer-sha": "6c2e382d0d538dd2",
+    "break": "body of parsePrefixPDU replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC6810-5.1-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRReservedOctetsIgnoredOnReceipt",
+    "unit-sha": "c032e47af7cf2716",
+    "claim-sha": "2233ead7695dae6c",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rpki/rtr_session.go::handlePDU",
+    "producer-sha": "fcaaae8230f48b20",
+    "break": "body of handlePDU replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC6810-5.1-3",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRReservedOctetsIgnoredOnReceipt",
+    "unit-sha": "c032e47af7cf2716",
+    "claim-sha": "dbcfa3edfca761ae",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rpki/rtr_session.go::handlePDU",
+    "producer-sha": "fcaaae8230f48b20",
+    "break": "body of handlePDU replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

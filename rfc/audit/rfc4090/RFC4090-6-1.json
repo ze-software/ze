@@ -1,0 +1,13 @@
+{
+  "note": "transit on a protected LSP arms the NHOP bypass; the egress arms none and reports no flag. Umbrella row: the specific PLR behaviours carry their own rows Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 6 and the enforced verdict holds unchanged.",
+  "requirement_sha": "fccc13d8dc217755",
+  "tests": {
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090EgressDoesNotActAsPLR": "3fb9184431da8daf",
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090FastRerouteAloneRequestsProtection": "3fb9184431da8daf"
+  },
+  "units": {
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090EgressDoesNotActAsPLR": "8faa86559820b764",
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090FastRerouteAloneRequestsProtection": "8ee7403145c7f6e0"
+  },
+  "verdict": "enforced"
+}

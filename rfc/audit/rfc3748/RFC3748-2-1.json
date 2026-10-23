@@ -1,0 +1,13 @@
+{
+  "note": "Single-polarity positive (row marker). TestRFC3748NoNewRequestBeforeAValidResponse: after Responses with another Identifier and another Type drew nil, only the peer's valid Response draws the next packet, under a new Identifier, and its replay draws nil (eap.go Session.Process Identifier check). The legacy TestRFC3748AuthenticatorLockStep tag still cannot fail on its own; the verdict rests on the new unit.",
+  "requirement_sha": "eff52418bb3a7dea",
+  "tests": {
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748NoNewRequestBeforeAValidResponse": "8ca42a58d78f22be",
+    "internal/core/eap/rfc3748_test.go::TestRFC3748AuthenticatorLockStep": "c7d9cf3b0751a797"
+  },
+  "units": {
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748NoNewRequestBeforeAValidResponse": "799e0e527a57d59c",
+    "internal/core/eap/rfc3748_test.go::TestRFC3748AuthenticatorLockStep": "44c8bd9892e27ff3"
+  },
+  "verdict": "enforced"
+}

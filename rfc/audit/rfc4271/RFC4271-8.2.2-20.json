@@ -1,0 +1,23 @@
+{
+  "code": {
+    "internal/component/bgp/fsm/fsm.go::handleIdle": "78df6eefa7aae06e",
+    "internal/component/bgp/reactor/peer_run.go::runOnce": "999fd1004ba52e33"
+  },
+  "note": "Independently rejudged 2026-10-22; no execution or stamping. RFC 4271 Section 8.2.2, Idle: \"In response to a ManualStart event (Event 1) or an AutomaticStart event (Event 3), the local system: - initializes all BGP resources for the peer connection, - sets ConnectRetryCounter to zero, - starts the ConnectRetryTimer with the initial value, - initiates a TCP connection to the other BGP peer, - listens for a connection that may be initiated by the remote BGP peer, and - changes its state to Connect.\" Read all five tagged units: internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271AutomaticStartZeroesConnectRetryCounter and TestRFC4271AutomaticStartZeroesOnlyFromIdle; internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go::TestRFC4271AutomaticStartEvent3ZeroesCounter, TestRFC4271FailedCycleRestartKeepsCounter and TestRFC4271FailedCycleAfterEstablishedKeepsCounter. FSM assertions pin 7 to 0 for Event 3 in Idle and Connect/Active according to passive mode; Event 6 retains 7, and Event 3 in every non-Idle state changes neither counter nor state. Running-peer assertions pin 1 after Established ends by Cease or a real 3-second HoldTimer expiry, then 0 after the next dial; never-Established failure retains 1 after redial; Established then a failed second cycle retains 1 on the third dial. Producers fsm.go::handleIdle and peer_run.go::runOnce still implement Reset for Events 1/3, non-reset for Event 6, cycleReachedEstablished.Swap(false), the Event-3 choice only for the consumed true value, and Store(true) on establishment. The timer lock correction is justified at the actual callback boundary, not only the Established arm: NewSession hold expiry and session_write.go::sendHoldTimerExpired now call logFSMEvent without s.mu; FSM.change releases f.mu while draining callbacks; runOnce calls emitFSMEvents on every transition; emitFSMEvents -> fsmEventPeerInfo -> connectedLocalEndpoint -> Session.Conn takes s.mu.RLock even for the expiry transition. The old lock would self-deadlock that observer path. Notification sending and timer connection snapshots remain outside the Event call, and FSM.Event owns state locking; removal of the session lock does not remove FSM synchronization. Preserve the prior scope: passive behavior is proved at FSM level, and resource initialization is observed through the next dial rather than every resource individually. Prior deciding-logic mutant observations remain historical evidence, not runs by this auditor; supplied native renewal metadata is not a substitute for these assertions.",
+  "requirement_sha": "241b63ca3e60d062",
+  "tests": {
+    "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271AutomaticStartZeroesConnectRetryCounter": "2227e129c50e80e0",
+    "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271AutomaticStartZeroesOnlyFromIdle": "2227e129c50e80e0",
+    "internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go::TestRFC4271AutomaticStartEvent3ZeroesCounter": "3a13424cc55c4c65",
+    "internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go::TestRFC4271FailedCycleAfterEstablishedKeepsCounter": "3a13424cc55c4c65",
+    "internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go::TestRFC4271FailedCycleRestartKeepsCounter": "3a13424cc55c4c65"
+  },
+  "units": {
+    "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271AutomaticStartZeroesConnectRetryCounter": "5da771ebc4e43a5e",
+    "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271AutomaticStartZeroesOnlyFromIdle": "fa1f8efee5ee0fc0",
+    "internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go::TestRFC4271AutomaticStartEvent3ZeroesCounter": "0671557cfaec6c9d",
+    "internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go::TestRFC4271FailedCycleAfterEstablishedKeepsCounter": "481e0bd8adfd7bb0",
+    "internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go::TestRFC4271FailedCycleRestartKeepsCounter": "5638623e660b9e4b"
+  },
+  "verdict": "enforced"
+}

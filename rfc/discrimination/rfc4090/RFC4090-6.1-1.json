@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4090-6.1-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090HeadEndRequiresAlternateSender",
+    "unit-sha": "144cad6dea37ffbf",
+    "claim-sha": "a809e950607fe8cf",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/frr.go::repairSender",
+    "producer-sha": "69336121af63f63f",
+    "break": "body of repairSender replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4090-6.1-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090HeadEndUsesDistinctSender",
+    "unit-sha": "efc4616d212da042",
+    "claim-sha": "bd2bbe38381f2444",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/frr.go::repairSender",
+    "producer-sha": "69336121af63f63f",
+    "break": "body of repairSender replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

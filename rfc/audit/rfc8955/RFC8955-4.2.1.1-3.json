@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-16: the unit moved verbatim to core compare_rfc8955_test.go, with only the family identifier renamed. RFC 8955 Section 4.2.1.1: \"0: MUST be set to 0 on NLRI encoding and MUST be ignored during decoding\". Wire op 0xf9 carries the reserved bit 0x08 and a leading AND. The positive requires the exact decoded []FlowMatch{{Op: FlowOpEqual, Value: 1<<56|7}}, so the reserved bit is ignored by core parseNumericComponent's 0x07 mask. The negative requires re-encoding to the exact op 0xb1, so reserved and leading AND are cleared by writeToAFI, and a missing end-of-list bit is refused.",
+  "requirement_sha": "0e5b0a2ee264ae69",
+  "tests": {
+    "internal/core/bgp/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecNumericReservedAndEightOctetOperand": "8a8b7496f21e3491",
+    "internal/core/bgp/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecNumericReservedAndEightOctetOperand#2": "8a8b7496f21e3491"
+  },
+  "units": {
+    "internal/core/bgp/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecNumericReservedAndEightOctetOperand": "e5bf1c4c34a64881",
+    "internal/core/bgp/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecNumericReservedAndEightOctetOperand#2": "e5bf1c4c34a64881"
+  },
+  "verdict": "enforced"
+}

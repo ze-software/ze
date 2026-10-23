@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: a TLV 240 without the Adjacency Three-Way State field. internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISP2PThreeWayStateFieldIncluded: for Up, Initializing and Down the emitted value is non-empty and decodes to the same state (Fatalf otherwise); negative internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISP2PThreeWayStateFieldPresentWithoutNeighbor: the minimal no-neighbor form still carries it.",
+  "requirement_sha": "54f1af71ffcb4246",
+  "tests": {
+    "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISP2PThreeWayStateFieldIncluded": "d32edc6561822cd6",
+    "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISP2PThreeWayStateFieldPresentWithoutNeighbor": "d32edc6561822cd6"
+  },
+  "units": {
+    "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISP2PThreeWayStateFieldIncluded": "00af6ffa87321626",
+    "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISP2PThreeWayStateFieldPresentWithoutNeighbor": "297049562bc3b270"
+  },
+  "verdict": "enforced"
+}

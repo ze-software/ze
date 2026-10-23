@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5216-2.1.5-7",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc5216_fragment_ack_test.go::TestRFC5216ServerAckIdentifiersIncrementAndTheNextFragmentEchoesThem",
+    "unit-sha": "14b95b036b489bc1",
+    "claim-sha": "64b3518eff27e93d",
+    "route": "revert",
+    "producer": "internal/core/eap/eap.go::handleMethod",
+    "producer-sha": "fcb74148a4de64e4",
+    "break": "body of handleMethod replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5216-2.1.5-7",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc5216_fragment_ack_test.go::TestRFC5216ServerAckIdentifiersIncrementAndTheNextFragmentEchoesThem",
+    "unit-sha": "14b95b036b489bc1",
+    "claim-sha": "92f8aef3fe61455f",
+    "route": "revert",
+    "producer": "internal/core/eap/eap.go::Process",
+    "producer-sha": "aa2821afa2d5c285",
+    "break": "body of Process replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

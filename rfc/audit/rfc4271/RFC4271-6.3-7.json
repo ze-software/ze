@@ -1,0 +1,17 @@
+{
+  "note": "RFC 7606 Section 3(d) (Updates: 4271) replaces the subcode and Data clauses with treat-as-withdraw, so the forbidden behaviour is a reset or a silent keep. TestSessionRFC4271RevisedAttributeErrors: missing ORIGIN, missing AS_PATH and missing NEXT_HOP each require.Equal the payload to a withdrawal of 203.0.113.0/24 (red on a keep or a drop), and the good UPDATE after it on the same session is received (red on a reset). Negative: all three present, NLRI announced. TestRFC4271MandatoryAttributesAcrossUpdateForms pins the MP_REACH/legacy NEXT_HOP split.",
+  "requirement_sha": "0c0a9e6275af1481",
+  "tests": {
+    "internal/component/bgp/message/rfc4271_mandatory_test.go::TestRFC4271MandatoryAttributesAcrossUpdateForms": "4d20a2664cf9e755",
+    "internal/component/bgp/message/rfc4271_mandatory_test.go::TestRFC4271MandatoryAttributesAcrossUpdateForms#2": "4d20a2664cf9e755",
+    "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "fdc816af536ef714",
+    "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "fdc816af536ef714"
+  },
+  "units": {
+    "internal/component/bgp/message/rfc4271_mandatory_test.go::TestRFC4271MandatoryAttributesAcrossUpdateForms": "7100273683108ac2",
+    "internal/component/bgp/message/rfc4271_mandatory_test.go::TestRFC4271MandatoryAttributesAcrossUpdateForms#2": "7100273683108ac2",
+    "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "d80d6195ec19508d",
+    "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "d80d6195ec19508d"
+  },
+  "verdict": "enforced"
+}

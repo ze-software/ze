@@ -1,0 +1,15 @@
+{
+  "note": "Judge ppp4 2026-09-30. Re-read after the frame_test.go negative moved to RFC1661-5-2 (it proved Length validation, a neighbour). Still proven by TestIPCPOnePacketPerFrameThroughRun: ze's IPCP CONFREQ from run() is 0x8021 with Length == Information length (+); a 0x8021 frame carrying a CONFREQ and a trailing Terminate-Request draws the Configure-Ack alone and no Terminate-Ack in 1 s (-, receiver-side injection).",
+  "requirement_sha": "9ddbf116bac2d73e",
+  "tests": {
+    "internal/component/l2tp/ppp/frame_test.go::TestIPCPFrameCarriesExactlyOnePacket": "f5b41639f95677f8",
+    "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestIPCPOnePacketPerFrameThroughRun": "d6b4e2cbd1b095e9",
+    "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestIPCPOnePacketPerFrameThroughRun#2": "d6b4e2cbd1b095e9"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/frame_test.go::TestIPCPFrameCarriesExactlyOnePacket": "5ec5f340d14bd027",
+    "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestIPCPOnePacketPerFrameThroughRun": "130db8c490b33bc9",
+    "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestIPCPOnePacketPerFrameThroughRun#2": "130db8c490b33bc9"
+  },
+  "verdict": "enforced"
+}

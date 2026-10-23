@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC1195-7-7",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/rfc1195_auth_test.go::TestRFC1195PDUClassRefusedUnderOtherScopes",
+    "unit-sha": "1b49ca981db482e5",
+    "claim-sha": "2f484997ff73b124",
+    "route": "revert",
+    "producer": "internal/plugins/isis/auth_wiring.go::signLevelPDU",
+    "producer-sha": "11605f3433fc9439",
+    "break": "body of signLevelPDU replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1195-7-7",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/rfc1195_auth_test.go::TestRFC1195PDUClassSignedWithItsScope",
+    "unit-sha": "ef2fac4f3533f31b",
+    "claim-sha": "d62f61701f676c96",
+    "route": "revert",
+    "producer": "internal/plugins/isis/auth_wiring.go::signLevelPDU",
+    "producer-sha": "11605f3433fc9439",
+    "break": "body of signLevelPDU replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1195-7-7",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/rfc1195_ish_scope_test.go::TestRFC1195ISHCarriesPerLinkPassword",
+    "unit-sha": "2cc443037c57480f",
+    "claim-sha": "86fb1279f35f2b56",
+    "route": "revert",
+    "producer": "internal/plugins/isis/ish_auth.go::signISHPDU",
+    "producer-sha": "217c9c751dcf4ab5",
+    "break": "body of signISHPDU replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1195-7-7",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/rfc1195_ish_scope_test.go::TestRFC1195ISHRefusesAreaAndDomainPasswords",
+    "unit-sha": "0fa8679235a69817",
+    "claim-sha": "8888cb51909d24bb",
+    "route": "revert",
+    "producer": "internal/plugins/isis/ish_auth.go::verifyISHFrame",
+    "producer-sha": "d4bbe786eb933dd5",
+    "break": "body of verifyISHFrame replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

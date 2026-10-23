@@ -1,0 +1,47 @@
+[
+  {
+    "rid": "RFC8669-3.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/message/rfc8669_tlv_length_test.go::TestRFC8669LabelIndexAnyLengthIgnoredOffLabeledUnicast",
+    "unit-sha": "c07caa1165711925",
+    "claim-sha": "f67f5fb6a9f8f6ed",
+    "route": "revert",
+    "producer": "internal/core/bgp/attribute/prefixsid_classify.go::ClassifyPrefixSID",
+    "producer-sha": "00a49549792e5674",
+    "break": "body of ClassifyPrefixSID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8669-3.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc8669_label_index_family_test.go::TestClearTransmittedLabelIndexOnlyOnLabeledUnicast",
+    "unit-sha": "51dc6f5ef5f421dc",
+    "claim-sha": "4b85a2605cb16e0b",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_prefix_sid.go::clearLabelIndexTLVs",
+    "producer-sha": "539539cdde15ec30",
+    "break": "body of clearLabelIndexTLVs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8669-3.1-2",
+    "polarity": "positive",
+    "unit": "internal/core/bgp/attribute/rfc8669_prefixsid_family_test.go::TestParsePrefixSIDAcceptsOffFamilyLabelIndexLength",
+    "unit-sha": "08c890d51150f610",
+    "claim-sha": "d9120a1ea37c0d77",
+    "route": "revert",
+    "producer": "internal/core/bgp/attribute/prefixsid_wire.go::validatePrefixSIDTLVs",
+    "producer-sha": "12292fb431326eae",
+    "break": "body of validatePrefixSIDTLVs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8669-3.1-2",
+    "polarity": "positive",
+    "unit": "test/plugin/prefixsid-malformed-receive.ci",
+    "unit-sha": "27b42fb9fcd7cef3",
+    "claim-sha": "39b9f00052389ca5",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/rfc7606.go::validatePrefixSIDValue",
+    "producer-sha": "65bfdeb7db074a4d",
+    "break": "body of validatePrefixSIDValue replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+    "citation": "expect=bgp:conn=2:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00780200000061800E200001800C0000000000000000010101010070007D010000FDE9000000010A00034001010040020602010000FDE9C0282E0100060000000000000500220001001E0020010DB800010000000000000000000000001300010006201010000000"
+  }
+]

@@ -1,0 +1,19 @@
+{
+  "note": "Send clause: TestAVPCatalogRoundTrip and the .ci read reserved bits zero on every emitted AVP. Receive clause, both message scopes: TestRFC2661ReservedAVPBitTreatedAsUnrecognized (ICRQ, M=0 value ignored, M=1 one CDN) and TestUnrecognizedMandatoryAVPInHelloClearsTunnel (HELLO, reserved-bit AVP with M=1 clears the tunnel with its session, M=0 changes nothing). Producer checked: AVPIterator.Next sets FlagReserved|FlagUnrecognized, and every parser plus parseHello branches on FlagUnrecognized. The HELLO gap of the earlier verdict is closed.",
+  "requirement_sha": "2143e31d9b133491",
+  "tests": {
+    "internal/component/l2tp/rfc2661_avp_test.go::TestAVPCatalogRoundTrip": "2fea7bba7d39fdcb",
+    "internal/component/l2tp/rfc2661_avp_test.go::TestAVPIteratorReservedBits": "2fea7bba7d39fdcb",
+    "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661ReservedAVPBitTreatedAsUnrecognized": "055162183ff6df00",
+    "internal/component/l2tp/rfc2661_unrecognized_mandatory_avp_test.go::TestUnrecognizedMandatoryAVPInHelloClearsTunnel": "beb7a378ea5d3333",
+    "test/l2tp/rfc2661-emitted-control-shape.ci": "c54a95273ff244c5"
+  },
+  "units": {
+    "internal/component/l2tp/rfc2661_avp_test.go::TestAVPCatalogRoundTrip": "5f6103da6005fcd4",
+    "internal/component/l2tp/rfc2661_avp_test.go::TestAVPIteratorReservedBits": "7678b2f0a9d5c4f3",
+    "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661ReservedAVPBitTreatedAsUnrecognized": "4aaf13a5b2387a36",
+    "internal/component/l2tp/rfc2661_unrecognized_mandatory_avp_test.go::TestUnrecognizedMandatoryAVPInHelloClearsTunnel": "0f7cd3930854a462",
+    "test/l2tp/rfc2661-emitted-control-shape.ci": "c54a95273ff244c5"
+  },
+  "verdict": "enforced"
+}

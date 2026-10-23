@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-09-29 (independent judge). TestRFC8665RangeOrderStableThroughConfigRestart now drives the configuration text through parseOSPFConfig, applySRConfig (parseSegmentRouting) and srBuildSRGB, clears the process SR store (restart) and re-applies: byte-identical SID/Label Range TLVs, identical under a different key order of the document, and exactly one SRGB range 16000/8000 (revert record on parseSegmentRouting, observed red). Single polarity is valid and the corrected annotation matches the producer: sr_config.go reads the one YANG srgb container into a one-element slice, so there is no reorderable input to reject.",
+  "requirement_sha": "b2e55f70bb2d49c5",
+  "tests": {
+    "internal/plugins/ospf/rfc8665_range_order_test.go::TestRFC8665RangeOrderStableThroughConfigRestart": "ff2ad4dd3deb0343",
+    "internal/plugins/ospf/rfc8665_test.go::TestRFC8665RangeOrderStableAcrossRestart": "7f2eeb6dac97643c"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc8665_range_order_test.go::TestRFC8665RangeOrderStableThroughConfigRestart": "a07106b17e254da7",
+    "internal/plugins/ospf/rfc8665_test.go::TestRFC8665RangeOrderStableAcrossRestart": "b0bd598535b8eb58"
+  },
+  "verdict": "enforced"
+}

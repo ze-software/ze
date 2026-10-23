@@ -1,0 +1,17 @@
+{
+  "note": "Judge 2026-09-30. \u00a75 \"All received BFD Control packets that are demultiplexed to the session MUST be discarded if the received TTL or Hop Limit is not equal to 255.\" Through handleInbound (loop.go passesTTLGate after the session lookup, so both demux paths): TestRFC5881TTL255ReachesTheSessionOnBothDemuxPaths - a TTL 255 first packet installs RemoteDiscr and Init, a discriminator-demuxed TTL 255 packet reaches Up; TestRFC5881TTLNot255DiscardedOnBothDemuxPaths - first packets at TTL 254/128/1/0 leave RemoteDiscr 0 and Down, and a discriminator-demuxed TTL 254 packet leaves Init. Buffers isolated: the packets differ only in TTL from the accepted ones. Author's overlay removing the handleInbound gate call reddens the new negative; revert records on passesTTLGate verify. Predicate units in ttl_test.go stay as supplementary.",
+  "requirement_sha": "9b49bffcebb58ee6",
+  "tests": {
+    "internal/component/bfd/engine/rfc5881_ttl_demux_test.go::TestRFC5881TTL255ReachesTheSessionOnBothDemuxPaths": "0a4ceb0de8f79c7c",
+    "internal/component/bfd/engine/rfc5881_ttl_demux_test.go::TestRFC5881TTLNot255DiscardedOnBothDemuxPaths": "0a4ceb0de8f79c7c",
+    "internal/component/bfd/engine/rfc5881_ttl_test.go::TestTTLGateSingleHop": "909ba7e246b44bbe",
+    "internal/component/bfd/engine/rfc5881_ttl_test.go::TestTTLGateSingleHop#2": "909ba7e246b44bbe"
+  },
+  "units": {
+    "internal/component/bfd/engine/rfc5881_ttl_demux_test.go::TestRFC5881TTL255ReachesTheSessionOnBothDemuxPaths": "5b7fe387c28e7a4d",
+    "internal/component/bfd/engine/rfc5881_ttl_demux_test.go::TestRFC5881TTLNot255DiscardedOnBothDemuxPaths": "2f4921423ccc8e5d",
+    "internal/component/bfd/engine/rfc5881_ttl_test.go::TestTTLGateSingleHop": "c9952ef6b5d61633",
+    "internal/component/bfd/engine/rfc5881_ttl_test.go::TestTTLGateSingleHop#2": "c9952ef6b5d61633"
+  },
+  "verdict": "enforced"
+}

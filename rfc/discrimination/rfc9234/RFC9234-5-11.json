@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC9234-5-11",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/role/rfc9234_otc_procedures_test.go::TestRFC9234OTCProceduresSurviveOperatorSettings",
+    "unit-sha": "f001585ad184b2e8",
+    "claim-sha": "a61fef83e23d897c",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/role/otc.go::checkOTCIngress",
+    "producer-sha": "a2326791096ae4c7",
+    "break": "body of checkOTCIngress replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

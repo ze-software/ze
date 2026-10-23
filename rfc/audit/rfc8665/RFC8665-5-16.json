@@ -1,0 +1,13 @@
+{
+  "note": "Judged 2026-10-21 over current tags, units and records. Quote verified in RFC 8665 Section 5: 'the E-, NP-, and M-Flags advertised by the next-hop router if that router advertised the SID for the prefix. This MUST be done regardless of whether the next-hop router contributes to the best path'. Product fix read: srInstaller.forwarding now applies the next hop's own advertisement (advertisedBy over Originator and Also), and sr_malformed resolve lists the other advertisers of the same SID. The positive has the best path end at 10.0.0.9 (NP set) with next hop 10.0.0.2 also advertising: NP clear must PHP-pop 18009 with no push, and NP+E must push 0, never 17009. The old originator-only code swapped 17009 and fails it. The negative checks that a next hop that advertised nothing gets 17009 with no pop, even though both other advertisers have NP clear.",
+  "requirement_sha": "27094f45d37eb7e9",
+  "tests": {
+    "internal/plugins/ospf/rfc8665_nexthop_off_best_path_test.go::TestRFC8665NextHopFlagsAppliedOffBestPath": "431adf56914944df",
+    "internal/plugins/ospf/rfc8665_nexthop_off_best_path_test.go::TestRFC8665OffPathAdvertiserFlagsNotAppliedToNextHop": "431adf56914944df"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc8665_nexthop_off_best_path_test.go::TestRFC8665NextHopFlagsAppliedOffBestPath": "c5eb41ff222b98cc",
+    "internal/plugins/ospf/rfc8665_nexthop_off_best_path_test.go::TestRFC8665OffPathAdvertiserFlagsNotAppliedToNextHop": "9e95abbfd0630227"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,16 @@
+{
+  "code": {},
+  "note": "Judge rejudge 2026-09-30 (bfd session+engine continuation). TestRFC5880EchoFollowsLastAdvertisement sends 50 ms, 0, 50 ms and asserts EchoEnabled and the PrimeEcho deadline follow the LAST packet each time, closing the latch gap the earlier note named; mutant EchoEnabled != -> == observed red. The engine echoTickLocked sends only for an Up session with EchoEnabled and a primed deadline.",
+  "requirement_sha": "257741ef5146bf9c",
+  "tests": {
+    "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880EchoFollowsLastAdvertisement": "73ca576e23cbd659",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoEnabledWhenPeerAdvertisesNonZero": "8db25cbb4534cc2d",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoNotTransmittedWithoutPeerAdvertisement": "8db25cbb4534cc2d"
+  },
+  "units": {
+    "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880EchoFollowsLastAdvertisement": "317e5bc43f8bec13",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoEnabledWhenPeerAdvertisesNonZero": "5a34d02f9d0c3699",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoNotTransmittedWithoutPeerAdvertisement": "37d5637a844a6fa8"
+  },
+  "verdict": "enforced"
+}

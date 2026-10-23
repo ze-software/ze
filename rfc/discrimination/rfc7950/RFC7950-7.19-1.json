@@ -1,0 +1,134 @@
+[
+  {
+    "rid": "RFC7950-7.19-1",
+    "polarity": "negative",
+    "unit": "internal/component/config/yang/rfc7950_extension_grammar_test.go::TestRFC7950ExtensionSubstatementCardinality",
+    "unit-sha": "125d271b79c80fcb",
+    "claim-sha": "7f158078be241dcc",
+    "route": "revert",
+    "producer": "internal/component/config/yang/loader_structure.go::extensionSubstatementError",
+    "producer-sha": "f16ba6b9e75985c1",
+    "break": "body of extensionSubstatementError replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7950-7.19-1",
+    "polarity": "positive",
+    "unit": "internal/component/config/yang/rfc7950_extension_grammar_test.go::TestRFC7950ExtensionSubstatementCardinality",
+    "unit-sha": "125d271b79c80fcb",
+    "claim-sha": "a2a2b7561f8e9846",
+    "route": "revert",
+    "producer": "internal/component/config/yang/loader_structure.go::extensionSubstatementError",
+    "producer-sha": "f16ba6b9e75985c1",
+    "break": "body of extensionSubstatementError replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7950-7.19-1",
+    "polarity": "negative",
+    "unit": "internal/component/config/yang/rfc7950_extension_grammar_test.go::TestRFC7950ExtensionSubstatementContextForms",
+    "unit-sha": "c7a0a8be96ed0cb5",
+    "claim-sha": "d2002c054325d98f",
+    "route": "revert",
+    "producer": "internal/component/config/yang/loader_structure.go::resolveProduction",
+    "producer-sha": "61bbc3d1fe6c0883",
+    "break": "body of resolveProduction replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7950-7.19-1",
+    "polarity": "positive",
+    "unit": "internal/component/config/yang/rfc7950_extension_grammar_test.go::TestRFC7950ExtensionSubstatementContextForms",
+    "unit-sha": "c7a0a8be96ed0cb5",
+    "claim-sha": "cce79d25ee9b8d51",
+    "route": "revert",
+    "producer": "internal/component/config/yang/loader_structure.go::resolveProduction",
+    "producer-sha": "61bbc3d1fe6c0883",
+    "break": "body of resolveProduction replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7950-7.19-1",
+    "polarity": "negative",
+    "unit": "internal/component/config/yang/rfc7950_extension_grammar_test.go::TestRFC7950ExtensionSubstatementRequiredStatementsAndBlocks",
+    "unit-sha": "d3453da229c32d78",
+    "claim-sha": "b3ee65520e743b33",
+    "route": "revert",
+    "producer": "internal/component/config/yang/loader_source.go::statementHasBlock",
+    "producer-sha": "68a5228fc52ca390",
+    "break": "body of statementHasBlock replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7950-7.19-1",
+    "polarity": "positive",
+    "unit": "internal/component/config/yang/rfc7950_extension_grammar_test.go::TestRFC7950ExtensionSubstatementRequiredStatementsAndBlocks",
+    "unit-sha": "d3453da229c32d78",
+    "claim-sha": "7bbb8dc20b3be617",
+    "route": "revert",
+    "producer": "internal/component/config/yang/loader_source.go::statementHasBlock",
+    "producer-sha": "68a5228fc52ca390",
+    "break": "body of statementHasBlock replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7950-7.19-1",
+    "polarity": "positive",
+    "unit": "internal/component/config/yang/rfc7950_extension_grammar_test.go::TestRFC7950ExtensionSubstatementURIAndPathArguments",
+    "unit-sha": "2bab7ec37003c28a",
+    "claim-sha": "3c106ff3606f99f1",
+    "route": "revert",
+    "producer": "internal/component/config/yang/loader_grammar.go::checkURI",
+    "producer-sha": "75375ed4653055da",
+    "break": "body of checkURI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7950-7.19-1",
+    "polarity": "negative",
+    "unit": "internal/component/config/yang/rfc7950_extension_grammar_test.go::TestRFC7950ExtensionSubstatementURIAndPathArguments",
+    "unit-sha": "2bab7ec37003c28a",
+    "claim-sha": "54e199337be1a1f2",
+    "route": "revert",
+    "producer": "internal/component/config/yang/loader_grammar.go::checkPathArg",
+    "producer-sha": "c77c358272f75d69",
+    "break": "body of checkPathArg replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7950-7.19-1",
+    "polarity": "negative",
+    "unit": "internal/component/config/yang/rfc7950_loader_structural_test.go::TestRFC7950ExtensionUsageSubstatementsAreYANGStatements",
+    "unit-sha": "474f6f033921777d",
+    "claim-sha": "ce1ae9576c586c43",
+    "route": "revert",
+    "producer": "internal/component/config/yang/loader_structure.go::extensionSubstatementError",
+    "producer-sha": "f16ba6b9e75985c1",
+    "break": "body of extensionSubstatementError replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7950-7.19-1",
+    "polarity": "positive",
+    "unit": "internal/component/config/yang/rfc7950_loader_structural_test.go::TestRFC7950ExtensionUsageSubstatementsAreYANGStatements",
+    "unit-sha": "474f6f033921777d",
+    "claim-sha": "330daf2363cfc923",
+    "route": "revert",
+    "producer": "internal/component/config/yang/loader_structure.go::extensionSubstatementError",
+    "producer-sha": "f16ba6b9e75985c1",
+    "break": "body of extensionSubstatementError replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7950-7.19-1",
+    "polarity": "positive",
+    "unit": "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadAccepted",
+    "unit-sha": "d21091dc1c116998",
+    "claim-sha": "5d4b58d1a80045b3",
+    "route": "revert",
+    "producer": "internal/component/config/yang/loader.go::AddModuleFromText",
+    "producer-sha": "4887216187fdb0bc",
+    "break": "body of AddModuleFromText replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7950-7.19-1",
+    "polarity": "negative",
+    "unit": "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadRefused",
+    "unit-sha": "f2401b4ae86ac548",
+    "claim-sha": "d2fd195a460fbf9f",
+    "route": "revert",
+    "producer": "internal/component/config/yang/loader.go::AddModuleFromText",
+    "producer-sha": "4887216187fdb0bc",
+    "break": "body of AddModuleFromText replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

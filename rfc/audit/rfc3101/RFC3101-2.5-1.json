@@ -1,0 +1,21 @@
+{
+  "note": "Re-judged 2026-10-21 after TestOSPFNSSABorderRouterDefaultPBit gained RFC3101-2.4-7 tags; its assertions are unchanged. ComputeExternalWith performs both step (3) skips for a border router: P-clear default (prefType7P0) and NoSummary policy. v4 and v6: positive 'summary import suppressed' asserts no route for a P-set default; the 'P-bit clear' subtest in the same unit asserts no route for a P-clear default with summaries imported; negative 'P-bit set' requires the one default route; TestOSPF(v3)NSSANonBorderRouterInstallsPClearDefault shows a non-border router installs a P-clear default under suppression, so both conditions bind a border router only. Removing either skip or the border-router guard reddens a distinct assertion. Records are whole-body reverts of ComputeExternalWith.",
+  "requirement_sha": "736cc5e7e9acddb1",
+  "tests": {
+    "internal/plugins/ospf/rfc3101_nssa_install_gate_v6_test.go::TestOSPFv3NSSABorderRouterDefaultPBit": "f93dfb172fe49a83",
+    "internal/plugins/ospf/rfc3101_nssa_install_gate_v6_test.go::TestOSPFv3NSSABorderRouterDefaultPBit#2": "f93dfb172fe49a83",
+    "internal/plugins/ospf/rfc3101_nssa_install_gate_v6_test.go::TestOSPFv3NSSANonBorderRouterInstallsPClearDefault": "f93dfb172fe49a83",
+    "internal/plugins/ospf/spf/rfc3101_external_nssa_test.go::TestOSPFNSSABorderRouterDefaultPBit": "9e221b200c0db55d",
+    "internal/plugins/ospf/spf/rfc3101_external_nssa_test.go::TestOSPFNSSABorderRouterDefaultPBit#2": "9e221b200c0db55d",
+    "internal/plugins/ospf/spf/rfc3101_external_nssa_test.go::TestOSPFNSSANonBorderRouterInstallsPClearDefault": "9e221b200c0db55d"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc3101_nssa_install_gate_v6_test.go::TestOSPFv3NSSABorderRouterDefaultPBit": "b60fee1eef468443",
+    "internal/plugins/ospf/rfc3101_nssa_install_gate_v6_test.go::TestOSPFv3NSSABorderRouterDefaultPBit#2": "b60fee1eef468443",
+    "internal/plugins/ospf/rfc3101_nssa_install_gate_v6_test.go::TestOSPFv3NSSANonBorderRouterInstallsPClearDefault": "ccc74ac5a45aa007",
+    "internal/plugins/ospf/spf/rfc3101_external_nssa_test.go::TestOSPFNSSABorderRouterDefaultPBit": "e8f9f080f58f79cc",
+    "internal/plugins/ospf/spf/rfc3101_external_nssa_test.go::TestOSPFNSSABorderRouterDefaultPBit#2": "e8f9f080f58f79cc",
+    "internal/plugins/ospf/spf/rfc3101_external_nssa_test.go::TestOSPFNSSANonBorderRouterInstallsPClearDefault": "ef2dede7da97f98a"
+  },
+  "verdict": "enforced"
+}

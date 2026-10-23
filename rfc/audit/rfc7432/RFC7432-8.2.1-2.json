@@ -1,0 +1,23 @@
+{
+  "code": {
+    "internal/component/bgp/message/update_build_evpn.go::ValidateEVPNOrigination": "dec06a69e8bca5c5",
+    "internal/component/bgp/message/update_build_evpn.go::ValidateEVPNOriginationMode": "0e02032c661f7e2e",
+    "internal/component/bgp/plugins/nlri/evpn/config.go::parseConfigRoute": "f3ea2c93ef238a9e",
+    "internal/component/bgp/plugins/nlri/evpn/encode.go::EncodeRoute": "2b6a9c481e7e95fe"
+  },
+  "note": "Re-judged 2026-10-18 (independent auditor, after 0411b53e91). RFC 7432 Section 8.2.1: \"The MPLS label in the NLRI MUST be set to 0.\" Stale only because 0411b53e91 replaced the redundancy-mode argument with a routeIntent struct (redundancyMode plus overlayIndex) through parseL2VPNArgs, l2vpnRouteToEVPNParams, parseConfigRoute and EncodeRoute; the new overlay-index guard refuses only a named selector on a non-ip-prefix route and never touches the Ethernet A-D path. The tagged test units did not change. The zero-label check in ValidateEVPNOriginationMode (nlris[24]|nlris[25]|nlris[26] != 0 on MAX-ET Type 1) is unchanged and both producers still call it. Fresh overlay mutant disabling that check reddens TestConfiguredEVPNRefusesInvalidPerESRoute and TestOriginEthernetADPerESRefusesLabelStack while the positives TestConfiguredEVPNPerESRoute and TestOriginEthernetADPerESUsesTypeOneRD stay green and still compare the three zero label octets byte for byte.",
+  "requirement_sha": "a29ed15edaf2387c",
+  "tests": {
+    "internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go::TestConfiguredEVPNPerESRoute": "8605ce648899c68f",
+    "internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go::TestConfiguredEVPNRefusesInvalidPerESRoute": "8605ce648899c68f",
+    "internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go::TestOriginEthernetADPerESRefusesLabelStack": "4621c06037bf4489",
+    "internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go::TestOriginEthernetADPerESUsesTypeOneRD": "4621c06037bf4489"
+  },
+  "units": {
+    "internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go::TestConfiguredEVPNPerESRoute": "200485f8562d9e9b",
+    "internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go::TestConfiguredEVPNRefusesInvalidPerESRoute": "832ed4025d173fd6",
+    "internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go::TestOriginEthernetADPerESRefusesLabelStack": "6bd346ce6e968518",
+    "internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go::TestOriginEthernetADPerESUsesTypeOneRD": "c572ee169d6adc54"
+  },
+  "verdict": "enforced"
+}

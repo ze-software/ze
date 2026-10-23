@@ -1,0 +1,11 @@
+{
+  "note": "Forbidden: a non-zero algorithm for a SID whose locator has no algorithm, or another algorithm than the locator's. TestRFC9514ISISEndpointBehaviorAlgorithm fails on got[0][3]!=algo for locator algorithm 0 and 1. {single-polarity} marker: both branches are conforming outputs.",
+  "requirement_sha": "5663450865438114",
+  "tests": {
+    "internal/plugins/isis/rfc9514_bgpls_export_test.go::TestRFC9514ISISEndpointBehaviorAlgorithm": "3534ed7ab329be12"
+  },
+  "units": {
+    "internal/plugins/isis/rfc9514_bgpls_export_test.go::TestRFC9514ISISEndpointBehaviorAlgorithm": "409fe4f35e0f7431"
+  },
+  "verdict": "enforced"
+}

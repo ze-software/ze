@@ -1,0 +1,13 @@
+{
+  "note": "rejudge 2026-10-02 (c33 judge): {single-polarity: positive} is valid: the rule only forbids rejection and the validator has no Global Administrator path to refuse. TestRFC8092LargeCommunityAnyGlobalAdministratorIsWellFormed asserts RFC7606ActionNone through ValidateUpdateRFC7606 for reserved 0, 65535 and 4294967295, AS_TRANS 23456, documentation 64496, private 4200000000 and unallocated 1000000, each in a well-formed 12-octet value with ORIGIN, AS_PATH and NEXT_HOP present, so only the Global Administrator varies.",
+  "requirement_sha": "61b54103b45ffe9a",
+  "tests": {
+    "internal/component/bgp/message/rfc8092_error_handling_test.go::TestRFC8092LargeCommunityAnyGlobalAdministratorIsWellFormed": "8764f6eba0f93fbb",
+    "internal/component/bgp/message/rfc8092_test.go::TestRFC8092LargeCommunityValidReservedASN": "64840271479cd6ab"
+  },
+  "units": {
+    "internal/component/bgp/message/rfc8092_error_handling_test.go::TestRFC8092LargeCommunityAnyGlobalAdministratorIsWellFormed": "b5a7c0ceb8b2c16a",
+    "internal/component/bgp/message/rfc8092_test.go::TestRFC8092LargeCommunityValidReservedASN": "b15463f27b3fd389"
+  },
+  "verdict": "enforced"
+}

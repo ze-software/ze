@@ -1,0 +1,13 @@
+{
+  "note": "Errored PDU with a BGP Message TLV is accepted; Errored PDU without one ends the session",
+  "requirement_sha": "518f7e55bcccfdf2",
+  "tests": {
+    "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestRFC7854ErroredMirrorWithPDUAccepted": "4c8de7d703105fd1",
+    "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestRFC7854ErroredMirrorWithoutPDUEndsSession": "4c8de7d703105fd1"
+  },
+  "units": {
+    "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestRFC7854ErroredMirrorWithPDUAccepted": "3bbc3dde4867b1af",
+    "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestRFC7854ErroredMirrorWithoutPDUEndsSession": "ad798ecb268a9290"
+  },
+  "verdict": "enforced"
+}

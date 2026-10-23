@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: advertising a SID Structure whose four lengths sum above 128. TestRFC9514NativeSIDStructureBoundary accepts 32+32+16+48=128 (require.Equal on the emitted 1252) and require.Error plus Len(commands,3) go red if 129 is accepted or advertised.",
+  "requirement_sha": "f61aaf4b69dd9570",
+  "tests": {
+    "internal/component/bgp/plugins/ls_export/rfc9514_export_test.go::TestRFC9514NativeSIDStructureBoundary": "7d3a493ffb46e118",
+    "internal/component/bgp/plugins/ls_export/rfc9514_export_test.go::TestRFC9514NativeSIDStructureBoundary#2": "7d3a493ffb46e118"
+  },
+  "units": {
+    "internal/component/bgp/plugins/ls_export/rfc9514_export_test.go::TestRFC9514NativeSIDStructureBoundary": "7094a2e46b150b1f",
+    "internal/component/bgp/plugins/ls_export/rfc9514_export_test.go::TestRFC9514NativeSIDStructureBoundary#2": "7094a2e46b150b1f"
+  },
+  "verdict": "enforced"
+}

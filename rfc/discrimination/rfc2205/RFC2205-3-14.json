@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC2205-3-14",
+    "polarity": "negative",
+    "unit": "internal/plugins/rsvpte/rfc2205_engine_test.go::TestRFC2205PathTearForOtherLSPLeavesReservation",
+    "unit-sha": "0d7bbb0da6e4f7e1",
+    "claim-sha": "a01ca6eb62bd586b",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/engine.go::handlePathTear",
+    "producer-sha": "59b3b08faf6f7d2b",
+    "break": "body of handlePathTear replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2205-3-14",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/rfc2205_engine_test.go::TestRFC2205PathTearReleasesReservation",
+    "unit-sha": "03bd53c41adb8ed6",
+    "claim-sha": "3d4417448bb82300",
+    "route": "mutant",
+    "producer": "internal/plugins/rsvpte/admission.go::release",
+    "producer-sha": "ba0bfdf5bb9e2aa6",
+    "break": "line 155: \"-=\" -\u003e \"+=\""
+  },
+  {
+    "rid": "RFC2205-3-14",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205PathStateDeletedAtCleanupTimeout",
+    "unit-sha": "53fd609b6dd22785",
+    "claim-sha": "75bfa5463ad27d73",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/engine.go::tearLSPLocal",
+    "producer-sha": "5122cd5a73d15fab",
+    "break": "body of tearLSPLocal replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2205-3-14",
+    "polarity": "negative",
+    "unit": "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205RefreshedPathStateKept",
+    "unit-sha": "36255c244387ffdf",
+    "claim-sha": "09d27d2d222c1303",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/fsm.go::expiredPSBs",
+    "producer-sha": "54b5441a363226eb",
+    "break": "body of expiredPSBs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-21. The TestLDPSyncTECostUntouched tags, which no input could make tell per-peer from whole-link, are gone. TestRFC5443BroadcastCostOutCoversWholeSegment: two Full peers, the originated Router-LSA has 0 transit and 0 per-peer links while not synchronized, exactly 1 transit link and 0 per-peer once synchronized. TestRFC5443BroadcastOnePeerUpKeepsSegmentCostedOut: one session up in hold-down still gives 0 and 0. Records on applyLDPSyncOverride.",
+  "requirement_sha": "064dbbac553b9cfb",
+  "tests": {
+    "internal/plugins/ospf/rfc6138_broadcast_origination_test.go::TestRFC5443BroadcastCostOutCoversWholeSegment": "c1c795ba28a13064",
+    "internal/plugins/ospf/rfc6138_broadcast_origination_test.go::TestRFC5443BroadcastOnePeerUpKeepsSegmentCostedOut": "c1c795ba28a13064"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc6138_broadcast_origination_test.go::TestRFC5443BroadcastCostOutCoversWholeSegment": "4bdc23ae6476cac9",
+    "internal/plugins/ospf/rfc6138_broadcast_origination_test.go::TestRFC5443BroadcastOnePeerUpKeepsSegmentCostedOut": "35df126f6df45649"
+  },
+  "verdict": "enforced"
+}

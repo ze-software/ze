@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC7296-2.10-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_nonce_floor_test.go::TestRFC7296EmittedNoncesAreAtLeast128Bits",
+    "unit-sha": "943eb41c64af9dd3",
+    "claim-sha": "9617e079a95c2efc",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/sa.go::GenerateNonce",
+    "producer-sha": "b9c79120a1a663fc",
+    "break": "body of GenerateNonce replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.10-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/wire/rfc7296_test.go::TestNonceLengthBounds",
+    "unit-sha": "adbb8d5d0fb568c7",
+    "claim-sha": "d6cc9e0f543673cd",
+    "route": "revert",
+    "producer": "internal/component/ike/wire/payload_nonce.go::ReadFrom",
+    "producer-sha": "80d7fbe12751d8b0",
+    "break": "body of ReadFrom replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.10-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/wire/rfc7296_test.go::TestNonceLengthBounds",
+    "unit-sha": "adbb8d5d0fb568c7",
+    "claim-sha": "2e880045837a8645",
+    "route": "revert",
+    "producer": "internal/component/ike/wire/payload_nonce.go::ReadFrom",
+    "producer-sha": "80d7fbe12751d8b0",
+    "break": "body of ReadFrom replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

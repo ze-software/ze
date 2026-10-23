@@ -1,0 +1,17 @@
+{
+  "note": "Revised by RFC 7606. 'If an optional attribute is recognized, then the value MUST be checked': RFC 4271's own optional attributes, MED (3 octets -> exact withdrawal, 4 kept) and AGGREGATOR (bad length -> discarded, prefix kept, the 'attribute MUST be discarded' clause), are both covered, plus COMMUNITIES and EXTENDED COMMUNITIES (withdraw per 7606 7.8/7.14) with valid values kept byte for byte. Observed-red records on validateCommunityAttr both polarities. ORIGINATOR_ID and CLUSTER_LIST value checks belong to the RFC 4456 / RFC 7606 per-attribute rows, not this generic RFC 4271 row.",
+  "requirement_sha": "4345f16d2e0de799",
+  "tests": {
+    "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst": "7c393f540d8a8390",
+    "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst#2": "7c393f540d8a8390",
+    "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "fdc816af536ef714",
+    "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "fdc816af536ef714"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst": "3fbb82b3c24c3e42",
+    "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst#2": "3fbb82b3c24c3e42",
+    "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "d80d6195ec19508d",
+    "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "d80d6195ec19508d"
+  },
+  "verdict": "enforced"
+}

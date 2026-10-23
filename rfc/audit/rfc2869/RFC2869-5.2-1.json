@@ -1,0 +1,13 @@
+{
+  "note": "Independent judgment 2026-10-11 (judge did not author a0a101e5ad). RFC 2869 Section 5.2: \"This attribute indicates how many times the Acct-Output-Octets counter has wrapped around 2^32 in the course of delivering this service, and can only be present in Accounting-Request records where the Acct-Status-Type is set to Stop or Interim-Update.\" Positive TestRFC2869OutputGigawordsOnInterimUpdate stubs TxBytes at 3*2^32+200 and requires exact Acct-Output-Octets 200 and Acct-Output-Gigawords 3 on an Interim-Update built by buildAcctPacket: a wrong split (splitGigawords) or a missing attribute fails it. Negative TestRFC2869OutputGigawordsAbsentOnStart builds a Start over the same wrapped counter and requires no attribute 53. Isolation holds: counterDelta is stateless over the session baseline (zero here), so if the Stop/Interim-Update guard in buildAcctPacket admitted Start, the delta would carry 3 gigawords and the attribute would appear; the negative is not passing because counters are unavailable. buildAcctPacket's only callers are the Start, Stop and Interim-Update senders, so Start is the only disallowed status the producer can reach. Stop, also permitted, is untested here but is not an obligation. Both clauses (wrap-count value, presence restricted to Stop/Interim-Update) are asserted exactly. Verdict enforced.",
+  "requirement_sha": "9573509de9cbcab5",
+  "tests": {
+    "internal/component/l2tp/plugins/authradius/rfc2869_output_gigawords_test.go::TestRFC2869OutputGigawordsAbsentOnStart": "3c61c376826393cb",
+    "internal/component/l2tp/plugins/authradius/rfc2869_output_gigawords_test.go::TestRFC2869OutputGigawordsOnInterimUpdate": "3c61c376826393cb"
+  },
+  "units": {
+    "internal/component/l2tp/plugins/authradius/rfc2869_output_gigawords_test.go::TestRFC2869OutputGigawordsAbsentOnStart": "e67b08e672bab075",
+    "internal/component/l2tp/plugins/authradius/rfc2869_output_gigawords_test.go::TestRFC2869OutputGigawordsOnInterimUpdate": "75a8974ef11287ec"
+  },
+  "verdict": "enforced"
+}

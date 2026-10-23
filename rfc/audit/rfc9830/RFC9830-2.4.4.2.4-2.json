@@ -1,0 +1,13 @@
+{
+  "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV. Forbidden: non-zero Reserved octets in the Endpoint Behavior and SID Structure on transmission. Red: assert.Equal([]byte{0x00, 0x00}, value[20:22]). Negative: endpoint behavior 0xFFFF at value[18:20] and structure 32/16/16/64 at value[22:26], so the zeros are written at the right offset.",
+  "requirement_sha": "d609e2ceb438be85",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV": "450f2364530acf19",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV#2": "450f2364530acf19"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV": "bcfcf99bdcd49711",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV#2": "bcfcf99bdcd49711"
+  },
+  "verdict": "enforced"
+}

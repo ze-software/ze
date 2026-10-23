@@ -1,0 +1,17 @@
+{
+  "note": "Independent FinalTunnelRejudgment retained this allocated obligation; Main read RFC9012 full text, session_tunnel_encap.go::applyTunnelEncap/tunnelTLVLayout/tunnelEndpointValid, tunnel_encap.go codec producers and the real consumer. RFC9012 \u00a7\u00a73.2.1/3.2.2: \"Intermediate routers MUST propagate them without modification.\" Both VXLAN type8 and NVGRE type9 occur with V/M held fixed and reserved R bits zero or set. Exact actual received and downstream values prevent masking those bits; codec round trips supplement the two cached export modes. No tunnel-header interpretation or origination is inferred. Actual consumer: internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong and teForwardedAttrs drive Session.processMessage, cache publication, ForwardUpdate, worker/socket output and downstream Session receipt. These are two cached export modes, not an independently exercised reactor-native RS rail; no absent attribute-driven tunnel-selection feature is credited.",
+  "requirement_sha": "159921325e956116",
+  "tests": {
+    "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "8e898ec9c074ca2b",
+    "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "8e898ec9c074ca2b",
+    "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012ReservedOctetsPropagateUnchanged": "e8576a1ee12543a9",
+    "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012ReservedOctetsPropagateUnchanged#2": "e8576a1ee12543a9"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "4331bc08d9c40b95",
+    "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "4331bc08d9c40b95",
+    "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012ReservedOctetsPropagateUnchanged": "7588509ce4036903",
+    "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012ReservedOctetsPropagateUnchanged#2": "7588509ce4036903"
+  },
+  "verdict": "enforced"
+}

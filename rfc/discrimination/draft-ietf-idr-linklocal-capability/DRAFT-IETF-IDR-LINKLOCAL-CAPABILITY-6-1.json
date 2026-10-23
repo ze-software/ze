@@ -1,0 +1,79 @@
+[
+  {
+    "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/message/draft_ietf_idr_linklocal_capability_malformed_test.go::TestLinkLocalCapabilityMalformedThirtyTwoOctet",
+    "unit-sha": "d38c2c13820a7797",
+    "claim-sha": "884aa12bfcd64fb2",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/rfc7606_linklocal.go::validateLinkLocalNextHopPair",
+    "producer-sha": "3637b87add70375e",
+    "break": "body of validateLinkLocalNextHopPair replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/message/draft_ietf_idr_linklocal_capability_malformed_test.go::TestLinkLocalCapabilityWellFormedThirtyTwoOctet",
+    "unit-sha": "885d42477ed8773c",
+    "claim-sha": "6c856cbdb02ce086",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/rfc7606_linklocal.go::linkLocalNextHopPairWellFormed",
+    "producer-sha": "4968acac93aae2b1",
+    "break": "body of linkLocalNextHopPairWellFormed replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545EffectivePairPolicyAndMixedSibling",
+    "unit-sha": "2f3204cd4defe4cf",
+    "claim-sha": "7c0c7e5d69776934",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_validation_receive.go::validateRFC7606Attrs",
+    "producer-sha": "f7dd2bb50fd7e541",
+    "break": "body of validateRFC7606Attrs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545ReceivedPairFirstAddressValidated",
+    "unit-sha": "4717bb7a3da1d99d",
+    "claim-sha": "9bbac5a91afd451c",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_validation_receive.go::validateRFC7606Attrs",
+    "producer-sha": "f7dd2bb50fd7e541",
+    "break": "body of validateRFC7606Attrs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545ReceivedPairFirstAddressValidated",
+    "unit-sha": "4717bb7a3da1d99d",
+    "claim-sha": "45a7a7fbc70eeaef",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_validation_receive.go::validateRFC7606Attrs",
+    "producer-sha": "f7dd2bb50fd7e541",
+    "break": "body of validateRFC7606Attrs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545ReceivedPairSecondAddressValidated",
+    "unit-sha": "4c383677e024975c",
+    "claim-sha": "83876b37d766ad7f",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_validation_receive.go::validateRFC7606Attrs",
+    "producer-sha": "f7dd2bb50fd7e541",
+    "break": "body of validateRFC7606Attrs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545ReceivedPairSecondAddressValidated",
+    "unit-sha": "4c383677e024975c",
+    "claim-sha": "10b6448aa6776f74",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_validation_receive.go::validateRFC7606Attrs",
+    "producer-sha": "f7dd2bb50fd7e541",
+    "break": "body of validateRFC7606Attrs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

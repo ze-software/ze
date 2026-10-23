@@ -1,0 +1,13 @@
+{
+  "note": "Rejudged 2026-10-08 against RFC 2205 Section 3.1.2 ('Must always be a multiple of 4, and at least 4.'). The unit change since the last judgement (9b8bfe250c) only passes nil for buildPathErr's new adspec argument; the assertions are untouched and the PathErr walked carries the same object set as before. Send: TestRSVPObjectLengthMultipleOfFour errors on objLen%4 != 0 over every object of a built PATH, RESV and PathErr. Receive: decodeObjectHeader refuses Length%4 != 0 with errBadObjLen and TestRFC2205ReceivedObjectLengthNotMultipleOfFourRejected requires it for a Length-6 object. An ADSPEC in a PathErr is copied raw from a PATH that already passed that decode check. The positive tag's prose ('Decode does not enforce %4') is still stale.",
+  "requirement_sha": "0a63901cb0272261",
+  "tests": {
+    "internal/plugins/rsvpte/rfc2205_carrier_test.go::TestRFC2205ReceivedObjectLengthNotMultipleOfFourRejected": "2bbb0ce4611ada21",
+    "internal/plugins/rsvpte/wire_test.go::TestRSVPObjectLengthMultipleOfFour": "9e0ed20ca4d343e6"
+  },
+  "units": {
+    "internal/plugins/rsvpte/rfc2205_carrier_test.go::TestRFC2205ReceivedObjectLengthNotMultipleOfFourRejected": "036bf95de3773f12",
+    "internal/plugins/rsvpte/wire_test.go::TestRSVPObjectLengthMultipleOfFour": "11f5576f7514c198"
+  },
+  "verdict": "enforced"
+}

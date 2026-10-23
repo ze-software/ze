@@ -1,0 +1,17 @@
+{
+  "note": "Clause 1 (Proxy-State returned): TestRFC5176ProxyStateReturnedUnmodified both polarities at sendResponse. Clause 2 (no modification of Proxy-State/State/Class) and clause 3 (opaque): + TestRFC5176StateAndClassUnmodifiedProxyStateOpaque, State byte-equal in the CoA-ACK, a 253-octet all-values Proxy-State and an attribute-shaped one returned byte-equal; Class is never echoed by sendResponse, so its assertion holds by construction (no Class can come back altered). Clause 4 (operation independent of Proxy-State content): the same test's two Disconnects differing only in Proxy-State both ACK with 2 teardowns, and - TestRFC5176ProxyStateContentIsNeverRead: an unknown-session Disconnect whose Proxy-State encodes the live session's Acct-Session-Id gets the same NAK code and Error-Cause as without it, 0 teardowns (recorded at handleDisconnect). All units observed red.",
+  "requirement_sha": "92dc63921c5c1b4c",
+  "tests": {
+    "internal/component/l2tp/plugins/authradius/rfc5176_proxy_state_opaque_test.go::TestRFC5176ProxyStateContentIsNeverRead": "b439fffbe386e859",
+    "internal/component/l2tp/plugins/authradius/rfc5176_proxy_state_opaque_test.go::TestRFC5176StateAndClassUnmodifiedProxyStateOpaque": "b439fffbe386e859",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ProxyStateReturnedUnmodified": "2b3357f1f1e8ec93",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ProxyStateReturnedUnmodified#2": "2b3357f1f1e8ec93"
+  },
+  "units": {
+    "internal/component/l2tp/plugins/authradius/rfc5176_proxy_state_opaque_test.go::TestRFC5176ProxyStateContentIsNeverRead": "368eb62e0d2ece49",
+    "internal/component/l2tp/plugins/authradius/rfc5176_proxy_state_opaque_test.go::TestRFC5176StateAndClassUnmodifiedProxyStateOpaque": "dee7eebefe657561",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ProxyStateReturnedUnmodified": "12bea19637fcfb73",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ProxyStateReturnedUnmodified#2": "12bea19637fcfb73"
+  },
+  "verdict": "enforced"
+}

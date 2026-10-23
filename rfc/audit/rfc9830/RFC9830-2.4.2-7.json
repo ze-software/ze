@@ -1,0 +1,13 @@
+{
+  "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDSubTLV. Forbidden: a non-zero Binding SID RESERVED octet. Red: assert.Equal(byte(0), withBSID[1]) and assert.Equal(byte(0), noBSID[1]). Negative: assert.NotEqual(make([]byte, 6), withBSID) beside label 0xFFFFF.",
+  "requirement_sha": "98730ec9022f1d59",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDSubTLV": "450f2364530acf19",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDSubTLV#2": "450f2364530acf19"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDSubTLV": "6eaba5e67a485e4c",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDSubTLV#2": "6eaba5e67a485e4c"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC4301-7.1-3",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc4301_protocol_any_sa_test.go::TestRFC4301ProtocolAnyChildSACarriesAnyPorts",
+    "unit-sha": "2b0387265ad1b48f",
+    "claim-sha": "fd1ff3613e3fecf7",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/child.go::selectorPort",
+    "producer-sha": "4c4b86bbd9da77ac",
+    "break": "body of selectorPort replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4301-7.1-3",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc4301_protocol_any_sa_test.go::TestRFC4301ProtocolAnyChildSARefusesAPort",
+    "unit-sha": "5629435fb160f4c8",
+    "claim-sha": "b789baac395aaa82",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/ts_narrow.go::programmableSelector",
+    "producer-sha": "e5a6e9093bc2fd90",
+    "break": "body of programmableSelector replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4301-7.1-3",
+    "polarity": "positive",
+    "unit": "internal/component/ike/ipsec/rfc4301_spd_management_test.go::TestRFC4301ProtocolAnyEntryCarriesAnyPorts",
+    "unit-sha": "fe0c4014f89ebad8",
+    "claim-sha": "24ab698889eebb3e",
+    "route": "revert",
+    "producer": "internal/component/ike/ipsec/spd_policy.go::parseSPDPolicy",
+    "producer-sha": "633e57f6c14caa5b",
+    "break": "body of parseSPDPolicy replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4301-7.1-3",
+    "polarity": "negative",
+    "unit": "internal/component/ike/ipsec/rfc4301_spd_management_test.go::TestRFC4301ProtocolAnyEntryRefusesAPort",
+    "unit-sha": "f96a80fc730e8766",
+    "claim-sha": "9548a2a28abac864",
+    "route": "revert",
+    "producer": "internal/component/ike/ipsec/spd_policy.go::protocolCarriesPorts",
+    "producer-sha": "e0f46cd44b20a965",
+    "break": "body of protocolCarriesPorts replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,90 @@
+[
+  {
+    "rid": "RFC7311-3.4.3-6",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc7311_direct_link_test.go::TestRFC7311DirectLinkCostNeverWrapsOrDisappears",
+    "unit-sha": "7ec1d86965df8e70",
+    "claim-sha": "405da642cdc0088a",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/forward_aigp.go::applyFactsAIGP",
+    "producer-sha": "247742f0406bce81",
+    "break": "body of applyFactsAIGP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7311-3.4.3-6",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc7311_direct_link_test.go::TestRFC7311DirectLinkCostNeverWrapsOrDisappears",
+    "unit-sha": "7ec1d86965df8e70",
+    "claim-sha": "d8f960fa8b846fb5",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/forward_aigp.go::applyFactsAIGP",
+    "producer-sha": "247742f0406bce81",
+    "break": "body of applyFactsAIGP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7311-3.4.3-6",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire",
+    "unit-sha": "1911988133139e60",
+    "claim-sha": "95fbe871b56981d7",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/forward_aigp.go::applyFactsAIGP",
+    "producer-sha": "247742f0406bce81",
+    "break": "body of applyFactsAIGP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7311-3.4.3-6",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire",
+    "unit-sha": "1911988133139e60",
+    "claim-sha": "345e6b80807b4c06",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/forward_aigp.go::applyFactsAIGP",
+    "producer-sha": "247742f0406bce81",
+    "break": "body of applyFactsAIGP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7311-3.4.3-6",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc7311_source_cost_test.go::TestRFC7311SourceLinkCostReachesRecipient",
+    "unit-sha": "cb933bbfedc30019",
+    "claim-sha": "1f29638407b623d5",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/forward_aigp.go::applyFactsAIGP",
+    "producer-sha": "247742f0406bce81",
+    "break": "body of applyFactsAIGP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7311-3.4.3-6",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc7311_source_cost_test.go::TestRFC7311SourceLinkCostReachesRecipient",
+    "unit-sha": "cb933bbfedc30019",
+    "claim-sha": "1c911a7853d40ba3",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/forward_aigp.go::applyFactsAIGP",
+    "producer-sha": "247742f0406bce81",
+    "break": "body of applyFactsAIGP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7311-3.4.3-6",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc7311_source_cost_test.go::TestRFC7311UnknownCostWithdrawsUntilMetricRecovers",
+    "unit-sha": "664d03dab837485d",
+    "claim-sha": "04918ccd26d9689f",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/forward_aigp.go::applyFactsAIGP",
+    "producer-sha": "247742f0406bce81",
+    "break": "body of applyFactsAIGP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7311-3.4.3-6",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc7311_source_cost_test.go::TestRFC7311UnknownCostWithdrawsUntilMetricRecovers",
+    "unit-sha": "664d03dab837485d",
+    "claim-sha": "89c868b172832729",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/forward_aigp.go::applyFactsAIGP",
+    "producer-sha": "247742f0406bce81",
+    "break": "body of applyFactsAIGP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

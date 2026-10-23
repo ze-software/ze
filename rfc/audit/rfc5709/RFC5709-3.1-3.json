@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-21 after the AuType 2 replay slot became per neighbour (replaySlotFor). Positive TestRFC5709CryptoSequenceNonDecreasingOnInterface signs five Hellos through signPacket across a key change and fails on any sequence below the last sent on eth0 (RFC 2328 D.4.3 (5) 'non-decreasing'). Negative TestOSPFAuthReplay, AuType 2: seq 5 after 11 is dropped with reason replay, per D.5.3 (2) 'less than ... discarded'; equal 11 is accepted. replayedSequence returns seq < last for AuType 2. Both polarities stand.",
+  "requirement_sha": "6e5f4cce4281c3d1",
+  "tests": {
+    "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplay": "daf32645cbe50ccd",
+    "internal/plugins/ospf/rfc5709_crypto_sequence_test.go::TestRFC5709CryptoSequenceNonDecreasingOnInterface": "383680bed2a31b45"
+  },
+  "units": {
+    "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplay": "a7dd2213be26a266",
+    "internal/plugins/ospf/rfc5709_crypto_sequence_test.go::TestRFC5709CryptoSequenceNonDecreasingOnInterface": "2a29c724d3a0ad5f"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: a TLS session in which the router presents no client certificate, or not the configured one. The fixture server uses RequireAndVerifyClientCert, and TestRTRTLSAuthenticatedCache asserts the cache received the configured leaf (bytes.Equal chain[0].Raw) and both intermediates, so a router sending no certificate fails the handshake (t.Fatalf on syncOnce) and one sending another goes red. Negative TestRTRTLSRejectsUnusableClientIdentity: missing CA, missing certificate, missing or mismatched key, wrong EKU and missing IP SAN all go through assertRTRTLSRefused, with a working alternate identity present so a silent substitution goes red.",
+  "requirement_sha": "b4d412cdea8ebe27",
+  "tests": {
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go::TestRTRTLSAuthenticatedCache": "cc96e0e57341d7a8",
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go::TestRTRTLSRejectsUnusableClientIdentity": "cc96e0e57341d7a8"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go::TestRTRTLSAuthenticatedCache": "46740446577221b8",
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go::TestRTRTLSRejectsUnusableClientIdentity": "46b884503ab4ccd2"
+  },
+  "verdict": "enforced"
+}

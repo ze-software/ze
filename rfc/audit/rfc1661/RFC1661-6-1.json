@@ -1,0 +1,31 @@
+{
+  "note": "Sentence: a negotiable option received with an invalid or unrecognized Length SHOULD draw a Configure-Nak carrying the desired option with an appropriate Length and Data. (a) Rejecting or ignoring it, or Naking with a bad Length or value: TestRFC1661LCPInvalidOptionLengthDrawsNak (Length 3, 1, 0) goes red on onlyLCPNak, ParseLCPOptions, len(opts[0].Data) != 2 and value != 1500; TestRFC1661LCPWrongLengthMagicIsNakedNotRejected checks Magic at 4 octets, non-zero; TestRFC1661InvalidOptionLengthDrawsNak and TestRFC1661ClientInvalidOptionLengthDrawsNak cover IPCP and the PPPoE client. Negative: valid Length draws an Ack, unrecognized Type draws a Reject.",
+  "requirement_sha": "a410f8b8a2cad25f",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661InvalidOptionLengthDrawsNak": "2325ea607f732027",
+    "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661InvalidOptionLengthDrawsNak#2": "2325ea607f732027",
+    "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPInvalidOptionLengthDrawsNak": "2325ea607f732027",
+    "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPInvalidOptionLengthDrawsNak#2": "2325ea607f732027",
+    "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPUnrecognizedTypeOutranksInvalidLength": "2325ea607f732027",
+    "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPWrongLengthMagicIsNakedNotRejected": "2325ea607f732027",
+    "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPWrongLengthMagicIsNakedNotRejected#2": "2325ea607f732027",
+    "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661ReplyListsEachOptionTypeOnce": "2325ea607f732027",
+    "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661ReplyListsEachOptionTypeOnce#2": "2325ea607f732027",
+    "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientInvalidOptionLengthDrawsNak": "0d3244b2c125eaa3",
+    "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientInvalidOptionLengthDrawsNak#2": "0d3244b2c125eaa3"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661InvalidOptionLengthDrawsNak": "3a4f39019c412d8c",
+    "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661InvalidOptionLengthDrawsNak#2": "3a4f39019c412d8c",
+    "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPInvalidOptionLengthDrawsNak": "98884b3640a7a1d6",
+    "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPInvalidOptionLengthDrawsNak#2": "98884b3640a7a1d6",
+    "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPUnrecognizedTypeOutranksInvalidLength": "574c3e977e88ab81",
+    "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPWrongLengthMagicIsNakedNotRejected": "f2965136bf3d86a8",
+    "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPWrongLengthMagicIsNakedNotRejected#2": "f2965136bf3d86a8",
+    "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661ReplyListsEachOptionTypeOnce": "a80bf5d77b2ac323",
+    "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661ReplyListsEachOptionTypeOnce#2": "a80bf5d77b2ac323",
+    "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientInvalidOptionLengthDrawsNak": "3e4913d7d90e8bf7",
+    "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientInvalidOptionLengthDrawsNak#2": "3e4913d7d90e8bf7"
+  },
+  "verdict": "enforced"
+}

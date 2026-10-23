@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-12 (independent auditor). SHIFTED by 6e063fb498 (tests: give ten assert-nothing tests a real assertion), whose hunks sit in untagged sibling tests and the import block. The tagged unit is byte-identical (gate-verified) and no helper it calls changed. Verdict stands. initiateIKERekey emits KEi (TestRespondIKERekey) and respondIKERekey refuses a rekey without KE naming KEi; test comment still cites Section 1.3.3 where the sentence is 1.3.2",
+  "requirement_sha": "b883c2b9ab5dc7a6",
+  "tests": {
+    "internal/component/ike/engine/rfc7296_responder_test.go::TestRespondIKERekey": "dc42b3cca38785d0",
+    "internal/component/ike/engine/rfc7296_test.go::TestRespondIKERekeyRejectsMissingKE": "e032382b6fba7977"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7296_responder_test.go::TestRespondIKERekey": "478f1638e9e680a0",
+    "internal/component/ike/engine/rfc7296_test.go::TestRespondIKERekeyRejectsMissingKE": "0e9663c6ad3e960d"
+  },
+  "verdict": "enforced"
+}

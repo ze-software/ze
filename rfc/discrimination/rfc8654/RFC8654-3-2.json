@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC8654-3-2",
+    "polarity": "positive",
+    "unit": "internal/core/bgp/capability/rfc8654_extended_message_test.go::TestRFC8654ExtendedMessageWireIsCode6Length0",
+    "unit-sha": "2b002f74a68b9f73",
+    "claim-sha": "4fa97e6ad8081cf1",
+    "route": "revert",
+    "producer": "internal/core/bgp/capability/capability.go::writeCapabilityTo",
+    "producer-sha": "ed9af8768217102a",
+    "break": "body of writeCapabilityTo replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

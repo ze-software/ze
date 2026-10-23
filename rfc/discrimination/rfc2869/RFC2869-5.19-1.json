@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC2869-5.19-1",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc2869_access_request_service_test.go::TestRFC2869AccessRequestCarriesOneKindOfCredential",
+    "unit-sha": "7282b3abf767cd22",
+    "claim-sha": "d56d504fb2928e23",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authradius/handler.go::buildAuthAttrs",
+    "producer-sha": "e642f001446972f0",
+    "break": "body of buildAuthAttrs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2869-5.19-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc2869_access_request_service_test.go::TestRFC2869AccessRequestCarriesTheCredentialOfItsMethod",
+    "unit-sha": "2adfccc483fbba59",
+    "claim-sha": "41e2c67beeba93d2",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authradius/handler.go::buildAuthAttrs",
+    "producer-sha": "e642f001446972f0",
+    "break": "body of buildAuthAttrs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2869-5.19-1",
+    "polarity": "negative",
+    "unit": "internal/component/radius/rfc2869_credential_types_test.go::TestRFC2869EAPBesideAnotherCredentialIsRefused",
+    "unit-sha": "641d59ebb0965349",
+    "claim-sha": "0f1688424a7e7ae1",
+    "route": "revert",
+    "producer": "internal/component/radius/client.go::oneCredentialType",
+    "producer-sha": "0e2c023e8dcfbae0",
+    "break": "body of oneCredentialType replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2869-5.19-1",
+    "polarity": "positive",
+    "unit": "internal/component/radius/rfc2869_credential_types_test.go::TestRFC2869EAPOnlyAccessRequestIsSent",
+    "unit-sha": "0a3b4e2e6c7ab037",
+    "claim-sha": "130008b26c33829c",
+    "route": "revert",
+    "producer": "internal/component/radius/client.go::oneCredentialType",
+    "producer-sha": "0e2c023e8dcfbae0",
+    "break": "body of oneCredentialType replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

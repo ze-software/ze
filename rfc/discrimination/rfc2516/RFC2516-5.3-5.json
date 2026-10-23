@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2516-5.3-5",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516PADRSessionIDIsZero",
+    "unit-sha": "6d7ce8eeb5aabc25",
+    "claim-sha": "c9ca923fd470b156",
+    "route": "revert",
+    "producer": "internal/component/l2tp/pppoe/discovery.go::BuildPADR",
+    "producer-sha": "4ae8903fbccd9af3",
+    "break": "body of BuildPADR replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2516-5.3-5",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516PADRWithNonZeroSessionIDIsDropped",
+    "unit-sha": "ac063dfed820e2af",
+    "claim-sha": "acf2b52e148b2fc3",
+    "route": "revert",
+    "producer": "internal/component/l2tp/pppoe/server.go::handlePADR",
+    "producer-sha": "153cc5bb411d0861",
+    "break": "body of handlePADR replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC3209-4.2-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/rfc3209_build_test.go::TestBuildPathRoundTrip",
+    "unit-sha": "f3a142494c14dec9",
+    "claim-sha": "8638a94893b0b22c",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/build.go::buildPath",
+    "producer-sha": "4d5759141b333cdd",
+    "break": "body of buildPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3209-4.2-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/rsvpte/rfc3209_relay_test.go::TestRFC3209NoLabelWithoutLabelRequest",
+    "unit-sha": "401e9e3c2cfd1493",
+    "claim-sha": "222d151675961476",
+    "route": "mutant",
+    "producer": "internal/plugins/rsvpte/engine.go::handlePath",
+    "producer-sha": "74cd7424a48c1a00",
+    "break": "line 452: \"!msg.HasLabelRequest\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC3209-4.2-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/rfc3209_signaling_test.go::TestRFC3209IngressPathCarriesLabelRequest",
+    "unit-sha": "17482419814050ea",
+    "claim-sha": "551463ca585ab759",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/wire.go::encodeLabelRequest",
+    "producer-sha": "7190a5b1f904ba22",
+    "break": "body of encodeLabelRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3209-4.2-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/rsvpte/rfc3209_signaling_test.go::TestRFC3209IngressPathNeverWithoutLabelRequest",
+    "unit-sha": "ea322165335731f4",
+    "claim-sha": "8b225a52c4e85c24",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/wire.go::encodeLabelRequest",
+    "producer-sha": "7190a5b1f904ba22",
+    "break": "body of encodeLabelRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

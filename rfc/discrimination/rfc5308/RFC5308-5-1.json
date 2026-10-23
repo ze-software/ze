@@ -1,0 +1,57 @@
+[
+  {
+    "rid": "RFC5308-5-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/spf/rfc5305_max_metric_order_test.go::TestRFC5308FourStepPathPreference",
+    "unit-sha": "57bfe5f3243bd6c4",
+    "claim-sha": "71619b1072170343",
+    "route": "revert",
+    "producer": "internal/plugins/isis/spf/route.go::preferenceRank",
+    "producer-sha": "84bfe24f1aa28418",
+    "break": "body of preferenceRank replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5308-5-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/spf/rfc5305_max_metric_order_test.go::TestRFC5308FourStepPathPreference",
+    "unit-sha": "57bfe5f3243bd6c4",
+    "claim-sha": "79ea735488bee68b",
+    "route": "revert",
+    "producer": "internal/plugins/isis/spf/route.go::preferenceRank",
+    "producer-sha": "84bfe24f1aa28418",
+    "break": "body of preferenceRank replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5308-5-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/spf/rfc5308_ipv6_test.go::TestISISIPv6LevelArbitration",
+    "unit-sha": "9e908dcdece1059b",
+    "claim-sha": "4e65f57ffff0d053",
+    "route": "revert",
+    "producer": "internal/plugins/isis/spf/route.go::preferenceRank",
+    "producer-sha": "84bfe24f1aa28418",
+    "break": "body of preferenceRank replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5308-5-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/spf/rfc5308_route_test.go::TestISISLeakUpDownBit",
+    "unit-sha": "854c3891163a9d5e",
+    "claim-sha": "59a595edc3f9096d",
+    "route": "revert",
+    "producer": "internal/plugins/isis/spf/route.go::preferenceRank",
+    "producer-sha": "84bfe24f1aa28418",
+    "break": "body of preferenceRank replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5308-5-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/spf/rfc5308_route_test.go::TestISISLeakUpDownBit",
+    "unit-sha": "854c3891163a9d5e",
+    "claim-sha": "48e065cbe5190501",
+    "route": "revert",
+    "producer": "internal/plugins/isis/spf/route.go::preferenceRank",
+    "producer-sha": "84bfe24f1aa28418",
+    "break": "body of preferenceRank replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

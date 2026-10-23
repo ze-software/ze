@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4090-5-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090HeadEndSetsLabelRecordingDesired",
+    "unit-sha": "4c1794b0210b015c",
+    "claim-sha": "1dcad4505cc3b074",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/frr.go::sessionAttr",
+    "producer-sha": "4b6d2a4ab23205bb",
+    "break": "body of sessionAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4090-5-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090UnprotectedPathRequestsNoLabelRecording",
+    "unit-sha": "da3e4ef8e5bd9807",
+    "claim-sha": "04829bb198b58cea",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/build.go::buildPath",
+    "producer-sha": "4d5759141b333cdd",
+    "break": "body of buildPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,17 @@
+{
+  "note": "Established ManualStop list (verbatim span). Peer level: startMPLinkNeighbor at counter 3, shutdownNotify -> peer-down for that neighbor (the event on which the RIB deletes the connection's routes; same RIB caveat as 8.2.2-12/-14: the dispatcher translation is not end to end), exactly one 6/2 then EOF, session dropped, three timers stopped, counter 0. Whole daemon: test/reload/signal-stop-cease.ci, SIGTERM on an Established session, seq=3 expect line is the exact Cease 6/2 (functional record with citation observed red on shutdownNotify). Every-state unit pins 6/2 from Established. Negative: KEEPALIVE with no ManualStop at counter 3 -> no peer-down, no EOF in 300 ms, Established, same session, Hold/Keepalive timers running, counter 3 (handleKeepalive break observed red). The negative does not assert the absence of a NOTIFICATION without EOF, a residual the positive's 'exactly one then EOF' bounds.",
+  "requirement_sha": "8d5a38d81ee01cfc",
+  "tests": {
+    "internal/component/bgp/reactor/rfc4271_manualstop_peer_test.go::TestRFC4271EstablishedManualStopReleasesTheConnection": "3893958fa17fe9dc",
+    "internal/component/bgp/reactor/rfc4271_manualstop_peer_test.go::TestRFC4271EstablishedWithoutManualStopKeepsTheConnection": "3893958fa17fe9dc",
+    "internal/component/bgp/reactor/rfc4271_shutdown_notify_test.go::TestShutdownNotifySendsCeaseFromEveryConnectedState": "370f8bb637f5b632",
+    "test/reload/signal-stop-cease.ci": "d0ebc78e112a3e58"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc4271_manualstop_peer_test.go::TestRFC4271EstablishedManualStopReleasesTheConnection": "db7ecc5b18e77647",
+    "internal/component/bgp/reactor/rfc4271_manualstop_peer_test.go::TestRFC4271EstablishedWithoutManualStopKeepsTheConnection": "ed3b22baa86d7900",
+    "internal/component/bgp/reactor/rfc4271_shutdown_notify_test.go::TestShutdownNotifySendsCeaseFromEveryConnectedState": "5711d2b616487c7b",
+    "test/reload/signal-stop-cease.ci": "d0ebc78e112a3e58"
+  },
+  "verdict": "enforced"
+}

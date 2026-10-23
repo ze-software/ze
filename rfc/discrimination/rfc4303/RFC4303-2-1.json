@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC4303-2-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc4301_esp_test.go::TestRFC4301ChildSAIsInstalledAsESP",
+    "unit-sha": "b3fd04e3080b22f4",
+    "claim-sha": "1fbcf2407efd73c3",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/child.go::installChildSA",
+    "producer-sha": "528023fd0f737e3f",
+    "break": "body of installChildSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4303-2-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAProtocolNumber",
+    "unit-sha": "ca8f825ae96efac8",
+    "claim-sha": "86ffc7588a6cf9c5",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/ipsec_install.go::ipsecProtoNumber",
+    "producer-sha": "c05a39ef55486b0e",
+    "break": "body of ipsecProtoNumber replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4303-2-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc4303_esp_probe_linux_test.go::TestRFC4303ESPPacketOnTheWireCarriesProtocol50",
+    "unit-sha": "d9de2775b8a7a723",
+    "claim-sha": "ee692f605c576597",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/ipsec_install.go::ipsecProtoNumber",
+    "producer-sha": "c05a39ef55486b0e",
+    "break": "body of ipsecProtoNumber replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4303-2-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/rfc4303_esp_probe_linux_test.go::TestRFC4303IntegrityOnlyESPOnTheWireIsNotAH",
+    "unit-sha": "29a96203cc427641",
+    "claim-sha": "bd3e84dd9eda8415",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/ipsec_install.go::ipsecProtoNumber",
+    "producer-sha": "c05a39ef55486b0e",
+    "break": "body of ipsecProtoNumber replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

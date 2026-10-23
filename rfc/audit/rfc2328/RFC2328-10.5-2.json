@@ -1,0 +1,13 @@
+{
+  "note": "First verdict 2026-10-21 (round 4 judge). Split from 10.5-1. Through Table.Hello: a Hello listing this router moves an Init neighbor to 2-way (broadcast, not DR/BDR) and a first-heard p2p neighbor to exstart; a Hello not listing it leaves a p2p neighbor in init over three Hellos and takes a 2-way neighbor back to init. Records on table.go::hello.",
+  "requirement_sha": "5e88c1712c1cc4b9",
+  "tests": {
+    "internal/plugins/ospf/neighbor/rfc2328_hello_twoway_test.go::TestRFC2328HelloListingRouterRunsTwoWayReceived": "1da903b1587d0405",
+    "internal/plugins/ospf/neighbor/rfc2328_hello_twoway_test.go::TestRFC2328HelloNotListingRouterRunsOneWayReceived": "1da903b1587d0405"
+  },
+  "units": {
+    "internal/plugins/ospf/neighbor/rfc2328_hello_twoway_test.go::TestRFC2328HelloListingRouterRunsTwoWayReceived": "7cde2c8393211c14",
+    "internal/plugins/ospf/neighbor/rfc2328_hello_twoway_test.go::TestRFC2328HelloNotListingRouterRunsOneWayReceived": "8a03934f0082743e"
+  },
+  "verdict": "enforced"
+}

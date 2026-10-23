@@ -1,0 +1,11 @@
+{
+  "note": "Forbidden: a 2-octet AS number encoded with non-zero high-order octets in the 4-octet Remote AS Number field. Red on it: TestInterAsTERemoteAsTLV (packet/te_interas_test.go) encodes RemoteAS 65001 and asserts `body[8] != 0x00 || body[9] != 0x00` fatal on the wire bytes. Positive only, covered by the row's {single-polarity: positive} marker (uint32 big-endian encode cannot set the high octets for a 2-byte ASN).",
+  "requirement_sha": "36df30317d37fa63",
+  "tests": {
+    "internal/plugins/ospf/packet/rfc5392_te_interas_test.go::TestInterAsTERemoteAsTLV": "df389507e0340ff5"
+  },
+  "units": {
+    "internal/plugins/ospf/packet/rfc5392_te_interas_test.go::TestInterAsTERemoteAsTLV": "9ae5688559b65549"
+  },
+  "verdict": "enforced"
+}

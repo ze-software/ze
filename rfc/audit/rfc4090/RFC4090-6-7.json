@@ -1,0 +1,15 @@
+{
+  "note": "Judged 2026-09-29 (routing child, continuation judge). Row narrowed to the clear clause and its MUST condition; the set clause is RFC4090-6-8 {gap}. With bandwidth desired and a backup that guarantees no bandwidth, the bit is clear: TestRFC4090BandwidthBitNeverClaimed, and TestRFC4090BandwidthBitNotClaimedFromDownstreamOrRepair pushes every input toward setting it (request, downstream claim, repair). TestRFC4090BandwidthDesiredWithoutBackup is a second conforming case. Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 6 and the enforced verdict holds unchanged.",
+  "requirement_sha": "4769a41a5bd6554f",
+  "tests": {
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090BandwidthBitNeverClaimed": "3fb9184431da8daf",
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090BandwidthDesiredWithoutBackup": "3fb9184431da8daf",
+    "internal/plugins/rsvpte/rfc4090_plr_flags_test.go::TestRFC4090BandwidthBitNotClaimedFromDownstreamOrRepair": "8d4223b7e1a9680f"
+  },
+  "units": {
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090BandwidthBitNeverClaimed": "e17b50a5776bbdbe",
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090BandwidthDesiredWithoutBackup": "941f16eb44b3385d",
+    "internal/plugins/rsvpte/rfc4090_plr_flags_test.go::TestRFC4090BandwidthBitNotClaimedFromDownstreamOrRepair": "8662aaa404dbdb81"
+  },
+  "verdict": "enforced"
+}

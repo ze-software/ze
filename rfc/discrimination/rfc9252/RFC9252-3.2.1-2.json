@@ -1,0 +1,80 @@
+[
+  {
+    "rid": "RFC9252-3.2.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/cmd/update/rfc9252_update_text_srv6_transposition_test.go::TestUpdateTextSRv6TranspositionNeedsALabelField",
+    "unit-sha": "a90e487fb37aa1f8",
+    "claim-sha": "a829519826646ed5",
+    "route": "revert",
+    "producer": "internal/core/bgp/attribute/prefixsid.go::checkTranspositionNotApplicable",
+    "producer-sha": "c81962661dbe8dcb",
+    "break": "body of checkTranspositionNotApplicable replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9252-3.2.1-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/cmd/update/rfc9252_update_text_srv6_transposition_test.go::TestUpdateTextSRv6TranspositionNeedsALabelField",
+    "unit-sha": "a90e487fb37aa1f8",
+    "claim-sha": "8ba2c94a28459e29",
+    "route": "revert",
+    "producer": "internal/core/bgp/attribute/prefixsid.go::checkTranspositionNotApplicable",
+    "producer-sha": "c81962661dbe8dcb",
+    "break": "body of checkTranspositionNotApplicable replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9252-3.2.1-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rib/rfc9252_srv6_admission_test.go::TestSRv6TranspositionOnFamilyWithoutLabelIsIneligible",
+    "unit-sha": "1700afc655250005",
+    "claim-sha": "5a2344273206ab63",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::srv6SIDValidForFamily",
+    "producer-sha": "cb0ea3114daedf04",
+    "break": "body of srv6SIDValidForFamily replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9252-3.2.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/rfc9252_srv6_admission_test.go::TestSRv6TranspositionOnFamilyWithoutLabelIsIneligible",
+    "unit-sha": "1700afc655250005",
+    "claim-sha": "c042ff404af9fdde",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::srv6SIDValidForFamily",
+    "producer-sha": "cb0ea3114daedf04",
+    "break": "body of srv6SIDValidForFamily replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9252-3.2.1-2",
+    "polarity": "positive",
+    "unit": "internal/core/bgp/attribute/rfc9252_prefixsid_origin_test.go::TestCheckSRv6TranspositionForFamily",
+    "unit-sha": "02c63baefd5d5edd",
+    "claim-sha": "e54762a08cfa1052",
+    "route": "revert",
+    "producer": "internal/core/bgp/attribute/prefixsid.go::checkTranspositionNotApplicable",
+    "producer-sha": "c81962661dbe8dcb",
+    "break": "body of checkTranspositionNotApplicable replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9252-3.2.1-2",
+    "polarity": "negative",
+    "unit": "internal/core/bgp/attribute/rfc9252_prefixsid_origin_test.go::TestCheckSRv6TranspositionForFamily",
+    "unit-sha": "02c63baefd5d5edd",
+    "claim-sha": "cb23533a51df2f44",
+    "route": "revert",
+    "producer": "internal/core/bgp/attribute/prefixsid.go::checkTranspositionNotApplicable",
+    "producer-sha": "c81962661dbe8dcb",
+    "break": "body of checkTranspositionNotApplicable replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9252-3.2.1-2",
+    "polarity": "negative",
+    "unit": "test/parse/srv6-transposition-refused-unicast.ci",
+    "unit-sha": "bf22b072cb5379b7",
+    "claim-sha": "daa81fcae76f38c5",
+    "route": "revert",
+    "producer": "internal/core/bgp/attribute/prefixsid.go::checkTranspositionNotApplicable",
+    "producer-sha": "c81962661dbe8dcb",
+    "break": "body of checkTranspositionNotApplicable replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+    "citation": "expect=stdout:contains=invalid srv6 SID structure for ipv6/unicast routes: transposition length 16 and offset 64 must both be 0"
+  }
+]

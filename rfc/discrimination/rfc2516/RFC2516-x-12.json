@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC2516-x-12",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516ErrorTagsCarryNoData",
+    "unit-sha": "cbdff2d08835cd66",
+    "claim-sha": "965d6582bfbf7dec",
+    "route": "revert",
+    "producer": "internal/component/l2tp/pppoe/discovery.go::BuildPADSError",
+    "producer-sha": "83b4062b1bac8da6",
+    "break": "body of BuildPADSError replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

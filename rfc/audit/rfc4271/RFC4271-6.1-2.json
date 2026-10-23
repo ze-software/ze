@@ -1,0 +1,13 @@
+{
+  "note": "Re-read 2026-10-01 (c8 judge): the only change under this verdict is the deleted RFC4271-8.2.2-18 tag line in TestRFC4271OpenSentWellFormedOpenKeepsTheConnection's doc comment (8.2.2-18 retired into 8.2.2-8); the unit's body and assertions are unchanged. All-zero marker and a marker with one 0xFE octet each draw exactly one NOTIFICATION 1/1 with empty Data from a running Peer in OpenSent, then EOF; an all-ones marker (well-formed OPEN) draws no NOTIFICATION. notifyHeaderErr break observed red (positive), handleOpen break observed red (negative). Re-read 2026-10-01 (c10 judge): the only change under this verdict is a tag comment line for another id (RFC4271-6.7-1 / RFC4271-Security-1 added, RFC4271-9.1.2.1-1 removed) in the unit's doc comment; every assertion is byte-identical, so the judgement stands.",
+  "requirement_sha": "add307d1371801d5",
+  "tests": {
+    "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271MessageHeaderErrorIsReported": "fec6a921b0bf494e",
+    "internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go::TestRFC4271OpenSentWellFormedOpenKeepsTheConnection": "56ab87e3b9f2067a"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271MessageHeaderErrorIsReported": "9bc76112384a3dc9",
+    "internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go::TestRFC4271OpenSentWellFormedOpenKeepsTheConnection": "401634b530ec6eaa"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,17 @@
+{
+  "note": "Rejudged 2026-09-30 (ike-eap judge). TestRFC7296IKEOnPort4500CarriesTheZeroMarker sends through sendRaw (the shared post-establishment send path) on an SA floated to 4500 and reads the raw UDP payload at the peer: exactly 00000000 followed by the IKE message byte for byte, so a missing marker or anything between the UDP header and the marker goes red. TestRFC7296IKEOnPort500CarriesNoMarker shows the same send on port 500 carries the message unchanged, so the zeros are conditional on 4500. Both carry observed-red records on established.go sendRaw. HEAD tags on transport TestNonESPMarker/TestNonESPMarkerESPPacket (helpers in isolation) are supplementary and hold no record.",
+  "requirement_sha": "1132d646ea62c03e",
+  "tests": {
+    "internal/component/ike/engine/rfc7296_nat_port4500_test.go::TestRFC7296IKEOnPort4500CarriesTheZeroMarker": "3a4d8f90e5724d15",
+    "internal/component/ike/engine/rfc7296_nat_port4500_test.go::TestRFC7296IKEOnPort500CarriesNoMarker": "3a4d8f90e5724d15",
+    "internal/component/ike/transport/nat_test.go::TestNonESPMarker": "5e9bb9c1bf045ab6",
+    "internal/component/ike/transport/nat_test.go::TestNonESPMarkerESPPacket": "5e9bb9c1bf045ab6"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7296_nat_port4500_test.go::TestRFC7296IKEOnPort4500CarriesTheZeroMarker": "899c4f68c3fbea8c",
+    "internal/component/ike/engine/rfc7296_nat_port4500_test.go::TestRFC7296IKEOnPort500CarriesNoMarker": "aaf5c6c364165e6f",
+    "internal/component/ike/transport/nat_test.go::TestNonESPMarker": "3fbaf9d3acd139e0",
+    "internal/component/ike/transport/nat_test.go::TestNonESPMarkerESPPacket": "bad94cfe12331e23"
+  },
+  "verdict": "enforced"
+}

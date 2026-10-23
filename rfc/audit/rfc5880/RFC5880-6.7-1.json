@@ -1,0 +1,15 @@
+{
+  "note": "Judge 2026-09-28. Positive: TestRFC5880BothSHA1VariantsSupported round-trips types 4 and 5. Negative: TestRFC5880SHA1TypesEnforcedDistinctly shows each SHA1 type is really implemented: a flipped hash is refused for each, each refuses the other's section, and a repeated sequence is accepted by 4 and refused by 5, so a stub or an aliased Meticulous type goes red. The older negative (types 0/6/200 refused) stays tagged but does not violate this row.",
+  "requirement_sha": "88741c99034f89ec",
+  "tests": {
+    "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880SHA1TypesEnforcedDistinctly": "69049dc5fe6d5288",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880BothSHA1VariantsSupported": "5a25c74cc2d9bd47",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880UnsupportedAuthTypesRejected": "5a25c74cc2d9bd47"
+  },
+  "units": {
+    "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880SHA1TypesEnforcedDistinctly": "b54555c1cbfd58a9",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880BothSHA1VariantsSupported": "afdaf0575b61ff27",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880UnsupportedAuthTypesRejected": "0f0fb4eecb8c1e40"
+  },
+  "verdict": "enforced"
+}

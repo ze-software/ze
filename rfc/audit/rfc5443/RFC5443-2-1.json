@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-10-21. The show-path helper tags in ldp_sync_test.go are gone. OSPFv2: originated Router-LSA decoded, not synchronized and hold-down give the max cost, synchronized gives the configured 100 (records applyLDPSyncOverride). OSPFv3: rfc5443_origination_v6_test.go, the same on the OSPFv3 Router-LSA (records v6RouterLSABody).",
+  "requirement_sha": "db5684738fd31f75",
+  "tests": {
+    "internal/plugins/ospf/rfc5443_origination_test.go::TestRFC5443NotOperationalLinkAdvertisedAtMaxCost": "c9958c38f3f744bf",
+    "internal/plugins/ospf/rfc5443_origination_test.go::TestRFC5443OperationalLinkAdvertisedAtConfiguredCost": "c9958c38f3f744bf",
+    "internal/plugins/ospf/rfc5443_origination_v6_test.go::TestRFC5443V6NotOperationalLinkAdvertisedAtMaxCost": "0d435428e2245559",
+    "internal/plugins/ospf/rfc5443_origination_v6_test.go::TestRFC5443V6OperationalLinkAdvertisedAtConfiguredCost": "0d435428e2245559"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc5443_origination_test.go::TestRFC5443NotOperationalLinkAdvertisedAtMaxCost": "d0ddcbc7f5ff6173",
+    "internal/plugins/ospf/rfc5443_origination_test.go::TestRFC5443OperationalLinkAdvertisedAtConfiguredCost": "ed27e3c78d1df117",
+    "internal/plugins/ospf/rfc5443_origination_v6_test.go::TestRFC5443V6NotOperationalLinkAdvertisedAtMaxCost": "ba6ca488e4cf9f2a",
+    "internal/plugins/ospf/rfc5443_origination_v6_test.go::TestRFC5443V6OperationalLinkAdvertisedAtConfiguredCost": "28b60760f1441442"
+  },
+  "verdict": "enforced"
+}

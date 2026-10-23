@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-09-29 (independent judge). The operator surface is now driven: TestRFC3623OperatorTurnsUnplannedRecoveryOff parses 'graceful-restart restarter support' from configuration text and runs maybeUnplannedRestart: planned-and-unplanned enters in-restart, planned and disabled do not. A parser mapping every value to planned-and-unplanned reddens the negative (revert records on parseGRSupport).",
+  "requirement_sha": "91a0b2119d6ad629",
+  "tests": {
+    "internal/plugins/ospf/rfc3623_gr_unplanned_test.go::TestUnplannedDisabledByDefault": "798a0b6d7dc27944",
+    "internal/plugins/ospf/rfc3623_gr_unplanned_test.go::TestUnplannedGraceBeforeHello": "798a0b6d7dc27944",
+    "internal/plugins/ospf/rfc3623_grace_origination_test.go::TestRFC3623OperatorTurnsUnplannedRecoveryOff": "58f3a76a57e8a603",
+    "internal/plugins/ospf/rfc3623_grace_origination_test.go::TestRFC3623OperatorTurnsUnplannedRecoveryOff#2": "58f3a76a57e8a603"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc3623_gr_unplanned_test.go::TestUnplannedDisabledByDefault": "4533b3807e534a1e",
+    "internal/plugins/ospf/rfc3623_gr_unplanned_test.go::TestUnplannedGraceBeforeHello": "554a91f1f888f93c",
+    "internal/plugins/ospf/rfc3623_grace_origination_test.go::TestRFC3623OperatorTurnsUnplannedRecoveryOff": "4398817bf227f287",
+    "internal/plugins/ospf/rfc3623_grace_origination_test.go::TestRFC3623OperatorTurnsUnplannedRecoveryOff#2": "4398817bf227f287"
+  },
+  "verdict": "enforced"
+}

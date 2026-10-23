@@ -1,0 +1,13 @@
+{
+  "note": "Clauses: the peer terminates and indicates failure; MUST silently discard Success (the Failure discard is a MAY). Termination: the EAP-Failure fails unless res.Err is ErrEAPFailure. Success discard: a later Success fails on !Discarded, Done, a non-zero MSK or Succeeded(). Positive: a completed peer concludes on the Success (Done false or Discarded fails).",
+  "requirement_sha": "1f04255ee9914a5a",
+  "tests": {
+    "internal/core/eap/rfc3748_result_indication_test.go::TestRFC3748PeerDiscardsASuccessAfterItEndedTheSession": "b4125e051769fac5",
+    "internal/core/eap/rfc3748_result_indication_test.go::TestRFC3748PeerDiscardsASuccessAfterItEndedTheSession#2": "b4125e051769fac5"
+  },
+  "units": {
+    "internal/core/eap/rfc3748_result_indication_test.go::TestRFC3748PeerDiscardsASuccessAfterItEndedTheSession": "f936d48a9047be7d",
+    "internal/core/eap/rfc3748_result_indication_test.go::TestRFC3748PeerDiscardsASuccessAfterItEndedTheSession#2": "f936d48a9047be7d"
+  },
+  "verdict": "enforced"
+}

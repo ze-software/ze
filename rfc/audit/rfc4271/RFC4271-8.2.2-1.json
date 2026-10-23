@@ -1,0 +1,15 @@
+{
+  "note": "Forbidden: hold expiry with no Hold Timer Expired NOTIFICATION. TestRFC4271HoldTimerExpirySendsNotification reads the production hold-expiry write and asserts 21 octets, type NOTIFICATION, code 4, subcode 0; it is red on a bare close or another code. Negative: at 1ms before expiry nothing is written, red on a NOTIFICATION sent early. deadpeer-holddown.ci is byte-exact.",
+  "requirement_sha": "0fcc2a581de2f547",
+  "tests": {
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldTimerExpirySendsNotification": "94aa07ebd53dcc5b",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldTimerNotYetExpiredSendsNoNotification": "94aa07ebd53dcc5b",
+    "test/plugin/deadpeer-holddown.ci": "387298137fcf4127"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldTimerExpirySendsNotification": "a5f5277db6e73360",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldTimerNotYetExpiredSendsNoNotification": "d9b1115838dba12a",
+    "test/plugin/deadpeer-holddown.ci": "387298137fcf4127"
+  },
+  "verdict": "enforced"
+}

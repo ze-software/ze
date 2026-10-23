@@ -1,0 +1,13 @@
+{
+  "note": "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830NoSemanticVerification. ParseTunnelEncap is the only receive parser of attribute 23 (wire.go knownAttrParsers) and Preference the only field ze consumes. Forbidden: refusing, or not using, an SR Policy update because a field value is semantically wrong. Red: require.NoError(ParseTunnelEncap), require.NoError(SubTLVs) with assert.Len(stlvs, 5), assert.Equal(uint32(4242), pref) and the byte-identical round trip, over weight 0, reserved label 3, a SID structure totalling 255, ENLP 99 and an empty segment list. Negative: framing errors are still refused (require.Error twice), so the skip is limited to field semantics. A verification with no observable effect cannot be asserted; every effect it could have is.",
+  "requirement_sha": "7fad404cb38bfcd1",
+  "tests": {
+    "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830NoSemanticVerification": "a929cacac0d74fc0",
+    "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830NoSemanticVerification#2": "a929cacac0d74fc0"
+  },
+  "units": {
+    "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830NoSemanticVerification": "41366c82bbaff6f1",
+    "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830NoSemanticVerification#2": "41366c82bbaff6f1"
+  },
+  "verdict": "enforced"
+}

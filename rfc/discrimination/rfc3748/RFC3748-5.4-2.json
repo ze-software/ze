@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC3748-5.4-2",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc3748_clause_test.go::TestRFC3748MD5ChallengeServerRefusesAWrongValue",
+    "unit-sha": "6f6eaedbafba964a",
+    "claim-sha": "c727ebfc7f990d33",
+    "route": "revert",
+    "producer": "internal/core/eap/eap_md5challenge.go::Process",
+    "producer-sha": "1a6341e01028af17",
+    "break": "body of Process replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3748-5.4-2",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc3748_clause_test.go::TestRFC3748MD5ChallengeServerRefusesAWrongValue",
+    "unit-sha": "6f6eaedbafba964a",
+    "claim-sha": "89e4ce963dfc7af8",
+    "route": "revert",
+    "producer": "internal/core/eap/eap_md5challenge.go::Process",
+    "producer-sha": "1a6341e01028af17",
+    "break": "body of Process replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3748-5.4-2",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc3748_md5challenge_test.go::TestRFC3748MD5ChallengeSupportedByBothRoles",
+    "unit-sha": "76fc35f6158ff890",
+    "claim-sha": "74a84c458010f746",
+    "route": "revert",
+    "producer": "internal/core/eap/eap_md5challenge.go::Process",
+    "producer-sha": "1a6341e01028af17",
+    "break": "body of Process replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

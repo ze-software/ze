@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden behaviour: a link advertised at 2^24-1 being walked by normal SPF. TestISISSPFMaxLinkMetricExcluded builds A-B at 16777215 and t.Errorf fires if B or C appears in the SPF result; the positive half proves 16777214 is still relaxed (B at 16777214, C at 16777224).",
+  "requirement_sha": "0c7c73f938d5fbbb",
+  "tests": {
+    "internal/plugins/isis/spf/spf_test.go::TestISISSPFMaxLinkMetricExcluded": "8ac1834d7b1eafca",
+    "internal/plugins/isis/spf/spf_test.go::TestISISSPFMaxLinkMetricExcluded#2": "8ac1834d7b1eafca"
+  },
+  "units": {
+    "internal/plugins/isis/spf/spf_test.go::TestISISSPFMaxLinkMetricExcluded": "bded38fed2fb216a",
+    "internal/plugins/isis/spf/spf_test.go::TestISISSPFMaxLinkMetricExcluded#2": "bded38fed2fb216a"
+  },
+  "verdict": "enforced"
+}

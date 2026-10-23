@@ -1,0 +1,13 @@
+{
+  "note": "Rejudged 2026-10-21 over the current tags, units and records. Unchanged assertions in TestOSPFNSSANbitMismatch: N-agreeing Hello accepted, N-clear Hello on an NSSA interface dropped before adjacency, so disagreement on N prevents the adjacency.",
+  "requirement_sha": "bed79e3dd5e8dddb",
+  "tests": {
+    "internal/plugins/ospf/iface/rfc3101_hello_nssa_test.go::TestOSPFNSSANbitMismatch": "c51400cc948bb21a",
+    "internal/plugins/ospf/iface/rfc3101_hello_nssa_test.go::TestOSPFNSSANbitMismatch#2": "c51400cc948bb21a"
+  },
+  "units": {
+    "internal/plugins/ospf/iface/rfc3101_hello_nssa_test.go::TestOSPFNSSANbitMismatch": "5ce61578ff0d72b4",
+    "internal/plugins/ospf/iface/rfc3101_hello_nssa_test.go::TestOSPFNSSANbitMismatch#2": "5ce61578ff0d72b4"
+  },
+  "verdict": "enforced"
+}

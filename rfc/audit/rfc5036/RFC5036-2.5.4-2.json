@@ -1,0 +1,13 @@
+{
+  "note": "OPENSENT common guard in Session.processMessages accepts only Initialization. OpenSentOtherMessageRejected uses twelve other types including KeepAlive, valid Shutdown/Mapping/Address and both unknown U bits; requires fatal Shutdown with offending reference, EOF, no SessionUp and no applied mapping/address. The live acceptable Initialization control requires a KeepAlive response and OPENREC, then peer KeepAlive reaches Operational without Notification or close (strict timeout). This judges both complete table branches, not solely non-establishment.",
+  "requirement_sha": "a8c162467598e293",
+  "tests": {
+    "internal/plugins/ldp/rfc5036_openrec_test.go::TestRFC5036OpenReceivedKeepAliveEstablishesSession": "79faa4a67fd8bdbe",
+    "internal/plugins/ldp/rfc5036_openrec_test.go::TestRFC5036OpenSentOtherMessageRejected": "79faa4a67fd8bdbe"
+  },
+  "units": {
+    "internal/plugins/ldp/rfc5036_openrec_test.go::TestRFC5036OpenReceivedKeepAliveEstablishesSession": "0c5fee492c76e017",
+    "internal/plugins/ldp/rfc5036_openrec_test.go::TestRFC5036OpenSentOtherMessageRejected": "8dc314b38aebde05"
+  },
+  "verdict": "enforced"
+}

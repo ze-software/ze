@@ -1,0 +1,13 @@
+{
+  "note": "a successful and a rejected eap-mschapv2 login put an EAP-Message and no User-Password or CHAP-Password on every request, and the rejection produces no weaker retry",
+  "requirement_sha": "293e15fa7692bbf7",
+  "tests": {
+    "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapDoesNotDowngradeAfterARejection": "2b1b1ce908f454a5",
+    "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapNeverSendsAPasswordCredential": "2b1b1ce908f454a5"
+  },
+  "units": {
+    "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapDoesNotDowngradeAfterARejection": "c32369e026aeff83",
+    "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapNeverSendsAPasswordCredential": "5282b6fb9adab362"
+  },
+  "verdict": "enforced"
+}

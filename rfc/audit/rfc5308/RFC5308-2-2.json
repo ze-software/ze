@@ -1,0 +1,17 @@
+{
+  "note": "(a) forbidden: a TLV 236 prefix advertised with a metric larger than MAX_V6_PATH_METRIC taking part in normal SPF. (b) spf TestRFC5308PrefixAboveMaxV6PathMetricNotConsidered: node 3 (distance 10) advertises 2001:db8:9::/64 at 50 (positive, installed at 60 via node 3); node 2 (distance 10) advertises the same prefix at 0xFE000001 and 2001:db8:8::/64 only at 0xFFFFFFFF (negative): the shared prefix keeps one next hop at 60 and the lone prefix is absent. The lone prefix is the discriminating input: any BuildRoutesV6 that considered it would install it (at MAX after clampMetric saturation, or at a wrapped cost without it). The per-entry filter (ipv6.go, p.Metric > MaxV6PathMetric) and the accumulated-cost ceiling (total >= MaxPathMetric) are redundant for every over-max input, so no input isolates the filter alone; removing either one alone leaves Ze compliant, and the test asserts the stack outcome the RFC states. Recorded +/- on BuildRoutesV6.",
+  "requirement_sha": "f374a836178064c5",
+  "tests": {
+    "internal/plugins/isis/spf/rfc5305_max_metric_order_test.go::TestRFC5308PrefixAboveMaxV6PathMetricNotConsidered": "f8fc7ede978a8548",
+    "internal/plugins/isis/spf/rfc5305_max_metric_order_test.go::TestRFC5308PrefixAboveMaxV6PathMetricNotConsidered#2": "f8fc7ede978a8548",
+    "internal/plugins/isis/spf/rfc5308_ipv6_test.go::TestISISIPv6MetricAboveMaxIgnored": "f7be3a425e080e0c",
+    "internal/plugins/isis/spf/rfc5308_ipv6_test.go::TestISISIPv6MetricAboveMaxIgnored#2": "f7be3a425e080e0c"
+  },
+  "units": {
+    "internal/plugins/isis/spf/rfc5305_max_metric_order_test.go::TestRFC5308PrefixAboveMaxV6PathMetricNotConsidered": "537c1050aceeaa64",
+    "internal/plugins/isis/spf/rfc5305_max_metric_order_test.go::TestRFC5308PrefixAboveMaxV6PathMetricNotConsidered#2": "537c1050aceeaa64",
+    "internal/plugins/isis/spf/rfc5308_ipv6_test.go::TestISISIPv6MetricAboveMaxIgnored": "bab6f7fe54f4e893",
+    "internal/plugins/isis/spf/rfc5308_ipv6_test.go::TestISISIPv6MetricAboveMaxIgnored#2": "bab6f7fe54f4e893"
+  },
+  "verdict": "enforced"
+}

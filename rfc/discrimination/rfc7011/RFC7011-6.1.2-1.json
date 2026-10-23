@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7011-6.1.2-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/flowexport/ipfix/rfc7011_export_test.go::TestRFC7011AddressOctetsNetworkByteOrder",
+    "unit-sha": "a98c42037c9dc324",
+    "claim-sha": "88e8804bfe328b9f",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/ipfix/flow_data.go::writeFlowRecord",
+    "producer-sha": "a72c5a60ab6f34ea",
+    "break": "body of writeFlowRecord replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7011-6.1.2-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/flowexport/ipfix/rfc7011_export_test.go::TestRFC7011IPv4NeverWidenedToSixteenOctets",
+    "unit-sha": "2370cd25545f9080",
+    "claim-sha": "2ba7895cdbfeb48a",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/ipfix/flow_data.go::writeFlowDataSet",
+    "producer-sha": "637c9950899fd79b",
+    "break": "body of writeFlowDataSet replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

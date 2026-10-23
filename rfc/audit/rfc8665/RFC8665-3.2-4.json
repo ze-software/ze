@@ -1,0 +1,11 @@
+{
+  "note": "single polarity (annotated, argument holds: srBuildSRGB emits one RITLV per configured range and cannot pack two). TestRFC8665EachRangeInItsOwnTLV requires two type-9 TLVs from two ranges, each decoding as a single-sub-TLV range with the expected base in order, red on packing",
+  "requirement_sha": "c3398cf463352f50",
+  "tests": {
+    "internal/plugins/ospf/rfc8665_test.go::TestRFC8665EachRangeInItsOwnTLV": "7f2eeb6dac97643c"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc8665_test.go::TestRFC8665EachRangeInItsOwnTLV": "37c0e453298487b6"
+  },
+  "verdict": "enforced"
+}

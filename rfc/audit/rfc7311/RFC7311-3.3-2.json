@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: an EBGP (non-confederation) session defaulting AIGP_SESSION to enabled. TestAIGPSessionReceiveBoundary case external-default (peer AS 65002, local 65001, AIGPSession nil) asserts require.Equal(false, present) for AIGP after enforceRFC7606, which goes red on an enabled default; external-enabled shows the item is honoured when set; internal-default keeps AIGP, so the check is not a blanket strip.",
+  "requirement_sha": "bf6f97ece0e68f9d",
+  "tests": {
+    "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPSessionReceiveBoundary": "11e7d83c10c1bca3",
+    "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPSessionReceiveBoundary#2": "11e7d83c10c1bca3"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPSessionReceiveBoundary": "5c6e71448aa83dd0",
+    "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPSessionReceiveBoundary#2": "5c6e71448aa83dd0"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-10-21. TestOSPFPurgeRetainedForExchangeOrLoading now drives Exchange and Loading each on a fresh database: the purged LSA is kept while that neighbor exists and removed once it leaves, so a guard holding for one state only goes red (record on hasExchangeOrLoadingForKey, the clause b guard). Clause a and the dedicated rfc2328_maxage_exchange_test pair unchanged; positives recorded on deletePurgedIfAcked.",
+  "requirement_sha": "c44a7407d2818023",
+  "tests": {
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFASExternalPurgeRetainedAcrossAreas": "818da1eec578ea28",
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFPurgeRetainedForExchangeOrLoading": "818da1eec578ea28",
+    "internal/plugins/ospf/lsdb/rfc2328_maxage_exchange_test.go::TestRFC2328MaxAgeKeptWhileNeighborInExchangeOrLoading": "207148933d5942ce",
+    "internal/plugins/ospf/lsdb/rfc2328_maxage_exchange_test.go::TestRFC2328MaxAgeRemovedOnceNoNeighborExchangingOrLoading": "207148933d5942ce"
+  },
+  "units": {
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFASExternalPurgeRetainedAcrossAreas": "7eb73e02547a5a89",
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFPurgeRetainedForExchangeOrLoading": "3600dfdeaff08e85",
+    "internal/plugins/ospf/lsdb/rfc2328_maxage_exchange_test.go::TestRFC2328MaxAgeKeptWhileNeighborInExchangeOrLoading": "82eea7ef3f6a7a01",
+    "internal/plugins/ospf/lsdb/rfc2328_maxage_exchange_test.go::TestRFC2328MaxAgeRemovedOnceNoNeighborExchangingOrLoading": "a4b620aed4c475d7"
+  },
+  "verdict": "enforced"
+}

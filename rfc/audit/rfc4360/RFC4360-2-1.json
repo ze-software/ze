@@ -1,0 +1,17 @@
+{
+  "note": "Judge 2026-09-30. Rib TestRFC4360ExtendedCommunitiesEqualOnlyOnAllEightOctets drives extCommunitiesEqual (rib_replay.go), the comparator that decides whether a replayed route's communities changed: + an octet-equal copy is equal; - flipping any one of the 8 octets makes it unequal. ExtendedCommunity is [8]byte, so equality elsewhere is whole-value by type; filter plugins match by policy, not equality, and are not driven.",
+  "requirement_sha": "3e688b6744c4f280",
+  "tests": {
+    "internal/component/bgp/plugins/rib/rfc4360_equality_test.go::TestRFC4360ExtendedCommunitiesEqualOnlyOnAllEightOctets": "b91c64811b214f64",
+    "internal/component/bgp/plugins/rib/rfc4360_equality_test.go::TestRFC4360ExtendedCommunitiesEqualOnlyOnAllEightOctets#2": "b91c64811b214f64",
+    "internal/core/bgp/attribute/community_test.go::TestExtendedCommunityEquality": "34fcdbe05b3de369",
+    "internal/core/bgp/attribute/community_test.go::TestExtendedCommunityEquality#2": "34fcdbe05b3de369"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rib/rfc4360_equality_test.go::TestRFC4360ExtendedCommunitiesEqualOnlyOnAllEightOctets": "f86edae70afc8d20",
+    "internal/component/bgp/plugins/rib/rfc4360_equality_test.go::TestRFC4360ExtendedCommunitiesEqualOnlyOnAllEightOctets#2": "f86edae70afc8d20",
+    "internal/core/bgp/attribute/community_test.go::TestExtendedCommunityEquality": "91518afa822287a7",
+    "internal/core/bgp/attribute/community_test.go::TestExtendedCommunityEquality#2": "91518afa822287a7"
+  },
+  "verdict": "enforced"
+}

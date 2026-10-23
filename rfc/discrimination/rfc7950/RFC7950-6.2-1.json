@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC7950-6.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadAccepted",
+    "unit-sha": "d21091dc1c116998",
+    "claim-sha": "c6052c58bd35fe92",
+    "route": "revert",
+    "producer": "internal/component/config/yang/loader.go::AddModuleFromText",
+    "producer-sha": "4887216187fdb0bc",
+    "break": "body of AddModuleFromText replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

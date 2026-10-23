@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: returning a value for a parameter the server has no value for (neither configured nor a Host Requirements default). TestUnconfiguredParametersOmitted builds a handler with no router, DNS or domain name configured; the negative tag sends a DISCOVER whose parameter request list explicitly names optRouter, optDNS and optDomainName and asserts askedCodes[code] is false for each, so any emitted option for them (including an empty or zero-valued one, since replyOptionCodes records presence by code) goes red. The positive tag asserts the same absence for an unrequested DISCOVER. None of the three has a Host Requirements default, so the ELSE branch applies.",
+  "requirement_sha": "181063877d093e23",
+  "tests": {
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestUnconfiguredParametersOmitted": "8365c04cdfc2a046",
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestUnconfiguredParametersOmitted#2": "8365c04cdfc2a046"
+  },
+  "units": {
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestUnconfiguredParametersOmitted": "e8e630b69239f509",
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestUnconfiguredParametersOmitted#2": "e8e630b69239f509"
+  },
+  "verdict": "enforced"
+}

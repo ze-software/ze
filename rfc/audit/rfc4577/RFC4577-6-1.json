@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-09-30 (independent judge): stale only because the 6-2 tag comment was removed from TestRFC4577CryptographicAuthImplemented; its body and the 6-1 tags are unchanged. Forbidden: a router without working OSPF cryptographic authentication. TestRFC4577CryptographicAuthImplemented signs a Hello with the configured key (md5 and hmac-sha-256) and asserts authStore.verify accepts it; TestRFC4577CryptographicAuthRejectsForgery asserts a tampered digest and a packet signed under another secret are refused, red on an accept-all verifier. The operator SHOULD is row 6-2.",
+  "requirement_sha": "c8f72acc3b4a7f22",
+  "tests": {
+    "internal/plugins/ospf/rfc4577_test.go::TestRFC4577CryptographicAuthImplemented": "836206f74bfea702",
+    "internal/plugins/ospf/rfc4577_test.go::TestRFC4577CryptographicAuthRejectsForgery": "836206f74bfea702"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc4577_test.go::TestRFC4577CryptographicAuthImplemented": "a0c42f0e7c22efbd",
+    "internal/plugins/ospf/rfc4577_test.go::TestRFC4577CryptographicAuthRejectsForgery": "53b01dbc52e03fe0"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5310-3.2-3",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/rfc5310_auth_scope_test.go::TestRFC5310HelloRefusesAreaAndDomainStrings",
+    "unit-sha": "560170ef0dd6b05e",
+    "claim-sha": "fef5fb72bc9f1c84",
+    "route": "revert",
+    "producer": "internal/plugins/isis/auth_wiring.go::verifyFrame",
+    "producer-sha": "8c136abedada6b8d",
+    "break": "body of verifyFrame replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5310-3.2-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/rfc5310_auth_scope_test.go::TestRFC5310HelloUsesLinkString",
+    "unit-sha": "228a4adf8acdca32",
+    "claim-sha": "98d428687eae8ccc",
+    "route": "revert",
+    "producer": "internal/plugins/isis/auth_wiring.go::signHelloPDU",
+    "producer-sha": "98acd0f270ef3bf5",
+    "break": "body of signHelloPDU replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

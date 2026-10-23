@@ -1,0 +1,19 @@
+{
+  "note": "vrrp judge 2026-09-29 (independent): TestPromotionSetsAdverTimerToOwnInterval: a VRRPv2 Backup's live expiry yields exactly SendAdvert{100,2000}, InstallVIPs, AnnounceFailover, StartAdvertTimer{2s}, Backup->Master; an unarmed generation promotes nothing. TestAnnounceMasterFramesPerAddress checks each announced frame against literals: broadcast ARP request per VIP, sender and target hardware address 00-00-5e-00-01-0a, target protocol address the VIP, exactly the VIP set.",
+  "requirement_sha": "a7d9fda5544e914c",
+  "tests": {
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMMasterDownPromotion": "52489f84876bdb6f",
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMStaleTimerGenerationIgnored": "52489f84876bdb6f",
+    "internal/plugins/vrrp/fsm/rfc_verdict_test.go::TestPromotionSetsAdverTimerToOwnInterval": "529420a351d8b685",
+    "internal/plugins/vrrp/fsm/rfc_verdict_test.go::TestPromotionSetsAdverTimerToOwnInterval#2": "529420a351d8b685",
+    "internal/plugins/vrrp/transport/rfc_announce_verdict_test.go::TestAnnounceMasterFramesPerAddress": "ae6af29a2a8c28fc"
+  },
+  "units": {
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMMasterDownPromotion": "681303d0683131ce",
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMStaleTimerGenerationIgnored": "7c0fe29c87ffeb1d",
+    "internal/plugins/vrrp/fsm/rfc_verdict_test.go::TestPromotionSetsAdverTimerToOwnInterval": "04feb1c234946c3b",
+    "internal/plugins/vrrp/fsm/rfc_verdict_test.go::TestPromotionSetsAdverTimerToOwnInterval#2": "04feb1c234946c3b",
+    "internal/plugins/vrrp/transport/rfc_announce_verdict_test.go::TestAnnounceMasterFramesPerAddress": "07ea4c4b0ec8e9cb"
+  },
+  "verdict": "enforced"
+}

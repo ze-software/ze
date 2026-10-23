@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC7432-8.2.1-9",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go::TestConfiguredEVPNPerESRoute",
+    "unit-sha": "c79f6f9f48ed9b34",
+    "claim-sha": "1d63f044852f1059",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/nlri/evpn/config.go::parseConfigRoute",
+    "producer-sha": "dc4776b43501671f",
+    "break": "body of parseConfigRoute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7432-8.2.1-9",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go::TestOriginEthernetADPerESUsesTypeOneRD",
+    "unit-sha": "fbea9e5305756bc0",
+    "claim-sha": "8089a324dac2ea4a",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/nlri/evpn/encode.go::EncodeRoute",
+    "producer-sha": "469dbdab4becf550",
+    "break": "body of EncodeRoute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7432-8.2.1-9",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc7432_session_validation_evpn_test.go::TestEVPNIngressPreservesPerESZeroLabel",
+    "unit-sha": "3dfe4d65113cf7d2",
+    "claim-sha": "90b5c3c6a07ecc6c",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/evpn_nlri.go::validEVPNNLRILengths",
+    "producer-sha": "89ead968a579e010",
+    "break": "body of validEVPNNLRILengths replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

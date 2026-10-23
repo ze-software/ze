@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC9552-5.3.2.3-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/rfc9552_bgpls_export_metric_test.go::TestRFC9552ISISTEDefaultMetricRebuildNeverCarriesStaleArena",
+    "unit-sha": "e38d6357e3ba0fba",
+    "claim-sha": "deb9a8f400ccfbf7",
+    "route": "revert",
+    "producer": "internal/plugins/isis/bgpls_export.go::alloc",
+    "producer-sha": "fa8577882e87dfd3",
+    "break": "body of alloc replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9552-5.3.2.3-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/rfc9552_bgpls_export_metric_test.go::TestRFC9552ISISTEDefaultMetricSourceNeverInHighOrder",
+    "unit-sha": "757e8638793d4ba8",
+    "claim-sha": "ddf0fe22690a6c0d",
+    "route": "revert",
+    "producer": "internal/plugins/isis/bgpls_export.go::linkAttribute",
+    "producer-sha": "6829bc06b1cfd284",
+    "break": "body of linkAttribute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9552-5.3.2.3-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/rfc9552_bgpls_export_metric_test.go::TestRFC9552ISISTEDefaultMetricZeroPaddedHighOrder",
+    "unit-sha": "5297e24df9bd3831",
+    "claim-sha": "36ddeb7faa2da6e1",
+    "route": "revert",
+    "producer": "internal/plugins/isis/bgpls_export.go::linkAttribute",
+    "producer-sha": "6829bc06b1cfd284",
+    "break": "body of linkAttribute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

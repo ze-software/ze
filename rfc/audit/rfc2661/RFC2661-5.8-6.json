@@ -1,0 +1,17 @@
+{
+  "note": "TestRFC2661PeerWindowOfFourAccepted goes through newWindow (and so clampPeerRWS) with peer RWS 4: available(0)==4 and available(3)==1 go red on any clamp below 4; available(4)==0 proves the 'before backing off' half of the sentence's parenthetical. The old negative on TestWindowPeerRWSZero proves the neighbouring RWS=0 rule and is not counted.",
+  "requirement_sha": "ab2b25e8b6efe7e0",
+  "tests": {
+    "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661PeerWindowOfFourAccepted": "055162183ff6df00",
+    "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661PeerWindowOfFourAccepted#2": "055162183ff6df00",
+    "internal/component/l2tp/rfc2661_reliable_window_test.go::TestWindowAvailable": "5aba25175d94de95",
+    "internal/component/l2tp/rfc2661_reliable_window_test.go::TestWindowPeerRWSZero": "5aba25175d94de95"
+  },
+  "units": {
+    "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661PeerWindowOfFourAccepted": "2edaba5ddf859f02",
+    "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661PeerWindowOfFourAccepted#2": "2edaba5ddf859f02",
+    "internal/component/l2tp/rfc2661_reliable_window_test.go::TestWindowAvailable": "8325239166a557b4",
+    "internal/component/l2tp/rfc2661_reliable_window_test.go::TestWindowPeerRWSZero": "5ed220135dd34ace"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9190-5.7-3",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc9190_cached_authorization_test.go::TestEAPTLS13ResumptionAuthorizesOnTheCachedChain",
+    "unit-sha": "9cfbd680e1d70312",
+    "claim-sha": "313a2a5ee1544b77",
+    "route": "revert",
+    "producer": "internal/core/eap/resumption.go::TicketKeys",
+    "producer-sha": "c7e047f9231e686f",
+    "break": "body of TicketKeys replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9190-5.7-3",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc9190_resumption_test.go::TestEAPTLS13ResumptionRefusesARevokedClientChain",
+    "unit-sha": "97437617c113a6ce",
+    "claim-sha": "13c20a629a76d5bb",
+    "route": "revert",
+    "producer": "internal/core/eap/revocation.go::checkChainRevocation",
+    "producer-sha": "bc6548ee07f24385",
+    "break": "body of checkChainRevocation replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

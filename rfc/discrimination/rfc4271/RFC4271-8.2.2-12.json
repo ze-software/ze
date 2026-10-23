@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC4271-8.2.2-12",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/rfc4760_peer_down_test.go::TestRFC4760PeerDownDeletesOnlyThatNeighborsRoutes",
+    "unit-sha": "06dc98271f9e7939",
+    "claim-sha": "a6c41744b5bc4d53",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/rib.go::handleStructuredState",
+    "producer-sha": "a8163b3c964b8110",
+    "break": "body of handleStructuredState replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-8.2.2-12",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go::TestRFC4271EstablishedGoodMessagesKeepTheConnection",
+    "unit-sha": "c82355aedd14737c",
+    "claim-sha": "1f13c3c8e5f0a146",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_handlers.go::handleKeepalive",
+    "producer-sha": "6efb928b7415db50",
+    "break": "body of handleKeepalive replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-8.2.2-12",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go::TestRFC4271EstablishedNotificationOrTCPFailureReleasesTheConnection",
+    "unit-sha": "11e35f25a25b5a78",
+    "claim-sha": "059ca36f817dbdfb",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/reactor_notify.go::notifyPeerClosed",
+    "producer-sha": "9abb823ebd54cf98",
+    "break": "body of notifyPeerClosed replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,21 @@
+{
+  "note": "Judge ppp4 2026-09-30. The row's condition is now set up for real: rfc1661_magic_loop_test.go playMagicLoop sends ze's CONFREQ, loops it back, ze answers with a Configure-Nak naming a different Magic, and that Nak is looped back. TestRFC1661LoopedNakMagicChoosesNewMagic (+): new Magic differs from the held one, is non-zero and is carried in the next CONFREQ. TestRFC1661LoopedNakMagicRefusesRepeatedDraw (-, R1 b forced input): crypto/rand.Reader returns the old Magic first; the session must take the second draw; the targeted break dropping the `mag == s.magic` continue in redrawMagicOnNak turns it red (ppp4-tb-6.4-7.log), and adopting the looped Nak value also fails its exact equality. Old tags on TestMagicNumberRedrawnOnNak kept as supplementary: that unit's Nak names ze's request value, not the value of ze's last Nak, so it does not set up this row's condition and does not carry the verdict; its negative (Nak without a Magic option leaves Magic unchanged) proves no other RFC 1661 row, so there is no row to move it to. pppoeclient TestClientLCPMagicNakRedrawsAndUsesNegotiatedValue sets up the loop and goes red if generateDifferentMagic is omitted (client role, no record).",
+  "requirement_sha": "94435eed625a075f",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestMagicNumberRedrawnOnNak": "034fb31a9e383e0e",
+    "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestMagicNumberRedrawnOnNak#2": "034fb31a9e383e0e",
+    "internal/component/l2tp/ppp/rfc1661_magic_loop_test.go::TestRFC1661LoopedNakMagicChoosesNewMagic": "7e6e02d9deb55d37",
+    "internal/component/l2tp/ppp/rfc1661_magic_loop_test.go::TestRFC1661LoopedNakMagicRefusesRepeatedDraw": "7e6e02d9deb55d37",
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPMagicNakRedrawsAndUsesNegotiatedValue": "94dbfbde4e1ef3d7",
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPMagicNakRedrawsAndUsesNegotiatedValue#2": "94dbfbde4e1ef3d7"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestMagicNumberRedrawnOnNak": "a341047d5a329a15",
+    "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestMagicNumberRedrawnOnNak#2": "a341047d5a329a15",
+    "internal/component/l2tp/ppp/rfc1661_magic_loop_test.go::TestRFC1661LoopedNakMagicChoosesNewMagic": "8c97fbfa5b8c2c18",
+    "internal/component/l2tp/ppp/rfc1661_magic_loop_test.go::TestRFC1661LoopedNakMagicRefusesRepeatedDraw": "39a7cddb75d7c02c",
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPMagicNakRedrawsAndUsesNegotiatedValue": "c1ac3cd4bc2ee05b",
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPMagicNakRedrawsAndUsesNegotiatedValue#2": "c1ac3cd4bc2ee05b"
+  },
+  "verdict": "enforced"
+}

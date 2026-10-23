@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: splitting the area's links over several router-LSAs, or omitting one. Red: TestRFC2328SingleRouterLSACarriesEveryLink fails unless exactly one router-LSA from 1.1.1.1 exists in the area and its body holds a transit link for each of the two interfaces. Other polarity: TestRFC2328RouterLSAExcludesOtherAreaLinks fails if an interface of area 0.0.0.1 is described in the backbone router-LSA, so 'links to the area' is bounded. One clause, both polarities.",
+  "requirement_sha": "8ba0c138d5fe0dec",
+  "tests": {
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328RouterLSAExcludesOtherAreaLinks": "c4cd81c5b8b7e97a",
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328SingleRouterLSACarriesEveryLink": "c4cd81c5b8b7e97a"
+  },
+  "units": {
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328RouterLSAExcludesOtherAreaLinks": "953d251bba611b64",
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328SingleRouterLSACarriesEveryLink": "12f500602ce53993"
+  },
+  "verdict": "enforced"
+}

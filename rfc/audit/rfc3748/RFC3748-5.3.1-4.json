@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: a Nak used as an error indication. A truncated MS-CHAPv2 Challenge must return the method error with no Response (res.Response != nil fails, so no Nak carries it); control: the same peer Naks an unacceptable Type 40 (wantLegacyNak).",
+  "requirement_sha": "5f0f309797c13a90",
+  "tests": {
+    "internal/core/eap/rfc3748_nak_test.go::TestPeerDoesNotNakAMethodError": "43001f82c7e1b4d0",
+    "internal/core/eap/rfc3748_nak_test.go::TestPeerDoesNotNakAMethodError#2": "43001f82c7e1b4d0"
+  },
+  "units": {
+    "internal/core/eap/rfc3748_nak_test.go::TestPeerDoesNotNakAMethodError": "69744e0a94087862",
+    "internal/core/eap/rfc3748_nak_test.go::TestPeerDoesNotNakAMethodError#2": "69744e0a94087862"
+  },
+  "verdict": "enforced"
+}

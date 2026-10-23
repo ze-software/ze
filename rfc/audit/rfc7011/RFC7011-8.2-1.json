@@ -1,0 +1,17 @@
+{
+  "note": "Counter Template: TestRFC7011CounterTemplateExportTimeIsSendTime pins its Export Time to the send second. Ordering: TestRFC7011TemplateRefreshAfterClockRollbackKeepsOrder steps the clock back with synctest and requires the refreshed counter 256 and flow 257, 258 Templates to carry an Export Time not before the earlier action, so removing either max(now, templateExportTime) clamp goes red (both recorded). The exporter sends no Template Withdrawals.",
+  "requirement_sha": "3e23ca523de43b7a",
+  "tests": {
+    "internal/plugins/flowexport/ipfix/rfc7011_export_test.go::TestRFC7011TemplateExportTimeIsSendTime": "49e03ede36d04954",
+    "internal/plugins/flowexport/ipfix/rfc7011_export_test.go::TestRFC7011TemplateExportTimeNeverRegresses": "49e03ede36d04954",
+    "internal/plugins/flowexport/ipfix/rfc7011_template_time_test.go::TestRFC7011CounterTemplateExportTimeIsSendTime": "9084a6347b09df46",
+    "internal/plugins/flowexport/ipfix/rfc7011_template_time_test.go::TestRFC7011TemplateRefreshAfterClockRollbackKeepsOrder": "9084a6347b09df46"
+  },
+  "units": {
+    "internal/plugins/flowexport/ipfix/rfc7011_export_test.go::TestRFC7011TemplateExportTimeIsSendTime": "05c0fe2d20e400e7",
+    "internal/plugins/flowexport/ipfix/rfc7011_export_test.go::TestRFC7011TemplateExportTimeNeverRegresses": "847aa1512992b6f3",
+    "internal/plugins/flowexport/ipfix/rfc7011_template_time_test.go::TestRFC7011CounterTemplateExportTimeIsSendTime": "dba482d8b76ec5fa",
+    "internal/plugins/flowexport/ipfix/rfc7011_template_time_test.go::TestRFC7011TemplateRefreshAfterClockRollbackKeepsOrder": "570ae1e57aef611f"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,15 @@
+{
+  "note": "'Only in reply to a valid Request': TestRFC3748PeerAnswersNoInvalidRequest (a Request of another method mid-method and a method Request after Success each discarded, a valid Request answered). 'Never retransmitted on a timer': TestRFC3748PeerNeverRetransmitsOnATimer walks PeerSession for a time.Timer, time.Ticker or chan time.Time (none), checks Process is the only method returning *Packet or PeerResult, and shows an answered peer handed an early EAP-Success returns no Response and marks it Discarded. PeerSession has no transport, so Process is its only send path. Limit: the reflection does not look for a func-typed send callback; adding one would also add a send path the method-set check misses. All units recorded.",
+  "requirement_sha": "22dd14ed9eba9a6c",
+  "tests": {
+    "internal/core/eap/rfc3748_peer_timer_test.go::TestRFC3748PeerNeverRetransmitsOnATimer": "24aa543c2cc9f42d",
+    "internal/core/eap/rfc3748_remaining_clause_test.go::TestRFC3748PeerAnswersNoInvalidRequest": "a4c2ccc90d93cad9",
+    "internal/core/eap/rfc3748_test.go::TestRFC3748PeerHasNoRetransmitTimer": "c7d9cf3b0751a797"
+  },
+  "units": {
+    "internal/core/eap/rfc3748_peer_timer_test.go::TestRFC3748PeerNeverRetransmitsOnATimer": "94286487aa968dd3",
+    "internal/core/eap/rfc3748_remaining_clause_test.go::TestRFC3748PeerAnswersNoInvalidRequest": "1af72d0342846e9d",
+    "internal/core/eap/rfc3748_test.go::TestRFC3748PeerHasNoRetransmitTimer": "e42c0c5ded4373ab"
+  },
+  "verdict": "enforced"
+}

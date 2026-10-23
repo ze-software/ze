@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged 2026-10-12, second pass (independent auditor) after 60a74fc04b, 600996fb77, 975428e1b3, 3f1bec74f0 and 84382339ce. SHIFTED only: the tagged units are byte-identical (gate-verified) and validateUnion is unchanged. negative: \"not-an-ip\" matching no member refused with ErrTypeType; positive: values matching only the first, only the second and only the enum member each accepted, so a union check trying one member alone goes red. Records on validateUnion for all three units. Re-run green 2026-10-12. Verdict stands.",
+  "requirement_sha": "cecc88b3b36e0def",
+  "tests": {
+    "internal/component/config/rfc7950_validator_union_test.go::TestRFC7950UnionAcceptsEveryMemberType": "cded36b0838b1317",
+    "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_UnionViolation": "ba2f54bedfde8139",
+    "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_ValidConfig": "ba2f54bedfde8139"
+  },
+  "units": {
+    "internal/component/config/rfc7950_validator_union_test.go::TestRFC7950UnionAcceptsEveryMemberType": "ad02f88c4bb32f5f",
+    "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_UnionViolation": "3c8bad3db998ab08",
+    "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_ValidConfig": "ac216090b21a1ea1"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4090-6.2-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090BypassDestinationIsMergePoint",
+    "unit-sha": "ea8bb78609e1179e",
+    "claim-sha": "fb3c2747774e39e7",
+    "route": "mutant",
+    "producer": "internal/plugins/rsvpte/frr.go::selectBypass",
+    "producer-sha": "c78b83e2ef5ceb5b",
+    "break": "line 313: \"!=\" -\u003e \"==\""
+  },
+  {
+    "rid": "RFC4090-6.2-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090BypassDestinationIsMergePoint",
+    "unit-sha": "ea8bb78609e1179e",
+    "claim-sha": "4a8cf4df7be0a4e6",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/register.go::bypassSession",
+    "producer-sha": "e7ba0d6de27e4bdc",
+    "break": "body of bypassSession replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

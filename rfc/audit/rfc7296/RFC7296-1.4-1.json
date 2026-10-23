@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-11 by an independent judge after the owner moved the level from MUST to SHOULD (970ea021d8); quote unchanged. RFC 7296 1.4.1: 'Normally, the response in the INFORMATIONAL exchange will contain Delete payloads for the paired SAs going in the other direction.' TestDelResponseCarriesThePairedDelete sends a Child SA Delete naming ze's outbound SPI and requires the response to carry one ESP Delete naming the paired inbound SPI and not the deleted one, so an empty or echoing response fails; that is the recommended behavior at either level. TestDelIKEDeleteDrawsAnEmptyResponse (IKE SA Delete draws an empty response, per the same paragraph) is a scoping control rather than a violating input, and the crossing-Delete exception is proven under RFC7296-1.4.1-4 and -7. The lower level asks less, so the proof still covers it. No discrimination record.",
+  "requirement_sha": "70583a75d4a84af9",
+  "tests": {
+    "internal/component/ike/engine/rfc7296_delete_test.go::TestDelIKEDeleteDrawsAnEmptyResponse": "7748979df6c29890",
+    "internal/component/ike/engine/rfc7296_delete_test.go::TestDelResponseCarriesThePairedDelete": "7748979df6c29890"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7296_delete_test.go::TestDelIKEDeleteDrawsAnEmptyResponse": "3383bc20c009d2ff",
+    "internal/component/ike/engine/rfc7296_delete_test.go::TestDelResponseCarriesThePairedDelete": "39d23e157bd81834"
+  },
+  "verdict": "enforced"
+}

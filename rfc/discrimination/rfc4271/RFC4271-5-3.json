@@ -1,0 +1,14 @@
+[
+  {
+    "rid": "RFC4271-5-3",
+    "polarity": "positive",
+    "unit": "test/plugin/rfc4271-partial-unknown-transitive.ci",
+    "unit-sha": "6727b2ae01c25675",
+    "claim-sha": "99ba6264bbd2846f",
+    "route": "revert",
+    "producer": "internal/core/bgp/attribute/partial.go::SetPartialOnUnrecognizedTransitive",
+    "producer-sha": "f3388c8f4f616c7e",
+    "break": "body of SetPartialOnUnrecognizedTransitive replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+    "citation": "expect=bgp:conn=2:seq=1:contains=E0FA04DEADBEEF"
+  }
+]

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8362-3.3-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/rfc8362_tlv_applicability_test.go::TestRFC8362AttachedRoutersTLVIgnoredOutsideENetwork",
+    "unit-sha": "e646b0f4af7e7270",
+    "claim-sha": "71aa238a0b46b1b9",
+    "route": "mutant",
+    "producer": "internal/plugins/ospf/bgpls_export.go::extendedV3",
+    "producer-sha": "b58e088b5ecf1a8d",
+    "break": "line 1239: \"\u0026\u0026\" -\u003e \"||\""
+  },
+  {
+    "rid": "RFC8362-3.3-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc8362_tlv_applicability_test.go::TestRFC8362AttachedRoutersTLVReadFromENetwork",
+    "unit-sha": "8264d02ddc4c7dab",
+    "claim-sha": "16b184a6aea0c110",
+    "route": "mutant",
+    "producer": "internal/plugins/ospf/bgpls_export.go::extendedV3",
+    "producer-sha": "b58e088b5ecf1a8d",
+    "break": "line 1240: \"len(tlv.Value)%4 != 0\" -\u003e \"true\""
+  }
+]

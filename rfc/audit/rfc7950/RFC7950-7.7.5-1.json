@@ -1,0 +1,13 @@
+{
+  "note": "(a) forbidden: accepting a leaf-list or list with fewer entries than min-elements. (b) TestRFC7950MinElementsViolated: leaf-list with 1 of min 2, absent leaf-list with min 1, and list with 1 of min 2 each require.Len 1 and Contains \"too few entries: N (minimum M)\"; TestRFC7950MinElementsMet: leaf-list at exactly min 2 and list of 2 above min 1 assert.Empty.",
+  "requirement_sha": "a1eb29a67e866443",
+  "tests": {
+    "internal/component/config/yang/rfc7950_validator_test.go::TestRFC7950MinElementsMet": "d15082a1edeccaad",
+    "internal/component/config/yang/rfc7950_validator_test.go::TestRFC7950MinElementsViolated": "d15082a1edeccaad"
+  },
+  "units": {
+    "internal/component/config/yang/rfc7950_validator_test.go::TestRFC7950MinElementsMet": "414e629a819aff9a",
+    "internal/component/config/yang/rfc7950_validator_test.go::TestRFC7950MinElementsViolated": "442fb784ecc3ec79"
+  },
+  "verdict": "enforced"
+}

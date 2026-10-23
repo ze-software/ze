@@ -1,0 +1,13 @@
+{
+  "note": "Send: TestRFC3209SessionAttributeLengthOnSend asserts header Length >=8 and %4==0 for names of 0 to 5 octets. Receive: TestRFC3209SessionAttributeLengthShortRefused asserts decodeSessionAttr refuses a body under the fixed four octets (Length below 8) for both C-Types.",
+  "requirement_sha": "a87324119e0f2a23",
+  "tests": {
+    "internal/plugins/rsvpte/wire_rfc3209_test.go::TestRFC3209SessionAttributeLengthOnSend": "f41b8974aa28db4d",
+    "internal/plugins/rsvpte/wire_rfc3209_test.go::TestRFC3209SessionAttributeLengthShortRefused": "f41b8974aa28db4d"
+  },
+  "units": {
+    "internal/plugins/rsvpte/wire_rfc3209_test.go::TestRFC3209SessionAttributeLengthOnSend": "02c32eb5ea6ca24d",
+    "internal/plugins/rsvpte/wire_rfc3209_test.go::TestRFC3209SessionAttributeLengthShortRefused": "c4c0d03d25cc3ac6"
+  },
+  "verdict": "enforced"
+}

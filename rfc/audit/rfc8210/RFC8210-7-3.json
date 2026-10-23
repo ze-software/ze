@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: after a version 0 reply to the router's query, continuing at the router's own version (neither downgrading nor terminating). TestRTRUnknownNegotiationVersion \"unsupported v0\": the cache sends a version 0 Cache Response, and the test asserts syncOnce returns errRtrUnsupportedProtocol and the cache's trailing read reaches io.EOF (require.ErrorIs got.err io.EOF), so a router that kept the stream open or loaded the v0 reply goes red. Ze supports no version 0, so terminating is the branch it takes. Negative TestRFC8210V1CacheResponseIsNotTerminated: a reply at the router's own version keeps s.version, publishes its VRP (Validate Valid), and draws no trailing bytes (assert.Empty), so a check that terminated on every Cache Response goes red. The quote now carries the conditioning sentence (the cache replies with a version 0 response).",
+  "requirement_sha": "bd37b0024d009d19",
+  "tests": {
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_version_test.go::TestRFC8210V1CacheResponseIsNotTerminated": "ee77a712b1e28351",
+    "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestRTRUnknownNegotiationVersion": "9de8363060757013"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_version_test.go::TestRFC8210V1CacheResponseIsNotTerminated": "1f8f77433dc4fae3",
+    "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestRTRUnknownNegotiationVersion": "97a99b4688b5e693"
+  },
+  "verdict": "enforced"
+}

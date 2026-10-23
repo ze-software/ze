@@ -1,0 +1,11 @@
+{
+  "note": "Forbidden: an authenticator that does not send a Challenge (Code 1). TestCHAPResponseEmitsEvent reads the first wire frame runCHAPAuthPhase writes and asserts protocol 0xC223 and Code CHAPCodeChallenge, red otherwise. Single-polarity marker: there is no must-not-challenge branch.",
+  "requirement_sha": "2cd22406261bb6de",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPResponseEmitsEvent": "5b49028a86478309"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPResponseEmitsEvent": "a1826b62ff5ad546"
+  },
+  "verdict": "enforced"
+}

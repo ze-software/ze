@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9552-5.2.2-6",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeOSPFTopologyBoundary",
+    "unit-sha": "809258a5f96923f2",
+    "claim-sha": "ea47ba3579e534d1",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/ls_export/export_encode.go::validateExportTopology",
+    "producer-sha": "908a0748a2623a36",
+    "break": "body of validateExportTopology replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9552-5.2.2-6",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeOSPFTopologyBoundary",
+    "unit-sha": "809258a5f96923f2",
+    "claim-sha": "83a943e9bc966c52",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/ls_export/export_encode.go::validateExportTopology",
+    "producer-sha": "908a0748a2623a36",
+    "break": "body of validateExportTopology replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

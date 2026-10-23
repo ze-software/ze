@@ -1,0 +1,13 @@
+{
+  "note": "a forged challenge is discarded (retransmission observed, error is not a rejection); a verified challenge advances the conversation to a different second request",
+  "requirement_sha": "487fd77a823c79f6",
+  "tests": {
+    "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapDiscardsUnauthenticatedChallenge": "2f6a0814b0b8b9cb",
+    "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapVerifiedChallengeIsAccepted": "2f6a0814b0b8b9cb"
+  },
+  "units": {
+    "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapDiscardsUnauthenticatedChallenge": "24a572c521c349c7",
+    "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapVerifiedChallengeIsAccepted": "b579f7869d1841b7"
+  },
+  "verdict": "enforced"
+}

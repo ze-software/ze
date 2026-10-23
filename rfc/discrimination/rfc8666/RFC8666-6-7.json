@@ -1,0 +1,68 @@
+[
+  {
+    "rid": "RFC8666-6-7",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc8666_duplicate_install_test.go::TestRFC8666OneRouterRepeatedPrefixSIDInstallsNothing",
+    "unit-sha": "7e665e708a8833e9",
+    "claim-sha": "e6c68eb44d0f0916",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/sr_install.go::installRoutes",
+    "producer-sha": "7957318333c8bc33",
+    "break": "body of installRoutes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8666-6-7",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/rfc8666_duplicate_install_test.go::TestRFC8666OneRouterRepeatedPrefixSIDInstallsNothing",
+    "unit-sha": "7e665e708a8833e9",
+    "claim-sha": "873ad2e98cdf7a4d",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/sr_install.go::installRoutes",
+    "producer-sha": "7957318333c8bc33",
+    "break": "body of installRoutes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8666-6-7",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc8666_malformed_test.go::TestRFC8666PrefixSIDsKeyedByAlgorithm",
+    "unit-sha": "4857a460f7bbeb76",
+    "claim-sha": "e91bbd8b860afc4a",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/sr_malformed.go::newSRPrefixSIDTable",
+    "producer-sha": "261664622f8e1532",
+    "break": "body of newSRPrefixSIDTable replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8666-6-7",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/rfc8666_malformed_test.go::TestRFC8666PrefixSIDsKeyedByAlgorithm",
+    "unit-sha": "4857a460f7bbeb76",
+    "claim-sha": "c3b585d2831262c9",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/sr_malformed.go::newSRPrefixSIDTable",
+    "producer-sha": "261664622f8e1532",
+    "break": "body of newSRPrefixSIDTable replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8666-6-7",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/sr_prefix_sid_per_router_test.go::TestRFC8666OneRouterMultiplePrefixSIDsAllIgnored",
+    "unit-sha": "90ccb49f5073ddf0",
+    "claim-sha": "c8608d91fa5fd581",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/sr_malformed.go::resolve",
+    "producer-sha": "be407fb21636aa8d",
+    "break": "body of resolve replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8666-6-7",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/sr_prefix_sid_per_router_test.go::TestRFC8666OneRouterMultiplePrefixSIDsAllIgnored",
+    "unit-sha": "90ccb49f5073ddf0",
+    "claim-sha": "e7cb4eb0f5a33d09",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/sr_malformed.go::resolve",
+    "producer-sha": "be407fb21636aa8d",
+    "break": "body of resolve replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

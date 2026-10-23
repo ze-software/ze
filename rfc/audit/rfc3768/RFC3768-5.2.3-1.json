@@ -1,0 +1,11 @@
+{
+  "note": "Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 3768 Section 5.2.3 says \"The TTL MUST be set to 255.\" TestSendAdvertIPv4HeaderTTLProtoDst changed only by the checksum-mode plumbing (a Checksum: packet.ChecksumRFC9568 field added to the GroupSpec, AdvertParams or packet.Local literal, or the mode argument added to packet.FillChecksum); every assertion and every isolating input is byte-for-byte the same. It still compares the TTL octet of the built IPv4 header with the literal 255, single-polarity per the row annotation. Verdict unchanged.",
+  "requirement_sha": "00dea190e7742ef7",
+  "tests": {
+    "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertIPv4HeaderTTLProtoDst": "3b5f911a78dbf13d"
+  },
+  "units": {
+    "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertIPv4HeaderTTLProtoDst": "0676ff22f26663d5"
+  },
+  "verdict": "enforced"
+}

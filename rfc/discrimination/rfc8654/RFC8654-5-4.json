@@ -1,0 +1,57 @@
+[
+  {
+    "rid": "RFC8654-5-4",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/message/rfc8654_length_bounds_test.go::TestRFC8654LengthBoundsPerTypeAndCapability",
+    "unit-sha": "7528545bc057de0d",
+    "claim-sha": "8f5c972bfd222abf",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/header.go::ValidateLengthWithMax",
+    "producer-sha": "74b3bd33b6da2c9e",
+    "break": "body of ValidateLengthWithMax replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8654-5-4",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc8654_bad_length_session_test.go::TestRFC8654OverLengthUpdateFollowsRFC4271ErrorHandling",
+    "unit-sha": "e505f6a0e2320bce",
+    "claim-sha": "b4745def98d4faee",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_read.go::readAndProcessMessage",
+    "producer-sha": "84cd05f1ccd745aa",
+    "break": "body of readAndProcessMessage replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8654-5-4",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc8654_fatal_length_cleanup_test.go::TestRFC8654FatalLengthReleasesInstalledRoutes",
+    "unit-sha": "67fa5a9adc7cb9e9",
+    "claim-sha": "c77a209ef1fff3fa",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/reactor_notify.go::notifyPeerClosed",
+    "producer-sha": "9abb823ebd54cf98",
+    "break": "body of notifyPeerClosed replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8654-5-4",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc8654_fatal_length_cleanup_test.go::TestRFC8654ValidLengthRetainsInstalledRoutes",
+    "unit-sha": "888dee4b40c95473",
+    "claim-sha": "f39779fbf9133782",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_coalesce.go::readAndProcessCoalesced",
+    "producer-sha": "82f8a4258457006c",
+    "break": "body of readAndProcessCoalesced replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8654-5-4",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc8654_rib_recovery_test.go::TestRFC8654FatalLengthReelectsAlternateBest",
+    "unit-sha": "b5c08db4a7e51119",
+    "claim-sha": "b0c31ba5b2c9ee2c",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::emitPurgedWithdraws",
+    "producer-sha": "0f1d0603718a54be",
+    "break": "body of emitPurgedWithdraws replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

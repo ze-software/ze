@@ -1,0 +1,17 @@
+{
+  "note": "TestRFC1661OpenTransmitsConfigureRequestOnWire runs applyTransition (the same path run() uses for its synthetic Open) for Closed+Open and Starting+Up: red unless exactly one LCP Configure-Request reaches the wire and state is Req-Sent. Initial+Up (no Open) writes nothing and lands in Closed. The run() entry itself is RFC1661-3.1-1's, still open.",
+  "requirement_sha": "756f95a8b906a207",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661OpenTransmitsConfigureRequestOnWire": "480d72ff3c4dac57",
+    "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661OpenTransmitsConfigureRequestOnWire#2": "480d72ff3c4dac57",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661OpenTransmitsConfigureRequest": "9afaf002f0fd81ec",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661UpWithoutOpenSendsNoConfigureRequest": "9afaf002f0fd81ec"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661OpenTransmitsConfigureRequestOnWire": "3f5b5bf91084e056",
+    "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661OpenTransmitsConfigureRequestOnWire#2": "3f5b5bf91084e056",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661OpenTransmitsConfigureRequest": "e8ef5d1a08a2a896",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661UpWithoutOpenSendsNoConfigureRequest": "ab02919dc776b205"
+  },
+  "verdict": "enforced"
+}

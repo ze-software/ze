@@ -1,0 +1,13 @@
+{
+  "note": "matrix row backup/advert/priority-zero requires exactly StartMasterDownTimer with skewDur; equal-priority row arms mdDur instead",
+  "requirement_sha": "48859258e6f7f398",
+  "tests": {
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "52489f84876bdb6f",
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "52489f84876bdb6f"
+  },
+  "units": {
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "c06b69f55bb239a3",
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "c06b69f55bb239a3"
+  },
+  "verdict": "enforced"
+}

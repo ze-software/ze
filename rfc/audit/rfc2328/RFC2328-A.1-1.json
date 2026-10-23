@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: OSPF packets sent with a TTL other than 1. Red: TestOSPFSocketTTLIsOne first proves the kernel default is not 1, then fails unless IP_TTL and IP_MULTICAST_TTL both read back 1 after setMulticastOptions (which hard-codes 1, backend_linux.go:307-316). Other polarity: TestOSPFSocketTTLFailureIsAnError fails if a setsockopt failure is swallowed, so a socket cannot enter service with the default TTL.",
+  "requirement_sha": "a2a60876d91e6c92",
+  "tests": {
+    "internal/plugins/ospf/transport/rfc2328_socket_linux_test.go::TestOSPFSocketTTLFailureIsAnError": "d5c94aa47f4b6b51",
+    "internal/plugins/ospf/transport/rfc2328_socket_linux_test.go::TestOSPFSocketTTLIsOne": "d5c94aa47f4b6b51"
+  },
+  "units": {
+    "internal/plugins/ospf/transport/rfc2328_socket_linux_test.go::TestOSPFSocketTTLFailureIsAnError": "15dca6b49cdb02b7",
+    "internal/plugins/ospf/transport/rfc2328_socket_linux_test.go::TestOSPFSocketTTLIsOne": "299331a09d334d70"
+  },
+  "verdict": "enforced"
+}

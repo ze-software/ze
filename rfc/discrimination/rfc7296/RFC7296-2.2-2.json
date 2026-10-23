@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC7296-2.2-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_msgid_test.go::TestMidNearExhaustionRekeysTheIKESA",
+    "unit-sha": "b464c9021e8898b4",
+    "claim-sha": "bb2165264f924ede",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/msgid.go::msgIDNearExhaustion",
+    "producer-sha": "d57281103c1231a5",
+    "break": "body of msgIDNearExhaustion replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.2-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_msgid_test.go::TestMidNearExhaustionRekeysTheIKESA",
+    "unit-sha": "b464c9021e8898b4",
+    "claim-sha": "ad509708118fad40",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/msgid.go::msgIDNearExhaustion",
+    "producer-sha": "d57281103c1231a5",
+    "break": "body of msgIDNearExhaustion replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.2-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_msgid_test.go::TestMidOutboundCounterFreezesAtTheCeiling",
+    "unit-sha": "e6da78c96ab7c01f",
+    "claim-sha": "c3527752b45e8f39",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/msgid.go::advanceMsgID",
+    "producer-sha": "18a98c18fc43dde1",
+    "break": "body of advanceMsgID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.2-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_msgid_test.go::TestMidOutboundCounterFreezesAtTheCeiling",
+    "unit-sha": "e6da78c96ab7c01f",
+    "claim-sha": "8b84ff6d28814f63",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/msgid.go::advanceMsgID",
+    "producer-sha": "18a98c18fc43dde1",
+    "break": "body of advanceMsgID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

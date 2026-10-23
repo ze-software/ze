@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC1195-7-4",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/rfc1195_selection_test.go::TestRFC1195ExternalSetRetainedBesideInternal",
+    "unit-sha": "168b33fca500468b",
+    "claim-sha": "a32f3e61fcb72935",
+    "route": "revert",
+    "producer": "internal/plugins/isis/spf/route.go::better",
+    "producer-sha": "f4abc0f4bc4d6ca9",
+    "break": "body of better replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1195-7-4",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195InternalMetricOutranksExternal",
+    "unit-sha": "8b10bad9653aa1aa",
+    "claim-sha": "30e503136b4a744e",
+    "route": "revert",
+    "producer": "internal/plugins/isis/spf/route.go::better",
+    "producer-sha": "f4abc0f4bc4d6ca9",
+    "break": "body of better replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

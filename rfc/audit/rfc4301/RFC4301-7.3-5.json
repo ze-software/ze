@@ -1,0 +1,17 @@
+{
+  "note": "Whole stack over real XFRM in a rootless netns, tunnel-mode Child SA on UDP 10.1.0.0/16 -> 10.2.0.0/16 port 5000. Positive TestRFC4301FragmentsOfACompliantPacketAreDelivered: an in-selector inner packet split into initial and non-initial fragments, each in its own ESP packet, non-initial first: reassembled and delivered, XfrmInNoPols +0. Negative TestRFC4301FragmentsOfANonCompliantPacketAreDiscarded: same with inner source outside the selector: the non-initial fragment is discarded with the packet (XfrmInNoPols +1, nothing delivered). Linux reassembles before the inbound policy check, so the discard is the stack acting on the require-policy Ze installs. The violating dimension is the source address, which the fragment itself carries; a port-only violation (the fragment-specific hazard) is covered by RFC4301-7.3-4. The SPD boundary tags stay as supplementary; their negative (bypass carries no template) proves a neighbour. Re-judged 2026-09-30 (pass 3): the tagged units changed only by tag lines (RFC4301-4.4-1 and 4.4.2.1-1 lines deleted from the dataplane boundary units, RFC4301-5.2-2 lines added to the engine sad_selector units); bodies identical, verdict unchanged. Re-judged 2026-09-30 (leftovers): the two dataplane SPD boundary units changed only by tag lines (RFC4301-5.1-1 and RFC4301-5.2-3 lines, rows retired as lead-ins, moved to RFC4301-5.1-4 and RFC4301-5.2-2); bodies identical to HEAD, judge ran both: PASS; verdict unchanged.",
+  "requirement_sha": "23bf396c1537abbc",
+  "tests": {
+    "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate": "69d0d6fedadb8664",
+    "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryIsRefusedRatherThanWidened": "69d0d6fedadb8664",
+    "internal/component/ike/engine/rfc4301_fragment_linux_test.go::TestRFC4301FragmentsOfACompliantPacketAreDelivered": "994a81ef61acb049",
+    "internal/component/ike/engine/rfc4301_fragment_linux_test.go::TestRFC4301FragmentsOfANonCompliantPacketAreDiscarded": "994a81ef61acb049"
+  },
+  "units": {
+    "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate": "4f6a7698e201b01f",
+    "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryIsRefusedRatherThanWidened": "3d5e8a87d96a8a98",
+    "internal/component/ike/engine/rfc4301_fragment_linux_test.go::TestRFC4301FragmentsOfACompliantPacketAreDelivered": "b048944de1e26485",
+    "internal/component/ike/engine/rfc4301_fragment_linux_test.go::TestRFC4301FragmentsOfANonCompliantPacketAreDiscarded": "0ae92b5976d2746b"
+  },
+  "verdict": "enforced"
+}

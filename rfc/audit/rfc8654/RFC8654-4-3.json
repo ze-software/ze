@@ -1,0 +1,19 @@
+{
+  "code": {
+    "internal/component/bgp/message/header.go::MaxMessageLength": "3df76645a85706e8",
+    "internal/component/bgp/message/header.go::ValidateLengthWithMax": "f5edfc67f79c21f7"
+  },
+  "note": "Prior independent judgment retained after scope comparison, not gratuitously re-audited. The complete Section 4 exception sentence and tagged units are unchanged: TestMaxMessageLength, TestValidateLengthWithMax, and TestRFC8654AdvertisementDoesNotExtendControlBounds. The directional test file gained an import and sibling accumulation unit; its control-bound unit is unchanged in the scoped diff. OPEN 4097 and KEEPALIVE 20 still require exact NOTIFICATION 1/2 in both readers, while valid controls and all supported type maxima are pinned. No new foreign execution or canonical fingerprint computation is claimed. The parent stamping tool must compute current unit/file hashes.",
+  "requirement_sha": "c9ae6c36e44275b8",
+  "tests": {
+    "internal/component/bgp/message/header_test.go::TestMaxMessageLength": "4eb31663a97bb3a8",
+    "internal/component/bgp/message/header_test.go::TestValidateLengthWithMax": "4eb31663a97bb3a8",
+    "internal/component/bgp/reactor/rfc8654_directional_session_test.go::TestRFC8654AdvertisementDoesNotExtendControlBounds": "2dc714d2cb055c17"
+  },
+  "units": {
+    "internal/component/bgp/message/header_test.go::TestMaxMessageLength": "d7845b90aa377929",
+    "internal/component/bgp/message/header_test.go::TestValidateLengthWithMax": "6d34dfe53245e5aa",
+    "internal/component/bgp/reactor/rfc8654_directional_session_test.go::TestRFC8654AdvertisementDoesNotExtendControlBounds": "55497dc64c91ae84"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "The oracle is no longer the producer: TestRFC5176ResponseAuthenticatorMatchesAnIndependentMD5 reads CoA-ACK, CoA-NAK, Disconnect-ACK and Disconnect-NAK raw off the socket and compares the Authenticator field with an MD5 the test computes over Code, Identifier, Length, the sent Request Authenticator, the response attributes and the secret. The {single-polarity: positive} annotation holds: the NAS only emits responses.",
+  "requirement_sha": "d0e25464235955d7",
+  "tests": {
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176ResponseAuthenticatorMatchesAnIndependentMD5": "ff37f19e24dbd668",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go::TestRFC5176ResponseAuthenticator": "25c2b53f1b101476"
+  },
+  "units": {
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176ResponseAuthenticatorMatchesAnIndependentMD5": "c3e90e6108dc8e8c",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go::TestRFC5176ResponseAuthenticator": "0ab1d89fd07fb0a5"
+  },
+  "verdict": "enforced"
+}

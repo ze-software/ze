@@ -1,0 +1,11 @@
+{
+  "note": "Reviewed the negative-only annotation: handleInit accepts Downstream Unsolicited for all supported IP sessions and has no unacceptable advertisement-mode policy. The A=1 control requires Operational, timeout-only silence rather than EOF, and a subsequent unsolicited Mapping. Thus the tested supported negotiation cannot spuriously reject an acceptable mode; no absent ATM/Frame Relay capability is claimed.",
+  "requirement_sha": "06d9c8c1f2214310",
+  "tests": {
+    "internal/plugins/ldp/rfc5036_sessionparams_test.go::TestRFC5036InitOnDemandProposalKeepsDownstreamUnsolicited": "c0aa8fdb104978d5"
+  },
+  "units": {
+    "internal/plugins/ldp/rfc5036_sessionparams_test.go::TestRFC5036InitOnDemandProposalKeepsDownstreamUnsolicited": "1f1213aa626ca766"
+  },
+  "verdict": "enforced"
+}

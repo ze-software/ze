@@ -1,0 +1,21 @@
+{
+  "note": "Sender: TestRFC2661SCCRQCarriesSection61AVPs asserts all five AVPs in writeSCCRQBody with and without the optional AVPs. Receiver: one case per missing AVP answered with StopCCN and no tunnel (unit and .ci), positive with every AVP. The \u00a77.1 clearing now rows as RFC2661-7.1-1.",
+  "requirement_sha": "c5b438291817ffa6",
+  "tests": {
+    "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661SCCRQCarriesSection61AVPs": "055162183ff6df00",
+    "internal/component/l2tp/rfc2661_reactor_sccrq_mandatory_avp_test.go::TestSCCRQMissingMandatoryAVPIsAnswered": "9143875504323b6a",
+    "internal/component/l2tp/rfc2661_reactor_sccrq_mandatory_avp_test.go::TestSCCRQWithEveryMandatoryAVPEstablishes": "9143875504323b6a",
+    "internal/component/l2tp/rfc2661_reactor_sccrq_mandatory_avp_test.go::TestSCCRQWithShortFramingCapabilitiesIsAnswered": "9143875504323b6a",
+    "test/l2tp/rfc2661-sccrq-mandatory-avp.ci": "c00b96e6cc8f4a36",
+    "test/l2tp/rfc2661-sccrq-mandatory-avp.ci#2": "c00b96e6cc8f4a36"
+  },
+  "units": {
+    "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661SCCRQCarriesSection61AVPs": "71a97fd284bee2a1",
+    "internal/component/l2tp/rfc2661_reactor_sccrq_mandatory_avp_test.go::TestSCCRQMissingMandatoryAVPIsAnswered": "c54b92a4563d42a8",
+    "internal/component/l2tp/rfc2661_reactor_sccrq_mandatory_avp_test.go::TestSCCRQWithEveryMandatoryAVPEstablishes": "df0fef901b081bdc",
+    "internal/component/l2tp/rfc2661_reactor_sccrq_mandatory_avp_test.go::TestSCCRQWithShortFramingCapabilitiesIsAnswered": "3c3e68ce182082c4",
+    "test/l2tp/rfc2661-sccrq-mandatory-avp.ci": "c00b96e6cc8f4a36",
+    "test/l2tp/rfc2661-sccrq-mandatory-avp.ci#2": "c00b96e6cc8f4a36"
+  },
+  "verdict": "enforced"
+}

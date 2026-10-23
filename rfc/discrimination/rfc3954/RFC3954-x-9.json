@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC3954-x-9",
+    "polarity": "positive",
+    "unit": "internal/plugins/flowexport/netflow9/rfc3954_flow_template_test.go::TestNetflow9FlowTemplate",
+    "unit-sha": "7c8e6607d9459af3",
+    "claim-sha": "7f526b92eaf581f0",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/netflow9/flow_template.go::BuildFlowTemplate",
+    "producer-sha": "a48fb3109fab222e",
+    "break": "body of BuildFlowTemplate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3954-x-9",
+    "polarity": "positive",
+    "unit": "internal/plugins/flowexport/netflow9/rfc3954_template_test.go::TestNetflow9Template",
+    "unit-sha": "053077b70703103c",
+    "claim-sha": "89228dec2c5baabe",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/netflow9/template.go::BuildCounterTemplate",
+    "producer-sha": "993dc36fa7a83ed9",
+    "break": "body of BuildCounterTemplate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3954-x-9",
+    "polarity": "positive",
+    "unit": "internal/plugins/flowexport/netflow9/rfc3954_test.go::TestRFC3954TemplateIDsConstantAcrossRefresh",
+    "unit-sha": "91473d83b8d9c171",
+    "claim-sha": "c279c15b5452fbd3",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/netflow9/flow_template.go::BuildFlowTemplate6",
+    "producer-sha": "f9b56d32897e420a",
+    "break": "body of BuildFlowTemplate6 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

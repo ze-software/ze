@@ -1,0 +1,15 @@
+{
+  "note": "Judged 2026-10-21 over current tags, units and records. Stale only from added comment tags (RFC5709-3.3-5 in auth_verify_test.go, RFC2328-D.3-4 in auth_keystore_test.go and rfc5709_crypto_sequence_test.go); the assertions judged in the previous round are byte-identical in behaviour, so the earlier enforced judgement stands.",
+  "requirement_sha": "33583fc335b9c46d",
+  "tests": {
+    "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto": "b1f49f5bb6bbafb8",
+    "internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go::TestRFC5709AuthDataLengthIsHashOutputLength": "c6f8189c6e41691b",
+    "internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go::TestRFC5709WrongAuthDataLengthRejected": "c6f8189c6e41691b"
+  },
+  "units": {
+    "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto": "9c236b088b570005",
+    "internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go::TestRFC5709AuthDataLengthIsHashOutputLength": "f6777ebe35c03397",
+    "internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go::TestRFC5709WrongAuthDataLengthRejected": "d44228486eb1629f"
+  },
+  "verdict": "enforced"
+}

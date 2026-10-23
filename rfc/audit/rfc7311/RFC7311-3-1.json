@@ -1,0 +1,17 @@
+{
+  "note": "Judge 2026-09-30. TestRFC7311AIGPTLVLengthIsEleven: + WriteTo emits 01 000b and 8 value octets and ParseAIGP reads the metric back; - Type-1 TLVs of Length 12 and 10 are refused by ParseAIGP, the registered parser. Forbidden: accepting a Type-1 TLV whose Length is not 11. Records observed red (AIGPMetricOffset).",
+  "requirement_sha": "2c6739873b534578",
+  "tests": {
+    "internal/core/bgp/attribute/rfc7311_aigp_test.go::TestParseAIGP": "682ca5c47e79ad07",
+    "internal/core/bgp/attribute/rfc7311_aigp_test.go::TestParseAIGPMalformedMetricWrongLength": "682ca5c47e79ad07",
+    "internal/core/bgp/attribute/rfc7311_tlv_test.go::TestRFC7311AIGPTLVLengthIsEleven": "7b179465862209a9",
+    "internal/core/bgp/attribute/rfc7311_tlv_test.go::TestRFC7311AIGPTLVLengthIsEleven#2": "7b179465862209a9"
+  },
+  "units": {
+    "internal/core/bgp/attribute/rfc7311_aigp_test.go::TestParseAIGP": "6b490ebba37348d1",
+    "internal/core/bgp/attribute/rfc7311_aigp_test.go::TestParseAIGPMalformedMetricWrongLength": "1126e4fad01f8a02",
+    "internal/core/bgp/attribute/rfc7311_tlv_test.go::TestRFC7311AIGPTLVLengthIsEleven": "f1296a0ef4f9d818",
+    "internal/core/bgp/attribute/rfc7311_tlv_test.go::TestRFC7311AIGPTLVLengthIsEleven#2": "f1296a0ef4f9d818"
+  },
+  "verdict": "enforced"
+}

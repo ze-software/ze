@@ -1,0 +1,13 @@
+{
+  "note": "Judge 2026-09-30 (access cont 10, independent). Ze is the NAS. + TestRFC5176RequestNotRoutableCauseNeverSent: no response on any path carries 502. - TestRFC5176RequestNotRoutableCauseNeverSentForAForeignSession (R1(b)): injected 502 never echoed (401 only); a Disconnect naming another realm's user through another NAS-Identifier -> [503], never 502. Records observed red.",
+  "requirement_sha": "105130563996c69c",
+  "tests": {
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176RequestNotRoutableCauseNeverSent": "9b6dfc18b62099d5",
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176RequestNotRoutableCauseNeverSentForAForeignSession": "9b6dfc18b62099d5"
+  },
+  "units": {
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176RequestNotRoutableCauseNeverSent": "6d63a1675f337700",
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176RequestNotRoutableCauseNeverSentForAForeignSession": "ef769bbc4c3aae1a"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,17 @@
+{
+  "note": "Rejudged 2026-09-29. Clause (a), keyed server + TAC_PLUS_UNENCRYPTED_FLAG: TestRFC8907ObfuscationMismatchClosesAndFails asserts AUTHEN FAIL and AUTHOR FAIL (the two session kinds the RFC names) AND that the client closed the TCP (probe reads EOF/ECONNRESET after writing a single-connect reply); producer trySend closeAndEvict + sendToServers errObfuscationMismatch->FAIL. Positive TestRFC8907MatchingObfuscationKeepsStatusAndConnection keeps PASS/PASS_ADD and the TCP open, so a client closing on every reply goes red. Clause (b), keyless server + flag clear, cannot arise: Packet.MarshalInto refuses an empty key, so the keyless probe sees no request (asserted); the trySend guard still covers both directions. Old units in rfc8907_obfuscation_test.go remain valid.",
+  "requirement_sha": "819fc56a315bc87e",
+  "tests": {
+    "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907MatchingObfuscationKeepsStatusAndConnection": "879b13e19509fb75",
+    "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907ObfuscationMismatchClosesAndFails": "879b13e19509fb75",
+    "internal/component/tacacs/rfc8907_obfuscation_test.go::TestRFC8907ClientAcceptsObfuscatedReply": "f08ee3a6ab81099d",
+    "internal/component/tacacs/rfc8907_obfuscation_test.go::TestRFC8907ClientRefusesUnobfuscatedReply": "f08ee3a6ab81099d"
+  },
+  "units": {
+    "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907MatchingObfuscationKeepsStatusAndConnection": "ecc8bd38e6f5cf21",
+    "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907ObfuscationMismatchClosesAndFails": "070d0aecd4b97279",
+    "internal/component/tacacs/rfc8907_obfuscation_test.go::TestRFC8907ClientAcceptsObfuscatedReply": "2dc14061e67a6397",
+    "internal/component/tacacs/rfc8907_obfuscation_test.go::TestRFC8907ClientRefusesUnobfuscatedReply": "4969abbf36034547"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-16: same unit as RFC8956-3.1-1, moved verbatim to core. The quote carries both clauses. Encoding is proven by the canonical-bytes assertions. Decoding: inputs with 0xff padding must parse without error, and comp.Prefix() must equal the pattern-only prefix (::7f00:0:0:0/72, 103:8000::/17) with the exact offset. A decoder that read padding into the match, or rejected nonzero padding, fails require.NoError or the Prefix assertion.",
+  "requirement_sha": "0e1fd219dfd83aa1",
+  "tests": {
+    "internal/core/bgp/nlri/flowspec/rfc8956_prefix_test.go::TestIPv6FlowPrefixPatternAndPadding": "76ca9cd84e36e293",
+    "internal/core/bgp/nlri/flowspec/rfc8956_prefix_test.go::TestIPv6FlowPrefixPatternAndPadding#2": "76ca9cd84e36e293"
+  },
+  "units": {
+    "internal/core/bgp/nlri/flowspec/rfc8956_prefix_test.go::TestIPv6FlowPrefixPatternAndPadding": "a3d4c916875e6f1c",
+    "internal/core/bgp/nlri/flowspec/rfc8956_prefix_test.go::TestIPv6FlowPrefixPatternAndPadding#2": "a3d4c916875e6f1c"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC5880-6.8.3-1",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880SlowStartFloorInEveryStateButUp",
+    "unit-sha": "a183f8fec64f8e77",
+    "claim-sha": "08cd9c4b55b61372",
+    "route": "mutant",
+    "producer": "internal/component/bfd/session/fsm.go::onStateChange",
+    "producer-sha": "4ed1ee92b4f69d5a",
+    "break": "line 193: \"m.vars.SessionState != packet.StateUp\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC5880-6.8.3-1",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/session/rfc5880_test.go::TestRFC5880SlowStartFloorLiftedWhenUp",
+    "unit-sha": "03bdb9db68405d57",
+    "claim-sha": "6eb308a26ec8dcfe",
+    "route": "revert",
+    "producer": "internal/component/bfd/session/fsm.go::onStateChange",
+    "producer-sha": "4ed1ee92b4f69d5a",
+    "break": "body of onStateChange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.8.3-1",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/session/rfc5880_test.go::TestRFC5880SlowStartFloorRestoredOnAdminDown",
+    "unit-sha": "5703d39973779f90",
+    "claim-sha": "4d61d3ccd3f4977d",
+    "route": "revert",
+    "producer": "internal/component/bfd/session/fsm.go::onStateChange",
+    "producer-sha": "4ed1ee92b4f69d5a",
+    "break": "body of onStateChange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.8.3-1",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/session/rfc5880_test.go::TestRFC5880SlowStartFloorWhileNotUp",
+    "unit-sha": "b6954adc5557d557",
+    "claim-sha": "4e7b6f6ead0d6a8b",
+    "route": "revert",
+    "producer": "internal/component/bfd/session/session.go::Init",
+    "producer-sha": "39bd57d2fe6e92b0",
+    "break": "body of Init replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

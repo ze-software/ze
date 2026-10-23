@@ -1,0 +1,11 @@
+{
+  "note": "Re-judged 2026-10-15 (subagent, after 14d1c8f19c and 224b0ef514). The tagged unit changed only in its setup call: mgr.apply/applyListeners became reconcile(..., BindLenient), the policy the deleted wrappers passed; the unit binds one free loopback port, where lenient and strict bind alike, and every assertion line is byte-identical. Where this unit carries a revert record (TestDoTListener, TestDoHListener, TestRFC7858DoTNegotiatesOnlyBCP195Suites, the two RFC 2181 4.1-1 units), it was re-observed red today. Prior judgement re-read against the current body and stands: TestRFC2181_UDPReplySourceAndPort reads the reply on the client's own ephemeral socket and matches the query id; a reply sent to any other destination port never arrives and the read fails.",
+  "requirement_sha": "6c75ce71dc5f1e92",
+  "tests": {
+    "internal/plugins/geodns/rfc2181_server_test.go::TestRFC2181_UDPReplySourceAndPort": "8db97d24fc455c8c"
+  },
+  "units": {
+    "internal/plugins/geodns/rfc2181_server_test.go::TestRFC2181_UDPReplySourceAndPort": "5e7a51bc043c8ca6"
+  },
+  "verdict": "enforced"
+}

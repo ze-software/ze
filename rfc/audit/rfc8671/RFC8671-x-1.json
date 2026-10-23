@@ -1,0 +1,13 @@
+{
+  "note": "Re-read 2026-09-27 against the \u00a74 quote (header layout with O in the fourth flag position; O=0 Adj-RIB-In, O=1 Adj-RIB-Out). Forbidden: O at another bit, or its meaning inverted. TestRFC8671OFlagBit4 fails if PeerFlagO != 0x10, if flags 0x10 does not decode as Adj-RIB-Out, or if 0x08 does.",
+  "requirement_sha": "629ff494a8f39c7f",
+  "tests": {
+    "internal/component/bgp/plugins/bmp/header_test.go::TestRFC8671OFlagBit4": "49dfad3eed97ec32",
+    "internal/component/bgp/plugins/bmp/header_test.go::TestRFC8671OFlagBit4#2": "49dfad3eed97ec32"
+  },
+  "units": {
+    "internal/component/bgp/plugins/bmp/header_test.go::TestRFC8671OFlagBit4": "c48503a93c7660af",
+    "internal/component/bgp/plugins/bmp/header_test.go::TestRFC8671OFlagBit4#2": "c48503a93c7660af"
+  },
+  "verdict": "enforced"
+}

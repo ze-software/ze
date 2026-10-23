@@ -1,0 +1,13 @@
+{
+  "note": "forbidden: popping when NP is set. TestRFC8665NoPHPKeepsPrefixSIDLabel requires OutgoingActionFor(NP=1) to be ActionKeep with the label imposed; negative TestRFC8665PHPPopsWhenNoPHPFlagClear requires NP=0 to pop, so the no-pop rule is tied to the flag. Sole producer of the penultimate-hop action; wiring is row RFC8665-5-7",
+  "requirement_sha": "4f5be94fdd9015e3",
+  "tests": {
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665NoPHPKeepsPrefixSIDLabel": "dcc89abea6ba13ce",
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665PHPPopsWhenNoPHPFlagClear": "dcc89abea6ba13ce"
+  },
+  "units": {
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665NoPHPKeepsPrefixSIDLabel": "444536801c4546bd",
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665PHPPopsWhenNoPHPFlagClear": "d9c37fc9fac37c10"
+  },
+  "verdict": "enforced"
+}

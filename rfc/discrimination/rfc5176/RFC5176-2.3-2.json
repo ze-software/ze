@@ -1,0 +1,57 @@
+[
+  {
+    "rid": "RFC5176-2.3-2",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176DifferentSourcePortIsNotADuplicate",
+    "unit-sha": "cf437070a44aafa0",
+    "claim-sha": "bf35de79d5eeec2b",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authradius/coa.go::replayKey",
+    "producer-sha": "eccd706f763c22c9",
+    "break": "body of replayKey replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5176-2.3-2",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176DuplicateIsSameSourcePortAndIdentifier",
+    "unit-sha": "309b825ce372ca01",
+    "claim-sha": "4728c424d974cba0",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authradius/coa.go::cachedReplay",
+    "producer-sha": "f5d7923607ecf9e8",
+    "break": "body of cachedReplay replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5176-2.3-2",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176DuplicateRequestAnsweredFromCache",
+    "unit-sha": "78b4298a4bc91807",
+    "claim-sha": "2713590c468f18c1",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authradius/coa.go::cachedReplay",
+    "producer-sha": "f5d7923607ecf9e8",
+    "break": "body of cachedReplay replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5176-2.3-2",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176DuplicateRequestAnsweredFromCache",
+    "unit-sha": "78b4298a4bc91807",
+    "claim-sha": "7ad32a97e5d7a34a",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authradius/coa.go::cachedReplay",
+    "producer-sha": "f5d7923607ecf9e8",
+    "break": "body of cachedReplay replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5176-2.3-2",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176SameTripleNewAuthenticatorIsProcessedAfresh",
+    "unit-sha": "63afa9385aa4f8f8",
+    "claim-sha": "f2bbd3438ebf8a9b",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authradius/coa.go::cachedReplay",
+    "producer-sha": "f5d7923607ecf9e8",
+    "break": "body of cachedReplay replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

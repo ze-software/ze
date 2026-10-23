@@ -1,0 +1,134 @@
+[
+  {
+    "rid": "RFC3948-2.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/child_test.go::TestGenerateESPSPI",
+    "unit-sha": "955f4b643b2086cd",
+    "claim-sha": "5c75afbfd0ebcf46",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/child.go::generateESPSPI",
+    "producer-sha": "bb8e37124734be7e",
+    "break": "body of generateESPSPI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3948-2.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/child_test.go::TestGenerateESPSPI",
+    "unit-sha": "955f4b643b2086cd",
+    "claim-sha": "35ebbaac3d638164",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/child.go::generateESPSPI",
+    "producer-sha": "bb8e37124734be7e",
+    "break": "body of generateESPSPI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3948-2.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc3948_spi_test.go::TestRFC3948GeneratedESPSPIIsNeverZero",
+    "unit-sha": "88171684f37aa838",
+    "claim-sha": "6d08831a42883442",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/child.go::generateESPSPI",
+    "producer-sha": "bb8e37124734be7e",
+    "break": "body of generateESPSPI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3948-2.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc3948_spi_test.go::TestRFC3948GeneratedESPSPIIsNeverZero",
+    "unit-sha": "88171684f37aa838",
+    "claim-sha": "14157ec91fb7e68d",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/child.go::generateESPSPI",
+    "producer-sha": "bb8e37124734be7e",
+    "break": "body of generateESPSPI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3948-2.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc3948_spi_test.go::TestRFC3948OutboundESPSPIIsNeverZero",
+    "unit-sha": "e5e56f226f08e40a",
+    "claim-sha": "74b8e0bdb953a994",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/fsm.go::handleAuthResponse",
+    "producer-sha": "838f19a0d283ae6c",
+    "break": "body of handleAuthResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3948-2.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc3948_spi_test.go::TestRFC3948OutboundESPSPIIsNeverZero",
+    "unit-sha": "e5e56f226f08e40a",
+    "claim-sha": "94757857bc741a0f",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/fsm.go::handleAuthResponse",
+    "producer-sha": "838f19a0d283ae6c",
+    "break": "body of handleAuthResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3948-2.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestChildRekeyRequestRefusesPeerSPIZero",
+    "unit-sha": "7877645e80501ad3",
+    "claim-sha": "30321dec2dd416ae",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/rekey.go::respondChildRekey",
+    "producer-sha": "5806e3ed91074346",
+    "break": "body of respondChildRekey replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3948-2.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestChildRekeyRequestUsesPeerSPI",
+    "unit-sha": "6b9ea2711cad155a",
+    "claim-sha": "0a003989d12a9e7f",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/rekey.go::respondChildRekey",
+    "producer-sha": "5806e3ed91074346",
+    "break": "body of respondChildRekey replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3948-2.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestChildRekeyResponseRefusesPeerSPIZero",
+    "unit-sha": "7044e2075a200ed0",
+    "claim-sha": "a302118efe9da083",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/rekey.go::applyChildRekeyResponse",
+    "producer-sha": "887047cb0f5ec1b3",
+    "break": "body of applyChildRekeyResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3948-2.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestChildRekeyResponseUsesPeerSPI",
+    "unit-sha": "6bfd65ce064c2b10",
+    "claim-sha": "5902f72fd0a06cd3",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/rekey.go::applyChildRekeyResponse",
+    "producer-sha": "887047cb0f5ec1b3",
+    "break": "body of applyChildRekeyResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3948-2.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestResponderRefusesPeerSPIZero",
+    "unit-sha": "0a4e1d6bc6b881d6",
+    "claim-sha": "1f9755ce5684850f",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/responder.go::selectAuthChildSA",
+    "producer-sha": "7e741855084555ef",
+    "break": "body of selectAuthChildSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3948-2.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestResponderUsesPeerSPI",
+    "unit-sha": "0b594c1dd02c1cec",
+    "claim-sha": "80836e6ae5f1a667",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/responder.go::selectAuthChildSA",
+    "producer-sha": "7e741855084555ef",
+    "break": "body of selectAuthChildSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7854-4.5-4",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854TerminationIsTheCommonHeaderThenTLVs",
+    "unit-sha": "86c6b06e50fd91d8",
+    "claim-sha": "ce8db5aa95a848be",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/bmp/sender.go::writeTerminationLocked",
+    "producer-sha": "1c09a16edf286183",
+    "break": "body of writeTerminationLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7854-4.5-4",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854TerminationWithNoTLVIsRefused",
+    "unit-sha": "60967080026a72e7",
+    "claim-sha": "339cd5ec4566f531",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/bmp/msg.go::decodeTermination",
+    "producer-sha": "d6e0c4eb3a5efd93",
+    "break": "body of decodeTermination replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

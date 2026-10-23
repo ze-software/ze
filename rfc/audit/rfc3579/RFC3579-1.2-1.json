@@ -1,0 +1,13 @@
+{
+  "note": "negative compares verdict, profiles and source with and without a Notification carrying text; positive shows the message is delivered (logged, Notification Response sent) and not acted on",
+  "requirement_sha": "b4d25f1afc2523b5",
+  "tests": {
+    "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapNotificationDoesNotSteerTheLogin": "2b1b1ce908f454a5",
+    "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapNotificationIsAnsweredAndLogged": "2b1b1ce908f454a5"
+  },
+  "units": {
+    "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapNotificationDoesNotSteerTheLogin": "4e0b92ccd35d86a7",
+    "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapNotificationIsAnsweredAndLogged": "5139de18d172e1fa"
+  },
+  "verdict": "enforced"
+}

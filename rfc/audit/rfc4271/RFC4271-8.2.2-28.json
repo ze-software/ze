@@ -1,0 +1,13 @@
+{
+  "note": "Judged 2026-10-01 (BGP c12 judge) under R49(a) and the dated correction: for Event 21 the Section 6.1 Message Header Error code governs the NOTIFICATION, the Section 8.2.2 Established list governs the teardown. Events 9, 12, 13, 20 cannot occur in Ze's Established, and Event 22 does not either (handleOpen answers any OPEN in Established with a Cease before checking it), so the claim covers Event 21 only and says so. Positive TestRFC4271EstablishedHeaderErrorReleasesTheConnection, subtests Marker (all-zero Marker, isolated: Length 19, Type KEEPALIVE) and Length (all-ones Marker, Length 18): exactly one NOTIFICATION 1/1 resp. 1/2, EOF, peer-down raised to the Reactor observers (the route-deletion trigger), session released, three timers stopped, counter 0->1. Negative TestRFC4271EstablishedValidHeaderKeepsTheConnection: a well-formed KEEPALIVE (Length 19, the Section 4.1 floor) gives no peer-down, same session, Established, counter 0. Records: positive on session_read.go::notifyHeaderErr, negative on message/header.go::ParseHeader, both observed red. The routes clause is proven to the peer-down raise; the RIB's deletion on that peer-down is proven by TestRFC4760PeerDownDeletesOnlyThatNeighborsRoutes (tagged RFC4271-8.2.2-12), the same chain 8.2.2-12 is judged on. 'FSM Error' itself is not asserted, by the R49(a) reading.",
+  "requirement_sha": "6b570f914c2d84bb",
+  "tests": {
+    "internal/component/bgp/reactor/rfc4271_established_header_error_peer_test.go::TestRFC4271EstablishedHeaderErrorReleasesTheConnection": "d317c167d89e39e5",
+    "internal/component/bgp/reactor/rfc4271_established_header_error_peer_test.go::TestRFC4271EstablishedValidHeaderKeepsTheConnection": "d317c167d89e39e5"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc4271_established_header_error_peer_test.go::TestRFC4271EstablishedHeaderErrorReleasesTheConnection": "93649143097588ba",
+    "internal/component/bgp/reactor/rfc4271_established_header_error_peer_test.go::TestRFC4271EstablishedValidHeaderKeepsTheConnection": "56340c605eb4bf48"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5187-3.1-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc5187_preserve_restart_test.go::TestRFC5187LSAIDToPrefixPreservedAcrossRestart",
+    "unit-sha": "e7aad454c9759889",
+    "claim-sha": "0c13810e8e622537",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/gr_preserve.go::restorePrefixLSIDs",
+    "producer-sha": "c823d01f1fccfc3e",
+    "break": "body of restorePrefixLSIDs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5187-3.1-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/rfc5187_preserve_restart_test.go::TestRFC5187LSAIDToPrefixPreservedAcrossRestart",
+    "unit-sha": "e7aad454c9759889",
+    "claim-sha": "48069e333f01cae3",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/gr_preserve.go::restorePrefixLSIDs",
+    "producer-sha": "c823d01f1fccfc3e",
+    "break": "body of restorePrefixLSIDs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

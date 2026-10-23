@@ -1,0 +1,19 @@
+{
+  "note": "Re-judged 2026-10-18 (independent auditor, after 4ef90497c6). Section 4.9: \"Reason indicates why the session was closed.\" The earlier finding (no unit tied a Reason to the cause, and peerDownFor never emitted reason 4) is fixed and now proven at both decision points. Reactor: TestPeerCloseNamesTheTransportLoss drops TCP under a running Peer and asserts rpc.ReasonTCPFailure with Event 18; TestPeerCloseNamesTheCongestionTeardownLocal drives congestionTeardownPeer and asserts rpc.ReasonLocalClose with Event 18, so ze closing the transport itself is not reported as the remote doing it. BMP: TestRFC7854PeerDownTransportLossIsReason4 asserts Reason 4 (\"This includes any unexpected termination of the transport session\") with no Data for rpc.ReasonTCPFailure. TestHandleSenderStatePeerDown (reason 2 for a NOTIFICATION close with no cached PDU) and TestBMPSenderPeerDown (round-trips a chosen byte) remain weak on their own. Seam not covered by a tagged unit: apiStateObserver.OnPeerClosed and server/events.go copying the reason and CloseFSMEvent into the StructuredEvent. Single-polarity annotation holds: every Peer Down is written with a reason byte.",
+  "requirement_sha": "18f14aad3f239d5b",
+  "tests": {
+    "internal/component/bgp/plugins/bmp/event_test.go::TestHandleSenderStatePeerDown": "1600925b71fa0ce5",
+    "internal/component/bgp/plugins/bmp/rfc7854_peerdown_cause_test.go::TestRFC7854PeerDownTransportLossIsReason4": "9670cb870441e913",
+    "internal/component/bgp/plugins/bmp/rfc7854_sender_test.go::TestBMPSenderPeerDown": "b1d529e5dcb7872e",
+    "internal/component/bgp/reactor/peer_close_test.go::TestPeerCloseNamesTheCongestionTeardownLocal": "cf6e617fcfa3155a",
+    "internal/component/bgp/reactor/peer_close_test.go::TestPeerCloseNamesTheTransportLoss": "cf6e617fcfa3155a"
+  },
+  "units": {
+    "internal/component/bgp/plugins/bmp/event_test.go::TestHandleSenderStatePeerDown": "baeff2fea0c65d89",
+    "internal/component/bgp/plugins/bmp/rfc7854_peerdown_cause_test.go::TestRFC7854PeerDownTransportLossIsReason4": "31a9e2e00f95104b",
+    "internal/component/bgp/plugins/bmp/rfc7854_sender_test.go::TestBMPSenderPeerDown": "d103d014f34221d9",
+    "internal/component/bgp/reactor/peer_close_test.go::TestPeerCloseNamesTheCongestionTeardownLocal": "a4784ff23f6b2c26",
+    "internal/component/bgp/reactor/peer_close_test.go::TestPeerCloseNamesTheTransportLoss": "4d5ca2f74e71e068"
+  },
+  "verdict": "enforced"
+}

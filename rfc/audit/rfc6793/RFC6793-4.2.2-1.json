@@ -1,0 +1,13 @@
+{
+  "note": "TestRFC6793EncodeTwoOctetToOldSpeaker asserts a 2-octet AS_PATH with AS_TRANS toward a non-ASN4 context; the negative keeps mappable ASNs unsubstituted.",
+  "requirement_sha": "55a65c2ec3be5b71",
+  "tests": {
+    "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793EncodeTwoOctetToOldSpeaker": "fdd3980327455f38",
+    "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793TwoOctetASPathKeepsMappableASNs": "fdd3980327455f38"
+  },
+  "units": {
+    "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793EncodeTwoOctetToOldSpeaker": "9fc7a65a98c8b709",
+    "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793TwoOctetASPathKeepsMappableASNs": "293049ca0273d949"
+  },
+  "verdict": "enforced"
+}

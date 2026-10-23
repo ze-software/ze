@@ -1,0 +1,9 @@
+{
+  "code": {
+    "internal/component/bgp/plugins/ls_export/export_encode.go::originateAttributes": "772616ee5fb47707",
+    "internal/component/bgp/plugins/nlri/ls/attr_link.go::decodeLinkName": "1c838ed41856b165"
+  },
+  "note": "D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Cited producer originateAttributes changed only by ls.WriteTLVBytes -> bgpls.WriteTLVBytes. RFC 9552 Section 5.3.2.7: \"The use of the FQDN or a substring of it is strongly RECOMMENDED.\" No native FQDN naming policy: originateAttributes copies supplied values and decodeLinkName decodes received strings. Optional gap; arbitrary operator strings are permitted.",
+  "requirement_sha": "33f92a4b3affe105",
+  "verdict": "unimplemented"
+}

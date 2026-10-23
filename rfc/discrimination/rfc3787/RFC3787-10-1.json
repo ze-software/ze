@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC3787-10-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/circuit/hello_test.go::TestISISHelloTLV132RequiresInterfaceAddr",
+    "unit-sha": "cc1c8d4f90a97fb3",
+    "claim-sha": "ec89e9a87d349f84",
+    "route": "revert",
+    "producer": "internal/plugins/isis/circuit/hello.go::ipv4InterfaceAddrTLV",
+    "producer-sha": "f1507d241c9faca4",
+    "break": "body of ipv4InterfaceAddrTLV replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3787-10-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/circuit/hello_test.go::TestISISIIHOriginationTLVs",
+    "unit-sha": "4d5855ae8d953c32",
+    "claim-sha": "e97c4abc50557614",
+    "route": "revert",
+    "producer": "internal/plugins/isis/circuit/hello.go::ipv4InterfaceAddrTLV",
+    "producer-sha": "f1507d241c9faca4",
+    "break": "body of ipv4InterfaceAddrTLV replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3787-10-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/rfc3787_absence_test.go::TestRFC3787PeerWithoutIPInterfaceAddressHasNoNextHop",
+    "unit-sha": "19a30359fc096f52",
+    "claim-sha": "485ad6b4e988bcf4",
+    "route": "revert",
+    "producer": "internal/plugins/isis/spf_wiring.go::ResolveNextHop",
+    "producer-sha": "fa86deec17306279",
+    "break": "body of ResolveNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

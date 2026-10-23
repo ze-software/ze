@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5880-6.7.2-2",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/rfc5880_key_management_hex_test.go::TestRFC5880KeyManagementConfigEntryAcceptsHexBinaryStrings",
+    "unit-sha": "be51e810011077fa",
+    "claim-sha": "258b5e456ca331ad",
+    "route": "revert",
+    "producer": "internal/component/bfd/config.go::parseAuthSecret",
+    "producer-sha": "4f4226b414e6fc02",
+    "break": "body of parseAuthSecret replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.7.2-2",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/rfc5880_key_management_hex_test.go::TestRFC5880KeyManagementConfigEntryKeepsEveryBinaryByte",
+    "unit-sha": "9e11fffb3b512fa2",
+    "claim-sha": "2cf4ef352fef231f",
+    "route": "revert",
+    "producer": "internal/component/bfd/config.go::parseAuthSecret",
+    "producer-sha": "4f4226b414e6fc02",
+    "break": "body of parseAuthSecret replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

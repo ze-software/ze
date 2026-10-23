@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-11 by an independent judge after the row was widened to the R item head. Whole sentence 'This bit MUST be cleared in all request messages and MUST be set in all responses' (RFC 7296 3.1). TestResponseBitMatchesDirection compares the R bit for equality with isResponse on every engine-built message, so a request with R set or a response with R clear fails. TestRFC7296InitiatorIgnoresAResponseWithTheRBitClear feeds handleInbound the responder's real IKE_SA_INIT answer with only the R bit cleared (state stays sa-init-sent), then the untouched answer (advances): isolation by a one-bit difference. Revert records on buildSAInitResponse and handleInbound are reach proofs only.",
+  "requirement_sha": "3da8ab4be8c5a5dd",
+  "tests": {
+    "internal/component/ike/engine/rfc7296_header_test.go::TestResponseBitMatchesDirection": "3621c3a699e1b772",
+    "internal/component/ike/engine/rfc7296_response_bit_receive_test.go::TestRFC7296InitiatorIgnoresAResponseWithTheRBitClear": "27be632153608b49"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7296_header_test.go::TestResponseBitMatchesDirection": "214ee371f8ae3d13",
+    "internal/component/ike/engine/rfc7296_response_bit_receive_test.go::TestRFC7296InitiatorIgnoresAResponseWithTheRBitClear": "e123dab2fd919e31"
+  },
+  "verdict": "enforced"
+}

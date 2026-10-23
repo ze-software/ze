@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4301-5.2-4",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc4301_ike_bypass_test.go::TestRFC4301IKEBypassIsNeverAProtectOrAWildcard",
+    "unit-sha": "f9a6c521753a89a1",
+    "claim-sha": "a38f91b8b9e371ba",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/bypass.go::ikeBypassPolicies",
+    "producer-sha": "45908ec464ffd0cf",
+    "break": "body of ikeBypassPolicies replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4301-5.2-4",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc4301_ike_bypass_test.go::TestRFC4301IKETrafficHasAnExplicitBypassEntry",
+    "unit-sha": "14baba40790b0ed1",
+    "claim-sha": "167bcfb86a40653f",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/bypass.go::ikeBypassPolicies",
+    "producer-sha": "45908ec464ffd0cf",
+    "break": "body of ikeBypassPolicies replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

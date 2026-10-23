@@ -1,0 +1,17 @@
+{
+  "note": "TestRFC2661RetransmitExhaustionClearsTunnel drives reactor.handleTick with dead-peer detection off, an unanswered HELLO and one established session: after each of the DefaultMaxRetransmit retransmissions the tunnel stays established with its session, and the tick past the budget leaves the tunnel closed with zero sessions (StopCCN logged). TestTickMaxAttempts proves the engine signal on both sides. The 5.8-3 tag on TestPeerTeardownWithdrawsSubscriberRoute, whose body asserted only OnSessionDown, is gone. Configurability is judged under RFC2661-5.8-8.",
+  "requirement_sha": "5d9557a4489cdedc",
+  "tests": {
+    "internal/component/l2tp/rfc2661_reliable_test.go::TestTickMaxAttempts": "1da6320bfe08bd17",
+    "internal/component/l2tp/rfc2661_reliable_test.go::TestTickMaxAttempts#2": "1da6320bfe08bd17",
+    "internal/component/l2tp/rfc2661_retransmit_exhaustion_test.go::TestRFC2661RetransmitExhaustionClearsTunnel": "7046da3338c57d75",
+    "internal/component/l2tp/rfc2661_retransmit_exhaustion_test.go::TestRFC2661RetransmitExhaustionClearsTunnel#2": "7046da3338c57d75"
+  },
+  "units": {
+    "internal/component/l2tp/rfc2661_reliable_test.go::TestTickMaxAttempts": "d2849faf20501127",
+    "internal/component/l2tp/rfc2661_reliable_test.go::TestTickMaxAttempts#2": "d2849faf20501127",
+    "internal/component/l2tp/rfc2661_retransmit_exhaustion_test.go::TestRFC2661RetransmitExhaustionClearsTunnel": "1c16c003714b4174",
+    "internal/component/l2tp/rfc2661_retransmit_exhaustion_test.go::TestRFC2661RetransmitExhaustionClearsTunnel#2": "1c16c003714b4174"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,15 @@
+{
+  "note": "TestRFC2866SentAccountingRequestCarriesTheSection3Authenticator reads the Accounting-Request datagram SendToServers put on the wire and asserts its 16 authenticator octets equal an independent MD5(Code+ID+Length+16 zeros+attributes+secret) over that datagram, and differ from the random authenticator in the Packet. Exact equality over the sent octets fails on any formula or ordering deviation in client.go. The tampering negative stays helper-level (shows secret, attribute and Code feed the hash); the wire positive is what discriminates.",
+  "requirement_sha": "ee70c9b69e182919",
+  "tests": {
+    "internal/component/radius/rfc2866_accounting_test.go::TestRFC2866AccountingRequestAuthFormula": "fe96fc203c6b8529",
+    "internal/component/radius/rfc2866_accounting_test.go::TestRFC2866AccountingRequestAuthRejectsTampering": "fe96fc203c6b8529",
+    "internal/component/radius/rfc2866_sent_request_test.go::TestRFC2866SentAccountingRequestCarriesTheSection3Authenticator": "673a0e65f53e1495"
+  },
+  "units": {
+    "internal/component/radius/rfc2866_accounting_test.go::TestRFC2866AccountingRequestAuthFormula": "a8286329bd93c739",
+    "internal/component/radius/rfc2866_accounting_test.go::TestRFC2866AccountingRequestAuthRejectsTampering": "5b86cbd8a1446b1b",
+    "internal/component/radius/rfc2866_sent_request_test.go::TestRFC2866SentAccountingRequestCarriesTheSection3Authenticator": "16be81b4832a27a4"
+  },
+  "verdict": "enforced"
+}

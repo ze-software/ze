@@ -1,0 +1,21 @@
+{
+  "note": "Re-judged 2026-10-12 (independent auditor). SHIFTED by 6e063fb498 (tests: give ten assert-nothing tests a real assertion), whose hunks sit in untagged sibling tests and the import block. The tagged unit is byte-identical (gate-verified) and no helper it calls changed. Verdict stands. Re-judged 2026-09-30. Unprotected-message clause unchanged: TestRteUnownedEstablishedSATrustsNothing (cleartext Delete/CREATE_CHILD_SA refused, authenticated Delete still ends the SA) and the two responder IKE_SA_INIT units. Routing-information clause now asserted with real loopback ICMP (linux, unprivileged, ran and passed, not skipped): the IKE socket sets IP_RECVERR and the queued Port Unreachable is consumed by the transport's real error-queue path (records: panic in drainErrorQueue + and deliverQueuedError - observed red, so the ICMP path runs in each unit). Negative TestRFC7296ICMPFromThePeerWhileWaitingFailsNothing: a Port Unreachable from the peer's own address:port while a probe waits, plus a Fragmentation Needed routed into handleSizeRefusal (the engine's only ICMP consumer): SA stays Established, probe stays outstanding with no sa-failed answer, nothing reaches Refusals, later authenticated answer settles it. Positive TestRFC7296ICMPUnreachableDoesNotFailTheSA: after a queued Port Unreachable the SA's next request reaches the peer and the peer's authenticated answer settles the probe as fits. Limit: the assertion covers today's consumers (Refusals channel, handleSizeRefusal); a new ICMP consumer outside them would need its own test.",
+  "requirement_sha": "cf7c5c842e6cd8d6",
+  "tests": {
+    "internal/component/ike/engine/rfc7296_icmp_linux_test.go::TestRFC7296ICMPFromThePeerWhileWaitingFailsNothing": "a5c7c1939e14d357",
+    "internal/component/ike/engine/rfc7296_icmp_linux_test.go::TestRFC7296ICMPUnreachableDoesNotFailTheSA": "a5c7c1939e14d357",
+    "internal/component/ike/engine/rfc7296_responder_test.go::TestResponderAcceptsReinitAfterStaleSA": "dc42b3cca38785d0",
+    "internal/component/ike/engine/rfc7296_responder_test.go::TestResponderKeepsOldSAOnUnauthenticatedInit": "dc42b3cca38785d0",
+    "internal/component/ike/engine/rfc7296_routing_test.go::TestRteUnownedEstablishedSATrustsNothing": "f133fd37f92cb793",
+    "internal/component/ike/engine/rfc7296_routing_test.go::TestRteUnownedEstablishedSATrustsNothing#2": "f133fd37f92cb793"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7296_icmp_linux_test.go::TestRFC7296ICMPFromThePeerWhileWaitingFailsNothing": "f628b3ef4dbe7263",
+    "internal/component/ike/engine/rfc7296_icmp_linux_test.go::TestRFC7296ICMPUnreachableDoesNotFailTheSA": "536657035470c4c7",
+    "internal/component/ike/engine/rfc7296_responder_test.go::TestResponderAcceptsReinitAfterStaleSA": "39587d1dcc28ebea",
+    "internal/component/ike/engine/rfc7296_responder_test.go::TestResponderKeepsOldSAOnUnauthenticatedInit": "77ceeb12989e7f95",
+    "internal/component/ike/engine/rfc7296_routing_test.go::TestRteUnownedEstablishedSATrustsNothing": "d23db3dc53605f85",
+    "internal/component/ike/engine/rfc7296_routing_test.go::TestRteUnownedEstablishedSATrustsNothing#2": "d23db3dc53605f85"
+  },
+  "verdict": "enforced"
+}

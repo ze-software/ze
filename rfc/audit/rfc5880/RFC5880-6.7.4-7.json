@@ -1,0 +1,25 @@
+{
+  "code": {
+    "internal/component/bfd/auth/sha1.go::newDigestSigner": "c77b7f7f0409ad35",
+    "internal/component/bfd/auth/signer.go::NewSigner": "9247a1c17e7f8873",
+    "internal/component/bfd/auth/signer.go::NewVerifier": "bb2384924ac4d630",
+    "internal/component/bfd/config.go::parseAuthConfig": "f88561afff3025ec"
+  },
+  "note": "Re-judged 2026-10-18 (independent auditor, after 97686ea267). RFC 5880 Section 6.7.4: \"The authentication key value is a binary string of up to 20 bytes, and MUST be placed into the Auth Key/Hash field, padding with trailing zero bytes as necessary.\" parseAuthConfig applies the packet.KeyedSHA1KeyLenMax refusal to the secret parseAuthSecret returns, so the ASCII and hex forms meet the same limit (a hex form over 20 bytes is also refused earlier by the YANG length 2..40); NewSigner and NewVerifier refuse it again and newDigestSigner zero-pads into the 20-byte slot. Positive: TestRFC5880ShortKeyZeroPaddedIntoDigestField recomputes SHA1 over the packet with the 11-byte key plus nine zero bytes and requires Sign's hash to match; TestParseAuthConfigKeyedSecretLength and TestKeyedSecretLongerThanSlotRefused accept 20 bytes. Negative: both refuse 21 bytes, and by inspection removing the SHA1 check in parseAuthConfig leaves the 21-byte case accepted, which the test fails on.",
+  "requirement_sha": "db17e705cc0050dc",
+  "tests": {
+    "internal/component/bfd/auth/rfc5880_test.go::TestKeyedSecretLongerThanSlotRefused": "5a25c74cc2d9bd47",
+    "internal/component/bfd/auth/rfc5880_test.go::TestKeyedSecretLongerThanSlotRefused#2": "5a25c74cc2d9bd47",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880ShortKeyZeroPaddedIntoDigestField": "5a25c74cc2d9bd47",
+    "internal/component/bfd/rfc5881_test.go::TestParseAuthConfigKeyedSecretLength": "57ca680bd638e073",
+    "internal/component/bfd/rfc5881_test.go::TestParseAuthConfigKeyedSecretLength#2": "57ca680bd638e073"
+  },
+  "units": {
+    "internal/component/bfd/auth/rfc5880_test.go::TestKeyedSecretLongerThanSlotRefused": "313a97973f37433d",
+    "internal/component/bfd/auth/rfc5880_test.go::TestKeyedSecretLongerThanSlotRefused#2": "313a97973f37433d",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880ShortKeyZeroPaddedIntoDigestField": "2e34c85ea84f290b",
+    "internal/component/bfd/rfc5881_test.go::TestParseAuthConfigKeyedSecretLength": "e4a3fcb1c484a1c5",
+    "internal/component/bfd/rfc5881_test.go::TestParseAuthConfigKeyedSecretLength#2": "e4a3fcb1c484a1c5"
+  },
+  "verdict": "enforced"
+}

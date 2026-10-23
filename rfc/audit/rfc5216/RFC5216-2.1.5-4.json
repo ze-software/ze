@@ -1,0 +1,13 @@
+{
+  "note": "Clause 1 forbidden: a fragment Request whose Identifier is not the previous plus one; TestRFC5216ServerFragmentIdentifiersIncrementAndTheAckEchoesThem errors on req.Identifier != prev+1. Clause 2 forbidden: an ACK carrying another Identifier; the same test errors on ack.Identifier != req.Identifier, and driveFragmentedFlight fatals if a stale-Identifier ACK draws a packet.",
+  "requirement_sha": "9adcb0f9ef6b8502",
+  "tests": {
+    "internal/core/eap/rfc5216_fragment_ack_test.go::TestRFC5216ServerFragmentIdentifiersIncrementAndTheAckEchoesThem": "2d0ca832c5975065",
+    "internal/core/eap/rfc5216_fragment_ack_test.go::TestRFC5216ServerFragmentIdentifiersIncrementAndTheAckEchoesThem#2": "2d0ca832c5975065"
+  },
+  "units": {
+    "internal/core/eap/rfc5216_fragment_ack_test.go::TestRFC5216ServerFragmentIdentifiersIncrementAndTheAckEchoesThem": "7149e96d2ed9c21d",
+    "internal/core/eap/rfc5216_fragment_ack_test.go::TestRFC5216ServerFragmentIdentifiersIncrementAndTheAckEchoesThem#2": "7149e96d2ed9c21d"
+  },
+  "verdict": "enforced"
+}

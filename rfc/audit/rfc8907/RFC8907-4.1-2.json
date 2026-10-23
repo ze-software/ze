@@ -1,0 +1,13 @@
+{
+  "note": "(a) forbidden: a session's first packet with a seq_no other than 1, or accepting a reply that does not follow it. (b) TestRFC8907FirstPacketCarriesSequenceOne requires requests[0].SeqNo == 1 on each new connection; TestRFC8907ReplyReusingSequenceOneIsRefused requires a reply carrying seq_no 1 to fail Authenticate and validateResponseHeader to report \"sequence mismatch\". The increment clause is descriptive (\"will\").",
+  "requirement_sha": "9dddf97ed6ff5487",
+  "tests": {
+    "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907FirstPacketCarriesSequenceOne": "7c6845571ca0fb19",
+    "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907ReplyReusingSequenceOneIsRefused": "7c6845571ca0fb19"
+  },
+  "units": {
+    "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907FirstPacketCarriesSequenceOne": "42989b62de993626",
+    "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907ReplyReusingSequenceOneIsRefused": "0d58d5fdab54b8ee"
+  },
+  "verdict": "enforced"
+}

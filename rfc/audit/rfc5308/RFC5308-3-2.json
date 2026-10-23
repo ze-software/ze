@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-09-30. (a) forbidden: an LSP TLV 232 carrying a link-local address. (b) The earlier gap (the production filter untested) is closed: root TestRFC5308LSPInterfaceAddressesAreNonLinkLocal runs the engine over the test iface backend with two IPv6 circuits and decodes fragment 0 at both levels, built by the production path (lsdb_wiring.go levelState -> interfaceIPv6NonLinkLocal -> Originate): TLV 232 is exactly [2001:db8:a::1] (positive), and neither fe80::a:1 (same circuit) nor fe80::b:2 (the other circuit's only IPv6 address) appears (negative). Recorded +/- on circuits.go interfaceIPv6NonLinkLocal. lsdb TestISISOriginateTLV232Scope remains tagged and pre-filters its input; it carries no weight.",
+  "requirement_sha": "771c13db116d91bb",
+  "tests": {
+    "internal/plugins/isis/lsdb/rfc5308_origination_ipv6_test.go::TestISISOriginateTLV232Scope": "6f31da93ea46f1e7",
+    "internal/plugins/isis/lsdb/rfc5308_origination_ipv6_test.go::TestISISOriginateTLV232Scope#2": "6f31da93ea46f1e7",
+    "internal/plugins/isis/rfc5308_hello_link_local_test.go::TestRFC5308LSPInterfaceAddressesAreNonLinkLocal": "39bb51e0e65b3b45",
+    "internal/plugins/isis/rfc5308_hello_link_local_test.go::TestRFC5308LSPInterfaceAddressesAreNonLinkLocal#2": "39bb51e0e65b3b45"
+  },
+  "units": {
+    "internal/plugins/isis/lsdb/rfc5308_origination_ipv6_test.go::TestISISOriginateTLV232Scope": "9a13600ca234bff8",
+    "internal/plugins/isis/lsdb/rfc5308_origination_ipv6_test.go::TestISISOriginateTLV232Scope#2": "9a13600ca234bff8",
+    "internal/plugins/isis/rfc5308_hello_link_local_test.go::TestRFC5308LSPInterfaceAddressesAreNonLinkLocal": "f19f054c90b535e9",
+    "internal/plugins/isis/rfc5308_hello_link_local_test.go::TestRFC5308LSPInterfaceAddressesAreNonLinkLocal#2": "f19f054c90b535e9"
+  },
+  "verdict": "enforced"
+}

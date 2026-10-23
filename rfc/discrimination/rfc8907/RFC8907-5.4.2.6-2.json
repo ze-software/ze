@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC8907-5.4.2.6-2",
+    "polarity": "negative",
+    "unit": "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907NoRequestCarriesEnableService",
+    "unit-sha": "71923df6952b618b",
+    "claim-sha": "6d14f95834f9f3d9",
+    "route": "revert",
+    "producer": "internal/component/tacacs/authenticator.go::handlePass",
+    "producer-sha": "0247cf0da95085bf",
+    "break": "body of handlePass replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8907-5.4.2.6-2",
+    "polarity": "positive",
+    "unit": "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907PAPLoginOnWireCarriesLoginService",
+    "unit-sha": "90a2fa0ddcd57681",
+    "claim-sha": "79ebd2199332bfdd",
+    "route": "revert",
+    "producer": "internal/component/tacacs/authen.go::NewPAPAuthenStart",
+    "producer-sha": "15000cb3e5c110af",
+    "break": "body of NewPAPAuthenStart replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8907-5.4.2.6-2",
+    "polarity": "positive",
+    "unit": "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907LoginStartCarriesLoginService",
+    "unit-sha": "cee26397b3e57099",
+    "claim-sha": "61d95179cc635005",
+    "route": "revert",
+    "producer": "internal/component/tacacs/authen.go::NewPAPAuthenStart",
+    "producer-sha": "15000cb3e5c110af",
+    "break": "body of NewPAPAuthenStart replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8907-5.4.2.6-2",
+    "polarity": "negative",
+    "unit": "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907LoginStartNeverCarriesEnableService",
+    "unit-sha": "6c178d3956295a30",
+    "claim-sha": "aae877cd6802a550",
+    "route": "revert",
+    "producer": "internal/component/tacacs/authen.go::NewPAPAuthenStart",
+    "producer-sha": "15000cb3e5c110af",
+    "break": "body of NewPAPAuthenStart replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

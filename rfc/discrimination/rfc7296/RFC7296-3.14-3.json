@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-3.14-3",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKAcceptsAnyIVOnReceipt",
+    "unit-sha": "4c97e5a76b790124",
+    "claim-sha": "2ffff2dcd9fc2fd9",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/auth.go::decryptSKPayload",
+    "producer-sha": "d7d446228e538738",
+    "break": "body of decryptSKPayload replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-3.14-3",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_iv_receive_test.go::TestRFC7296RecipientAcceptsAnIVTheSenderShouldNotHaveChosen",
+    "unit-sha": "a55da6b1269f1311",
+    "claim-sha": "bf3c42990281fb54",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/auth.go::decryptSKPayload",
+    "producer-sha": "d7d446228e538738",
+    "break": "body of decryptSKPayload replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,21 @@
+{
+  "note": "Forbidden: accepting a zero Magic-Number. TestRFC1661ZeroMagicNumberRefused (server) and TestRFC1661ClientNaksZeroMagicInAWellFormedRequest / ...WithAValueOfItsOwn (client) go red unless a zero Magic draws a Nak carrying a 4-octet non-zero value; negatives Ack a non-zero Magic (TestRFC1661PeerMagicNumberAcked, TestRFC1661ClientAcksANonZeroMagic).",
+  "requirement_sha": "2184660ce626c053",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661PeerMagicNumberAcked": "9afaf002f0fd81ec",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ZeroMagicNumberRefused": "9afaf002f0fd81ec",
+    "internal/component/l2tp/pppoeclient/rfc1661_client_negotiation_test.go::TestRFC1661ClientAcksANonZeroMagic": "f877ac02501b6ee0",
+    "internal/component/l2tp/pppoeclient/rfc1661_client_negotiation_test.go::TestRFC1661ClientNaksZeroMagicInAWellFormedRequest": "f877ac02501b6ee0",
+    "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientNaksZeroMagicWithAValueOfItsOwn": "0d3244b2c125eaa3",
+    "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientNaksZeroMagicWithAValueOfItsOwn#2": "0d3244b2c125eaa3"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661PeerMagicNumberAcked": "661582f7b1140da1",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ZeroMagicNumberRefused": "b0f13de66997ec39",
+    "internal/component/l2tp/pppoeclient/rfc1661_client_negotiation_test.go::TestRFC1661ClientAcksANonZeroMagic": "cc865f59eaf7bece",
+    "internal/component/l2tp/pppoeclient/rfc1661_client_negotiation_test.go::TestRFC1661ClientNaksZeroMagicInAWellFormedRequest": "6eb90049d5691bf7",
+    "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientNaksZeroMagicWithAValueOfItsOwn": "6ff2c3694c4475ab",
+    "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientNaksZeroMagicWithAValueOfItsOwn#2": "6ff2c3694c4475ab"
+  },
+  "verdict": "enforced"
+}

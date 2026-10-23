@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: a route from a Customer or Peer, by an RS from an RS-client, or by an RS-client from an RS verified other than by the upstream algorithm. TestASPAUpstreamAppliesToCustomerPeerAndRSRoutes asserts configuredASPAMode == aspaUpstream for local roles provider, peer, rs and rs-client (one per listed case) and that the down-ramp path is Invalid under each, red if any maps to downstream; local role customer maps to aspaDownstream and verifies the same path Valid.",
+  "requirement_sha": "8ee4f1f0c3eb1dc5",
+  "tests": {
+    "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_role_mode_test.go::TestASPAUpstreamAppliesToCustomerPeerAndRSRoutes": "f901793e0c148412",
+    "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_role_mode_test.go::TestASPAUpstreamAppliesToCustomerPeerAndRSRoutes#2": "f901793e0c148412"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_role_mode_test.go::TestASPAUpstreamAppliesToCustomerPeerAndRSRoutes": "3aedd280e68c8365",
+    "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_role_mode_test.go::TestASPAUpstreamAppliesToCustomerPeerAndRSRoutes#2": "3aedd280e68c8365"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC5798-7.2-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/packet/packet_test.go::TestConstants",
+    "unit-sha": "158a95e70e82872d",
+    "claim-sha": "f9ceb1760beac11a",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/packet/packet.go::VirtualMAC",
+    "producer-sha": "cdd77c9a8bee9c78",
+    "break": "body of VirtualMAC replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5798-7.2-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire",
+    "unit-sha": "d1defdd9ea537b29",
+    "claim-sha": "e645f83cec8402c4",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/transport/backend_linux.go::openV4",
+    "producer-sha": "c97d0a6c20eda0c8",
+    "break": "body of openV4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5798-7.2-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV6OnWire",
+    "unit-sha": "c0d31136fc3806c0",
+    "claim-sha": "f21a7da1e63c32c4",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/transport/backend_linux.go::openV6",
+    "producer-sha": "50f76b0b197d39ae",
+    "break": "body of openV6 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2328-12.4.4-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/rfc2328_external_flush_test.go::TestRFC2328ReachableExternalNotFlushed",
+    "unit-sha": "835c8f0872864aef",
+    "claim-sha": "63609b60421dbc21",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/lsdb/origination.go::PurgeExternal",
+    "producer-sha": "4d9ae06f5a70c6a4",
+    "break": "body of PurgeExternal replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-12.4.4-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc2328_external_flush_test.go::TestRFC2328UnreachableExternalFlushed",
+    "unit-sha": "f8120d0578c04b7e",
+    "claim-sha": "613877826ba5c7aa",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/lsdb/origination.go::PurgeExternal",
+    "producer-sha": "4d9ae06f5a70c6a4",
+    "break": "body of PurgeExternal replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

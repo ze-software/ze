@@ -1,0 +1,13 @@
+{
+  "note": "(a) forbidden: using an identification attribute as an authorization change. (b) TestRFC5176IdentificationAttributesIdentifyOnly asserts a CoA carrying User-Name, NAS-Port, Called-Station-Id and NAS-Identifier plus Filter-Id emits exactly one rate event for session 20 at the Filter-Id rate, and an identification-only CoA is NAKed 401 with no new event.",
+  "requirement_sha": "dc580da5c2327d98",
+  "tests": {
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176IdentificationAttributesIdentifyOnly": "2b3357f1f1e8ec93",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176IdentificationAttributesIdentifyOnly#2": "2b3357f1f1e8ec93"
+  },
+  "units": {
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176IdentificationAttributesIdentifyOnly": "d88a8334c75becb4",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176IdentificationAttributesIdentifyOnly#2": "d88a8334c75becb4"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: the peer terminating on the round it discovers the failure, before the server replies. TestRFC5216PeerRepliesBeforeItTerminates fatals if that round returns Err or no Response, errors if the Response is a bare ACK rather than the alert, and requires the error only from the round that processes the server's EAP-Failure. Negative: TestRFC5216PeerDoesNotWaitWhenItSentNothing errors if a peer that sent nothing parks its error or sends a Response.",
+  "requirement_sha": "3f3c974797907d9d",
+  "tests": {
+    "internal/core/eap/rfc5216_peer_wait_test.go::TestRFC5216PeerDoesNotWaitWhenItSentNothing": "38aaea74d3fe410a",
+    "internal/core/eap/rfc5216_peer_wait_test.go::TestRFC5216PeerRepliesBeforeItTerminates": "38aaea74d3fe410a"
+  },
+  "units": {
+    "internal/core/eap/rfc5216_peer_wait_test.go::TestRFC5216PeerDoesNotWaitWhenItSentNothing": "50d4c5aaa786527e",
+    "internal/core/eap/rfc5216_peer_wait_test.go::TestRFC5216PeerRepliesBeforeItTerminates": "424072c276ebeaca"
+  },
+  "verdict": "enforced"
+}

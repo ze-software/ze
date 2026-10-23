@@ -1,0 +1,13 @@
+{
+  "note": "Independent post-lint judgment against RFC 2385 Section 3.0's Kind=19/Length=18 format and complete sentence: 'The MD5 digest is always 16 bytes in length, and the option would appear in every segment of a connection.' CapturedSegmentsHaveIndependentDigests applies rfc2385Option and assertRFC2385Digest to every captured packet through handshake, bidirectional data, ACK and orderly FIN/FIN-ACK completion. The parser walks only the validated TCP data-offset interval, rejects malformed lengths and duplicate Kind 19 options, and requires exactly 18 option bytes and all 16 digest bytes equal the independent oracle. Helpers returning errors preserve these checks and reach caller Fatal. MalformedWireSignaturesAreDropped separately sends missing Kind 19, wrong Kind and Length 17 SYNs with recomputed ordinary checksums; each requires no matching TCP response within 300ms and a correctly encoded independently signed control SYNACK. Digest corruption remains separately covered. Cases do not depend on a neighbouring checksum error or timeout-only inference. RealDialer/RealListenerFactory install both endpoint keys through setTCPMD5Sig; Linux TCP produces the option. Reviewed parent's job-network-wire-observers-privileged-cdc8e23e.log: lifecycle and all four malformed cases PASS with exact packet evidence and no skips. Parent reports native Linux -race, only test executables elevated by -exec 'sudo -n' inside fixture namespaces. The old producer-panic records do not become current from this clean run; native current-unit discrimination renewal remains owed.",
+  "requirement_sha": "e54739f8460b6a9a",
+  "tests": {
+    "internal/core/network/rfc2385_md5_egress_integration_linux_test.go::TestRFC2385CapturedSegmentsHaveIndependentDigests": "a690b5595c4752e6",
+    "internal/core/network/rfc2385_md5_egress_integration_linux_test.go::TestRFC2385MalformedWireSignaturesAreDropped": "a690b5595c4752e6"
+  },
+  "units": {
+    "internal/core/network/rfc2385_md5_egress_integration_linux_test.go::TestRFC2385CapturedSegmentsHaveIndependentDigests": "a58e7c4d90a625ec",
+    "internal/core/network/rfc2385_md5_egress_integration_linux_test.go::TestRFC2385MalformedWireSignaturesAreDropped": "cfb838787dcee9f7"
+  },
+  "verdict": "enforced"
+}

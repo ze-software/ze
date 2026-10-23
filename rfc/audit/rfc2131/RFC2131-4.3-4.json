@@ -1,0 +1,13 @@
+{
+  "note": "positive: the NAK's option walk holds no 51; negative: a REQUEST carrying option 51 that is NAKed still yields a NAK without 51",
+  "requirement_sha": "ea6216b789644e5a",
+  "tests": {
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyDoesNotEchoClientOptions": "8365c04cdfc2a046",
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyOmitsClientOnlyOptions": "8365c04cdfc2a046"
+  },
+  "units": {
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyDoesNotEchoClientOptions": "50766840a8f13e96",
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyOmitsClientOnlyOptions": "deef6372c11cdf5e"
+  },
+  "verdict": "enforced"
+}

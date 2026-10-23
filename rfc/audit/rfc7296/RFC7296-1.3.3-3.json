@@ -1,0 +1,17 @@
+{
+  "note": "Positive: TestRFC7296ChildRekeyRequestCarriesTheOfferNonceAndSelectors decrypts ze's initiateChildRekey request at the peer: exactly one SA, one Ni, one TSi and one TSr with selectors, KEi present with pfs enable and absent with pfs disable (the optional clause both ways). Negative (receive side): TestRFC7296ChildRekeyRequestMissingAPayloadIsRefused removes SA, Ni, TSi or TSr one at a time from a peer request: each refused with errMalformedRequest and INVALID_SYNTAX, nothing installed; the complete request is answered. TestRekeyWithoutTrafficSelectorsIsRefused (moved from 2.9-1) adds the no-TS request refusal and its answered twin.",
+  "requirement_sha": "f415c51b9c64aa9c",
+  "tests": {
+    "internal/component/ike/engine/rfc7296_rekey_collision_test.go::TestRekeyWithoutTrafficSelectorsIsRefused": "8b6f1465d0257d95",
+    "internal/component/ike/engine/rfc7296_rekey_collision_test.go::TestRekeyWithoutTrafficSelectorsIsRefused#2": "8b6f1465d0257d95",
+    "internal/component/ike/engine/rfc7296_rekey_payloads_test.go::TestRFC7296ChildRekeyRequestCarriesTheOfferNonceAndSelectors": "bd9484104305f061",
+    "internal/component/ike/engine/rfc7296_rekey_payloads_test.go::TestRFC7296ChildRekeyRequestMissingAPayloadIsRefused": "bd9484104305f061"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7296_rekey_collision_test.go::TestRekeyWithoutTrafficSelectorsIsRefused": "43c584f708ebe373",
+    "internal/component/ike/engine/rfc7296_rekey_collision_test.go::TestRekeyWithoutTrafficSelectorsIsRefused#2": "43c584f708ebe373",
+    "internal/component/ike/engine/rfc7296_rekey_payloads_test.go::TestRFC7296ChildRekeyRequestCarriesTheOfferNonceAndSelectors": "ee81b9ef3c8adf28",
+    "internal/component/ike/engine/rfc7296_rekey_payloads_test.go::TestRFC7296ChildRekeyRequestMissingAPayloadIsRefused": "2bf3982de7281d49"
+  },
+  "verdict": "enforced"
+}

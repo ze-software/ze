@@ -1,0 +1,13 @@
+{
+  "note": "replayed routes and EORs with unknown receipt time carry 0.0; a known receipt time survives replay exactly",
+  "requirement_sha": "403c4cad7eea7c97",
+  "tests": {
+    "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854KnownRouteTimeSurvivesReplay": "54df4950a18893be",
+    "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854UnknownRouteTimeIsZero": "54df4950a18893be"
+  },
+  "units": {
+    "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854KnownRouteTimeSurvivesReplay": "bfcbce2005f0cae9",
+    "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854UnknownRouteTimeIsZero": "b91987cad7910a11"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,17 @@
+{
+  "note": "D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV->WriteTLV and field-export renames (TLV code constants verified unchanged). The decode producers in attr_srv6.go changed only by bgpls.ErrBGPLSTruncated/WriteTLV qualification and the owner-approved unexporting of lsSRv6EndpointBehavior/lsSRv6BGPPeerNodeSID. RFC 9514 Section 3.1: \"Reserved: 2-octet field that MUST be set to 0 when originated and ignored on receipt.\" Originate: ls_export TestRFC9514OriginatedReservedWordsZero / TestRFC9514PoisonedSourceReservedNeverOriginated assert TLV 1038 Reserved word 0 from a 0xff source (originateAttributes -> clearOriginatedReserved). Receipt: nonzero Reserved leaves the decoded capability flags and the following Node Name unchanged (exact map).",
+  "requirement_sha": "84dc54bd7e45450a",
+  "tests": {
+    "internal/component/bgp/plugins/ls_export/rfc9514_export_sentence_test.go::TestRFC9514OriginatedReservedWordsZero": "feafdf005465d506",
+    "internal/component/bgp/plugins/ls_export/rfc9514_export_sentence_test.go::TestRFC9514PoisonedSourceReservedNeverOriginated": "feafdf005465d506",
+    "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514CapabilitiesDecode": "54ef8216fabaae35",
+    "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514CapabilitiesReservedIgnored": "54ef8216fabaae35"
+  },
+  "units": {
+    "internal/component/bgp/plugins/ls_export/rfc9514_export_sentence_test.go::TestRFC9514OriginatedReservedWordsZero": "e8d95068fc64c85e",
+    "internal/component/bgp/plugins/ls_export/rfc9514_export_sentence_test.go::TestRFC9514PoisonedSourceReservedNeverOriginated": "64a548785a5b077c",
+    "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514CapabilitiesDecode": "5af74e5efff36804",
+    "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514CapabilitiesReservedIgnored": "4a38df010746a2b2"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-15 (subagent, after 14d1c8f19c and 224b0ef514). The tagged unit changed only in its setup call: mgr.apply/applyListeners became reconcile(..., BindLenient), the policy the deleted wrappers passed; the unit binds one free loopback port, where lenient and strict bind alike, and every assertion line is byte-identical. Where this unit carries a revert record (TestDoTListener, TestDoHListener, TestRFC7858DoTNegotiatesOnlyBCP195Suites, the two RFC 2181 4.1-1 units), it was re-observed red today. Prior judgement re-read against the current body and stands: Forbidden: a server that accepts cleartext DNS as the first data exchange instead of a TLS handshake. TestDoTRefusesCleartext sends a length-prefixed cleartext query over raw TCP and fails at t.Fatalf(\"server answered a cleartext DNS query on the DoT port\") when a DNS reply with the query's Id comes back. Positive: TestDoTListener completes the handshake with a verifying tcp-tls client and asserts the answer. Server role only; the client half is the querying resolver's.",
+  "requirement_sha": "2612398f112ea6ac",
+  "tests": {
+    "internal/core/dnsserver/secure_test.go::TestDoTListener": "8772da30b26b9efc",
+    "internal/core/dnsserver/secure_test.go::TestDoTRefusesCleartext": "8772da30b26b9efc"
+  },
+  "units": {
+    "internal/core/dnsserver/secure_test.go::TestDoTListener": "5a13f43dda020cb1",
+    "internal/core/dnsserver/secure_test.go::TestDoTRefusesCleartext": "57372c3b27a38923"
+  },
+  "verdict": "enforced"
+}

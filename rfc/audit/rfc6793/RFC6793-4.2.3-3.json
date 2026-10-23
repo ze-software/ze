@@ -1,0 +1,15 @@
+{
+  "note": "TestRFC6793AggregatorWithRealASIgnoresAS4Attributes: with AGGREGATOR.AS 64500 the AS4_PATH does not reach the path and the AS4_AGGREGATOR is discarded; negatives with AS_TRANS use both.",
+  "requirement_sha": "43aa1ed128401062",
+  "tests": {
+    "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorOfTheWrongWidthIsNotRead": "4e9759edcd069569",
+    "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithASTransPromotesAS4Aggregator": "4e9759edcd069569",
+    "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithRealASIgnoresAS4Attributes": "4e9759edcd069569"
+  },
+  "units": {
+    "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorOfTheWrongWidthIsNotRead": "0ed609302867d6f5",
+    "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithASTransPromotesAS4Aggregator": "d82348d675d1a7e2",
+    "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithRealASIgnoresAS4Attributes": "408158c19befb73c"
+  },
+  "verdict": "enforced"
+}

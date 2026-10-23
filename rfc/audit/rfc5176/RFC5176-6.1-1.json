@@ -1,0 +1,17 @@
+{
+  "note": "(a) forbidden: answering or acting on a request from a source that is not a configured client. (b) TestRFC5176UntrustedSourceDiscarded asserts no response and zero teardowns from a non-listed source and from an empty allow list, and ACK from a trusted one; TestCoASourceFilterDiscardsWhenNoServerResolved and TestCoASourceFilterAnswersAConfiguredClient repeat the pair.",
+  "requirement_sha": "44dfbd3b61d4fef1",
+  "tests": {
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go::TestCoASourceFilterAnswersAConfiguredClient": "25c2b53f1b101476",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go::TestCoASourceFilterDiscardsWhenNoServerResolved": "25c2b53f1b101476",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176UntrustedSourceDiscarded": "2b3357f1f1e8ec93",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176UntrustedSourceDiscarded#2": "2b3357f1f1e8ec93"
+  },
+  "units": {
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go::TestCoASourceFilterAnswersAConfiguredClient": "94a50244372986fa",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go::TestCoASourceFilterDiscardsWhenNoServerResolved": "da6f2603ea0f6b1b",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176UntrustedSourceDiscarded": "890cc93372f038c5",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176UntrustedSourceDiscarded#2": "890cc93372f038c5"
+  },
+  "verdict": "enforced"
+}

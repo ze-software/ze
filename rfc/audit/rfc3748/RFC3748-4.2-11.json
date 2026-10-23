@@ -1,0 +1,15 @@
+{
+  "note": "Both halves of the note. Lost Success: the peer does not conclude before it, discards strays, concludes on the late Success. Lost Failure (TestRFC3748PeerConcludesFailureWithoutTheFailurePacket): after the MS-CHAPv2 failure indication is acknowledged and the EAP-Failure is dropped, a forged EAP-Success or a stray Request ends with ErrEAPFailure, not Done, no MSK, no Response; the producer parks pendingErr in handleMSCHAPv2Failure, and without it the forged Success would be silently discarded and the test fails. Every tagged unit carries a record.",
+  "requirement_sha": "edfc4e4f6b71f7cb",
+  "tests": {
+    "internal/core/eap/rfc3748_remaining_clause_test.go::TestRFC3748PeerConcludesFailureWithoutTheFailurePacket": "a4c2ccc90d93cad9",
+    "internal/core/eap/rfc3748_result_indication_test.go::TestRFC3748PeerOutlivesALostTerminalPacket": "b4125e051769fac5",
+    "internal/core/eap/rfc3748_result_indication_test.go::TestRFC3748PeerOutlivesALostTerminalPacket#2": "b4125e051769fac5"
+  },
+  "units": {
+    "internal/core/eap/rfc3748_remaining_clause_test.go::TestRFC3748PeerConcludesFailureWithoutTheFailurePacket": "b7a416f4e9a0cdcf",
+    "internal/core/eap/rfc3748_result_indication_test.go::TestRFC3748PeerOutlivesALostTerminalPacket": "603325f953a86029",
+    "internal/core/eap/rfc3748_result_indication_test.go::TestRFC3748PeerOutlivesALostTerminalPacket#2": "603325f953a86029"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-09 after 180df07922 (Resolve returns *yang.Resolved, one Resolve per Loader; process, checkExtensions, checkPatterns, checkStructure still all run and join, refusals unchanged): tagged units changed only in the 64-char tail of ModuleLoadAccepted (schema.GetEntry from the Resolved); cases unchanged, package green. RFC 6.1.3: 'The backslash MUST NOT be followed by any other character.' Prior judgement, still true: Re-judged 2026-10-09; the case edited in ModuleLoadRefused is another row's. Negative: case \"bad escape\" (description \"bad \\q escape\", the only fault) requires an error containing \"escape\". Positive: case \"valid escapes\" loads \\t \\n \\\" \\\\ in a double-quoted string. Probe 2026-10-09: a single-quoted 'bad \\q kept', where backslash is not special, loads, so the refusal is scoped to double quotes as Section 6.1.3 scopes it.",
+  "requirement_sha": "e534571eecd5208b",
+  "tests": {
+    "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadAccepted": "26cd2578c196b22d",
+    "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadRefused": "26cd2578c196b22d"
+  },
+  "units": {
+    "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadAccepted": "205c57baa94df187",
+    "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadRefused": "9aa285d5018c168d"
+  },
+  "verdict": "enforced"
+}

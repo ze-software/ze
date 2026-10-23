@@ -1,0 +1,90 @@
+[
+  {
+    "rid": "RFC7311-3.4.3-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc7311_direct_link_test.go::TestRFC7311DirectLinkCostNeverWrapsOrDisappears",
+    "unit-sha": "7ec1d86965df8e70",
+    "claim-sha": "c8e434a3b12758db",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/forward_aigp.go::applyFactsAIGP",
+    "producer-sha": "247742f0406bce81",
+    "break": "body of applyFactsAIGP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7311-3.4.3-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc7311_direct_link_test.go::TestRFC7311DirectLinkCostNeverWrapsOrDisappears",
+    "unit-sha": "7ec1d86965df8e70",
+    "claim-sha": "2de132b0aeb652ad",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/forward_aigp.go::applyFactsAIGP",
+    "producer-sha": "247742f0406bce81",
+    "break": "body of applyFactsAIGP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7311-3.4.3-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire",
+    "unit-sha": "1911988133139e60",
+    "claim-sha": "390a473ad85b1f1a",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/forward_aigp.go::applyFactsAIGP",
+    "producer-sha": "247742f0406bce81",
+    "break": "body of applyFactsAIGP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7311-3.4.3-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire",
+    "unit-sha": "1911988133139e60",
+    "claim-sha": "ef87223957b7eeaa",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/forward_aigp.go::applyFactsAIGP",
+    "producer-sha": "247742f0406bce81",
+    "break": "body of applyFactsAIGP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7311-3.4.3-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go::TestRFC7311RecursiveAIGPChangeReachesWire",
+    "unit-sha": "4d9fa9542c0babc2",
+    "claim-sha": "bf4b3b181e29c6f0",
+    "route": "revert",
+    "producer": "internal/core/rib/igpcost/igpcost.go::Resolve",
+    "producer-sha": "5f430ed4596fbbc1",
+    "break": "body of Resolve replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7311-3.4.3-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go::TestRFC7311RecursiveAIGPChangeReachesWire",
+    "unit-sha": "4d9fa9542c0babc2",
+    "claim-sha": "0c60e4072529b0a3",
+    "route": "revert",
+    "producer": "internal/core/rib/igpcost/igpcost.go::Resolve",
+    "producer-sha": "5f430ed4596fbbc1",
+    "break": "body of Resolve replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7311-3.4.3-2",
+    "polarity": "positive",
+    "unit": "internal/component/sysrib/rfc7311_metric_test.go::TestAIGPRecursiveDistanceUsesReceivedMetrics",
+    "unit-sha": "df8135f01bec7a83",
+    "claim-sha": "a8dba5a79905c917",
+    "route": "revert",
+    "producer": "internal/core/rib/igpcost/igpcost.go::Add",
+    "producer-sha": "27192aca0fa84c30",
+    "break": "body of Add replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7311-3.4.3-2",
+    "polarity": "negative",
+    "unit": "internal/component/sysrib/rfc7311_metric_test.go::TestAIGPRecursiveDistanceUsesReceivedMetrics",
+    "unit-sha": "df8135f01bec7a83",
+    "claim-sha": "71b0b4bc58b4d873",
+    "route": "revert",
+    "producer": "internal/core/rib/igpcost/igpcost.go::Add",
+    "producer-sha": "27192aca0fa84c30",
+    "break": "body of Add replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

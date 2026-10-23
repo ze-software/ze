@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8414-3.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/mcp/rfc8414_metadata_request_test.go::TestRFC8414MetadataRequestIsGETAtWellKnownPath",
+    "unit-sha": "d23198acf2483695",
+    "claim-sha": "a23bc57c79631d5a",
+    "route": "revert",
+    "producer": "internal/component/mcp/as_metadata.go::fetchASMetadata",
+    "producer-sha": "9c3c0b8747d3dbfb",
+    "break": "body of fetchASMetadata replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8414-3.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/mcp/rfc8414_metadata_request_test.go::TestRFC8414MetadataRequestUsesNoOtherVerbOrPath",
+    "unit-sha": "90b04affcc924ebb",
+    "claim-sha": "1188b2f34bfc2c56",
+    "route": "revert",
+    "producer": "internal/component/mcp/as_metadata.go::fetchASMetadata",
+    "producer-sha": "9c3c0b8747d3dbfb",
+    "break": "body of fetchASMetadata replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,13 @@
+{
+  "note": "unknown stat type 60000 and a 3-octet counter are consumed and the session survives; a stat length past the report end still ends it",
+  "requirement_sha": "e0b26d25f5b889b7",
+  "tests": {
+    "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854TruncatedStatEndsSession": "94e84131af3555be",
+    "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854UnrecognizedStatTypeIgnored": "94e84131af3555be"
+  },
+  "units": {
+    "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854TruncatedStatEndsSession": "f0f9424c360f3a49",
+    "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854UnrecognizedStatTypeIgnored": "2fba8916883db2a0"
+  },
+  "verdict": "enforced"
+}

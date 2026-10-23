@@ -1,0 +1,13 @@
+{
+  "note": "negative refuses an IS-IS replacement carrying TLV 1094 and keeps the prior state; positive shows a Direct link still carries the mask; OSPF Protocol-IDs 3 and 6 are not driven",
+  "requirement_sha": "fa4412655f7ae717",
+  "tests": {
+    "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeDefinedFlags": "6886dddcc0644d09",
+    "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeIGPMPLSMaskRefused": "6886dddcc0644d09"
+  },
+  "units": {
+    "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeDefinedFlags": "42cfaacdb6bd222c",
+    "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeIGPMPLSMaskRefused": "acc96654c47a508a"
+  },
+  "verdict": "enforced"
+}

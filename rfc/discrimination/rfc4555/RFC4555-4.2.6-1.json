@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4555-4.2.6-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/mobike_test.go::TestMobikeNoNATsDataIsTheSendTuple",
+    "unit-sha": "0a558608b6ac8f6f",
+    "claim-sha": "4e68111f4bb5e7eb",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/mobike.go::noNATsAllowedPayload",
+    "producer-sha": "ecc887f6779a88b9",
+    "break": "body of noNATsAllowedPayload replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4555-4.2.6-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/mobike_test.go::TestMobikeNoNATsDataIsTheSendTuple",
+    "unit-sha": "0a558608b6ac8f6f",
+    "claim-sha": "99b0116e98740df2",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/mobike.go::noNATsAllowedMatches",
+    "producer-sha": "883a01ba6a142872",
+    "break": "body of noNATsAllowedMatches replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

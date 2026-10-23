@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2661-4.4.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/rfc2661_message_type_test.go::TestUnknownMessageTypeClearsTunnelWhenMandatory",
+    "unit-sha": "86349a7822886188",
+    "claim-sha": "96923d9921fec948",
+    "route": "revert",
+    "producer": "internal/component/l2tp/tunnel_fsm.go::handleMessage",
+    "producer-sha": "e5d1ed8bd17ce9de",
+    "break": "body of handleMessage replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2661-4.4.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/rfc2661_message_type_test.go::TestUnknownMessageTypeClearsTunnelWhenMandatory",
+    "unit-sha": "86349a7822886188",
+    "claim-sha": "303bbbae47359981",
+    "route": "revert",
+    "producer": "internal/component/l2tp/tunnel_fsm.go::handleMessage",
+    "producer-sha": "e5d1ed8bd17ce9de",
+    "break": "body of handleMessage replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

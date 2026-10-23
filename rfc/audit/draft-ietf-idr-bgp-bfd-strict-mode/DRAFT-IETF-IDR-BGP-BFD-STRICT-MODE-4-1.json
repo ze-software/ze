@@ -1,0 +1,15 @@
+{
+  "note": "Draft Section 4 Event 35: \"If BfdEnabled is FALSE, this event MUST NOT occur. When BFD has been disabled, the local system will trigger a BfdAdminDown event instead.\" session_bfd_strict.go raiseBFDStrictConfigChanged chooses AdminDown when disabled. All three carriers were read: session_bfd_strict_test.go TestSessionBFDStrictConfigChangedUsesConfigSubcode positively pins enabled Cease/Other Configuration Change and Idle; TestSessionBFDStrictConfigChangedWithBFDDisabled pins no event-side effect outside a pending substate; draft_ietf_idr_bgp_bfd_strict_mode_pending_test.go TestDraftBFDDisabledConfigChangeReleasesPendingSession now checks BOTH pending substates, exact OpenConfirm/Established state, cleared substate and an actual KEEPALIVE. Thus suppressing Event 35 without substituting AdminDown fails rather than satisfying only the first sentence. The enabled/disabled inputs differ in the governing condition, and no unrelated malformed UPDATE confounds the outcome. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.",
+  "requirement_sha": "32263e0950a6fff0",
+  "tests": {
+    "internal/component/bgp/reactor/draft_ietf_idr_bgp_bfd_strict_mode_pending_test.go::TestDraftBFDDisabledConfigChangeReleasesPendingSession": "5eb453df0541999a",
+    "internal/component/bgp/reactor/session_bfd_strict_test.go::TestSessionBFDStrictConfigChangedUsesConfigSubcode": "56ded9ff159b946a",
+    "internal/component/bgp/reactor/session_bfd_strict_test.go::TestSessionBFDStrictConfigChangedWithBFDDisabled": "56ded9ff159b946a"
+  },
+  "units": {
+    "internal/component/bgp/reactor/draft_ietf_idr_bgp_bfd_strict_mode_pending_test.go::TestDraftBFDDisabledConfigChangeReleasesPendingSession": "1e7f9b9c0077d82e",
+    "internal/component/bgp/reactor/session_bfd_strict_test.go::TestSessionBFDStrictConfigChangedUsesConfigSubcode": "e414b0e657401415",
+    "internal/component/bgp/reactor/session_bfd_strict_test.go::TestSessionBFDStrictConfigChangedWithBFDDisabled": "9f5556d67d8467f9"
+  },
+  "verdict": "enforced"
+}

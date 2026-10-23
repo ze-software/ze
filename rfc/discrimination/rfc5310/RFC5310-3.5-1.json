@@ -1,0 +1,90 @@
+[
+  {
+    "rid": "RFC5310-3.5-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/auth_discard_rfc1195_test.go::TestRFC1195InvalidAuthLSPDiscardedAtReceive",
+    "unit-sha": "c662113631ad0ff0",
+    "claim-sha": "c4abbd07fc411417",
+    "route": "revert",
+    "producer": "internal/plugins/isis/auth_wiring.go::verifyFrame",
+    "producer-sha": "8c136abedada6b8d",
+    "break": "body of verifyFrame replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5310-3.5-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/auth_discard_rfc1195_test.go::TestRFC1195InvalidAuthLSPDiscardedAtReceive",
+    "unit-sha": "c662113631ad0ff0",
+    "claim-sha": "45e2fe5dd17fca2d",
+    "route": "revert",
+    "producer": "internal/plugins/isis/auth_wiring.go::verifyFrame",
+    "producer-sha": "8c136abedada6b8d",
+    "break": "body of verifyFrame replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5310-3.5-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthKeyIDMismatchRejected",
+    "unit-sha": "c2b43c0216d91a7e",
+    "claim-sha": "a669e5d9247310b3",
+    "route": "revert",
+    "producer": "internal/plugins/isis/packet/auth_verify.go::VerifyPDU",
+    "producer-sha": "c97d50142ac6f421",
+    "break": "body of VerifyPDU replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5310-3.5-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthWrongKeyRejected",
+    "unit-sha": "eb63e1326e221985",
+    "claim-sha": "236a9d6382ad47b7",
+    "route": "revert",
+    "producer": "internal/plugins/isis/packet/auth_verify.go::VerifyPDU",
+    "producer-sha": "c97d50142ac6f421",
+    "break": "body of VerifyPDU replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5310-3.5-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/rfc5310_auth_error_event_test.go::TestRFC5310MismatchLogsAnErrorEvent",
+    "unit-sha": "9b38165849f7fcb8",
+    "claim-sha": "37ddb699f911f033",
+    "route": "revert",
+    "producer": "internal/plugins/isis/auth_wiring.go::verifyFrame",
+    "producer-sha": "8c136abedada6b8d",
+    "break": "body of verifyFrame replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5310-3.5-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/rfc5310_auth_error_event_test.go::TestRFC5310MismatchLogsAnErrorEvent",
+    "unit-sha": "9b38165849f7fcb8",
+    "claim-sha": "8f2fbb47dc62ed21",
+    "route": "revert",
+    "producer": "internal/plugins/isis/auth_wiring.go::verifyFrame",
+    "producer-sha": "8c136abedada6b8d",
+    "break": "body of verifyFrame replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5310-3.5-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/rfc5310_auth_warn_test.go::TestRFC5310MismatchWarnsRateLimited",
+    "unit-sha": "8fca4d26518daca2",
+    "claim-sha": "786788f62990ec25",
+    "route": "revert",
+    "producer": "internal/plugins/isis/auth_warn.go::allow",
+    "producer-sha": "1a6b1c0ca229865d",
+    "break": "body of allow replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5310-3.5-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/rfc5310_auth_warn_test.go::TestRFC5310MismatchWarnsRateLimited",
+    "unit-sha": "8fca4d26518daca2",
+    "claim-sha": "cef85663635008af",
+    "route": "revert",
+    "producer": "internal/plugins/isis/auth_wiring.go::verifyFrame",
+    "producer-sha": "8c136abedada6b8d",
+    "break": "body of verifyFrame replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

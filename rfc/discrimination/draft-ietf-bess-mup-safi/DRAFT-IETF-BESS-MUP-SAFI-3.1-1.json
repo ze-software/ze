@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_ingress_test.go::TestMUPDefinedRouteTypesSurviveIngress",
+    "unit-sha": "78db0b7ddafae034",
+    "claim-sha": "633bea8ae158526f",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/nlri/mup/rfc7606.go::RecognizeNLRI",
+    "producer-sha": "5a5cf35ccd5fa8b1",
+    "break": "body of RecognizeNLRI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_ingress_test.go::TestMUPOtherRouteTypesSilentlyIgnoredAtIngress",
+    "unit-sha": "577c058b377d407d",
+    "claim-sha": "90e58b47aa18f9d9",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/nlri/mup/rfc7606.go::RecognizeNLRI",
+    "producer-sha": "5a5cf35ccd5fa8b1",
+    "break": "body of RecognizeNLRI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_safi_test.go::TestRFCMUPUnknownRouteTypeIsNotRejected",
+    "unit-sha": "eac84496ecc3b5ec",
+    "claim-sha": "f8b01d832f34884a",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/nlri/mup/types.go::ParseMUP",
+    "producer-sha": "e374c7adea89f7b9",
+    "break": "body of ParseMUP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

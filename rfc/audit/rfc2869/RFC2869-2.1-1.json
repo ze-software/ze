@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: a second interim generation for the session entering the retransmission queue while one is outstanding. TestRFC2869InterimLoopKeepsOneGenerationOutstanding ticks at 10ms against a stalled server with a 300ms retransmission budget and fatals if more than 12 datagrams arrive in 1s (per-tick dispatch gives about 100, two outstanding generations about 20); TestRFC2869InterimLoopSendsOnItsInterval fatals below 2 sends, so the bound is not vacuous.",
+  "requirement_sha": "e7652e317d4f8ddb",
+  "tests": {
+    "internal/component/l2tp/plugins/authradius/rfc2869_interim_generation_test.go::TestRFC2869InterimLoopKeepsOneGenerationOutstanding": "d719b9744b44e1d8",
+    "internal/component/l2tp/plugins/authradius/rfc2869_interim_generation_test.go::TestRFC2869InterimLoopSendsOnItsInterval": "d719b9744b44e1d8"
+  },
+  "units": {
+    "internal/component/l2tp/plugins/authradius/rfc2869_interim_generation_test.go::TestRFC2869InterimLoopKeepsOneGenerationOutstanding": "e514d48ba8a8a1b4",
+    "internal/component/l2tp/plugins/authradius/rfc2869_interim_generation_test.go::TestRFC2869InterimLoopSendsOnItsInterval": "be9097bffeb65958"
+  },
+  "verdict": "enforced"
+}

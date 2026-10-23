@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC3748-2.1-2",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc3748_clause_test.go::TestRFC3748OneMethodThenTheResult",
+    "unit-sha": "c410a361328c7614",
+    "claim-sha": "a412fe81a2b921ba",
+    "route": "revert",
+    "producer": "internal/core/eap/eap.go::handleMethod",
+    "producer-sha": "fcb74148a4de64e4",
+    "break": "body of handleMethod replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3748-2.1-2",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc3748_clause_test.go::TestRFC3748OneMethodThenTheResult",
+    "unit-sha": "c410a361328c7614",
+    "claim-sha": "f8ce8e09151f5993",
+    "route": "revert",
+    "producer": "internal/core/eap/eap.go::handleMethod",
+    "producer-sha": "fcb74148a4de64e4",
+    "break": "body of handleMethod replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3748-2.1-2",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc3748_test.go::TestRFC3748MethodCompletionSendsResult",
+    "unit-sha": "a02fe7bb62dbebe0",
+    "claim-sha": "8b614abcc8fb3e26",
+    "route": "revert",
+    "producer": "internal/core/eap/eap.go::handleMethod",
+    "producer-sha": "fcb74148a4de64e4",
+    "break": "body of handleMethod replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3748-2.1-2",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc3748_test.go::TestRFC3748MethodCompletionSendsResult",
+    "unit-sha": "a02fe7bb62dbebe0",
+    "claim-sha": "b90c4ea5a339124d",
+    "route": "revert",
+    "producer": "internal/core/eap/eap.go::handleMethod",
+    "producer-sha": "fcb74148a4de64e4",
+    "break": "body of handleMethod replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

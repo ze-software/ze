@@ -1,0 +1,13 @@
+{
+  "note": "Quote covers SAFI-4 and SAFI-128. TestLabeledPropagationUnchangedNextHopKeepsLabels pins SAFI 4 and TestLabeledVPNPropagationUnchangedNextHopKeepsLabels pins SAFI 128: next-hop-unchanged emits no op and mpReachNextHopHandler plans the MP_REACH verbatim, with the Next Hop, label entry, RD and prefix asserted byte for byte. The {single-polarity: positive} annotation holds: the RFC imposes nothing on a changed next hop. Observed-red record on mpReachNextHopHandler.",
+  "requirement_sha": "6dcf241796360ebe",
+  "tests": {
+    "internal/component/bgp/reactor/rfc8277_test.go::TestLabeledPropagationUnchangedNextHopKeepsLabels": "7b9b6b8e7de6262e",
+    "internal/component/bgp/reactor/rfc8277_vpn_propagation_test.go::TestLabeledVPNPropagationUnchangedNextHopKeepsLabels": "93003d97a3492271"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc8277_test.go::TestLabeledPropagationUnchangedNextHopKeepsLabels": "a4c572b3a1784812",
+    "internal/component/bgp/reactor/rfc8277_vpn_propagation_test.go::TestLabeledVPNPropagationUnchangedNextHopKeepsLabels": "63adabba424c50c7"
+  },
+  "verdict": "enforced"
+}

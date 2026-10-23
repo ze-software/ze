@@ -1,0 +1,11 @@
+{
+  "note": "Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 3768 Section 7.2 says \"Fill in the VRRP packet fields with the appropriate virtual router configuration state - Compute the VRRP checksum\". TestEncodeGoldenV2 gained only the FillChecksum mode argument, and FillChecksum seeds a pseudo-header only when the version nibble is 3, so the VRRPv2 encode still has to equal the golden G1 byte for byte, checksum 0x92ED included. Single-polarity positive. Verdict unchanged.",
+  "requirement_sha": "2bdc6f1fd8477145",
+  "tests": {
+    "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV2": "15a7697300d1b17c"
+  },
+  "units": {
+    "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV2": "f217b5d40ee1823c"
+  },
+  "verdict": "enforced"
+}

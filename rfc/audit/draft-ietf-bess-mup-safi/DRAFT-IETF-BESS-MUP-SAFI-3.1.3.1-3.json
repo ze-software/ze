@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged 2026-10-21 (independent auditor, authored none of 32ff59085b). Section 3.1.3.1 Source Address Length 0, 32 or 128, any other value treat-as-withdraw. 32ff59085b made the T1ST Source Address Length octet mandatory, matching Section 3.1.3.1 (\"The Source Address Length has a fixed length of 1 octet.\" and the TLV remainder counted from \"the offset of the end of the Source Address\"); parseBodyT1ST now returns ErrMUPTruncated when nothing follows the endpoint. This is the field the fix concerns. Negative now pins length 0 (twice: the TEID 1 case and the Source Address Length 0 case are now the same octets), 32 with IPv4 and 128 with IPv6, all kept. Positive length 16 at ingress, and the isolating TestMUPT1STSourceLengthIsTheOnlyFault, withdraw. The \"MAY have a local configuration\" sentence binds nothing. parseBodyT1ST records (producer-changed) re-taken and observed red. ",
+  "requirement_sha": "2e3db2730765c89d",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPMalformedRouteTreatedAsWithdrawnAtIngress": "12c86ed974d8d4cd",
+    "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPWellFormedRouteKeptAtIngress": "12c86ed974d8d4cd",
+    "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_t1st_address_length_test.go::TestMUPT1STSourceLengthIsTheOnlyFault": "03ae6e37b7f40342"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPMalformedRouteTreatedAsWithdrawnAtIngress": "ce08ffce82ad21e4",
+    "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPWellFormedRouteKeptAtIngress": "4768c016671053bd",
+    "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_t1st_address_length_test.go::TestMUPT1STSourceLengthIsTheOnlyFault": "669727bed31cff1b"
+  },
+  "verdict": "enforced"
+}

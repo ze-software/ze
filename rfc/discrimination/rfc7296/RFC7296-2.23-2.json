@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.23-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/child_test.go::TestChildSANATTEncapPorts",
+    "unit-sha": "fd974ac307c059f0",
+    "claim-sha": "a7866fb57b3e8fe9",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/create_child.go::newChildSA",
+    "producer-sha": "726c0e08a69f7ea5",
+    "break": "body of newChildSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.23-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_test.go::TestChildSANoNATNoEncap",
+    "unit-sha": "1cb245313faf6a46",
+    "claim-sha": "3842765a1a80a87b",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/child.go::installChildSA",
+    "producer-sha": "528023fd0f737e3f",
+    "break": "body of installChildSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

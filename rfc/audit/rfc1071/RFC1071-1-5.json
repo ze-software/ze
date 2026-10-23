@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged c18 (was wrong: probe units checked a test helper). Sentence: to check, sum the same octets including the checksum field; all ones succeeds. Positive TestRFC1071VerifyAcceptsAllOnesSum places the TEST's independent checksum, proves in setup the covered fold including the field is 0xFFFF, and ze's VerifyPacketChecksum accepts. Negative TestRFC1071VerifyRefusesSumNotAllOnes, from a verifying base, changes only the checksum field (+1), one covered body octet, or zeroes the field; each is setup-checked as not folding to 0xFFFF and each is refused. The field-only cases catch a verifier that left the field out of the sum or compared against nothing. Both polarities recorded red under a VerifyPacketChecksum break. The probe RFC792 units lost their 1-5 tags (D-15/R1): probe has no verify function. Scope: OSPFv2 packet verify (InternetChecksumPairValid); other ze verifiers (vrrp) are not tagged here.",
+  "requirement_sha": "977762d7e0e4aeaa",
+  "tests": {
+    "internal/plugins/ospf/packet/rfc1071_checksum_test.go::TestRFC1071VerifyAcceptsAllOnesSum": "e33d335070dd836a",
+    "internal/plugins/ospf/packet/rfc1071_checksum_test.go::TestRFC1071VerifyRefusesSumNotAllOnes": "e33d335070dd836a"
+  },
+  "units": {
+    "internal/plugins/ospf/packet/rfc1071_checksum_test.go::TestRFC1071VerifyAcceptsAllOnesSum": "3dbc0501aaeec13a",
+    "internal/plugins/ospf/packet/rfc1071_checksum_test.go::TestRFC1071VerifyRefusesSumNotAllOnes": "31d2813a5e86a9ee"
+  },
+  "verdict": "enforced"
+}

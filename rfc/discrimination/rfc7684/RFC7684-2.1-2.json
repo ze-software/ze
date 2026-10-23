@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC7684-2.1-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go::TestExtPrefixNFlagNotSetNonHostInterArea",
+    "unit-sha": "e1e6ecfa0de0503e",
+    "claim-sha": "0f1eb950d8463f75",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/ext_prefix.go::connectedElsewhere",
+    "producer-sha": "3a0b31a45a254018",
+    "break": "body of connectedElsewhere replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7684-2.1-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go::TestExtPrefixNFlagPreservedInterArea",
+    "unit-sha": "8bac47a7f22ccedb",
+    "claim-sha": "89e042f82c5cdd8e",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/ext_prefix.go::connectedElsewhere",
+    "producer-sha": "3a0b31a45a254018",
+    "break": "body of connectedElsewhere replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7684-2.1-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/rfc7684_nflag_propagation_red_test.go::TestRFC7684NFlagNotInventedInterArea",
+    "unit-sha": "175f640beb1c1a1c",
+    "claim-sha": "89bc981c435f76c2",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/ext.go::hostFlagOutside",
+    "producer-sha": "2d9a60d32cc73e9d",
+    "break": "body of hostFlagOutside replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7684-2.1-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc7684_nflag_propagation_red_test.go::TestRFC7684NFlagOfAnotherRouterPreservedInterArea",
+    "unit-sha": "f8561fcb15cb57ee",
+    "claim-sha": "008bdb70fd79cfad",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/ext.go::hostFlagOutside",
+    "producer-sha": "2d9a60d32cc73e9d",
+    "break": "body of hostFlagOutside replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,68 @@
+[
+  {
+    "rid": "RFC5798-8.2.2-4",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/boot_late_device_test.go::TestEngineWaitsForALateVirtualMACDevice",
+    "unit-sha": "353d5f91dbc25026",
+    "claim-sha": "af2e4a9118dbe6cd",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/register.go::create",
+    "producer-sha": "7d4caf6820fa2579",
+    "break": "body of create replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5798-8.2.2-4",
+    "polarity": "negative",
+    "unit": "internal/plugins/vrrp/boot_late_device_test.go::TestEngineWaitsForALateVirtualMACDevice",
+    "unit-sha": "353d5f91dbc25026",
+    "claim-sha": "8ff6cd62b374959e",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/register.go::create",
+    "producer-sha": "7d4caf6820fa2579",
+    "break": "body of create replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5798-8.2.2-4",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/boot_order_test.go::TestEngineAnnouncesNothingBeforeTheVirtualMACDevice",
+    "unit-sha": "f65288b57fb68585",
+    "claim-sha": "e934fcbd36902472",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/engine.go::build",
+    "producer-sha": "c1f6e6b2d8672994",
+    "break": "body of build replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5798-8.2.2-4",
+    "polarity": "negative",
+    "unit": "internal/plugins/vrrp/boot_order_test.go::TestEngineAnnouncesNothingBeforeTheVirtualMACDevice",
+    "unit-sha": "f65288b57fb68585",
+    "claim-sha": "26fb5828c3142699",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/engine.go::build",
+    "producer-sha": "c1f6e6b2d8672994",
+    "break": "body of build replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5798-8.2.2-4",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/instance_test.go::TestInstanceDelaysAnnounceUntilParentUsable",
+    "unit-sha": "ca72bdaac701d46f",
+    "claim-sha": "3f23a01390016f45",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/instance.go::execute",
+    "producer-sha": "730531e0948fb65d",
+    "break": "body of execute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5798-8.2.2-4",
+    "polarity": "negative",
+    "unit": "internal/plugins/vrrp/instance_test.go::TestInstanceDelaysAnnounceUntilParentUsable",
+    "unit-sha": "ca72bdaac701d46f",
+    "claim-sha": "b6f442a80196d65a",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/instance.go::evaluateReadiness",
+    "producer-sha": "3c0d94a9ad273380",
+    "break": "body of evaluateReadiness replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

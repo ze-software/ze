@@ -1,0 +1,11 @@
+{
+  "note": "Quote now covers both halves: no Unsupported Capability NOTIFICATION and no termination for an unsupported capability. TestOpenIgnoresUnknownCapability asserts the bytes written after the OPEN are exactly one KEEPALIVE (Len HeaderLen, type KEEPALIVE) and unchanged after establishment (no NOTIFICATION), and that the connection survives to Established. Single-polarity marker present.",
+  "requirement_sha": "bfdbf5c628cce4f6",
+  "tests": {
+    "internal/component/bgp/reactor/session_handlers_test.go::TestOpenIgnoresUnknownCapability": "c387bdc6c423bd19"
+  },
+  "units": {
+    "internal/component/bgp/reactor/session_handlers_test.go::TestOpenIgnoresUnknownCapability": "14133cb58d63bc8b"
+  },
+  "verdict": "enforced"
+}

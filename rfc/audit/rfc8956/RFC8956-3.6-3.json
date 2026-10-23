@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-16: the unit moved verbatim to core, with only the family identifiers renamed. The quote carries both clauses. Decoding: operands 0xf3, 0xf5, 0xf9, 0xf1, each carrying every reserved bit, must parse without error for IPv6 and IPv6-VPN, and Matches() must equal exactly IsF, FF, LF, 0. Encoding: the re-encoded NLRI must equal the input with reserved bits zeroed (2, 4, 8, 0).",
+  "requirement_sha": "1ad8c505059b4be3",
+  "tests": {
+    "internal/core/bgp/nlri/flowspec/rfc8956_fragment_test.go::TestRFC8956FragmentDecodeIgnoresReservedBits": "332e2bbed23c624e",
+    "internal/core/bgp/nlri/flowspec/rfc8956_fragment_test.go::TestRFC8956FragmentDecodeIgnoresReservedBits#2": "332e2bbed23c624e"
+  },
+  "units": {
+    "internal/core/bgp/nlri/flowspec/rfc8956_fragment_test.go::TestRFC8956FragmentDecodeIgnoresReservedBits": "c1d53974ba4e9bb9",
+    "internal/core/bgp/nlri/flowspec/rfc8956_fragment_test.go::TestRFC8956FragmentDecodeIgnoresReservedBits#2": "c1d53974ba4e9bb9"
+  },
+  "verdict": "enforced"
+}

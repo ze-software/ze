@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: reading a zero-length Capability Value as a valid version. TestSoftverZeroValueIsAnEncodingError asserts decodeSoftwareVersion([]byte{}) returns ok false, red if it decodes; the length check runs before the legacy-form test, so neither form reads an empty value. Negative: TestSoftverWellFormedValueIsNotAnEncodingError, the bare value zebgp decodes to zebgp, red if the error verdict were returned for every input.",
+  "requirement_sha": "3980bfaa5f8dece1",
+  "tests": {
+    "internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go::TestSoftverWellFormedValueIsNotAnEncodingError": "621a76bf24368516",
+    "internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go::TestSoftverZeroValueIsAnEncodingError": "621a76bf24368516"
+  },
+  "units": {
+    "internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go::TestSoftverWellFormedValueIsNotAnEncodingError": "5bd0327a8ee12379",
+    "internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go::TestSoftverZeroValueIsAnEncodingError": "5d04532927bb532f"
+  },
+  "verdict": "enforced"
+}

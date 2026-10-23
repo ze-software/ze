@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7854-4.3-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854InitiationIsTheCommonHeaderThenTwoOrMoreTLVs",
+    "unit-sha": "1da85444bf78da95",
+    "claim-sha": "aaa2a6a2c45d8098",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/bmp/sender.go::sendInitiation",
+    "producer-sha": "db462600e7edfc39",
+    "break": "body of sendInitiation replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7854-4.3-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go::TestRFC7854InitiationWithFewerThanTwoTLVsIsRefused",
+    "unit-sha": "307e8f262a4421fa",
+    "claim-sha": "042b0b7192709f71",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/bmp/msg.go::decodeInitiation",
+    "producer-sha": "ed60cbd2c8a1d093",
+    "break": "body of decodeInitiation replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

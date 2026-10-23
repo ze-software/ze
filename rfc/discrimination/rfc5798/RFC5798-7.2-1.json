@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC5798-7.2-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/advert_fill_rfc5798_test.go::TestTransmittedAdvertFilledFromInstanceState",
+    "unit-sha": "f89eb5675578ae59",
+    "claim-sha": "2db05666855b2e83",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/instance.go::doSendAdvert",
+    "producer-sha": "35341f2b3789c6d3",
+    "break": "body of doSendAdvert replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5798-7.2-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/vrrp/packet/packet_test.go::TestBoundaryInterval",
+    "unit-sha": "41496bedb24d168f",
+    "claim-sha": "ac3d677e94f42392",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/packet/packet.go::Validate",
+    "producer-sha": "301eb87709b23d48",
+    "break": "body of Validate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5798-7.2-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV3IPv4",
+    "unit-sha": "426437dba8db9f30",
+    "claim-sha": "9a18f5cdb265515a",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/packet/packet.go::WriteTo",
+    "producer-sha": "a5408de5358174ba",
+    "break": "body of WriteTo replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5798-7.2-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/transport/advert_fill_checksum_test.go::TestSendAdvertFillsFieldsAndChecksum",
+    "unit-sha": "fd87eac6cc3e794d",
+    "claim-sha": "b27cd7b6492f8374",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/packet/checksum.go::FillChecksum",
+    "producer-sha": "1f3fa5dca498b30c",
+    "break": "body of FillChecksum replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

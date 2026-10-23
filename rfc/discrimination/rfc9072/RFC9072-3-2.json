@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC9072-3-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/message/open_test.go::TestOpenPackExtendedParams",
+    "unit-sha": "eda9b634499715e6",
+    "claim-sha": "6a2c050bdafb3814",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/open.go::writeToExtended",
+    "producer-sha": "88ac46ccdf758979",
+    "break": "body of writeToExtended replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9072-3-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc9072_param_type_test.go::TestRFC9072ParameterType255OnlyAsTheExtendedMarker",
+    "unit-sha": "765fbf72a472563f",
+    "claim-sha": "9e8752c018d5ebcb",
+    "route": "revert",
+    "producer": "internal/core/bgp/capability/optional_params.go::PackOptionalParams",
+    "producer-sha": "ea6beab71b7d59f8",
+    "break": "body of PackOptionalParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9072-3-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc9072_param_type_test.go::TestRFC9072ParameterType255OnlyAsTheExtendedMarker",
+    "unit-sha": "765fbf72a472563f",
+    "claim-sha": "75bf33307b9d8b91",
+    "route": "revert",
+    "producer": "internal/core/bgp/capability/optional_params.go::PackOptionalParams",
+    "producer-sha": "ea6beab71b7d59f8",
+    "break": "body of PackOptionalParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

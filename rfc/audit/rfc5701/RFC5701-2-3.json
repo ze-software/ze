@@ -1,0 +1,13 @@
+{
+  "note": "The span states the attribute is a set of 20-octet communities, so a value whose length is not a multiple of 20 is not such a set. Forbidden: parsing a non-multiple length as communities (truncating). TestRFC5701IPv6ExtCommunityLengthMultipleOf20 asserts ParseIPv6ExtendedCommunities accepts 40 octets as exactly 2, and returns ErrInvalidLength for 19, 21, 8, 39 and 41, red on truncation or acceptance. Both polarities. The zero-length and treat-as-withdraw handling is RFC 7606 Section 7.15, row RFC7606-7.15-1.",
+  "requirement_sha": "8cdc9f1c75f03ffe",
+  "tests": {
+    "internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go::TestRFC5701IPv6ExtCommunityLengthMultipleOf20": "769334093b6b8784",
+    "internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go::TestRFC5701IPv6ExtCommunityLengthMultipleOf20#2": "769334093b6b8784"
+  },
+  "units": {
+    "internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go::TestRFC5701IPv6ExtCommunityLengthMultipleOf20": "e8aef793af6eabd0",
+    "internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go::TestRFC5701IPv6ExtCommunityLengthMultipleOf20#2": "e8aef793af6eabd0"
+  },
+  "verdict": "enforced"
+}

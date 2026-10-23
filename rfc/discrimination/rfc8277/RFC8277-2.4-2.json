@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC8277-2.4-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc8277_withdrawal_compatibility_test.go::TestWithdrawalCompatibilityEveryWriter",
+    "unit-sha": "23a15c809009d151",
+    "claim-sha": "5a337a8d4fb982fa",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_egress_normalize.go::setWithdrawalCompatibility",
+    "producer-sha": "b8520ee079d6dded",
+    "break": "body of setWithdrawalCompatibility replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8277-2.4-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc8277_withdrawal_compatibility_test.go::TestWithdrawalCompatibilityOnSend",
+    "unit-sha": "fad0fa1b3f248339",
+    "claim-sha": "b11ea6c8a0b77f26",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_egress_normalize.go::setWithdrawalCompatibility",
+    "producer-sha": "b8520ee079d6dded",
+    "break": "body of setWithdrawalCompatibility replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8277-2.4-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc8277_withdrawal_compatibility_test.go::TestWithdrawalCompatibilityOnSend",
+    "unit-sha": "fad0fa1b3f248339",
+    "claim-sha": "cbf6aa0121445c48",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_egress_normalize.go::setWithdrawalCompatibility",
+    "producer-sha": "b8520ee079d6dded",
+    "break": "line 203: \"err != nil\" -\u003e \"err != nil \u0026\u0026 false\""
+  }
+]

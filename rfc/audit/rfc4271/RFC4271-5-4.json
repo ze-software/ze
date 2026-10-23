@@ -1,0 +1,17 @@
+{
+  "note": "receive path, attribute walk and storage readvertise (including the extended-length reframing branch) each keep a Partial bit a previous AS set on recognized and unrecognized transitive attributes",
+  "requirement_sha": "8a08ca30d7acebbe",
+  "tests": {
+    "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271PartialBitPreservedOnUnknownTransitive": "ab16100811ce8d90",
+    "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271PartialBitSurvivesLengthReframing": "ab16100811ce8d90",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271PartialFromPreviousASNeverCleared": "94aa07ebd53dcc5b",
+    "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271PartialFromPreviousASNotCleared": "4d1e0cbb7558949b"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271PartialBitPreservedOnUnknownTransitive": "7b778cbd4098f7ab",
+    "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271PartialBitSurvivesLengthReframing": "e9e286078758b0c5",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271PartialFromPreviousASNeverCleared": "9d462b3e22c88e46",
+    "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271PartialFromPreviousASNotCleared": "c7918ba8a6ad860c"
+  },
+  "verdict": "enforced"
+}

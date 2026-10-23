@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC7950-9.1-2",
+    "polarity": "negative",
+    "unit": "internal/component/config/yang/rfc7950_reference_test.go::TestRFC7950IdentityrefFormat",
+    "unit-sha": "092e29e1c3f43ec4",
+    "claim-sha": "07da4434b386e4cb",
+    "route": "revert",
+    "producer": "internal/component/config/yang/validator_reference.go::validateIdentityref",
+    "producer-sha": "1435bc0872bec85e",
+    "break": "body of validateIdentityref replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7950-9.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/config/yang/rfc7950_reference_test.go::TestRFC7950InstanceIdentifierLexical",
+    "unit-sha": "6d8ea9b72109e3fb",
+    "claim-sha": "86a2292b6e4fda7e",
+    "route": "revert",
+    "producer": "internal/component/config/yang/validator_reference.go::parseInstanceIdentifier",
+    "producer-sha": "a6f0912177c87d45",
+    "break": "body of parseInstanceIdentifier replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7950-9.1-2",
+    "polarity": "negative",
+    "unit": "internal/component/config/yang/rfc7950_reference_walk_test.go::TestRFC7950InstanceIdentifierKeyPrefix",
+    "unit-sha": "c14e55f2bccd79f1",
+    "claim-sha": "a74f2ee18540827c",
+    "route": "revert",
+    "producer": "internal/component/config/yang/validator_reference.go::checkInstanceKeyPrefix",
+    "producer-sha": "baf7457fe2ed1ea0",
+    "break": "body of checkInstanceKeyPrefix replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

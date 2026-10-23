@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC9190-5.4-4",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc9190_postauth_test.go::TestPostAuthenticationCheckClosesTheSAWhenTheResponderReportsRevoked",
+    "unit-sha": "f3c0190ec93a0a19",
+    "claim-sha": "9d9e444ec89e3f21",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/postauth_revocation.go::checkServerChainStatus",
+    "producer-sha": "2e54dce5530ff92b",
+    "break": "body of checkServerChainStatus replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9190-5.4-4",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc9190_postauth_test.go::TestPostAuthenticationCheckLeavesTheSAUpWhenTheResponderReportsGood",
+    "unit-sha": "f71ddbe05c17ac15",
+    "claim-sha": "e505c3a3871e149a",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/postauth_revocation.go::checkServerChainStatus",
+    "producer-sha": "2e54dce5530ff92b",
+    "break": "body of checkServerChainStatus replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9190-5.4-4",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc9190_ocsp_test.go::TestEAPTLS13PeerKeepsTheChainItAcceptedForTheLaterCheck",
+    "unit-sha": "26031ee58502bf85",
+    "claim-sha": "304fcd84ac33ac9b",
+    "route": "revert",
+    "producer": "internal/core/eap/peer_chain.go::verifyConnection",
+    "producer-sha": "cba739e85fedbc8a",
+    "break": "body of verifyConnection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

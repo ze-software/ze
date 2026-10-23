@@ -1,0 +1,9 @@
+{
+  "code": {
+    "internal/component/bgp/plugins/nlri/mup/rfc7606.go::RecognizeNLRI": "2e774acc4f219e3f",
+    "internal/component/bgp/plugins/nlri/mup/rfc7606.go::recognizerFor": "4f1047ee816a9ce4"
+  },
+  "note": "Re-judged 2026-10-14 (independent auditor) after the receive recognizer changed. recognizerFor (mup/rfc7606.go) now runs RecognizeNLRI then ValidateNLRI, which checks the NLRI body alone: Retain hands it one NLRI and no path attributes, and no code in internal/component/bgp reads a Prefix-SID SRv6 locator or compares it with a DSD MP_REACH next hop, so a DSD route whose next hop and locator differ is still stored rather than treated as withdrawn. The {gap} annotation's phrase \"reads the architecture and route type alone\" is now out of date (the body is also validated), but its conclusion holds.",
+  "requirement_sha": "7cdee95c209f5c36",
+  "verdict": "unimplemented"
+}

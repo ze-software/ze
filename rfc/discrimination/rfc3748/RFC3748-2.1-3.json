@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC3748-2.1-3",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc3748_nak_test.go::TestRFC3748PeerNaksBeforeItCommitsToAMethod",
+    "unit-sha": "a76c76351c648e6f",
+    "claim-sha": "ed33dae1b56c70d1",
+    "route": "revert",
+    "producer": "internal/core/eap/peer.go::naks",
+    "producer-sha": "739a0037df1b7a64",
+    "break": "body of naks replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3748-2.1-3",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc3748_nak_test.go::TestRFC3748PeerNaksBeforeItCommitsToAMethod",
+    "unit-sha": "a76c76351c648e6f",
+    "claim-sha": "1178c6e07a15739a",
+    "route": "revert",
+    "producer": "internal/core/eap/peer.go::commitMethod",
+    "producer-sha": "7049514593568f20",
+    "break": "body of commitMethod replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

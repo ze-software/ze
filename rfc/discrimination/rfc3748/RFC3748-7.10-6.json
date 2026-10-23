@@ -1,0 +1,68 @@
+[
+  {
+    "rid": "RFC3748-7.10-6",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc3748_emsk_test.go::TestRFC3748EAPTLSExportsASixtyFourOctetEMSK",
+    "unit-sha": "09b5356543060f21",
+    "claim-sha": "7032dc5b4301493f",
+    "route": "revert",
+    "producer": "internal/core/eap/eap_tls.go::exportEAPTLSKeys",
+    "producer-sha": "98b4d1240b3a48b9",
+    "break": "body of exportEAPTLSKeys replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3748-7.10-6",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc3748_emsk_test.go::TestRFC3748TheEMSKIsNeverHandedOutward",
+    "unit-sha": "726ebcdd7dbab5e9",
+    "claim-sha": "db3fe9911a2c72c5",
+    "route": "revert",
+    "producer": "internal/core/eap/eap_tls.go::exportEAPTLSKeys",
+    "producer-sha": "98b4d1240b3a48b9",
+    "break": "body of exportEAPTLSKeys replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3748-7.10-6",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc3748_emsk_test.go::TestRFC3748TheEMSKStaysOnBothEndsThatDerivedIt",
+    "unit-sha": "2f35b9001ff0e8e5",
+    "claim-sha": "2fc1c8669aea41bc",
+    "route": "revert",
+    "producer": "internal/core/eap/eap.go::handleMethod",
+    "producer-sha": "fcb74148a4de64e4",
+    "break": "body of handleMethod replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3748-7.10-6",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc3748_mschapv2_emsk_test.go::TestRFC3748TheMSCHAPv2EMSKIsNeverHandedOutward",
+    "unit-sha": "5f9c3c9beae63bcb",
+    "claim-sha": "461cb187aae326cc",
+    "route": "revert",
+    "producer": "internal/core/eap/mschapv2.go::deriveEMSK",
+    "producer-sha": "a8261a5c6325bcb4",
+    "break": "body of deriveEMSK replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3748-7.10-6",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc3748_mschapv2_emsk_test.go::TestRFC3748TheMSCHAPv2EMSKStaysWhereItWasDerived",
+    "unit-sha": "a5574cf90bb6f499",
+    "claim-sha": "baa5d7cb0675db88",
+    "route": "revert",
+    "producer": "internal/core/eap/eap_mschapv2.go::handleSuccessAck",
+    "producer-sha": "4df568dbbfa1120b",
+    "break": "body of handleSuccessAck replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3748-7.10-6",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc3748_remaining_clause_test.go::TestRFC3748MSCHAPv2MSKIsTheRFC3079Derivation",
+    "unit-sha": "d36adaab0dd15060",
+    "claim-sha": "74c9b786494281cf",
+    "route": "revert",
+    "producer": "internal/core/eap/mschapv2.go::DeriveMSK",
+    "producer-sha": "268094072b6506d7",
+    "break": "body of DeriveMSK replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

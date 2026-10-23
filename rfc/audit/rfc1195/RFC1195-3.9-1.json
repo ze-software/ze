@@ -1,0 +1,17 @@
+{
+  "note": "New root TestRFC1195InvalidAuthLSPDiscardedAtReceive drives the real dispatcher with the engine's verify hook (setKeyStore, HMAC-SHA-256 area chain): the signed L1 LSP reaches the L1 LSP handler exactly once (positive), and the same LSP with one digest octet (offset 32, past the 2-octet Key ID) flipped never reaches it (negative), so the entire PDU is dropped before any LSDB, adjacency or SNP handler. Only the digest differs, so the buffer isolates the auth rule. A receive path that verified and ignored the result goes red; +/- recorded red on auth_wiring.go verifyFrame. Packet units (VerifyPDU error on a flipped bit, accept on valid) remain as the codec-level half.",
+  "requirement_sha": "01cbc66d97701eb6",
+  "tests": {
+    "internal/plugins/isis/auth_discard_rfc1195_test.go::TestRFC1195InvalidAuthLSPDiscardedAtReceive": "5a1b7e8882c21ead",
+    "internal/plugins/isis/auth_discard_rfc1195_test.go::TestRFC1195InvalidAuthLSPDiscardedAtReceive#2": "5a1b7e8882c21ead",
+    "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthConstantTimeCompare": "6263fe382fc10923",
+    "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthSignVerifyHMACMD5": "6263fe382fc10923"
+  },
+  "units": {
+    "internal/plugins/isis/auth_discard_rfc1195_test.go::TestRFC1195InvalidAuthLSPDiscardedAtReceive": "f8cbc414d75be51d",
+    "internal/plugins/isis/auth_discard_rfc1195_test.go::TestRFC1195InvalidAuthLSPDiscardedAtReceive#2": "f8cbc414d75be51d",
+    "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthConstantTimeCompare": "4168f4c7c4816418",
+    "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthSignVerifyHMACMD5": "f60b0995ceccaafb"
+  },
+  "verdict": "enforced"
+}

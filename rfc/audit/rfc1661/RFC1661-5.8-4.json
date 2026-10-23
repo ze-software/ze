@@ -1,0 +1,13 @@
+{
+  "note": "TestEchoRequestIdentifierChanges isolates both triggers: a valid Echo-Reply (echoOutstanding cleared) between two Echo-Requests with the same Data (asserted equal), red on a reused Identifier; then magicNegotiated flips with no reply, Data asserted changed, red on a reused Identifier. sendEchoReply Identifier copy also pinned.",
+  "requirement_sha": "382d025d3d2e4cdc",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestEchoRequestIdentifierChanges": "034fb31a9e383e0e",
+    "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestEchoRequestIdentifierChanges#2": "034fb31a9e383e0e"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestEchoRequestIdentifierChanges": "eaeb0a401e972f93",
+    "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestEchoRequestIdentifierChanges#2": "eaeb0a401e972f93"
+  },
+  "verdict": "enforced"
+}

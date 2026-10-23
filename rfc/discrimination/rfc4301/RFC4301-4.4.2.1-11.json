@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC4301-4.4.2.1-11",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc4301_sad_lifetime_action_test.go::TestRFC4301SADLifetimeHardTimeTerminatesTheSA",
+    "unit-sha": "c26fddfec23a1d06",
+    "claim-sha": "baea35d924574dae",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/established.go::maintainSA",
+    "producer-sha": "f52db92f225348aa",
+    "break": "body of maintainSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4301-4.4.2.1-11",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc4301_sad_lifetime_action_test.go::TestRFC4301SADLifetimeSoftTimeReplacesTheSA",
+    "unit-sha": "22594f6afd12a915",
+    "claim-sha": "d3cb23c414038883",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/established.go::maintainSA",
+    "producer-sha": "f52db92f225348aa",
+    "break": "body of maintainSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4301-4.4.2.1-11",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc4301_sad_lifetime_test.go::TestRFC4301SADLifetimeIndicatesReplaceBeforeTerminate",
+    "unit-sha": "51907360090f88c3",
+    "claim-sha": "55eaa3178865d442",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/rekey.go::newLifetimeState",
+    "producer-sha": "16f87a9e362aa80d",
+    "break": "body of newLifetimeState replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4301-4.4.2.1-11",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc4301_sad_lifetime_test.go::TestRFC4301SADLifetimeTerminatesTheSAAtTheEndOfItsInterval",
+    "unit-sha": "931046db1a30cefc",
+    "claim-sha": "27f97030022d2dc6",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/rekey.go::newLifetimeState",
+    "producer-sha": "16f87a9e362aa80d",
+    "break": "body of newLifetimeState replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

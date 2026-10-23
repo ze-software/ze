@@ -1,0 +1,17 @@
+{
+  "note": "Independent semantic rejudgment: RFC9830 Section 2.4.4.2.3: \"If B-Flag appears with Segment Type A, it MUST be ignored.\" TestRFC9830ReservedFieldsIgnoredOnReceipt uses valid route-target/ASN4 carriers for both SAFI-73 AFIs, exact no-action and one-attribute assertions before real cache/export/downstream announcement, and nonzero meaningful neighbors. Renewed receive-source-mapped-assessment.json maps actual teSRPolicyValue offsets to immutable mutant/log victim names; its corrected receive victims, not original classifier false flags, are credited. The source-mapped rx-typea-b mutant is bounded to nested Type A value[0]&0x10. Both AFIs fail their isolated Type A B-bit victim and combined dirty input at the receive-action assertion; unchanged B=0 controls and valid Type B B=1/structure controls pass. This is the receive-only obligation: no missing transmit conjunct is invented, and assigned Type B B is not rejected. These are inspected scratch semantic executions, not canonical discrimination records. Current native record renewal/stamping remains parent-owned; no pending FRR carrier run, SRPM behavior, dataplane behavior, or full-RFC acceptance is inferred.",
+  "requirement_sha": "eda0489b177a2ef7",
+  "tests": {
+    "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "8e898ec9c074ca2b",
+    "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "8e898ec9c074ca2b",
+    "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead": "a929cacac0d74fc0",
+    "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead#2": "a929cacac0d74fc0"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "f039c3f0e09ace86",
+    "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "f039c3f0e09ace86",
+    "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead": "d4706ce342d09aa5",
+    "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead#2": "d4706ce342d09aa5"
+  },
+  "verdict": "enforced"
+}

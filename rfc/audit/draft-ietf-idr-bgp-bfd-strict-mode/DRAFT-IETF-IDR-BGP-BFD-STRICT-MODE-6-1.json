@@ -1,0 +1,17 @@
+{
+  "note": "Forbidden: a strict-mode speaker sending an OPEN without capability 74. TestBFDStrictCapabilityInSentOpen builds peers from configuration and counts code-74 TLVs in the octets sendOpen writes: exactly one with bfd strict, zero with strict under a disabled bfd block and with a bfd block without strict. Red if sendOpen drops or duplicates 74 or emits it without strict-mode enabled. The settings-level units remain as supporting evidence.",
+  "requirement_sha": "6c434a02c89a91bc",
+  "tests": {
+    "internal/component/bgp/reactor/config_bfd_strict_test.go::TestBFDSettingsStrictDisabledAdvertisesNothing": "7309aa741867a1b8",
+    "internal/component/bgp/reactor/config_bfd_strict_test.go::TestBFDSettingsStrictParse": "7309aa741867a1b8",
+    "internal/component/bgp/reactor/reactor_b_open_caps_test.go::TestBFDStrictCapabilityInSentOpen": "8cb84a3ecc21b2cc",
+    "internal/component/bgp/reactor/reactor_b_open_caps_test.go::TestBFDStrictCapabilityInSentOpen#2": "8cb84a3ecc21b2cc"
+  },
+  "units": {
+    "internal/component/bgp/reactor/config_bfd_strict_test.go::TestBFDSettingsStrictDisabledAdvertisesNothing": "8671c2e45df495f5",
+    "internal/component/bgp/reactor/config_bfd_strict_test.go::TestBFDSettingsStrictParse": "b288a1bf90a70006",
+    "internal/component/bgp/reactor/reactor_b_open_caps_test.go::TestBFDStrictCapabilityInSentOpen": "27b2a2fe7d20ef5f",
+    "internal/component/bgp/reactor/reactor_b_open_caps_test.go::TestBFDStrictCapabilityInSentOpen#2": "27b2a2fe7d20ef5f"
+  },
+  "verdict": "enforced"
+}

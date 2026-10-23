@@ -1,0 +1,13 @@
+{
+  "note": "a transmitted report carries one statistic; an empty report is refused before it reaches the collector",
+  "requirement_sha": "8004323dfce1f0b5",
+  "tests": {
+    "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestRFC7854SenderRefusesEmptyStatistics": "4c8de7d703105fd1",
+    "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854StatsReportCarriesAStatistic": "94e84131af3555be"
+  },
+  "units": {
+    "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestRFC7854SenderRefusesEmptyStatistics": "7b755fac31a0361e",
+    "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854StatsReportCarriesAStatistic": "25c294f7ea78a34f"
+  },
+  "verdict": "enforced"
+}

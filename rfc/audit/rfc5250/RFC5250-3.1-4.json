@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: an opaque LSA placed on the retransmission list of a non-opaque-capable neighbor, or missing from an opaque-capable one. The opaque_flood_test.go unit fatals if db.retransmit lacks the Type 11 for 2.2.2.2 (OpaqueCapable) or holds it for 3.3.3.3 (not capable), and shows a Router LSA still reaches both.",
+  "requirement_sha": "325e80b7b84ea388",
+  "tests": {
+    "internal/plugins/ospf/lsdb/rfc5250_opaque_flood_test.go::TestOpaqueFloodOnlyToOpaqueNeighbor": "1a516266f2e5c6f0",
+    "internal/plugins/ospf/lsdb/rfc5250_opaque_flood_test.go::TestOpaqueFloodOnlyToOpaqueNeighbor#2": "1a516266f2e5c6f0"
+  },
+  "units": {
+    "internal/plugins/ospf/lsdb/rfc5250_opaque_flood_test.go::TestOpaqueFloodOnlyToOpaqueNeighbor": "2aaa6e1831fb97a1",
+    "internal/plugins/ospf/lsdb/rfc5250_opaque_flood_test.go::TestOpaqueFloodOnlyToOpaqueNeighbor#2": "2aaa6e1831fb97a1"
+  },
+  "verdict": "enforced"
+}

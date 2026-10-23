@@ -1,0 +1,15 @@
+{
+  "note": "RFC 7432 \u00a78.2.1: \"This section describes the procedures used to construct the Ethernet A-D per ES route, which is used for fast convergence (as discussed above) and for advertising the ESI label used for split-horizon filtering (as discussed in Section 8.3). Support of this route is REQUIRED.\" Within the established explicit BGP control-plane role, current positive carriers demonstrate actual route support rather than only malformed-label rejection: internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go::TestConfiguredEVPNPerESRoute checks the entire MAX-ET Type-1 NLRI plus configured RT/ESI Label bytes; internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go::TestOriginEthernetADPerESUsesTypeOneRD checks the complete NLRI in an actual UPDATE MP_REACH and decodes it; internal/component/bgp/reactor/rfc7432_session_validation_evpn_test.go::TestEVPNIngressPreservesPerESZeroLabel requires exact unchanged ingress NLRI and action None. Producers evpn/config.go::parseConfigRoute, encode.go::EncodeRoute/l2vpnRouteToEVPNParams, message/update_build_evpn.go::BuildEVPN/ValidateEVPNOrigination and session_validation.go::enforceRFC7606 support those paths. Removing the route or changing its layout fails these assertions. Current single-polarity annotation is semantically justified: malformed label/RD cases are neighboring obligations, not a negative of route support. It does not waive any runtime proof, invent an owner exception, or claim PE fast-convergence, split-horizon, automatic ESI/label allocation or undisclosed whole EVPN support.",
+  "requirement_sha": "c3ef29b1d0838e37",
+  "tests": {
+    "internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go::TestConfiguredEVPNPerESRoute": "8605ce648899c68f",
+    "internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go::TestOriginEthernetADPerESUsesTypeOneRD": "4621c06037bf4489",
+    "internal/component/bgp/reactor/rfc7432_session_validation_evpn_test.go::TestEVPNIngressPreservesPerESZeroLabel": "e6d7712c5e48fc85"
+  },
+  "units": {
+    "internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go::TestConfiguredEVPNPerESRoute": "200485f8562d9e9b",
+    "internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go::TestOriginEthernetADPerESUsesTypeOneRD": "c572ee169d6adc54",
+    "internal/component/bgp/reactor/rfc7432_session_validation_evpn_test.go::TestEVPNIngressPreservesPerESZeroLabel": "802c30701e2af24d"
+  },
+  "verdict": "enforced"
+}

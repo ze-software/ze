@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2865-3-6",
+    "polarity": "negative",
+    "unit": "internal/component/radius/rfc2865_walk_test.go::TestDecodeIgnoresAnAttributeHiddenInThePadding",
+    "unit-sha": "5cb32f8662fa5db7",
+    "claim-sha": "d0de786e306b28ae",
+    "route": "revert",
+    "producer": "internal/component/radius/packet.go::Decode",
+    "producer-sha": "1cfcbbae411360f3",
+    "break": "body of Decode replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2865-3-6",
+    "polarity": "positive",
+    "unit": "internal/component/radius/rfc2865_walk_test.go::TestDecodeIgnoresOctetsOutsideTheLengthField",
+    "unit-sha": "c1c04873fb8fc51b",
+    "claim-sha": "6ca2bbd5aedb1756",
+    "route": "revert",
+    "producer": "internal/component/radius/packet.go::Decode",
+    "producer-sha": "1cfcbbae411360f3",
+    "break": "body of Decode replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

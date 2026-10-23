@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: authenticating a cache by its CN. Negative TestRTRTLSRejectsUnauthenticatedCaches 'CN only' (CN cache.rtr.test, no DNS SAN) is refused via assertRTRTLSRefused. Positive TestRTRTLSAuthenticatedCache: a cert whose CN is not-the-cache-reference.invalid but whose DNS-ID matches authenticates, so a CN check is not used either way.",
+  "requirement_sha": "3d3218794ff62414",
+  "tests": {
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go::TestRTRTLSAuthenticatedCache": "cc96e0e57341d7a8",
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go::TestRTRTLSRejectsUnauthenticatedCaches": "cc96e0e57341d7a8"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go::TestRTRTLSAuthenticatedCache": "46740446577221b8",
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go::TestRTRTLSRejectsUnauthenticatedCaches": "5079e5e699076586"
+  },
+  "verdict": "enforced"
+}

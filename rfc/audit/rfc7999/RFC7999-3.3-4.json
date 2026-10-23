@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: origin validation rejecting a legitimate BLACKHOLE announcement. internal/component/bgp/plugins/rpki/blackhole_decision_test.go::TestBlackholeSurvivesLengthOnlyInvalid: a /32 Invalid only by maxLength with BLACKHOLE must be Accept (Error if not). Negative ::TestBlackholeDoesNotSurviveAWrongOrigin keeps a wrong-origin BLACKHOLE rejected, delimiting 'legitimate'. The exemption is operator opt-in (blackholeDecisionPlugin(t, true)), matching the sentence binding the operator.",
+  "requirement_sha": "e6874c9822952da2",
+  "tests": {
+    "internal/component/bgp/plugins/rpki/rfc7999_blackhole_decision_test.go::TestBlackholeDoesNotSurviveAWrongOrigin": "381b9b0995dfeec1",
+    "internal/component/bgp/plugins/rpki/rfc7999_blackhole_decision_test.go::TestBlackholeSurvivesLengthOnlyInvalid": "381b9b0995dfeec1"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rpki/rfc7999_blackhole_decision_test.go::TestBlackholeDoesNotSurviveAWrongOrigin": "288980339bae715b",
+    "internal/component/bgp/plugins/rpki/rfc7999_blackhole_decision_test.go::TestBlackholeSurvivesLengthOnlyInvalid": "468cdc78a5782d28"
+  },
+  "verdict": "enforced"
+}

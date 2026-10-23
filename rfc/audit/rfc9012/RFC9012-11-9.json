@@ -1,0 +1,13 @@
+{
+  "note": "RFC 9012 Section 11 says: Any BGP speaker that understands it MUST be able to filter it from incoming BGP UPDATE messages. TestRFC9012ConfiguredEncapsulationECIngress configures the actual registered bgp-filter-community SDK runner with exact Encapsulation Extended Community values 030c000000000002 and 030c000000000008. Established Session receipt reaches the registered ingressFilter, applyIngressFilter and ingressStripCommunities; reactor_notify consumes the replacement payload. The removal case asserts both Encapsulation ECs are absent before dispatch, in cached ForwardUpdate socket output and after downstream Session receipt, while the unrelated RT, ORIGIN, AS_PATH, NEXT_HOP and NLRI survive. A populated no-match policy preserves the identical two Encapsulation ECs through those boundaries, distinguishing configured removal from unconditional stripping or blanket attribute removal. Both named cases passed in the retained f688dd08 race run. This proves configurable ingress filtering, not the separate default-EBGP requirement.",
+  "requirement_sha": "9109888f2e96067d",
+  "tests": {
+    "internal/component/bgp/reactor/rfc9012_encapsulation_filter_test.go::TestRFC9012ConfiguredEncapsulationECIngress": "4487b162dc622658",
+    "internal/component/bgp/reactor/rfc9012_encapsulation_filter_test.go::TestRFC9012ConfiguredEncapsulationECIngress#2": "4487b162dc622658"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc9012_encapsulation_filter_test.go::TestRFC9012ConfiguredEncapsulationECIngress": "27910685caa64543",
+    "internal/component/bgp/reactor/rfc9012_encapsulation_filter_test.go::TestRFC9012ConfiguredEncapsulationECIngress#2": "27910685caa64543"
+  },
+  "verdict": "enforced"
+}

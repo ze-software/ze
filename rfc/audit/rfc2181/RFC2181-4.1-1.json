@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-15 (subagent, after 14d1c8f19c and 224b0ef514). The tagged unit changed only in its setup call: mgr.apply/applyListeners became reconcile(..., BindLenient), the policy the deleted wrappers passed; each unit binds one listener on a free port of a single loopback address (127.0.0.2 in TestRFC2181ReplySourcedFromTheQueriedAddress, 127.0.0.1 in TestRFC2181_UDPReplySourceAndPort), where lenient and strict bind alike, and every assertion line is byte-identical. Where this unit carries a revert record (TestDoTListener, TestDoHListener, TestRFC7858DoTNegotiatesOnlyBCP195Suites, the two RFC 2181 4.1-1 units), it was re-observed red today. Prior judgement re-read against the current body and stands: Re-judged 2026-09-30. TestRFC2181ReplySourcedFromTheQueriedAddress binds the listener to 127.0.0.2 and queries from 127.0.0.1, asserting reply source 127.0.0.2; a wildcard bind would source from 127.0.0.1, so the assertion discriminates (the earlier weak finding). Record: dnsserver Manager.bind revert observed red. {single-polarity} holds: every UDP listener binds one address and there is no explicit-source path to drive negatively.",
+  "requirement_sha": "84c208957ee84346",
+  "tests": {
+    "internal/plugins/geodns/rfc2181_clarifications_test.go::TestRFC2181ReplySourcedFromTheQueriedAddress": "92cb2a16576e33d3",
+    "internal/plugins/geodns/rfc2181_server_test.go::TestRFC2181_UDPReplySourceAndPort": "8db97d24fc455c8c"
+  },
+  "units": {
+    "internal/plugins/geodns/rfc2181_clarifications_test.go::TestRFC2181ReplySourcedFromTheQueriedAddress": "35746a662fef0352",
+    "internal/plugins/geodns/rfc2181_server_test.go::TestRFC2181_UDPReplySourceAndPort": "5e7a51bc043c8ca6"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "TestBuildFrameVerType asserts BuildPADI writes VER=1; TestParseBadVersion shows a VER=2 frame is refused",
+  "requirement_sha": "5950b8d27a3d105a",
+  "tests": {
+    "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestBuildFrameVerType": "b7c2fae4a50abe95",
+    "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestParseBadVersion": "b7c2fae4a50abe95"
+  },
+  "units": {
+    "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestBuildFrameVerType": "98eb941b072c9c40",
+    "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestParseBadVersion": "f18a8147d067b519"
+  },
+  "verdict": "enforced"
+}

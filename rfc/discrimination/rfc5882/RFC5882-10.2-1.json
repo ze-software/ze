@@ -1,0 +1,123 @@
+[
+  {
+    "rid": "RFC5882-10.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/rfc5882_auth_join_test.go::TestRFC5882AuthJoinDifferentAuthRefused",
+    "unit-sha": "15bc152837a4dfa6",
+    "claim-sha": "187eede5b88bf3db",
+    "route": "revert",
+    "producer": "internal/component/bfd/engine/auth_join.go::joinAuthCheck",
+    "producer-sha": "dcd6bcfb904ac151",
+    "break": "body of joinAuthCheck replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5882-10.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/rfc5882_auth_join_test.go::TestRFC5882AuthJoinIdenticalAuthShares",
+    "unit-sha": "83dd874a0ea64d9a",
+    "claim-sha": "7f1a4e74d1fd1ca1",
+    "route": "revert",
+    "producer": "internal/component/bfd/engine/auth_join.go::sameAuth",
+    "producer-sha": "b4a27594c81a3bea",
+    "break": "body of sameAuth replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5882-10.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/rfc5882_bgp_auth_test.go::TestRFC5882BGPPeerAuthProfileRefusesMismatchedNeighbor",
+    "unit-sha": "605ce45db0d7aa30",
+    "claim-sha": "7838552fc111a6f6",
+    "route": "revert",
+    "producer": "internal/component/bfd/auth/sha1.go::Verify",
+    "producer-sha": "a96f098f3c6f9288",
+    "break": "body of Verify replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5882-10.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/rfc5882_bgp_auth_test.go::TestRFC5882BGPPeerAuthProfileRefusesUnauthenticatedNeighbor",
+    "unit-sha": "d4f1f088bdf89382",
+    "claim-sha": "553a967b5887d811",
+    "route": "revert",
+    "producer": "internal/component/bfd/session/fsm.go::Receive",
+    "producer-sha": "358034a974de9c16",
+    "break": "body of Receive replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5882-10.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/rfc5882_bgp_auth_test.go::TestRFC5882BGPPeerAuthProfileSignsItsSession",
+    "unit-sha": "7034daf0a4cadfe9",
+    "claim-sha": "7900bed2ecee7d79",
+    "route": "revert",
+    "producer": "internal/component/bfd/config.go::applyTo",
+    "producer-sha": "61e0c06414dc4bdd",
+    "break": "body of applyTo replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5882-10.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/rfc5882_bgp_auth_test.go::TestRFC5882BGPPeerProfileWithoutAuthRunsUnauthenticated",
+    "unit-sha": "553bba25dae8ead9",
+    "claim-sha": "43dd126728a07aeb",
+    "route": "revert",
+    "producer": "internal/component/bfd/config.go::applyTo",
+    "producer-sha": "61e0c06414dc4bdd",
+    "break": "body of applyTo replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5882-10.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc5882_bfd_auth_test.go::TestRFC5882EBGPPeerNamesAuthenticatedProfile",
+    "unit-sha": "e7f3539afb6c5d81",
+    "claim-sha": "c6bb27264215ee2c",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/peer_bfd.go::bfdRequestFor",
+    "producer-sha": "93110ab36e7c325f",
+    "break": "body of bfdRequestFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5882-10.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc5882_bfd_auth_warn_test.go::TestRFC5882AuthenticatedOrIBGPProfileDoesNotWarn",
+    "unit-sha": "710e9620286471e3",
+    "claim-sha": "6d73c30c5e381f56",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/peer_bfd.go::verifyPeerBFDProfiles",
+    "producer-sha": "802c5c9898d5e195",
+    "break": "body of verifyPeerBFDProfiles replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5882-10.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc5882_bfd_auth_warn_test.go::TestRFC5882EBGPPeerWithoutProfileWarns",
+    "unit-sha": "303f572be7ab6bbc",
+    "claim-sha": "e8e03511ffe57282",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/peer_bfd.go::verifyPeerBFDProfiles",
+    "producer-sha": "802c5c9898d5e195",
+    "break": "body of verifyPeerBFDProfiles replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5882-10.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc5882_bfd_auth_warn_test.go::TestRFC5882EBGPUnauthenticatedProfileWarns",
+    "unit-sha": "d5644b23907b167f",
+    "claim-sha": "d61ad323ad035f56",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/peer_bfd.go::verifyPeerBFDProfiles",
+    "producer-sha": "802c5c9898d5e195",
+    "break": "body of verifyPeerBFDProfiles replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5882-10.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc5882_bfd_auth_warn_test.go::TestRFC5882IBGPPeerWithoutProfileDoesNotWarn",
+    "unit-sha": "42e61cc644d47021",
+    "claim-sha": "aaf03cb7638b5c38",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/peer_bfd.go::verifyPeerBFDProfiles",
+    "producer-sha": "802c5c9898d5e195",
+    "break": "body of verifyPeerBFDProfiles replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

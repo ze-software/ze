@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC4271-5-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/message/rfc4271_ipv4_route_ipv6_nexthop_test.go::TestBuildUnicastRefusesIPv4RouteWithNoUsableNextHop",
+    "unit-sha": "5e6c66981d211e72",
+    "claim-sha": "79a4b8bb3123dca5",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/update_build.go::checkUnicastNextHop",
+    "producer-sha": "357deadeb55bacc6",
+    "break": "body of checkUnicastNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-5-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/message/rfc4271_mandatory_send_test.go::TestRFC4271UpdateWithNLRICarriesTheMandatoryAttributes",
+    "unit-sha": "50666b7f6a59a32f",
+    "claim-sha": "7a2e17e4006969db",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/update_build.go::BuildUnicast",
+    "producer-sha": "e7dd8c913660084d",
+    "break": "body of BuildUnicast replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-5-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/message/rfc4271_mandatory_send_test.go::TestRFC4271UpdateWithNLRICarriesTheMandatoryAttributes",
+    "unit-sha": "50666b7f6a59a32f",
+    "claim-sha": "6148b2a52570ce72",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/update_build.go::BuildUnicast",
+    "producer-sha": "e7dd8c913660084d",
+    "break": "body of BuildUnicast replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

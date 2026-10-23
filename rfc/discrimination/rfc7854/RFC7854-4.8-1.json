@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7854-4.8-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854TruncatedStatEndsSession",
+    "unit-sha": "53907e5411dee193",
+    "claim-sha": "e1c1cfa8386bda53",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/bmp/msg.go::decodeStatisticsReport",
+    "producer-sha": "6b4030ce6f7eaa4c",
+    "break": "body of decodeStatisticsReport replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7854-4.8-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854UnrecognizedStatTypeIgnored",
+    "unit-sha": "376f0cf92fab4c14",
+    "claim-sha": "3a9f2fc90cd1edb3",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/bmp/msg.go::decodeStatisticsReport",
+    "producer-sha": "6b4030ce6f7eaa4c",
+    "break": "body of decodeStatisticsReport replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

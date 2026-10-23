@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC4271-9.2-6",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_ibgp_split_horizon_test.go::TestRFC4271ForwardRailNeverRedistributesInternalRoutesToInternalPeers",
+    "unit-sha": "b6e08ccbd4a9f9c5",
+    "claim-sha": "fece4d1c3bab23bf",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/reactor_api_forward.go::forwardUpdateSection",
+    "producer-sha": "bab6d8f9021cab50",
+    "break": "body of forwardUpdateSection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

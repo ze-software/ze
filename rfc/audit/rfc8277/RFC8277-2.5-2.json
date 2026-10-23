@@ -1,0 +1,19 @@
+{
+  "note": "Independent post-edit judgment by AddPathProofReview, not the test author. RFC 8277 Section 2.5: \"If I1 is the same as I2, UPDATE U2 MUST be interpreted as meaning that L2 is now bound to P at N1 and that L1 is no longer bound to P at N1.\" TestRFC8277AddPathSameNextHopKeepsIndependentLabels holds peer, prefix, next hop and MED fixed; a reused path 9 replaces [200] by exactly [300], leaves exactly two routes and path 7 at [100]. Its negative boundary uses a different identifier, retaining both routes and both labels. Existing TestLabeledImplicitWithdrawalAddPath and TestRFC8277AddPathLabelsBoundPerPath retain route-entry and binding isolation coverage. pathSet.setLabels binds only the named entry; the parent observed the new test fail with [200] instead of [300] when that producer retained the old handle, and pass in the complete RIB race run. Native records separately observe producer disabling; no generic best-path compliance is inferred.",
+  "requirement_sha": "44d0d337cb26bea6",
+  "tests": {
+    "internal/component/bgp/plugins/rib/rfc8277_same_next_hop_test.go::TestRFC8277AddPathSameNextHopKeepsIndependentLabels": "ddc271ea38bff667",
+    "internal/component/bgp/plugins/rib/rfc8277_same_next_hop_test.go::TestRFC8277AddPathSameNextHopKeepsIndependentLabels#2": "ddc271ea38bff667",
+    "internal/component/bgp/plugins/rib/rfc8277_test.go::TestLabeledImplicitWithdrawalAddPath": "b185b12eb909f16a",
+    "internal/component/bgp/plugins/rib/rfc8277_test.go::TestLabeledImplicitWithdrawalAddPath#2": "b185b12eb909f16a",
+    "internal/component/bgp/plugins/rib/rfc8277_test.go::TestRFC8277AddPathLabelsBoundPerPath": "b185b12eb909f16a"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rib/rfc8277_same_next_hop_test.go::TestRFC8277AddPathSameNextHopKeepsIndependentLabels": "6324c6dc9f1b1493",
+    "internal/component/bgp/plugins/rib/rfc8277_same_next_hop_test.go::TestRFC8277AddPathSameNextHopKeepsIndependentLabels#2": "6324c6dc9f1b1493",
+    "internal/component/bgp/plugins/rib/rfc8277_test.go::TestLabeledImplicitWithdrawalAddPath": "0d3d070dabaf72a3",
+    "internal/component/bgp/plugins/rib/rfc8277_test.go::TestLabeledImplicitWithdrawalAddPath#2": "0d3d070dabaf72a3",
+    "internal/component/bgp/plugins/rib/rfc8277_test.go::TestRFC8277AddPathLabelsBoundPerPath": "5e4d66177578306a"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,15 @@
+{
+  "note": "D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV->WriteTLV and field-export renames (TLV code constants verified unchanged). The receipt units now reach bgpls.DecodeSRCapabilities through the TLV 1034 decoder the plugin registers (lookupLsAttrTLVDecoder), so the adapter is exercised too; DecodeSRCapabilities is byte-identical to the old decodeSRCapabilities (len<2 refused, Flags stored, ranges from data[2:]). RFC 9085 Section 2.1.4: \"The flags are not currently defined for OSPFv2 and OSPFv3 and MUST be set to 0 and ignored on receipt.\" Set-0: ospf SRLB TLV 1036 pair (unchanged). Receipt: decodeSRLocalBlock (unchanged body) decodes Flags ff to the intact range.",
+  "requirement_sha": "d7c8d3012bbde2ec",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go::TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved": "367af3d70449d973",
+    "internal/plugins/ospf/rfc9085_bgpls_export_test.go::TestRFC9085OSPFOriginatedCapabilitiesFlagsReservedZero": "e14c93300ea1c323",
+    "internal/plugins/ospf/rfc9085_bgpls_export_test.go::TestRFC9085OSPFSourceReservedNeverOriginated": "e14c93300ea1c323"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go::TestRFC9085CapabilitiesReceiptIgnoresFlagsAndReserved": "a0f76740c5d50d30",
+    "internal/plugins/ospf/rfc9085_bgpls_export_test.go::TestRFC9085OSPFOriginatedCapabilitiesFlagsReservedZero": "0b11bb88d0df26e9",
+    "internal/plugins/ospf/rfc9085_bgpls_export_test.go::TestRFC9085OSPFSourceReservedNeverOriginated": "1a3f4297eaaab9f1"
+  },
+  "verdict": "enforced"
+}

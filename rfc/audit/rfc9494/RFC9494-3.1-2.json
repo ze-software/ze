@@ -1,0 +1,13 @@
+{
+  "note": "Two clauses, both asserted. Sender: TestRFC9494_FlagsReservedBitsZeroOnSend fails unless the encoded Flags octet is exactly 0x80 (any reserved bit set goes red). Receiver: TestRFC9494_FlagsReservedBitsIgnoredOnReceive fails if a 0xFF Flags octet errors or decodes differently from 0x80, and if 0x7F leaks into the F bit.",
+  "requirement_sha": "e0ad66d4bf961ace",
+  "tests": {
+    "internal/component/bgp/plugins/gr/rfc9494_test.go::TestRFC9494_FlagsReservedBitsIgnoredOnReceive": "12d6878120b58188",
+    "internal/component/bgp/plugins/gr/rfc9494_test.go::TestRFC9494_FlagsReservedBitsZeroOnSend": "12d6878120b58188"
+  },
+  "units": {
+    "internal/component/bgp/plugins/gr/rfc9494_test.go::TestRFC9494_FlagsReservedBitsIgnoredOnReceive": "9ed2c95dddedfb3b",
+    "internal/component/bgp/plugins/gr/rfc9494_test.go::TestRFC9494_FlagsReservedBitsZeroOnSend": "f44fb34c3fa1e7b7"
+  },
+  "verdict": "enforced"
+}

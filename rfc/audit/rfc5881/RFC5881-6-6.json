@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: after a changed received source, using it as the transmit destination, or not using the configured address. After handleInbound from 198.51.100.7 by discriminator, TestRFC5881TransmitDestinationStable reds if PeerAddr drifts or ct.last.To != configured peer (MUST continue to use configured), and TestRFC5881TransmitDestinationIgnoresChangedSource reds if ct.last.To == changed source (MUST NOT use that address). Producer loop.go sendLocked To: PeerAddr().",
+  "requirement_sha": "3764219be7595988",
+  "tests": {
+    "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881TransmitDestinationIgnoresChangedSource": "c8bf3135e7e74ea3",
+    "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881TransmitDestinationStable": "c8bf3135e7e74ea3"
+  },
+  "units": {
+    "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881TransmitDestinationIgnoresChangedSource": "0d7cd491ec3a112e",
+    "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881TransmitDestinationStable": "c21c424b4e04aa90"
+  },
+  "verdict": "enforced"
+}

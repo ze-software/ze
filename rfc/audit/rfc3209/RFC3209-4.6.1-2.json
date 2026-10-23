@@ -1,0 +1,8 @@
+{
+  "code": {
+    "internal/plugins/rsvpte/wire.go::encodeSessionIPv4": "edb3462d79a52c63"
+  },
+  "note": "Re-judged 2026-10-18 (independent auditor, after c85342c940). Section 4.6.1.2 LSP_TUNNEL_IPv6 Session Object, C_Type = 8: the 16 bits before Tunnel ID are \"MUST be zero\". The row is now {gap} and no test tags it: the wrong tag on TestRSVPSessionObjectEncoding, which proved only the IPv4 object, was moved off by owner ruling. The gap is real: internal/plugins/rsvpte/wire.go defines CTypeLSPTunnelIPv6 = 8 but no non-test code uses it, and encodeSessionIPv4 is the only SESSION encoder, so Ze emits no IPv6 SESSION object whose reserved field could be zero or not. Scheduled in plan/spec-rsvpte-ipv6-lsp-tunnel.md. Recording this gap authorizes no implementation.",
+  "requirement_sha": "ac65c0a91789a9c3",
+  "verdict": "unimplemented"
+}

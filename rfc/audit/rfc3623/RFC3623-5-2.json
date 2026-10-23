@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged 2026-10-21. TestUnplannedGraceLSAFloodsToAllSPFRouters now makes the router a restarting DROther (self-flush suppressed) with a Full neighbor that is DR, so the ordinary destination would be AllDRouters; only the restart-grace branch of floodLink sends to 224.0.0.5. Before-Hello ordering: TestRFC3623UnplannedColdStartOriginatesGraceLSA (record openInterfaces) and the lsdb restart flood unit. Single-polarity positive.",
+  "requirement_sha": "434fdf3482aa1635",
+  "tests": {
+    "internal/plugins/ospf/lsdb/rfc3623_restart_grace_flood_test.go::TestRFC3623RestartGraceLSAFloodedToAllSPFRouters": "c18573d417c1737d",
+    "internal/plugins/ospf/rfc3623_gr_positive_test.go::TestUnplannedGraceLSAFloodsToAllSPFRouters": "2aac178db13e197a",
+    "internal/plugins/ospf/rfc3623_unplanned_cold_start_test.go::TestRFC3623UnplannedColdStartOriginatesGraceLSA": "e885ce631870f673"
+  },
+  "units": {
+    "internal/plugins/ospf/lsdb/rfc3623_restart_grace_flood_test.go::TestRFC3623RestartGraceLSAFloodedToAllSPFRouters": "6dfb2571d64862cc",
+    "internal/plugins/ospf/rfc3623_gr_positive_test.go::TestUnplannedGraceLSAFloodsToAllSPFRouters": "99df5d75b55e0951",
+    "internal/plugins/ospf/rfc3623_unplanned_cold_start_test.go::TestRFC3623UnplannedColdStartOriginatesGraceLSA": "042e6d6a1139e5b7"
+  },
+  "verdict": "enforced"
+}

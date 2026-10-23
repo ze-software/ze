@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC7950-9.12-1",
+    "polarity": "positive",
+    "unit": "internal/component/config/rfc7950_validator_union_test.go::TestRFC7950UnionAcceptsEveryMemberType",
+    "unit-sha": "e7ad8a138305e8e4",
+    "claim-sha": "a1689f15de5cd030",
+    "route": "revert",
+    "producer": "internal/component/config/yang/validator.go::validateUnion",
+    "producer-sha": "221a2cba43723e35",
+    "break": "body of validateUnion replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7950-9.12-1",
+    "polarity": "negative",
+    "unit": "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_UnionViolation",
+    "unit-sha": "7d4f5b8dc5bcf82f",
+    "claim-sha": "71eae547a1ca4e15",
+    "route": "revert",
+    "producer": "internal/component/config/yang/validator.go::validateUnion",
+    "producer-sha": "221a2cba43723e35",
+    "break": "body of validateUnion replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7950-9.12-1",
+    "polarity": "positive",
+    "unit": "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_ValidConfig",
+    "unit-sha": "f347da3fd5e8e0fb",
+    "claim-sha": "89fce94bd5feafc7",
+    "route": "revert",
+    "producer": "internal/component/config/yang/validator.go::validateUnion",
+    "producer-sha": "221a2cba43723e35",
+    "break": "body of validateUnion replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

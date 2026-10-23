@@ -1,0 +1,13 @@
+{
+  "note": "positive: a CounterGeneration change with rising counters resets the sequence to 1; negative: an unchanged generation keeps 1,2,3 even when a counter reads lower",
+  "requirement_sha": "2552d7673cba63b9",
+  "tests": {
+    "internal/plugins/flowexport/sflow/sflow_v5_discontinuity_test.go::TestSFlowV5SequenceKeptWhileDiscontinuityTimeSteady": "88ec88782716a9e4",
+    "internal/plugins/flowexport/sflow/sflow_v5_discontinuity_test.go::TestSFlowV5SequenceResetOnDiscontinuityTime": "88ec88782716a9e4"
+  },
+  "units": {
+    "internal/plugins/flowexport/sflow/sflow_v5_discontinuity_test.go::TestSFlowV5SequenceKeptWhileDiscontinuityTimeSteady": "12c7f6d0064095c7",
+    "internal/plugins/flowexport/sflow/sflow_v5_discontinuity_test.go::TestSFlowV5SequenceResetOnDiscontinuityTime": "d1e7759eb21beb14"
+  },
+  "verdict": "enforced"
+}

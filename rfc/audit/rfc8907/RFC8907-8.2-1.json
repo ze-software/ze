@@ -1,0 +1,17 @@
+{
+  "note": "Rejudged 2026-09-29. Service is now asserted on every request kind: command and session authorization (service=shell first) and accounting START/STOP (TestRFC8907EveryRequestKindLeadsWithService); TestRFC8907NoRequestKindOmitsService requires exactly one service in each, including the session request with empty cmd and records for an argless command.",
+  "requirement_sha": "7f9a985396b9707b",
+  "tests": {
+    "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907EveryRequestKindLeadsWithService": "fb302ebfa0d9b135",
+    "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907NoRequestKindOmitsService": "fb302ebfa0d9b135",
+    "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907ServiceArgumentAlwaysFirst": "226ab125232efc32",
+    "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907ServiceArgumentPresentForEmptyCommand": "226ab125232efc32"
+  },
+  "units": {
+    "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907EveryRequestKindLeadsWithService": "278b68576476b606",
+    "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907NoRequestKindOmitsService": "6b4634725c038654",
+    "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907ServiceArgumentAlwaysFirst": "783dc461fff0dad6",
+    "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907ServiceArgumentPresentForEmptyCommand": "e87e579a1606d398"
+  },
+  "verdict": "enforced"
+}

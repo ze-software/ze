@@ -1,0 +1,17 @@
+{
+  "note": "Draft Section 10: \"That is, BFD hold-down procedures MUST NOT prevent BGP from establishing a connection with the remote BGP speaker.\" The preceding sentence requires the FSM enabled, while the following paragraph permits Established to wait for hold-down. TestDraftBFDHoldDownDoesNotGateConnectionOrOPEN configures 400 ms, reads the actual local OPEN from an accepted connection, processes the remote OPEN/KEEPALIVE with an unadvanced FakeClock, and distinguishes Down pending from Up running hold-down. session_bfd_strict_test.go TestSessionBFDStrictWithholdsKeepalive and TestSessionBFDStrictEstablishesWhenPeerDoesNotAdvertise confine the gate to negotiated strict mode. Producers advanceAfterOpen and bfdStrictHolds gate KEEPALIVE/establishment, not the already observed TCP/OPEN exchange. Delaying connection/OPEN until hold-down elapsed or bypassing the hold-down assertion fails. This closes the old zero-hold-down fixture gap without demanding Established prematurely. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.",
+  "requirement_sha": "147354055071d5da",
+  "tests": {
+    "internal/component/bgp/reactor/draft_ietf_idr_bgp_bfd_strict_mode_pending_test.go::TestDraftBFDHoldDownDoesNotGateConnectionOrOPEN": "5eb453df0541999a",
+    "internal/component/bgp/reactor/draft_ietf_idr_bgp_bfd_strict_mode_pending_test.go::TestDraftBFDHoldDownDoesNotGateConnectionOrOPEN#2": "5eb453df0541999a",
+    "internal/component/bgp/reactor/session_bfd_strict_test.go::TestSessionBFDStrictEstablishesWhenPeerDoesNotAdvertise": "56ded9ff159b946a",
+    "internal/component/bgp/reactor/session_bfd_strict_test.go::TestSessionBFDStrictWithholdsKeepalive": "56ded9ff159b946a"
+  },
+  "units": {
+    "internal/component/bgp/reactor/draft_ietf_idr_bgp_bfd_strict_mode_pending_test.go::TestDraftBFDHoldDownDoesNotGateConnectionOrOPEN": "f3fe5353eb37ee48",
+    "internal/component/bgp/reactor/draft_ietf_idr_bgp_bfd_strict_mode_pending_test.go::TestDraftBFDHoldDownDoesNotGateConnectionOrOPEN#2": "f3fe5353eb37ee48",
+    "internal/component/bgp/reactor/session_bfd_strict_test.go::TestSessionBFDStrictEstablishesWhenPeerDoesNotAdvertise": "7f491a6cc1b7a834",
+    "internal/component/bgp/reactor/session_bfd_strict_test.go::TestSessionBFDStrictWithholdsKeepalive": "579b89c70c27687d"
+  },
+  "verdict": "enforced"
+}

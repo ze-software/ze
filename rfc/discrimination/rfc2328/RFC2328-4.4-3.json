@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC2328-4.4-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc2328_link_indication_test.go::TestRFC2328LinkIndicationsReachTheOSPFEngine",
+    "unit-sha": "6ca9471114d1bff6",
+    "claim-sha": "12388ff308b6c098",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/instance.go::onInterfaceDown",
+    "producer-sha": "4ae60198e09aa246",
+    "break": "body of onInterfaceDown replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-4.4-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/transport/rfc2328_link_test.go::TestOSPFTransportPassesLinkIndicationsToOSPF",
+    "unit-sha": "efca32f16cde9ede",
+    "claim-sha": "3ce9e1d3ac619f56",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/transport/transport.go::HandleLinkUp",
+    "producer-sha": "5b24521846c47af0",
+    "break": "body of HandleLinkUp replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-4.4-3",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/transport/rfc2328_link_test.go::TestOSPFTransportPassesNoIndicationForNonOSPFInterface",
+    "unit-sha": "ac30a6e4badfcd74",
+    "claim-sha": "608179439e292647",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/transport/transport.go::HandleLinkUp",
+    "producer-sha": "5b24521846c47af0",
+    "break": "body of HandleLinkUp replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

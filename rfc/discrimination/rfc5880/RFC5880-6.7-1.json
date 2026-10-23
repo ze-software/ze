@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC5880-6.7-1",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880SHA1TypesEnforcedDistinctly",
+    "unit-sha": "d3e179d33dbb93f5",
+    "claim-sha": "b2dadb43cee3ec3b",
+    "route": "revert",
+    "producer": "internal/component/bfd/auth/sha1.go::Verify",
+    "producer-sha": "a96f098f3c6f9288",
+    "break": "body of Verify replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.7-1",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880BothSHA1VariantsSupported",
+    "unit-sha": "843469751fedbaef",
+    "claim-sha": "24acc4f6990ff4c0",
+    "route": "revert",
+    "producer": "internal/component/bfd/auth/signer.go::NewSigner",
+    "producer-sha": "74964565965a495f",
+    "break": "body of NewSigner replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.7-1",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880UnsupportedAuthTypesRejected",
+    "unit-sha": "4ad3cb82cf113b33",
+    "claim-sha": "9045bd8980ef00b4",
+    "route": "revert",
+    "producer": "internal/component/bfd/auth/signer.go::NewVerifier",
+    "producer-sha": "cf9c2443d4dd2bb2",
+    "break": "body of NewVerifier replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

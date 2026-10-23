@@ -1,0 +1,11 @@
+{
+  "note": "single polarity: geodns serves zone data from the running configuration, not obtained by secure means, and the unit asserts it is never flagged authentic (AD clear) on either reply",
+  "requirement_sha": "139ed0fd61df85f1",
+  "tests": {
+    "internal/plugins/geodns/rfc4035_server_test.go::TestRFC4035_NoDNSSECAdditionalProcessing": "0d5a4b0eaf3ac272"
+  },
+  "units": {
+    "internal/plugins/geodns/rfc4035_server_test.go::TestRFC4035_NoDNSSECAdditionalProcessing": "999305cf4ef4fff2"
+  },
+  "verdict": "enforced"
+}

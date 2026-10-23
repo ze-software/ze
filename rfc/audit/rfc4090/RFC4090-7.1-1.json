@@ -1,0 +1,13 @@
+{
+  "note": "TestRFC4090ProtectedPathSurvivesRepair (link and node cases): after the PLR's backup PATH reaches the MP, the MP forwards the protected LSP's SENDER_TEMPLATE downstream; negative TestRFC4090DifferentPathsDoNotMerge: a PATH whose remaining ERO differs is not merged and keeps its own sender Re-judged 2026-10-08 against rfc4090.txt Sections 6.4.3, 6.4.4 and 7.1.1: TestRFC4090ProtectedPathSurvivesRepair changed only by passing nil for buildPathErr's new adspec argument in the late MP PathErr it injects (commit 9b8bfe250c); every assertion on the backup PATH, its ERO, the MP's forwarded sender and its refresh is unchanged, and the discrimination record was re-observed red.",
+  "requirement_sha": "0dec8f221f7521a3",
+  "tests": {
+    "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090DifferentPathsDoNotMerge": "63fe630e7c2d0f12",
+    "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090ProtectedPathSurvivesRepair": "63fe630e7c2d0f12"
+  },
+  "units": {
+    "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090DifferentPathsDoNotMerge": "caf5c7ff30bb47d0",
+    "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090ProtectedPathSurvivesRepair": "ef2ad7c3cb5a5e86"
+  },
+  "verdict": "enforced"
+}

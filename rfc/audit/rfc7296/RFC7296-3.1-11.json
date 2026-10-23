@@ -1,0 +1,19 @@
+{
+  "note": "Re-judged 2026-10-11 by an independent judge after 9c536b0e45. RFC 7296 3.1: \"Implementations of IKEv2 MUST clear this bit when sending and MUST ignore it in incoming messages.\" Send clause: the previous gap is closed. A grep of non-test code under internal/component/ike finds exactly five header-flags writers: writeAuthHeaderWithMsgID (auth.go), the IKE_SA_INIT request literal (initiator.go), buildSAInitResponse and sendSAInitNotifyRaw (responder.go), sendInvalidIKESPI (notify_error.go); none copies an incoming flags octet and no non-test code sets wire.FlagVersion. TestBuiltMessagesClearXAndVBits (unit unchanged) samples the first three. The new TestSAInitNotifiesClearXAndVBits drives sendSAInitNotifyRaw through both of its production callers, sendCookieChallenge (COOKIE) and sendSAInitNotify (NO_PROPOSAL_CHOSEN, INVALID_KE_PAYLOAD), and TestInvalidIKESPIClearsXAndVBits drives sendInvalidIKESPI through answerOutOfSA, once with a request carrying V and every X bit so a flags copy would be caught. Each parses the datagram the peer read, pins the notify type (which writer) and the R bit (right octet), and asserts V clear. Mutant records setting wire.FlagVersion in each header literal are observed red. Receive clause unchanged and sound: the V-bit half of TestXBitsIgnoredOnReceipt (negative tag, unit unchanged) drives tryResponderSAInit, handleOwnedInbound and handleInbound with V set and asserts the clean outcome and a major version 2 answer, with a mutant record at tryResponderSAInit. The #2 tag of TestBuiltMessagesClearXAndVBits (the encoder can set V) is an anti-vacuity control, not a second negative. Residual for the reader: the receive readers in the AUTH and EAP response arms mask R alone and are not driven with V set.",
+  "requirement_sha": "55fd14988d802545",
+  "tests": {
+    "internal/component/ike/engine/rfc7296_header_notify_writers_test.go::TestInvalidIKESPIClearsXAndVBits": "f566e99bcb000e82",
+    "internal/component/ike/engine/rfc7296_header_notify_writers_test.go::TestSAInitNotifiesClearXAndVBits": "f566e99bcb000e82",
+    "internal/component/ike/engine/rfc7296_header_test.go::TestBuiltMessagesClearXAndVBits": "3621c3a699e1b772",
+    "internal/component/ike/engine/rfc7296_header_test.go::TestBuiltMessagesClearXAndVBits#2": "3621c3a699e1b772",
+    "internal/component/ike/engine/rfc7296_header_test.go::TestXBitsIgnoredOnReceipt": "3621c3a699e1b772"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7296_header_notify_writers_test.go::TestInvalidIKESPIClearsXAndVBits": "a9ef9252dbe6049c",
+    "internal/component/ike/engine/rfc7296_header_notify_writers_test.go::TestSAInitNotifiesClearXAndVBits": "5ca13fd79ad46b1c",
+    "internal/component/ike/engine/rfc7296_header_test.go::TestBuiltMessagesClearXAndVBits": "12fb263d700767ed",
+    "internal/component/ike/engine/rfc7296_header_test.go::TestBuiltMessagesClearXAndVBits#2": "12fb263d700767ed",
+    "internal/component/ike/engine/rfc7296_header_test.go::TestXBitsIgnoredOnReceipt": "a4c2d355e7e9c608"
+  },
+  "verdict": "enforced"
+}

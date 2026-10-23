@@ -7,7 +7,6 @@ package rfc
 
 import (
 	"errors"
-	"time"
 
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
@@ -120,12 +119,24 @@ var actions = leaction.New(area,
 		"stays stale: that one needs /ze-rfc-audit <rfc>, then ze-rfc-index-update",
 		Writes: true,
 		Answer: resealAnswer},
-	leaction.Action{Verb: "audit-stamp", Why: "add the verdicts an author has just judged to rfc/audit/<stem>.json. " +
+	leaction.Action{Verb: "evidence-split", Why: "convert each per-stem evidence file of the retired layout, " +
+		"rfc/discrimination/<stem>.json and rfc/audit/<stem>.json, into one file per requirement under " +
+		"<dir>/<stem>/<requirement-id>.json, so two sessions working different requirements never edit " +
+		"one file. Every loader refuses a per-stem file and names this command. It writes only the files " +
+		"whose bytes change and never deletes the per-stem file: the commit that carries the converted " +
+		"files removes it. from head converts what HEAD holds instead of the working tree, for a file " +
+		"that also carries another session's uncommitted edits",
+		Writes: true,
+		Parameters: []leaction.Parameter{
+			{Keyword: keyFrom, Value: splitSourceHead, Requirement: leaction.Optional},
+		},
+		AnswerArgs: evidenceSplitAnswer},
+	leaction.Action{Verb: "audit-stamp", Why: "add the verdicts an author has just judged to rfc/audit/<stem>/<requirement-id>.json. " +
 		"The author writes verdict, note, code keys with empty values and no_code_path in a " +
-		"pending file OUTSIDE rfc/audit/, shaped like an audit file, because an unstamped verdict " +
+		"pending file OUTSIDE rfc/audit/, an object of rfc and requirements keyed by id, because an unstamped verdict " +
 		"there stops every load of the audits. This computes requirement_sha from the row's " +
-		"text and declared partial scope, tests and units from the row's tags, and each cited code sha, then merges the " +
-		"entries in, creating the file when absent. It refuses, naming the id and writing " +
+		"text and declared partial scope, tests and units from the row's tags, and each cited code sha, then writes " +
+		"each entry into its own requirement file. It refuses, naming the id and writing " +
 		"nothing, an id that already has a verdict, an id that is no row, a word outside the " +
 		"closed vocabulary, 'enforced' over no tag or a partial scope, partial without verified producer-break claims, and 'not-applicable' over a tagged row. " +
 		"mode rejudge (default new) is for a verdict a judge has re-made after re-reading the " +
@@ -329,6 +340,33 @@ func resealAnswer() (any, int) {
 	return report, 0
 }
 
+// evidenceSplitAnswer converts the per-stem evidence files in this checkout.
+//
+// It answers 0 when every file converted, and 2 for a file it could not read
+// or that does not validate: nothing is converted from a file the loader
+// would refuse.
+func evidenceSplitAnswer(args leaction.Arguments) (any, int) {
+	source := ""
+	if args.Has(keyFrom) {
+		source = args.One(keyFrom)
+		if source != splitSourceHead {
+			leaction.ReportError(errors.New("rfc evidence-split: from takes only `head`, the content HEAD holds"))
+			return nil, 2
+		}
+	}
+	tree, err := lepath.Root()
+	if err != nil {
+		leaction.ReportError(err)
+		return nil, 2
+	}
+	report, err := splitEvidence(tree, source)
+	if err != nil {
+		leaction.ReportError(err)
+		return nil, 2
+	}
+	return report, 0
+}
+
 // auditStampAnswer stamps the new verdicts of one stem in this checkout.
 //
 // It answers 0 when every pending verdict was stamped and merged, and 2 for a
@@ -353,7 +391,7 @@ func auditStampAnswer(args leaction.Arguments) (any, int) {
 		leaction.ReportError(err)
 		return nil, 2
 	}
-	report, err := auditStamp(tree, args.One(keyStem), args.One(keyFrom), mode, time.Now())
+	report, err := auditStamp(tree, args.One(keyStem), args.One(keyFrom), mode)
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 2

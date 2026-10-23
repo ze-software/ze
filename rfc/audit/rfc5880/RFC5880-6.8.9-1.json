@@ -1,0 +1,15 @@
+{
+  "note": "Judge 2026-09-30 (rejudge, 6-2 + rest). 'Not Up' now covered beyond AdminDown: NEW TestRFC5880NoEchoTransmittedInInitOrDown drives an Init session and a Down-after-Up session with echo still negotiated through handleInbound; an echo scheduler pass sends nothing and arms no schedule, while an Up session in the same loop does send (control). Overlay gating echo on '== AdminDown' reds both subtests (job-ov7); record revert echo.go::echoTickLocked observed red. + TestRFC5880EchoTransmittedWhileUp and AdminDown - kept.",
+  "requirement_sha": "f1d37669da337358",
+  "tests": {
+    "internal/component/bfd/engine/rfc5880_echo_session_test.go::TestRFC5880NoEchoTransmittedInInitOrDown": "88282a65c3374034",
+    "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880EchoTransmittedWhileUp": "4b885928a870b00d",
+    "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880NoEchoTransmittedWhenNotUp": "4b885928a870b00d"
+  },
+  "units": {
+    "internal/component/bfd/engine/rfc5880_echo_session_test.go::TestRFC5880NoEchoTransmittedInInitOrDown": "6cb606c1f8965e41",
+    "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880EchoTransmittedWhileUp": "963e226bd2a97491",
+    "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880NoEchoTransmittedWhenNotUp": "2e141bfbd2854a1a"
+  },
+  "verdict": "enforced"
+}

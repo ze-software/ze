@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-09-30 after the D-8 peer certificate fix (answerCertificateRequest). Server path-validation SHOULD. Positive: a valid peer chain is path-validated and accepted (TestEAPTLSMutualAuthHandshakeSucceeds). Negative no longer confounded: since D-8 the peer sends its untrusted certificate, and TestEAPTLSServerRejectsUntrustedClientChain asserts the authenticator's refusal is a tls.CertificateVerificationError wrapping x509.UnknownAuthorityError whose UnverifiedCertificates[0] is the configured untrusted leaf, besides no EAP-Success and an incomplete handshake; it is distinct from the certless refusal of 2.1.1-1, which asserts NOT a verification error. Records observed red on newTLSMethod for both polarities.",
+  "requirement_sha": "aad42ad6fc241725",
+  "tests": {
+    "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "24154b07f453f130",
+    "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSServerRejectsUntrustedClientChain": "24154b07f453f130"
+  },
+  "units": {
+    "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "0b6c374cdbde2cae",
+    "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSServerRejectsUntrustedClientChain": "cd0a07850a01a5cc"
+  },
+  "verdict": "enforced"
+}

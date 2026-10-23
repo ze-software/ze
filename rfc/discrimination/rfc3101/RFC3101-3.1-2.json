@@ -1,0 +1,57 @@
+[
+  {
+    "rid": "RFC3101-3.1-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/rfc3101_nssa_test.go::TestOSPFNSSANoTranslateWhenNotElected",
+    "unit-sha": "78b924b49670c5b3",
+    "claim-sha": "5601f16161e8fa4c",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/nssa.go::electNSSATranslator",
+    "producer-sha": "30c87fd06e3720a8",
+    "break": "body of electNSSATranslator replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3101-3.1-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc3101_nssa_test.go::TestOSPFNSSATranslatorElection",
+    "unit-sha": "e6e5c32580f159bc",
+    "claim-sha": "af5fbf493fe1a24e",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/nssa.go::electNSSATranslator",
+    "producer-sha": "30c87fd06e3720a8",
+    "break": "body of electNSSATranslator replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3101-3.1-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/rfc3101_nssa_test.go::TestOSPFNSSATranslatorElection",
+    "unit-sha": "e6e5c32580f159bc",
+    "claim-sha": "3477fec955fdc7c0",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/nssa.go::electNSSATranslator",
+    "producer-sha": "30c87fd06e3720a8",
+    "break": "body of electNSSATranslator replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3101-3.1-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/rfc3101_translator_list_test.go::TestRFC3101ReachableBorderRouterIsListed",
+    "unit-sha": "1a4334a69def105b",
+    "claim-sha": "3871d59fb010c8cc",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/nssa.go::electNSSATranslator",
+    "producer-sha": "30c87fd06e3720a8",
+    "break": "body of electNSSATranslator replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3101-3.1-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc3101_translator_list_test.go::TestRFC3101UnreachableBorderRouterIsNotListed",
+    "unit-sha": "029ae07486ad5565",
+    "claim-sha": "364170999f3e5a28",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/nssa.go::electNSSATranslator",
+    "producer-sha": "30c87fd06e3720a8",
+    "break": "body of electNSSATranslator replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,15 @@
+{
+  "note": "Forbidden: LABEL or RECORD_ROUTE placed before its FILTER_SPEC or after a subsequent one. TestRFC3209ResvLabelFollowsFilterSpec asserts objs[filter+1]==LABEL and objs[filter+2]==RECORD_ROUTE; TestRFC3209LabelFollowsFilterSpec asserts exactly one FILTER_SPEC and label==filter+1; TestRFC3209ResvNeverCarriesSenderTemplate asserts no LABEL/RRO precedes the FILTER_SPEC. buildResv emits one sender per RESV, so both clauses are pinned.",
+  "requirement_sha": "59ea364af5b04729",
+  "tests": {
+    "internal/plugins/rsvpte/repairs_rfc2205_test.go::TestRFC3209ResvLabelFollowsFilterSpec": "8d0e9940256c124f",
+    "internal/plugins/rsvpte/repairs_rfc2205_test.go::TestRFC3209ResvNeverCarriesSenderTemplate": "8d0e9940256c124f",
+    "internal/plugins/rsvpte/rfc3209_relay_test.go::TestRFC3209LabelFollowsFilterSpec": "76ac04cc7023e893"
+  },
+  "units": {
+    "internal/plugins/rsvpte/repairs_rfc2205_test.go::TestRFC3209ResvLabelFollowsFilterSpec": "4b9d16843d37fdc5",
+    "internal/plugins/rsvpte/repairs_rfc2205_test.go::TestRFC3209ResvNeverCarriesSenderTemplate": "258636afb352f8d7",
+    "internal/plugins/rsvpte/rfc3209_relay_test.go::TestRFC3209LabelFollowsFilterSpec": "8f3cd37e5ca169e4"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4090-4.1-3",
+    "polarity": "negative",
+    "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090TransitInsertsNoFastReroute",
+    "unit-sha": "e1ed953e79755fc7",
+    "claim-sha": "d3d5a83057ca0218",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/frr.go::fastRerouteObject",
+    "producer-sha": "aeb6c66d939f8d97",
+    "break": "body of fastRerouteObject replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4090-4.1-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090TransitRelaysFastRerouteUnchanged",
+    "unit-sha": "0830c097d99fdcc0",
+    "claim-sha": "7424c5ac764254cd",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/frr.go::protectionFromPath",
+    "producer-sha": "1da457c7b2db024a",
+    "break": "body of protectionFromPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

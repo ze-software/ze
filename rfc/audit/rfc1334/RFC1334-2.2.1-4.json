@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: dropping or refusing an Authenticate-Request repeated after the Authentication phase completed. TestPAPReanswersAfterAuthentication delivers two repeats through handleFrame in AckSent and Opened and asserts three replies (require len 3), each an Ack; the negative TestPAPReanswerDiscardsMalformedRequest confines the reanswer to valid requests.",
+  "requirement_sha": "dfa23c5897910224",
+  "tests": {
+    "internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestPAPReanswerDiscardsMalformedRequest": "8e29592e5f428395",
+    "internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestPAPReanswersAfterAuthentication": "8e29592e5f428395"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestPAPReanswerDiscardsMalformedRequest": "d5b23bedaf753a50",
+    "internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestPAPReanswersAfterAuthentication": "7b2de7debcb06a87"
+  },
+  "verdict": "enforced"
+}

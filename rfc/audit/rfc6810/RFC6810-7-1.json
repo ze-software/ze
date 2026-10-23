@@ -1,0 +1,13 @@
+{
+  "note": "Single-polarity positive (row annotation). Same unit as RFC8210-9-1: TestRTRUnprotectedTCPFromConfig drives a config-parsed trusted-network cache (default port 323) over plain TCP to a completed sync with the VRP used.",
+  "requirement_sha": "de4bab7f792829e2",
+  "tests": {
+    "internal/component/bgp/plugins/rpki/rpki_config_test.go::TestParseRPKIConfigDefaults": "b46576524b72d4df",
+    "internal/component/bgp/plugins/rpki/rtr_transport_rfc8210_test.go::TestRTRUnprotectedTCPFromConfig": "f672dfc40b2bbd83"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rpki/rpki_config_test.go::TestParseRPKIConfigDefaults": "364aa036558bee53",
+    "internal/component/bgp/plugins/rpki/rtr_transport_rfc8210_test.go::TestRTRUnprotectedTCPFromConfig": "dfe4758e6f392037"
+  },
+  "verdict": "enforced"
+}

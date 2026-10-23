@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged 2026-10-12 (independent auditor). SHIFTED by 6e063fb498 (tests: give ten assert-nothing tests a real assertion), whose hunks sit in untagged sibling tests and the import block. The tagged unit is byte-identical (gate-verified) and no helper it calls changed. Verdict stands. Forbidden: a stale route delivered on the partial-deployment branch without NO_EXPORT. TestLLGREgressFilter_IBGPPartial and TestLLGREgressFilter_NilStateDepreferencesIBGP fail unless a COMMUNITIES AttrModAdd with value 0xFFFFFF01 is emitted for an internal non-LLGR neighbor (hasCommunityAdd asserted). Negative: TestLLGREgressFilter_LLGRPeer fails if any modification is emitted for an LLGR-capable neighbor.",
+  "requirement_sha": "bc3c13cb72f95a87",
+  "tests": {
+    "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_IBGPPartial": "02a10ecb6f38be0e",
+    "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_LLGRPeer": "02a10ecb6f38be0e",
+    "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_NilStateDepreferencesIBGP": "02a10ecb6f38be0e"
+  },
+  "units": {
+    "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_IBGPPartial": "676abf5b78ab027b",
+    "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_LLGRPeer": "f4daecfb8bae7d3d",
+    "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_NilStateDepreferencesIBGP": "949e6a14a5382ce5"
+  },
+  "verdict": "enforced"
+}

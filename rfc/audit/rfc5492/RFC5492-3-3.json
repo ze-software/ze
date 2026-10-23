@@ -1,0 +1,11 @@
+{
+  "note": "Forbidden: terminating the session because a received capability is not supported. TestOpenIgnoresUnknownCapability sends an OPEN with code 254 and asserts handleOpen returns nil, state OpenConfirm then Established after KEEPALIVE, and s.Conn() is the same connection. {single-polarity: positive} is justified: a prohibition with no conforming termination input.",
+  "requirement_sha": "01756f2830fd72b5",
+  "tests": {
+    "internal/component/bgp/reactor/session_handlers_test.go::TestOpenIgnoresUnknownCapability": "c387bdc6c423bd19"
+  },
+  "units": {
+    "internal/component/bgp/reactor/session_handlers_test.go::TestOpenIgnoresUnknownCapability": "14133cb58d63bc8b"
+  },
+  "verdict": "enforced"
+}

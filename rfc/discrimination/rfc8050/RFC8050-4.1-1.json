@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC8050-4.1-1",
+    "polarity": "positive",
+    "unit": "internal/mrt/rfc8050_layout_test.go::TestRFC8050AddPathRIBEntryFollowsFigure1",
+    "unit-sha": "0b5e7d1662674761",
+    "claim-sha": "9f2136ea1daf9a94",
+    "route": "revert",
+    "producer": "internal/mrt/decode.go::decodeRIBEntries",
+    "producer-sha": "7ab36476c3137c6a",
+    "break": "body of decodeRIBEntries replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

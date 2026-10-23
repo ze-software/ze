@@ -1,0 +1,17 @@
+{
+  "note": "Initiation and Peer Up strings reach the command output in transmitted order, with duplicates kept",
+  "requirement_sha": "d1ec739db0d1af23",
+  "tests": {
+    "internal/component/bgp/plugins/bmp/rfc7854_identity_test.go::TestRFC7854InitiationStringsKeepDuplicates": "a2bb096767c14b84",
+    "internal/component/bgp/plugins/bmp/rfc7854_identity_test.go::TestRFC7854InitiationStringsReportedInOrder": "a2bb096767c14b84",
+    "internal/component/bgp/plugins/bmp/rfc7854_identity_test.go::TestRFC7854PeerUpStringsKeepDuplicates": "a2bb096767c14b84",
+    "internal/component/bgp/plugins/bmp/rfc7854_identity_test.go::TestRFC7854PeerUpStringsReportedInOrder": "a2bb096767c14b84"
+  },
+  "units": {
+    "internal/component/bgp/plugins/bmp/rfc7854_identity_test.go::TestRFC7854InitiationStringsKeepDuplicates": "c92d41b99a380bf1",
+    "internal/component/bgp/plugins/bmp/rfc7854_identity_test.go::TestRFC7854InitiationStringsReportedInOrder": "30d59f758c823f24",
+    "internal/component/bgp/plugins/bmp/rfc7854_identity_test.go::TestRFC7854PeerUpStringsKeepDuplicates": "e9494ae0ad34c782",
+    "internal/component/bgp/plugins/bmp/rfc7854_identity_test.go::TestRFC7854PeerUpStringsReportedInOrder": "439350796217327c"
+  },
+  "verdict": "enforced"
+}

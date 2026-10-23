@@ -1,0 +1,8 @@
+{
+  "code": {
+    "internal/plugins/flowexport/sflow/register.go::parseAgentAddress": "93a213ce24047667"
+  },
+  "note": "Unconditional MUST of the sFlowAgentAddress DESCRIPTION (4.3), binding the sFlow agent Ze is. parseAgentAddress checks only that the configured agent-address parses and is specified; no Go code in the tree implements an SNMP agent (grep: snmp appears only in ifIndex/ifTable comments), so nothing answers SNMP at the address. {gap} annotation and Meta Support coverage disclose it.",
+  "requirement_sha": "a9f4a822d361bfa4",
+  "verdict": "unimplemented"
+}

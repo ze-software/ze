@@ -1,0 +1,18 @@
+{
+  "code": {},
+  "note": "Re-judged 2026-09-30 after the R43 signature change (assertions unchanged, re-recorded red). Same unit: every iBGP MP_REACH UPDATE carries LOCAL_PREF, including the bare route with no LOCAL_PREF value (genuine negative); the HEAD eBGP-omits unit stays as a neighbour. BuildUnicast rail.",
+  "requirement_sha": "8c68c072463e59b6",
+  "tests": {
+    "internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go::TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref": "41df0097ff7ea03d",
+    "internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go::TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref#2": "41df0097ff7ea03d",
+    "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760IBGPMPReachCarriesLocalPref": "3b372d5656a15e2d",
+    "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760IBGPMPReachCarriesLocalPref#2": "3b372d5656a15e2d"
+  },
+  "units": {
+    "internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go::TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref": "ff7224da854ba9c2",
+    "internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go::TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref#2": "ff7224da854ba9c2",
+    "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760IBGPMPReachCarriesLocalPref": "6553de7a7e40e16d",
+    "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760IBGPMPReachCarriesLocalPref#2": "6553de7a7e40e16d"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-09-30 (independent judge). Both halves asserted. Unsupported critical payload: rfc7296_inner_error_answers_test.go::TestRFC7296UnsupportedCriticalPayloadDrawsOnlyThatNotify sends a protected INFORMATIONAL whose only inner payload is private type 200 with C=1; the request never reaches the exchange handlers (peerAlive false) and the answer, decrypted under the IKE SA, carries exactly one payload, UNSUPPORTED_CRITICAL_PAYLOAD with data {200}. Malformed message: TestErrInnerParseFailureDrawsInvalidSyntaxAndOuterDrawsNothing (truncated inner chain answered with INVALID_SYNTAX only). Negative: TestCritChainReportsTruncationButNotBadContents (bad payload contents are not a malformed message). Revert record observed red on inbound.go::respondInnerParseError. Re-judged 2026-10-10 (independent judge, mode rejudge): every tagged unit is byte-identical to the judged one (git diff 2d57003d45..HEAD touches only other functions, a const block, and new functions appended to the file), so the verdict stands unchanged.",
+  "requirement_sha": "81f9339824544b40",
+  "tests": {
+    "internal/component/ike/engine/rfc7296_inner_error_answers_test.go::TestRFC7296UnsupportedCriticalPayloadDrawsOnlyThatNotify": "021f21e652ee3918",
+    "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrInnerParseFailureDrawsInvalidSyntaxAndOuterDrawsNothing": "f788331a490d2a61",
+    "internal/component/ike/wire/rfc7296_critpayload_test.go::TestCritChainReportsTruncationButNotBadContents": "02e1b5b1293a3513",
+    "internal/component/ike/wire/rfc7296_critpayload_test.go::TestCritChainReportsTruncationButNotBadContents#2": "02e1b5b1293a3513"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7296_inner_error_answers_test.go::TestRFC7296UnsupportedCriticalPayloadDrawsOnlyThatNotify": "5de0395b8a5f2c86",
+    "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrInnerParseFailureDrawsInvalidSyntaxAndOuterDrawsNothing": "d402e5e224dde39e",
+    "internal/component/ike/wire/rfc7296_critpayload_test.go::TestCritChainReportsTruncationButNotBadContents": "89c93e44ce0eb218",
+    "internal/component/ike/wire/rfc7296_critpayload_test.go::TestCritChainReportsTruncationButNotBadContents#2": "89c93e44ce0eb218"
+  },
+  "verdict": "enforced"
+}

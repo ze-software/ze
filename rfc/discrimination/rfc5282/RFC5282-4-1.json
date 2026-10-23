@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC5282-4-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282AEADSendSealsUnderSaltThenIV",
+    "unit-sha": "f19040fb7a8217d4",
+    "claim-sha": "157c5f9bd9d48a37",
+    "route": "revert",
+    "producer": "internal/component/ike/crypto/aead.go::ikeAEADNonce",
+    "producer-sha": "6536163049ce3b0b",
+    "break": "body of ikeAEADNonce replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5282-4-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADNonceIsSaltThenIV",
+    "unit-sha": "7ae7928c6c5f6abd",
+    "claim-sha": "0e4150e8934abd4a",
+    "route": "revert",
+    "producer": "internal/component/ike/crypto/aead.go::ikeAEADNonce",
+    "producer-sha": "6536163049ce3b0b",
+    "break": "body of ikeAEADNonce replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5282-4-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADRefusesAReversedNonce",
+    "unit-sha": "7182315522144cc8",
+    "claim-sha": "51a8e48e0d630675",
+    "route": "revert",
+    "producer": "internal/component/ike/crypto/aead.go::ikeAEADNonce",
+    "producer-sha": "6536163049ce3b0b",
+    "break": "body of ikeAEADNonce replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

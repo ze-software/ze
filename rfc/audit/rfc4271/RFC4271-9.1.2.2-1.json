@@ -1,0 +1,29 @@
+{
+  "note": "Independent supplemental source rejudgment 2026-10-06; weak to enforced on changed/new evidence relative to the recorded audit. RFC4271 Section 9.1.2.2: \"The tie-breaking algorithm begins by considering all equally preferable routes to the same destination, and then selects routes to be removed from consideration. The algorithm terminates as soon as only one route remains in consideration. The criteria MUST be applied in the order specified.\" Also: \"BGP implementations MAY use any algorithm that produces the same results as those described here.\" MED: \"Remove from consideration routes with less-preferred MULTI_EXIT_DISC attributes. MULTI_EXIT_DISC is only comparable between routes learned from the same neighboring AS (the neighboring AS is determined from the AS_PATH attribute). Routes that do not have the MULTI_EXIT_DISC attribute are considered to have the lowest possible MULTI_EXIT_DISC value.\" Full criteria (a)-(g) and all ten current functions read, including three whole-set units absent from the old seven-unit map. Old pairwise fold could choose C for A(AS65001,MED0,ID .3), B(AS65002,MED0,ID .2), C(AS65001,MED100,ID .1), although A must remove C before B removes A. Current bestpath_selection.go::selectBestCandidates eliminates compareBeforeMED losers, compareNeighborAS/retainLowestMED eliminate within each known neighboring AS, and compareAfterMED chooses survivors. SelectBest/SelectBestExplain share this; SelectMultipath uses the MED survivors. TestRFC4271WholeSetMEDBeforeLaterCriteria covers six permutations, both APIs, exact winner B and exact elimination witnesses C by A at MED then A by B at Router ID. TestRFC4271WholeSetMEDEarlierCriteria makes A lose at stale, LOCAL_PREF, AIGP, AS_PATH length or ORIGIN; six permutations require C, preventing an already eliminated low-MED candidate from removing C. TestRFC4271WholeSetMEDRIBBestChange drives actual structured received UPDATEs, requires Loc-RIB B, withdraws non-best A and requires C plus exact BestChangeUpdate, restores A and requires B plus exact replacement, and rejects spurious unchanged publication. Adjacent criteria conflict in both orders. Structured/production-JSON remote-ID pairs prove identifier precedence and equal-ID address fall-through. Older FullTiebreak and aligned MED/address examples remain supplementary. Consumer chain handleReceivedStructured/JSON -> metadata/storage -> extractCandidate -> checkRouteBestChange -> SelectMultipath -> Loc-RIB and best-change publication was read. This replacement producer and newly tagged multi-candidate consumer evidence independently close the specific prior finding; no unchanged-unit reinterpretation or panic record justifies the upgrade. All identifier and whole-set units have no current diff HEAD, and the only current selection producer hunk is a comment, so this is preexisting audit debt relative to HEAD, not this mechanical edit. They are nevertheless changed/new against the supplied audit map, hence upgrade_reason is omitted rather than misused. No tests, semantic mutants, builds, stamps or checks executed.",
+  "requirement_sha": "25f4bd3bf4eea6fc",
+  "tests": {
+    "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_FullTiebreak": "ae729071cdaf7dce",
+    "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_MED_SameNeighborAS": "ae729071cdaf7dce",
+    "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_json_test.go::TestBestPathEqualBGPIdentifiersOnTheJSONRailFallThroughToPeerAddress": "c08f3cda82a46fa1",
+    "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_json_test.go::TestBestPathStepFComparesThePeerBGPIdentifierOnTheJSONRail": "c08f3cda82a46fa1",
+    "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_test.go::TestBestPathEqualBGPIdentifiersFallThroughToPeerAddress": "87e8200e7dcbefd4",
+    "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_test.go::TestBestPathStepFComparesThePeerBGPIdentifier": "87e8200e7dcbefd4",
+    "internal/component/bgp/plugins/rib/rfc4271_criteria_order_test.go::TestRFC4271AdjacentCriteriaApplyInTheOrderSpecified": "a129dac3a74eb33f",
+    "internal/component/bgp/plugins/rib/rfc4271_whole_set_med_test.go::TestRFC4271WholeSetMEDBeforeLaterCriteria": "75355e6a550661f3",
+    "internal/component/bgp/plugins/rib/rfc4271_whole_set_med_test.go::TestRFC4271WholeSetMEDEarlierCriteria": "75355e6a550661f3",
+    "internal/component/bgp/plugins/rib/rfc4271_whole_set_med_test.go::TestRFC4271WholeSetMEDRIBBestChange": "75355e6a550661f3"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_FullTiebreak": "b5d24bd8d66b29b4",
+    "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_MED_SameNeighborAS": "6bf15b9f3232cdc2",
+    "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_json_test.go::TestBestPathEqualBGPIdentifiersOnTheJSONRailFallThroughToPeerAddress": "7bbb93a44e069f3c",
+    "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_json_test.go::TestBestPathStepFComparesThePeerBGPIdentifierOnTheJSONRail": "dfd0c22ba065b454",
+    "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_test.go::TestBestPathEqualBGPIdentifiersFallThroughToPeerAddress": "5af0c985f138fb51",
+    "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_test.go::TestBestPathStepFComparesThePeerBGPIdentifier": "077937651e4fe925",
+    "internal/component/bgp/plugins/rib/rfc4271_criteria_order_test.go::TestRFC4271AdjacentCriteriaApplyInTheOrderSpecified": "28fa129380d74765",
+    "internal/component/bgp/plugins/rib/rfc4271_whole_set_med_test.go::TestRFC4271WholeSetMEDBeforeLaterCriteria": "c48e748ebc6e8c6c",
+    "internal/component/bgp/plugins/rib/rfc4271_whole_set_med_test.go::TestRFC4271WholeSetMEDEarlierCriteria": "6aa91330ddadd008",
+    "internal/component/bgp/plugins/rib/rfc4271_whole_set_med_test.go::TestRFC4271WholeSetMEDRIBBestChange": "c913ab3adfa446d5"
+  },
+  "verdict": "enforced"
+}

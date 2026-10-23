@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC7854-4.8-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854StatsReportCarriesAStatistic",
+    "unit-sha": "f3b4e8b41363e673",
+    "claim-sha": "b3ccd3bb9a1a2afe",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/bmp/statistics.go::sendStatisticsReports",
+    "producer-sha": "52c4ef2f8888eade",
+    "break": "body of sendStatisticsReports replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

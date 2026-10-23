@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged 2026-09-29. TestRFC7854EveryTransmittedMessageCarriesVersion3AndItsTotalLength reads the transmitted octets of all seven types: octet 0 == 3 (so never the reserved 0), octets 1-4 == the whole message computed independently from the case's own inputs (common header + per-peer header where present + data) and equal to the octets the writer produced, and octet 5 == the type. Each clause of the quoted definition is asserted on a sent message. The tagged negative (header_test, a 3-octet buffer refused) is thin, but the clauses are sender field definitions with no input to refuse; the positive discriminates every one.",
+  "requirement_sha": "9ec42d818168c14a",
+  "tests": {
+    "internal/component/bgp/plugins/bmp/header_test.go::TestBMPCommonHeaderDecode": "49dfad3eed97ec32",
+    "internal/component/bgp/plugins/bmp/header_test.go::TestBMPCommonHeaderEncode": "49dfad3eed97ec32",
+    "internal/component/bgp/plugins/bmp/rfc7854_wire_header_test.go::TestRFC7854EveryTransmittedMessageCarriesVersion3AndItsTotalLength": "8a330a29c2d73330"
+  },
+  "units": {
+    "internal/component/bgp/plugins/bmp/header_test.go::TestBMPCommonHeaderDecode": "0af7d40ff45810dc",
+    "internal/component/bgp/plugins/bmp/header_test.go::TestBMPCommonHeaderEncode": "58873163e11ae6ce",
+    "internal/component/bgp/plugins/bmp/rfc7854_wire_header_test.go::TestRFC7854EveryTransmittedMessageCarriesVersion3AndItsTotalLength": "0da122bdda46515a"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC2328-13-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/lsdb/rfc2328_area_type_test.go::TestOSPFStubFloodFilter",
+    "unit-sha": "9304f4e6173490a9",
+    "claim-sha": "2919e7730b3f5187",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/lsdb/flooding.go::shouldDropByArea",
+    "producer-sha": "d9729416155e899c",
+    "break": "body of shouldDropByArea replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-13-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFStubAreaDropsType5",
+    "unit-sha": "727d0a9bcba80f6f",
+    "claim-sha": "efc0ac69e9485079",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/lsdb/flooding.go::shouldDropByArea",
+    "producer-sha": "d9729416155e899c",
+    "break": "body of shouldDropByArea replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-13-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/lsdb/rfc2328_stub_external_flood_test.go::TestRFC2328ASExternalFromStubInterfaceGoesNowhere",
+    "unit-sha": "ef27e64714aff3a4",
+    "claim-sha": "00fa945d48ca1f1e",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/lsdb/flooding.go::shouldDropByArea",
+    "producer-sha": "d9729416155e899c",
+    "break": "body of shouldDropByArea replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-13-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/lsdb/rfc2328_stub_external_flood_test.go::TestRFC2328ASExternalNotFloodedIntoStubArea",
+    "unit-sha": "5b0f4c0483c71dde",
+    "claim-sha": "c024a3f49504b36d",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/lsdb/flooding.go::eligibleInterface",
+    "producer-sha": "3f1a533598485f78",
+    "break": "body of eligibleInterface replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

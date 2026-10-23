@@ -1,0 +1,15 @@
+{
+  "note": "prefix PAD entries admit addresses inside for v4 and v6 and refuse outside, other family and text spellings; the same prefix syntax the SPD uses",
+  "requirement_sha": "b4fbc8d09af976f0",
+  "tests": {
+    "internal/component/ike/engine/rfc4301_pad_subtree_test.go::TestPadAddressRangeAdmitsAnAddressInsideIt": "294ef9f35b63988d",
+    "internal/component/ike/engine/rfc4301_pad_subtree_test.go::TestPadAddressRangeRefusesWhatIsOutsideIt": "294ef9f35b63988d",
+    "internal/component/ike/ipsec/rfc4301_validate_identity_test.go::TestVidPeerAuthorizationSetsCommitOnlyAsRemoteID": "fec7a6a06940adde"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc4301_pad_subtree_test.go::TestPadAddressRangeAdmitsAnAddressInsideIt": "c179422e9bcc51cc",
+    "internal/component/ike/engine/rfc4301_pad_subtree_test.go::TestPadAddressRangeRefusesWhatIsOutsideIt": "297172d1afe3608e",
+    "internal/component/ike/ipsec/rfc4301_validate_identity_test.go::TestVidPeerAuthorizationSetsCommitOnlyAsRemoteID": "f5ba874391fde80c"
+  },
+  "verdict": "enforced"
+}

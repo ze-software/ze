@@ -1,0 +1,57 @@
+[
+  {
+    "rid": "RFC7296-2.20-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_cp_test.go::TestZeDeclinesApplicationVersion",
+    "unit-sha": "d7cf9f4dcbb05ebf",
+    "claim-sha": "979ae0713f97d7a1",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/mobike.go::mobikeResponsePayloads",
+    "producer-sha": "7e6e24b9171154b9",
+    "break": "body of mobikeResponsePayloads replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.20-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_cp_test.go::TestZeDeclinesApplicationVersion",
+    "unit-sha": "d7cf9f4dcbb05ebf",
+    "claim-sha": "023026f52d4e873e",
+    "route": "revert",
+    "producer": "internal/component/ike/wire/payload_cp.go::ReadFrom",
+    "producer-sha": "9157358fc124f8a1",
+    "break": "body of ReadFrom replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.20-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_cp_version_informational_test.go::TestRFC7296InformationalVersionRequestDrawsNoCP",
+    "unit-sha": "fc98cf3d83db24d9",
+    "claim-sha": "6ab28eed57e3d203",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/mobike.go::mobikeResponsePayloads",
+    "producer-sha": "7e6e24b9171154b9",
+    "break": "body of mobikeResponsePayloads replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.20-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_cp_version_informational_test.go::TestRFC7296InformationalVersionRequestReflectsNoVersionString",
+    "unit-sha": "46409aef393ddeaf",
+    "claim-sha": "6adb7febfad833c6",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/mobike.go::mobikeResponsePayloads",
+    "producer-sha": "7e6e24b9171154b9",
+    "break": "body of mobikeResponsePayloads replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.20-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_cp_version_test.go::TestRFC7296ResponderAnswersAVersionRequestWithNoCP",
+    "unit-sha": "567e4e97281bd767",
+    "claim-sha": "b6f2d9cf285823c9",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/responder.go::handleAuthRequest",
+    "producer-sha": "391521701bb06eef",
+    "break": "body of handleAuthRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

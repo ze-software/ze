@@ -1,0 +1,25 @@
+{
+  "note": "Re-judged 2026-10-12, second pass (independent auditor) after 60a74fc04b, 600996fb77, 975428e1b3, 3f1bec74f0 and 84382339ce. SHIFTED only: the tagged units are byte-identical (gate-verified) and validateEnumeration is unchanged. Re-read: TestValidateTree_FamilyModeEnum and TestValidateTree_AddPathDirectionEnum supply router-id and session/asn/local, so no missing-mandatory error precedes errs[0]; the invalid name is refused ErrTypeEnum and every assigned name gives no error; radius auth-method and isis algorithm refuse an unassigned name with ErrTypeEnum and accept every defined one. Re-run green 2026-10-12. Verdict stands.",
+  "requirement_sha": "4ceb12d17fdd4610",
+  "tests": {
+    "internal/component/config/rfc7950_isis_auth_algorithm_enum_test.go::TestISISAuthAlgorithmEnumAcceptsAll": "e4e161212a27bdf8",
+    "internal/component/config/rfc7950_isis_auth_algorithm_enum_test.go::TestISISAuthAlgorithmEnumAcceptsAll#2": "e4e161212a27bdf8",
+    "internal/component/config/rfc7950_radius_auth_method_enum_test.go::TestRadiusAuthMethodEnum": "4c9eafc440ab45ec",
+    "internal/component/config/rfc7950_radius_auth_method_enum_test.go::TestRadiusAuthMethodEnum#2": "4c9eafc440ab45ec",
+    "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_AddPathDirectionEnum": "ba2f54bedfde8139",
+    "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_AddPathDirectionEnum#2": "ba2f54bedfde8139",
+    "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_FamilyModeEnum": "ba2f54bedfde8139",
+    "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_FamilyModeEnum#2": "ba2f54bedfde8139"
+  },
+  "units": {
+    "internal/component/config/rfc7950_isis_auth_algorithm_enum_test.go::TestISISAuthAlgorithmEnumAcceptsAll": "67fd8c00e1f8af3a",
+    "internal/component/config/rfc7950_isis_auth_algorithm_enum_test.go::TestISISAuthAlgorithmEnumAcceptsAll#2": "67fd8c00e1f8af3a",
+    "internal/component/config/rfc7950_radius_auth_method_enum_test.go::TestRadiusAuthMethodEnum": "63eb4043f88a3351",
+    "internal/component/config/rfc7950_radius_auth_method_enum_test.go::TestRadiusAuthMethodEnum#2": "63eb4043f88a3351",
+    "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_AddPathDirectionEnum": "2ed6baa6058b0c2c",
+    "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_AddPathDirectionEnum#2": "2ed6baa6058b0c2c",
+    "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_FamilyModeEnum": "26af08a8edfd88db",
+    "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_FamilyModeEnum#2": "26af08a8edfd88db"
+  },
+  "verdict": "enforced"
+}

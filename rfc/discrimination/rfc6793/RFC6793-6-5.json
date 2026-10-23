@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC6793-6-5",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/wireu/rfc6793_aspath_collapse_test.go::TestCollapseAS4DiscardsMalformedAS4Aggregator",
+    "unit-sha": "7c0ea727667bd809",
+    "claim-sha": "8595f308e9450191",
+    "route": "revert",
+    "producer": "internal/core/bgp/attribute/as4.go::ReconcileASPathFamily",
+    "producer-sha": "972a1c07729fed4b",
+    "break": "body of ReconcileASPathFamily replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC6793-6-5",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/wireu/rfc6793_aspath_collapse_test.go::TestCollapseAS4SelectsAggregatorPerSection423",
+    "unit-sha": "f6a3fb9e750313a0",
+    "claim-sha": "be6941ee96bd5285",
+    "route": "revert",
+    "producer": "internal/core/bgp/attribute/as4.go::selectAggregator",
+    "producer-sha": "f9e5cb99e08585e5",
+    "break": "body of selectAggregator replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

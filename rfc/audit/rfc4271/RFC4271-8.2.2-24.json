@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged 2026-10-01 (BGP c12 judge). Positive TestRFC4271OpenSentUnexpectedMessageIsAnFSMError proves the whole list at peer level for the four listed events Ze can receive in OpenSent (Cease NOTIFICATION = Event 25, KEEPALIVE 26, empty UPDATE 27, malformed UPDATE 28): exactly one 5/0, EOF, three timers stopped, session released, counter 0->1. Negatives: TestRFC4271ExpectedMessagesRaiseNoFSMError (OPEN, Event 19, draws nothing) and the c11-owed list-boundary negative, now present: TestRFC4271VersionErrorNotificationReleasesQuietly/OPENSENT, a 2/1 NOTIFICATION (Event 24, not on the list) draws no 5/0 and leaves the counter at 3. That negative was red before the D-9 fix (handleNotification filed every NOTIFICATION as Event 25) and is green on notificationEvent; its record is observed red on Session.notificationEvent, the others on fsmMessageEvent. Events 9, 11, 12, 13, 20 do not occur in Ze's OpenSent (corrections). The c11 weak reason is resolved at the producer.",
+  "requirement_sha": "1c94a60ea54dae2e",
+  "tests": {
+    "internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go::TestRFC4271ExpectedMessagesRaiseNoFSMError": "0016171daa459363",
+    "internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go::TestRFC4271OpenSentUnexpectedMessageIsAnFSMError": "0016171daa459363",
+    "internal/component/bgp/reactor/rfc4271_version_error_peer_test.go::TestRFC4271VersionErrorNotificationReleasesQuietly": "20aa7ce5c43aad4a"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go::TestRFC4271ExpectedMessagesRaiseNoFSMError": "306e1bb5c30d988b",
+    "internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go::TestRFC4271OpenSentUnexpectedMessageIsAnFSMError": "50a2659960b1038a",
+    "internal/component/bgp/reactor/rfc4271_version_error_peer_test.go::TestRFC4271VersionErrorNotificationReleasesQuietly": "5f3586a60efb68ca"
+  },
+  "verdict": "enforced"
+}

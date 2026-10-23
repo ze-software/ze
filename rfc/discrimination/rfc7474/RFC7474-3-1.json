@@ -1,0 +1,57 @@
+[
+  {
+    "rid": "RFC7474-3-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthCryptoRejectsExtraTrailerBytes",
+    "unit-sha": "15bd6fbf815f22ca",
+    "claim-sha": "d20ecd6ea47f79fc",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/packet/auth_verify.go::Verify",
+    "producer-sha": "615d0fe8cbee3900",
+    "break": "body of Verify replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7474-3-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthCryptoRejectsKeyIDMismatch",
+    "unit-sha": "3e459985727854f7",
+    "claim-sha": "e06186ca8fd12dac",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/packet/auth_verify.go::Verify",
+    "producer-sha": "615d0fe8cbee3900",
+    "break": "body of Verify replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7474-3-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SequenceTrailer",
+    "unit-sha": "4645a0db61e29c80",
+    "claim-sha": "9ac62703e0db64b0",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/packet/auth_verify.go::Sign",
+    "producer-sha": "a00a554bd66638f0",
+    "break": "body of Sign replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7474-3-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go::TestRFC7474SequenceChangeBreaksDigest",
+    "unit-sha": "208e113d5cf9844a",
+    "claim-sha": "160e4aba085200c0",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/packet/auth_verify.go::Verify",
+    "producer-sha": "615d0fe8cbee3900",
+    "break": "body of Verify replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7474-3-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go::TestRFC7474SequenceIncludedInDigest",
+    "unit-sha": "0aa4a44ac4417bff",
+    "claim-sha": "c8fceb0ebdcbb2ae",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/packet/auth_verify.go::Sign",
+    "producer-sha": "a00a554bd66638f0",
+    "break": "body of Sign replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

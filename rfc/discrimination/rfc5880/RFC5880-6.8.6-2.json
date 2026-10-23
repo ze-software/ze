@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC5880-6.8.6-2",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/packet/rfc5880_length_boundary_test.go::TestRFC5880AuthenticatedLengthOneBelowMinimumDiscarded",
+    "unit-sha": "555e820ce0e81ad5",
+    "claim-sha": "96de56868d187e6f",
+    "route": "revert",
+    "producer": "internal/component/bfd/packet/control.go::ParseControl",
+    "producer-sha": "2bf7d7d2586a0256",
+    "break": "body of ParseControl replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.8.6-2",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/packet/rfc5880_test.go::TestRFC5880LengthBelowMinimumDiscarded",
+    "unit-sha": "656a99c35549b0e3",
+    "claim-sha": "9ec87eab8a4eeb4e",
+    "route": "revert",
+    "producer": "internal/component/bfd/packet/control.go::ParseControl",
+    "producer-sha": "2bf7d7d2586a0256",
+    "break": "body of ParseControl replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.8.6-2",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/packet/rfc5880_test.go::TestRFC5880LengthMinimumAccepted",
+    "unit-sha": "fed765659347e799",
+    "claim-sha": "d370506e36dec378",
+    "route": "revert",
+    "producer": "internal/component/bfd/packet/control.go::ParseControl",
+    "producer-sha": "2bf7d7d2586a0256",
+    "break": "body of ParseControl replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,13 @@
+{
+  "note": "positive and negative both require every NAK option code to be 53 or 54, so any option Table 3 marks 'All others' goes red. The assertion is stricter than Table 3: it would also go red on the Message option (56, SHOULD), Client identifier (61, MAY) and Vendor class identifier (60, MAY), which Table 3 allows in a DHCPNAK",
+  "requirement_sha": "3df5580604775bbf",
+  "tests": {
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyDoesNotEchoClientOptions": "8365c04cdfc2a046",
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyOmitsClientOnlyOptions": "8365c04cdfc2a046"
+  },
+  "units": {
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyDoesNotEchoClientOptions": "50766840a8f13e96",
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyOmitsClientOnlyOptions": "deef6372c11cdf5e"
+  },
+  "verdict": "enforced"
+}

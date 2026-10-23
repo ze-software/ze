@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4271-8.2.2-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerExpiryRunsTheEvent10List",
+    "unit-sha": "eb8f9681b85ba55d",
+    "claim-sha": "c07dac71ffc3fe77",
+    "route": "revert",
+    "producer": "internal/component/bgp/fsm/timer.go::fireHold",
+    "producer-sha": "e5bd69b76f532126",
+    "break": "body of fireHold replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-8.2.2-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerFedByKeepalivesNeverExpires",
+    "unit-sha": "934232f225f3d47c",
+    "claim-sha": "e2da4f4ea3a0f5c3",
+    "route": "revert",
+    "producer": "internal/component/bgp/fsm/timer.go::ResetHoldTimer",
+    "producer-sha": "870bb55e4ee29c6f",
+    "break": "body of ResetHoldTimer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

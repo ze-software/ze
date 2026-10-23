@@ -1,0 +1,11 @@
+{
+  "note": "RFC 7770 Section 2.2: 'The first Instance ID, i.e., 0, SHOULD always contain the Router Informational Capabilities TLV and, if advertised, the Router Functional Capabilities TLV.' The test originates through the real OSPFv3 producer v6OriginateRIScope, reads the installed LSA with Link State ID 0 back from the LSDB and asserts TLV type 1 then type 2; a body that dropped or displaced either TLV turns it red (Ze always advertises the functional TLV, so 'if advertised' holds). Order is stricter than the RFC asks but cannot pass a non-conforming LSA. Single-polarity positive is sound: the SHOULD binds the originator, and receive is informational. Covers area scope with no overflow; the lead placement is in the shared packRIInstances that RFC7770-2.1-1 and 3-1 exercise.",
+  "requirement_sha": "7ec03f5052a299fe",
+  "tests": {
+    "internal/plugins/ospf/rfc7770_ri_v3_instance0_test.go::TestRFC7770V3InstanceZeroCarriesCapabilities": "200e64280371a205"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc7770_ri_v3_instance0_test.go::TestRFC7770V3InstanceZeroCarriesCapabilities": "41b3ac9572650726"
+  },
+  "verdict": "enforced"
+}

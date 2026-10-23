@@ -1,0 +1,21 @@
+{
+  "note": "Revised by RFC 7606 to per-attribute outcomes. Every attribute whose length its type code fixes now has a length case against its expected length: ORIGIN (withdraw, 7.1), NEXT_HOP (withdraw, 7.3) and MED in TestSessionRFC4271RevisedAttributeErrors, ATOMIC_AGGREGATE and AGGREGATOR (attribute discard, prefix kept, 7.6/7.7) in TestRFC4271RecognizedAttributeErrorsBeyondTheFirst, and LOCAL_PREF in TestRFC4271LocalPrefLengthFromInternalPeer: an iBGP session over the real receive path, length 3 yields exactly the withdrawal of the prefix with the session still Established (7.5), length 4 before and after keeps the prefix with LOCAL_PREF byte-identical. The LOCAL_PREF buffer is otherwise valid, so only the length rule can fire. Observed-red records on validateLocalPrefAttr, validateAggregatorAttr and validateNextHopAttr, both polarities.",
+  "requirement_sha": "1e5216d329f6dc3e",
+  "tests": {
+    "internal/component/bgp/reactor/rfc4271_reactor_a_local_pref_length_test.go::TestRFC4271LocalPrefLengthFromInternalPeer": "f2b979b76233652e",
+    "internal/component/bgp/reactor/rfc4271_reactor_a_local_pref_length_test.go::TestRFC4271LocalPrefLengthFromInternalPeer#2": "f2b979b76233652e",
+    "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst": "7c393f540d8a8390",
+    "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst#2": "7c393f540d8a8390",
+    "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "fdc816af536ef714",
+    "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "fdc816af536ef714"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc4271_reactor_a_local_pref_length_test.go::TestRFC4271LocalPrefLengthFromInternalPeer": "3e727a80b7b28f0b",
+    "internal/component/bgp/reactor/rfc4271_reactor_a_local_pref_length_test.go::TestRFC4271LocalPrefLengthFromInternalPeer#2": "3e727a80b7b28f0b",
+    "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst": "3fbb82b3c24c3e42",
+    "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst#2": "3fbb82b3c24c3e42",
+    "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "d80d6195ec19508d",
+    "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "d80d6195ec19508d"
+  },
+  "verdict": "enforced"
+}

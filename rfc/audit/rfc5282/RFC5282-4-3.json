@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: an AES CCM nonce not built as salt||IV. Encryptor: TestRFC5282CCMNonceIsSaltThenIV opens ze's own sent message with an independent CCM under the 3 salt octets then the wire IV (fatal on failure). Decryptor: TestRFC5282CCMRefusesAReversedNonce refuses IV||salt.",
+  "requirement_sha": "0b6eaa465e007426",
+  "tests": {
+    "internal/component/ike/engine/rfc5282_ccm_sk_test.go::TestRFC5282CCMNonceIsSaltThenIV": "84917bde426d454e",
+    "internal/component/ike/engine/rfc5282_ccm_sk_test.go::TestRFC5282CCMRefusesAReversedNonce": "84917bde426d454e"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc5282_ccm_sk_test.go::TestRFC5282CCMNonceIsSaltThenIV": "bb52c0a7c2453c0c",
+    "internal/component/ike/engine/rfc5282_ccm_sk_test.go::TestRFC5282CCMRefusesAReversedNonce": "04fac410969b6d81"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC2516-5.4-1",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestPADSAlwaysCarriesServiceName",
+    "unit-sha": "7cce646a9ecf3a23",
+    "claim-sha": "1b7e7dd9d5101d65",
+    "route": "revert",
+    "producer": "internal/component/l2tp/pppoe/discovery.go::BuildPADS",
+    "producer-sha": "9d60507b72ee62d4",
+    "break": "body of BuildPADS replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

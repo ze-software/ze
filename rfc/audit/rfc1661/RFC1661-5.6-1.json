@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: not Code-Rejecting an unknown Code. TestRFC1661CodeRejectForUnknownCode goes red on no Code-Reject or a Rejected-Packet not carrying Code 99, Identifier 0x41, Length 6, Data aabb; TestRFC1661NoCodeRejectForKnownCode goes red if a Terminate-Request is Code-Rejected.",
+  "requirement_sha": "ee40e5c7a7172d2a",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661CodeRejectForUnknownCode": "9afaf002f0fd81ec",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoCodeRejectForKnownCode": "9afaf002f0fd81ec"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661CodeRejectForUnknownCode": "609e1d202c32e1e2",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoCodeRejectForKnownCode": "44d57804605012ad"
+  },
+  "verdict": "enforced"
+}

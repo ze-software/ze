@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: a Type-7 forwarding address resolved outside an intra-area path of its own NSSA. nssa_scope_test.go TestExternalForwardingScopeRejectsIneligiblePaths asserts no route for a backbone route, an inter-area route and a stub-area route (line 173); TestExternalForwardingScopeAcceptsEligiblePaths asserts the own-NSSA intra-area route resolves (line 140).",
+  "requirement_sha": "b33ab5b840f610ab",
+  "tests": {
+    "internal/plugins/ospf/rfc3101_nssa_scope_test.go::TestExternalForwardingScopeAcceptsEligiblePaths": "851652176e157f7d",
+    "internal/plugins/ospf/rfc3101_nssa_scope_test.go::TestExternalForwardingScopeRejectsIneligiblePaths": "851652176e157f7d"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc3101_nssa_scope_test.go::TestExternalForwardingScopeAcceptsEligiblePaths": "19ef876d816003df",
+    "internal/plugins/ospf/rfc3101_nssa_scope_test.go::TestExternalForwardingScopeRejectsIneligiblePaths": "4bfbc3f9d8706909"
+  },
+  "verdict": "enforced"
+}

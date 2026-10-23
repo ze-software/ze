@@ -1,0 +1,17 @@
+{
+  "note": "Rejudged 2026-09-29 (routing child). TestRFC4090FastRerouteClassAndCTypeLiterals compares the encoded header with the literals 24/205/1 over a 0xFF buffer and decodes a raw 205/1 object as FAST_REROUTE; TestRFC4090FastRerouteOtherCTypeNotRecognized reads 205/2 as an unknown C-Type, not FAST_REROUTE. Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 4.1 and the enforced verdict holds unchanged.",
+  "requirement_sha": "c6d707821c4fef27",
+  "tests": {
+    "internal/plugins/rsvpte/frr_test.go::TestEncodeDecodeFastReroute": "9e1595a34e264d7e",
+    "internal/plugins/rsvpte/frr_test.go::TestFastRerouteShortBody": "9e1595a34e264d7e",
+    "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC4090FastRerouteClassAndCTypeLiterals": "8cea1a3ca4572fd1",
+    "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC4090FastRerouteOtherCTypeNotRecognized": "8cea1a3ca4572fd1"
+  },
+  "units": {
+    "internal/plugins/rsvpte/frr_test.go::TestEncodeDecodeFastReroute": "e88bba6f123afc3b",
+    "internal/plugins/rsvpte/frr_test.go::TestFastRerouteShortBody": "ac66d3e95478bf35",
+    "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC4090FastRerouteClassAndCTypeLiterals": "56db9a3c2570ea6a",
+    "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC4090FastRerouteOtherCTypeNotRecognized": "cd2a1399db72331a"
+  },
+  "verdict": "enforced"
+}

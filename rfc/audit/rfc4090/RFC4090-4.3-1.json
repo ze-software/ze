@@ -1,0 +1,13 @@
+{
+  "note": "a protection-desired head-end PATH carries SESSION_ATTRIBUTE with 0x01 and FAST_REROUTE; negative is an unprotected PSB emitting neither (a conditioned-off input, not a violation) Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 5 and the enforced verdict holds unchanged.",
+  "requirement_sha": "bd0100b8e8cb3af3",
+  "tests": {
+    "internal/plugins/rsvpte/frr_test.go::TestBuildPathIncludesFastReroute": "9e1595a34e264d7e",
+    "internal/plugins/rsvpte/frr_test.go::TestBuildPathNoProtection": "9e1595a34e264d7e"
+  },
+  "units": {
+    "internal/plugins/rsvpte/frr_test.go::TestBuildPathIncludesFastReroute": "8afb37c101daf9db",
+    "internal/plugins/rsvpte/frr_test.go::TestBuildPathNoProtection": "24cc4f09cc838f4a"
+  },
+  "verdict": "enforced"
+}

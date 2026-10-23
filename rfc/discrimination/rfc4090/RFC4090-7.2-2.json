@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4090-7.2-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090StateExpiresWithoutRefresh",
+    "unit-sha": "ffb2ec4f11ec6d69",
+    "claim-sha": "d938a8caa16da02a",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/register.go::cleanupTick",
+    "producer-sha": "ff89be6e7cb074e5",
+    "break": "body of cleanupTick replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4090-7.2-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090StateExpiresWithoutRefresh",
+    "unit-sha": "ffb2ec4f11ec6d69",
+    "claim-sha": "9b21cf74b92bdcf9",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/register.go::cleanupTick",
+    "producer-sha": "ff89be6e7cb074e5",
+    "break": "body of cleanupTick replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

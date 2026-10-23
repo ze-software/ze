@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC2328-A.1-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/iface/rfc2328_dr_alldrouters_test.go::TestOSPFElectedDRJoinsAllDRouters",
+    "unit-sha": "730a28d1b5bf56b7",
+    "claim-sha": "21857a0b84e1772c",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/iface/iface.go::runElectionLocked",
+    "producer-sha": "c1e81903a7cf988a",
+    "break": "body of runElectionLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-A.1-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/iface/rfc2328_dr_alldrouters_test.go::TestOSPFElectedDRJoinsAllDRouters",
+    "unit-sha": "730a28d1b5bf56b7",
+    "claim-sha": "cdc04b7310ab8049",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/iface/iface.go::runElectionLocked",
+    "producer-sha": "c1e81903a7cf988a",
+    "break": "body of runElectionLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-A.1-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/iface/rfc2328_dr_test.go::TestOSPFDROtherDoesNotJoinAllDRouters",
+    "unit-sha": "0db36b4f37691613",
+    "claim-sha": "acf34928ae506ca3",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/iface/iface.go::runElectionLocked",
+    "producer-sha": "c1e81903a7cf988a",
+    "break": "body of runElectionLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-A.1-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/iface/rfc2328_dr_test.go::TestOSPFElectedBDRJoinsAllDRouters",
+    "unit-sha": "53a05114fbbc0ad3",
+    "claim-sha": "a903955a3fc8925b",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/iface/iface.go::runElectionLocked",
+    "producer-sha": "c1e81903a7cf988a",
+    "break": "body of runElectionLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

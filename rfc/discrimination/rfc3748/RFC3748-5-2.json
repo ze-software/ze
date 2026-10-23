@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC3748-5-2",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc3748_md5challenge_test.go::TestRFC3748PeerRefusesATypeOutsideOneToFour",
+    "unit-sha": "81f3cb62969691ff",
+    "claim-sha": "6b5855fa28d610df",
+    "route": "revert",
+    "producer": "internal/core/eap/peer.go::naks",
+    "producer-sha": "739a0037df1b7a64",
+    "break": "body of naks replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3748-5-2",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc3748_md5challenge_test.go::TestRFC3748PeerSupportsTypesOneToFour",
+    "unit-sha": "0d500eb78cfa2c0d",
+    "claim-sha": "2e251854f68c946f",
+    "route": "revert",
+    "producer": "internal/core/eap/peer.go::handleRequest",
+    "producer-sha": "0a90e14d16adb589",
+    "break": "body of handleRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

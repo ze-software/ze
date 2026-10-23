@@ -1,0 +1,21 @@
+{
+  "note": "criterion a) receiver's own address (eBGP and iBGP) and b) off-link next hop on a one-hop eBGP session each withhold the legacy announcement on the live receive path; sender address and on-subnet third party accepted; multihop and iBGP accept off-link; interface snapshot change flips the verdict. The reaction (ignore, no NOTIFICATION) is RFC4271-6.3-2/6.3-3",
+  "requirement_sha": "e730a75419c960f7",
+  "tests": {
+    "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271NextHopSemantics": "fdc816af536ef714",
+    "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271NextHopSemantics#2": "fdc816af536ef714",
+    "internal/component/bgp/reactor/rfc4271_session_next_hop_test.go::TestSessionRFC4271IBGPNextHop": "c17f1f0fbcc638b5",
+    "internal/component/bgp/reactor/rfc4271_session_next_hop_test.go::TestSessionRFC4271IBGPNextHop#2": "c17f1f0fbcc638b5",
+    "internal/component/bgp/reactor/rfc4271_session_next_hop_test.go::TestSessionRFC4271NextHopMixedUpdateAndAddressChange": "c17f1f0fbcc638b5",
+    "internal/component/bgp/reactor/rfc4271_session_next_hop_test.go::TestSessionRFC4271NextHopMixedUpdateAndAddressChange#2": "c17f1f0fbcc638b5"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271NextHopSemantics": "b1fb1b76d83d0a77",
+    "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271NextHopSemantics#2": "b1fb1b76d83d0a77",
+    "internal/component/bgp/reactor/rfc4271_session_next_hop_test.go::TestSessionRFC4271IBGPNextHop": "8de46d102e3ad050",
+    "internal/component/bgp/reactor/rfc4271_session_next_hop_test.go::TestSessionRFC4271IBGPNextHop#2": "8de46d102e3ad050",
+    "internal/component/bgp/reactor/rfc4271_session_next_hop_test.go::TestSessionRFC4271NextHopMixedUpdateAndAddressChange": "e5e3b11267e8cba1",
+    "internal/component/bgp/reactor/rfc4271_session_next_hop_test.go::TestSessionRFC4271NextHopMixedUpdateAndAddressChange#2": "e5e3b11267e8cba1"
+  },
+  "verdict": "enforced"
+}

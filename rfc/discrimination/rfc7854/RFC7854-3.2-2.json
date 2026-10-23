@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7854-3.2-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854SessionEstablishmentRateLimited",
+    "unit-sha": "4c09929a669b55e5",
+    "claim-sha": "56af294e125bf4a6",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/bmp/sender.go::run",
+    "producer-sha": "1e6505b36bf10daa",
+    "break": "body of run replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7854-3.2-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854SessionEstablishmentRateLimited",
+    "unit-sha": "4c09929a669b55e5",
+    "claim-sha": "037c140f680209c3",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/bmp/sender.go::run",
+    "producer-sha": "1e6505b36bf10daa",
+    "break": "body of run replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

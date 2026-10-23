@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: an ipv4Address or ipv6Address not written as 4 or 16 octets in network byte order. TestRFC7011AddressOctetsNetworkByteOrder asserts the IPv4 record opens with 0a010203 0a040506 and the IPv6 record with the 16-octet source then destination in network order, and that each Set payload is the record size; TestRFC7011IPv4NeverWidenedToSixteenOctets asserts an IPv4 flow is neither encoded at the IPv6 width nor carries an IPv4-mapped 16-octet form. Ze exports no macAddress IE, so that clause has no producer.",
+  "requirement_sha": "6d04795f08c4eb7b",
+  "tests": {
+    "internal/plugins/flowexport/ipfix/rfc7011_export_test.go::TestRFC7011AddressOctetsNetworkByteOrder": "49e03ede36d04954",
+    "internal/plugins/flowexport/ipfix/rfc7011_export_test.go::TestRFC7011IPv4NeverWidenedToSixteenOctets": "49e03ede36d04954"
+  },
+  "units": {
+    "internal/plugins/flowexport/ipfix/rfc7011_export_test.go::TestRFC7011AddressOctetsNetworkByteOrder": "46a641140da99205",
+    "internal/plugins/flowexport/ipfix/rfc7011_export_test.go::TestRFC7011IPv4NeverWidenedToSixteenOctets": "f6bae5f7cc58da08"
+  },
+  "verdict": "enforced"
+}

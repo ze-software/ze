@@ -1,0 +1,21 @@
+{
+  "note": "TestRFC2661ClosedTunnelKeptForRetransmissionInterval drives the reactor's reapExpiredLocked on a StopCCN-closed tunnel built with the reactor's ReliableConfig: kept at 31s-1ns, reaped at 31s. TestPostTeardownAckRetention proves the engine still acknowledges a retransmitted StopCCN during retention, so both 'maintained' and 'operated' are asserted.",
+  "requirement_sha": "9914edb32315f91e",
+  "tests": {
+    "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661ClosedTunnelKeptForRetransmissionInterval": "055162183ff6df00",
+    "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661ClosedTunnelKeptForRetransmissionInterval#2": "055162183ff6df00",
+    "internal/component/l2tp/rfc2661_reliable_integration_test.go::TestPostTeardownAckRetention": "2cfab7fedaa6fb9b",
+    "internal/component/l2tp/rfc2661_reliable_integration_test.go::TestPostTeardownAckRetention#2": "2cfab7fedaa6fb9b",
+    "internal/component/l2tp/rfc2661_reliable_test.go::TestExpired": "1da6320bfe08bd17",
+    "internal/component/l2tp/rfc2661_reliable_test.go::TestExpired#2": "1da6320bfe08bd17"
+  },
+  "units": {
+    "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661ClosedTunnelKeptForRetransmissionInterval": "5d475c3674605728",
+    "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661ClosedTunnelKeptForRetransmissionInterval#2": "5d475c3674605728",
+    "internal/component/l2tp/rfc2661_reliable_integration_test.go::TestPostTeardownAckRetention": "df7229d459c4faca",
+    "internal/component/l2tp/rfc2661_reliable_integration_test.go::TestPostTeardownAckRetention#2": "df7229d459c4faca",
+    "internal/component/l2tp/rfc2661_reliable_test.go::TestExpired": "a4ca61a487ac463d",
+    "internal/component/l2tp/rfc2661_reliable_test.go::TestExpired#2": "a4ca61a487ac463d"
+  },
+  "verdict": "enforced"
+}

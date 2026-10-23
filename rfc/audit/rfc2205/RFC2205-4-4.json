@@ -1,0 +1,21 @@
+{
+  "note": "Rejudged 2026-09-29 (routing child). Each message type is now covered: TestRFC2205EachMessageTypeConstructionAccepted decodes a conformant PathTear, ResvTear, PathErr, ResvErr and ResvConf; TestRFC2205EachMessageTypeMalformedRefused omits each unbracketed BNF object in turn, asserts DecodeMessage refuses it (errObjectAbsent except STYLE), and that a transit with matching path state sends nothing and keeps its state. PATH and RESV are covered by the existing units.",
+  "requirement_sha": "84a28efb33078d5d",
+  "tests": {
+    "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC2205EachMessageTypeConstructionAccepted": "8cea1a3ca4572fd1",
+    "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC2205EachMessageTypeMalformedRefused": "8cea1a3ca4572fd1",
+    "internal/plugins/rsvpte/rfc2205_wire_test.go::TestRFC2205MissingRequiredObjectRefused": "12691630c6e2e34c",
+    "internal/plugins/rsvpte/rfc2205_wire_test.go::TestRFC2205WellFormedMessageVerified": "12691630c6e2e34c",
+    "internal/plugins/rsvpte/wire_rfc3209_test.go::TestRFC3209ObjectsAcceptedInAnyOrder": "f41b8974aa28db4d",
+    "internal/plugins/rsvpte/wire_rfc3209_test.go::TestRFC3209ObjectsAcceptedInAnyOrder#2": "f41b8974aa28db4d"
+  },
+  "units": {
+    "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC2205EachMessageTypeConstructionAccepted": "807d41ecd40846b5",
+    "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC2205EachMessageTypeMalformedRefused": "50245a4f974498e7",
+    "internal/plugins/rsvpte/rfc2205_wire_test.go::TestRFC2205MissingRequiredObjectRefused": "a3c4af8ec1c20b2a",
+    "internal/plugins/rsvpte/rfc2205_wire_test.go::TestRFC2205WellFormedMessageVerified": "8190f845d9165b4e",
+    "internal/plugins/rsvpte/wire_rfc3209_test.go::TestRFC3209ObjectsAcceptedInAnyOrder": "6cb7cfbd88cd0ef8",
+    "internal/plugins/rsvpte/wire_rfc3209_test.go::TestRFC3209ObjectsAcceptedInAnyOrder#2": "6cb7cfbd88cd0ef8"
+  },
+  "verdict": "enforced"
+}

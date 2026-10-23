@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7950-6.5-1",
+    "polarity": "positive",
+    "unit": "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadAccepted",
+    "unit-sha": "d21091dc1c116998",
+    "claim-sha": "0c18030d8421a3bf",
+    "route": "revert",
+    "producer": "internal/component/config/yang/loader.go::AddModuleFromText",
+    "producer-sha": "4887216187fdb0bc",
+    "break": "body of AddModuleFromText replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7950-6.5-1",
+    "polarity": "negative",
+    "unit": "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadRefused",
+    "unit-sha": "f2401b4ae86ac548",
+    "claim-sha": "0eb2059cf9e6380f",
+    "route": "revert",
+    "producer": "internal/component/config/yang/loader.go::AddModuleFromText",
+    "producer-sha": "4887216187fdb0bc",
+    "break": "body of AddModuleFromText replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

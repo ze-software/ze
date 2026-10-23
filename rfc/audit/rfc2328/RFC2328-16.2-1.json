@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged 2026-10-21. TestOSPFInterAreaRoute now runs in non-backbone area 0.0.0.1 on a single-area router, so it installs only if the router is judged not to be an ABR; TestRFC2328NonABRUsesItsAreaSummaries likewise. Negative TestOSPFABRBackboneOnlyAcceptance: the ABR ignores the cheaper area-1 summary. Records on ComputeInterAreaWith, whose abr gate (interarea.go:131) is the clause.",
+  "requirement_sha": "8e78c47bb67b2879",
+  "tests": {
+    "internal/plugins/ospf/spf/rfc2328_interarea_test.go::TestOSPFABRBackboneOnlyAcceptance": "e96d102cdf2cf611",
+    "internal/plugins/ospf/spf/rfc2328_interarea_test.go::TestOSPFInterAreaRoute": "e96d102cdf2cf611",
+    "internal/plugins/ospf/spf/rfc2328_nonabr_summary_test.go::TestRFC2328NonABRUsesItsAreaSummaries": "50f6d38abd345bba"
+  },
+  "units": {
+    "internal/plugins/ospf/spf/rfc2328_interarea_test.go::TestOSPFABRBackboneOnlyAcceptance": "143c6d8b2108e3ef",
+    "internal/plugins/ospf/spf/rfc2328_interarea_test.go::TestOSPFInterAreaRoute": "87561a4965f5c0f8",
+    "internal/plugins/ospf/spf/rfc2328_nonabr_summary_test.go::TestRFC2328NonABRUsesItsAreaSummaries": "05be64bd715a8230"
+  },
+  "verdict": "enforced"
+}

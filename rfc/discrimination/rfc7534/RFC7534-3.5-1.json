@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC7534-3.5-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/as112/rfc7534_direct_delegation_test.go::TestRFC7534EveryDirectDelegationZoneAuthoritativeAndBare",
+    "unit-sha": "fb71435ecf32e72c",
+    "claim-sha": "48eb47f3ee3cb58c",
+    "route": "revert",
+    "producer": "internal/plugins/as112/zones.go::answerQuestions",
+    "producer-sha": "169b27ca0f486289",
+    "break": "body of answerQuestions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7534-3.5-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/as112/zones_test.go::TestZoneAnswer_OutOfZoneRefused",
+    "unit-sha": "d59293d821ee46d3",
+    "claim-sha": "22b5f18d916decd3",
+    "route": "revert",
+    "producer": "internal/plugins/as112/zones.go::answerQuestions",
+    "producer-sha": "169b27ca0f486289",
+    "break": "body of answerQuestions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7534-3.5-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/as112/zones_test.go::TestZoneAnswer_ReverseZoneNoData",
+    "unit-sha": "9a8f733d1c9183fd",
+    "claim-sha": "be5075b59450631e",
+    "route": "revert",
+    "producer": "internal/plugins/as112/zones.go::answerQuestions",
+    "producer-sha": "169b27ca0f486289",
+    "break": "body of answerQuestions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

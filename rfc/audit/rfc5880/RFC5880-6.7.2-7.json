@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: accepting a password other than the configured one. Red: TestRFC5880SimplePasswordMismatchDiscarded Fatalf unless ErrPasswordMismatch for a same-length one-byte difference (isolated from the Auth Len check), plus shorter and longer passwords; positive TestRFC5880SimplePasswordMatchAccepted round-trips 1, 8 and 16-byte passwords. One key per session, so 'selected by the key ID' is the configured pair.",
+  "requirement_sha": "248cf5650250c184",
+  "tests": {
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880SimplePasswordMatchAccepted": "5a25c74cc2d9bd47",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880SimplePasswordMismatchDiscarded": "5a25c74cc2d9bd47"
+  },
+  "units": {
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880SimplePasswordMatchAccepted": "617b18b27b47bd3a",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880SimplePasswordMismatchDiscarded": "d7e62fadcde1f639"
+  },
+  "verdict": "enforced"
+}

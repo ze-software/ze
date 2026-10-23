@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-21 (independent auditor, authored none of 32ff59085b). Section 3.1.1: \"A BGP speaker MUST skip such NLRIs and continue processing of rest of the Update message.\" Positive keeps exactly L then L2 around every malformed shape. The changed unit is the negative TestMUPWellFormedRouteKeptAtIngress: its two T1ST cases gained the zero Source Address Length octet and are now complete routes under the corrected parser; every other case, and every assertion (section kept whole, Withdrawn and Unkeyable empty, Discarded zero), is unchanged. 32ff59085b made the T1ST Source Address Length octet mandatory, matching Section 3.1.3.1 (\"The Source Address Length has a fixed length of 1 octet.\" and the TLV remainder counted from \"the offset of the end of the Source Address\"); parseBodyT1ST now returns ErrMUPTruncated when nothing follows the endpoint. The T1ST malformed cases now use endpoint4NoSource, so the corrected parser does not confound them. Both revert records were re-taken today with ./le rfc discriminate-record over HEAD and observed red naming the unit. ",
+  "requirement_sha": "b018c540a5fc2dd4",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPMalformedRouteTreatedAsWithdrawnAtIngress": "12c86ed974d8d4cd",
+    "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPWellFormedRouteKeptAtIngress": "12c86ed974d8d4cd"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPMalformedRouteTreatedAsWithdrawnAtIngress": "ce08ffce82ad21e4",
+    "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPWellFormedRouteKeptAtIngress": "4768c016671053bd"
+  },
+  "verdict": "enforced"
+}

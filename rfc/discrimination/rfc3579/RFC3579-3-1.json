@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC3579-3-1",
+    "polarity": "positive",
+    "unit": "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapAccessRequestNamesTheNAS",
+    "unit-sha": "b7ac5a1b9b6e5e8b",
+    "claim-sha": "99ecc59bc28f3753",
+    "route": "revert",
+    "producer": "internal/component/radius/authenticator.go::exchange",
+    "producer-sha": "5919ec42f7709891",
+    "break": "body of exchange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3579-3-1",
+    "polarity": "positive",
+    "unit": "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapNamesTheNASWithoutASourceAddress",
+    "unit-sha": "afb32a9052ec09ab",
+    "claim-sha": "5101f2ce703b4402",
+    "route": "revert",
+    "producer": "internal/component/radius/authenticator.go::exchange",
+    "producer-sha": "5919ec42f7709891",
+    "break": "body of exchange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3579-3-1",
+    "polarity": "negative",
+    "unit": "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapWithNoNASIdentityIsNotSent",
+    "unit-sha": "e067ce798217ffe6",
+    "claim-sha": "0c25afcf2335f29b",
+    "route": "revert",
+    "producer": "internal/component/radius/authenticator.go::exchange",
+    "producer-sha": "5919ec42f7709891",
+    "break": "body of exchange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

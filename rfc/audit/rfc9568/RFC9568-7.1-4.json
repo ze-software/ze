@@ -1,0 +1,21 @@
+{
+  "note": "Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 9568 Section 7.1 says \"It MUST verify that the VRID is configured on the receiving interface.\" TestDecodeGoldenV3IPv4 now decodes the RFC 9568 message-only golden G2 under the default-mode lookup instead of the pseudo-header golden G2c, and lost only the removed MsgOnlyChecksum assertion; the subtests of TestNegativeReferenceBugs other than N1 gained only the FillChecksum mode argument. The positive is still a fully conforming advert, the checksum check precedes the checks this row names so a wrong form would fail with ErrChecksum and not pass silently, and each negative still asserts its exact sentinel. TestRxAdvertScopedToReceivingInterface changed only by the checksum-mode plumbing (a Checksum: packet.ChecksumRFC9568 field added to the GroupSpec, AdvertParams or packet.Local literal, or the mode argument added to packet.FillChecksum); every assertion and every isolating input is byte-for-byte the same. TestRxV3VRIDCheckedOnTheReceivingInterface, unchanged, still discards VRID 10 received on the VRID-20 interface with exactly [vrid]. Verdict unchanged.",
+  "requirement_sha": "307bb7d3b23264a0",
+  "tests": {
+    "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv4": "5bbc8ddba98cd418",
+    "internal/plugins/vrrp/packet/validate_test.go::TestValidationOrder": "5bbc8ddba98cd418",
+    "internal/plugins/vrrp/rfc9568_rx_interface_v3_test.go::TestRxV3VRIDCheckedOnTheReceivingInterface": "fb0368c267914fe0",
+    "internal/plugins/vrrp/rfc9568_rx_interface_v3_test.go::TestRxV3VRIDCheckedOnTheReceivingInterface#2": "fb0368c267914fe0",
+    "internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go::TestRxAdvertScopedToReceivingInterface": "8c88ea859d3cefd7",
+    "internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go::TestRxAdvertScopedToReceivingInterface#2": "8c88ea859d3cefd7"
+  },
+  "units": {
+    "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv4": "5458632e7659d030",
+    "internal/plugins/vrrp/packet/validate_test.go::TestValidationOrder": "e9e509cbd07a9bdc",
+    "internal/plugins/vrrp/rfc9568_rx_interface_v3_test.go::TestRxV3VRIDCheckedOnTheReceivingInterface": "d49039a1711debf0",
+    "internal/plugins/vrrp/rfc9568_rx_interface_v3_test.go::TestRxV3VRIDCheckedOnTheReceivingInterface#2": "d49039a1711debf0",
+    "internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go::TestRxAdvertScopedToReceivingInterface": "68ae878127028fec",
+    "internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go::TestRxAdvertScopedToReceivingInterface#2": "68ae878127028fec"
+  },
+  "verdict": "enforced"
+}

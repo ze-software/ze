@@ -1,0 +1,13 @@
+{
+  "note": "Judged 2026-09-29 (routing child, continuation judge). Positive: a ResvTear with a SCOPE naming the sender tears the RSB, keeps the PSB, draws no ResvErr and goes upstream. Negative TestRFC2205ResvTearScopeNotObeyed: a SCOPE that lists only another sender does not narrow the tear, so a node obeying SCOPE goes red.",
+  "requirement_sha": "154bc86ed27cb1da",
+  "tests": {
+    "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205ResvTearScopeNotObeyed": "7bc063943de30e7b",
+    "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205ResvTearWithScopeTearsDown": "7bc063943de30e7b"
+  },
+  "units": {
+    "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205ResvTearScopeNotObeyed": "169c2655f44a2387",
+    "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205ResvTearWithScopeTearsDown": "5115db009055e8d4"
+  },
+  "verdict": "enforced"
+}

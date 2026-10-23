@@ -1,0 +1,11 @@
+{
+  "note": "Re-judged 2026-10-12 (independent auditor). SHIFTED by 6e063fb498 (tests: give ten assert-nothing tests a real assertion), whose hunks sit in untagged sibling tests and the import block. The tagged unit is byte-identical (gate-verified) and no helper it calls changed. Verdict stands. Judge rejudge 2026-09-30 (last five). + TestBFDClient_TeardownOnDown: BGP has no per-path announcement short of the session, so Ze emulates the hold-timer outcome: NOTIFICATION then Idle, with RFC 9384 Cease subcode 10 as the code (msg[19]/msg[20] asserted, state polled to Idle). {single-polarity: positive} accepted: action-on-event SHOULD, failure is inaction, no refusal path; the AdminDown no-action case is RFC5882-4.2-1's. Record: bfdTeardown revert observed red.",
+  "requirement_sha": "4549c338d453b700",
+  "tests": {
+    "internal/component/bgp/reactor/rfc5882_peer_bfd_test.go::TestBFDClient_TeardownOnDown": "80ba15c556b70c16"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc5882_peer_bfd_test.go::TestBFDClient_TeardownOnDown": "f22a574b6b14fca1"
+  },
+  "verdict": "enforced"
+}

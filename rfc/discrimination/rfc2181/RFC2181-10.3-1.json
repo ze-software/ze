@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2181-10.3-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/geodns/rfc2181_clarifications_test.go::TestRFC2181NSTargetIsNotAnAlias",
+    "unit-sha": "5e82017e6f6bb3dd",
+    "claim-sha": "e3295199dd800b9a",
+    "route": "revert",
+    "producer": "internal/plugins/geodns/server.go::appendNS",
+    "producer-sha": "7a2ab511ba38a3d3",
+    "break": "body of appendNS replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2181-10.3-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/geodns/rfc2181_server_test.go::TestRFC2181_NSCanonicalWithGlue",
+    "unit-sha": "916ec93b26bb4304",
+    "claim-sha": "c7c6278875e5d1cd",
+    "route": "revert",
+    "producer": "internal/plugins/geodns/server.go::appendNS",
+    "producer-sha": "7a2ab511ba38a3d3",
+    "break": "body of appendNS replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

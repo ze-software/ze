@@ -1,0 +1,13 @@
+{
+  "note": "V=1/L=0 and V=0/L=1 are rejected by DecodePrefixSIDValueV6, whose error drops the TLV in v6PrefixSIDFromTLV; valid V/L pairs decode",
+  "requirement_sha": "fc278fea6100294c",
+  "tests": {
+    "internal/plugins/ospf/sr/rfc8666_codec_v6_test.go::TestOSPFv3PrefixSIDCodec": "b898637e07666ee9",
+    "internal/plugins/ospf/sr/rfc8666_codec_v6_test.go::TestOSPFv3SIDWidthFromVL": "b898637e07666ee9"
+  },
+  "units": {
+    "internal/plugins/ospf/sr/rfc8666_codec_v6_test.go::TestOSPFv3PrefixSIDCodec": "85934b8e6e6b35b7",
+    "internal/plugins/ospf/sr/rfc8666_codec_v6_test.go::TestOSPFv3SIDWidthFromVL": "c92162de6f626fde"
+  },
+  "verdict": "enforced"
+}

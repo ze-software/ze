@@ -1,0 +1,11 @@
+{
+  "note": "Single-polarity positive (marker on the row). Sentence: records for the site's RFC 1918-numbered resources are not hosted on the nameserver. Forbidden behaviour: a PTR (or any record) for an RFC 1918 reverse name below a served zone is answered. TestZoneAnswer_ResponseCodeByNamePosition row 1.0.10.in-addr.arpa. PTR asserts Rcode NXDOMAIN (reply.Rcode != tc.rcode) and the loop over Answer and Extra fails on any PTR record, both red if such a record were hosted. answerQuestions has no per-zone branch below the apex (every non-apex name takes the missing path), so the one 10/8 probe covers the uniform path for all RFC 1918 zones.",
+  "requirement_sha": "6680b72937afd361",
+  "tests": {
+    "internal/plugins/as112/zones_test.go::TestZoneAnswer_ResponseCodeByNamePosition": "99aa05744211cc95"
+  },
+  "units": {
+    "internal/plugins/as112/zones_test.go::TestZoneAnswer_ResponseCodeByNamePosition": "0ccb51ba0addcf22"
+  },
+  "verdict": "enforced"
+}

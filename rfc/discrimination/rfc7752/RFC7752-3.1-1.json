@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC7752-3.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752UnknownTLVPreservedAndPropagated",
+    "unit-sha": "a8737d04f2a0e047",
+    "claim-sha": "5aa4c93a4cc29d2e",
+    "route": "revert",
+    "producer": "internal/core/bgp/nlri/bgpls/types.go::ParseBGPLSWithRest",
+    "producer-sha": "18893400d18fdee3",
+    "break": "body of ParseBGPLSWithRest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7752-3.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc7752_unknown_forward_test.go::TestRFC7752UnknownTLVsReachForwardDestinations",
+    "unit-sha": "01524d57327e0fc4",
+    "claim-sha": "f0569d317e1de969",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/forward_validation.go::forwardUpdateCore",
+    "producer-sha": "94e9f063dee533cd",
+    "break": "body of forwardUpdateCore replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7752-3.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc7752_unknown_forward_test.go::TestRFC7752UnknownTLVsReachForwardDestinations",
+    "unit-sha": "01524d57327e0fc4",
+    "claim-sha": "d7e302f26d940426",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/forward_validation.go::forwardUpdateCore",
+    "producer-sha": "94e9f063dee533cd",
+    "break": "body of forwardUpdateCore replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

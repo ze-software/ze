@@ -1,0 +1,13 @@
+{
+  "note": "Obligation: a periodic full update recovers what incremental processing missed. TestRFC1195PeriodicSPFRecoversMissedUpdate: a foreign metric change stored with no trigger leaves the route stale at 11, and the aging timer's refresh repairs it to 15. TestRFC1195PeriodicSPFRemovesMissedWithdrawal: a silently withdrawn prefix stays installed (asserted) until ageOnce's periodic pass removes it. Two separate inputs (changed metric, withdrawal); both go red if the periodic pass stops running SPF. The negative is recorded red on refreshOwnLSPs. The 'studies suggest' clause is descriptive and carries no obligation.",
+  "requirement_sha": "0b92b9bc4e437fb6",
+  "tests": {
+    "internal/plugins/isis/rfc1195_selection_test.go::TestRFC1195PeriodicSPFRemovesMissedWithdrawal": "1ef6f2102a068439",
+    "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195PeriodicSPFRecoversMissedUpdate": "b67887a5f61b2632"
+  },
+  "units": {
+    "internal/plugins/isis/rfc1195_selection_test.go::TestRFC1195PeriodicSPFRemovesMissedWithdrawal": "403d36cb18bc29ad",
+    "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195PeriodicSPFRecoversMissedUpdate": "96c22cccb0d7efa6"
+  },
+  "verdict": "enforced"
+}

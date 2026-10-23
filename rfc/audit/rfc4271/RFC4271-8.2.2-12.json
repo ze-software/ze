@@ -1,0 +1,19 @@
+{
+  "note": "Peer level in Established with a Reactor observer: NOTIFICATION 2/1 (Event 24), Cease 6/2 (Event 25) and a far-end close (Event 18) each raise the peer-down for that neighbor, drop the session, stop the three timers and move the counter 0 -> 1; for 24/25 Ze writes no NOTIFICATION and the far end reads EOF. Routes clause: the RIB unit drives handleStructuredState down and asserts that neighbor's routes are deleted and a bystander's kept. Negative: KEEPALIVE plus a well-formed UPDATE are dispatched with no peer-down, same session Established, timers running, counter 0. Records observed red: notifyPeerClosed (positive; the halt's own text is in the red, followed by 'fatal error: sync: Unlock of unlocked RWMutex', a consequence of FSM.change releasing f.mu around the transition callback while Event holds a deferred Unlock, so the red is the halt reaching the producer on this path; read independently, a silent no-op notifyPeerClosed fails the unit's 5 s peer-down t.Fatal), handleStructuredState (rib positive), handleKeepalive (negative). Not asserted end to end: the plugin dispatcher's translation of the reactor peer-down into the RIB's structured state event (same caveat as RFC4760-7-1). The ConnectRetryTimer clause holds by construction: fsm Timers.StartConnectRetryTimer has no non-test caller, so the peer-level 'not running' assertion guards a future arming, and the HEAD rfc4271_test.go unit arms it and proves StopAll stops it.",
+  "requirement_sha": "6bfd9a1aaddd36a7",
+  "tests": {
+    "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterOnVersionErrorPerState": "2227e129c50e80e0",
+    "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterQuietOnVersionErrorInOpenStates": "2227e129c50e80e0",
+    "internal/component/bgp/plugins/rib/rfc4760_peer_down_test.go::TestRFC4760PeerDownDeletesOnlyThatNeighborsRoutes": "1e325e2440456595",
+    "internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go::TestRFC4271EstablishedGoodMessagesKeepTheConnection": "75930a8f452295fa",
+    "internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go::TestRFC4271EstablishedNotificationOrTCPFailureReleasesTheConnection": "75930a8f452295fa"
+  },
+  "units": {
+    "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterOnVersionErrorPerState": "85c5b0116a6b5b93",
+    "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterQuietOnVersionErrorInOpenStates": "8cece34d98056c72",
+    "internal/component/bgp/plugins/rib/rfc4760_peer_down_test.go::TestRFC4760PeerDownDeletesOnlyThatNeighborsRoutes": "85629bc873b9317c",
+    "internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go::TestRFC4271EstablishedGoodMessagesKeepTheConnection": "145c8f56f5d7bc2d",
+    "internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go::TestRFC4271EstablishedNotificationOrTCPFailureReleasesTheConnection": "c0c028e73c48bb19"
+  },
+  "verdict": "enforced"
+}

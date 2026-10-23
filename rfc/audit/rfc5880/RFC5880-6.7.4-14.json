@@ -1,0 +1,15 @@
+{
+  "note": "Judge 2026-09-30 (phase 8). Positive TestRFC5880AuthTypeMatchAccepted (type 5). Negative TestRFC5880KeyedMissingSectionOrWrongTypeDiscarded covers types 4 and 5 (no section; types 0,1,2,3,6,255 and the other SHA1 variant) with the floor unset, and the judge break removing the Auth Type check reds it. The moved negative TestRFC5880AuthTypeMismatchDiscarded stayed GREEN under that break: it asserts only err != nil and the relabelled byte also breaks the hash, so it is digest-confounded and proves nothing alone. No-section clause at stack level: RFC5880-6.8.6-10.",
+  "requirement_sha": "02860cc2ca7e2994",
+  "tests": {
+    "internal/component/bfd/auth/rfc5880_md5_split_test.go::TestRFC5880KeyedMissingSectionOrWrongTypeDiscarded": "561a897285e69b5a",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthTypeMatchAccepted": "5a25c74cc2d9bd47",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthTypeMismatchDiscarded": "5a25c74cc2d9bd47"
+  },
+  "units": {
+    "internal/component/bfd/auth/rfc5880_md5_split_test.go::TestRFC5880KeyedMissingSectionOrWrongTypeDiscarded": "1a8d6c886fe854df",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthTypeMatchAccepted": "976ecf2ac6bbb3b6",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthTypeMismatchDiscarded": "dc8745cc882fdf21"
+  },
+  "verdict": "enforced"
+}

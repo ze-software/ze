@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC2516-5.4-2",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516AdmittedPADSCarriesTheNewSessionsID",
+    "unit-sha": "166dee9546cc15d8",
+    "claim-sha": "8da9f5169a684cfe",
+    "route": "revert",
+    "producer": "internal/component/l2tp/pppoe/server.go::handlePADR",
+    "producer-sha": "153cc5bb411d0861",
+    "break": "body of handlePADR replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2516-5.4-2",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516UnservedServiceNameIsRefused",
+    "unit-sha": "2b851e8bc29d3139",
+    "claim-sha": "010012ba96968af4",
+    "route": "revert",
+    "producer": "internal/component/l2tp/pppoe/server.go::handlePADR",
+    "producer-sha": "153cc5bb411d0861",
+    "break": "body of handlePADR replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2516-5.4-2",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/pppoe/rfc2516_server_test.go::TestPADRWithoutServiceNameGetsServiceNameError",
+    "unit-sha": "64d2dcdadb3e5a4b",
+    "claim-sha": "3bf30c684a26560a",
+    "route": "revert",
+    "producer": "internal/component/l2tp/pppoe/server.go::handlePADR",
+    "producer-sha": "153cc5bb411d0861",
+    "break": "body of handlePADR replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

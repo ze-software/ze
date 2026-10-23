@@ -1,0 +1,16 @@
+{
+  "code": {
+    "internal/component/bgp/plugins/nlri/ls/attr_srv6.go::decodeSRv6BGPPeerNodeSID": "b8f7ae9121272e79"
+  },
+  "note": "D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV->WriteTLV and field-export renames (TLV code constants verified unchanged). The decode producers in attr_srv6.go changed only by bgpls.ErrBGPLSTruncated/WriteTLV qualification and the owner-approved unexporting of lsSRv6EndpointBehavior/lsSRv6BGPPeerNodeSID. Tested \"ignored on receipt.\": TestRFC9514PeerNodeSIDReservedIgnored accepts Reserved 0xffff and requires the whole decoded object equal to the Reserved-0 decode. Gap \"MUST be set to 0 when originated\": no live native origination of TLV 1251. Producer internal/component/bgp/plugins/nlri/ls/attr_srv6.go::decodeSRv6BGPPeerNodeSID skips bytes 2:4, unchanged apart from the renames.",
+  "requirement_sha": "fc8121b1658ba7ec",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514PeerNodeSIDReservedIgnored": "54ef8216fabaae35",
+    "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514PeerNodeSIDReservedIgnored#2": "54ef8216fabaae35"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514PeerNodeSIDReservedIgnored": "3b650c4956bdf60d",
+    "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514PeerNodeSIDReservedIgnored#2": "3b650c4956bdf60d"
+  },
+  "verdict": "partial"
+}

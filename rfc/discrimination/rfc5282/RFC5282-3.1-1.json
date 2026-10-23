@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5282-3.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADReceiveRefusesAnIVThatIsNotEightOctets",
+    "unit-sha": "cacb28adfba768d0",
+    "claim-sha": "db1850a779454843",
+    "route": "revert",
+    "producer": "internal/component/ike/crypto/aead.go::OpenIKEAEAD",
+    "producer-sha": "fa847fa99772e737",
+    "break": "body of OpenIKEAEAD replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5282-3.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADSendIVIsEightOctets",
+    "unit-sha": "e26ac083d939dbdf",
+    "claim-sha": "33334ebca51b294b",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/auth.go::buildSKMessageAEADWithMsgID",
+    "producer-sha": "2bcba23be754aec5",
+    "break": "body of buildSKMessageAEADWithMsgID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

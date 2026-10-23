@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: merging NLRIs that differ only in Identifier. TestRFC7752DifferentIdentifierIsDifferentRoutingUniverse inserts two Node NLRIs identical except Identifier 0 and 1 and fails unless rib.Len() is 2, both are retrievable, and removing one leaves the other. Negative: TestRFC7752SameIdentifierIsOneRoutingUniverse fails unless a repeat with the same Identifier collapses to one route (Len 1), so the separation turns on the Identifier bytes.",
+  "requirement_sha": "2277338707e15b0d",
+  "tests": {
+    "internal/component/bgp/plugins/rib/storage/rfc7752_bgpls_test.go::TestRFC7752DifferentIdentifierIsDifferentRoutingUniverse": "83bbf6a5d59c5a03",
+    "internal/component/bgp/plugins/rib/storage/rfc7752_bgpls_test.go::TestRFC7752SameIdentifierIsOneRoutingUniverse": "83bbf6a5d59c5a03"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rib/storage/rfc7752_bgpls_test.go::TestRFC7752DifferentIdentifierIsDifferentRoutingUniverse": "c00ad25821ef5c29",
+    "internal/component/bgp/plugins/rib/storage/rfc7752_bgpls_test.go::TestRFC7752SameIdentifierIsOneRoutingUniverse": "d94ea69c007ac538"
+  },
+  "verdict": "enforced"
+}

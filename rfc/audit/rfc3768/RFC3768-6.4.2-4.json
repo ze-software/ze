@@ -1,0 +1,17 @@
+{
+  "note": "vrrp judge 2026-09-29 (independent): TestV2BackupShutdown runs a VRRPv2 Backup: Shutdown yields exactly [StopTimers, Backup->Initialize] and state Initialize; the canceled timer's later expiry does nothing. The exact action list pins both the cancel and the transition.",
+  "requirement_sha": "e4e17b921434a0a8",
+  "tests": {
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "52489f84876bdb6f",
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "52489f84876bdb6f",
+    "internal/plugins/vrrp/fsm/rfc_verdict_test.go::TestV2BackupShutdown": "529420a351d8b685",
+    "internal/plugins/vrrp/fsm/rfc_verdict_test.go::TestV2BackupShutdown#2": "529420a351d8b685"
+  },
+  "units": {
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "c06b69f55bb239a3",
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "c06b69f55bb239a3",
+    "internal/plugins/vrrp/fsm/rfc_verdict_test.go::TestV2BackupShutdown": "41261bf3e0707793",
+    "internal/plugins/vrrp/fsm/rfc_verdict_test.go::TestV2BackupShutdown#2": "41261bf3e0707793"
+  },
+  "verdict": "enforced"
+}

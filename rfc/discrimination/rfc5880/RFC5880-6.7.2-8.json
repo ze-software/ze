@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC5880-6.7.2-8",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880SimplePasswordSectionOutsideProperLengthNotBuilt",
+    "unit-sha": "19081341f462721f",
+    "claim-sha": "d83730f2be4a60cb",
+    "route": "revert",
+    "producer": "internal/component/bfd/auth/simple.go::simplePasswordLenValid",
+    "producer-sha": "e766491848062f10",
+    "break": "body of simplePasswordLenValid replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.7.2-8",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880SimplePasswordRejectsForeignSectionShape",
+    "unit-sha": "a355fd2251d1f387",
+    "claim-sha": "f7279edee1785fbc",
+    "route": "revert",
+    "producer": "internal/component/bfd/auth/simple.go::Verify",
+    "producer-sha": "a10c28df7f3da2fa",
+    "break": "body of Verify replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.7.2-8",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880SimplePasswordSectionHeader",
+    "unit-sha": "76f3c9fbb3e78adf",
+    "claim-sha": "148e0848aa284258",
+    "route": "revert",
+    "producer": "internal/component/bfd/auth/simple.go::Sign",
+    "producer-sha": "deffee9759ba1458",
+    "break": "body of Sign replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

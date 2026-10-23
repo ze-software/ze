@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: a sender meaning to send one Link-Local address writes a field other than 16 octets, or adds another address. TestLinkLocalOnlyNextHopFieldIsSixteenOctets builds the UPDATE through resolveNextHop and BuildUnicast and asserts assert.Len(field, 16) and that the field equals fe80::1 alone; either defect turns it red. The negative TestLinkLocalNextHopWithAGlobalIsNotSentAlone shows the 16-octet form is keyed on one address (32 octets when a Global is also sent).",
+  "requirement_sha": "933e18e1df1672f1",
+  "tests": {
+    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_send_test.go::TestLinkLocalNextHopWithAGlobalIsNotSentAlone": "972da5b60cad2ef0",
+    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_send_test.go::TestLinkLocalOnlyNextHopFieldIsSixteenOctets": "972da5b60cad2ef0"
+  },
+  "units": {
+    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_send_test.go::TestLinkLocalNextHopWithAGlobalIsNotSentAlone": "1e6c97deb3cf5f1c",
+    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_send_test.go::TestLinkLocalOnlyNextHopFieldIsSixteenOctets": "d06814d74bc447bc"
+  },
+  "verdict": "enforced"
+}

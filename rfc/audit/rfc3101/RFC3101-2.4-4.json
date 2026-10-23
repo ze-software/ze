@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged 2026-09-30 (OSPF judge, continuations 3+4): positives TestOSPFNSSABorderRouterDefaultsEveryArea (v4) and TestOSPFv3NSSABorderRouterOriginatesDefault (v6) assert the border router's Type-7 default is P-clear; negative TestRFC3101BorderRouterDefaultStaysPClearUnderPropagatingImport pushes every P-set trigger (NSSA default-originate plus a retained default import from an nssa-propagate source) and asserts applyNSSADefaults still installs the default P-clear. The misplaced install-rule negatives moved to RFC3101-2.5-1. Judge-run overlay mutants in applyNSSADefaults: ABR taking the internal-router propagate decision (line 152 'if !isABR' -> 'if true') reds the negative; 'propagate := true' reds both positives. Four stale 2.4-4 records remain for units that lost the tag (orphans, not gate-named).",
+  "requirement_sha": "5580f41ed54eeabb",
+  "tests": {
+    "internal/plugins/ospf/rfc3101_border_default_pbit_test.go::TestRFC3101BorderRouterDefaultStaysPClearUnderPropagatingImport": "fd88bfd481b29f72",
+    "internal/plugins/ospf/rfc3101_nssa_ac14_16_test.go::TestOSPFNSSABorderRouterDefaultsEveryArea": "49a610561289e458",
+    "internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go::TestOSPFv3NSSABorderRouterOriginatesDefault": "6e7d1420848b435e"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc3101_border_default_pbit_test.go::TestRFC3101BorderRouterDefaultStaysPClearUnderPropagatingImport": "e645ac7412a82308",
+    "internal/plugins/ospf/rfc3101_nssa_ac14_16_test.go::TestOSPFNSSABorderRouterDefaultsEveryArea": "eb4d5bf09d6bb264",
+    "internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go::TestOSPFv3NSSABorderRouterOriginatesDefault": "c90da797563d21c8"
+  },
+  "verdict": "enforced"
+}

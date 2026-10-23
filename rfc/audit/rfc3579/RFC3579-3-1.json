@@ -1,0 +1,15 @@
+{
+  "note": "Row now quotes the MUST clause only (SHOULD half is RFC3579-3-2, {gap}). + TestRadiusAdminEapAccessRequestNamesTheNAS and TestRadiusAdminEapNamesTheNASWithoutASourceAddress: every Access-Request of the EAP conversation carries a non-empty NAS-Identifier, with and without a source address (one of the three suffices). - TestRadiusAdminEapWithNoNASIdentityIsNotSent: nasID empty and no IPv4 source -> Authenticate errors 'no NAS identity' and the server receives zero requests; observed red against the pre-fix exchange, which sent a zero-length NAS-Identifier. Producer exchange (authenticator.go) refuses before sending; NAS-IPv6-Address is never sent, so an IPv6-only source with no NAS-Identifier is refused, which is conservative, not non-conformant. Records at exchange observed red for all three units.",
+  "requirement_sha": "bf24254bbc91edea",
+  "tests": {
+    "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapAccessRequestNamesTheNAS": "2b1b1ce908f454a5",
+    "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapNamesTheNASWithoutASourceAddress": "2b1b1ce908f454a5",
+    "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapWithNoNASIdentityIsNotSent": "2b1b1ce908f454a5"
+  },
+  "units": {
+    "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapAccessRequestNamesTheNAS": "34258572dcc17d7c",
+    "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapNamesTheNASWithoutASourceAddress": "425de593a5587668",
+    "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapWithNoNASIdentityIsNotSent": "9fbb16895a6f32b6"
+  },
+  "verdict": "enforced"
+}

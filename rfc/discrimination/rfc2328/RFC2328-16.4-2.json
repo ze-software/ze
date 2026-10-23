@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC2328-16.4-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/spf/rfc2328_external_test.go::TestOSPFExternalE1Cost",
+    "unit-sha": "c210176e1e6fdf2d",
+    "claim-sha": "708b81db133c3c7a",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/spf/external.go::ComputeExternalWith",
+    "producer-sha": "d1477a8fda3754a2",
+    "break": "body of ComputeExternalWith replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-16.4-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/spf/rfc2328_external_test.go::TestOSPFExternalLSInfinityDropped",
+    "unit-sha": "6515bc58fa507c12",
+    "claim-sha": "f68354170ba0409b",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/spf/external.go::v4ExternalReader",
+    "producer-sha": "9152222dc34a1c64",
+    "break": "body of v4ExternalReader replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-16.4-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/spf/rfc2328_test.go::TestRFC2328ExternalSkipsMaxAgeAndSelf",
+    "unit-sha": "e67aff878ae1014c",
+    "claim-sha": "875e725367f28adb",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/spf/external.go::ComputeExternalWith",
+    "producer-sha": "d1477a8fda3754a2",
+    "break": "body of ComputeExternalWith replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

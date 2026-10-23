@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged c18. Sentence: clear the field, sum, place the complement. TestRFC1071PacketChecksumClearedSummedAndComplemented encodes a Hello through Packet.WriteTo with a stale header Checksum 0xBEEF into a 0xA5-prefilled buffer and asserts the field equals the test's own RFC 1071 checksum (independent 64-bit fold, field cleared, auth excluded, complemented), equals the same packet encoded from a zero Checksum, and that the covered packet then folds to 0xFFFF. An encoder that skipped the clear (header.go WriteTo h.Checksum = 0) would sum 0xBEEF and go red; one that skipped the complement or placed nothing goes red on the independent value. Record breaks PacketChecksum (the sum/complement producer, checksum.go); the clear and the placement live in Packet.WriteTo, which the record tool cannot name because header.go holds three WriteTo, so their discrimination is argued from the assertions, not recorded. Old TestOSPFPacketChecksum (round-trip only) kept as supplementary. {single-polarity: positive} holds: a generate rule has no reject path; corruption detection is RFC1071-1-5.",
+  "requirement_sha": "b309a05cdec3045e",
+  "tests": {
+    "internal/plugins/ospf/packet/checksum_test.go::TestOSPFPacketChecksum": "8ac8573c092c7f1a",
+    "internal/plugins/ospf/packet/rfc1071_checksum_test.go::TestRFC1071PacketChecksumClearedSummedAndComplemented": "e33d335070dd836a"
+  },
+  "units": {
+    "internal/plugins/ospf/packet/checksum_test.go::TestOSPFPacketChecksum": "7a67bd5fa6cb3961",
+    "internal/plugins/ospf/packet/rfc1071_checksum_test.go::TestRFC1071PacketChecksumClearedSummedAndComplemented": "fd7de707aa0ed334"
+  },
+  "verdict": "enforced"
+}

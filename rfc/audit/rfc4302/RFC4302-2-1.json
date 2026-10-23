@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-09-30 (OSPF judge): stale only from a comment change in commit 29ecbbd4ef. TestIPsecSAProtocolNumber: ah SA Proto must be 51 (positive) and esp SA Proto 50, so a blanket-51 installer goes red (negative). Mutant records on ipsecProtoNumber (AH arm forced false / true) observed red. Ze's boundary is the SA protocol number; Linux XFRM writes the Next Header from it.",
+  "requirement_sha": "3ee48230b5a8dd1a",
+  "tests": {
+    "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAProtocolNumber": "976d07eeb9539b2b",
+    "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAProtocolNumber#2": "976d07eeb9539b2b"
+  },
+  "units": {
+    "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAProtocolNumber": "48e6e7401d9679b4",
+    "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAProtocolNumber#2": "48e6e7401d9679b4"
+  },
+  "verdict": "enforced"
+}

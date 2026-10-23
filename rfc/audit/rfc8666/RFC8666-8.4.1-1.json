@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged 2026-09-30 (continuation 6, judge): the weak finding (no FSM-driven withdrawal) is closed. TestRFC8666AdjSIDWithdrawnWhenFSMFallsBelowTwoWay drives an OSPFv3 neighbor to Full through the real table (Hello + DD), then a Hello not listing this router moves it to Init; the Adj-SID leaves the manager and the origination store, the E-Router-LSA body no longer carries it, and the mpls-fib pop entry is removed. Revert record on srAdjNeighborLost observed red. Negative: sr_origination_v6_test.go keeps the Adj-SID while the neighbor is up (pre-existing, unproven record). Setup nit: the test allocates the Adj-SID itself if Full did not, which weakens nothing about the withdrawal assertion.",
+  "requirement_sha": "c6013fe365987b92",
+  "tests": {
+    "internal/plugins/ospf/rfc8666_adjsid_fsm_test.go::TestRFC8666AdjSIDWithdrawnWhenFSMFallsBelowTwoWay": "ef61609c1154dc26",
+    "internal/plugins/ospf/rfc8666_sr_origination_v6_test.go::TestOSPFv3ERouterBodyCarriesAdjSID": "733eb39fb537c123",
+    "internal/plugins/ospf/rfc8666_test.go::TestRFC8666AdjSIDWithdrawnWhenAdjacencyDrops": "4729a15d3adeda26"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc8666_adjsid_fsm_test.go::TestRFC8666AdjSIDWithdrawnWhenFSMFallsBelowTwoWay": "81a5a6159f0e81fe",
+    "internal/plugins/ospf/rfc8666_sr_origination_v6_test.go::TestOSPFv3ERouterBodyCarriesAdjSID": "4af1af3c4a026316",
+    "internal/plugins/ospf/rfc8666_test.go::TestRFC8666AdjSIDWithdrawnWhenAdjacencyDrops": "b07bfcd1929996dc"
+  },
+  "verdict": "enforced"
+}

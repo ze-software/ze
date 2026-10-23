@@ -1,0 +1,13 @@
+{
+  "note": "TestRFC2516PADISessionIDIsZero asserts CODE 0x09 and SESSION_ID 0; the negative shows handlePADI drops a non-zero SESSION_ID PADI",
+  "requirement_sha": "0b7129b6a53e4b41",
+  "tests": {
+    "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516PADISessionIDIsZero": "e5818bbbd45fc77f",
+    "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516PADIWithNonZeroSessionIDIsDropped": "e5818bbbd45fc77f"
+  },
+  "units": {
+    "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516PADISessionIDIsZero": "3c773e814db864ce",
+    "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516PADIWithNonZeroSessionIDIsDropped": "0b95f51646936aa4"
+  },
+  "verdict": "enforced"
+}

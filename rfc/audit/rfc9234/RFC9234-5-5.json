@@ -1,0 +1,13 @@
+{
+  "note": "non-compliant: an OTC-carrying route sent to a Provider, Peer or RS. TestOTCEgressWireBytesCheck asserts OTCEgressFilter false for each of the three destinations with no source config, true for an OTC route to a Customer and for a no-OTC route to a Provider",
+  "requirement_sha": "041f5055e7ddc27a",
+  "tests": {
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressWireBytesCheck": "7b0a9e434ba435f3",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressWireBytesCheck#2": "7b0a9e434ba435f3"
+  },
+  "units": {
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressWireBytesCheck": "e23814d1392c7383",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressWireBytesCheck#2": "e23814d1392c7383"
+  },
+  "verdict": "enforced"
+}

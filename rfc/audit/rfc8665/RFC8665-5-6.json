@@ -1,0 +1,25 @@
+{
+  "note": "Re-judged 2026-09-29 (independent judge). The second reader is now covered: TestRFC8665TILFAIgnoresDuplicatePrefixSIDs drives srTILFAResolver.PrefixSIDLabel with an absolute-label SID (no SRGB needed), resolves 20009 for one Prefix-SID and nothing once the same router advertises a second one for the same prefix, topology and algorithm; removing the Duplicate skip reddens it (records on PrefixSIDLabel). Installer proofs and per-(area,router,prefix,MT-ID,algorithm) scoping stand. A mixed case (one router repeating, another advertising once) is still not driven; the 2026-09-27 audit recorded that the positive scoping cases go red when the router key or the per-(area,router) count is dropped, which bounds that risk.",
+  "requirement_sha": "38e20074a240d858",
+  "tests": {
+    "internal/plugins/ospf/rfc8665_ext_malformed_test.go::TestRFC8665PrefixSIDsOfDifferentAlgorithmsNotDuplicate": "ef2971c9ee845d41",
+    "internal/plugins/ospf/rfc8665_ext_malformed_test.go::TestRFC8665PrefixSIDsOfDifferentAlgorithmsNotDuplicate#2": "ef2971c9ee845d41",
+    "internal/plugins/ospf/rfc8665_test.go::TestRFC8665DuplicatePrefixSIDsAllIgnored": "7f2eeb6dac97643c",
+    "internal/plugins/ospf/rfc8665_test.go::TestRFC8665PrefixSIDInstalledWhenAlgorithmAdvertised": "7f2eeb6dac97643c",
+    "internal/plugins/ospf/rfc8665_tilfa_duplicate_test.go::TestRFC8665TILFAIgnoresDuplicatePrefixSIDs": "1baa9102a5482995",
+    "internal/plugins/ospf/rfc8665_tilfa_duplicate_test.go::TestRFC8665TILFAIgnoresDuplicatePrefixSIDs#2": "1baa9102a5482995",
+    "internal/plugins/ospf/sr_prefix_sid_per_router_test.go::TestRFC8665OneRouterMultiplePrefixSIDsAllIgnored": "4dc005b115e8b238",
+    "internal/plugins/ospf/sr_prefix_sid_per_router_test.go::TestRFC8665OneRouterMultiplePrefixSIDsAllIgnored#2": "4dc005b115e8b238"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc8665_ext_malformed_test.go::TestRFC8665PrefixSIDsOfDifferentAlgorithmsNotDuplicate": "8ddbadd17b9e59cb",
+    "internal/plugins/ospf/rfc8665_ext_malformed_test.go::TestRFC8665PrefixSIDsOfDifferentAlgorithmsNotDuplicate#2": "8ddbadd17b9e59cb",
+    "internal/plugins/ospf/rfc8665_test.go::TestRFC8665DuplicatePrefixSIDsAllIgnored": "f3d8fe750c1b1b6c",
+    "internal/plugins/ospf/rfc8665_test.go::TestRFC8665PrefixSIDInstalledWhenAlgorithmAdvertised": "6f7ee6897ce94b04",
+    "internal/plugins/ospf/rfc8665_tilfa_duplicate_test.go::TestRFC8665TILFAIgnoresDuplicatePrefixSIDs": "6592472bc05bcfff",
+    "internal/plugins/ospf/rfc8665_tilfa_duplicate_test.go::TestRFC8665TILFAIgnoresDuplicatePrefixSIDs#2": "6592472bc05bcfff",
+    "internal/plugins/ospf/sr_prefix_sid_per_router_test.go::TestRFC8665OneRouterMultiplePrefixSIDsAllIgnored": "6c0841a259f20766",
+    "internal/plugins/ospf/sr_prefix_sid_per_router_test.go::TestRFC8665OneRouterMultiplePrefixSIDsAllIgnored#2": "6c0841a259f20766"
+  },
+  "verdict": "enforced"
+}

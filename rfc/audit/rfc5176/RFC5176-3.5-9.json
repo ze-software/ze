@@ -1,0 +1,13 @@
+{
+  "note": "Judge 2026-09-30 (access cont 10, independent). D-8 fixed here: handleDisconnect sent 503 (Session Context Not Found) for a located session whose teardown failed; it now sends 504 (radius.ErrorCauseSessionNotRemovable), also on the PPPoE not-wired branch (producer read). + TestRFC5176SessionNotRemovableOnlyInADisconnectNAK: the teardown-refused Disconnect path answers Disconnect-NAK [504] and no CoA-ACK, CoA-NAK or Disconnect-ACK on any path carries 504. - TestRFC5176SessionNotRemovableNeverInACoANAK: injected 504 never echoed; an undeliverable CoA gets CoA-NAK 506, never 504. Records observed red (handleDisconnect, handleCoA). Residual not proven here: the svc==nil branch after a found session still answers 503.",
+  "requirement_sha": "6352c3926d6a3a8e",
+  "tests": {
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176SessionNotRemovableNeverInACoANAK": "9b6dfc18b62099d5",
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176SessionNotRemovableOnlyInADisconnectNAK": "9b6dfc18b62099d5"
+  },
+  "units": {
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176SessionNotRemovableNeverInACoANAK": "2864a73fb2d14529",
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176SessionNotRemovableOnlyInADisconnectNAK": "6f5488fc32fc0a39"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,25 @@
+{
+  "note": "Row quotes the Section 3.3.3 span: the understand-all-types sentence and the IKE line (ENCR, PRF, INTEG*, D-H). IKE line through the responder's selection (wireProposalsToIKE + crypto.NegotiateIKE): a complete proposal is chosen and an AES-GCM proposal without INTEG is chosen with integrity NONE (TestRFC7296PeerIKEProposalWithTheMandatoryTypesIsAccepted); proposals missing ENCR or INTEG draw ErrProposalIncomplete and one missing D-H draws ErrDHGroupNone (TestRFC7296PeerIKEProposalMissingAMandatoryTypeIsRefused); missing PRF draws ErrNoProposalChosen (TestIKEWireProposalHasAllTransforms). TestResponderRequiresKEForDH proves the KE payload, a neighbour. Re-judged 2026-09-30 (leftovers): the weak finding (understand-every-type clause unproven under this id) is closed by tagging TestTftUnknownTransformTypeMakesProposalUnacceptable: positive, a wire IKE proposal of ENCR, PRF, INTEG and D-H is converted and accepted, so every IKE-line type is understood (an ununderstood one would mark the proposal unacceptable); negative, the same proposal plus an unassigned type 6 or an ESN transform is refused with ErrNoProposalChosen, which shows the understood predicate is what admits the four. The negative is the table-bound side (shared with RFC7296-3.3.3-1 and 3.3.6-4); the missing-type negatives above remain this row's direct violations. Records: TransformTypeUnderstoodIKE panic revert observed red both polarities. Judge ran the unit: PASS.",
+  "requirement_sha": "8057d3405db4009b",
+  "tests": {
+    "internal/component/ike/engine/rfc7296_proposal_mandatory_test.go::TestRFC7296PeerIKEProposalMissingAMandatoryTypeIsRefused": "ec6adab8b8441718",
+    "internal/component/ike/engine/rfc7296_proposal_mandatory_test.go::TestRFC7296PeerIKEProposalWithTheMandatoryTypesIsAccepted": "ec6adab8b8441718",
+    "internal/component/ike/engine/rfc7296_test.go::TestIKEWireProposalHasAllTransforms": "e032382b6fba7977",
+    "internal/component/ike/engine/rfc7296_test.go::TestIKEWireProposalHasAllTransforms#2": "e032382b6fba7977",
+    "internal/component/ike/engine/rfc7296_test.go::TestResponderRequiresKEForDH": "e032382b6fba7977",
+    "internal/component/ike/engine/rfc7296_test.go::TestResponderRequiresKEForDH#2": "e032382b6fba7977",
+    "internal/component/ike/engine/rfc7296_transformtype_test.go::TestTftUnknownTransformTypeMakesProposalUnacceptable": "c6f9e1efcdc6b0c3",
+    "internal/component/ike/engine/rfc7296_transformtype_test.go::TestTftUnknownTransformTypeMakesProposalUnacceptable#2": "c6f9e1efcdc6b0c3"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7296_proposal_mandatory_test.go::TestRFC7296PeerIKEProposalMissingAMandatoryTypeIsRefused": "5961576dc40f0d93",
+    "internal/component/ike/engine/rfc7296_proposal_mandatory_test.go::TestRFC7296PeerIKEProposalWithTheMandatoryTypesIsAccepted": "d319bc77c62477d4",
+    "internal/component/ike/engine/rfc7296_test.go::TestIKEWireProposalHasAllTransforms": "6cd078090f25af90",
+    "internal/component/ike/engine/rfc7296_test.go::TestIKEWireProposalHasAllTransforms#2": "6cd078090f25af90",
+    "internal/component/ike/engine/rfc7296_test.go::TestResponderRequiresKEForDH": "9150a5e7ed60264f",
+    "internal/component/ike/engine/rfc7296_test.go::TestResponderRequiresKEForDH#2": "9150a5e7ed60264f",
+    "internal/component/ike/engine/rfc7296_transformtype_test.go::TestTftUnknownTransformTypeMakesProposalUnacceptable": "7e5e0ddfaf77e91c",
+    "internal/component/ike/engine/rfc7296_transformtype_test.go::TestTftUnknownTransformTypeMakesProposalUnacceptable#2": "7e5e0ddfaf77e91c"
+  },
+  "verdict": "enforced"
+}

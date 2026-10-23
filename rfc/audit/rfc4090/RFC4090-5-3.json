@@ -1,0 +1,13 @@
+{
+  "note": "head-end accepts a RESV whose RRO subobject carries all four flags (0x0F) or none, LSP goes Up and flags stored as received Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 5 and the enforced verdict holds unchanged.",
+  "requirement_sha": "513905d98b5057b3",
+  "tests": {
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090HeadEndAcceptsRROProtectionFlags": "3fb9184431da8daf",
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090HeadEndAcceptsRROProtectionFlags#2": "3fb9184431da8daf"
+  },
+  "units": {
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090HeadEndAcceptsRROProtectionFlags": "009ec2a6e7fe38e0",
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090HeadEndAcceptsRROProtectionFlags#2": "009ec2a6e7fe38e0"
+  },
+  "verdict": "enforced"
+}

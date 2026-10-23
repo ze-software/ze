@@ -1,0 +1,58 @@
+[
+  {
+    "rid": "RFC9252-5-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rib/rfc9252_srv6_admission_test.go::TestIsSRv6Ineligible_InvalidSIDStructure",
+    "unit-sha": "37d57d4fb9378275",
+    "claim-sha": "ee28bbde3bb90a28",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::isSRv6Ineligible",
+    "producer-sha": "d1f15612beac651f",
+    "break": "body of isSRv6Ineligible replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9252-5-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/rfc9252_srv6_admission_test.go::TestSRv6TranspositionAtLabelWidthIsEligible",
+    "unit-sha": "130d2055b9205e4f",
+    "claim-sha": "63aecb5105c72a22",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::isSRv6Ineligible",
+    "producer-sha": "d1f15612beac651f",
+    "break": "body of isSRv6Ineligible replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9252-5-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/rfc9252_srv6_ineligible_test.go::TestIsSRv6Ineligible_ValidSID",
+    "unit-sha": "f964b7a37a3326b0",
+    "claim-sha": "f352c36194a76554",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::isSRv6Ineligible",
+    "producer-sha": "d1f15612beac651f",
+    "break": "body of isSRv6Ineligible replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9252-5-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rib/rfc9252_srv6_transposition_test.go::TestSRv6TranspositionWiderThanLabelFieldIsIneligible",
+    "unit-sha": "91f2cc6d2f2079c3",
+    "claim-sha": "0d7dd43cc55ed5d5",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::isSRv6Ineligible",
+    "producer-sha": "d1f15612beac651f",
+    "break": "body of isSRv6Ineligible replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9252-5-1",
+    "polarity": "negative",
+    "unit": "test/plugin/srv6-invalid-sid-ineligible.ci",
+    "unit-sha": "858eb152f8d00da5",
+    "claim-sha": "17e42e6e256e1b4d",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::isSRv6Ineligible",
+    "producer-sha": "d1f15612beac651f",
+    "break": "body of isSRv6Ineligible replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+    "citation": "expect=stderr:contains=OK: srv6 ineligible: of three stored paths only P3 is selected"
+  }
+]

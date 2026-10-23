@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC1661-5.5-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661TerminateAckSentAndLinkHeld",
+    "unit-sha": "de13536514d9a1e2",
+    "claim-sha": "2a91b5ae102d4a72",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/session_run.go::sendTerminateAck",
+    "producer-sha": "904bcf80544e6bf8",
+    "break": "body of sendTerminateAck replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,21 @@
+{
+  "note": "Re-judged 2026-10-12 (independent auditor) after 37dbe54095, where the authenticator with resumption on installs redeemTLS13Only (resumption.go), which refuses every TLS 1.2 ticket. This unit is byte-identical; the file around it changed. Its helpers (tls12Exchange, fullTLS12Flights) gained a tune argument passed as nil to driveTunedEAPTLSFlight, which driveEAPTLSFlight itself calls with nil, and fresh stores offer no ticket, so the producer change never runs here. Verdict stands. Re-judged 2026-09-30 after the D-8 peer certificate fix (answerCertificateRequest). Server clause now exercised with a real intermediate: TestRFC5216ServerSendsItsIntermediateButNotTheRoot configures leaf+intermediate under the peer's root and reads the certificate message off the wire: exactly [leaf, intermediate], the root absent (the root is also the authenticator's ClientCAs anchor, so a server appending its pool would fail), peer validates and reaches EAP-Success. Negative (R1 a): TestRFC5216PeerRefusesAServerChainMissingItsIntermediate puts [leaf] alone on the wire and the peer refuses with x509.UnknownAuthorityError, never concluding. Peer clause also by TestEAPTLSPeerRejectsUntrustedServerChain and TestEAPTLSPeerWithoutCARefusesToStart (record re-observed on the changed startTLSClient). Limit named: Ze sends the chain the operator configures; it does not strip a configured root nor complete a leaf-only configuration, so the minus-the-root property rests on the configured chain.",
+  "requirement_sha": "7c0df425b052cea6",
+  "tests": {
+    "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "24154b07f453f130",
+    "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSPeerRejectsUntrustedServerChain": "24154b07f453f130",
+    "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSPeerWithoutCARefusesToStart": "24154b07f453f130",
+    "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216ServerSendsItsChainWithoutTheRoot": "07752e8e18f47c94",
+    "internal/core/eap/rfc5216_server_chain_test.go::TestRFC5216PeerRefusesAServerChainMissingItsIntermediate": "3f3d4fd3f9006191",
+    "internal/core/eap/rfc5216_server_chain_test.go::TestRFC5216ServerSendsItsIntermediateButNotTheRoot": "3f3d4fd3f9006191"
+  },
+  "units": {
+    "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "0b6c374cdbde2cae",
+    "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSPeerRejectsUntrustedServerChain": "d1ccf6928aa1e0a1",
+    "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSPeerWithoutCARefusesToStart": "5f1e66590b7448d1",
+    "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216ServerSendsItsChainWithoutTheRoot": "b059f88ccf09695d",
+    "internal/core/eap/rfc5216_server_chain_test.go::TestRFC5216PeerRefusesAServerChainMissingItsIntermediate": "7cfccd073c625b00",
+    "internal/core/eap/rfc5216_server_chain_test.go::TestRFC5216ServerSendsItsIntermediateButNotTheRoot": "46ac10e5f6cccc9d"
+  },
+  "verdict": "enforced"
+}

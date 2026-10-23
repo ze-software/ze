@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 9568 Section 7.1 says \"It MUST verify the VRRP checksum.\" TestDecodeVerifiesChecksumBothFamilies lost only the assertion on the removed MsgOnlyChecksum flag; it still accepts the message-only IPv4 golden and the IPv6 golden under the default mode and refuses a flipped checksum bit in each family with ErrChecksum. An overlay mutant that made the default mode sum the IPv4 pseudo-header reddened it. Verdict unchanged.",
+  "requirement_sha": "8dd6734b9174d6f3",
+  "tests": {
+    "internal/plugins/vrrp/packet/rfc_rx_verdict_test.go::TestDecodeVerifiesChecksumBothFamilies": "42ac89061f52b9ae",
+    "internal/plugins/vrrp/packet/rfc_rx_verdict_test.go::TestDecodeVerifiesChecksumBothFamilies#2": "42ac89061f52b9ae",
+    "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv6": "5bbc8ddba98cd418",
+    "internal/plugins/vrrp/packet/validate_test.go::TestDecodeV3IPv6ChecksumAndHopLimit": "5bbc8ddba98cd418"
+  },
+  "units": {
+    "internal/plugins/vrrp/packet/rfc_rx_verdict_test.go::TestDecodeVerifiesChecksumBothFamilies": "710180e3ab79e8f2",
+    "internal/plugins/vrrp/packet/rfc_rx_verdict_test.go::TestDecodeVerifiesChecksumBothFamilies#2": "710180e3ab79e8f2",
+    "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv6": "2a54600c4cbf442d",
+    "internal/plugins/vrrp/packet/validate_test.go::TestDecodeV3IPv6ChecksumAndHopLimit": "2e3e761c5e3df207"
+  },
+  "verdict": "enforced"
+}

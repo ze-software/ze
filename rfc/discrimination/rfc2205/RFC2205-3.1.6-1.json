@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2205-3.1.6-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205ResvTearScopeNotObeyed",
+    "unit-sha": "cfd92c13338cfe39",
+    "claim-sha": "37cfeec609b806c4",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/reservation.go::handleResvTear",
+    "producer-sha": "8e5ad9b57ffef3db",
+    "break": "body of handleResvTear replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2205-3.1.6-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205ResvTearWithScopeTearsDown",
+    "unit-sha": "d8bf00c7dee7622d",
+    "claim-sha": "d7a3a33d7ca7d097",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/reservation.go::handleResvTear",
+    "producer-sha": "8e5ad9b57ffef3db",
+    "break": "body of handleResvTear replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

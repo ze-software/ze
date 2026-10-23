@@ -1,0 +1,17 @@
+{
+  "note": "Rejudged 2026-10-21 over the current tags, units and records. Strengthened: both positives now assert the literal label 0 (the '(0 for IPv4)' clause) rather than ExplicitNullV4 against itself, at the sr codec and through the installer push toward the originator. The negatives push 16009, never 0, with E clear.",
+  "requirement_sha": "a25fd316fa1c7fd9",
+  "tests": {
+    "internal/plugins/ospf/rfc8665_explicit_null_label_test.go::TestRFC8665ExplicitNullPushedAsLabelZero": "321dd3b6715b9f86",
+    "internal/plugins/ospf/rfc8665_explicit_null_label_test.go::TestRFC8665NoExplicitNullWithoutEFlag": "321dd3b6715b9f86",
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665ExplicitNullReplacesPrefixSID": "dcc89abea6ba13ce",
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665NoPHPKeepsPrefixSIDLabel": "dcc89abea6ba13ce"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc8665_explicit_null_label_test.go::TestRFC8665ExplicitNullPushedAsLabelZero": "7b619330b57b3ea6",
+    "internal/plugins/ospf/rfc8665_explicit_null_label_test.go::TestRFC8665NoExplicitNullWithoutEFlag": "afa359527626375f",
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665ExplicitNullReplacesPrefixSID": "91f028433fb53896",
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665NoPHPKeepsPrefixSIDLabel": "444536801c4546bd"
+  },
+  "verdict": "enforced"
+}

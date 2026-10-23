@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: a reissued Authenticate-Request carrying the previous Identifier. TestClientPAPRetriesUntilMatchingReply lets the first request go unanswered, advances the production retry timer, and asserts packets[0].Identifier != packets[1].Identifier with the credentials unchanged; the negative half asserts no third request after the matching Ack.",
+  "requirement_sha": "d8ed39810ec9c589",
+  "tests": {
+    "internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go::TestClientPAPRetriesUntilMatchingReply": "6868de7d83650d56",
+    "internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go::TestClientPAPRetriesUntilMatchingReply#2": "6868de7d83650d56"
+  },
+  "units": {
+    "internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go::TestClientPAPRetriesUntilMatchingReply": "de79106e38a6b1d8",
+    "internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go::TestClientPAPRetriesUntilMatchingReply#2": "de79106e38a6b1d8"
+  },
+  "verdict": "enforced"
+}

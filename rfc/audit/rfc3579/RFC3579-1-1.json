@@ -1,0 +1,17 @@
+{
+  "note": "+ TestRFC3579EAPAttributesServeALiveEAPMethod: the NAS that implements EAP-Message offers EAP (admin login, auth-method eap-mschapv2 completes, every Access-Request carries EAP-Message; red when authenticateEAP is disabled). - TestRFC3579SubscriberNASRefusesEAPMessage: the L2TP subscriber NAS, which offers PPP peers no EAP, answers CoA-Request and Disconnect-Request carrying EAP-Message with NAK Error-Cause 401, no event, no teardown; adding EAP-Message to coaSupportedAttrs/disconnectSupportedAttrs turns it red (recorded at coa.go unsupportedAttr). The older dictionary units stay as declaration-only supplementary tags.",
+  "requirement_sha": "aad6c53c7b5fd4f1",
+  "tests": {
+    "internal/component/l2tp/plugins/authradius/rfc5176_proxy_state_opaque_test.go::TestRFC3579SubscriberNASRefusesEAPMessage": "b439fffbe386e859",
+    "internal/component/radius/rfc2869_unoffered_service_attributes_test.go::TestRFC2869DictionaryCoversTheServicesZeOffers": "5f2ad3bca62785d7",
+    "internal/component/radius/rfc2869_unoffered_service_attributes_test.go::TestRFC2869DictionaryDeclaresNoAttributeForAnUnofferedService": "5f2ad3bca62785d7",
+    "internal/component/radius/rfc3579_nas_obligations_test.go::TestRFC3579EAPAttributesServeALiveEAPMethod": "2b1b1ce908f454a5"
+  },
+  "units": {
+    "internal/component/l2tp/plugins/authradius/rfc5176_proxy_state_opaque_test.go::TestRFC3579SubscriberNASRefusesEAPMessage": "d459dfd5f3a5c539",
+    "internal/component/radius/rfc2869_unoffered_service_attributes_test.go::TestRFC2869DictionaryCoversTheServicesZeOffers": "987750fa14bb745b",
+    "internal/component/radius/rfc2869_unoffered_service_attributes_test.go::TestRFC2869DictionaryDeclaresNoAttributeForAnUnofferedService": "4e59f2261d508766",
+    "internal/component/radius/rfc3579_nas_obligations_test.go::TestRFC3579EAPAttributesServeALiveEAPMethod": "c8803292d52bcf96"
+  },
+  "verdict": "enforced"
+}

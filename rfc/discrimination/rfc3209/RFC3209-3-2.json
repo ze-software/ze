@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC3209-3-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/wire_rfc3209_test.go::TestRFC3209ObjectsAcceptedInAnyOrder",
+    "unit-sha": "721ec9843999a3d3",
+    "claim-sha": "14ef90e4c9738189",
+    "route": "mutant",
+    "producer": "internal/plugins/rsvpte/message_validation.go::objectAllowed",
+    "producer-sha": "a4c136176ea4960b",
+    "break": "line 45: \"==\" -\u003e \"!=\""
+  }
+]

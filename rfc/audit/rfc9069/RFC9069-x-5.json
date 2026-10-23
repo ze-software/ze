@@ -1,0 +1,11 @@
+{
+  "note": "Forbidden: a non-zero Peer Address on the Loc-RIB header. internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBPeerHeader: ph.Address != [16]byte{} is Errorf. Single-polarity marker.",
+  "requirement_sha": "688398ffbc45c9e1",
+  "tests": {
+    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeader": "0d66046a7112fdb8"
+  },
+  "units": {
+    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeader": "ae73890fff201115"
+  },
+  "verdict": "enforced"
+}

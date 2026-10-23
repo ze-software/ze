@@ -1,0 +1,13 @@
+{
+  "note": "On non-ATM/non-Frame-Relay sessions, InitProposesDownstreamUnsolicited pins A=0 in the sent Common Session Parameters. InitOnDemandProposalKeepsDownstreamUnsolicited constructs A=1, confirms decoding, processes Initialization plus peer KeepAlive, requires Operational and strict timeout-only silence, then successfully sends and reads an unsolicited Mapping. handleInit retains Downstream Unsolicited regardless of peer A, and runSession advertises local bindings without a request.",
+  "requirement_sha": "30726a109fcbc895",
+  "tests": {
+    "internal/plugins/ldp/rfc5036_sessionparams_test.go::TestRFC5036InitOnDemandProposalKeepsDownstreamUnsolicited": "c0aa8fdb104978d5",
+    "internal/plugins/ldp/rfc5036_sessionparams_test.go::TestRFC5036InitProposesDownstreamUnsolicited": "c0aa8fdb104978d5"
+  },
+  "units": {
+    "internal/plugins/ldp/rfc5036_sessionparams_test.go::TestRFC5036InitOnDemandProposalKeepsDownstreamUnsolicited": "1f1213aa626ca766",
+    "internal/plugins/ldp/rfc5036_sessionparams_test.go::TestRFC5036InitProposesDownstreamUnsolicited": "a0aa10f672328674"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5282-3-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADReceiveAcceptsAnyPaddingTo255",
+    "unit-sha": "f24830c58684953a",
+    "claim-sha": "41d822aa86b02f98",
+    "route": "revert",
+    "producer": "internal/component/ike/wire/chain.go::ParsePayloadChain",
+    "producer-sha": "7c2c409ea595c65c",
+    "break": "body of ParsePayloadChain replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5282-3-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADReceiveRefusesATruncatedInnerPayload",
+    "unit-sha": "cd968ae308a2ed30",
+    "claim-sha": "bbecd6458c1fb600",
+    "route": "revert",
+    "producer": "internal/component/ike/wire/chain.go::ParsePayloadChain",
+    "producer-sha": "7c2c409ea595c65c",
+    "break": "body of ParsePayloadChain replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,19 @@
+{
+  "note": "Every Section 6.1 error class is now driven through a running Peer's real read path in OpenSent and each answer is asserted as exactly one NOTIFICATION with Error Code 1 before EOF: marker all zeros / one 0xFE octet (1/1), Length 18 and 0 (1/2), Length 4097 and the OPEN 28 / UPDATE 22 / KEEPALIVE 20 / NOTIFICATION 20 per-type minima (1/2), Type 99 (1/3). Negatives: a well-formed OPEN in OpenSent, and a KEEPALIVE of 19 plus an UPDATE of 23 in Established, draw no NOTIFICATION and keep the connection. Records observed red: notifyHeaderErr, ValidateLengthWithMax, handleUnknownType (positives); handleOpen, handleUpdate (negatives). Re-read 2026-10-01 (c10 judge): the only change under this verdict is a tag comment line for another id (RFC4271-6.7-1 / RFC4271-Security-1 added, RFC4271-9.1.2.1-1 removed) in the unit's doc comment; every assertion is byte-identical, so the judgement stands.",
+  "requirement_sha": "8bf1bed74edcdf0b",
+  "tests": {
+    "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271MessageHeaderAtTheBoundsIsAccepted": "fec6a921b0bf494e",
+    "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271MessageHeaderBadLengthIsReported": "fec6a921b0bf494e",
+    "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271MessageHeaderErrorIsReported": "fec6a921b0bf494e",
+    "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271UnknownMessageTypeIsReported": "fec6a921b0bf494e",
+    "internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go::TestRFC4271OpenSentWellFormedOpenKeepsTheConnection": "56ab87e3b9f2067a"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271MessageHeaderAtTheBoundsIsAccepted": "164149dbbe2bb723",
+    "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271MessageHeaderBadLengthIsReported": "b40715daad43f7f2",
+    "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271MessageHeaderErrorIsReported": "9bc76112384a3dc9",
+    "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271UnknownMessageTypeIsReported": "792ce391bb1cccf3",
+    "internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go::TestRFC4271OpenSentWellFormedOpenKeepsTheConnection": "401634b530ec6eaa"
+  },
+  "verdict": "enforced"
+}

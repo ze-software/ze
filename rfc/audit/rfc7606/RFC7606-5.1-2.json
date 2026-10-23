@@ -1,0 +1,37 @@
+{
+  "code": {
+    "internal/component/bgp/message/rfc7606_shape.go::MixesNLRIFields": "07982c6917dcea1b",
+    "internal/component/bgp/message/rfc7606_shape.go::NLRIBearingFieldCount": "6bb6affb7d265209",
+    "internal/component/bgp/message/update_split.go::SplitCompliant": "1b32028da99377eb",
+    "internal/component/bgp/reactor/session_write.go::writeOrdinaryUpdateBody": "927f98b290b940f9"
+  },
+  "note": "Re-judged 2026-10-19 (independent auditor, after 85deabdd81, 55cd171a3e, 610939d774). Section 5.1: \"An UPDATE message MUST NOT contain more than one of the following: non-empty Withdrawn Routes field, non-empty Network Layer Reachability Information field, MP_REACH_NLRI attribute, and MP_UNREACH_NLRI attribute.\" The residual recorded last time is closed: for an overridden body writeOrdinaryUpdateBody computes update.MixesNLRIFields() on the final body and sends a mixed one through Splitter.SplitCompliant (which splits on shape even when the UPDATE fits) instead of Splitter.Split; any trailing MP is moved first before the split. TestEgressOverrideSplitsMixedShape sends a fitting override carrying IPv4 NLRI plus a trailing MP_REACH (asserting it fits, so only shape can split it) and asserts exactly two UPDATEs, each with NLRIBearingFieldCount == 1, the IPv4 one carrying exactly 10.0.0.0/24, the other leading with MP_REACH, and both seen; the claim states exactly that. Mutant record session_write.go:604 'mixed' -> 'false' (Split emits the fitting body whole). Cost: the shape walk runs only when overridden; Ze's own composed bodies keep the zero-walk path. 55cd171a3e and 610939d774 touch no 5.1-2 unit or producer. All tagged units pass at HEAD; ./le rfc check reports no unverified 5.1-2 record. Residual, not reachable in product: Session.SendAnnounce writes a filter override raw without SplitCompliant, but Peer.SendAnnounce, its only caller, has no non-test caller.",
+  "requirement_sha": "3233413f6055604c",
+  "tests": {
+    "internal/component/bgp/message/rfc7606_shape_test.go::TestNLRIBearingFieldCountEveryCombination": "aa45d556639c54f3",
+    "internal/component/bgp/message/rfc7606_shape_test.go::TestSplitCompliantPassesThroughCompliantUpdate": "aa45d556639c54f3",
+    "internal/component/bgp/message/rfc7606_shape_test.go::TestSplitCompliantSplitsMixedUpdateThatFits": "aa45d556639c54f3",
+    "internal/component/bgp/reactor/rfc7606_egress_override_shape_test.go::TestEgressOverrideSplitsMixedShape": "2f449643b23dc981",
+    "internal/component/bgp/reactor/rfc7606_forward_body_test.go::TestForwardCompliantShapeKeepsZeroCopy": "9e24dda4092c3525",
+    "internal/component/bgp/reactor/rfc7606_forward_body_test.go::TestForwardSplitsMixedShapeAcrossContextsThatFits": "9e24dda4092c3525",
+    "internal/component/bgp/reactor/rfc7606_forward_body_test.go::TestForwardSplitsMixedShapeSameContextThatFits": "9e24dda4092c3525",
+    "internal/component/bgp/wireu/rfc7606_shape_test.go::TestSplitWireUpdateCompliantShapeUntouched": "416a192d23139e4d",
+    "internal/component/bgp/wireu/rfc7606_shape_test.go::TestSplitWireUpdateSplitsMixedShapeThatFits": "416a192d23139e4d",
+    "internal/component/bgp/wireu/rfc7606_split_eor_test.go::TestSplitWireUpdateDoesNotManufactureEoR": "af6e6610cb544b99",
+    "test/plugin/rfc7606-relay-one-field.ci": "67bb2a200311d324"
+  },
+  "units": {
+    "internal/component/bgp/message/rfc7606_shape_test.go::TestNLRIBearingFieldCountEveryCombination": "cee943d9f62d4134",
+    "internal/component/bgp/message/rfc7606_shape_test.go::TestSplitCompliantPassesThroughCompliantUpdate": "f6857f1bd3afab6d",
+    "internal/component/bgp/message/rfc7606_shape_test.go::TestSplitCompliantSplitsMixedUpdateThatFits": "862579068af37e54",
+    "internal/component/bgp/reactor/rfc7606_egress_override_shape_test.go::TestEgressOverrideSplitsMixedShape": "129ed466b36da18a",
+    "internal/component/bgp/reactor/rfc7606_forward_body_test.go::TestForwardCompliantShapeKeepsZeroCopy": "2a1a75ded4359259",
+    "internal/component/bgp/reactor/rfc7606_forward_body_test.go::TestForwardSplitsMixedShapeAcrossContextsThatFits": "ab46665a25e6daaf",
+    "internal/component/bgp/reactor/rfc7606_forward_body_test.go::TestForwardSplitsMixedShapeSameContextThatFits": "6f63d3c0b046f19f",
+    "internal/component/bgp/wireu/rfc7606_shape_test.go::TestSplitWireUpdateCompliantShapeUntouched": "23997f3825d6f88f",
+    "internal/component/bgp/wireu/rfc7606_shape_test.go::TestSplitWireUpdateSplitsMixedShapeThatFits": "2c77d524af9a9afc",
+    "internal/component/bgp/wireu/rfc7606_split_eor_test.go::TestSplitWireUpdateDoesNotManufactureEoR": "7df1c7da3cd9f958",
+    "test/plugin/rfc7606-relay-one-field.ci": "67bb2a200311d324"
+  },
+  "verdict": "enforced"
+}

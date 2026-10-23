@@ -1,0 +1,17 @@
+{
+  "note": "Independent FinalTunnelRejudgment retained this allocated obligation; Main read RFC9012 full text, session_tunnel_encap.go::applyTunnelEncap/tunnelTLVLayout/tunnelEndpointValid, tunnel_encap.go codec producers and the real consumer. RFC9012 \u00a74.3 requires the Color Extended Community Flags value not to change during propagation. Exact downstream equality includes Flags0x3fa5, not merely the Color Value, through default export and MED rebuilding. ParseExtendedCommunities and ExtendedCommunities.WriteTo copy all eight octets; actual zero/nonzero Flags round trips supplement the consumer. Origination is not credited. Actual consumer: internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong and teForwardedAttrs drive Session.processMessage, cache publication, ForwardUpdate, worker/socket output and downstream Session receipt. These are two cached export modes, not an independently exercised reactor-native RS rail; no absent attribute-driven tunnel-selection feature is credited.",
+  "requirement_sha": "84129cf9ea571f0d",
+  "tests": {
+    "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "8e898ec9c074ca2b",
+    "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "8e898ec9c074ca2b",
+    "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012ColorExtendedCommunityUnchangedOnPropagation": "e8576a1ee12543a9",
+    "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012ColorExtendedCommunityUnchangedOnPropagation#2": "e8576a1ee12543a9"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "4331bc08d9c40b95",
+    "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "4331bc08d9c40b95",
+    "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012ColorExtendedCommunityUnchangedOnPropagation": "ae1ecb8043b4023b",
+    "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012ColorExtendedCommunityUnchangedOnPropagation#2": "ae1ecb8043b4023b"
+  },
+  "verdict": "enforced"
+}

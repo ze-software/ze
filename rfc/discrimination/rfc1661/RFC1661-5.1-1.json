@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC1661-5.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661OpenTransmitsConfigureRequestOnWire",
+    "unit-sha": "80d0a05714d2e0a2",
+    "claim-sha": "fa4e5b46a81bcb15",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/session_run.go::applyTransition",
+    "producer-sha": "94f956eaeb9d24ca",
+    "break": "body of applyTransition replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1661-5.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661OpenTransmitsConfigureRequestOnWire",
+    "unit-sha": "80d0a05714d2e0a2",
+    "claim-sha": "cf3dda1829c0d237",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/session_run.go::performAction",
+    "producer-sha": "8d94a576652f2b4d",
+    "break": "body of performAction replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1661-5.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661OpenTransmitsConfigureRequest",
+    "unit-sha": "24ad46d6d51c2b3d",
+    "claim-sha": "a7786cc776750b1b",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/ppp_fsm.go::LCPDoTransition",
+    "producer-sha": "796174bb0f8b3d29",
+    "break": "body of LCPDoTransition replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1661-5.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661UpWithoutOpenSendsNoConfigureRequest",
+    "unit-sha": "0ef69e8c3d0903a8",
+    "claim-sha": "667c522c13a51ee0",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/ppp_fsm.go::LCPDoTransition",
+    "producer-sha": "796174bb0f8b3d29",
+    "break": "body of LCPDoTransition replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

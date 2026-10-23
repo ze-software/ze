@@ -1,0 +1,13 @@
+{
+  "note": "every engine-built message has X bits clear; I and R observed so the mask is not vacuous",
+  "requirement_sha": "a83889dde379df73",
+  "tests": {
+    "internal/component/ike/engine/rfc7296_header_test.go::TestBuiltMessagesClearXAndVBits": "3621c3a699e1b772",
+    "internal/component/ike/engine/rfc7296_header_test.go::TestBuiltMessagesClearXAndVBits#2": "3621c3a699e1b772"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7296_header_test.go::TestBuiltMessagesClearXAndVBits": "12fb263d700767ed",
+    "internal/component/ike/engine/rfc7296_header_test.go::TestBuiltMessagesClearXAndVBits#2": "12fb263d700767ed"
+  },
+  "verdict": "enforced"
+}

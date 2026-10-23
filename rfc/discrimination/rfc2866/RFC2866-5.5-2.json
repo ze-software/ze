@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC2866-5.5-2",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc2866_acct_lifetime_test.go::TestAccountingAddressFamiliesShareLifetime",
+    "unit-sha": "f3258b7f77d9ba1c",
+    "claim-sha": "fb1982ee343d021e",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authradius/acct.go::onSessionIPAssigned",
+    "producer-sha": "253e901268d65011",
+    "break": "body of onSessionIPAssigned replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

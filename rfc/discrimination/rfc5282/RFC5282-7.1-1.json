@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC5282-7.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/crypto/rfc5282_aead_test.go::TestRFC5282AEADIntegrityKeysAreZeroOctets",
+    "unit-sha": "6e8e35c552cdca35",
+    "claim-sha": "aca428410885839c",
+    "route": "revert",
+    "producer": "internal/component/ike/crypto/keys.go::DeriveSKKeys",
+    "producer-sha": "2312053627bc0bcf",
+    "break": "body of DeriveSKKeys replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5282-7.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/crypto/rfc5282_aead_test.go::TestRFC5282NonAEADIntegrityKeysAreDerived",
+    "unit-sha": "fcaeabdfae0ecc4f",
+    "claim-sha": "30f0bc3332e4409e",
+    "route": "revert",
+    "producer": "internal/component/ike/crypto/keys.go::DeriveSKKeys",
+    "producer-sha": "2312053627bc0bcf",
+    "break": "body of DeriveSKKeys replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5282-7.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/crypto/rfc5282_ccm_keys_test.go::TestRFC5282CCMIntegrityKeysAreZeroOctets",
+    "unit-sha": "af1553ca2d816274",
+    "claim-sha": "d48e0449a394e231",
+    "route": "revert",
+    "producer": "internal/component/ike/crypto/keys.go::DeriveSKKeys",
+    "producer-sha": "2312053627bc0bcf",
+    "break": "body of DeriveSKKeys replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

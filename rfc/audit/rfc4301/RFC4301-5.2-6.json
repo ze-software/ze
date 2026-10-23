@@ -1,0 +1,13 @@
+{
+  "note": "Step 3a SAD lookup of an ESP packet addressed to Ze. Positive: ESP on the Child SA inbound SPI, sealed with the kernel key around an inner packet inside the selectors, is delivered with XfrmInNoStates and XfrmInStateProtoError unchanged. Negative: the same packet under SPI^0x5a5a5a5a finds nothing (XfrmInNoStates +1, not delivered), so the lookup is keyed on the SPI. Judge ran both: PASS in own namespace. Records: xfrmStateFromParams panic revert red both polarities. Scope: ESP, unicast; the AH case (OSPFv3 manual SAs) is the same kernel lookup and is not probed here.",
+  "requirement_sha": "c3bf609ab746a61f",
+  "tests": {
+    "internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go::TestRFC4301InboundESPIsProcessedWithTheSAItsSPISelects": "c3dd0c022a249aa6",
+    "internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go::TestRFC4301InboundESPWithNoSADMatchIsDiscarded": "c3dd0c022a249aa6"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go::TestRFC4301InboundESPIsProcessedWithTheSAItsSPISelects": "7705731634c17541",
+    "internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go::TestRFC4301InboundESPWithNoSADMatchIsDiscarded": "f126d36ce8eab474"
+  },
+  "verdict": "enforced"
+}

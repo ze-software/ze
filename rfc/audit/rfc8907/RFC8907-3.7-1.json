@@ -1,0 +1,13 @@
+{
+  "note": "(a) forbidden: a username sent without UsernameCasePreserved enforcement: no width mapping, no NFC, case folded, or a PRECIS-disallowed string (control, private use, ZWJ outside context, invalid UTF-8, bidi-rule violation) sent. (b) TestRFC8907UsernameProfileOnWire reads the username off the wire for all three services and requires \"\uff21lice\\u0301\" to arrive as \"Alic\u00e9\" (width-mapped, NFC, case kept); TestRFC8907ForbiddenUsernameNeverSent requires errRequestInvalid and no server contact for \"alice\\x00\", \"alice\\ue000\", \"a\\u200db\", \"\\xff\" and \"\\u05d0a\" on every service.",
+  "requirement_sha": "fb8c3649f13626b2",
+  "tests": {
+    "internal/component/tacacs/rfc8907_validation_test.go::TestRFC8907ForbiddenUsernameNeverSent": "59ca691aca621600",
+    "internal/component/tacacs/rfc8907_validation_test.go::TestRFC8907UsernameProfileOnWire": "59ca691aca621600"
+  },
+  "units": {
+    "internal/component/tacacs/rfc8907_validation_test.go::TestRFC8907ForbiddenUsernameNeverSent": "6ce50a9545689056",
+    "internal/component/tacacs/rfc8907_validation_test.go::TestRFC8907UsernameProfileOnWire": "c1d09d4ee33acf77"
+  },
+  "verdict": "enforced"
+}

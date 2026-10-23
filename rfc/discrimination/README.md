@@ -1,7 +1,11 @@
 # Discrimination records
 
-One file per RFC, `rfc/discrimination/<stem>.json`. Written by
-`./le rfc discriminate-record`, re-verified by `./le rfc check` on every run.
+One file per requirement, `rfc/discrimination/<stem>/<requirement-id>.json`: a
+JSON array of that requirement's records. The path names the RFC and the
+requirement, so two sessions proving different requirements never edit the same
+file. Written by `./le rfc discriminate-record`, re-verified by `./le rfc check`
+on every run. A per-RFC file of the retired layout is refused by every loader;
+`./le rfc evidence-split` converts it.
 
 Spec: `plan/spec-rfc-tag-claim-discrimination.md`. Page: <!-- doc-links: ignore (the spec closed on 2026-09-01 in `59830c5e63`; the page named next is what survives it) -->
 `docs/contributing/rfc-conformance-gates.md`, "The discrimination record".
@@ -57,8 +61,7 @@ away.
 
 | Field | Authored or derived | Meaning |
 |---|---|---|
-| `rfc` | authored, cross-checked | must equal the filename stem |
-| `rid` | authored | the requirement the record proves; must be declared in `rfc/short/<stem>.md` |
+| `rid` | authored, cross-checked | the requirement the record proves; must be declared in `rfc/short/<stem>.md` and must equal the file name |
 | `polarity` | authored | `positive` or `negative`, the direction it proves |
 | `unit` | authored | the tagged unit key: `<path>::<FuncName>`, or a bare `<path>` when the whole file is the unit. `UnitAt` (`internal/le/rfc/goscope.go`) is the one definition of that unit |
 | `unit-sha` | derived | the unit's behavior hash when the red was observed |
@@ -191,7 +194,7 @@ read must never present as a corpus with nothing proven
 
 | Refuses | Why |
 |---|---|
-| A file that cannot be parsed, an unknown JSON key, or a filename that disagrees with its own `rfc` field | A half-read record is the shape a false proof takes |
+| A file that cannot be parsed, an unknown JSON key, a record whose `rid` disagrees with its file name, or a per-RFC file of the retired layout | A half-read record is the shape a false proof takes |
 | A polarity, a route, a key or a fingerprint outside its closed form | The same |
 | A record naming a requirement no summary declares | A proof of an obligation nobody wrote down proves nothing |
 | Two records claiming one requirement, polarity and tagged unit | The proven count is published, and a duplicate inflates it |

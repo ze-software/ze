@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: D set while DemandMode, local Up or remote Up is false. Red: TestRFC5880DemandBitClearWhenAnyConditionFails Fatalf on Build().Demand with each condition dropped alone and with both states Down; positive TestRFC5880DemandBitSetWhenAllConditionsHold shows D is set when all hold, so the clear cases are not a constant false.",
+  "requirement_sha": "7c57c2a6a41a5409",
+  "tests": {
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880DemandBitClearWhenAnyConditionFails": "8db25cbb4534cc2d",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880DemandBitSetWhenAllConditionsHold": "8db25cbb4534cc2d"
+  },
+  "units": {
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880DemandBitClearWhenAnyConditionFails": "921e0fd1b26116c1",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880DemandBitSetWhenAllConditionsHold": "6a152cc9f9085d6e"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,16 @@
+{
+  "code": {
+    "internal/component/config/yang/validator_mandatory.go::mandatoryPresent": "0c5fd237cd0f1a35"
+  },
+  "note": "Judged 2026-10-12 (independent auditor). Section 7.9.4: \"If \\\"mandatory\\\" is \\\"true\\\", at least one node from exactly one of the choice's case branches MUST exist.\" Tested \"at least one node from\"; Gap \"exactly one of the choice's case branches\"; Producer internal/component/config/yang/validator_mandatory.go::mandatoryPresent. Tested holds: TestMandatoryChoiceSatisfiedByACaseNode reports wrap/kind missing for a container with no node of any case (exact path), and accepts a node of one case and a node of a nested choice's case, so a lookup by the choice name alone, or one that ignores nested choices, goes red; records on mandatoryPresent (positive) and missingMandatory (negative). Real entry: walkTree's mandatory loop reaches it from ValidateCustomSections, so the static route choice action and the iface tunnel encapsulation choice kind are refused when empty. Gap holds: data with nodes from two cases is accepted at the first case node found and no other check compares the cases, so the exactly-one half is unmet; the conditional enforcement under a case or list ancestor in the following paragraph is a separate sentence. Whole requirement earns no credit; spec-config-yang-when-unique-choice.",
+  "requirement_sha": "02ac3b33696e5720",
+  "tests": {
+    "internal/component/config/yang/rfc7950_mandatory_test.go::TestMandatoryChoiceSatisfiedByACaseNode": "39faaa97711e3fdf",
+    "internal/component/config/yang/rfc7950_mandatory_test.go::TestMandatoryChoiceSatisfiedByACaseNode#2": "39faaa97711e3fdf"
+  },
+  "units": {
+    "internal/component/config/yang/rfc7950_mandatory_test.go::TestMandatoryChoiceSatisfiedByACaseNode": "cbcdca52065b2a46",
+    "internal/component/config/yang/rfc7950_mandatory_test.go::TestMandatoryChoiceSatisfiedByACaseNode#2": "cbcdca52065b2a46"
+  },
+  "verdict": "partial"
+}

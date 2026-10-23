@@ -1,0 +1,25 @@
+{
+  "note": "Sentence: NLRI encoding MUST be extended by prepending the four-octet Path Identifier field. Forbidden: no field, a field of other size, or the field placed after the prefix. TestWriteNLRI_WithStoredPathID asserts buf[0..3]==0000002a and n==4+Len() (red if absent, mis-sized, or appended, since buf[0] would then be the prefix length); TestWriteNLRI_AddPath disabled subtest asserts n==Len() without ADD-PATH; TestINETWithAddPath decodes 00000001 then 8,10 as id 1 and 10.0.0.0/8; test/plugin/adj-rib-in-replay-addpath-source.ci asserts exact wire hex 00000000180A0000 vs 180A0000 per destination negotiation. Rejudged 2026-10-17 (independent reader, not the author of 3f6bb1965e) after the owner-approved command-text change in 3f6bb1965e (injection grammar: nlri <family> became mp <family> for MP families and bare nlri for IPv4 unicast): the cmd/update units changed only the section keyword of their command arguments (nlri ipv4/mpls-label became mp ipv4/mpls-label); TestPathInformationZeroIsAnIdentifierOnTheWire still asserts the four zero octets before the labeled prefix when ADD-PATH is negotiated, and TestPathInformationIsNotWrittenWithoutTheNegotiation still asserts the wire equals the labeled NLRI without them. Package re-run green 2026-10-17. RFC 7911 Section 3: \"In order to carry the Path Identifier in an UPDATE message, the NLRI encoding MUST be extended by prepending the Path Identifier field, which is of four octets.\" Verdict stands. Rejudged 2026-10-21 (a reader that did not author the new unit) after internal/component/bgp/format/rfc7911_withdraw_only_test.go::TestWithdrawOnlyUpdateKeepsPathIdentifier joined the row: it covers the receive half of the same encoding, building a withdraw-only UPDATE whose Withdrawn Routes hold 00000007 08 0a under an ADD-PATH receive context with no attribute section (it asserts AttrsWire is nil), and it asserts the JSON event's del operation names {\"prefix\":\"10.0.0.0/8\",\"path-id\":7} and the text event ends with `nlri ipv4/unicast del 10.0.0.0/8`. A reader that did not take the four prepended octets as the Path Identifier would read 0x00 as a zero-length prefix and could produce neither, so the test goes red if the prepended field is not honoured on a withdraw-only UPDATE; the recorded revert of types/rawmessage.go::SourceEncodingContext observed it red. Verdict stands.",
+  "requirement_sha": "dcb729e55dfcd284",
+  "tests": {
+    "internal/component/bgp/format/rfc7911_withdraw_only_test.go::TestWithdrawOnlyUpdateKeepsPathIdentifier": "a2c00ac61a5da3e6",
+    "internal/component/bgp/plugins/cmd/update/rfc7911_addpath_pathid_test.go::TestPathInformationIsNotWrittenWithoutTheNegotiation": "09a9383d50f6d908",
+    "internal/component/bgp/plugins/cmd/update/rfc7911_addpath_pathid_test.go::TestPathInformationZeroIsAnIdentifierOnTheWire": "09a9383d50f6d908",
+    "internal/core/bgp/nlri/rfc7911_base_len_test.go::TestWriteNLRI_AddPath": "3c6772f5e0872a93",
+    "internal/core/bgp/nlri/rfc7911_base_len_test.go::TestWriteNLRI_WithStoredPathID": "3c6772f5e0872a93",
+    "internal/core/bgp/nlri/rfc7911_inet_test.go::TestINETWithAddPath": "8bce51e9e1913405",
+    "test/plugin/adj-rib-in-replay-addpath-source.ci": "abb27ebf50a5e2c5",
+    "test/plugin/adj-rib-in-replay-addpath-source.ci#2": "abb27ebf50a5e2c5"
+  },
+  "units": {
+    "internal/component/bgp/format/rfc7911_withdraw_only_test.go::TestWithdrawOnlyUpdateKeepsPathIdentifier": "5944a6080a35d8a2",
+    "internal/component/bgp/plugins/cmd/update/rfc7911_addpath_pathid_test.go::TestPathInformationIsNotWrittenWithoutTheNegotiation": "c8f513341fb8ecbe",
+    "internal/component/bgp/plugins/cmd/update/rfc7911_addpath_pathid_test.go::TestPathInformationZeroIsAnIdentifierOnTheWire": "6e45c55f205886aa",
+    "internal/core/bgp/nlri/rfc7911_base_len_test.go::TestWriteNLRI_AddPath": "8bcc4d3f1b7428b3",
+    "internal/core/bgp/nlri/rfc7911_base_len_test.go::TestWriteNLRI_WithStoredPathID": "5e8b6ff791a60f12",
+    "internal/core/bgp/nlri/rfc7911_inet_test.go::TestINETWithAddPath": "df8dfeb8242762a2",
+    "test/plugin/adj-rib-in-replay-addpath-source.ci": "abb27ebf50a5e2c5",
+    "test/plugin/adj-rib-in-replay-addpath-source.ci#2": "abb27ebf50a5e2c5"
+  },
+  "verdict": "enforced"
+}

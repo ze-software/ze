@@ -1,0 +1,22 @@
+{
+  "code": {
+    "internal/plugins/ospf/interface_addr.go::v6UsableForwardingAddress": "e27afd31df40440c",
+    "internal/plugins/ospf/nssa.go::translatableForwardingAddressV6": "62891427b25e151e",
+    "internal/plugins/ospf/nssa.go::translateNSSAV6": "dd0621179b4b11ff"
+  },
+  "note": "Re-judged 2026-10-19 (independent auditor, after 6af25a7a79). Appendix A.4.7: \"It MUST NOT be set to the IPv6 Unspecified Address (0:0:0:0:0:0:0:0) or an IPv6 Link-Local Address (Prefix FE80/10).\" and \"While OSPFv3 routes are normally installed with link-local addresses, an OSPFv3 implementation advertising a forwarding address MUST advertise a global IPv6 address.\" 6af25a7a79 touched only rfc/discrimination/rfc5340.json: the translator negative's record moves from a panic of v6UsableForwardingAddress (reach only) to the mutant at interface_addr.go:73 dropping '!addr.IsLinkLocalUnicast() &&'. Line 73 at HEAD is that return statement, and with the link-local term gone fe80::2/fe80::3 pass every remaining term (Is6, not 4in6, not loopback, unspecified or multicast), so translatableForwardingAddressV6 admits it and the negative's 'no Type-5' assertion is the one that fails, as the author reports (red at :60/:77, not re-observed here). This closes the prior judge's note that the record proved reach, not the branch. Producers, tests and claims are byte-identical to the last judgement; tagged units pass at HEAD (go test -count=1). For -1: TestRFC5340TranslatorNeverAdvertisesLinkLocalForwarding asserts a global address is carried unchanged and fe80::2 yields no Type-5; the Unspecified half is pinned by TestRFC5340ForwardingAddressIsGlobal (:: refused, all-zero origination clears HasForwardingAddr), and translateNSSAV6 skips an all-zero forwarding address before the gate.",
+  "requirement_sha": "567d9d628d7e6098",
+  "tests": {
+    "internal/plugins/ospf/rfc5340_nssa_translate_test.go::TestRFC5340TranslatorNeverAdvertisesLinkLocalForwarding": "401d880094411be0",
+    "internal/plugins/ospf/rfc5340_nssa_translate_test.go::TestRFC5340TranslatorNeverAdvertisesLinkLocalForwarding#2": "401d880094411be0",
+    "internal/plugins/ospf/rfc5340_test.go::TestRFC5340ForwardingAddressIsGlobal": "cdf4f5c0d8a37340",
+    "internal/plugins/ospf/rfc5340_test.go::TestRFC5340ForwardingAddressIsGlobal#2": "cdf4f5c0d8a37340"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc5340_nssa_translate_test.go::TestRFC5340TranslatorNeverAdvertisesLinkLocalForwarding": "b720288db81ad089",
+    "internal/plugins/ospf/rfc5340_nssa_translate_test.go::TestRFC5340TranslatorNeverAdvertisesLinkLocalForwarding#2": "b720288db81ad089",
+    "internal/plugins/ospf/rfc5340_test.go::TestRFC5340ForwardingAddressIsGlobal": "9acca5a346103775",
+    "internal/plugins/ospf/rfc5340_test.go::TestRFC5340ForwardingAddressIsGlobal#2": "9acca5a346103775"
+  },
+  "verdict": "enforced"
+}

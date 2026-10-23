@@ -1,0 +1,11 @@
+{
+  "note": "Forbidden: a Message Header whose Version is not 0x000a. TestRFC7011VersionIsIPFIX asserts the first two octets WriteMessageHeader writes are 0x000a and the Version constant is 0x000a, red on any other value. Single-polarity marker: the version is a compile-time constant with no path to another value.",
+  "requirement_sha": "0687557d99155aca",
+  "tests": {
+    "internal/plugins/flowexport/ipfix/rfc7011_test.go::TestRFC7011VersionIsIPFIX": "1e121054ccd5ea2a"
+  },
+  "units": {
+    "internal/plugins/flowexport/ipfix/rfc7011_test.go::TestRFC7011VersionIsIPFIX": "73f715e050c2a6d7"
+  },
+  "verdict": "enforced"
+}

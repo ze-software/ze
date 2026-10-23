@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged 2026-10-21 (independent auditor, authored none of 32ff59085b). Section 3.1: \"Any other Route Types MUST be silently ignored upon a receipt if a BGP speaker supports only 3gpp-5G architecture type.\" The earlier weak finding (retainMUP summed Discarded and WithdrawnCount, so a recognizer answering Withdraw for unknown route types still passed) is answered: TestMUPOtherRouteTypesSilentlyIgnoredAtIngress now reads retainMUPCounts and asserts discarded == 4 and withdrawn == 0 separately, with the ISD between them kept byte for byte, under both MUP families. keyMUP keys an unknown route type on its whole NLRI, so a Withdraw answer would land in WithdrawnCount and go red; a Keep answer fails the kept equality. The negative TestMUPDefinedRouteTypesSurviveIngress (types 1 to 4, kept whole, nothing dropped) changed only by the T1ST body gaining its mandatory zero Source Address Length octet. TestRFCMUPUnknownRouteTypeIsNotRejected adds that ParseMUP skips an unknown route by its Length. RecognizeNLRI revert records re-observed red today on both polarities. The optional \"MAY log\" is not tested and not owed.",
+  "requirement_sha": "67906b468e34c9bf",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_ingress_test.go::TestMUPDefinedRouteTypesSurviveIngress": "979695ac9f064e0d",
+    "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_ingress_test.go::TestMUPOtherRouteTypesSilentlyIgnoredAtIngress": "979695ac9f064e0d",
+    "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_safi_test.go::TestRFCMUPUnknownRouteTypeIsNotRejected": "007ef05c4e407c4e"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_ingress_test.go::TestMUPDefinedRouteTypesSurviveIngress": "8c1efae952ba2ae4",
+    "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_ingress_test.go::TestMUPOtherRouteTypesSilentlyIgnoredAtIngress": "ad4d762cb33d45d0",
+    "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_safi_test.go::TestRFCMUPUnknownRouteTypeIsNotRejected": "02f586692359fc91"
+  },
+  "verdict": "enforced"
+}

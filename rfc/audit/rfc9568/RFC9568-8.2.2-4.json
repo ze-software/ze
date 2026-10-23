@@ -1,0 +1,21 @@
+{
+  "note": "vrrp judge 2026-09-29 (independent, continuations 1-2): TestEngineWaitsForALateVirtualMACDevice (ipv6): device, install, Neighbor Advertisement order under a late device through the live create, nothing at all when the device never appears; deleting the wait reddens it (records on register.go create, observed red). With TestEngineAnnouncesNothingBeforeTheVirtualMACDevice and TestInstanceDelaysAnnounceUntilParentUsable (address half).",
+  "requirement_sha": "990db1b4568cd6c0",
+  "tests": {
+    "internal/plugins/vrrp/boot_late_device_test.go::TestEngineWaitsForALateVirtualMACDevice": "f5e911ac6de85b6f",
+    "internal/plugins/vrrp/boot_late_device_test.go::TestEngineWaitsForALateVirtualMACDevice#2": "f5e911ac6de85b6f",
+    "internal/plugins/vrrp/boot_order_test.go::TestEngineAnnouncesNothingBeforeTheVirtualMACDevice": "ed30f38ef8942327",
+    "internal/plugins/vrrp/boot_order_test.go::TestEngineAnnouncesNothingBeforeTheVirtualMACDevice#2": "ed30f38ef8942327",
+    "internal/plugins/vrrp/instance_test.go::TestInstanceDelaysAnnounceUntilParentUsable": "90d279832a92de75",
+    "internal/plugins/vrrp/instance_test.go::TestInstanceDelaysAnnounceUntilParentUsable#2": "90d279832a92de75"
+  },
+  "units": {
+    "internal/plugins/vrrp/boot_late_device_test.go::TestEngineWaitsForALateVirtualMACDevice": "efe0afaccbd4e14e",
+    "internal/plugins/vrrp/boot_late_device_test.go::TestEngineWaitsForALateVirtualMACDevice#2": "efe0afaccbd4e14e",
+    "internal/plugins/vrrp/boot_order_test.go::TestEngineAnnouncesNothingBeforeTheVirtualMACDevice": "23b0bca01ece16b0",
+    "internal/plugins/vrrp/boot_order_test.go::TestEngineAnnouncesNothingBeforeTheVirtualMACDevice#2": "23b0bca01ece16b0",
+    "internal/plugins/vrrp/instance_test.go::TestInstanceDelaysAnnounceUntilParentUsable": "c44d29a40bf193fd",
+    "internal/plugins/vrrp/instance_test.go::TestInstanceDelaysAnnounceUntilParentUsable#2": "c44d29a40bf193fd"
+  },
+  "verdict": "enforced"
+}

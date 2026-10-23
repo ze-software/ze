@@ -1,0 +1,17 @@
+{
+  "note": "Sender: TestRFC2661SCCRPCarriesSection62AVPs asserts all five AVPs in writeSCCRPBody with and without Challenge/Response. Receiver: TestSCCRPMissingMandatoryAVPTearsTheTunnelDown covers four members, TestRFC2661SCCRPWithoutMessageTypeRefused the fifth with a paired accept. Correction accepted: the state-table 'not acceptable' transition has no sentence.",
+  "requirement_sha": "b43d91c429dcde5f",
+  "tests": {
+    "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661SCCRPCarriesSection62AVPs": "055162183ff6df00",
+    "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661SCCRPWithoutMessageTypeRefused": "055162183ff6df00",
+    "internal/component/l2tp/rfc2661_tunnel_initiator_sccrp_mandatory_avp_test.go::TestSCCRPMissingMandatoryAVPTearsTheTunnelDown": "c98336c1855b4bc7",
+    "internal/component/l2tp/rfc2661_tunnel_initiator_sccrp_mandatory_avp_test.go::TestSCCRPWithEveryMandatoryAVPEstablishes": "c98336c1855b4bc7"
+  },
+  "units": {
+    "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661SCCRPCarriesSection62AVPs": "40cef2a7a6cd2766",
+    "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661SCCRPWithoutMessageTypeRefused": "0d10e2f615dc0651",
+    "internal/component/l2tp/rfc2661_tunnel_initiator_sccrp_mandatory_avp_test.go::TestSCCRPMissingMandatoryAVPTearsTheTunnelDown": "630817765d59e4df",
+    "internal/component/l2tp/rfc2661_tunnel_initiator_sccrp_mandatory_avp_test.go::TestSCCRPWithEveryMandatoryAVPEstablishes": "ec4c5cabee0eae59"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,15 @@
+{
+  "note": "Judge 2026-09-30 (rejudge, 6-2 + rest). Section 6.8.6: Length below 24 (A=0) or 26 (A=1) MUST be discarded. Both floors now proven from both sides at ParseControl: + TestRFC5880LengthMinimumAccepted (24 A=0, 26 A=1); - TestRFC5880LengthBelowMinimumDiscarded (23, 24 A=1) and NEW TestRFC5880AuthenticatedLengthOneBelowMinimumDiscarded (A=1 Length 25 -> ErrLengthTooSmall), which closes the 25-byte gap: a targeted overlay setting the A=1 floor to MandatoryLen+1 reds only the new unit (job-ov6). Record: revert control.go::ParseControl observed red.",
+  "requirement_sha": "1040a0f54f6053e8",
+  "tests": {
+    "internal/component/bfd/packet/rfc5880_length_boundary_test.go::TestRFC5880AuthenticatedLengthOneBelowMinimumDiscarded": "b159ffa984e4868a",
+    "internal/component/bfd/packet/rfc5880_test.go::TestRFC5880LengthBelowMinimumDiscarded": "fba3b65e315e32aa",
+    "internal/component/bfd/packet/rfc5880_test.go::TestRFC5880LengthMinimumAccepted": "fba3b65e315e32aa"
+  },
+  "units": {
+    "internal/component/bfd/packet/rfc5880_length_boundary_test.go::TestRFC5880AuthenticatedLengthOneBelowMinimumDiscarded": "96271144d27ae9a0",
+    "internal/component/bfd/packet/rfc5880_test.go::TestRFC5880LengthBelowMinimumDiscarded": "9766c0802c720e63",
+    "internal/component/bfd/packet/rfc5880_test.go::TestRFC5880LengthMinimumAccepted": "d826f655e9af2911"
+  },
+  "verdict": "enforced"
+}

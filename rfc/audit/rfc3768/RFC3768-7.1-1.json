@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 3768 Section 7.1 says \"MUST verify the VRRP version is 2.\" TestDecodeGoldenV2 lost only the assertion on the removed MsgOnlyChecksum flag, which carried no RFC 3768 content, and TestNegativeReferenceBugs gained the FillChecksum mode argument and an rfc5798-compatible lookup in N1 alone; verifyReceived returns before any mode is read for version 2, so the VRRPv2 decode under judgement is unchanged. N9 still requires ErrVersion for a v3 packet at a v2 group and the reverse; the v2 golden decodes. Verdict unchanged.",
+  "requirement_sha": "d7c50ecce42d4447",
+  "tests": {
+    "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV2": "5bbc8ddba98cd418",
+    "internal/plugins/vrrp/packet/validate_test.go::TestNegativeReferenceBugs": "5bbc8ddba98cd418"
+  },
+  "units": {
+    "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV2": "66859488ac05cf93",
+    "internal/plugins/vrrp/packet/validate_test.go::TestNegativeReferenceBugs": "5b7b91666d7d74bc"
+  },
+  "verdict": "enforced"
+}

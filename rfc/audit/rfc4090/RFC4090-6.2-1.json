@@ -1,0 +1,13 @@
+{
+  "note": "bypass PATH SESSION tunnel endpoint and IP destination are the configured merge point; a bypass to another MP is not selected Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 6.2 and the enforced verdict holds unchanged.",
+  "requirement_sha": "48006cdc7c09f308",
+  "tests": {
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090BypassDestinationIsMergePoint": "3fb9184431da8daf",
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090BypassDestinationIsMergePoint#2": "3fb9184431da8daf"
+  },
+  "units": {
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090BypassDestinationIsMergePoint": "0fb4dfee12575095",
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090BypassDestinationIsMergePoint#2": "0fb4dfee12575095"
+  },
+  "verdict": "enforced"
+}

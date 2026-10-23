@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: accepting a neighbor whose HelloInterval differs on the common link. TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink asserts ReceiveDecodedHello accepts a matching HelloInterval (empty reason) and drops DefaultHelloInterval+1 with reason hello-interval; accepting the mismatch turns it red.",
+  "requirement_sha": "6dddca691c081f86",
+  "tests": {
+    "internal/plugins/ospf/rfc5340_test.go::TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink": "cdf4f5c0d8a37340",
+    "internal/plugins/ospf/rfc5340_test.go::TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink#2": "cdf4f5c0d8a37340"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc5340_test.go::TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink": "b93ef0d62e7e8927",
+    "internal/plugins/ospf/rfc5340_test.go::TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink#2": "b93ef0d62e7e8927"
+  },
+  "verdict": "enforced"
+}

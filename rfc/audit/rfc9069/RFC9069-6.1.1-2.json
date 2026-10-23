@@ -1,0 +1,11 @@
+{
+  "note": "First verdict 2026-09-29. rfc9069_verdict_test.go::TestLocRIBPeerUpOpenIndicatesTheAddressFamilies drives one best change, reads the Loc-RIB Peer Up off the collector end of the pipe (Peer Type 3), and requires both the sent and the received OPEN to carry Multiprotocol capabilities equal to dumpFamilies, the families the emulated peer's Route Monitoring and End-of-RIB carry. {single-polarity: positive} holds: ze has one emulated peer and every producer of its Peer Up passes the one fabricateLocRIBOpen result, so no input yields a Loc-RIB Peer Up to refuse.",
+  "requirement_sha": "c59781badb35a221",
+  "tests": {
+    "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestLocRIBPeerUpOpenIndicatesTheAddressFamilies": "eb1b3423b571c819"
+  },
+  "units": {
+    "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestLocRIBPeerUpOpenIndicatesTheAddressFamilies": "42e6a3c0eda0d611"
+  },
+  "verdict": "enforced"
+}

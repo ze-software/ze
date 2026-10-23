@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: stopping, or sending anything but a Reset Query, after No Data Available with no other cache. TestRFC6810NoDataAvailableRepeatsResetQuery runs one live cache that answers two queries with Error Report code 2 and asserts three consecutive received queries are pduResetQuery, each within 4s (t.Fatal on silence, assert.Equal on a Serial Query). Negative: once the cache supplies a load the route validates and the next query is pduSerialQuery, so the reset mode ends at the usable load.",
+  "requirement_sha": "584bb4830ad685a3",
+  "tests": {
+    "internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go::TestRFC6810NoDataAvailableRepeatsResetQuery": "8c11ef49583ba7c6",
+    "internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go::TestRFC6810NoDataAvailableRepeatsResetQuery#2": "8c11ef49583ba7c6"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go::TestRFC6810NoDataAvailableRepeatsResetQuery": "0c26f510ae3c0886",
+    "internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go::TestRFC6810NoDataAvailableRepeatsResetQuery#2": "0c26f510ae3c0886"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden behaviour: a text attribute of length zero on the wire. TestRFC2866AcctZeroLengthTextOmitted builds all three records for a session with no username and fails on a User-Name or any zero-length attribute; TestRFC2866AcctNonEmptyTextIsSent shows a non-empty User-Name is still sent.",
+  "requirement_sha": "dd0998d9eec58a51",
+  "tests": {
+    "internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go::TestRFC2866AcctNonEmptyTextIsSent": "8c3f0adb0fe344ac",
+    "internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go::TestRFC2866AcctZeroLengthTextOmitted": "8c3f0adb0fe344ac"
+  },
+  "units": {
+    "internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go::TestRFC2866AcctNonEmptyTextIsSent": "244f6fe783773585",
+    "internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go::TestRFC2866AcctZeroLengthTextOmitted": "8a97db8f1a0d5355"
+  },
+  "verdict": "enforced"
+}

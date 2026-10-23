@@ -1,0 +1,13 @@
+{
+  "note": "positive: counter and flow datagrams of one sender share one datagram sequence that wraps through 0xFFFFFFFF; negative: a counter generation reset restarts only the source sample sequence, never the datagram sequence",
+  "requirement_sha": "47fb3a10f32de3fe",
+  "tests": {
+    "internal/plugins/flowexport/sflow/sflow_v5_counters_test.go::TestSFlowCounterResetDoesNotResetDatagrams": "6a390a00daec00b1",
+    "internal/plugins/flowexport/sflow/sflow_v5_counters_test.go::TestSFlowMixedDatagramSequenceWraps": "6a390a00daec00b1"
+  },
+  "units": {
+    "internal/plugins/flowexport/sflow/sflow_v5_counters_test.go::TestSFlowCounterResetDoesNotResetDatagrams": "3d81ace36aa2ea4f",
+    "internal/plugins/flowexport/sflow/sflow_v5_counters_test.go::TestSFlowMixedDatagramSequenceWraps": "d31698d4fd00b858"
+  },
+  "verdict": "enforced"
+}

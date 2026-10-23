@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-09-30. Descriptive row kept MUST under D-3. Positive TestRFC7296InitialExchangesCarryWhatSection12Names runs production handleSAInitRequest/handleAuthRequest/handleAuthResponse in X.509 mode over all four captured messages: IKE_SA_INIT req/resp carry SA+KE+Nonce, the single accepted proposal is one offered and both SAs hold it; Ni/Nr held crosswise and distinct; both KE name the negotiated group, each side holds the other's public value, equal SK_d; IKE_AUTH req IDi+CERT+AUTH+ESP SA+TSi+TSr, resp IDr+CERT+AUTH+one ESP proposal+TSi+TSr; identities recorded, both Established, initiator holds negotiated TS. Negative TestRFC7296TamperedIKESAInitFailsIKEAuth ('authenticate the previous messages'): one flipped octet in the stored IKE_SA_INIT copy on either side (PSK and X.509) keeps that side off Established while an untouched control establishes; genuine, it fails if AUTH stopped covering the IKE_SA_INIT octets. Encryption clause: TestInitialExchangeEncryptionBoundary +/-. The negotiation, nonce and DH clauses are positive-only here; their refusals are held by their own rows (3.3.6, 2.10, 1.2 KE/3.4). Records: handleSAInitRequest +, verifyRemoteAuth -, observed red.",
+  "requirement_sha": "fd6232ea3dc33023",
+  "tests": {
+    "internal/component/ike/engine/rfc7296_initial_exchanges_test.go::TestRFC7296InitialExchangesCarryWhatSection12Names": "559808277823cf0c",
+    "internal/component/ike/engine/rfc7296_initial_exchanges_test.go::TestRFC7296TamperedIKESAInitFailsIKEAuth": "559808277823cf0c",
+    "internal/component/ike/engine/rfc7296_test.go::TestInitialExchangeEncryptionBoundary": "e032382b6fba7977",
+    "internal/component/ike/engine/rfc7296_test.go::TestInitialExchangeEncryptionBoundary#2": "e032382b6fba7977"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7296_initial_exchanges_test.go::TestRFC7296InitialExchangesCarryWhatSection12Names": "d8011a7f20f9b287",
+    "internal/component/ike/engine/rfc7296_initial_exchanges_test.go::TestRFC7296TamperedIKESAInitFailsIKEAuth": "1450fe17fc6a310a",
+    "internal/component/ike/engine/rfc7296_test.go::TestInitialExchangeEncryptionBoundary": "cc07ff143101d2da",
+    "internal/component/ike/engine/rfc7296_test.go::TestInitialExchangeEncryptionBoundary#2": "cc07ff143101d2da"
+  },
+  "verdict": "enforced"
+}

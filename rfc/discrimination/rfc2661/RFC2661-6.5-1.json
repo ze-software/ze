@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC2661-6.5-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/rfc2661_reactor_test.go::TestDeadPeerZLBAckKeepsTunnelUp",
+    "unit-sha": "e14b8fabab95616a",
+    "claim-sha": "8d8bbd51d7b31e29",
+    "route": "revert",
+    "producer": "internal/component/l2tp/reactor.go::handleTick",
+    "producer-sha": "b6c0db1d86d5fb2c",
+    "break": "body of handleTick replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

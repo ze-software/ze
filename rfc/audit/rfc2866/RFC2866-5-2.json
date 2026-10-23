@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden behaviour: a null octet read as a terminator. TestRFC2866EmbeddedNullsSurviveTheWire round-trips a value with interior nulls through EncodeTo and Decode and compares bytes; TestRFC2866AllNullValueKeepsItsLength fails if an all-null value loses length. A strcpy-style cut goes red in both.",
+  "requirement_sha": "fd0fe9c78fc97102",
+  "tests": {
+    "internal/component/radius/rfc2866_packet_test.go::TestRFC2866AllNullValueKeepsItsLength": "d31ec983abea25ed",
+    "internal/component/radius/rfc2866_packet_test.go::TestRFC2866EmbeddedNullsSurviveTheWire": "d31ec983abea25ed"
+  },
+  "units": {
+    "internal/component/radius/rfc2866_packet_test.go::TestRFC2866AllNullValueKeepsItsLength": "4fa89649a7c27fa4",
+    "internal/component/radius/rfc2866_packet_test.go::TestRFC2866EmbeddedNullsSurviveTheWire": "ff3bba51f9a82c91"
+  },
+  "verdict": "enforced"
+}

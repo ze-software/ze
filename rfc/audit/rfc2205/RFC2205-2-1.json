@@ -1,0 +1,17 @@
+{
+  "note": "Judged 2026-09-29 (routing child, continuation judge). Positive TestRFC2205ResvFollowsEachSendersReversePath: two senders of one session through two PHOPs each get their RESV at their own PHOP, and a transit relays the RESV on to the ingress. Negative TestRFC2205ResvNeverTakesAnotherSendersPath asserts neither sender's reservation leaves on the other's hop. Both records observed red (sendResv, handlePathEgress).",
+  "requirement_sha": "f80c0f879b7ce0e8",
+  "tests": {
+    "internal/plugins/rsvpte/rfc2205_engine_test.go::TestRFC2205ResvSentToPreviousHop": "40d8aa6c3fe9e9e4",
+    "internal/plugins/rsvpte/rfc2205_engine_test.go::TestRFC2205ResvWithoutPathStateNotRelayed": "40d8aa6c3fe9e9e4",
+    "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205ResvFollowsEachSendersReversePath": "7bc063943de30e7b",
+    "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205ResvNeverTakesAnotherSendersPath": "7bc063943de30e7b"
+  },
+  "units": {
+    "internal/plugins/rsvpte/rfc2205_engine_test.go::TestRFC2205ResvSentToPreviousHop": "000cc4a0cba6d650",
+    "internal/plugins/rsvpte/rfc2205_engine_test.go::TestRFC2205ResvWithoutPathStateNotRelayed": "ceb67668caaaed06",
+    "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205ResvFollowsEachSendersReversePath": "386549d96c428b6c",
+    "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205ResvNeverTakesAnotherSendersPath": "3a5c193bb8fb5ba8"
+  },
+  "verdict": "enforced"
+}

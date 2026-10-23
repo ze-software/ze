@@ -1,0 +1,17 @@
+{
+  "note": "Length: mbCookieLength in TestMobikeCookie2ResponseControlsMigration fails on a generated cookie outside 8..64, TestMobikeCookie2EchoBounds rejects received 7- and 65-octet cookies. Unpredictable: TestRFC4555Cookie2IsTheRandomSourceOutput replaces crypto/rand.Reader per startMobikeRequest call with two differently seeded streams and asserts each real MOBIKE request's COOKIE2 equals the first 32 octets of its own stream, so a counter, timestamp, SA-derived value or fixed-seed PRNG goes red. The record is a whole-producer panic (reach); discrimination read from the equality assertion.",
+  "requirement_sha": "022904be7182b837",
+  "tests": {
+    "internal/component/ike/engine/mobike_test.go::TestMobikeAdvertisementAfterSourceChange": "7591039c742210b3",
+    "internal/component/ike/engine/mobike_test.go::TestMobikeCookie2EchoBounds": "7591039c742210b3",
+    "internal/component/ike/engine/mobike_test.go::TestMobikeCookie2EchoBounds#2": "7591039c742210b3",
+    "internal/component/ike/engine/rfc4555_cookie2_test.go::TestRFC4555Cookie2IsTheRandomSourceOutput": "e76bce0c9dc48d84"
+  },
+  "units": {
+    "internal/component/ike/engine/mobike_test.go::TestMobikeAdvertisementAfterSourceChange": "89141dce87d91dd5",
+    "internal/component/ike/engine/mobike_test.go::TestMobikeCookie2EchoBounds": "0340f8e160dcb516",
+    "internal/component/ike/engine/mobike_test.go::TestMobikeCookie2EchoBounds#2": "0340f8e160dcb516",
+    "internal/component/ike/engine/rfc4555_cookie2_test.go::TestRFC4555Cookie2IsTheRandomSourceOutput": "315651b31a6123f2"
+  },
+  "verdict": "enforced"
+}

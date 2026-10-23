@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC8210-8.3-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRCacheResetReloadsTheWholeSet",
+    "unit-sha": "ad4b13a4cca45a90",
+    "claim-sha": "7c6fe3591df95d11",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rpki/rtr_session.go::handlePDU",
+    "producer-sha": "fcaaae8230f48b20",
+    "break": "body of handlePDU replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8210-8.3-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRCacheResetReloadsTheWholeSet",
+    "unit-sha": "ad4b13a4cca45a90",
+    "claim-sha": "2c1774c580e5aafe",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rpki/rtr_session.go::handlePDU",
+    "producer-sha": "fcaaae8230f48b20",
+    "break": "body of handlePDU replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8210-8.3-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestCacheResetTriggersResetQuery",
+    "unit-sha": "196638b67454464c",
+    "claim-sha": "8b1c24e0817d9663",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rpki/rtr_session.go::handlePDU",
+    "producer-sha": "fcaaae8230f48b20",
+    "break": "body of handlePDU replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8210-8.3-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestCacheResetTriggersResetQuery",
+    "unit-sha": "196638b67454464c",
+    "claim-sha": "8265e04e2d5d1d3e",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rpki/rtr_session.go::handlePDU",
+    "producer-sha": "fcaaae8230f48b20",
+    "break": "body of handlePDU replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

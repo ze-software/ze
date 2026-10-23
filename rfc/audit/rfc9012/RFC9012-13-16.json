@@ -1,0 +1,8 @@
+{
+  "code": {
+    "internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange": "c43894606dafdb4c"
+  },
+  "note": "Section 13 defines disregard of tunnel-type-meaningless sub-TLVs in terms of encapsulation-header construction. Existing opaque carry and Preference-readback tests do not observe that consumer. checkRouteBestChange exports no attribute-23 tunnel parameters; the absent consumer remains owned by plan/spec-bgp-tunnel-encapsulation-consumption.md AC-2/AC-6. The applied owner-ruling annotation and removal of the four obsolete 13-16 carry tags preserve their assertions and existing 13-18/-19/RFC9830 identities. Preserve the complete quote and MUST applicability, with no whole-requirement credit.",
+  "requirement_sha": "6eb9e53c070a2d18",
+  "verdict": "unimplemented"
+}

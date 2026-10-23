@@ -1,0 +1,17 @@
+{
+  "note": "Forbidden: a User-Password cipher not chained as MD5(S+RA) then MD5(S+c(i-1)). TestEncodeUserPasswordMultiBlock compares a 2-block ciphertext with one the test builds from the RFC recipe (red if block 2 is keyed on RA), TestEncodeUserPassword reverses block 1 with MD5(S+RA); the negatives assert the ciphertext changes with the secret and with the Request Authenticator.",
+  "requirement_sha": "813e6f1b4c8c3531",
+  "tests": {
+    "internal/component/radius/rfc2865_attr_test.go::TestEncodeUserPassword": "e76b99b8ec888664",
+    "internal/component/radius/rfc2865_attr_test.go::TestEncodeUserPasswordMultiBlock": "e76b99b8ec888664",
+    "internal/component/radius/rfc2865_test.go::TestRFC2865UserPasswordDependsOnSecret": "9e5b9d00bb0a5c97",
+    "internal/component/radius/rfc2865_test.go::TestRFC2865UserPasswordDependsOnSecret#2": "9e5b9d00bb0a5c97"
+  },
+  "units": {
+    "internal/component/radius/rfc2865_attr_test.go::TestEncodeUserPassword": "aadf0897134b3c36",
+    "internal/component/radius/rfc2865_attr_test.go::TestEncodeUserPasswordMultiBlock": "4c60521b9b93f140",
+    "internal/component/radius/rfc2865_test.go::TestRFC2865UserPasswordDependsOnSecret": "4b863d59b24dcb66",
+    "internal/component/radius/rfc2865_test.go::TestRFC2865UserPasswordDependsOnSecret#2": "4b863d59b24dcb66"
+  },
+  "verdict": "enforced"
+}

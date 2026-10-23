@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2661-5.0-2",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/rfc2661_lower_layer_linux_test.go::TestKernelSessionRequestedOnlyOnceEstablished",
+    "unit-sha": "3e78ecb9911008ac",
+    "claim-sha": "ae096571704bf48f",
+    "route": "revert",
+    "producer": "internal/component/l2tp/reactor_kernel.go::collectKernelEventsLocked",
+    "producer-sha": "b3c72d3d078bc6f3",
+    "break": "body of collectKernelEventsLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2661-5.0-2",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/rfc2661_lower_layer_linux_test.go::TestKernelSessionRequestedOnlyOnceEstablished",
+    "unit-sha": "3e78ecb9911008ac",
+    "claim-sha": "d902136b7100de3a",
+    "route": "revert",
+    "producer": "internal/component/l2tp/reactor_kernel.go::collectKernelEventsLocked",
+    "producer-sha": "b3c72d3d078bc6f3",
+    "break": "body of collectKernelEventsLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

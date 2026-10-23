@@ -1,0 +1,42 @@
+{
+  "code": {},
+  "note": "Re-judged 2026-10-18 (independent reviewer, over the uncommitted rfc9494_llgr_self_attach_test.go). RFC 9494 Section 4.3: \"A BGP speaker that has advertised the Long-Lived Graceful Restart Capability to a neighbor MUST perform the following upon receiving a route from that neighbor with the LLGR_STALE community or upon attaching the LLGR_STALE community itself per Section 4.2: * Treat the route as the least preferred in route selection\". The previous verdict was weak only for the second trigger, \"upon attaching the LLGR_STALE community itself\". It is closed: TestRFC9494SelfAttachedLLGRStaleIsLeastPreferred drives the RIB's own mark-stale then attach-community ffff0006 commands (the pair onLLGREnter dispatches, gr.go) and asserts SelectBestExplain over the gathered candidates is decided at BestStepStale for the fresh LOCAL_PREF 100 route against the retained LOCAL_PREF 200 route whose peer address is also lower, so every ordinary step favours the loser and only the depreference can decide. Go-overlay mutants, observed: deleting `entry.StaleLevel = storage.DepreferenceThreshold` in attachCommunityCommand turns the positive red (decided at a later step, 192.0.2.1 wins), which also shows mark-stale alone stays below the threshold; disabling the StaleLevelFresh guard in the attach sweep turns only the negative red (the route stored fresh after mark-stale is depreferenced and loses). Both tests passed -count=5. The received-route trigger stands as judged before: negotiateWith -> LLGRIngressFilter -> RIB Step 0 and llgr-stale-received-depreferenced.ci over the daemon. Residual, not a weakness of the assertions: onLLGREnter also dispatches mark-stale level 2 after the attach (gr.go), a second producer of the same depreference, so the production sequence stays compliant if either one alone is removed; the self-attach unit pins the attach producer the sentence names, and no unit tagged for this row drives onLLGREnter into the RIB's selection. The two new discrimination records are body-panic reverts and show reachability only; the semantic mutants above are the discriminating evidence.",
+  "requirement_sha": "1168b7e095abe221",
+  "tests": {
+    "internal/component/bgp/plugins/gr/rfc9494_gr_ingress_test.go::TestLLGRIngressFilter_MarksReceivedStale": "ccda16eb9f58cec3",
+    "internal/component/bgp/plugins/gr/rfc9494_gr_ingress_test.go::TestLLGRIngressFilter_NoLLGRSentLeavesFresh": "ccda16eb9f58cec3",
+    "internal/component/bgp/plugins/rib/bestpath_test.go::TestComparePair_GRStaleCompetesNormally": "ae729071cdaf7dce",
+    "internal/component/bgp/plugins/rib/bestpath_test.go::TestComparePair_LLGRStale": "ae729071cdaf7dce",
+    "internal/component/bgp/plugins/rib/rfc9494_llgr_least_preferred_test.go::TestRFC9494LLGRStaleLosesEveryLaterTieBreak": "14a825eec974e968",
+    "internal/component/bgp/plugins/rib/rfc9494_llgr_received_stale_test.go::TestRFC9494ReceivedLLGRStaleFromNonLLGRNeighborCompetesNormally": "562b651c5de15bcc",
+    "internal/component/bgp/plugins/rib/rfc9494_llgr_received_stale_test.go::TestRFC9494ReceivedLLGRStaleIsLeastPreferred": "562b651c5de15bcc",
+    "internal/component/bgp/plugins/rib/rfc9494_llgr_received_stale_test.go::TestRFC9494ReceivedOtherCommunityCompetesNormally": "562b651c5de15bcc",
+    "internal/component/bgp/plugins/rib/rfc9494_llgr_self_attach_test.go::TestRFC9494SelfAttachSkipsRouteLearnedAfterLoss": "4e09226a2836106f",
+    "internal/component/bgp/plugins/rib/rfc9494_llgr_self_attach_test.go::TestRFC9494SelfAttachedLLGRStaleIsLeastPreferred": "4e09226a2836106f",
+    "internal/component/bgp/reactor/rfc9494_llgr_ingress_meta_test.go::TestRFC9494ReceivedEventCarriesIngressStale": "be20d3bbd7709af1",
+    "internal/component/bgp/reactor/rfc9494_llgr_ingress_meta_test.go::TestRFC9494ReceivedEventNoLLGRSessionStaysFresh": "be20d3bbd7709af1",
+    "internal/component/bgp/reactor/rfc9494_llgr_trigger_test.go::TestRFC9494NegotiateWithKeysOnAdvertisedLLGR": "49bb68eebb6601eb",
+    "internal/component/bgp/reactor/rfc9494_llgr_trigger_test.go::TestRFC9494NegotiateWithKeysOnAdvertisedLLGR#2": "49bb68eebb6601eb",
+    "test/plugin/llgr-stale-received-depreferenced.ci": "2faf6713c7c18605",
+    "test/plugin/llgr-stale-received-depreferenced.ci#2": "2faf6713c7c18605"
+  },
+  "units": {
+    "internal/component/bgp/plugins/gr/rfc9494_gr_ingress_test.go::TestLLGRIngressFilter_MarksReceivedStale": "81975bcfca055113",
+    "internal/component/bgp/plugins/gr/rfc9494_gr_ingress_test.go::TestLLGRIngressFilter_NoLLGRSentLeavesFresh": "ea873d9e2b7e5823",
+    "internal/component/bgp/plugins/rib/bestpath_test.go::TestComparePair_GRStaleCompetesNormally": "c09d6ba79827272a",
+    "internal/component/bgp/plugins/rib/bestpath_test.go::TestComparePair_LLGRStale": "dcc04e3b49bb28d8",
+    "internal/component/bgp/plugins/rib/rfc9494_llgr_least_preferred_test.go::TestRFC9494LLGRStaleLosesEveryLaterTieBreak": "56b8724b792fa962",
+    "internal/component/bgp/plugins/rib/rfc9494_llgr_received_stale_test.go::TestRFC9494ReceivedLLGRStaleFromNonLLGRNeighborCompetesNormally": "ab554c3ea8408efb",
+    "internal/component/bgp/plugins/rib/rfc9494_llgr_received_stale_test.go::TestRFC9494ReceivedLLGRStaleIsLeastPreferred": "3b85a7bcf2a2be2b",
+    "internal/component/bgp/plugins/rib/rfc9494_llgr_received_stale_test.go::TestRFC9494ReceivedOtherCommunityCompetesNormally": "99c6cef867d0bba1",
+    "internal/component/bgp/plugins/rib/rfc9494_llgr_self_attach_test.go::TestRFC9494SelfAttachSkipsRouteLearnedAfterLoss": "b96f9e599877519e",
+    "internal/component/bgp/plugins/rib/rfc9494_llgr_self_attach_test.go::TestRFC9494SelfAttachedLLGRStaleIsLeastPreferred": "cb2ef882cd5c6638",
+    "internal/component/bgp/reactor/rfc9494_llgr_ingress_meta_test.go::TestRFC9494ReceivedEventCarriesIngressStale": "d5ab0c20c07f70a3",
+    "internal/component/bgp/reactor/rfc9494_llgr_ingress_meta_test.go::TestRFC9494ReceivedEventNoLLGRSessionStaysFresh": "abcb46ba4bad5fd8",
+    "internal/component/bgp/reactor/rfc9494_llgr_trigger_test.go::TestRFC9494NegotiateWithKeysOnAdvertisedLLGR": "97b2ca6fc483a7c4",
+    "internal/component/bgp/reactor/rfc9494_llgr_trigger_test.go::TestRFC9494NegotiateWithKeysOnAdvertisedLLGR#2": "97b2ca6fc483a7c4",
+    "test/plugin/llgr-stale-received-depreferenced.ci": "2faf6713c7c18605",
+    "test/plugin/llgr-stale-received-depreferenced.ci#2": "2faf6713c7c18605"
+  },
+  "verdict": "enforced"
+}

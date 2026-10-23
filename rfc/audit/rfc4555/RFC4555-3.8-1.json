@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: a host not behind a NAT moving its IKE peer address to the source of an authenticated INFORMATIONAL that carries no UPDATE_SA_ADDRESSES. internal/component/ike/engine/mobike_test.go::TestMobikePathProbeRetainsTunnelEndpoint sends such a probe from a new address and requires the next self-initiated DPD to arrive at the old endpoint (mbReceive(t, oldTr)) and no Child migration (dp.count == 0). The negative tag asserts the response still reaches the probing path. That is a conformance check rather than a violating input, and the tag prose names it as such.",
+  "requirement_sha": "960359ff6b91b7ea",
+  "tests": {
+    "internal/component/ike/engine/mobike_test.go::TestMobikePathProbeRetainsTunnelEndpoint": "7591039c742210b3",
+    "internal/component/ike/engine/mobike_test.go::TestMobikePathProbeRetainsTunnelEndpoint#2": "7591039c742210b3"
+  },
+  "units": {
+    "internal/component/ike/engine/mobike_test.go::TestMobikePathProbeRetainsTunnelEndpoint": "7ef3fb7a36fc076e",
+    "internal/component/ike/engine/mobike_test.go::TestMobikePathProbeRetainsTunnelEndpoint#2": "7ef3fb7a36fc076e"
+  },
+  "verdict": "enforced"
+}

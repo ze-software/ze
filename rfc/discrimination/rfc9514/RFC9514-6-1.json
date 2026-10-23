@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC9514-6-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/ls_export/rfc9514_export_test.go::TestRFC9514NativeSRv6Advertisements",
+    "unit-sha": "c15de70ad7f17f5e",
+    "claim-sha": "ad8493843b059e87",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/ls_export/export_encode.go::encodeTopology",
+    "producer-sha": "8cd787137d3e2d50",
+    "break": "body of encodeTopology replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

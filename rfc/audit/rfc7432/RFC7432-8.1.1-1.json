@@ -1,0 +1,13 @@
+{
+  "note": "update_build_evpn_rfc7432_test.go: TestRFC7432EthernetSegmentOriginationAccepted builds an ES route with a Type 1 RD; TestRFC7432EthernetSegmentOriginationRefused asserts ErrEVPNOrigination and no UPDATE for Type 0 and Type 2 RDs, isolated with a valid ES-Import RT",
+  "requirement_sha": "b9fdd4b0f6155a4f",
+  "tests": {
+    "internal/component/bgp/message/rfc7432_update_build_evpn_test.go::TestRFC7432EthernetSegmentOriginationAccepted": "b846c7b1492f098e",
+    "internal/component/bgp/message/rfc7432_update_build_evpn_test.go::TestRFC7432EthernetSegmentOriginationRefused": "b846c7b1492f098e"
+  },
+  "units": {
+    "internal/component/bgp/message/rfc7432_update_build_evpn_test.go::TestRFC7432EthernetSegmentOriginationAccepted": "fc3f7b1bc4882f41",
+    "internal/component/bgp/message/rfc7432_update_build_evpn_test.go::TestRFC7432EthernetSegmentOriginationRefused": "59cd2e3d24a21281"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,21 @@
+{
+  "note": "Re-judged 2026-10-09 after 180df07922 (Resolve returns *yang.Resolved, one Resolve per Loader; process, checkExtensions, checkPatterns, checkStructure still all run and join, refusals unchanged): cases unchanged. RFC 9.4.4: 'If multiple values or ranges are given, they all MUST be disjoint and MUST be in ascending order.' Prior judgement, still true: Re-judged 2026-10-09; the earlier weak (min/max read as 0 and 2^64-1, and a one-part 5..1 tagged as parts out of order) is fixed. Non-negative: \"-1..5\" refused. Ascending: ModuleLoadRefused now drives \"10..20 | 1..5\", and TestRFC7950LengthPartsDisjointAndAscending refuses it and overlapping \"1..5 | 3..8\" (goyang coalesces both, so the refusal is checkStructure) against \"0..5 | 10..20\". min/max: TestRFC7950LengthMinMaxAreTheRestrictedTypeBounds refuses \"min | 2\" and \"10 | max\" over typedef length 2..10 against \"min..4 | 6..max\" and \"min..max\"; revert records on both structural tests. Probe 2026-10-09: touching \"1..5 | 5..10\" and \"max | max\" refused, adjacent \"1..5 | 6..10\" and \"min | max\" load; min/max follow a two-level typedef chain and a typedef with no length of its own; a union member's length is checked.",
+  "requirement_sha": "64cc86230ce16a2c",
+  "tests": {
+    "internal/component/config/yang/rfc7950_loader_structural_test.go::TestRFC7950LengthMinMaxAreTheRestrictedTypeBounds": "f7f46fb0e5438f42",
+    "internal/component/config/yang/rfc7950_loader_structural_test.go::TestRFC7950LengthMinMaxAreTheRestrictedTypeBounds#2": "f7f46fb0e5438f42",
+    "internal/component/config/yang/rfc7950_loader_structural_test.go::TestRFC7950LengthPartsDisjointAndAscending": "f7f46fb0e5438f42",
+    "internal/component/config/yang/rfc7950_loader_structural_test.go::TestRFC7950LengthPartsDisjointAndAscending#2": "f7f46fb0e5438f42",
+    "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadAccepted": "26cd2578c196b22d",
+    "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadRefused": "26cd2578c196b22d"
+  },
+  "units": {
+    "internal/component/config/yang/rfc7950_loader_structural_test.go::TestRFC7950LengthMinMaxAreTheRestrictedTypeBounds": "73642056761ed793",
+    "internal/component/config/yang/rfc7950_loader_structural_test.go::TestRFC7950LengthMinMaxAreTheRestrictedTypeBounds#2": "73642056761ed793",
+    "internal/component/config/yang/rfc7950_loader_structural_test.go::TestRFC7950LengthPartsDisjointAndAscending": "b2d679fcd8539df4",
+    "internal/component/config/yang/rfc7950_loader_structural_test.go::TestRFC7950LengthPartsDisjointAndAscending#2": "b2d679fcd8539df4",
+    "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadAccepted": "205c57baa94df187",
+    "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadRefused": "9aa285d5018c168d"
+  },
+  "verdict": "enforced"
+}

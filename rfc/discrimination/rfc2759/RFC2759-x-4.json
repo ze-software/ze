@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC2759-x-4",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc2759_clause_test.go::TestRFC2759NTResponseUsesTheBareUserName",
+    "unit-sha": "0b73cc1ddc6c2861",
+    "claim-sha": "66d9bb5f56a711d0",
+    "route": "revert",
+    "producer": "internal/core/eap/mschapv2.go::stripDomain",
+    "producer-sha": "9bb8aeb5b07ca21e",
+    "break": "body of stripDomain replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2759-x-4",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc2759_clause_test.go::TestRFC2759NTResponseUsesTheBareUserName",
+    "unit-sha": "0b73cc1ddc6c2861",
+    "claim-sha": "60fff33a8c3d5f0c",
+    "route": "revert",
+    "producer": "internal/core/eap/mschapv2.go::stripDomain",
+    "producer-sha": "9bb8aeb5b07ca21e",
+    "break": "body of stripDomain replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2759-x-4",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc2759_mschapv2_test.go::TestChallengeHashExcludesDomainPrefix",
+    "unit-sha": "10a62be26609d32a",
+    "claim-sha": "8e7d74c1fc68e338",
+    "route": "revert",
+    "producer": "internal/core/eap/mschapv2.go::stripDomain",
+    "producer-sha": "9bb8aeb5b07ca21e",
+    "break": "body of stripDomain replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2759-x-4",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc2759_mschapv2_test.go::TestChallengeHashExcludesDomainPrefix",
+    "unit-sha": "10a62be26609d32a",
+    "claim-sha": "773752dae02213b4",
+    "route": "revert",
+    "producer": "internal/core/eap/mschapv2.go::stripDomain",
+    "producer-sha": "9bb8aeb5b07ca21e",
+    "break": "body of stripDomain replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

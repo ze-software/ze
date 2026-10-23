@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9252-4.1-1",
+    "polarity": "positive",
+    "unit": "internal/core/bgp/attribute/rfc9252_prefixsid_origin_test.go::TestCheckSRv6TranspositionLabelWidth",
+    "unit-sha": "74d60628409053ad",
+    "claim-sha": "580ade7337415e54",
+    "route": "revert",
+    "producer": "internal/core/bgp/attribute/prefixsid.go::checkTranspositionFitsLabel",
+    "producer-sha": "19c7e0a85fab8a6b",
+    "break": "body of checkTranspositionFitsLabel replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9252-4.1-1",
+    "polarity": "negative",
+    "unit": "internal/core/bgp/attribute/rfc9252_prefixsid_origin_test.go::TestCheckSRv6TranspositionLabelWidth",
+    "unit-sha": "74d60628409053ad",
+    "claim-sha": "8a5eb40194f92c86",
+    "route": "revert",
+    "producer": "internal/core/bgp/attribute/prefixsid.go::checkTranspositionFitsLabel",
+    "producer-sha": "19c7e0a85fab8a6b",
+    "break": "body of checkTranspositionFitsLabel replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

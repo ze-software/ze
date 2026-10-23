@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC9568-5.2.4-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/groups_test.go::TestEffectivePriorityWithTracking",
+    "unit-sha": "54c31fff0fef51dd",
+    "claim-sha": "f52ffe76f5837a32",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/groups.go::EffectivePriority",
+    "producer-sha": "6cbc3832c7c5ed6c",
+    "break": "body of EffectivePriority replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,25 @@
+[
+  {
+    "rid": "RFC4271-4.3-4",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_attr_flags_relay_test.go::TestRFC4271RelayedLowNibbleClearedOnBothRails",
+    "unit-sha": "ff772e0fe6802ac2",
+    "claim-sha": "df8d859c510bd5ad",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/rfc7606.go::validateAttributeFlags",
+    "producer-sha": "473336292a0cad0a",
+    "break": "body of validateAttributeFlags replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-4.3-4",
+    "polarity": "positive",
+    "unit": "test/plugin/rfc4271-attr-flags-low-nibble-relay.ci",
+    "unit-sha": "4e7fbac21b5224a7",
+    "claim-sha": "13e1a1e7b81420c4",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/rfc7606.go::validateAttributeFlags",
+    "producer-sha": "473336292a0cad0a",
+    "break": "body of validateAttributeFlags replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+    "citation": "expect=bgp:conn=2:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0035020000001A4001010040020602010000FDE940030401010101E0F103AABBCC180A0000"
+  }
+]

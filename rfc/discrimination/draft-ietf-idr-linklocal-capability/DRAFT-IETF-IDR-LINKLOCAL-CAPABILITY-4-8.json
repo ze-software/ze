@@ -1,0 +1,68 @@
+[
+  {
+    "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go::TestLinkLocalReceivedPairKeptForDirectlyAttachedExternalPeer",
+    "unit-sha": "fb0d61908af62273",
+    "claim-sha": "2c1aad3d4a625b64",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/forward_next_hop.go::applyEgressNextHopScope",
+    "producer-sha": "eefbfdd62f8042b3",
+    "break": "body of applyEgressNextHopScope replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go::TestLinkLocalReceivedPairStrippedForMultihopExternalPeer",
+    "unit-sha": "9a49085f27e08a3b",
+    "claim-sha": "8755929699952e52",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/forward_next_hop.go::applyEgressNextHopScope",
+    "producer-sha": "eefbfdd62f8042b3",
+    "break": "body of applyEgressNextHopScope replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go::TestLinkLocalRouteServerKeepsReceivedPairForAttachedClient",
+    "unit-sha": "570ecde6a8b007dd",
+    "claim-sha": "e5310a9f8cd4b72f",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/forward_next_hop.go::applyEgressNextHopScope",
+    "producer-sha": "eefbfdd62f8042b3",
+    "break": "body of applyEgressNextHopScope replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go::TestLinkLocalRouteServerStripsReceivedPairForMultihopClient",
+    "unit-sha": "0715036833756334",
+    "claim-sha": "260c4404ca8be907",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/forward_next_hop.go::applyEgressNextHopScope",
+    "producer-sha": "eefbfdd62f8042b3",
+    "break": "body of applyEgressNextHopScope replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go::TestLinkLocalIncludedForDirectlyAttachedExternalPeer",
+    "unit-sha": "42698e42d02c0119",
+    "claim-sha": "40e8eb1fa231b313",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/link_scope.go::applyLinkLocalNextHop",
+    "producer-sha": "04aaa23d9f5c1540",
+    "break": "body of applyLinkLocalNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go::TestLinkLocalNotIncludedForMultihopExternalPeer",
+    "unit-sha": "9e84b16af33e17e5",
+    "claim-sha": "a06ece5a0d9329f0",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/link_scope.go::newLinkScopeFrom",
+    "producer-sha": "d36f94829f3c16c1",
+    "break": "body of newLinkScopeFrom replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

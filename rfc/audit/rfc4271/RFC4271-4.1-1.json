@@ -1,0 +1,17 @@
+{
+  "note": "Sender side. TestRFC4271EveryMessageSentWithAllOnesMarker packs OPEN (classic, extended, >255), UPDATE, NOTIFICATION, KEEPALIVE, ROUTE-REFRESH into a fresh buffer and at offset 7 of a zero-filled buffer and asserts the 16 marker octets equal 0xFF each time; red if writeHeader writes any other marker. Receive-side (6.1) tags kept.",
+  "requirement_sha": "b7d075677edef5c1",
+  "tests": {
+    "internal/component/bgp/message/rfc4271_header_send_test.go::TestRFC4271EveryMessageSentWithAllOnesMarker": "b57c65aae7255a53",
+    "internal/component/bgp/message/rfc4271_header_send_test.go::TestRFC4271EveryMessageSentWithAllOnesMarker#2": "b57c65aae7255a53",
+    "internal/component/bgp/message/rfc4271_test.go::TestRFC4271MarkerAllOnesOnSend": "abbe4d642c22df9a",
+    "internal/component/bgp/message/rfc4271_test.go::TestRFC4271MarkerNotAllOnesRejected": "abbe4d642c22df9a"
+  },
+  "units": {
+    "internal/component/bgp/message/rfc4271_header_send_test.go::TestRFC4271EveryMessageSentWithAllOnesMarker": "adb2ca346668fad8",
+    "internal/component/bgp/message/rfc4271_header_send_test.go::TestRFC4271EveryMessageSentWithAllOnesMarker#2": "adb2ca346668fad8",
+    "internal/component/bgp/message/rfc4271_test.go::TestRFC4271MarkerAllOnesOnSend": "768745e3e93b2b59",
+    "internal/component/bgp/message/rfc4271_test.go::TestRFC4271MarkerNotAllOnesRejected": "60817552fd110cc9"
+  },
+  "verdict": "enforced"
+}

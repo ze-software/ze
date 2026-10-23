@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC7296-2.23-3",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_nat_port4500_test.go::TestRFC7296IKEOnPort4500CarriesTheZeroMarker",
+    "unit-sha": "aeba5e91a2aa0ce5",
+    "claim-sha": "d5659635d43217b1",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/established.go::sendRaw",
+    "producer-sha": "648ef87c55227820",
+    "break": "body of sendRaw replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.23-3",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_nat_port4500_test.go::TestRFC7296IKEOnPort500CarriesNoMarker",
+    "unit-sha": "8bd0c0d697a9fb84",
+    "claim-sha": "40a11c1da944dea5",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/established.go::sendRaw",
+    "producer-sha": "648ef87c55227820",
+    "break": "body of sendRaw replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.23-3",
+    "polarity": "positive",
+    "unit": "internal/component/ike/transport/nat_test.go::TestNonESPMarker",
+    "unit-sha": "c849e80d30356333",
+    "claim-sha": "44f1fa24701d5c1e",
+    "route": "revert",
+    "producer": "internal/component/ike/transport/nat.go::AddNonESPMarker",
+    "producer-sha": "fbb42fc1b7166484",
+    "break": "body of AddNonESPMarker replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.23-3",
+    "polarity": "negative",
+    "unit": "internal/component/ike/transport/nat_test.go::TestNonESPMarkerESPPacket",
+    "unit-sha": "576fc4da03a994ef",
+    "claim-sha": "0e14c065129ca235",
+    "route": "revert",
+    "producer": "internal/component/ike/transport/nat.go::StripNonESPMarker",
+    "producer-sha": "8ca0bde9664c9e48",
+    "break": "body of StripNonESPMarker replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

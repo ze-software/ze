@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC3768-6.4.3-4",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/acceptfilter_test.go::TestActiveV2RouterAcceptsOnlyWhenItOwnsTheAddress",
+    "unit-sha": "dd9ebbdec4390a3a",
+    "claim-sha": "3020a689afe89228",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/groups.go::EffectiveAcceptMode",
+    "producer-sha": "4c01765b8b2b548e",
+    "break": "body of EffectiveAcceptMode replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3768-6.4.3-4",
+    "polarity": "negative",
+    "unit": "internal/plugins/vrrp/acceptfilter_test.go::TestActiveV2RouterAcceptsOnlyWhenItOwnsTheAddress",
+    "unit-sha": "dd9ebbdec4390a3a",
+    "claim-sha": "b8f501589eb29e39",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/groups.go::EffectiveAcceptMode",
+    "producer-sha": "4c01765b8b2b548e",
+    "break": "body of EffectiveAcceptMode replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

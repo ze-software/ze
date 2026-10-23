@@ -1,0 +1,13 @@
+{
+  "note": "TestParsePathsLimitDuplicateFirstWins parses two ipv4/unicast tuples, limit 10 then limit 20, and requires one entry whose limit is 10. The positive is the kept value and the negative is the count, which are separate assertions over the same buffer. Removing the \"seen[f]\" guard in parsePathsLimit (internal/core/bgp/capability/capability.go) yields two entries, so the count assertion discriminates. No discrimination record: the tags predate HEAD. Re-judged 2026-09-27 by QF-2 after the row was replaced by the verbatim \u00a73 sentence; the obligation is the one the note above judged, and the tagged units are unchanged. The quote adds the sentence's lowercase 'should' for the first-tuple half; TestParsePathsLimitDuplicateFirstWins asserts one entry with limit 10 from tuples 10 then 20, so keeping the second or both goes red. Enforced stands.",
+  "requirement_sha": "2d6404a29bb21743",
+  "tests": {
+    "internal/core/bgp/capability/capability_test.go::TestParsePathsLimitDuplicateFirstWins": "3b6ab22b8c99761b",
+    "internal/core/bgp/capability/capability_test.go::TestParsePathsLimitDuplicateFirstWins#2": "3b6ab22b8c99761b"
+  },
+  "units": {
+    "internal/core/bgp/capability/capability_test.go::TestParsePathsLimitDuplicateFirstWins": "fb1793e5bbc718c8",
+    "internal/core/bgp/capability/capability_test.go::TestParsePathsLimitDuplicateFirstWins#2": "fb1793e5bbc718c8"
+  },
+  "verdict": "enforced"
+}

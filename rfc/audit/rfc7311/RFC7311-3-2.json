@@ -1,0 +1,17 @@
+{
+  "note": "Judge 2026-09-30. TestRFC7311AIGPValueIsWholeTLVSet: + a value of two whole TLVs parses into exactly those two; - one, two or three trailing octets that do not form a TLV are refused. Forbidden: accepting a value that is not a whole set of TLVs.",
+  "requirement_sha": "86b51cad859556b6",
+  "tests": {
+    "internal/core/bgp/attribute/rfc7311_aigp_test.go::TestParseAIGPMalformedTruncatedValue": "682ca5c47e79ad07",
+    "internal/core/bgp/attribute/rfc7311_aigp_test.go::TestParseAIGPMultipleTLVs": "682ca5c47e79ad07",
+    "internal/core/bgp/attribute/rfc7311_tlv_test.go::TestRFC7311AIGPValueIsWholeTLVSet": "7b179465862209a9",
+    "internal/core/bgp/attribute/rfc7311_tlv_test.go::TestRFC7311AIGPValueIsWholeTLVSet#2": "7b179465862209a9"
+  },
+  "units": {
+    "internal/core/bgp/attribute/rfc7311_aigp_test.go::TestParseAIGPMalformedTruncatedValue": "110e6880f1f6bf6d",
+    "internal/core/bgp/attribute/rfc7311_aigp_test.go::TestParseAIGPMultipleTLVs": "74ce6b46d01ae615",
+    "internal/core/bgp/attribute/rfc7311_tlv_test.go::TestRFC7311AIGPValueIsWholeTLVSet": "4aae734134dce8ed",
+    "internal/core/bgp/attribute/rfc7311_tlv_test.go::TestRFC7311AIGPValueIsWholeTLVSet#2": "4aae734134dce8ed"
+  },
+  "verdict": "enforced"
+}

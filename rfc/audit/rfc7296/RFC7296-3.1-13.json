@@ -1,0 +1,17 @@
+{
+  "note": "Every call site of initiatorFlag is now product-driven for both original roles: IKE_SA_INIT/IKE_AUTH request and response, INFORMATIONAL responses, IKE rekey request, DPD probes (earlier units), and TestRFC7296InitiatorBitAtEveryRemainingCallSite: writeDelete and sendIKESATeardown Delete requests and startMobikeRequest read off the peer socket, respondMobikeError, buildErrorNotifyResponse, initiateChildRekey, respondChildRekey accepted and INVALID_KE, respondIKERekey accepted and INVALID_KE. Each check asserts I == original-initiator and the R flag, so a site deriving I from direction goes red on a response or on the original responder's request, and a hard-coded value goes red for one role. The older unit's test-built Delete remains but no longer carries the Delete claim alone.",
+  "requirement_sha": "719e75eee1468763",
+  "tests": {
+    "internal/component/ike/engine/rfc7296_initiator_bit_sites_test.go::TestRFC7296InitiatorBitAtEveryRemainingCallSite": "34934f4417c6c829",
+    "internal/component/ike/engine/rfc7296_initiator_bit_test.go::TestRFC7296InitiatorBitFollowsTheOriginalRole": "e86fe30046213f74",
+    "internal/component/ike/engine/rfc7296_wp2_test.go::TestWp2DPDProbeIBitDiffersByRole": "ca62d931e5068b03",
+    "internal/component/ike/engine/rfc7296_wp2_test.go::TestWp2DPDProbeIBitFollowsRole": "ca62d931e5068b03"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7296_initiator_bit_sites_test.go::TestRFC7296InitiatorBitAtEveryRemainingCallSite": "d0f6c034813da69d",
+    "internal/component/ike/engine/rfc7296_initiator_bit_test.go::TestRFC7296InitiatorBitFollowsTheOriginalRole": "75573505af56541e",
+    "internal/component/ike/engine/rfc7296_wp2_test.go::TestWp2DPDProbeIBitDiffersByRole": "b6c1b1389db7461a",
+    "internal/component/ike/engine/rfc7296_wp2_test.go::TestWp2DPDProbeIBitFollowsRole": "9e04a951b1503cb5"
+  },
+  "verdict": "enforced"
+}

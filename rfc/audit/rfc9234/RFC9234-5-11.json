@@ -1,0 +1,13 @@
+{
+  "note": "Single-polarity positive, argument re-checked: peerRoleConfig carries only role, strict and export; TestRFC9234OTCProceduresSurviveOperatorSettings sets strict on and export naming every role on the source configs (the export set the egress filter reads, srcCfg.resolvedExport) and shows ingress still stamps OTC 64500 from a Provider, still refuses an OTC route from a Customer, egress still withholds an OTC route from a Provider and still stamps 65000 toward a Customer. Revert record on checkOTCIngress. The marker's otc.go:164/:384 line citations are stale (now checkOTCIngress and OTCEgressFilter moved); the argument holds.",
+  "requirement_sha": "78a1a888b502be21",
+  "tests": {
+    "internal/component/bgp/plugins/role/rfc9234_otc_procedures_test.go::TestRFC9234OTCProceduresSurviveOperatorSettings": "790b5f8818e8d37c",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressWireBytesCheck": "7b0a9e434ba435f3"
+  },
+  "units": {
+    "internal/component/bgp/plugins/role/rfc9234_otc_procedures_test.go::TestRFC9234OTCProceduresSurviveOperatorSettings": "d6f3c3590e72fb78",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressWireBytesCheck": "e23814d1392c7383"
+  },
+  "verdict": "enforced"
+}

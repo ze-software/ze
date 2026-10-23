@@ -1,0 +1,17 @@
+{
+  "note": "all three sentences, both polarities, isolated by one-statement twins: (1) typedef default in/out of its own range (old pair, records on validateLeafDefaults); (2) a leaf of the typedef with no default carries 5, a narrowing leaf or typedef giving a new default carries 7/8 with no error (record on yangToLeaf); (3) a leaf and a typedef narrowing 1..10 to 6..10 with no new default each refused naming \"5\" (record on validateTypedefDefault).",
+  "requirement_sha": "b441385f99be6f8c",
+  "tests": {
+    "internal/component/config/rfc7950_yang_schema_defaults_clauses_test.go::TestRFC7950DerivedTypeInheritsOrReplacesTheDefault": "84d97cbfeb51f19f",
+    "internal/component/config/rfc7950_yang_schema_defaults_clauses_test.go::TestRFC7950DerivedTypeMustReplaceAnInvalidatedDefault": "84d97cbfeb51f19f",
+    "internal/component/config/rfc7950_yang_schema_defaults_test.go::TestRFC7950DefaultInvalidForType": "493cd4132fb31c5c",
+    "internal/component/config/rfc7950_yang_schema_defaults_test.go::TestRFC7950DefaultValidForType": "493cd4132fb31c5c"
+  },
+  "units": {
+    "internal/component/config/rfc7950_yang_schema_defaults_clauses_test.go::TestRFC7950DerivedTypeInheritsOrReplacesTheDefault": "ec14ab80f1e6172f",
+    "internal/component/config/rfc7950_yang_schema_defaults_clauses_test.go::TestRFC7950DerivedTypeMustReplaceAnInvalidatedDefault": "84603bdeabb02a6c",
+    "internal/component/config/rfc7950_yang_schema_defaults_test.go::TestRFC7950DefaultInvalidForType": "5b28008f4ac0a18b",
+    "internal/component/config/rfc7950_yang_schema_defaults_test.go::TestRFC7950DefaultValidForType": "a31a5554debe5da0"
+  },
+  "verdict": "enforced"
+}

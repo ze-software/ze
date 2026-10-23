@@ -1,0 +1,15 @@
+{
+  "note": "Judged 2026-09-29 (routing child, continuation judge). Genuine negative TestRFC4090BandwidthBitNotClaimedFromDownstreamOrRepair: bandwidth desired, FAST_REROUTE bandwidth, a downstream subobject claiming 0x04 and an armed unguaranteed bypass; the PLR's own subobject keeps 0x04 clear before and during local repair. The positive TestRFC4090BandwidthBitNeverClaimed is the conforming report (0x01 only). No input can guarantee bandwidth (RFC4090-4.4-5 gap). Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 4.4 and the enforced verdict holds unchanged.",
+  "requirement_sha": "cd0a157566eca1db",
+  "tests": {
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090BandwidthBitNeverClaimed": "3fb9184431da8daf",
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090BandwidthBitNeverClaimed#2": "3fb9184431da8daf",
+    "internal/plugins/rsvpte/rfc4090_plr_flags_test.go::TestRFC4090BandwidthBitNotClaimedFromDownstreamOrRepair": "8d4223b7e1a9680f"
+  },
+  "units": {
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090BandwidthBitNeverClaimed": "e17b50a5776bbdbe",
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090BandwidthBitNeverClaimed#2": "e17b50a5776bbdbe",
+    "internal/plugins/rsvpte/rfc4090_plr_flags_test.go::TestRFC4090BandwidthBitNotClaimedFromDownstreamOrRepair": "8662aaa404dbdb81"
+  },
+  "verdict": "enforced"
+}

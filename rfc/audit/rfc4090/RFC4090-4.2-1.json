@@ -1,0 +1,13 @@
+{
+  "note": "a PATH with a DETOUR object is rejected: PathErr to the PLR, no RESV, no LSP state; the same PATH without DETOUR is accepted Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 4.2 and the enforced verdict holds unchanged.",
+  "requirement_sha": "526e182df421fc1e",
+  "tests": {
+    "internal/plugins/rsvpte/frr_test.go::TestEnginePathWithDetourRejected": "9e1595a34e264d7e",
+    "internal/plugins/rsvpte/frr_test.go::TestEnginePathWithDetourRejected#2": "9e1595a34e264d7e"
+  },
+  "units": {
+    "internal/plugins/rsvpte/frr_test.go::TestEnginePathWithDetourRejected": "ca0803c77fa60525",
+    "internal/plugins/rsvpte/frr_test.go::TestEnginePathWithDetourRejected#2": "ca0803c77fa60525"
+  },
+  "verdict": "enforced"
+}

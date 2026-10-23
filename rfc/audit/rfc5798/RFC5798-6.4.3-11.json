@@ -1,0 +1,26 @@
+{
+  "code": {
+    "internal/plugins/vrrp/fsm/fsm.go::masterAdvert": "2dbdef3bd05f4df7",
+    "internal/plugins/vrrp/fsm/fsm.go::senderWinsTieBreak": "0a9381b15f64b496",
+    "internal/plugins/vrrp/instance.go::syncSourceLocked": "f7253f03aa078d8f"
+  },
+  "note": "vrrp judge 2026-09-29 (independent, continuations 1-2): TestInstanceIPv6ElectionUsesUnsignedOrder closes the missing IPv6 operand: an IPv6 Master whose advertisement source is link-local yields to a higher-priority advert and to an equal-priority sender greater in the high octet (fe80::80 vs fe80::7f), asserting advert timer cancelled, the advert's 3000ms interval adopted, Skew_Time and Master_Down_Interval recomputed from it, down timer armed, Backup; the reverse pair, which a signed compare would rank greater, keeps Master, timer armed, 1000ms interval. With TestInstanceTieBreakComparesTheAdvertisementSource (IPv4 operand) and TestFSMTransitionMatrix (timer value). Records: senderWinsTieBreak, observed red.",
+  "requirement_sha": "a089b2f5a90d9a09",
+  "tests": {
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "52489f84876bdb6f",
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "52489f84876bdb6f",
+    "internal/plugins/vrrp/tiebreak_test.go::TestInstanceTieBreakComparesTheAdvertisementSource": "a878e0cdb3eac07e",
+    "internal/plugins/vrrp/tiebreak_test.go::TestInstanceTieBreakComparesTheAdvertisementSource#2": "a878e0cdb3eac07e",
+    "internal/plugins/vrrp/tiebreak_v6_test.go::TestInstanceIPv6ElectionUsesUnsignedOrder": "3156ce97c4930a0e",
+    "internal/plugins/vrrp/tiebreak_v6_test.go::TestInstanceIPv6ElectionUsesUnsignedOrder#2": "3156ce97c4930a0e"
+  },
+  "units": {
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "c06b69f55bb239a3",
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "c06b69f55bb239a3",
+    "internal/plugins/vrrp/tiebreak_test.go::TestInstanceTieBreakComparesTheAdvertisementSource": "4d178cb352853a19",
+    "internal/plugins/vrrp/tiebreak_test.go::TestInstanceTieBreakComparesTheAdvertisementSource#2": "4d178cb352853a19",
+    "internal/plugins/vrrp/tiebreak_v6_test.go::TestInstanceIPv6ElectionUsesUnsignedOrder": "d06c594b2fcec520",
+    "internal/plugins/vrrp/tiebreak_v6_test.go::TestInstanceIPv6ElectionUsesUnsignedOrder#2": "d06c594b2fcec520"
+  },
+  "verdict": "enforced"
+}

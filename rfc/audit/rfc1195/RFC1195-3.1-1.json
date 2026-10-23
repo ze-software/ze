@@ -1,0 +1,13 @@
+{
+  "note": "Clause 'ignored': packet TestISISUnknownTLVPassthrough decodes TLVs 199/250 with no error and re-encodes the region byte-for-byte (prose now cites sec 5.2, matching the row). Clause 'forwarded LSPs passed on unchanged': new lsdb TestRFC1195UnknownTLVsFloodedUnchanged stores an LSP carrying 131/199/250 via Flooder.ReceiveLSP and after FloodTick requires the LAN circuit to send bytes.Equal to the received raw PDU, each unknown TLV present, and nothing back on the arrival circuit; a flood that rebuilt or stripped the LSP goes red. Both recorded red (ReceiveLSP, DecodeTLVs). {single-polarity: positive} holds: there is no reject path for an unrecognized code.",
+  "requirement_sha": "ee8583f8eb844dd5",
+  "tests": {
+    "internal/plugins/isis/lsdb/unknown_tlv_flood_rfc1195_test.go::TestRFC1195UnknownTLVsFloodedUnchanged": "65bcb3c21f477724",
+    "internal/plugins/isis/packet/tlv_opaque_test.go::TestISISUnknownTLVPassthrough": "697c63f4c0fcb173"
+  },
+  "units": {
+    "internal/plugins/isis/lsdb/unknown_tlv_flood_rfc1195_test.go::TestRFC1195UnknownTLVsFloodedUnchanged": "b6e38dda0215145b",
+    "internal/plugins/isis/packet/tlv_opaque_test.go::TestISISUnknownTLVPassthrough": "732e610eb2323a5e"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5176-6.3-2",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176DuplicateAndTimestampWindowsBothEndOutside",
+    "unit-sha": "270ed86001a44c1f",
+    "claim-sha": "8fb88b5801aa18eb",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authradius/coa.go::eventTimestampState",
+    "producer-sha": "d2f71c474bc3e807",
+    "break": "body of eventTimestampState replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5176-6.3-2",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176DuplicateAndTimestampWindowsBothHoldInside",
+    "unit-sha": "1575fede0e5fd130",
+    "claim-sha": "2773464efc39570f",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authradius/coa.go::cachedReplay",
+    "producer-sha": "f5d7923607ecf9e8",
+    "break": "body of cachedReplay replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

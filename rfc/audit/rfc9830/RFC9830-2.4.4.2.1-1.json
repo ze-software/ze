@@ -1,0 +1,13 @@
+{
+  "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeASubTLV. Forbidden: a Type A length other than 6 (e.g. the 8-octet total). Red: require.Len(value, 6) on a value srpSegSubs cut at the declared length. Negative: assert.Len(inner, 3), which a length of 8 breaks by swallowing the Type B sub-TLV header that follows.",
+  "requirement_sha": "d8858489d6e0bcf3",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeASubTLV": "450f2364530acf19",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeASubTLV#2": "450f2364530acf19"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeASubTLV": "33514a40260fa5b4",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeASubTLV#2": "33514a40260fa5b4"
+  },
+  "verdict": "enforced"
+}

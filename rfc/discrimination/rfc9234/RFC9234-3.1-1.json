@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9234-3.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressFilter",
+    "unit-sha": "5a72c7d8f03a0466",
+    "claim-sha": "1a05a580803695c5",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/role/otc.go::OTCEgressFilter",
+    "producer-sha": "8dffc1871d61f213",
+    "break": "body of OTCEgressFilter replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9234-3.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressFilter",
+    "unit-sha": "5a72c7d8f03a0466",
+    "claim-sha": "994a651f90c6ccb0",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/role/otc.go::OTCEgressFilter",
+    "producer-sha": "8dffc1871d61f213",
+    "break": "body of OTCEgressFilter replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

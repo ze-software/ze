@@ -1,0 +1,17 @@
+{
+  "note": "Rejudged 2026-09-30 (ike-eap judge). Sentence 1: Linux performs ESP-in-UDP, so the proof is the state Ze installs: TestRFC7296ESPInUDPStateHasESPRightAfterUDP asserts xfrmStateFromParams builds an encapsulated 4500/4500 SA with Encap.Type XFRM_ENCAP_ESPINUDP (the RFC 3948 form, ESP header right after UDP, not ESPINUDP_NON_IKE) and the SA's SPI. Sentence 2: TestRFC7296ESPInUDPStateRefusesSPIZero forces SPI 0 on an encapsulated SA and requires a refusal with no state; judge mutation (SPI==0 check disabled in xfrmStateFromParams) turned it red, so it is not vacuous. Both carry records. Receive-side distinction stays on transport TestNonESPMarker/TestNonESPMarkerESPPacket (recorded). No netns wire capture (needs root); the template Ze installs is the boundary Ze owns.",
+  "requirement_sha": "e077b34274e6e8cd",
+  "tests": {
+    "internal/component/ike/dataplane/rfc7296_esp_in_udp_linux_test.go::TestRFC7296ESPInUDPStateHasESPRightAfterUDP": "f83a0fa9161dca61",
+    "internal/component/ike/dataplane/rfc7296_esp_in_udp_linux_test.go::TestRFC7296ESPInUDPStateRefusesSPIZero": "f83a0fa9161dca61",
+    "internal/component/ike/transport/nat_test.go::TestNonESPMarker": "5e9bb9c1bf045ab6",
+    "internal/component/ike/transport/nat_test.go::TestNonESPMarkerESPPacket": "5e9bb9c1bf045ab6"
+  },
+  "units": {
+    "internal/component/ike/dataplane/rfc7296_esp_in_udp_linux_test.go::TestRFC7296ESPInUDPStateHasESPRightAfterUDP": "dd55a262508f2271",
+    "internal/component/ike/dataplane/rfc7296_esp_in_udp_linux_test.go::TestRFC7296ESPInUDPStateRefusesSPIZero": "7798543f9133b74a",
+    "internal/component/ike/transport/nat_test.go::TestNonESPMarker": "3fbaf9d3acd139e0",
+    "internal/component/ike/transport/nat_test.go::TestNonESPMarkerESPPacket": "bad94cfe12331e23"
+  },
+  "verdict": "enforced"
+}

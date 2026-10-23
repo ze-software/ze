@@ -1,0 +1,17 @@
+{
+  "note": "RFC9117 Section 4.2: 'BGP Flow Specification implementations MUST enforce that the AS in the left-most position of the AS_PATH attribute of a Flow Specification route received via the External Border Gateway Protocol (eBGP) matches the AS in the left-most position of the AS_PATH attribute of the best-match unicast route for the destination prefix embedded in the Flow Specification NLRI.' The explanation defines this as the AS last added to AS_SEQUENCE and excludes same-Local-Domain validation from the new rule's scope. Both polarities of TestFlowSpecAuthorizationFromReceivedUpdates and TestRFC9117AuthorizationUsesLongestCoveringRoute were read. PeerAS65100 with matching path AS65001 succeeds, so obsolete peer-AS equality cannot pass; changed first AS and AS_SET-only path yield retained but ineligible routes with no candidates/events. The external /8-/16 cases keep the /16 originator and external peer constant while varying first AS65002 versus AS65001, requiring exactly one matching NLRI/action install versus zero. flowSpecASPath and flowSpecAuthorized compare first AS against the longest-cover route, with received-RIB eligibility, candidate and event consumers enforcing the result. All four questions pass and the polarities are genuine isolated cases. Native panic records show reachability only; no semantic mutation or test execution was observed in this audit, and independent live-peer/VPP acceptance remains pending.",
+  "requirement_sha": "7413a96c1e8caade",
+  "tests": {
+    "internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute": "92bad22f663643a9",
+    "internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute#2": "92bad22f663643a9",
+    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates": "3eafc93869261790",
+    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates#2": "3eafc93869261790"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute": "c9c4af56bfe4a403",
+    "internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute#2": "c9c4af56bfe4a403",
+    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates": "4f4fdbecc78e3c4a",
+    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates#2": "4f4fdbecc78e3c4a"
+  },
+  "verdict": "enforced"
+}

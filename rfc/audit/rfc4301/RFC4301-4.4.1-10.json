@@ -1,0 +1,21 @@
+{
+  "note": "Ordered search proven at the stack, both ways, over real XFRM in a rootless netns with two overlapping inbound entries whose kernel priorities the tests read back. Positive TestRFC4301OrderedInboundSearchAdmitsOnTheFirstRankedEntry: Child SA entry (priority 2000, allow) over the inbound catch-all DISCARD (2^32-1, block); an in-selector packet on the SA is delivered with XfrmInPolBlock +0, an out-of-selector packet meets only the catch-all and is dropped (+1). Negative TestRFC4301OrderedInboundSearchRefusesOnTheFirstRankedDiscard: an operator inbound DISCARD (spdPolicyParams, order 1000, read back as 1000 block) covering the Child SA selector drops an in-selector packet on the SA (XfrmInPolBlock +1, not delivered) although the later PROTECT template matches. Also: TestRFC4301ParallelSAs* (verification after decryption, XfrmInNoPols) and the SPD boundary units (priority carried). Minor: orderedInboundPriority returns the first kernel policy with the src/dst strings, which in the negative could be the Child SA entry; the Fatalf then fails loud, never passes wrongly. Re-judged 2026-09-30 (pass 3): the tagged units changed only by tag lines (RFC4301-4.4-1 and 4.4.2.1-1 lines deleted from the dataplane boundary units, RFC4301-5.2-2 lines added to the engine sad_selector units); bodies identical, verdict unchanged. Re-judged 2026-09-30 (leftovers): the two dataplane SPD boundary units changed only by tag lines (RFC4301-5.1-1 and RFC4301-5.2-3 lines, rows retired as lead-ins, moved to RFC4301-5.1-4 and RFC4301-5.2-2); bodies identical to HEAD, judge ran both: PASS; verdict unchanged.",
+  "requirement_sha": "51a733585f5e8506",
+  "tests": {
+    "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate": "69d0d6fedadb8664",
+    "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryIsRefusedRatherThanWidened": "69d0d6fedadb8664",
+    "internal/component/ike/engine/rfc4301_ordered_spd_linux_test.go::TestRFC4301OrderedInboundSearchAdmitsOnTheFirstRankedEntry": "fed6bcce08b1525f",
+    "internal/component/ike/engine/rfc4301_ordered_spd_linux_test.go::TestRFC4301OrderedInboundSearchRefusesOnTheFirstRankedDiscard": "fed6bcce08b1525f",
+    "internal/component/ike/engine/rfc4301_parallel_sa_linux_test.go::TestRFC4301ParallelSAsAreHeldToTheOneSharedPolicy": "4c7d6435e335e97b",
+    "internal/component/ike/engine/rfc4301_parallel_sa_linux_test.go::TestRFC4301ParallelSAsWithOneSelectorAreEachReceived": "4c7d6435e335e97b"
+  },
+  "units": {
+    "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate": "4f6a7698e201b01f",
+    "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryIsRefusedRatherThanWidened": "3d5e8a87d96a8a98",
+    "internal/component/ike/engine/rfc4301_ordered_spd_linux_test.go::TestRFC4301OrderedInboundSearchAdmitsOnTheFirstRankedEntry": "80acdccd340cea1a",
+    "internal/component/ike/engine/rfc4301_ordered_spd_linux_test.go::TestRFC4301OrderedInboundSearchRefusesOnTheFirstRankedDiscard": "9498b018fe98ab8c",
+    "internal/component/ike/engine/rfc4301_parallel_sa_linux_test.go::TestRFC4301ParallelSAsAreHeldToTheOneSharedPolicy": "f17abddffa400d24",
+    "internal/component/ike/engine/rfc4301_parallel_sa_linux_test.go::TestRFC4301ParallelSAsWithOneSelectorAreEachReceived": "fe81deb1bdb10c45"
+  },
+  "verdict": "enforced"
+}

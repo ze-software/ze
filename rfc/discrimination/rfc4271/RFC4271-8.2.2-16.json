@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4271-8.2.2-16",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271OpenSentAutomaticStopReleasesTheConnection",
+    "unit-sha": "bb4135c881687bb8",
+    "claim-sha": "ce68280a60caf475",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_connection.go::teardownAutomatic",
+    "producer-sha": "4e9d5004662a9fd4",
+    "break": "body of teardownAutomatic replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-8.2.2-16",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go::TestRFC4271OpenSentWellFormedOpenKeepsTheConnection",
+    "unit-sha": "2e4357718a773a5e",
+    "claim-sha": "20a8dc2944eb0759",
+    "route": "revert",
+    "producer": "internal/component/bgp/fsm/fsm.go::handleOpenSent",
+    "producer-sha": "11b4ebaf65ecfc01",
+    "break": "body of handleOpenSent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

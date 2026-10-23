@@ -1,0 +1,21 @@
+{
+  "note": "Re-judged 2026-10-15 after 1ae1c731bd moved the three reject=stderr:pattern= lines of ipsec-error-notify-no-loop.ci under the daemon cmd line; under the new harness a stderr reject is a whole-run log check, so no assertion reads less, and expect=exit and the probe's pass line still bind the fixture. RFC 7296 Section 2.21.4: 'If a response is sent, the response MUST be sent to the IP address and port from where it came with the same IKE SPIs and the Message ID copied.' tunnelIPsecErrorNotify reads the answer on the socket that sent the request and fails unless both SPIs, exchange type 37, the Response flag and Message ID 7 are copied; the ordering marker with a different initiator SPI must draw an answer carrying that SPI and Message ID 11, so the copy is per request. TestNtfOutOfSAAnswersWithInvalidIKESPI and TestNtfOutOfSAAnswerCarriesTheSocketFraming pin the same fields and the arrival socket framing at unit level.",
+  "requirement_sha": "43bc91a35bea0d27",
+  "tests": {
+    "internal/component/ike/engine/rfc7296_notify_out_of_sa_test.go::TestNtfOutOfSAAnswerCarriesTheSocketFraming": "46d06959b3cb4475",
+    "internal/component/ike/engine/rfc7296_notify_out_of_sa_test.go::TestNtfOutOfSAAnswerCarriesTheSocketFraming#2": "46d06959b3cb4475",
+    "internal/component/ike/engine/rfc7296_notify_out_of_sa_test.go::TestNtfOutOfSAAnswersWithInvalidIKESPI": "46d06959b3cb4475",
+    "internal/component/ike/engine/rfc7296_notify_out_of_sa_test.go::TestNtfOutOfSAAnswersWithInvalidIKESPI#2": "46d06959b3cb4475",
+    "test/ipsec/ipsec-error-notify-no-loop.ci": "623bc86b2e72ee5e",
+    "test/ipsec/ipsec-error-notify-no-loop.ci#2": "623bc86b2e72ee5e"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7296_notify_out_of_sa_test.go::TestNtfOutOfSAAnswerCarriesTheSocketFraming": "e44152a2c3d1b0ca",
+    "internal/component/ike/engine/rfc7296_notify_out_of_sa_test.go::TestNtfOutOfSAAnswerCarriesTheSocketFraming#2": "e44152a2c3d1b0ca",
+    "internal/component/ike/engine/rfc7296_notify_out_of_sa_test.go::TestNtfOutOfSAAnswersWithInvalidIKESPI": "a331953769e2ca3e",
+    "internal/component/ike/engine/rfc7296_notify_out_of_sa_test.go::TestNtfOutOfSAAnswersWithInvalidIKESPI#2": "a331953769e2ca3e",
+    "test/ipsec/ipsec-error-notify-no-loop.ci": "623bc86b2e72ee5e",
+    "test/ipsec/ipsec-error-notify-no-loop.ci#2": "623bc86b2e72ee5e"
+  },
+  "verdict": "enforced"
+}

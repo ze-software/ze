@@ -1,0 +1,17 @@
+{
+  "note": "vrrp judge 2026-09-29 (independent): Same unit as RFC3768-6.4.2-7: the greater-priority case is now fed, so an '==' comparison fails; the discard branch is proven by no action plus the old timer still promoting.",
+  "requirement_sha": "9886042b1d8b2718",
+  "tests": {
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "52489f84876bdb6f",
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "52489f84876bdb6f",
+    "internal/plugins/vrrp/fsm/rfc_verdict_test.go::TestV2BackupResetsOrDiscards": "529420a351d8b685",
+    "internal/plugins/vrrp/fsm/rfc_verdict_test.go::TestV2BackupResetsOrDiscards#2": "529420a351d8b685"
+  },
+  "units": {
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "c06b69f55bb239a3",
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "c06b69f55bb239a3",
+    "internal/plugins/vrrp/fsm/rfc_verdict_test.go::TestV2BackupResetsOrDiscards": "11714486278a4093",
+    "internal/plugins/vrrp/fsm/rfc_verdict_test.go::TestV2BackupResetsOrDiscards#2": "11714486278a4093"
+  },
+  "verdict": "enforced"
+}

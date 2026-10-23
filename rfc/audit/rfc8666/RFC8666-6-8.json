@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged 2026-09-30 (continuation 5). Positive: new TestRFC8666NextHopAdvertisedFlagsShapeOutgoingLabel, next hop = SID advertiser, four flag settings each give the Section 6 outcome: NP clear -> no push and PHP pop of 18009; NP -> push 16009; NP+E -> push IPv6 Explicit NULL; M+E with NP clear -> push 16009 (M makes NP and E ignored, distinguishable from the NP-clear pop). Negative: TestRFC8666TransitHopIgnoresOriginatorPHPFlags, a non-advertising next hop does not apply the originator's NP=0; judge overlay applying the flags unconditionally in forwarding (sr_install.go) reds it. Revert record on forwarding observed red for the positive. TestRFC8666OutgoingLabelUsesNextHopRouter stays tagged as supplementary (next hop's SRGB).",
+  "requirement_sha": "0a235ac2ce8aa307",
+  "tests": {
+    "internal/plugins/ospf/rfc8666_test.go::TestRFC8666NextHopAdvertisedFlagsShapeOutgoingLabel": "4729a15d3adeda26",
+    "internal/plugins/ospf/rfc8666_test.go::TestRFC8666OutgoingLabelUsesNextHopRouter": "4729a15d3adeda26",
+    "internal/plugins/ospf/rfc8666_test.go::TestRFC8666TransitHopIgnoresOriginatorPHPFlags": "4729a15d3adeda26"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc8666_test.go::TestRFC8666NextHopAdvertisedFlagsShapeOutgoingLabel": "edb7bd346deb2664",
+    "internal/plugins/ospf/rfc8666_test.go::TestRFC8666OutgoingLabelUsesNextHopRouter": "1b884b1aac8e81f6",
+    "internal/plugins/ospf/rfc8666_test.go::TestRFC8666TransitHopIgnoresOriginatorPHPFlags": "4de3a9aa6729c037"
+  },
+  "verdict": "enforced"
+}

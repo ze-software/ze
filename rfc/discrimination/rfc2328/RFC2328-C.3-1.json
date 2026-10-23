@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC2328-C.3-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc2328_config_interface_validate_test.go::TestInterfaceCostAndTransmitDelayBoundary",
+    "unit-sha": "8356140d50f24b9e",
+    "claim-sha": "fa511339b281ea0c",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/config.go::validateConfigAF",
+    "producer-sha": "f0d03a69269f9ba3",
+    "break": "body of validateConfigAF replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-C.3-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/rfc2328_config_interface_validate_test.go::TestInterfaceCostAndTransmitDelayBoundary",
+    "unit-sha": "8356140d50f24b9e",
+    "claim-sha": "ff88a5fa3e51eb99",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/config.go::validateConfigAF",
+    "producer-sha": "f0d03a69269f9ba3",
+    "break": "body of validateConfigAF replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-C.3-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc2328_cost_default_test.go::TestRFC2328DefaultedInterfaceCostIsPositive",
+    "unit-sha": "dd889f68d685294b",
+    "claim-sha": "8a4a9f6505bb1b58",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/interface_cost.go::interfaceCost",
+    "producer-sha": "2a1830e65c7116fb",
+    "break": "body of interfaceCost replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-C.3-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/rfc2328_cost_default_test.go::TestRFC2328DefaultedInterfaceCostIsPositive",
+    "unit-sha": "dd889f68d685294b",
+    "claim-sha": "05ec806a8fe12eb0",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/types/metric.go::DefaultMetric",
+    "producer-sha": "6343be66f6f843d4",
+    "break": "body of DefaultMetric replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

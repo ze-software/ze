@@ -1,0 +1,11 @@
+{
+  "note": "{single-polarity: positive} on the row. TestOpenPackExtendedParams requires body[10]==0xFF; writeToExtended writes the constant.",
+  "requirement_sha": "792327ad94a5d5d6",
+  "tests": {
+    "internal/component/bgp/message/open_test.go::TestOpenPackExtendedParams": "9a2a4c8f9ca41e49"
+  },
+  "units": {
+    "internal/component/bgp/message/open_test.go::TestOpenPackExtendedParams": "cbb4380d23e4e649"
+  },
+  "verdict": "enforced"
+}

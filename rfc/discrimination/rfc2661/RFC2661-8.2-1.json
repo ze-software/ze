@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC2661-8.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661UDPEncapsulationOffered",
+    "unit-sha": "69ffc535bb13a1dd",
+    "claim-sha": "3dc7345eecf03bfd",
+    "route": "revert",
+    "producer": "internal/component/l2tp/listener.go::newUDPListener",
+    "producer-sha": "0cf628af92450c25",
+    "break": "body of newUDPListener replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

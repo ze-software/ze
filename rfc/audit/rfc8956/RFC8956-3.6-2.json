@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-16: the unit moved verbatim to core, with only the family identifiers renamed. RFC 8956 Section 3.6: \"0: MUST be set to 0 on NLRI encoding\". One shared component carrying DF|IsF, FF and LF must encode IPv6 and IPv6-VPN as 2, 4, 8 (DF, reserved in Figure 1, cleared), while IPv4 and IPv4-VPN keep 3. Core fragmentMask(AFIIPv6)=0x0e is what clears it. The high reserved bits are covered by the 3.6-1 unit.",
+  "requirement_sha": "bb709caf44222159",
+  "tests": {
+    "internal/core/bgp/nlri/flowspec/rfc8956_fragment_test.go::TestRFC8956FragmentEncodingRespectsEnclosingFamily": "332e2bbed23c624e",
+    "internal/core/bgp/nlri/flowspec/rfc8956_fragment_test.go::TestRFC8956FragmentEncodingRespectsEnclosingFamily#2": "332e2bbed23c624e"
+  },
+  "units": {
+    "internal/core/bgp/nlri/flowspec/rfc8956_fragment_test.go::TestRFC8956FragmentEncodingRespectsEnclosingFamily": "460038127f36f894",
+    "internal/core/bgp/nlri/flowspec/rfc8956_fragment_test.go::TestRFC8956FragmentEncodingRespectsEnclosingFamily#2": "460038127f36f894"
+  },
+  "verdict": "enforced"
+}

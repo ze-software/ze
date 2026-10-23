@@ -1,0 +1,68 @@
+[
+  {
+    "rid": "RFC2205-4-4",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC2205EachMessageTypeConstructionAccepted",
+    "unit-sha": "a98483fac3386a1d",
+    "claim-sha": "7c965bc5a87f2109",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/mandatory.go::checkMandatoryObjects",
+    "producer-sha": "686cf5d0eba4a70c",
+    "break": "body of checkMandatoryObjects replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2205-4-4",
+    "polarity": "negative",
+    "unit": "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC2205EachMessageTypeMalformedRefused",
+    "unit-sha": "f6b4fac554cfeb6c",
+    "claim-sha": "69742c8caf1bf79d",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/mandatory.go::checkMandatoryObjects",
+    "producer-sha": "686cf5d0eba4a70c",
+    "break": "body of checkMandatoryObjects replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2205-4-4",
+    "polarity": "negative",
+    "unit": "internal/plugins/rsvpte/rfc2205_wire_test.go::TestRFC2205MissingRequiredObjectRefused",
+    "unit-sha": "4f0d3714ec04eacd",
+    "claim-sha": "d64f4bc3eb37c311",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/mandatory.go::checkMandatoryObjects",
+    "producer-sha": "686cf5d0eba4a70c",
+    "break": "body of checkMandatoryObjects replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2205-4-4",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/rfc2205_wire_test.go::TestRFC2205WellFormedMessageVerified",
+    "unit-sha": "b4cfb3ac7da4376d",
+    "claim-sha": "0f92b5b3b618027c",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/mandatory.go::checkMandatoryObjects",
+    "producer-sha": "686cf5d0eba4a70c",
+    "break": "body of checkMandatoryObjects replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2205-4-4",
+    "polarity": "negative",
+    "unit": "internal/plugins/rsvpte/wire_rfc3209_test.go::TestRFC3209ObjectsAcceptedInAnyOrder",
+    "unit-sha": "721ec9843999a3d3",
+    "claim-sha": "b18d5f04378118f3",
+    "route": "mutant",
+    "producer": "internal/plugins/rsvpte/message_validation.go::checkObjectPlacement",
+    "producer-sha": "355aea479a3b917b",
+    "break": "line 98: \"msg.HasStyle \u0026\u0026 !flow\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC2205-4-4",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/wire_rfc3209_test.go::TestRFC3209ObjectsAcceptedInAnyOrder",
+    "unit-sha": "721ec9843999a3d3",
+    "claim-sha": "3dab59780d3f0b4e",
+    "route": "mutant",
+    "producer": "internal/plugins/rsvpte/wire.go::DecodeMessage",
+    "producer-sha": "739fb9690da55f7f",
+    "break": "line 1052: \"reservationMessage(hdr.MsgType)\" -\u003e \"false\""
+  }
+]

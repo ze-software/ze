@@ -1,0 +1,13 @@
+{
+  "note": "forbidden: installing a Prefix-SID whose algorithm the originator did not advertise. TestRFC8665PrefixSIDIgnoredWhenAlgorithmNotAdvertised drives installRoutes with the originator advertising {1} only and a usable SRGB and requires no mpls-fib entry at all; without the check the NP=0 penultimate-hop route would emit a pop entry, so the len == 0 assertion goes red. Positive with {0} requires push label 16009",
+  "requirement_sha": "cfb9a27534da99af",
+  "tests": {
+    "internal/plugins/ospf/rfc8665_test.go::TestRFC8665PrefixSIDIgnoredWhenAlgorithmNotAdvertised": "7f2eeb6dac97643c",
+    "internal/plugins/ospf/rfc8665_test.go::TestRFC8665PrefixSIDInstalledWhenAlgorithmAdvertised": "7f2eeb6dac97643c"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc8665_test.go::TestRFC8665PrefixSIDIgnoredWhenAlgorithmNotAdvertised": "e97387a7b3de9f4b",
+    "internal/plugins/ospf/rfc8665_test.go::TestRFC8665PrefixSIDInstalledWhenAlgorithmAdvertised": "6f7ee6897ce94b04"
+  },
+  "verdict": "enforced"
+}

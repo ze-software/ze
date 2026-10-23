@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC2865-5-4",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc2865_attribute_order_test.go::TestRFC2865AccessAcceptExtractionIsOrderIndependent",
+    "unit-sha": "0e02a7de196da28d",
+    "claim-sha": "0f86550cac876c9f",
+    "route": "revert",
+    "producer": "internal/component/radius/packet.go::FindAttr",
+    "producer-sha": "946ecabc18ddd68d",
+    "break": "body of FindAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2865-5-4",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc2865_attribute_order_test.go::TestRFC2865AttributeOrderIsObservableByPosition",
+    "unit-sha": "24c60fb588b26400",
+    "claim-sha": "476eb37a19b8c2ba",
+    "route": "revert",
+    "producer": "internal/component/radius/packet.go::Decode",
+    "producer-sha": "1cfcbbae411360f3",
+    "break": "body of Decode replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2865-5-4",
+    "polarity": "positive",
+    "unit": "internal/component/radius/rfc2865_walk_test.go::TestAttributeLookupIgnoresTheOrderOfDifferentTypes",
+    "unit-sha": "df63d1ee85c5a879",
+    "claim-sha": "2dc018b8475658aa",
+    "route": "revert",
+    "producer": "internal/component/radius/packet.go::FindAllAttr",
+    "producer-sha": "b15464b1985bd185",
+    "break": "body of FindAllAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: a Poll that survives F=1. TestRFC5880FinalTerminatesPoll fails if PollOutstanding stays set after F=1; TestRFC5880NonFinalDoesNotTerminatePoll fails if F=0 clears it, so a clear-on-any-packet mutation goes red.",
+  "requirement_sha": "140c100a0d8cbc0d",
+  "tests": {
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880FinalTerminatesPoll": "8db25cbb4534cc2d",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880NonFinalDoesNotTerminatePoll": "8db25cbb4534cc2d"
+  },
+  "units": {
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880FinalTerminatesPoll": "e878271930434503",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880NonFinalDoesNotTerminatePoll": "c43fdc54d343909f"
+  },
+  "verdict": "enforced"
+}

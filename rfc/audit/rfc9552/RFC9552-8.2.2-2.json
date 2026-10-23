@@ -1,0 +1,17 @@
+{
+  "note": "D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV->WriteTLV and field-export renames (TLV code constants verified unchanged). RFC 9552 Section 8.2.2: \"A BGP-LS Attribute MUST NOT be considered malformed or invalid based on the inclusion/exclusion of TLVs or contents of the TLV fields (i.e., semantic errors), as described in Sections 5.1 and 5.3.\" Session proof: reactor semantic/framing-twin attribute units (unchanged). ls units: unordered and unexpected TLVs walk without error; a TLV length past the attribute end is ErrBGPLSTruncated.",
+  "requirement_sha": "a89b7dc4cf576ae2",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552AttributeSyntaxStillRejected": "40036e95d2697aef",
+    "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552UnorderedUnexpectedAttributeTLVs": "40036e95d2697aef",
+    "internal/component/bgp/reactor/rfc9552_semantic_test.go::TestRFC9552BGPLSAttributeFramingTwinsAreDiscarded": "6f2a8b2f884bcadc",
+    "internal/component/bgp/reactor/rfc9552_semantic_test.go::TestRFC9552BGPLSAttributeSemanticErrorsAreNotMalformed": "6f2a8b2f884bcadc"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552AttributeSyntaxStillRejected": "e47aa6584a030d4e",
+    "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552UnorderedUnexpectedAttributeTLVs": "336130c28a5c850d",
+    "internal/component/bgp/reactor/rfc9552_semantic_test.go::TestRFC9552BGPLSAttributeFramingTwinsAreDiscarded": "39bc476c33aac263",
+    "internal/component/bgp/reactor/rfc9552_semantic_test.go::TestRFC9552BGPLSAttributeSemanticErrorsAreNotMalformed": "08e86e41e3de99a4"
+  },
+  "verdict": "enforced"
+}

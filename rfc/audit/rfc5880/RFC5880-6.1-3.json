@@ -1,0 +1,11 @@
+{
+  "note": "Judge rejudge 2026-10-02 (tag move under the 2026-09-30 owner ruling, OWNER RULING 6(b)); judged by an agent that authored neither test. Owner ruling 2026-09-30 ('we can not see the peer'): no refusal path exists, so the HEAD negative (TestRFC5880PassiveRoleSilentUntilReception, which proved RFC5880-6.1-1 and 6.1-2, where it stays) was removed and the row carries {single-polarity: positive}. + session TestRFC5880ActiveRoleTransmitsWithoutReception: a request with Passive unset gives RoleActive and arms the TX deadline with RemoteDiscr 0; record revert session.go::Init observed red. Operator default reaches that request (ze-bfd-conf.yang passive default false; single-hop Passive refused per RFC 5881 Section 3). The pair obligation beyond Ze's own role is not observable by Ze.",
+  "requirement_sha": "adebdf4c918f4b5b",
+  "tests": {
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880ActiveRoleTransmitsWithoutReception": "8db25cbb4534cc2d"
+  },
+  "units": {
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880ActiveRoleTransmitsWithoutReception": "df2f701c25b0dca8"
+  },
+  "verdict": "enforced"
+}

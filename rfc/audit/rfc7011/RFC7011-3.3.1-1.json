@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: a padding octet that is not zero. TestRFC7011PaddingIsZero asserts the 3 padding octets after a 53-octet IPv4 flow record are 0; TestRFC7011PaddingZeroedOverGarbage pre-fills the buffer with 0xFF and asserts the same octets are 0, red if writeFlowDataSet skips the zeroing. The IPv6 flow Set shares writeFlowDataSet, and the counter Set (32-octet records) never pads.",
+  "requirement_sha": "7d055dd1f5975996",
+  "tests": {
+    "internal/plugins/flowexport/ipfix/rfc7011_test.go::TestRFC7011PaddingIsZero": "1e121054ccd5ea2a",
+    "internal/plugins/flowexport/ipfix/rfc7011_test.go::TestRFC7011PaddingZeroedOverGarbage": "1e121054ccd5ea2a"
+  },
+  "units": {
+    "internal/plugins/flowexport/ipfix/rfc7011_test.go::TestRFC7011PaddingIsZero": "13f6ffd1cf8e2738",
+    "internal/plugins/flowexport/ipfix/rfc7011_test.go::TestRFC7011PaddingZeroedOverGarbage": "fd916dede7f30094"
+  },
+  "verdict": "enforced"
+}

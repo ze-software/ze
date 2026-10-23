@@ -1,0 +1,15 @@
+{
+  "note": "Rejudged all current tagged carriers against RFC 9552 Section 5.2.1: 'When configured, these auxiliary TE Router-IDs (TLV 1028/1029) MUST be included in the node attribute described in Section 5.3.1 and MAY be included in the link attribute described in Section 5.3.2.' Preserved IS-IS TestRFC9552ISISNodeRouterID and TestRFC9552ISISNodeCarriesBothRouterIDs assert exact per-node IPv4 and IPv6 values from native LSP TLVs 134/140. New OSPF TestRFC9552OSPFRouterIDsReachExporter installs one area-scope opaque-type-1 Router Address LSA per router, conforming to RFC 3630 Sections 2.1 and 2.4.1, and compares the complete native node TLV multiset and final encoded BGP-LS Attribute bytes from the registered exporter against independent literals. It catches omission, substitution, duplication and invented IPv6 IDs, closing the previous OSPF and final-attribute proof gaps. Read indexV2 scope guards, trafficEngineering, snapshot router-ID collection, encodeTopology, originateAttributes and send. The single-positive annotation is appropriate for this inclusion obligation. TestRFC9552OSPFAuxiliaryRouterIDsNotCollapsed is untagged robustness evidence only: multiple Router Address LSAs from one router violate RFC 3630's exactly-one-LSA condition and are not the conforming positive. This is a source-level judgment; new native discrimination observations remain Main's responsibility, and no fresh independent-peer run is claimed.",
+  "requirement_sha": "c412ac30190780d9",
+  "tests": {
+    "internal/plugins/isis/rfc9552_router_id_test.go::TestRFC9552ISISNodeCarriesBothRouterIDs": "07e1ba0c24d70214",
+    "internal/plugins/isis/rfc9552_router_id_test.go::TestRFC9552ISISNodeRouterID": "07e1ba0c24d70214",
+    "internal/plugins/ospf/rfc9552_router_id_test.go::TestRFC9552OSPFRouterIDsReachExporter": "4354b106e8d6116b"
+  },
+  "units": {
+    "internal/plugins/isis/rfc9552_router_id_test.go::TestRFC9552ISISNodeCarriesBothRouterIDs": "d94341e3d0458eff",
+    "internal/plugins/isis/rfc9552_router_id_test.go::TestRFC9552ISISNodeRouterID": "67187e0eab6a8759",
+    "internal/plugins/ospf/rfc9552_router_id_test.go::TestRFC9552OSPFRouterIDsReachExporter": "84692a74980e05e3"
+  },
+  "verdict": "enforced"
+}

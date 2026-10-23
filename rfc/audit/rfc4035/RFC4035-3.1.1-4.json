@@ -1,0 +1,6 @@
+{
+  "no_code_path": "The TC obligation arises only when a security-aware name server has RRSIG RRs it cannot fit. geodns and as112 hold no RRSIG, NSEC, DS or DNSKEY record to place in any section, so no response of theirs can be short of one.",
+  "note": "Binds a security-aware name server holding RRSIGs; Ze's authoritative servers are not security-aware.",
+  "requirement_sha": "930635817c738fa3",
+  "verdict": "not-applicable"
+}

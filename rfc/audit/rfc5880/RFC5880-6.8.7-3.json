@@ -1,0 +1,15 @@
+{
+  "note": "Judge 2026-09-30 (rejudge, 6-2 + rest). NEW TestRFC5880PeriodicTransmitDetectMultOneWindow drives tick for 200 sends at DetectMult 1 and bounds every transmitted interval to [75%,90%] of TransmitInterval; overlay 'applyJitter(base, 3)' in tick reds ONLY this unit (job-ov10b); record revert loop.go::tick observed red. applyJitter-level + (DetectMultOneWindow) and - (floor only for DetectMult 1) kept.",
+  "requirement_sha": "e7e5ee252fb3dc02",
+  "tests": {
+    "internal/component/bfd/engine/rfc5880_jitter_tick_test.go::TestRFC5880PeriodicTransmitDetectMultOneWindow": "dc0c5b53edb17df2",
+    "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880JitterDetectMultOneWindow": "4b885928a870b00d",
+    "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880JitterFloorOnlyForDetectMultOne": "4b885928a870b00d"
+  },
+  "units": {
+    "internal/component/bfd/engine/rfc5880_jitter_tick_test.go::TestRFC5880PeriodicTransmitDetectMultOneWindow": "62896b11b8c02861",
+    "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880JitterDetectMultOneWindow": "785c602aa64bd45c",
+    "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880JitterFloorOnlyForDetectMultOne": "a5c24d22a6dc7eb5"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7911-5-2",
+    "polarity": "negative",
+    "unit": "internal/core/bgp/capability/rfc7911_family_scope_test.go::TestRFC7911AddPathNegotiationIsPerFamily",
+    "unit-sha": "6948f0ace7d41717",
+    "claim-sha": "371849fb36ab9dc6",
+    "route": "revert",
+    "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
+    "producer-sha": "7d637b6d32bc44a0",
+    "break": "body of Negotiate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7911-5-2",
+    "polarity": "positive",
+    "unit": "internal/core/bgp/capability/rfc7911_family_scope_test.go::TestRFC7911AddPathNegotiationIsPerFamily",
+    "unit-sha": "6948f0ace7d41717",
+    "claim-sha": "93cbae52c0f1539e",
+    "route": "revert",
+    "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
+    "producer-sha": "7d637b6d32bc44a0",
+    "break": "body of Negotiate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

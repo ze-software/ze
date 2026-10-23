@@ -1,0 +1,6 @@
+{
+  "no_code_path": "No supported BGP path originates an MPLS-in-GRE Encapsulation sub-TLV: internal/component/bgp/plugins/nlri/srpolicy/config.go::buildTunnelEncap emits SR Policy type15, so the optional GRE-key advertisement decision constrained by Section 3.2.5 does not arise.",
+  "note": "RFC 9012 Section 3.2.5 states: \"Unless a key value is being advertised, the MPLS-in-GRE Encapsulation sub-TLV MUST NOT be present.\" This is the MPLS-in-GRE originator condition, distinct from GRE in Section 3.2.4. The supported parseConfigRoute/buildTunnelEncap boundary emits SR Policy tunnel type15 and its own sub-TLVs, not tunnel type11 or its Encapsulation sub-TLV. Generic serialization and received-attribute propagation are not that originator role; no receive or tunnel-consumption credit is claimed.",
+  "requirement_sha": "4c6d9fb207aeda13",
+  "verdict": "not-applicable"
+}

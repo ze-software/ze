@@ -1,0 +1,11 @@
+{
+  "note": "single-polarity positive: v6EInterAreaPrefixBody (the only range producer) decodes to Range Size 1 for a /128; 1 never exceeds what any Prefix Length satisfies",
+  "requirement_sha": "7614081de1ad4cc2",
+  "tests": {
+    "internal/plugins/ospf/rfc8666_test.go::TestRFC8666ExtPrefixRangeSizeWithinPrefixLength": "4729a15d3adeda26"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc8666_test.go::TestRFC8666ExtPrefixRangeSizeWithinPrefixLength": "81be8c5c109a55c8"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,17 @@
+{
+  "note": "(a) forbidden: accepting an IP Prefix Length above 128; (b) TestEVPNType5PrefixLengthTooLong/ipv6 require.ErrorIs(err, ErrEVPNInvalidPrefix) on length 129 goes red if parseEVPNType5 accepts it; positive TestEVPNType5IPv6 decodes 64. The send side cannot exceed 128 (netip.Prefix). The ipv4 subtest's tag (33 > 32) proves the non-normative 'can be set to a value between 0 and 32' sentence, not this MUST NOT: a misplaced tag, listed as a finding.",
+  "requirement_sha": "2e49d3e847576fd8",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5IPv4": "e95f85b8a1869210",
+    "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5IPv6": "e95f85b8a1869210",
+    "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5PrefixLengthTooLong": "e95f85b8a1869210",
+    "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5PrefixLengthTooLong#2": "e95f85b8a1869210"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5IPv4": "12e198bea112ad09",
+    "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5IPv6": "60cbb0884ac0e457",
+    "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5PrefixLengthTooLong": "eee3027d638d1be7",
+    "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5PrefixLengthTooLong#2": "eee3027d638d1be7"
+  },
+  "verdict": "enforced"
+}

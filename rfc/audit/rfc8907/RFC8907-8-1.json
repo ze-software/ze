@@ -1,0 +1,17 @@
+{
+  "note": "Rejudged 2026-09-29. Every request kind Ze sends is now asserted: authorization (command request exactly service/cmd/cmd-arg, session request service=shell cmd=) in TestRFC8907AuthorizationRequestsUseDictionaryArguments and TestRFC8907AuthorizationRequestsCarryNoForeignArgument, accounting in the old units. Exact equality catches a private name substituted for a dictionary one.",
+  "requirement_sha": "26e18f76bdc02ed1",
+  "tests": {
+    "internal/component/tacacs/rfc8907_accounting_test.go::TestRFC8907CommandRecordsCarryNoForeignArgument": "d6e03486f174ca78",
+    "internal/component/tacacs/rfc8907_accounting_test.go::TestRFC8907CommandRecordsUseDictionaryArguments": "d6e03486f174ca78",
+    "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907AuthorizationRequestsCarryNoForeignArgument": "fb302ebfa0d9b135",
+    "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907AuthorizationRequestsUseDictionaryArguments": "fb302ebfa0d9b135"
+  },
+  "units": {
+    "internal/component/tacacs/rfc8907_accounting_test.go::TestRFC8907CommandRecordsCarryNoForeignArgument": "97416f9111420695",
+    "internal/component/tacacs/rfc8907_accounting_test.go::TestRFC8907CommandRecordsUseDictionaryArguments": "3ab587f0228eaaf6",
+    "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907AuthorizationRequestsCarryNoForeignArgument": "2f91e5709d9c92e9",
+    "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907AuthorizationRequestsUseDictionaryArguments": "f38c2773f033550f"
+  },
+  "verdict": "enforced"
+}

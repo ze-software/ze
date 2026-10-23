@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: a Link-LSA that omits one of the router's addresses on the link. TestRFC5340LinkLSAListsLinkAddresses decodes the originated Link-LSA and asserts the link-local fe80::1 and both global prefixes 2001:db8:1::/64 and 2001:db8:2::/64, each red on omission; the eth1 half asserts each link's LSA carries its own link-local and prefix and not the other link's.",
+  "requirement_sha": "141188dcebe4f393",
+  "tests": {
+    "internal/plugins/ospf/rfc5340_test.go::TestRFC5340LinkLSAListsLinkAddresses": "cdf4f5c0d8a37340",
+    "internal/plugins/ospf/rfc5340_test.go::TestRFC5340LinkLSAListsLinkAddresses#2": "cdf4f5c0d8a37340"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc5340_test.go::TestRFC5340LinkLSAListsLinkAddresses": "b794d2eb2e228f3e",
+    "internal/plugins/ospf/rfc5340_test.go::TestRFC5340LinkLSAListsLinkAddresses#2": "b794d2eb2e228f3e"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,21 @@
+{
+  "note": "IP half: TestRFC1195OSINeighborIsTerminalIPv4NextHop fails if an OSI-only neighbor resolves to a usable IPv4 next hop; TestRFC1195CapabilityChangesInstalledRouteDisposition fails unless the installed route becomes Unreachable (production LSDB/SPF/installer) and returns to unicast when IPv4 support returns; the FIB integration test fails unless the kernel answers EHOSTUNREACH instead of the default and restores it on removal. OSI half: Ze forwards no OSI/CLNP packets, so no code path can violate it.",
+  "requirement_sha": "0cc1e7c5a022a544",
+  "tests": {
+    "internal/plugins/fib/kernel/rfc1195_onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix": "13d74927688b8b9a",
+    "internal/plugins/fib/kernel/rfc1195_onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix#2": "13d74927688b8b9a",
+    "internal/plugins/isis/rfc1195_adjacency_protocol_test.go::TestRFC1195NeighborProtocolTransitions": "1b6b580adc0147c1",
+    "internal/plugins/isis/rfc1195_adjacency_protocol_test.go::TestRFC1195OSINeighborIsTerminalIPv4NextHop": "1b6b580adc0147c1",
+    "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195CapabilityChangesInstalledRouteDisposition": "b67887a5f61b2632",
+    "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195CapabilityChangesInstalledRouteDisposition#2": "b67887a5f61b2632"
+  },
+  "units": {
+    "internal/plugins/fib/kernel/rfc1195_onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix": "9235970317bf3e0f",
+    "internal/plugins/fib/kernel/rfc1195_onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix#2": "9235970317bf3e0f",
+    "internal/plugins/isis/rfc1195_adjacency_protocol_test.go::TestRFC1195NeighborProtocolTransitions": "5610717ccdc56c7c",
+    "internal/plugins/isis/rfc1195_adjacency_protocol_test.go::TestRFC1195OSINeighborIsTerminalIPv4NextHop": "c4dd9b032c623b7b",
+    "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195CapabilityChangesInstalledRouteDisposition": "85e4b26caa2bcd37",
+    "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195CapabilityChangesInstalledRouteDisposition#2": "85e4b26caa2bcd37"
+  },
+  "verdict": "enforced"
+}

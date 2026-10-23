@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2865-3-8",
+    "polarity": "positive",
+    "unit": "internal/component/radius/rfc2865_walk_test.go::TestExchangeAcceptsANonEmptySharedSecret",
+    "unit-sha": "40193462ded7e9ba",
+    "claim-sha": "ef917ed6fa2a754d",
+    "route": "revert",
+    "producer": "internal/component/radius/client.go::Exchange",
+    "producer-sha": "c7a365b14dccaa30",
+    "break": "body of Exchange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2865-3-8",
+    "polarity": "negative",
+    "unit": "internal/component/radius/rfc2865_walk_test.go::TestExchangeRefusesAnEmptySharedSecret",
+    "unit-sha": "14994948aa2184ea",
+    "claim-sha": "b941d576b0371e88",
+    "route": "revert",
+    "producer": "internal/component/radius/client.go::Exchange",
+    "producer-sha": "c7a365b14dccaa30",
+    "break": "body of Exchange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

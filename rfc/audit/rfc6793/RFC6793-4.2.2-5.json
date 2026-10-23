@@ -1,0 +1,21 @@
+{
+  "note": "Three producers (message originate, wireu TranscodeASPath, rib commit pack) each send AS_TRANS in a 6-octet AGGREGATOR plus AS4_AGGREGATOR with the real AS for a non-mappable aggregator; negatives keep a mappable AS with no companion.",
+  "requirement_sha": "ffb0a54bae5a731f",
+  "tests": {
+    "internal/component/bgp/message/rfc6793_originate_as4_test.go::TestOriginatedAggregatorCarriesItsCompanionTowardOldSpeaker": "f906f1ec41d71b88",
+    "internal/component/bgp/message/rfc6793_originate_as4_test.go::TestOriginatedMappableAggregatorGetsNoCompanion": "f906f1ec41d71b88",
+    "internal/component/bgp/rib/rfc6793_aggregator_test.go::TestAMappableAggregatorGetsNoCompanion": "2c0614e3b7f3ae01",
+    "internal/component/bgp/rib/rfc6793_aggregator_test.go::TestForwardedAggregatorIsDowngradedWithItsCompanion": "2c0614e3b7f3ae01",
+    "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793AS4AggregatorForNonMappableAggregator": "46921ad87659919b",
+    "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793NoAS4AggregatorForMappableAggregator": "46921ad87659919b"
+  },
+  "units": {
+    "internal/component/bgp/message/rfc6793_originate_as4_test.go::TestOriginatedAggregatorCarriesItsCompanionTowardOldSpeaker": "f73c2e0b7cfcb44a",
+    "internal/component/bgp/message/rfc6793_originate_as4_test.go::TestOriginatedMappableAggregatorGetsNoCompanion": "a5eb3b4085eef86d",
+    "internal/component/bgp/rib/rfc6793_aggregator_test.go::TestAMappableAggregatorGetsNoCompanion": "0a4c455d936a8564",
+    "internal/component/bgp/rib/rfc6793_aggregator_test.go::TestForwardedAggregatorIsDowngradedWithItsCompanion": "b7e9710bbe1023f9",
+    "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793AS4AggregatorForNonMappableAggregator": "d0e4928b60e42085",
+    "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793NoAS4AggregatorForMappableAggregator": "d2a1a5b1a86cf310"
+  },
+  "verdict": "enforced"
+}

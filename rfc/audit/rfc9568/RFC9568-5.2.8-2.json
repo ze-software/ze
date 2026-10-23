@@ -1,0 +1,20 @@
+{
+  "code": {
+    "internal/plugins/vrrp/packet/checksum.go::FillChecksum": "b0cc038e49f45b44",
+    "internal/plugins/vrrp/packet/checksum.go::pseudoSumFor": "660f0af0c285da4b",
+    "internal/plugins/vrrp/packet/checksum.go::verifyReceived": "de11e4070473a431"
+  },
+  "note": "Re-judged 2026-10-18 (independent auditor, after d2abad70ad). RFC 9568 Section 5.2.8 says \"For the IPv4 address family, the checksum calculation only includes the VRRP message starting with the Version field and ending after the last IPv4 address (refer to Section 5.2).\" Producers: pseudoSumFor returns no pseudo-header for ChecksumRFC9568, FillChecksum applies it on transmit and verifyReceived on receive in the one configured form. Positive TestEncodeGoldenV3IPv4 pins G2 0x828A (re-derived independently over the 16-octet message; the pseudo-header sum for 192.0.2.251 to 224.0.0.18 is 0xDEFB). Positive/negative TestDecodeV3IPv4ChecksumOnlyConfiguredForm: the default mode accepts G2 and refuses G2c with ErrChecksum, and each mode refuses the other form, in separate subtests, not one assertion wearing two hats. Overlay mutants run 2026-10-18 over the whole vrrp tree: restoring dual-accept in verifyReceived reds the two refusal subtests; summing the IPv4 pseudo-header under ChecksumRFC9568 reds the golden and the default accept and refuse subtests. The hop that previously made this weak is closed: doSendAdvert hard-coded to ChecksumRFC5798Compatible, or with Checksum dropped, now reds TestTransmittedAdvertFilledFromInstanceState, which is tagged RFC9568-7.2-5 rather than this row; the config default (groups.go struct literal) is caught only by the untagged TestLeafShapesFromTextConfig \"checksum absent is rfc9568\". Both are hops that choose the form, owned by the 7.2 transmit step and the parser, while this row's own obligation, what the computation covers, is pinned at its producers in both directions. Claims match assertions. No tagged unit is a QEMU-guest unit.",
+  "requirement_sha": "ebb36bb1ffce07fa",
+  "tests": {
+    "internal/plugins/vrrp/packet/packet_test.go::TestDecodeV3IPv4ChecksumOnlyConfiguredForm": "15a7697300d1b17c",
+    "internal/plugins/vrrp/packet/packet_test.go::TestDecodeV3IPv4ChecksumOnlyConfiguredForm#2": "15a7697300d1b17c",
+    "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV3IPv4": "15a7697300d1b17c"
+  },
+  "units": {
+    "internal/plugins/vrrp/packet/packet_test.go::TestDecodeV3IPv4ChecksumOnlyConfiguredForm": "e99141598a089061",
+    "internal/plugins/vrrp/packet/packet_test.go::TestDecodeV3IPv4ChecksumOnlyConfiguredForm#2": "e99141598a089061",
+    "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV3IPv4": "f665d3473b49bc02"
+  },
+  "verdict": "enforced"
+}

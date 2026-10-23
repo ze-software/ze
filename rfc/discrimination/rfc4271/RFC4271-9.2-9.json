@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4271-9.2-9",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_own_as_change_test.go::TestRFC4271OwnASDestinationBecomingReachableIsSentToPeers",
+    "unit-sha": "eccfa50251827d9b",
+    "claim-sha": "5cb2e07825ab4f0c",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/reactor_api_batch.go::AnnounceNLRIBatch",
+    "producer-sha": "eb3666dadc9b3b9c",
+    "break": "body of AnnounceNLRIBatch replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-9.2-9",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_own_as_change_test.go::TestRFC4271OwnASDestinationBecomingUnreachableIsSentToPeers",
+    "unit-sha": "c3b9f6562680ef5c",
+    "claim-sha": "4f0b39466ec0a2c0",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/reactor_api_batch.go::WithdrawNLRIBatch",
+    "producer-sha": "3367c6b906eb1af3",
+    "break": "body of WithdrawNLRIBatch replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

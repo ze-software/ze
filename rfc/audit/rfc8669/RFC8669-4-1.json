@@ -1,0 +1,17 @@
+{
+  "note": "Clause 'MUST discard': a Prefix-SID kept from an unconfigured EBGP peer goes red at reactor/rfc8669_test.go::TestRFC8669PrefixSIDFromEBGPDiscardedByDefault assert.False(found) after enforceRFC7606, and for repeated copies at rfc8669_multi_test.go::TestRFC8669PrefixSIDEveryOccurrenceDiscardedFromEBGP. Clause 'unless configured': an over-firing strip goes red at TestRFC8669PrefixSIDFromEBGPAcceptedWhenConfigured assert.True(found); IBGP not affected is pinned in TestRFC8669PrefixSIDKeptPathsKeepExactlyOneCopy.",
+  "requirement_sha": "0d8e9cf3d7db0bde",
+  "tests": {
+    "internal/component/bgp/reactor/rfc8669_multi_test.go::TestRFC8669PrefixSIDEveryOccurrenceDiscardedFromEBGP": "4be6127888cf07a8",
+    "internal/component/bgp/reactor/rfc8669_multi_test.go::TestRFC8669PrefixSIDKeptPathsKeepExactlyOneCopy": "4be6127888cf07a8",
+    "internal/component/bgp/reactor/rfc8669_test.go::TestRFC8669PrefixSIDFromEBGPAcceptedWhenConfigured": "dc67df8654d6f8da",
+    "internal/component/bgp/reactor/rfc8669_test.go::TestRFC8669PrefixSIDFromEBGPDiscardedByDefault": "dc67df8654d6f8da"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc8669_multi_test.go::TestRFC8669PrefixSIDEveryOccurrenceDiscardedFromEBGP": "1930bc112b4e8abf",
+    "internal/component/bgp/reactor/rfc8669_multi_test.go::TestRFC8669PrefixSIDKeptPathsKeepExactlyOneCopy": "28599d93d7c02281",
+    "internal/component/bgp/reactor/rfc8669_test.go::TestRFC8669PrefixSIDFromEBGPAcceptedWhenConfigured": "13f13a332c1b7f10",
+    "internal/component/bgp/reactor/rfc8669_test.go::TestRFC8669PrefixSIDFromEBGPDiscardedByDefault": "682ff8a4f03542b0"
+  },
+  "verdict": "enforced"
+}

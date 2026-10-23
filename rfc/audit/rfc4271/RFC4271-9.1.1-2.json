@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged 2026-10-01 (BGP c17 judge). Forbidden: an IBGP readvertisement carrying a LOCAL_PREF other than the degree of preference the import policy computed. NEW TestRFC4271ImportPolicyLocalPrefIsReadvertisedToInternalPeers runs an external route through the source's real runIngressPolicyChain (filter seam answers local-preference 200) and forwards the chain's payload on the general rail: the internal destination is sent exactly 000000C8 and the external one none; the same route with no import policy is sent 00000064, so a constant (100 or 200) cannot pass both cases. Records: + on runIngressPolicyChain, - on applyFactsLocalPref, both observed red; author semantic overlay (applyFactsLocalPref overwrites any base LOCAL_PREF toward internal peers with 100) reddens the + case, c17-ov-lp.log. The HEAD - tag on TestRFC4271LocalPrefOmittedForExternalPeers was removed (D-15): its assertion is RFC4271-5.1.5-2's rule, which the unit keeps. HEAD + TestRFC4271LocalPrefIncludedForInternalPeers stays supplementary (default 100 on the announce rail, no record). Bound: the general forward rail is proven; the route-server rail and the rib plugin's readvertisement are not driven by this unit (5.1.5-5 shares that composition).",
+  "requirement_sha": "a1b8e0c8297d0ee1",
+  "tests": {
+    "internal/component/bgp/reactor/rfc4271_local_pref_readvertise_test.go::TestRFC4271ImportPolicyLocalPrefIsReadvertisedToInternalPeers": "1e982907ef1ce4b4",
+    "internal/component/bgp/reactor/rfc4271_local_pref_readvertise_test.go::TestRFC4271ImportPolicyLocalPrefIsReadvertisedToInternalPeers#2": "1e982907ef1ce4b4",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefIncludedForInternalPeers": "94aa07ebd53dcc5b"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc4271_local_pref_readvertise_test.go::TestRFC4271ImportPolicyLocalPrefIsReadvertisedToInternalPeers": "dd1ed352098de2ea",
+    "internal/component/bgp/reactor/rfc4271_local_pref_readvertise_test.go::TestRFC4271ImportPolicyLocalPrefIsReadvertisedToInternalPeers#2": "dd1ed352098de2ea",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefIncludedForInternalPeers": "783191eb4bc341cf"
+  },
+  "verdict": "enforced"
+}

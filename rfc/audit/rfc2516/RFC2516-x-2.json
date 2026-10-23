@@ -1,0 +1,13 @@
+{
+  "note": "TestBuildFrameVerType asserts BuildPADI writes TYPE=1; TestParseBadType shows a TYPE=2 frame is refused",
+  "requirement_sha": "06921827c26fe02e",
+  "tests": {
+    "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestBuildFrameVerType": "b7c2fae4a50abe95",
+    "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestParseBadType": "b7c2fae4a50abe95"
+  },
+  "units": {
+    "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestBuildFrameVerType": "98eb941b072c9c40",
+    "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestParseBadType": "70f3012906c303d8"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "Active 'any other event' list (verbatim span, R47(b) row). Peer level, running passive Peer in Active at counter 3: teardownAutomatic (Event 8) -> Idle, counter 4, HoldTimer/KeepaliveTimer/ConnectRetryTimer not running, Peer drops the session, a later TCP connection is refused with ErrSessionTearingDown and never held, counter stays 4. Negative: Event 1 (not in the list) leaves Active, counter 3 for 300 ms, same unsealed session. handleActive break observed red both polarities. Clause notes: 'sets the ConnectRetryTimer to zero' holds by construction (Timers.StartConnectRetryTimer has no non-test caller), so the 'not running' assertion guards a future arming. 'drops the TCP connection': Ze's Active holds no TCP connection, so the proof is that a TCP connection offered afterwards is refused and never becomes the session's; the FSM-level unit for 8.2.2-15 (TestRFC4271ConnectActiveAnyOtherEventCountsAndDropsToIdle) also drives Events 10, 11, 19, 23, 25-28 in Active but is not tagged here, so only Event 8 is proven at peer level for this row. Negative uses a start event (pair holds: Event 1 is ignored, not this list).",
+  "requirement_sha": "0dc89a9cbf2face9",
+  "tests": {
+    "internal/component/bgp/reactor/rfc4271_active_any_other_event_peer_test.go::TestRFC4271ActiveAutomaticStopReleasesThePeer": "d4dd8dbabe652252",
+    "internal/component/bgp/reactor/rfc4271_active_any_other_event_peer_test.go::TestRFC4271ActiveDuplicateStartKeepsThePeer": "d4dd8dbabe652252"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc4271_active_any_other_event_peer_test.go::TestRFC4271ActiveAutomaticStopReleasesThePeer": "5f37d8a4a665dda7",
+    "internal/component/bgp/reactor/rfc4271_active_any_other_event_peer_test.go::TestRFC4271ActiveDuplicateStartKeepsThePeer": "eccd9e13d8fb9a0e"
+  },
+  "verdict": "enforced"
+}

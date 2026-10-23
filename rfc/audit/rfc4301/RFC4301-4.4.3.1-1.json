@@ -1,0 +1,19 @@
+{
+  "note": "sub-tree entries admit DNS, RFC 822 and DN peers beneath them and refuse near misses, apex and outside peers; certificate binding kept",
+  "requirement_sha": "2fd962292583586e",
+  "tests": {
+    "internal/component/ike/engine/rfc4301_pad_subtree_test.go::TestPadKeyIDStaysExact": "294ef9f35b63988d",
+    "internal/component/ike/engine/rfc4301_pad_subtree_test.go::TestPadSubtreeAdmitsAPeerBeneathIt": "294ef9f35b63988d",
+    "internal/component/ike/engine/rfc4301_pad_subtree_test.go::TestPadSubtreeRefusesAPeerOutsideIt": "294ef9f35b63988d",
+    "internal/component/ike/engine/rfc4301_pad_subtree_test.go::TestPadSubtreeStillBindsTheCertificate": "294ef9f35b63988d",
+    "internal/component/ike/ipsec/rfc4301_validate_identity_test.go::TestVidPeerAuthorizationSetsCommitOnlyAsRemoteID": "fec7a6a06940adde"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc4301_pad_subtree_test.go::TestPadKeyIDStaysExact": "e1e1151e33a3ae32",
+    "internal/component/ike/engine/rfc4301_pad_subtree_test.go::TestPadSubtreeAdmitsAPeerBeneathIt": "e1df0fc2d0c487a6",
+    "internal/component/ike/engine/rfc4301_pad_subtree_test.go::TestPadSubtreeRefusesAPeerOutsideIt": "e994ea6ac9f8ee38",
+    "internal/component/ike/engine/rfc4301_pad_subtree_test.go::TestPadSubtreeStillBindsTheCertificate": "1d5adccb24ea5368",
+    "internal/component/ike/ipsec/rfc4301_validate_identity_test.go::TestVidPeerAuthorizationSetsCommitOnlyAsRemoteID": "f5ba874391fde80c"
+  },
+  "verdict": "enforced"
+}

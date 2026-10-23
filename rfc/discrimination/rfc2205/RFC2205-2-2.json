@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2205-2-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/rfc2205_engine_test.go::TestRFC2205ResvDeliveredToSender",
+    "unit-sha": "a256f0497df2bbd5",
+    "claim-sha": "1ac02bbaf8ea0096",
+    "route": "mutant",
+    "producer": "internal/plugins/rsvpte/reservation.go::acceptReservation",
+    "producer-sha": "be57c2a7bd537cdc",
+    "break": "line 106: \"!found\" -\u003e \"true\""
+  },
+  {
+    "rid": "RFC2205-2-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/rsvpte/rfc2205_engine_test.go::TestRFC2205ResvForUnknownSenderIgnored",
+    "unit-sha": "92a733e03a06cd9c",
+    "claim-sha": "cc23df61e4ed3dc5",
+    "route": "mutant",
+    "producer": "internal/plugins/rsvpte/reservation_build.go::keyFromFilter",
+    "producer-sha": "9c312adcc860a3db",
+    "break": "line 40: \"filter.LSPID\" -\u003e \"1\""
+  }
+]

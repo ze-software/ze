@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC2328-10.6-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/neighbor/rfc2328_dd_slave_after_exchange_test.go::TestRFC2328SlaveRepeatsOnlyForTheLastMasterDD",
+    "unit-sha": "8a67303a6fc7a608",
+    "claim-sha": "5820dbfcb3423013",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/neighbor/dd.go::sameDD",
+    "producer-sha": "275142f06231bef4",
+    "break": "body of sameDD replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-10.6-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/neighbor/rfc2328_dd_slave_after_exchange_test.go::TestRFC2328SlaveResendsLastDDInLoadingAndFull",
+    "unit-sha": "b25f1931b9e332dd",
+    "claim-sha": "be4686e1eff58edf",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/neighbor/dd.go::resendLastDDLocked",
+    "producer-sha": "1133b40076ec631e",
+    "break": "body of resendLastDDLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-10.6-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/neighbor/rfc2328_dd_slave_test.go::TestRFC2328SlaveRefusesOutOfSequenceDD",
+    "unit-sha": "111a3c4aa94a52c1",
+    "claim-sha": "92fb03be0620ae17",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/neighbor/dd.go::handleExchangeDDLocked",
+    "producer-sha": "f5d98b4e63dbb9d2",
+    "break": "body of handleExchangeDDLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-10.6-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/neighbor/rfc2328_dd_slave_test.go::TestRFC2328SlaveRepliesAndRepeatsOnDuplicate",
+    "unit-sha": "5fbb38a9bf1d0567",
+    "claim-sha": "00d38876fa232cdc",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/neighbor/dd.go::resendLastDDLocked",
+    "producer-sha": "1133b40076ec631e",
+    "break": "body of resendLastDDLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

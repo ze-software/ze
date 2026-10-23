@@ -1,0 +1,13 @@
+{
+  "note": "Row now quotes the ID_FQDN entry through its ban (verbatim \u00a73.5; the keyword-free ASCII/IDNA sentence the old weak verdict turned on is out of the span). TestWp2IDTerminatorRefused: a peer ID_FQDN holding NUL, CR or LF is refused by refuseIDTerminators, and ze's own local-id/remote-id holding one is refused by ValidateIdentities (config.go:158), the only path to the ID_FQDN ze sends (encodeIKEID). TestWp2IDWithoutTerminatorAccepted: clean FQDN accepted on both paths, NUL ID_KEY_ID left alone, so neither check refuses everything. Both halves call the validators directly; the call sites remote_id.go:393 and config.go:158 are unasserted. Producer comments at remote_id.go:352 and ipsec/validate.go:181 still quote the invented sentence the row dropped.",
+  "requirement_sha": "a6a8d7d8c49a0ea4",
+  "tests": {
+    "internal/component/ike/engine/rfc7296_wp2_test.go::TestWp2IDTerminatorRefused": "ca62d931e5068b03",
+    "internal/component/ike/engine/rfc7296_wp2_test.go::TestWp2IDWithoutTerminatorAccepted": "ca62d931e5068b03"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7296_wp2_test.go::TestWp2IDTerminatorRefused": "f4b89da69b00e57e",
+    "internal/component/ike/engine/rfc7296_wp2_test.go::TestWp2IDWithoutTerminatorAccepted": "935030454f39d3e3"
+  },
+  "verdict": "enforced"
+}

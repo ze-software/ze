@@ -1,0 +1,19 @@
+{
+  "note": "RFC 7911 Section 5: \"For a BGP speaker to be able to send multiple paths to its peer, that BGP speaker MUST advertise the ADD-PATH Capability with the Send/Receive field set to either 2 or 3, and MUST receive from its peer the ADD-PATH Capability with the Send/Receive field set to either 1 or 3, for the corresponding <AFI, SAFI>.\" All three current carriers read: capability/negotiated_test.go TestNegotiateAddPath, context/rfc7911_negotiated_test.go TestFromNegotiatedAddPath (all nine direction-mode pairs), capability/rfc7911_family_scope_test.go TestRFC7911AddPathNegotiationIsPerFamily. The new matrix crosses IPv4/IPv6 and unicast/multicast, both send-capable local modes and both receive-capable peer modes, while MP negotiation offers all families; exactly the intersection family can send. Thus local Receive-only, remote Send-only, wrong AFI and wrong SAFI independently cannot grant send. Negotiate keys both mode maps by the full Family and FromNegotiatedSend/Recv preserve the directional result. This closes the prior family-blindness gap rather than merely re-sealing it. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step. Post-lint independent source rejudgment: TestRFC7911AddPathNegotiationIsPerFamily now computes matchingFamilies = (localFamily == remoteFamily), then wantSend = matchingFamilies && (fam == localFamily). By equality transitivity this is exactly (fam == localFamily && fam == remoteFamily): false for crossed AFI or SAFI; true only for the matching queried family. All three session families are offered by MP on both sides, so lack of MP negotiation cannot mask leakage. All four local-send/remote-receive combinations and all nine family pairs still run. Re-read both companion carriers, including the nine direction-mode context matrix, and Negotiate maps indexed by the full Family. Positive and negative tags test distinct matrix inputs. Enforced remains; all four existing records on this changed unit require native renewal, which is not observed here.",
+  "requirement_sha": "1b66371d2804b242",
+  "tests": {
+    "internal/core/bgp/capability/negotiated_test.go::TestNegotiateAddPath": "70fe9e821d14e4f2",
+    "internal/core/bgp/capability/rfc7911_family_scope_test.go::TestRFC7911AddPathNegotiationIsPerFamily": "f7ae5c583612a411",
+    "internal/core/bgp/capability/rfc7911_family_scope_test.go::TestRFC7911AddPathNegotiationIsPerFamily#2": "f7ae5c583612a411",
+    "internal/core/bgp/context/rfc7911_negotiated_test.go::TestFromNegotiatedAddPath": "055ce769d1683da3",
+    "internal/core/bgp/context/rfc7911_negotiated_test.go::TestFromNegotiatedAddPath#2": "055ce769d1683da3"
+  },
+  "units": {
+    "internal/core/bgp/capability/negotiated_test.go::TestNegotiateAddPath": "3544b2bad14868e7",
+    "internal/core/bgp/capability/rfc7911_family_scope_test.go::TestRFC7911AddPathNegotiationIsPerFamily": "4343053f8c55e97b",
+    "internal/core/bgp/capability/rfc7911_family_scope_test.go::TestRFC7911AddPathNegotiationIsPerFamily#2": "4343053f8c55e97b",
+    "internal/core/bgp/context/rfc7911_negotiated_test.go::TestFromNegotiatedAddPath": "7467bf6d5e9676fc",
+    "internal/core/bgp/context/rfc7911_negotiated_test.go::TestFromNegotiatedAddPath#2": "7467bf6d5e9676fc"
+  },
+  "verdict": "enforced"
+}

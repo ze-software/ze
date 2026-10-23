@@ -1,0 +1,19 @@
+{
+  "note": "rejudge 2026-09-30 (independent): both owed items delivered. Set-0: isis SID units (+/-); ospf TestRFC9085OSPFOriginatedSIDReservedZero (+, exact 1100 = 60 06 0000 04040404 005dc2) / TestRFC9085OSPFSourceReservedNeverReachesSIDReserved (-, native LAN Adj-SID Reserved ff -> 0000). Receipt: nlri/ls TestRFC9085UndecodedSIDReceiptKeepsReserved: a 1100 with Reserved ffff is kept whole as generic-lsid-1100 and the Node Name after it still decodes; this decoder carries 1100 undecoded, so ignoring = not refusing and not interpreting, single-polarity by nature. Records observed red.",
+  "requirement_sha": "80dd5f1d9cbd2988",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go::TestRFC9085UndecodedSIDReceiptKeepsReserved": "367af3d70449d973",
+    "internal/plugins/isis/rfc9085_bgpls_export_sid_test.go::TestRFC9085ISISAllOnesSourceNeverReachesSIDReserved": "af00c5aec3959523",
+    "internal/plugins/isis/rfc9085_bgpls_export_sid_test.go::TestRFC9085ISISOriginatedSIDReservedZero": "af00c5aec3959523",
+    "internal/plugins/ospf/rfc9085_bgpls_export_test.go::TestRFC9085OSPFOriginatedSIDReservedZero": "e14c93300ea1c323",
+    "internal/plugins/ospf/rfc9085_bgpls_export_test.go::TestRFC9085OSPFSourceReservedNeverReachesSIDReserved": "e14c93300ea1c323"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go::TestRFC9085UndecodedSIDReceiptKeepsReserved": "85f0432e4d25ec27",
+    "internal/plugins/isis/rfc9085_bgpls_export_sid_test.go::TestRFC9085ISISAllOnesSourceNeverReachesSIDReserved": "98eb7f29183a3e20",
+    "internal/plugins/isis/rfc9085_bgpls_export_sid_test.go::TestRFC9085ISISOriginatedSIDReservedZero": "8e2cd3bceb4d5513",
+    "internal/plugins/ospf/rfc9085_bgpls_export_test.go::TestRFC9085OSPFOriginatedSIDReservedZero": "16454f3f3065891c",
+    "internal/plugins/ospf/rfc9085_bgpls_export_test.go::TestRFC9085OSPFSourceReservedNeverReachesSIDReserved": "ecb19f384cabfb87"
+  },
+  "verdict": "enforced"
+}

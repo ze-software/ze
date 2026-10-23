@@ -1,0 +1,13 @@
+{
+  "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PreferenceSubTLV. Forbidden: a Preference length other than 6. Red: require.Len(value, 6) on a value srpSubs cut at the declared length (a wrong declared length also fails the walk's require.NoError), with the preference in value[2:6]. Negative (internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830PreferenceFlagsAndReservedIgnored): 4- and 8-octet values are not read.",
+  "requirement_sha": "54221ad66a2575a4",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PreferenceSubTLV": "450f2364530acf19",
+    "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830PreferenceFlagsAndReservedIgnored": "a929cacac0d74fc0"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PreferenceSubTLV": "b4f8573bcddb0e83",
+    "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830PreferenceFlagsAndReservedIgnored": "19114f867afd4de4"
+  },
+  "verdict": "enforced"
+}

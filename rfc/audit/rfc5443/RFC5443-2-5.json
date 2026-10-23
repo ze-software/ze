@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-10-21; the units are unchanged by the edits to ldp_sync_test.go. Established: SessionUp only after the peer KeepAlive, naming eth0 and LDP Identifier 10.0.0.2:0 (records handleInit, keepaliveReceived). Bindings exchanged, by the hold-down estimate: session-up alone leaves the link costed out, Synchronized only on hold-down expiry (records onSessionUp, onHoldDownExpiry).",
+  "requirement_sha": "2c576a81baba359d",
+  "tests": {
+    "internal/plugins/ldp/rfc5443_sessionup_test.go::TestRFC5443NoSessionUpBeforePeerKeepAlive": "631eb3d34c22ecaa",
+    "internal/plugins/ldp/rfc5443_sessionup_test.go::TestRFC5443SessionUpOnPeerKeepAlive": "631eb3d34c22ecaa",
+    "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncRestoresAfterHoldDown": "d3cf444cbd798f5e",
+    "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncSubscribesSessionEvents": "d3cf444cbd798f5e"
+  },
+  "units": {
+    "internal/plugins/ldp/rfc5443_sessionup_test.go::TestRFC5443NoSessionUpBeforePeerKeepAlive": "a9b9b12914b313b3",
+    "internal/plugins/ldp/rfc5443_sessionup_test.go::TestRFC5443SessionUpOnPeerKeepAlive": "d007b0a2f3389165",
+    "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncRestoresAfterHoldDown": "1aabdc788a3105e6",
+    "internal/plugins/ospf/ldp_sync_test.go::TestLDPSyncSubscribesSessionEvents": "1382e1c0b510a3c2"
+  },
+  "verdict": "enforced"
+}

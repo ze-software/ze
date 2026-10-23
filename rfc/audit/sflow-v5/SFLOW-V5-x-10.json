@@ -1,0 +1,13 @@
+{
+  "note": "Single-polarity row. TestSFlowV5SamplingRateIsTheSourceRate drives the real EncodeFlowSample with two sources at 74565 and 1000 and requires each datagram's sampling_rate to equal its source's rate, so a constant, a stale rate or a literal goes red (recorded). sampling_worker.go fills FlowSample.Rate from the psample packet's rate.",
+  "requirement_sha": "20f1181f038af66e",
+  "tests": {
+    "internal/plugins/flowexport/sflow/sflow_v5_flow_sampling_test.go::TestSFlowV5SamplingRateIsTheSourceRate": "c09c030ae4130286",
+    "internal/plugins/flowexport/sflow/sflow_v5_flow_test.go::TestSFlowFlowSample": "04a6429d51d8509d"
+  },
+  "units": {
+    "internal/plugins/flowexport/sflow/sflow_v5_flow_sampling_test.go::TestSFlowV5SamplingRateIsTheSourceRate": "d5f654b00eeeb44f",
+    "internal/plugins/flowexport/sflow/sflow_v5_flow_test.go::TestSFlowFlowSample": "2bd027e2a3231f71"
+  },
+  "verdict": "enforced"
+}

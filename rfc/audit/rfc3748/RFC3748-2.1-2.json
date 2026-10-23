@@ -1,0 +1,17 @@
+{
+  "note": "Both clauses: every method Request of a full MS-CHAPv2 flight carries Type 26 (wantOneMethodRequests) and the flight ends in EAP-Success; the wrong-password flight also stays on Type 26 and ends in EAP-Failure with Succeeded false; after either result a Type-4 Response draws nil. Positive and negative are distinct inputs.",
+  "requirement_sha": "18a8fdea3ea9329e",
+  "tests": {
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748OneMethodThenTheResult": "8ca42a58d78f22be",
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748OneMethodThenTheResult#2": "8ca42a58d78f22be",
+    "internal/core/eap/rfc3748_test.go::TestRFC3748MethodCompletionSendsResult": "c7d9cf3b0751a797",
+    "internal/core/eap/rfc3748_test.go::TestRFC3748MethodCompletionSendsResult#2": "c7d9cf3b0751a797"
+  },
+  "units": {
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748OneMethodThenTheResult": "d61a083c6ef032f0",
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748OneMethodThenTheResult#2": "d61a083c6ef032f0",
+    "internal/core/eap/rfc3748_test.go::TestRFC3748MethodCompletionSendsResult": "c6dcd5ad9cd27a67",
+    "internal/core/eap/rfc3748_test.go::TestRFC3748MethodCompletionSendsResult#2": "c6dcd5ad9cd27a67"
+  },
+  "verdict": "enforced"
+}

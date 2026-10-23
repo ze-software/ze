@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9568-5.2.8-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/packet/rfc9568_ipv6_pseudo_header_test.go::TestDecodeV3IPv6ChecksumCoversPseudoHeader",
+    "unit-sha": "dc6c2ba67997df48",
+    "claim-sha": "71ba68eec35767a2",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/packet/checksum.go::pseudoSumV6",
+    "producer-sha": "e90042b48d67e0fa",
+    "break": "body of pseudoSumV6 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9568-5.2.8-3",
+    "polarity": "negative",
+    "unit": "internal/plugins/vrrp/packet/rfc9568_ipv6_pseudo_header_test.go::TestDecodeV3IPv6ChecksumCoversPseudoHeader",
+    "unit-sha": "dc6c2ba67997df48",
+    "claim-sha": "9b982061c4d82db5",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/packet/checksum.go::verifyReceived",
+    "producer-sha": "618856748a37e535",
+    "break": "body of verifyReceived replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,8 @@
+{
+  "code": {
+    "internal/component/config/yang/validator.go::walkTree": "a1127b4c14f9746a"
+  },
+  "note": "Re-judged 2026-10-20 (independent judge, after 4bf9935e38). Section 7.21.5: \"There MUST NOT be any circular dependencies among \\\"when\\\" expressions.\" walkTree's change is the case-data descent through schemaChild and the mandatory checks in requireMandatoryChildren; no when expression is parsed, ordered or evaluated anywhere in config/yang, so neither the evaluation order nor the cycle rule is applied. Ze's modules declare no when today. {gap} stands. Owned by spec-config-yang-when-unique-choice.",
+  "requirement_sha": "2950be598bb87418",
+  "verdict": "unimplemented"
+}

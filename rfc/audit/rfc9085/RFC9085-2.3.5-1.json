@@ -1,0 +1,19 @@
+{
+  "note": "rejudge 2026-09-30 (independent): both owed items delivered. Set-0: isis SID units (+/-); ospf TestRFC9085OSPFOriginatedSIDReservedZero (+, exact 1159 = 80 00 0010 0486 0008 40000000 00000064) / TestRFC9085OSPFSourceReservedNeverReachesSIDReserved (-, native Range Reserved ff ff ff and inner Prefix-SID Reserved ff); judge targeted break (1159 Reserved <- native r.Value[5] in extendedV2Prefix) turned the negative red while the positive stayed green. Receipt: nlri/ls TestRFC9085UndecodedSIDReceiptKeepsReserved (1159 with Reserved ff kept whole as generic-lsid-1159, attribute not refused), single-polarity by nature. Records observed red.",
+  "requirement_sha": "cc23fc2a346a97a5",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go::TestRFC9085UndecodedSIDReceiptKeepsReserved": "367af3d70449d973",
+    "internal/plugins/isis/rfc9085_bgpls_export_sid_test.go::TestRFC9085ISISAllOnesSourceNeverReachesSIDReserved": "af00c5aec3959523",
+    "internal/plugins/isis/rfc9085_bgpls_export_sid_test.go::TestRFC9085ISISOriginatedSIDReservedZero": "af00c5aec3959523",
+    "internal/plugins/ospf/rfc9085_bgpls_export_test.go::TestRFC9085OSPFOriginatedSIDReservedZero": "e14c93300ea1c323",
+    "internal/plugins/ospf/rfc9085_bgpls_export_test.go::TestRFC9085OSPFSourceReservedNeverReachesSIDReserved": "e14c93300ea1c323"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go::TestRFC9085UndecodedSIDReceiptKeepsReserved": "85f0432e4d25ec27",
+    "internal/plugins/isis/rfc9085_bgpls_export_sid_test.go::TestRFC9085ISISAllOnesSourceNeverReachesSIDReserved": "98eb7f29183a3e20",
+    "internal/plugins/isis/rfc9085_bgpls_export_sid_test.go::TestRFC9085ISISOriginatedSIDReservedZero": "8e2cd3bceb4d5513",
+    "internal/plugins/ospf/rfc9085_bgpls_export_test.go::TestRFC9085OSPFOriginatedSIDReservedZero": "16454f3f3065891c",
+    "internal/plugins/ospf/rfc9085_bgpls_export_test.go::TestRFC9085OSPFSourceReservedNeverReachesSIDReserved": "ecb19f384cabfb87"
+  },
+  "verdict": "enforced"
+}

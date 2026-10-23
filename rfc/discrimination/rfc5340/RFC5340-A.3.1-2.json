@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC5340-A.3.1-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc5340_reserved_send_test.go::TestRFC5340ReservedHeaderOctetZeroOnSend",
+    "unit-sha": "b17d68c1d20c73b1",
+    "claim-sha": "702363a65588d679",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/encoder_v6.go::EncodeHello",
+    "producer-sha": "49adcda56c7babad",
+    "break": "body of EncodeHello replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5340-A.3.1-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/rfc5340_reserved_send_test.go::TestRFC5340ReservedHeaderOctetZeroOnSend",
+    "unit-sha": "b17d68c1d20c73b1",
+    "claim-sha": "c8b3482ac84b52e0",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/encoder_v6.go::EncodeHello",
+    "producer-sha": "49adcda56c7babad",
+    "break": "body of EncodeHello replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5340-A.3.1-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc5340_test.go::TestRFC5340ReservedHeaderOctetIgnoredOnReceive",
+    "unit-sha": "3dfd149b0d4e9816",
+    "claim-sha": "b89a31350edbdbdc",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/v3/packet/header.go::DecodeHeader",
+    "producer-sha": "1de23487aeaf5e30",
+    "break": "body of DecodeHeader replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5340-A.3.1-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/v3/packet/rfc5340_header_test.go::TestRFC5340ReservedOctetNeverReachesDecodedHeader",
+    "unit-sha": "ea201f9cc4683de9",
+    "claim-sha": "44a1475604d9905b",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/v3/packet/header.go::DecodeHeader",
+    "producer-sha": "1de23487aeaf5e30",
+    "break": "body of DecodeHeader replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

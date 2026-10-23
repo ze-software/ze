@@ -1,0 +1,11 @@
+{
+  "note": "receiver loop driven with Initiation and Termination writes zero bytes toward the router end; single-polarity marker",
+  "requirement_sha": "915aa12927b2f3e2",
+  "tests": {
+    "internal/component/bgp/plugins/bmp/rfc7854_session_test.go::TestBMPReceiverUnidirectional": "3c92f5bc82c93a53"
+  },
+  "units": {
+    "internal/component/bgp/plugins/bmp/rfc7854_session_test.go::TestBMPReceiverUnidirectional": "0de52d2b66207b7c"
+  },
+  "verdict": "enforced"
+}

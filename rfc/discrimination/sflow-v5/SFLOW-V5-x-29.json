@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "SFLOW-V5-x-29",
+    "polarity": "negative",
+    "unit": "internal/plugins/flowexport/sflow/sflow_v5_counters_test.go::TestSFlowV5SequenceNeverResetWithoutDiscontinuity",
+    "unit-sha": "409b68d7dd8ee5f0",
+    "claim-sha": "1120f10c7f5d83da",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/sflow/adapter.go::resetSequencesOnDiscontinuity",
+    "producer-sha": "c7b76ef3978ecd4a",
+    "break": "body of resetSequencesOnDiscontinuity replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "SFLOW-V5-x-29",
+    "polarity": "positive",
+    "unit": "internal/plugins/flowexport/sflow/sflow_v5_counters_test.go::TestSFlowV5SequenceResetWithCounters",
+    "unit-sha": "2450ef40827e76d4",
+    "claim-sha": "5f100b781f3d2eaf",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/sflow/adapter.go::resetSequencesOnDiscontinuity",
+    "producer-sha": "c7b76ef3978ecd4a",
+    "break": "body of resetSequencesOnDiscontinuity replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "SFLOW-V5-x-29",
+    "polarity": "positive",
+    "unit": "internal/plugins/flowexport/sflow/sflow_v5_sequence_test.go::TestSFlowV5SequenceResetOnAnyCounterGoingBack",
+    "unit-sha": "ac2c97da4cab7441",
+    "claim-sha": "9907f8098ba52c90",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/sflow/adapter.go::countersWentBackwards",
+    "producer-sha": "f15a181fb119bded",
+    "break": "body of countersWentBackwards replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2865-5.11-1",
+    "polarity": "positive",
+    "unit": "internal/component/radius/rfc2865_walk_test.go::TestCarrierAttributesDoNotAffectAnAccessAccept",
+    "unit-sha": "02baff36f368bbc3",
+    "claim-sha": "d9764d8f038c7f05",
+    "route": "revert",
+    "producer": "internal/component/radius/packet.go::FindAllAttr",
+    "producer-sha": "b15464b1985bd185",
+    "break": "body of FindAllAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2865-5.11-1",
+    "polarity": "negative",
+    "unit": "internal/component/radius/rfc2865_walk_test.go::TestCarrierAttributesDoNotAffectAnAccessReject",
+    "unit-sha": "bff220c3d185cb4e",
+    "claim-sha": "9026de0b7dd10d6b",
+    "route": "revert",
+    "producer": "internal/component/radius/authenticator.go::Authenticate",
+    "producer-sha": "cce9fdbace347544",
+    "break": "body of Authenticate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

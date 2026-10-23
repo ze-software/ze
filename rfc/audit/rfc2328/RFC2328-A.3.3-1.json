@@ -1,0 +1,15 @@
+{
+  "note": "Forbidden: a DD sent over a virtual link carrying a non-zero Interface MTU. Red: TestRFC2328VirtualLinkDBDescCarriesZeroMTU fails on any sent DD with InterfaceMTU != 0 over the MTU-less virtual interface, and TestRFC2328VirtualInterfaceHasNoMTU fails unless the engine-created virtual interface reports MTU 0 (so the DD stamps 0). Other polarity: the same units fail unless a real interface's DD carries 1500 and the real interface reports a non-zero MTU, so a blanket zero goes red.",
+  "requirement_sha": "ef76b1a28c75bfd5",
+  "tests": {
+    "internal/plugins/ospf/neighbor/rfc2328_test.go::TestRFC2328VirtualLinkDBDescCarriesZeroMTU": "42818b298d1598fb",
+    "internal/plugins/ospf/neighbor/rfc2328_test.go::TestRFC2328VirtualLinkDBDescCarriesZeroMTU#2": "42818b298d1598fb",
+    "internal/plugins/ospf/rfc2328_test.go::TestRFC2328VirtualInterfaceHasNoMTU": "ac7ea73b79de263c"
+  },
+  "units": {
+    "internal/plugins/ospf/neighbor/rfc2328_test.go::TestRFC2328VirtualLinkDBDescCarriesZeroMTU": "d57eb7a340c68091",
+    "internal/plugins/ospf/neighbor/rfc2328_test.go::TestRFC2328VirtualLinkDBDescCarriesZeroMTU#2": "d57eb7a340c68091",
+    "internal/plugins/ospf/rfc2328_test.go::TestRFC2328VirtualInterfaceHasNoMTU": "d4dfa77cb0f63ca2"
+  },
+  "verdict": "enforced"
+}

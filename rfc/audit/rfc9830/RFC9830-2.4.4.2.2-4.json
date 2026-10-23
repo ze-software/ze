@@ -1,0 +1,13 @@
+{
+  "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV. Forbidden: the Endpoint Behavior and SID Structure encoded without an SRv6 SID. Red: require.Error on parseSegmentList and on parseConfigRoute for 'segment endpoint-behavior ...' with no preceding type-b srv6 SID, the only route to a structure ze has. Positive: the structure follows a 16-octet SID (assert.Equal(byte(0xEF), value[17])).",
+  "requirement_sha": "9dded3ee31e03c06",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV": "450f2364530acf19",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV#2": "450f2364530acf19"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV": "bcfcf99bdcd49711",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV#2": "bcfcf99bdcd49711"
+  },
+  "verdict": "enforced"
+}

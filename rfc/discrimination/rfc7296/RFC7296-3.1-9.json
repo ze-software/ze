@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-3.1-9",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_header_test.go::TestResponseBitMatchesDirection",
+    "unit-sha": "8f9daf85e361c448",
+    "claim-sha": "8199c79341e8b695",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/responder.go::buildSAInitResponse",
+    "producer-sha": "723ba633beb6bacb",
+    "break": "body of buildSAInitResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-3.1-9",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_response_bit_receive_test.go::TestRFC7296InitiatorIgnoresAResponseWithTheRBitClear",
+    "unit-sha": "32a3c1eaf5049722",
+    "claim-sha": "bdbdda17e89e64d2",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/fsm.go::handleInbound",
+    "producer-sha": "d62214a5808eed73",
+    "break": "body of handleInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

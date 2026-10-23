@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: an IPv4 unicast or IPv6 unicast route left unverified. TestASPAAppliesToIPv6Unicast asserts family ipv6/unicast reaches the decision path with aspaState ASPAInvalid and is tracked, red if MP_REACH IPv6 unicast is skipped. TestASPAAppliesToIPv4Unicast asserts ipv4/unicast carries ASPAInvalid, red if the plain-NLRI branch is skipped.",
+  "requirement_sha": "63dc6a29e604f4e9",
+  "tests": {
+    "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_family_scope_test.go::TestASPAAppliesToIPv4Unicast": "9500465b3797ee52",
+    "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_family_scope_test.go::TestASPAAppliesToIPv6Unicast": "9500465b3797ee52"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_family_scope_test.go::TestASPAAppliesToIPv4Unicast": "e868c8765fba4e18",
+    "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_family_scope_test.go::TestASPAAppliesToIPv6Unicast": "3afa2f84080fbfcd"
+  },
+  "verdict": "enforced"
+}

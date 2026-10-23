@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC8907-8-1",
+    "polarity": "negative",
+    "unit": "internal/component/tacacs/rfc8907_accounting_test.go::TestRFC8907CommandRecordsCarryNoForeignArgument",
+    "unit-sha": "e197ab3108f9c798",
+    "claim-sha": "f2ba8a224d57a450",
+    "route": "revert",
+    "producer": "internal/component/tacacs/accounting.go::CommandStart",
+    "producer-sha": "ec98e896c367ffa0",
+    "break": "body of CommandStart replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8907-8-1",
+    "polarity": "positive",
+    "unit": "internal/component/tacacs/rfc8907_accounting_test.go::TestRFC8907CommandRecordsUseDictionaryArguments",
+    "unit-sha": "11f9f887c9983c10",
+    "claim-sha": "ff0abcff410031d8",
+    "route": "revert",
+    "producer": "internal/component/tacacs/accounting.go::CommandStart",
+    "producer-sha": "ec98e896c367ffa0",
+    "break": "body of CommandStart replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8907-8-1",
+    "polarity": "negative",
+    "unit": "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907AuthorizationRequestsCarryNoForeignArgument",
+    "unit-sha": "b32a352b50a1ab46",
+    "claim-sha": "f117d31b78cfde49",
+    "route": "revert",
+    "producer": "internal/component/tacacs/authenticator.go::handlePass",
+    "producer-sha": "0247cf0da95085bf",
+    "break": "body of handlePass replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8907-8-1",
+    "polarity": "positive",
+    "unit": "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907AuthorizationRequestsUseDictionaryArguments",
+    "unit-sha": "091a79ef2133d960",
+    "claim-sha": "d9e4542e23b44bf7",
+    "route": "revert",
+    "producer": "internal/component/tacacs/authorizer.go::splitTacacsArgs",
+    "producer-sha": "819675c57be7f0b0",
+    "break": "body of splitTacacsArgs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

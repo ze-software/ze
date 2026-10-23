@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-09-30: the units changed only by dropping the retired RFC1350-5-2 tag comments; every assertion is unchanged. Forbidden: a first block other than 1, or a gap or repeat in the numbering. TestTFTPReadRequest asserts buf[2:4] == 1; TestTFTPReadLargeFile asserts gotBlock == block for 1,2,3; TestTFTPReadExact512 asserts block 2 follows block 1. Single-polarity marker: the server assigns the numbers.",
+  "requirement_sha": "c3d583281c51b282",
+  "tests": {
+    "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "0809d9c9f8739da3",
+    "internal/plugins/tftpserver/handler_test.go::TestTFTPReadRequest": "0809d9c9f8739da3"
+  },
+  "units": {
+    "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "240d5ea9ba163958",
+    "internal/plugins/tftpserver/handler_test.go::TestTFTPReadRequest": "e447b258b2be34db"
+  },
+  "verdict": "enforced"
+}

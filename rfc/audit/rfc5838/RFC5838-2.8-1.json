@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged 2026-09-29. Positive TestV6VirtualEndpointResolvesGlobalAddress resolves global /128 LA addresses on both ends. Negatives cover both ends: the existing neighbor-side link-local-only case and new TestRFC5838VirtualLinkRequiresLocalGlobalAddress (this router advertises only fe80::1, neighbor global) which fails to resolve. v6ResolveVirtualEndpointLocked requires sok && dok and v6RouterGlobalAddr refuses non-global addresses; revert record on the resolver.",
+  "requirement_sha": "b0701552f09f76a3",
+  "tests": {
+    "internal/plugins/ospf/rfc5838_af_test.go::TestRFC5838VirtualLinkRequiresLocalGlobalAddress": "871029566403d2c9",
+    "internal/plugins/ospf/virtual_link_test.go::TestV6VirtualEndpointRequiresGlobalAddress": "571c66c643c8a516",
+    "internal/plugins/ospf/virtual_link_test.go::TestV6VirtualEndpointResolvesGlobalAddress": "571c66c643c8a516"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc5838_af_test.go::TestRFC5838VirtualLinkRequiresLocalGlobalAddress": "ba63c1b97bc34aaa",
+    "internal/plugins/ospf/virtual_link_test.go::TestV6VirtualEndpointRequiresGlobalAddress": "9b40f1f425a2c135",
+    "internal/plugins/ospf/virtual_link_test.go::TestV6VirtualEndpointResolvesGlobalAddress": "8b9d91c00b1ded66"
+  },
+  "verdict": "enforced"
+}

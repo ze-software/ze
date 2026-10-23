@@ -1,0 +1,17 @@
+{
+  "note": "RFC 7432 \u00a78.2.1: \"The Route Distinguisher (RD) MUST be a Type 1 RD [RFC4364]. The value field comprises an IP address of the PE (typically, the loopback address) followed by a number unique to the PE.\" The selected row is the Type-1 format obligation. Read all four carriers: internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go::TestConfiguredEVPNPerESRoute pins complete Type-1 RD bytes; TestConfiguredEVPNRefusesInvalidPerESRoute includes an otherwise guarded per-ES route with AS-specific RD; internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go::TestOriginEthernetADPerESUsesTypeOneRD pins RD=1 in the encoded and MP_REACH-carried NLRI; TestOriginEthernetADPerESRefusesASTypeRD demands refusal/nil output for per-ES and permits the same AS-specific format for per-EVI. RT and ESI Label are present, so missing-community rejection cannot mask the RD error. evpn/config.go::parseConfigRoute and encode.go::EncodeRoute both reach message/update_build_evpn.go::ValidateEVPNOrigination, which checks RD type before label/community checks for MAX-ET. Removing the type check would violate the negative pair. This proves required RD type within configured control-plane origination, not automatic PE-owned RD allocation/uniqueness or a new multihoming role; no runtime claim.",
+  "requirement_sha": "e0ac09cf0a06a1c9",
+  "tests": {
+    "internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go::TestConfiguredEVPNPerESRoute": "8605ce648899c68f",
+    "internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go::TestConfiguredEVPNRefusesInvalidPerESRoute": "8605ce648899c68f",
+    "internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go::TestOriginEthernetADPerESRefusesASTypeRD": "4621c06037bf4489",
+    "internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go::TestOriginEthernetADPerESUsesTypeOneRD": "4621c06037bf4489"
+  },
+  "units": {
+    "internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go::TestConfiguredEVPNPerESRoute": "200485f8562d9e9b",
+    "internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go::TestConfiguredEVPNRefusesInvalidPerESRoute": "832ed4025d173fd6",
+    "internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go::TestOriginEthernetADPerESRefusesASTypeRD": "2c1235c4d2a7c555",
+    "internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go::TestOriginEthernetADPerESUsesTypeOneRD": "c572ee169d6adc54"
+  },
+  "verdict": "enforced"
+}

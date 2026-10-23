@@ -1,0 +1,15 @@
+{
+  "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeASubTLV and TestRFC9830SegmentTypeBSubTLV. Forbidden: any unassigned Segment Flags bit set on transmission. Red: assert.Equal(byte(0), value[0]) on Type A and assert.Equal(byte(0), value[0]&^byte(0x10)) on Type B. Negative: the Type B Flags octet is 0x10 (the assigned B-Flag, bit 3 per Figure 13) and not zero, and 0 without the structure, so the assertion is on which bits are set, not on a blank byte.",
+  "requirement_sha": "f8e1365ffcc19b87",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeASubTLV": "450f2364530acf19",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV": "450f2364530acf19",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV#2": "450f2364530acf19"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeASubTLV": "33514a40260fa5b4",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV": "bcfcf99bdcd49711",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV#2": "bcfcf99bdcd49711"
+  },
+  "verdict": "enforced"
+}

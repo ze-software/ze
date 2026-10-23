@@ -1,0 +1,6 @@
+{
+  "no_code_path": "Ze sends no query on behalf of a client: geodns is authoritative and forwards nothing, and the resolve/dns stub adds no ECS option to its own queries, so no Ze code path carries a client's address into an outgoing query.",
+  "note": "Binds a Recursive Resolver (and, for the dropped Section 7.5 sentence, an Intermediate Nameserver).",
+  "requirement_sha": "b22580f82d0c624b",
+  "verdict": "not-applicable"
+}

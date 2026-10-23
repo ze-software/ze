@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8955-8-1",
+    "polarity": "positive",
+    "unit": "internal/core/bgp/nlri/flowspec/rfc8955_vpn_test.go::TestRFC8955VPNNLRIStructure",
+    "unit-sha": "a7d5a8045eaa2143",
+    "claim-sha": "619539e073ac74b6",
+    "route": "revert",
+    "producer": "internal/core/bgp/nlri/flowspec/types_vpn.go::ParseFlowSpecVPN",
+    "producer-sha": "2473fdbeb312fb88",
+    "break": "body of ParseFlowSpecVPN replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8955-8-1",
+    "polarity": "negative",
+    "unit": "internal/core/bgp/nlri/flowspec/rfc8955_vpn_test.go::TestRFC8955VPNNLRIStructure",
+    "unit-sha": "a7d5a8045eaa2143",
+    "claim-sha": "7afc17e82d0f4a96",
+    "route": "revert",
+    "producer": "internal/core/bgp/nlri/flowspec/types_vpn.go::ParseFlowSpecVPN",
+    "producer-sha": "2473fdbeb312fb88",
+    "break": "body of ParseFlowSpecVPN replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

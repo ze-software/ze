@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC905-x-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/packet/rfc905_checksum_test.go::TestISISChecksumMatchesClosedForm",
+    "unit-sha": "460c3ccae117095e",
+    "claim-sha": "12ab98355fa43fd5",
+    "route": "revert",
+    "producer": "internal/plugins/isis/packet/checksum.go::Checksum",
+    "producer-sha": "b7682d9d907452de",
+    "break": "body of Checksum replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC905-x-3",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/packet/rfc905_checksum_test.go::TestISISChecksumRefusesMisplacedXY",
+    "unit-sha": "95e2f2b4fbeb5180",
+    "claim-sha": "1983a6113232d57e",
+    "route": "revert",
+    "producer": "internal/plugins/isis/packet/checksum.go::Checksum",
+    "producer-sha": "b7682d9d907452de",
+    "break": "body of Checksum replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC905-x-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/types/rfc_checksum_forms_test.go::TestFletcherGenerateMatchesClosedForm",
+    "unit-sha": "8e30591b353cd43f",
+    "claim-sha": "83d8d494a2ffbecf",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/types/checksum.go::fletcherGenerate",
+    "producer-sha": "61d0fd03faf3593a",
+    "break": "body of fletcherGenerate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC905-x-3",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/types/rfc_checksum_forms_test.go::TestFletcherGenerateRefusesMisplacedXY",
+    "unit-sha": "89dad1f22d430066",
+    "claim-sha": "44b7e0255ae6ff14",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/types/checksum.go::fletcherGenerate",
+    "producer-sha": "61d0fd03faf3593a",
+    "break": "body of fletcherGenerate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

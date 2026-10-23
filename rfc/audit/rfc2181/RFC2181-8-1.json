@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged 2026-09-30. Positive: parseTTL('0') is 0, and with default-ttl 2147483647 every A, NS and SOA record in the packed and re-read answer has the sign bit clear and value <= 2^31-1, closing the earlier 'when transmitted' gap. Negative: TestRFC2181_TTLSignBitBound refuses 2147483648 at the config boundary. Records: parseTTL revert, positive (author) and negative (judge) observed red.",
+  "requirement_sha": "0ede5207edff953a",
+  "tests": {
+    "internal/plugins/geodns/rfc2181_clarifications_test.go::TestRFC2181TTLTransmittedWithSignBitClear": "92cb2a16576e33d3",
+    "internal/plugins/geodns/rfc2181_config_test.go::TestRFC2181_TTLSignBitBound": "2f3459a10a84a68a",
+    "internal/plugins/geodns/rfc2181_config_test.go::TestRFC2181_TTLSignBitBound#2": "2f3459a10a84a68a"
+  },
+  "units": {
+    "internal/plugins/geodns/rfc2181_clarifications_test.go::TestRFC2181TTLTransmittedWithSignBitClear": "896360c00e8310a0",
+    "internal/plugins/geodns/rfc2181_config_test.go::TestRFC2181_TTLSignBitBound": "41eae64e25f057b8",
+    "internal/plugins/geodns/rfc2181_config_test.go::TestRFC2181_TTLSignBitBound#2": "41eae64e25f057b8"
+  },
+  "verdict": "enforced"
+}

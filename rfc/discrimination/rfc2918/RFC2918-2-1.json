@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC2918-2-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/reactor_b_open_caps_test.go::TestRFC2918RouteRefreshCapabilityOctetsInSentOpen",
+    "unit-sha": "0e7e69161396edf2",
+    "claim-sha": "6b9e5b18d27e5cfb",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_negotiate.go::buildOpen",
+    "producer-sha": "f937bc1380ae0377",
+    "break": "body of buildOpen replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

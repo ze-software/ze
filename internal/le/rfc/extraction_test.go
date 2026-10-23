@@ -582,7 +582,7 @@ func TestEveryActionOfTheAreaCarriesItsGateAndItsReason(t *testing.T) {
 			writes[row.Verb] = true
 		}
 	}
-	// Exactly nine actions change the tree, and each one owns its output:
+	// Exactly ten actions change the tree, and each one owns its output:
 	// extraction-create and extraction-classify own one rfc/extraction
 	// artifact between them, the first deriving it and the second applying an
 	// authored walk to it; discriminate-record owns one rfc/discrimination
@@ -593,13 +593,15 @@ func TestEveryActionOfTheAreaCarriesItsGateAndItsReason(t *testing.T) {
 	// session's tmp/commit-rfc-approved-<session>.md. quote-backfill owns the
 	// checklist rows of rfc/short/<stem>.md it rewrites, and only under apply.
 	// rename owns the moved test files and the path keys and citations that name
-	// them, and propose writes only the plan file it is given. Read-only is the default
+	// them, and propose writes only the plan file it is given. evidence-split
+	// owns the per-requirement files it converts a retired per-RFC file into.
+	// Read-only is the default
 	// and the listing prints the exception, so a reader never has to look it up.
-	if len(writes) != 9 || !writes["extraction-create"] || !writes["extraction-classify"] ||
+	if len(writes) != 10 || !writes["evidence-split"] || !writes["extraction-create"] || !writes["extraction-classify"] ||
 		!writes["discriminate-record"] || !writes["reseal"] || !writes["index-update"] ||
 		!writes["approve"] || !writes["quote-backfill"] || !writes["audit-stamp"] || !writes["rename"] {
 		t.Errorf("the actions that write are %v, want exactly [approve audit-stamp discriminate-record "+
-			"extraction-classify extraction-create index-update quote-backfill rename reseal]", sortedKeys(writes))
+			"evidence-split extraction-classify extraction-create index-update quote-backfill rename reseal]", sortedKeys(writes))
 	}
 	if Subs() == "" {
 		t.Error("help renders no hint under the command")

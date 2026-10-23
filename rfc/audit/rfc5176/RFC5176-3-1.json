@@ -1,0 +1,15 @@
+{
+  "note": "Re-judge 2026-10-01 (access cont 12, independent judge). Read RFC 5176 Section 3 ('A Disconnect-Request MUST contain only NAS and session identification attributes. If other attributes are included in a Disconnect-Request, implementations MUST send a Disconnect-NAK'), the Section 3.6 Disconnect table and Note 2, and coa.go unsupportedAttr/disconnectSupportedAttrs/handleDisconnect. The cont-11 findings are closed: the EAP-Message case is gone from the positive (table-admitted 0+, Note 2; its 401 is Section 2.3/3.5 'Unsupported Attribute ... such as a Vendor-Specific or EAP-Message', stated in the unit comment), the gloss names EAP-Message beside Reply-Message, Class and Acct-Terminate-Cause, and the Admits unit now carries negative polarity. + TestRFC5176DisconnectWithANonIdentificationAttributeIsNAKed: Filter-Id, Framed-MTU, Session-Timeout, Idle-Timeout, Service-Type and State (all '0' in the Disconnect Request column) each beside Acct-Session-Id+User-Name -> Disconnect-NAK with Error-Cause exactly [401], zero teardowns. - TestRFC5176DisconnectCarryingOnlyIdentificationIsACKed (all seven identification attributes -> ACK, one teardown) and - TestRFC5176DisconnectAdmitsTheSection36TableAttributes (Reply-Message, Class, Acct-Terminate-Cause singly and together -> ACK, no Error-Cause, one teardown each), so the NAK is owed to the other attribute alone and the rule does not over-trigger. Real UDP listener, isolated inputs. Judge also removed a nested parenthesis from the gloss (it cut the trailing section cite, failing the verbatim-quote gate). Records observed red: + unsupportedAttr, - handleDisconnect (both negatives); the orphan positive record on the Admits unit was removed (its tag is gone).",
+  "requirement_sha": "1acf3639935143e4",
+  "tests": {
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176DisconnectAdmitsTheSection36TableAttributes": "9b6dfc18b62099d5",
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176DisconnectCarryingOnlyIdentificationIsACKed": "9b6dfc18b62099d5",
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176DisconnectWithANonIdentificationAttributeIsNAKed": "9b6dfc18b62099d5"
+  },
+  "units": {
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176DisconnectAdmitsTheSection36TableAttributes": "85035e41681fdd2c",
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176DisconnectCarryingOnlyIdentificationIsACKed": "9bc1b0d813b99437",
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176DisconnectWithANonIdentificationAttributeIsNAKed": "63545650c8637ce5"
+  },
+  "verdict": "enforced"
+}

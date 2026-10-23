@@ -1,0 +1,17 @@
+{
+  "note": "TestRFC7606ExtendedCommunityNonMultipleOf8IsMalformed: lengths 8, 16 None; 0, 5, 7, 9, 12, 15 exact TreatAsWithdraw, AttrCode 16, '7.14', attribute last. Judge break (drop the length==0 arm in validateExtCommunityAttr): red.",
+  "requirement_sha": "887b1ced683526b4",
+  "tests": {
+    "internal/component/bgp/message/rfc7606_clause_test.go::TestRFC7606ExtendedCommunityNonMultipleOf8IsMalformed": "a8996fb398de9acf",
+    "internal/component/bgp/message/rfc7606_clause_test.go::TestRFC7606ExtendedCommunityNonMultipleOf8IsMalformed#2": "a8996fb398de9acf",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ExtendedCommunityValid": "b7acaf2569904b8f",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ExtendedCommunityZeroLength": "b7acaf2569904b8f"
+  },
+  "units": {
+    "internal/component/bgp/message/rfc7606_clause_test.go::TestRFC7606ExtendedCommunityNonMultipleOf8IsMalformed": "0e441ce429d2e920",
+    "internal/component/bgp/message/rfc7606_clause_test.go::TestRFC7606ExtendedCommunityNonMultipleOf8IsMalformed#2": "0e441ce429d2e920",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ExtendedCommunityValid": "3a9428bf9308b255",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ExtendedCommunityZeroLength": "9a48bbdbbba6137c"
+  },
+  "verdict": "enforced"
+}

@@ -61,12 +61,28 @@ claimed test with and without its break.
 | `rfc/short/<stem>.md` | The extracted summary, and the ONE place every fact about that RFC is declared. One checklist row per requirement, plus the `## Meta` table. That table states whether the RFC is gated, and what the public page claims for it |
 | `rfc/enrolled.txt`, `rfc/not-enrolled.txt` | GENERATED from the Meta tables by `./le rfc index-update`: which summaries are gated, and the recorded reason for each that is not |
 | `rfc/extraction/<stem>.json` | The extraction sign-off: the walk of the RFC text, recorded so a machine can re-check it |
-| `rfc/audit/<stem>.json` | A recorded `/ze-rfc-audit` verdict, and the fingerprints that keep it fresh. `./le rfc audit-stamp stem <stem> from <path>` adds new verdicts from a pending file outside `rfc/audit/` and computes their fingerprints. With `mode rejudge` it replaces, in place, a recorded verdict a judge re-made, and accepts the `upgrade_reason` that a `weak`, `wrong` or `partial` verdict raised to `enforced` over unchanged units needs. `./le rfc reseal` re-stamps a recorded one whose unit only shifted; it cannot re-judge changed scope |
-| `rfc/discrimination/<stem>.json` | The recorded breaks under which a tagged unit goes red: one record per requirement, polarity and tagged unit |
+| `rfc/audit/<stem>/<requirement-id>.json` | One requirement's recorded `/ze-rfc-audit` verdict, and the fingerprints that keep it fresh. `./le rfc audit-stamp stem <stem> from <path>` adds new verdicts from a pending file outside `rfc/audit/` and computes their fingerprints. With `mode rejudge` it replaces, in place, a recorded verdict a judge re-made, and accepts the `upgrade_reason` that a `weak`, `wrong` or `partial` verdict raised to `enforced` over unchanged units needs. `./le rfc reseal` re-stamps a recorded one whose unit only shifted; it cannot re-judge changed scope |
+| `rfc/discrimination/<stem>/<requirement-id>.json` | The recorded breaks under which a tagged unit goes red: one record per requirement, polarity and tagged unit, each requirement's records in its own file |
 | `rfc/drain-budget.txt` | The extraction drain schedule: a start date and a rate, and nothing else |
 | `docs/features/rfc-status.md` | GENERATED from the Meta tables by `./le rfc index-update`: the PUBLIC support claim, one row per summary that declares a section. Its `Proof` column is the exception to that: it is derived from the checklist and the tags, and states each stem's gated count partitioned into proven, annotated and untested |
 | `ai/RFC-REQUIREMENTS.md` | The generated backlog: the coverage rollup, the audit coverage, the claim-discrimination counts and the extraction sign-off counts |
 | `rfc/requirements/<stem>.md` | One RFC's requirement table: six cells per requirement, generated from the summary and the tags |
+
+The audit verdicts and the discrimination records are stored one file per
+requirement, never one per RFC. Several sessions work the same RFC at once, and
+a per-RFC file carried every session's uncommitted entries, so a session could
+not commit its own verdict without carrying another's or withholding its own.
+With one file per requirement, two sessions working different requirements
+never write the same file. A verdict's history is its file's git log, so the
+audit carries no date and no re-stamp note. Every loader refuses a per-RFC file
+of the retired layout, `rfc/audit/<stem>.json` or
+`rfc/discrimination/<stem>.json`, and names `./le rfc evidence-split`, which
+converts one into the per-requirement files without deleting it: the commit
+that carries the converted files removes it (`remove <path>`). `from head`
+converts what HEAD holds rather than the working tree, for a file that also
+carries another session's uncommitted edits.
+<!-- source: internal/le/rfc/evidence_layout.go -- listEvidence, evidenceAt, retiredLayoutErr -->
+<!-- source: internal/le/rfc/evidence_split.go -- splitEvidence -->
 
 Five of those paths are DERIVED and none of the five is tracked:
 `ai/RFC-REQUIREMENTS.md`, `rfc/requirements/`, `rfc/enrolled.txt`,
@@ -1002,7 +1018,8 @@ the test demonstrates. `parseTagRest` (`internal/le/rfc/tags.go`) reads the
 structured half. No gate reads the prose, because it is a sentence. A tag can
 therefore advertise an assertion its body never makes.
 
-`rfc/discrimination/<stem>.json` is what replaces reading that prose. One
+`rfc/discrimination/<stem>/<requirement-id>.json` is what replaces reading
+that prose. The file is a JSON array of that requirement's records. One
 record says that a named tagged unit was OBSERVED to fail under a named break
 of the code the claim rests on. "The prose is true" is unfalsifiable by a
 machine. "This break makes this unit red" is decidable and replayable.
@@ -1032,7 +1049,7 @@ refusals exist today.
 
 | Refuses | Why |
 |---------|-----|
-| A file that cannot be parsed, an unknown JSON key, or a filename that disagrees with its own `rfc` field | A corrupt record must never read as a corpus with nothing proven |
+| A file that cannot be parsed, an unknown JSON key, a record whose `rid` disagrees with its file name, or a per-RFC file of the retired layout | A corrupt record must never read as a corpus with nothing proven |
 | A polarity, a route, a key or a fingerprint outside its closed form | A half-read record is the shape a false proof takes |
 | A record naming a requirement no summary declares | A proof of an obligation nobody wrote down proves nothing |
 | Two records claiming one requirement, polarity and tagged unit | The proven count is published, and a duplicate inflates it |
@@ -1515,7 +1532,7 @@ mechanisms carry the standing corpus:
   miss exactly the edit it exists to stop.
 - `./le commit audit` checks the same at commit time.
 - `checkAuditFreshness` (`internal/le/rfc/check_audit.go`) is the SHA ratchet,
-  armed only for an RFC that has an `rfc/audit/<stem>.json`.
+  armed only for an RFC that has a verdict under `rfc/audit/<stem>/`.
 
 What none of them can see is the tag that OVER-CLAIMED from its first commit.
 Each of the three is a CHANGE detector, so a test that never asserted what its

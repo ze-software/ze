@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC3748-4.2-11",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc3748_remaining_clause_test.go::TestRFC3748PeerConcludesFailureWithoutTheFailurePacket",
+    "unit-sha": "2eb3accb3a698db2",
+    "claim-sha": "e66d13c7f107d7e2",
+    "route": "revert",
+    "producer": "internal/core/eap/peer.go::handleMSCHAPv2Failure",
+    "producer-sha": "bec188b3f49c4dcc",
+    "break": "body of handleMSCHAPv2Failure replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3748-4.2-11",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc3748_result_indication_test.go::TestRFC3748PeerOutlivesALostTerminalPacket",
+    "unit-sha": "c7c890c4d5105853",
+    "claim-sha": "bbb90a4f65869284",
+    "route": "revert",
+    "producer": "internal/core/eap/peer.go::Process",
+    "producer-sha": "1d3fda7628c9da27",
+    "break": "body of Process replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3748-4.2-11",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc3748_result_indication_test.go::TestRFC3748PeerOutlivesALostTerminalPacket",
+    "unit-sha": "c7c890c4d5105853",
+    "claim-sha": "493954f397fa846b",
+    "route": "revert",
+    "producer": "internal/core/eap/peer.go::Process",
+    "producer-sha": "1d3fda7628c9da27",
+    "break": "body of Process replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

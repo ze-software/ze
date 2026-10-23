@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-10-21. Every tag reads the originated LSA. OSPFv2: literal 0xFFFF before session-up and in hold-down; a configured 0xFFFE reads 0xFFFF until synchronized, then 0xFFFE (records routerLinks). OSPFv3: TestRFC5443V6NotOperationalLinkAdvertisedAtMaxCost reads 0xFFFF; TestRFC5443V6OperationalLinkAdvertisedAtConfiguredCost tells 0xFFFE from 0xFFFF (records v6RouterLSABody). The effectiveP2PCost show-path tags are gone.",
+  "requirement_sha": "8ab035e1618eab7e",
+  "tests": {
+    "internal/plugins/ospf/rfc5443_origination_test.go::TestRFC5443MaxCostIsNotTheConfiguredNearMaxCost": "c9958c38f3f744bf",
+    "internal/plugins/ospf/rfc5443_origination_test.go::TestRFC5443NotOperationalLinkAdvertisedAtMaxCost": "c9958c38f3f744bf",
+    "internal/plugins/ospf/rfc5443_origination_v6_test.go::TestRFC5443V6NotOperationalLinkAdvertisedAtMaxCost": "0d435428e2245559",
+    "internal/plugins/ospf/rfc5443_origination_v6_test.go::TestRFC5443V6OperationalLinkAdvertisedAtConfiguredCost": "0d435428e2245559"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc5443_origination_test.go::TestRFC5443MaxCostIsNotTheConfiguredNearMaxCost": "ffe3c68734b84458",
+    "internal/plugins/ospf/rfc5443_origination_test.go::TestRFC5443NotOperationalLinkAdvertisedAtMaxCost": "d0ddcbc7f5ff6173",
+    "internal/plugins/ospf/rfc5443_origination_v6_test.go::TestRFC5443V6NotOperationalLinkAdvertisedAtMaxCost": "ba6ca488e4cf9f2a",
+    "internal/plugins/ospf/rfc5443_origination_v6_test.go::TestRFC5443V6OperationalLinkAdvertisedAtConfiguredCost": "28b60760f1441442"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PrioritySubTLV. Forbidden: two Priority sub-TLVs in one encoding. Red: assert.Len(srpAll(repeated, subTLVPriority), 1) for a config naming priority twice. Negative (control): a config with no priority emits none (assert.Empty), so the instance is counted rather than always written; a violating output cannot be built from a conforming encoder.",
+  "requirement_sha": "a8d314fc61f59e87",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PrioritySubTLV": "450f2364530acf19",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PrioritySubTLV#2": "450f2364530acf19"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PrioritySubTLV": "bcaa7e59da5da517",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PrioritySubTLV#2": "bcaa7e59da5da517"
+  },
+  "verdict": "enforced"
+}

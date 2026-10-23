@@ -1,0 +1,13 @@
+{
+  "note": "Judge 2026-09-30 (access cont 11, independent). Producer read: chap.go runCHAPAuthPhase on a reject writes the Failure, then s.fail sends EventSessionDown (Cause NAS-Error) to the transport and returns false, so no NCP phase: the SHOULD action is taken. + TestRFC1994CHAPFailureTerminatesTheLink: reply Code 4, false, EventSessionDown 55/66 'auth rejected' NAS-Error (Fatal if absent). - TestRFC1994CHAPSuccessKeepsTheLink: Code 3, true, no lifecycle event, so the teardown is owed to the Failure alone. The Value comparison is injected through authRespCh; the comparison itself is RFC1994-4.2-2's (real local verifier). Records: + break of session_run.go::fail, - break of runCHAPAuthPhase, both observed red (whole-body panic breaks, coarse but real). Row quotes the whole 4.2 sentence at SHOULD, MUST clause stays on 4.2-2; listed in 4.2 unsourced-ids because site 4.2:2 maps to 4.2-2.",
+  "requirement_sha": "f5260f3870005e2e",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1994_failure_terminates_link_test.go::TestRFC1994CHAPFailureTerminatesTheLink": "89f91d7745f1ad7a",
+    "internal/component/l2tp/ppp/rfc1994_failure_terminates_link_test.go::TestRFC1994CHAPSuccessKeepsTheLink": "89f91d7745f1ad7a"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1994_failure_terminates_link_test.go::TestRFC1994CHAPFailureTerminatesTheLink": "dcb733e92bc02910",
+    "internal/component/l2tp/ppp/rfc1994_failure_terminates_link_test.go::TestRFC1994CHAPSuccessKeepsTheLink": "34a7fdd3f98d5ca2"
+  },
+  "verdict": "enforced"
+}

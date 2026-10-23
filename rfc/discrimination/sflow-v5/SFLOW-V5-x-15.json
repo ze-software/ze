@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "SFLOW-V5-x-15",
+    "polarity": "positive",
+    "unit": "internal/plugins/flowexport/sflow_v5_register_test.go::TestInterfaceCountersFromCumulative",
+    "unit-sha": "1c5463a8d5868b23",
+    "claim-sha": "230143c03795f92c",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/register.go::interfaceCountersFrom",
+    "producer-sha": "df72571071f6ef43",
+    "break": "body of interfaceCountersFrom replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,15 @@
+{
+  "note": "Judge 2026-09-30 (rejudge, subnet). \u00a74.1 \"It MUST be zero on both transmit and receipt.\" Transmit clause: + session TestRFC5880TransmittedControlMultipointZero asserts the M bit clear on the session's own Build/BuildFinal wire in every transmitting state (record: revert session/fsm.go::Build, observed red); a property of every transmitted packet, single polarity is valid. Receipt clause: - packet TestRFC5880MultipointSetDiscarded (ParseControl refuses M=1) and + TestRFC5880MultipointZeroAccepted.",
+  "requirement_sha": "e7e8eef3d7f3610f",
+  "tests": {
+    "internal/component/bfd/packet/rfc5880_test.go::TestRFC5880MultipointSetDiscarded": "fba3b65e315e32aa",
+    "internal/component/bfd/packet/rfc5880_test.go::TestRFC5880MultipointZeroAccepted": "fba3b65e315e32aa",
+    "internal/component/bfd/session/rfc5880_transmit_header_test.go::TestRFC5880TransmittedControlMultipointZero": "0967332bf993e4d7"
+  },
+  "units": {
+    "internal/component/bfd/packet/rfc5880_test.go::TestRFC5880MultipointSetDiscarded": "2c4c9de85b9f3146",
+    "internal/component/bfd/packet/rfc5880_test.go::TestRFC5880MultipointZeroAccepted": "6c618c26a584a0e1",
+    "internal/component/bfd/session/rfc5880_transmit_header_test.go::TestRFC5880TransmittedControlMultipointZero": "e147bd079f7df0f3"
+  },
+  "verdict": "enforced"
+}

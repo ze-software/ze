@@ -1,0 +1,17 @@
+{
+  "note": "Judge 2026-09-29. Send half now driven: TestNCPHeldUntilNetworkPhase/ipv6, CHAP pending 3 s -> no IPV6CP frame (no frame at all) and no address request (-); accepted -> IPV6CP (0x8057) Configure-Request (+). Receive half: TestIPv6CPNoResponseBeforeNetworkPhase. Records on runAuthPhase (-) and runNCPPhase (+).",
+  "requirement_sha": "92b84b69a4c59301",
+  "tests": {
+    "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPNoResponseBeforeNetworkPhase": "99a68f4293234999",
+    "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPOpenedEmitsAssigned": "99a68f4293234999",
+    "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestNCPHeldUntilNetworkPhase": "d6b4e2cbd1b095e9",
+    "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestNCPHeldUntilNetworkPhase#2": "d6b4e2cbd1b095e9"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPNoResponseBeforeNetworkPhase": "99a03f964325d2fd",
+    "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPOpenedEmitsAssigned": "5c1cb3de54dcd4ce",
+    "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestNCPHeldUntilNetworkPhase": "8a0f8d564218620c",
+    "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestNCPHeldUntilNetworkPhase#2": "8a0f8d564218620c"
+  },
+  "verdict": "enforced"
+}

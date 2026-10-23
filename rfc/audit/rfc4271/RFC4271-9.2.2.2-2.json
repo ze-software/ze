@@ -1,0 +1,6 @@
+{
+  "no_code_path": "The optional route-aggregation procedure is outside the selected implementation scope. internal/component/bgp/reactor/peer_static_wire.go::sendStaticRoutesGrouped and internal/component/bgp/message/update_build_grouped.go::BuildGroupedUnicast retain individual prefixes; packGroupedAttributes preserves the supplied ORIGIN. Neither aggregation-precedence arm applies to batching independent NLRIs.",
+  "note": "RFC 4271 Section 9.2.2.2 states: \"Otherwise, if at least one route among routes that are aggregated has ORIGIN with the value EGP, then the aggregated route MUST have the ORIGIN attribute with the value EGP.\" The restored row also retains the preceding INCOMPLETE arm, which takes precedence. Section 9.2.2.1 makes this information reduction optional. BuildGroupedUnicast emits every supplied prefix separately; packGroupedAttributes copies the supplied ORIGIN under the identical-attributes contract. Its sendStaticRoutesGrouped caller groups configured routes by attributes without synthesizing an aggregate or computing aggregate ORIGIN.",
+  "requirement_sha": "e17ecbf3e4131585",
+  "verdict": "not-applicable"
+}

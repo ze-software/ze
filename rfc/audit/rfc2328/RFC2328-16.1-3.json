@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: choosing a router vertex before a network vertex at equal distance. Red: TestRFC2328EqualDistanceNetworkVertexFirst pushes two routers and one network at dist 10 and fails unless the first pop is the network vertex. Other polarity: TestRFC2328CloserRouterVertexBeforeFartherNetwork fails if the network-first preference overrides distance (router at 10 must pop before network at 11). Both over spfHeap, the SPF candidate list itself.",
+  "requirement_sha": "4209b492d55cda4c",
+  "tests": {
+    "internal/plugins/ospf/spf/rfc2328_tiebreak_test.go::TestRFC2328CloserRouterVertexBeforeFartherNetwork": "542a21d30107847d",
+    "internal/plugins/ospf/spf/rfc2328_tiebreak_test.go::TestRFC2328EqualDistanceNetworkVertexFirst": "542a21d30107847d"
+  },
+  "units": {
+    "internal/plugins/ospf/spf/rfc2328_tiebreak_test.go::TestRFC2328CloserRouterVertexBeforeFartherNetwork": "6e453f5ba7cdfd71",
+    "internal/plugins/ospf/spf/rfc2328_tiebreak_test.go::TestRFC2328EqualDistanceNetworkVertexFirst": "917949af6230a3b3"
+  },
+  "verdict": "enforced"
+}

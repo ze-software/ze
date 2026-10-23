@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC8414-4-1",
+    "polarity": "negative",
+    "unit": "internal/component/mcp/rfc8414_jwt_test.go::TestRFC8414IssuerCompareNotOnJSONText",
+    "unit-sha": "6a2052a2332d27ba",
+    "claim-sha": "90d00c2cc50ae8cc",
+    "route": "revert",
+    "producer": "internal/component/mcp/jwt.go::verifyJWT",
+    "producer-sha": "d7f2925a3dc4abcb",
+    "break": "body of verifyJWT replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8414-4-1",
+    "polarity": "positive",
+    "unit": "internal/component/mcp/rfc8414_jwt_test.go::TestRFC8414IssuerCompareUnescapesJSON",
+    "unit-sha": "55764be1096c0157",
+    "claim-sha": "ab4c2dfa4f2d295c",
+    "route": "revert",
+    "producer": "internal/component/mcp/jwt.go::verifyJWT",
+    "producer-sha": "d7f2925a3dc4abcb",
+    "break": "body of verifyJWT replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8414-4-1",
+    "polarity": "positive",
+    "unit": "internal/component/mcp/rfc8414_metadata_request_test.go::TestRFC8414MetadataIssuerUnescapedBeforeCompare",
+    "unit-sha": "8069662a1c1f4a07",
+    "claim-sha": "5ad46f90724fcf33",
+    "route": "revert",
+    "producer": "internal/component/mcp/as_metadata.go::fetchASMetadata",
+    "producer-sha": "9c3c0b8747d3dbfb",
+    "break": "body of fetchASMetadata replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8414-4-1",
+    "polarity": "negative",
+    "unit": "internal/component/mcp/rfc8414_metadata_request_test.go::TestRFC8414MetadataIssuerUnescapedBeforeCompare",
+    "unit-sha": "8069662a1c1f4a07",
+    "claim-sha": "cc030634f9488b12",
+    "route": "revert",
+    "producer": "internal/component/mcp/as_metadata.go::fetchASMetadata",
+    "producer-sha": "9c3c0b8747d3dbfb",
+    "break": "body of fetchASMetadata replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

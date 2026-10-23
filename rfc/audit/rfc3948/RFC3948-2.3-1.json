@@ -1,0 +1,17 @@
+{
+  "note": "Rejudged 2026-09-30 (transport judge). Producer: UDPTransport.Run (transport/udp.go) drops every datagram shorter than the 28-octet IKE header, so a one-octet 0xFF keepalive never reaches Recv; the engine's IsNATKeepalive continue in dispatchNATTInbound is a second layer the transport makes unreachable and is not separately proven. Positive TestRFC3948KeepaliveAheadOfIKEIsIgnored: keepalive then an IKE datagram on one NAT-T socket, the first delivered packet is the IKE datagram byte for byte (ignored and the receive path unaffected). Negative TestRFC3948KeepaliveIsNotHandedOn: a lone keepalive never reaches Recv in 200ms (the non-compliant receiver hands it on). Removing the n<28 floor would turn both red (the keepalive is delivered first / at all); both carry observed-red revert records on udp.go::Run. TestIsNATKeepalive (+/-) proves the classification only and is supplementary.",
+  "requirement_sha": "1ed60af40793d8f1",
+  "tests": {
+    "internal/component/ike/transport/nat_test.go::TestIsNATKeepalive": "5e9bb9c1bf045ab6",
+    "internal/component/ike/transport/nat_test.go::TestIsNATKeepalive#2": "5e9bb9c1bf045ab6",
+    "internal/component/ike/transport/rfc3948_keepalive_receive_test.go::TestRFC3948KeepaliveAheadOfIKEIsIgnored": "26c14706d1427ca1",
+    "internal/component/ike/transport/rfc3948_keepalive_receive_test.go::TestRFC3948KeepaliveIsNotHandedOn": "26c14706d1427ca1"
+  },
+  "units": {
+    "internal/component/ike/transport/nat_test.go::TestIsNATKeepalive": "982bc94a9fc44d14",
+    "internal/component/ike/transport/nat_test.go::TestIsNATKeepalive#2": "982bc94a9fc44d14",
+    "internal/component/ike/transport/rfc3948_keepalive_receive_test.go::TestRFC3948KeepaliveAheadOfIKEIsIgnored": "105a79dd53348a1c",
+    "internal/component/ike/transport/rfc3948_keepalive_receive_test.go::TestRFC3948KeepaliveIsNotHandedOn": "69e560e7af88c1b6"
+  },
+  "verdict": "enforced"
+}

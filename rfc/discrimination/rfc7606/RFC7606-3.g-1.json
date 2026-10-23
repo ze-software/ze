@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC7606-3.g-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption",
+    "unit-sha": "a5b85689aac05495",
+    "claim-sha": "b9da3cf5316bc26d",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606AddPath",
+    "producer-sha": "222e2e233e9e8539",
+    "break": "body of ValidateUpdateRFC7606AddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

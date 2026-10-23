@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9568-5.2.2-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/rfc9568_rx_discard_test.go::TestInstanceRxDiscardsBadTTLTypeAndCountZero",
+    "unit-sha": "9eaf413a54954e7f",
+    "claim-sha": "369ea7d3d9d82f4d",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/instance.go::onPacket",
+    "producer-sha": "311d2786f273a10b",
+    "break": "body of onPacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9568-5.2.2-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/vrrp/rfc9568_rx_discard_test.go::TestInstanceRxDiscardsBadTTLTypeAndCountZero",
+    "unit-sha": "9eaf413a54954e7f",
+    "claim-sha": "462cf86166fe6221",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/instance.go::onPacket",
+    "producer-sha": "311d2786f273a10b",
+    "break": "body of onPacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

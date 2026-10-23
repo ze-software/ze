@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC5310-4-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthRotationOverlapAccepts",
+    "unit-sha": "be293515e21b4a3a",
+    "claim-sha": "7d87f59151925e4a",
+    "route": "revert",
+    "producer": "internal/plugins/isis/packet/auth_verify.go::VerifyPDU",
+    "producer-sha": "c97d50142ac6f421",
+    "break": "body of VerifyPDU replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5310-4-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/rfc5310_auth_keystore_test.go::TestISISAuthRotation",
+    "unit-sha": "43fac63f1a1cbb71",
+    "claim-sha": "f3c9efa5fc77ffb3",
+    "route": "revert",
+    "producer": "internal/plugins/isis/auth_keystore.go::acceptKeys",
+    "producer-sha": "a1e1c4ca74caf1aa",
+    "break": "body of acceptKeys replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5310-4-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/rfc5310_auth_scope_test.go::TestRFC5310NonSendingKeyStillUsed",
+    "unit-sha": "709dbc269b645e7a",
+    "claim-sha": "4d791cfb4c453168",
+    "route": "revert",
+    "producer": "internal/plugins/isis/auth_keystore.go::acceptKeys",
+    "producer-sha": "a1e1c4ca74caf1aa",
+    "break": "body of acceptKeys replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

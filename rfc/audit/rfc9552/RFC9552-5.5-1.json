@@ -1,0 +1,11 @@
+{
+  "note": "single-polarity positive per row annotation; exact AFI/SAFI/NH-len/NH/reserved/NLRI layout for IPv4 and IPv6 next hops",
+  "requirement_sha": "93a771aa0a81faad",
+  "tests": {
+    "internal/core/bgp/attribute/rfc7752_bgpls_test.go::TestRFC7752BGPLSNextHopFollowsRFC4760": "2ff5cf524c7273e0"
+  },
+  "units": {
+    "internal/core/bgp/attribute/rfc7752_bgpls_test.go::TestRFC7752BGPLSNextHopFollowsRFC4760": "70fced7dc6cef411"
+  },
+  "verdict": "enforced"
+}

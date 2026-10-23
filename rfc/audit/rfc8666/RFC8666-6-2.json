@@ -1,0 +1,13 @@
+{
+  "note": "NP+E set imposes ExplicitNullV6 (2) at ingress and in the transit swap; E clear imposes the SRGB label. IPv4 clause (label 0) does not arise: OSPFv3 reception rejects a non-IPv6 AF",
+  "requirement_sha": "35b6c0124c279ad8",
+  "tests": {
+    "internal/plugins/ospf/rfc8666_test.go::TestRFC8666ExplicitNullReplacesPrefixSID": "4729a15d3adeda26",
+    "internal/plugins/ospf/rfc8666_test.go::TestRFC8666NoPHPKeepsPrefixSIDOnStack": "4729a15d3adeda26"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc8666_test.go::TestRFC8666ExplicitNullReplacesPrefixSID": "5a3a3999bf6f1576",
+    "internal/plugins/ospf/rfc8666_test.go::TestRFC8666NoPHPKeepsPrefixSIDOnStack": "8beab265bab70aba"
+  },
+  "verdict": "enforced"
+}

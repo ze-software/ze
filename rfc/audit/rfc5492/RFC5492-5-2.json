@@ -1,0 +1,11 @@
+{
+  "note": "Clause 1 (Unsupported Capability MUST NOT be used for a capability not understood): TestOpenIgnoresUnknownCapability asserts only a KEEPALIVE is written for an OPEN with code 254. Clause 2 (such capabilities MUST be ignored): the same unit asserts the following Route Refresh TLV is negotiated and the session reaches Established. Single-polarity marker present.",
+  "requirement_sha": "31d1a170026868a1",
+  "tests": {
+    "internal/component/bgp/reactor/session_handlers_test.go::TestOpenIgnoresUnknownCapability": "c387bdc6c423bd19"
+  },
+  "units": {
+    "internal/component/bgp/reactor/session_handlers_test.go::TestOpenIgnoresUnknownCapability": "14133cb58d63bc8b"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,17 @@
+{
+  "note": "Peer level: a running Established Peer whose HoldTimer expires writes exactly one 4/0 read off the wire, and its ConnectRetryTimer is stopped; the negative feeds a 400 ms HoldTimer a KEEPALIVE every 100 ms for 1.2 s and reads no NOTIFICATION off the wire. fireHold / ResetHoldTimer breaks observed red. The ConnectRetryTimer clause holds by construction: fsm Timers.StartConnectRetryTimer has no non-test caller, so the peer-level 'not running' assertion guards a future arming, and the HEAD rfc4271_test.go unit arms it and proves StopAll stops it. Re-read 2026-10-01 (c10 judge): the only change under this verdict is a tag comment line for another id (RFC4271-6.7-1 / RFC4271-Security-1 added, RFC4271-9.1.2.1-1 removed) in the unit's doc comment; every assertion is byte-identical, so the judgement stands.",
+  "requirement_sha": "d2a9479fad8067f8",
+  "tests": {
+    "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerExpiryRunsTheEvent10List": "33aaf37273eacf0d",
+    "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerFedByKeepalivesNeverExpires": "33aaf37273eacf0d",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldExpiryRunsTheEvent10ActionList": "94aa07ebd53dcc5b",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271NoHoldExpiryLeavesTheSessionIntact": "94aa07ebd53dcc5b"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerExpiryRunsTheEvent10List": "51b56c66410541f9",
+    "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerFedByKeepalivesNeverExpires": "db606972eff20c1c",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldExpiryRunsTheEvent10ActionList": "47fab825725cad28",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271NoHoldExpiryLeavesTheSessionIntact": "5d0e00e5828e7c3b"
+  },
+  "verdict": "enforced"
+}

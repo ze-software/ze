@@ -1,0 +1,11 @@
+{
+  "note": "single-polarity positive is valid: safeAppendOption writes the length octet on its only write path and no input selects an omission. TestEveryEmittedOptionHasLengthOctet walks the OFFER by length octets to End and now pins the constant length of 53 (1) and 54, 1, 51, 58, 59 (4), so an omitted or wrong length octet goes red",
+  "requirement_sha": "bbe4bf6f83184297",
+  "tests": {
+    "internal/plugins/dhcpserver/handler_test.go::TestEveryEmittedOptionHasLengthOctet": "3c71d2e2f2b59688"
+  },
+  "units": {
+    "internal/plugins/dhcpserver/handler_test.go::TestEveryEmittedOptionHasLengthOctet": "dac7924d0c204eeb"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,19 @@
+{
+  "code": {
+    "internal/plugins/dhcpserver/handler.go::extractMAC": "eb6323a629094cf0",
+    "internal/plugins/dhcpserver/handler.go::handle": "4e0210ccd271699c"
+  },
+  "note": "Re-judged 2026-10-18 (independent auditor, after ef8666639d). RFC 2131 Section 4.2: \"If the client does not provide a 'client identifier' option, the server MUST use the contents of the 'chaddr' field to identify the client.\" ef8666639d only deletes the stale comment line above TestRFC2131ChaddrContentsIdentifyTheClient that the previous verdict asked removed; no assertion changed. The server reads no option 61 and handle keys every message type on extractMAC (pkt[28:28+hlen]). Overlay mutants on handler.go extractMAC, run under ./le job run: keying on xid reds TestRFC2131ChaddrContentsIdentifyTheClient and TestChaddrIdentifiesClientWithoutClientIdentifier; keying on all but the last chaddr octet reds TestRFC2131ChaddrContentsIdentifyTheClient. Positive (same chaddr, different xid and flags, one client) and negative (one chaddr octet differs, two clients) are distinct assertions.",
+  "requirement_sha": "f506c0a20b93a61c",
+  "tests": {
+    "internal/plugins/dhcpserver/rfc2131_identity_options_test.go::TestRFC2131ChaddrContentsIdentifyTheClient": "b5a39ec9f84423c9",
+    "internal/plugins/dhcpserver/rfc2131_identity_options_test.go::TestRFC2131ChaddrContentsIdentifyTheClient#2": "b5a39ec9f84423c9",
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestChaddrIdentifiesClientWithoutClientIdentifier": "8365c04cdfc2a046"
+  },
+  "units": {
+    "internal/plugins/dhcpserver/rfc2131_identity_options_test.go::TestRFC2131ChaddrContentsIdentifyTheClient": "596673e186b3e922",
+    "internal/plugins/dhcpserver/rfc2131_identity_options_test.go::TestRFC2131ChaddrContentsIdentifyTheClient#2": "596673e186b3e922",
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestChaddrIdentifiesClientWithoutClientIdentifier": "d554bfb011c765de"
+  },
+  "verdict": "enforced"
+}

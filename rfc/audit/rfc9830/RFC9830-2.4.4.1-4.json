@@ -1,0 +1,13 @@
+{
+  "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentListSubTLV. Forbidden: a non-zero Weight Flags octet. Red: assert.Equal(byte(0), weight[0]). Negative: assert.NotEqual(make([]byte, 6), weight), weight 0xCAFEBABE.",
+  "requirement_sha": "cdf2bfbc07661f0f",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentListSubTLV": "450f2364530acf19",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentListSubTLV#2": "450f2364530acf19"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentListSubTLV": "967814ae57450c29",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentListSubTLV#2": "967814ae57450c29"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,21 @@
+{
+  "note": "Positive: Decode accepts 20- and 4096-octet packets (16 attributes kept) and EncodeTo writes exactly 4096 with Length 4096. Negative: Decode refuses 19 octets, refuses a 4097-octet packet whose Length field says 4097 and whose attributes are all valid (so only the maximum can refuse it), and EncodeTo refuses attributes making 4097 octets. Both bounds now discriminated at both edges.",
+  "requirement_sha": "ebf1bb0b278dac85",
+  "tests": {
+    "internal/component/radius/packet_test.go::TestDecodeBadLength": "8d639d23d04e7dff",
+    "internal/component/radius/packet_test.go::TestDecodeTooLong": "8d639d23d04e7dff",
+    "internal/component/radius/packet_test.go::TestDecodeTooShort": "8d639d23d04e7dff",
+    "internal/component/radius/packet_test.go::TestPacketRoundTrip": "8d639d23d04e7dff",
+    "internal/component/radius/rfc2865_wire_rules_test.go::TestRFC2865PacketOfTheMinimumAndMaximumLengthIsAccepted": "4d524a15dfa67b83",
+    "internal/component/radius/rfc2865_wire_rules_test.go::TestRFC2865PacketOutsideTheLengthBoundsIsRefused": "4d524a15dfa67b83"
+  },
+  "units": {
+    "internal/component/radius/packet_test.go::TestDecodeBadLength": "9fcdb8433915aec3",
+    "internal/component/radius/packet_test.go::TestDecodeTooLong": "65492f6f2bd6e14c",
+    "internal/component/radius/packet_test.go::TestDecodeTooShort": "86f81e2df0468603",
+    "internal/component/radius/packet_test.go::TestPacketRoundTrip": "d5a61de5c2dd8a4e",
+    "internal/component/radius/rfc2865_wire_rules_test.go::TestRFC2865PacketOfTheMinimumAndMaximumLengthIsAccepted": "0fee4c2adc0f2a04",
+    "internal/component/radius/rfc2865_wire_rules_test.go::TestRFC2865PacketOutsideTheLengthBoundsIsRefused": "e46abcd5f76d240d"
+  },
+  "verdict": "enforced"
+}

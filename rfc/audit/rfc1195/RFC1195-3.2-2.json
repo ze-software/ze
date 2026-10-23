@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: more than one L2 entry for a prefix several L1 routers announce, or an L2 metric above the minimum. metricLeak fails unless exactly one L2 entry for the prefix is originated; TestRFC1195SpecificLeakCollapsesDuplicatePrefix (two routers, 20 and 9) and TestRFC1195SpecificLeakKeepsOnlyMinimum (three routers, 20, 12 and 9, cheapest not first in system-id order) each require metric 9. Distinct inputs, so no longer one assertion with two tags; a first-seen or last-seen leak producer fails the three-router case. No refusal path exists for an originator. Negative carries an observed-red record on leakInto; the positive has none but reads red on the same breaks.",
+  "requirement_sha": "bdf8c500d5a357fb",
+  "tests": {
+    "internal/plugins/isis/rfc1195_selection_test.go::TestRFC1195SpecificLeakKeepsOnlyMinimum": "1ef6f2102a068439",
+    "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195SpecificLeakCollapsesDuplicatePrefix": "b67887a5f61b2632"
+  },
+  "units": {
+    "internal/plugins/isis/rfc1195_selection_test.go::TestRFC1195SpecificLeakKeepsOnlyMinimum": "8f84718c4570858d",
+    "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195SpecificLeakCollapsesDuplicatePrefix": "4a9f432d8825ac4c"
+  },
+  "verdict": "enforced"
+}

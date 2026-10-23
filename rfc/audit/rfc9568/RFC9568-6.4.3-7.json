@@ -1,0 +1,15 @@
+{
+  "note": "vrrp judge 2026-09-29 re-read after RFC5798 tags were added to TestActiveAddressOwnerAcceptsWhateverAcceptModeSays (body unchanged): TestActiveNonOwnerWithAcceptModeFalseSuppressesLocalDelivery requires accept=false for exactly the VIP; Accept_Mode True and owner contrasts require accept=true",
+  "requirement_sha": "a6fe67d0d46a1265",
+  "tests": {
+    "internal/plugins/vrrp/acceptfilter_test.go::TestActiveAddressOwnerAcceptsWhateverAcceptModeSays": "ac94e88781e5c08d",
+    "internal/plugins/vrrp/acceptfilter_test.go::TestActiveNonOwnerWithAcceptModeFalseSuppressesLocalDelivery": "ac94e88781e5c08d",
+    "internal/plugins/vrrp/acceptfilter_test.go::TestActiveNonOwnerWithAcceptModeTrueAcceptsLocalDelivery": "ac94e88781e5c08d"
+  },
+  "units": {
+    "internal/plugins/vrrp/acceptfilter_test.go::TestActiveAddressOwnerAcceptsWhateverAcceptModeSays": "ae0d8891a374b6cf",
+    "internal/plugins/vrrp/acceptfilter_test.go::TestActiveNonOwnerWithAcceptModeFalseSuppressesLocalDelivery": "4eac158ec037028e",
+    "internal/plugins/vrrp/acceptfilter_test.go::TestActiveNonOwnerWithAcceptModeTrueAcceptsLocalDelivery": "8ef0833629bc1166"
+  },
+  "verdict": "enforced"
+}

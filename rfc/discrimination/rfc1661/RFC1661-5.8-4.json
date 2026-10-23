@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC1661-5.8-4",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestEchoRequestIdentifierChanges",
+    "unit-sha": "92aaae379e07b8ad",
+    "claim-sha": "47193d1e5b1795f4",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/session_run.go::sendEchoRequest",
+    "producer-sha": "67e08de14e9b2399",
+    "break": "body of sendEchoRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1661-5.8-4",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestEchoRequestIdentifierChanges",
+    "unit-sha": "92aaae379e07b8ad",
+    "claim-sha": "30a295d9dcc9d005",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/session_run.go::sendEchoRequest",
+    "producer-sha": "67e08de14e9b2399",
+    "break": "body of sendEchoRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

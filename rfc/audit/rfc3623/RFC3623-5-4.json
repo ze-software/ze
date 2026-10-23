@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-09-29 (independent judge). TestRFC3623UnplannedGraceLSACarriesUnplannedReason configures planned-and-unplanned, runs maybeUnplannedRestart on a running interface and decodes the installed Grace-LSA: reason 3, equal to the recorded e.gr.reason (revert record on maybeUnplannedRestart). The {single-polarity} annotation stands: the unplanned reason is a constant and there is no receive-side reason rejection.",
+  "requirement_sha": "78dbaf3c155be9b8",
+  "tests": {
+    "internal/plugins/ospf/rfc3623_gr_unplanned_test.go::TestUnplannedGraceBeforeHello": "798a0b6d7dc27944",
+    "internal/plugins/ospf/rfc3623_grace_origination_test.go::TestRFC3623UnplannedGraceLSACarriesUnplannedReason": "58f3a76a57e8a603"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc3623_gr_unplanned_test.go::TestUnplannedGraceBeforeHello": "554a91f1f888f93c",
+    "internal/plugins/ospf/rfc3623_grace_origination_test.go::TestRFC3623UnplannedGraceLSACarriesUnplannedReason": "d98745ba15785ffe"
+  },
+  "verdict": "enforced"
+}

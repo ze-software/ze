@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC9915-18.2.4-5",
+    "polarity": "positive",
+    "unit": "internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go::TestRFC9915Section1824RenewAtT1CarriesLease",
+    "unit-sha": "43f4a6202fdfcfc0",
+    "claim-sha": "81cfd1f343a90756",
+    "route": "revert",
+    "producer": "internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::newV6Message",
+    "producer-sha": "ff61021efee8c77e",
+    "break": "body of newV6Message replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

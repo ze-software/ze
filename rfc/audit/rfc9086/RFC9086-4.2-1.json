@@ -1,0 +1,17 @@
+{
+  "note": "rejudge 2026-10-02 (c33 judge): + TestRFC9086EveryBGPNLRICarriesLocalRouterIDAndASN reads both emitted NLRIs (Node type 1 and Link type 2, Protocol-ID 7) and asserts one Local Node Descriptors TLV 256 holding TLV 516 c0 00 02 01 and TLV 512 00 00 fd e8 exactly once each, closing the unchecked Node NLRI. - TestRFC9086NativePeerRequiresLocalRouterID (local router-id 0.0.0.0 or absent: State errors, no label, no NLRI) beside HEAD TestRFC9086NativePeerRequiresNodeIdentities (local ASN 0). Judge break: the local-identifier check in epe_source.go State reduced to rejecting only a non-IPv4 address turns the new negative red. The confederation-identifier clause is conditional on confederations, which have no configuration surface in Ze (internal/component/bgp/reactor/forward_local_pref.go), so TLV 512 always carries the plain local ASN.",
+  "requirement_sha": "4754fb0312f016dd",
+  "tests": {
+    "internal/component/bgp/plugins/ls_export/rfc9086_epe_local_descriptors_test.go::TestRFC9086EveryBGPNLRICarriesLocalRouterIDAndASN": "511e2ab2aae3d91b",
+    "internal/component/bgp/plugins/ls_export/rfc9086_epe_local_descriptors_test.go::TestRFC9086NativePeerRequiresLocalRouterID": "511e2ab2aae3d91b",
+    "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB": "6bdfb4d672851af6",
+    "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerRequiresNodeIdentities": "6bdfb4d672851af6"
+  },
+  "units": {
+    "internal/component/bgp/plugins/ls_export/rfc9086_epe_local_descriptors_test.go::TestRFC9086EveryBGPNLRICarriesLocalRouterIDAndASN": "1f5303e3ea1836c5",
+    "internal/component/bgp/plugins/ls_export/rfc9086_epe_local_descriptors_test.go::TestRFC9086NativePeerRequiresLocalRouterID": "31ce1ba3742101aa",
+    "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB": "00d1c00c5318c067",
+    "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerRequiresNodeIdentities": "a0cda248915e86da"
+  },
+  "verdict": "enforced"
+}

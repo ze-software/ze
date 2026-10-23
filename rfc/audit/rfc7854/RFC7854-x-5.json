@@ -1,0 +1,13 @@
+{
+  "note": "IPv4 lands in octets 12..15 with 0..11 zero; the IPv6 negative keeps its full address",
+  "requirement_sha": "50f35e68afacf531",
+  "tests": {
+    "internal/component/bgp/plugins/bmp/event_test.go::TestParseIPIntoIPv4": "1600925b71fa0ce5",
+    "internal/component/bgp/plugins/bmp/event_test.go::TestParseIPIntoIPv6": "1600925b71fa0ce5"
+  },
+  "units": {
+    "internal/component/bgp/plugins/bmp/event_test.go::TestParseIPIntoIPv4": "b26e3342ea933a0f",
+    "internal/component/bgp/plugins/bmp/event_test.go::TestParseIPIntoIPv6": "6baaf5c69cc2152f"
+  },
+  "verdict": "enforced"
+}

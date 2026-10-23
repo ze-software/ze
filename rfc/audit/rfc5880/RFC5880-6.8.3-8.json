@@ -1,0 +1,14 @@
+{
+  "code": {},
+  "note": "Judge rejudge 2026-09-30 (bfd session+engine continuation). Row is {single-polarity: positive}. TestRFC5880RemoteTimingChangeMovesDetectionTimeAtOnce adds the Detection Time half: a received Desired Min TX 600 ms moves it 900 ms -> 1.8 s at once (no expiry at 901 ms, expiry at 1.8 s) and Detect Mult 5 moves it to 1.5 s; the TX half stays on RemoteMinRxReductionHonoredImmediately. Mutant DetectionInterval mult guard observed red.",
+  "requirement_sha": "c37aac5a40480499",
+  "tests": {
+    "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880RemoteTimingChangeMovesDetectionTimeAtOnce": "73ca576e23cbd659",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteMinRxReductionHonoredImmediately": "8db25cbb4534cc2d"
+  },
+  "units": {
+    "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880RemoteTimingChangeMovesDetectionTimeAtOnce": "24cc801f63e3244e",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteMinRxReductionHonoredImmediately": "e6fde4a312962826"
+  },
+  "verdict": "enforced"
+}

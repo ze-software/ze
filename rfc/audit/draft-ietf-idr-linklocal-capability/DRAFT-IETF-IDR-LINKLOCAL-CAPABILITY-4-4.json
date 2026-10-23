@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged 2026-10-04 after f93a30fbfc. Forbidden: announcing to an internal peer a route the internal-peer procedures leave with no IPv6 next hop, rather than treat-as-withdraw. TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer (internal=true branch) relays a Link-Local-only fe80::1 to an internal peer more than one hop away, where the Link-Local MUST NOT be included and nothing remains, and asserts no MP_REACH next hop and the exact MP_UNREACH_NLRI for the prefix, so 'after evaluating the above procedures' is an input and the withdrawal is asserted. Control: TestLinkLocalRouteWithANextHopIsAnnouncedToAnInternalPeer announces the same route with a Global next hop and LOCAL_PREF (RIB rail, cross-rail but conformant). The RIB-rail positive alone is still only a zero-address builder check.",
+  "requirement_sha": "85d358b2f23809f2",
+  "tests": {
+    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithANextHopIsAnnouncedToAnInternalPeer": "fbbc388ab95f6372",
+    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithNoNextHopIsNotAnnouncedToAnInternalPeer": "fbbc388ab95f6372",
+    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go::TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer": "1f41fe0d3b72271c"
+  },
+  "units": {
+    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithANextHopIsAnnouncedToAnInternalPeer": "e7c0912e3ea5374e",
+    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithNoNextHopIsNotAnnouncedToAnInternalPeer": "69a8c4e0c2796a81",
+    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go::TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer": "6099070f7ecdcb79"
+  },
+  "verdict": "enforced"
+}

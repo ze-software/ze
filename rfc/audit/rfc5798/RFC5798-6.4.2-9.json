@@ -1,0 +1,17 @@
+{
+  "note": "vrrp judge 2026-09-29 (independent): TestV3BackupAdoptsIntervalOrDiscards: equal, greater and Preempt-off lower adverts carrying 4 s each set Master_Adver_Interval to 4000 and arm the literal 14.4375 s; Preempt-on lower yields nothing and keeps 1000.",
+  "requirement_sha": "c9a81326776e66d0",
+  "tests": {
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "52489f84876bdb6f",
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "52489f84876bdb6f",
+    "internal/plugins/vrrp/fsm/rfc_verdict_test.go::TestV3BackupAdoptsIntervalOrDiscards": "529420a351d8b685",
+    "internal/plugins/vrrp/fsm/rfc_verdict_test.go::TestV3BackupAdoptsIntervalOrDiscards#2": "529420a351d8b685"
+  },
+  "units": {
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "c06b69f55bb239a3",
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "c06b69f55bb239a3",
+    "internal/plugins/vrrp/fsm/rfc_verdict_test.go::TestV3BackupAdoptsIntervalOrDiscards": "90dfd7a7ef29dff6",
+    "internal/plugins/vrrp/fsm/rfc_verdict_test.go::TestV3BackupAdoptsIntervalOrDiscards#2": "90dfd7a7ef29dff6"
+  },
+  "verdict": "enforced"
+}

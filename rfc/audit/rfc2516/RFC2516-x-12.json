@@ -1,0 +1,11 @@
+{
+  "note": "single-polarity; TestRFC2516ErrorTagsCarryNoData drives handlePADR and asserts the Service-Name-Error TAG_LENGTH is 0",
+  "requirement_sha": "ed2552502d9deee5",
+  "tests": {
+    "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516ErrorTagsCarryNoData": "e5818bbbd45fc77f"
+  },
+  "units": {
+    "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516ErrorTagsCarryNoData": "c31b87be39ce9926"
+  },
+  "verdict": "enforced"
+}

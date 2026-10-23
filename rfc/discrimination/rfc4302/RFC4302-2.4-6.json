@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4302-2.4-6",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc4302_ipsec_test.go::TestAHSPIReservedRangeRefused",
+    "unit-sha": "8e392603a8934d0c",
+    "claim-sha": "007371a8521a6391",
+    "route": "mutant",
+    "producer": "internal/plugins/ospf/config_ipsec.go::validateIPsecInterface",
+    "producer-sha": "30c3ee956902c48e",
+    "break": "line 117: \"c.SPI \u003c ipsecSPIMin\" -\u003e \"true\""
+  },
+  {
+    "rid": "RFC4302-2.4-6",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/rfc4302_ipsec_test.go::TestAHSPIReservedRangeRefused",
+    "unit-sha": "8e392603a8934d0c",
+    "claim-sha": "ae7c723e2616d7cc",
+    "route": "mutant",
+    "producer": "internal/plugins/ospf/config_ipsec.go::validateIPsecInterface",
+    "producer-sha": "30c3ee956902c48e",
+    "break": "line 117: \"c.SPI \u003c ipsecSPIMin\" -\u003e \"false\""
+  }
+]

@@ -1,0 +1,13 @@
+{
+  "note": "(a) forbidden: a request carrying START and STOP together. (b) TestRFC8907AccountingStartStopCombinationRefused requires errors.Is(err, errRequestInvalid) for Flags START|STOP; TestAcctRequestMarshalStartStop marshals START and STOP as separate flags.",
+  "requirement_sha": "8b425010119f8efb",
+  "tests": {
+    "internal/component/tacacs/rfc8907_acct_test.go::TestAcctRequestMarshalStartStop": "75b965d7ba21dabe",
+    "internal/component/tacacs/rfc8907_validation_test.go::TestRFC8907AccountingStartStopCombinationRefused": "59ca691aca621600"
+  },
+  "units": {
+    "internal/component/tacacs/rfc8907_acct_test.go::TestAcctRequestMarshalStartStop": "72b09318dca8a267",
+    "internal/component/tacacs/rfc8907_validation_test.go::TestRFC8907AccountingStartStopCombinationRefused": "db791f8422fa3e59"
+  },
+  "verdict": "enforced"
+}

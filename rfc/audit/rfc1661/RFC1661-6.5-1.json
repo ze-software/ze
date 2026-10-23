@@ -1,0 +1,11 @@
+{
+  "note": "{single-polarity} justified. Forbidden: a one-octet Protocol field on transmit. TestRFC1661TwoOctetProtocolField goes red when WriteFrame writes off != 2 or octets != c021.",
+  "requirement_sha": "430d2375b4b0f53f",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661TwoOctetProtocolField": "9afaf002f0fd81ec"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661TwoOctetProtocolField": "664651efc8839141"
+  },
+  "verdict": "enforced"
+}

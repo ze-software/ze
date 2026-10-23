@@ -1,0 +1,21 @@
+{
+  "note": "Re-judged under the D-10 corrected row, which now quotes the whole Section 2.5 sentence (set to zero, and content ignored). Receive clause, this row's obligation: TestRFC7296EveryReservedOctetIsIgnoredOnReceipt parses AUTH, KE, ID, TS, CP bodies and Proposal/Transform substructures with every RESERVED octet at 0xff and asserts no error and DeepEqual to the clean decode; TestRFC7296DefinedOctetBesideReservedIsNotIgnored flips the adjacent defined octet and requires a changed decode or a refusal. Set-to-zero clause: the same positive unit asserts the encoder sends each RESERVED octet as zero for those bodies, and the sending obligation is also RFC7296-2.5-6's row. Generic header flags (wire/rfc7296_test.go) and the CP attribute R bit (rfc7296_cp_test.go) keep their tags. Records: payload_auth ReadFrom and payload_ke ReadFrom reverts observed red, re-recorded for the new row text.",
+  "requirement_sha": "1a2026957a70d0c1",
+  "tests": {
+    "internal/component/ike/wire/rfc7296_cp_test.go::TestConfigAttributeReservedBitIgnoredOnReceipt": "7ea878f0c1bb3f8e",
+    "internal/component/ike/wire/rfc7296_cp_test.go::TestConfigAttributeReservedBitIgnoredOnReceipt#2": "7ea878f0c1bb3f8e",
+    "internal/component/ike/wire/rfc7296_reserved_fields_test.go::TestRFC7296DefinedOctetBesideReservedIsNotIgnored": "4829d69943c6f955",
+    "internal/component/ike/wire/rfc7296_reserved_fields_test.go::TestRFC7296EveryReservedOctetIsIgnoredOnReceipt": "4829d69943c6f955",
+    "internal/component/ike/wire/rfc7296_test.go::TestReservedFieldsIgnoredOnReceipt": "459954f82bfe6b71",
+    "internal/component/ike/wire/rfc7296_test.go::TestReservedFieldsIgnoredOnReceipt#2": "459954f82bfe6b71"
+  },
+  "units": {
+    "internal/component/ike/wire/rfc7296_cp_test.go::TestConfigAttributeReservedBitIgnoredOnReceipt": "2bfd4018f2bf8673",
+    "internal/component/ike/wire/rfc7296_cp_test.go::TestConfigAttributeReservedBitIgnoredOnReceipt#2": "2bfd4018f2bf8673",
+    "internal/component/ike/wire/rfc7296_reserved_fields_test.go::TestRFC7296DefinedOctetBesideReservedIsNotIgnored": "a3041cb31c9c9b12",
+    "internal/component/ike/wire/rfc7296_reserved_fields_test.go::TestRFC7296EveryReservedOctetIsIgnoredOnReceipt": "da52341dc29eddde",
+    "internal/component/ike/wire/rfc7296_test.go::TestReservedFieldsIgnoredOnReceipt": "ccb262e24f23851e",
+    "internal/component/ike/wire/rfc7296_test.go::TestReservedFieldsIgnoredOnReceipt#2": "ccb262e24f23851e"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,11 @@
+{
+  "note": "Forbidden: non-zero bytes in the five octets before the DSCP, or the DSCP elsewhere. TestFlowSpecTrafficMarkingReservedBytesZero asserts ec[2..6]==0 and ec[7]==dscp with type 0x80/0x09; red on either. {single-polarity} marker present.",
+  "requirement_sha": "8dc19f50552f03fb",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecTrafficMarkingReservedBytesZero": "edf3d98f88af0674"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecTrafficMarkingReservedBytesZero": "a1cd8cc8e523e6e0"
+  },
+  "verdict": "enforced"
+}

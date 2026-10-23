@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: a TLS client that cannot authenticate the cache by DNS-ID (dNSName SAN). Positive TestRTRTLSAuthenticatedCache: a DNS-ID cert with a differing CN syncs and publishes VRP and ASPA. Negative TestRTRTLSRejectsUnauthenticatedCaches: wrong DNS, CN only, IP SAN only are refused (assertRTRTLSRefused). The server-implementation clause binds a role Ze does not fill: Ze has no RTR cache server (only rtr_session.go and rtr_pdu.go, both client-side).",
+  "requirement_sha": "3c56182a49922018",
+  "tests": {
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go::TestRTRTLSAuthenticatedCache": "cc96e0e57341d7a8",
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go::TestRTRTLSRejectsUnauthenticatedCaches": "cc96e0e57341d7a8"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go::TestRTRTLSAuthenticatedCache": "46740446577221b8",
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go::TestRTRTLSRejectsUnauthenticatedCaches": "5079e5e699076586"
+  },
+  "verdict": "enforced"
+}

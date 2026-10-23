@@ -1,0 +1,19 @@
+{
+  "note": "Judge 2026-09-30 (cont 5). The prior weak (Code and Identifier unproven) is closed and was a real defect: an Access-Challenge carrying EAP Code 0 was handed to the peer and answered. Fix in processEAPMessage pins Code 1 for an Access-Challenge only (Accept/Reject may carry Success/Failure), and new checkEAPResponseHeader requires Code 2 and the current Request's Identifier before forwarding; RFC 3579 Section 2.2 quotes above both, text checked. Length: the existing corruptEAPFrom pair. Code, server side: negative TestRFC3579NASRefusesANonRequestCodeInAChallenge rewrites only the Code octet (0,2,3,4,5,255) and asserts the infrastructure error naming the server's EAP header, not ErrAuthRejected, and exactly one Access-Request (nothing forwarded). Code+Identifier, peer side: positive TestRFC3579NASForwardsTheCurrentIdentifierBothWays pairs every Challenge's Request with the next Access-Request's Response (Code 2, same Identifier) over a full EAP-MSCHAPv2 login and the check admits a matching pair; negative TestRFC3579NASRefusesAResponseOffTheCurrentIdentifier drives checkEAPResponseHeader directly (Identifier 6/8 vs 7, Code 1, Code 4), since the in-process peer echoes the Identifier and cannot be driven off it. Ze ends the login on a mismatched Response rather than silently discarding it; with an in-process peer no other Response can arrive, so nothing is forwarded either way. Valid EAP-TLS/MSCHAPv2 flows stay green (race run 2026-09-30). All units recorded red.",
+  "requirement_sha": "6b571411bc1dddb1",
+  "tests": {
+    "internal/component/radius/rfc3579_eap_header_fields_test.go::TestRFC3579NASForwardsTheCurrentIdentifierBothWays": "ba130494c53d027a",
+    "internal/component/radius/rfc3579_eap_header_fields_test.go::TestRFC3579NASRefusesANonRequestCodeInAChallenge": "ba130494c53d027a",
+    "internal/component/radius/rfc3579_eap_header_fields_test.go::TestRFC3579NASRefusesAResponseOffTheCurrentIdentifier": "ba130494c53d027a",
+    "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapReadsTheServerEAPHeaderFields": "2b1b1ce908f454a5",
+    "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapRefusesAMalformedServerEAPHeader": "2b1b1ce908f454a5"
+  },
+  "units": {
+    "internal/component/radius/rfc3579_eap_header_fields_test.go::TestRFC3579NASForwardsTheCurrentIdentifierBothWays": "e5d29f7a85187c66",
+    "internal/component/radius/rfc3579_eap_header_fields_test.go::TestRFC3579NASRefusesANonRequestCodeInAChallenge": "6475cbfce57704fc",
+    "internal/component/radius/rfc3579_eap_header_fields_test.go::TestRFC3579NASRefusesAResponseOffTheCurrentIdentifier": "bcc7ac7abee39814",
+    "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapReadsTheServerEAPHeaderFields": "3fec42f133d29080",
+    "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapRefusesAMalformedServerEAPHeader": "07ea035486926073"
+  },
+  "verdict": "enforced"
+}

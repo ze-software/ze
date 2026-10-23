@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: selecting a cache other than the most preferred one that answers (config order, or reading every cache at once). TestCacheGroupLoadsFromTheMostPreferredCacheThatAnswers lists the standby (preference 200) first and the preferred (10) second; it waits for the preferred cache's accept and t.Fatal fires if the standby accepts within 500ms, so a group that followed config order or dialled all caches goes red. The failover subtest asserts that when the preferred cache refuses, the next in preference order (snaps[1].Synced) carries the load, and snapshots are held most preferred first. The 'or set of caches' alternative is a permission, not a forbidden behaviour.",
+  "requirement_sha": "f1776b40118c197f",
+  "tests": {
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestCacheGroupLoadsFromTheMostPreferredCacheThatAnswers": "ecc88870039ee22d",
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestCacheGroupLoadsFromTheMostPreferredCacheThatAnswers#2": "ecc88870039ee22d"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestCacheGroupLoadsFromTheMostPreferredCacheThatAnswers": "ca1b4a0d18891da9",
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go::TestCacheGroupLoadsFromTheMostPreferredCacheThatAnswers#2": "ca1b4a0d18891da9"
+  },
+  "verdict": "enforced"
+}

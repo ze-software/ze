@@ -1,0 +1,13 @@
+{
+  "note": "statistics-timeout 1 through the reload rail yields two reports about one interval apart; statistics-timeout 0 yields none",
+  "requirement_sha": "c7b3a8b791f08c80",
+  "tests": {
+    "internal/component/bgp/plugins/bmp/statistics_test.go::TestRFC7854StatisticsTimeoutSendsPeriodicReports": "b9942efbd6542cce",
+    "internal/component/bgp/plugins/bmp/statistics_test.go::TestRFC7854StatisticsTimeoutZeroSendsNoReport": "b9942efbd6542cce"
+  },
+  "units": {
+    "internal/component/bgp/plugins/bmp/statistics_test.go::TestRFC7854StatisticsTimeoutSendsPeriodicReports": "2f9d56002245fca9",
+    "internal/component/bgp/plugins/bmp/statistics_test.go::TestRFC7854StatisticsTimeoutZeroSendsNoReport": "ae40846adaf8ed47"
+  },
+  "verdict": "enforced"
+}

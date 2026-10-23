@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC5880-4.1-2",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/packet/rfc5880_test.go::TestRFC5880MultipointSetDiscarded",
+    "unit-sha": "d06b50f5deb8b7fd",
+    "claim-sha": "023a06861a1972b2",
+    "route": "revert",
+    "producer": "internal/component/bfd/packet/control.go::ParseControl",
+    "producer-sha": "2bf7d7d2586a0256",
+    "break": "body of ParseControl replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-4.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/packet/rfc5880_test.go::TestRFC5880MultipointZeroAccepted",
+    "unit-sha": "2cd58bf99f0ab1b8",
+    "claim-sha": "d52bb2ade5648c3e",
+    "route": "revert",
+    "producer": "internal/component/bfd/packet/control.go::WriteTo",
+    "producer-sha": "9ba5d6b9aabfce26",
+    "break": "body of WriteTo replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-4.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/session/rfc5880_transmit_header_test.go::TestRFC5880TransmittedControlMultipointZero",
+    "unit-sha": "cd172e46620ef1f2",
+    "claim-sha": "9214697324d19114",
+    "route": "revert",
+    "producer": "internal/component/bfd/session/fsm.go::Build",
+    "producer-sha": "7804fa2f9f889820",
+    "break": "body of Build replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

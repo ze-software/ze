@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC2328-16.7-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328AdvertisedSummaryNotFlushed",
+    "unit-sha": "57f74c8b01a6696e",
+    "claim-sha": "d8eb8fb015cb9f03",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/lsdb/origination.go::FlushStaleSummaryLSAs",
+    "producer-sha": "366acdadb9fb978c",
+    "break": "body of FlushStaleSummaryLSAs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-16.7-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328WithdrawnSummaryFlushedAtMaxAge",
+    "unit-sha": "56205064f08b82c1",
+    "claim-sha": "70eb01a3b6f61ba3",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/lsdb/origination.go::FlushStaleSummaryLSAs",
+    "producer-sha": "366acdadb9fb978c",
+    "break": "body of FlushStaleSummaryLSAs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-16.7-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/spf/rfc2328_summary_flush_condense_test.go::TestRFC2328SummaryFlushedWhenDeletedOrNoLongerAdvertisableToArea",
+    "unit-sha": "93d03da402c73452",
+    "claim-sha": "61e53f1366180a91",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/lsdb/origination.go::FlushStaleSummaryLSAs",
+    "producer-sha": "366acdadb9fb978c",
+    "break": "body of FlushStaleSummaryLSAs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

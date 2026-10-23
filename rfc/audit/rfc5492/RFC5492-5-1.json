@@ -1,0 +1,27 @@
+{
+  "note": "Independently rejudged both RFC5492 Section 5 sentences, requiring the complete causing set and each capability's OPEN encoding; the existing positive/negative TestRFC5492UnsupportedCapabilityDataListsTheCausingSet covers exactly both missing zero-length capabilities, only the still-missing capability, exclusion of an unknown capability, and acceptance when both requirements are met; the three existing builder carriers support ASN4 value retention, empty-valued capability tuples, and empty selection; TestUnsupportedCapabilityNotificationPreservesOpenTuples adds fourteen actual-OPEN cases across handleOpen and processOpen, asserting exact code/length/original local-required or peer-refused values, satisfied/noncausing-code exclusion, repeated Graceful Restart instances, ADD-PATH directions, and variable-length hostname; TestUnsupportedAddPathNotificationPreservesFamilyTuples adds eight actual-OPEN cases covering local-required and peer-refused family directions, exclusion of unrelated families, preserved repeated-instance grouping, and exact complete 3771-byte NOTIFICATIONs from bounded extended-parameter OPENs; buildUnsupportedCapabilityDataCodes uses the parsed actual OPEN capabilities and buildUnsupportedAddPathData retains original grouping, so filtered Data does not expand beyond the source capability bytes; Main's original before/after logs demonstrate the value/direction repairs, job-capability-repeated-grouping-before-89321fb3.log demonstrates all four added grouping cases failing with the 5601/4096 panic, and job-lifecycle-capability-bounded-after-12720db6.log records all fourteen generic and eight family cases passing after repair; these observations are executed proof only, and fresh native discrimination records for new/changed tags remain Main-owned debt before canonical closure.",
+  "requirement_sha": "52485c7d9b26a4db",
+  "tests": {
+    "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestUnsupportedAddPathNotificationPreservesFamilyTuples": "38d39a330e488737",
+    "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestUnsupportedAddPathNotificationPreservesFamilyTuples#2": "38d39a330e488737",
+    "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestUnsupportedCapabilityNotificationPreservesOpenTuples": "38d39a330e488737",
+    "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestUnsupportedCapabilityNotificationPreservesOpenTuples#2": "38d39a330e488737",
+    "internal/component/bgp/reactor/rfc5492_reactor_b_test.go::TestRFC5492UnsupportedCapabilityDataListsTheCausingSet": "3ff184a23c494343",
+    "internal/component/bgp/reactor/rfc5492_reactor_b_test.go::TestRFC5492UnsupportedCapabilityDataListsTheCausingSet#2": "3ff184a23c494343",
+    "internal/component/bgp/reactor/session_test.go::TestBuildUnsupportedCapabilityDataCodes": "aeb6993b67f2a376",
+    "internal/component/bgp/reactor/session_validate_test.go::TestBuildUnsupportedCapabilityDataCodes_Empty": "00ea84393819df2b",
+    "internal/component/bgp/reactor/session_validate_test.go::TestBuildUnsupportedCapabilityDataCodes_MultipleCodes": "00ea84393819df2b"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestUnsupportedAddPathNotificationPreservesFamilyTuples": "1dde6d8ef56d31a9",
+    "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestUnsupportedAddPathNotificationPreservesFamilyTuples#2": "1dde6d8ef56d31a9",
+    "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestUnsupportedCapabilityNotificationPreservesOpenTuples": "f9d31740ce523698",
+    "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestUnsupportedCapabilityNotificationPreservesOpenTuples#2": "f9d31740ce523698",
+    "internal/component/bgp/reactor/rfc5492_reactor_b_test.go::TestRFC5492UnsupportedCapabilityDataListsTheCausingSet": "c77bf0fcbe60e220",
+    "internal/component/bgp/reactor/rfc5492_reactor_b_test.go::TestRFC5492UnsupportedCapabilityDataListsTheCausingSet#2": "c77bf0fcbe60e220",
+    "internal/component/bgp/reactor/session_test.go::TestBuildUnsupportedCapabilityDataCodes": "0baf6cbaff2ba981",
+    "internal/component/bgp/reactor/session_validate_test.go::TestBuildUnsupportedCapabilityDataCodes_Empty": "17d41d98acd3b70b",
+    "internal/component/bgp/reactor/session_validate_test.go::TestBuildUnsupportedCapabilityDataCodes_MultipleCodes": "e2f64b12b608d642"
+  },
+  "verdict": "enforced"
+}

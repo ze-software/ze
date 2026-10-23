@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC4271-8.2.2-14",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/rfc4760_peer_down_test.go::TestRFC4760PeerDownDeletesOnlyThatNeighborsRoutes",
+    "unit-sha": "06dc98271f9e7939",
+    "claim-sha": "b28af858e84b6ebf",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/rib.go::handleStructuredState",
+    "producer-sha": "a8163b3c964b8110",
+    "break": "body of handleStructuredState replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-8.2.2-14",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go::TestRFC4271EstablishedGoodMessagesKeepTheConnection",
+    "unit-sha": "c82355aedd14737c",
+    "claim-sha": "6c3377db0723346b",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_read.go::processMessage",
+    "producer-sha": "a12e35a861ca54ca",
+    "break": "body of processMessage replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-8.2.2-14",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go::TestRFC4271EstablishedUpdateErrorReleasesTheConnection",
+    "unit-sha": "c9c6d3b7b88457e2",
+    "claim-sha": "173d6281ca156776",
+    "route": "revert",
+    "producer": "internal/component/bgp/fsm/fsm.go::handleEstablished",
+    "producer-sha": "168897c1f9b0382e",
+    "break": "body of handleEstablished replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

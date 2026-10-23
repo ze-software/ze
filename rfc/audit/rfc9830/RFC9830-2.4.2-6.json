@@ -1,0 +1,21 @@
+{
+  "code": {
+    "internal/component/bgp/plugins/nlri/srpolicy/config.go::buildBindingSIDNullSubTLV": "d781b2653f726e07",
+    "internal/component/bgp/plugins/nlri/srpolicy/config.go::buildBindingSIDSubTLV": "1cb5430ddbbdc76b"
+  },
+  "note": "Independent bounded new-row rejudgment. RFC9830 Section 2.4.2: \"The unassigned bits in the Flags field MUST be set to zero upon transmission and MUST be ignored upon receipt.\" RFC9830 Figure 5 assigns only S/I (0x80/0x40), leaving mask 0x3F unassigned. buildBindingSIDSubTLV now leaves the zeroed Flags octet untouched; buildBindingSIDNullSubTLV already does so. The change removes the unconditional 0x10 write without changing label bits, framing, assigned S/I behavior or buffer allocation. New tagged TX assertions require bsid[0]&0x3F==0 beside label 0xFFFFF. The actual pre-fix job-enum-bsid-unassigned-before-4d050848.log fails exactly Binding SID unassigned Flags = 0x10; the repaired tagged unit passes in job-enum-acl-bsid-repaired-race-f0d445d5.log (that package run separately failed old Go goldens, so no full-package success is inferred). The current selected semantic baseline passes, and rfc9830-tx-22-binding-sid-unassigned-flags reinstates only buf[2]=0x10 and fails exactly the new Flags assertion while the single-TLV control passes. Existing tagged TestRFC9830ReceivedFieldsAreIgnoredNotRead contrasts 0x3F and zero with fixed label and exact Preference/round-trip controls. Supplementary actual-carrier rx-bsid-unassigned in semantic-observations-nsr9c7y4 rejects only policy type13 flags&0x3F: both AFIs fail the isolated ignored-octet-14 and combined-dirty receive-action assertion while clean and every other isolated leaf survive. That reactor witness is supplementary, not falsely claimed as a new RFC9830-2.4.2-6 reactor tag. TX zeroing and implemented BGP RX disregard are now observed; no Binding SID/SRPM interpretation is invented. This is executed host semantic evidence, not a canonical native discrimination renewal. Native recording/stamping and the five FRR scenarios remain parent-owned and are not declared verified here. No SRPM, dataplane, absent encoding form, full-RFC, or exhaustive-per-bit claim follows.",
+  "requirement_sha": "8568c3c006be7669",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission": "e8c93af9c3519a1c",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission#2": "e8c93af9c3519a1c",
+    "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead": "a929cacac0d74fc0",
+    "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead#2": "a929cacac0d74fc0"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission": "9deb30b51012888d",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission#2": "9deb30b51012888d",
+    "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead": "d4706ce342d09aa5",
+    "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead#2": "d4706ce342d09aa5"
+  },
+  "verdict": "enforced"
+}

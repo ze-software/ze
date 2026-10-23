@@ -1,0 +1,20 @@
+{
+  "code": {
+    "internal/component/bgp/reactor/session_tunnel_encap.go::applyTunnelEncap": "fe3e49caf2b84b58"
+  },
+  "note": "Re-judged 2026-10-14 (independent auditor) after 9450048187. RFC 9830 Section 4.2.1: 'The Tunnel Encapsulation Attribute MUST be attached to the BGP UPDATE message and MUST have a Tunnel Type TLV set to SR Policy (code point is 15).' First clause: rfc9830_tunnel_receive_test.go::TestRFC9830SRPolicyWithoutTunnelEncapIsMalformed requires an AFI 1/2 SAFI 73 UPDATE with NLRI and no attribute 23 to be treat-as-withdraw through processMessage, and the same NLRI with one type-15 TLV to be delivered unchanged. Second clause: TestRFC9830SRPolicyTunnelTypeNot15IsMalformed attaches attribute 23 whose only TLV is VXLAN (8) or 0xFFFE and requires treat-as-withdraw with the session kept, and requires the type-15 TLV in the same position to be delivered unchanged. The recorded breaks replace all of applyTunnelEncap with a panic, which shows reachability only, so the auditor ran a targeted mutant through a go test overlay: disabling only the '!= 15' check in applyTunnelEncap (session_tunnel_encap.go, 'non-SR-Policy tunnel type on SAFI 73') turns TestRFC9830SRPolicyTunnelTypeNot15IsMalformed red ('vxlan: the malformed UPDATE was dispatched as received'), so the tagged negative discriminates the type-15 rule itself; an over-rejecting producer fails the type-15 positive.",
+  "requirement_sha": "fcd09105784bc7cb",
+  "tests": {
+    "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9830SRPolicyTunnelTypeNot15IsMalformed": "cd227ea5764f94be",
+    "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9830SRPolicyTunnelTypeNot15IsMalformed#2": "cd227ea5764f94be",
+    "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9830SRPolicyWithoutTunnelEncapIsMalformed": "cd227ea5764f94be",
+    "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9830SRPolicyWithoutTunnelEncapIsMalformed#2": "cd227ea5764f94be"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9830SRPolicyTunnelTypeNot15IsMalformed": "c68699bd6128dd80",
+    "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9830SRPolicyTunnelTypeNot15IsMalformed#2": "c68699bd6128dd80",
+    "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9830SRPolicyWithoutTunnelEncapIsMalformed": "8c73fca37bd87675",
+    "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9830SRPolicyWithoutTunnelEncapIsMalformed#2": "8c73fca37bd87675"
+  },
+  "verdict": "enforced"
+}

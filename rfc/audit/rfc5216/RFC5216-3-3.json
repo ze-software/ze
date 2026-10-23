@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: a Request that repeats the Identifier of the packet before it. TestRFC5216IdentifierChangesOnEveryRequest errors on cur.Identifier == prev.Identifier for every Request of a full TLS 1.2 conversation and fatals if fewer than 3 Requests ran; the negative pins that EAP-Success (not a Request) repeats the answered Identifier.",
+  "requirement_sha": "10d720712f5b141e",
+  "tests": {
+    "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216IdentifierChangesOnEveryRequest": "50ee52d235cf2a36",
+    "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216IdentifierChangesOnEveryRequest#2": "50ee52d235cf2a36"
+  },
+  "units": {
+    "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216IdentifierChangesOnEveryRequest": "a65dd067028a4bb0",
+    "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216IdentifierChangesOnEveryRequest#2": "a65dd067028a4bb0"
+  },
+  "verdict": "enforced"
+}

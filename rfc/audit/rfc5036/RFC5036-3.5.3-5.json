@@ -1,0 +1,13 @@
+{
+  "note": "TestRFC5036InitPathVectorLimitZeroWithoutLoopDetection reads the Initialization ze sends and checks D=0 with PVLim 0; TestRFC5036EncodeInitDropsPathVectorLimitWithoutLoopDetection gives EncodeInit a limit of 7 and checks 0 reaches the wire beside D=0 and 7 beside D=1.",
+  "requirement_sha": "4f722a9ee8016940",
+  "tests": {
+    "internal/plugins/ldp/rfc5036_sessionparams_test.go::TestRFC5036EncodeInitDropsPathVectorLimitWithoutLoopDetection": "c0aa8fdb104978d5",
+    "internal/plugins/ldp/rfc5036_sessionparams_test.go::TestRFC5036InitPathVectorLimitZeroWithoutLoopDetection": "c0aa8fdb104978d5"
+  },
+  "units": {
+    "internal/plugins/ldp/rfc5036_sessionparams_test.go::TestRFC5036EncodeInitDropsPathVectorLimitWithoutLoopDetection": "af529b72d5feed7b",
+    "internal/plugins/ldp/rfc5036_sessionparams_test.go::TestRFC5036InitPathVectorLimitZeroWithoutLoopDetection": "67bf4958c3f10ff1"
+  },
+  "verdict": "enforced"
+}

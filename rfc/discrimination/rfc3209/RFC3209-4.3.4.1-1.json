@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC3209-4.3.4.1-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/rfc3209_engine_label_test.go::TestRFC3209TransitEvaluatesFirstEROSubobject",
+    "unit-sha": "2d3358ecdec0d7ac",
+    "claim-sha": "a9fe33d44b7910e5",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/routing.go::resolveExplicitPath",
+    "producer-sha": "0deccc8d4603d01c",
+    "break": "body of resolveExplicitPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3209-4.3.4.1-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/rsvpte/rfc3209_engine_label_test.go::TestRFC3209TransitNoFirstEROSubobject",
+    "unit-sha": "72db62c7b5583024",
+    "claim-sha": "9b4fb1f4e18ff492",
+    "route": "mutant",
+    "producer": "internal/plugins/rsvpte/routing.go::resolveReceivedPath",
+    "producer-sha": "bd44a978a474b718",
+    "break": "line 19: \"!msg.HasERO\" -\u003e \"true\""
+  },
+  {
+    "rid": "RFC3209-4.3.4.1-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/rsvpte/rfc3209_signaling_test.go::TestRFC3209TransitRefusesForeignFirstSubobject",
+    "unit-sha": "129ec723abcac713",
+    "claim-sha": "6ddb3ce819f9fb72",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/routing.go::resolveReceivedPath",
+    "producer-sha": "bd44a978a474b718",
+    "break": "body of resolveReceivedPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

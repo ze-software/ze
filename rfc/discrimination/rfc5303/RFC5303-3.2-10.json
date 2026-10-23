@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC5303-3.2-10",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go::TestRFC5303NewAdjacencyReceivingUpDoesNotComeUp",
+    "unit-sha": "b4c6bbda2cc8af7c",
+    "claim-sha": "8a61be99c855fac9",
+    "route": "revert",
+    "producer": "internal/plugins/isis/adjacency/fsm.go::threeWayTableAction",
+    "producer-sha": "a6818b6a91423daa",
+    "break": "body of threeWayTableAction replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5303-3.2-10",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go::TestRFC5303NewAdjacencyReceivingUpDoesNotComeUp",
+    "unit-sha": "b4c6bbda2cc8af7c",
+    "claim-sha": "d2204ba6d53cb2e6",
+    "route": "revert",
+    "producer": "internal/plugins/isis/adjacency/fsm.go::threeWayTableAction",
+    "producer-sha": "a6818b6a91423daa",
+    "break": "body of threeWayTableAction replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5303-3.2-10",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayNewAdjacencyStateDown",
+    "unit-sha": "6b28966ca12edd49",
+    "claim-sha": "b95df8501e932020",
+    "route": "revert",
+    "producer": "internal/plugins/isis/circuit/runtime.go::p2pThreeWayState",
+    "producer-sha": "ff7005409d43b373",
+    "break": "body of p2pThreeWayState replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5303-3.2-10",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayNewAdjacencyStateDown",
+    "unit-sha": "6b28966ca12edd49",
+    "claim-sha": "aace071a6d57ab17",
+    "route": "revert",
+    "producer": "internal/plugins/isis/circuit/runtime.go::p2pThreeWayState",
+    "producer-sha": "ff7005409d43b373",
+    "break": "body of p2pThreeWayState replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

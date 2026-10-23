@@ -1,0 +1,13 @@
+{
+  "note": "Single-polarity positive. (a) forbidden: computing the digest before the auth-type byte and TLV length are in place; (b) TestISISAuthHMACSHAApadPreimage recomputes HMAC-SHA-256 over the signed PDU (which carries the final type 3 byte and length) with the data region Apad-filled and asserts bytes.Equal(onWire, wantApad): a digest computed over a pre-image lacking the type or length differs and goes red. TestISISAuthSignVerifyHMACSHA256 pins AuthType 3 and value length 34 on every PDU class.",
+  "requirement_sha": "9e4a13dfa4bb20d0",
+  "tests": {
+    "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthHMACSHAApadPreimage": "6263fe382fc10923",
+    "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthSignVerifyHMACSHA256": "6263fe382fc10923"
+  },
+  "units": {
+    "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthHMACSHAApadPreimage": "58f76fce256f21da",
+    "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthSignVerifyHMACSHA256": "14edcafd3e20040a"
+  },
+  "verdict": "enforced"
+}

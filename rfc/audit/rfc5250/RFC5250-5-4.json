@@ -1,0 +1,13 @@
+{
+  "note": "First verdict 2026-10-21 (round 4 judge). Row is a verbatim span of RFC 5250 Section 5 (2). Positive: a Type-11 LSA whose originator has no ASBR entry (SPF pending, reached without E-bit, unknown originator) is delivered not usable; negative: an originator with an ASBR entry is delivered usable, so the do-nothing rule is bound to the missing entry. Consumers honouring the not-usable flag (TED) are proven by the RFC5250-5-2 tests. Records on ASBRReachable.",
+  "requirement_sha": "d5dde0844e65f6a1",
+  "tests": {
+    "internal/plugins/ospf/rfc5250_asbr_lookup_test.go::TestRFC5250Type11LooksUpOriginatorRoutingEntry": "1aff1dc1dc617118",
+    "internal/plugins/ospf/rfc5250_asbr_lookup_test.go::TestRFC5250Type11LooksUpOriginatorRoutingEntry#2": "1aff1dc1dc617118"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc5250_asbr_lookup_test.go::TestRFC5250Type11LooksUpOriginatorRoutingEntry": "70ced49ed3fc8a16",
+    "internal/plugins/ospf/rfc5250_asbr_lookup_test.go::TestRFC5250Type11LooksUpOriginatorRoutingEntry#2": "70ced49ed3fc8a16"
+  },
+  "verdict": "enforced"
+}

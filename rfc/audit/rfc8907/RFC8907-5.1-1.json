@@ -1,0 +1,13 @@
+{
+  "note": "(a) forbidden: a START with no username whose user_len is not 0. (b) TestRFC8907AuthenStartAbsentUserWritesZeroLength requires body[4] == 0, no user bytes and the port at offset 8; TestRFC8907AuthenStartPresentUserWritesItsLength requires body[4] == len(\"alice\") and the user bytes.",
+  "requirement_sha": "b4fd6687ec1a3067",
+  "tests": {
+    "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907AuthenStartAbsentUserWritesZeroLength": "226ab125232efc32",
+    "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907AuthenStartPresentUserWritesItsLength": "226ab125232efc32"
+  },
+  "units": {
+    "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907AuthenStartAbsentUserWritesZeroLength": "b7ed45e1a7e5cda7",
+    "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907AuthenStartPresentUserWritesItsLength": "64774c36cbe11869"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,25 @@
+{
+  "note": "Re-judged 2026-10-02 (BGP c29 judge), owner ruling 8(d). Reception (MUST ignore) unchanged from c28: TestLabeledRsrvIgnoredOnReceive and TestRFC8277RsrvIgnoredOnReceiveLabelStack. Transmission (SHOULD zero) now enforced for both originated and relayed stacks. Originated: TestRFC8277BuilderLabelLayout (WriteLabelValues, Rsrv 000). Relayed: clearLabelRsrv runs in publishBase, the ingest step every announcement passes before the RIB and both forward rails see it; SAFI 4 and 128 only, read-only scan first, copy only on a hit. Negatives TestRFC8277RsrvClearedOnRelay (Rsrv 111/101/001/110 to 000 over one label, a three-label stack then a second NLRI, ADD-PATH path id, SAFI 128 RD; framing and the received buffer unchanged) and TestRFC8277RsrvClearedOnTheReceivePath (through enforceRFC7606, no RFC 7606 action). Positive TestRFC8277ZeroRsrvRelayedZeroCopy asserts the same WireUpdate for a zero-Rsrv stack and a unicast NLRI. No bypass: the only non-publishBase exits of enforceRFC7606 are treat-as-withdraw (withdrawals carry the Section 2.4 Compatibility field, not a label stack) and session reset; originated stacks come from LabelEntriesFor (Rsrv 0). EVPN (SAFI 70) untouched. Three observed-red records (revert clearLabelRsrv).",
+  "requirement_sha": "4b854b57cc9edcda",
+  "tests": {
+    "internal/component/bgp/message/rfc8277_label_layout_test.go::TestRFC8277BuilderLabelLayout": "bc0d36b08721c366",
+    "internal/component/bgp/reactor/rfc8277_label_rsrv_test.go::TestRFC8277RsrvClearedOnRelay": "7709e060b8ea799b",
+    "internal/component/bgp/reactor/rfc8277_label_rsrv_test.go::TestRFC8277RsrvClearedOnTheReceivePath": "7709e060b8ea799b",
+    "internal/component/bgp/reactor/rfc8277_label_rsrv_test.go::TestRFC8277ZeroRsrvRelayedZeroCopy": "7709e060b8ea799b",
+    "internal/core/bgp/nlri/nlrisplit/rfc8277_rsrv_stack_test.go::TestRFC8277RsrvIgnoredOnReceiveLabelStack": "c829ac5b6e0bd533",
+    "internal/core/bgp/nlri/nlrisplit/rfc8277_rsrv_stack_test.go::TestRFC8277RsrvIgnoredOnReceiveLabelStack#2": "c829ac5b6e0bd533",
+    "internal/core/bgp/nlri/nlrisplit/rfc8277_test.go::TestLabeledRsrvIgnoredOnReceive": "d64eacce2b177603",
+    "internal/core/bgp/nlri/nlrisplit/rfc8277_test.go::TestLabeledRsrvIgnoredOnReceive#2": "d64eacce2b177603"
+  },
+  "units": {
+    "internal/component/bgp/message/rfc8277_label_layout_test.go::TestRFC8277BuilderLabelLayout": "3ca769542f91b6c7",
+    "internal/component/bgp/reactor/rfc8277_label_rsrv_test.go::TestRFC8277RsrvClearedOnRelay": "b4c30a38c6077bcf",
+    "internal/component/bgp/reactor/rfc8277_label_rsrv_test.go::TestRFC8277RsrvClearedOnTheReceivePath": "437ae389ad95b643",
+    "internal/component/bgp/reactor/rfc8277_label_rsrv_test.go::TestRFC8277ZeroRsrvRelayedZeroCopy": "c67a01af0e9579a7",
+    "internal/core/bgp/nlri/nlrisplit/rfc8277_rsrv_stack_test.go::TestRFC8277RsrvIgnoredOnReceiveLabelStack": "56fbcef3cc2d414d",
+    "internal/core/bgp/nlri/nlrisplit/rfc8277_rsrv_stack_test.go::TestRFC8277RsrvIgnoredOnReceiveLabelStack#2": "56fbcef3cc2d414d",
+    "internal/core/bgp/nlri/nlrisplit/rfc8277_test.go::TestLabeledRsrvIgnoredOnReceive": "29ca998daacf0c45",
+    "internal/core/bgp/nlri/nlrisplit/rfc8277_test.go::TestLabeledRsrvIgnoredOnReceive#2": "29ca998daacf0c45"
+  },
+  "verdict": "enforced"
+}

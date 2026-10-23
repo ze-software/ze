@@ -1,0 +1,22 @@
+{
+  "note": "All four message kinds asserted at the receiver and the composer: a Nak Response carrying a desired-Type list ends the exchange with EAP-Failure and reaches no method (recording/tap method sees nothing), Success and Failure encode to their four octets, the peer's Notification Response carries zero octets of Type-Data, ze's authenticator sends no Notification Request, and an injected Notification carrying MS-CHAPv2 result bytes does not advance the method. A live Response of the method Type reaches the method with its Type-Data (control arm), so the silence is not a dead method layer. Every unit now carries an observed-red record.",
+  "requirement_sha": "f7d5f577f3407982",
+  "tests": {
+    "internal/core/eap/rfc3748_lockstep_test.go::TestRFC3748FrameworkMessagesReachNoMethod": "d3558afd0c09e2a8",
+    "internal/core/eap/rfc3748_lockstep_test.go::TestRFC3748FrameworkMessagesReachNoMethod#2": "d3558afd0c09e2a8",
+    "internal/core/eap/rfc3748_ordering_test.go::TestRFC3748NoFrameworkMessageReachesAnEAPMethod": "a0a8fc016d807263",
+    "internal/core/eap/rfc3748_ordering_test.go::TestRFC3748NoFrameworkMessageReachesAnEAPMethod#2": "a0a8fc016d807263",
+    "internal/core/eap/rfc3748_remaining_clause_test.go::TestRFC3748ANotificationRequestCarriesNothingToTheMethod": "a4c2ccc90d93cad9",
+    "internal/core/eap/rfc3748_remaining_clause_test.go::TestRFC3748TheAuthenticatorSendsNoNotificationRequest": "a4c2ccc90d93cad9"
+  },
+  "units": {
+    "internal/core/eap/rfc3748_lockstep_test.go::TestRFC3748FrameworkMessagesReachNoMethod": "46979c11034b71a0",
+    "internal/core/eap/rfc3748_lockstep_test.go::TestRFC3748FrameworkMessagesReachNoMethod#2": "46979c11034b71a0",
+    "internal/core/eap/rfc3748_ordering_test.go::TestRFC3748NoFrameworkMessageReachesAnEAPMethod": "bce356d23eda2375",
+    "internal/core/eap/rfc3748_ordering_test.go::TestRFC3748NoFrameworkMessageReachesAnEAPMethod#2": "bce356d23eda2375",
+    "internal/core/eap/rfc3748_remaining_clause_test.go::TestRFC3748ANotificationRequestCarriesNothingToTheMethod": "79aa93cc06525651",
+    "internal/core/eap/rfc3748_remaining_clause_test.go::TestRFC3748TheAuthenticatorSendsNoNotificationRequest": "438e9e7d4b9c2980"
+  },
+  "upgrade_reason": "Re-read TestRFC3748FrameworkMessagesReachNoMethod and TestRFC3748NoFrameworkMessageReachesAnEAPMethod: their assertions were already judged sound; the only missing proof was a discrimination record, and both units now carry positive and negative records (nakRefused, handleMethod) observed red.",
+  "verdict": "enforced"
+}

@@ -1,0 +1,14 @@
+{
+  "code": {},
+  "note": "Re-judged 2026-09-27 by DF-OSPF-C (author of the fix; independent /ze-rfc-audit owed). Same producer as RFC5392-4-1: the forced-passive inter-AS interface is not in activeInterfaces, so no neighbor FSM runs and no adjacency forms. The negative TestRFC5392InterASInterfaceIsPassive now carries the rule; the positive TestInterASTEOriginatesWithoutNeighbor only shows origination needs no neighbor. REV-OSPF independent re-audit 2026-09-27: kept enforced on the same producer and assertion as RFC5392-4-1: no socket is opened on a passive interface, so no neighbor FSM and no adjacency.",
+  "requirement_sha": "3c3921bb4f22f238",
+  "tests": {
+    "internal/plugins/ospf/rfc5392_interas_passive_test.go::TestRFC5392InterASInterfaceIsPassive": "255440a277e9ad5e",
+    "internal/plugins/ospf/rfc5392_te_originate_test.go::TestInterASTEOriginatesWithoutNeighbor": "db1397ebe20dcae7"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc5392_interas_passive_test.go::TestRFC5392InterASInterfaceIsPassive": "2b1983544a4d2c9e",
+    "internal/plugins/ospf/rfc5392_te_originate_test.go::TestInterASTEOriginatesWithoutNeighbor": "fd7c7388a3cc2a9f"
+  },
+  "verdict": "enforced"
+}

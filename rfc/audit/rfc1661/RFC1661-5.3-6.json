@@ -1,0 +1,17 @@
+{
+  "note": "Reordering: TestRFC1661NakPreservesRequestOrder / TestRFC1661NakOrderFollowsRequestNotAFixedOrder. Filtering: TestRFC1661NakFiltersAcceptableOptions puts an acceptable ACCM between Magic 0 and MRU 2000 in both orders and reads the wire Configure-Nak: red unless its Types are exactly the two Nak-earning ones in request order, so a copied ACCM or a reorder both fail.",
+  "requirement_sha": "fec504f4c705c5ef",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661NakFiltersAcceptableOptions": "480d72ff3c4dac57",
+    "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661NakFiltersAcceptableOptions#2": "480d72ff3c4dac57",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NakOrderFollowsRequestNotAFixedOrder": "9afaf002f0fd81ec",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NakPreservesRequestOrder": "9afaf002f0fd81ec"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661NakFiltersAcceptableOptions": "81370385d7aa001b",
+    "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661NakFiltersAcceptableOptions#2": "81370385d7aa001b",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NakOrderFollowsRequestNotAFixedOrder": "f6cdbaed55098e1c",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NakPreservesRequestOrder": "5d4805744ceb7f11"
+  },
+  "verdict": "enforced"
+}

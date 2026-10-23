@@ -1,0 +1,17 @@
+{
+  "note": "Both new units feed a received UPDATE with a non-empty WITHDRAWN ROUTES field through handleReceivedStructured (not FamilyRIB directly). Positive: the named route leaves the peer's Adj-RIB-In (2->1), leaves the Loc-RIB and a BestChangeWithdraw names it. Negative: 11/8, not in the field, stays in both and gets no withdraw; withdrawing an unannounced prefix removes nothing. Judge mutants 2026-09-30 (go test -overlay, tree untouched): dropping the decision run for legacy withdrawals reddens the positive. Storage-level HEAD tags remain as supplementary proof of FamilyRIB.Remove.",
+  "requirement_sha": "bcbe9f2bf1dabb56",
+  "tests": {
+    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271ReceivedWithdrawalRemovesOnlyTheNamedRoutes": "e914a6452ddec559",
+    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271ReceivedWithdrawalRemovesTheRouteFromAdjRIBIn": "e914a6452ddec559",
+    "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271WithdrawRemovesFromAdjRIBIn": "ab16100811ce8d90",
+    "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271WithdrawRemovesFromAdjRIBIn#2": "ab16100811ce8d90"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271ReceivedWithdrawalRemovesOnlyTheNamedRoutes": "a6d1c3b8aeb467c8",
+    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271ReceivedWithdrawalRemovesTheRouteFromAdjRIBIn": "0fe7ebdcda352a7e",
+    "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271WithdrawRemovesFromAdjRIBIn": "b31ce68fe4addcd8",
+    "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271WithdrawRemovesFromAdjRIBIn#2": "b31ce68fe4addcd8"
+  },
+  "verdict": "enforced"
+}

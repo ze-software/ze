@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: the server answering the peer's alert with anything but EAP-Failure, or later than the next packet. TestRFC5216ServerRepliesEAPFailureToPeerAlert fatals if no Failure is sent, errors on any Success, and errors unless failureAt == alertAt+1. Negative: TestRFC5216ServerSendsNoEAPFailureWhenBothSidesAuthenticate errors if a mutually authenticated conversation draws any Failure.",
+  "requirement_sha": "82aa7318bed7b2aa",
+  "tests": {
+    "internal/core/eap/rfc5216_termination_test.go::TestRFC5216ServerRepliesEAPFailureToPeerAlert": "2d2ff094ce07cd34",
+    "internal/core/eap/rfc5216_termination_test.go::TestRFC5216ServerSendsNoEAPFailureWhenBothSidesAuthenticate": "2d2ff094ce07cd34"
+  },
+  "units": {
+    "internal/core/eap/rfc5216_termination_test.go::TestRFC5216ServerRepliesEAPFailureToPeerAlert": "2dd0fc2cca5c3428",
+    "internal/core/eap/rfc5216_termination_test.go::TestRFC5216ServerSendsNoEAPFailureWhenBothSidesAuthenticate": "3451722f3567d342"
+  },
+  "verdict": "enforced"
+}

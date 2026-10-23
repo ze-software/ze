@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-15 (subagent, after 14d1c8f19c and 224b0ef514). The tagged unit changed only in its setup call: mgr.apply/applyListeners became reconcile(..., BindLenient), the policy the deleted wrappers passed; the unit binds one free loopback port, where lenient and strict bind alike, and every assertion line is byte-identical. Where this unit carries a revert record (TestDoTListener, TestDoHListener, TestRFC7858DoTNegotiatesOnlyBCP195Suites, the two RFC 2181 4.1-1 units), it was re-observed red today. Prior judgement re-read against the current body and stands: Forbidden: a DNS server responding to a cleartext DNS message on its DoT port, including after the TLS handshake fails. TestDoTRefusesCleartext sends a cleartext query whose bytes fail the TLS handshake and fails at t.Fatalf(\"server answered a cleartext DNS query on the DoT port\") on any unpackable reply with the matching Id. Positive: TestDoTListener asserts the TLS-wrapped query on the same kind of port is answered with the expected A record.",
+  "requirement_sha": "edba80c2bc5727c9",
+  "tests": {
+    "internal/core/dnsserver/secure_test.go::TestDoTListener": "8772da30b26b9efc",
+    "internal/core/dnsserver/secure_test.go::TestDoTRefusesCleartext": "8772da30b26b9efc"
+  },
+  "units": {
+    "internal/core/dnsserver/secure_test.go::TestDoTListener": "5a13f43dda020cb1",
+    "internal/core/dnsserver/secure_test.go::TestDoTRefusesCleartext": "57372c3b27a38923"
+  },
+  "verdict": "enforced"
+}

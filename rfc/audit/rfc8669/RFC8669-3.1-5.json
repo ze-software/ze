@@ -1,0 +1,19 @@
+{
+  "note": "RFC 8669 \u00a73.1 whole field sentence: \"Flags: 16 bits of flags. None are defined by this document. The Flags field MUST be clear on transmission and MUST be ignored on reception.\" This row owns transmission; reception remains RFC8669-3.1-6. internal/component/bgp/config/rfc8669_test.go::TestRFC8669LabelIndexTLVReservedAndFlagsClearOnTransmission and TestRFC8669SRGBFormLabelIndexReservedAndFlagsClearOnTransmission assert both Flags octets zero for internal/core/bgp/attribute/prefixsid.go::EncodePrefixSID and parsePrefixSIDWithSRGB. The clean/dirty subcases of internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go::TestRFC8669LabelIndexTransmissionClearsReservedAndFlags drive six final writer/relay paths, including filter overrides, and demand the full expected Prefix-SID with Flags 0000. session_prefix_sid.go::clearTransmittedLabelIndex and its session_write.go callers operate only on owned outgoing bytes after policy. Exact source, unknown-TLV, SRGB and NLRI preservation isolates the type-1 normalization from unrelated dropping or rewriting. Genuine clean and nonzero cases distinguish both polarities; this is no longer only a configuration-encoder assertion. RFC8669 explicitly defers SRv6 data-plane behavior, so this verdict grants no SRv6/VPP implementation scope. Runtime proof remains the parent recorder responsibility. Re-judged 2026-10-14 (independent reader, after 8c1c4013f2 and 7d37dcd562). The transmit test now builds an IPv4 labeled-unicast route, with the same exact-bytes assertions (Flags 0000); the new TestClearTransmittedLabelIndexOnlyOnLabeledUnicast asserts Flags cleared on IPv4 and IPv6 labeled unicast. Verdict unchanged.",
+  "requirement_sha": "00eec3b1db3275a6",
+  "tests": {
+    "internal/component/bgp/config/rfc8669_test.go::TestRFC8669LabelIndexTLVReservedAndFlagsClearOnTransmission": "e3e1f3a30a4af6f1",
+    "internal/component/bgp/config/rfc8669_test.go::TestRFC8669SRGBFormLabelIndexReservedAndFlagsClearOnTransmission": "e3e1f3a30a4af6f1",
+    "internal/component/bgp/reactor/rfc8669_label_index_family_test.go::TestClearTransmittedLabelIndexOnlyOnLabeledUnicast": "274e120ed359a9db",
+    "internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go::TestRFC8669LabelIndexTransmissionClearsReservedAndFlags": "e74c5003c1202fd9",
+    "internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go::TestRFC8669LabelIndexTransmissionClearsReservedAndFlags#2": "e74c5003c1202fd9"
+  },
+  "units": {
+    "internal/component/bgp/config/rfc8669_test.go::TestRFC8669LabelIndexTLVReservedAndFlagsClearOnTransmission": "6382e271224e1ed9",
+    "internal/component/bgp/config/rfc8669_test.go::TestRFC8669SRGBFormLabelIndexReservedAndFlagsClearOnTransmission": "8b66a6174ef13b32",
+    "internal/component/bgp/reactor/rfc8669_label_index_family_test.go::TestClearTransmittedLabelIndexOnlyOnLabeledUnicast": "dff529a65e1207a3",
+    "internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go::TestRFC8669LabelIndexTransmissionClearsReservedAndFlags": "c1824b9ebe0ed48a",
+    "internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go::TestRFC8669LabelIndexTransmissionClearsReservedAndFlags#2": "c1824b9ebe0ed48a"
+  },
+  "verdict": "enforced"
+}

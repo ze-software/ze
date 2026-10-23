@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8092-6-4",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc8092_treat_as_withdraw_test.go::TestRFC8092MalformedLargeCommunityWithdrawsTheRoutes",
+    "unit-sha": "c88f20c0e7fca0e5",
+    "claim-sha": "72ded844679a41bc",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/rfc7606_withdraw.go::SynthesizeWithdrawFamilies",
+    "producer-sha": "1f290ea64d7ffd19",
+    "break": "body of SynthesizeWithdrawFamilies replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8092-6-4",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc8092_treat_as_withdraw_test.go::TestRFC8092WellFormedLargeCommunityKeepsTheRoutes",
+    "unit-sha": "773dbd6a2a57207e",
+    "claim-sha": "5281585806b0380d",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/rfc7606.go::validateLargeCommunityAttr",
+    "producer-sha": "0b3890a8f14078ec",
+    "break": "body of validateLargeCommunityAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

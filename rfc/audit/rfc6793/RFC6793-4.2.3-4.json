@@ -1,0 +1,13 @@
+{
+  "note": "Same unit: the AGGREGATOR (64500, 10.0.0.1) is the aggregating node; the AS_TRANS counterpart does not take it.",
+  "requirement_sha": "90660af7a2831aad",
+  "tests": {
+    "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithASTransPromotesAS4Aggregator": "4e9759edcd069569",
+    "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithRealASIgnoresAS4Attributes": "4e9759edcd069569"
+  },
+  "units": {
+    "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithASTransPromotesAS4Aggregator": "d82348d675d1a7e2",
+    "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithRealASIgnoresAS4Attributes": "408158c19befb73c"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC2131-4.2-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/dhcpserver/rfc2131_identity_options_test.go::TestRFC2131ChaddrContentsIdentifyTheClient",
+    "unit-sha": "1e238125d1bb6bf0",
+    "claim-sha": "7fc4c3d32f68132c",
+    "route": "revert",
+    "producer": "internal/plugins/dhcpserver/handler.go::extractMAC",
+    "producer-sha": "6c1b5685be260229",
+    "break": "body of extractMAC replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2131-4.2-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/dhcpserver/rfc2131_identity_options_test.go::TestRFC2131ChaddrContentsIdentifyTheClient",
+    "unit-sha": "1e238125d1bb6bf0",
+    "claim-sha": "3a7a84417326ed4d",
+    "route": "revert",
+    "producer": "internal/plugins/dhcpserver/handler.go::extractMAC",
+    "producer-sha": "6c1b5685be260229",
+    "break": "body of extractMAC replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2131-4.2-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/dhcpserver/rfc2131_test.go::TestChaddrIdentifiesClientWithoutClientIdentifier",
+    "unit-sha": "3758c1a79452d2ac",
+    "claim-sha": "cdd0b277429d1556",
+    "route": "revert",
+    "producer": "internal/plugins/dhcpserver/handler.go::extractMAC",
+    "producer-sha": "6c1b5685be260229",
+    "break": "body of extractMAC replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

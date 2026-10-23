@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5880-6.8.3-5",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteMinRxChangeReschedulesNextTx",
+    "unit-sha": "032ab847b63b18f8",
+    "claim-sha": "1edd915e171c28a1",
+    "route": "revert",
+    "producer": "internal/component/bfd/session/timers.go::rescheduleTxLocked",
+    "producer-sha": "4b0e582f7350be72",
+    "break": "body of rescheduleTxLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.8.3-5",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/session/rfc5880_test.go::TestRFC5880UnchangedRemoteMinRxKeepsNextTx",
+    "unit-sha": "2a5eb6ab2d2ca0b3",
+    "claim-sha": "95973b588d7b98af",
+    "route": "revert",
+    "producer": "internal/component/bfd/session/timers.go::rescheduleTxLocked",
+    "producer-sha": "4b0e582f7350be72",
+    "break": "body of rescheduleTxLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

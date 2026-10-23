@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8955-5.1-1",
+    "polarity": "positive",
+    "unit": "internal/core/bgp/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecPrecedenceFromWire",
+    "unit-sha": "b81e89aa84362cd1",
+    "claim-sha": "0e34581f528f291c",
+    "route": "revert",
+    "producer": "internal/core/bgp/nlri/flowspec/compare.go::Compare",
+    "producer-sha": "915d2d9660fb4bc4",
+    "break": "body of Compare replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8955-5.1-1",
+    "polarity": "negative",
+    "unit": "internal/core/bgp/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecPrecedenceFromWire",
+    "unit-sha": "b81e89aa84362cd1",
+    "claim-sha": "03861483eb1dfe2b",
+    "route": "revert",
+    "producer": "internal/core/bgp/nlri/flowspec/compare.go::Compare",
+    "producer-sha": "915d2d9660fb4bc4",
+    "break": "body of Compare replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

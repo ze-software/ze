@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7999-3.2-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/filter_community/rfc7999_blackhole_propagation_test.go::TestRFC7999PropagationCommunityFollowsTheOperatorLeaf",
+    "unit-sha": "f5ac9780a5000dbb",
+    "claim-sha": "61975dbc4f84b3eb",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/filter_community/blackhole.go::blackholeGuardCommunity",
+    "producer-sha": "56aa0e1fadcf4c8c",
+    "break": "body of blackholeGuardCommunity replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7999-3.2-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/filter_community/rfc7999_blackhole_propagation_test.go::TestRFC7999PropagationCommunityIsNeverForced",
+    "unit-sha": "a4fdc984020de341",
+    "claim-sha": "5d28abf25f8a5dd4",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/filter_community/blackhole.go::blackholeGuardCommunity",
+    "producer-sha": "56aa0e1fadcf4c8c",
+    "break": "body of blackholeGuardCommunity replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

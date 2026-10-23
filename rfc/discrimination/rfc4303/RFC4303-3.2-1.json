@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC4303-3.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/crypto/rfc4303_integrity_only_test.go::TestIntegrityOnlyESPRefusals",
+    "unit-sha": "49ce76a4f10010c9",
+    "claim-sha": "1beda471f805b3c9",
+    "route": "mutant",
+    "producer": "internal/component/ike/crypto/proposal.go::espProposalComplete",
+    "producer-sha": "d52445483cc45687",
+    "break": "line 483: \"p.Encryption.ID == ENCR_NULL \u0026\u0026 p.Integrity.ID == AUTH_NONE\" -\u003e \"false\""
+  }
+]

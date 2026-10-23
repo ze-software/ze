@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9190-1-1",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc9190_version_cap_test.go::TestEAPTLSCapsBothRolesAtTLS13",
+    "unit-sha": "9b8c6ac08769bad1",
+    "claim-sha": "981b2e43d9031155",
+    "route": "revert",
+    "producer": "internal/core/eap/eap_tls.go::newTLSMethod",
+    "producer-sha": "9d4ae49c78228895",
+    "break": "body of newTLSMethod replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9190-1-1",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc9190_version_cap_test.go::TestEAPTLSVersionCapLeavesTLS12Reachable",
+    "unit-sha": "e8f5a53b83a7eacf",
+    "claim-sha": "22635e67be788e44",
+    "route": "revert",
+    "producer": "internal/core/eap/peer.go::tlsClientConfig",
+    "producer-sha": "1b211a4c01804785",
+    "break": "body of tlsClientConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

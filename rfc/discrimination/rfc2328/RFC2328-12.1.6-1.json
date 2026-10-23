@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC2328-12.1.6-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328SequenceWrapRestartsAfterAck",
+    "unit-sha": "2fdecb222a85be58",
+    "claim-sha": "0b0a54dadedb9de9",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/lsdb/flooding.go::deletePurgedIfAcked",
+    "producer-sha": "039d6c681b397c69",
+    "break": "body of deletePurgedIfAcked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-12.1.6-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328SequenceWrapWaitsForAck",
+    "unit-sha": "abc347770b82b648",
+    "claim-sha": "445ab1faefd381f6",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/lsdb/origination.go::nextOwnSequenceForce",
+    "producer-sha": "c21fb34c7e7e48ea",
+    "break": "body of nextOwnSequenceForce replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-12.1.6-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/lsdb/rfc2328_sequence_wrap_test.go::TestRFC2328SequenceWrapFloodsFlushThenRestarts",
+    "unit-sha": "b350753a2199d59e",
+    "claim-sha": "091086b8a039577c",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/lsdb/origination.go::nextOwnSequenceForce",
+    "producer-sha": "c21fb34c7e7e48ea",
+    "break": "body of nextOwnSequenceForce replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-12.1.6-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/lsdb/rfc2328_sequence_wrap_test.go::TestRFC2328SequenceWrapWaitsForEveryNeighbor",
+    "unit-sha": "a847d19ffe1091b8",
+    "claim-sha": "884adee2b1b23ffa",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/lsdb/flooding.go::deletePurgedIfAcked",
+    "producer-sha": "039d6c681b397c69",
+    "break": "body of deletePurgedIfAcked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

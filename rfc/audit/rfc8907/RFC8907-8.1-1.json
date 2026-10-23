@@ -1,0 +1,15 @@
+{
+  "note": "(a) forbidden: processing a numeric argument whose length Ze cannot accommodate, or not applying Section 6.1 to it. (b) TestRFC8907InvalidMandatoryPrivilegeDenied asserts ErrAuthRejected and zero profiles for priv-lvl=18446744073709551631 and a 242-digit value (mandatory -> authorization failed); TestRFC8907OverlongOptionalPrivilegeCannotElevate asserts the overlong optional priv-lvl is disregarded (profile ops); TestRFC8907SessionPrivilegeApplied is the positive (priv-lvl=15 -> admin). priv-lvl is the only numeric argument Ze processes; timeout and others are refused as unsupported mandatory.",
+  "requirement_sha": "167a1bd248b5b1f1",
+  "tests": {
+    "internal/component/tacacs/rfc8907_authorization_test.go::TestRFC8907InvalidMandatoryPrivilegeDenied": "7e3084d65c3e691a",
+    "internal/component/tacacs/rfc8907_authorization_test.go::TestRFC8907OverlongOptionalPrivilegeCannotElevate": "7e3084d65c3e691a",
+    "internal/component/tacacs/rfc8907_authorization_test.go::TestRFC8907SessionPrivilegeApplied": "7e3084d65c3e691a"
+  },
+  "units": {
+    "internal/component/tacacs/rfc8907_authorization_test.go::TestRFC8907InvalidMandatoryPrivilegeDenied": "cab07788e7ab0099",
+    "internal/component/tacacs/rfc8907_authorization_test.go::TestRFC8907OverlongOptionalPrivilegeCannotElevate": "85d23835e85ae2f1",
+    "internal/component/tacacs/rfc8907_authorization_test.go::TestRFC8907SessionPrivilegeApplied": "ffc086e6e49eceb2"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,17 @@
+{
+  "note": "c23 re-judge (independent judge). Positive: TestRFC3623OriginatedGraceLSATLVOctets drives grOriginateGraceLSAs (the OSPFv2 origination, grV4Body) over running p2p eth0 and broadcast eth1 and compares the installed link-scope body with literal octets 00 01 00 04 00 00 00 78 (Type 1, Length 4, 120 s), read without the codec; an overlay GraceTLVPeriod=4 reds it while TestGraceLSARoundTrip and TestGraceLSAv4* stay green (scratch/c23/o1). Negative under owner ruling 2 (RFC 3623 prescribes no handling; the helper cannot run a window it was not given, so ignore): TestRFC3623HelperIgnoresGraceLSAMissingMandatoryTLV feeds a reason-only body through graceOnReceive while helping X and asserts the session survives with an unchanged grace end; the control with both TLVs moves it to now+600, so the input is isolated to the missing TLV. Decoder overlay without the hasPeriod check reds only missing-grace-period (o3). Both units hold observed-red revert records (EncodeGraceLSA, DecodeGraceLSA). The HEAD codec units stay supplementary.",
+  "requirement_sha": "e48a7ac4d7b16413",
+  "tests": {
+    "internal/plugins/ospf/packet/rfc3623_grace_lsa_test.go::TestGraceLSADecodeMissingMandatory": "2046191c51acf560",
+    "internal/plugins/ospf/packet/rfc3623_grace_lsa_test.go::TestGraceLSARoundTrip": "2046191c51acf560",
+    "internal/plugins/ospf/rfc3623_grace_tlv_octets_test.go::TestRFC3623HelperIgnoresGraceLSAMissingMandatoryTLV": "88abc512204c607b",
+    "internal/plugins/ospf/rfc3623_grace_tlv_octets_test.go::TestRFC3623OriginatedGraceLSATLVOctets": "88abc512204c607b"
+  },
+  "units": {
+    "internal/plugins/ospf/packet/rfc3623_grace_lsa_test.go::TestGraceLSADecodeMissingMandatory": "7a8f6b101f474687",
+    "internal/plugins/ospf/packet/rfc3623_grace_lsa_test.go::TestGraceLSARoundTrip": "808f71ac20696da4",
+    "internal/plugins/ospf/rfc3623_grace_tlv_octets_test.go::TestRFC3623HelperIgnoresGraceLSAMissingMandatoryTLV": "c8441ff4dbe08dc1",
+    "internal/plugins/ospf/rfc3623_grace_tlv_octets_test.go::TestRFC3623OriginatedGraceLSATLVOctets": "df00db538804e21c"
+  },
+  "verdict": "enforced"
+}

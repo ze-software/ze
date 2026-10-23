@@ -1,0 +1,13 @@
+{
+  "note": "(a) forbidden: refusing a reply because undefined flag bits are set, or letting undefined bits mask a defined flag. (b) TestRFC8907UnknownHeaderFlagsIgnored sets reply flags 0xf2 (undefined bits only) and fails unless status == PASS with no error; TestRFC8907UnknownFlagsDoNotMaskDowngrade sets 0x81 and fails unless the result is FAIL. The SHOULD-zero-on-write half is not a MUST.",
+  "requirement_sha": "4a79254d158742c8",
+  "tests": {
+    "internal/component/tacacs/rfc8907_validation_test.go::TestRFC8907UnknownFlagsDoNotMaskDowngrade": "59ca691aca621600",
+    "internal/component/tacacs/rfc8907_validation_test.go::TestRFC8907UnknownHeaderFlagsIgnored": "59ca691aca621600"
+  },
+  "units": {
+    "internal/component/tacacs/rfc8907_validation_test.go::TestRFC8907UnknownFlagsDoNotMaskDowngrade": "1a77c34716f6520e",
+    "internal/component/tacacs/rfc8907_validation_test.go::TestRFC8907UnknownHeaderFlagsIgnored": "928114f37246fb31"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,79 @@
+[
+  {
+    "rid": "RFC2205-2.3-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/rsvpte/rfc2205_softstate_test.go::TestRefreshDoesNotStampEgressPSB",
+    "unit-sha": "3f6c62b571d655d1",
+    "claim-sha": "eb1f2ccdee807c29",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/fsm.go::expiredPSBs",
+    "producer-sha": "54b5441a363226eb",
+    "break": "body of expiredPSBs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2205-2.3-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/rfc2205_softstate_test.go::TestRefreshResendsPathAndResv",
+    "unit-sha": "c34f561a1aa2dffe",
+    "claim-sha": "f8063d341d05959a",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/register.go::refreshPaths",
+    "producer-sha": "16323bbbb2f31d7a",
+    "break": "body of refreshPaths replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2205-2.3-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205PathStateDeletedAtCleanupTimeout",
+    "unit-sha": "53fd609b6dd22785",
+    "claim-sha": "b39fb6f1f2ba5d61",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/register.go::cleanupTick",
+    "producer-sha": "ff89be6e7cb074e5",
+    "break": "body of cleanupTick replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2205-2.3-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205RefreshRecursEachTick",
+    "unit-sha": "85ba3211c35efafd",
+    "claim-sha": "d06f5b0aeabd612b",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/register.go::refreshPaths",
+    "producer-sha": "16323bbbb2f31d7a",
+    "break": "body of refreshPaths replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2205-2.3-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205RefreshedPathStateKept",
+    "unit-sha": "36255c244387ffdf",
+    "claim-sha": "ae7046285dabd8c2",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/reservation.go::receivedPathState",
+    "producer-sha": "f1bd7f456238117b",
+    "break": "body of receivedPathState replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2205-2.3-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205RefreshedResvStateKept",
+    "unit-sha": "c46a6876dc6d1ac0",
+    "claim-sha": "a6cfe48556582a70",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/fsm.go::receivedRSBExpired",
+    "producer-sha": "113c7f40ea480608",
+    "break": "body of receivedRSBExpired replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2205-2.3-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205ResvStateDeletedAtCleanupTimeout",
+    "unit-sha": "739cdca06e554339",
+    "claim-sha": "c2169ac3e0847046",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/fsm.go::expiredRSBs",
+    "producer-sha": "c66dd20d835ca538",
+    "break": "body of expiredRSBs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

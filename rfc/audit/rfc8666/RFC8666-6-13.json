@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged 2026-10-21 against the widened row (Section 6: \"If both the NP-Flag and E-Flag are set, then: Any upstream neighbor of the Prefix-SID originator MUST replace the Prefix-SID with an Explicit NULL label.\"). Action: positive TestRFC8666ExplicitNullReplacesPrefixSID (NP+E) imposes label 2 at ingress and swaps 18009 -> 2. Condition, both halves: TestRFC8666NoPHPKeepsPrefixSIDOnStack (NP set, E clear) imposes 16009, not 2; TestRFC8666WithoutMappingServerFlagNPAndEApply, newly tagged (E set, NP clear), pops 18009 and pushes nothing. An E-only Explicit NULL rule now reddens the latter. OutgoingActionFor (sr/install.go) checks M, then !NP, then E; revert record on it for the new negative. The earlier weak finding is closed by the added tag.",
+  "requirement_sha": "623098e9a447553f",
+  "tests": {
+    "internal/plugins/ospf/rfc8666_test.go::TestRFC8666ExplicitNullReplacesPrefixSID": "4729a15d3adeda26",
+    "internal/plugins/ospf/rfc8666_test.go::TestRFC8666NoPHPKeepsPrefixSIDOnStack": "4729a15d3adeda26",
+    "internal/plugins/ospf/rfc8666_test.go::TestRFC8666WithoutMappingServerFlagNPAndEApply": "4729a15d3adeda26"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc8666_test.go::TestRFC8666ExplicitNullReplacesPrefixSID": "5a3a3999bf6f1576",
+    "internal/plugins/ospf/rfc8666_test.go::TestRFC8666NoPHPKeepsPrefixSIDOnStack": "8beab265bab70aba",
+    "internal/plugins/ospf/rfc8666_test.go::TestRFC8666WithoutMappingServerFlagNPAndEApply": "0183e144a1e3a85c"
+  },
+  "verdict": "enforced"
+}

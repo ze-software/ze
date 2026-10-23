@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC7296-2.25-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_msgid_test.go::TestMidTemporaryFailureDefersTheIKERekey",
+    "unit-sha": "3487117b09768877",
+    "claim-sha": "ef5c0afe3666314b",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/established.go::startChildRekey",
+    "producer-sha": "f4f2ecb06d20c434",
+    "break": "body of startChildRekey replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.25-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_msgid_test.go::TestMidTemporaryFailureDefersTheIKERekey",
+    "unit-sha": "3487117b09768877",
+    "claim-sha": "6b7359899d33d122",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/established.go::startIKERekey",
+    "producer-sha": "6267392a33dbe318",
+    "break": "body of startIKERekey replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.25-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_msgid_test.go::TestMidTemporaryFailureDefersTheRetry",
+    "unit-sha": "836aa799d822358d",
+    "claim-sha": "3c0e1c96b8b2e8c4",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/established.go::startChildRekey",
+    "producer-sha": "f4f2ecb06d20c434",
+    "break": "body of startChildRekey replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.25-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_msgid_test.go::TestMidTemporaryFailureDefersTheRetry",
+    "unit-sha": "836aa799d822358d",
+    "claim-sha": "4573281686aced9d",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/established.go::startChildRekey",
+    "producer-sha": "f4f2ecb06d20c434",
+    "break": "body of startChildRekey replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

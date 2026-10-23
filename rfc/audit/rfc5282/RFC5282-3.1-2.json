@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: an IV repeated under one key. Red: TestRFC5282AEADSendIVIsUniquePerKey fatals on any repeat over 512 builds under one SA; TestRFC5282AEADSendIVDoesNotRepeatForARepeatedMessage fatals when two byte-identical builds share an IV.",
+  "requirement_sha": "f8e332e8d86a0bbb",
+  "tests": {
+    "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADSendIVDoesNotRepeatForARepeatedMessage": "2d69d15f1cde2ecb",
+    "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADSendIVIsUniquePerKey": "2d69d15f1cde2ecb"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADSendIVDoesNotRepeatForARepeatedMessage": "8ff94d6c52a66b8d",
+    "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADSendIVIsUniquePerKey": "b44b75b552e95ffb"
+  },
+  "verdict": "enforced"
+}

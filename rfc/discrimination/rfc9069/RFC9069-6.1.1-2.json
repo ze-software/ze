@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC9069-6.1.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestLocRIBPeerUpOpenIndicatesTheAddressFamilies",
+    "unit-sha": "45b3325f6cad2d98",
+    "claim-sha": "6b28cb7f2508346c",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/bmp/bmp_locrib.go::fabricateLocRIBOpen",
+    "producer-sha": "2427ae982c091589",
+    "break": "body of fabricateLocRIBOpen replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

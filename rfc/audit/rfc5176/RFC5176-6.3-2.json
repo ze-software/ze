@@ -1,0 +1,13 @@
+{
+  "note": "Rejudged 2026-10-14 by a reader who did not author the tests; the change sends both copies from one socket, so the duplicate is a real same-port duplicate. + TestRFC5176DuplicateAndTimestampWindowsBothHoldInside: at coaReplayWindow-10s the duplicate gets the cached octets with one teardown and an Event-Timestamp that old is answered. - TestRFC5176DuplicateAndTimestampWindowsBothEndOutside: at window+10s the duplicate is processed again (second teardown) and that old an Event-Timestamp is silently discarded. Both mechanisms are pinned to one window within 10 seconds.",
+  "requirement_sha": "da9e1612d9270ee1",
+  "tests": {
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176DuplicateAndTimestampWindowsBothEndOutside": "9b6dfc18b62099d5",
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176DuplicateAndTimestampWindowsBothHoldInside": "9b6dfc18b62099d5"
+  },
+  "units": {
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176DuplicateAndTimestampWindowsBothEndOutside": "bd115616d6f97c58",
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176DuplicateAndTimestampWindowsBothHoldInside": "54910d93d0e8bdb8"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,17 @@
+{
+  "note": "Rejudge ppp8 2026-09-30: pppoeclient TestClientLCPRejectRemovesOnlyRejectedOptions and TestClientLCPReplyCorrelation changed only to read frameLog through the locked snapshot() (frameLog race fix); every assertion, input and comparison is unchanged, so the verdict stands. Sentence (erratum 543): the options in a Configure-Reject MUST be a subset of those in the last transmitted Configure-Request; invalid packets are silently discarded. (a) Accepting a Reject naming an option never requested, or with a changed value: TestLCPRepliesMatchOutstandingRequest cases Reject unrequested option and Reject changed value go red (state or frame count changes); TestClientLCPReplyCorrelation covers modified. (b) Refusing a Reject equal to the whole request, the case the erratum restores: TestClientLCPRejectRemovesOnlyRejectedOptions subtest all goes red if the replacement request is not emitted; a proper-subset check in ppp would also redden TestLCPRejectedOptionsStayRemoved (all=true), which carries the 5.4-5 tag only.",
+  "requirement_sha": "1db404df8454e0e0",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest": "6e1e87cfaa4fb86b",
+    "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest#2": "6e1e87cfaa4fb86b",
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "94dbfbde4e1ef3d7",
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation": "94dbfbde4e1ef3d7"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest": "fdaf9e91d2c10be4",
+    "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest#2": "fdaf9e91d2c10be4",
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "4414e892e55bf66d",
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation": "63dcc89441d39416"
+  },
+  "verdict": "enforced"
+}

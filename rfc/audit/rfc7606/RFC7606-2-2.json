@@ -1,0 +1,15 @@
+{
+  "note": "TestApplyAttrDiscardMultipleEntries (attr_discard_test.go:256) asserts findAttrByCode(6)/(7) are nil (discarded) while ORIGIN/AS_PATH/NEXT_HOP survive (continues processing); TestSessionRFC7606AttributeDiscardContinues (session_test.go:1990) drives eBGP LOCAL_PREF and requires callbackCount==1 with session Established (UPDATE still dispatched). Positive TestApplyAttrDiscardEmptyEntries (:337) guards against unconditional discard. Both halves observed exactly. 2026-07-22 re-stamp: the verdict went stale only because commit c4038def0 prepended an rfc-test-change-approved header and swapped package qualifiers (bgptypes.RouteAction*->routeaction.*, message.Type*->msgtype.Type*, rib/events->core/bgp/ribevents) in the tagged files; tagged_unit_shas fingerprints the whole enclosing file. Normalising the 254772452..HEAD diff under that rename cancels with ZERO unmatched assertion deletions, and rfc/short/rfc7606.md is byte-identical since the audit, so the judgement above still describes exactly what it judged. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quoted sentence states the same obligation the paraphrase did, and no clause is new. Verdict unchanged.",
+  "requirement_sha": "12ea471639e7fb04",
+  "tests": {
+    "internal/component/bgp/message/rfc7606_attr_discard_test.go::TestApplyAttrDiscardEmptyEntries": "c6ef70edfa51afe7",
+    "internal/component/bgp/message/rfc7606_attr_discard_test.go::TestApplyAttrDiscardMultipleEntries": "c6ef70edfa51afe7",
+    "internal/component/bgp/reactor/session_test.go::TestSessionRFC7606AttributeDiscardContinues": "aeb6993b67f2a376"
+  },
+  "units": {
+    "internal/component/bgp/message/rfc7606_attr_discard_test.go::TestApplyAttrDiscardEmptyEntries": "b75fed7367066278",
+    "internal/component/bgp/message/rfc7606_attr_discard_test.go::TestApplyAttrDiscardMultipleEntries": "a9f7f462159da4b8",
+    "internal/component/bgp/reactor/session_test.go::TestSessionRFC7606AttributeDiscardContinues": "28e6044ff96091b1"
+  },
+  "verdict": "enforced"
+}

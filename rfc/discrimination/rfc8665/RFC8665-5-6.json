@@ -1,0 +1,90 @@
+[
+  {
+    "rid": "RFC8665-5-6",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc8665_ext_malformed_test.go::TestRFC8665PrefixSIDsOfDifferentAlgorithmsNotDuplicate",
+    "unit-sha": "4d2368950d972f90",
+    "claim-sha": "2dfe0b520b17a0c9",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/sr_malformed.go::newSRPrefixSIDTable",
+    "producer-sha": "261664622f8e1532",
+    "break": "body of newSRPrefixSIDTable replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8665-5-6",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/rfc8665_ext_malformed_test.go::TestRFC8665PrefixSIDsOfDifferentAlgorithmsNotDuplicate",
+    "unit-sha": "4d2368950d972f90",
+    "claim-sha": "bb805f9240c1b367",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/sr_malformed.go::newSRPrefixSIDTable",
+    "producer-sha": "261664622f8e1532",
+    "break": "body of newSRPrefixSIDTable replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8665-5-6",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/rfc8665_test.go::TestRFC8665DuplicatePrefixSIDsAllIgnored",
+    "unit-sha": "7c1f7ce63f1cf288",
+    "claim-sha": "a23bf59d8f7af977",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/sr_malformed.go::resolve",
+    "producer-sha": "be407fb21636aa8d",
+    "break": "body of resolve replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8665-5-6",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc8665_test.go::TestRFC8665PrefixSIDInstalledWhenAlgorithmAdvertised",
+    "unit-sha": "c3d1093bbd69314c",
+    "claim-sha": "8bb378428f376ad5",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/sr_install.go::installRoutes",
+    "producer-sha": "7957318333c8bc33",
+    "break": "body of installRoutes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8665-5-6",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc8665_tilfa_duplicate_test.go::TestRFC8665TILFAIgnoresDuplicatePrefixSIDs",
+    "unit-sha": "2a0a95a106da8c4f",
+    "claim-sha": "7783031653ad4492",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/sr_tilfa.go::PrefixSIDLabel",
+    "producer-sha": "9147a940e3d49c06",
+    "break": "body of PrefixSIDLabel replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8665-5-6",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/rfc8665_tilfa_duplicate_test.go::TestRFC8665TILFAIgnoresDuplicatePrefixSIDs",
+    "unit-sha": "2a0a95a106da8c4f",
+    "claim-sha": "42e591728cff61e3",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/sr_tilfa.go::PrefixSIDLabel",
+    "producer-sha": "9147a940e3d49c06",
+    "break": "body of PrefixSIDLabel replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8665-5-6",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/sr_prefix_sid_per_router_test.go::TestRFC8665OneRouterMultiplePrefixSIDsAllIgnored",
+    "unit-sha": "82a8d91380881205",
+    "claim-sha": "2b08acbe07dd6506",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/sr_malformed.go::resolve",
+    "producer-sha": "be407fb21636aa8d",
+    "break": "body of resolve replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8665-5-6",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/sr_prefix_sid_per_router_test.go::TestRFC8665OneRouterMultiplePrefixSIDsAllIgnored",
+    "unit-sha": "82a8d91380881205",
+    "claim-sha": "c2d76fd29dd5f5a0",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/sr_malformed.go::resolve",
+    "producer-sha": "be407fb21636aa8d",
+    "break": "body of resolve replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

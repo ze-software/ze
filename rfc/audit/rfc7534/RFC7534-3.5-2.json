@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged 2026-09-30. Positive: at every Direct-Delegation apex, A/AAAA/TXT/PTR/MX/CNAME/ANY return nothing but SOA/NS in any section, closing the PTR-only finding. Negative TestSOA_RFCMandatedParameters bounds the rule (the zone does carry SOA and NS) rather than violating it; the prohibition itself is proven by the positive across all zones and types. Records: answerQuestions (+, author) and buildSOA (-, judge) reverts observed red.",
+  "requirement_sha": "8ec655846f52aae3",
+  "tests": {
+    "internal/plugins/as112/rfc7534_direct_delegation_test.go::TestRFC7534EveryDirectDelegationZoneAuthoritativeAndBare": "067e1ca0797c0743",
+    "internal/plugins/as112/zones_test.go::TestSOA_RFCMandatedParameters": "99aa05744211cc95",
+    "internal/plugins/as112/zones_test.go::TestZoneAnswer_ReverseZoneNoData": "99aa05744211cc95"
+  },
+  "units": {
+    "internal/plugins/as112/rfc7534_direct_delegation_test.go::TestRFC7534EveryDirectDelegationZoneAuthoritativeAndBare": "d780aabfba166d76",
+    "internal/plugins/as112/zones_test.go::TestSOA_RFCMandatedParameters": "60f297c259c2b561",
+    "internal/plugins/as112/zones_test.go::TestZoneAnswer_ReverseZoneNoData": "8c2857c3a22d4d1b"
+  },
+  "verdict": "enforced"
+}

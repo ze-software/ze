@@ -1209,7 +1209,7 @@ func TestCheckReportCarriesDiscriminationCounters(t *testing.T) {
 		Unit: selftestCIPath, Route: RouteNoBreak,
 		Reason: escapeDeclaration, Producer: selftestCITablePath,
 	})
-	files[selftestDiscriminationRel] = discriminationArtifact(t, proof, escape)
+	putDiscrimination(t, files, proof, escape)
 	root := checkFixtureTree(t, files)
 
 	report, code := Check(root, nil)
@@ -1255,7 +1255,7 @@ func TestCheckRefusesADiscriminationRecordForAnUndeclaredRequirement(t *testing.
 		Producer: selftestProducerUnit, Break: selftestBreak,
 	})
 	undeclared.RID = "RFC9999-9-9"
-	files[selftestDiscriminationRel] = discriminationArtifact(t, undeclared)
+	putDiscrimination(t, files, undeclared)
 	root := checkFixtureTree(t, files)
 
 	report, code := Check(root, nil)
@@ -1267,7 +1267,7 @@ func TestCheckRefusesADiscriminationRecordForAnUndeclaredRequirement(t *testing.
 			code, len(report.Violations), report.Text())
 	}
 	if !strings.Contains(report.Violations[0], "RFC9999-9-9") ||
-		!strings.Contains(report.Violations[0], selftestDiscriminationRel) {
+		!strings.Contains(report.Violations[0], discriminationRecordRel(selftestStem, "RFC9999-9-9")) {
 		t.Errorf("the violation names neither the record nor its file: %q", report.Violations[0])
 	}
 }
@@ -1293,7 +1293,7 @@ func TestCheckDiscriminationRatchetReportsBrokenProof(t *testing.T) {
 		Unit: selftestCIPath, Route: RouteMutant, Citation: selftestCIDirective,
 		Producer: selftestProducerUnit, Break: selftestBreak,
 	})
-	files[selftestDiscriminationRel] = discriminationArtifact(t, proof)
+	putDiscrimination(t, files, proof)
 
 	if report, code := Check(checkFixtureTree(t, files), nil); code != 0 || len(report.Violations) > 0 {
 		t.Fatalf("the intact proof answered %d with %d violation(s):\n%s",
@@ -1335,8 +1335,8 @@ func TestCheckRefusesAnUnreadableDiscriminationRecord(t *testing.T) {
 	// write refuses the writer instead of the gate, and this test would prove
 	// nothing about Check.
 	writeFixtureFiles(t, root, map[string]string{
-		selftestDiscriminationRel: `{"rfc":"rfc9999","records":[{"rid":"RFC9999-2-1","polarity":"positive",` +
-			`"unit":"internal/sample/widget_test.go::TestWidget","rout":"mutant"}]}`,
+		selftestDiscriminationRel: `[{"rid":"RFC9999-2-1","polarity":"positive",` +
+			`"unit":"internal/sample/widget_test.go::TestWidget","rout":"mutant"}]`,
 	})
 
 	report, code := Check(root, nil)
@@ -1551,7 +1551,7 @@ func TestCheckDiscriminationFiresOnChangedUnit(t *testing.T) {
 		Unit: fixtureGadgetCIPath, Route: RouteRevert, Citation: selftestCIDirective,
 		Producer: selftestProducerUnit, Break: selftestBreak,
 	})
-	files[selftestDiscriminationRel] = discriminationArtifact(t, proof)
+	putDiscrimination(t, files, proof)
 
 	if report, code := Check(checkFixtureTree(t, files), nil); code != 0 || len(report.Violations) != 0 {
 		t.Fatalf("the intact proof answered %d with %d violation(s):\n%s",
@@ -1587,7 +1587,7 @@ func TestCheckDiscriminationIgnoresCommentOnlyEdit(t *testing.T) {
 		Unit: fixtureGadgetCIPath, Route: RouteRevert, Citation: selftestCIDirective,
 		Producer: selftestProducerUnit, Break: selftestBreak,
 	})
-	files[selftestDiscriminationRel] = discriminationArtifact(t, proof)
+	putDiscrimination(t, files, proof)
 
 	// The comment goes UNDER a directive rather than under the tag: a comment
 	// line directly below a tag continues that tag's claim, and this test is
@@ -1620,7 +1620,7 @@ func TestCheckDiscriminationStalesOnRewordedClaim(t *testing.T) {
 		Unit: fixtureGadgetCIPath, Route: RouteRevert, Citation: selftestCIDirective,
 		Producer: selftestProducerUnit, Break: selftestBreak,
 	})
-	files[selftestDiscriminationRel] = discriminationArtifact(t, proof)
+	putDiscrimination(t, files, proof)
 
 	widened := maps.Clone(files)
 	widened[fixtureGadgetCIPath] = strings.Replace(fixtureGadgetCI, fixtureGadgetClaim,
@@ -1661,7 +1661,7 @@ func TestCheckDiscriminationProvenSetIsMonotonic(t *testing.T) {
 		Unit: fixtureGadgetCIPath, Route: RouteRevert, Citation: selftestCIDirective,
 		Producer: selftestProducerUnit, Break: selftestBreak,
 	})
-	committed[selftestDiscriminationRel] = discriminationArtifact(t, proof)
+	putDiscrimination(t, committed, proof)
 
 	withdrawn := commitFixtureTree(t, committed,
 		map[string]string{selftestDiscriminationRel: fixtureRemoved})
@@ -1701,7 +1701,7 @@ func TestCheckDiscriminationOrphanRecordIsRemovable(t *testing.T) {
 		Unit: fixtureGadgetCIPath, Route: RouteRevert, Citation: selftestCIDirective,
 		Producer: selftestProducerUnit, Break: selftestBreak,
 	})
-	files[selftestDiscriminationRel] = discriminationArtifact(t, proof)
+	putDiscrimination(t, files, proof)
 	files[fixtureGadgetCIPath] = selftestCIDirective + "\nexpect=stdout:contains=gadget\n"
 
 	report, code := Check(checkFixtureTree(t, files), nil)
@@ -1776,7 +1776,7 @@ func TestCheckDiscriminationDriftIsJudgedAgainstHead(t *testing.T) {
 		Unit: fixtureGadgetCIPath, Route: RouteRevert, Citation: selftestCIDirective,
 		Producer: selftestProducerUnit, Break: selftestBreak,
 	})
-	committed[selftestDiscriminationRel] = discriminationArtifact(t, proof)
+	putDiscrimination(t, committed, proof)
 	broken := strings.Replace(selftestProducerSource, "return count", "return 0", 1)
 
 	report, code := Check(commitFixtureTree(t, committed,
@@ -1895,7 +1895,7 @@ func TestCheckDiscriminationDriftIsJudgedAtUnitGranularity(t *testing.T) {
 		Unit: fixtureGadgetCIPath, Route: RouteRevert, Citation: selftestCIDirective,
 		Producer: selftestProducerUnit, Break: selftestBreak,
 	})
-	sealed[selftestDiscriminationRel] = discriminationArtifact(t, proof)
+	putDiscrimination(t, sealed, proof)
 
 	// The fingerprinted function rewritten, and COMMITTED. The drift is the
 	// commit's, so the author owes a re-record and the gate says so.

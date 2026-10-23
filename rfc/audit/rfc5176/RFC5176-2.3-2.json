@@ -1,0 +1,19 @@
+{
+  "note": "Rejudged 2026-10-14 by a reader who did not author the tests. (a) forbidden: failing to detect a duplicate with the same source IP, source UDP port and Identifier. + TestRFC5176DuplicateIsSameSourcePortAndIdentifier: one socket sends the same octets twice, the second answer is byte-identical to the first and the session is torn down once. - TestRFC5176DifferentSourcePortIsNotADuplicate: the same octets from a second socket are processed afresh (two teardowns). - TestRFC5176DuplicateRequestAnsweredFromCache: on one socket a new Identifier is processed afresh. - TestRFC5176SameTripleNewAuthenticatorIsProcessedAfresh: same triple with a new Request Authenticator is processed afresh and replaces the entry, and a discarded stale copy leaves it. Producer coa.go coaReplayKey{source netip.AddrPort, identifier} with cachedReplay comparing the Authenticator.",
+  "requirement_sha": "b8ec763b15216763",
+  "tests": {
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176DifferentSourcePortIsNotADuplicate": "2b3357f1f1e8ec93",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176DuplicateIsSameSourcePortAndIdentifier": "2b3357f1f1e8ec93",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176DuplicateRequestAnsweredFromCache": "2b3357f1f1e8ec93",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176DuplicateRequestAnsweredFromCache#2": "2b3357f1f1e8ec93",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176SameTripleNewAuthenticatorIsProcessedAfresh": "2b3357f1f1e8ec93"
+  },
+  "units": {
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176DifferentSourcePortIsNotADuplicate": "1d4a5ec3a7f04e8c",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176DuplicateIsSameSourcePortAndIdentifier": "58fd772513517bf3",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176DuplicateRequestAnsweredFromCache": "657ee2a7c40a2045",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176DuplicateRequestAnsweredFromCache#2": "657ee2a7c40a2045",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176SameTripleNewAuthenticatorIsProcessedAfresh": "861f51c878a8a34b"
+  },
+  "verdict": "enforced"
+}

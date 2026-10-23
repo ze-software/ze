@@ -1,0 +1,21 @@
+{
+  "note": "Re-judged 2026-09-30 (independent judge) under OWNER RULING 2 (receive row: the negative is Ze's handling of a missing ISH). RFC 1195 section 4.4: 'For point-to-point links, IS-IS requires exchange of ISO 9542 ISHs, as the first step in establishing the link between routers.' Positive: root TestRFC1195ISHTransmitReceive requires an ISH to AllESs, with NET and 0xCC, before the first IIH, and a received ISH through the production dispatcher to initialize the peer; transport TestRFC1195ISHVethTransport sends and receives it over AF_PACKET on a veth pair. Negative, NEW root TestRFC1195NeighborWithoutISHStillFormsAdjacency: a P2P neighbor that never sends an ISH is not refused; its IIH three-way Down makes an Initializing adjacency and its IIH three-way Initializing naming Ze brings it Up. The ISH is the classification step, the IIH exchange makes the adjacency, so waiting forever on an ISH the peer may not send is the failure this pins (author's overlay making applyHello refuse an ISH-less Down adjacency went red, state down). Held negatives (corrupt ISH and wrong circuit, wrong or missing ISH password) prove neighbouring rules and stay supplementary. Records: - revert applyHello (new unit); this judge recorded + revert sendISH (TestRFC1195ISHTransmitReceive), - revert receiveISH (corruption/wrong circuit), + revert signISHPDU and - revert verifyISHFrame (password units), all observed red. NOT YET RECORDED: TestRFC1195ISHVethTransport (+ revert transport.go SendISH), a guest proof; the guest le build failed on another session's uncommitted internal/component/l2tp/session_fsm.go handleSLI signature change, so that one record is owed when the tree builds. The ISO 10589 immediate-IIH-on-ISH reply is journaled (plan/journal/queued-request-waits-for-an-unrelated-trigger.md), not this row.",
+  "requirement_sha": "8c66d07c7d1e3d6f",
+  "tests": {
+    "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195ISHRejectsCorruptionAndWrongCircuit": "fc999353e8eb0648",
+    "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195ISHTransmitReceive": "fc999353e8eb0648",
+    "internal/plugins/isis/rfc1195_ish_absence_test.go::TestRFC1195NeighborWithoutISHStillFormsAdjacency": "8ea8b9887f136473",
+    "internal/plugins/isis/rfc1195_ish_auth_test.go::TestRFC1195ISHConfiguredPassword": "53ff993953928049",
+    "internal/plugins/isis/rfc1195_ish_auth_test.go::TestRFC1195ISHWrongPassword": "53ff993953928049",
+    "internal/plugins/isis/transport/rfc1195_ish_integration_linux_test.go::TestRFC1195ISHVethTransport": "dde962b1c6246aa3"
+  },
+  "units": {
+    "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195ISHRejectsCorruptionAndWrongCircuit": "1e254aaaf552ac6f",
+    "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195ISHTransmitReceive": "14f35bf598ceaf3b",
+    "internal/plugins/isis/rfc1195_ish_absence_test.go::TestRFC1195NeighborWithoutISHStillFormsAdjacency": "56cceb96d79089c6",
+    "internal/plugins/isis/rfc1195_ish_auth_test.go::TestRFC1195ISHConfiguredPassword": "5f12832206a0378f",
+    "internal/plugins/isis/rfc1195_ish_auth_test.go::TestRFC1195ISHWrongPassword": "6a49678dca8c530b",
+    "internal/plugins/isis/transport/rfc1195_ish_integration_linux_test.go::TestRFC1195ISHVethTransport": "84afac45bef8b1b8"
+  },
+  "verdict": "enforced"
+}

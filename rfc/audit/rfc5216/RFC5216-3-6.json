@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: a Response whose Identifier differs from the Request it answers. TestRFC5216ResponseIdentifierMatchesTheRequest errors on res.Identifier != serverSent[i].Identifier over a full conversation; TestRFC5216ResponseIdentifierIsCopiedNotCounted fatals if Requests 0x80 then 0x05 are not answered 0x80 then 0x05, which refuses a peer that counts its own Identifiers.",
+  "requirement_sha": "1b1300e5edb4fc36",
+  "tests": {
+    "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216ResponseIdentifierIsCopiedNotCounted": "50ee52d235cf2a36",
+    "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216ResponseIdentifierMatchesTheRequest": "50ee52d235cf2a36"
+  },
+  "units": {
+    "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216ResponseIdentifierIsCopiedNotCounted": "6a72b6f281376e92",
+    "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216ResponseIdentifierMatchesTheRequest": "ddc0dd62e3a42de8"
+  },
+  "verdict": "enforced"
+}

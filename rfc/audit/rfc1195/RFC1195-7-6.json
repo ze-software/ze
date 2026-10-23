@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-09-27 by TOOL-4 after the row's citation moved from \u00a78 to \u00a7D.2, the annex subsection the heading reader now reads; the text and the tagged units are unchanged since QF-2 judged them the same day, so QF-2's reading stands. Forbidden: one password shared across link, area and domain scopes. TestRFC1195PasswordScopesResolved asserts three distinct chains iih/area/domain with distinct key ids; TestRFC1195PasswordScopesDoNotLeak asserts eth1 resolves no eth0 link chain at either level and the L2 chain is not the L1 chain. Enforced.",
+  "requirement_sha": "50029701bb871114",
+  "tests": {
+    "internal/plugins/isis/rfc1195_auth_test.go::TestRFC1195PasswordScopesDoNotLeak": "a9a6dbe2e81ed00b",
+    "internal/plugins/isis/rfc1195_auth_test.go::TestRFC1195PasswordScopesResolved": "a9a6dbe2e81ed00b"
+  },
+  "units": {
+    "internal/plugins/isis/rfc1195_auth_test.go::TestRFC1195PasswordScopesDoNotLeak": "5f5f0301f1121e99",
+    "internal/plugins/isis/rfc1195_auth_test.go::TestRFC1195PasswordScopesResolved": "927a229bf423a53c"
+  },
+  "verdict": "enforced"
+}

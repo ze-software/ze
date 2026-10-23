@@ -1,0 +1,13 @@
+{
+  "note": "Judge 2026-09-30 (access cont 10, independent). + TestRFC5176StateNeverChangesTheOutcome: no State, State shaped as a rate, as another session's Acct-Session-Id and as a Filter-Id TLV -> identical CoA-ACK and one 10 Mbit/s change on session 20, State returned octet-equal. - TestRFC5176StateIsNeverReadAsAChangeOrAnIdentity: State '10mbit' with no change attribute -> NAK 401; State naming the live session beside an Acct-Session-Id naming none -> NAK 503; no change, State echoed. The Termination-Action usage is unreachable (Ze NAKs Termination-Action in a CoA). Records observed red (sendResponse, readCoAChange).",
+  "requirement_sha": "7198cd9795c1a36d",
+  "tests": {
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176StateIsNeverReadAsAChangeOrAnIdentity": "9b6dfc18b62099d5",
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176StateNeverChangesTheOutcome": "9b6dfc18b62099d5"
+  },
+  "units": {
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176StateIsNeverReadAsAChangeOrAnIdentity": "be4c0db326f20665",
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176StateNeverChangesTheOutcome": "c92692833eef05d3"
+  },
+  "verdict": "enforced"
+}

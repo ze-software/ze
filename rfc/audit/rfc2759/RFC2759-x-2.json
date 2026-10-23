@@ -1,0 +1,17 @@
+{
+  "note": "Sender: the Flags octet ze's peer emits is 0 (td[53]). Receiver: Flags 1 on a fresh authenticator copy is refused through Process.",
+  "requirement_sha": "20cb4974db9bb488",
+  "tests": {
+    "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerSendsTheResponseValueLayout": "56143b27bc08b27f",
+    "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerSendsTheResponseValueLayout#2": "56143b27bc08b27f",
+    "internal/core/eap/rfc2759_eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation": "f08fabdb1765636f",
+    "internal/core/eap/rfc2759_eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation#2": "f08fabdb1765636f"
+  },
+  "units": {
+    "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerSendsTheResponseValueLayout": "07ae87e11ccb7ba8",
+    "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerSendsTheResponseValueLayout#2": "07ae87e11ccb7ba8",
+    "internal/core/eap/rfc2759_eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation": "414e01d9f5d7715b",
+    "internal/core/eap/rfc2759_eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation#2": "414e01d9f5d7715b"
+  },
+  "verdict": "enforced"
+}

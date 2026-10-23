@@ -1,0 +1,19 @@
+{
+  "note": "Receipt of unspecified-content fields proven for every router-received PDU that has one: IPv4 Prefix (TestRFC6810ReservedPrefixOctetsIgnored), IPv6 Prefix header zero field, reserved flags and zero octet all ones still authorize 2001:db8::/32, and Cache Reset octets 2-3 0xFFFF still reset (TestRTRReservedOctetsIgnoredOnReceipt). Serial Notify, Cache Response and End of Data carry Session ID there, not a reserved field. Negative: the same 0xFFFF in a Cache Response is read as Session ID.",
+  "requirement_sha": "75ef2c8da16bedaf",
+  "tests": {
+    "internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go::TestRFC6810ReservedPrefixOctetsIgnored": "8c11ef49583ba7c6",
+    "internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go::TestRFC6810ReservedPrefixOctetsIgnored#2": "8c11ef49583ba7c6",
+    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRReservedOctetsIgnoredOnReceipt": "f4affe67e61b8df8",
+    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRReservedOctetsIgnoredOnReceipt#2": "f4affe67e61b8df8",
+    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRReservedOctetsIgnoredOnReceipt#3": "f4affe67e61b8df8"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go::TestRFC6810ReservedPrefixOctetsIgnored": "3cc16e24c1841a65",
+    "internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go::TestRFC6810ReservedPrefixOctetsIgnored#2": "3cc16e24c1841a65",
+    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRReservedOctetsIgnoredOnReceipt": "ddcab4be31777bdf",
+    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRReservedOctetsIgnoredOnReceipt#2": "ddcab4be31777bdf",
+    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRReservedOctetsIgnoredOnReceipt#3": "ddcab4be31777bdf"
+  },
+  "verdict": "enforced"
+}

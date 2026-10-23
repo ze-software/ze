@@ -1,0 +1,17 @@
+{
+  "note": "CoA half added: a CoA-Request whose User-Name matches two sessions gets CoA-NAK 508 and zero bus events; the same request narrowed by NAS-Port to one session is ACKed with one event, so the NAK is specific to the multiple match. The Disconnect half (Disconnect-NAK 508, zero teardowns) was already held. Producer oneSession serves both.",
+  "requirement_sha": "00285ea81dc8750a",
+  "tests": {
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176CoAMatchingOneSessionIsACKed": "ff37f19e24dbd668",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176CoAMatchingSeveralSessionsIsNAKed": "ff37f19e24dbd668",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176MultipleMatchingSessionsNAKed": "2b3357f1f1e8ec93",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176MultipleMatchingSessionsNAKed#2": "2b3357f1f1e8ec93"
+  },
+  "units": {
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176CoAMatchingOneSessionIsACKed": "cbc99c69c5b7a71a",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176CoAMatchingSeveralSessionsIsNAKed": "2ec15833c4bec8f9",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176MultipleMatchingSessionsNAKed": "4140b49b41499eda",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176MultipleMatchingSessionsNAKed#2": "4140b49b41499eda"
+  },
+  "verdict": "enforced"
+}

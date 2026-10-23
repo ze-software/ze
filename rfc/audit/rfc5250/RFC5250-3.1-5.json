@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-21. The neighbor-table tags that could not carry an O-bit Hello are gone. A real engine: TestRFC5250HelloSentWithoutOBit, every Hello sent has 0x40 clear while the DD to the same neighbor has it set (record buildHelloPacketLocked); TestRFC5250HelloOBitIgnoredOnReceipt, an O-bit Hello from 10.0.0.2 with no DD is processed (one neighbor row) and leaves it not opaque-capable (record NeighborHello).",
+  "requirement_sha": "a5c3b164e64bbcc2",
+  "tests": {
+    "internal/plugins/ospf/rfc5250_obit_hello_test.go::TestRFC5250HelloOBitIgnoredOnReceipt": "db54e1373f85c28c",
+    "internal/plugins/ospf/rfc5250_obit_hello_test.go::TestRFC5250HelloSentWithoutOBit": "db54e1373f85c28c"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc5250_obit_hello_test.go::TestRFC5250HelloOBitIgnoredOnReceipt": "3807b2f29d560031",
+    "internal/plugins/ospf/rfc5250_obit_hello_test.go::TestRFC5250HelloSentWithoutOBit": "3bd3c4373372e2ac"
+  },
+  "verdict": "enforced"
+}

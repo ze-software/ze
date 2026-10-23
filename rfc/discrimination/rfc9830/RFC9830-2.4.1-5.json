@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC9830-2.4.1-5",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission",
+    "unit-sha": "e79992f48bbe3a55",
+    "claim-sha": "fff971c52b143e00",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/nlri/srpolicy/config.go::buildTunnelEncap",
+    "producer-sha": "d328a8686606ab9a",
+    "break": "body of buildTunnelEncap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9830-2.4.1-5",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission",
+    "unit-sha": "e79992f48bbe3a55",
+    "claim-sha": "4bbb5332869459db",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/nlri/srpolicy/config.go::buildTunnelEncap",
+    "producer-sha": "d328a8686606ab9a",
+    "break": "body of buildTunnelEncap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9830-2.4.1-5",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt",
+    "unit-sha": "6fdd6eaec27e0a70",
+    "claim-sha": "6c220b92b1ce53d9",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
+    "producer-sha": "66c0f3d227b0c731",
+    "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9830-2.4.1-5",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt",
+    "unit-sha": "6fdd6eaec27e0a70",
+    "claim-sha": "c1656ed8cded3aff",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
+    "producer-sha": "66c0f3d227b0c731",
+    "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

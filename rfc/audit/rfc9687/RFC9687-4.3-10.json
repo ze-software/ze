@@ -1,0 +1,17 @@
+{
+  "note": "Forbidden: a SendHoldTimer left armed after a transition out of Established. Tagged units drive four transitions over the real Run loop and assert armed() false after: Event 29 expiry, local Cease (TestRFC9687TeardownStopsTheSendHoldTimer), a NOTIFICATION received from the peer and a peer TCP close (TestRFC9687PeerDrivenTeardownStopsTheSendHoldTimer), each with armed() true as precondition. The stop lives in closeConn and in Run's deferred stopSendHoldTimer, which every exit path shares; HoldTimer expiry and a ze-sent error NOTIFICATION are not driven but reach the same two stop sites.",
+  "requirement_sha": "0354590c6557e9a7",
+  "tests": {
+    "internal/component/bgp/reactor/rfc9687_reactor_b_test.go::TestRFC9687PeerDrivenTeardownStopsTheSendHoldTimer": "0d228841740c950c",
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "8caa1cc8f2fc140d",
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "8caa1cc8f2fc140d",
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687TeardownStopsTheSendHoldTimer": "8caa1cc8f2fc140d"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc9687_reactor_b_test.go::TestRFC9687PeerDrivenTeardownStopsTheSendHoldTimer": "ae87532b2b40a28d",
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "d962e371f1fc6714",
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "e00ce51f6b78477b",
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687TeardownStopsTheSendHoldTimer": "5be88dd1ee980e68"
+  },
+  "verdict": "enforced"
+}

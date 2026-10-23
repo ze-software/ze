@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9514-8-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/ls_export/rfc9514_export_test.go::TestRFC9514NativeSIDStructureBoundary",
+    "unit-sha": "82d182c31bf0aea4",
+    "claim-sha": "0529aa956de0c265",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/ls_export/export_encode.go::encodeTopology",
+    "producer-sha": "8cd787137d3e2d50",
+    "break": "body of encodeTopology replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9514-8-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/ls_export/rfc9514_export_test.go::TestRFC9514NativeSIDStructureBoundary",
+    "unit-sha": "82d182c31bf0aea4",
+    "claim-sha": "6d871009703e081d",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/ls_export/export_encode.go::encodeTopology",
+    "producer-sha": "8cd787137d3e2d50",
+    "break": "body of encodeTopology replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

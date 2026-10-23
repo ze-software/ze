@@ -1,0 +1,57 @@
+[
+  {
+    "rid": "RFC5305-4.1-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination",
+    "unit-sha": "49bde07950d95024",
+    "claim-sha": "9662edb2fd02cb9a",
+    "route": "revert",
+    "producer": "internal/plugins/isis/lsdb_wiring.go::leakedToPrefixInfos",
+    "producer-sha": "f4832c3a5aef6c22",
+    "break": "body of leakedToPrefixInfos replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5305-4.1-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination",
+    "unit-sha": "49bde07950d95024",
+    "claim-sha": "82e41b6be16196ef",
+    "route": "revert",
+    "producer": "internal/plugins/isis/lsdb_wiring.go::leakedToPrefixInfos",
+    "producer-sha": "f4832c3a5aef6c22",
+    "break": "body of leakedToPrefixInfos replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5305-4.1-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/redistribute/rfc5305_consumer_test.go::TestISISRedistConsumerConnected",
+    "unit-sha": "c5f3e0c81412ba39",
+    "claim-sha": "3e1910e397e85652",
+    "route": "revert",
+    "producer": "internal/plugins/isis/redistribute/consumer.go::InjectRoute",
+    "producer-sha": "092d358ab22aadd2",
+    "break": "body of InjectRoute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5305-4.1-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2",
+    "unit-sha": "677c9407203caac7",
+    "claim-sha": "aae5ef4bfcf20c83",
+    "route": "revert",
+    "producer": "internal/plugins/isis/spf/leak.go::leakInto",
+    "producer-sha": "b5a4da90d430ea3e",
+    "break": "body of leakInto replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5305-4.1-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2",
+    "unit-sha": "677c9407203caac7",
+    "claim-sha": "8f3516537285cd79",
+    "route": "revert",
+    "producer": "internal/plugins/isis/spf/leak.go::leakInto",
+    "producer-sha": "b5a4da90d430ea3e",
+    "break": "body of leakInto replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

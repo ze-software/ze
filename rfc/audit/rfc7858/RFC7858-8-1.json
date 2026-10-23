@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-10-15 (subagent, after 14d1c8f19c and 224b0ef514). The tagged unit changed only in its setup call: mgr.apply/applyListeners became reconcile(..., BindLenient), the policy the deleted wrappers passed; the unit binds one free loopback port, where lenient and strict bind alike, and every assertion line is byte-identical. Where this unit carries a revert record (TestDoTListener, TestDoHListener, TestRFC7858DoTNegotiatesOnlyBCP195Suites, the two RFC 2181 4.1-1 units), it was re-observed red today. Prior judgement re-read against the current body and stands: Re-judged 2026-09-30. Beyond the HEAD TLS 1.2 floor: TestRFC7858DoTNegotiatesOnlyBCP195Suites drives the DoT listener built from selfcert.NewTLSConfig (the production constructor) with a hand-built TLS 1.2 ClientHello (internal/test/tlsprobe), ECDSA and RSA certs: ECDHE AES-128-GCM selected with null compression and renegotiation_info, also after every forbidden suite; each NULL/RC4/export/DES/3DES/static-RSA/static-ECDH/DHE suite alone never selected; DEFLATE alone refused. The good suite in the same hello shape is the control, so refusals are about the suite. Records: NewTLSConfig revert both polarities; an overlay adding RC4/3DES/static RSA turned the negative red for 7 suites. Not asserted: RFC 9325 SHOULD-level items outside negotiation (session tickets, EMS).",
+  "requirement_sha": "a8f8b228063a852c",
+  "tests": {
+    "internal/core/dnsserver/rfc7858_bcp195_test.go::TestRFC7858DoTNegotiatesOnlyBCP195Suites": "8973d8f1c7cb0822",
+    "internal/core/dnsserver/rfc7858_bcp195_test.go::TestRFC7858DoTNegotiatesOnlyBCP195Suites#2": "8973d8f1c7cb0822",
+    "internal/core/dnsserver/secure_test.go::TestDoTListener": "8772da30b26b9efc",
+    "internal/core/dnsserver/secure_test.go::TestDoTRejectsBelowTLS12": "8772da30b26b9efc"
+  },
+  "units": {
+    "internal/core/dnsserver/rfc7858_bcp195_test.go::TestRFC7858DoTNegotiatesOnlyBCP195Suites": "6ae1e42e10651c0b",
+    "internal/core/dnsserver/rfc7858_bcp195_test.go::TestRFC7858DoTNegotiatesOnlyBCP195Suites#2": "6ae1e42e10651c0b",
+    "internal/core/dnsserver/secure_test.go::TestDoTListener": "5a13f43dda020cb1",
+    "internal/core/dnsserver/secure_test.go::TestDoTRejectsBelowTLS12": "f87863d102e2f107"
+  },
+  "verdict": "enforced"
+}

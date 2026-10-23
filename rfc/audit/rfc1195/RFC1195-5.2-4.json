@@ -1,0 +1,13 @@
+{
+  "note": "The TLV 135 tag on packet TestISISTLVIPv4RoundTrip (RFC 5305 extended reachability, not an RFC 1195 entry) is gone, which was the only reason for weak. Positive TestRFC1195OriginatedExternalEntriesCarryDefaultMetric decodes every TLV 130 entry the Originator emits and requires the configured default metric (7 internal type, 33 external type), so an originator that dropped or zeroed it goes red. Negative TestRFC1195ExternalEntryWithoutDefaultMetricRefused removes the default metric octet from a TLV 130 entry: requireNoDefaultMetricRefused requires ErrLength and the route falls back to the competing entry (winner 2, metric 160). Both recorded red.",
+  "requirement_sha": "1aa511355973b83b",
+  "tests": {
+    "internal/plugins/isis/rfc1195_selection_test.go::TestRFC1195ExternalEntryWithoutDefaultMetricRefused": "1ef6f2102a068439",
+    "internal/plugins/isis/rfc1195_selection_test.go::TestRFC1195OriginatedExternalEntriesCarryDefaultMetric": "1ef6f2102a068439"
+  },
+  "units": {
+    "internal/plugins/isis/rfc1195_selection_test.go::TestRFC1195ExternalEntryWithoutDefaultMetricRefused": "a8fc3327b50ab2ff",
+    "internal/plugins/isis/rfc1195_selection_test.go::TestRFC1195OriginatedExternalEntriesCarryDefaultMetric": "6a2b80b266175829"
+  },
+  "verdict": "enforced"
+}

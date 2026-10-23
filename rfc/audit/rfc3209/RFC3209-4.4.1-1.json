@@ -1,0 +1,13 @@
+{
+  "note": "Send: TestRFC3209RROSubobjectLengthOnSend asserts lengths {8,8,20}, each >=4 and %4==0. Receive: TestRFC3209RROSubobjectLengthShortRefused asserts decodeRRO refuses Length 3 with errShortRRO.",
+  "requirement_sha": "8f70bcc2eccd205a",
+  "tests": {
+    "internal/plugins/rsvpte/wire_rfc3209_test.go::TestRFC3209RROSubobjectLengthOnSend": "f41b8974aa28db4d",
+    "internal/plugins/rsvpte/wire_rfc3209_test.go::TestRFC3209RROSubobjectLengthShortRefused": "f41b8974aa28db4d"
+  },
+  "units": {
+    "internal/plugins/rsvpte/wire_rfc3209_test.go::TestRFC3209RROSubobjectLengthOnSend": "95acedb8e4d46d72",
+    "internal/plugins/rsvpte/wire_rfc3209_test.go::TestRFC3209RROSubobjectLengthShortRefused": "0d843022a9caca36"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,20 @@
+{
+  "code": {},
+  "note": "Re-judged after R43 (2026-09-30). Positive: TestRFC4271UpdateWithNLRICarriesTheMandatoryAttributes requires ORIGIN, AS_PATH and NEXT_HOP in every BuildUnicast UPDATE with body NLRI, stated and bare route, eBGP and iBGP (assertions unchanged; only the call takes the new error). Negative: TestBuildUnicastRefusesIPv4RouteWithNoUsableNextHop, an IPv4 unicast route with an IPv6 next hop and no Extended Next Hop, and with no next hop, is refused with ErrUnicastNextHopUnusable and no Update, rather than written as body NLRI with no NEXT_HOP; observed red on a break of checkInlineNextHop. Producer read: checkInlineNextHop runs before any attribute for IPv4 unicast; the NEXT_HOP arm now keeps NEXT_HOP for an IPv4 next hop when Extended Next Hop is set (RFC 8950 moves only an IPv6 next hop into MP_REACH_NLRI), the second shape of the same defect, covered by the untagged TestBuildUnicastIPv4NextHopWithExtendedNextHopKeepsNextHop. Every caller takes the error: grouped build returns it, static routes log Warn and skip, ze bgp encode exits 1 (untagged TestCmdEncodeRefusesIPv4RouteWithIPv6NextHop). Scope: originating builder rail; forwarded UPDATEs keep the received attributes. The rfc4271_test.go receive-side units carry no records and are neighbours, not the proof.",
+  "requirement_sha": "3fbee88fc1590d14",
+  "tests": {
+    "internal/component/bgp/message/rfc4271_ipv4_route_ipv6_nexthop_test.go::TestBuildUnicastRefusesIPv4RouteWithNoUsableNextHop": "f5d717769f48817a",
+    "internal/component/bgp/message/rfc4271_mandatory_send_test.go::TestRFC4271UpdateWithNLRICarriesTheMandatoryAttributes": "7269224e2de8c2ef",
+    "internal/component/bgp/message/rfc4271_mandatory_send_test.go::TestRFC4271UpdateWithNLRICarriesTheMandatoryAttributes#2": "7269224e2de8c2ef",
+    "internal/component/bgp/message/rfc4271_test.go::TestRFC4271WellKnownAttributeErrorsAreCaught": "abbe4d642c22df9a",
+    "internal/component/bgp/message/rfc4271_test.go::TestRFC4271WellKnownAttributesAreRecognized": "abbe4d642c22df9a"
+  },
+  "units": {
+    "internal/component/bgp/message/rfc4271_ipv4_route_ipv6_nexthop_test.go::TestBuildUnicastRefusesIPv4RouteWithNoUsableNextHop": "6e221ecc789fcfaf",
+    "internal/component/bgp/message/rfc4271_mandatory_send_test.go::TestRFC4271UpdateWithNLRICarriesTheMandatoryAttributes": "a851a62c10e7f559",
+    "internal/component/bgp/message/rfc4271_mandatory_send_test.go::TestRFC4271UpdateWithNLRICarriesTheMandatoryAttributes#2": "a851a62c10e7f559",
+    "internal/component/bgp/message/rfc4271_test.go::TestRFC4271WellKnownAttributeErrorsAreCaught": "a110d33edb50a5d4",
+    "internal/component/bgp/message/rfc4271_test.go::TestRFC4271WellKnownAttributesAreRecognized": "c73c608a6ac8b983"
+  },
+  "verdict": "enforced"
+}

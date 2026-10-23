@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: a peer Response whose Identifier differs from the outstanding Request's. TestRFC3748ResponseEchoesRequestIdentifier fails on resp.Identifier != requests[i].Identifier for every Response of a full MS-CHAPv2 flight, and on an unusual Identifier 0xC3 not echoed (catches a peer that counts or uses a constant).",
+  "requirement_sha": "6b9af45edc5d0c78",
+  "tests": {
+    "internal/core/eap/rfc3748_walk_test.go::TestRFC3748ResponseEchoesRequestIdentifier": "08e46d8cbdf7058a",
+    "internal/core/eap/rfc3748_walk_test.go::TestRFC3748ResponseEchoesRequestIdentifier#2": "08e46d8cbdf7058a"
+  },
+  "units": {
+    "internal/core/eap/rfc3748_walk_test.go::TestRFC3748ResponseEchoesRequestIdentifier": "f71417d9cb1b1eb2",
+    "internal/core/eap/rfc3748_walk_test.go::TestRFC3748ResponseEchoesRequestIdentifier#2": "f71417d9cb1b1eb2"
+  },
+  "verdict": "enforced"
+}

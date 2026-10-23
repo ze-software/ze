@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4035-3-6",
+    "polarity": "positive",
+    "unit": "internal/plugins/geodns/rfc4035_do_clear_test.go::TestRFC4035DOClearQueryGetsNoDNSSECProcessing",
+    "unit-sha": "6929db4005e98b3c",
+    "claim-sha": "ed27ee348ac732b2",
+    "route": "revert",
+    "producer": "internal/plugins/geodns/server.go::answerQuestions",
+    "producer-sha": "93efe337a73bd924",
+    "break": "body of answerQuestions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4035-3-6",
+    "polarity": "positive",
+    "unit": "internal/plugins/geodns/rfc4035_server_test.go::TestRFC4035_NoDNSSECAdditionalProcessing",
+    "unit-sha": "78e886e2a80359d0",
+    "claim-sha": "1f93f44ccb1a9509",
+    "route": "revert",
+    "producer": "internal/plugins/geodns/server.go::answerQuestions",
+    "producer-sha": "93efe337a73bd924",
+    "break": "body of answerQuestions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

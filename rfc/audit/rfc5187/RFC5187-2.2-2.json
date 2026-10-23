@@ -1,0 +1,13 @@
+{
+  "note": "c22 re-judge. Forbidden: a grace-LSA without the Graceful restart reason TLV (Type=2, Length=1). Positive: same origination unit asserts the literal 00 02 00 01 <reason> 00 00 00 after the period TLV for reason 2 and 0, body exactly 16 octets, so a wrong type number, length or omission goes red (recorded revert of v3 lsa_grace.go::tlvs). Negative under OWNER RULING 2: a period-only (600) v3 Grace-LSA through grInspectV6Update leaves the helper session and its grace end unchanged while the both-TLV control applies 600, isolating the hasReason check (author overlay; recorded revert of ::decodeGraceLSA). Tags moved off the OSPFv2 codec units (D-15).",
+  "requirement_sha": "8fd2ecb5b3d69054",
+  "tests": {
+    "internal/plugins/ospf/rfc5187_grace_tlv_test.go::TestRFC5187HelperIgnoresGraceLSAMissingMandatoryTLV": "9b3524b8afee74d5",
+    "internal/plugins/ospf/rfc5187_grace_tlv_test.go::TestRFC5187OriginatedGraceLSACarriesPeriodAndReasonTLVs": "9b3524b8afee74d5"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc5187_grace_tlv_test.go::TestRFC5187HelperIgnoresGraceLSAMissingMandatoryTLV": "432a4746e0ebc120",
+    "internal/plugins/ospf/rfc5187_grace_tlv_test.go::TestRFC5187OriginatedGraceLSACarriesPeriodAndReasonTLVs": "be719a1509d006d9"
+  },
+  "verdict": "enforced"
+}

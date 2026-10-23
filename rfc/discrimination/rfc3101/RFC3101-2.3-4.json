@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC3101-2.3-4",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/lsdb/rfc3101_type7_header_type_test.go::TestRFC3101Type5HeaderTypeIsNot7",
+    "unit-sha": "16e9fc86ae53df1b",
+    "claim-sha": "df98de0c9f050daa",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/lsdb/origination.go::OriginateExternal",
+    "producer-sha": "388106e571c740b7",
+    "break": "body of OriginateExternal replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3101-2.3-4",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/lsdb/rfc3101_type7_header_type_test.go::TestRFC3101Type7HeaderTypeIs7",
+    "unit-sha": "a8c78dacab682c10",
+    "claim-sha": "55e1e39fae70a182",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/lsdb/nssa.go::OriginateNSSA",
+    "producer-sha": "cec16e133394a6e1",
+    "break": "body of OriginateNSSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

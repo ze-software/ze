@@ -1,0 +1,17 @@
+{
+  "note": "Production path databaseSummaryLocked over a real lsdb.LSDB at ExStart: positive lists all eight named types (Router, Network, Summary 3 and 4, type-9 on its interface, type-10, AS External, type-11); negative shows area 0.0.0.4's Router and type-10 and eth9's type-9 absent and the list exactly 8. Judge overlays: dropping link LSAs, Router or Network LSAs turns the positive red; appending another area's Router LSA turns only the negative red. Records observed red on databaseSummaryLocked; the lsdb units stay as supplementary.",
+  "requirement_sha": "9756b7e959d1226f",
+  "tests": {
+    "internal/plugins/ospf/lsdb/rfc5250_dd_summary_test.go::TestRFC5250SummaryListsOpaqueAndGlobalLSAs": "210db371c1b4065b",
+    "internal/plugins/ospf/lsdb/rfc5250_dd_summary_test.go::TestRFC5250SummaryOmitsGlobalLSAsInStubAndNSSA": "210db371c1b4065b",
+    "internal/plugins/ospf/neighbor/rfc5250_summary_entire_area_test.go::TestRFC5250SummaryListsEntireAreaDatabase": "470ebdcbcdb0e6e5",
+    "internal/plugins/ospf/neighbor/rfc5250_summary_entire_area_test.go::TestRFC5250SummaryOmitsOtherAreaAndLinkLSAs": "470ebdcbcdb0e6e5"
+  },
+  "units": {
+    "internal/plugins/ospf/lsdb/rfc5250_dd_summary_test.go::TestRFC5250SummaryListsOpaqueAndGlobalLSAs": "04ee01da6ec704c2",
+    "internal/plugins/ospf/lsdb/rfc5250_dd_summary_test.go::TestRFC5250SummaryOmitsGlobalLSAsInStubAndNSSA": "bae6679d4a6cc4a5",
+    "internal/plugins/ospf/neighbor/rfc5250_summary_entire_area_test.go::TestRFC5250SummaryListsEntireAreaDatabase": "42f83f64b5c6d624",
+    "internal/plugins/ospf/neighbor/rfc5250_summary_entire_area_test.go::TestRFC5250SummaryOmitsOtherAreaAndLinkLSAs": "17d51d6998d5f10a"
+  },
+  "verdict": "enforced"
+}

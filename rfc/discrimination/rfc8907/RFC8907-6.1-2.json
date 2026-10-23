@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8907-6.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907ArgumentNamesCarryNoSeparator",
+    "unit-sha": "6295b55828ea79a3",
+    "claim-sha": "c713bd4366b186f7",
+    "route": "revert",
+    "producer": "internal/component/tacacs/authorizer.go::splitTacacsTokens",
+    "producer-sha": "bef583b61647e3ca",
+    "break": "body of splitTacacsTokens replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8907-6.1-2",
+    "polarity": "negative",
+    "unit": "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907ArgumentValueKeepsSeparatorOutOfName",
+    "unit-sha": "c39b5506d5f231bf",
+    "claim-sha": "83538b1b1fe8cfb0",
+    "route": "revert",
+    "producer": "internal/component/tacacs/authorizer.go::splitTacacsTokens",
+    "producer-sha": "bef583b61647e3ca",
+    "break": "body of splitTacacsTokens replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

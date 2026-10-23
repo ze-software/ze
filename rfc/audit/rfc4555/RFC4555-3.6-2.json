@@ -1,0 +1,11 @@
+{
+  "note": "Judged 2026-10-11 by an independent judge. RFC 4555 3.6: \"This information can be updated by sending an INFORMATIONAL exchange request message that contains either one or more ADDITIONAL_IP4_ADDRESS/ADDITIONAL_IP6_ADDRESS notifications or the NO_ADDITIONAL_ADDRESSES notification.\" The sentence permits a way to update the list and obliges nothing when no update is sent, so the {single-polarity: positive} annotation holds: no input is a violation for a negative to refuse. TestMobikeUpdateCarriesItsAddressList drives a real IKE_AUTH handshake, starts an update with startMobikeRequest, and requires the datagram the responder reads to be an INFORMATIONAL request (exchange type, R bit clear) whose decrypted chain carries NO_ADDITIONAL_ADDRESSES. Revert record on mobike.go::startMobikeRequest. Residual, not a finding: the 'either ... or' is not asserted as exclusive (no check that no ADDITIONAL_IP4/6_ADDRESS rides beside NO_ADDITIONAL_ADDRESSES); the producer (mobike.go) writes only NO_ADDITIONAL_ADDRESSES today.",
+  "requirement_sha": "2505c48011eec125",
+  "tests": {
+    "internal/component/ike/engine/mobike_test.go::TestMobikeUpdateCarriesItsAddressList": "7591039c742210b3"
+  },
+  "units": {
+    "internal/component/ike/engine/mobike_test.go::TestMobikeUpdateCarriesItsAddressList": "5e8d91f138bcf454"
+  },
+  "verdict": "enforced"
+}

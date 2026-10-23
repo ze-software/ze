@@ -1,0 +1,15 @@
+{
+  "note": "After the R45 split the Event 3 clause is RFC4271-8.2.2-20 ({gap}); this verdict judges the ManualStart (Event 1) clause the row keeps. Positive at peer level: Peer.Start on a dial-only Peer at counter 7 builds a session, dials (the far end reads an OPEN: resources initialized) and reads counter 0; StartWithContext break observed red. Negative: TestRFC4271ConnectRetryCounterSurvivesDampedStart, Event 6 from Idle and Events 1/6 in Connect and Active leave counter 7, so the reset is not spread to other start paths; handleIdle break observed red (recorded by this judge). The row text still reads 'or an AutomaticStart event (Event 3)', which no tag claims.",
+  "requirement_sha": "7942f56e0c1cc260",
+  "tests": {
+    "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterSurvivesDampedStart": "2227e129c50e80e0",
+    "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterZeroedOnManualStart": "2227e129c50e80e0",
+    "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271ManualStartZeroesTheCounterAndDials": "33aaf37273eacf0d"
+  },
+  "units": {
+    "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterSurvivesDampedStart": "de8aed85af4c5d6f",
+    "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterZeroedOnManualStart": "740f9930c6a5af56",
+    "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271ManualStartZeroesTheCounterAndDials": "9580a84621886ac4"
+  },
+  "verdict": "enforced"
+}

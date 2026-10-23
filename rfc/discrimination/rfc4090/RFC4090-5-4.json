@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4090-5-4",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090HeadEndAcceptsRROLabelSubobject",
+    "unit-sha": "e795b086f837521b",
+    "claim-sha": "cb703727c1533c3c",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/engine.go::labelForAddr",
+    "producer-sha": "f71a32a7022a4f7f",
+    "break": "body of labelForAddr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4090-5-4",
+    "polarity": "negative",
+    "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090HeadEndAcceptsRROLabelSubobject",
+    "unit-sha": "e795b086f837521b",
+    "claim-sha": "96c383053c40fc62",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/reservation.go::receivedReservation",
+    "producer-sha": "38110e8f415ad126",
+    "break": "body of receivedReservation replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

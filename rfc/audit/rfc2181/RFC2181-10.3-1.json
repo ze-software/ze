@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-09-30. TestRFC2181NSTargetIsNotAnAlias queries each NS target itself: a CNAME query returns no CNAME, an A query returns only A records owned by the target holding the configured addresses (an alias would answer a CNAME chain). Record: appendNS revert observed red. {single-polarity} holds: Ze serves no CNAME and no MX, so there is no alias to refuse.",
+  "requirement_sha": "75ffaa10a6a26d83",
+  "tests": {
+    "internal/plugins/geodns/rfc2181_clarifications_test.go::TestRFC2181NSTargetIsNotAnAlias": "92cb2a16576e33d3",
+    "internal/plugins/geodns/rfc2181_server_test.go::TestRFC2181_NSCanonicalWithGlue": "8db97d24fc455c8c"
+  },
+  "units": {
+    "internal/plugins/geodns/rfc2181_clarifications_test.go::TestRFC2181NSTargetIsNotAnAlias": "249fad351188da50",
+    "internal/plugins/geodns/rfc2181_server_test.go::TestRFC2181_NSCanonicalWithGlue": "336b9649bdc7ad4d"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,19 @@
+{
+  "note": "Re-judged 2026-09-29. Both clauses now hold both polarities. Sender: rfc7854_test.go TestRFC7854InitiationCarriesSysDescr and the new rfc7854_session_opening_test.go::TestRFC7854InitiationCarriesSysName decode the Initiation sendInitiation writes and require exactly one sysName (type 2) and a sysDescr (type 1). Receiver: TestRFC7854InitiationMissingSysDescrEndsSession and TestBMPInitiationMissingSysNameEndsSession (tag added) each send an Initiation missing one TLV and require the session closed (decodeInitiation checks each independently); TestRFC7854InitiationEmptyIdentityValuesAccepted keeps presence, not length, as the test.",
+  "requirement_sha": "f8527623bb343db3",
+  "tests": {
+    "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestBMPInitiationMissingSysNameEndsSession": "4c8de7d703105fd1",
+    "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestRFC7854InitiationEmptyIdentityValuesAccepted": "4c8de7d703105fd1",
+    "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestRFC7854InitiationMissingSysDescrEndsSession": "4c8de7d703105fd1",
+    "internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go::TestRFC7854InitiationCarriesSysName": "524ea12738fd2dfc",
+    "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854InitiationCarriesSysDescr": "94e84131af3555be"
+  },
+  "units": {
+    "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestBMPInitiationMissingSysNameEndsSession": "83fa456a0adaf430",
+    "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestRFC7854InitiationEmptyIdentityValuesAccepted": "f403704c666ada9b",
+    "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestRFC7854InitiationMissingSysDescrEndsSession": "d8d4924844f39cab",
+    "internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go::TestRFC7854InitiationCarriesSysName": "7ef7e26733142ba2",
+    "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854InitiationCarriesSysDescr": "8e048c2e1a68a080"
+  },
+  "verdict": "enforced"
+}

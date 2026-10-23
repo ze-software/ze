@@ -1,0 +1,13 @@
+{
+  "note": "after stop() the collector reads the Termination then EOF; a Peer Up afterwards is refused with errNotConnected",
+  "requirement_sha": "9d33a24055f39c1b",
+  "tests": {
+    "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854TerminationThenCloseAndSilence": "94e84131af3555be",
+    "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854TerminationThenCloseAndSilence#2": "94e84131af3555be"
+  },
+  "units": {
+    "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854TerminationThenCloseAndSilence": "753e841ad05d1ac7",
+    "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854TerminationThenCloseAndSilence#2": "753e841ad05d1ac7"
+  },
+  "verdict": "enforced"
+}

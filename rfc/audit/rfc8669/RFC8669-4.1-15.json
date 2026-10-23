@@ -1,0 +1,16 @@
+{
+  "code": {},
+  "note": "Re-judged 2026-10-15 after f49cfab6e7 by an auditor who authored none of 2f0b126768, c9c935547a, f49cfab6e7. RFC 8669 Section 4.1: \"In the case of an \"invalid\" BGP Prefix-SID attribute, a BGP speaker MUST follow the error-handling rules specified in Section 6.  A BGP speaker SHOULD log an error for further analysis.\" and \"A BGP Prefix-SID attribute received without a Label-Index TLV MUST be considered to be \"invalid\" by the receiving speaker.\" Producer: validatePrefixSIDForRoutes then validatePrefixSIDValue map PrefixSIDInvalidAttribute to attribute-discard after the walk; logRFC7606Discards logs each discarded code with its own reason. Positives: TestRFC8669InvalidPrefixSIDLoggedAtDefaultLevel (only an Originator SRGB TLV on IPv4 labeled unicast, so the sole fault is the missing Label-Index; one ERROR, attr=40, 'no Label-Index TLV') and, new, TestRFC8669InvalidPrefixSIDDiscardBesideAnotherLogsBoth (the same invalid attribute with a one-octet ATOMIC_AGGREGATE before and after it; one attr=40 record naming the missing Label-Index, one attr=6 record that does not). This closes the earlier finding that no test co-discarded an INVALID Prefix-SID: its record is the M1 mutant of logRFC7606Discards. Negative: TestRFC8669CleanPrefixSIDNoErrorLog (Label-Index present, ActionNone, no attr=40 ERROR), recorded by a mutant that logs attr 40 on the ActionNone return of applyRFC7606, so the negative now discriminates a spurious log rather than reachability. Independent overlay probes: M1, M7 (log only the first entry) and M8 (one rate-limit window shared by all codes) redden both Invalid BesideAnother cases; baseline green. The positive is a genuinely invalid, not malformed, input: the SRGB TLV is well-formed and the asserted reason is the Label-Index one.",
+  "requirement_sha": "be03dc7f94b681b5",
+  "tests": {
+    "internal/component/bgp/reactor/rfc8669_error_log_test.go::TestRFC8669CleanPrefixSIDNoErrorLog": "3a02d9c466bfb03e",
+    "internal/component/bgp/reactor/rfc8669_error_log_test.go::TestRFC8669InvalidPrefixSIDDiscardBesideAnotherLogsBoth": "3a02d9c466bfb03e",
+    "internal/component/bgp/reactor/rfc8669_error_log_test.go::TestRFC8669InvalidPrefixSIDLoggedAtDefaultLevel": "3a02d9c466bfb03e"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc8669_error_log_test.go::TestRFC8669CleanPrefixSIDNoErrorLog": "64afc0d1b5632311",
+    "internal/component/bgp/reactor/rfc8669_error_log_test.go::TestRFC8669InvalidPrefixSIDDiscardBesideAnotherLogsBoth": "21d889ce4f0ed73e",
+    "internal/component/bgp/reactor/rfc8669_error_log_test.go::TestRFC8669InvalidPrefixSIDLoggedAtDefaultLevel": "3902445aa067ea5f"
+  },
+  "verdict": "enforced"
+}

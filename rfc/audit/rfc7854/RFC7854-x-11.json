@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-09-29: the stale unit TestSenderStopSendsTerminationToCollector changed only by an added RFC7854-4.5-5 tag comment; body unchanged. It still requires the collector to read a Termination through stop() racing holdConnection, and the writeTerminationLocked break recorded under RFC7854-4.5-5 on this same unit was observed red. sender_test.go::TestBMPSenderTermination covers the encoder, no record. {single-polarity: positive} holds for a MAY that ze always exercises.",
+  "requirement_sha": "56e09620e7c035a8",
+  "tests": {
+    "internal/component/bgp/plugins/bmp/rfc7854_sender_queue_test.go::TestSenderStopSendsTerminationToCollector": "8f727193769a3f0a",
+    "internal/component/bgp/plugins/bmp/rfc7854_sender_test.go::TestBMPSenderTermination": "b1d529e5dcb7872e"
+  },
+  "units": {
+    "internal/component/bgp/plugins/bmp/rfc7854_sender_queue_test.go::TestSenderStopSendsTerminationToCollector": "4e7bf6a440dd0715",
+    "internal/component/bgp/plugins/bmp/rfc7854_sender_test.go::TestBMPSenderTermination": "1938d89642e3c010"
+  },
+  "verdict": "enforced"
+}

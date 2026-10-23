@@ -1,0 +1,13 @@
+{
+  "note": "RFC 7606 (Updates: 4271) revises this: the error is handled by treat-as-withdraw, so no NOTIFICATION, subcode or Data field is sent. an external UPDATE whose leftmost AS 65003 is not the peer AS 65002 is delivered as exactly a withdrawal of its prefix (7.2); leftmost AS equal to the peer AS announces unchanged",
+  "requirement_sha": "3c98a0ec1375460c",
+  "tests": {
+    "internal/component/bgp/reactor/rfc4271_rfc7611_ingress_test.go::TestRFC4271LeftmostASMismatchIsMalformedASPath": "8bb2697a46f1c6e7",
+    "internal/component/bgp/reactor/rfc4271_rfc7611_ingress_test.go::TestRFC4271LeftmostASMismatchIsMalformedASPath#2": "8bb2697a46f1c6e7"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc4271_rfc7611_ingress_test.go::TestRFC4271LeftmostASMismatchIsMalformedASPath": "9a8845be35afa8b4",
+    "internal/component/bgp/reactor/rfc4271_rfc7611_ingress_test.go::TestRFC4271LeftmostASMismatchIsMalformedASPath#2": "9a8845be35afa8b4"
+  },
+  "verdict": "enforced"
+}

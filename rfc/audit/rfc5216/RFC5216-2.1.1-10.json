@@ -1,0 +1,16 @@
+{
+  "code": {},
+  "note": "Re-judged 2026-10-14 (independent auditor) after 56e67411be, where the authenticator's GetConfigForClient (eap_tls.go) answers every handshake negotiatesTLS13 classifies as TLS 1.2 with tls12WithoutTickets, so ze issues no TLS 1.2 ticket, while UnwrapSession redeemTLS13Only/refuseResumption (resumption.go) still refuses a TLS 1.2 session. The obligation binds ze's PEER. TestRFC5216ResumedFlightsCarryOnlyChangeCipherSpecAndFinished resumes against a TEST server (stockTLS12Resumption: ze's config with GetConfigForClient and UnwrapSession removed, i.e. stock crypto/tls), which is the counterpart, not the subject, and is needed because ze's authenticator never resumes TLS 1.2. It requires peer.Resumed() and that ze's peer answers the resuming server_hello with no plaintext handshake message, change_cipher_spec and one sealed record. A peer that sent client_key_exchange or certificate goes red. The test server does not weaken the proof of ze's own behaviour.",
+  "requirement_sha": "a4623332d55d280b",
+  "tests": {
+    "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216ResumedFlightsCarryOnlyChangeCipherSpecAndFinished": "07752e8e18f47c94",
+    "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "e5d9dd4332b9270d",
+    "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "e5d9dd4332b9270d"
+  },
+  "units": {
+    "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216ResumedFlightsCarryOnlyChangeCipherSpecAndFinished": "7013a756eaee4424",
+    "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "f23ae9e361f1c790",
+    "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "ab280fde64eb689d"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,21 @@
+{
+  "note": "The differentiated action is now asserted on the RIB, which takes it. TestRFC7313SubtypeZeroStartsTheRefresh: body 00 01 00 01 on handleRefreshStructured and event kind refresh on dispatch each yield exactly BoRR, the two IPv4 routes of the Adj-RIB-Out, EoRR (requireBracketedReadvertisement, IPv6 route excluded). TestRFC7313PeerMarkersStartNoRefresh: the same up peer and Adj-RIB-Out with subtype 1 or 2 (both rails) emits nothing. Judge break (overlay, rib_structured.go: subtype != 0 widened to subtype > 2) turned the new negative red and the positive green. Revert records on handleRefreshStructured both polarities. The HEAD reactor tags (NoError/Established for every subtype) remain supplementary and unrecorded. The BoRR/EoRR stale handling itself stays the {gap} rows 4-4/4-5.",
+  "requirement_sha": "551f4e7a9d5d0c2c",
+  "tests": {
+    "internal/component/bgp/plugins/rib/rfc7313_subtype_action_test.go::TestRFC7313PeerMarkersStartNoRefresh": "229f47592a83c9c4",
+    "internal/component/bgp/plugins/rib/rfc7313_subtype_action_test.go::TestRFC7313SubtypeZeroStartsTheRefresh": "229f47592a83c9c4",
+    "internal/component/bgp/reactor/session_handlers_test.go::TestHandleRouteRefresh_UnknownSubtype": "c387bdc6c423bd19",
+    "internal/component/bgp/reactor/session_test.go::TestHandleRouteRefreshBoRR": "aeb6993b67f2a376",
+    "internal/component/bgp/reactor/session_test.go::TestHandleRouteRefreshEoRR": "aeb6993b67f2a376",
+    "internal/component/bgp/reactor/session_test.go::TestHandleRouteRefreshUnknown": "aeb6993b67f2a376"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rib/rfc7313_subtype_action_test.go::TestRFC7313PeerMarkersStartNoRefresh": "8b53b9ee1343739b",
+    "internal/component/bgp/plugins/rib/rfc7313_subtype_action_test.go::TestRFC7313SubtypeZeroStartsTheRefresh": "275a5077853e4496",
+    "internal/component/bgp/reactor/session_handlers_test.go::TestHandleRouteRefresh_UnknownSubtype": "43ed522f8946174d",
+    "internal/component/bgp/reactor/session_test.go::TestHandleRouteRefreshBoRR": "2b609f04afb8968f",
+    "internal/component/bgp/reactor/session_test.go::TestHandleRouteRefreshEoRR": "40fecd773bb351a7",
+    "internal/component/bgp/reactor/session_test.go::TestHandleRouteRefreshUnknown": "3b1ffa2c587c08fe"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged 2026-10-13 after the RFC 7854 Section 3.3 guard (no Peer Down for a peer never reported up). Positives unchanged: TestHandleSenderStatePeerUp and TestBMPSenderPeerUp echo both cached OPENs byte for byte. Negative TestPeerUpOnCacheMissNeverReachesTheCollector: up event with no OPEN cached, down event, then a Route Monitoring sentinel on the same FIFO queue; the first message read must be the sentinel, and a Peer Up is a named failure. Owner-approved marker change (sentinel replaces the Peer Down, which Section 3.3 no longer owes). Reviewer observed red with the guard removed (first message became the Peer Down), so the test still sees the whole queue head; a Peer Up emitted without both OPENs would be read first and fail.",
+  "requirement_sha": "72726805d80b4e52",
+  "tests": {
+    "internal/component/bgp/plugins/bmp/event_test.go::TestHandleSenderStatePeerUp": "1600925b71fa0ce5",
+    "internal/component/bgp/plugins/bmp/rfc7854_peerup_openless_test.go::TestPeerUpOnCacheMissNeverReachesTheCollector": "43df111c6225e01e",
+    "internal/component/bgp/plugins/bmp/rfc7854_sender_test.go::TestBMPSenderPeerUp": "b1d529e5dcb7872e"
+  },
+  "units": {
+    "internal/component/bgp/plugins/bmp/event_test.go::TestHandleSenderStatePeerUp": "be4e45534cd37c5d",
+    "internal/component/bgp/plugins/bmp/rfc7854_peerup_openless_test.go::TestPeerUpOnCacheMissNeverReachesTheCollector": "7c879ff8b01afc72",
+    "internal/component/bgp/plugins/bmp/rfc7854_sender_test.go::TestBMPSenderPeerUp": "bee521cf4cef19b4"
+  },
+  "verdict": "enforced"
+}

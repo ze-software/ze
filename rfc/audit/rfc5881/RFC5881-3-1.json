@@ -1,0 +1,21 @@
+{
+  "note": "RA-BFD strict re-read 2026-09-27 (stale after DF-BFD-4). One clause: both sides of a single-hop session MUST take the Active role. Forbidden: a single-hop session created in the Passive role. The only producer of SessionRequest.Passive is profileConfig.applyTo (OSPF, BGP and static requests set none), and every entry passes profileConfig.permitsMode: pluginConfig.validate for a pinned session, resolveProfile from pluginService.EnsureSession for a client request, checkClientProfile at commit. Red: TestRFC5881SingleHopPassiveProfileRejected Fatal when validate returns nil for a passive single-hop profile (its positive twin differs only in the passive bit); TestRFC5881ClientSingleHopPassiveProfileRefused Fatal when EnsureSession returns a handle or lacks the `sets passive` refusal. Positive: TestRFC5881SingleHopActiveProfileAccepted (passive unset validates and yields Passive false), TestRFC5881SingleHopTakesActiveRole (Init takes RoleActive and arms TX at creation), TestRFC5881ClientMultiHopPassiveProfileAccepted (scope: a blanket refusal fails). TestRFC5881NonActiveStaysSilent proves the Passive-role semantics of RFC5880-6.8.7-5, not this row; session.Init itself accepts Passive in either mode, so the guard is the config layer.",
+  "requirement_sha": "7993ffe91486f673",
+  "tests": {
+    "internal/component/bfd/enabled_test.go::TestRFC5881ClientMultiHopPassiveProfileAccepted": "96acedef6aab9ce8",
+    "internal/component/bfd/enabled_test.go::TestRFC5881ClientSingleHopPassiveProfileRefused": "96acedef6aab9ce8",
+    "internal/component/bfd/rfc5881_test.go::TestRFC5881SingleHopActiveProfileAccepted": "57ca680bd638e073",
+    "internal/component/bfd/rfc5881_test.go::TestRFC5881SingleHopPassiveProfileRejected": "57ca680bd638e073",
+    "internal/component/bfd/session/rfc5881_test.go::TestRFC5881NonActiveStaysSilent": "c3ba8a96a282b93d",
+    "internal/component/bfd/session/rfc5881_test.go::TestRFC5881SingleHopTakesActiveRole": "c3ba8a96a282b93d"
+  },
+  "units": {
+    "internal/component/bfd/enabled_test.go::TestRFC5881ClientMultiHopPassiveProfileAccepted": "fb14d365ee9edc83",
+    "internal/component/bfd/enabled_test.go::TestRFC5881ClientSingleHopPassiveProfileRefused": "5a20e2d0361438fb",
+    "internal/component/bfd/rfc5881_test.go::TestRFC5881SingleHopActiveProfileAccepted": "971a90510fa04415",
+    "internal/component/bfd/rfc5881_test.go::TestRFC5881SingleHopPassiveProfileRejected": "5b6443179e5fe151",
+    "internal/component/bfd/session/rfc5881_test.go::TestRFC5881NonActiveStaysSilent": "9e3d5e2ed7c55908",
+    "internal/component/bfd/session/rfc5881_test.go::TestRFC5881SingleHopTakesActiveRole": "3b33e2578487e6b9"
+  },
+  "verdict": "enforced"
+}

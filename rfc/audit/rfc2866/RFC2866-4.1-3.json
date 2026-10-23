@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden behaviour: an Accounting-Request carrying neither NAS-IP-Address nor NAS-Identifier. TestRFC2866AcctNASIdentityAlwaysPresent fails on that for every status and every leaf combination, including neither leaf set; TestRFC2866AcctNASIdentityFallbackIsNarrow shows the fallback does not replace a configured identity.",
+  "requirement_sha": "82d3afb6e68b0303",
+  "tests": {
+    "internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go::TestRFC2866AcctNASIdentityAlwaysPresent": "8c3f0adb0fe344ac",
+    "internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go::TestRFC2866AcctNASIdentityFallbackIsNarrow": "8c3f0adb0fe344ac"
+  },
+  "units": {
+    "internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go::TestRFC2866AcctNASIdentityAlwaysPresent": "a3cbdfa6bd489b2e",
+    "internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go::TestRFC2866AcctNASIdentityFallbackIsNarrow": "97ccc5f53cd931a9"
+  },
+  "verdict": "enforced"
+}

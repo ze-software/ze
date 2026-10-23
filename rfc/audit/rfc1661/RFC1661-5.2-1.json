@@ -1,0 +1,15 @@
+{
+  "note": "Forbidden: not Acking a fully acceptable request. TestRFC1661ConfigureAckEchoesOptionsVerbatim goes red on no Configure-Ack; TestRFC1877ConfigureAckEchoesAcceptable goes red when an acceptable IPCP request draws no Ack echoing it. Negatives: an unrecognized option (no Ack) and an unacceptable IP-Address (Nak).",
+  "requirement_sha": "4931db159b9e3ffd",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1661_dns_options_test.go::TestRFC1877ConfigureAckEchoesAcceptable": "a65c290db4ba68a7",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureAckEchoesOptionsVerbatim": "9afaf002f0fd81ec",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureRejectForUnrecognizedOption": "9afaf002f0fd81ec"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1661_dns_options_test.go::TestRFC1877ConfigureAckEchoesAcceptable": "bbba5bcde2729466",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureAckEchoesOptionsVerbatim": "d94762f04091a218",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureRejectForUnrecognizedOption": "01ea5207dfc1ae98"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,15 @@
+{
+  "note": "vrrp judge 2026-09-29 (independent): both admitting conditions and the refusal are asserted: TestActiveAddressOwnerAcceptsWhateverAcceptModeSays (owner, Accept_Mode False, now tagged here) requires exactly one filter with accept=true and the reported accept-mode true; TestActiveNonOwnerWithAcceptModeTrueAcceptsLocalDelivery covers Accept_Mode True; the non-owner Accept_Mode False negative requires accept=false. Record: revert EffectiveAcceptMode on the owner unit.",
+  "requirement_sha": "c4060235c6f070ce",
+  "tests": {
+    "internal/plugins/vrrp/acceptfilter_test.go::TestActiveAddressOwnerAcceptsWhateverAcceptModeSays": "ac94e88781e5c08d",
+    "internal/plugins/vrrp/acceptfilter_test.go::TestActiveNonOwnerWithAcceptModeFalseSuppressesLocalDelivery": "ac94e88781e5c08d",
+    "internal/plugins/vrrp/acceptfilter_test.go::TestActiveNonOwnerWithAcceptModeTrueAcceptsLocalDelivery": "ac94e88781e5c08d"
+  },
+  "units": {
+    "internal/plugins/vrrp/acceptfilter_test.go::TestActiveAddressOwnerAcceptsWhateverAcceptModeSays": "ae0d8891a374b6cf",
+    "internal/plugins/vrrp/acceptfilter_test.go::TestActiveNonOwnerWithAcceptModeFalseSuppressesLocalDelivery": "4eac158ec037028e",
+    "internal/plugins/vrrp/acceptfilter_test.go::TestActiveNonOwnerWithAcceptModeTrueAcceptsLocalDelivery": "8ef0833629bc1166"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged under the D-10 corrected row 'Nonces used in IKEv2 MUST be randomly chosen, MUST be at least 128 bits in size'. The 128-bit floor, both directions: send, TestRFC7296EmittedNoncesAreAtLeast128Bits checks all six emitted nonces (IKE_SA_INIT Ni/Nr, Child SA rekey Ni/Nr, IKE SA rekey Ni/Nr off the wire) are >= 16 octets; receive, TestNonceLengthBounds accepts 16 and refuses 15 octets with ErrNonceTooShort. The randomness clause the span passes through is the verbatim text of RFC7296-2.10-4, whose own tagged units (engine/rfc7296_session_test.go) carry it; this row's units assert the floor alone, as the correction states. Record: GenerateNonce revert observed red, re-recorded for the new row text.",
+  "requirement_sha": "47a6f52fdf17d3f6",
+  "tests": {
+    "internal/component/ike/engine/rfc7296_nonce_floor_test.go::TestRFC7296EmittedNoncesAreAtLeast128Bits": "b09b338f7ef8b4d2",
+    "internal/component/ike/wire/rfc7296_test.go::TestNonceLengthBounds": "459954f82bfe6b71",
+    "internal/component/ike/wire/rfc7296_test.go::TestNonceLengthBounds#2": "459954f82bfe6b71"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7296_nonce_floor_test.go::TestRFC7296EmittedNoncesAreAtLeast128Bits": "39ddd2317be5ae07",
+    "internal/component/ike/wire/rfc7296_test.go::TestNonceLengthBounds": "6a5b7aefa912b132",
+    "internal/component/ike/wire/rfc7296_test.go::TestNonceLengthBounds#2": "6a5b7aefa912b132"
+  },
+  "verdict": "enforced"
+}

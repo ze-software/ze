@@ -1,0 +1,23 @@
+{
+  "note": "Judged 2026-09-29 (routing child, continuation judge). Refresh: TestRFC2205RefreshRecursEachTick (three refreshPaths ticks, three PATHs) and TestRefreshResendsPathAndResv (RESV re-sent). Deletion: TestRFC2205PathStateDeletedAtCleanupTimeout (PSB) and TestRFC2205ResvStateDeletedAtCleanupTimeout (transit RSB dropped with ResvTear, ingress RSB dropped Up->PathSent, PSB kept). Negatives keep refreshed PSB and RSB. D-1 producer read: cleanupTick withdraws expiredRSBs through removeReservation.",
+  "requirement_sha": "e4233a90dbb58ca4",
+  "tests": {
+    "internal/plugins/rsvpte/rfc2205_softstate_test.go::TestRefreshDoesNotStampEgressPSB": "6fbdb13c26377d72",
+    "internal/plugins/rsvpte/rfc2205_softstate_test.go::TestRefreshResendsPathAndResv": "6fbdb13c26377d72",
+    "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205PathStateDeletedAtCleanupTimeout": "7bc063943de30e7b",
+    "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205RefreshRecursEachTick": "7bc063943de30e7b",
+    "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205RefreshedPathStateKept": "7bc063943de30e7b",
+    "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205RefreshedResvStateKept": "7bc063943de30e7b",
+    "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205ResvStateDeletedAtCleanupTimeout": "7bc063943de30e7b"
+  },
+  "units": {
+    "internal/plugins/rsvpte/rfc2205_softstate_test.go::TestRefreshDoesNotStampEgressPSB": "c105fbf4ca8be9d1",
+    "internal/plugins/rsvpte/rfc2205_softstate_test.go::TestRefreshResendsPathAndResv": "a4f0255a5bad6a50",
+    "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205PathStateDeletedAtCleanupTimeout": "010341722a389017",
+    "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205RefreshRecursEachTick": "aea4787bb44f10ca",
+    "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205RefreshedPathStateKept": "d3058bce5c537198",
+    "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205RefreshedResvStateKept": "897a037ed4f46fe3",
+    "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205ResvStateDeletedAtCleanupTimeout": "6d507556c9aa57c8"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "Judge 2026-09-30 (phase 8). Positive TestRFC5880MD5AuthLen24Accepted (byte 24, Length 48); negative TestRFC5880MD5AuthLenNot24Discarded (byte 0/23/25/28 with floor unset, Length 47 ErrShortAuthBody, 49 refused). Judge break removing the Auth Len byte check in digestVerifier.Verify reds the negative through the floor assertion.",
+  "requirement_sha": "7f1f260263d7fb65",
+  "tests": {
+    "internal/component/bfd/auth/rfc5880_md5_split_test.go::TestRFC5880MD5AuthLen24Accepted": "561a897285e69b5a",
+    "internal/component/bfd/auth/rfc5880_md5_split_test.go::TestRFC5880MD5AuthLenNot24Discarded": "561a897285e69b5a"
+  },
+  "units": {
+    "internal/component/bfd/auth/rfc5880_md5_split_test.go::TestRFC5880MD5AuthLen24Accepted": "ff1eeaac2d70a3d6",
+    "internal/component/bfd/auth/rfc5880_md5_split_test.go::TestRFC5880MD5AuthLenNot24Discarded": "b9afecb5679b7669"
+  },
+  "verdict": "enforced"
+}

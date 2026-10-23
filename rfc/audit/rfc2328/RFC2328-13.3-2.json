@@ -1,0 +1,17 @@
+{
+  "note": "Clauses: LS age incremented by InfTransDelay and capped at MaxAge: TestRFC2328FloodIncrementsAgeByInfTransDelay (unchanged; records on floodCopy). The '(which must be > 0)' clause: TestRFC2328TransmitDelayMustBePositive + an OSPFv2 interface with transmit-delay 1 accepted by validateConfig, - transmit-delay 0 refused with ErrTransmitDelayZero (the config.go validateConfigAF check that production reaches through register.go validateConfig); each case its own single-interface config, so the refusal is this rule's and no other. Records on validateConfigAF observed red for both polarities.",
+  "requirement_sha": "5e012251c30276a2",
+  "tests": {
+    "internal/plugins/ospf/lsdb/rfc2328_flood_age_test.go::TestRFC2328FloodIncrementsAgeByInfTransDelay": "2d72e9edeec0fdd0",
+    "internal/plugins/ospf/lsdb/rfc2328_flood_age_test.go::TestRFC2328FloodIncrementsAgeByInfTransDelay#2": "2d72e9edeec0fdd0",
+    "internal/plugins/ospf/rfc2328_transmit_delay_test.go::TestRFC2328TransmitDelayMustBePositive": "352cc8955720705e",
+    "internal/plugins/ospf/rfc2328_transmit_delay_test.go::TestRFC2328TransmitDelayMustBePositive#2": "352cc8955720705e"
+  },
+  "units": {
+    "internal/plugins/ospf/lsdb/rfc2328_flood_age_test.go::TestRFC2328FloodIncrementsAgeByInfTransDelay": "c394c255f2172405",
+    "internal/plugins/ospf/lsdb/rfc2328_flood_age_test.go::TestRFC2328FloodIncrementsAgeByInfTransDelay#2": "c394c255f2172405",
+    "internal/plugins/ospf/rfc2328_transmit_delay_test.go::TestRFC2328TransmitDelayMustBePositive": "17a0a17139506794",
+    "internal/plugins/ospf/rfc2328_transmit_delay_test.go::TestRFC2328TransmitDelayMustBePositive#2": "17a0a17139506794"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC3768-6.4.3-9",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/fsm/rfc_verdict_test.go::TestV2MasterDemotesOrDiscards",
+    "unit-sha": "276dababed9bc7df",
+    "claim-sha": "cf22a373ccf26d28",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/fsm/fsm.go::demoteToBackup",
+    "producer-sha": "98f7e85238be0829",
+    "break": "body of demoteToBackup replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3768-6.4.3-9",
+    "polarity": "negative",
+    "unit": "internal/plugins/vrrp/fsm/rfc_verdict_test.go::TestV2MasterDemotesOrDiscards",
+    "unit-sha": "276dababed9bc7df",
+    "claim-sha": "cad9f95141b62ee2",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/fsm/fsm.go::senderWinsTieBreak",
+    "producer-sha": "b8f7123cc5b53541",
+    "break": "body of senderWinsTieBreak replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

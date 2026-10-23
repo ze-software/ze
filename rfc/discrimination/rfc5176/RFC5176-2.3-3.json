@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5176-2.3-3",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176LengthFieldGovernsTheOctetsRead",
+    "unit-sha": "f1fa34d78e3e42d2",
+    "claim-sha": "1d88625089bff3ba",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authradius/coa.go::handlePacket",
+    "producer-sha": "42e6f89d73a21db5",
+    "break": "body of handlePacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5176-2.3-3",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176LengthFieldGovernsTheOctetsRead",
+    "unit-sha": "f1fa34d78e3e42d2",
+    "claim-sha": "3f2f84ff8d2e0986",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authradius/coa.go::handlePacket",
+    "producer-sha": "42e6f89d73a21db5",
+    "break": "body of handlePacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

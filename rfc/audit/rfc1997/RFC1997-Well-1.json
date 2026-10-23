@@ -1,0 +1,29 @@
+{
+  "note": "Re-judged 2026-10-20 (independent judge). RFC 1997, Well-known Communities, NO_EXPORT (0xFFFFFF01): \"All routes received carrying a communities attribute containing this value MUST NOT be advertised outside a BGP confederation boundary (a stand-alone autonomous system that is not part of a confederation should be considered a confederation itself).\" The unit that moved is test/plugin/wellknown-no-export-withdraw-egress.ci, last changed by abc56c7ca2 (not 8aaa453ca1, which does not touch this file): the cross-prefix order assumption is gone. Each destination now expects the 198.51.100.0/24 withdrawal, the 10.0.0.0/24 half and the 192.0.2.0/24 fence in one seq group matched in any order, then writes a final receipt the observer fixture (plugin16WellknownWithdrawReceipts) waits for before counting UPDATEs, now 4 internal and 4 external (seed, both withdrawals, fence). The core assertion is unchanged and isolated: reject=bgp scope=announced pattern 180A0000 on the external (AS 65002) session, with the NO_EXPORT community on the 10.0.0.0/24 NLRI of the mixed UPDATE only, plus the exact external count of 4 so a leaked announcement is a fifth UPDATE. Controls still discriminate: the withdrawal half and the ordinary-community fence must reach the external peer (a whole-message skip or a forward-nothing build is red) and the internal (AS 65000) peer must receive the 10.0.0.0/24 announcement (suppression on the wrong side is red). The product defect abc56c7ca2 exposed (external peer never received the 198.51.100.0/24 withdrawal) was fixed by d44cc5dc98; the test passes 3/3 at HEAD (le test bgp plugin -c 3). The other nine covers are unchanged since the prior verdict, which stands for them: predicate and forwarding unit pairs separate external suppression from internal permission and ordinary-community forwarding, and the interop checker pins the boundary. Scope is the supported stand-alone-AS boundary, not a confederation-member implementation. The discrimination record for this .ci is a producer halt of buildWithdrawalPayload, so it proves reachability of the withdrawal rail, not selective NO_EXPORT decision discrimination; the selective proof rests on the reject line and counts read above.",
+  "requirement_sha": "58d22b491a5fae2c",
+  "tests": {
+    "internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go::TestForwardNoExportSkipsExternalPeerOnly": "db61d16266a532f8",
+    "internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go::TestForwardNoExportStillWithdrawsFromExternalPeer": "db61d16266a532f8",
+    "internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go::TestForwardWithoutNoExportReachesExternalPeer": "db61d16266a532f8",
+    "internal/component/bgp/wireu/rfc1997_wellknown_test.go::TestWellKnownNoExportAllowsInternalPeer": "dec76563936c7c9c",
+    "internal/component/bgp/wireu/rfc1997_wellknown_test.go::TestWellKnownNoExportRefusesExternalPeer": "dec76563936c7c9c",
+    "internal/le/interoplab/bgp/check_rfc.go::checkNoExportBoundary": "9d03834af3f0f054",
+    "internal/le/interoplab/bgp/check_rfc.go::checkNoExportBoundary#2": "9d03834af3f0f054",
+    "test/plugin/wellknown-no-export-egress.ci": "c3795c82e01d4b21",
+    "test/plugin/wellknown-no-export-egress.ci#2": "c3795c82e01d4b21",
+    "test/plugin/wellknown-no-export-withdraw-egress.ci": "ccebf2627695497a"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go::TestForwardNoExportSkipsExternalPeerOnly": "beb2711142d7872a",
+    "internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go::TestForwardNoExportStillWithdrawsFromExternalPeer": "49ff3d1d602d3c98",
+    "internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go::TestForwardWithoutNoExportReachesExternalPeer": "858b88657ee735a1",
+    "internal/component/bgp/wireu/rfc1997_wellknown_test.go::TestWellKnownNoExportAllowsInternalPeer": "3226720fb2478e07",
+    "internal/component/bgp/wireu/rfc1997_wellknown_test.go::TestWellKnownNoExportRefusesExternalPeer": "91be597450cbc865",
+    "internal/le/interoplab/bgp/check_rfc.go::checkNoExportBoundary": "c1db0c94aae6cf16",
+    "internal/le/interoplab/bgp/check_rfc.go::checkNoExportBoundary#2": "c1db0c94aae6cf16",
+    "test/plugin/wellknown-no-export-egress.ci": "c3795c82e01d4b21",
+    "test/plugin/wellknown-no-export-egress.ci#2": "c3795c82e01d4b21",
+    "test/plugin/wellknown-no-export-withdraw-egress.ci": "ccebf2627695497a"
+  },
+  "verdict": "enforced"
+}

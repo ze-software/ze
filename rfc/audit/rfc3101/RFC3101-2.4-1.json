@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: a propagate-wanted Type-7 with P clear. lsdb/nssa_test.go TestOSPFType7Origination asserts OptionNP set when propagate=true (line 39) and clear when propagate=false (line 63).",
+  "requirement_sha": "79d7a291a7e5b4cc",
+  "tests": {
+    "internal/plugins/ospf/lsdb/rfc3101_nssa_test.go::TestOSPFType7Origination": "c20c5e21de837ab8",
+    "internal/plugins/ospf/lsdb/rfc3101_nssa_test.go::TestOSPFType7Origination#2": "c20c5e21de837ab8"
+  },
+  "units": {
+    "internal/plugins/ospf/lsdb/rfc3101_nssa_test.go::TestOSPFType7Origination": "a9ff7f924309e5ea",
+    "internal/plugins/ospf/lsdb/rfc3101_nssa_test.go::TestOSPFType7Origination#2": "a9ff7f924309e5ea"
+  },
+  "verdict": "enforced"
+}

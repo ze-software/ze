@@ -1,0 +1,17 @@
+{
+  "note": "Nonce/KE/SA order parses with all three; engine handleAuthResponse accepts unconventional order",
+  "requirement_sha": "f07285c9cd6ed5e6",
+  "tests": {
+    "internal/component/ike/engine/rfc7296_payload_order_test.go::TestPodAuthResponseAcceptsAuthBeforeIdentity": "a5da88be7077d0e0",
+    "internal/component/ike/engine/rfc7296_payload_order_test.go::TestPodAuthResponseAcceptsAuthBeforeIdentity#2": "a5da88be7077d0e0",
+    "internal/component/ike/wire/rfc7296_test.go::TestPayloadOrderNotRejected": "459954f82bfe6b71",
+    "internal/component/ike/wire/rfc7296_test.go::TestPayloadOrderNotRejected#2": "459954f82bfe6b71"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7296_payload_order_test.go::TestPodAuthResponseAcceptsAuthBeforeIdentity": "790dd823854417da",
+    "internal/component/ike/engine/rfc7296_payload_order_test.go::TestPodAuthResponseAcceptsAuthBeforeIdentity#2": "790dd823854417da",
+    "internal/component/ike/wire/rfc7296_test.go::TestPayloadOrderNotRejected": "554c1f99e44b6589",
+    "internal/component/ike/wire/rfc7296_test.go::TestPayloadOrderNotRejected#2": "554c1f99e44b6589"
+  },
+  "verdict": "enforced"
+}

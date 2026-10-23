@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC905-x-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/packet/rfc905_arithmetic_test.go::TestRFC905FaultySenderChecksumRefused",
+    "unit-sha": "8c508804ab3c5161",
+    "claim-sha": "fb59ff39c20f7bcd",
+    "route": "revert",
+    "producer": "internal/plugins/isis/packet/checksum.go::VerifyChecksum",
+    "producer-sha": "aaa4df5f75302408",
+    "break": "body of VerifyChecksum replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC905-x-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/packet/rfc905_checksum_vectors_test.go::TestISISChecksumVectors",
+    "unit-sha": "31224da1b1a49ce0",
+    "claim-sha": "2ef91827bd2a7349",
+    "route": "revert",
+    "producer": "internal/plugins/isis/packet/checksum.go::Checksum",
+    "producer-sha": "b7682d9d907452de",
+    "break": "body of Checksum replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

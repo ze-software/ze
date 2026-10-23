@@ -1,0 +1,23 @@
+{
+  "note": "RFC 7947 Section 2.2.2.1: \"As a route server does not participate in the process of forwarding data between client routers, and because modification of the AS_PATH attribute could affect the route server client BGP Decision Process, the route server SHOULD NOT prepend its own AS number to the AS_PATH segment nor modify the AS_PATH segment in any other way.\" TestReactorForwardRSTransparent requires exact body identity, including the nonempty path; TestReactorForwardRSEBGPPrepend now has reachable NLRI, although its growth-only assertion remains weaker than an exact path oracle. The complete pair is independently supplied by TestRelayStoredRouteRSClientPreservesASPath/TestRelayStoredRoutePlainEBGPPrependsLocalAS and bgp-rs-relay-aspath-transparency.ci, which pin [65001] versus [65000,65001] on the plugin/replay path. checkRouteServerASPath additionally requires BIRD to decode exactly the originating client AS, a route present, and both sessions surviving. All seven tagged covers read; ordinary-peer controls confine the RS exception. Producers forwardUpdateCore/forwardUpdateValidated and the separate reactorForwardRS use destination RSClient facts for prepend decisions. No assertion of runtime completion is made here. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step. Re-read 2026-10-12 (independent auditor) after 4e731b2d96 changed rfc7947_reactor_api_relay_test.go: the edit passes fwdItem by pointer to the relayDispatchedNLRI helper and touches neither tagged unit. Both units re-read: TestRelayStoredRouteRSClientPreservesASPath requires the replayed AS_PATH equal to the stored one with AS 65000 absent, under preconditions that the destination is an eBGP RS client; TestRelayStoredRoutePlainEBGPPrependsLocalAS requires exactly [65000]+stored for a non-RS eBGP destination. Verdict unchanged.",
+  "requirement_sha": "d53a5657709f4770",
+  "tests": {
+    "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSEBGPPrepend": "8a8cb162fbac99e6",
+    "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSTransparent": "8a8cb162fbac99e6",
+    "internal/component/bgp/reactor/rfc7947_reactor_api_relay_test.go::TestRelayStoredRoutePlainEBGPPrependsLocalAS": "22497bb4493ee528",
+    "internal/component/bgp/reactor/rfc7947_reactor_api_relay_test.go::TestRelayStoredRouteRSClientPreservesASPath": "22497bb4493ee528",
+    "internal/le/interoplab/bgp/check_rfc.go::checkRouteServerASPath": "9d03834af3f0f054",
+    "test/plugin/bgp-rs-relay-aspath-transparency.ci": "04f9cb15a64d4a4c",
+    "test/plugin/bgp-rs-relay-aspath-transparency.ci#2": "04f9cb15a64d4a4c"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSEBGPPrepend": "054269a24c2b298c",
+    "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSTransparent": "b6c7cccf999cf20e",
+    "internal/component/bgp/reactor/rfc7947_reactor_api_relay_test.go::TestRelayStoredRoutePlainEBGPPrependsLocalAS": "3b4fbb087fcf2d9c",
+    "internal/component/bgp/reactor/rfc7947_reactor_api_relay_test.go::TestRelayStoredRouteRSClientPreservesASPath": "3ef63e3764265834",
+    "internal/le/interoplab/bgp/check_rfc.go::checkRouteServerASPath": "f3bc15669480d296",
+    "test/plugin/bgp-rs-relay-aspath-transparency.ci": "04f9cb15a64d4a4c",
+    "test/plugin/bgp-rs-relay-aspath-transparency.ci#2": "04f9cb15a64d4a4c"
+  },
+  "verdict": "enforced"
+}

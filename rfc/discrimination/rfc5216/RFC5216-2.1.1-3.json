@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5216-2.1.1-3",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216NoStartBeforeTheIdentityIsReceived",
+    "unit-sha": "5329abaa3d5124b9",
+    "claim-sha": "f535306435a166fb",
+    "route": "revert",
+    "producer": "internal/core/eap/eap.go::Begin",
+    "producer-sha": "c6cfdb45a16530df",
+    "break": "body of Begin replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5216-2.1.1-3",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216StartAnswersTheIdentityResponse",
+    "unit-sha": "8375a002bff8b4de",
+    "claim-sha": "c2e4a32b833d579c",
+    "route": "revert",
+    "producer": "internal/core/eap/eap_tls.go::Start",
+    "producer-sha": "e8beeb2d63021323",
+    "break": "body of Start replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

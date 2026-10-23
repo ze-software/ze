@@ -1,0 +1,79 @@
+[
+  {
+    "rid": "RFC7606-7.16-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/message/rfc7606_attribute_envelope_test.go::TestRFC7606AttrSetMalformedInnerAttributes",
+    "unit-sha": "c7dfd74b80dbcd01",
+    "claim-sha": "1248e59cd86bffec",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/rfc7606_optional_attrs.go::validateAttrSetDepth",
+    "producer-sha": "f3196e4c79239d0a",
+    "break": "body of validateAttrSetDepth replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7606-7.16-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/message/rfc7606_attrset_context_test.go::TestRFC7606AttrSetInnerASPathAlwaysFourOctet",
+    "unit-sha": "692bd133f40d17bd",
+    "claim-sha": "e86a6a0cb136762b",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/rfc7606_optional_attrs.go::validateAttrSetDepth",
+    "producer-sha": "f3196e4c79239d0a",
+    "break": "body of validateAttrSetDepth replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7606-7.16-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/message/rfc7606_attrset_context_test.go::TestRFC7606AttrSetInnerIBGPAttributesOnEBGPSession",
+    "unit-sha": "0100d0c526618e7f",
+    "claim-sha": "5ea3531ad36146e9",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/rfc7606_optional_attrs.go::validateAttrSetDepth",
+    "producer-sha": "f3196e4c79239d0a",
+    "break": "body of validateAttrSetDepth replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7606-7.16-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/message/rfc7606_attrset_context_test.go::TestRFC7606AttrSetInnerMalformedStillWithdraws",
+    "unit-sha": "bc40ec1687cda036",
+    "claim-sha": "6bf49e924e671586",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/rfc7606_optional_attrs.go::validateAttrSetDepth",
+    "producer-sha": "f3196e4c79239d0a",
+    "break": "body of validateAttrSetDepth replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7606-7.16-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/message/rfc7606_attrset_context_test.go::TestRFC7606AttrSetNestingCapBoundary",
+    "unit-sha": "fb63710113f47a1b",
+    "claim-sha": "79e72ec3f2a7900f",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/rfc7606_optional_attrs.go::validateAttrSetDepth",
+    "producer-sha": "f3196e4c79239d0a",
+    "break": "body of validateAttrSetDepth replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7606-7.16-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/message/rfc7606_attrset_discard_test.go::TestRFC7606AttrSetInnerDiscardWithdraws",
+    "unit-sha": "cbe57ca75d8524e5",
+    "claim-sha": "8c1591dca72a2444",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/rfc7606_optional_attrs.go::validateAttrSetDepth",
+    "producer-sha": "f3196e4c79239d0a",
+    "break": "body of validateAttrSetDepth replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7606-7.16-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc7606_attribute_envelope_test.go::TestRFC7606AttributeEnvelopeSession",
+    "unit-sha": "45c281a3f8f0599e",
+    "claim-sha": "628062caada98b12",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
+    "producer-sha": "66c0f3d227b0c731",
+    "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

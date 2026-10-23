@@ -1,0 +1,13 @@
+{
+  "note": "Backup emits zero announcements; the Master's one announcement is BuildNA type 136, never 134",
+  "requirement_sha": "5ccb64c842422565",
+  "tests": {
+    "internal/plugins/vrrp/instance_test.go::TestInstanceBackupSendsNoRouterAdvertisement": "90d279832a92de75",
+    "internal/plugins/vrrp/instance_test.go::TestInstanceBackupSendsNoRouterAdvertisement#2": "90d279832a92de75"
+  },
+  "units": {
+    "internal/plugins/vrrp/instance_test.go::TestInstanceBackupSendsNoRouterAdvertisement": "a4e07dd25ead0a40",
+    "internal/plugins/vrrp/instance_test.go::TestInstanceBackupSendsNoRouterAdvertisement#2": "a4e07dd25ead0a40"
+  },
+  "verdict": "enforced"
+}

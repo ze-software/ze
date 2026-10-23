@@ -1,0 +1,28 @@
+{
+  "code": {
+    "internal/component/ike/engine/fsm.go::handleEAPResponse": "30900baad8956da2",
+    "internal/component/ike/engine/responder.go::handleResponderInbound": "95699b158c56778b",
+    "internal/component/ike/engine/responder_eap.go::handleResponderEAP": "1c4e22e73b1c7c98",
+    "internal/core/eap/eap.go::Process": "481750de5c1bf481",
+    "internal/core/eap/peer.go::Process": "ee07131482ea0948"
+  },
+  "note": "Re-judged 2026-10-15 after b457ba88cf, which changed the cited producer responder_eap.go::handleResponderEAP. RFC 3748 Section 4: \"Since EAP only defines Codes 1-4, EAP packets with other codes MUST be silently discarded by both authenticators and peers.\" The only change to handleResponderEAP is one call, sa.adoptAuthenticatedEndpoint, inside the authPayload branch after verifyRemoteAuth succeeds (the AUTH-from-MSK step after EAP-Success, RFC 3948 Section 2.1 endpoint adoption). It runs after decryptAndParse and the eapMessageDiscarded early return, on a message that carries AUTH and no EAP payload, so it does not touch Code admission. The discard route is unchanged: the authenticator Process (eap.go) returns nil for Code 0 or above 4 before any state access, the peer Process (peer.go) returns peerDiscard() for them before ps.rounds is charged, and handleEAPResponse returns on result.Discarded before any output, message-ID advance or retransmission change. The three tagged units are byte-identical. TestEngineDiscardedEAPCodesPreserveExchange still sends encrypted Codes 0, 5 and 255 into both IKE roles through handleInbound and asserts state, Message ID, last sent message and retransmission deadline and count unchanged, then a held-back valid packet at the same Message ID advances each role, and the exchange ends with matching nonzero MSKs and a verified AUTH. The core units TestRFC3748UndefinedCodesAreSilentlyDiscarded and TestRFC3748DiscardedCodesPreserveExchange are unaffected. Discrimination records are whole-body reverts of the two Process functions, which prove reachability only; the result.Discarded return in handleEAPResponse is held by the unchanged-state assertions, read at the test.",
+  "requirement_sha": "b79c6b2da2e91564",
+  "tests": {
+    "internal/component/ike/engine/rfc3748_eap_discard_admission_test.go::TestEngineDiscardedEAPCodesPreserveExchange": "9f3f8ce8f5d7aa2d",
+    "internal/component/ike/engine/rfc3748_eap_discard_admission_test.go::TestEngineDiscardedEAPCodesPreserveExchange#2": "9f3f8ce8f5d7aa2d",
+    "internal/core/eap/rfc3748_discard_test.go::TestRFC3748UndefinedCodesAreSilentlyDiscarded": "e0e4c426f5444d02",
+    "internal/core/eap/rfc3748_discard_test.go::TestRFC3748UndefinedCodesAreSilentlyDiscarded#2": "e0e4c426f5444d02",
+    "internal/core/eap/rfc3748_role_budget_test.go::TestRFC3748DiscardedCodesPreserveExchange": "d1608e86f38109eb",
+    "internal/core/eap/rfc3748_role_budget_test.go::TestRFC3748DiscardedCodesPreserveExchange#2": "d1608e86f38109eb"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc3748_eap_discard_admission_test.go::TestEngineDiscardedEAPCodesPreserveExchange": "e8c1e9e81cf148b7",
+    "internal/component/ike/engine/rfc3748_eap_discard_admission_test.go::TestEngineDiscardedEAPCodesPreserveExchange#2": "e8c1e9e81cf148b7",
+    "internal/core/eap/rfc3748_discard_test.go::TestRFC3748UndefinedCodesAreSilentlyDiscarded": "8296d97469eb1da3",
+    "internal/core/eap/rfc3748_discard_test.go::TestRFC3748UndefinedCodesAreSilentlyDiscarded#2": "8296d97469eb1da3",
+    "internal/core/eap/rfc3748_role_budget_test.go::TestRFC3748DiscardedCodesPreserveExchange": "04d2b44f18c317b1",
+    "internal/core/eap/rfc3748_role_budget_test.go::TestRFC3748DiscardedCodesPreserveExchange#2": "04d2b44f18c317b1"
+  },
+  "verdict": "enforced"
+}

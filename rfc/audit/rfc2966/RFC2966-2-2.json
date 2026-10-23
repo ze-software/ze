@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-09-30: TestISISLeakOriginationL1L2 gained only RFC2966-2-4 tag comments; body byte-identical. Assertion 3 (hasPrefix(leak.IntoL2, alreadyDown) -> t.Errorf) goes red if leakInto stops skipping p.UpDown; assertion 1 keeps a clear-bit L1 prefix leaking up, so a blanket drop also goes red.",
+  "requirement_sha": "e8fe37441b8118e4",
+  "tests": {
+    "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2": "65952e292e4f6c83",
+    "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2#2": "65952e292e4f6c83"
+  },
+  "units": {
+    "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2": "682f56baeb8524c2",
+    "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2#2": "682f56baeb8524c2"
+  },
+  "verdict": "enforced"
+}

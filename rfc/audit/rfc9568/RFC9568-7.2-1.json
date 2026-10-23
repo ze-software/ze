@@ -1,0 +1,22 @@
+{
+  "code": {
+    "internal/plugins/vrrp/instance.go::doSendAdvert": "bfd3bc0b7e18da21",
+    "internal/plugins/vrrp/packet/packet.go::WriteTo": "7f6d7ed20d3ce54e",
+    "internal/plugins/vrrp/transport/transport.go::encodeLocked": "f11ab57274c81c2c"
+  },
+  "note": "Re-judged 2026-10-18 (independent auditor, after d2abad70ad). RFC 9568 Section 7.2 says \"The following operations MUST be performed when transmitting a VRRP packet: * Fill in the VRRP packet fields with the appropriate Virtual Router configuration state\". TestTransmittedAdvertFilledFromInstanceState requires the params doSendAdvert hands the transport to carry version 3, the effective priority (200, then 150 after eth1 fails), 1000 ms and both VIPs in order, for IPv4 in both checksum modes and IPv6; TestSendAdvertFillsFieldsAndChecksum pins every field of the IPv4 and IPv6 frames encodeLocked produces; the v3 goldens pin WriteTo. Overlay mutants run 2026-10-18 over the whole vrrp tree: doSendAdvert filling the configured priority instead of the effective one reds all three subtests of TestTransmittedAdvertFilledFromInstanceState. The {single-polarity} argument holds for WriteTo, which refuses nothing; encodeLocked does refuse through Validate (ErrIntervalRange, ErrCountRange), a guard RFC5798-7.2-1 carries as its negative. Nit: the annotation line numbers are stale (encodeLocked is at transport.go:537, WriteTo at packet.go:246). No tagged unit is a QEMU-guest unit.",
+  "requirement_sha": "bd1576a9dc0e171d",
+  "tests": {
+    "internal/plugins/vrrp/advert_fill_rfc5798_test.go::TestTransmittedAdvertFilledFromInstanceState": "e7d5de8bf303bc1f",
+    "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV3IPv4": "15a7697300d1b17c",
+    "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV3IPv6": "15a7697300d1b17c",
+    "internal/plugins/vrrp/transport/advert_fill_checksum_test.go::TestSendAdvertFillsFieldsAndChecksum": "4b5ce6713448d3aa"
+  },
+  "units": {
+    "internal/plugins/vrrp/advert_fill_rfc5798_test.go::TestTransmittedAdvertFilledFromInstanceState": "fcb838baf697dbc9",
+    "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV3IPv4": "f665d3473b49bc02",
+    "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV3IPv6": "665b4f9e331eab21",
+    "internal/plugins/vrrp/transport/advert_fill_checksum_test.go::TestSendAdvertFillsFieldsAndChecksum": "84111e91bd9a4e83"
+  },
+  "verdict": "enforced"
+}

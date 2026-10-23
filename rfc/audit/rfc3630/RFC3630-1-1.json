@@ -1,0 +1,13 @@
+{
+  "note": "Judged 2026-10-21 over current tags, units and records. Row text correction only (trailing implementation note dropped, rfc/corrections/rfc3630.md); the quoted sentence 'they MUST flood TE LSAs as any other type 10 (area-local scope) Opaque LSAs' is unchanged and the units are unchanged: the TE Type-10 LSA reaches the same-area retransmit list and is not flooded outside the area.",
+  "requirement_sha": "af9f003a702124ca",
+  "tests": {
+    "internal/plugins/ospf/lsdb/rfc3630_te_test.go::TestRFC3630NonTECapableFloodsTELSAByScope": "7a662c61eda921dd",
+    "internal/plugins/ospf/lsdb/rfc3630_te_test.go::TestRFC3630NonTECapableFloodsTELSAByScope#2": "7a662c61eda921dd"
+  },
+  "units": {
+    "internal/plugins/ospf/lsdb/rfc3630_te_test.go::TestRFC3630NonTECapableFloodsTELSAByScope": "b0a8ec69b49a6d50",
+    "internal/plugins/ospf/lsdb/rfc3630_te_test.go::TestRFC3630NonTECapableFloodsTELSAByScope#2": "b0a8ec69b49a6d50"
+  },
+  "verdict": "enforced"
+}

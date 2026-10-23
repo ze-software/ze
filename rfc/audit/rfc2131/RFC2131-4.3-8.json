@@ -1,0 +1,13 @@
+{
+  "note": "positive: no OFFER/ACK/NAK carries option 57; negative: requests carrying option 57 still draw replies without it",
+  "requirement_sha": "3c8f9bb3388f9710",
+  "tests": {
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyDoesNotEchoClientOptions": "8365c04cdfc2a046",
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyOmitsClientOnlyOptions": "8365c04cdfc2a046"
+  },
+  "units": {
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyDoesNotEchoClientOptions": "50766840a8f13e96",
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyOmitsClientOnlyOptions": "deef6372c11cdf5e"
+  },
+  "verdict": "enforced"
+}

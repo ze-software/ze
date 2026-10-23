@@ -1,0 +1,26 @@
+{
+  "code": {
+    "internal/component/bgp/message/update_build_evpn.go::ValidateEVPNOriginationMode": "0e02032c661f7e2e",
+    "internal/component/bgp/message/update_build_evpn.go::checkESILabelRedundancy": "d67c0464c5de3700",
+    "internal/component/bgp/plugins/nlri/evpn/config.go::parseConfigRoute": "f3ea2c93ef238a9e",
+    "internal/component/bgp/plugins/nlri/evpn/encode.go::l2vpnRouteToEVPNParams": "b5c60e7daf3daf4e",
+    "internal/component/bgp/plugins/nlri/evpn/encode.go::parseL2VPNArgs": "518a11acdc713f4d"
+  },
+  "note": "Re-judged 2026-10-18 (independent auditor, after 0411b53e91). RFC 7432 Section 8.2.1: \"If All-Active redundancy mode is desired, then the \"Single-Active\" bit in the flags of the ESI Label extended community MUST be set to 0 and the MPLS label in that Extended Community MUST be set to a valid MPLS label value.\" Stale only because 0411b53e91 replaced the redundancy-mode argument with a routeIntent struct (redundancyMode plus overlayIndex) through parseL2VPNArgs, l2vpnRouteToEVPNParams, parseConfigRoute and EncodeRoute; the new overlay-index guard refuses only a named selector on a non-ip-prefix route and never touches the Ethernet A-D path. The tagged test units did not change. Both clauses stay proven as before (flag and valid-label refusals with exact text, flag-0 bytes and labels 16/1048575 accepted). Fresh overlay mutants (tags ze_core ze_bgp): parseConfigRoute passing an intent without the mode reddens TestConfiguredEVPNRefusesPerESRedundancyMismatch; EncodeRoute passing an intent without the mode reddens TestOriginPerESRedundancyModeRefused; l2vpnRouteToEVPNParams dropping intent.redundancyMode reddens both; parseL2VPNArgs mapping single-active to all-active reddens TestOriginPerESRedundancyModeAccepted, TestOriginPerESRedundancyModeRefused and TestConfiguredEVPNRefusesPerESRedundancyMismatch. The message-package tests (TestRFC7432ESILabelRedundancyAccepted/Refused) are untouched by the change. Earlier open item unchanged: the config-path positive is only the untagged test/encode/evpn-per-es-redundancy-mode.ci, and the bgp-evpn-gobgp interop still owes its red proof.",
+  "requirement_sha": "16947c2316921816",
+  "tests": {
+    "internal/component/bgp/message/rfc7432_esi_label_redundancy_test.go::TestRFC7432ESILabelRedundancyAccepted": "c2faeb244a8d8b6d",
+    "internal/component/bgp/message/rfc7432_esi_label_redundancy_test.go::TestRFC7432ESILabelRedundancyRefused": "c2faeb244a8d8b6d",
+    "internal/component/bgp/plugins/nlri/evpn/rfc7432_redundancy_mode_test.go::TestConfiguredEVPNRefusesPerESRedundancyMismatch": "9e0f5c5bdf92d304",
+    "internal/component/bgp/plugins/nlri/evpn/rfc7432_redundancy_mode_test.go::TestOriginPerESRedundancyModeAccepted": "9e0f5c5bdf92d304",
+    "internal/component/bgp/plugins/nlri/evpn/rfc7432_redundancy_mode_test.go::TestOriginPerESRedundancyModeRefused": "9e0f5c5bdf92d304"
+  },
+  "units": {
+    "internal/component/bgp/message/rfc7432_esi_label_redundancy_test.go::TestRFC7432ESILabelRedundancyAccepted": "c7872516565117d6",
+    "internal/component/bgp/message/rfc7432_esi_label_redundancy_test.go::TestRFC7432ESILabelRedundancyRefused": "e16a0eb5cefd0326",
+    "internal/component/bgp/plugins/nlri/evpn/rfc7432_redundancy_mode_test.go::TestConfiguredEVPNRefusesPerESRedundancyMismatch": "3a407e07787c5583",
+    "internal/component/bgp/plugins/nlri/evpn/rfc7432_redundancy_mode_test.go::TestOriginPerESRedundancyModeAccepted": "71c820edee007e65",
+    "internal/component/bgp/plugins/nlri/evpn/rfc7432_redundancy_mode_test.go::TestOriginPerESRedundancyModeRefused": "020fd3d064f44c69"
+  },
+  "verdict": "enforced"
+}

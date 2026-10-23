@@ -1,0 +1,15 @@
+{
+  "note": "matrix row master/shutdown requires StopTimers, SendAdvertZeroPriority, RemoveVIPs, Initialize; TestInstanceShutdownAsMasterSendsPriorityZero proves the executor sends priority 0; backup/shutdown sends none",
+  "requirement_sha": "a6fab06d9e13210d",
+  "tests": {
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "52489f84876bdb6f",
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "52489f84876bdb6f",
+    "internal/plugins/vrrp/instance_test.go::TestInstanceShutdownAsMasterSendsPriorityZero": "90d279832a92de75"
+  },
+  "units": {
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "c06b69f55bb239a3",
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "c06b69f55bb239a3",
+    "internal/plugins/vrrp/instance_test.go::TestInstanceShutdownAsMasterSendsPriorityZero": "7f46ec0e2b96d243"
+  },
+  "verdict": "enforced"
+}

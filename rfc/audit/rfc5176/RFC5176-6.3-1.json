@@ -1,0 +1,13 @@
+{
+  "note": "(a) forbidden: acting on or answering a request whose Event-Timestamp is outside the window. (b) TestRFC5176StaleEventTimestampDiscarded asserts no response and zero teardowns for a timestamp two windows old, and ACK for a current one. A future-dated timestamp is not exercised.",
+  "requirement_sha": "aa0e6dc684ebf798",
+  "tests": {
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176StaleEventTimestampDiscarded": "2b3357f1f1e8ec93",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176StaleEventTimestampDiscarded#2": "2b3357f1f1e8ec93"
+  },
+  "units": {
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176StaleEventTimestampDiscarded": "6169a0cffc508bfe",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176StaleEventTimestampDiscarded#2": "6169a0cffc508bfe"
+  },
+  "verdict": "enforced"
+}

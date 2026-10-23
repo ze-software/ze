@@ -1,0 +1,17 @@
+{
+  "note": "Rejudged 2026-10-17 after 7af5edbb7f. RFC 4456 Section 9 read in rfc/full/rfc4456.txt: \"In addition, the following rule SHOULD be inserted between Steps f) and g): a BGP Speaker SHOULD prefer a route with the shorter CLUSTER_LIST length.  The CLUSTER_LIST length is zero if a route does not carry the CLUSTER_LIST attribute.\" The commit changed checkClusterListLengthTieBreak only in the four assertion 8 and 9 failures, which now pass the BIRD route dump through interoplab.WithSearchedOutput (bounded excerpt) instead of printing it whole; each still returns fail(n, non-nil error) on the same condition. Assertions 11 (ze and BIRD agree), 12 (the agreed winner is the origin's path with no CLUSTER_LIST, the absent-as-zero case) and 13 (ze decided at step cluster-list-length, so no earlier step separated the paths and step g would pick the other path) are byte-identical, so the scenario still fails on a non-compliant selection. The unit covers TestBestPath_ClusterListLength (both tags) and TestClusterListEntries are unchanged: SelectBest and SelectBestExplain asserted on shorter-list win, absent-as-zero win, step f precedence and fall-through to step g; clusterListEntries pins absent and empty as zero. The interop unit carries no discrimination record and was not rerun for this failure-text change. Verdict unchanged.",
+  "requirement_sha": "faa27e8e903e22c1",
+  "tests": {
+    "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_ClusterListLength": "ae729071cdaf7dce",
+    "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_ClusterListLength#2": "ae729071cdaf7dce",
+    "internal/component/bgp/plugins/rib/bestpath_test.go::TestClusterListEntries": "ae729071cdaf7dce",
+    "internal/le/interoplab/bgp/check_rfc4456.go::checkClusterListLengthTieBreak": "0251439d85a73b59"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_ClusterListLength": "711ff3bcf17af982",
+    "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_ClusterListLength#2": "711ff3bcf17af982",
+    "internal/component/bgp/plugins/rib/bestpath_test.go::TestClusterListEntries": "16699490f03b9f9a",
+    "internal/le/interoplab/bgp/check_rfc4456.go::checkClusterListLengthTieBreak": "52567b1d357e1707"
+  },
+  "verdict": "enforced"
+}

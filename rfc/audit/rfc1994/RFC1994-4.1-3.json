@@ -1,0 +1,17 @@
+{
+  "note": "Judge ppp4 2026-09-30. rfc1994_local_verifier_test.go (package ppp_test) drives a real LNS session over a net.Pipe: the peer computes its Response Value from a secret, the Driver's EventAuthRequest is answered by l2tp.GetAuthHandler(), the handler l2tp-auth-local registers in init (verifyCHAPMD5 against bob/secret), and the CHAP Code ze writes is read off the wire. Equal Value -> Success (+), differing Value -> Failure (-), so the comparison, not an injected decision, chooses the reply. Targeted breaks (verifyCHAPMD5 always accept / always reject) each redden the matching unit (ppp4-tb-1994-accept.log, ppp4-tb-1994-reject.log); records are runCHAPAuthPhase reverts. The chap_test.go decision-injected units stay as supplementary.",
+  "requirement_sha": "28b31f0ff71709af",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPRejectWritesFailure": "5b49028a86478309",
+    "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPResponseEmitsEvent": "5b49028a86478309",
+    "internal/component/l2tp/ppp/rfc1994_local_verifier_test.go::TestRFC1994DifferentResponseValueDrawsFailureThroughLocalVerifier": "c02fd0b8d066402c",
+    "internal/component/l2tp/ppp/rfc1994_local_verifier_test.go::TestRFC1994EqualResponseValueDrawsSuccessThroughLocalVerifier": "c02fd0b8d066402c"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPRejectWritesFailure": "6bb3184784140766",
+    "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPResponseEmitsEvent": "a1826b62ff5ad546",
+    "internal/component/l2tp/ppp/rfc1994_local_verifier_test.go::TestRFC1994DifferentResponseValueDrawsFailureThroughLocalVerifier": "bc2a16f58650477a",
+    "internal/component/l2tp/ppp/rfc1994_local_verifier_test.go::TestRFC1994EqualResponseValueDrawsSuccessThroughLocalVerifier": "f6abef15a53bd65c"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,17 @@
+{
+  "note": "Both directions for both key-deriving methods. EAP-TLS: peer refuses an untrusted server (legacy walk unit); the new unit shows the server refuses an untrusted client certificate with no EAP-Success and zero MSK. MS-CHAPv2: mutual success with an MSK; wrong NT-Response gives EAP-Failure and zero authenticator MSK; wrong Authenticator Response gives peer Err and zero peer MSK. The negative record's red lands in the positive half (driveClauseFlight also calls handleMSCHAPv2Success); Q2 for each negative assertion answered by reading.",
+  "requirement_sha": "e7a2118e9331cea4",
+  "tests": {
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748KeyDerivingMethodsAuthenticateThePeerToo": "8ca42a58d78f22be",
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748KeyDerivingMethodsAuthenticateThePeerToo#2": "8ca42a58d78f22be",
+    "internal/core/eap/rfc3748_walk_test.go::TestRFC3748KeyDerivingMethodAuthenticatesBothEnds": "08e46d8cbdf7058a",
+    "internal/core/eap/rfc3748_walk_test.go::TestRFC3748KeyDerivingMethodAuthenticatesBothEnds#2": "08e46d8cbdf7058a"
+  },
+  "units": {
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748KeyDerivingMethodsAuthenticateThePeerToo": "cc381412c65e41bb",
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748KeyDerivingMethodsAuthenticateThePeerToo#2": "cc381412c65e41bb",
+    "internal/core/eap/rfc3748_walk_test.go::TestRFC3748KeyDerivingMethodAuthenticatesBothEnds": "e8ac955469df9912",
+    "internal/core/eap/rfc3748_walk_test.go::TestRFC3748KeyDerivingMethodAuthenticatesBothEnds#2": "e8ac955469df9912"
+  },
+  "verdict": "enforced"
+}

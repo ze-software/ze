@@ -1,0 +1,25 @@
+{
+  "note": "Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 9568 Section 8.1.2 says \"The Active Router MUST NOT respond with its physical MAC address in the ARP response.\" TestVRRPOwnerAnswersWithVirtualMACOnly changed only by the checksum-mode plumbing (a Checksum: packet.ChecksumRFC9568 field added to the GroupSpec, AdvertParams or packet.Local literal, or the mode argument added to packet.FillChecksum); every assertion and every isolating input is byte-for-byte the same; the ARP captures with and without the owner filter are unchanged. Verdict unchanged; the guest record is owed a re-record.",
+  "requirement_sha": "1e2a000e0692b566",
+  "tests": {
+    "internal/plugins/vrrp/dataplane_linux_test.go::TestDataplaneApplyIPv4SetsRecipe": "7407d3130d3125e0",
+    "internal/plugins/vrrp/dataplane_linux_test.go::TestDataplaneRestoreOnLastGroup": "7407d3130d3125e0",
+    "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly": "3fc09c91529cf075",
+    "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly#2": "3fc09c91529cf075",
+    "internal/plugins/vrrp/ownerfilter_test.go::TestOwnerFilterWiredOnPromotionForEveryFamily": "9bbf08a19af0da85",
+    "internal/plugins/vrrp/ownerfilter_test.go::TestOwnerFilterWiredOnPromotionForEveryFamily#2": "9bbf08a19af0da85",
+    "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly": "44393888cc66696b",
+    "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly#2": "44393888cc66696b"
+  },
+  "units": {
+    "internal/plugins/vrrp/dataplane_linux_test.go::TestDataplaneApplyIPv4SetsRecipe": "8bbcb38638b03997",
+    "internal/plugins/vrrp/dataplane_linux_test.go::TestDataplaneRestoreOnLastGroup": "9264454e88d221df",
+    "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly": "157f04cf834b3eeb",
+    "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly#2": "157f04cf834b3eeb",
+    "internal/plugins/vrrp/ownerfilter_test.go::TestOwnerFilterWiredOnPromotionForEveryFamily": "ddef6ffca811100b",
+    "internal/plugins/vrrp/ownerfilter_test.go::TestOwnerFilterWiredOnPromotionForEveryFamily#2": "ddef6ffca811100b",
+    "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly": "e394a1b59e5a96d5",
+    "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly#2": "e394a1b59e5a96d5"
+  },
+  "verdict": "enforced"
+}

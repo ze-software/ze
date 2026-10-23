@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: an exchange that fails when one party discarded key state the other still holds. With the authenticator's ticket keys discarded and a peer offering the stale ticket, resumption on either side fails the test (lines 67, 70) and the new MSK must differ from the kept-state MSK; control: with the state kept, both sides resume (lines 48, 51).",
+  "requirement_sha": "3505dba782df1798",
+  "tests": {
+    "internal/core/eap/rfc3748_key_state_test.go::TestRFC3748AnExchangeOutlivesDiscardedKeyState": "4e0a4aafb2ffe7fb",
+    "internal/core/eap/rfc3748_key_state_test.go::TestRFC3748AnExchangeOutlivesDiscardedKeyState#2": "4e0a4aafb2ffe7fb"
+  },
+  "units": {
+    "internal/core/eap/rfc3748_key_state_test.go::TestRFC3748AnExchangeOutlivesDiscardedKeyState": "ad4e14f283c5c942",
+    "internal/core/eap/rfc3748_key_state_test.go::TestRFC3748AnExchangeOutlivesDiscardedKeyState#2": "ad4e14f283c5c942"
+  },
+  "verdict": "enforced"
+}

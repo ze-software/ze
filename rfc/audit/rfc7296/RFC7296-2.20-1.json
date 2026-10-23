@@ -1,0 +1,19 @@
+{
+  "note": "Section 2.20's method: TestRFC7296InformationalVersionRequestDrawsNoCP sends the product INFORMATIONAL handler (handleInformationalOwned, MOBIKE enabled so mobikeResponsePayloads builds the answer) a post-auth CP(CFG_REQUEST, empty APPLICATION_VERSION) and asserts the response the peer decrypts carries no CP; TestRFC7296InformationalVersionRequestReflectsNoVersionString pushes toward reflection with a non-empty version string and asserts no CP and no non-empty APPLICATION_VERSION. IKE_AUTH path: TestRFC7296ResponderAnswersAVersionRequestWithNoCP. Sweep: TestZeDeclinesApplicationVersion. Ze supports no CP, so the no-CP arm is the one that binds.",
+  "requirement_sha": "ce57bff15d289ceb",
+  "tests": {
+    "internal/component/ike/engine/rfc7296_cp_test.go::TestZeDeclinesApplicationVersion": "38bdb8cdc7d2fb80",
+    "internal/component/ike/engine/rfc7296_cp_test.go::TestZeDeclinesApplicationVersion#2": "38bdb8cdc7d2fb80",
+    "internal/component/ike/engine/rfc7296_cp_version_informational_test.go::TestRFC7296InformationalVersionRequestDrawsNoCP": "607e73a674d6bbf3",
+    "internal/component/ike/engine/rfc7296_cp_version_informational_test.go::TestRFC7296InformationalVersionRequestReflectsNoVersionString": "607e73a674d6bbf3",
+    "internal/component/ike/engine/rfc7296_cp_version_test.go::TestRFC7296ResponderAnswersAVersionRequestWithNoCP": "303ae8064814af34"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7296_cp_test.go::TestZeDeclinesApplicationVersion": "086ac4931ee14b25",
+    "internal/component/ike/engine/rfc7296_cp_test.go::TestZeDeclinesApplicationVersion#2": "086ac4931ee14b25",
+    "internal/component/ike/engine/rfc7296_cp_version_informational_test.go::TestRFC7296InformationalVersionRequestDrawsNoCP": "ec1d2b188532ce5c",
+    "internal/component/ike/engine/rfc7296_cp_version_informational_test.go::TestRFC7296InformationalVersionRequestReflectsNoVersionString": "4d7081a558a69c99",
+    "internal/component/ike/engine/rfc7296_cp_version_test.go::TestRFC7296ResponderAnswersAVersionRequestWithNoCP": "09950db7f424210c"
+  },
+  "verdict": "enforced"
+}

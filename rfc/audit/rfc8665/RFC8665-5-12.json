@@ -1,0 +1,19 @@
+{
+  "note": "Re-judged 2026-10-21 against Section 5: \"If both the NP-Flag and E-Flag are set, then: Any upstream neighbor of the Prefix-SID originator MUST replace the Prefix-SID with an Explicit NULL label.\" Action: positives TestRFC8665ExplicitNullPushedAsLabelZero (installer pushes literal label 0) and TestRFC8665ExplicitNullReplacesPrefixSID. Condition, both halves: NP set E clear gives 16009 / ActionKeep (TestRFC8665NoExplicitNullWithoutEFlag, TestRFC8665NoPHPKeepsPrefixSIDLabel); E set NP clear gives ActionPHP, not ActionExplicitNull (TestRFC8665MappingServerFlagClearHonorsNPAndE, newly tagged, revert record on OutgoingActionFor). An E-only Explicit NULL rule now reddens a tagged negative; the earlier half-condition gap is closed.",
+  "requirement_sha": "48421cd0e398092b",
+  "tests": {
+    "internal/plugins/ospf/rfc8665_explicit_null_label_test.go::TestRFC8665ExplicitNullPushedAsLabelZero": "321dd3b6715b9f86",
+    "internal/plugins/ospf/rfc8665_explicit_null_label_test.go::TestRFC8665NoExplicitNullWithoutEFlag": "321dd3b6715b9f86",
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665ExplicitNullReplacesPrefixSID": "dcc89abea6ba13ce",
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665MappingServerFlagClearHonorsNPAndE": "dcc89abea6ba13ce",
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665NoPHPKeepsPrefixSIDLabel": "dcc89abea6ba13ce"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc8665_explicit_null_label_test.go::TestRFC8665ExplicitNullPushedAsLabelZero": "7b619330b57b3ea6",
+    "internal/plugins/ospf/rfc8665_explicit_null_label_test.go::TestRFC8665NoExplicitNullWithoutEFlag": "afa359527626375f",
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665ExplicitNullReplacesPrefixSID": "91f028433fb53896",
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665MappingServerFlagClearHonorsNPAndE": "2ad9ba23c107a4f5",
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665NoPHPKeepsPrefixSIDLabel": "444536801c4546bd"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,14 @@
+{
+  "note": "Re-judged 2026-10-01 under owner ruling 5 (ruling 2 reading). Ze never sends an ID_RFC822_ADDR: encodeIKEID (auth.go) emits only ID_IPV4_ADDR, ID_IPV6_ADDR or ID_FQDN, and the config path refuses a local-id/remote-id holding a terminator before it can be sent. The handling of the peer's violation is the refusal: TestWp2IDTerminatorRefused feeds refuseIDTerminators an ID_RFC822_ADDR holding a NUL and asserts refusal; TestWp2IDWithoutTerminatorAccepted is the control, a clean mail address accepted, so a check refusing every identity goes red. Tag labels are inverted relative to ruling 2 (refusal tagged positive, acceptance negative) but the pair is complete and isolated (one NUL octet is the only difference). Both units hold observed-red revert records.",
+  "requirement_sha": "48c22fdf4d3cba79",
+  "tests": {
+    "internal/component/ike/engine/rfc7296_wp2_test.go::TestWp2IDTerminatorRefused": "ca62d931e5068b03",
+    "internal/component/ike/engine/rfc7296_wp2_test.go::TestWp2IDWithoutTerminatorAccepted": "ca62d931e5068b03"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7296_wp2_test.go::TestWp2IDTerminatorRefused": "f4b89da69b00e57e",
+    "internal/component/ike/engine/rfc7296_wp2_test.go::TestWp2IDWithoutTerminatorAccepted": "935030454f39d3e3"
+  },
+  "upgrade_reason": "No unit changed; the earlier weak verdict held that a receive-side refusal proves nothing Ze could violate. Owner ruling 5 (2026-09-30) rules the receive refusal of a terminator-bearing peer ID as this row's negative, and Ze's send side is confirmed by encodeIKEID never emitting the type.",
+  "verdict": "enforced"
+}

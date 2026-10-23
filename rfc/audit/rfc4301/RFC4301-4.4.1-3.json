@@ -1,0 +1,25 @@
+{
+  "code": {
+    "internal/component/ike/engine/apply.go::applyConfig": "1be52383b6228a02",
+    "internal/component/ike/engine/apply.go::releaseSPD": "37cfdc7d5aa7000d",
+    "internal/component/ike/engine/apply.go::shutdown": "5cc3dbd36e0e32bf",
+    "internal/component/ike/engine/spd_left.go::removeZePolicy": "2d006d756149b6ad",
+    "internal/component/ike/engine/spd_left.go::warnSPDLeft": "e6ee24d12929d61c",
+    "internal/component/ike/engine/unmatched.go::installUnmatched": "260cadeb5e35be57",
+    "internal/component/ike/engine/unmatched.go::unmatchedPolicies": "64bb51afa32fdb14",
+    "internal/component/ike/ipsec/config.go::parseUnmatched": "e972e90aca38faa4"
+  },
+  "note": "Re-judged 2026-10-20 (independent judge, after d6e44c3bb1). Section 4.4.1: \"Every SPD SHOULD have a nominal, final entry that matches anything that is otherwise unmatched, and discards it.\" The only cited producer that moved is warnSPDLeft: d6e44c3bb1 changed the warning message only (entries named by their exact `ip xfrm policy delete` command, so the port 500 and port 4500 IKE bypasses are distinguishable). Return semantics unchanged: true iff the ledger holds an entry, and releaseSPD then skips removeUnmatched, so the discard catch-all stays beneath every leftover Ze entry. removeZePolicy, installUnmatched, unmatchedPolicies, parseUnmatched, applyConfig and shutdown are unchanged. The three tagged carriers are unchanged in body: TestRFC4301DefaultFinalSPDEntryDiscards (with the leaf absent, the last entry in every direction and family is a wildcard discard), TestRFC4301FinalEntryIsUnderEveryZeSPDEntry (replays every recorded write through apply, a Child SA and shutdown, failing the moment any Ze entry is live without the discard catch-all), and TestRFC4301InboundClearPacketIsDiscardedByTheDefaultFinalEntry (real XFRM, a clear inbound packet matching no other entry is dropped). All pass at HEAD together with TestReleaseSPDKeepsTheCatchAllWhenARemovalFails, TestChildInstallRollbackFailureIsRecordedInTheSPDLedger and TestSPDLeftoverNamesTheExactRemovalCommand. Scope note carried from RFC4301-5.2-1: VPP holds no catch-all and the OSPFv3 RFC 4552 entries have none; those are the disclosed gap there and do not touch the SPD Ze's IKE engine builds, which these tests pin. Verdict stands.",
+  "requirement_sha": "79a186b4ae7a6067",
+  "tests": {
+    "internal/component/ike/engine/rfc4301_final_entry_test.go::TestRFC4301DefaultFinalSPDEntryDiscards": "4e2ac922e724203c",
+    "internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go::TestRFC4301InboundClearPacketIsDiscardedByTheDefaultFinalEntry": "c3dd0c022a249aa6",
+    "internal/component/ike/engine/rfc4301_spd_lifecycle_test.go::TestRFC4301FinalEntryIsUnderEveryZeSPDEntry": "8646d2f2fed9cf94"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc4301_final_entry_test.go::TestRFC4301DefaultFinalSPDEntryDiscards": "e893ce566eb615a8",
+    "internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go::TestRFC4301InboundClearPacketIsDiscardedByTheDefaultFinalEntry": "de15886febbe79a1",
+    "internal/component/ike/engine/rfc4301_spd_lifecycle_test.go::TestRFC4301FinalEntryIsUnderEveryZeSPDEntry": "490ac3731da4237c"
+  },
+  "verdict": "enforced"
+}

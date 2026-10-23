@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-09 after 180df07922 (Resolve returns *yang.Resolved, one Resolve per Loader; process, checkExtensions, checkPatterns, checkStructure still all run and join, refusals unchanged): cases unchanged. RFC 9.3.4: 'The \"fraction-digits\" statement, which is a substatement to the \"type\" statement, MUST be present if the type is \"decimal64\".' Prior judgement, still true: Re-judged 2026-10-09; unchanged cases. Negative: ModuleLoadRefused case \"decimal64 without fraction-digits\" (type decimal64; only fault) requires an error containing \"[1..18]\". Positive: case \"decimal64 with fraction-digits\" (2) loads. The twins differ in the fraction-digits statement alone.",
+  "requirement_sha": "6381a3fc5c9682a9",
+  "tests": {
+    "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadAccepted": "26cd2578c196b22d",
+    "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadRefused": "26cd2578c196b22d"
+  },
+  "units": {
+    "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadAccepted": "205c57baa94df187",
+    "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadRefused": "9aa285d5018c168d"
+  },
+  "verdict": "enforced"
+}

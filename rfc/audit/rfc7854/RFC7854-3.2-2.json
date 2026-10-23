@@ -1,0 +1,13 @@
+{
+  "note": "after the collector closes a session the sender reconnects, and not before the base wait since the first session",
+  "requirement_sha": "7b983ab8eba0bf8a",
+  "tests": {
+    "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854SessionEstablishmentRateLimited": "94e84131af3555be",
+    "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854SessionEstablishmentRateLimited#2": "94e84131af3555be"
+  },
+  "units": {
+    "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854SessionEstablishmentRateLimited": "08ff67d65f4e1ea6",
+    "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854SessionEstablishmentRateLimited#2": "08ff67d65f4e1ea6"
+  },
+  "verdict": "enforced"
+}

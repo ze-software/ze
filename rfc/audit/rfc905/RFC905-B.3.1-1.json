@@ -1,0 +1,13 @@
+{
+  "note": "Judged 2026-09-30. Positive TestRFC905GeneratorZeroesTheFieldFirst: Checksum over a region whose field holds stale 0x5A,0xC3 returns the same X,Y as over the zeroed region, equal to the independent closed form, and the pair verifies. Negative TestRFC905SenderThatKeptTheFieldRefused: a sender that summed the stale field octets produces a pair (guarded to differ from Checksum's) that VerifyChecksum refuses, while the compliant pair is accepted (receive-side refusal, R1(a)). Records on checksum.go::Checksum and VerifyChecksum, observed red.",
+  "requirement_sha": "8b65ee507f833658",
+  "tests": {
+    "internal/plugins/isis/packet/rfc905_annexb_steps_test.go::TestRFC905GeneratorZeroesTheFieldFirst": "17c596069f248d2b",
+    "internal/plugins/isis/packet/rfc905_annexb_steps_test.go::TestRFC905SenderThatKeptTheFieldRefused": "17c596069f248d2b"
+  },
+  "units": {
+    "internal/plugins/isis/packet/rfc905_annexb_steps_test.go::TestRFC905GeneratorZeroesTheFieldFirst": "b2b727fc2c1ae8e5",
+    "internal/plugins/isis/packet/rfc905_annexb_steps_test.go::TestRFC905SenderThatKeptTheFieldRefused": "5d9669ed9ae27028"
+  },
+  "verdict": "enforced"
+}

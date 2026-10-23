@@ -1,0 +1,13 @@
+{
+  "note": "sysDescr carries the running build and uname sysname, release and machine, the MIB-II sysDescr content; it changes when the build identity changes",
+  "requirement_sha": "56b8705baa4db15c",
+  "tests": {
+    "internal/component/bgp/plugins/bmp/rfc7854_identity_test.go::TestRFC7854InitiationDescribesRunningSystem": "a2bb096767c14b84",
+    "internal/component/bgp/plugins/bmp/rfc7854_identity_test.go::TestRFC7854InitiationDescriptionChangesWithBuild": "a2bb096767c14b84"
+  },
+  "units": {
+    "internal/component/bgp/plugins/bmp/rfc7854_identity_test.go::TestRFC7854InitiationDescribesRunningSystem": "0e546d17e43874d8",
+    "internal/component/bgp/plugins/bmp/rfc7854_identity_test.go::TestRFC7854InitiationDescriptionChangesWithBuild": "36761d44345c1eda"
+  },
+  "verdict": "enforced"
+}

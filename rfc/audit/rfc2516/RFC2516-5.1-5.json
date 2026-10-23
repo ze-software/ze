@@ -1,0 +1,13 @@
+{
+  "note": "TestPADINeverExceeds1484Octets accepts exactly 1484 octets and refuses 1485",
+  "requirement_sha": "e3a3fbb0bae3ca30",
+  "tests": {
+    "internal/component/l2tp/pppoe/rfc2516_padi_length_test.go::TestPADINeverExceeds1484Octets": "0ed032643a84a6c5",
+    "internal/component/l2tp/pppoe/rfc2516_padi_length_test.go::TestPADINeverExceeds1484Octets#2": "0ed032643a84a6c5"
+  },
+  "units": {
+    "internal/component/l2tp/pppoe/rfc2516_padi_length_test.go::TestPADINeverExceeds1484Octets": "d94ac5a431aaa810",
+    "internal/component/l2tp/pppoe/rfc2516_padi_length_test.go::TestPADINeverExceeds1484Octets#2": "d94ac5a431aaa810"
+  },
+  "verdict": "enforced"
+}

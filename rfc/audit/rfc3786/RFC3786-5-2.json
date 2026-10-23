@@ -1,0 +1,6 @@
+{
+  "no_code_path": "internal/plugins/isis/lsdb/origination.go caps a source at maxFragments = 256 standard fragments and no IS Alias ID TLV (type 24) is decoded or originated in internal/plugins/isis/packet, so no extended LSP set exists; internal/plugins/isis/spf_wiring.go Records groups fragments by source ID only. The condition 'fragment 0 of an extended LSP set' never holds.",
+  "note": "Binds an extended LSP set, which Ze neither originates nor recognizes (owner decision 2026-09-21, standard fragment sets).",
+  "requirement_sha": "a8eef40fd3169f79",
+  "verdict": "not-applicable"
+}

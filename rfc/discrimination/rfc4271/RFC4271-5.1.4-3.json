@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC4271-5.1.4-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_med_ingress_test.go::TestRFC4271ReceivedMEDAlteredBeforeTheDecisionProcess",
+    "unit-sha": "9d307c134190b887",
+    "claim-sha": "0ae35a67018f4c06",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/reactor_notify.go::notifyMessageReceiver",
+    "producer-sha": "0d22727a4db29f29",
+    "break": "body of notifyMessageReceiver replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

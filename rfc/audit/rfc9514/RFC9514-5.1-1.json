@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: a non-zero Reserved word in an originated SRv6 Locator TLV 1162. TestRFC9514NativeSRv6ReservedCleared feeds reserved 0xffff and require.Equal on the whole emitted value goes red on a leak or on damage to following fields.",
+  "requirement_sha": "03fa4d76e1c476a1",
+  "tests": {
+    "internal/component/bgp/plugins/ls_export/rfc9514_export_test.go::TestRFC9514NativeSRv6Advertisements": "7d3a493ffb46e118",
+    "internal/component/bgp/plugins/ls_export/rfc9514_export_test.go::TestRFC9514NativeSRv6ReservedCleared": "7d3a493ffb46e118"
+  },
+  "units": {
+    "internal/component/bgp/plugins/ls_export/rfc9514_export_test.go::TestRFC9514NativeSRv6Advertisements": "9bca9688843c8998",
+    "internal/component/bgp/plugins/ls_export/rfc9514_export_test.go::TestRFC9514NativeSRv6ReservedCleared": "2e5958ba4e604fa5"
+  },
+  "verdict": "enforced"
+}

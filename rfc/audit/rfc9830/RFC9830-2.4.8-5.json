@@ -1,0 +1,13 @@
+{
+  "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NameSubTLVs. Forbidden: two SR Policy Name sub-TLVs in one encoding. Red: assert.Len(srpAll(repeated, subTLVPolicyName), 1) for a config naming the policy twice. Negative (control): an unnamed policy emits none (assert.Empty); a violating output cannot be built from a conforming encoder.",
+  "requirement_sha": "dca7849b5b33aad0",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NameSubTLVs": "450f2364530acf19",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NameSubTLVs#2": "450f2364530acf19"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NameSubTLVs": "4d7575ed7e5b51b7",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NameSubTLVs#2": "4d7575ed7e5b51b7"
+  },
+  "verdict": "enforced"
+}

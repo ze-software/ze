@@ -1,0 +1,15 @@
+{
+  "note": "Proposer side now proven: the IKE and ESP offers ze builds (buildWireIKEProposals, buildWireESPProposals) for AES-CBC/GCM at 128 and 256, encoded and decoded off the wire, carry both key lengths, every ENCR transform with exactly one Key Length attribute; packing two key lengths into one transform fails it. Ze places each alternate ENCR transform in its own proposal, which meets the clause: multiple ENCR transforms, each with a single attribute. Receive side (TestPropAlternateKeyLengthsUseSeparateTransforms) refuses one transform with two key lengths: the genuine receiving-side negative (R1a).",
+  "requirement_sha": "bf233a0425655731",
+  "tests": {
+    "internal/component/ike/engine/rfc7296_alternate_key_length_test.go::TestRFC7296AlternateKeyLengthsAreOfferedAsSeparateTransforms": "08befc15737fe62b",
+    "internal/component/ike/wire/rfc7296_sa_test.go::TestPropAlternateKeyLengthsUseSeparateTransforms": "ef5bab924185575c",
+    "internal/component/ike/wire/rfc7296_sa_test.go::TestPropAlternateKeyLengthsUseSeparateTransforms#2": "ef5bab924185575c"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7296_alternate_key_length_test.go::TestRFC7296AlternateKeyLengthsAreOfferedAsSeparateTransforms": "bc84929db0f351ce",
+    "internal/component/ike/wire/rfc7296_sa_test.go::TestPropAlternateKeyLengthsUseSeparateTransforms": "24e39fff4bb53ed9",
+    "internal/component/ike/wire/rfc7296_sa_test.go::TestPropAlternateKeyLengthsUseSeparateTransforms#2": "24e39fff4bb53ed9"
+  },
+  "verdict": "enforced"
+}

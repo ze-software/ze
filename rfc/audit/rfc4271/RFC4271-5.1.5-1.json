@@ -1,0 +1,21 @@
+{
+  "note": "Re-judged 2026-10-01 (BGP c17 judge): TestRFC4271LocalPrefOmittedForExternalPeers changed only by losing its RFC4271-9.1.1-2 tag lines (D-15); its body and its 5.1.5-1 negative claim are unchanged. SHALL include LOCAL_PREF in all UPDATEs to internal peers. Originated rails: WriteAnnounceUpdate, batch and queued API units (existing). Forward rails: TestRFC4271ForwardAddsLocalPrefTowardInternalPeer relays an eBGP-learned route with no LOCAL_PREF on the general rail and the route-server rail and asserts the internal destination is sent exactly 00000064 while the external destination in the same fan-out is sent none, so a blanket add or a blanket strip each go red. Producer applyFactsLocalPref adds 100 only when the base carries none and no egress mod set one. Observed-red records on applyFactsLocalPref both polarities, and on buildRIBRouteUpdate. The negative's external half overlaps RFC4271-5.1.5-2; it is kept because it is what shows the add follows the internal classification.",
+  "requirement_sha": "0c6d672c9f901595",
+  "tests": {
+    "internal/component/bgp/reactor/rfc4271_forward_local_pref_test.go::TestForwardLocalPrefStrippedToExternalPeer": "33e3a14230a4a91e",
+    "internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go::TestRFC4271ForwardAddsLocalPrefTowardInternalPeer": "ffc03f8e67362cde",
+    "internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go::TestRFC4271ForwardAddsLocalPrefTowardInternalPeer#2": "ffc03f8e67362cde",
+    "internal/component/bgp/reactor/rfc4271_reactor_api_origin_test.go::TestAnnounceStripsLocalPrefTowardExternalPeer": "2d7682e54217a5e1",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefIncludedForInternalPeers": "94aa07ebd53dcc5b",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefOmittedForExternalPeers": "94aa07ebd53dcc5b"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc4271_forward_local_pref_test.go::TestForwardLocalPrefStrippedToExternalPeer": "73e599b61c252e0c",
+    "internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go::TestRFC4271ForwardAddsLocalPrefTowardInternalPeer": "569d309f461689b4",
+    "internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go::TestRFC4271ForwardAddsLocalPrefTowardInternalPeer#2": "569d309f461689b4",
+    "internal/component/bgp/reactor/rfc4271_reactor_api_origin_test.go::TestAnnounceStripsLocalPrefTowardExternalPeer": "49ee700ba438d96c",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefIncludedForInternalPeers": "783191eb4bc341cf",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271LocalPrefOmittedForExternalPeers": "d9f9d0718c76e7d9"
+  },
+  "verdict": "enforced"
+}

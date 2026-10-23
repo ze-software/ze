@@ -1,0 +1,11 @@
+{
+  "note": "Forbidden = an AVP whose definition forbids hiding emitted with H=1. message_rfc2661_test.go::TestRFC2661WrittenAVPFlags walks every AVP of every body Ze writes and fails on any H=1. Row carries single-polarity.",
+  "requirement_sha": "1231d6cf37111038",
+  "tests": {
+    "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661WrittenAVPFlags": "d54398d7e62b2795"
+  },
+  "units": {
+    "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661WrittenAVPFlags": "e66f097d3cc22261"
+  },
+  "verdict": "enforced"
+}

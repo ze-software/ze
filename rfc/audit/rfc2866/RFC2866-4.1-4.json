@@ -1,0 +1,17 @@
+{
+  "note": "Triggers now isolated: the Acct-Delay-Time retransmit (no reply received, attributes changed) asserts a new Identifier; TestRFC2866IdentifierChangesAfterAValidReplyWithUnchangedAttributes sends two records with byte-identical attribute fields, the second after a valid reply, and asserts distinct Identifiers. The rule is one-directional (MUST change on either trigger), so the two positives carry it; the NextID counter negative is a counter property, not a violating input.",
+  "requirement_sha": "dcb1d7f4e8205c4b",
+  "tests": {
+    "internal/component/radius/rfc2866_packet_test.go::TestRFC2866IdentifierChangesForANewRequest": "d31ec983abea25ed",
+    "internal/component/radius/rfc2866_packet_test.go::TestRFC2866IdentifierCounterCoversTheWholeSpace": "d31ec983abea25ed",
+    "internal/component/radius/rfc2866_sent_request_test.go::TestRFC2866AccountingRetransmitTakesANewIdentifierAndRequestAuthenticator": "673a0e65f53e1495",
+    "internal/component/radius/rfc2866_sent_request_test.go::TestRFC2866IdentifierChangesAfterAValidReplyWithUnchangedAttributes": "673a0e65f53e1495"
+  },
+  "units": {
+    "internal/component/radius/rfc2866_packet_test.go::TestRFC2866IdentifierChangesForANewRequest": "e9166933ae908595",
+    "internal/component/radius/rfc2866_packet_test.go::TestRFC2866IdentifierCounterCoversTheWholeSpace": "9fccf2d0268a27a2",
+    "internal/component/radius/rfc2866_sent_request_test.go::TestRFC2866AccountingRetransmitTakesANewIdentifierAndRequestAuthenticator": "5ebf368a13c2f644",
+    "internal/component/radius/rfc2866_sent_request_test.go::TestRFC2866IdentifierChangesAfterAValidReplyWithUnchangedAttributes": "35dc7b69e8b6ac4e"
+  },
+  "verdict": "enforced"
+}

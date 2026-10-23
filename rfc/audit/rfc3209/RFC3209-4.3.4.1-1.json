@@ -1,0 +1,15 @@
+{
+  "note": "Rejudged 2026-09-29 (routing child). The missing input is now covered: TestRFC3209TransitRefusesForeignFirstSubobject sends a first subobject 10.0.0.77/32 that does not contain this node; the transit forwards nothing, keeps no state, and answers PathErr 24/4 to the previous hop, which a blind pop would fail. Positive TestRFC3209TransitEvaluatesFirstEROSubobject.",
+  "requirement_sha": "107ed2c2ce2eeb45",
+  "tests": {
+    "internal/plugins/rsvpte/rfc3209_engine_label_test.go::TestRFC3209TransitEvaluatesFirstEROSubobject": "7730d9f9be4d0cf0",
+    "internal/plugins/rsvpte/rfc3209_engine_label_test.go::TestRFC3209TransitNoFirstEROSubobject": "7730d9f9be4d0cf0",
+    "internal/plugins/rsvpte/rfc3209_signaling_test.go::TestRFC3209TransitRefusesForeignFirstSubobject": "0fabf3da631549e2"
+  },
+  "units": {
+    "internal/plugins/rsvpte/rfc3209_engine_label_test.go::TestRFC3209TransitEvaluatesFirstEROSubobject": "62355c2cea2a8d37",
+    "internal/plugins/rsvpte/rfc3209_engine_label_test.go::TestRFC3209TransitNoFirstEROSubobject": "857f108072430e5c",
+    "internal/plugins/rsvpte/rfc3209_signaling_test.go::TestRFC3209TransitRefusesForeignFirstSubobject": "15d073a739a271da"
+  },
+  "verdict": "enforced"
+}

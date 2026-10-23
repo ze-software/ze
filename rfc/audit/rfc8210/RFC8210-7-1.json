@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: a transport connection on which the router does not speak first with a Reset or Serial Query. TestFirstPDUOnConnectionIsAQuery accepts the connection at a real listener and require.NoError on io.ReadFull of the first PDU (a silent router times out), then asserts buf[1] == pduResetQuery for a fresh session and pduSerialQuery for a resuming one. Row carries {single-polarity: positive}.",
+  "requirement_sha": "98981788af06ce75",
+  "tests": {
+    "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestFirstPDUOnConnectionIsAQuery": "9de8363060757013",
+    "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestFirstPDUOnConnectionIsAQuery#2": "9de8363060757013"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestFirstPDUOnConnectionIsAQuery": "cd7fc1c865e783f3",
+    "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestFirstPDUOnConnectionIsAQuery#2": "cd7fc1c865e783f3"
+  },
+  "verdict": "enforced"
+}

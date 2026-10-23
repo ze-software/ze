@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC2328-13.4-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/lsdb/rfc2328_flooding_edges_test.go::TestOSPFSelfOriginatedNoLocalCopyFlush",
+    "unit-sha": "6d41e54d1178035d",
+    "claim-sha": "52f2a299331f5b9f",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/lsdb/origination.go::flushReceivedSelfLSA",
+    "producer-sha": "8bd5c6a5c0fa13d3",
+    "break": "body of flushReceivedSelfLSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-13.4-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/lsdb/rfc2328_origination_test.go::TestOSPFOriginateSelfReceivedHigherSeq",
+    "unit-sha": "8037f64ac9b79d8e",
+    "claim-sha": "aff7ddfe61d5666d",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/lsdb/origination.go::handleSelfReceived",
+    "producer-sha": "0571a19f035a98c7",
+    "break": "body of handleSelfReceived replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-13.4-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/lsdb/rfc2328_self_detect_test.go::TestRFC2328ForeignLSANotTakenAsSelfOriginated",
+    "unit-sha": "f284a21dc80c39d2",
+    "claim-sha": "ed4da28ec263e7a3",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/lsdb/origination.go::handleSelfReceived",
+    "producer-sha": "0571a19f035a98c7",
+    "break": "body of handleSelfReceived replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-13.4-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/lsdb/rfc2328_self_detect_test.go::TestRFC2328SelfOriginatedDetectedByRouterIDOrInterfaceAddress",
+    "unit-sha": "50e4239330297166",
+    "claim-sha": "930426e3a6671be9",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/lsdb/origination.go::flushReceivedSelfLSA",
+    "producer-sha": "8bd5c6a5c0fa13d3",
+    "break": "body of flushReceivedSelfLSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

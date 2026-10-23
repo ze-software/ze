@@ -1,0 +1,11 @@
+{
+  "note": "Single-polarity positive (row marker). (a) forbidden: decoding the RD or the Ethernet Tag ID at other than the RFC 7432 layout (8-octet RD, 4-octet tag after the 10-octet ESI); (b) TestEVPNType5IPv4 assert.Equal(\"0:65000:100\", evpn.RD().String()) and assert.Equal(uint32(10), evpn.EthernetTag()) go red on a misplaced or misdecoded field. Only a type-0 RD is driven; RD type decoding is the shared ParseRouteDistinguisher.",
+  "requirement_sha": "fb71b0b3f1accf09",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5IPv4": "e95f85b8a1869210"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5IPv4": "12e198bea112ad09"
+  },
+  "verdict": "enforced"
+}

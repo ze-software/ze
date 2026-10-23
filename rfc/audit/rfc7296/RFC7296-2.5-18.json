@@ -1,0 +1,17 @@
+{
+  "note": "Response side now proven through the real handler: protected INFORMATIONAL requests with an unrecognized critical inner payload (types 200 and 49) draw a response with exactly one notify, UNSUPPORTED_CRITICAL_PAYLOAD, whose Notification Data is the one octet of that type (so the data follows the payload, not a constant). Negative: the same payload with the critical bit clear is answered with no such notify. Wire tags keep the parse error carrying the type and the non-critical demotion.",
+  "requirement_sha": "2f594e489b0bdf99",
+  "tests": {
+    "internal/component/ike/engine/rfc7296_unsupported_critical_test.go::TestRFC7296NonCriticalUnknownPayloadDrawsNoUnsupportedCritical": "30bdf886d1b5a24a",
+    "internal/component/ike/engine/rfc7296_unsupported_critical_test.go::TestRFC7296UnsupportedCriticalResponseNamesThePayloadType": "30bdf886d1b5a24a",
+    "internal/component/ike/wire/rfc7296_critpayload_test.go::TestCritUnknownCriticalPayloadNamesItsType": "02e1b5b1293a3513",
+    "internal/component/ike/wire/rfc7296_critpayload_test.go::TestCritUnknownCriticalPayloadNamesItsType#2": "02e1b5b1293a3513"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7296_unsupported_critical_test.go::TestRFC7296NonCriticalUnknownPayloadDrawsNoUnsupportedCritical": "96c22b369d46c0a5",
+    "internal/component/ike/engine/rfc7296_unsupported_critical_test.go::TestRFC7296UnsupportedCriticalResponseNamesThePayloadType": "90911a50ee638f10",
+    "internal/component/ike/wire/rfc7296_critpayload_test.go::TestCritUnknownCriticalPayloadNamesItsType": "e5e9d9cac0cd2515",
+    "internal/component/ike/wire/rfc7296_critpayload_test.go::TestCritUnknownCriticalPayloadNamesItsType#2": "e5e9d9cac0cd2515"
+  },
+  "verdict": "enforced"
+}

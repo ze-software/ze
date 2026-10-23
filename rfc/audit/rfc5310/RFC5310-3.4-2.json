@@ -1,0 +1,13 @@
+{
+  "note": "Same units as RFC5310-3.2-5: the LAN IIH (TestISISHelloSignedOverPaddedPDU) and the point-to-point IIH (TestRFC5310P2PHelloSignedOverPaddedPDU) are both handed to the signer already padded to MTU - LLC with Padding TLV 8, so authentication data computed before padding on either producer goes red. Single-polarity positive per the row. Recorded + on padHello.",
+  "requirement_sha": "a825f69fb3dfd783",
+  "tests": {
+    "internal/plugins/isis/circuit/rfc5303_sent_iih_test.go::TestRFC5310P2PHelloSignedOverPaddedPDU": "103ec73a1dc2a973",
+    "internal/plugins/isis/circuit/runtime_test.go::TestISISHelloSignedOverPaddedPDU": "e4e11f5b96d66de5"
+  },
+  "units": {
+    "internal/plugins/isis/circuit/rfc5303_sent_iih_test.go::TestRFC5310P2PHelloSignedOverPaddedPDU": "8ff43de19dc120b0",
+    "internal/plugins/isis/circuit/runtime_test.go::TestISISHelloSignedOverPaddedPDU": "3431ee8e9d228c16"
+  },
+  "verdict": "enforced"
+}

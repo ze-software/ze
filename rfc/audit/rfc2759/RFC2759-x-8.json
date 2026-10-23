@@ -1,0 +1,13 @@
+{
+  "note": "Row re-levelled MUST->SHOULD (only keyword in the span is SHOULD; correction 2026-09-28 in rfc/corrections/rfc2759.md). Single-polarity positive: with crypto/rand.Reader substituted, the Challenge from mschapv2Method.Start carries Value-Size 16 and exactly the substituted octets, so a math/rand or time-seeded source goes red.",
+  "requirement_sha": "8771a5d9ef574e84",
+  "tests": {
+    "internal/core/eap/rfc2759_clause_test.go::TestRFC2759AuthenticatorChallengeComesFromCryptoRand": "56143b27bc08b27f",
+    "internal/core/eap/rfc2759_eap_mschapv2_test.go::TestMSCHAPv2AuthChallengeRandom16": "f08fabdb1765636f"
+  },
+  "units": {
+    "internal/core/eap/rfc2759_clause_test.go::TestRFC2759AuthenticatorChallengeComesFromCryptoRand": "b7e87708d2bae5f7",
+    "internal/core/eap/rfc2759_eap_mschapv2_test.go::TestMSCHAPv2AuthChallengeRandom16": "2436afafa1bfacc8"
+  },
+  "verdict": "enforced"
+}

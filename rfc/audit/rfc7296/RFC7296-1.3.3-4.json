@@ -1,0 +1,15 @@
+{
+  "note": "TestRFC7296ChildRekeyResponseCarriesTheSelectorsAndMayNarrow: ze's respondChildRekey response announces TSi/TSr equal to the installed scope, and ze as rekey initiator installs an answer narrowed to 10.1.0.0/25 from a /24 proposal (the may-be-a-subset clause). TestChildRekeyAnswerWithoutTrafficSelectorsIsRefused (moved from 2.9-1): a response without TS payloads is refused and installs nothing, the same fixture with both payloads installs their scope.",
+  "requirement_sha": "0b07c2440da39c79",
+  "tests": {
+    "internal/component/ike/engine/rfc7296_child_rekey_initiator_answer_test.go::TestChildRekeyAnswerWithoutTrafficSelectorsIsRefused": "898df03dba5c2897",
+    "internal/component/ike/engine/rfc7296_child_rekey_initiator_answer_test.go::TestChildRekeyAnswerWithoutTrafficSelectorsIsRefused#2": "898df03dba5c2897",
+    "internal/component/ike/engine/rfc7296_rekey_payloads_test.go::TestRFC7296ChildRekeyResponseCarriesTheSelectorsAndMayNarrow": "bd9484104305f061"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7296_child_rekey_initiator_answer_test.go::TestChildRekeyAnswerWithoutTrafficSelectorsIsRefused": "0351b3fc440f5796",
+    "internal/component/ike/engine/rfc7296_child_rekey_initiator_answer_test.go::TestChildRekeyAnswerWithoutTrafficSelectorsIsRefused#2": "0351b3fc440f5796",
+    "internal/component/ike/engine/rfc7296_rekey_payloads_test.go::TestRFC7296ChildRekeyResponseCarriesTheSelectorsAndMayNarrow": "01ade9a5b3f7ad04"
+  },
+  "verdict": "enforced"
+}

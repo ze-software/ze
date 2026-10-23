@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5072-2-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/ncp_test.go::TestIPv6ServiceStartsOnlyAfterIPv6CPOpened",
+    "unit-sha": "907a0ec5a2449719",
+    "claim-sha": "fd5337604aca2b4c",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/ncp.go::sendIPAssigned",
+    "producer-sha": "896f99912ffbdc26",
+    "break": "body of sendIPAssigned replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5072-2-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc5072_ipv6cp_opened_test.go::TestRFC5072NoIPv6ServiceWhileIPv6CPShortOfOpened",
+    "unit-sha": "7755df839546f4c6",
+    "claim-sha": "d70ec7cbebbb2a0c",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/ncp.go::ncpsComplete",
+    "producer-sha": "352c7e0e3f28920b",
+    "break": "body of ncpsComplete replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

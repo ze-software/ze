@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7950-7.6.1-3",
+    "polarity": "positive",
+    "unit": "internal/component/config/rfc7950_leaf_default_test.go::TestRFC7950LeafDefaultFollowsItsAncestor",
+    "unit-sha": "bb5d545750f2e295",
+    "claim-sha": "4c70cc5f2971b618",
+    "route": "revert",
+    "producer": "internal/component/config/schema_defaults.go::applyContainerDefault",
+    "producer-sha": "eb9854e6140940d2",
+    "break": "body of applyContainerDefault replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7950-7.6.1-3",
+    "polarity": "negative",
+    "unit": "internal/component/config/rfc7950_leaf_default_test.go::TestRFC7950LeafDefaultFollowsItsAncestor",
+    "unit-sha": "bb5d545750f2e295",
+    "claim-sha": "f5eb79409196fa0c",
+    "route": "mutant",
+    "producer": "internal/component/config/schema_defaults.go::applyContainerDefault",
+    "producer-sha": "eb9854e6140940d2",
+    "break": "line 63: \"c.Presence\" -\u003e \"false\""
+  }
+]

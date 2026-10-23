@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4301-4.4.1-6",
+    "polarity": "positive",
+    "unit": "internal/component/ike/ipsec/rfc4301_spd_s_test.go::TestRFC4301SPDSEntryCarriesSelectorsSAControlsAndProtection",
+    "unit-sha": "7289973e0e911779",
+    "claim-sha": "d5ee6ce0ad119627",
+    "route": "revert",
+    "producer": "internal/component/ike/ipsec/config.go::parseSiteToSitePeer",
+    "producer-sha": "eaba4e6ee9a18352",
+    "break": "body of parseSiteToSitePeer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4301-4.4.1-6",
+    "polarity": "negative",
+    "unit": "internal/component/ike/ipsec/rfc4301_spd_s_test.go::TestRFC4301SPDSEntryRefusesAMissingOrUnusablePart",
+    "unit-sha": "1bbda0f03578ca40",
+    "claim-sha": "9e7a2e409df924dc",
+    "route": "revert",
+    "producer": "internal/component/ike/ipsec/config.go::parseSiteToSitePeer",
+    "producer-sha": "eaba4e6ee9a18352",
+    "break": "body of parseSiteToSitePeer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

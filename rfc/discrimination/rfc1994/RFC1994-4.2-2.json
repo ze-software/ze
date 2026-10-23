@@ -1,0 +1,57 @@
+[
+  {
+    "rid": "RFC1994-4.2-2",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/plugins/authlocal/rfc1994_auth_test.go::TestLocalAuthCHAPMD5Accept",
+    "unit-sha": "ef0af947560951b0",
+    "claim-sha": "2376d3768b56cfef",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authlocal/auth.go::verifyCHAPMD5",
+    "producer-sha": "2200b9876ae49fac",
+    "break": "body of verifyCHAPMD5 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1994-4.2-2",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/plugins/authlocal/rfc1994_auth_test.go::TestLocalAuthCHAPMD5Reject",
+    "unit-sha": "9698d3745de0bec6",
+    "claim-sha": "2cf30f7177d132cc",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authlocal/auth.go::verifyCHAPMD5",
+    "producer-sha": "2200b9876ae49fac",
+    "break": "body of verifyCHAPMD5 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1994-4.2-2",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPRejectWritesFailure",
+    "unit-sha": "c3a7004b2041ad3c",
+    "claim-sha": "b379332425165c9b",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/chap.go::runCHAPAuthPhase",
+    "producer-sha": "68950dbf2425118b",
+    "break": "body of runCHAPAuthPhase replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1994-4.2-2",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1994_local_verifier_test.go::TestRFC1994DifferentResponseValueDrawsFailureThroughLocalVerifier",
+    "unit-sha": "1c8e7350bdf313e9",
+    "claim-sha": "8fee5f3c1ca48bb6",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authlocal/auth.go::verifyCHAPMD5",
+    "producer-sha": "2200b9876ae49fac",
+    "break": "body of verifyCHAPMD5 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1994-4.2-2",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/ppp/rfc1994_local_verifier_test.go::TestRFC1994EqualResponseValueDrawsSuccessThroughLocalVerifier",
+    "unit-sha": "0352383bd0a076c8",
+    "claim-sha": "d268eb041a295a3d",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authlocal/auth.go::verifyCHAPMD5",
+    "producer-sha": "2200b9876ae49fac",
+    "break": "body of verifyCHAPMD5 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

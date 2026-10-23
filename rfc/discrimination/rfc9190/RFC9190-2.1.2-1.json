@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC9190-2.1.2-1",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc9190_resumption_refusal_test.go::TestEAPTLS13IssuesNoTicketToAClientThatOffersNoPSKMode",
+    "unit-sha": "537a951cb8626f18",
+    "claim-sha": "701854fc23ae435b",
+    "route": "revert",
+    "producer": "internal/core/eap/resumption.go::TicketKeys",
+    "producer-sha": "c7e047f9231e686f",
+    "break": "body of TicketKeys replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9190-2.1.2-1",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc9190_resumption_test.go::TestEAPTLS13IssuesASessionTicketTheNextExchangeRedeems",
+    "unit-sha": "144c79f5935885d9",
+    "claim-sha": "7158d7ed1ff91ba3",
+    "route": "revert",
+    "producer": "internal/core/eap/resumption.go::TicketKeys",
+    "producer-sha": "c7e047f9231e686f",
+    "break": "body of TicketKeys replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9190-2.1.2-1",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc9190_resumption_test.go::TestEAPTLS13ResumptionOffRunsAFullHandshakeAndStillIssuesATicket",
+    "unit-sha": "ffc72b0f32677f29",
+    "claim-sha": "89d9749a4c0a1d4d",
+    "route": "revert",
+    "producer": "internal/core/eap/resumption.go::refuseResumption",
+    "producer-sha": "73e1e7af48601352",
+    "break": "body of refuseResumption replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

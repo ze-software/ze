@@ -1,0 +1,11 @@
+{
+  "note": "rfc7854_replay_test.go::TestRFC7854ChangedAttributesCanReturnToEarlierValue receives one prefix three times with ORIGIN IGP, INCOMPLETE, IGP and requires exactly three Route Monitoring messages, each body byte-equal to the UPDATE carrying that ORIGIN, so a sender that suppresses or dedupes the return to an earlier value fails (record: handleSenderUpdate break observed red). One attribute (ORIGIN) samples 'such as an attribute change'. {single-polarity: positive} holds: every route change is compliant input to the router, which has no refusal path.",
+  "requirement_sha": "188789eb497d3328",
+  "tests": {
+    "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854ChangedAttributesCanReturnToEarlierValue": "54df4950a18893be"
+  },
+  "units": {
+    "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854ChangedAttributesCanReturnToEarlierValue": "26b2024bb749b686"
+  },
+  "verdict": "enforced"
+}

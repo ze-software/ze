@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4724-4.2-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/gr/rfc4724_retention_test.go::TestRFC4724SessionDownRetainsAndMarksRoutesStale",
+    "unit-sha": "dca45f370d2126a0",
+    "claim-sha": "f1ee712f89116f4a",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/gr/gr.go::retainPeerFamilies",
+    "producer-sha": "6b7c9fbc1fbb2181",
+    "break": "body of retainPeerFamilies replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4724-4.2-3",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/gr/rfc4724_retention_test.go::TestRFC4724SessionDownWithoutCapabilityRetainsNothing",
+    "unit-sha": "4cc9b2095c981746",
+    "claim-sha": "7fdd301c390b6a6a",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/gr/gr_state.go::onSessionDownDeferred",
+    "producer-sha": "616c4eefc2bacdab",
+    "break": "body of onSessionDownDeferred replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

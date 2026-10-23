@@ -1,0 +1,25 @@
+{
+  "note": "Rejudged 2026-10-08 against RFC 2205 Section 3.10 ('Class-Num = 0bbbbbbb The entire message should be rejected and an \"Unknown Object Class\" error returned.'). classifyUnknownClass still rejects a 0bbbbbbb class ze does not know; the 1d457b0d52 change to DecodeMessage skips only SENDER_TSPEC and ADSPEC in a PathTear (pathTearIgnored), both known classes, so it does not reach this path. Reject and error clauses at the engine: TestRFC2205UnknownClassPathRejectedWithError (no PSB, no RESV, PathErr code 13, value Class<<8|C-Type to the PHOP) and TestRFC2205UnknownClassResvRejectedWithError (no relay, no RSB, ResvErr 13). Decode-level cases in TestDecodeUnknownObjectClass and the ignorable-class positive in TestEnginePathWithIgnorableObjectAccepted are byte-identical.",
+  "requirement_sha": "58eecccad889ff58",
+  "tests": {
+    "internal/plugins/rsvpte/frr_test.go::TestEnginePathWithIgnorableObjectAccepted": "9e1595a34e264d7e",
+    "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205UnknownClassPathRejectedWithError": "7bc063943de30e7b",
+    "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205UnknownClassResvRejectedWithError": "7bc063943de30e7b",
+    "internal/plugins/rsvpte/wire_test.go::TestDecodeUnknownObjectClass": "9e0ed20ca4d343e6",
+    "internal/plugins/rsvpte/wire_test.go::TestDecodeUnknownObjectClass#2": "9e0ed20ca4d343e6",
+    "internal/plugins/rsvpte/wire_test.go::TestDecodeUnknownObjectClass#3": "9e0ed20ca4d343e6",
+    "internal/plugins/rsvpte/wire_test.go::TestDecodeUnknownObjectClass#4": "9e0ed20ca4d343e6",
+    "internal/plugins/rsvpte/wire_test.go::TestDecodeUnknownObjectClass#5": "9e0ed20ca4d343e6"
+  },
+  "units": {
+    "internal/plugins/rsvpte/frr_test.go::TestEnginePathWithIgnorableObjectAccepted": "0f8c51d8d33e47cf",
+    "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205UnknownClassPathRejectedWithError": "c5e50ec83f76f827",
+    "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205UnknownClassResvRejectedWithError": "72a956a13c23a779",
+    "internal/plugins/rsvpte/wire_test.go::TestDecodeUnknownObjectClass": "2b333a752e99d39c",
+    "internal/plugins/rsvpte/wire_test.go::TestDecodeUnknownObjectClass#2": "2b333a752e99d39c",
+    "internal/plugins/rsvpte/wire_test.go::TestDecodeUnknownObjectClass#3": "2b333a752e99d39c",
+    "internal/plugins/rsvpte/wire_test.go::TestDecodeUnknownObjectClass#4": "2b333a752e99d39c",
+    "internal/plugins/rsvpte/wire_test.go::TestDecodeUnknownObjectClass#5": "2b333a752e99d39c"
+  },
+  "verdict": "enforced"
+}

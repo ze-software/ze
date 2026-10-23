@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-09-30 (continuation 6, judge): single-polarity positive holds. TestRFC4552BarrierPoliciesProtectOSPFInEveryDirection asserts out/in/fwd proto-89 protect policies with the ESP or AH transform on both esp and ah interfaces; the revert record on buildIPsecPolicies was re-observed red after the test gained selector assertions.",
+  "requirement_sha": "34643c7aa4f918a3",
+  "tests": {
+    "internal/plugins/ospf/ipsec_install_test.go::TestIPsecPoliciesInterfaceScopedWildcard": "976d07eeb9539b2b",
+    "internal/plugins/ospf/rfc4552_barrier_test.go::TestRFC4552BarrierPoliciesProtectOSPFInEveryDirection": "638d96a72d0e1911"
+  },
+  "units": {
+    "internal/plugins/ospf/ipsec_install_test.go::TestIPsecPoliciesInterfaceScopedWildcard": "d54b45173f449945",
+    "internal/plugins/ospf/rfc4552_barrier_test.go::TestRFC4552BarrierPoliciesProtectOSPFInEveryDirection": "6a89a5d53b6bb99a"
+  },
+  "verdict": "enforced"
+}

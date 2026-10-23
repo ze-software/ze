@@ -1,0 +1,13 @@
+{
+  "note": "empty INFORMATIONAL request answered by an encrypted INFORMATIONAL response with zero inner payloads echoing the message ID; a response is not answered",
+  "requirement_sha": "a013c2b509cbd737",
+  "tests": {
+    "internal/component/ike/engine/rfc7296_test.go::TestDPDEmptyInformationalGetsEmptyResponse": "e032382b6fba7977",
+    "internal/component/ike/engine/rfc7296_test.go::TestDPDEmptyInformationalGetsEmptyResponse#2": "e032382b6fba7977"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7296_test.go::TestDPDEmptyInformationalGetsEmptyResponse": "037e8d1a1a8ac004",
+    "internal/component/ike/engine/rfc7296_test.go::TestDPDEmptyInformationalGetsEmptyResponse#2": "037e8d1a1a8ac004"
+  },
+  "verdict": "enforced"
+}

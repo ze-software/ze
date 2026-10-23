@@ -1,0 +1,15 @@
+{
+  "note": "RFC 9234 Section 4.1: \"If the BGP Role is locally configured, the eBGP speaker MUST advertise the BGP Role Capability in the BGP OPEN message.\" Producer internal/component/bgp/plugins/role/config.go::extractRoleCapabilities emits code 9 and one-octet role values from extractPeerRoleConfigs; reactor/peer.go::getPluginCapabilities consumes the selector declarations, including dynamic groups. TestExtractRoleCapabilities_ParseBGPConfig checks all five values, exactly one declaration and peer, and no declaration for absent/empty/invalid roles. dynamic-peer-gets-group-role-capability.ci pins the entire 002E OPEN ending 090101, then the EoR and dynamic-session establishment, with local AS 65533 and peer AS 65010. A missing, duplicate or wrong-valued capability fails the wire assertion. Rejudged independently against RFC source and every tagged carrier on 2026-10-22. Functional judgments use the corresponding test/draft/plugin files, not the unpromoted old-syntax live files. Their inactive NO-TRANSIT import/export policies explicitly end in accept; reactor runEgressPolicyChain applies that final only after mandatory in-process OTC, and OPEN validation is independent. This is a source judgment, not a new runtime or discrimination result; parent owns promotion and native freshness before stamping.",
+  "requirement_sha": "62efeb1033f32654",
+  "tests": {
+    "internal/component/bgp/plugins/role/rfc9234_config_test.go::TestExtractRoleCapabilities_ParseBGPConfig": "fe6a1844d24f559d",
+    "internal/component/bgp/plugins/role/rfc9234_config_test.go::TestExtractRoleCapabilities_ParseBGPConfig#2": "fe6a1844d24f559d",
+    "test/plugin/dynamic-peer-gets-group-role-capability.ci": "404bb4f4cfe5b8da"
+  },
+  "units": {
+    "internal/component/bgp/plugins/role/rfc9234_config_test.go::TestExtractRoleCapabilities_ParseBGPConfig": "56e78e6bbc863460",
+    "internal/component/bgp/plugins/role/rfc9234_config_test.go::TestExtractRoleCapabilities_ParseBGPConfig#2": "56e78e6bbc863460",
+    "test/plugin/dynamic-peer-gets-group-role-capability.ci": "404bb4f4cfe5b8da"
+  },
+  "verdict": "enforced"
+}

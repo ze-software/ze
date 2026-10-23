@@ -1,0 +1,17 @@
+{
+  "note": "The sentence formats the RRQ/WRQ, so its ASCII clause binds the request's sender; Ze only receives requests, and no receiver obligation to refuse non-ASCII follows from it. Receiver side, TestRFC7440FieldsAreNULTerminatedASCIIStrings: the Section 3 example parses to foobar/octet/windowsize; a windowsize whose #blocks lacks its NUL is not recognized, and a filename without its NUL is refused (red on a parser taking an unterminated field). Supplementary: every field of the OACK Ze sends is printable ASCII with one NUL (four fields).",
+  "requirement_sha": "a77b5523293d4a80",
+  "tests": {
+    "internal/plugins/tftpserver/handler_test.go::TestTFTPParseRRQ": "0809d9c9f8739da3",
+    "internal/plugins/tftpserver/handler_test.go::TestTFTPParseRRQInvalid": "0809d9c9f8739da3",
+    "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC7440FieldsAreNULTerminatedASCIIStrings": "402f4bee572c1a29",
+    "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC7440FieldsAreNULTerminatedASCIIStrings#2": "402f4bee572c1a29"
+  },
+  "units": {
+    "internal/plugins/tftpserver/handler_test.go::TestTFTPParseRRQ": "f7a3a6ab540f1ba9",
+    "internal/plugins/tftpserver/handler_test.go::TestTFTPParseRRQInvalid": "7f6ed0b3630ad29a",
+    "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC7440FieldsAreNULTerminatedASCIIStrings": "bfebd9646cea0db0",
+    "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC7440FieldsAreNULTerminatedASCIIStrings#2": "bfebd9646cea0db0"
+  },
+  "verdict": "enforced"
+}

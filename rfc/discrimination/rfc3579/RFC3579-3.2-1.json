@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC3579-3.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/radius/packet_test.go::TestSignMessageAuthenticatorMatchesRFC3579",
+    "unit-sha": "7256f75b710ec7bd",
+    "claim-sha": "3b70cc974c5ef65e",
+    "route": "revert",
+    "producer": "internal/component/radius/packet.go::SignMessageAuthenticator",
+    "producer-sha": "bebd094472ef0a33",
+    "break": "body of SignMessageAuthenticator replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3579-3.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/radius/packet_test.go::TestSignMessageAuthenticatorZeroesTheSignatureField",
+    "unit-sha": "053b9e57ef5b5d7d",
+    "claim-sha": "c3082b194cf2320f",
+    "route": "revert",
+    "producer": "internal/component/radius/packet.go::SignMessageAuthenticator",
+    "producer-sha": "bebd094472ef0a33",
+    "break": "body of SignMessageAuthenticator replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

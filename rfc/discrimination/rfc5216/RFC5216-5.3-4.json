@@ -1,0 +1,68 @@
+[
+  {
+    "rid": "RFC5216-5.3-4",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds",
+    "unit-sha": "10fb5e08a4e1addf",
+    "claim-sha": "03b9e9414307eb82",
+    "route": "revert",
+    "producer": "internal/core/eap/peer_chain.go::verifyPeerCertificate",
+    "producer-sha": "21a7756cc3463e46",
+    "break": "body of verifyPeerCertificate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5216-5.3-4",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSPeerRejectsUntrustedServerChain",
+    "unit-sha": "b903caa417528ded",
+    "claim-sha": "2104fc29941083e1",
+    "route": "revert",
+    "producer": "internal/core/eap/peer_chain.go::verifyPeerCertificate",
+    "producer-sha": "21a7756cc3463e46",
+    "break": "body of verifyPeerCertificate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5216-5.3-4",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSPeerWithoutCARefusesToStart",
+    "unit-sha": "774abc7444873796",
+    "claim-sha": "ac8b6d4328089f53",
+    "route": "revert",
+    "producer": "internal/core/eap/peer.go::startTLSClient",
+    "producer-sha": "dcfd4f1b0f5e2729",
+    "break": "body of startTLSClient replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5216-5.3-4",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216ServerSendsItsChainWithoutTheRoot",
+    "unit-sha": "f94d8e2b1e815019",
+    "claim-sha": "2c55aab4c7ed7d57",
+    "route": "revert",
+    "producer": "internal/core/eap/eap_tls.go::newTLSMethod",
+    "producer-sha": "9d4ae49c78228895",
+    "break": "body of newTLSMethod replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5216-5.3-4",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc5216_server_chain_test.go::TestRFC5216PeerRefusesAServerChainMissingItsIntermediate",
+    "unit-sha": "00e8629cdc201491",
+    "claim-sha": "606023ca84fa331b",
+    "route": "revert",
+    "producer": "internal/core/eap/peer_chain.go::verifyPeerCertificate",
+    "producer-sha": "21a7756cc3463e46",
+    "break": "body of verifyPeerCertificate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5216-5.3-4",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc5216_server_chain_test.go::TestRFC5216ServerSendsItsIntermediateButNotTheRoot",
+    "unit-sha": "6870ce1bffdd083d",
+    "claim-sha": "c885f315f547d746",
+    "route": "revert",
+    "producer": "internal/core/eap/eap_tls.go::newTLSMethod",
+    "producer-sha": "9d4ae49c78228895",
+    "break": "body of newTLSMethod replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

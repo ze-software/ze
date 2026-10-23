@@ -1,0 +1,68 @@
+[
+  {
+    "rid": "RFC2661-5.8-7",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661ClosedTunnelKeptForRetransmissionInterval",
+    "unit-sha": "8d86cd7cd6343d9d",
+    "claim-sha": "0b1feb71bcf4846f",
+    "route": "revert",
+    "producer": "internal/component/l2tp/reactor.go::reapExpiredLocked",
+    "producer-sha": "af7bd2f24ea8d6d7",
+    "break": "body of reapExpiredLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2661-5.8-7",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661ClosedTunnelKeptForRetransmissionInterval",
+    "unit-sha": "8d86cd7cd6343d9d",
+    "claim-sha": "4c0831443d9173e6",
+    "route": "revert",
+    "producer": "internal/component/l2tp/reactor.go::reapExpiredLocked",
+    "producer-sha": "af7bd2f24ea8d6d7",
+    "break": "body of reapExpiredLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2661-5.8-7",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/rfc2661_reliable_integration_test.go::TestPostTeardownAckRetention",
+    "unit-sha": "cb9fd73ad6d3508c",
+    "claim-sha": "8f43f29a4d3e078f",
+    "route": "revert",
+    "producer": "internal/component/l2tp/reliable.go::NeedsZLB",
+    "producer-sha": "faf47a9a8d27087f",
+    "break": "body of NeedsZLB replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2661-5.8-7",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/rfc2661_reliable_integration_test.go::TestPostTeardownAckRetention",
+    "unit-sha": "cb9fd73ad6d3508c",
+    "claim-sha": "57921d16a093b7cd",
+    "route": "revert",
+    "producer": "internal/component/l2tp/reliable.go::NeedsZLB",
+    "producer-sha": "faf47a9a8d27087f",
+    "break": "body of NeedsZLB replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2661-5.8-7",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/rfc2661_reliable_test.go::TestExpired",
+    "unit-sha": "8632d2c358b4ccfd",
+    "claim-sha": "4a3c8bd520215ce9",
+    "route": "revert",
+    "producer": "internal/component/l2tp/reliable.go::Expired",
+    "producer-sha": "0d18d4b49f390d91",
+    "break": "body of Expired replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2661-5.8-7",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/rfc2661_reliable_test.go::TestExpired",
+    "unit-sha": "8632d2c358b4ccfd",
+    "claim-sha": "b53c414ed9799bf6",
+    "route": "revert",
+    "producer": "internal/component/l2tp/reliable.go::Expired",
+    "producer-sha": "0d18d4b49f390d91",
+    "break": "body of Expired replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

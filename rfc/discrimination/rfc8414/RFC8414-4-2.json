@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8414-4-2",
+    "polarity": "positive",
+    "unit": "internal/component/mcp/rfc8414_jwt_test.go::TestRFC8414IssuerCompareNoNormalizationAccepts",
+    "unit-sha": "3d945b7204a1e5f9",
+    "claim-sha": "c5d17820e0f43e0e",
+    "route": "revert",
+    "producer": "internal/component/mcp/jwt.go::verifyJWT",
+    "producer-sha": "d7f2925a3dc4abcb",
+    "break": "body of verifyJWT replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8414-4-2",
+    "polarity": "negative",
+    "unit": "internal/component/mcp/rfc8414_jwt_test.go::TestRFC8414IssuerCompareNoNormalizationRejects",
+    "unit-sha": "512be6a1e81724cc",
+    "claim-sha": "74b8e241a3d6abf8",
+    "route": "revert",
+    "producer": "internal/component/mcp/jwt.go::verifyJWT",
+    "producer-sha": "d7f2925a3dc4abcb",
+    "break": "body of verifyJWT replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

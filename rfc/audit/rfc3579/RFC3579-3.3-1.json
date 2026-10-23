@@ -1,0 +1,13 @@
+{
+  "note": "encodeRequest refuses an Accounting-Request carrying EAP-Message or Message-Authenticator, and the control without either encodes",
+  "requirement_sha": "4ad96cf16988c264",
+  "tests": {
+    "internal/component/radius/authenticator_eap_test.go::TestAccountingRequestRefusesEAPAttributes": "2f6a0814b0b8b9cb",
+    "internal/component/radius/authenticator_eap_test.go::TestAccountingRequestRefusesEAPAttributes#2": "2f6a0814b0b8b9cb"
+  },
+  "units": {
+    "internal/component/radius/authenticator_eap_test.go::TestAccountingRequestRefusesEAPAttributes": "bccb8cf1ef665451",
+    "internal/component/radius/authenticator_eap_test.go::TestAccountingRequestRefusesEAPAttributes#2": "bccb8cf1ef665451"
+  },
+  "verdict": "enforced"
+}

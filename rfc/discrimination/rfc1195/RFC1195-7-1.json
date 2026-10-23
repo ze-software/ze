@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC1195-7-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/lsdb/rfc1195_snp_test.go::TestRFC1195CSNPEntriesAscending",
+    "unit-sha": "d7195420b8f6eb43",
+    "claim-sha": "9836a15fe462a374",
+    "route": "revert",
+    "producer": "internal/plugins/isis/lsdb/snp.go::buildCSNPs",
+    "producer-sha": "85428ae7b72868d2",
+    "break": "body of buildCSNPs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1195-7-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/lsdb/rfc1195_snp_test.go::TestRFC1195PSNPEntriesAscendingAcrossLists",
+    "unit-sha": "5d3e861eee063a39",
+    "claim-sha": "d946bda307bd5e30",
+    "route": "revert",
+    "producer": "internal/plugins/isis/lsdb/snp.go::buildPSNP",
+    "producer-sha": "004c4a11f4a64698",
+    "break": "body of buildPSNP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

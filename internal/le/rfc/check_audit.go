@@ -6,6 +6,7 @@
 package rfc
 
 import (
+	"os"
 	"regexp"
 	"slices"
 	"strings"
@@ -23,17 +24,17 @@ func checkAuditFiles(tree string, enrolled, stems map[string]bool) ([]string, er
 	var errs []string
 	for _, stem := range sortedSet(auditStems) {
 		var tb textbuf.Buffer
-		rel := tb.Str(auditRel).Byte('/').Str(stem).Str(".json").String()
+		rel := tb.Str(auditRel).Byte('/').Str(stem).Str("/").String()
 		if !stems[stem] {
 			var message textbuf.Buffer
 			errs = append(errs, message.Str(rel).Str(": there is no rfc/short/").Str(stem).
-				Str(".md, so this file records judgements about requirements that do not exist. Delete it, or write the summary").String())
+				Str(".md, so these files record judgements about requirements that do not exist. Delete the directory, or write the summary").String())
 			continue
 		}
 		if !enrolled[stem] {
 			var message textbuf.Buffer
 			errs = append(errs, message.Str(rel).Str(": ").Str(stem).
-				Str(" does not declare `| Enrolment | enrolled |`, so nothing reads these verdicts -- an audit file for an un-enrolled RFC is evidence the gate never loads. Enroll ").Str(stem).Str(", or delete the file").String())
+				Str(" does not declare `| Enrolment | enrolled |`, so nothing reads these verdicts -- an audit for an un-enrolled RFC is evidence the gate never loads. Enroll ").Str(stem).Str(", or delete the directory").String())
 		}
 	}
 	return errs, nil
@@ -58,7 +59,7 @@ func checkAuditSchema(requirements []Requirement, tags []Tag, audits map[string]
 			req, knownRID := known[rid]
 			if !knownRID || req.RFC != rfc {
 				var tb textbuf.Buffer
-				errs = append(errs, tb.Str(auditRel).Byte('/').Str(rfc).Str(".json: ").Str(rid).
+				errs = append(errs, tb.Str(auditRecordRel(rfc, rid)).Str(": ").Str(rid).
 					Str(" is not a requirement of ").Str(rfc).Str(". A verdict may not describe a requirement that is not there: either the id was renumbered (which the id rules forbid) or the checklist line was deleted under it").String())
 				continue
 			}
@@ -75,7 +76,7 @@ func verdictClaims(rfc, rid string, verdict map[string]any, req Requirement, fou
 		polarities[tag.Polarity] = true
 	}
 	var prefix textbuf.Buffer
-	rel := prefix.Str(auditRel).Byte('/').Str(rfc).Str(".json: ").Str(rid).String()
+	rel := prefix.Str(auditRecordRel(rfc, rid)).Str(": ").Str(rid).String()
 	var errs []string
 	if value == VerdictPartial {
 		if req.Annotation == nil {
@@ -248,14 +249,14 @@ func checkAuditDisclosure(requirements []Requirement, rows map[string]LedgerRow,
 		row, rowHeld := rows[req.RFC]
 		if !rowHeld {
 			var tb textbuf.Buffer
-			errs = append(errs, tb.Str(auditRel).Byte('/').Str(req.RFC).Str(".json: ").Str(req.RID).Str(" is ").Str(pyRepr(value)).Str(" but ").Str(req.RFC).Str(" has no row in docs/features/rfc-status.md; the public ledger must disclose it").String())
+			errs = append(errs, tb.Str(auditRecordRel(req.RFC, req.RID)).Str(": ").Str(req.RID).Str(" is ").Str(pyRepr(value)).Str(" but ").Str(req.RFC).Str(" has no row in docs/features/rfc-status.md; the public ledger must disclose it").String())
 			continue
 		}
 		if rowDisclosesGap(row) {
 			continue
 		}
 		var tb textbuf.Buffer
-		errs = append(errs, tb.Str(auditRel).Byte('/').Str(req.RFC).Str(".json: ").Str(req.RID).Str(" is ").Str(pyRepr(value)).Str(" but docs/features/rfc-status.md says ").Str(req.RFC).Str(" is '").Str(row.Status).Str("' with '").Str(truncateRunes(row.Remaining, 40)).Str("'. An audited requirement that is not met cannot be advertised as clean support -- update the row's Status/Remaining. Reverting the verdict is not an exit: the findings ratchet refuses that too").String())
+		errs = append(errs, tb.Str(auditRecordRel(req.RFC, req.RID)).Str(": ").Str(req.RID).Str(" is ").Str(pyRepr(value)).Str(" but docs/features/rfc-status.md says ").Str(req.RFC).Str(" is '").Str(row.Status).Str("' with '").Str(truncateRunes(row.Remaining, 40)).Str("'. An audited requirement that is not met cannot be advertised as clean support -- update the row's Status/Remaining. Reverting the verdict is not an exit: the findings ratchet refuses that too").String())
 	}
 	return errs
 }
@@ -280,7 +281,7 @@ func checkAuditFindings(requirements []Requirement, enrolled map[string]bool, au
 		now, held := audits[req.RFC].Verdict(req.RID)
 		if !held {
 			var tb textbuf.Buffer
-			errs = append(errs, tb.Str(auditRel).Byte('/').Str(req.RFC).Str(".json: the ").Str(pyRepr(oldValue)).Str(" finding on ").Str(req.RID).Str(" was DELETED. A finding is resolved by fixing the test or retiring the requirement, never by removing the record of it -- deletion is the cheapest route from red to green and is the one this ratchet exists to close").String())
+			errs = append(errs, tb.Str(auditRecordRel(req.RFC, req.RID)).Str(": the ").Str(pyRepr(oldValue)).Str(" finding on ").Str(req.RID).Str(" was DELETED. A finding is resolved by fixing the test or retiring the requirement, never by removing the record of it -- deletion is the cheapest route from red to green and is the one this ratchet exists to close").String())
 			continue
 		}
 		if !upgradeOverUnchangedUnits(was, now) {
@@ -290,7 +291,7 @@ func checkAuditFindings(requirements []Requirement, enrolled map[string]bool, au
 			continue
 		}
 		var tb textbuf.Buffer
-		errs = append(errs, tb.Str(auditRel).Byte('/').Str(req.RFC).Str(".json: ").Str(req.RID).Str(" went from ").Str(pyRepr(oldValue)).Str(" to 'enforced' while every tagged unit stayed byte-identical. A finding cannot become proof with nothing changed: fix the test (which moves its unit fingerprint), or record an 'upgrade_reason' saying what you re-read and why the earlier judgement was wrong").String())
+		errs = append(errs, tb.Str(auditRecordRel(req.RFC, req.RID)).Str(": ").Str(req.RID).Str(" went from ").Str(pyRepr(oldValue)).Str(" to 'enforced' while every tagged unit stayed byte-identical. A finding cannot become proof with nothing changed: fix the test (which moves its unit fingerprint), or record an 'upgrade_reason' saying what you re-read and why the earlier judgement was wrong").String())
 	}
 	return errs
 }
@@ -356,7 +357,7 @@ func checkAuditVerdictRatchet(requirements []Requirement, enrolled map[string]bo
 		}
 		seen[req.RID] = true
 		var tb textbuf.Buffer
-		errs = append(errs, tb.Str(auditRel).Byte('/').Str(req.RFC).Str(".json: ").Str(req.RID).Str(" carried a verdict at HEAD^ and carries none now. Audit coverage is monotonic per requirement id: a judgement that was made cannot be un-made by deleting it. Re-judge it (the ze-rfc-audit skill, ai/skills/ze-rfc-audit.md) or re-stamp it (./le rfc reseal) -- removal is not an option").String())
+		errs = append(errs, tb.Str(auditRecordRel(req.RFC, req.RID)).Str(": ").Str(req.RID).Str(" carried a verdict at HEAD^ and carries none now. Audit coverage is monotonic per requirement id: a judgement that was made cannot be un-made by deleting it. Re-judge it (the ze-rfc-audit skill, ai/skills/ze-rfc-audit.md) or re-stamp it (./le rfc reseal) -- removal is not an option").String())
 	}
 	return errs
 }
@@ -408,7 +409,7 @@ func checkAuditNote(tree string, requirements []Requirement, tags []Tag, enrolle
 			continue
 		}
 		var tb textbuf.Buffer
-		errs = append(errs, tb.Str(auditRel).Byte('/').Str(req.RFC).Str(".json: ").Str(req.RID).Str(" is 'enforced' but its note names nothing that occurs in the tagged unit(s). Searched ").Str(strings.Join(sortedSet(files), ", ")).Str("; tokens checked: ").Str(firstTokens(tokens, 12)).Str(". A note that cannot be tied to the test it judges is not evidence that the test was read -- name the assertion, the helper, or the constant the judgement turns on").String())
+		errs = append(errs, tb.Str(auditRecordRel(req.RFC, req.RID)).Str(": ").Str(req.RID).Str(" is 'enforced' but its note names nothing that occurs in the tagged unit(s). Searched ").Str(strings.Join(sortedSet(files), ", ")).Str("; tokens checked: ").Str(firstTokens(tokens, 12)).Str(". A note that cannot be tied to the test it judges is not evidence that the test was read -- name the assertion, the helper, or the constant the judgement turns on").String())
 	}
 	return errs
 }
@@ -420,9 +421,14 @@ func partialProofClaims(tree string, req Requirement, tags []Tag) ([]string, err
 	if err != nil {
 		return nil, err
 	}
-	records, err := loadDiscriminationFile(tree, req.RFC+".json")
-	if err != nil {
-		return nil, err
+	// Only this requirement's records can prove its covers, and they are all in
+	// its own file. No file is no record, which the refusals below name.
+	file := evidenceFile{Stem: req.RFC, RID: req.RID, Rel: discriminationRecordRel(req.RFC, req.RID)}
+	var records []DiscriminationRecord
+	if _, statErr := os.Stat(treePath(tree, file.Rel)); statErr == nil {
+		if records, err = loadDiscriminationFile(tree, file); err != nil {
+			return nil, err
+		}
 	}
 	verdicts, err := verifyDiscrimination(tree, records, covers)
 	if err != nil {

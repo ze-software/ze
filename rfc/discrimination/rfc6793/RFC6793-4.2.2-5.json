@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC6793-4.2.2-5",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/message/rfc6793_originate_as4_test.go::TestOriginatedAggregatorCarriesItsCompanionTowardOldSpeaker",
+    "unit-sha": "f3e95a5ed2c4bf92",
+    "claim-sha": "39a83b07f4e45e85",
+    "route": "revert",
+    "producer": "internal/core/bgp/attribute/as4.go::AS4AggregatorFor",
+    "producer-sha": "2b0bfd478294480d",
+    "break": "body of AS4AggregatorFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC6793-4.2.2-5",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/message/rfc6793_originate_as4_test.go::TestOriginatedMappableAggregatorGetsNoCompanion",
+    "unit-sha": "4e5a807cac4a507a",
+    "claim-sha": "f28c45c8183eeccb",
+    "route": "revert",
+    "producer": "internal/core/bgp/attribute/as4.go::AS4AggregatorFor",
+    "producer-sha": "2b0bfd478294480d",
+    "break": "body of AS4AggregatorFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

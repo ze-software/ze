@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC9552-8.2.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc9552_semantic_test.go::TestRFC9552LinkStateNLRIFramingTwinsAreDiscarded",
+    "unit-sha": "b3a5158d72e26eb7",
+    "claim-sha": "a310e2cef3dbfd06",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/rfc7606_bgpls_nlri.go::bgplsNLRIWellFormed",
+    "producer-sha": "1e157272c89f3d1d",
+    "break": "body of bgplsNLRIWellFormed replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9552-8.2.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc9552_semantic_test.go::TestRFC9552LinkStateNLRISemanticErrorsAreNotMalformed",
+    "unit-sha": "a9c9881e19accc4e",
+    "claim-sha": "db3bcd3c42ad94f2",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/rfc7606_bgpls_nlri.go::bgplsNLRIWellFormed",
+    "producer-sha": "1e157272c89f3d1d",
+    "break": "body of bgplsNLRIWellFormed replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9552-8.2.2-1",
+    "polarity": "positive",
+    "unit": "internal/core/bgp/nlri/bgpls/rfc9552_test.go::TestRFC9552NLRIContentsNeverMakeItMalformed",
+    "unit-sha": "75529446b8036d8c",
+    "claim-sha": "5d598be68aca7201",
+    "route": "revert",
+    "producer": "internal/core/bgp/nlri/bgpls/types.go::parseBGPLS",
+    "producer-sha": "0053c4e282d8830d",
+    "break": "body of parseBGPLS replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9552-8.2.2-1",
+    "polarity": "negative",
+    "unit": "internal/core/bgp/nlri/bgpls/rfc9552_test.go::TestRFC9552NLRIFramingErrorsRejected",
+    "unit-sha": "4fa9b3bce2700cff",
+    "claim-sha": "2f1e3f366b690e7f",
+    "route": "revert",
+    "producer": "internal/core/bgp/nlri/bgpls/types.go::parseBGPLS",
+    "producer-sha": "0053c4e282d8830d",
+    "break": "body of parseBGPLS replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

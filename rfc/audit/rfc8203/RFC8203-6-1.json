@@ -1,0 +1,17 @@
+{
+  "note": "Same unit: U+00E9 shortest form sent unchanged; the overlong 0xC0 0xAF and surrogate 0xED 0xA0 0x80 never reach the field (utf8.Valid refuses both forms, and the overlong case is asserted exact). Receive side held by the HEAD units.",
+  "requirement_sha": "9ddccaa93335c9f3",
+  "tests": {
+    "internal/component/bgp/message/notification_test.go::TestRFC8203ShortestFormUTF8": "9710bf0872e82b0b",
+    "internal/component/bgp/message/notification_test.go::TestRFC8203ShortestFormUTF8#2": "9710bf0872e82b0b",
+    "internal/component/bgp/message/rfc8203_shutdown_send_test.go::TestRFC8203ShutdownCommunicationSentAsShortestFormUTF8": "908f887506cc5456",
+    "internal/component/bgp/message/rfc8203_shutdown_send_test.go::TestRFC8203ShutdownCommunicationSentAsShortestFormUTF8#2": "908f887506cc5456"
+  },
+  "units": {
+    "internal/component/bgp/message/notification_test.go::TestRFC8203ShortestFormUTF8": "c15cce559a416898",
+    "internal/component/bgp/message/notification_test.go::TestRFC8203ShortestFormUTF8#2": "c15cce559a416898",
+    "internal/component/bgp/message/rfc8203_shutdown_send_test.go::TestRFC8203ShutdownCommunicationSentAsShortestFormUTF8": "1b7f88382840a524",
+    "internal/component/bgp/message/rfc8203_shutdown_send_test.go::TestRFC8203ShutdownCommunicationSentAsShortestFormUTF8#2": "1b7f88382840a524"
+  },
+  "verdict": "enforced"
+}

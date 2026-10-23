@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC9514-3.1-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/ls_export/rfc9514_export_sentence_test.go::TestRFC9514OriginatedReservedWordsZero",
+    "unit-sha": "38c0dd6479462b2d",
+    "claim-sha": "cff3778753340950",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/ls_export/export_encode.go::clearOriginatedReserved",
+    "producer-sha": "52e68cb09ad57c46",
+    "break": "body of clearOriginatedReserved replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9514-3.1-3",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/ls_export/rfc9514_export_sentence_test.go::TestRFC9514PoisonedSourceReservedNeverOriginated",
+    "unit-sha": "4347968523c1c7d4",
+    "claim-sha": "863ce22ea489888b",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/ls_export/export_encode.go::clearOriginatedReserved",
+    "producer-sha": "52e68cb09ad57c46",
+    "break": "body of clearOriginatedReserved replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9514-3.1-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514CapabilitiesDecode",
+    "unit-sha": "9ff171fe0a002703",
+    "claim-sha": "3ebc4c54d5a2fe4c",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/nlri/ls/attr_srv6.go::decodeSRv6Capabilities",
+    "producer-sha": "f8addfbcbac38142",
+    "break": "body of decodeSRv6Capabilities replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9514-3.1-3",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514CapabilitiesReservedIgnored",
+    "unit-sha": "66de6a976a65a9c4",
+    "claim-sha": "32f2014e85fcd6b5",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/nlri/ls/attr_srv6.go::decodeSRv6Capabilities",
+    "producer-sha": "f8addfbcbac38142",
+    "break": "body of decodeSRv6Capabilities replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

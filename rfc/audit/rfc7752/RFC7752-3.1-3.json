@@ -1,0 +1,13 @@
+{
+  "note": "rejudge 2026-09-30 (was wrong: the tagged 518 units asserted the RFC 9552 Length-first rule; tags removed under D-15). Now the ls_export units assert same-type 259/260/261/262 ascending by Value compared leftmost octet first, from ascending and descending sources. Every Type this producer repeats has one fixed Length, so the 'regardless of the length' comparison and RFC 9552's Length-then-Value order give identical output; judge break (Value comparison reversed) turns both red.",
+  "requirement_sha": "08f9def912df079b",
+  "tests": {
+    "internal/component/bgp/plugins/ls_export/export_rfc9552_ordering_test.go::TestRFC9552NativeLinkTLVsCanonicalOrder": "581497e4f2564ee5",
+    "internal/component/bgp/plugins/ls_export/export_rfc9552_ordering_test.go::TestRFC9552NativeLinkTLVsReorderedSource": "581497e4f2564ee5"
+  },
+  "units": {
+    "internal/component/bgp/plugins/ls_export/export_rfc9552_ordering_test.go::TestRFC9552NativeLinkTLVsCanonicalOrder": "be0890353f240a48",
+    "internal/component/bgp/plugins/ls_export/export_rfc9552_ordering_test.go::TestRFC9552NativeLinkTLVsReorderedSource": "24cf1b731770732b"
+  },
+  "verdict": "enforced"
+}

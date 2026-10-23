@@ -1,0 +1,17 @@
+{
+  "note": "Re-read the full RFC 3748 text and Section 4.2 Identifier rule, all four tagged test units, Session.Process/handleIdentity/handleMethod/finalRequest/failure, and the real MS-CHAPv2 producer and peer routing. The sender-only single-polarity annotation remains appropriate: the forbidden outcome is a terminal packet whose Identifier differs from the Response it answers, not a receiver acceptance rule. TestFailureIdentifierMatchesResponse now drives real wrong credentials through the method Failure Request, the peer acknowledgement and stateLastWord, requires CodeFailure within eight rounds, and compares its Identifier exactly with that actual acknowledgement Response (the previous refused-code 0x42 fixture no longer describes this unit). TestFailureIdentifierMatchesResponseOnNAK pins CodeFailure and Identifier 0x7E; TestIdentityFailureIdentifierMatchesResponse pins CodeFailure and 0x11 on the existing identity refusal branch; TestSuccessIdentifierMatchesResponse pins CodeSuccess and 0x5A on the Done branch. These assertions reject the former terminal Identifier increment. failure copies answered.Identifier, and the Done arm stamps response.Identifier; the IKE consumer forwards both terminal packet kinds without changing the EAP Identifier. The malformed identity fixture is evidence only for the Identifier on that existing terminal branch, not proof that emitting Failure for a wrong Type complies with the separate Section 4.1 discard obligation. Retain enforced for the scoped sender Identifier rule, with no live interop or test-execution claim.",
+  "requirement_sha": "758c2f4e695d8847",
+  "tests": {
+    "internal/core/eap/rfc3748_identifier_test.go::TestFailureIdentifierMatchesResponse": "7a11de4f33685ca1",
+    "internal/core/eap/rfc3748_identifier_test.go::TestFailureIdentifierMatchesResponseOnNAK": "7a11de4f33685ca1",
+    "internal/core/eap/rfc3748_identifier_test.go::TestIdentityFailureIdentifierMatchesResponse": "7a11de4f33685ca1",
+    "internal/core/eap/rfc3748_identifier_test.go::TestSuccessIdentifierMatchesResponse": "7a11de4f33685ca1"
+  },
+  "units": {
+    "internal/core/eap/rfc3748_identifier_test.go::TestFailureIdentifierMatchesResponse": "46155579bbf4e53c",
+    "internal/core/eap/rfc3748_identifier_test.go::TestFailureIdentifierMatchesResponseOnNAK": "e6b0f0ca9af09fe7",
+    "internal/core/eap/rfc3748_identifier_test.go::TestIdentityFailureIdentifierMatchesResponse": "eb74414682206675",
+    "internal/core/eap/rfc3748_identifier_test.go::TestSuccessIdentifierMatchesResponse": "4fb6ceaf26c7d20d"
+  },
+  "verdict": "enforced"
+}

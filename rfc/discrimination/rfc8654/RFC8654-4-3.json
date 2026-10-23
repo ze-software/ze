@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC8654-4-3",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc8654_directional_session_test.go::TestRFC8654AdvertisementDoesNotExtendControlBounds",
+    "unit-sha": "902b274b9966e325",
+    "claim-sha": "8e75f963bebb542f",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/header.go::ValidateLengthWithMax",
+    "producer-sha": "74b3bd33b6da2c9e",
+    "break": "body of ValidateLengthWithMax replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

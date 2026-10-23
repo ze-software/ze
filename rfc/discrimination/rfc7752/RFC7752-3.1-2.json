@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC7752-3.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/ls_export/export_rfc9552_ordering_test.go::TestRFC9552NativeLinkTLVsCanonicalOrder",
+    "unit-sha": "09dbf9dcc4b65e9d",
+    "claim-sha": "8cba52305f8049bf",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/ls_export/export_encode.go::encodeNativeLink",
+    "producer-sha": "aee3269c893d0f98",
+    "break": "body of encodeNativeLink replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7752-3.1-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/ls_export/export_rfc9552_ordering_test.go::TestRFC9552NativeLinkTLVsReorderedSource",
+    "unit-sha": "3ebc20ee19b6d7ad",
+    "claim-sha": "d6b380e3daeaa9b4",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/ls_export/export_encode.go::encodeNativeLink",
+    "producer-sha": "aee3269c893d0f98",
+    "break": "body of encodeNativeLink replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7752-3.1-2",
+    "polarity": "positive",
+    "unit": "internal/core/bgp/nlri/bgpls/rfc9552_ordering_test.go::TestLinkDescriptorOrdersMixedFamilyAddressesAscending",
+    "unit-sha": "ce6d16db41f477cd",
+    "claim-sha": "547e69131544d073",
+    "route": "revert",
+    "producer": "internal/core/bgp/nlri/bgpls/types_descriptor.go::addressTLVs",
+    "producer-sha": "7321284a6d32ae99",
+    "break": "body of addressTLVs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7752-3.1-2",
+    "polarity": "negative",
+    "unit": "internal/core/bgp/nlri/bgpls/rfc9552_ordering_test.go::TestNoDescriptorEmitsADescendingTLVSequence",
+    "unit-sha": "5d3aa1da7dcde4be",
+    "claim-sha": "71c5321614e51a9d",
+    "route": "revert",
+    "producer": "internal/core/bgp/nlri/bgpls/types_descriptor.go::addressTLVs",
+    "producer-sha": "7321284a6d32ae99",
+    "break": "body of addressTLVs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

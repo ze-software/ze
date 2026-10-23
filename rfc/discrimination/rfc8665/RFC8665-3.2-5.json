@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8665-3.2-5",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc8665_range_order_test.go::TestRFC8665RangeOrderStableThroughConfigRestart",
+    "unit-sha": "94ee569287116460",
+    "claim-sha": "149f1592d02cbf9f",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/sr_config.go::parseSegmentRouting",
+    "producer-sha": "927c5f49268d9154",
+    "break": "body of parseSegmentRouting replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8665-3.2-5",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc8665_test.go::TestRFC8665RangeOrderStableAcrossRestart",
+    "unit-sha": "5e7450af421228b5",
+    "claim-sha": "160c4d33e46d94e3",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/sr.go::srBuildSRGB",
+    "producer-sha": "8da0e32dacf15299",
+    "break": "body of srBuildSRGB replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

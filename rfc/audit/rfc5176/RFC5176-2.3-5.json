@@ -1,0 +1,21 @@
+{
+  "note": "Judge 2026-09-29. Every clause now has a unit on the real listener socket. Unsupported ATTRIBUTE: TestRFC5176UnsupportedAttributeNAKed (CoA-NAK 401 for Session-Timeout, Disconnect-NAK 401 for Filter-Id with zero teardowns; identification-only Disconnect is ACKed). Unsupported VALUE in a CoA: TestRFC5176CoAWithAnUnsupportedAttributeValueIsNAKed (sole Filter-Id 'not-a-rate' or 'cos:') and TestRFC5176CoAWithOneUnsupportedValueBesideSupportedOnesIsNAKed (a supported rate beside an unparseable Filter-Id, a second rate, or an unknown vendor VSA: CoA-NAK 407 and zero bus events), which is the case the old first-match producer ACKed. Unsupported VALUE in a Disconnect: TestRFC5176DisconnectWithAnUnsupportedValueIsNAKed (2-octet NAS-Port gives Disconnect-NAK 407, a Vendor-Specific gives 401, zero teardowns). The ACK counterpart TestRFC5176RequestWhoseEveryValueIsSupportedIsACKed isolates the value (same attributes, valid values: CoA-ACK, Disconnect-ACK with a 4-octet NAS-Port). Producer read: readCoAChange walks every Filter-Id and VSA and refuses the first it cannot apply; unsupportedAttrValue enforces the fixed lengths for both codes in handlePacket. The cannot-be-carried-out sentence is met in its value form here and in its NAS-side-failure form by the units tagged RFC5176-2.3-6 (506 with no event). Records observed for readCoAChange, unsupportedAttrValue, unsupportedAttr and handleCoA (panic-body breaks; by inspection a targeted break of setRate's duplicate check or of the NAS-Port length also turns the NAK units red).",
+  "requirement_sha": "9b063492f7eea058",
+  "tests": {
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176CoAWithAnUnsupportedAttributeValueIsNAKed": "ff37f19e24dbd668",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go::TestRFC5176CoAWithOneUnsupportedValueBesideSupportedOnesIsNAKed": "c7f18523e76c1699",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go::TestRFC5176DisconnectWithAnUnsupportedValueIsNAKed": "c7f18523e76c1699",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go::TestRFC5176RequestWhoseEveryValueIsSupportedIsACKed": "c7f18523e76c1699",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176UnsupportedAttributeNAKed": "2b3357f1f1e8ec93",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176UnsupportedAttributeNAKed#2": "2b3357f1f1e8ec93"
+  },
+  "units": {
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176CoAWithAnUnsupportedAttributeValueIsNAKed": "b26bec63e7ea6a69",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go::TestRFC5176CoAWithOneUnsupportedValueBesideSupportedOnesIsNAKed": "fd119ef22edaef4d",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go::TestRFC5176DisconnectWithAnUnsupportedValueIsNAKed": "66433e1f7620d4c3",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go::TestRFC5176RequestWhoseEveryValueIsSupportedIsACKed": "cf8f0a20e2c7c708",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176UnsupportedAttributeNAKed": "9770d3018300a43a",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176UnsupportedAttributeNAKed#2": "9770d3018300a43a"
+  },
+  "verdict": "enforced"
+}

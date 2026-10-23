@@ -1,0 +1,17 @@
+{
+  "note": "Peer level: exactly one 4/0, the three timers stopped, the session released, EOF, the ConnectRetryCounter 0 -> 1 and the session FSM in Idle; the negative stays Established with the counter at 0. Damping is optional and not claimed. fireHold / ResetHoldTimer breaks observed red. Re-read 2026-10-01 (c10 judge): the only change under this verdict is a tag comment line for another id (RFC4271-6.7-1 / RFC4271-Security-1 added, RFC4271-9.1.2.1-1 removed) in the unit's doc comment; every assertion is byte-identical, so the judgement stands.",
+  "requirement_sha": "80984f64cbf5d050",
+  "tests": {
+    "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerExpiryRunsTheEvent10List": "33aaf37273eacf0d",
+    "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerFedByKeepalivesNeverExpires": "33aaf37273eacf0d",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldExpiryRunsTheEvent10ActionList": "94aa07ebd53dcc5b",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271NoHoldExpiryLeavesTheSessionIntact": "94aa07ebd53dcc5b"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerExpiryRunsTheEvent10List": "51b56c66410541f9",
+    "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerFedByKeepalivesNeverExpires": "db606972eff20c1c",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldExpiryRunsTheEvent10ActionList": "47fab825725cad28",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271NoHoldExpiryLeavesTheSessionIntact": "5d0e00e5828e7c3b"
+  },
+  "verdict": "enforced"
+}

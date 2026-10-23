@@ -1,0 +1,11 @@
+{
+  "note": "TestOptionSubnetMaskBeforeRouter asserts option 1's first byte offset precedes option 3's in a real OFFER from handle(); a reordering of buildReply fails it. single-polarity annotated (no path emits them reversed)",
+  "requirement_sha": "deee6609a8fd3c9f",
+  "tests": {
+    "internal/plugins/dhcpserver/handler_test.go::TestOptionSubnetMaskBeforeRouter": "3c71d2e2f2b59688"
+  },
+  "units": {
+    "internal/plugins/dhcpserver/handler_test.go::TestOptionSubnetMaskBeforeRouter": "c37b696173b02e9d"
+  },
+  "verdict": "enforced"
+}

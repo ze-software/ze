@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-09-30 (OSPF judge, continuations 3+4): new TestRFC4302AddressMatchIndicationSetByManualConfig brings a configured AH interface up through the installer (onInterfaceUp) and reads the states handed to the dataplane: exactly three, each Src :: (no source match) with a set Dst (ff02::5, ff02::6, the link-local), the SPI-plus-destination key section 2.4 gives; the same config on fe80::2 keys the unicast state on fe80::2 and none on fe80::1, so the indication follows the manual configuration, not a constant. Revert records on buildIPsecInterfaceSAs observed red. TestAHSAAddressMatchIndication (a selector test) lost its tags; its two old records are orphans.",
+  "requirement_sha": "ee4282a89c870777",
+  "tests": {
+    "internal/plugins/ospf/rfc4302_sa_set_test.go::TestRFC4302AddressMatchIndicationSetByManualConfig": "f39ffa84edbeaf0f",
+    "internal/plugins/ospf/rfc4302_sa_set_test.go::TestRFC4302AddressMatchIndicationSetByManualConfig#2": "f39ffa84edbeaf0f"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc4302_sa_set_test.go::TestRFC4302AddressMatchIndicationSetByManualConfig": "d1d982dbf0c7e4bf",
+    "internal/plugins/ospf/rfc4302_sa_set_test.go::TestRFC4302AddressMatchIndicationSetByManualConfig#2": "d1d982dbf0c7e4bf"
+  },
+  "verdict": "enforced"
+}

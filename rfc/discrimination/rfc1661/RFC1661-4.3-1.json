@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC1661-4.3-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661ConfigureRequestInOpenedRenegotiates",
+    "unit-sha": "55bba8655d45c5cb",
+    "claim-sha": "78396f3877c1e73b",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/session_run.go::handleLCPPacket",
+    "producer-sha": "7107e02b6fa04b82",
+    "break": "body of handleLCPPacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1661-4.3-1",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661EchoDoesNotRenegotiate",
+    "unit-sha": "f34eca55fc9cd04b",
+    "claim-sha": "13bbcfaa2bb29577",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/ppp_fsm.go::LCPDoTransition",
+    "producer-sha": "796174bb0f8b3d29",
+    "break": "body of LCPDoTransition replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1661-4.3-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661RenegotiateOnConfigureRequestInOpened",
+    "unit-sha": "98dcef2c5fc0e717",
+    "claim-sha": "1e2bb6733f91d7cb",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/ppp_fsm.go::LCPDoTransition",
+    "producer-sha": "796174bb0f8b3d29",
+    "break": "body of LCPDoTransition replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

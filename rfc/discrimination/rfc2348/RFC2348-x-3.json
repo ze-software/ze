@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC2348-x-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2348BlksizeBoundsAreInclusive",
+    "unit-sha": "2e0817cf38ac3d4b",
+    "claim-sha": "5f73f1aabb8ee394",
+    "route": "revert",
+    "producer": "internal/plugins/tftpserver/handler.go::parseRRQ",
+    "producer-sha": "07f7177cd121dd6c",
+    "break": "body of parseRRQ replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2348-x-3",
+    "polarity": "negative",
+    "unit": "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2348BlksizeBoundsAreInclusive",
+    "unit-sha": "2e0817cf38ac3d4b",
+    "claim-sha": "59ecf4536e8ec31c",
+    "route": "revert",
+    "producer": "internal/plugins/tftpserver/handler.go::parseRRQ",
+    "producer-sha": "07f7177cd121dd6c",
+    "break": "body of parseRRQ replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2348-x-3",
+    "polarity": "negative",
+    "unit": "internal/plugins/tftpserver/rfc2348_blksize_test.go::TestRFC2348BlksizeRangeEnforced",
+    "unit-sha": "c56ff2330db336b6",
+    "claim-sha": "c33ec0a48aa7208c",
+    "route": "revert",
+    "producer": "internal/plugins/tftpserver/handler.go::parseRRQ",
+    "producer-sha": "07f7177cd121dd6c",
+    "break": "body of parseRRQ replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2348-x-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/tftpserver/rfc2348_blksize_test.go::TestRFC2348BlksizeRangeEnforced",
+    "unit-sha": "c56ff2330db336b6",
+    "claim-sha": "51f096533be065da",
+    "route": "revert",
+    "producer": "internal/plugins/tftpserver/handler.go::parseRRQ",
+    "producer-sha": "07f7177cd121dd6c",
+    "break": "body of parseRRQ replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

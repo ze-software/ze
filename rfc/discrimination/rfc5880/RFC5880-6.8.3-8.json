@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5880-6.8.3-8",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880RemoteTimingChangeMovesDetectionTimeAtOnce",
+    "unit-sha": "9ae079cd965c690c",
+    "claim-sha": "7794851eb7efd6bf",
+    "route": "mutant",
+    "producer": "internal/component/bfd/session/timers.go::DetectionInterval",
+    "producer-sha": "59d6ae94c0c554b1",
+    "break": "line 27: \"mult == 0\" -\u003e \"true\""
+  },
+  {
+    "rid": "RFC5880-6.8.3-8",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteMinRxReductionHonoredImmediately",
+    "unit-sha": "a94a554d51e06b85",
+    "claim-sha": "ebdf048c3fb5602a",
+    "route": "revert",
+    "producer": "internal/component/bfd/session/timers.go::TransmitInterval",
+    "producer-sha": "5c5ea965c6b8cc02",
+    "break": "body of TransmitInterval replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

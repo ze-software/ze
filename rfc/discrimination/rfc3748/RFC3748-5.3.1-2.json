@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC3748-5.3.1-2",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc3748_nak_test.go::TestNakNamesTheConfiguredMethod",
+    "unit-sha": "e2ec5807b9514b50",
+    "claim-sha": "f357f7fa8aa3dca8",
+    "route": "revert",
+    "producer": "internal/core/eap/peer.go::nakResponse",
+    "producer-sha": "c5f2c67dd78a95b9",
+    "break": "body of nakResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3748-5.3.1-2",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc3748_nak_test.go::TestPeerNaksAnUnacceptableAuthenticationType",
+    "unit-sha": "5ea84b7cc0691a92",
+    "claim-sha": "823ffb3ebac6083c",
+    "route": "revert",
+    "producer": "internal/core/eap/peer.go::nakResponse",
+    "producer-sha": "c5f2c67dd78a95b9",
+    "break": "body of nakResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

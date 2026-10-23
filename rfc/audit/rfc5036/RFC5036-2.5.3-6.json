@@ -1,0 +1,13 @@
+{
+  "note": "Positive: through runSession, an Initialization with KeepAlive Time 0 draws Session Rejected/Bad KeepAlive Time (0x80000018, a Session Rejected parameters code of RFC 5036 section 3.9) naming the Initialization's id and type, then end of file on the peer end, and no operational state. The second case (Protocol Version 2) draws Bad Protocol Version, which section 3.5.1.2.1 names rather than a Session Rejected code; it proves the close, not this row's status code. Negative: an acceptable Initialization draws a KeepAlive and the connection stays open for a periodic KeepAlive. Only KeepAlive Time and Protocol Version are refusable today; Max PDU Length and advertisement-mode refusals are never owed by ze's acceptance rules.",
+  "requirement_sha": "6a8dd9720a00bf0a",
+  "tests": {
+    "internal/plugins/ldp/rfc5036_establishment_test.go::TestRFC5036ActiveRoleAcceptableInitKeepsConnection": "ae9e641bab4b2401",
+    "internal/plugins/ldp/rfc5036_establishment_test.go::TestRFC5036ActiveRoleUnacceptableInitRejectedAndClosed": "ae9e641bab4b2401"
+  },
+  "units": {
+    "internal/plugins/ldp/rfc5036_establishment_test.go::TestRFC5036ActiveRoleAcceptableInitKeepsConnection": "8ad5eff96f3a0127",
+    "internal/plugins/ldp/rfc5036_establishment_test.go::TestRFC5036ActiveRoleUnacceptableInitRejectedAndClosed": "b1c7cd88910fc402"
+  },
+  "verdict": "enforced"
+}

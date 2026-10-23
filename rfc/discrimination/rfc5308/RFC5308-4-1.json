@@ -1,0 +1,57 @@
+[
+  {
+    "rid": "RFC5308-4-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/circuit/rfc5303_sent_iih_test.go::TestRFC5308HelloNLPIDIs142",
+    "unit-sha": "cb1289247d454f3a",
+    "claim-sha": "da177314a3c5004f",
+    "route": "revert",
+    "producer": "internal/plugins/isis/circuit/hello.go::protocolsSupportedTLV",
+    "producer-sha": "1d45130d31599694",
+    "break": "body of protocolsSupportedTLV replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5308-4-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/circuit/rfc5308_hello_ipv6_test.go::TestISISIIHNoTLV232WhenIPv4Only",
+    "unit-sha": "12f4268a0b49a79a",
+    "claim-sha": "d154c0e048ac3e68",
+    "route": "revert",
+    "producer": "internal/plugins/isis/circuit/hello.go::protocolsSupportedTLV",
+    "producer-sha": "1d45130d31599694",
+    "break": "body of protocolsSupportedTLV replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5308-4-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/circuit/rfc5308_hello_ipv6_test.go::TestISISIIHTLV232LinkLocal",
+    "unit-sha": "1d52d3cd1726c4c5",
+    "claim-sha": "e1051d61011cf497",
+    "route": "revert",
+    "producer": "internal/plugins/isis/circuit/hello.go::protocolsSupportedTLV",
+    "producer-sha": "1d45130d31599694",
+    "break": "body of protocolsSupportedTLV replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5308-4-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/lsdb/rfc5308_origination_ipv6_test.go::TestISISProtocolsSupportedDualStack",
+    "unit-sha": "a220071e457ac462",
+    "claim-sha": "d8cf309ad1bafae7",
+    "route": "revert",
+    "producer": "internal/plugins/isis/lsdb/origination.go::Originate",
+    "producer-sha": "c3ebd1aa4af2c24f",
+    "break": "body of Originate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5308-4-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/lsdb/rfc5308_origination_ipv6_test.go::TestISISProtocolsSupportedDualStack",
+    "unit-sha": "a220071e457ac462",
+    "claim-sha": "27923c288efce3d8",
+    "route": "revert",
+    "producer": "internal/plugins/isis/lsdb/origination.go::Originate",
+    "producer-sha": "c3ebd1aa4af2c24f",
+    "break": "body of Originate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,27 @@
+{
+  "note": "encode through config and EncodeRoute pins every reserved octet and the two reserved bits zero for DSCP 0, 46, 63, and refuses 64 and above; decode renders 0xEE as mark:46 and 0x40 as mark:0; the .ci carries the reserved-bit community to a plugin",
+  "requirement_sha": "5cc7cd59aa99daeb",
+  "tests": {
+    "internal/component/bgp/config/rfc8955_routeattr_flowspec_test.go::TestParseExtendedCommunityMarkDSCPBound": "9e0728a5b41e7a0b",
+    "internal/component/bgp/config/rfc8955_routeattr_flowspec_test.go::TestParseExtendedCommunityMarkDSCPBound#2": "9e0728a5b41e7a0b",
+    "internal/component/bgp/plugins/nlri/flowspec/rfc8955_encode_test.go::TestEncodeRouteEmitsZeroValuedActions": "254f93c358e4eb09",
+    "internal/component/bgp/plugins/nlri/flowspec/rfc8955_encode_test.go::TestEncodeRouteMarkKeepsReservedBitsZero": "254f93c358e4eb09",
+    "internal/component/bgp/plugins/nlri/flowspec/rfc8955_encode_test.go::TestEncodeRouteMarkKeepsReservedBitsZero#2": "254f93c358e4eb09",
+    "internal/core/bgp/attribute/rfc8955_extcomm_decoded_test.go::TestRFC8955TrafficMarkingReservedBitsIgnored": "ccc1d8fecf4d366d",
+    "internal/core/bgp/attribute/rfc8955_extcomm_decoded_test.go::TestRFC8955TrafficMarkingReservedBitsIgnored#2": "ccc1d8fecf4d366d",
+    "test/plugin/community-attributes-json.ci": "712c499f6e2ef41a",
+    "test/plugin/community-attributes-json.ci#2": "712c499f6e2ef41a"
+  },
+  "units": {
+    "internal/component/bgp/config/rfc8955_routeattr_flowspec_test.go::TestParseExtendedCommunityMarkDSCPBound": "eab07fb95f9eec94",
+    "internal/component/bgp/config/rfc8955_routeattr_flowspec_test.go::TestParseExtendedCommunityMarkDSCPBound#2": "eab07fb95f9eec94",
+    "internal/component/bgp/plugins/nlri/flowspec/rfc8955_encode_test.go::TestEncodeRouteEmitsZeroValuedActions": "5bdfdb080a6ce815",
+    "internal/component/bgp/plugins/nlri/flowspec/rfc8955_encode_test.go::TestEncodeRouteMarkKeepsReservedBitsZero": "62d17b12c3c9d526",
+    "internal/component/bgp/plugins/nlri/flowspec/rfc8955_encode_test.go::TestEncodeRouteMarkKeepsReservedBitsZero#2": "62d17b12c3c9d526",
+    "internal/core/bgp/attribute/rfc8955_extcomm_decoded_test.go::TestRFC8955TrafficMarkingReservedBitsIgnored": "96c66870942d774e",
+    "internal/core/bgp/attribute/rfc8955_extcomm_decoded_test.go::TestRFC8955TrafficMarkingReservedBitsIgnored#2": "96c66870942d774e",
+    "test/plugin/community-attributes-json.ci": "712c499f6e2ef41a",
+    "test/plugin/community-attributes-json.ci#2": "712c499f6e2ef41a"
+  },
+  "verdict": "enforced"
+}

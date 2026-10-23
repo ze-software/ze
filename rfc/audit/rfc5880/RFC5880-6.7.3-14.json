@@ -1,0 +1,17 @@
+{
+  "code": {
+    "internal/component/bfd/config.go::parseAuthConfig": "f88561afff3025ec",
+    "internal/component/bfd/config.go::parseAuthSecret": "b9249ed8653253ed"
+  },
+  "note": "Re-judged 2026-10-19 (independent auditor, after 95fae5058f). RFC 5880 Section 6.7.3: \"For interoperability, the management interface by which the key is configured MUST accept ASCII strings, and SHOULD also allow for the configuration of any arbitrary binary string in hexadecimal form.\" 95fae5058f adds one comment line (\"Both forms are accepted here.\") above parseAuthSecret to satisfy godot; no statement of parseAuthConfig or parseAuthSecret changed, and the tagged units in rfc5880_key_management_hex_test.go are untouched. The comment is true: parseAuthSecret takes either the ASCII secret leaf or the secret-hex leaf (hex.DecodeString). Both tagged tests pass at HEAD (go test -overlay restoring HEAD for foreign dirty files, tags ze_core ze_bgp). The prior judgment stands unchanged: the positive test requires decoded Keyed MD5 (1-byte and 16-byte) keys byte for byte in the resolved session request, the negative sweeps every byte 0x00-0xFF, and an overlay replacing hex.DecodeString with []byte(written) turned both red. Mechanical shift; verdict holds.",
+  "requirement_sha": "bf37d983eb3a7dcd",
+  "tests": {
+    "internal/component/bfd/rfc5880_key_management_hex_test.go::TestRFC5880KeyManagementConfigEntryAcceptsHexBinaryStrings": "a5f2771aa9cfe596",
+    "internal/component/bfd/rfc5880_key_management_hex_test.go::TestRFC5880KeyManagementConfigEntryKeepsEveryBinaryByte": "a5f2771aa9cfe596"
+  },
+  "units": {
+    "internal/component/bfd/rfc5880_key_management_hex_test.go::TestRFC5880KeyManagementConfigEntryAcceptsHexBinaryStrings": "37af7e3515496483",
+    "internal/component/bfd/rfc5880_key_management_hex_test.go::TestRFC5880KeyManagementConfigEntryKeepsEveryBinaryByte": "031d3037e0ad732c"
+  },
+  "verdict": "enforced"
+}

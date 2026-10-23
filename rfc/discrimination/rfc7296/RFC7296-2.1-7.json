@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC7296-2.1-7",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_retransmit_test.go::TestRtxInitiatorResendsUnansweredRekeyRequest",
+    "unit-sha": "11e97944dc0943d1",
+    "claim-sha": "4433f010e4b062b7",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/established.go::serviceRekeyRetransmit",
+    "producer-sha": "bdd84380a7db6ee7",
+    "break": "body of serviceRekeyRetransmit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.1-7",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_retransmit_test.go::TestRtxInitiatorResendsUnansweredRekeyRequest",
+    "unit-sha": "11e97944dc0943d1",
+    "claim-sha": "337b5ed95a4bc8d5",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/established.go::serviceRekeyRetransmit",
+    "producer-sha": "bdd84380a7db6ee7",
+    "break": "body of serviceRekeyRetransmit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.1-7",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_window_test.go::TestWinUnansweredRequestFailsTheSA",
+    "unit-sha": "faba735b92dd2d2d",
+    "claim-sha": "e27e169ac9b64988",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/established.go::serviceRequestWindow",
+    "producer-sha": "281c477464c514fc",
+    "break": "body of serviceRequestWindow replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.1-7",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_window_test.go::TestWinUnansweredRequestFailsTheSA",
+    "unit-sha": "faba735b92dd2d2d",
+    "claim-sha": "059a24390f8792e3",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/established.go::serviceRequestWindow",
+    "producer-sha": "281c477464c514fc",
+    "break": "body of serviceRequestWindow replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

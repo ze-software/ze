@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC2865-4.1-2",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go::TestRFC2865AccessRequestNamesTheNASWithNoIdentityConfigured",
+    "unit-sha": "107b30505ab1fa30",
+    "claim-sha": "3107bfb063909c90",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authradius/nasidentity.go::appendNASIdentity",
+    "producer-sha": "77d7d14f888ed5aa",
+    "break": "body of appendNASIdentity replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2865-4.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go::TestRADIUSAuthNASIPAddress",
+    "unit-sha": "f4686491f7ce9574",
+    "claim-sha": "d2bbc0b284bfaa12",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authradius/nasidentity.go::appendNASIdentity",
+    "producer-sha": "77d7d14f888ed5aa",
+    "break": "body of appendNASIdentity replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2865-4.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/radius/rfc2865_walk_test.go::TestAdminAccessRequestIdentifiesTheNAS",
+    "unit-sha": "3ccec13350d75653",
+    "claim-sha": "552ebbb61037d59c",
+    "route": "revert",
+    "producer": "internal/component/radius/authenticator.go::Authenticate",
+    "producer-sha": "cce9fdbace347544",
+    "break": "body of Authenticate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

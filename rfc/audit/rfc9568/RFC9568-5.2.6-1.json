@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 9568 Section 5.2.6 says \"The Reserve field MUST be set to zero on transmission and ignored on reception.\" TestEncodeGoldenV3IPv4 now runs a subtest per checksum mode, and each still requires the Reserve nibble to be zero and the exact golden bytes; the receive half TestDecodeV3ReserveIgnoredOnReceive is unchanged. Verdict unchanged.",
+  "requirement_sha": "c5810834e719ada1",
+  "tests": {
+    "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV3IPv4": "15a7697300d1b17c",
+    "internal/plugins/vrrp/packet/validate_test.go::TestDecodeV3ReserveIgnoredOnReceive": "5bbc8ddba98cd418"
+  },
+  "units": {
+    "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV3IPv4": "f665d3473b49bc02",
+    "internal/plugins/vrrp/packet/validate_test.go::TestDecodeV3ReserveIgnoredOnReceive": "59d3ebc558c91ec2"
+  },
+  "verdict": "enforced"
+}

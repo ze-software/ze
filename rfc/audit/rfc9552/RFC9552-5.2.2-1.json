@@ -1,0 +1,15 @@
+{
+  "note": "c23: genuine negative under R1(b): TestRFC9552NativeDualStackLinkKeepsEveryAddress forces link ids 7/9 and IPv4+IPv6 globals on both ends and asserts TLVs 259, 260, 261, 262 each exactly once with their values (revert record on encodeNativeLink). Judge probe dropping the IPv6 interface address when IPv4 is present turned it red on TLV 261. HEAD positive TestRFC9552NativeLinkIdentitySelection pins exact values; HEAD invalid-zero-address negative stays as a supplement",
+  "requirement_sha": "5ba9071b16b330ad",
+  "tests": {
+    "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeDualStackLinkKeepsEveryAddress": "de280b1c094e08d4",
+    "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeLinkDescriptorComplements": "de280b1c094e08d4",
+    "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeLinkIdentitySelection": "6886dddcc0644d09"
+  },
+  "units": {
+    "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeDualStackLinkKeepsEveryAddress": "440e340ac4b7fbfc",
+    "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeLinkDescriptorComplements": "bf450ecfa02bf986",
+    "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeLinkIdentitySelection": "89eb839fce655230"
+  },
+  "verdict": "enforced"
+}

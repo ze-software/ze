@@ -1,0 +1,17 @@
+{
+  "note": "D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV->WriteTLV and field-export renames (TLV code constants verified unchanged). RFC 9552: \"The bits that are not defined MUST be set to 0 by the originator and MUST be ignored by the receiver.\" Originator: ls_export TestRFC9552NativeDefinedFlags / TestRFC9552NativeReservedFlagsCleared (unchanged). Receiver: Node Flag Bits (0xA8 vs 0xAB; 0x03 sets no O/T/E/B/R/V), the walk continues to the next TLV; key constant now bgpls.JSONKeyReserved, same \"RSV\".",
+  "requirement_sha": "d8c43762436e2f5e",
+  "tests": {
+    "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeDefinedFlags": "6886dddcc0644d09",
+    "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeReservedFlagsCleared": "6886dddcc0644d09",
+    "internal/component/bgp/plugins/nlri/ls/rfc9552_attr_flags_test.go::TestRFC9552NodeFlagBitsUndefinedBitsIgnored": "717f40f12de4b66c",
+    "internal/component/bgp/plugins/nlri/ls/rfc9552_attr_flags_test.go::TestRFC9552UndefinedNodeBitsDoNotSetDefinedFlags": "717f40f12de4b66c"
+  },
+  "units": {
+    "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeDefinedFlags": "42cfaacdb6bd222c",
+    "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeReservedFlagsCleared": "94d7393a20d84170",
+    "internal/component/bgp/plugins/nlri/ls/rfc9552_attr_flags_test.go::TestRFC9552NodeFlagBitsUndefinedBitsIgnored": "f2f36615eea056b1",
+    "internal/component/bgp/plugins/nlri/ls/rfc9552_attr_flags_test.go::TestRFC9552UndefinedNodeBitsDoNotSetDefinedFlags": "f45695bc5bfb66cf"
+  },
+  "verdict": "enforced"
+}

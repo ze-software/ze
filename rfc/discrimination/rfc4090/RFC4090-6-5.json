@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4090-6-5",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090InUseOnlyWhileRedirecting",
+    "unit-sha": "454ddaf7e32f4245",
+    "claim-sha": "00ccaa23d2cf44cb",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/frr.go::rroProtectionFlags",
+    "producer-sha": "f485360d9b8e2b03",
+    "break": "body of rroProtectionFlags replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4090-6-5",
+    "polarity": "negative",
+    "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090InUseOnlyWhileRedirecting",
+    "unit-sha": "454ddaf7e32f4245",
+    "claim-sha": "e68a4789d2259e68",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/frr.go::tryLocalRepair",
+    "producer-sha": "43489f89cbda4243",
+    "break": "body of tryLocalRepair replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

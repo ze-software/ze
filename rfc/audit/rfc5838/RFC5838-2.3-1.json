@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-09-29 (independent judge, continuation 2). All three route-computation inputs on an IPv4-unicast AF now refuse a non-conforming (64-bit) prefix beside a conforming /24 that proves the reader ran: intra-area (TestRFC5838NonConformingPrefixNotInRouteComputation, v6BuildRoutes), inter-area (TestRFC5838NonConformingInterAreaPrefixNotInRouteComputation, v6SummaryReader yields exactly the /24), and AS-External plus NSSA (TestRFC5838NonConformingExternalPrefixNotInRouteComputation, v6ExternalReader accepts the /24, refuses the 64-bit). Revert records on v6PrefixToNetip, v6SummaryReader and v6ExternalReader. Positive TestIPv4OverV3BuildRoutes is exact but carries no record.",
+  "requirement_sha": "77dae112c4211bff",
+  "tests": {
+    "internal/plugins/ospf/rfc5838_af_test.go::TestRFC5838NonConformingExternalPrefixNotInRouteComputation": "871029566403d2c9",
+    "internal/plugins/ospf/rfc5838_af_test.go::TestRFC5838NonConformingInterAreaPrefixNotInRouteComputation": "871029566403d2c9",
+    "internal/plugins/ospf/rfc5838_af_test.go::TestRFC5838NonConformingPrefixNotInRouteComputation": "871029566403d2c9",
+    "internal/plugins/ospf/rfc5838_afstrategy_v6_test.go::TestIPv4OverV3BuildRoutes": "e735eb206dc29802"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc5838_af_test.go::TestRFC5838NonConformingExternalPrefixNotInRouteComputation": "5f2dc97ec3bdcb9f",
+    "internal/plugins/ospf/rfc5838_af_test.go::TestRFC5838NonConformingInterAreaPrefixNotInRouteComputation": "8ba05f9ac8a29622",
+    "internal/plugins/ospf/rfc5838_af_test.go::TestRFC5838NonConformingPrefixNotInRouteComputation": "b71d69fae5fefd50",
+    "internal/plugins/ospf/rfc5838_afstrategy_v6_test.go::TestIPv4OverV3BuildRoutes": "10d1c67249c2ed0c"
+  },
+  "verdict": "enforced"
+}

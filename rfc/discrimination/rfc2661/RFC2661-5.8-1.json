@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2661-5.8-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661RetransmitBackoffDoubles",
+    "unit-sha": "f295a68813b9f496",
+    "claim-sha": "49a74a07f6549980",
+    "route": "revert",
+    "producer": "internal/component/l2tp/reliable.go::Tick",
+    "producer-sha": "6b0250e67671ce1a",
+    "break": "body of Tick replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2661-5.8-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/rfc2661_reliable_test.go::TestTickBackoffSchedule",
+    "unit-sha": "dd07c03465c2526b",
+    "claim-sha": "04d33ddd04974b0e",
+    "route": "revert",
+    "producer": "internal/component/l2tp/reliable.go::Tick",
+    "producer-sha": "6b0250e67671ce1a",
+    "break": "body of Tick replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

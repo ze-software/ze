@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged c18. Clauses: (1) flush by premature aging AND reflooding, (2) wait for ALL adjacent neighbors' acks, (3) then originate at InitialSequenceNumber. Positive TestRFC2328SequenceWrapFloodsFlushThenRestarts: the flush is decoded from LS Updates at MaxAge + MaxSequenceNumber out of eth0 AND eth1; after 2.2.2.2 and 3.3.3.3 both ack it is deleted; next origination is InitialSequenceNumber age 0 flooded out of both. Negative TestRFC2328SequenceWrapWaitsForEveryNeighbor (subtest per neighbor): one ack alone leaves it in the database, the next origination is the MaxAge instance at MaxSequenceNumber, and no InitialSequenceNumber instance is flooded, so a restart after the first ack goes red. Records: nextOwnSequenceForce and deletePurgedIfAcked, both polarities, observed red. Old flooding_test tags kept.",
+  "requirement_sha": "22d8d02b96cc368e",
+  "tests": {
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328SequenceWrapRestartsAfterAck": "c4cd81c5b8b7e97a",
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328SequenceWrapWaitsForAck": "c4cd81c5b8b7e97a",
+    "internal/plugins/ospf/lsdb/rfc2328_sequence_wrap_test.go::TestRFC2328SequenceWrapFloodsFlushThenRestarts": "d172b66069e9eba0",
+    "internal/plugins/ospf/lsdb/rfc2328_sequence_wrap_test.go::TestRFC2328SequenceWrapWaitsForEveryNeighbor": "d172b66069e9eba0"
+  },
+  "units": {
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328SequenceWrapRestartsAfterAck": "eaf0f83de96cbcd2",
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328SequenceWrapWaitsForAck": "5373db034fb62664",
+    "internal/plugins/ospf/lsdb/rfc2328_sequence_wrap_test.go::TestRFC2328SequenceWrapFloodsFlushThenRestarts": "2bb5d8b7e971785a",
+    "internal/plugins/ospf/lsdb/rfc2328_sequence_wrap_test.go::TestRFC2328SequenceWrapWaitsForEveryNeighbor": "6a904581d6b501bc"
+  },
+  "verdict": "enforced"
+}

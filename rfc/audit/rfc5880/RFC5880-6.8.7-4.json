@@ -1,0 +1,17 @@
+{
+  "note": "RA-BFD3 strict re-read 2026-09-27 after DF-BFD-7 moved settlePoll before the 1 s precondition in TestRFC5880DesiredMinTxChangeReschedulesNextTx (the old order asserted the Section 6.8.3 defect; no assertion removed). Clause 1, recalculated when bfd.DesiredMinTxInterval changes: forbidden is a pending TX still drawn from the old interval. Decrease: after the revert (1 s to 300 ms, RemoteMinRx 100 ms) the final Fatalf requires NextTxDeadline == last TX + 300 ms, red without the rescheduleTxLocked call in revertEchoSlowdownLocked (deadline stays at +1 s). Increase: the precondition Fatalf requires last TX + 1 s once the slow-down Poll has settled, red if TransmitInterval ignored the raised variable. Clause 2, recalculated when bfd.RemoteMinRxInterval changes: TestRFC5880RemoteMinRxChangeReschedulesNextTx requires the pending deadline at +400 ms after 900 to 400 and at +1.2 s after 400 to 1.2 s, red without the Receive reschedule. Clause 3, equal to the greater: 900 remote over 300 local (RemoteMinRxReductionHonoredImmediately), 1.2 s remote over 300 local, 300 local over 1 us remote (TransmitIntervalFlooredByLocalDesired, which is the negative: a remote value below the local target must not shorten TX, and RequiredMinRx alone must not move it). An increase of DesiredMinTx while Up is held until its Poll ends by Section 6.8.3, judged under RFC5880-6.8.3-3.",
+  "requirement_sha": "b529e0c4d926fbb0",
+  "tests": {
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880DesiredMinTxChangeReschedulesNextTx": "8db25cbb4534cc2d",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteMinRxChangeReschedulesNextTx": "8db25cbb4534cc2d",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteMinRxReductionHonoredImmediately": "8db25cbb4534cc2d",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880TransmitIntervalFlooredByLocalDesired": "8db25cbb4534cc2d"
+  },
+  "units": {
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880DesiredMinTxChangeReschedulesNextTx": "1e5e7bce434f1bc9",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteMinRxChangeReschedulesNextTx": "ffcbcc003dae3e02",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteMinRxReductionHonoredImmediately": "e6fde4a312962826",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880TransmitIntervalFlooredByLocalDesired": "ff2ff7839f6e342c"
+  },
+  "verdict": "enforced"
+}

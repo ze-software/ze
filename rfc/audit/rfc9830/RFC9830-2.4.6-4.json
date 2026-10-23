@@ -1,0 +1,13 @@
+{
+  "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PrioritySubTLV and TestRFC9830PriorityLengthIsValueLength. Forbidden: a Priority length other than 2 (e.g. the 4-octet total). Red: require.Len(value, 2) on a value cut at the declared length, and assert.Equal([]byte{15, 2, 255, 0}, only[4:]) pinning the length octet itself.",
+  "requirement_sha": "5f0f7a4f9830a7a8",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PriorityLengthIsValueLength": "450f2364530acf19",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PrioritySubTLV": "450f2364530acf19"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PriorityLengthIsValueLength": "1b00301763158894",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PrioritySubTLV": "bcaa7e59da5da517"
+  },
+  "verdict": "enforced"
+}

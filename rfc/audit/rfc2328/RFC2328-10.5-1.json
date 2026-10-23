@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: accepting a Hello whose Network Mask, HelloInterval or RouterDeadInterval differs from the receiving interface. Red: TestRFC2328HelloMismatchRejectedAndNoTwoWayUnlisted mutates each of the three fields separately and fails unless ReceiveHello returns that field's drop reason and no neighbor is created (processing stopped). Other polarity: TestRFC2328HelloMatchingParametersAndTwoWay fails if a matching Hello is refused. Every listed field has its own case.",
+  "requirement_sha": "71218f662a08b990",
+  "tests": {
+    "internal/plugins/ospf/iface/rfc2328_hello_test.go::TestRFC2328HelloMatchingParametersAndTwoWay": "04b8b2d49bb84a90",
+    "internal/plugins/ospf/iface/rfc2328_hello_test.go::TestRFC2328HelloMismatchRejectedAndNoTwoWayUnlisted": "04b8b2d49bb84a90"
+  },
+  "units": {
+    "internal/plugins/ospf/iface/rfc2328_hello_test.go::TestRFC2328HelloMatchingParametersAndTwoWay": "1ab452fe978ad471",
+    "internal/plugins/ospf/iface/rfc2328_hello_test.go::TestRFC2328HelloMismatchRejectedAndNoTwoWayUnlisted": "22dc57661e339de8"
+  },
+  "verdict": "enforced"
+}

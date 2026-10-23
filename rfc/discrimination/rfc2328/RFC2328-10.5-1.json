@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2328-10.5-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/iface/rfc2328_hello_test.go::TestRFC2328HelloMatchingParametersAndTwoWay",
+    "unit-sha": "542a87922e25d06a",
+    "claim-sha": "bbbe3f932b997f53",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/iface/iface.go::validateHelloLocked",
+    "producer-sha": "b461a33440420dd6",
+    "break": "body of validateHelloLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-10.5-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/iface/rfc2328_hello_test.go::TestRFC2328HelloMismatchRejectedAndNoTwoWayUnlisted",
+    "unit-sha": "4c0625f21347d52b",
+    "claim-sha": "c9e545def28d1aa4",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/iface/iface.go::validateHelloLocked",
+    "producer-sha": "b461a33440420dd6",
+    "break": "body of validateHelloLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

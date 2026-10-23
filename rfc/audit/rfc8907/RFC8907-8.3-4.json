@@ -1,0 +1,35 @@
+{
+  "note": "(a) forbidden: an entered command with no accounting START, including a command authorization denied or that is unknown or malformed. (b) TestDispatcherAccountsRefusedCommands asserts starts == [input] for a denied, an unknown and a malformed command; TestRFC8907TypedDispatchAccountsDeniedCommand asserts START and STOP for a denied typed dispatch; api_test.go denied-stream and TACACS wire tests (rfc8907_dispatch_wire_test.go) assert real START packets; TestRFC8907AccountingRequiresDestination refuses accounting with no destination at Build. Rejudged 2026-10-10 after the validated-construction spec (9cbd3485ca, eaff5d644b, 7c25971594): the changed units only retype the registered handler from []string to command.ValidatedArgs (args read back through Tokens(), a clone of the dispatched tokens) and rename a local const command to commandName; every assertion, input and expected accounting/wire value is byte-identical, so the judgement above stands.",
+  "requirement_sha": "5e9fcd6fd4e4bfe8",
+  "tests": {
+    "cmd/ze/hub/rfc8907_aaa_lifecycle_test.go::TestInstallNoBGPAAADispatchPairsAccountingAcrossSwap": "af960882ad802d74",
+    "cmd/ze/hub/rfc8907_aaa_lifecycle_test.go::TestRFC8907BundleRetirementWaitsForAccountingPair": "af960882ad802d74",
+    "cmd/ze/hub/rfc8907_api_test.go::TestAPIStreamSourceAuthorizesReadOnly": "a5da8dcf87730e16",
+    "cmd/ze/hub/rfc8907_api_test.go::TestAPIStreamSourceRunsStreamingHandler": "a5da8dcf87730e16",
+    "internal/component/plugin/server/rfc8907_accounting_test.go::TestRFC8907PluginDispatchAccountsCommand": "f62ea1085043df7d",
+    "internal/component/plugin/server/rfc8907_accounting_test.go::TestRFC8907TypedDispatchAccountsDeniedCommand": "f62ea1085043df7d",
+    "internal/component/plugin/server/rfc8907_command_test.go::TestDispatcherAccountingWithoutUsername": "d9891c430969a645",
+    "internal/component/plugin/server/rfc8907_command_test.go::TestDispatcherAccountsRefusedCommands": "d9891c430969a645",
+    "internal/component/tacacs/rfc8907_accountant_test.go::TestRFC8907AccountingSaturationRetainsEveryStart": "6adcca5068bdc7f8",
+    "internal/component/tacacs/rfc8907_accountant_test.go::TestRFC8907AccountingStopDrainsAcceptedStarts": "6adcca5068bdc7f8",
+    "internal/component/tacacs/rfc8907_dispatch_wire_test.go::TestRFC8907OversizedCommandAccountingStillReachesWire": "9a565f1466e18977",
+    "internal/component/tacacs/rfc8907_dispatch_wire_test.go::TestRFC8907TrustedDispatchIdentitiesReachWire": "9a565f1466e18977",
+    "internal/component/tacacs/rfc8907_security_config_test.go::TestRFC8907AccountingRequiresDestination": "2f7cb9ed0258662a"
+  },
+  "units": {
+    "cmd/ze/hub/rfc8907_aaa_lifecycle_test.go::TestInstallNoBGPAAADispatchPairsAccountingAcrossSwap": "0f4b0b55ef2721ac",
+    "cmd/ze/hub/rfc8907_aaa_lifecycle_test.go::TestRFC8907BundleRetirementWaitsForAccountingPair": "af0c567ada7e8a9f",
+    "cmd/ze/hub/rfc8907_api_test.go::TestAPIStreamSourceAuthorizesReadOnly": "315998fc965be3b3",
+    "cmd/ze/hub/rfc8907_api_test.go::TestAPIStreamSourceRunsStreamingHandler": "a1819be788a5719c",
+    "internal/component/plugin/server/rfc8907_accounting_test.go::TestRFC8907PluginDispatchAccountsCommand": "5e1a1d0565f79e8e",
+    "internal/component/plugin/server/rfc8907_accounting_test.go::TestRFC8907TypedDispatchAccountsDeniedCommand": "791338f39514dfc7",
+    "internal/component/plugin/server/rfc8907_command_test.go::TestDispatcherAccountingWithoutUsername": "4ccb60497348a557",
+    "internal/component/plugin/server/rfc8907_command_test.go::TestDispatcherAccountsRefusedCommands": "e8c7b049f6bb5be7",
+    "internal/component/tacacs/rfc8907_accountant_test.go::TestRFC8907AccountingSaturationRetainsEveryStart": "30d35513be5065d9",
+    "internal/component/tacacs/rfc8907_accountant_test.go::TestRFC8907AccountingStopDrainsAcceptedStarts": "f512a11a8ab40bae",
+    "internal/component/tacacs/rfc8907_dispatch_wire_test.go::TestRFC8907OversizedCommandAccountingStillReachesWire": "ec4acd23e2c44d2f",
+    "internal/component/tacacs/rfc8907_dispatch_wire_test.go::TestRFC8907TrustedDispatchIdentitiesReachWire": "d2f6ac5195cdceda",
+    "internal/component/tacacs/rfc8907_security_config_test.go::TestRFC8907AccountingRequiresDestination": "cf4bf56c327db773"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC4090-6-7",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090BandwidthBitNeverClaimed",
+    "unit-sha": "7701ebd41f237023",
+    "claim-sha": "35c0a971788ede35",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/frr.go::rroProtectionFlags",
+    "producer-sha": "f485360d9b8e2b03",
+    "break": "body of rroProtectionFlags replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4090-6-7",
+    "polarity": "negative",
+    "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090BandwidthDesiredWithoutBackup",
+    "unit-sha": "1be84061d56ea2c0",
+    "claim-sha": "9eb3163568cbd682",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/reservation.go::receivedReservation",
+    "producer-sha": "38110e8f415ad126",
+    "break": "body of receivedReservation replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4090-6-7",
+    "polarity": "negative",
+    "unit": "internal/plugins/rsvpte/rfc4090_plr_flags_test.go::TestRFC4090BandwidthBitNotClaimedFromDownstreamOrRepair",
+    "unit-sha": "046cff0dbfd71071",
+    "claim-sha": "3dfca2424c515b98",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/frr.go::rroProtectionFlags",
+    "producer-sha": "f485360d9b8e2b03",
+    "break": "body of rroProtectionFlags replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

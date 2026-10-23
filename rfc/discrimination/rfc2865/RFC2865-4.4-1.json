@@ -1,0 +1,68 @@
+[
+  {
+    "rid": "RFC2865-4.4-1",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc2865_access_challenge_test.go::TestRFC2865SubscriberAccessAcceptIsNotTreatedAsReject",
+    "unit-sha": "5ec082bce403171f",
+    "claim-sha": "23dfc699d24ccfe0",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authradius/handler.go::doRADIUS",
+    "producer-sha": "a747657dd105aaec",
+    "break": "body of doRADIUS replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2865-4.4-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc2865_access_challenge_test.go::TestRFC2865SubscriberAccessChallengeIsTreatedAsReject",
+    "unit-sha": "8c931b1ba0d44d12",
+    "claim-sha": "84ae7cee266b3703",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authradius/handler.go::doRADIUS",
+    "producer-sha": "a747657dd105aaec",
+    "break": "body of doRADIUS replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2865-4.4-1",
+    "polarity": "positive",
+    "unit": "internal/component/radius/rfc2865_nas_obligations_test.go::TestRFC2865AccessChallengeIsRejection",
+    "unit-sha": "00bb9d2add9239c8",
+    "claim-sha": "07186084d0f9b9a2",
+    "route": "revert",
+    "producer": "internal/component/radius/authenticator.go::Authenticate",
+    "producer-sha": "cce9fdbace347544",
+    "break": "body of Authenticate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2865-4.4-1",
+    "polarity": "negative",
+    "unit": "internal/component/radius/rfc2865_nas_obligations_test.go::TestRFC2865AccessChallengeIsRejection",
+    "unit-sha": "00bb9d2add9239c8",
+    "claim-sha": "159f99b012f83c45",
+    "route": "revert",
+    "producer": "internal/component/radius/authenticator.go::Authenticate",
+    "producer-sha": "cce9fdbace347544",
+    "break": "body of Authenticate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2865-4.4-1",
+    "polarity": "negative",
+    "unit": "internal/component/radius/rfc2865_walk_test.go::TestAccessChallengeDoesNotFallThroughToTheNextBackend",
+    "unit-sha": "f5dd8bd27a5a12e2",
+    "claim-sha": "0799cdea85d065cd",
+    "route": "revert",
+    "producer": "internal/component/radius/authenticator.go::Authenticate",
+    "producer-sha": "cce9fdbace347544",
+    "break": "body of Authenticate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2865-4.4-1",
+    "polarity": "positive",
+    "unit": "internal/component/radius/rfc2865_walk_test.go::TestAccessChallengeIsTreatedAsAccessReject",
+    "unit-sha": "9b042f96c1dfbd38",
+    "claim-sha": "84aa882d5297924c",
+    "route": "revert",
+    "producer": "internal/component/radius/authenticator.go::Authenticate",
+    "producer-sha": "cce9fdbace347544",
+    "break": "body of Authenticate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "SFLOW-V5-x-16",
+    "polarity": "positive",
+    "unit": "internal/plugins/flowexport/sflow/sflow_v5_flow_sampling_test.go::TestSFlowV5UnknownEgressInterfaceIsZero",
+    "unit-sha": "95c873b34eba5856",
+    "claim-sha": "524b9abb42b59119",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/sflow/flow.go::writeFlowSample",
+    "producer-sha": "fb7ecabc5cb11f60",
+    "break": "body of writeFlowSample replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "SFLOW-V5-x-16",
+    "polarity": "negative",
+    "unit": "internal/plugins/flowexport/sflow_v5_counters_test.go::TestSFlowV5AvailableCountersNeverTurnUnavailable",
+    "unit-sha": "583939ca1364a30b",
+    "claim-sha": "2b7e8305ab42a7f1",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/register.go::interfaceCountersFrom",
+    "producer-sha": "df72571071f6ef43",
+    "break": "body of interfaceCountersFrom replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "SFLOW-V5-x-16",
+    "polarity": "positive",
+    "unit": "internal/plugins/flowexport/sflow_v5_counters_test.go::TestSFlowV5UnavailableCountersCarrySentinelEveryPoll",
+    "unit-sha": "6355b8a78fe517ae",
+    "claim-sha": "49e5353e61be8aa7",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/register.go::interfaceCountersFrom",
+    "producer-sha": "df72571071f6ef43",
+    "break": "body of interfaceCountersFrom replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

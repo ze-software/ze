@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: a response that omits NAT_DETECTION_SOURCE_IP or NAT_DETECTION_DESTINATION_IP when the request carried them. internal/component/ike/engine/mobike_test.go::TestMobikePathProbeRetainsTunnelEndpoint (natDetection=true) requires exactly the two notifications, with hashes over the observed response tuple, so an omitted or reversed hash goes red. With natDetection=false it requires an empty response, so no hashes are sent unsolicited.",
+  "requirement_sha": "9308189a10df97b2",
+  "tests": {
+    "internal/component/ike/engine/mobike_test.go::TestMobikePathProbeRetainsTunnelEndpoint": "7591039c742210b3",
+    "internal/component/ike/engine/mobike_test.go::TestMobikePathProbeRetainsTunnelEndpoint#2": "7591039c742210b3"
+  },
+  "units": {
+    "internal/component/ike/engine/mobike_test.go::TestMobikePathProbeRetainsTunnelEndpoint": "7ef3fb7a36fc076e",
+    "internal/component/ike/engine/mobike_test.go::TestMobikePathProbeRetainsTunnelEndpoint#2": "7ef3fb7a36fc076e"
+  },
+  "verdict": "enforced"
+}

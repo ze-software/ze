@@ -1,0 +1,17 @@
+{
+  "note": "Rejudged 2026-10-21 over the current tags, units and records. Product fix verified against the RFCs. RFC 7684 Section 2.1: route types 'correspond directly to the OSPFv2 LSAs types'. RFC 5250 Section 3: type-11 LSAs are 'not flooded into stub areas or Not-So-Stubby Areas (NSSAs)'. So an NSSA-external prefix needs area scope, and extPrefixScope now returns AS scope for AS-external only. TestExtPrefixScopeSelection asserts all four mappings (NSSA-external is area, AS-external is AS). The per-LSA pair proves real originated LSAs never mix scopes. Observation: ext_prefix.go originates only intra-area, inter-area and AS-external prefixes, so no origination path reaches the NSSA-external branch yet. The row's trailing note describes the function, not an originated case.",
+  "requirement_sha": "afc8189f5c0c5d01",
+  "tests": {
+    "internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go::TestExtPrefixScopeSelection": "934ac905e7263077",
+    "internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go::TestExtPrefixScopeSelection#2": "934ac905e7263077",
+    "internal/plugins/ospf/rfc7684_scope_per_lsa_test.go::TestRFC7684EveryPrefixInAnLSAFitsItsScope": "bec84401626d5712",
+    "internal/plugins/ospf/rfc7684_scope_per_lsa_test.go::TestRFC7684PrefixNeedingTwoScopesNeverSharesAnLSA": "bec84401626d5712"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go::TestExtPrefixScopeSelection": "53309c7531cfd328",
+    "internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go::TestExtPrefixScopeSelection#2": "53309c7531cfd328",
+    "internal/plugins/ospf/rfc7684_scope_per_lsa_test.go::TestRFC7684EveryPrefixInAnLSAFitsItsScope": "3e3b6747d15275a9",
+    "internal/plugins/ospf/rfc7684_scope_per_lsa_test.go::TestRFC7684PrefixNeedingTwoScopesNeverSharesAnLSA": "4769e2092d7758bc"
+  },
+  "verdict": "enforced"
+}

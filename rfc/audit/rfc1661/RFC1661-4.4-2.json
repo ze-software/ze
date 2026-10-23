@@ -1,0 +1,13 @@
+{
+  "note": "Re-read after TestLCPPeerTerminateRestartTimer changed its end-of-grace assertion to the RFC 1661 Section 4.3 behaviour (no session end, Stopped). The 4.4-2 assertions are unchanged: Opened+RTR arms the real Restart timer at defaultRestartTimer, the session stays Stopping for the grace period and the timer event reaches Stopped; the Closed case arms no timer. Both polarities observed red under recorded breaks (armRestartTimer, applyTransition).",
+  "requirement_sha": "c2f1eadb4e4f0e72",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1661_lcp_restart_counter_test.go::TestLCPPeerTerminateRestartTimer": "ece651a9cb319747",
+    "internal/component/l2tp/ppp/rfc1661_lcp_restart_counter_test.go::TestLCPPeerTerminateRestartTimer#2": "ece651a9cb319747"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1661_lcp_restart_counter_test.go::TestLCPPeerTerminateRestartTimer": "f3cc909359687f65",
+    "internal/component/l2tp/ppp/rfc1661_lcp_restart_counter_test.go::TestLCPPeerTerminateRestartTimer#2": "f3cc909359687f65"
+  },
+  "verdict": "enforced"
+}

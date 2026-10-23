@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: a Hello sent without this interface's own Interface ID. TestRFC5340HelloCarriesInterfaceID sends real Hellos through SendHello and the v6 encoder and asserts Interface ID 42 on eth0 and 43 on eth1 (red on a missing or shared value), and after a neighbor Hello carrying 99 asserts the next sent Hello still carries 42 (red if the neighbor's value is copied in).",
+  "requirement_sha": "1827062cd4cc934a",
+  "tests": {
+    "internal/plugins/ospf/rfc5340_test.go::TestRFC5340HelloCarriesInterfaceID": "cdf4f5c0d8a37340",
+    "internal/plugins/ospf/rfc5340_test.go::TestRFC5340HelloCarriesInterfaceID#2": "cdf4f5c0d8a37340"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc5340_test.go::TestRFC5340HelloCarriesInterfaceID": "bcd73e2efe9c8eb7",
+    "internal/plugins/ospf/rfc5340_test.go::TestRFC5340HelloCarriesInterfaceID#2": "bcd73e2efe9c8eb7"
+  },
+  "verdict": "enforced"
+}

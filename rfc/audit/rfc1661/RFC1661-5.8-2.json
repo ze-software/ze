@@ -1,0 +1,19 @@
+{
+  "note": "Rejudge ppp8 2026-09-30: pppoeclient TestClientLCPEchoBeforeOpenDiscarded changed only to read frameLog through the locked snapshot() (frameLog race fix); every assertion, input and comparison is unchanged, so the verdict stands. Judge ppp4 2026-09-30. Polarity labels corrected (D-15): TestRFC1661EchoReplyInOpened is now the positive (reply sent in Opened, recorded red on sendEchoReply) and TestRFC1661NoEchoOutsideOpened the negative (Echo-Request in Req-Sent/Ack-Sent/Ack-Rcvd/Stopped draws neither Echo-Reply nor Echo-Request, recorded red on LCPDoTransition). The negative is no longer vacuous: the peer Magic-Number now matches peerMagic, so only the state blocks the reply, and an FSM that gave RXR a ser edge outside Opened turns it red. Echo-Request half unchanged: TestRFC1661KeepaliveEchoOnlyInOpened (run(), echo in Opened; after the peer CONFREQ the next frame is the CONFREQ retransmission, no Echo-Request). pppoeclient TestClientLCPEchoBeforeOpenDiscarded kept (client role, no record).",
+  "requirement_sha": "9e7c1a7d87cb760e",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661KeepaliveEchoOnlyInOpened": "d6b4e2cbd1b095e9",
+    "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661KeepaliveEchoOnlyInOpened#2": "d6b4e2cbd1b095e9",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661EchoReplyInOpened": "9afaf002f0fd81ec",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoEchoOutsideOpened": "9afaf002f0fd81ec",
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_transition_test.go::TestClientLCPEchoBeforeOpenDiscarded": "cb61e36ae227f21d"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661KeepaliveEchoOnlyInOpened": "540e32ea517f5dcc",
+    "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661KeepaliveEchoOnlyInOpened#2": "540e32ea517f5dcc",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661EchoReplyInOpened": "2bb8cc697c6e3454",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoEchoOutsideOpened": "ec0d0ea97932d3f4",
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_transition_test.go::TestClientLCPEchoBeforeOpenDiscarded": "10758d2a75db1e0a"
+  },
+  "verdict": "enforced"
+}

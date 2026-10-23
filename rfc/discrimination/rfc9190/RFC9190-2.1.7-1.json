@@ -1,0 +1,57 @@
+[
+  {
+    "rid": "RFC9190-2.1.7-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc9190_nai_wiring_test.go::TestEAPTLSPeerConfigCarriesTheCertificateTheNAIIsDerivedFrom",
+    "unit-sha": "cac838cc200736f3",
+    "claim-sha": "f422bea690cfae66",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/fsm.go::buildPeerTLSConfig",
+    "producer-sha": "0eae00ae8719ce18",
+    "break": "body of buildPeerTLSConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9190-2.1.7-1",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc9190_cert_nai_test.go::TestEAPTLS13PeerDerivesItsRealmFromTheCertificateNAI",
+    "unit-sha": "bf8dcf91edf45e20",
+    "claim-sha": "7b18130b3486dfa6",
+    "route": "revert",
+    "producer": "internal/core/eap/nai.go::certificateNAIs",
+    "producer-sha": "871d1c8a5f40f128",
+    "break": "body of certificateNAIs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9190-2.1.7-1",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc9190_cert_nai_test.go::TestEAPTLSPeerDerivesTheRealmFromEveryNAIBearingCertificateField",
+    "unit-sha": "4ad29de068e6d61a",
+    "claim-sha": "49a4d2007d259c57",
+    "route": "revert",
+    "producer": "internal/core/eap/nai.go::certificateNAIs",
+    "producer-sha": "871d1c8a5f40f128",
+    "break": "body of certificateNAIs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9190-2.1.7-1",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc9190_cert_nai_test.go::TestEAPTLSPeerKeepsTheAnonymousFallbackWhenNoCertificateNAIIsUsable",
+    "unit-sha": "83bbf548de583677",
+    "claim-sha": "1295d779c97d1d20",
+    "route": "revert",
+    "producer": "internal/core/eap/nai.go::naiSource",
+    "producer-sha": "1483351adcf3f00f",
+    "break": "body of naiSource replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9190-2.1.7-1",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc9190_cert_nai_test.go::TestEAPTLSPeerPrefersTheConfiguredRealmOverTheCertificate",
+    "unit-sha": "5d69a22356f12f36",
+    "claim-sha": "93d7bbb2dbde9db9",
+    "route": "revert",
+    "producer": "internal/core/eap/nai.go::naiSource",
+    "producer-sha": "1483351adcf3f00f",
+    "break": "body of naiSource replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

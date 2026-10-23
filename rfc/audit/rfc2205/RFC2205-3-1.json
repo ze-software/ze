@@ -1,0 +1,19 @@
+{
+  "note": "Rejudged 2026-09-29 (routing child). The missing ERROR_SPEC is now proven: TestRFC2205ErrorSpecClassRecognized decodes a PathErr with no unknown object and the error node, code and value intact. Other listed classes are covered by TestRFC2205KnownClassesRecognized and the NULL tests; negative TestRFC2205UnlistedClassNotRecognized. Class numbers are compared through the package constants, as for every other class in this row.",
+  "requirement_sha": "7d4829cbbc8e983c",
+  "tests": {
+    "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC2205ErrorSpecClassRecognized": "8cea1a3ca4572fd1",
+    "internal/plugins/rsvpte/repairs_rfc2205_test.go::TestRFC2205NullObjectNotRejected": "8d0e9940256c124f",
+    "internal/plugins/rsvpte/repairs_rfc2205_test.go::TestRFC2205NullObjectRecognized": "8d0e9940256c124f",
+    "internal/plugins/rsvpte/rfc2205_wire_test.go::TestRFC2205KnownClassesRecognized": "12691630c6e2e34c",
+    "internal/plugins/rsvpte/rfc2205_wire_test.go::TestRFC2205UnlistedClassNotRecognized": "12691630c6e2e34c"
+  },
+  "units": {
+    "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC2205ErrorSpecClassRecognized": "73c1403f82248f17",
+    "internal/plugins/rsvpte/repairs_rfc2205_test.go::TestRFC2205NullObjectNotRejected": "98be3b3f9ca2881a",
+    "internal/plugins/rsvpte/repairs_rfc2205_test.go::TestRFC2205NullObjectRecognized": "30892bfebd817b46",
+    "internal/plugins/rsvpte/rfc2205_wire_test.go::TestRFC2205KnownClassesRecognized": "e97155f0e98847e3",
+    "internal/plugins/rsvpte/rfc2205_wire_test.go::TestRFC2205UnlistedClassNotRecognized": "a73323d3f842bdb5"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-11 by an independent judge; row widened to the Length item head, obligation 'MUST be four less than the Payload Length of the encapsulating payload' (RFC 7296 3.16). TestEapfmtEAPLengthIsFourLessThanPayloadLength reads both lengths off the encoded IKE payload for five body sizes and requires eapLen == payloadLen-4 and eapLen == 4+size, refusing a repeated or copied length; the decoder recovers every data octet. Send side only; no test feeds a received EAP payload whose lengths disagree. No discrimination record.",
+  "requirement_sha": "58b49b583238a11f",
+  "tests": {
+    "internal/component/ike/wire/rfc7296_eap_test.go::TestEapfmtEAPLengthIsFourLessThanPayloadLength": "7d14d8da7a50965e",
+    "internal/component/ike/wire/rfc7296_eap_test.go::TestEapfmtEAPLengthIsFourLessThanPayloadLength#2": "7d14d8da7a50965e"
+  },
+  "units": {
+    "internal/component/ike/wire/rfc7296_eap_test.go::TestEapfmtEAPLengthIsFourLessThanPayloadLength": "16eab53ad07e8df9",
+    "internal/component/ike/wire/rfc7296_eap_test.go::TestEapfmtEAPLengthIsFourLessThanPayloadLength#2": "16eab53ad07e8df9"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC8907-8.1-2",
+    "polarity": "negative",
+    "unit": "internal/component/tacacs/rfc8907_accounting_test.go::TestRFC8907StartTimeIgnoresLocalZone",
+    "unit-sha": "e164582261fe68e0",
+    "claim-sha": "8496fe82c3a87a28",
+    "route": "revert",
+    "producer": "internal/component/tacacs/accounting.go::CommandStart",
+    "producer-sha": "ec98e896c367ffa0",
+    "break": "body of CommandStart replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8907-8.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/tacacs/rfc8907_accounting_test.go::TestRFC8907StartTimeIsEpochSeconds",
+    "unit-sha": "4cc59fe7d0619f78",
+    "claim-sha": "2017b9a70bfb536f",
+    "route": "revert",
+    "producer": "internal/component/tacacs/accounting.go::CommandStart",
+    "producer-sha": "ec98e896c367ffa0",
+    "break": "body of CommandStart replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8907-8.1-2",
+    "polarity": "negative",
+    "unit": "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907StopTimeIgnoresLocalZone",
+    "unit-sha": "4a4c8c661dcd2fca",
+    "claim-sha": "5a26fcdf8a045ea5",
+    "route": "revert",
+    "producer": "internal/component/tacacs/accounting.go::commandStop",
+    "producer-sha": "ce5ff485f17be390",
+    "break": "body of commandStop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8907-8.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907StopTimeIsEpochSeconds",
+    "unit-sha": "bf14e22df4a03dfc",
+    "claim-sha": "978c3a175228049c",
+    "route": "revert",
+    "producer": "internal/component/tacacs/accounting.go::commandStop",
+    "producer-sha": "ce5ff485f17be390",
+    "break": "body of commandStop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

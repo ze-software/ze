@@ -1,0 +1,17 @@
+{
+  "code": {
+    "internal/plugins/ldp/session.go::ReadLoop": "e364a199482d45ff",
+    "internal/plugins/ldp/session.go::handleInit": "64151d8ee0d2c346"
+  },
+  "note": "Re-judged 2026-10-14 after the units changed. TestRFC5036KeepaliveNegotiationAdoptsLower (ours 60s, peer 20s) and TestRFC5036KeepaliveNegotiationRefusesHigher (ours 30s, peer 180s) call the production handleInit and assert, in both directions, the negotiated KeepAlive Time (currentKeepalive) and the armed KeepAlive Timer (currentHoldTime, the holdTime field ReadLoop takes as its read deadline) equal the smaller value: 20s and 30s. A timer armed at a multiple of the negotiated time, or at either proposal regardless of size, fails one of the two. The tests read the field; they do not observe ReadLoop's deadline firing.",
+  "requirement_sha": "7301ea13d9cec874",
+  "tests": {
+    "internal/plugins/ldp/rfc5036_test.go::TestRFC5036KeepaliveNegotiationAdoptsLower": "0c099031be03877f",
+    "internal/plugins/ldp/rfc5036_test.go::TestRFC5036KeepaliveNegotiationRefusesHigher": "0c099031be03877f"
+  },
+  "units": {
+    "internal/plugins/ldp/rfc5036_test.go::TestRFC5036KeepaliveNegotiationAdoptsLower": "971d56dd995fa63c",
+    "internal/plugins/ldp/rfc5036_test.go::TestRFC5036KeepaliveNegotiationRefusesHigher": "ca2d8d891780626c"
+  },
+  "verdict": "enforced"
+}

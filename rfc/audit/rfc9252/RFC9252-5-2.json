@@ -1,0 +1,9 @@
+{
+  "code": {
+    "internal/component/bgp/plugins/rib/rib_bestchange.go::isSRv6Ineligible": "99b9a0bb611fc860",
+    "internal/component/sysrib/sysrib.go::fibEntry": "212e1fede64e8154"
+  },
+  "note": "{gap} confirmed at the producer. isSRv6Ineligible (internal/component/bgp/plugins/rib/rib_bestchange.go) is the only best-path gate on the SRv6 Service SID, and it excludes a route only when an SRv6 Service TLV yields no extractable SID; it never asks whether the SID resolves. The one resolvability check ze runs, srv6SIDResolvable in sysRIB.fibEntry (internal/component/sysrib/sysrib.go), runs after both selections and only declines the FIB write, so a route whose SID reaches nothing still wins the prefix and the next-best route is not used. No tagged unit exists; the check before best path is plan/immediate/spec-srv6-bestpath-resolvability.md. Re-judged 2026-10-14 (independent reader, after 8c1c4013f2 and 7d37dcd562). isSRv6Ineligible now takes the family and excludes a path whose SID ExtractSRv6SIDFull or srv6SIDValidForFamily finds invalid (Section 3.2.1 fields, transposition width); it still never asks whether the SID resolves, so the gap stands.",
+  "requirement_sha": "0ca22049adacc6ff",
+  "verdict": "unimplemented"
+}

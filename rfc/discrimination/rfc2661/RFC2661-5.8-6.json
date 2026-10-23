@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC2661-5.8-6",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661PeerWindowOfFourAccepted",
+    "unit-sha": "d8da11c4d9f6aed5",
+    "claim-sha": "f8805177bb343a5d",
+    "route": "revert",
+    "producer": "internal/component/l2tp/reliable_window.go::available",
+    "producer-sha": "ac58c10bf4efd901",
+    "break": "body of available replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2661-5.8-6",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661PeerWindowOfFourAccepted",
+    "unit-sha": "d8da11c4d9f6aed5",
+    "claim-sha": "b2664066d4a8ff8e",
+    "route": "revert",
+    "producer": "internal/component/l2tp/reliable_window.go::available",
+    "producer-sha": "ac58c10bf4efd901",
+    "break": "body of available replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2661-5.8-6",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/rfc2661_reliable_window_test.go::TestWindowAvailable",
+    "unit-sha": "a5ddb0931a41a8ab",
+    "claim-sha": "3d95ea8b31c15e98",
+    "route": "revert",
+    "producer": "internal/component/l2tp/reliable_window.go::available",
+    "producer-sha": "ac58c10bf4efd901",
+    "break": "body of available replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2661-5.8-6",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/rfc2661_reliable_window_test.go::TestWindowPeerRWSZero",
+    "unit-sha": "7b95301adcd1943f",
+    "claim-sha": "50704bddb74578bb",
+    "route": "revert",
+    "producer": "internal/component/l2tp/reliable_window.go::clampPeerRWS",
+    "producer-sha": "94a8d309f219e991",
+    "break": "body of clampPeerRWS replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

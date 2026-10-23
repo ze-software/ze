@@ -1,0 +1,25 @@
+{
+  "code": {
+    "internal/component/bgp/plugins/cmd/update/update_text_evpn.go::parseEVPNSection": "7f98c518db6a5ea0",
+    "internal/component/bgp/plugins/nlri/evpn/encode.go::l2vpnRouteToEVPNParams": "b5c60e7daf3daf4e",
+    "internal/component/bgp/plugins/nlri/evpn/encode.go::parseL2VPNArgs": "518a11acdc713f4d",
+    "internal/component/bgp/plugins/nlri/evpn/overlay_index.go::checkOverlayIndex": "8a27bf811f7a630f",
+    "internal/component/bgp/plugins/nlri/evpn/overlay_index.go::parseOverlayIndex": "3dd9c1c035b8e2b0",
+    "internal/component/bgp/plugins/nlri/evpn/plugin.go::buildEVPNFromParams": "b46461e1e0ac382a"
+  },
+  "note": "Re-judged 2026-10-19 (independent auditor, after 4283f8d2e3). Verdict stands: enforced. RFC 9136 Section 3.1: \"The GW IP Address field is a 4- or 16-octet field (IPv4 or IPv6) and will encode a valid IP address as an Overlay Index for the IP prefixes.  The GW IP field MUST be all bytes zero if it is not used as an Overlay Index.\" No producer change since 0411b53e91 (git log over internal/component/bgp/plugins/nlri/evpn and update_text_evpn.go shows only 4283f8d2e3, which touches internal/le/interoplab/bgp/check_extras.go alone). checkOverlayIndex is unchanged and still the only gate before newEVPNType5, whose two non-test callers (plugin.go buildEVPNFromParams, encode.go l2vpnRouteToEVPNParams) both call it first. Tagged units pass at HEAD (go test -run 'TestRFC9136Overlay|EVPNType5ESIGateway' over nlri/evpn and cmd/update, ok). Interop, closing the prior note's owed item: 4283f8d2e3 makes bgp-evpn-gobgp originate through update text ('... ip-prefix rd 1:1 esi 00:01:02:03:04:05:06:07:08:09 etag 0 prefix 10.77.0.0/24 overlay-index esi label 0', internal/le/interoplab/bgp/helper.go:202, path parseEVPNSection -> buildEVPNFromParams -> checkOverlayIndex) and wait for GoBGP's JSON NLRI to read \"esi\":\"ESI_ARBITRARY | 01:02:03:04:05:06:07:08:09\",\"etag\":0,\"prefix\":\"10.77.0.0/24\",\"gateway\":\"0.0.0.0\". bgp-evpn-frr now only asserts FRR keyed the route [5]:[0]:[24]:[10.77.0.0] (FRR 10.3.1 prints no type-5 ESI), so FRR proves acceptance, not the octets. Both scenarios reported 1 passed in the commit body; not re-run by this judge. The GoBGP needle includes \"gateway\":\"0.0.0.0\", so GoBGP reads an all-zero IPv4 GW IP under overlay-index esi: positive interop evidence for this MUST. The recorded red broke the ESI only; no red was forced on the gateway (for example passing a non-zero gateway past checkOverlayIndex), so the interop's discrimination of the GW IP clause is unproven and the needle's gateway half is a positive-only observation. That does not lower the verdict, which rests on the unit proof: TestRFC9136OverlayIndexESINonZeroOnlyAsIndex pins GW 00000000 under none and esi, TestRFC9136OverlayIndexESIRefusedOtherwise refuses gateway 10.1.2.1 under esi, none and no keyword, three mutants red on their own subtests (2026-10-18 note).",
+  "requirement_sha": "dd41e469cf996809",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/evpn/rfc9136_overlay_index_test.go::TestRFC9136OverlayIndexESINonZeroOnlyAsIndex": "adda1e8c5163b7c5",
+    "internal/component/bgp/plugins/nlri/evpn/rfc9136_overlay_index_test.go::TestRFC9136OverlayIndexESIRefusedOtherwise": "adda1e8c5163b7c5",
+    "internal/component/bgp/plugins/nlri/evpn/rfc9136_overlay_index_test.go::TestRFC9136OverlayIndexESIRefusedOtherwise#2": "adda1e8c5163b7c5",
+    "internal/component/bgp/plugins/nlri/evpn/rfc9136_overlay_index_test.go::TestRFC9136OverlayIndexESIRefusedOtherwise#3": "adda1e8c5163b7c5"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/evpn/rfc9136_overlay_index_test.go::TestRFC9136OverlayIndexESINonZeroOnlyAsIndex": "6874b1e48e384d6f",
+    "internal/component/bgp/plugins/nlri/evpn/rfc9136_overlay_index_test.go::TestRFC9136OverlayIndexESIRefusedOtherwise": "0cbe036d30fe31f1",
+    "internal/component/bgp/plugins/nlri/evpn/rfc9136_overlay_index_test.go::TestRFC9136OverlayIndexESIRefusedOtherwise#2": "0cbe036d30fe31f1",
+    "internal/component/bgp/plugins/nlri/evpn/rfc9136_overlay_index_test.go::TestRFC9136OverlayIndexESIRefusedOtherwise#3": "0cbe036d30fe31f1"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC1332-3-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1332_clauses_test.go::TestIPCPOptionsWrittenInLCPFormat",
+    "unit-sha": "28734e2f7d0ed023",
+    "claim-sha": "923fba033eda9cb0",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/ipcp.go::writeIPCPv4Option",
+    "producer-sha": "f058a063887518d3",
+    "break": "body of writeIPCPv4Option replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1332-3-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1332_ipcp_test.go::TestIPCPParseOptions",
+    "unit-sha": "d874b9192f53bf7c",
+    "claim-sha": "afb8dcb8d0d5ca77",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/ipcp.go::ParseIPCPOptions",
+    "producer-sha": "1e8cc3fb4eebd69c",
+    "break": "body of ParseIPCPOptions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1332-3-1",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/ppp/rfc1332_ipcp_test.go::TestIPCPParseRejects",
+    "unit-sha": "ae897d8bbb9b2231",
+    "claim-sha": "2a4a98e21fffb457",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/ipcp.go::ParseIPCPOptions",
+    "producer-sha": "1e8cc3fb4eebd69c",
+    "break": "body of ParseIPCPOptions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

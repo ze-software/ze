@@ -1,0 +1,11 @@
+{
+  "note": "single polarity (annotated, argument holds): the obligation binds only a node claiming Algorithm 1, and the only producer of that claim is srBuildAlgorithm. Forbidden precondition: advertising Algorithm 1; TestRFC8665SRAlgorithmTLVAdvertisesAlgorithmZeroOnly decodes the emitted TLV and fails unless it is exactly {0}, so any Algorithm 1 claim goes red. With no claim there is no Algorithm 1 SPF for local policy to alter and no violating input exists",
+  "requirement_sha": "59953f8d15f9e1b2",
+  "tests": {
+    "internal/plugins/ospf/rfc8665_test.go::TestRFC8665SRAlgorithmTLVAdvertisesAlgorithmZeroOnly": "7f2eeb6dac97643c"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc8665_test.go::TestRFC8665SRAlgorithmTLVAdvertisesAlgorithmZeroOnly": "31a2982f80bad2ac"
+  },
+  "verdict": "enforced"
+}

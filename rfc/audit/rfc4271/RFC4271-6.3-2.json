@@ -1,0 +1,19 @@
+{
+  "note": "Re-judged 2026-10-01 (BGP c15 judge). Both clauses proven at their producers. 'the route SHOULD be ignored': TestRFC4271SemanticallyIncorrectNextHopIsLoggedAndIgnored and TestRFC4271SemanticallyIncorrectNextHopIsLoggedAtTheDefaultLevel drive a live session read over a one-hop EBGP session; NEXT_HOP = the receiving speaker (criterion a) and NEXT_HOP off the shared subnet (criterion b) leave NLRI empty and move 203.0.113.0/24 to the withdrawn routes, an on-subnet NEXT_HOP is delivered. 'the error SHOULD be logged' (the c14 gap, D-8 fixed): session_next_hop.go::logIgnoredNextHopRoute, called in session_read.go processMessage at the invalid-next-hop branch with the Section 6.3 quote above it, writes 'route ignored: semantically incorrect NEXT_HOP' at Warn, the slogutil default level; the new unit captures the session logger at slog.LevelWarn and asserts level=WARN, peer=192.0.2.1 and next-hop=<the NEXT_HOP> for both invalid cases, and no such record for the valid one. Records: revert on logIgnoredNextHopRoute (+) and invalidReceiveNextHop (-); the author's c15-63red shows the new unit red before the fix. Residual, not a verdict defect: there is NO rate limiting (Ze has none to reuse), so a peer repeating such routes writes one WARN per UPDATE; the RFC asks only that the error be logged. The rib unit TestRFC4271SelfNextHopRouteIsNotInstalled still has no record (unproven).",
+  "requirement_sha": "45bae6d884e23135",
+  "tests": {
+    "internal/component/bgp/plugins/rib/rfc4271_self_nexthop_test.go::TestRFC4271SelfNextHopRouteIsNotInstalled": "2b58a565501daf62",
+    "internal/component/bgp/reactor/rfc4271_nexthop_semantic_test.go::TestRFC4271SemanticallyIncorrectNextHopIsLoggedAndIgnored": "576df1bf99f227b9",
+    "internal/component/bgp/reactor/rfc4271_nexthop_semantic_test.go::TestRFC4271SemanticallyIncorrectNextHopIsLoggedAndIgnored#2": "576df1bf99f227b9",
+    "internal/component/bgp/reactor/rfc4271_nexthop_semantic_test.go::TestRFC4271SemanticallyIncorrectNextHopIsLoggedAtTheDefaultLevel": "576df1bf99f227b9",
+    "internal/component/bgp/reactor/rfc4271_nexthop_semantic_test.go::TestRFC4271SemanticallyIncorrectNextHopIsLoggedAtTheDefaultLevel#2": "576df1bf99f227b9"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rib/rfc4271_self_nexthop_test.go::TestRFC4271SelfNextHopRouteIsNotInstalled": "c36a57823c94df7e",
+    "internal/component/bgp/reactor/rfc4271_nexthop_semantic_test.go::TestRFC4271SemanticallyIncorrectNextHopIsLoggedAndIgnored": "b95266d0889b4164",
+    "internal/component/bgp/reactor/rfc4271_nexthop_semantic_test.go::TestRFC4271SemanticallyIncorrectNextHopIsLoggedAndIgnored#2": "b95266d0889b4164",
+    "internal/component/bgp/reactor/rfc4271_nexthop_semantic_test.go::TestRFC4271SemanticallyIncorrectNextHopIsLoggedAtTheDefaultLevel": "dadfd6f227b06e83",
+    "internal/component/bgp/reactor/rfc4271_nexthop_semantic_test.go::TestRFC4271SemanticallyIncorrectNextHopIsLoggedAtTheDefaultLevel#2": "dadfd6f227b06e83"
+  },
+  "verdict": "enforced"
+}

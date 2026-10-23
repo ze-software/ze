@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden behaviour: a non-zero SendHoldTime not greater than the HoldTime. TestRFC9687SendHoldTimeMustExceedHoldTime requires parsePeerFromTree to error on 480 below 3600 and on 600 equal to 600; TestRFC9687SendHoldTimeAboveHoldTimeAccepted requires 3601 over 3600, 480 over 90 and 480 over 0 to load, and the zero (automatic) value to be exempt. The negotiated HoldTime is min(local, peer), so the check against the local receive-hold-time bounds it.",
+  "requirement_sha": "ef5fd390a8175ebb",
+  "tests": {
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldTimeAboveHoldTimeAccepted": "8caa1cc8f2fc140d",
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldTimeMustExceedHoldTime": "8caa1cc8f2fc140d"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldTimeAboveHoldTimeAccepted": "73b714184f82704b",
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldTimeMustExceedHoldTime": "4d7207b27b4accc5"
+  },
+  "verdict": "enforced"
+}

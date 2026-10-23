@@ -1,0 +1,11 @@
+{
+  "note": "TestRFC2181_NSCanonicalWithGlue asserts every synthesized NS target has an A record in the additional section of the same answer.",
+  "requirement_sha": "1db0bcd911557a99",
+  "tests": {
+    "internal/plugins/geodns/rfc2181_server_test.go::TestRFC2181_NSCanonicalWithGlue": "8db97d24fc455c8c"
+  },
+  "units": {
+    "internal/plugins/geodns/rfc2181_server_test.go::TestRFC2181_NSCanonicalWithGlue": "336b9649bdc7ad4d"
+  },
+  "verdict": "enforced"
+}

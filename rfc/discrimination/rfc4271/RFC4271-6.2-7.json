@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4271-6.2-7",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_session_open_error_test.go::TestRFC4271OpenErrorSubcodes",
+    "unit-sha": "4a9c96647ef297b7",
+    "claim-sha": "4480de7f9f8ccd01",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/open.go::ValidateHoldTime",
+    "producer-sha": "5c50ea45361e6069",
+    "break": "body of ValidateHoldTime replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-6.2-7",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_session_open_error_test.go::TestRFC4271OpenErrorSubcodes",
+    "unit-sha": "4a9c96647ef297b7",
+    "claim-sha": "bfa7e29f9cfa00cd",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/open.go::ValidateHoldTime",
+    "producer-sha": "5c50ea45361e6069",
+    "break": "body of ValidateHoldTime replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

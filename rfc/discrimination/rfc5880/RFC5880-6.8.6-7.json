@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC5880-6.8.6-7",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/engine/rfc5880_discriminator_select_test.go::TestRFC5880YourDiscriminatorSelectsAmongSessions",
+    "unit-sha": "2637e197dd4e2821",
+    "claim-sha": "1e06928c03a53016",
+    "route": "revert",
+    "producer": "internal/component/bfd/engine/loop.go::handleInbound",
+    "producer-sha": "f721533856857321",
+    "break": "body of handleInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.8.6-7",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880UnknownYourDiscriminatorDiscarded",
+    "unit-sha": "134086f723ccc7aa",
+    "claim-sha": "5afee8a50279f59a",
+    "route": "revert",
+    "producer": "internal/component/bfd/engine/loop.go::handleInbound",
+    "producer-sha": "f721533856857321",
+    "break": "body of handleInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.8.6-7",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880YourDiscriminatorSelectsSession",
+    "unit-sha": "0683c6c8100a64e7",
+    "claim-sha": "4e403efbe49b179c",
+    "route": "revert",
+    "producer": "internal/component/bfd/engine/loop.go::handleInbound",
+    "producer-sha": "f721533856857321",
+    "break": "body of handleInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

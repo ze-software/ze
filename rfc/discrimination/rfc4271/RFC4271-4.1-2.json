@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4271-4.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/message/rfc4271_header_send_test.go::TestRFC4271EveryMessageSentWithSmallestLength",
+    "unit-sha": "bf50069f8794796e",
+    "claim-sha": "86892303b8866b7e",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/open.go::writeToExtended",
+    "producer-sha": "88ac46ccdf758979",
+    "break": "body of writeToExtended replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-4.1-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/message/rfc4271_header_send_test.go::TestRFC4271EveryMessageSentWithSmallestLength",
+    "unit-sha": "bf50069f8794796e",
+    "claim-sha": "d2be7b944c8ac0b9",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/open.go::writeToExtended",
+    "producer-sha": "88ac46ccdf758979",
+    "break": "body of writeToExtended replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

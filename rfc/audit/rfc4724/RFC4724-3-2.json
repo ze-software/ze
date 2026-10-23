@@ -1,0 +1,17 @@
+{
+  "note": "Sender half: TestGracefulRestartEncodeReservedBits (WriteTo masks to R bit and 12-bit time). Receiver half: TestRFC4724ReceiverIgnoresReservedRestartFlags parses the nibble with reserved 0x3 set, R clear and set, and requires the result equal to the clean parse. Judge breaks: R bit read with mask 0x9000, and Restart Time read with mask 0x3FFF, each turned the test red. Only 0x3 used because RFC 8538 assigned the N bit.",
+  "requirement_sha": "82503bdc2d2d8e2e",
+  "tests": {
+    "internal/core/bgp/capability/capability_test.go::TestGracefulRestartEncodeReservedBits": "3b6ab22b8c99761b",
+    "internal/core/bgp/capability/capability_test.go::TestGracefulRestartEncodeReservedBits#2": "3b6ab22b8c99761b",
+    "internal/core/bgp/capability/rfc4724_reserved_bits_test.go::TestRFC4724ReceiverIgnoresReservedRestartFlags": "dad25bb523dfbd36",
+    "internal/core/bgp/capability/rfc4724_reserved_bits_test.go::TestRFC4724ReceiverIgnoresReservedRestartFlags#2": "dad25bb523dfbd36"
+  },
+  "units": {
+    "internal/core/bgp/capability/capability_test.go::TestGracefulRestartEncodeReservedBits": "46c5c81f27202784",
+    "internal/core/bgp/capability/capability_test.go::TestGracefulRestartEncodeReservedBits#2": "46c5c81f27202784",
+    "internal/core/bgp/capability/rfc4724_reserved_bits_test.go::TestRFC4724ReceiverIgnoresReservedRestartFlags": "85c4483729721ded",
+    "internal/core/bgp/capability/rfc4724_reserved_bits_test.go::TestRFC4724ReceiverIgnoresReservedRestartFlags#2": "85c4483729721ded"
+  },
+  "verdict": "enforced"
+}

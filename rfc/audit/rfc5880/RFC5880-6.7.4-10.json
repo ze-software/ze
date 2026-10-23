@@ -1,0 +1,13 @@
+{
+  "note": "Judge 2026-09-30 (phase 8). Positive TestRFC5880AuthKeyIDIsTheConfiguredKey (Keyed SHA1, ids 0/1/200/255 on the wire); judge break of the key-id write in digestSigner.Sign reds it. Negative TestRFC5880AuthKeyIDMismatchDiscarded is the receive-side handling of a peer PDU with a key id other than the configured one (owner ruling 2 reading of a generate row); judge break removing the key-id check in digestVerifier.Verify reds it through its replay-floor assertion, so it is isolated from the digest.",
+  "requirement_sha": "048f3b4dd6a640ac",
+  "tests": {
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthKeyIDIsTheConfiguredKey": "5a25c74cc2d9bd47",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthKeyIDMismatchDiscarded": "5a25c74cc2d9bd47"
+  },
+  "units": {
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthKeyIDIsTheConfiguredKey": "03e153db69b20d01",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthKeyIDMismatchDiscarded": "f0a849a58b8a9b34"
+  },
+  "verdict": "enforced"
+}

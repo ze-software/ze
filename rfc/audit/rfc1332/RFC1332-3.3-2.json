@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: a Configure-Nak IP-Address that is not acceptable as the remote address. TestIPCPNakCarriesTheAssignedRemoteAddress asserts the Nak carries the assigned 10.0.0.2 for a request of 10.9.9.9 and for a request with no address, red if another value is given. TestIPCPNakNeverCarriesAnUnacceptableAddress asserts the requested address is not echoed and that with nothing assigned the option is omitted rather than written invalid. The 'or indicate a request' branch is a permitted alternative Ze does not use.",
+  "requirement_sha": "3abae544e523c91f",
+  "tests": {
+    "internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestIPCPNakCarriesTheAssignedRemoteAddress": "8e29592e5f428395",
+    "internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestIPCPNakNeverCarriesAnUnacceptableAddress": "8e29592e5f428395"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestIPCPNakCarriesTheAssignedRemoteAddress": "0ef395c067fb53ac",
+    "internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestIPCPNakNeverCarriesAnUnacceptableAddress": "952354f10d88be1f"
+  },
+  "verdict": "enforced"
+}

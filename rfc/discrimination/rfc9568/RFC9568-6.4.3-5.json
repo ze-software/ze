@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC9568-6.4.3-5",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/backupfilter_test.go::TestBackupDiscardFollowsTheState",
+    "unit-sha": "658cdb6974c316f4",
+    "claim-sha": "87c4c01a55f07a05",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/instance.go::doInstallVIPs",
+    "producer-sha": "6c990de7776ea965",
+    "break": "body of doInstallVIPs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9568-6.4.3-5",
+    "polarity": "negative",
+    "unit": "internal/plugins/vrrp/backupfilter_test.go::TestBackupDiscardFollowsTheState",
+    "unit-sha": "658cdb6974c316f4",
+    "claim-sha": "84349da601d42619",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/instance.go::doRemoveVIPs",
+    "producer-sha": "472084ff4c27bb08",
+    "break": "body of doRemoveVIPs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9568-6.4.3-5",
+    "polarity": "negative",
+    "unit": "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames",
+    "unit-sha": "bdc10717c49ebd8d",
+    "claim-sha": "1dabf0603539bb45",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/backupfilter.go::clearBackupFilter",
+    "producer-sha": "0ed7e2c78aa93d89",
+    "break": "body of clearBackupFilter replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9568-6.4.3-5",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames",
+    "unit-sha": "bdc10717c49ebd8d",
+    "claim-sha": "d0f6f7ec23b11e32",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/backupfilter.go::clearBackupFilter",
+    "producer-sha": "0ed7e2c78aa93d89",
+    "break": "body of clearBackupFilter replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

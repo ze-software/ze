@@ -1,0 +1,13 @@
+{
+  "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentListSubTLV. Forbidden: a non-zero Segment List RESERVED octet on transmission. Red: assert.Equal(byte(0), value[0]). Negative: the following sub-TLVs are non-empty (require.NotEmpty(inner)) and the value is not blank.",
+  "requirement_sha": "958f225d63e19a03",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentListSubTLV": "450f2364530acf19",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentListSubTLV#2": "450f2364530acf19"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentListSubTLV": "967814ae57450c29",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentListSubTLV#2": "967814ae57450c29"
+  },
+  "verdict": "enforced"
+}

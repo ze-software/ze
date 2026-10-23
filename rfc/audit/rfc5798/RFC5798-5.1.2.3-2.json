@@ -1,0 +1,13 @@
+{
+  "note": "golden v6 decode passes at hop limit 255; hop limit 64 asserts ErrTTL",
+  "requirement_sha": "53144ff20f530a67",
+  "tests": {
+    "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv6": "5bbc8ddba98cd418",
+    "internal/plugins/vrrp/packet/validate_test.go::TestDecodeV3IPv6ChecksumAndHopLimit": "5bbc8ddba98cd418"
+  },
+  "units": {
+    "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv6": "2a54600c4cbf442d",
+    "internal/plugins/vrrp/packet/validate_test.go::TestDecodeV3IPv6ChecksumAndHopLimit": "2e3e761c5e3df207"
+  },
+  "verdict": "enforced"
+}

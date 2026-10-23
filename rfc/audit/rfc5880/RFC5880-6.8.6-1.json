@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: accepting a Version other than 1. TestRFC5880VersionNotOneDiscarded fails unless ParseControl returns exactly ErrBadVersion for 0, 2, 3 and 7 (version is the first check, so no other rule trips); handleInbound returns on any ParseControl error. Positive TestRFC5880VersionOneAccepted: version 1 parses with no error.",
+  "requirement_sha": "8138234d5c7a1e52",
+  "tests": {
+    "internal/component/bfd/packet/rfc5880_test.go::TestRFC5880VersionNotOneDiscarded": "fba3b65e315e32aa",
+    "internal/component/bfd/packet/rfc5880_test.go::TestRFC5880VersionOneAccepted": "fba3b65e315e32aa"
+  },
+  "units": {
+    "internal/component/bfd/packet/rfc5880_test.go::TestRFC5880VersionNotOneDiscarded": "49d802130717b593",
+    "internal/component/bfd/packet/rfc5880_test.go::TestRFC5880VersionOneAccepted": "cdaae158f996673a"
+  },
+  "verdict": "enforced"
+}

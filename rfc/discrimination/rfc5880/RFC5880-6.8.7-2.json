@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC5880-6.8.7-2",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/engine/rfc5880_jitter_tick_test.go::TestRFC5880PeriodicTransmitJitteredPerPacket",
+    "unit-sha": "bac4fbbdbc18366b",
+    "claim-sha": "8d8246eb68c74c6c",
+    "route": "revert",
+    "producer": "internal/component/bfd/engine/loop.go::tick",
+    "producer-sha": "4d6c5e086edd0eba",
+    "break": "body of tick replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.8.7-2",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880JitterIsAppliedPerPacket",
+    "unit-sha": "af1ce9411fd82755",
+    "claim-sha": "05b6d77799ab4045",
+    "route": "revert",
+    "producer": "internal/component/bfd/engine/engine.go::applyJitter",
+    "producer-sha": "4ffe33afa7c2bb93",
+    "break": "body of applyJitter replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.8.7-2",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880JitterStaysWithinBand",
+    "unit-sha": "e7038852b0b2ea43",
+    "claim-sha": "08d19f2fbdd3e0d2",
+    "route": "revert",
+    "producer": "internal/component/bfd/engine/engine.go::applyJitter",
+    "producer-sha": "4ffe33afa7c2bb93",
+    "break": "body of applyJitter replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

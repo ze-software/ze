@@ -1,0 +1,13 @@
+{
+  "note": "positive: the flow_sample carries one sampled_header record with the 14 captured bytes; negative: a 1500-byte capture that cannot fit is truncated but still carried as a non-empty sampled_header prefix",
+  "requirement_sha": "19f9b84f99b41d45",
+  "tests": {
+    "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5FlowSampleCarriesPacketHeader": "2b3441f1e34ff01f",
+    "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5FlowSampleNeverWithoutHeader": "2b3441f1e34ff01f"
+  },
+  "units": {
+    "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5FlowSampleCarriesPacketHeader": "164a1c4a435c0ba8",
+    "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5FlowSampleNeverWithoutHeader": "823ba4f78bce379f"
+  },
+  "verdict": "enforced"
+}

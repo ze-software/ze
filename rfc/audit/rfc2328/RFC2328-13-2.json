@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-10-12 (independent auditor). SHIFTED by 6e063fb498 (tests: give ten assert-nothing tests a real assertion), whose hunks sit in untagged sibling tests and the import block. The tagged unit is byte-identical (gate-verified) and no helper it calls changed. Verdict stands. c20 judge: both clauses on the real flood path. Into: TestRFC2328ASExternalNotFloodedIntoStubArea, four-area ABR, Type-5 received on eth0 and self-originated, reaches the normal-area control eth3 and never leaves the stub eth1 or NSSA eth2, no stub/NSSA retransmission entry (red with eligibleInterface reverted). Throughout: TestRFC2328ASExternalFromStubInterfaceGoesNowhere, Type-5 from the stub/NSSA neighbor not installed and flooded out no interface, eth1 back included (red with shouldDropByArea reverted). Old helper-only units kept as supplementary. Helper rename by sed re-read: lsaFloodedOn consistent, no leftover.",
+  "requirement_sha": "41dc0469753b2263",
+  "tests": {
+    "internal/plugins/ospf/lsdb/rfc2328_area_type_test.go::TestOSPFStubFloodFilter": "a8040e2a2e2a44b0",
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFStubAreaDropsType5": "818da1eec578ea28",
+    "internal/plugins/ospf/lsdb/rfc2328_stub_external_flood_test.go::TestRFC2328ASExternalFromStubInterfaceGoesNowhere": "330db5d6e142abe6",
+    "internal/plugins/ospf/lsdb/rfc2328_stub_external_flood_test.go::TestRFC2328ASExternalNotFloodedIntoStubArea": "330db5d6e142abe6"
+  },
+  "units": {
+    "internal/plugins/ospf/lsdb/rfc2328_area_type_test.go::TestOSPFStubFloodFilter": "df85c915bafc46f3",
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFStubAreaDropsType5": "00a1edf28240c2b1",
+    "internal/plugins/ospf/lsdb/rfc2328_stub_external_flood_test.go::TestRFC2328ASExternalFromStubInterfaceGoesNowhere": "7b99f8bd9ad0fb62",
+    "internal/plugins/ospf/lsdb/rfc2328_stub_external_flood_test.go::TestRFC2328ASExternalNotFloodedIntoStubArea": "6da69fd268bd37a5"
+  },
+  "verdict": "enforced"
+}

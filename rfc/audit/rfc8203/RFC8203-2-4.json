@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden behaviour: the receiver interpreting an invalid UTF-8 sequence. TestRFC8203UTF8Invalid feeds 0xff 0xfe 0xfd and require.Error plus require.Empty(msg) go red if ShutdownMessage returns decoded text. The negative tag TestRFC8203UTF8Valid proves valid multibyte text is still interpreted (require.Equal \"\u65e5\u672c\u8a9e\").",
+  "requirement_sha": "0210f762466ba8c6",
+  "tests": {
+    "internal/component/bgp/message/notification_test.go::TestRFC8203UTF8Invalid": "9710bf0872e82b0b",
+    "internal/component/bgp/message/notification_test.go::TestRFC8203UTF8Valid": "9710bf0872e82b0b"
+  },
+  "units": {
+    "internal/component/bgp/message/notification_test.go::TestRFC8203UTF8Invalid": "2e939366e427c751",
+    "internal/component/bgp/message/notification_test.go::TestRFC8203UTF8Valid": "db8547b1fd85e2e7"
+  },
+  "verdict": "enforced"
+}

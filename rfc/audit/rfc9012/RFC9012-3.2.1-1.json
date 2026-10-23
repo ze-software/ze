@@ -1,0 +1,6 @@
+{
+  "no_code_path": "Neither parseConfigRoute nor internal/component/bgp/plugins/nlri/srpolicy/config.go::buildTunnelEncap originates a VXLAN or NVGRE Encapsulation sub-TLV whose reserved Flags bits this row constrains. Receiving and re-advertising peer-supplied bytes is a different role.",
+  "note": "RFC 9012 Sections 3.2.1 and 3.2.2 state: \"The remaining bits in the 8-bit Flags field are reserved for further use. They MUST always be set to 0 by the originator of the sub-TLV.\" The supported SR Policy originator emits type15, not VXLAN type8 or NVGRE type9 Encapsulation sub-TLVs. Existing SR Policy field tests and intermediate-router propagation of received VXLAN/NVGRE bytes do not fill this originator role.",
+  "requirement_sha": "ed56879f1826495b",
+  "verdict": "not-applicable"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-09-30. The second arm is now covered: TestRFC4035DOClearQueryGetsNoDNSSECProcessing sends A, DNSKEY, RRSIG and NSEC queries with an OPT whose DO is clear and asserts no RRSIG/NSEC/DNSKEY in any section and the same Answer/Authority counts as the OPT-less query (the OPT-less arm stays in rfc4035_server_test.go). The comparison is by count, not content; content differences would not be DNSSEC processing, so this does not weaken the proof. Record: answerQuestions revert observed red. {single-polarity} holds: geodns has no DNSSEC path to drive with DO set.",
+  "requirement_sha": "ae48aac3a4def396",
+  "tests": {
+    "internal/plugins/geodns/rfc4035_do_clear_test.go::TestRFC4035DOClearQueryGetsNoDNSSECProcessing": "e9b5857344920370",
+    "internal/plugins/geodns/rfc4035_server_test.go::TestRFC4035_NoDNSSECAdditionalProcessing": "0d5a4b0eaf3ac272"
+  },
+  "units": {
+    "internal/plugins/geodns/rfc4035_do_clear_test.go::TestRFC4035DOClearQueryGetsNoDNSSECProcessing": "4f51d31fb48998e8",
+    "internal/plugins/geodns/rfc4035_server_test.go::TestRFC4035_NoDNSSECAdditionalProcessing": "999305cf4ef4fff2"
+  },
+  "verdict": "enforced"
+}

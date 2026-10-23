@@ -1,0 +1,13 @@
+{
+  "note": "IKE_AUTH request and response inner chains hold no SK payload; negative is a vacuity guard",
+  "requirement_sha": "91df2a46a9386eaa",
+  "tests": {
+    "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKIsLastAndNeverNested": "10094853fa461fff",
+    "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKIsLastAndNeverNested#2": "10094853fa461fff"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKIsLastAndNeverNested": "359f0099d0ac11d4",
+    "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKIsLastAndNeverNested#2": "359f0099d0ac11d4"
+  },
+  "verdict": "enforced"
+}

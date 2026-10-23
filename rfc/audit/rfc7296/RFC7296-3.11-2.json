@@ -1,0 +1,21 @@
+{
+  "note": "TestRFC7296DeleteWrongSPISizeForItsProtocolIsRefused drives IKE size 4, AH 0 and 8, ESP 0 through handleInformationalOwned: exactly one INVALID_SYNTAX, no Delete, no SA removed, no reestablish. Each case reddens under the break of its own deleteMalformed arm. TestRFC7296DeleteSPISizeFixedForItsProtocolIsAccepted: IKE 0 and AH 4 draw no notify, so the refusal is per-protocol size and not a refusal of IKE/AH Deletes. The older ESP-size-3 units and the wire units carry no discrimination record; the wire negative (truncation) proves a neighbouring rule.",
+  "requirement_sha": "b867a954d0b4a3d8",
+  "tests": {
+    "internal/component/ike/engine/rfc7296_delete_spi_size_test.go::TestRFC7296DeleteSPISizeFixedForItsProtocolIsAccepted": "06303361b5af4b5f",
+    "internal/component/ike/engine/rfc7296_delete_spi_size_test.go::TestRFC7296DeleteWrongSPISizeForItsProtocolIsRefused": "06303361b5af4b5f",
+    "internal/component/ike/engine/rfc7296_delete_test.go::TestDelMalformedSPISizeDrawsInvalidSyntax": "7748979df6c29890",
+    "internal/component/ike/engine/rfc7296_delete_test.go::TestDelWellFormedSPISizeIsAccepted": "7748979df6c29890",
+    "internal/component/ike/wire/rfc7296_test.go::TestDeleteSPISizeByProtocol": "459954f82bfe6b71",
+    "internal/component/ike/wire/rfc7296_test.go::TestDeleteSPISizeByProtocol#2": "459954f82bfe6b71"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7296_delete_spi_size_test.go::TestRFC7296DeleteSPISizeFixedForItsProtocolIsAccepted": "27476e2b49e75390",
+    "internal/component/ike/engine/rfc7296_delete_spi_size_test.go::TestRFC7296DeleteWrongSPISizeForItsProtocolIsRefused": "94c92bc8684c2cba",
+    "internal/component/ike/engine/rfc7296_delete_test.go::TestDelMalformedSPISizeDrawsInvalidSyntax": "769fa4c4e84033af",
+    "internal/component/ike/engine/rfc7296_delete_test.go::TestDelWellFormedSPISizeIsAccepted": "2e00e2efbe6af953",
+    "internal/component/ike/wire/rfc7296_test.go::TestDeleteSPISizeByProtocol": "e80be1f42aec7a7b",
+    "internal/component/ike/wire/rfc7296_test.go::TestDeleteSPISizeByProtocol#2": "e80be1f42aec7a7b"
+  },
+  "verdict": "enforced"
+}

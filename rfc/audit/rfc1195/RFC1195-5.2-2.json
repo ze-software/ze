@@ -1,0 +1,13 @@
+{
+  "note": "Single-polarity positive per the row. Closure rejudge 2026-10-02: the tag on packet TestISISTLVIPv4InterfaceAddr was removed (decode-only, it cannot reach Originate or levelState, so it never proved that the router includes the field); its revert record on tlv_ipv4.go::DecodeIPv4InterfaceAddrTLV is left as an orphan in rfc/discrimination/rfc1195.json. The verdict rests, unchanged, on root TestRFC1195SameInterfaceAddressesBothLevels (L1L2 engine, two circuits, fragment 0's TLV 132 at each level must be exactly {192.0.2.9, 198.51.100.9}; recorded + on lsdb_wiring.go levelState) and lsdb TestISISOriginateOnAdjacencyUp (recorded + on origination.go Originate).",
+  "requirement_sha": "a975bea804aee1af",
+  "tests": {
+    "internal/plugins/isis/lsdb/rfc1195_origination_test.go::TestISISOriginateOnAdjacencyUp": "66ccab517853dff8",
+    "internal/plugins/isis/rfc1195_selection_test.go::TestRFC1195SameInterfaceAddressesBothLevels": "1ef6f2102a068439"
+  },
+  "units": {
+    "internal/plugins/isis/lsdb/rfc1195_origination_test.go::TestISISOriginateOnAdjacencyUp": "8d1385b0faf90a94",
+    "internal/plugins/isis/rfc1195_selection_test.go::TestRFC1195SameInterfaceAddressesBothLevels": "7ddfe3c23f1ba086"
+  },
+  "verdict": "enforced"
+}

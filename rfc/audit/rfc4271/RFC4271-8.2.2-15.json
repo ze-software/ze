@@ -1,0 +1,25 @@
+{
+  "note": "Connect-state 'any other events' list. FSM level (unchanged): every declared listed event (8, 10, 11, 19, 23, 25-28) in Connect moves counter 3->4 and Idle; Events 1/6/9 leave state and counter (handleConnect breaks observed red both polarities). Closes the c8 MISSING clauses at peer level: TestRFC4271ConnectAutomaticStopDuringTheDialReleasesThePeer holds a running dial-only Peer inside Session.Connect after the TCP handshake (heldDialer), teardownAutomatic (Event 8) -> Idle, counter 3->4; when the dial returns the far end reads 0 octets then EOF (TCP connection dropped, no OPEN), session.Conn nil, Peer drops the session, Hold/Keepalive/ConnectRetry timers not running, counter stays 4 for 300 ms (Session.Connect break observed red). Negative: Event 1 during the dial keeps Connect and counter 3, and the far end reads an OPEN on the same connection, same unsealed session (handleConnect break observed red). Ze has no DelayOpenTimer and never starts the ConnectRetryTimer, so both conditional clauses never trigger. Event 13 not declared (optional damping). The Active peer-level units still carry 8.2.2-15 tags; they prove the Active sentence (now row 8.2.2-21) and are supplementary here.",
+  "requirement_sha": "8eb58e2ae923bd3c",
+  "tests": {
+    "internal/component/bgp/fsm/rfc4271_connect_any_other_event_test.go::TestRFC4271ConnectActiveAnyOtherEventCountsAndDropsToIdle": "e0141cd5f11999e0",
+    "internal/component/bgp/fsm/rfc4271_connect_any_other_event_test.go::TestRFC4271ConnectActiveUnlistedEventKeepsTheState": "e0141cd5f11999e0",
+    "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterIdleDefaultArmCountsNothing": "2227e129c50e80e0",
+    "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterIncrementsOnAnyOtherEvent": "2227e129c50e80e0",
+    "internal/component/bgp/reactor/rfc4271_active_any_other_event_peer_test.go::TestRFC4271ActiveAutomaticStopReleasesThePeer": "d4dd8dbabe652252",
+    "internal/component/bgp/reactor/rfc4271_active_any_other_event_peer_test.go::TestRFC4271ActiveDuplicateStartKeepsThePeer": "d4dd8dbabe652252",
+    "internal/component/bgp/reactor/rfc4271_connect_any_other_event_peer_test.go::TestRFC4271ConnectAutomaticStopDuringTheDialReleasesThePeer": "7c7df5698c6b8fca",
+    "internal/component/bgp/reactor/rfc4271_connect_any_other_event_peer_test.go::TestRFC4271ConnectDuplicateStartDuringTheDialKeepsThePeer": "7c7df5698c6b8fca"
+  },
+  "units": {
+    "internal/component/bgp/fsm/rfc4271_connect_any_other_event_test.go::TestRFC4271ConnectActiveAnyOtherEventCountsAndDropsToIdle": "9cfec487ff7bc416",
+    "internal/component/bgp/fsm/rfc4271_connect_any_other_event_test.go::TestRFC4271ConnectActiveUnlistedEventKeepsTheState": "2dc692462b20bae8",
+    "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterIdleDefaultArmCountsNothing": "036839da754b3095",
+    "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterIncrementsOnAnyOtherEvent": "7b700ca05dda1469",
+    "internal/component/bgp/reactor/rfc4271_active_any_other_event_peer_test.go::TestRFC4271ActiveAutomaticStopReleasesThePeer": "5f37d8a4a665dda7",
+    "internal/component/bgp/reactor/rfc4271_active_any_other_event_peer_test.go::TestRFC4271ActiveDuplicateStartKeepsThePeer": "eccd9e13d8fb9a0e",
+    "internal/component/bgp/reactor/rfc4271_connect_any_other_event_peer_test.go::TestRFC4271ConnectAutomaticStopDuringTheDialReleasesThePeer": "4beff4c43cb47231",
+    "internal/component/bgp/reactor/rfc4271_connect_any_other_event_peer_test.go::TestRFC4271ConnectDuplicateStartDuringTheDialKeepsThePeer": "64206cb43480ccfd"
+  },
+  "verdict": "enforced"
+}

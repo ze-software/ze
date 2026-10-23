@@ -1,0 +1,15 @@
+{
+  "note": "notifySnapshot now polls at elapsed >= interval - one snapshot tick and waits for the mutex instead of TryLock-dropping. TestSFlowV5CounterGapNeverExceedsInterval drives 30 late 1.01 s snapshots at a 5 s interval through a real Sender and requires no gap over 5 s and at least 6 polls; the old elapsed >= interval gate leaves a 5.05 s gap and goes red (author observed red at HEAD). Its two tags sit on one assertion: the maximum is one upper bound, so this is effectively single-polarity, not a pair. TestSFlowCounterPollAtInterval covers the 1 s interval. The busy-exporter drop is covered under x-26.",
+  "requirement_sha": "9bfa5c4eb03ff0b0",
+  "tests": {
+    "internal/plugins/flowexport/sflow_v5_exporter_test.go::TestSFlowCounterPollAtInterval": "5b23473bbddf172c",
+    "internal/plugins/flowexport/sflow_v5_polling_test.go::TestSFlowV5CounterGapNeverExceedsInterval": "86e3042da06611be",
+    "internal/plugins/flowexport/sflow_v5_polling_test.go::TestSFlowV5CounterGapNeverExceedsInterval#2": "86e3042da06611be"
+  },
+  "units": {
+    "internal/plugins/flowexport/sflow_v5_exporter_test.go::TestSFlowCounterPollAtInterval": "998f0f8cd5163a7d",
+    "internal/plugins/flowexport/sflow_v5_polling_test.go::TestSFlowV5CounterGapNeverExceedsInterval": "a6eb7b03cd434b32",
+    "internal/plugins/flowexport/sflow_v5_polling_test.go::TestSFlowV5CounterGapNeverExceedsInterval#2": "a6eb7b03cd434b32"
+  },
+  "verdict": "enforced"
+}

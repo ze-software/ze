@@ -1,0 +1,13 @@
+{
+  "note": "positive: one sample yields exactly one datagram sent at once; negative: three samples yield three datagrams, the sender count advancing by one each, and no datagram carries more than one flow_sample",
+  "requirement_sha": "b47a6015e4000f36",
+  "tests": {
+    "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5NoDatagramHeldForMoreSamples": "2b3441f1e34ff01f",
+    "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5SampleSentWithoutWaitingForBuffer": "2b3441f1e34ff01f"
+  },
+  "units": {
+    "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5NoDatagramHeldForMoreSamples": "731d8613be31cf1b",
+    "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5SampleSentWithoutWaitingForBuffer": "47e29fd6b452af03"
+  },
+  "verdict": "enforced"
+}

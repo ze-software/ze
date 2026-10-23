@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC4035-4.6-3",
+    "polarity": "positive",
+    "unit": "internal/component/resolve/dns/rfc4035_security_aware_test.go::TestRFC4035ResponseCDAndADBitsChangeNothing",
+    "unit-sha": "5f06e405660cef83",
+    "claim-sha": "a5b310cb18c56eaa",
+    "route": "revert",
+    "producer": "internal/component/resolve/dns/resolver.go::query",
+    "producer-sha": "86b40ee9731b4dba",
+    "break": "body of query replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4035-4.6-3",
+    "polarity": "negative",
+    "unit": "internal/component/resolve/dns/rfc4035_security_aware_test.go::TestRFC4035ResponseCDAndADBitsChangeNothing",
+    "unit-sha": "5f06e405660cef83",
+    "claim-sha": "12158bf5d980c317",
+    "route": "revert",
+    "producer": "internal/component/resolve/dns/resolver.go::dnssecDecision",
+    "producer-sha": "8495c71007fe23e5",
+    "break": "body of dnssecDecision replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4035-4.6-3",
+    "polarity": "negative",
+    "unit": "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_ResponseADBitDisregarded",
+    "unit-sha": "dc4b72ade971b660",
+    "claim-sha": "3f5c8580f53685f1",
+    "route": "revert",
+    "producer": "internal/component/resolve/dns/resolver.go::dnssecDecision",
+    "producer-sha": "8495c71007fe23e5",
+    "break": "body of dnssecDecision replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4035-4.6-3",
+    "polarity": "positive",
+    "unit": "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_ResponseADBitDisregarded",
+    "unit-sha": "dc4b72ade971b660",
+    "claim-sha": "3eec3d5a162af6b7",
+    "route": "revert",
+    "producer": "internal/component/resolve/dns/resolver.go::query",
+    "producer-sha": "86b40ee9731b4dba",
+    "break": "body of query replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

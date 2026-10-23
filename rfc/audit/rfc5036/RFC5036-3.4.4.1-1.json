@@ -1,0 +1,13 @@
+{
+  "note": "The tagged HopCountWithinMaximumIsApplied and HopCountAboveMaximumDrawsLoopDetected correctly distinguish Label Mapping hop counts 4 and 5 at configured maximum 4, including callback data/suppression and exact advisory reply. But full RFC5036 section 3.4.4.1 covers received Label Request as well as Label Mapping. Session.processMessages groups MsgTypeLabelRequest among unhandled message types, without parsing/checking Hop Count. Both tagged tests send Mapping only, so they cannot detect this uncovered receive behavior. Renewed producer-halt records prove reachability, not whole-row enforcement.",
+  "requirement_sha": "1ef5c86d59f79f6a",
+  "tests": {
+    "internal/plugins/ldp/rfc5036_procedures_test.go::TestRFC5036HopCountAboveMaximumDrawsLoopDetected": "1229c7e2acc6a715",
+    "internal/plugins/ldp/rfc5036_procedures_test.go::TestRFC5036HopCountWithinMaximumIsApplied": "1229c7e2acc6a715"
+  },
+  "units": {
+    "internal/plugins/ldp/rfc5036_procedures_test.go::TestRFC5036HopCountAboveMaximumDrawsLoopDetected": "df8a68a89ce160da",
+    "internal/plugins/ldp/rfc5036_procedures_test.go::TestRFC5036HopCountWithinMaximumIsApplied": "45dd72d50ddc6b2d"
+  },
+  "verdict": "weak"
+}

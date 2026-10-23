@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-21. The store round-trip tags are gone. TestRFC5187InterfaceIDPreservedAcrossRestart: the restarted router reuses the pre-restart OSPFv3 Interface ID and does not take a new one. Records on restoreInterfaceIDs.",
+  "requirement_sha": "61418cc467731ed5",
+  "tests": {
+    "internal/plugins/ospf/rfc5187_preserve_restart_linux_test.go::TestRFC5187InterfaceIDPreservedAcrossRestart": "12140b6c95a29b7d",
+    "internal/plugins/ospf/rfc5187_preserve_restart_linux_test.go::TestRFC5187InterfaceIDPreservedAcrossRestart#2": "12140b6c95a29b7d"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc5187_preserve_restart_linux_test.go::TestRFC5187InterfaceIDPreservedAcrossRestart": "3feaa5f0cf34753a",
+    "internal/plugins/ospf/rfc5187_preserve_restart_linux_test.go::TestRFC5187InterfaceIDPreservedAcrossRestart#2": "3feaa5f0cf34753a"
+  },
+  "verdict": "enforced"
+}

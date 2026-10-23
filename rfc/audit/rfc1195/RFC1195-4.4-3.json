@@ -1,0 +1,13 @@
+{
+  "note": "Enabling IPv6 on one interface gives identical NLPIDs in both IIHs and the LSP; after reload no stale IPv6 capability remains on the unchanged circuit. Re-judged 2026-09-30 (twice): TestRFC1195NodeProtocolsAcrossInterfaces changed only by added RFC1195-5.2-1 and RFC3787-x-2 tag comments.",
+  "requirement_sha": "df01baf86fc8de6e",
+  "tests": {
+    "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195NodeProtocolsAcrossInterfaces": "fc999353e8eb0648",
+    "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195NodeProtocolsReload": "fc999353e8eb0648"
+  },
+  "units": {
+    "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195NodeProtocolsAcrossInterfaces": "e56c9e796d3a92ca",
+    "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195NodeProtocolsReload": "178ba95fda4334ef"
+  },
+  "verdict": "enforced"
+}

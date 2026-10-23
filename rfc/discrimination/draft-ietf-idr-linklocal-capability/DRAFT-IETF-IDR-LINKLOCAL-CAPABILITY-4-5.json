@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-5",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go::TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment",
+    "unit-sha": "960905523894f45a",
+    "claim-sha": "7f664ab70d69e5be",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopWithheld",
+    "producer-sha": "21fe78825d93b5dc",
+    "break": "body of egressNextHopWithheld replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-5",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go::TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment",
+    "unit-sha": "960905523894f45a",
+    "claim-sha": "704c09945c1666ac",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopWithheld",
+    "producer-sha": "21fe78825d93b5dc",
+    "break": "body of egressNextHopWithheld replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

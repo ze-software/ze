@@ -1,0 +1,15 @@
+{
+  "note": "Judge 2026-09-30. Row quotes the three disable steps of \u00a76.8.16 verbatim. State and diag: session TestRFC5880AdministrativeDisableEnable asserts AdminDown and LocalDiag 7 after AdminDown from Up; engine TestRFC5880AdminDisableCeasesEchoes asserts the same through handle.Shutdown. Cease Echo: CeasesEchoes returns the first echo so detection stays clear, then 100 ticks at 1 ms (twice the 50 ms Required Min Echo RX) send nothing; the negative TestRFC5880AdminDisableIgnoresPeerEchoRequest forces the input toward the violation (peer keeps sending Up with a 50 ms echo request every 10 ms) and asserts no echo and AdminDown/diag 7. Judge re-observed: overlay break echo.go echoTickLocked gate `!= StateUp` -> `== StateDown` reddens both engine units at 50 ms. Revert records on echoTickLocked and AdminDown verify.",
+  "requirement_sha": "3ca1764ef4ce1742",
+  "tests": {
+    "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880AdminDisableCeasesEchoes": "836d84530c95a8b2",
+    "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880AdminDisableIgnoresPeerEchoRequest": "836d84530c95a8b2",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880AdministrativeDisableEnable": "8db25cbb4534cc2d"
+  },
+  "units": {
+    "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880AdminDisableCeasesEchoes": "5012cb3889d587a1",
+    "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880AdminDisableIgnoresPeerEchoRequest": "05bd1f87a96718bf",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880AdministrativeDisableEnable": "9facc85ee86d0975"
+  },
+  "verdict": "enforced"
+}

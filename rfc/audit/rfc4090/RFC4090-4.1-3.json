@@ -1,0 +1,13 @@
+{
+  "note": "a transit relays the received FAST_REROUTE unchanged field for field, and inserts none when the head-end sent only the SESSION_ATTRIBUTE flag Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 4.1 and the enforced verdict holds unchanged.",
+  "requirement_sha": "13c42ea4fb62815e",
+  "tests": {
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090TransitInsertsNoFastReroute": "3fb9184431da8daf",
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090TransitRelaysFastRerouteUnchanged": "3fb9184431da8daf"
+  },
+  "units": {
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090TransitInsertsNoFastReroute": "f6efa52232f3e5fd",
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090TransitRelaysFastRerouteUnchanged": "c7aa6c05b5765243"
+  },
+  "verdict": "enforced"
+}

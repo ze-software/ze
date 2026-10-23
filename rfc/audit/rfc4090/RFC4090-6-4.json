@@ -1,0 +1,15 @@
+{
+  "note": "bypass not established: 0x01 clear; established: set; bypass goes Down: next RESV refresh clears it Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 6 and the enforced verdict holds unchanged.",
+  "requirement_sha": "4e00e74505bd7ffa",
+  "tests": {
+    "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090FlagsClearUntilBypassEstablished": "63fe630e7c2d0f12",
+    "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090FlagsSetOnceBypassEstablished": "63fe630e7c2d0f12",
+    "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090RefreshTracksBypassState": "63fe630e7c2d0f12"
+  },
+  "units": {
+    "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090FlagsClearUntilBypassEstablished": "76fb6843dd3c5c4b",
+    "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090FlagsSetOnceBypassEstablished": "1e3897388fe013b7",
+    "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090RefreshTracksBypassState": "e03589a4f7007f39"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: not supporting the 16 octet AES GCM ICV. Red: TestRFC5282AEADSendICVIsSixteenOctets asserts len(raw)==prefix+IV+plaintext+16 and expectOneDelete on the receiver; TestRFC5282AEADReceiveRefusesADamagedICV proves the 16 octets are verified (flipped and stripped ICV refused).",
+  "requirement_sha": "6b42be71dc5d4e4a",
+  "tests": {
+    "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADReceiveRefusesADamagedICV": "2d69d15f1cde2ecb",
+    "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADSendICVIsSixteenOctets": "2d69d15f1cde2ecb"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADReceiveRefusesADamagedICV": "299d5307ac8d8ffa",
+    "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADSendICVIsSixteenOctets": "d4da25f579091c7c"
+  },
+  "verdict": "enforced"
+}

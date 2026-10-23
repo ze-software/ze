@@ -1,0 +1,57 @@
+[
+  {
+    "rid": "SFLOW-V5-x-7",
+    "polarity": "positive",
+    "unit": "internal/plugins/flowexport/sflow/sflow_v5_counter_test.go::TestSFlowIfCounters",
+    "unit-sha": "e35bc7190ad84a95",
+    "claim-sha": "70b5f3b409c3f997",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/sflow/counter.go::writeIfCounters",
+    "producer-sha": "d0cbd3662e5b41a7",
+    "break": "body of writeIfCounters replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "SFLOW-V5-x-7",
+    "polarity": "positive",
+    "unit": "internal/plugins/flowexport/sflow/sflow_v5_flow_sampling_test.go::TestSFlowV5FlowDatagramIsXDR",
+    "unit-sha": "20d5073c1965d23b",
+    "claim-sha": "79217345376ef7dd",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/sflow/flow.go::writeSampledHeader",
+    "producer-sha": "190d5e203df18a09",
+    "break": "body of writeSampledHeader replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "SFLOW-V5-x-7",
+    "polarity": "positive",
+    "unit": "internal/plugins/flowexport/sflow/sflow_v5_xdr_test.go::TestSFlowV5CounterSampleWrapperIsXDR",
+    "unit-sha": "3643d35b0522ffce",
+    "claim-sha": "18bc7c76d9173e81",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/sflow/counter.go::writeCounterSample",
+    "producer-sha": "521594d4f3179ebd",
+    "break": "body of writeCounterSample replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "SFLOW-V5-x-7",
+    "polarity": "positive",
+    "unit": "internal/plugins/flowexport/sflow/sflow_v5_xdr_test.go::TestSFlowV5ExtendedGatewayIsXDR",
+    "unit-sha": "deeaff3d3f5a8f0f",
+    "claim-sha": "25e1590dd116148a",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/sflow/flow.go::writeExtendedGateway",
+    "producer-sha": "d0006d695f39bf44",
+    "break": "body of writeExtendedGateway replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "SFLOW-V5-x-7",
+    "polarity": "positive",
+    "unit": "internal/plugins/flowexport/sflow/sflow_v5_xdr_test.go::TestSFlowV5FlowSampleWordsAreXDR",
+    "unit-sha": "494856bb2c4a7d26",
+    "claim-sha": "7325d527882f50f1",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/sflow/flow.go::writeFlowSample",
+    "producer-sha": "fb7ecabc5cb11f60",
+    "break": "body of writeFlowSample replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

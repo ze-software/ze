@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged 2026-09-30. Both sides of each bound: a 63-octet label accepted by parseConfig, a 255-octet name accepted by checkName and packed by the codec; a 64-octet label, an EMPTY label (the D-8 defect, fixed in checkName with the section 11 quote) and a 256-octet name refused, and the codec refuses 256. Records: checkName revert, both polarities observed red.",
+  "requirement_sha": "d43524fede9c8602",
+  "tests": {
+    "internal/plugins/geodns/rfc2181_clarifications_test.go::TestRFC2181NameLimitsBothSidesOfEachBound": "92cb2a16576e33d3",
+    "internal/plugins/geodns/rfc2181_clarifications_test.go::TestRFC2181NameLimitsBothSidesOfEachBound#2": "92cb2a16576e33d3",
+    "internal/plugins/geodns/rfc2181_server_test.go::TestRFC2181_WireNameLimits": "8db97d24fc455c8c"
+  },
+  "units": {
+    "internal/plugins/geodns/rfc2181_clarifications_test.go::TestRFC2181NameLimitsBothSidesOfEachBound": "3b657383f7d5a21b",
+    "internal/plugins/geodns/rfc2181_clarifications_test.go::TestRFC2181NameLimitsBothSidesOfEachBound#2": "3b657383f7d5a21b",
+    "internal/plugins/geodns/rfc2181_server_test.go::TestRFC2181_WireNameLimits": "6073646896eb83a9"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,17 @@
+{
+  "note": "(a) forbidden: authorizing when a mandatory argument cannot be handled. (b) TestRFC8907MandatoryCommandPolicyDenied fails if an unsupported mandatory argument or value grants the command or consults the local fallback; TestRFC8907MandatorySessionPolicyDenied fails if session login grants profiles under an unenforceable mandatory argument; positives TestRFC8907MandatoryCommandPolicyAccepted (recognized mandatory values authorize) and TestRFC8907OptionalCommandPolicyIgnored (unsupported optional is disregarded).",
+  "requirement_sha": "e304a5d86df7f6d7",
+  "tests": {
+    "internal/component/tacacs/rfc8907_authorization_test.go::TestRFC8907MandatoryCommandPolicyAccepted": "7e3084d65c3e691a",
+    "internal/component/tacacs/rfc8907_authorization_test.go::TestRFC8907MandatoryCommandPolicyDenied": "7e3084d65c3e691a",
+    "internal/component/tacacs/rfc8907_authorization_test.go::TestRFC8907MandatorySessionPolicyDenied": "7e3084d65c3e691a",
+    "internal/component/tacacs/rfc8907_authorization_test.go::TestRFC8907OptionalCommandPolicyIgnored": "7e3084d65c3e691a"
+  },
+  "units": {
+    "internal/component/tacacs/rfc8907_authorization_test.go::TestRFC8907MandatoryCommandPolicyAccepted": "a6b83fef8cfbc0d2",
+    "internal/component/tacacs/rfc8907_authorization_test.go::TestRFC8907MandatoryCommandPolicyDenied": "79786e270f25c885",
+    "internal/component/tacacs/rfc8907_authorization_test.go::TestRFC8907MandatorySessionPolicyDenied": "347a302bc9732184",
+    "internal/component/tacacs/rfc8907_authorization_test.go::TestRFC8907OptionalCommandPolicyIgnored": "8d4226644ba29826"
+  },
+  "verdict": "enforced"
+}

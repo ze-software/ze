@@ -1,0 +1,13 @@
+{
+  "note": "Judge ppp5 2026-09-30. The Message binds the receiver of the Ack/Nak, the pppoeclient peer (runClientAuth); ppp's authenticator never receives it. TestPAPReplyMessageDoesNotAffectOutcome now holds the Code fixed per group and varies the Message over the same three values ('', 'welcome aboard', 'invalid credentials'): every Ack succeeds (+), every Nak returns the 'PAP auth rejected' error (-), which an ignored Nak (retry exhaustion) would not give. A Message-driven decision turns one group red. Records: runClientAuth revert, both polarities.",
+  "requirement_sha": "f7bc41f7c2e46b10",
+  "tests": {
+    "internal/component/l2tp/pppoeclient/rfc1334_pap_message_test.go::TestPAPReplyMessageDoesNotAffectOutcome": "1b424ba0e22a19c8",
+    "internal/component/l2tp/pppoeclient/rfc1334_pap_message_test.go::TestPAPReplyMessageDoesNotAffectOutcome#2": "1b424ba0e22a19c8"
+  },
+  "units": {
+    "internal/component/l2tp/pppoeclient/rfc1334_pap_message_test.go::TestPAPReplyMessageDoesNotAffectOutcome": "3211ef3dfd01c78d",
+    "internal/component/l2tp/pppoeclient/rfc1334_pap_message_test.go::TestPAPReplyMessageDoesNotAffectOutcome#2": "3211ef3dfd01c78d"
+  },
+  "verdict": "enforced"
+}

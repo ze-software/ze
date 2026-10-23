@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9190-2.1.8-3",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc9190_nai_test.go::TestEAPTLSPeerAnonymizesEveryConfiguredIdentity",
+    "unit-sha": "35e0cc7cc34f61f6",
+    "claim-sha": "854d8735c447f7f3",
+    "route": "revert",
+    "producer": "internal/core/eap/nai.go::validNAI",
+    "producer-sha": "0973472033965144",
+    "break": "body of validNAI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9190-2.1.8-3",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc9190_nai_test.go::TestNAIGrammarMatchesRFC7542Section22",
+    "unit-sha": "cb35e030132607fd",
+    "claim-sha": "50f4ea0698275f71",
+    "route": "revert",
+    "producer": "internal/core/eap/nai.go::validNAI",
+    "producer-sha": "0973472033965144",
+    "break": "body of validNAI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

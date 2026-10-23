@@ -193,10 +193,9 @@ func applyRename(root string, plan renamePlan, options RenameOptions, report *Re
 	}
 
 	if !options.NoReseal {
-		note := fmt.Sprintf("Mechanical re-stamp by `le go module rename`: the module path moved from %s to %s. Each named file was independently proved to differ from HEAD by this rename only; verdicts failing that proof remain stale.", plan.old, plan.new)
 		reseal, resealErr := rfc.ResealWithProof(root, func(relative string) bool {
 			return renameOnlySinceHead(root, relative, plan.old, plan.new)
-		}, note)
+		})
 		if resealErr != nil {
 			report.ResealRefused = append(report.ResealRefused, resealErr.Error())
 		} else {

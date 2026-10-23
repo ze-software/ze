@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5036-2.5.2-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ldp/rfc5036_sessionparams_test.go::TestRFC5036HelloTransportAddressNeverFollowsTheSocket",
+    "unit-sha": "d9df177afaa01a26",
+    "claim-sha": "1c83e90c1ad8824a",
+    "route": "revert",
+    "producer": "internal/plugins/ldp/wire.go::EncodeHello",
+    "producer-sha": "1b187e229300f2d5",
+    "break": "body of EncodeHello replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5036-2.5.2-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ldp/rfc5036_sessionparams_test.go::TestRFC5036HellosCarryOneTransportAddress",
+    "unit-sha": "cf8c536e3aaf4443",
+    "claim-sha": "7642656931c055f3",
+    "route": "revert",
+    "producer": "internal/plugins/ldp/register.go::sendHello",
+    "producer-sha": "491c506c341a4af8",
+    "break": "body of sendHello replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

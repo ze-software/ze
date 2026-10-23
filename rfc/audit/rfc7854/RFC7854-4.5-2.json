@@ -1,0 +1,13 @@
+{
+  "note": "receiver closes after reading a Termination with the router end held open (well under the read deadline) and drops the router; without a Termination two valid messages leave the session open",
+  "requirement_sha": "f36f60f6f7d09a41",
+  "tests": {
+    "internal/component/bgp/plugins/bmp/rfc7854_termination_absent_test.go::TestBMPReceiverKeepsSessionWithoutTermination": "ed236b6be6cca946",
+    "internal/component/bgp/plugins/bmp/rfc7854_termination_close_test.go::TestBMPReceiverClosesAfterTermination": "6de2c420371e9ffc"
+  },
+  "units": {
+    "internal/component/bgp/plugins/bmp/rfc7854_termination_absent_test.go::TestBMPReceiverKeepsSessionWithoutTermination": "d5890bbacbfdeccb",
+    "internal/component/bgp/plugins/bmp/rfc7854_termination_close_test.go::TestBMPReceiverClosesAfterTermination": "d063e84b94592b08"
+  },
+  "verdict": "enforced"
+}

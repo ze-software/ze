@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4301-4.5.3-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/ipsec/rfc4301_gateway_test.go::TestRFC4301GatewayIsConfiguredForDestinationRanges",
+    "unit-sha": "77cacf2d50815c2d",
+    "claim-sha": "9fe6235926926052",
+    "route": "revert",
+    "producer": "internal/component/ike/ipsec/config.go::parseSiteToSitePeer",
+    "producer-sha": "eaba4e6ee9a18352",
+    "break": "body of parseSiteToSitePeer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4301-4.5.3-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/ipsec/rfc4301_gateway_test.go::TestRFC4301GatewayRefusesAMalformedDestinationRange",
+    "unit-sha": "2e6d31182e3acaab",
+    "claim-sha": "3f6c4b16aaf51153",
+    "route": "revert",
+    "producer": "internal/component/ike/ipsec/traffic_selector.go::parseTrafficSelectors",
+    "producer-sha": "2a125741dca0542d",
+    "break": "body of parseTrafficSelectors replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

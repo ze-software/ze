@@ -1,0 +1,15 @@
+{
+  "note": "Judge 2026-09-29. Positive TestRFC1661RunSendsNCPAfterLCPOpens drives run(): LCP Opened, no-auth accepted, then an address request and an IPCP (0x8021) Configure-Request on the wire, else red; observed red with runNCPPhase broken. HEAD negative (both NCPs disabled, runNCPPhase writes 0 frames) is the boundary where nothing is to be chosen: it refuses NCP packets for a protocol not configured, the complement of the positive rather than a violating input, which the obligation (send NCP for the protocols to configure) has no other form of.",
+  "requirement_sha": "7c1ac94517cc8d86",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661RunSendsNCPAfterLCPOpens": "d6b4e2cbd1b095e9",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NCPConfiguresEachFamilySeparately": "9afaf002f0fd81ec",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoNCPPacketsWhenNoNetworkProtocol": "9afaf002f0fd81ec"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661RunSendsNCPAfterLCPOpens": "f0831d810966633d",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NCPConfiguresEachFamilySeparately": "be28e3131f6726bf",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoNCPPacketsWhenNoNetworkProtocol": "890ba320d8885463"
+  },
+  "verdict": "enforced"
+}

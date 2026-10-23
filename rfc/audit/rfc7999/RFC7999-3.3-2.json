@@ -1,0 +1,31 @@
+{
+  "code": {
+    "internal/component/bgp/plugins/rib/rib_blackhole.go::blackholeRouteType": "e1f826bd1f11dd3e",
+    "internal/component/bgp/plugins/rib/rib_blackhole.go::blackholeRouteTypeForBest": "f82e890ce01f294b"
+  },
+  "note": "Independent source rejudgment of every current cover including checkRFC7999Blackhole. RFC 7999 Section 3.3: BGP speakers in a bilateral peering relationship using the BLACKHOLE community MUST only accept and honor BGP announcements carrying the BLACKHOLE community under the two following conditions: The announced prefix is covered by an equal or shorter prefix that the neighboring network is authorized to advertise. The receiving party agreed to honor the BLACKHOLE community on the particular BGP session. The row includes both bullets: equal/covered positives require exact Blackhole; outside and too-short announced-prefix negatives require type 0 despite agreement. Authorized/no-community internal config requires type 0; dynamic group membership and peer-rule precedence have distinct outcomes, and the structured consumer must retain ix and install Blackhole. The synthetic empty-community map is not user config-parser proof: prefixes-only defaults agreement. The interop scenario instead explicitly agrees only 65001:666 for BIRD sending 65535:666; assertion 6 requires a gateway route, while assertion 4 requires discard for the authorized/agreed FRR route and assertion 5 isolates authorization. blackholeRouteTypeForBest scopes the decision to the winning session and blackholeRouteType requires both conditions before sysrib/FIB consumption. Q1-Q4 pass over the combined population; group-membership negative alone is not agreement-isolated. Stored coveredByAuthorized HALTs prove reachability only. No checks ran; current live foreign/Linux/VPP acceptance and changed-unit proof maintenance remain pending.",
+  "requirement_sha": "4eaeda4d7877392c",
+  "tests": {
+    "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_cover_test.go::TestRFC7999BlackholeHonoredForTheEqualAuthorizedPrefix": "1969eb7af8dc7698",
+    "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_cover_test.go::TestRFC7999BlackholeNotHonoredOutsideTheAuthorizedPrefix": "1969eb7af8dc7698",
+    "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_dynamic_test.go::TestBlackholeGroupIdentityArrivesOnAStructuredEvent": "e11848fab7255248",
+    "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go::TestBlackholeNotStampedWhenNoCommunityAgreedButAuthorizationExists": "619a6a003fffd5d0",
+    "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go::TestBlackholeRouteTypeStampedOnBestPath": "619a6a003fffd5d0",
+    "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go::TestBlackholeRuleForDynamicGroup": "619a6a003fffd5d0",
+    "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go::TestBlackholeRuleForDynamicGroup#2": "619a6a003fffd5d0",
+    "internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole": "9d03834af3f0f054",
+    "internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole#2": "9d03834af3f0f054"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_cover_test.go::TestRFC7999BlackholeHonoredForTheEqualAuthorizedPrefix": "1180af0e7f6a806f",
+    "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_cover_test.go::TestRFC7999BlackholeNotHonoredOutsideTheAuthorizedPrefix": "e683818e36855e13",
+    "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_dynamic_test.go::TestBlackholeGroupIdentityArrivesOnAStructuredEvent": "e7dfbb8467f8a0c6",
+    "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go::TestBlackholeNotStampedWhenNoCommunityAgreedButAuthorizationExists": "a94ddb69ae210ad3",
+    "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go::TestBlackholeRouteTypeStampedOnBestPath": "eb9ddfe720d6c4b0",
+    "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go::TestBlackholeRuleForDynamicGroup": "055cdd66dfc1ef2d",
+    "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go::TestBlackholeRuleForDynamicGroup#2": "055cdd66dfc1ef2d",
+    "internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole": "b9baf6f830c148ce",
+    "internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole#2": "b9baf6f830c148ce"
+  },
+  "verdict": "enforced"
+}

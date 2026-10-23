@@ -1,0 +1,13 @@
+{
+  "note": "First verdict 2026-10-12 (independent auditor). RFC 5880 Section 6.8.3 read: 'If bfd.RequiredMinRxInterval is reduced and bfd.SessionState is Up, the previous value of bfd.RequiredMinRxInterval MUST be used when calculating the Detection Time for the remote system until the Poll Sequence described above has terminated.' Producer: DetectionInterval (and armDetectionLocked through it) reads requiredMinRxInForceUs, which answers the held value while rxRequiredHeld; holdRequiredMinRxLocked records it on a reduction in Up, called by every Up writer of a reduction (applyPendingTimersLocked for ApplyTimers, revertEchoSlowdownLocked, the Up transition in onStateChange); Receive clears it on the Final and leaving Up clears it. Positive TestRequiredMinRxReductionHeldUntilFinal: profile edit 300 ms to 100 ms with RemoteDesiredMinTx 10 ms requires 900 ms while the Poll is outstanding (300 ms if the live value were read), and the echo slow-down revert 1 s to 300 ms requires 3 s (900 ms if read live); both assert the precondition that the reduced value was written and the Poll is outstanding, so the buffer isolates the hold. Negative TestRequiredMinRxReductionAppliedAtFinal: the Final makes the Detection Time 300 ms (red on a hold never released), and a session leaving Up drops the hold. The Up-transition writer has no unit for a reduction: outside Up every other writer (session.go applyRequest/Reconfigure, the non-Up branch of ApplyTimers) sets bfd.RequiredMinRxInterval to the configured value, so the Up transition can reduce it only if an echo slow-down value outlived the session leaving Up; the code holds that case and no unit exercises it. Revert records observed red on holdRequiredMinRxLocked (positive) and fsm.go Receive (negative).",
+  "requirement_sha": "ba304c9aee6bec5c",
+  "tests": {
+    "internal/component/bfd/session/rfc5880_live_timers_test.go::TestRequiredMinRxReductionAppliedAtFinal": "cbdd1ae80922c56e",
+    "internal/component/bfd/session/rfc5880_live_timers_test.go::TestRequiredMinRxReductionHeldUntilFinal": "cbdd1ae80922c56e"
+  },
+  "units": {
+    "internal/component/bfd/session/rfc5880_live_timers_test.go::TestRequiredMinRxReductionAppliedAtFinal": "3f65f1f4c826ee6b",
+    "internal/component/bfd/session/rfc5880_live_timers_test.go::TestRequiredMinRxReductionHeldUntilFinal": "27ab9711788cceaa"
+  },
+  "verdict": "enforced"
+}

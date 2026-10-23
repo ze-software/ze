@@ -1,0 +1,10 @@
+{
+  "code": {
+    "internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange": "c43894606dafdb4c",
+    "internal/component/bgp/reactor/session_tunnel_encap.go::tunnelTLVLayout": "f5585ad13f73f3ad",
+    "internal/core/bgp/attribute/tunnel_encap.go::SubTLVs": "c2a120d98ccff785"
+  },
+  "note": "RFC 9012 Section 3.7 limits Prefix-SID sub-TLV inclusion to address families defined by RFC8669, namely IPv4/IPv6 labeled unicast, and states: \"If included in a BGP UPDATE for any other address family, it MUST be ignored.\" The subject is type11 inside attribute23, not standalone attribute40. SubTLVs preserves its opaque bytes; tunnelTLVLayout processes framing, carriers and endpoints but does not implement Prefix-SID family-conditioned consumer semantics. checkRouteBestChange obtains labeled-unicast labels from the winning NLRI and SRv6 information from attribute40, not attribute23. Opaque receipt and propagation are not evidence of the missing consumer. Retain the gap under plan/spec-bgp-tunnel-encapsulation-consumption.md without an exclusion or new implementation authorization.",
+  "requirement_sha": "67155b9bc6553dff",
+  "verdict": "unimplemented"
+}

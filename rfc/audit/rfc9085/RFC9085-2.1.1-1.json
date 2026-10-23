@@ -1,0 +1,15 @@
+{
+  "note": "rejudge 2026-09-30: defect fixed (D-8): isis srBlock copied the 3-octet SID/Label verbatim into sub-TLV 1161; it now clears the 4 leftmost bits. isis TestRFC9085OriginatedSRGBLabelTwentyBits (+: 003e80 -> 003e80) and TestRFC9085OriginatedSRGBLabelHighBitsCleared (-: f03e80 -> 003e80) assert the exact TLV 1034; judge break (mask removed) turns the negative red. Receipt: nlri/ls TestRFC9085SIDLabelMasksLeftmostFourBits (0xF12345 -> 0x12345). Marker removed.",
+  "requirement_sha": "ff5636b73afaacaf",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/ls/attr_test.go::TestRFC9085SIDLabelMasksLeftmostFourBits": "1c16ad65174c662e",
+    "internal/plugins/isis/rfc9085_bgpls_export_test.go::TestRFC9085OriginatedSRGBLabelHighBitsCleared": "18e22c4038a33aa5",
+    "internal/plugins/isis/rfc9085_bgpls_export_test.go::TestRFC9085OriginatedSRGBLabelTwentyBits": "18e22c4038a33aa5"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/ls/attr_test.go::TestRFC9085SIDLabelMasksLeftmostFourBits": "fad54ea38f86fce1",
+    "internal/plugins/isis/rfc9085_bgpls_export_test.go::TestRFC9085OriginatedSRGBLabelHighBitsCleared": "0edabe49a96b2975",
+    "internal/plugins/isis/rfc9085_bgpls_export_test.go::TestRFC9085OriginatedSRGBLabelTwentyBits": "0e7afbef89a5143e"
+  },
+  "verdict": "enforced"
+}

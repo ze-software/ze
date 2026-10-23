@@ -1,0 +1,17 @@
+{
+  "code": {
+    "internal/plugins/vrrp/instance.go::noteOwnerConflict": "afa5e4de8c456363",
+    "internal/plugins/vrrp/instance.go::onPacket": "6535c3cb2b729d6d"
+  },
+  "note": "Re-judged 2026-10-20 (independent auditor, after 30aabfda88). Erratum 8298 (rfc/errata/rfc9568/8298.txt, Verified) corrected text: \"It SHOULD verify that the local router is not the IPvX address owner (Priority = 255 (decimal)) and log the event (subject to rate-limiting) and MAY indicate via network management that a misconfiguration was detected.\" onPacket gained one branch before noteOwnerConflict: an owner in a group configured checksum rfc5798-compatible records ReasonOwner and returns. Every other VRRPv3 group still reaches noteOwnerConflict (owner-conflict counter on every advert, Warn log at most once per ownerConflictLogInterval) and processes the advertisement. TestInstanceV3OwnerConflictLoggedAndProcessed runs under testSpec(), whose Checksum is packet.ChecksumRFC9568, so the new branch is not taken and the test still pins the counter, the log, its rate limit and delivery; the negative (non-owner, nothing counted, no log) is unchanged. PASS at HEAD. Finding, no verdict change: in an rfc5798-compatible IPv4 group the owner now counts under `owner` and writes no log line, so this SHOULD's \"log the event\" is not done there (an owner-approved, mode-scoped departure toward RFC 5798 Section 7.1 as published, disclosed in docs/guide/vrrp.md). rfc/short/rfc9568.md Support remaining does not mention it and should, since the rfc-compliance rule requires an owner-approved deviation to keep its section and reason in the scope record.",
+  "requirement_sha": "3547447a1660853f",
+  "tests": {
+    "internal/plugins/vrrp/rfc9568_owner_conflict_test.go::TestInstanceV3OwnerConflictLoggedAndProcessed": "52aead7d70fe601f",
+    "internal/plugins/vrrp/rfc9568_owner_conflict_test.go::TestInstanceV3OwnerConflictLoggedAndProcessed#2": "52aead7d70fe601f"
+  },
+  "units": {
+    "internal/plugins/vrrp/rfc9568_owner_conflict_test.go::TestInstanceV3OwnerConflictLoggedAndProcessed": "c7132949cfa30a80",
+    "internal/plugins/vrrp/rfc9568_owner_conflict_test.go::TestInstanceV3OwnerConflictLoggedAndProcessed#2": "c7132949cfa30a80"
+  },
+  "verdict": "enforced"
+}

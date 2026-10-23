@@ -1,0 +1,22 @@
+{
+  "code": {
+    "internal/plugins/ospf/spf/lfa.go::selectLFA": "94a7a04967ffb784"
+  },
+  "note": "Forbidden: an alternate over an OSPF link whose forward or reverse cost is costed out. A Router-LSA link metric is 16 bits, so the costed-out value is MaxLinkMetric 0xffff (RFC 6987 Section 3). selectLFA (spf/lfa.go) now gates forwardCost and reverseCost on spf.MaxLinkMetric = 0xffff. TestRFC5286CostedOutLinkMetric drives selectLFA with forward cost 0xffff and reverse cost 0xffff (each must return no backup) and with 0xfffe on both (must return one), so a gate on the 24-bit LSInfinity or a missing gate goes red. The older TestRFC5286CostReverseCostGate still injects 0x00ffffff, a value no link carries; it stays true and adds nothing.",
+  "requirement_sha": "0c65877b00c0e21c",
+  "tests": {
+    "internal/plugins/ospf/spf/rfc5286_costed_out_test.go::TestRFC5286CostedOutLinkMetric": "ee3ad4d8add4a264",
+    "internal/plugins/ospf/spf/rfc5286_costed_out_test.go::TestRFC5286CostedOutLinkMetric#2": "ee3ad4d8add4a264",
+    "internal/plugins/ospf/spf/rfc5286_lfa_test.go::TestRFC5286CostReverseCostGate": "73162faa1d592207",
+    "internal/plugins/ospf/spf/rfc5286_lfa_test.go::TestRFC5286CostReverseCostGate#2": "73162faa1d592207",
+    "internal/plugins/ospf/spf/rfc5286_lfa_test.go::TestRFC5286CostReverseCostGate#3": "73162faa1d592207"
+  },
+  "units": {
+    "internal/plugins/ospf/spf/rfc5286_costed_out_test.go::TestRFC5286CostedOutLinkMetric": "655cfa7402e25105",
+    "internal/plugins/ospf/spf/rfc5286_costed_out_test.go::TestRFC5286CostedOutLinkMetric#2": "655cfa7402e25105",
+    "internal/plugins/ospf/spf/rfc5286_lfa_test.go::TestRFC5286CostReverseCostGate": "fddbb191d2b5e5b0",
+    "internal/plugins/ospf/spf/rfc5286_lfa_test.go::TestRFC5286CostReverseCostGate#2": "fddbb191d2b5e5b0",
+    "internal/plugins/ospf/spf/rfc5286_lfa_test.go::TestRFC5286CostReverseCostGate#3": "fddbb191d2b5e5b0"
+  },
+  "verdict": "enforced"
+}

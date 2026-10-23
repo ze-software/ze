@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: accepting a neighbor whose RouterDeadInterval differs on the common link. TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink asserts a matching RouterDeadInterval is accepted (empty reason) and DefaultDeadInterval+1 is dropped with reason dead-interval; accepting the mismatch turns it red. The 'multiple of the HelloInterval' clause is a lower-case should.",
+  "requirement_sha": "629dfc0baf4601d4",
+  "tests": {
+    "internal/plugins/ospf/rfc5340_test.go::TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink": "cdf4f5c0d8a37340",
+    "internal/plugins/ospf/rfc5340_test.go::TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink#2": "cdf4f5c0d8a37340"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc5340_test.go::TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink": "b93ef0d62e7e8927",
+    "internal/plugins/ospf/rfc5340_test.go::TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink#2": "b93ef0d62e7e8927"
+  },
+  "verdict": "enforced"
+}

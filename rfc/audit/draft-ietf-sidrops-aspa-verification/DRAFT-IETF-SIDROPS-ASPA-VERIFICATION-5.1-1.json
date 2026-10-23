@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: a COMPRESSED_AS_PATH that keeps consecutive duplicates, removes non-consecutive ones, or reverses origin and neighbor. TestASPACompressedUpdatePrependsValid asserts state valid and accepted for prepends within a segment, across a segment boundary and on a single AS, red if a duplicate survives as an unauthorized self-hop; with 100 as neighbor and 300 as origin, a reversed order also turns it Invalid. TestASPACompressedUpdatePreservesHops asserts invalid and rejected for the separated repeat [100 200 300 200], red if non-consecutive ASNs are dropped.",
+  "requirement_sha": "ce16f687be627a1e",
+  "tests": {
+    "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_compressed_aspa_test.go::TestASPACompressedUpdatePrependsValid": "71dc1a61ef748f29",
+    "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_compressed_aspa_test.go::TestASPACompressedUpdatePreservesHops": "71dc1a61ef748f29"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_compressed_aspa_test.go::TestASPACompressedUpdatePrependsValid": "14b122057531b1e3",
+    "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_compressed_aspa_test.go::TestASPACompressedUpdatePreservesHops": "67bfa1a7a310688a"
+  },
+  "verdict": "enforced"
+}

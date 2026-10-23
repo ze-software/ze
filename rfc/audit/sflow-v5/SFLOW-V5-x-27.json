@@ -1,0 +1,13 @@
+{
+  "note": "Ze cannot promise its ifIndex stays below 2^24 (Linux ifindex is a full int), so it falls in the quote's 'Otherwise' branch and the compact-for-all clause does not bind it; mixing: a compact format 1 or 2 among the six records fails 'compact data_format emitted'; expanded for all: alternating low and full-width ifIndex values fail 'want expanded 4' and 'want expanded 3' if any interface drops to compact",
+  "requirement_sha": "7ac6ae4088e0e26a",
+  "tests": {
+    "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5CompactFormatsNeverMixedIn": "2b3441f1e34ff01f",
+    "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5ExpandedEncodingForEveryInterface": "2b3441f1e34ff01f"
+  },
+  "units": {
+    "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5CompactFormatsNeverMixedIn": "4e858a2b54d00b55",
+    "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5ExpandedEncodingForEveryInterface": "71b07369ba38fc88"
+  },
+  "verdict": "enforced"
+}

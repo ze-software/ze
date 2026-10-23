@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC1661-5.3-6",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661NakFiltersAcceptableOptions",
+    "unit-sha": "465001b2dec6b6b3",
+    "claim-sha": "3835c288886afacd",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/lcp_options.go::NegotiatePeerOptions",
+    "producer-sha": "9993047d948a7188",
+    "break": "body of NegotiatePeerOptions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1661-5.3-6",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661NakFiltersAcceptableOptions",
+    "unit-sha": "465001b2dec6b6b3",
+    "claim-sha": "f377fabaf601d9e8",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/lcp_options.go::NegotiatePeerOptions",
+    "producer-sha": "9993047d948a7188",
+    "break": "body of NegotiatePeerOptions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1661-5.3-6",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NakOrderFollowsRequestNotAFixedOrder",
+    "unit-sha": "b6afaed2ce1e2a0d",
+    "claim-sha": "ef4a66cfc3502425",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/lcp_options.go::NegotiatePeerOptions",
+    "producer-sha": "9993047d948a7188",
+    "break": "body of NegotiatePeerOptions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1661-5.3-6",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NakPreservesRequestOrder",
+    "unit-sha": "52df369bb65be12f",
+    "claim-sha": "fc79ef394c76c7aa",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/lcp_options.go::NegotiatePeerOptions",
+    "producer-sha": "9993047d948a7188",
+    "break": "body of NegotiatePeerOptions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

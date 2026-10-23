@@ -1,0 +1,79 @@
+[
+  {
+    "rid": "RFC5881-6-2",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881TransmitDestinationStable",
+    "unit-sha": "a3fd8dd119dc155f",
+    "claim-sha": "3df1c4357781afa1",
+    "route": "revert",
+    "producer": "internal/component/bfd/engine/loop.go::sendLocked",
+    "producer-sha": "58b8acd91092e46a",
+    "break": "body of sendLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5881-6-2",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/transport/rfc5881_echo_link_linux_test.go::TestRFC5881ControlAddressedFromAndToTheSubnet",
+    "unit-sha": "19bed474c1c7b09f",
+    "claim-sha": "460d59cf3cf2eb67",
+    "route": "revert",
+    "producer": "internal/component/bfd/transport/udp.go::destination",
+    "producer-sha": "ed6f4947370582ff",
+    "break": "body of destination replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5881-6-2",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/transport/rfc5881_echo_link_linux_test.go::TestRFC5881ControlNeverSourcedOffTheSubnet",
+    "unit-sha": "d6aadb2ffae7dff0",
+    "claim-sha": "66e1066179e9bad3",
+    "route": "revert",
+    "producer": "internal/component/bfd/transport/udp.go::pinsToLink",
+    "producer-sha": "aab765122ad6d2ca",
+    "break": "body of pinsToLink replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5881-6-2",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/transport/rfc5881_subnet_destination_linux_test.go::TestRFC5881ControlNeverAddressedOffTheSubnet",
+    "unit-sha": "7d68ea850283707f",
+    "claim-sha": "4643b73b33d3ff58",
+    "route": "revert",
+    "producer": "internal/component/bfd/transport/udp.go::reaches",
+    "producer-sha": "ccbe475641761378",
+    "break": "body of reaches replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5881-6-2",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/transport/rfc5881_subnet_exemption_test.go::TestRFC5881SubnetCheckAllowsOnSubnetAndExemptPeers",
+    "unit-sha": "6714af25b38891d4",
+    "claim-sha": "30632335f005f45b",
+    "route": "revert",
+    "producer": "internal/component/bfd/transport/udp.go::reaches",
+    "producer-sha": "ccbe475641761378",
+    "break": "body of reaches replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5881-6-2",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/transport/rfc5881_subnet_exemption_test.go::TestRFC5881SubnetCheckRefusesIPv4LinkLocalOffTheSubnet",
+    "unit-sha": "779b31739011d1f1",
+    "claim-sha": "e0c33646853b7567",
+    "route": "revert",
+    "producer": "internal/component/bfd/transport/udp.go::reaches",
+    "producer-sha": "ccbe475641761378",
+    "break": "body of reaches replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5881-6-2",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/transport/rfc5881_subnet_link_local_v4_linux_test.go::TestRFC5881ControlNeverAddressedToAnIPv4LinkLocalOffTheSubnet",
+    "unit-sha": "302533a855958b45",
+    "claim-sha": "ec36fd1032a3948c",
+    "route": "revert",
+    "producer": "internal/component/bfd/transport/udp.go::reaches",
+    "producer-sha": "ccbe475641761378",
+    "break": "body of reaches replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

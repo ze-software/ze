@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 5798 Section 7.1 says \"MUST verify that the VRRP version is 3.\" TestDecodeGoldenV3IPv4 now decodes the RFC 9568 message-only golden G2 under the default-mode lookup instead of the pseudo-header golden G2c, and lost only the removed MsgOnlyChecksum assertion; the subtests of TestNegativeReferenceBugs other than N1 gained only the FillChecksum mode argument. The positive is still a fully conforming advert, the checksum check precedes the checks this row names so a wrong form would fail with ErrChecksum and not pass silently, and each negative still asserts its exact sentinel. N9 still requires ErrVersion for a v2 advert at a v3 group. Verdict unchanged.",
+  "requirement_sha": "82b3102e0318281a",
+  "tests": {
+    "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv4": "5bbc8ddba98cd418",
+    "internal/plugins/vrrp/packet/validate_test.go::TestNegativeReferenceBugs": "5bbc8ddba98cd418"
+  },
+  "units": {
+    "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv4": "5458632e7659d030",
+    "internal/plugins/vrrp/packet/validate_test.go::TestNegativeReferenceBugs": "5b7b91666d7d74bc"
+  },
+  "verdict": "enforced"
+}

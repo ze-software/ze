@@ -1,0 +1,15 @@
+{
+  "note": "Per-source clause: TestSFlowV5FlowSequencePerSourceID interleaves sources 3 and 4 and requires 1,2,3 and 1,2, so one sequence shared across source_ids goes red (recorded). Reset clause: TestSFlowV5PoolAndSequenceResetTogether and TestSFlowV5PoolNeverResetsWithoutSequence (both recorded).",
+  "requirement_sha": "8ebe9d4eea6df732",
+  "tests": {
+    "internal/plugins/flowexport/sflow/sflow_v5_sequence_test.go::TestSFlowV5FlowSequencePerSourceID": "6cb76dae8620dd81",
+    "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5PoolAndSequenceResetTogether": "2b3441f1e34ff01f",
+    "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5PoolNeverResetsWithoutSequence": "2b3441f1e34ff01f"
+  },
+  "units": {
+    "internal/plugins/flowexport/sflow/sflow_v5_sequence_test.go::TestSFlowV5FlowSequencePerSourceID": "07159d6bc151e677",
+    "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5PoolAndSequenceResetTogether": "add84def784997ca",
+    "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5PoolNeverResetsWithoutSequence": "67945324bcb5d04e"
+  },
+  "verdict": "enforced"
+}

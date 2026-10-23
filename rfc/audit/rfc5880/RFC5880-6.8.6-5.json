@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: accepting M=1. TestRFC5880MultipointSetDiscarded fails unless ParseControl returns ErrMultipointSet; TestRFC5880MultipointZeroAccepted fails if an M=0 packet is rejected. handleInbound returns on the error.",
+  "requirement_sha": "5b816bb7bd4fe959",
+  "tests": {
+    "internal/component/bfd/packet/rfc5880_test.go::TestRFC5880MultipointSetDiscarded": "fba3b65e315e32aa",
+    "internal/component/bfd/packet/rfc5880_test.go::TestRFC5880MultipointZeroAccepted": "fba3b65e315e32aa"
+  },
+  "units": {
+    "internal/component/bfd/packet/rfc5880_test.go::TestRFC5880MultipointSetDiscarded": "2c4c9de85b9f3146",
+    "internal/component/bfd/packet/rfc5880_test.go::TestRFC5880MultipointZeroAccepted": "6c618c26a584a0e1"
+  },
+  "verdict": "enforced"
+}

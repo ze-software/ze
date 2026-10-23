@@ -1,0 +1,79 @@
+[
+  {
+    "rid": "RFC7684-5-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/packet/rfc7684_ext_link_test.go::TestExtLinkTLVRoundTrip",
+    "unit-sha": "1977c45ba60f0f54",
+    "claim-sha": "d667e0417639ddc8",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/packet/ext_prefix.go::decodeExtSubTLVs",
+    "producer-sha": "c1f4f769d8775a8d",
+    "break": "body of decodeExtSubTLVs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7684-5-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/packet/rfc7684_ext_prefix_test.go::TestExtPrefixTLVRoundTrip",
+    "unit-sha": "5647f9c263d36bcb",
+    "claim-sha": "f59edd4a5ef487d2",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/packet/ext_prefix.go::DecodeExtPrefixLSA",
+    "producer-sha": "ef5916c9baf60d30",
+    "break": "body of DecodeExtPrefixLSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7684-5-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/packet/rfc7684_fuzz_test.go::FuzzOSPFExtLinkBody",
+    "unit-sha": "265f172ff2e7d116",
+    "claim-sha": "99e5069f85dad260",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/packet/ext_prefix.go::decodeExtSubTLVs",
+    "producer-sha": "c1f4f769d8775a8d",
+    "break": "body of decodeExtSubTLVs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7684-5-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/packet/rfc7684_fuzz_test.go::FuzzOSPFExtPrefixBody",
+    "unit-sha": "5b8b934978c8d9c3",
+    "claim-sha": "5a2417b6bc5c8245",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/packet/ext_prefix.go::DecodeExtPrefixLSA",
+    "producer-sha": "ef5916c9baf60d30",
+    "break": "body of DecodeExtPrefixLSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7684-5-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/packet/rfc7684_malformed_test.go::TestRFC7684MalformedPermutationsDetected",
+    "unit-sha": "88895448d6ccdb72",
+    "claim-sha": "bda8a2116d1c60b6",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/packet/ext_prefix.go::DecodeExtPrefixLSA",
+    "producer-sha": "ef5916c9baf60d30",
+    "break": "body of DecodeExtPrefixLSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7684-5-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/packet/rfc7684_malformed_test.go::TestRFC7684MalformedPermutationsDetected",
+    "unit-sha": "88895448d6ccdb72",
+    "claim-sha": "efd36c7c658223c4",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/packet/ext_prefix.go::decodeExtSubTLVs",
+    "producer-sha": "c1f4f769d8775a8d",
+    "break": "body of decodeExtSubTLVs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7684-5-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/rfc7684_ext_prefix_recv_test.go::TestExtPrefixMalformedCounted",
+    "unit-sha": "beff0026d7ba3a71",
+    "claim-sha": "8e2989cdee24ab0e",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/packet/ext_prefix.go::DecodeExtPrefixLSA",
+    "producer-sha": "ef5916c9baf60d30",
+    "break": "body of DecodeExtPrefixLSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

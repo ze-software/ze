@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC9514-7.1-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/rfc9514_bgpls_export_test.go::TestRFC9514ISISEndpointBehaviorAlgorithm",
+    "unit-sha": "e91696647f267908",
+    "claim-sha": "39b8ad594da16263",
+    "route": "revert",
+    "producer": "internal/plugins/isis/bgpls_export.go::endSID",
+    "producer-sha": "3c60ce4e7fa740ad",
+    "break": "body of endSID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

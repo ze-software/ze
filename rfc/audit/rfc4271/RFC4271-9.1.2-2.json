@@ -1,0 +1,17 @@
+{
+  "note": "Through handleReceivedStructured: positive, peer B's better route replaces peer A's as the Loc-RIB best (next hop 10.0.0.1 -> 10.0.0.2); negative, the destination's Loc-RIB group holds exactly one BGP path afterwards, peer B's, so install-beside fails. HEAD rib_bestchange_test units kept as supplementary. Re-read 2026-10-01 (c10 judge): the only change under this verdict is a tag comment line for another id (RFC4271-6.7-1 / RFC4271-Security-1 added, RFC4271-9.1.2.1-1 removed) in the unit's doc comment; every assertion is byte-identical, so the judgement stands.",
+  "requirement_sha": "83f1b8937ef8d555",
+  "tests": {
+    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271LocRIBHoldsOnlyTheReplacingRoute": "e914a6452ddec559",
+    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271SelectedRouteReplacesTheLocRIBRoute": "e914a6452ddec559",
+    "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestLocRIBMirror": "dc546dccf368c8ad",
+    "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeWithdraw": "dc546dccf368c8ad"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271LocRIBHoldsOnlyTheReplacingRoute": "98402ef77460d85f",
+    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271SelectedRouteReplacesTheLocRIBRoute": "4a1294ce00fd3415",
+    "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestLocRIBMirror": "ed76a4e75e4c5e3a",
+    "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeWithdraw": "53a0b7090ed25f50"
+  },
+  "verdict": "enforced"
+}

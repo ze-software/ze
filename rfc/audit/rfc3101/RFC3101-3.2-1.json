@@ -1,0 +1,13 @@
+{
+  "note": "Rejudged 2026-10-21 over the current tags, units and records. Tags removed from the withdrawal case and TestOSPFNSSAPbitNotTranslated, which test eligibility rather than the copied fields. What remains: the positive TestOSPFNSSATranslation asserts mask, metric, path type, tag, forwarding address and advertising router, and TestRFC3101TranslatedType5FollowsSourceFields changes every field of the Type-7 and requires each to follow. A translator that kept stale or default values fails it.",
+  "requirement_sha": "017482a6ad8fbfd6",
+  "tests": {
+    "internal/plugins/ospf/rfc3101_nssa_test.go::TestOSPFNSSATranslation": "8cac7b752edaf5e5",
+    "internal/plugins/ospf/rfc3101_translation_test.go::TestRFC3101TranslatedType5FollowsSourceFields": "9c6a58e4cc068efe"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc3101_nssa_test.go::TestOSPFNSSATranslation": "1e67b03e4fb98674",
+    "internal/plugins/ospf/rfc3101_translation_test.go::TestRFC3101TranslatedType5FollowsSourceFields": "a971df27e394f0dc"
+  },
+  "verdict": "enforced"
+}

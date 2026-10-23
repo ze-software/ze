@@ -1,0 +1,17 @@
+{
+  "note": "Receive, low-octet rule: TestRFC1661NonCompliantProtocolTreatedUnrecognized (0xC020 -> Protocol-Reject). Receive, high-octet rule: TestRFC1661ProtocolWithOddHighOctetTreatedUnrecognized sends an Echo-Request under 0xC121 in Opened, red unless exactly one Protocol-Reject naming 0xC121, no Echo-Reply, state Opened. Transmit side: the same unit checks both parity bits on every Protocol constant ze writes (LCP, PAP, CHAP, IPCP, IPV6CP, IPv4, IPv6).",
+  "requirement_sha": "d38d0dc4f4ee74bc",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661ProtocolWithOddHighOctetTreatedUnrecognized": "480d72ff3c4dac57",
+    "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661ProtocolWithOddHighOctetTreatedUnrecognized#2": "480d72ff3c4dac57",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661CompliantProtocolRecognized": "9afaf002f0fd81ec",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NonCompliantProtocolTreatedUnrecognized": "9afaf002f0fd81ec"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661ProtocolWithOddHighOctetTreatedUnrecognized": "d4a168f08f11f2e5",
+    "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661ProtocolWithOddHighOctetTreatedUnrecognized#2": "d4a168f08f11f2e5",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661CompliantProtocolRecognized": "95aab366be3298dd",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NonCompliantProtocolTreatedUnrecognized": "85e93b8a5b282a91"
+  },
+  "verdict": "enforced"
+}

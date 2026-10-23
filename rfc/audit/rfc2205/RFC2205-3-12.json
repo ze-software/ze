@@ -1,0 +1,15 @@
+{
+  "note": "Judged 2026-09-29 (routing child, continuation judge). TestRFC2205PathTearRouteEqualsPathRoute compares the whole PathRoute of the relayed and the ingress-originated PathTear with the PATH's, closing both earlier gaps. Negative TestRFC2205PathTearNotAddressedHopByHop: a PathTear sent hop-by-hop through Send would not follow the PATH route, which is this rule.",
+  "requirement_sha": "e7dad8019d5d3a1a",
+  "tests": {
+    "internal/plugins/rsvpte/rfc2205_carrier_test.go::TestRFC2205PathTearNotAddressedHopByHop": "2bbb0ce4611ada21",
+    "internal/plugins/rsvpte/rfc2205_carrier_test.go::TestRFC2205PathTearRoutedLikePath": "2bbb0ce4611ada21",
+    "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205PathTearRouteEqualsPathRoute": "7bc063943de30e7b"
+  },
+  "units": {
+    "internal/plugins/rsvpte/rfc2205_carrier_test.go::TestRFC2205PathTearNotAddressedHopByHop": "164b45c9ab729d40",
+    "internal/plugins/rsvpte/rfc2205_carrier_test.go::TestRFC2205PathTearRoutedLikePath": "f9f764c4d6262d2b",
+    "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205PathTearRouteEqualsPathRoute": "2e38252c51d5670a"
+  },
+  "verdict": "enforced"
+}

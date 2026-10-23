@@ -1,0 +1,13 @@
+{
+  "note": "Origination now driven: v6-only inter-as config (remote-as 65001, remote-asbr-ipv6 2001:db8::9) through teOriginateType6/buildInterASTELink; originated body holds the literal sub-TLV 00 18 00 10 + address, decode shows v6 ID present, no v4 ID, Remote AS 65001. Judge overlay dropping HasRemoteASBRv6 in buildInterASTELink turns it red. {single-polarity: positive} on the row; record observed red on buildInterASTELink.",
+  "requirement_sha": "dc0a43c190e81962",
+  "tests": {
+    "internal/plugins/ospf/packet/rfc5392_te_interas_test.go::TestInterAsTEIPv6AsbrIdType24": "df389507e0340ff5",
+    "internal/plugins/ospf/rfc5392_v6_remote_asbr_origination_test.go::TestRFC5392OriginatedV6OnlyLinkCarriesIPv6RemoteASBRID": "bd6b04c1ae6dd838"
+  },
+  "units": {
+    "internal/plugins/ospf/packet/rfc5392_te_interas_test.go::TestInterAsTEIPv6AsbrIdType24": "0aa1a7c77d41c748",
+    "internal/plugins/ospf/rfc5392_v6_remote_asbr_origination_test.go::TestRFC5392OriginatedV6OnlyLinkCarriesIPv6RemoteASBRID": "1414358db2798e32"
+  },
+  "verdict": "enforced"
+}

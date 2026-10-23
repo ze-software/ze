@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5883-5-1",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/rfc5881_wire_port_linux_test.go::TestRFC5883MultiHopControlSentToPort4784OnTheWire",
+    "unit-sha": "73266e0bd995245b",
+    "claim-sha": "c3e3073a13d876ca",
+    "route": "revert",
+    "producer": "internal/component/bfd/transport/udp.go::destination",
+    "producer-sha": "ed6f4947370582ff",
+    "break": "body of destination replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5883-5-1",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/rfc5881_wire_port_linux_test.go::TestRFC5883SingleHopControlNeverAddressesPort4784",
+    "unit-sha": "560b48836ff6d074",
+    "claim-sha": "32b433f4c0753a2e",
+    "route": "revert",
+    "producer": "internal/component/bfd/bfd.go::newUDPTransport",
+    "producer-sha": "bee71cc1be5fb490",
+    "break": "body of newUDPTransport replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

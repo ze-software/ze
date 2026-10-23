@@ -1,0 +1,15 @@
+{
+  "note": "c21 judge (independent). New positive TestRFC2328LinkIndicationsReachTheOSPFEngine builds the engine over the real transport.New(fakeBackend): an up neighbor on p2p eth0, then Transport.HandleLinkDown puts the OSPF interface in Down and the neighbor in down, and HandleLinkUp brings a running eth0 back to Point-to-point. Judge diffed the overlay that drops only instance.go OnInterfaceDown registration: red \"state point-to-point, want Down\"; dropping both registrations reds at setup while the transport-level TestOSPFTransportPassesLinkIndicationsToOSPF stays green, which was the old gap. Record on onInterfaceDown observed red. Transport-level positive kept. Negative TestOSPFTransportPassesNoIndicationForNonOSPFInterface: a non-OSPF interface link-up/down passes no indication, recorded.",
+  "requirement_sha": "f510a36de096f7f0",
+  "tests": {
+    "internal/plugins/ospf/rfc2328_link_indication_test.go::TestRFC2328LinkIndicationsReachTheOSPFEngine": "f7916aad840139ac",
+    "internal/plugins/ospf/transport/rfc2328_link_test.go::TestOSPFTransportPassesLinkIndicationsToOSPF": "efe755c93a105af7",
+    "internal/plugins/ospf/transport/rfc2328_link_test.go::TestOSPFTransportPassesNoIndicationForNonOSPFInterface": "efe755c93a105af7"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc2328_link_indication_test.go::TestRFC2328LinkIndicationsReachTheOSPFEngine": "fd63e4c7c2b5d13d",
+    "internal/plugins/ospf/transport/rfc2328_link_test.go::TestOSPFTransportPassesLinkIndicationsToOSPF": "aa5761fb3233d05a",
+    "internal/plugins/ospf/transport/rfc2328_link_test.go::TestOSPFTransportPassesNoIndicationForNonOSPFInterface": "a0d3410e7725cfc8"
+  },
+  "verdict": "enforced"
+}

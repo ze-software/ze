@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-18 (independent auditor, after 98975fb2d8; the earlier weak verdict recorded no tagged unit). Section 2.4: \"If no cryptographically protected messages have been received on an IKE SA or any of its Child SAs recently, the system needs to perform a liveness check in order to prevent sending messages to a dead peer.\" Positive TestRFC7296LivenessCheckFollowsTheInterval arms the state newDPDState builds for a 30-second interval (the YANG default when no dead-peer-detection block is configured, ze-ipsec-conf.yang), asserts no probe at 29 s, one probe at 31 s that reaches the peer's socket, and the probe awaited; red if newDPDState arms nothing (recorded revert) or shouldSend ignores the interval. Negative TestRFC7296LivenessCheckWaitsForTheOutstandingProbe asserts shouldSend false at 61 s and 300 s and an unchanged Message ID while the probe is outstanding: that is the single-request rule of Sections 2.1 and 2.3, a neighbouring obligation, so the negative side of this row rests on the 29-second assertion in the positive. Seams: dpdArmedTick restates the two lines of maintainSA (established.go) rather than driving the owner loop, and lastSent is reset only by sendDPD, so ze probes every interval whether or not protected traffic arrived; that over-checks and does not violate this SHOULD.",
+  "requirement_sha": "11b8302cf30c6a4f",
+  "tests": {
+    "internal/component/ike/engine/rfc7296_dpd_arming_test.go::TestRFC7296LivenessCheckFollowsTheInterval": "379d544d01da8f70",
+    "internal/component/ike/engine/rfc7296_dpd_arming_test.go::TestRFC7296LivenessCheckWaitsForTheOutstandingProbe": "379d544d01da8f70"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7296_dpd_arming_test.go::TestRFC7296LivenessCheckFollowsTheInterval": "899f7baa5bc4dede",
+    "internal/component/ike/engine/rfc7296_dpd_arming_test.go::TestRFC7296LivenessCheckWaitsForTheOutstandingProbe": "827f077011203554"
+  },
+  "verdict": "enforced"
+}

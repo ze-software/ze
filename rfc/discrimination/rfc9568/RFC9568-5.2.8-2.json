@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC9568-5.2.8-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/packet/packet_test.go::TestDecodeV3IPv4ChecksumOnlyConfiguredForm",
+    "unit-sha": "a88c84561257e6ff",
+    "claim-sha": "38d07622bdf02a93",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/packet/checksum.go::verifyReceived",
+    "producer-sha": "618856748a37e535",
+    "break": "body of verifyReceived replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9568-5.2.8-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/vrrp/packet/packet_test.go::TestDecodeV3IPv4ChecksumOnlyConfiguredForm",
+    "unit-sha": "a88c84561257e6ff",
+    "claim-sha": "842f56d0ac65047e",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/packet/checksum.go::verifyReceived",
+    "producer-sha": "618856748a37e535",
+    "break": "body of verifyReceived replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9568-5.2.8-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV3IPv4",
+    "unit-sha": "426437dba8db9f30",
+    "claim-sha": "9d7a5835e81ceb1c",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/packet/checksum.go::pseudoSumFor",
+    "producer-sha": "a61baab004b3f5a6",
+    "break": "body of pseudoSumFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC3768-5.3.4-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2BoundaryPriority",
+    "unit-sha": "991e925b9c345e92",
+    "claim-sha": "6d63332055425031",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/groups.go::validateGroup",
+    "producer-sha": "21cf349636cd79ec",
+    "break": "body of validateGroup replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3768-5.3.4-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2BoundaryPriority",
+    "unit-sha": "991e925b9c345e92",
+    "claim-sha": "301d5bcf5d4cdf95",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/groups.go::validateGroup",
+    "producer-sha": "21cf349636cd79ec",
+    "break": "body of validateGroup replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

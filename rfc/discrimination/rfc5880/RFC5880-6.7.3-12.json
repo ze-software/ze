@@ -1,0 +1,57 @@
+[
+  {
+    "rid": "RFC5880-6.7.3-12",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedMD5FirstPacketSeedsReplayFloor",
+    "unit-sha": "ad0576522104da6b",
+    "claim-sha": "59b3c97099ceeddb",
+    "route": "revert",
+    "producer": "internal/component/bfd/auth/meticulous.go::Advance",
+    "producer-sha": "9944f78355d62382",
+    "break": "body of Advance replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.7.3-12",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedMD5KnownFloorNotReseeded",
+    "unit-sha": "be6ed6a0123b734c",
+    "claim-sha": "52fbf255f7d07cb9",
+    "route": "revert",
+    "producer": "internal/component/bfd/auth/meticulous.go::Advance",
+    "producer-sha": "9944f78355d62382",
+    "break": "body of Advance replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.7.3-12",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880FirstAuthenticatedPacketSeedsReplayFloor",
+    "unit-sha": "69906446b0722eec",
+    "claim-sha": "6e38d79820fb6ca6",
+    "route": "revert",
+    "producer": "internal/component/bfd/auth/meticulous.go::Advance",
+    "producer-sha": "9944f78355d62382",
+    "break": "body of Advance replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.7.3-12",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880FirstPacketSeedsReplayFloorBeforeDigest",
+    "unit-sha": "9e3fb8e29a8afb3d",
+    "claim-sha": "705b5c51cec16d34",
+    "route": "revert",
+    "producer": "internal/component/bfd/auth/meticulous.go::Advance",
+    "producer-sha": "9944f78355d62382",
+    "break": "body of Advance replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.7.3-12",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KnownSequenceNotReseededByForgedPacket",
+    "unit-sha": "d423a13220f4b622",
+    "claim-sha": "388a3d8aeb3ebd87",
+    "route": "revert",
+    "producer": "internal/component/bfd/auth/meticulous.go::Advance",
+    "producer-sha": "9944f78355d62382",
+    "break": "body of Advance replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

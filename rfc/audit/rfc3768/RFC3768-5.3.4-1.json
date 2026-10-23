@@ -1,0 +1,17 @@
+{
+  "note": "vrrp judge 2026-09-29 (independent): TestV2OwnerRunsAtPriority255 extracts a group with version 2 and fatals unless Version reached the spec as v2; the owner configured at 120 must have EffectivePriority 255 under decrements 0, 1, 119 and 4064 and must advertise Priority 255 on startup; a v2 non-owner keeps 120 (negative). Records: revert EffectivePriority, both polarities, observed red.",
+  "requirement_sha": "10a546502ef3e667",
+  "tests": {
+    "internal/plugins/vrrp/groups_test.go::TestOwnerAutoDetection": "30e27105e8a9f202",
+    "internal/plugins/vrrp/groups_test.go::TestOwnerAutoDetection#2": "30e27105e8a9f202",
+    "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2OwnerRunsAtPriority255": "8b5d8c7a41e8e18e",
+    "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2OwnerRunsAtPriority255#2": "8b5d8c7a41e8e18e"
+  },
+  "units": {
+    "internal/plugins/vrrp/groups_test.go::TestOwnerAutoDetection": "47246169c047d639",
+    "internal/plugins/vrrp/groups_test.go::TestOwnerAutoDetection#2": "47246169c047d639",
+    "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2OwnerRunsAtPriority255": "e1b5fe735db9c117",
+    "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2OwnerRunsAtPriority255#2": "e1b5fe735db9c117"
+  },
+  "verdict": "enforced"
+}

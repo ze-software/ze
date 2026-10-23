@@ -1,0 +1,17 @@
+{
+  "note": "Both forms of the RFC 1071 Section 1 sentence are now pinned by exact vectors on both producers. Even count [1]: TestRFC1071ChecksumEvenLength (icmpChecksum) and TestInternetChecksumEvenLength (internetChecksum) answer 0x9753 for [12 34 56 78] and 0xfc96 for [12 34 56 78 9a bc]; a little-endian word, a padded even tail or a missing end-around carry (the 6-octet sum 0x10368) each goes red. Odd count [2] [Z,0]: TestInternetChecksumOddLength pins 0x97cb and TestRFC792ChecksumOddLength folds an 11-octet echo to 0xffff. The {single-polarity: positive} holds: the row defines the sum a generator forms and has no reject path.",
+  "requirement_sha": "fa54a374c7e8117d",
+  "tests": {
+    "internal/core/probe/icmp_test.go::TestRFC792ChecksumOddLength": "e4aad773ce5cac19",
+    "internal/core/probe/rfc1071_even_test.go::TestRFC1071ChecksumEvenLength": "ec544312848e5e35",
+    "internal/plugins/ospf/types/checksum_test.go::TestInternetChecksumOddLength": "66165fee03c7d467",
+    "internal/plugins/ospf/types/rfc_checksum_forms_test.go::TestInternetChecksumEvenLength": "cc5064006e5e0814"
+  },
+  "units": {
+    "internal/core/probe/icmp_test.go::TestRFC792ChecksumOddLength": "530a366561c98c54",
+    "internal/core/probe/rfc1071_even_test.go::TestRFC1071ChecksumEvenLength": "787463f43e3b836c",
+    "internal/plugins/ospf/types/checksum_test.go::TestInternetChecksumOddLength": "76936fc787931729",
+    "internal/plugins/ospf/types/rfc_checksum_forms_test.go::TestInternetChecksumEvenLength": "bee86801b550ac3d"
+  },
+  "verdict": "enforced"
+}

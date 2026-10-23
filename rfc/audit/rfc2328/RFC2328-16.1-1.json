@@ -1,0 +1,17 @@
+{
+  "note": "c20 judge: every skip clause and the continuation. TestRFC2328SPFExaminesNextLinkAfterSkip: root lists links to a missing router-LSA, a MaxAge router-LSA, a router with no link back, and a transit net with no network-LSA BEFORE 5.5.5.5, which is still reached at 10 with only 192.0.2.0/24 at 15 routed. TestRFC2328SPFSkipsMissingOrMaxAgeVertex isolates missing/MaxAge for router and network LSAs with a below-MaxAge control. Link-back clause by TestOSPFSPFShortestPath / TestOSPFTwoWayCheck. Revert records Compute (+), BuildGraph (-).",
+  "requirement_sha": "40d9940eae570f35",
+  "tests": {
+    "internal/plugins/ospf/spf/rfc2328_spf_test.go::TestOSPFSPFShortestPath": "beb97c3c18b451e8",
+    "internal/plugins/ospf/spf/rfc2328_spf_test.go::TestOSPFTwoWayCheck": "beb97c3c18b451e8",
+    "internal/plugins/ospf/spf/rfc2328_spf_vertex_lookup_test.go::TestRFC2328SPFExaminesNextLinkAfterSkip": "b9cd19a4f666c2f3",
+    "internal/plugins/ospf/spf/rfc2328_spf_vertex_lookup_test.go::TestRFC2328SPFSkipsMissingOrMaxAgeVertex": "b9cd19a4f666c2f3"
+  },
+  "units": {
+    "internal/plugins/ospf/spf/rfc2328_spf_test.go::TestOSPFSPFShortestPath": "c529cc253499eb83",
+    "internal/plugins/ospf/spf/rfc2328_spf_test.go::TestOSPFTwoWayCheck": "edbfaa682f52faec",
+    "internal/plugins/ospf/spf/rfc2328_spf_vertex_lookup_test.go::TestRFC2328SPFExaminesNextLinkAfterSkip": "1c07645da33df4c2",
+    "internal/plugins/ospf/spf/rfc2328_spf_vertex_lookup_test.go::TestRFC2328SPFSkipsMissingOrMaxAgeVertex": "9c59bab60f4c5288"
+  },
+  "verdict": "enforced"
+}

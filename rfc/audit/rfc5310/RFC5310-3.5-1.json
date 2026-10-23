@@ -1,0 +1,25 @@
+{
+  "note": "Re-judged 2026-09-30 after the D-8 (R41) fix: verifyFrame now logs a Warn (RFC 5310 sec 3.5 quoted above it), rate-limited to one line per interface and level per 10 s by auth_warn.go authWarnLimiter, with the suppressed count on the next line; every failure still increments ze_isis_auth_failures_total. Both clauses now held. Discard: root TestRFC1195InvalidAuthLSPDiscardedAtReceive, TestRFC5310MismatchLogsAnErrorEvent and TestRFC5310MismatchWarnsRateLimited deliver the matching HMAC-SHA-256 L1 LSP and drop the one-octet-altered copy before the handler; packet TestISISAuthWrongKeyRejected and TestISISAuthKeyIDMismatchRejected refuse at VerifyPDU. Error event: TestRFC5310MismatchWarnsRateLimited runs the logger at Info (Debug hidden) and requires a WARN line naming level=l1 and the neighbor SNPA on the first mismatch, none 1 s later, and a second line with suppressed=1 after the interval (positive); the matching LSP logs no WARN (negative). A regression to Debug goes red at the assertion. Recorded + on auth_warn.go allow, - on verifyFrame.",
+  "requirement_sha": "011f0397946d90fe",
+  "tests": {
+    "internal/plugins/isis/auth_discard_rfc1195_test.go::TestRFC1195InvalidAuthLSPDiscardedAtReceive": "5a1b7e8882c21ead",
+    "internal/plugins/isis/auth_discard_rfc1195_test.go::TestRFC1195InvalidAuthLSPDiscardedAtReceive#2": "5a1b7e8882c21ead",
+    "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthKeyIDMismatchRejected": "6263fe382fc10923",
+    "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthWrongKeyRejected": "6263fe382fc10923",
+    "internal/plugins/isis/rfc5310_auth_error_event_test.go::TestRFC5310MismatchLogsAnErrorEvent": "c91f7d4ccc1eec6f",
+    "internal/plugins/isis/rfc5310_auth_error_event_test.go::TestRFC5310MismatchLogsAnErrorEvent#2": "c91f7d4ccc1eec6f",
+    "internal/plugins/isis/rfc5310_auth_warn_test.go::TestRFC5310MismatchWarnsRateLimited": "9e5b0de6fddb940c",
+    "internal/plugins/isis/rfc5310_auth_warn_test.go::TestRFC5310MismatchWarnsRateLimited#2": "9e5b0de6fddb940c"
+  },
+  "units": {
+    "internal/plugins/isis/auth_discard_rfc1195_test.go::TestRFC1195InvalidAuthLSPDiscardedAtReceive": "f8cbc414d75be51d",
+    "internal/plugins/isis/auth_discard_rfc1195_test.go::TestRFC1195InvalidAuthLSPDiscardedAtReceive#2": "f8cbc414d75be51d",
+    "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthKeyIDMismatchRejected": "5b02ad2a1ec80768",
+    "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthWrongKeyRejected": "5dfed394d545126c",
+    "internal/plugins/isis/rfc5310_auth_error_event_test.go::TestRFC5310MismatchLogsAnErrorEvent": "d3ed1d48f4614a72",
+    "internal/plugins/isis/rfc5310_auth_error_event_test.go::TestRFC5310MismatchLogsAnErrorEvent#2": "d3ed1d48f4614a72",
+    "internal/plugins/isis/rfc5310_auth_warn_test.go::TestRFC5310MismatchWarnsRateLimited": "6a1fa585104f3405",
+    "internal/plugins/isis/rfc5310_auth_warn_test.go::TestRFC5310MismatchWarnsRateLimited#2": "6a1fa585104f3405"
+  },
+  "verdict": "enforced"
+}

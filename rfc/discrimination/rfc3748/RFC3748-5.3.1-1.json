@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC3748-5.3.1-1",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc3748_nak_test.go::TestPeerDoesNotNakATypeItHandles",
+    "unit-sha": "d6eb585e78cbd90c",
+    "claim-sha": "2645a0daccf937d6",
+    "route": "revert",
+    "producer": "internal/core/eap/peer.go::naks",
+    "producer-sha": "739a0037df1b7a64",
+    "break": "body of naks replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3748-5.3.1-1",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc3748_nak_test.go::TestPeerNaksAnExpandedTypeRequestWithALegacyNak",
+    "unit-sha": "da252661e7a24d53",
+    "claim-sha": "da058d557abc75d5",
+    "route": "revert",
+    "producer": "internal/core/eap/peer.go::naks",
+    "producer-sha": "739a0037df1b7a64",
+    "break": "body of naks replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3748-5.3.1-1",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc3748_nak_test.go::TestPeerNaksAnUnacceptableAuthenticationType",
+    "unit-sha": "5ea84b7cc0691a92",
+    "claim-sha": "46afde038965043c",
+    "route": "revert",
+    "producer": "internal/core/eap/peer.go::naks",
+    "producer-sha": "739a0037df1b7a64",
+    "break": "body of naks replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

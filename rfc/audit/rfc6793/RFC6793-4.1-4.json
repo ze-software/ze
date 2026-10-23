@@ -1,0 +1,13 @@
+{
+  "note": "TestRFC6793EncodeFourOctetToNewSpeaker drives ASPath/Aggregator WriteToWithContext with an ASN4 context and asserts 4-byte AS_PATH stride and 8-octet AGGREGATOR; the negative shows the 2-octet form without the capability.",
+  "requirement_sha": "7bcd1198f9252155",
+  "tests": {
+    "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793EncodeFourOctetToNewSpeaker": "fdd3980327455f38",
+    "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793EncodeTwoOctetToOldSpeaker": "fdd3980327455f38"
+  },
+  "units": {
+    "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793EncodeFourOctetToNewSpeaker": "7b55411a915638de",
+    "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793EncodeTwoOctetToOldSpeaker": "9fc7a65a98c8b709"
+  },
+  "verdict": "enforced"
+}

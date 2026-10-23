@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC7296-2.23-8",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_natt_test.go::TestNattFloatedSAWithoutNATTSocketSendsNothing",
+    "unit-sha": "54ac15491662aa36",
+    "claim-sha": "e3b0c44298fc1c14",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/sa.go::sendPath",
+    "producer-sha": "91e8d23ec40a3caa",
+    "break": "body of sendPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.23-8",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_natt_test.go::TestNattFloatsEverySenderToPort4500",
+    "unit-sha": "149f7eaf8cfe68bd",
+    "claim-sha": "e3b0c44298fc1c14",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/sa.go::sendPath",
+    "producer-sha": "91e8d23ec40a3caa",
+    "break": "body of sendPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.23-8",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_natt_test.go::TestNattNoFloatWithoutNAT",
+    "unit-sha": "edd352744f8eca85",
+    "claim-sha": "e3b0c44298fc1c14",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/sa.go::sendPath",
+    "producer-sha": "91e8d23ec40a3caa",
+    "break": "body of sendPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,19 @@
+{
+  "note": "RFC 7311 Section 3: 'Any other AIGP TLVs in the AIGP attribute MUST be passed along unchanged if the AIGP attribute is passed along.' Re-read all four tagged units. TestRFC7311OtherAIGPTLVsPassedAlongUnchanged compares the complete trailing second Type-1 and unknown Type-9 TLVs byte-for-byte at the final socket for unchanged next hop and next-hop-self, despite a policy replacement that drops them; it separately asserts first metric 100/130. TestRFC7311OtherAIGPTLVsSurviveTheCodec supplies conforming complete-byte roundtrip and first-TLV selection, supplemented by TestParseAIGPMultipleTLVs and TestAIGPWriteToMultipleTLVs. Valid lengths isolate preservation, not malformed-input rejection. Producers attribute.ParseAIGP/AIGP.WriteTo and reactor.applyFactsAIGP preserve all received bytes and modify only the first metric; fwdBatchHandler reaches Session.writeUpdateBody with AIGP enabled. Dropping, rewriting or accumulating the second metric would fail the exact assertions. The ownership fixture establishes admissible forwarded identity, not the RFC verdict; the socket octets establish the conditional whole obligation. Producer-halt records alone were not used as semantic proof.",
+  "requirement_sha": "ccd1ed711d398027",
+  "tests": {
+    "internal/component/bgp/reactor/rfc7311_aigp_other_tlvs_test.go::TestRFC7311OtherAIGPTLVsPassedAlongUnchanged": "846756e3c3a022f9",
+    "internal/component/bgp/reactor/rfc7311_aigp_other_tlvs_test.go::TestRFC7311OtherAIGPTLVsPassedAlongUnchanged#2": "846756e3c3a022f9",
+    "internal/core/bgp/attribute/rfc7311_aigp_test.go::TestAIGPWriteToMultipleTLVs": "682ca5c47e79ad07",
+    "internal/core/bgp/attribute/rfc7311_aigp_test.go::TestParseAIGPMultipleTLVs": "682ca5c47e79ad07",
+    "internal/core/bgp/attribute/rfc7311_tlv_test.go::TestRFC7311OtherAIGPTLVsSurviveTheCodec": "7b179465862209a9"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc7311_aigp_other_tlvs_test.go::TestRFC7311OtherAIGPTLVsPassedAlongUnchanged": "922f4fe231b1305d",
+    "internal/component/bgp/reactor/rfc7311_aigp_other_tlvs_test.go::TestRFC7311OtherAIGPTLVsPassedAlongUnchanged#2": "922f4fe231b1305d",
+    "internal/core/bgp/attribute/rfc7311_aigp_test.go::TestAIGPWriteToMultipleTLVs": "5e582b6e3264ec78",
+    "internal/core/bgp/attribute/rfc7311_aigp_test.go::TestParseAIGPMultipleTLVs": "74ce6b46d01ae615",
+    "internal/core/bgp/attribute/rfc7311_tlv_test.go::TestRFC7311OtherAIGPTLVsSurviveTheCodec": "8cee172e5190f0ea"
+  },
+  "verdict": "enforced"
+}

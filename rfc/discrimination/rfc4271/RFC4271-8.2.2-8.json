@@ -1,0 +1,47 @@
+[
+  {
+    "rid": "RFC4271-8.2.2-8",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271OpenSentManualStopReleasesTheConnection",
+    "unit-sha": "8a5ced855751ed48",
+    "claim-sha": "56bbefaec2007825",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_connection.go::teardown",
+    "producer-sha": "6ccbdeb7b5473c77",
+    "break": "body of teardown replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-8.2.2-8",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go::TestRFC4271OpenSentWellFormedOpenKeepsTheConnection",
+    "unit-sha": "2e4357718a773a5e",
+    "claim-sha": "aa2b1a03a0a704d9",
+    "route": "revert",
+    "producer": "internal/component/bgp/fsm/fsm.go::handleOpenSent",
+    "producer-sha": "11b4ebaf65ecfc01",
+    "break": "body of handleOpenSent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-8.2.2-8",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_shutdown_notify_test.go::TestShutdownNotifySendsCeaseFromEveryConnectedState",
+    "unit-sha": "9ecf268c07e1e1a6",
+    "claim-sha": "f611ebbf1edf6183",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/peer.go::shutdownNotify",
+    "producer-sha": "7a38d0a2625b7d2d",
+    "break": "body of shutdownNotify replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-8.2.2-8",
+    "polarity": "positive",
+    "unit": "test/reload/signal-stop-cease.ci",
+    "unit-sha": "8039b0eceaa475f9",
+    "claim-sha": "85fb0d2d66214d95",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/peer.go::shutdownNotify",
+    "producer-sha": "7a38d0a2625b7d2d",
+    "break": "body of shutdownNotify replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+    "citation": "expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D0306021741646D696E6973747261746976652053687574646F776E"
+  }
+]

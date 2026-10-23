@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC5880-6.8.3-3",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/session/rfc5880_live_timers_test.go::TestApplyTimersIncreaseHeldUntilFinal",
+    "unit-sha": "52ba7d639d53f30a",
+    "claim-sha": "cda83c9ac143e475",
+    "route": "revert",
+    "producer": "internal/component/bfd/session/timers.go::holdDesiredMinTxLocked",
+    "producer-sha": "5409769c2690b917",
+    "break": "body of holdDesiredMinTxLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.8.3-3",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RaisedDesiredMinTxAppliedAtFinal",
+    "unit-sha": "efeb814521b62ea1",
+    "claim-sha": "091eb66ca3951dd6",
+    "route": "revert",
+    "producer": "internal/component/bfd/session/timers.go::releaseDesiredMinTxLocked",
+    "producer-sha": "94fa23ccc28a722b",
+    "break": "body of releaseDesiredMinTxLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.8.3-3",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RaisedDesiredMinTxHeldUntilPollTerminates",
+    "unit-sha": "272bf8a77053c10a",
+    "claim-sha": "4c3c78443748e545",
+    "route": "revert",
+    "producer": "internal/component/bfd/session/timers.go::holdDesiredMinTxLocked",
+    "producer-sha": "5409769c2690b917",
+    "break": "body of holdDesiredMinTxLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

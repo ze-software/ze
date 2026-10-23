@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: a gateway forwarding a datagram that needs fragmentation while DF is set. Red on it: gatewayForwarded(t, captured, out, bad, false) in TestGatewayICMPDFDiscard fails if the 900-octet DF datagram appears on the 576-MTU link; the 'may return' clause is checked by gatewayICMP(..., 3, 4). Negative: the DF datagram at MTU and the DF-clear oversize datagram are required to forward (the rule's own boundary).",
+  "requirement_sha": "811fdb70a802cd4f",
+  "tests": {
+    "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPDFDiscard": "6fa365d5d54aea79",
+    "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPDFDiscard#2": "6fa365d5d54aea79"
+  },
+  "units": {
+    "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPDFDiscard": "555d09675e8ddeff",
+    "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPDFDiscard#2": "555d09675e8ddeff"
+  },
+  "verdict": "enforced"
+}

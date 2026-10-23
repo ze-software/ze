@@ -1,0 +1,33 @@
+{
+  "note": "Re-judged 2026-10-19 (independent auditor). Section 5.2: \"For this reason, if any path attribute errors are encountered in such an UPDATE message and if any encountered error specifies an error-handling approach other than \"attribute discard\", then the \"session reset\" approach MUST be used.\" TestRFC7606EmptyMPReachEscalatesToReset: The only change to this unit since the last judgement (ca4eae70a0) is the new sixth argument of ValidateUpdateRFC7606AddPath, passed as false (no capability 77), which skips the draft-ietf-idr-linklocal-capability Section 6 branch; no input byte or assertion changed, and the unit passes at HEAD. The escalation in ValidateUpdateRFC7606AddPath (hasAttrOtherThanMPUnreach with no reachable NLRI) is unchanged by ca4eae70a0; the new capability-77 check records a treat-as-withdraw through the same recordError, so it escalates on an UPDATE with no reachable NLRI exactly like any other non-discard error, as Section 5.2 requires. The 2026-10-18 judgement of the other carriers (MP_UNREACH alone not escalated, session-level 3/1 reset, abandoned walk) stands. Five discrimination records for this id (TestRFC7606EmptyMPReachEscalatesToReset unit-changed; TestRFC7606Section52MPUnreachOnlyNotEscalated both polarities, TestRFC7606SystematicLengthCorruption both polarities, TestRFC9830NLRILengthReceiveVerdicts producer-changed) owe re-recording.",
+  "requirement_sha": "eebc85d439ba43a8",
+  "tests": {
+    "internal/component/bgp/message/rfc7606_attribute_envelope_test.go::TestRFC7606EmptyMPReachEscalatesToReset": "98c95aaab9c010a7",
+    "internal/component/bgp/message/rfc7606_mpunreach_only_test.go::TestRFC7606Section52MPUnreachOnlyNotEscalated": "e36f8286127e2167",
+    "internal/component/bgp/message/rfc7606_mpunreach_only_test.go::TestRFC7606Section52MPUnreachOnlyNotEscalated#2": "e36f8286127e2167",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPUnreachMinValid": "b7acaf2569904b8f",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606NoNLRIAttributeDiscardNoEscalation": "b7acaf2569904b8f",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606NoNLRIEscalation": "b7acaf2569904b8f",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "b7acaf2569904b8f",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption#2": "b7acaf2569904b8f",
+    "internal/component/bgp/reactor/rfc7606_attribute_envelope_test.go::TestRFC7606AttributeEnvelopeSession": "7f12ec998cbec524",
+    "internal/component/bgp/reactor/rfc7606_session_validation_noreach_test.go::TestRFC7606Section52EscalatesWhenTheAttributeWalkIsAbandoned": "f7788746939ead18",
+    "internal/component/bgp/reactor/rfc7606_session_validation_noreach_test.go::TestRFC7606Section52LeavesAnUpdateWithNLRIAlone": "f7788746939ead18",
+    "internal/component/bgp/reactor/rfc9830_nlri_receive_test.go::TestRFC9830NLRILengthReceiveVerdicts": "5189635b831d2fc2"
+  },
+  "units": {
+    "internal/component/bgp/message/rfc7606_attribute_envelope_test.go::TestRFC7606EmptyMPReachEscalatesToReset": "e37574ef29306a19",
+    "internal/component/bgp/message/rfc7606_mpunreach_only_test.go::TestRFC7606Section52MPUnreachOnlyNotEscalated": "d055730ffa2a1294",
+    "internal/component/bgp/message/rfc7606_mpunreach_only_test.go::TestRFC7606Section52MPUnreachOnlyNotEscalated#2": "d055730ffa2a1294",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPUnreachMinValid": "2ef0df6447b80465",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606NoNLRIAttributeDiscardNoEscalation": "ec6654eb444b7e56",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606NoNLRIEscalation": "0db3fdf749b07c00",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "07b9d95ed1e789a5",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption#2": "07b9d95ed1e789a5",
+    "internal/component/bgp/reactor/rfc7606_attribute_envelope_test.go::TestRFC7606AttributeEnvelopeSession": "008145acee126508",
+    "internal/component/bgp/reactor/rfc7606_session_validation_noreach_test.go::TestRFC7606Section52EscalatesWhenTheAttributeWalkIsAbandoned": "3af9ff5f8e051dbf",
+    "internal/component/bgp/reactor/rfc7606_session_validation_noreach_test.go::TestRFC7606Section52LeavesAnUpdateWithNLRIAlone": "0e1529d7d8a7be8d",
+    "internal/component/bgp/reactor/rfc9830_nlri_receive_test.go::TestRFC9830NLRILengthReceiveVerdicts": "917a41bcd9145c5f"
+  },
+  "verdict": "enforced"
+}

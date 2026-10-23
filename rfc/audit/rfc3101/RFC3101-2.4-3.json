@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: P set on a Type-7 whose network this router also originates as Type-5. lsdb/nssa_pbit_test.go TestOSPFNSSAPBitBoundaryPolicy asserts P clear after OriginateExternal for the same network (line 49) and P set with no self Type-5 (line 37).",
+  "requirement_sha": "6cf7dd2375679aed",
+  "tests": {
+    "internal/plugins/ospf/lsdb/rfc3101_nssa_pbit_test.go::TestOSPFNSSAPBitBoundaryPolicy": "8d222a236fcd72a2",
+    "internal/plugins/ospf/lsdb/rfc3101_nssa_pbit_test.go::TestOSPFNSSAPBitBoundaryPolicy#2": "8d222a236fcd72a2"
+  },
+  "units": {
+    "internal/plugins/ospf/lsdb/rfc3101_nssa_pbit_test.go::TestOSPFNSSAPBitBoundaryPolicy": "6e5aeb67d7c8c758",
+    "internal/plugins/ospf/lsdb/rfc3101_nssa_pbit_test.go::TestOSPFNSSAPBitBoundaryPolicy#2": "6e5aeb67d7c8c758"
+  },
+  "verdict": "enforced"
+}

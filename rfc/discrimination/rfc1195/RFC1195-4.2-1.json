@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC1195-4.2-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/packet/rfc1195_tlv_ipv4_test.go::TestRFC1195InterfaceAddrTLV63Addresses",
+    "unit-sha": "2e38672c1255976b",
+    "claim-sha": "8678d84a7f40bbba",
+    "route": "revert",
+    "producer": "internal/plugins/isis/packet/tlv_ipv4.go::DecodeIPv4InterfaceAddrTLV",
+    "producer-sha": "d53825749c50ffb3",
+    "break": "body of DecodeIPv4InterfaceAddrTLV replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1195-4.2-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/packet/rfc1195_tlv_ipv4_test.go::TestRFC1195InterfaceAddrTLVTruncatedAddressRefused",
+    "unit-sha": "d147c1cc8af341d1",
+    "claim-sha": "0753e58483e8f11a",
+    "route": "revert",
+    "producer": "internal/plugins/isis/packet/tlv_ipv4.go::DecodeIPv4InterfaceAddrTLV",
+    "producer-sha": "d53825749c50ffb3",
+    "break": "body of DecodeIPv4InterfaceAddrTLV replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1195-4.2-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/rfc1195_neighbor_addresses_test.go::TestRFC1195MultiAddressNeighborForwarding",
+    "unit-sha": "355ebe935f9badc6",
+    "claim-sha": "a8dfa7166f3f68cd",
+    "route": "revert",
+    "producer": "internal/plugins/isis/circuit/runtime.go::helloInput",
+    "producer-sha": "bcd611a8af1b9e8c",
+    "break": "body of helloInput replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1195-4.2-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/rfc1195_neighbor_addresses_test.go::TestRFC1195MultiAddressNeighborRenumbered",
+    "unit-sha": "82c4800b49465a9a",
+    "claim-sha": "c7302520cf254ed7",
+    "route": "revert",
+    "producer": "internal/plugins/isis/circuit/runtime.go::helloInput",
+    "producer-sha": "bcd611a8af1b9e8c",
+    "break": "body of helloInput replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

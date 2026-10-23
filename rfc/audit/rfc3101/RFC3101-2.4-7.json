@@ -1,0 +1,13 @@
+{
+  "note": "Judged 2026-10-21 against RFC 3101 Section 2.4 text. Producer ComputeExternalWith (spf/external.go) skips a Type-7 default on an NSSA border router when rec.Pref == prefType7P0 (P-bit clear), so a P-set default proceeds to externalCandidateFrom. TestOSPFNSSABorderRouterDefaultPBit: positive subtest 'P-bit set' with summaries imported requires exactly one route, 0.0.0.0/0; negative subtest 'P-bit clear', same inputs except the P-bit, asserts no route. Both directions of 'if and only if' are pinned with only the P-bit varied, so dropping the P-clear skip reddens the negative and skipping every default reddens the positive. The Section 2.5 summary-suppression skip is held apart (summaries imported in both subtests). Revert records on ComputeExternalWith are whole-body panics; the clause-level discrimination was judged by reading.",
+  "requirement_sha": "960c2de340874728",
+  "tests": {
+    "internal/plugins/ospf/spf/rfc3101_external_nssa_test.go::TestOSPFNSSABorderRouterDefaultPBit": "9e221b200c0db55d",
+    "internal/plugins/ospf/spf/rfc3101_external_nssa_test.go::TestOSPFNSSABorderRouterDefaultPBit#2": "9e221b200c0db55d"
+  },
+  "units": {
+    "internal/plugins/ospf/spf/rfc3101_external_nssa_test.go::TestOSPFNSSABorderRouterDefaultPBit": "e8f9f080f58f79cc",
+    "internal/plugins/ospf/spf/rfc3101_external_nssa_test.go::TestOSPFNSSABorderRouterDefaultPBit#2": "e8f9f080f58f79cc"
+  },
+  "verdict": "enforced"
+}

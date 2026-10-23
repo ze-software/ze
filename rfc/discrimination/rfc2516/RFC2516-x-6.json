@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2516-x-6",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516AdmittedPADSCarriesTheNewSessionsID",
+    "unit-sha": "166dee9546cc15d8",
+    "claim-sha": "6ba990e13ecbab9d",
+    "route": "revert",
+    "producer": "internal/component/l2tp/pppoe/server.go::createTransport",
+    "producer-sha": "2df556f60abe123f",
+    "break": "body of createTransport replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2516-x-6",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516SessionNeverBoundToANonUnicastPeer",
+    "unit-sha": "e3ffc49e1919aa11",
+    "claim-sha": "3353537f0e266be2",
+    "route": "revert",
+    "producer": "internal/component/l2tp/pppoe/discovery.go::ParseDiscovery",
+    "producer-sha": "4f37b570278b8732",
+    "break": "body of ParseDiscovery replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

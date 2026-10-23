@@ -1,0 +1,13 @@
+{
+  "note": "head-end PLR signals the backup PATH from the distinct local address 10.0.1.2, not its SENDER_TEMPLATE address; with no alternate address no backup identity is signaled Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 6.1, 6.1.1 and the enforced verdict holds unchanged.",
+  "requirement_sha": "9f5071d6776bc595",
+  "tests": {
+    "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090HeadEndRequiresAlternateSender": "63fe630e7c2d0f12",
+    "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090HeadEndUsesDistinctSender": "63fe630e7c2d0f12"
+  },
+  "units": {
+    "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090HeadEndRequiresAlternateSender": "bfa4e9961da57461",
+    "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090HeadEndUsesDistinctSender": "764d6128fa82b5c3"
+  },
+  "verdict": "enforced"
+}

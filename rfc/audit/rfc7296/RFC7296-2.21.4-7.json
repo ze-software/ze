@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-09-30 (independent judge) after the row was narrowed to the MUST NOT sentence, verbatim at RFC 7296 Section 2.21.4: \"The recipient MUST NOT change the state of any SAs as a result, but may wish to audit the event to aid in diagnosing malfunctions.\" The SHOULD-send sentence is RFC7296-2.21.4-8 {gap}. TestErrProtectedInformationalNotifyChangesNoState: a protected INFORMATIONAL carrying INVALID_SELECTORS (the kind of notify a node sends after a suspicious ESP packet) is answered, leaves the IKE SA state unchanged and the Child SA in place; control: the same exchange carrying a Delete does change state. Revert records observed red on inbound.go::handleInformationalOwned. Limit: the Child SA check is pointer identity, so an in-place mutation of the Child SA would not be seen; handleInformationalOwned acts on Delete and MOBIKE notifies only. Re-judged 2026-10-10 (independent judge, mode rejudge): every tagged unit is byte-identical to the judged one (git diff 2d57003d45..HEAD touches only other functions, a const block, and new functions appended to the file), so the verdict stands unchanged.",
+  "requirement_sha": "483418455e5deda8",
+  "tests": {
+    "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrProtectedInformationalNotifyChangesNoState": "f788331a490d2a61",
+    "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrProtectedInformationalNotifyChangesNoState#2": "f788331a490d2a61"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrProtectedInformationalNotifyChangesNoState": "ba463a9e833cddbe",
+    "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrProtectedInformationalNotifyChangesNoState#2": "ba463a9e833cddbe"
+  },
+  "verdict": "enforced"
+}

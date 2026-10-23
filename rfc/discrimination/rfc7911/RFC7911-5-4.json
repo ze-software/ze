@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC7911-5-4",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc7911_family_generation_test.go::TestRFC7911GeneratedPathsAreScopedToTheNegotiatedFamily",
+    "unit-sha": "89c6826f189380b1",
+    "claim-sha": "26befab957d1dbfb",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/reactor_api_batch.go::buildBatchAnnounceUpdate",
+    "producer-sha": "44ccbe7f2ba0402d",
+    "break": "body of buildBatchAnnounceUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7911-5-4",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc7911_family_generation_test.go::TestRFC7911GeneratedPathsAreScopedToTheNegotiatedFamily",
+    "unit-sha": "89c6826f189380b1",
+    "claim-sha": "3116415d75a2931f",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/reactor_api_batch.go::buildBatchAnnounceUpdate",
+    "producer-sha": "44ccbe7f2ba0402d",
+    "break": "body of buildBatchAnnounceUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7911-5-4",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc7911_forward_split_test.go::TestSplitUpdateAddPathEndToEnd",
+    "unit-sha": "f5e2572bb4978646",
+    "claim-sha": "bc817a6a2506474f",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/update_split.go::Split",
+    "producer-sha": "29038baefcc96e30",
+    "break": "body of Split replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7911-5-4",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc7911_forward_split_test.go::TestSplitUpdateEndToEnd",
+    "unit-sha": "0ca3b52992700c81",
+    "claim-sha": "b3d459044bc9d49f",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/update_split.go::Split",
+    "producer-sha": "29038baefcc96e30",
+    "break": "body of Split replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

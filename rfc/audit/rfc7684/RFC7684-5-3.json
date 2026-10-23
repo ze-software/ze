@@ -1,0 +1,13 @@
+{
+  "note": "Rejudged after the D-15 body fix in TestExtIngressValidCarriage (unknown-application body ff -> ff 00 00 00, assertions unchanged): a 1-octet Opaque body is no Opaque LSA under RFC 5250 Section 3, so the positive now carries a valid unknown application; it still proves valid extended LSAs and unknown applications are stored byte-for-byte, acked and flooded by scope after a malformed companion. Negative TestExtIngressMalformedDiscard unchanged: TLV overrun, sub-TLV overrun, short sub-TLV header, duplicate malformed container, MaxAge and self-originated cases are 4-octet aligned and reach validateExtLSA; revert record on ext.go validateExtLSA observed red. Its trailing-header case (valid + 1 octet) is now discarded first by the RFC 5250 alignment check, still the outcome this row forbids. Positive revert record on ReceiveUpdate.",
+  "requirement_sha": "d8623840e3f394c8",
+  "tests": {
+    "internal/plugins/ospf/rfc7684_ext_receive_test.go::TestExtIngressMalformedDiscard": "26a56ecb4e9b3b65",
+    "internal/plugins/ospf/rfc7684_ext_receive_test.go::TestExtIngressValidCarriage": "26a56ecb4e9b3b65"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc7684_ext_receive_test.go::TestExtIngressMalformedDiscard": "8d95e6edf616b3b9",
+    "internal/plugins/ospf/rfc7684_ext_receive_test.go::TestExtIngressValidCarriage": "a5956e180b77842f"
+  },
+  "verdict": "enforced"
+}

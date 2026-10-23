@@ -1,0 +1,11 @@
+{
+  "note": "Forbidden: a reduced-size length on an address or dateTime IE. TestRFC7011NoReducedSizeForAddressOrTimestamp walks the counter, flow4 and flow6 templates and asserts IPv4 address IEs at 4, IPv6 at 16, dateTimeSeconds at 4 and dateTimeMilliseconds at 8 octets, red on any reduced length; every other exported IE is integral, for which reduced size is permitted. Single-polarity marker: no path applies reduced-size encoding.",
+  "requirement_sha": "d5896781b498a6db",
+  "tests": {
+    "internal/plugins/flowexport/ipfix/rfc7011_test.go::TestRFC7011NoReducedSizeForAddressOrTimestamp": "1e121054ccd5ea2a"
+  },
+  "units": {
+    "internal/plugins/flowexport/ipfix/rfc7011_test.go::TestRFC7011NoReducedSizeForAddressOrTimestamp": "2c34850f0d18c6c7"
+  },
+  "verdict": "enforced"
+}

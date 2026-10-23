@@ -1,0 +1,25 @@
+{
+  "note": "RFC 9234 Section 4.2: \"If the Roles do not correspond, the BGP speaker MUST reject the connection using the Role Mismatch Notification (code 2, subcode 11).\" Producer role/validate.go::validateOpenRolePair checks Table 2; server/validate.go::askOpenValidators converts a rejected ValidateOpenOutput into OpenValidationError and reactor/session_open_validation.go::runOpenValidator sends its codes. role-mismatch-notification.ci supplies Provider/Provider and requires exact FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001503020B, rejecting EoR; peer-open-role-complement.ci changes the remote role to Customer, requires EoR and rejects 03020B. TestValidateOpenRolePair_ValidPairs and InvalidPairs pin accept/refuse and exact codes; TestValidateOpenRolePairRunsForADynamicGroupMember also checks group lookup, refusal and complementary acceptance. Server TestBroadcastValidateOpenRefusesAnUnansweredPerPeerPolicy, TestAskOpenValidatorsLeavesASilentPluginPending and TestBroadcastValidateOpenAcceptsAPeerWithNoPerPeerPolicy retain the owner-selected fail-closed plumbing: those are supplemental robustness evidence, not a claim that the RFC equates plugin silence with an observed role mismatch. Rejudged independently against RFC source and every tagged carrier on 2026-10-22. Functional judgments use the corresponding test/draft/plugin files, not the unpromoted old-syntax live files. Their inactive NO-TRANSIT import/export policies explicitly end in accept; reactor runEgressPolicyChain applies that final only after mandatory in-process OTC, and OPEN validation is independent. This is a source judgment, not a new runtime or discrimination result; parent owns promotion and native freshness before stamping.",
+  "requirement_sha": "5e84240229d8ad8d",
+  "tests": {
+    "internal/component/bgp/plugins/role/rfc9234_dynamic_group_test.go::TestValidateOpenRolePairRunsForADynamicGroupMember": "2ac8fba09ccdee06",
+    "internal/component/bgp/plugins/role/rfc9234_validate_test.go::TestValidateOpenRolePair_InvalidPairs": "8064b6dabf4a8794",
+    "internal/component/bgp/plugins/role/rfc9234_validate_test.go::TestValidateOpenRolePair_ValidPairs": "8064b6dabf4a8794",
+    "internal/component/bgp/server/rfc9234_validate_test.go::TestAskOpenValidatorsLeavesASilentPluginPending": "48c345a0a406f12f",
+    "internal/component/bgp/server/rfc9234_validate_test.go::TestBroadcastValidateOpenAcceptsAPeerWithNoPerPeerPolicy": "48c345a0a406f12f",
+    "internal/component/bgp/server/rfc9234_validate_test.go::TestBroadcastValidateOpenRefusesAnUnansweredPerPeerPolicy": "48c345a0a406f12f",
+    "test/plugin/peer-open-role-complement.ci": "fd3993b90fa086ab",
+    "test/plugin/role-mismatch-notification.ci": "f13a9875e9724684"
+  },
+  "units": {
+    "internal/component/bgp/plugins/role/rfc9234_dynamic_group_test.go::TestValidateOpenRolePairRunsForADynamicGroupMember": "681c3facc086468b",
+    "internal/component/bgp/plugins/role/rfc9234_validate_test.go::TestValidateOpenRolePair_InvalidPairs": "0104cf569f815f0e",
+    "internal/component/bgp/plugins/role/rfc9234_validate_test.go::TestValidateOpenRolePair_ValidPairs": "5263c40d7e0bb318",
+    "internal/component/bgp/server/rfc9234_validate_test.go::TestAskOpenValidatorsLeavesASilentPluginPending": "9bd11f15c8740234",
+    "internal/component/bgp/server/rfc9234_validate_test.go::TestBroadcastValidateOpenAcceptsAPeerWithNoPerPeerPolicy": "e40318badf9f4d97",
+    "internal/component/bgp/server/rfc9234_validate_test.go::TestBroadcastValidateOpenRefusesAnUnansweredPerPeerPolicy": "93c1c04ed8b2d1b9",
+    "test/plugin/peer-open-role-complement.ci": "fd3993b90fa086ab",
+    "test/plugin/role-mismatch-notification.ci": "f13a9875e9724684"
+  },
+  "verdict": "enforced"
+}

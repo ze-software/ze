@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-09-29. rfc7854_wire_header_test.go::TestRFC7854EveryTransmittedMessageCarriesVersion3AndItsTotalLength builds all seven types through the writers the sender calls (writeRouteMonitoring, writeStatisticsReport, writePeerDown, writePeerUp, writeInitiation, writeTermination, writeRouteMirroring) into a 0xA5-patterned buffer and requires octet 0 == 3 on each, so a writer that emits another version or leaves the octet unset goes red. The sentence binds the sender and no input can make it send another version; the negatives (header_test decode table #2, session_test TestBMPMalformedHeaderDrops) are the receiver refusing a version-2 header, the same rule read at the other end. The old decode-table positive stays tagged and proves only decode.",
+  "requirement_sha": "15b90abeff3d45d1",
+  "tests": {
+    "internal/component/bgp/plugins/bmp/header_test.go::TestBMPCommonHeaderDecode": "49dfad3eed97ec32",
+    "internal/component/bgp/plugins/bmp/header_test.go::TestBMPCommonHeaderDecode#2": "49dfad3eed97ec32",
+    "internal/component/bgp/plugins/bmp/rfc7854_session_test.go::TestBMPMalformedHeaderDrops": "3c92f5bc82c93a53",
+    "internal/component/bgp/plugins/bmp/rfc7854_wire_header_test.go::TestRFC7854EveryTransmittedMessageCarriesVersion3AndItsTotalLength": "8a330a29c2d73330"
+  },
+  "units": {
+    "internal/component/bgp/plugins/bmp/header_test.go::TestBMPCommonHeaderDecode": "0af7d40ff45810dc",
+    "internal/component/bgp/plugins/bmp/header_test.go::TestBMPCommonHeaderDecode#2": "0af7d40ff45810dc",
+    "internal/component/bgp/plugins/bmp/rfc7854_session_test.go::TestBMPMalformedHeaderDrops": "bb9c68add4058f2b",
+    "internal/component/bgp/plugins/bmp/rfc7854_wire_header_test.go::TestRFC7854EveryTransmittedMessageCarriesVersion3AndItsTotalLength": "0da122bdda46515a"
+  },
+  "verdict": "enforced"
+}

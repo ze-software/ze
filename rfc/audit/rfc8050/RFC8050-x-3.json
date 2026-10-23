@@ -1,0 +1,17 @@
+{
+  "note": "Independent final source rejudgment after formatting. RFC 8050 section 3: \"The fields of these message types are identical to the equivalent non-additional-path versions specified in Section 4.4 of [RFC6396]. These enhancements continue to encapsulate the entire BGP message in the BGP message field.\" Read the full section and RFC 6396 section 4.4 base layouts, all four tagged carriers and actual producers. Q1 yes collectively: internal/mrt/rfc8050_layout_test.go::TestRFC8050AddPathBGP4MPRecordsKeepTheBaseFields feeds independently literal records through ReadFrom for subtypes 8/9/10/11, checks every base header field and all 45 UPDATE octets, and compares base-subtype readings. internal/mrt/mrt_test.go::TestBGP4MPMessageRoundTrip checks preserved fields and the complete literal Path-ID-bearing UPDATE. internal/plugins/mrt/rfc8050_addpath_record_test.go::TestRFC8050AddPathRecordAddsNoFieldToTheBaseLayout calls the actual recorder in both directions and asserts exactly two records, each byte after its timestamp, subtype 9/11, length 65, exactly 20 base-header octets and the complete 45-octet UPDATE. Q2 yes for those exact independent reader/writer assertions: lifting the Path Identifier into an extra MRT field, shifting fields or dropping/reconstructing message octets fails. The supplementary internal/mrt/mrt_test.go::TestBGP4MPStateChangeRoundTrip is only a roundtrip control over the shared header and cannot alone prove absence of a newly inserted field; its negative tag does not establish an independent adversarial ADDPATH case. Q3 yes for the effective carriers: a complete framed UPDATE containing a real Path Identifier isolates the temptation to add an MRT field; expected record length and all expected octets are independent of production encoders. The writer negative asserts forbidden output absence, not malformed-input rejection. Q4 yes collectively for unchanged fields and complete encapsulation; the weak state-change control is not used to confer that credit. internal/mrt/encode.go::WriteBGP4MPMessage/writeBGP4MPCommon and decode.go::DecodeBGP4MPMessage/decodeBGP4MPHeader implement the common layout, and internal/plugins/mrt/component.go::OnBGPMessage copies the complete original frame. Formatting the plugin carrier changes no assertion or expected octet. This is source judgment only; no discrimination renewal or test run is claimed.",
+  "requirement_sha": "e345360cf8b8b739",
+  "tests": {
+    "internal/mrt/mrt_test.go::TestBGP4MPMessageRoundTrip": "fb2e8a7edf55af3c",
+    "internal/mrt/mrt_test.go::TestBGP4MPStateChangeRoundTrip": "fb2e8a7edf55af3c",
+    "internal/mrt/rfc8050_layout_test.go::TestRFC8050AddPathBGP4MPRecordsKeepTheBaseFields": "9b52224532bd0e0b",
+    "internal/plugins/mrt/rfc8050_addpath_record_test.go::TestRFC8050AddPathRecordAddsNoFieldToTheBaseLayout": "7c6c759958255855"
+  },
+  "units": {
+    "internal/mrt/mrt_test.go::TestBGP4MPMessageRoundTrip": "3f1d0c3c1a2e1266",
+    "internal/mrt/mrt_test.go::TestBGP4MPStateChangeRoundTrip": "9d3a3ab19ecff5b7",
+    "internal/mrt/rfc8050_layout_test.go::TestRFC8050AddPathBGP4MPRecordsKeepTheBaseFields": "2e98c0ec1ff5a295",
+    "internal/plugins/mrt/rfc8050_addpath_record_test.go::TestRFC8050AddPathRecordAddsNoFieldToTheBaseLayout": "d3adfef878682d6d"
+  },
+  "verdict": "enforced"
+}

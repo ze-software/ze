@@ -1,0 +1,11 @@
+{
+  "note": "single-polarity negative per row annotation; a private-use 65000 node attribute is refused with no UPDATE; the refusal is of every private type, not of a short Enterprise Code",
+  "requirement_sha": "684450a7a2f9b6ff",
+  "tests": {
+    "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativePrivateUseWithoutEnterpriseRefused": "de280b1c094e08d4"
+  },
+  "units": {
+    "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativePrivateUseWithoutEnterpriseRefused": "3be9c059e238e689"
+  },
+  "verdict": "enforced"
+}

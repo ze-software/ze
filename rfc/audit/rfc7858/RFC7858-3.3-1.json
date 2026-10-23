@@ -1,0 +1,11 @@
+{
+  "note": "Re-judged 2026-10-15 (subagent, after 14d1c8f19c and 224b0ef514). The tagged unit changed only in its setup call: mgr.apply/applyListeners became reconcile(..., BindLenient), the policy the deleted wrappers passed; the unit binds one free loopback port, where lenient and strict bind alike, and every assertion line is byte-identical. Where this unit carries a revert record (TestDoTListener, TestDoHListener, TestRFC7858DoTNegotiatesOnlyBCP195Suites, the two RFC 2181 4.1-1 units), it was re-observed red today. Prior judgement re-read against the current body and stands: Single-polarity positive (row marker). Forbidden: a server response on the TLS session that does not carry the RFC 1035 4.2.2 two-octet length prefix. TestDoTListener uses the miekg tcp-tls client, which reads a two-octet length and then the message; an unprefixed response would be mis-framed and fail at t.Fatalf(\"DoT exchange\") or the answer-count / A-record assertions. The server's reading of prefixed requests is exercised by the same exchange.",
+  "requirement_sha": "2302da2f8a58fb37",
+  "tests": {
+    "internal/core/dnsserver/secure_test.go::TestDoTListener": "8772da30b26b9efc"
+  },
+  "units": {
+    "internal/core/dnsserver/secure_test.go::TestDoTListener": "5a13f43dda020cb1"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC5798-5.2.9-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/groups_test.go::TestValidateIPv6LinkLocal",
+    "unit-sha": "d823347a7ceb0a45",
+    "claim-sha": "56ec6c523e1b7cea",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/groups.go::validateGroup",
+    "producer-sha": "21cf349636cd79ec",
+    "break": "body of validateGroup replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5798-5.2.9-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/vrrp/groups_test.go::TestValidateIPv6LinkLocal",
+    "unit-sha": "d823347a7ceb0a45",
+    "claim-sha": "ed0d32b29431a2bb",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/groups.go::validateGroup",
+    "producer-sha": "21cf349636cd79ec",
+    "break": "body of validateGroup replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5798-5.2.9-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/rfc5798_tx_order_test.go::TestAdvertParamsIPv6LeadWithLinkLocal",
+    "unit-sha": "76067edb2e5cf162",
+    "claim-sha": "042d12fe6061f9df",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/instance.go::doSendAdvert",
+    "producer-sha": "35341f2b3789c6d3",
+    "break": "body of doSendAdvert replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5798-5.2.9-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/transport/rfc5798_linklocal_first_test.go::TestSendAdvertIPv6LeadsWithLinkLocal",
+    "unit-sha": "26c94e573468151c",
+    "claim-sha": "7b8cea25764e385e",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/transport/transport.go::encodeLocked",
+    "producer-sha": "cf0664c9c920f778",
+    "break": "body of encodeLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

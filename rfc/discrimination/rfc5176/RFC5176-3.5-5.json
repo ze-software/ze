@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5176-3.5-5",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ErrorCausePlacement",
+    "unit-sha": "4acc167084e4da43",
+    "claim-sha": "3cb33fb1558c0251",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authradius/coa.go::sendResponse",
+    "producer-sha": "09a96dfe030559de",
+    "break": "body of sendResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5176-3.5-5",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ErrorCausePlacement",
+    "unit-sha": "4acc167084e4da43",
+    "claim-sha": "e328be615133478e",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authradius/coa.go::sendResponse",
+    "producer-sha": "09a96dfe030559de",
+    "break": "body of sendResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

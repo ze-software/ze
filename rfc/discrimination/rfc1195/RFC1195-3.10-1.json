@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC1195-3.10-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/spf/rfc1195_route_test.go::TestRFC1195NoRouteForUnreachedReachabilityEntry",
+    "unit-sha": "e4194dbef7e0dfef",
+    "claim-sha": "a11c5803ead66e4b",
+    "route": "revert",
+    "producer": "internal/plugins/isis/spf/spf.go::Compute",
+    "producer-sha": "819f17307b651ed5",
+    "break": "body of Compute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1195-3.10-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/spf/rfc1195_route_test.go::TestRFC1195RouteForEachReachabilityEntry",
+    "unit-sha": "f821d83c846a2806",
+    "claim-sha": "727239123df97043",
+    "route": "revert",
+    "producer": "internal/plugins/isis/spf/route.go::BuildRoutes",
+    "producer-sha": "7beede9dd623825b",
+    "break": "body of BuildRoutes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

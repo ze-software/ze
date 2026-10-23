@@ -1,0 +1,17 @@
+{
+  "note": "Judge 2026-09-28. Positive TestRFC5880DigestSpansEntirePacket compares Sign's digest with crypto/md5 computed independently over bytes 0..Length with the padded key, and accepts a hand-built packet. Negative TestRFC5880DigestOverPartialPacketDiscarded refuses digests over 24, off+4, off+8 and Length-1 bytes and every single-byte flip of the mandatory section, Reserved byte and Sequence Number (fresh SeqState, so D-14 seeding precedes and the window cannot refuse first). Types 2 and 3.",
+  "requirement_sha": "488c9f167483847b",
+  "tests": {
+    "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880DigestOverPartialPacketDiscarded": "69049dc5fe6d5288",
+    "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880DigestSpansEntirePacket": "69049dc5fe6d5288",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880DigestCoversWholePacket": "5a25c74cc2d9bd47",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880DigestRejectsMandatorySectionTamper": "5a25c74cc2d9bd47"
+  },
+  "units": {
+    "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880DigestOverPartialPacketDiscarded": "c0cb5d8a8b5d8678",
+    "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880DigestSpansEntirePacket": "af4e37a7eb095701",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880DigestCoversWholePacket": "57083830adc14cc1",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880DigestRejectsMandatorySectionTamper": "149ec8b7a68178fc"
+  },
+  "verdict": "enforced"
+}

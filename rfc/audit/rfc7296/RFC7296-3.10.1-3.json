@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged 2026-09-30 (independent judge). INVALID_SYNTAX for errors no other status type covers, in an authenticated request: truncated inner chain (TestErrInnerParseFailureDrawsInvalidSyntaxAndOuterDrawsNothing) and now Payload Length 0 and 3 (rfc7296_inner_error_answers_test.go::TestRFC7296UncoveredInnerErrorsDrawInvalidSyntax), each answered with exactly one notify, INVALID_SYNTAX, and not dispatched. Every non-critical inner-chain parse error reaches the same single producer, respondInnerParseError, which answers INVALID_SYNTAX unconditionally. An invalid field value (a Delete with the wrong SPI Size) is answered with INVALID_SYNTAX under RFC7296-3.11-2's tests. Negative: an outer parse failure (Message ID and checksum never validated) draws nothing. Revert record observed red on inbound.go::respondInnerParseError. Re-judged 2026-10-10 (independent judge, mode rejudge): every tagged unit is byte-identical to the judged one (git diff 2d57003d45..HEAD touches only other functions, a const block, and new functions appended to the file), so the verdict stands unchanged.",
+  "requirement_sha": "35b5fca16beae05c",
+  "tests": {
+    "internal/component/ike/engine/rfc7296_inner_error_answers_test.go::TestRFC7296UncoveredInnerErrorsDrawInvalidSyntax": "021f21e652ee3918",
+    "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrInnerParseFailureDrawsInvalidSyntaxAndOuterDrawsNothing": "f788331a490d2a61",
+    "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrInnerParseFailureDrawsInvalidSyntaxAndOuterDrawsNothing#2": "f788331a490d2a61"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7296_inner_error_answers_test.go::TestRFC7296UncoveredInnerErrorsDrawInvalidSyntax": "7d6f917a612ec3dc",
+    "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrInnerParseFailureDrawsInvalidSyntaxAndOuterDrawsNothing": "d402e5e224dde39e",
+    "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrInnerParseFailureDrawsInvalidSyntaxAndOuterDrawsNothing#2": "d402e5e224dde39e"
+  },
+  "verdict": "enforced"
+}

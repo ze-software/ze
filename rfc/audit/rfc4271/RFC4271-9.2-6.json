@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged 2026-10-01 (BGP c15 judge). Both c14 gaps on the general rail closed: TestRFC4271ForwardRailNeverRedistributesInternalRoutesToInternalPeers forwards one route from an internal non-client source on forwardUpdateCore -> forwardUpdateSection to an internal non-client (sent nothing), an external peer (sent the route) and an internal route-reflector client DESTINATION (sent the route: the RR exception with a client destination). Absence is judged after the two controls of the same fan-out arrive plus a 500 ms window, not a bare sleep. Revert record on forwardUpdateSection; the author's overlay turning the !srcInfo.isRRClient && !facts.rrClient refusal into if false reddens the non-client assertion (c15-ov-sh). The route-server rail keeps TestRFC4271NoIBGPToIBGPRedistribution (absence after a fixed 50 ms sleep, no in-fan-out control; its partner TestRFC4271IBGPRedistributionAllowedForReflectorClient shows the same dispatch within 2 s) and TestRFC4271IBGPRedistributionAllowedForReflectorClient: a residual timing weakness on that rail only, and neither RS unit has a record.",
+  "requirement_sha": "406f1f4d7c98a952",
+  "tests": {
+    "internal/component/bgp/reactor/rfc4271_ibgp_split_horizon_test.go::TestRFC4271ForwardRailNeverRedistributesInternalRoutesToInternalPeers": "7966eca9efe6b2cb",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271IBGPRedistributionAllowedForReflectorClient": "94aa07ebd53dcc5b",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271NoIBGPToIBGPRedistribution": "94aa07ebd53dcc5b"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc4271_ibgp_split_horizon_test.go::TestRFC4271ForwardRailNeverRedistributesInternalRoutesToInternalPeers": "60940c41b58dcc6e",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271IBGPRedistributionAllowedForReflectorClient": "8865a9081109cf2d",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271NoIBGPToIBGPRedistribution": "c199e070d7d0131b"
+  },
+  "verdict": "enforced"
+}

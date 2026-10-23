@@ -1,0 +1,19 @@
+{
+  "note": "Re-judged (was weak: the negotiation branch, the IKE Child SA, had no test). Manual-configuration branch unchanged: OSPFv3 TestRFC4303InboundESPSAKeyedOnConfiguredDestination plus the netns pair TestRFC4303InboundESPMapsByConfiguredDestination / TestRFC4303InboundESPToUnconfiguredDestinationMapsToNoSA, buildIPsecSA revert records observed red. Negotiation branch: positive TestRFC4303InboundChildSAKeyedOnNegotiatedSPIAndLocalAddress (the single inbound SA carries the negotiated ChildInboundSPI, proto 50 and Dst = the negotiated local address, so a Src/Dst swap goes red); negative TestRFC4303InboundESPToAnotherLocalAddressMapsToNoSA on real XFRM in a rootless netns (control to negotiated 10.250.0.1: delivered, XfrmInNoStates +0; same SPI and packet to 10.250.0.3: not delivered, XfrmInNoStates +1). Judge re-ran it once under -race: body ran in the child namespace and passed; judge mutation (negative packet aimed at the negotiated address) went red on the not-delivered assertion, so the negative is not vacuous. installChildSA revert records observed red for both. The indication itself (destination matched, source not) is XFRM's (daddr, spi, proto) state lookup keyed on what Ze negotiated, so both branches are proven for every role Ze fills; VPP backend inbound lookup is asserted only at the SAParams boundary.",
+  "requirement_sha": "126e1e0efcd369e0",
+  "tests": {
+    "internal/component/ike/engine/rfc4303_inbound_key_linux_test.go::TestRFC4303InboundESPToAnotherLocalAddressMapsToNoSA": "2196e60f6cf78cd0",
+    "internal/component/ike/engine/rfc4303_inbound_key_test.go::TestRFC4303InboundChildSAKeyedOnNegotiatedSPIAndLocalAddress": "1a09d00bc755e80d",
+    "internal/plugins/ospf/rfc4303_esp_probe_linux_test.go::TestRFC4303InboundESPMapsByConfiguredDestination": "1b959a720a9dcc8e",
+    "internal/plugins/ospf/rfc4303_esp_probe_linux_test.go::TestRFC4303InboundESPToUnconfiguredDestinationMapsToNoSA": "1b959a720a9dcc8e",
+    "internal/plugins/ospf/rfc4303_esp_test.go::TestRFC4303InboundESPSAKeyedOnConfiguredDestination": "01b10f93731e39a0"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc4303_inbound_key_linux_test.go::TestRFC4303InboundESPToAnotherLocalAddressMapsToNoSA": "531395a7afe99695",
+    "internal/component/ike/engine/rfc4303_inbound_key_test.go::TestRFC4303InboundChildSAKeyedOnNegotiatedSPIAndLocalAddress": "80b679257fb017bb",
+    "internal/plugins/ospf/rfc4303_esp_probe_linux_test.go::TestRFC4303InboundESPMapsByConfiguredDestination": "7d737a0ac5e6b270",
+    "internal/plugins/ospf/rfc4303_esp_probe_linux_test.go::TestRFC4303InboundESPToUnconfiguredDestinationMapsToNoSA": "27157bcd97512612",
+    "internal/plugins/ospf/rfc4303_esp_test.go::TestRFC4303InboundESPSAKeyedOnConfiguredDestination": "d29b114c82c680df"
+  },
+  "verdict": "enforced"
+}

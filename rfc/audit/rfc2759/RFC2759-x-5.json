@@ -1,0 +1,11 @@
+{
+  "note": "{single-polarity: positive} carried on the row. Forbidden behaviour: lowercase a-f in the S= authenticator response. TestMSCHAPv2SuccessUppercaseHex forces hex letters (0xab bytes, guarded by ContainsAny \"ABCDEF\" so it is not vacuous) and fails on strings.ContainsAny(sHex,\"abcdef\") and on sHex!=ToUpper(sHex); dropping strings.ToUpper in sendSuccess turns it red.",
+  "requirement_sha": "139dccdeb285d39e",
+  "tests": {
+    "internal/core/eap/rfc2759_eap_mschapv2_test.go::TestMSCHAPv2SuccessUppercaseHex": "f08fabdb1765636f"
+  },
+  "units": {
+    "internal/core/eap/rfc2759_eap_mschapv2_test.go::TestMSCHAPv2SuccessUppercaseHex": "b76e8bf22e8b2567"
+  },
+  "verdict": "enforced"
+}

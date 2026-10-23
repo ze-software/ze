@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC1661-3.7-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661TerminateAckHoldsLinkForRestartTime",
+    "unit-sha": "11d1dbc2146b32b4",
+    "claim-sha": "10c76e10f7f862ae",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/session_run.go::armRestartTimer",
+    "producer-sha": "723de859687359ae",
+    "break": "body of armRestartTimer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1661-3.7-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661TerminateAckSentAndLinkHeld",
+    "unit-sha": "de13536514d9a1e2",
+    "claim-sha": "3390e8af65c7a33f",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/session_run.go::handleLCPPacket",
+    "producer-sha": "7107e02b6fa04b82",
+    "break": "body of handleLCPPacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

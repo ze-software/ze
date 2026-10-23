@@ -1,0 +1,17 @@
+{
+  "note": "[MAY] parameter definition. TestRFC9728AuthorizationServersAreIssuerIdentifiers + authorization_servers decodes as a JSON array of strings holding exactly the validated issuer, https with no query and no fragment; - http, ?tenant=a and #frag authorization-server values are refused by NewStreamable so no document lists them. The refusals are overdetermined: asMetadataURL/oauthHTTPSURL refuse first, and the fetch's issuer match or transport would also refuse, so the negative proves the published property rather than which guard holds it. The oauth_test.go and oauth_e2e_test.go positives keep their tags.",
+  "requirement_sha": "25903091f6f48826",
+  "tests": {
+    "internal/component/mcp/oauth_e2e_test.go::TestNewStreamable_OAuth_MetadataEndpoint": "be7f22ecbf523ed0",
+    "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728AuthorizationServersAreIssuerIdentifiers": "70cb12fbb65e4490",
+    "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728AuthorizationServersAreIssuerIdentifiers#2": "70cb12fbb65e4490",
+    "internal/component/mcp/rfc9728_oauth_test.go::TestResourceMetadata_Document": "03ef63ac8871aaba"
+  },
+  "units": {
+    "internal/component/mcp/oauth_e2e_test.go::TestNewStreamable_OAuth_MetadataEndpoint": "33b84f87a8f4a2ae",
+    "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728AuthorizationServersAreIssuerIdentifiers": "d566454bba218419",
+    "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728AuthorizationServersAreIssuerIdentifiers#2": "d566454bba218419",
+    "internal/component/mcp/rfc9728_oauth_test.go::TestResourceMetadata_Document": "d9504d74e4d6dd3a"
+  },
+  "verdict": "enforced"
+}

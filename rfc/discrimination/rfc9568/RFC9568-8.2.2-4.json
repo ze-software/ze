@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC9568-8.2.2-4",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/boot_late_device_test.go::TestEngineWaitsForALateVirtualMACDevice",
+    "unit-sha": "353d5f91dbc25026",
+    "claim-sha": "3ab39b0e7bd39ca8",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/register.go::create",
+    "producer-sha": "7d4caf6820fa2579",
+    "break": "body of create replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9568-8.2.2-4",
+    "polarity": "negative",
+    "unit": "internal/plugins/vrrp/boot_late_device_test.go::TestEngineWaitsForALateVirtualMACDevice",
+    "unit-sha": "353d5f91dbc25026",
+    "claim-sha": "185909919e30cf84",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/register.go::create",
+    "producer-sha": "7d4caf6820fa2579",
+    "break": "body of create replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9568-8.2.2-4",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/boot_order_test.go::TestEngineAnnouncesNothingBeforeTheVirtualMACDevice",
+    "unit-sha": "f65288b57fb68585",
+    "claim-sha": "0989f3038f7cde4a",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/engine.go::build",
+    "producer-sha": "c1f6e6b2d8672994",
+    "break": "body of build replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9568-8.2.2-4",
+    "polarity": "negative",
+    "unit": "internal/plugins/vrrp/boot_order_test.go::TestEngineAnnouncesNothingBeforeTheVirtualMACDevice",
+    "unit-sha": "f65288b57fb68585",
+    "claim-sha": "7abab54e8f49a091",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/engine.go::build",
+    "producer-sha": "c1f6e6b2d8672994",
+    "break": "body of build replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

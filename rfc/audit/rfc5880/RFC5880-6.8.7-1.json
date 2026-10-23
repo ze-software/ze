@@ -1,0 +1,17 @@
+{
+  "note": "Judge rejudge 2026-09-30 (bfd engine 2). Engine TestRFC5880TickSpacesControlPacketsByLargerInterval ticks every 1 ms for 20 s with the peer Required Min RX 2 s above the 1 s floor and asserts every sent gap lies in [1.5 s, 2 s + 1 ms]. Targeted breaks observed red: TransmitInterval using DesiredMinTx alone (765 ms gap), tick ignoring the deadline (1 ms gap). Session units prove the larger-of in both orders and the jitter bound.",
+  "requirement_sha": "9135792e9b15c051",
+  "tests": {
+    "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880TickSpacesControlPacketsByLargerInterval": "836d84530c95a8b2",
+    "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880TransmitDeadlineUsesLargerOfBothIntervals": "73ca576e23cbd659",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880TransmitDeadlineClampsBadJitter": "8db25cbb4534cc2d",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880TransmitDeadlineUsesNegotiatedInterval": "8db25cbb4534cc2d"
+  },
+  "units": {
+    "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880TickSpacesControlPacketsByLargerInterval": "d21db73b30daaf67",
+    "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880TransmitDeadlineUsesLargerOfBothIntervals": "7e139860fffbeeb4",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880TransmitDeadlineClampsBadJitter": "676c441c81860592",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880TransmitDeadlineUsesNegotiatedInterval": "26968f37e41333dc"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,23 @@
+{
+  "code": {
+    "internal/component/bgp/reactor/forward_prefix_sid.go::applyEgressPrefixSIDNextHop": "eef3ac381164d635",
+    "internal/component/bgp/reactor/forward_prefix_sid.go::prefixSIDNextHopHandler": "0be0ed3c6f6d19d3"
+  },
+  "note": "Tested: \u2018Any received Sub-TLVs and Sub-Sub-TLVs that are unrecognized MUST be removed.\u2019 Gap: \u2018SHOULD be updated with the locally allocated SRv6 SID information.\u2019 Producer: internal/component/bgp/reactor/forward_prefix_sid.go::applyEgressPrefixSIDNextHop. Independent post-fix review confirms that original received identity is compared with final effective carrier identity after policy/configuration/scope on cached and RS paths, including raw-policy fallback and repaired intermediate addressless MP fields. The registered prefixSIDNextHopHandler consumes Remove of types 5 and 6 while retaining unrelated top-level TLVs. Migrated TestPrefixSIDPropagationNextHop and TestRFC9252EffectiveNextHopControlsServiceTLVs inspect actual recipient Session output: effective A-to-B removes Service TLVs and unknown nested fields while the route survives; A-to-A and restoration controls preserve them; mixed MP/legacy cases follow the applicable MP identity; unknown top-level TLVs and SRGB remain, with Label-Index transmit normalization tested separately. The older service-only test supplies complementary removal evidence, and the new actual-writer service-only cases forbid an empty attribute. The policy-only-change and equal-address defects are fixed, not scoped away. Locally allocated SRv6 SID information is still not produced to rebuild the service information, so the whole SHOULD-plus-MUST quotation remains partial. No local SID allocation is commissioned, and pending live FRR/SDK or native-record completion is not claimed by this source judgment. Re-judged 2026-10-14 (independent reader, after 8c1c4013f2 and 7d37dcd562). The only edit to TestRFC9252EffectiveNextHopControlsServiceTLVs changes the expected Label-Index from normalized to as received (unrecognized off labeled unicast, RFC 8669 Section 3.1); the Tested removal assertions are unchanged and the Gap (no locally allocated SRv6 SID information) stands. Verdict unchanged.",
+  "requirement_sha": "2eaaad937d8e63dd",
+  "tests": {
+    "internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go::TestRFC9252ServiceOnlyPrefixSIDDroppedOnANextHopChange": "6adacdb5c2b444a1",
+    "internal/component/bgp/reactor/rfc9252_effective_next_hop_test.go::TestRFC9252EffectiveNextHopControlsServiceTLVs": "87862cd048077d14",
+    "internal/component/bgp/reactor/rfc9252_effective_next_hop_test.go::TestRFC9252EffectiveNextHopControlsServiceTLVs#2": "87862cd048077d14",
+    "internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop": "ecf02c1d9bcb0077",
+    "internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop#2": "ecf02c1d9bcb0077"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go::TestRFC9252ServiceOnlyPrefixSIDDroppedOnANextHopChange": "2214ed49b4ee3c25",
+    "internal/component/bgp/reactor/rfc9252_effective_next_hop_test.go::TestRFC9252EffectiveNextHopControlsServiceTLVs": "0db9b7d14f865241",
+    "internal/component/bgp/reactor/rfc9252_effective_next_hop_test.go::TestRFC9252EffectiveNextHopControlsServiceTLVs#2": "0db9b7d14f865241",
+    "internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop": "6c50bed30bbf7b9b",
+    "internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop#2": "6c50bed30bbf7b9b"
+  },
+  "verdict": "partial"
+}

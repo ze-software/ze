@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 3768 Section 7.2 says \"Set the source MAC address to Virtual Router MAC Address\". TestTxAdvertV4OnWire changed only by the checksum-mode plumbing (a Checksum: packet.ChecksumRFC9568 field added to the GroupSpec, AdvertParams or packet.Local literal, or the mode argument added to packet.FillChecksum); every assertion and every isolating input is byte-for-byte the same; the captured VRRPv2 source MAC is still compared with 00-00-5e-00-01-0a. Verdict unchanged; the guest-only discrimination record reads unit-changed and is owed a re-record under QEMU.",
+  "requirement_sha": "dd841b2072dad4b9",
+  "tests": {
+    "internal/plugins/vrrp/packet/packet_test.go::TestConstants": "15a7697300d1b17c",
+    "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "e6113ed83a42c0f9"
+  },
+  "units": {
+    "internal/plugins/vrrp/packet/packet_test.go::TestConstants": "815ed7ee56089d0e",
+    "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "7a4414ac139af987"
+  },
+  "verdict": "enforced"
+}

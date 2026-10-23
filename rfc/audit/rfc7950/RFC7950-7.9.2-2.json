@@ -1,0 +1,13 @@
+{
+  "note": "negative: two cases named x in one choice refused as duplicate; positive: cases x and y load, and case x in two different choices loads, which pins the scope to one choice. Records on Resolve. (2026-10-09: tagged units byte-identical, re-stamped for a file shift; the Resolve revert records no longer verify since 180df07922 changed Resolve, re-record owed.)",
+  "requirement_sha": "295d4360139db094",
+  "tests": {
+    "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950CaseIdentifierUniqueWithinAChoice": "b80383bc8bec6c5c",
+    "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950CaseIdentifierUniqueWithinAChoice#2": "b80383bc8bec6c5c"
+  },
+  "units": {
+    "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950CaseIdentifierUniqueWithinAChoice": "5f924f52be7be63a",
+    "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950CaseIdentifierUniqueWithinAChoice#2": "5f924f52be7be63a"
+  },
+  "verdict": "enforced"
+}

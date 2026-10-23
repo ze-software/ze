@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC8907-7-1",
+    "polarity": "positive",
+    "unit": "internal/component/tacacs/rfc8907_acct_test.go::TestAcctRequestMarshalStartStop",
+    "unit-sha": "84224ce8b9fc7dce",
+    "claim-sha": "a1ea7ba42e2fbc46",
+    "route": "revert",
+    "producer": "internal/component/tacacs/acct.go::MarshalBinary",
+    "producer-sha": "a87454eb0170c070",
+    "break": "body of MarshalBinary replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8907-7-1",
+    "polarity": "negative",
+    "unit": "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907AccountingOtherFlagsRefused",
+    "unit-sha": "30a36ff802b62cdd",
+    "claim-sha": "f00376a4588c7f69",
+    "route": "revert",
+    "producer": "internal/component/tacacs/acct.go::MarshalBinaryInto",
+    "producer-sha": "c81aa1e00bbddb1b",
+    "break": "body of MarshalBinaryInto replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8907-7-1",
+    "polarity": "positive",
+    "unit": "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907AccountingValidFlagsWritten",
+    "unit-sha": "961c637f208f9e8d",
+    "claim-sha": "714153a2088231a6",
+    "route": "revert",
+    "producer": "internal/component/tacacs/acct.go::MarshalBinaryInto",
+    "producer-sha": "c81aa1e00bbddb1b",
+    "break": "body of MarshalBinaryInto replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8907-7-1",
+    "polarity": "negative",
+    "unit": "internal/component/tacacs/rfc8907_validation_test.go::TestRFC8907AccountingMoreFlagRefused",
+    "unit-sha": "d93e2b6d5a35c372",
+    "claim-sha": "294714f01e6c2c09",
+    "route": "revert",
+    "producer": "internal/component/tacacs/client.go::SendAccounting",
+    "producer-sha": "087ac7295f08c7c1",
+    "break": "body of SendAccounting replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

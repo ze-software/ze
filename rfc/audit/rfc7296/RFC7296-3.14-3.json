@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-11 by an independent judge after the fix round (2691e815b1); only the positive's claim comment changed. RFC 7296 3.14: \"Senders MUST select a new unpredictable IV for every message; recipients MUST accept any value.\" This row's tests carry the recipient clause (the sender clause is RFC7296-3.14-2). TestSKAcceptsAnyIVOnReceipt now claims the three IVs it sends (all-zero, all-ones, ascending) and decrypts each to the exact single Delete payload through decryptAndParse; its claim points the repeated IV to TestRFC7296RecipientAcceptsAnIVTheSenderShouldNotHaveChosen, which decrypts a repeated IV and the previous final ciphertext block used as IV, the inputs a policing recipient would refuse. Claim and body now agree; the earlier defect is resolved. Revert records on auth.go::decryptSKPayload for both units.",
+  "requirement_sha": "33c68dca6cc5c05e",
+  "tests": {
+    "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKAcceptsAnyIVOnReceipt": "10094853fa461fff",
+    "internal/component/ike/engine/rfc7296_iv_receive_test.go::TestRFC7296RecipientAcceptsAnIVTheSenderShouldNotHaveChosen": "ec58910b762cef5e"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKAcceptsAnyIVOnReceipt": "8864d3535ed7acf9",
+    "internal/component/ike/engine/rfc7296_iv_receive_test.go::TestRFC7296RecipientAcceptsAnIVTheSenderShouldNotHaveChosen": "363b6244dcdef689"
+  },
+  "verdict": "enforced"
+}

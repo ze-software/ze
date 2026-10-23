@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC9514-7.1-4",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514EndpointBehaviorUndefinedFlagsIgnored",
+    "unit-sha": "b73fdc42c4383c6c",
+    "claim-sha": "b20640b2e403d7c1",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/nlri/ls/attr_srv6.go::decodeSRv6EndpointBehavior",
+    "producer-sha": "6379c80269a9d7a5",
+    "break": "body of decodeSRv6EndpointBehavior replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9514-7.1-4",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514EndpointBehaviorUndefinedFlagsIgnored",
+    "unit-sha": "b73fdc42c4383c6c",
+    "claim-sha": "d41c5a65a0bcb804",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/nlri/ls/attr_srv6.go::decodeSRv6EndpointBehavior",
+    "producer-sha": "6379c80269a9d7a5",
+    "break": "body of decodeSRv6EndpointBehavior replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9514-7.1-4",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/rfc9514_bgpls_export_sentence_test.go::TestRFC9514ISISEndpointBehaviorNativeFlagsNeverOriginated",
+    "unit-sha": "1be232440dd469b1",
+    "claim-sha": "b4e5ea272585f4e1",
+    "route": "revert",
+    "producer": "internal/plugins/isis/bgpls_export.go::endSID",
+    "producer-sha": "3c60ce4e7fa740ad",
+    "break": "body of endSID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9514-7.1-4",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/rfc9514_bgpls_export_sentence_test.go::TestRFC9514ISISEndpointBehaviorOriginatedFlagsZero",
+    "unit-sha": "7f521b174178bb38",
+    "claim-sha": "d91cc8c9b65eba78",
+    "route": "revert",
+    "producer": "internal/plugins/isis/bgpls_export.go::endSID",
+    "producer-sha": "3c60ce4e7fa740ad",
+    "break": "body of endSID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

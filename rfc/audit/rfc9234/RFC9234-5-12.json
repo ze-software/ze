@@ -1,0 +1,17 @@
+{
+  "note": "Positive TestRFC9234OTCOfAnyLengthButFourIsTreatedAsWithdraw: OTC lengths 0, 5 and 8 from a Provider (attributes ORIGIN + OTC only, isolated) move 10.0.0.0/24 to withdrawn, clear the attributes and keep the message. Negative TestRFC9234OTCOfLengthFourIsNotTreatedAsWithdraw: length 4 accepted unchanged. Revert records on findOTC for both.",
+  "requirement_sha": "7101647356070194",
+  "tests": {
+    "internal/component/bgp/plugins/role/rfc9234_otc_malformed_test.go::TestRFC9234OTCOfAnyLengthButFourIsTreatedAsWithdraw": "a264ab1f5def86dc",
+    "internal/component/bgp/plugins/role/rfc9234_otc_malformed_test.go::TestRFC9234OTCOfLengthFourIsNotTreatedAsWithdraw": "a264ab1f5def86dc",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestCheckOTCIngress": "7b0a9e434ba435f3",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCIngressMalformedTreatAsWithdraw": "7b0a9e434ba435f3"
+  },
+  "units": {
+    "internal/component/bgp/plugins/role/rfc9234_otc_malformed_test.go::TestRFC9234OTCOfAnyLengthButFourIsTreatedAsWithdraw": "1b3051612748420a",
+    "internal/component/bgp/plugins/role/rfc9234_otc_malformed_test.go::TestRFC9234OTCOfLengthFourIsNotTreatedAsWithdraw": "134cdf3c6652a017",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestCheckOTCIngress": "a8f63ea4d0fba230",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCIngressMalformedTreatAsWithdraw": "45e158e8c0882d97"
+  },
+  "verdict": "enforced"
+}

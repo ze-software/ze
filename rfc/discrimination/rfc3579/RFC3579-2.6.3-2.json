@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC3579-2.6.3-2",
+    "polarity": "positive",
+    "unit": "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapAcceptWithEapFailureStillAuthorizes",
+    "unit-sha": "6d71a2c4c7a3877d",
+    "claim-sha": "24865c97c17f2376",
+    "route": "revert",
+    "producer": "internal/component/radius/authenticator.go::result",
+    "producer-sha": "1e92da891dbf761a",
+    "break": "body of result replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3579-2.6.3-2",
+    "polarity": "negative",
+    "unit": "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapDecisionFollowsTheRadiusCode",
+    "unit-sha": "71e6e815b340bfa6",
+    "claim-sha": "dc9ebf63ebcf24bd",
+    "route": "revert",
+    "producer": "internal/component/radius/authenticator_eap.go::authenticateEAP",
+    "producer-sha": "3e963a2a64e7441c",
+    "break": "body of authenticateEAP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

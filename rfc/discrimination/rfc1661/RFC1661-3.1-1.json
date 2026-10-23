@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC1661-3.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661RunSendsLCPBeforeAnyOtherProtocol",
+    "unit-sha": "e5c29a717537af6d",
+    "claim-sha": "3a2c88b2fff43020",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/session_run.go::sendConfigureRequest",
+    "producer-sha": "49940fc52beffdcb",
+    "break": "body of sendConfigureRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

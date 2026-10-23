@@ -1,0 +1,33 @@
+{
+  "code": {
+    "internal/component/bfd/engine/shared_session.go::sharedEntryLocked": "a7fe8bd593470042",
+    "internal/component/bfd/engine/shared_session.go::sharesSession": "757cc39067502755"
+  },
+  "note": "Re-judge 2026-10-12 (independent auditor, not the author of the {partial} marker) after the marker was added. RFC 5882 Section 4.4 re-read in rfc/full/rfc5882.txt: 'If multiple control protocols wish to establish BFD sessions with the same remote system for the same data protocol, all MUST share a single BFD session.' Verdict partial. Tested selector: \"all MUST share a single BFD session\". Gap selector: \"with the same remote system\". Producer: internal/component/bfd/engine/shared_session.go::sharedEntryLocked (with sharesSession, which it calls). What the tagged bodies check, each with a current verified revert record: TestBFDSharedSessionSameKey (one key, two EnsureSession calls: exactly 1 session at refcount 2, refcount 1 after one release, 0 sessions after the last); TestBFDDistinctSessionsDifferentKey (negative: two peers, 2 sessions each at refcount 1); TestCanonicalCollapsesEveryClientShapeOntoOneKey, TestCanonicalCollapsesMultiHopShapesOntoOneKey, TestPinnedSessionReachesTheSharedKey, TestStrictPeerRequestReachesTheSharedKey, TestOSPFNeighborRequestReachesTheSharedKey (the pinned parser, bfdRequestFor and bfdRequestForNeighbor reach one exact key, asserted by equality, so they share through the exact-key registry); TestMultiHopClientsInAVRFShareOneSession (pinned multi-hop entry with a local address in VRF red, then a BGP request with none through pluginService.EnsureSession: 1 session at refcount 2); TestMultiHopClientsToTwoRemoteSystemsGetTwoSessions (negative: a different peer that matches on every other field gets its own session); TestSharedSessionWidensOnRelease (after a pinned client joins and leaves, entry.joined is the unpinned key again and a client pinned elsewhere gets the same session, 1 session at refcount 2; with the pinned client still attached the other pinned client gets its own, RFC 5883 Section 4.1). Q1 the assertions are session counts and refcounts, which is what the RFC says, not what the code does. Q2 every unit has an observed-red revert record (./le rfc discriminate stem rfc5882: none stale, none unproven). Q3 the engine tests use bare loops and Snapshot, nothing else can cut the count. Q4 not the whole MUST: the two configurations the Gap names still give two sessions by design, read at the producer: sharesSession requires equal interfaces for an IPv6 link-local peer, and sharedEntryLocked answers no session when a request with an unset field matches two or more live sessions (sharedMatch.only). Marker corrected in this re-judge: the earlier Tested reason said the join holds 'in either arrival order' and for 'a request that left a field unset' in general; the tagged bodies check only the multi-hop local-address case, pinned entry first, and no tagged unit drives a single-hop request with an unset interface or local address through sharedEntryLocked, so the reason now names exactly the shapes the bodies check. Not covered by the Gap and not judged here: two clients asking for different hop modes to one peer address get two sessions (sharesSession compares Mode); under the partial rules that obligation stays unproven, not met.",
+  "requirement_sha": "3a01f60103f74003",
+  "tests": {
+    "internal/component/bfd/api/rfc5882_session_identity_test.go::TestCanonicalCollapsesEveryClientShapeOntoOneKey": "6c36255755c3721b",
+    "internal/component/bfd/api/rfc5882_session_identity_test.go::TestCanonicalCollapsesMultiHopShapesOntoOneKey": "6c36255755c3721b",
+    "internal/component/bfd/engine/rfc5882_shared_session_test.go::TestBFDDistinctSessionsDifferentKey": "5e51c6c6d00eae56",
+    "internal/component/bfd/engine/rfc5882_shared_session_test.go::TestBFDSharedSessionSameKey": "5e51c6c6d00eae56",
+    "internal/component/bfd/engine/rfc5882_shared_session_test.go::TestSharedSessionWidensOnRelease": "5e51c6c6d00eae56",
+    "internal/component/bfd/rfc5882_session_identity_test.go::TestPinnedSessionReachesTheSharedKey": "27db35785fbd8a98",
+    "internal/component/bfd/rfc5882_vrf_shared_key_test.go::TestMultiHopClientsInAVRFShareOneSession": "7c98451d91f3d951",
+    "internal/component/bfd/rfc5882_vrf_shared_key_test.go::TestMultiHopClientsToTwoRemoteSystemsGetTwoSessions": "7c98451d91f3d951",
+    "internal/component/bgp/reactor/config_bfd_strict_test.go::TestStrictPeerRequestReachesTheSharedKey": "7309aa741867a1b8",
+    "internal/plugins/ospf/rfc5882_shared_key_test.go::TestOSPFNeighborRequestReachesTheSharedKey": "4959bdf283761598"
+  },
+  "units": {
+    "internal/component/bfd/api/rfc5882_session_identity_test.go::TestCanonicalCollapsesEveryClientShapeOntoOneKey": "80c46a4bddb1069c",
+    "internal/component/bfd/api/rfc5882_session_identity_test.go::TestCanonicalCollapsesMultiHopShapesOntoOneKey": "c1d4099a9b45ab9f",
+    "internal/component/bfd/engine/rfc5882_shared_session_test.go::TestBFDDistinctSessionsDifferentKey": "29e3843d4f16deb0",
+    "internal/component/bfd/engine/rfc5882_shared_session_test.go::TestBFDSharedSessionSameKey": "295d24b9f8d7d852",
+    "internal/component/bfd/engine/rfc5882_shared_session_test.go::TestSharedSessionWidensOnRelease": "2589bcce36d1b6ff",
+    "internal/component/bfd/rfc5882_session_identity_test.go::TestPinnedSessionReachesTheSharedKey": "b3b18c6e78ffeaca",
+    "internal/component/bfd/rfc5882_vrf_shared_key_test.go::TestMultiHopClientsInAVRFShareOneSession": "465ba47e82c32302",
+    "internal/component/bfd/rfc5882_vrf_shared_key_test.go::TestMultiHopClientsToTwoRemoteSystemsGetTwoSessions": "f5478815bdaf154e",
+    "internal/component/bgp/reactor/config_bfd_strict_test.go::TestStrictPeerRequestReachesTheSharedKey": "10b4fc48ccff5b70",
+    "internal/plugins/ospf/rfc5882_shared_key_test.go::TestOSPFNeighborRequestReachesTheSharedKey": "0104c72905069302"
+  },
+  "verdict": "partial"
+}

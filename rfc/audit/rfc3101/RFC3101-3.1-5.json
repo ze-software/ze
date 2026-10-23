@@ -1,0 +1,19 @@
+{
+  "code": {
+    "internal/plugins/ospf/nssa.go::asbrReachedOverTransit": "7438f2fc474ceda3",
+    "internal/plugins/ospf/nssa.go::electNSSATranslator": "35d82a8159155cfa",
+    "internal/plugins/ospf/nssa.go::transitAreas": "fc50a9bfb32ee06a",
+    "internal/plugins/ospf/spf/reachability.go::ASBRReachableIn": "85e72bd5e6cb30d7"
+  },
+  "note": "Re-judged 2026-10-19 (independent judge, after 12454d4ac5); was unimplemented. Section 3.1: \"An NSSA border router whose NSSA's NSSATranslatorRole is set to Candidate must maintain a list of the NSSA's border routers that are reachable both over the NSSA and as ASBRs over the AS's transit topology.\" Producer: electNSSATranslator requires, after NSSA reachability, asbrReachedOverTransit(reach, list.transit, r), which asks ReachabilitySnapshot.ASBRReachableIn per area; transitAreas(cfg) is the backbone plus every regular (AreaTypeNormal) area, excluding stub and NSSA. ASBRReachableIn answers only for an ASBR routing-table entry of that area with finite metric and a next hop; intraAreaBorderRouters creates one for an intra-area router whose router-LSA sets E, and inter-area entries come from Type-4 summaries in the backbone. RFC3101-3.1-1 (E-bit in every non-stub area, enforced v2 and v3) makes a listed border router appear as an ASBR in the backbone, as the RFC intends ('This allows other NSSA border routers to see their ASBR status across the AS's transit topology'). Both conditions are ANDed, matching 'both over the NSSA and as ASBRs'. TestRFC3101TransitASBRReachabilityDecidesListing (reached over NSSA in all cases): no ASBR entry -> 1, ASBR entry only in the NSSA -> 1, ASBR entry in the backbone -> 0. Hand mutants: removing the transit check reds case 1, counting the NSSA as transit reds case 2, an empty transit set reds case 3 (the fixture's backbone has no area-type, so it also proves the default resolves to normal). TestASBRReachableIn (spf, untagged) covers the per-area, no-next-hop and ABR-kind exclusions. Limits (no verdict change): the tagged unit uses the fixedReachability seam, so the real SPF -> ASBRReachableIn chain is proven only by reading plus the untagged spf test; no OSPFv3 test drives translateNSSAV6 with a transit-unreached border router. Defect in the population: TestRFC3101BorderRouterNotReachedAsASBROverTransitIsNotListed still carries an rfcgap.Demonstrate tag and PASSES as 'gap RFC3101-3.1-5 stands', a false claim: its fixture translatorListCase leaves fixedReachability.asbr nil, which answers ASBRReachableIn true in every area, so 10.0.6.9 IS an ASBR over transit there despite the comment ('sets no E-bit, so no transit area reaches it as an ASBR'), and Ze correctly lists it (0 Type-5). It contradicts the producer and must be deleted or rewritten with an empty asbr map before stamping.",
+  "requirement_sha": "21fec89cd188b4a1",
+  "tests": {
+    "internal/plugins/ospf/rfc3101_translator_election_test.go::TestRFC3101TransitASBRReachabilityDecidesListing": "382e18427d531673",
+    "internal/plugins/ospf/rfc3101_translator_election_test.go::TestRFC3101TransitASBRReachabilityDecidesListing#2": "382e18427d531673"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc3101_translator_election_test.go::TestRFC3101TransitASBRReachabilityDecidesListing": "a533672cfb43f608",
+    "internal/plugins/ospf/rfc3101_translator_election_test.go::TestRFC3101TransitASBRReachabilityDecidesListing#2": "a533672cfb43f608"
+  },
+  "verdict": "enforced"
+}

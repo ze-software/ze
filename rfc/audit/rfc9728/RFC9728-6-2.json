@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: equality other than code-point to code-point. Red: TestRFC9728ResourceIdentityPreserved serves the exact escaped path+query (decodeMetadata requires 200) and requires 404 for the composed spelling, a different query value and a missing query.",
+  "requirement_sha": "4476f838624d15bf",
+  "tests": {
+    "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728ResourceIdentityPreserved": "70cb12fbb65e4490",
+    "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728ResourceIdentityPreserved#2": "70cb12fbb65e4490"
+  },
+  "units": {
+    "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728ResourceIdentityPreserved": "2e08aa43bc191cfc",
+    "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728ResourceIdentityPreserved#2": "2e08aa43bc191cfc"
+  },
+  "verdict": "enforced"
+}

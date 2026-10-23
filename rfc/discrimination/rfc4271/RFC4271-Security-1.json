@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC4271-Security-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc2385_test.go::TestRFC2385ConfiguredKeyReachesBothSockets",
+    "unit-sha": "d4d55cd3b33e99db",
+    "claim-sha": "c4b82c64bb662b7e",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/reactor.go::md5PeersForListener",
+    "producer-sha": "907d424b31b03af3",
+    "break": "body of md5PeersForListener replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-Security-1",
+    "polarity": "negative",
+    "unit": "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385KeyOnOneEndOnlyCarriesNoSession",
+    "unit-sha": "88c97d4dd0e1bff0",
+    "claim-sha": "ffb4e971bd7bb443",
+    "route": "revert",
+    "producer": "internal/core/network/md5_linux.go::setTCPMD5Sig",
+    "producer-sha": "1259fa61f40ba41e",
+    "break": "body of setTCPMD5Sig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-Security-1",
+    "polarity": "positive",
+    "unit": "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MatchingKeysCarryASignedSession",
+    "unit-sha": "8dfb5c49bcc67d8d",
+    "claim-sha": "7bdd40151bb79bbe",
+    "route": "revert",
+    "producer": "internal/core/network/md5_linux.go::setTCPMD5Sig",
+    "producer-sha": "1259fa61f40ba41e",
+    "break": "body of setTCPMD5Sig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

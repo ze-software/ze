@@ -1,0 +1,25 @@
+{
+  "note": "RFC 7311 Section 3.4.3: 'Then, when R1 changes the next hop of a route from R2 to R1, the AIGP TLV value MUST be increased by a non-zero amount.' Read with the preceding directly linked EBGP-neighbor/no-IGP condition. All four tagged units were re-read. TestRFC7311DirectLinkCostNeverWrapsOrDisappears and TestAIGPForwardedMetricsReachFinalWire assert configured-link sum 107 and a real withdrawal, not an attribute-free announcement, when no increment exists. TestRFC7311SourceLinkCostReachesRecipient exercises general ForwardUpdate and RS cached forwarding with source costs 7/19 versus destination cost 43; final AIGP bytes, next-hop-self bytes and exact NLRI pin 107/119, while transparent controls preserve 100. TestRFC7311UnknownCostWithdrawsUntilMetricRecovers asserts exact recipient withdrawal for missing/zero cost, both initially and after prior advertisement, then recovery as 111 from received 100 plus known 11. Producers sourceAIGPLinkMetric, forwardUpdateSection, aigpIncrement and applyFactsAIGP select the received-next-hop link, require nonzero direct cost and withhold rather than invent distance; final writer propagates their result. Fixtures rule out an IGP route for configured-link cases. Exact recipient outputs would fail omitted or destination-derived increments. The absent-cost withdrawal is the implementation's safe refusal, not an RFC mandate to withdraw; the required nonzero increment is proven on actual advertisements. Re-judged 2026-10-21 (spec-bgp-rs-replacement-on-withdrawal Phase 3b, author of the change): the only edit to the tagged units TestAIGPForwardedMetricsReachFinalWire and TestRFC7311DirectLinkCostNeverWrapsOrDisappears is the nil source encoding context added to their buildWithdrawalPayload call; both pass a unicast payload, for which buildWithdrawalPayload never reads the context (a family with no nlrisplit.WithdrawalWriter is copied as before), so every assertion and every byte they check is unchanged. Verdict stands.",
+  "requirement_sha": "34dc4991d650d0ca",
+  "tests": {
+    "internal/component/bgp/reactor/rfc7311_direct_link_test.go::TestRFC7311DirectLinkCostNeverWrapsOrDisappears": "2f2c9cf15cc845d3",
+    "internal/component/bgp/reactor/rfc7311_direct_link_test.go::TestRFC7311DirectLinkCostNeverWrapsOrDisappears#2": "2f2c9cf15cc845d3",
+    "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire": "11e7d83c10c1bca3",
+    "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire#2": "11e7d83c10c1bca3",
+    "internal/component/bgp/reactor/rfc7311_source_cost_test.go::TestRFC7311SourceLinkCostReachesRecipient": "473cb705e668bb39",
+    "internal/component/bgp/reactor/rfc7311_source_cost_test.go::TestRFC7311SourceLinkCostReachesRecipient#2": "473cb705e668bb39",
+    "internal/component/bgp/reactor/rfc7311_source_cost_test.go::TestRFC7311UnknownCostWithdrawsUntilMetricRecovers": "473cb705e668bb39",
+    "internal/component/bgp/reactor/rfc7311_source_cost_test.go::TestRFC7311UnknownCostWithdrawsUntilMetricRecovers#2": "473cb705e668bb39"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc7311_direct_link_test.go::TestRFC7311DirectLinkCostNeverWrapsOrDisappears": "c03b979bc8b9f8be",
+    "internal/component/bgp/reactor/rfc7311_direct_link_test.go::TestRFC7311DirectLinkCostNeverWrapsOrDisappears#2": "c03b979bc8b9f8be",
+    "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire": "d801386b8495e4e9",
+    "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire#2": "d801386b8495e4e9",
+    "internal/component/bgp/reactor/rfc7311_source_cost_test.go::TestRFC7311SourceLinkCostReachesRecipient": "a99506dc91a54368",
+    "internal/component/bgp/reactor/rfc7311_source_cost_test.go::TestRFC7311SourceLinkCostReachesRecipient#2": "a99506dc91a54368",
+    "internal/component/bgp/reactor/rfc7311_source_cost_test.go::TestRFC7311UnknownCostWithdrawsUntilMetricRecovers": "c3f5a44b5bfa295d",
+    "internal/component/bgp/reactor/rfc7311_source_cost_test.go::TestRFC7311UnknownCostWithdrawsUntilMetricRecovers#2": "c3f5a44b5bfa295d"
+  },
+  "verdict": "enforced"
+}

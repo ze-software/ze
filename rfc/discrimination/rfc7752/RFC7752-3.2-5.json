@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7752-3.2-5",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/ls_export/rfc7752_export_family_test.go::TestRFC7752NativeNLRIAnnouncedAsSAFI71",
+    "unit-sha": "d4b4184973e4fb05",
+    "claim-sha": "73035151510c3f47",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/ls_export/export_state.go::send",
+    "producer-sha": "c7551d9af72f4df4",
+    "break": "body of send replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7752-3.2-5",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/ls_export/rfc7752_export_family_test.go::TestRFC7752NativeNLRINeverAnnouncedAsVPN",
+    "unit-sha": "1eef07734dc500b4",
+    "claim-sha": "883b1bdf1301e9e5",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/ls_export/export_state.go::send",
+    "producer-sha": "c7551d9af72f4df4",
+    "break": "body of send replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged 2026-09-30 (independent judge) after TestISISThreeWayProceduresEngagedByOption moved here from the retired RFC5303-3.1-6 (D-15). adjacency TestRFC5303ThreeWayStateTable drives all nine cells of the section 3.2 table through ReceiveHello and requires state and session flags per cell (positive and negative, recorded on threeWayTableAction), checked against rfc/full/rfc5303.txt. The moved positive adds the Down/Up cell from a brand-new adjacency: action Down, state stays Down, no SessionUp/SessionDown, deleteAt set to now (record + revert threeWayTableAction). Its legacy no-TLV-240 half is untagged and asserts nothing for this row. The PDU-discard preconditions remain separate obligations: invalid-state discard (3.2-7) now has positive and negative tagged coverage; neighbor-mismatch discard (3.2-9) remains a {gap}.",
+  "requirement_sha": "8cf2b558704893b3",
+  "tests": {
+    "internal/plugins/isis/adjacency/rfc5303_fsm_test.go::TestISISThreeWayProceduresEngagedByOption": "9dbfe0180a8a24cd",
+    "internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go::TestRFC5303ThreeWayStateTable": "138d0f89ea4cda2f",
+    "internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go::TestRFC5303ThreeWayStateTable#2": "138d0f89ea4cda2f"
+  },
+  "units": {
+    "internal/plugins/isis/adjacency/rfc5303_fsm_test.go::TestISISThreeWayProceduresEngagedByOption": "f925dc509cd1e837",
+    "internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go::TestRFC5303ThreeWayStateTable": "22ea012c7b801368",
+    "internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go::TestRFC5303ThreeWayStateTable#2": "22ea012c7b801368"
+  },
+  "verdict": "enforced"
+}

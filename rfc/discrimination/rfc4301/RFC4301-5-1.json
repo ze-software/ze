@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC4301-5-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc4301_unmatched_test.go::TestRFC4301UnmatchedDiscardIsTheLastEntryOfEveryDatabase",
+    "unit-sha": "b815b97c70561f22",
+    "claim-sha": "df21a99dc511e365",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/unmatched.go::unmatchedPolicies",
+    "producer-sha": "f4357bf108b8a31e",
+    "break": "body of unmatchedPolicies replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4301-5-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc4301_unmatched_test.go::TestRFC4301UnmatchedNeverDiscardsWhatTheOperatorDidNotAskToDiscard",
+    "unit-sha": "4406548f5d2c34ac",
+    "claim-sha": "4a54ad89d25ec3f1",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/unmatched.go::unmatchedPolicies",
+    "producer-sha": "f4357bf108b8a31e",
+    "break": "body of unmatchedPolicies replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4301-5-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/ipsec/rfc4301_unmatched_test.go::TestRFC4301UnmatchedLeafIsReadAsWritten",
+    "unit-sha": "8cd4b34950440f60",
+    "claim-sha": "49392eb499663437",
+    "route": "revert",
+    "producer": "internal/component/ike/ipsec/config.go::parseUnmatched",
+    "producer-sha": "f46c4916d1feb5c5",
+    "break": "body of parseUnmatched replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4301-5-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/ipsec/rfc4301_unmatched_test.go::TestRFC4301UnmatchedLeafRefusesAnUnknownWord",
+    "unit-sha": "793be48620c1bd18",
+    "claim-sha": "5f99c39db6e6b4de",
+    "route": "revert",
+    "producer": "internal/component/ike/ipsec/config.go::parseUnmatched",
+    "producer-sha": "f46c4916d1feb5c5",
+    "break": "body of parseUnmatched replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,16 @@
+{
+  "code": {},
+  "note": "Re-judged 2026-10-14 (independent auditor) after 56e67411be, where the authenticator's GetConfigForClient (eap_tls.go) answers every handshake negotiatesTLS13 classifies as TLS 1.2 with tls12WithoutTickets, so ze issues no TLS 1.2 ticket, while UnwrapSession redeemTLS13Only/refuseResumption (resumption.go) still refuses a TLS 1.2 session. Units changed only by withdrawal of the 2.1.1-4 tag lines. TestRFC5216ServerFlightCarriesItsCertificateAndEndsWithServerHelloDone requires the authenticator's first TLS 1.2 flight to carry a certificate and end with server_hello_done; the negative refuses a config with an unparsable certificate. Both polarities hold.",
+  "requirement_sha": "a5b31546f57258ed",
+  "tests": {
+    "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216ServerFlightCarriesItsCertificateAndEndsWithServerHelloDone": "07752e8e18f47c94",
+    "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "e5d9dd4332b9270d",
+    "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "e5d9dd4332b9270d"
+  },
+  "units": {
+    "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216ServerFlightCarriesItsCertificateAndEndsWithServerHelloDone": "260f31cb85204b08",
+    "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "f23ae9e361f1c790",
+    "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "ab280fde64eb689d"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,101 @@
+[
+  {
+    "rid": "RFC7606-5.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/message/rfc4271_update_split_attr_order_test.go::TestSplitMP_PreservesAscendingAttributeOrder",
+    "unit-sha": "0f567f5eb5a52dcd",
+    "claim-sha": "f1349323ae8e072a",
+    "route": "mutant",
+    "producer": "internal/component/bgp/message/update_split.go::emitMPChunk",
+    "producer-sha": "1c31eb0350ce0638",
+    "break": "line 476: \"-\" -\u003e \"+\""
+  },
+  {
+    "rid": "RFC7606-5.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/message/rfc7606_mp_first_test.go::TestRFC7606Section51MPAttributeEncodedFirst",
+    "unit-sha": "ae54278bd42b47ed",
+    "claim-sha": "ee0106c9746add3f",
+    "route": "mutant",
+    "producer": "internal/core/bgp/attribute/origin.go::OrderAttributes",
+    "producer-sha": "b66733802edbc5c5",
+    "break": "line 266: \"mpReach != nil\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC7606-5.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc7606_egress_override_shape_test.go::TestEgressOverrideMovesTrailingMPAttributeFirst",
+    "unit-sha": "f50a0f70ef5f6885",
+    "claim-sha": "f510fe135b960034",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_write.go::writeOrdinaryUpdateBody",
+    "producer-sha": "ec218faa245a51f9",
+    "break": "line 562: \"message.MPAttributesTrail(update.PathAttributes)\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC7606-5.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc7606_forward_mp_first_test.go::TestForwardLeadingMPAttributeKeepsZeroCopy",
+    "unit-sha": "60b15d2aefa9ff84",
+    "claim-sha": "156ffed2369f0a9c",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/forward_body.go::buildFwdBody",
+    "producer-sha": "4fb1e47f2f5ded80",
+    "break": "line 260: \"peerWire.MPAttributesTrail()\" -\u003e \"true\""
+  },
+  {
+    "rid": "RFC7606-5.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc7606_forward_mp_first_test.go::TestForwardMovesTrailingMPAttributeFirstAcrossContexts",
+    "unit-sha": "df44b7378927d294",
+    "claim-sha": "fb021145f104965a",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/forward_body.go::buildFwdBody",
+    "producer-sha": "4fb1e47f2f5ded80",
+    "break": "line 317: \"peerWire.MPAttributesTrail()\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC7606-5.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc7606_forward_mp_first_test.go::TestForwardMovesTrailingMPAttributeFirstSameContext",
+    "unit-sha": "6cc9dc9e3babed9f",
+    "claim-sha": "247113ee91cce32c",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/forward_body.go::buildFwdBody",
+    "producer-sha": "4fb1e47f2f5ded80",
+    "break": "line 260: \"peerWire.MPAttributesTrail()\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC7606-5.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc7606_forward_mp_first_test.go::TestForwardRebuildMovesSourcedMPAttributeFirst",
+    "unit-sha": "7c4fa44ae19cf506",
+    "claim-sha": "169cbd9dc70faf23",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/forward_build.go::run",
+    "producer-sha": "b6907c502b7a642a",
+    "break": "line 761: \"isMPAttrCode(baseCode)\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC7606-5.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc7606_relay_payload_test.go::TestRelayPayloadLeadsWithMPReach",
+    "unit-sha": "7e5453a7d178c2f3",
+    "claim-sha": "ae2cb6a46802e758",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/relay_payload.go::writeRelayPayload",
+    "producer-sha": "d86b24bd0dafec33",
+    "break": "line 273: \"!legacyIPv4\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC7606-5.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/wireu/rfc7606_split_mp_first_test.go::TestBuildUpdatePayloadMPAttributeFirst",
+    "unit-sha": "032d774fa1d6be9d",
+    "claim-sha": "0ebe06d4a9765173",
+    "route": "mutant",
+    "producer": "internal/component/bgp/wireu/split.go::buildUpdatePayload",
+    "producer-sha": "53c397652bea949d",
+    "break": "line 495: \"pos += len(mpReach)\" -\u003e \"pos += 0\""
+  }
+]

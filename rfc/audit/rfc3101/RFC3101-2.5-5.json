@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: the external calculation skipping Type-7 LSAs. spf/external_nssa_recalc_test.go TestNSSAExternalCalculationRunsOnType7Change asserts Computer.Run adds the Type-7 route at cost 15 and changes it to 19 on a Type-7 metric change (lines 50, 61); TestNSSAExternalCalculationDropsLostASBR asserts removal when the NSSA loses the ASBR (line 84).",
+  "requirement_sha": "fcb59d677dc46819",
+  "tests": {
+    "internal/plugins/ospf/spf/rfc3101_external_nssa_recalc_test.go::TestNSSAExternalCalculationDropsLostASBR": "3353280a27f2ef90",
+    "internal/plugins/ospf/spf/rfc3101_external_nssa_recalc_test.go::TestNSSAExternalCalculationRunsOnType7Change": "3353280a27f2ef90"
+  },
+  "units": {
+    "internal/plugins/ospf/spf/rfc3101_external_nssa_recalc_test.go::TestNSSAExternalCalculationDropsLostASBR": "e02793fa3c75138b",
+    "internal/plugins/ospf/spf/rfc3101_external_nssa_recalc_test.go::TestNSSAExternalCalculationRunsOnType7Change": "094c87dc544572ca"
+  },
+  "verdict": "enforced"
+}

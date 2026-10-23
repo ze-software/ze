@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged again 2026-10-16 after a comment-only edit. The new VALIDATES claim that parseNumericComponent masks 0x0C is TRUE: core types_numeric.go computes compOp = op & 0x03 for FlowTCPFlags and FlowFragment. RFC 8955 Section 4.2.1.2: \"0 (all 0 bits): MUST be set to 0 on NLRI encoding and MUST be ignored during\" decoding. Encode: assert.Zero(op&0x0C) over every emitted TCP-flags operator (MATCH, NOT, AND+END) goes red if the length, AND, END, NOT or MATCH bits move into 0x0C. The inputs carry no reserved bits, so deleting the 0x03 mask in core writeToAFI alone stays green. That mask is defence in depth: no reachable producer sets 0x0C, because parseBitmaskValue (text) and parseFlowTCPFlagMatches (config) build only NOT/MATCH, and parseNumericComponent masks received ops to 0x03. Decode: op 0x8D must render exactly like 0x81 (=syn) through the plugin JSON path, with the clean render pinned first. The decode proof is at the rendered match, not at the firewall lowering.",
+  "requirement_sha": "4928db2bb028e706",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecBitmaskOperatorReservedBitsZero": "edf3d98f88af0674",
+    "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955BitmaskOperatorReservedBitsIgnoredOnDecode": "edf3d98f88af0674"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecBitmaskOperatorReservedBitsZero": "a6f575d24d6bd491",
+    "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955BitmaskOperatorReservedBitsIgnoredOnDecode": "39de27620827bcec"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8907-6.2-3",
+    "polarity": "positive",
+    "unit": "internal/component/tacacs/rfc8907_status_test.go::TestRFC8907AuthorizationFailDenies",
+    "unit-sha": "f7cd1262385ee9e6",
+    "claim-sha": "2c4fba75d1c5e31d",
+    "route": "revert",
+    "producer": "internal/component/tacacs/authorizer.go::authorize",
+    "producer-sha": "f7e6434537f2d86d",
+    "break": "body of authorize replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8907-6.2-3",
+    "polarity": "negative",
+    "unit": "internal/component/tacacs/rfc8907_status_test.go::TestRFC8907AuthorizationPassAddIsNotDenied",
+    "unit-sha": "7600383278b305a4",
+    "claim-sha": "a56674cb91fe3355",
+    "route": "revert",
+    "producer": "internal/component/tacacs/authorizer.go::authorize",
+    "producer-sha": "f7e6434537f2d86d",
+    "break": "body of authorize replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

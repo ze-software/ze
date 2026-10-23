@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4301-4.4.3.1-3",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc4301_pad_exact_test.go::TestRFC4301PadOtherIDTypeAdmitsAnExactMatch",
+    "unit-sha": "33aef00f80c64347",
+    "claim-sha": "ce0ab0bb2a2e1702",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/remote_id.go::remoteIDMatches",
+    "producer-sha": "d8b5dcb593a62198",
+    "break": "body of remoteIDMatches replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4301-4.4.3.1-3",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc4301_pad_exact_test.go::TestRFC4301PadOtherIDTypeRefusesEverythingButExact",
+    "unit-sha": "66abecffbd5fe717",
+    "claim-sha": "eddaf33d35a8755e",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/remote_id.go::remoteIDMatches",
+    "producer-sha": "d8b5dcb593a62198",
+    "break": "body of remoteIDMatches replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

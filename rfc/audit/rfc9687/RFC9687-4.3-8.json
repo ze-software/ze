@@ -1,0 +1,21 @@
+{
+  "note": "Re-judged 2026-10-21 (independent auditor, authored none of b228f3f8ae) after b228f3f8ae changed three tagged units. RFC 9687 Section 4.3: \"Each time the local system sends a BGP message, it restarts the SendHoldTimer unless the SendHoldTime value is zero or the negotiated HoldTime value is zero, in which case the SendHoldTimer is stopped.\" The only change to TestRFC9687EmissionRestartsExactSendHoldDeadline, TestRFC9687SuppressedAttemptsDoNotRestartSendHold and TestRFC9687RemainingWritersRestartSendHold is the appendFwdDirty(nil, s) signature: a nil peer, whose handOffForwardFlush answers false, and in every one of these calls writeMu is free at flush time, so flushFwdDirty takes the TryLock branch and flushes inline exactly as before. Same inputs, same exact-wire and exact-deadline assertions, same live-session/expiry checks. The new producer path (a contended destination handed to the peer's forward worker) reaches the timer through the same accounting: fwdBatchHandler takes writeMu and calls session.flushWrites, which restarts the timer only after a successful flush with writePending set by the fast-path bufWriter write; the raw and parsed fwdBatchHandler cases of TestRFC9687RemainingWritersRestartSendHold cover that flush, and buffering alone still earns no restart (the emission test). The hand-off itself is proven by the untagged TestFlushFwdDirtyContendedReachesWire, not by these tags. The zero-time exception stays with RFC9687-4.3-9. Other carriers unchanged. Verdict stands.",
+  "requirement_sha": "e84a6c54182b7346",
+  "tests": {
+    "internal/component/bgp/reactor/rfc9687_emission_test.go::TestRFC9687EmissionRestartsExactSendHoldDeadline": "471a644b58c2cef6",
+    "internal/component/bgp/reactor/rfc9687_emission_test.go::TestRFC9687SuppressedAttemptsDoNotRestartSendHold": "471a644b58c2cef6",
+    "internal/component/bgp/reactor/rfc9687_reactor_b_test.go::TestRFC9687EveryWriterRestartsTheSendHoldTimer": "0d228841740c950c",
+    "internal/component/bgp/reactor/rfc9687_remaining_writers_test.go::TestRFC9687RemainingWritersRestartSendHold": "01dd2f6fe371a9c6",
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendRestartsTheSendHoldTimer": "8caa1cc8f2fc140d",
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SilenceDoesNotRestartTheSendHoldTimer": "8caa1cc8f2fc140d"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc9687_emission_test.go::TestRFC9687EmissionRestartsExactSendHoldDeadline": "2a0f7572c9964fdb",
+    "internal/component/bgp/reactor/rfc9687_emission_test.go::TestRFC9687SuppressedAttemptsDoNotRestartSendHold": "d46a593298a61526",
+    "internal/component/bgp/reactor/rfc9687_reactor_b_test.go::TestRFC9687EveryWriterRestartsTheSendHoldTimer": "e82cfcf39bfc5c7d",
+    "internal/component/bgp/reactor/rfc9687_remaining_writers_test.go::TestRFC9687RemainingWritersRestartSendHold": "4d7bdf9987a93c70",
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendRestartsTheSendHoldTimer": "ef727ea44a115c14",
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SilenceDoesNotRestartTheSendHoldTimer": "7581328442f256ff"
+  },
+  "verdict": "enforced"
+}

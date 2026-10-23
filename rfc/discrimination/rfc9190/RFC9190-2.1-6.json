@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC9190-2.1-6",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc9190_handshake_rules_test.go::TestEAPTLS13PeerClientHelloOffersNoEarlyDataOrPostHandshakeAuth",
+    "unit-sha": "706effba7501e92c",
+    "claim-sha": "a18252f38e8780de",
+    "route": "revert",
+    "producer": "internal/core/eap/peer.go::tlsClientConfig",
+    "producer-sha": "1b211a4c01804785",
+    "break": "body of tlsClientConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,13 @@
+{
+  "note": "SystematicLengthCorruption's isolated padded NEXT_HOP length-eight case uses an exact treat-as-withdraw assertion with AttrCode 3, not the surrounding tables' severity-floor assertion; ValidUpdate accepts length four, while RFC6368 inner NEXT_HOP is correctly ignored in its distinct ATTR_SET context",
+  "requirement_sha": "ff549f0ecdd9105a",
+  "tests": {
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "b7acaf2569904b8f",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ValidUpdate": "b7acaf2569904b8f"
+  },
+  "units": {
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "07b9d95ed1e789a5",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ValidUpdate": "3ae6f048c392bc4f"
+  },
+  "verdict": "enforced"
+}

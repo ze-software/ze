@@ -1,0 +1,13 @@
+{
+  "note": "backup PATH carries the ERO from the MP to the egress (equals psb.ERO[index:]); no backup ERO before repair Re-judged 2026-10-08 against rfc4090.txt Sections 6.4.3, 6.4.4 and 7.1.1: TestRFC4090ProtectedPathSurvivesRepair changed only by passing nil for buildPathErr's new adspec argument in the late MP PathErr it injects (commit 9b8bfe250c); every assertion on the backup PATH, its ERO, the MP's forwarded sender and its refresh is unchanged, and the discrimination record was re-observed red.",
+  "requirement_sha": "24ef0c6f1ad04d38",
+  "tests": {
+    "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090NoBackupPathBeforeRepair": "63fe630e7c2d0f12",
+    "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090ProtectedPathSurvivesRepair": "63fe630e7c2d0f12"
+  },
+  "units": {
+    "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090NoBackupPathBeforeRepair": "694435d13cc59723",
+    "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090ProtectedPathSurvivesRepair": "ef2ad7c3cb5a5e86"
+  },
+  "verdict": "enforced"
+}

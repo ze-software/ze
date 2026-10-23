@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5176-2.3-4",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176SharedSecretChosenBySourceAddress",
+    "unit-sha": "e54e876b24455336",
+    "claim-sha": "6de59f156ab0ac1a",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authradius/coa.go::secretForSource",
+    "producer-sha": "45ea7af2ca765866",
+    "break": "body of secretForSource replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5176-2.3-4",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176SharedSecretChosenBySourceAddress",
+    "unit-sha": "e54e876b24455336",
+    "claim-sha": "9db22f8c7fe43657",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authradius/coa.go::secretForSource",
+    "producer-sha": "45ea7af2ca765866",
+    "break": "body of secretForSource replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

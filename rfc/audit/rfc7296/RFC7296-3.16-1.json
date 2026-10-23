@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-11 by an independent judge; row widened to the Identifier item head, obligation 'In a response message, this octet MUST be set to match the identifier in the corresponding request' (RFC 7296 3.16). TestEapfmtResponseIdentifierMatchesRequest drives the EAP peer through Identity, MS-CHAPv2 Challenge and Success with identifiers 200, 7 and 91 and requires each response to echo exactly, so a constant or a counter fails. Peer methods other than MS-CHAPv2 are not sampled. No discrimination record.",
+  "requirement_sha": "051672a5c9c5758c",
+  "tests": {
+    "internal/core/eap/rfc7296_eap_test.go::TestEapfmtResponseIdentifierMatchesRequest": "a7ebbbf496930178",
+    "internal/core/eap/rfc7296_eap_test.go::TestEapfmtResponseIdentifierMatchesRequest#2": "a7ebbbf496930178"
+  },
+  "units": {
+    "internal/core/eap/rfc7296_eap_test.go::TestEapfmtResponseIdentifierMatchesRequest": "07e511a1766f0661",
+    "internal/core/eap/rfc7296_eap_test.go::TestEapfmtResponseIdentifierMatchesRequest#2": "07e511a1766f0661"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC1195-7-6",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/rfc1195_auth_test.go::TestRFC1195PasswordScopesDoNotLeak",
+    "unit-sha": "095844c5fad31ea9",
+    "claim-sha": "82b66f791a1ae3cf",
+    "route": "revert",
+    "producer": "internal/plugins/isis/auth_keystore.go::newKeyStore",
+    "producer-sha": "43e415b4340ecaf3",
+    "break": "body of newKeyStore replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1195-7-6",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/rfc1195_auth_test.go::TestRFC1195PasswordScopesResolved",
+    "unit-sha": "08406c5cb881696f",
+    "claim-sha": "d96a88437252607e",
+    "route": "revert",
+    "producer": "internal/plugins/isis/auth_keystore.go::newKeyStore",
+    "producer-sha": "43e415b4340ecaf3",
+    "break": "body of newKeyStore replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

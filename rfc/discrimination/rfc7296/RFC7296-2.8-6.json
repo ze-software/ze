@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.8-6",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_rekey_test.go::TestRkyIKERekeyDeleteIsTheLastRequestOnTheOldSA",
+    "unit-sha": "2b08a1db621b831c",
+    "claim-sha": "a3cf4716a8406fb8",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/inbound.go::handleCreateChildSAOwned",
+    "producer-sha": "5f2528c88290ae24",
+    "break": "body of handleCreateChildSAOwned replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.8-6",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_rekey_test.go::TestRkyIKERekeyDeleteIsTheLastRequestOnTheOldSA",
+    "unit-sha": "2b08a1db621b831c",
+    "claim-sha": "ad3273d28423d375",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/inbound.go::handleCreateChildSAOwned",
+    "producer-sha": "5f2528c88290ae24",
+    "break": "body of handleCreateChildSAOwned replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,13 @@
+{
+  "note": "(a) forbidden: a new session on a single-connect connection after a reply on it failed validation. (b) TestRFC8907NoNewSessionOnBrokenPooledConnection (session_id corrupted on the second reply) requires two connections and requestsOn(0) of length 2, so a third request on the broken TCP goes red; TestRFC8907HealthyPooledConnectionKeepsAcceptingSessions requires one connection carrying three requests.",
+  "requirement_sha": "49d9554c1456aa8b",
+  "tests": {
+    "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907HealthyPooledConnectionKeepsAcceptingSessions": "7c6845571ca0fb19",
+    "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907NoNewSessionOnBrokenPooledConnection": "7c6845571ca0fb19"
+  },
+  "units": {
+    "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907HealthyPooledConnectionKeepsAcceptingSessions": "ce96ac9ea5991686",
+    "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907NoNewSessionOnBrokenPooledConnection": "41c68d5bbe87915e"
+  },
+  "verdict": "enforced"
+}

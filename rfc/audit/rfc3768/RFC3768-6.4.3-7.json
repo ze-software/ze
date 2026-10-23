@@ -1,0 +1,17 @@
+{
+  "note": "vrrp judge 2026-09-29 (independent): TestV2MasterPriorityZero on VRRPv2: Priority 0 yields exactly SendAdvert{100,2000}, StartAdvertTimer{2s} and stays Master; a non-zero lower-priority advert yields nothing.",
+  "requirement_sha": "4ef1e2ef50d25ce9",
+  "tests": {
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "52489f84876bdb6f",
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "52489f84876bdb6f",
+    "internal/plugins/vrrp/fsm/rfc_verdict_test.go::TestV2MasterPriorityZero": "529420a351d8b685",
+    "internal/plugins/vrrp/fsm/rfc_verdict_test.go::TestV2MasterPriorityZero#2": "529420a351d8b685"
+  },
+  "units": {
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "c06b69f55bb239a3",
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "c06b69f55bb239a3",
+    "internal/plugins/vrrp/fsm/rfc_verdict_test.go::TestV2MasterPriorityZero": "575b8e8ebd477189",
+    "internal/plugins/vrrp/fsm/rfc_verdict_test.go::TestV2MasterPriorityZero#2": "575b8e8ebd477189"
+  },
+  "verdict": "enforced"
+}

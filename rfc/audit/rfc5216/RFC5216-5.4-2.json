@@ -1,0 +1,17 @@
+{
+  "note": "Forbidden: a peer with no revocation check after authentication. TestPostAuthenticationCheckClosesTheSAWhenTheResponderReportsRevoked fatals if startServerCertRecheck (called from established.go after the exchange) starts no check or reports no verdict when the OCSP responder says revoked; TestPostAuthenticationCheckLeavesTheSAUpWhenTheResponderReportsGood fatals on any verdict when it says good. The eap units prove the accepted TLS 1.2 chain is kept for the check and none is published on a refused handshake. The first unit's name claims the SA closes; it asserts only the verdict.",
+  "requirement_sha": "c5d8d8fde6e4d2dc",
+  "tests": {
+    "internal/component/ike/engine/rfc9190_postauth_test.go::TestPostAuthenticationCheckClosesTheSAWhenTheResponderReportsRevoked": "e55247a29eb28e98",
+    "internal/component/ike/engine/rfc9190_postauth_test.go::TestPostAuthenticationCheckLeavesTheSAUpWhenTheResponderReportsGood": "e55247a29eb28e98",
+    "internal/core/eap/rfc9190_ocsp_test.go::TestEAPTLS12PeerKeepsTheChainItAcceptedForTheLaterCheck": "a72a60b945073db0",
+    "internal/core/eap/rfc9190_ocsp_test.go::TestEAPTLSPeerPublishesNoChainWhenTheHandshakeRefusedIt": "a72a60b945073db0"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc9190_postauth_test.go::TestPostAuthenticationCheckClosesTheSAWhenTheResponderReportsRevoked": "a6900aa6aeb6a782",
+    "internal/component/ike/engine/rfc9190_postauth_test.go::TestPostAuthenticationCheckLeavesTheSAUpWhenTheResponderReportsGood": "f3e3e30f6864ea55",
+    "internal/core/eap/rfc9190_ocsp_test.go::TestEAPTLS12PeerKeepsTheChainItAcceptedForTheLaterCheck": "f700a3123d797eb2",
+    "internal/core/eap/rfc9190_ocsp_test.go::TestEAPTLSPeerPublishesNoChainWhenTheHandshakeRefusedIt": "92fb014c08422c11"
+  },
+  "verdict": "enforced"
+}

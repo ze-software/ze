@@ -1,0 +1,13 @@
+{
+  "note": "First judgment. Live InitMaxPDULengthTakesTheSmallerProposal preserves proposals 1000,255,100,0 and pins negotiated values 1000,4096,4096,4096, a KeepAlive response, OPENREC before peer KeepAlive, Operational afterward and timeout-only silence. Independent 8000 proposal control pins the unchanged local maximum 4096. Reviewed handleInit normalization at <=255 and minimum selection. This proves negotiation, not a separate promise about enforcing received PDU size.",
+  "requirement_sha": "4e2cbcf69038a50f",
+  "tests": {
+    "internal/plugins/ldp/rfc5036_sessionparams_test.go::TestRFC5036InitMaxPDULengthNeverRaisedAboveOwnProposal": "c0aa8fdb104978d5",
+    "internal/plugins/ldp/rfc5036_sessionparams_test.go::TestRFC5036InitMaxPDULengthTakesTheSmallerProposal": "c0aa8fdb104978d5"
+  },
+  "units": {
+    "internal/plugins/ldp/rfc5036_sessionparams_test.go::TestRFC5036InitMaxPDULengthNeverRaisedAboveOwnProposal": "a148d95a7bf5ddc8",
+    "internal/plugins/ldp/rfc5036_sessionparams_test.go::TestRFC5036InitMaxPDULengthTakesTheSmallerProposal": "fc886fcee7bc55a5"
+  },
+  "verdict": "enforced"
+}

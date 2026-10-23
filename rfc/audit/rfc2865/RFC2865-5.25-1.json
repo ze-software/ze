@@ -1,0 +1,17 @@
+{
+  "note": "Quote is the Class sentence of 5.25. Forbidden: interpreting Class locally. TestRadiusClassIsNotInterpretedLocally asserts an Accept whose only carrier is Class yields no profile and ErrAuthRejected; TestExtractRadiusConfigProfileAttrNeverClass asserts no configuration selects Class. Two tagged units (TestStateIsNotInterpretedLocally, TestRadiusAdminEapChallengeLoopCarriesState) prove the State rule of 5.24 instead, reported.",
+  "requirement_sha": "b7a324d0806e58ab",
+  "tests": {
+    "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapChallengeLoopCarriesState": "2f6a0814b0b8b9cb",
+    "internal/component/radius/rfc2865_authenticator_test.go::TestRadiusClassIsNotInterpretedLocally": "1e45fead9d464d13",
+    "internal/component/radius/rfc2865_config_test.go::TestExtractRadiusConfigProfileAttrNeverClass": "71b1f7958ca13a1b",
+    "internal/component/radius/rfc2865_walk_test.go::TestStateIsNotInterpretedLocally": "a3f1d9fa74292a7a"
+  },
+  "units": {
+    "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapChallengeLoopCarriesState": "539351a3158b44d1",
+    "internal/component/radius/rfc2865_authenticator_test.go::TestRadiusClassIsNotInterpretedLocally": "69d87dcd0d82a4ce",
+    "internal/component/radius/rfc2865_config_test.go::TestExtractRadiusConfigProfileAttrNeverClass": "f0443cd162a54321",
+    "internal/component/radius/rfc2865_walk_test.go::TestStateIsNotInterpretedLocally": "8316f2355177ac64"
+  },
+  "verdict": "enforced"
+}

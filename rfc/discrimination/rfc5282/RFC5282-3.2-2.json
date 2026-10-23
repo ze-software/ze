@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5282-3.2-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/crypto/rfc5282_aead_test.go::TestRFC5282AEADOpensTheFullLengthICV",
+    "unit-sha": "f41a698a8b7027dd",
+    "claim-sha": "f0d0307886b4268c",
+    "route": "revert",
+    "producer": "internal/component/ike/crypto/aead.go::OpenIKEAEAD",
+    "producer-sha": "fa847fa99772e737",
+    "break": "body of OpenIKEAEAD replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5282-3.2-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/crypto/rfc5282_aead_test.go::TestRFC5282AEADRefusesAForbiddenICVLength",
+    "unit-sha": "8fb0215af01c356e",
+    "claim-sha": "91f6651e5bbbb73d",
+    "route": "revert",
+    "producer": "internal/component/ike/crypto/aead.go::OpenIKEAEAD",
+    "producer-sha": "fa847fa99772e737",
+    "break": "body of OpenIKEAEAD replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

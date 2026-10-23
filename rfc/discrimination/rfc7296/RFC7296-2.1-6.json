@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.1-6",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_retransmit_test.go::TestRtxResponderIgnoresRequestWithForgottenResponse",
+    "unit-sha": "d81ce01b89ee5b47",
+    "claim-sha": "c987c343542d9ee1",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/msgid.go::classifyInbound",
+    "producer-sha": "88a5f112ac8d672d",
+    "break": "body of classifyInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.1-6",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_retransmit_test.go::TestRtxResponderIgnoresRequestWithForgottenResponse",
+    "unit-sha": "d81ce01b89ee5b47",
+    "claim-sha": "2c621a77880bc405",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/msgid.go::classifyInbound",
+    "producer-sha": "88a5f112ac8d672d",
+    "break": "body of classifyInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

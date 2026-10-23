@@ -1,0 +1,35 @@
+{
+  "code": {
+    "internal/component/ike/engine/child.go::childPolicies": "188352614a881c1b",
+    "internal/component/ike/engine/child.go::inboundStateSelector": "86a64fa1c4c47b70",
+    "internal/component/ike/engine/ts_narrow.go::acceptablePairs": "5c9b9046add8fd29",
+    "internal/component/ike/engine/ts_narrow.go::crossPairs": "af7ecaba257f263b"
+  },
+  "note": "Re-judged 2026-10-20 (independent judge, after 098cac336e, 166ef7cf27, 0b324c6182). Section 4.4.2: \"For each of the selectors defined in Section 4.4.1.1, the entry for an inbound SA in the SAD MUST be initially populated with the value or values negotiated at the time the SA was created.\" The STALE unit inboundStateSelector (child.go) changed only in its doc comment (0b324c6182 adds the pointer to Linux limitation LL-XFRM-STATE-ONE-SELECTOR); the body is unchanged, so the transport-mode state selector is still taken from the one inbound policy childPolicies builds, and the intersected protocol from d5af024e2a still holds. installChildSA's other change (rollback through removeZePolicy) touches no selector. Producers childPolicies, acceptablePairs, crossPairs unchanged. Tagged carriers TestRFC4301TransportStateSelectorIsTheNegotiatedPair, TestRFC4301MixedProtocolPairInstallsTheIntersection, TestRFC4301AuthResponseWithoutTSIsRefused, TestRFC4301InitiatorInstallsAnAddressRangeExactly, TestRFC4301InitiatorRefusesAnAnswerItCannotInstallExactly, TestRFC4301TransportInitiatorRefusesSeveralPairs, TestRFC4301InitiatorInstallsEveryAnsweredCombination PASS with -race at HEAD. ./le rfc check reports no discrimination refusal for this id. Verdict stands.",
+  "requirement_sha": "36315016bf1c571b",
+  "tests": {
+    "internal/component/ike/engine/rfc4301_auth_response_no_ts_test.go::TestRFC4301AuthResponseWithoutTSIsRefused": "34b21b3ba88cc7ac",
+    "internal/component/ike/engine/rfc4301_child_multi_pair_test.go::TestRFC4301TransportStateSelectorIsTheNegotiatedPair": "574abc2fa42f900d",
+    "internal/component/ike/engine/rfc4301_child_multi_pair_test.go::TestRFC4301TransportStateSelectorIsTheNegotiatedPair#2": "574abc2fa42f900d",
+    "internal/component/ike/engine/rfc4301_initiator_exact_answer_test.go::TestRFC4301InitiatorInstallsAnAddressRangeExactly": "1fa7b972485ca2c0",
+    "internal/component/ike/engine/rfc4301_initiator_exact_answer_test.go::TestRFC4301InitiatorRefusesAnAnswerItCannotInstallExactly": "1fa7b972485ca2c0",
+    "internal/component/ike/engine/rfc4301_pair_protocol_test.go::TestRFC4301MixedProtocolPairInstallsTheIntersection": "9a4d2017793bb27c",
+    "internal/component/ike/engine/rfc4301_pair_protocol_test.go::TestRFC4301MixedProtocolPairInstallsTheIntersection#2": "9a4d2017793bb27c",
+    "internal/component/ike/engine/rfc7296_transport_one_pair_test.go::TestRFC4301TransportInitiatorRefusesSeveralPairs": "d8b72938b2447748",
+    "internal/component/ike/engine/rfc7296_ts_combinations_test.go::TestRFC4301InitiatorInstallsEveryAnsweredCombination": "85fb834418fe48f0",
+    "internal/component/ike/engine/rfc7296_ts_combinations_test.go::TestRFC4301InitiatorInstallsEveryAnsweredCombination#2": "85fb834418fe48f0"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc4301_auth_response_no_ts_test.go::TestRFC4301AuthResponseWithoutTSIsRefused": "39ab3d40084e5804",
+    "internal/component/ike/engine/rfc4301_child_multi_pair_test.go::TestRFC4301TransportStateSelectorIsTheNegotiatedPair": "d307edef3a8df9b4",
+    "internal/component/ike/engine/rfc4301_child_multi_pair_test.go::TestRFC4301TransportStateSelectorIsTheNegotiatedPair#2": "d307edef3a8df9b4",
+    "internal/component/ike/engine/rfc4301_initiator_exact_answer_test.go::TestRFC4301InitiatorInstallsAnAddressRangeExactly": "b4e63222275012b9",
+    "internal/component/ike/engine/rfc4301_initiator_exact_answer_test.go::TestRFC4301InitiatorRefusesAnAnswerItCannotInstallExactly": "7364ca325a8d8f65",
+    "internal/component/ike/engine/rfc4301_pair_protocol_test.go::TestRFC4301MixedProtocolPairInstallsTheIntersection": "504c8e06c8b70f75",
+    "internal/component/ike/engine/rfc4301_pair_protocol_test.go::TestRFC4301MixedProtocolPairInstallsTheIntersection#2": "504c8e06c8b70f75",
+    "internal/component/ike/engine/rfc7296_transport_one_pair_test.go::TestRFC4301TransportInitiatorRefusesSeveralPairs": "08661ccc764ebced",
+    "internal/component/ike/engine/rfc7296_ts_combinations_test.go::TestRFC4301InitiatorInstallsEveryAnsweredCombination": "9d5e83ac5e000871",
+    "internal/component/ike/engine/rfc7296_ts_combinations_test.go::TestRFC4301InitiatorInstallsEveryAnsweredCombination#2": "9d5e83ac5e000871"
+  },
+  "verdict": "enforced"
+}

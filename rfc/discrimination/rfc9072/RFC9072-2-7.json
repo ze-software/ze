@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC9072-2-7",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc9072_optional_params_boundary_test.go::TestRFC9072OptionalParamsBoundary",
+    "unit-sha": "4656ce8d2a1b13be",
+    "claim-sha": "3689e1e9aff30d23",
+    "route": "revert",
+    "producer": "internal/core/bgp/capability/optional_params.go::PackOptionalParams",
+    "producer-sha": "ea6beab71b7d59f8",
+    "break": "body of PackOptionalParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

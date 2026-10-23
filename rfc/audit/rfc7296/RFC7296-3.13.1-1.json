@@ -1,0 +1,13 @@
+{
+  "note": "selectorsToWire encodes protocol-0 all-ports Start Port 0; single-port selector proves the encoder can emit non-zero",
+  "requirement_sha": "f9a6633b996ca03e",
+  "tests": {
+    "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131": "f8202c6c1c2c2a71",
+    "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131#2": "f8202c6c1c2c2a71"
+  },
+  "units": {
+    "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131": "9aebd2917a3a0115",
+    "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131#2": "9aebd2917a3a0115"
+  },
+  "verdict": "enforced"
+}

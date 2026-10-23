@@ -1,0 +1,13 @@
+{
+  "note": "Judge 2026-09-30 (phase 8). Positive TestRFC5880AuthKeyIDMatchAccepted (key 3); negative TestRFC5880AuthKeyIDMismatchDiscarded (key 4 vs 3, ErrDigestMismatch, floor unset). Judge break removing the key-id check reds the negative through the floor assertion. Ze configures one key per session, so 'a configured key' is that key.",
+  "requirement_sha": "0c12526d28e5728b",
+  "tests": {
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthKeyIDMatchAccepted": "5a25c74cc2d9bd47",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthKeyIDMismatchDiscarded": "5a25c74cc2d9bd47"
+  },
+  "units": {
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthKeyIDMatchAccepted": "cecc1f0e4a2fd43c",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthKeyIDMismatchDiscarded": "f0a849a58b8a9b34"
+  },
+  "verdict": "enforced"
+}

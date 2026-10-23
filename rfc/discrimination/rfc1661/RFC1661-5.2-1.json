@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC1661-5.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/ppp/rfc1661_dns_options_test.go::TestRFC1877ConfigureAckEchoesAcceptable",
+    "unit-sha": "983f98ab680a4c29",
+    "claim-sha": "fc7d5a95b0d549a5",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/ncp.go::evalIPCPRequest",
+    "producer-sha": "b4ebab10c57dfc59",
+    "break": "body of evalIPCPRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

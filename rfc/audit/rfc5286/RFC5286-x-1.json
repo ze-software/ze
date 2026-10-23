@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: accepting an alternate N with D_opt(N,D) >= D_opt(N,S)+D_opt(S,D). TestRFC5286LoopFreeInequality1 negative builds the equality case D(N,D)=21 == 10+11 with finite forward and reverse cost, and the `if _, ok := runSelect(...); ok { t.Fatalf(...) }` goes red on any selectLFA that accepts it (a <= or a missing check). Positive 11 < 21 asserts the backup is returned with next-hop N. Isolated: no other gate trips on either input. Unit-level on selectLFA (lfa.go), which is the production LFA selector.",
+  "requirement_sha": "50db5b818d973b3b",
+  "tests": {
+    "internal/plugins/ospf/spf/rfc5286_lfa_test.go::TestRFC5286LoopFreeInequality1": "73162faa1d592207",
+    "internal/plugins/ospf/spf/rfc5286_lfa_test.go::TestRFC5286LoopFreeInequality1#2": "73162faa1d592207"
+  },
+  "units": {
+    "internal/plugins/ospf/spf/rfc5286_lfa_test.go::TestRFC5286LoopFreeInequality1": "bad8e2601b450a2f",
+    "internal/plugins/ospf/spf/rfc5286_lfa_test.go::TestRFC5286LoopFreeInequality1#2": "bad8e2601b450a2f"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC1661-6.4-8",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestReceivedMagicNumberMustBePeers",
+    "unit-sha": "760000471aaf1896",
+    "claim-sha": "2dca1c9950a84e70",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/session_run.go::handleLCPPacket",
+    "producer-sha": "7107e02b6fa04b82",
+    "break": "body of handleLCPPacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1661-6.4-8",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestReceivedMagicNumberMustBePeers",
+    "unit-sha": "760000471aaf1896",
+    "claim-sha": "41ed18abf8f2e898",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/session_run.go::handleLCPPacket",
+    "producer-sha": "7107e02b6fa04b82",
+    "break": "body of handleLCPPacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1661-6.4-8",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestReceivedMagicNumberZeroWhenPeerNegotiatedNone",
+    "unit-sha": "de61d34590721efe",
+    "claim-sha": "6870a8ce592f03ee",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/session_run.go::handleLCPPacket",
+    "producer-sha": "7107e02b6fa04b82",
+    "break": "body of handleLCPPacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1661-6.4-8",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestReceivedMagicNumberZeroWhenPeerNegotiatedNone",
+    "unit-sha": "de61d34590721efe",
+    "claim-sha": "d12fe68a0aa8320b",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/session_run.go::handleLCPPacket",
+    "producer-sha": "7107e02b6fa04b82",
+    "break": "body of handleLCPPacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

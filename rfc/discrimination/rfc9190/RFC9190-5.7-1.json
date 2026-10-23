@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC9190-5.7-1",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc9190_resumption_refusal_test.go::TestEAPTLS13TicketIsNotRedeemableUnderAnotherPeeringsKey",
+    "unit-sha": "62ea00b282ce0de9",
+    "claim-sha": "9e2125d5a92c1ab8",
+    "route": "revert",
+    "producer": "internal/core/eap/resumption.go::TicketKeys",
+    "producer-sha": "c7e047f9231e686f",
+    "break": "body of TicketKeys replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9190-5.7-1",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc9190_resumption_test.go::TestEAPTLS13CompletesAResumptionWithAnUnrevokedChain",
+    "unit-sha": "1da8618372822a15",
+    "claim-sha": "0ac9026369a4a0a1",
+    "route": "revert",
+    "producer": "internal/core/eap/revocation.go::checkChainRevocation",
+    "producer-sha": "bc6548ee07f24385",
+    "break": "body of checkChainRevocation replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9190-5.7-1",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc9190_resumption_test.go::TestEAPTLS13ResumptionRefusesARevokedAuthenticatorChain",
+    "unit-sha": "c356f001cc267a1d",
+    "claim-sha": "01d3e029c22b9373",
+    "route": "revert",
+    "producer": "internal/core/eap/revocation.go::checkChainRevocation",
+    "producer-sha": "bc6548ee07f24385",
+    "break": "body of checkChainRevocation replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9190-5.7-1",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc9190_resumption_test.go::TestEAPTLS13ResumptionRefusesARevokedClientChain",
+    "unit-sha": "97437617c113a6ce",
+    "claim-sha": "35cb94c3ada28271",
+    "route": "revert",
+    "producer": "internal/core/eap/revocation.go::checkChainRevocation",
+    "producer-sha": "bc6548ee07f24385",
+    "break": "body of checkChainRevocation replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

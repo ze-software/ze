@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: an Authenticate-Request in the Authentication phase left without a reply. TestPAPRequestInAuthPhaseIsAnswered asserts a PAP reply frame with Code Ack and Identifier 0x5a for an accepted request; TestPAPRejectedRequestIsStillAnswered asserts a PAP Nak with 0x5a for a rejected one, so silence on either decision goes red.",
+  "requirement_sha": "53c184dd3b2dc8bb",
+  "tests": {
+    "internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestPAPRejectedRequestIsStillAnswered": "8e29592e5f428395",
+    "internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestPAPRequestInAuthPhaseIsAnswered": "8e29592e5f428395"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestPAPRejectedRequestIsStillAnswered": "7c47e523f1bcda21",
+    "internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestPAPRequestInAuthPhaseIsAnswered": "6eb7e016dc1bbe1c"
+  },
+  "verdict": "enforced"
+}

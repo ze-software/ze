@@ -1,0 +1,17 @@
+{
+  "note": "Ze holds one cache's set at a time (the group holder's End of Data replaces it), so the reachable form of the rule is that validation is blind to which configured cache supplied the data. TestRTRValidationIgnoresWhichCacheSupplied starts the plugin's sessions twice, VRP served by the preferred cache then by the standby (preferred refused): the Valid/Invalid/NotFound triple is identical, and the Invalid and NotFound members are asserted, so a source that weighted, marked or wildcarded data goes red.",
+  "requirement_sha": "8254049d2f18a190",
+  "tests": {
+    "internal/component/bgp/plugins/rpki/roa_cache_test.go::TestValidationDoesNotDistinguishCacheSource": "bc6fefeb87099bc9",
+    "internal/component/bgp/plugins/rpki/roa_cache_test.go::TestValidationDoesNotDistinguishCacheSource#2": "bc6fefeb87099bc9",
+    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRValidationIgnoresWhichCacheSupplied": "f4affe67e61b8df8",
+    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRValidationIgnoresWhichCacheSupplied#2": "f4affe67e61b8df8"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rpki/roa_cache_test.go::TestValidationDoesNotDistinguishCacheSource": "2ac661a9b04f6422",
+    "internal/component/bgp/plugins/rpki/roa_cache_test.go::TestValidationDoesNotDistinguishCacheSource#2": "2ac661a9b04f6422",
+    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRValidationIgnoresWhichCacheSupplied": "66c43a6aac13f8f3",
+    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRValidationIgnoresWhichCacheSupplied#2": "66c43a6aac13f8f3"
+  },
+  "verdict": "enforced"
+}

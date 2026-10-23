@@ -1,0 +1,13 @@
+{
+  "note": "Positive: through runSession in the active role, an acceptable peer Initialization (KeepAlive Time 30) is answered by a KeepAlive as the next PDU, and the peer's own KeepAlive then makes the session operational (awaitOperational; RFC 5036 2.5.4 OPENSENT -> OPENREC -> OPERATIONAL since the c29 R4 fix). Negative: nothing follows ze's Initialization for 300ms while the peer has sent none (the pre-fix unconditional establishment KeepAlive fails here, observed red against HEAD register.go), and an unacceptable Initialization (KeepAlive Time 0) draws a Notification, never a KeepAlive, and no operational state. The recorded break for the negative is rejectInit; the silence half was confirmed red by the judge with HEAD runSession overlaid. Re-judged 2026-10-02 (c29 judge): only the positive's tail changed, from an immediate operational check to the peer KeepAlive plus the same operational assertion.",
+  "requirement_sha": "7c64d8cbb5db8332",
+  "tests": {
+    "internal/plugins/ldp/rfc5036_establishment_test.go::TestRFC5036ActiveRoleAcceptableInitAnsweredWithKeepAlive": "ae9e641bab4b2401",
+    "internal/plugins/ldp/rfc5036_establishment_test.go::TestRFC5036ActiveRoleNoKeepAliveWithoutAcceptableInit": "ae9e641bab4b2401"
+  },
+  "units": {
+    "internal/plugins/ldp/rfc5036_establishment_test.go::TestRFC5036ActiveRoleAcceptableInitAnsweredWithKeepAlive": "50dc4121e6675f34",
+    "internal/plugins/ldp/rfc5036_establishment_test.go::TestRFC5036ActiveRoleNoKeepAliveWithoutAcceptableInit": "47cdbae9fc7d6026"
+  },
+  "verdict": "enforced"
+}

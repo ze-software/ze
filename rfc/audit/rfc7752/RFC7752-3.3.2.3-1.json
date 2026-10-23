@@ -1,0 +1,15 @@
+{
+  "note": "D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV->WriteTLV and field-export renames (TLV code constants verified unchanged). RFC 7752 Section 3.3.2.3: \"If a source protocol uses a metric width of less than 32 bits, then the high-order bits of this field MUST be padded with zero.\" Proof is the IS-IS pair (TestRFC7752TEDefaultMetricWidenedWithZeroHighOrder 0a0b0c->000a0b0c, TestRFC7752TEDefaultMetricAllOnesNeverReachesHighOrder ffffff->00ffffff) over the real producer isis bgpls_export. The plugin ls unit TestRFC7752TEDefaultMetricZeroPadded proves nothing about emitted bytes: lsTEDefaultMetric is constructed only by its decoder and its WriteTo has no non-test caller; it is supplementary and earns no credit.",
+  "requirement_sha": "c0fcdb0b34ec6863",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752TEDefaultMetricZeroPadded": "6c7da98fd78cb69c",
+    "internal/plugins/isis/rfc7752_bgpls_export_te_metric_test.go::TestRFC7752TEDefaultMetricAllOnesNeverReachesHighOrder": "9e2e5fbb0bf50c3f",
+    "internal/plugins/isis/rfc7752_bgpls_export_te_metric_test.go::TestRFC7752TEDefaultMetricWidenedWithZeroHighOrder": "9e2e5fbb0bf50c3f"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752TEDefaultMetricZeroPadded": "51bd02f228461791",
+    "internal/plugins/isis/rfc7752_bgpls_export_te_metric_test.go::TestRFC7752TEDefaultMetricAllOnesNeverReachesHighOrder": "b26a7397285df639",
+    "internal/plugins/isis/rfc7752_bgpls_export_te_metric_test.go::TestRFC7752TEDefaultMetricWidenedWithZeroHighOrder": "3e621177c5190f92"
+  },
+  "verdict": "enforced"
+}

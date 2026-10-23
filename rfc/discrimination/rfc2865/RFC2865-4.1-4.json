@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2865-4.1-4",
+    "polarity": "positive",
+    "unit": "internal/component/radius/rfc2865_authenticator_test.go::TestRadiusAdminChapAttributes",
+    "unit-sha": "38b580feb3dfeb4f",
+    "claim-sha": "5c2fd114fabd19ca",
+    "route": "revert",
+    "producer": "internal/component/radius/authenticator.go::credential",
+    "producer-sha": "612bf85bccee8c54",
+    "break": "body of credential replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2865-4.1-4",
+    "polarity": "positive",
+    "unit": "internal/component/radius/rfc2865_walk_test.go::TestAdminAccessRequestCarriesExactlyOneCredential",
+    "unit-sha": "04b5e842921632ff",
+    "claim-sha": "3f3eaa7c66f96f3d",
+    "route": "revert",
+    "producer": "internal/component/radius/authenticator.go::credential",
+    "producer-sha": "612bf85bccee8c54",
+    "break": "body of credential replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

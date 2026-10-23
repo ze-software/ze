@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC5216-3-1",
+    "polarity": "positive",
+    "unit": "internal/core/eap/peer_test.go::TestTLSFragmenterFirstFragmentHasLength",
+    "unit-sha": "467521ed6915e837",
+    "claim-sha": "c7852369c47a9d0c",
+    "route": "revert",
+    "producer": "internal/core/eap/eap_tls.go::nextFragment",
+    "producer-sha": "31c577b9e5afba22",
+    "break": "body of nextFragment replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5216-3-1",
+    "polarity": "negative",
+    "unit": "internal/core/eap/peer_test.go::TestTLSFragmenterMiddleAndLastFragmentsHaveNoLength",
+    "unit-sha": "2f8f86ac7c9ceb2c",
+    "claim-sha": "75a62cee0942cd67",
+    "route": "revert",
+    "producer": "internal/core/eap/eap_tls.go::nextFragment",
+    "producer-sha": "31c577b9e5afba22",
+    "break": "body of nextFragment replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5216-3-1",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc5216_reassembly_refusal_test.go::TestRFC5216FirstFragmentWithoutLengthIsRefused",
+    "unit-sha": "336ede04650fa138",
+    "claim-sha": "133390cfe3d03df2",
+    "route": "revert",
+    "producer": "internal/core/eap/eap_tls.go::reassemble",
+    "producer-sha": "b33123e6dfd063e9",
+    "break": "body of reassemble replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

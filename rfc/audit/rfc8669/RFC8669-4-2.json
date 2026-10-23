@@ -1,0 +1,16 @@
+{
+  "code": {},
+  "note": "Re-judged 2026-10-15 after f49cfab6e7 by an auditor who authored none of 2f0b126768, c9c935547a, f49cfab6e7. RFC 8669 Section 4: \"A BGP speaker receiving a BGP Prefix-SID attribute from an External BGP (EBGP) neighbor residing outside the boundaries of the SR domain MUST discard the attribute unless it is configured to accept the attribute from the EBGP neighbor.  A BGP speaker SHOULD log an error for further analysis when discarding an attribute.\" Producer: validateRFC7606Attrs raises the boundary discard after the walk and records it with AddDiscard even when an earlier discard took result.AttrCode; logRFC7606Discards logs it. Positives: TestRFC8669EBGPBoundaryDiscardLoggedAtDefaultLevel (rfc8669EBGPSession(false), well-formed Label-Index; one ERROR, attr=40, event, peer) and, new, the EBGP boundary case of TestRFC8669PrefixSIDDiscardBesideAnotherLogsBoth (one-octet ATOMIC_AGGREGATE discarded in the walk, so code 6 is result.AttrCode; exactly one attr=40 record citing RFC 8669, whose reason is the boundary description, and one attr=6 record). Negative: TestRFC8669EBGPAcceptedPrefixSIDNoErrorLog (same body on rfc8669EBGPSession(true); ActionNone, no attr=40 ERROR), recorded by the ActionNone-logging mutant of applyRFC7606 instead of a crash; the ignore-accept mutant reddens it on the action assertion first and is evidence of the boundary rule only, not of the log. Independent overlay probes: M1, M7 and M8 redden the EBGP case; M6 (boundary AddDiscard only when it took result.AttrCode, the c9c935547a fix undone) reddens the EBGP case alone, which is exactly the shape this requirement owns; baseline green.",
+  "requirement_sha": "474e983197f4bd90",
+  "tests": {
+    "internal/component/bgp/reactor/rfc8669_error_log_test.go::TestRFC8669EBGPAcceptedPrefixSIDNoErrorLog": "3a02d9c466bfb03e",
+    "internal/component/bgp/reactor/rfc8669_error_log_test.go::TestRFC8669EBGPBoundaryDiscardLoggedAtDefaultLevel": "3a02d9c466bfb03e",
+    "internal/component/bgp/reactor/rfc8669_error_log_test.go::TestRFC8669PrefixSIDDiscardBesideAnotherLogsBoth": "3a02d9c466bfb03e"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc8669_error_log_test.go::TestRFC8669EBGPAcceptedPrefixSIDNoErrorLog": "ea49d5f9ffd1838f",
+    "internal/component/bgp/reactor/rfc8669_error_log_test.go::TestRFC8669EBGPBoundaryDiscardLoggedAtDefaultLevel": "36c44c40c7ead20a",
+    "internal/component/bgp/reactor/rfc8669_error_log_test.go::TestRFC8669PrefixSIDDiscardBesideAnotherLogsBoth": "938788d699bf73d0"
+  },
+  "verdict": "enforced"
+}

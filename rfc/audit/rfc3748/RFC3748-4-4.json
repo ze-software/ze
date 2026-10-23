@@ -1,0 +1,17 @@
+{
+  "note": "Positive: an Identity Response with 3 octets past Length decodes with Type-Data 'user', and Session.Process records identity 'user' and draws the method Request. Negative: the same octets with Length raised to cover them are delivered as 'userXYZ', so the positive reads the Length field, not the buffer. Distinct inputs, unlike the legacy TestRFC3748LengthBoundsTypeData pair.",
+  "requirement_sha": "d3f61e2496a0f60e",
+  "tests": {
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748PaddingPastLengthIsNotData": "8ca42a58d78f22be",
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748PaddingPastLengthIsNotData#2": "8ca42a58d78f22be",
+    "internal/core/eap/rfc3748_walk_test.go::TestRFC3748LengthBoundsTypeData": "08e46d8cbdf7058a",
+    "internal/core/eap/rfc3748_walk_test.go::TestRFC3748LengthBoundsTypeData#2": "08e46d8cbdf7058a"
+  },
+  "units": {
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748PaddingPastLengthIsNotData": "e00c0c2b74158a14",
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748PaddingPastLengthIsNotData#2": "e00c0c2b74158a14",
+    "internal/core/eap/rfc3748_walk_test.go::TestRFC3748LengthBoundsTypeData": "00f57c9832ec3be7",
+    "internal/core/eap/rfc3748_walk_test.go::TestRFC3748LengthBoundsTypeData#2": "00f57c9832ec3be7"
+  },
+  "verdict": "enforced"
+}

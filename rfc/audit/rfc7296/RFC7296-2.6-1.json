@@ -1,0 +1,21 @@
+{
+  "note": "The earlier residual is closed. New TestRFC7296MismatchedResponderSPIReachesNoSAThroughTheReceiveLoops runs the real receive loops over loopback UDP, dispatchInbound (port 500) and dispatchNATTInbound (non-ESP marker): a datagram with the established SA's initiator SPI and a different non-zero responder SPI, sent first, is never delivered to the SA's session (the first delivered datagram must carry the SA's own responder SPI, and no second one arrives); the datagram with the full pair is delivered. Ordering on loopback and the single dispatch goroutine make 'not delivered' distinguishable from 'delayed'. Kept: lookupInbound units TestRFC7296IKESPIPairIdentifiesTheIKESA / TestRFC7296UnknownIKESPIPairMapsToNoSA (full-pair map, zero-rSPI exceptions) and wire header round-trip/short-header tags. Records: dispatchInbound, dispatchNATTInbound, lookupInbound reverts observed red.",
+  "requirement_sha": "64fb033e8e542797",
+  "tests": {
+    "internal/component/ike/engine/rfc7296_spi_pair_dispatch_test.go::TestRFC7296MismatchedResponderSPIReachesNoSAThroughTheReceiveLoops": "60305fa0579f053d",
+    "internal/component/ike/engine/rfc7296_spi_pair_dispatch_test.go::TestRFC7296MismatchedResponderSPIReachesNoSAThroughTheReceiveLoops#2": "60305fa0579f053d",
+    "internal/component/ike/engine/rfc7296_spi_pair_identifier_test.go::TestRFC7296IKESPIPairIdentifiesTheIKESA": "a7568870aefb0c20",
+    "internal/component/ike/engine/rfc7296_spi_pair_identifier_test.go::TestRFC7296UnknownIKESPIPairMapsToNoSA": "a7568870aefb0c20",
+    "internal/component/ike/wire/rfc7296_header_test.go::TestDecodeTruncatedHeader": "ca60d932fbc393ad",
+    "internal/component/ike/wire/rfc7296_header_test.go::TestHeaderRoundtrip": "ca60d932fbc393ad"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7296_spi_pair_dispatch_test.go::TestRFC7296MismatchedResponderSPIReachesNoSAThroughTheReceiveLoops": "996852d0bfed79eb",
+    "internal/component/ike/engine/rfc7296_spi_pair_dispatch_test.go::TestRFC7296MismatchedResponderSPIReachesNoSAThroughTheReceiveLoops#2": "996852d0bfed79eb",
+    "internal/component/ike/engine/rfc7296_spi_pair_identifier_test.go::TestRFC7296IKESPIPairIdentifiesTheIKESA": "fc725779f8e1d608",
+    "internal/component/ike/engine/rfc7296_spi_pair_identifier_test.go::TestRFC7296UnknownIKESPIPairMapsToNoSA": "8e863293ec140266",
+    "internal/component/ike/wire/rfc7296_header_test.go::TestDecodeTruncatedHeader": "5033372fa93a1158",
+    "internal/component/ike/wire/rfc7296_header_test.go::TestHeaderRoundtrip": "29cbad6e5625175d"
+  },
+  "verdict": "enforced"
+}

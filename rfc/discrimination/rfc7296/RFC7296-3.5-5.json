@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-3.5-5",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_wp2_test.go::TestWp2IDTerminatorRefused",
+    "unit-sha": "4f76758729ae0575",
+    "claim-sha": "9c326086db66b919",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/remote_id.go::refuseIDTerminators",
+    "producer-sha": "5339820b9fcc87ea",
+    "break": "body of refuseIDTerminators replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-3.5-5",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_wp2_test.go::TestWp2IDWithoutTerminatorAccepted",
+    "unit-sha": "966fdd30b31535fb",
+    "claim-sha": "d99177391b81b4ae",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/remote_id.go::refuseIDTerminators",
+    "producer-sha": "5339820b9fcc87ea",
+    "break": "body of refuseIDTerminators replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

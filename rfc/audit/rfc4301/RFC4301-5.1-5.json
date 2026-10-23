@@ -1,0 +1,13 @@
+{
+  "note": "Step 3a: process as the matching entry says, BYPASS, DISCARD or PROTECT. PROTECT: the datagram reaches the remote endpoint as ESP carrying the Child SA outbound SPI, no XfrmOutNoStates. BYPASS: delivered in the clear, and no ESP copy on the raw socket. DISCARD: operator DISCARD entry refuses the write with EPERM, XfrmOutPolBlock +1, not delivered. All three dispositions asserted on kernel counters and delivery; AH is not installed by IKE (ESP only), so the PROTECT case is ESP. Records: producer revert red both polarities; overlays discard->ALLOW and bypass->BLOCK each redden exactly the unit that asserts that disposition.",
+  "requirement_sha": "3e509f5a715e6822",
+  "tests": {
+    "internal/component/ike/engine/rfc4301_outbound_steps_linux_test.go::TestRFC4301OutboundPacketIsDiscardedByTheEntryItMatches": "8a9d29661d983142",
+    "internal/component/ike/engine/rfc4301_outbound_steps_linux_test.go::TestRFC4301OutboundPacketTakesTheDispositionOfTheEntryItMatches": "8a9d29661d983142"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc4301_outbound_steps_linux_test.go::TestRFC4301OutboundPacketIsDiscardedByTheEntryItMatches": "3dd4e913175fac34",
+    "internal/component/ike/engine/rfc4301_outbound_steps_linux_test.go::TestRFC4301OutboundPacketTakesTheDispositionOfTheEntryItMatches": "356dd358920fc52b"
+  },
+  "verdict": "enforced"
+}

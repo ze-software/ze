@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8955-7.3-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics",
+    "unit-sha": "682ef46b74cff9a9",
+    "claim-sha": "c44fcfef4f342fdb",
+    "route": "revert",
+    "producer": "internal/plugins/flowspec-firewall/rule_chains.go::ruleChains",
+    "producer-sha": "fd06b7eac61538ae",
+    "break": "body of ruleChains replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8955-7.3-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics",
+    "unit-sha": "682ef46b74cff9a9",
+    "claim-sha": "be8e7ac9775ed572",
+    "route": "revert",
+    "producer": "internal/plugins/flowspec-firewall/rule_chains.go::ruleChains",
+    "producer-sha": "fd06b7eac61538ae",
+    "break": "body of ruleChains replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

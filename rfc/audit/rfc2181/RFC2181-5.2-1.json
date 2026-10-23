@@ -1,0 +1,11 @@
+{
+  "note": "TestRFC2181_RRSetEqualTTL drives answerQuestions for a three-address host and asserts every A record in the emitted RRSet carries the one configured TTL (120).",
+  "requirement_sha": "4c7cf3e64f87228d",
+  "tests": {
+    "internal/plugins/geodns/rfc2181_server_test.go::TestRFC2181_RRSetEqualTTL": "8db97d24fc455c8c"
+  },
+  "units": {
+    "internal/plugins/geodns/rfc2181_server_test.go::TestRFC2181_RRSetEqualTTL": "922b30324bbe96bc"
+  },
+  "verdict": "enforced"
+}

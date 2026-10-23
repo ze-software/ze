@@ -1,0 +1,17 @@
+{
+  "note": "D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV->WriteTLV and field-export renames (TLV code constants verified unchanged). The decode producers in attr_srv6.go changed only by bgpls.ErrBGPLSTruncated/WriteTLV qualification and the owner-approved unexporting of lsSRv6EndpointBehavior/lsSRv6BGPPeerNodeSID. RFC 9514 Section 4.2: \"Reserved: 1-octet field that MUST be set to 0 when originated and ignored on receipt.\" Originate: isis LAN End.X TLV 1107 pair (unchanged). Receipt: 1107 and 1108 with Reserved 0xFF decode equal to Reserved 0.",
+  "requirement_sha": "63e161c6ceabd73f",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514EndXSIDReservedIgnored": "54ef8216fabaae35",
+    "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514EndXSIDReservedIgnored#2": "54ef8216fabaae35",
+    "internal/plugins/isis/rfc9514_bgpls_export_sentence_test.go::TestRFC9514ISISEndXAllOnesNeverReachReserved": "8dc79db14f32fa32",
+    "internal/plugins/isis/rfc9514_bgpls_export_sentence_test.go::TestRFC9514ISISEndXOriginatedReservedZero": "8dc79db14f32fa32"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514EndXSIDReservedIgnored": "4e9c7bd6cf4d7fc3",
+    "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514EndXSIDReservedIgnored#2": "4e9c7bd6cf4d7fc3",
+    "internal/plugins/isis/rfc9514_bgpls_export_sentence_test.go::TestRFC9514ISISEndXAllOnesNeverReachReserved": "78561b61814ed0c2",
+    "internal/plugins/isis/rfc9514_bgpls_export_sentence_test.go::TestRFC9514ISISEndXOriginatedReservedZero": "c7cc2d5be809bdd0"
+  },
+  "verdict": "enforced"
+}

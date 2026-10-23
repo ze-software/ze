@@ -1,0 +1,15 @@
+{
+  "note": "Judge rejudge 2026-09-30 (phase 8: the Keyed SHA1 key-id units moved to RFC5880-6.7.4-10, row cites 6.7.2 only). Positive TestRFC5880SimplePasswordSectionCarriesPasswordAndKeyID asserts the selected password and Key ID on the signed wire. Negatives TestRFC5880SimplePasswordOtherThanSelectedPairDiscarded (key id 4/6/255 with the right password, password changed in first/middle/last byte, ErrPasswordMismatch each, selected pair accepted) and TestRFC5880SimplePasswordSignerNeedsPassword (nil/empty password refused at NewSigner). Units unchanged; judgement unchanged.",
+  "requirement_sha": "cc3a6fb7ffbac1f1",
+  "tests": {
+    "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880SimplePasswordSignerNeedsPassword": "69049dc5fe6d5288",
+    "internal/component/bfd/auth/rfc5880_section_fields_test.go::TestRFC5880SimplePasswordOtherThanSelectedPairDiscarded": "7078094d8d649608",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880SimplePasswordSectionCarriesPasswordAndKeyID": "5a25c74cc2d9bd47"
+  },
+  "units": {
+    "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880SimplePasswordSignerNeedsPassword": "9401088264f28c60",
+    "internal/component/bfd/auth/rfc5880_section_fields_test.go::TestRFC5880SimplePasswordOtherThanSelectedPairDiscarded": "4dd4fcbe56732b7d",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880SimplePasswordSectionCarriesPasswordAndKeyID": "f7fae4f769908e20"
+  },
+  "verdict": "enforced"
+}

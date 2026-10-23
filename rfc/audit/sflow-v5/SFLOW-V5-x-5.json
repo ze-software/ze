@@ -1,0 +1,13 @@
+{
+  "note": "Single-polarity row. TestSFlowV5ConfiguredMaxDatagramBoundsEveryDatagram sets a non-default 600-octet bound on a real Sender, requires every counter datagram for 30 interfaces to be <= 600 octets while together carrying all 30 samples (num_samples summed on the collector socket), requires a flow sample with a 1400-octet header to arrive in <= 600 octets, and requires Sender.Send to refuse 601 octets; the older default-bound unit TestSFlowMultiInterface stays. An encoder bounding by the default instead of the configured size goes red.",
+  "requirement_sha": "19cdd9b48418c9da",
+  "tests": {
+    "internal/plugins/flowexport/sflow/sflow_v5_datagram_test.go::TestSFlowV5ConfiguredMaxDatagramBoundsEveryDatagram": "e743d810dcc73b88",
+    "internal/plugins/flowexport/sflow/sflow_v5_encoder_test.go::TestSFlowMultiInterface": "3fd871610d6c96e0"
+  },
+  "units": {
+    "internal/plugins/flowexport/sflow/sflow_v5_datagram_test.go::TestSFlowV5ConfiguredMaxDatagramBoundsEveryDatagram": "a08915e018f035da",
+    "internal/plugins/flowexport/sflow/sflow_v5_encoder_test.go::TestSFlowMultiInterface": "cda6880016df2aa6"
+  },
+  "verdict": "enforced"
+}

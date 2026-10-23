@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC2131-4.3.1-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/dhcpserver/rfc2131_identity_options_test.go::TestRFC2131ConfiguredParameterValuesReturned",
+    "unit-sha": "9b0f8b5fce3c766c",
+    "claim-sha": "b4c84f88c1137877",
+    "route": "revert",
+    "producer": "internal/plugins/dhcpserver/handler.go::buildReply",
+    "producer-sha": "768b422a81e3e140",
+    "break": "body of buildReply replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2131-4.3.1-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/dhcpserver/rfc2131_identity_options_test.go::TestRFC2131ConfiguredParameterValuesReturned",
+    "unit-sha": "9b0f8b5fce3c766c",
+    "claim-sha": "e9320268d530803a",
+    "route": "revert",
+    "producer": "internal/plugins/dhcpserver/handler.go::buildReply",
+    "producer-sha": "768b422a81e3e140",
+    "break": "body of buildReply replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2131-4.3.1-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/dhcpserver/rfc2131_test.go::TestUnconfiguredParametersOmitted",
+    "unit-sha": "4630baa60db01b39",
+    "claim-sha": "b5b145060e9d2276",
+    "route": "revert",
+    "producer": "internal/plugins/dhcpserver/handler.go::buildReply",
+    "producer-sha": "768b422a81e3e140",
+    "break": "body of buildReply replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

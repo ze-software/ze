@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: a software-version capability no configuration option can switch on or off. TestSoftverConfigOptionEnables asserts extractSoftverCapabilities declares code 75 for mode enable, red if the option were ignored. Negative: TestSoftverConfigOptionDisables, mode disable declares nothing.",
+  "requirement_sha": "b4b16615c5c9c20d",
+  "tests": {
+    "internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go::TestSoftverConfigOptionDisables": "621a76bf24368516",
+    "internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go::TestSoftverConfigOptionEnables": "621a76bf24368516"
+  },
+  "units": {
+    "internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go::TestSoftverConfigOptionDisables": "762024389c1b193e",
+    "internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go::TestSoftverConfigOptionEnables": "c628a91e2a27afe3"
+  },
+  "verdict": "enforced"
+}

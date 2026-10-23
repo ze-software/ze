@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5880-6.7.3-11",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedMD5DigestMismatchDiscarded",
+    "unit-sha": "d52b6fe2ac54cdfc",
+    "claim-sha": "01e292c8e5f849ef",
+    "route": "revert",
+    "producer": "internal/component/bfd/auth/md5.go::newMD5Verifier",
+    "producer-sha": "d2174e8a586ddfa2",
+    "break": "body of newMD5Verifier replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.7.3-11",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedMD5IndependentDigestAccepted",
+    "unit-sha": "de1c4921d45d0bf8",
+    "claim-sha": "1a49db87f0c2b33d",
+    "route": "revert",
+    "producer": "internal/component/bfd/auth/md5.go::newMD5Verifier",
+    "producer-sha": "d2174e8a586ddfa2",
+    "break": "body of newMD5Verifier replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

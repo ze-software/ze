@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC2661-9-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661StopCCNClearsSessionsSilently",
+    "unit-sha": "e454d5a69988e4ba",
+    "claim-sha": "2c43d53df0454a37",
+    "route": "revert",
+    "producer": "internal/component/l2tp/tunnel_fsm.go::handleStopCCN",
+    "producer-sha": "44a8978e29f37f02",
+    "break": "body of handleStopCCN replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2661-9-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/rfc2661_session_fsm_test.go::TestSession_StopCCN_CascadeSessions",
+    "unit-sha": "33ed2f43c50fd868",
+    "claim-sha": "05d532619440bfcc",
+    "route": "revert",
+    "producer": "internal/component/l2tp/tunnel_fsm.go::handleStopCCN",
+    "producer-sha": "44a8978e29f37f02",
+    "break": "body of handleStopCCN replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2661-9-1",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/rfc2661_session_fsm_test.go::TestStopCCNQueuesAllTeardowns",
+    "unit-sha": "44839fd324bf717a",
+    "claim-sha": "d5b6df01cfc3560e",
+    "route": "revert",
+    "producer": "internal/component/l2tp/tunnel_fsm.go::handleStopCCN",
+    "producer-sha": "44a8978e29f37f02",
+    "break": "body of handleStopCCN replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

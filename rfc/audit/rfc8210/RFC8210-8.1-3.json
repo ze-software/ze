@@ -1,0 +1,23 @@
+{
+  "note": "TestRTRResetQueryWithoutFastResyncData records the first query on the wire in each lacking-data case: no remembered session, expired lease (serial 42 held), cache switch (standby holds serial 42 over a current lease, so only startFullSync forces the Reset), and version downgrade (v2 Serial answered with code 4 at v1, retried as v1 Reset). Negative: same cache with a current lease opens with a Serial Query carrying Session ID 7 and serial 42. Each case isolated from the others.",
+  "requirement_sha": "c1be3184bdc95278",
+  "tests": {
+    "internal/component/bgp/plugins/rpki/rfc8210_resync_test.go::TestRFC8210ResetQueryFallback": "2d07978113bb370e",
+    "internal/component/bgp/plugins/rpki/rfc8210_resync_test.go::TestRFC8210ResetQueryFallback#2": "2d07978113bb370e",
+    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRResetQueryWithoutFastResyncData": "f4affe67e61b8df8",
+    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRResetQueryWithoutFastResyncData#2": "f4affe67e61b8df8",
+    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRResetQueryWithoutFastResyncData#3": "f4affe67e61b8df8",
+    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRResetQueryWithoutFastResyncData#4": "f4affe67e61b8df8",
+    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRResetQueryWithoutFastResyncData#5": "f4affe67e61b8df8"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rpki/rfc8210_resync_test.go::TestRFC8210ResetQueryFallback": "169bd3f47fd3330a",
+    "internal/component/bgp/plugins/rpki/rfc8210_resync_test.go::TestRFC8210ResetQueryFallback#2": "169bd3f47fd3330a",
+    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRResetQueryWithoutFastResyncData": "c813049ad69cc206",
+    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRResetQueryWithoutFastResyncData#2": "c813049ad69cc206",
+    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRResetQueryWithoutFastResyncData#3": "c813049ad69cc206",
+    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRResetQueryWithoutFastResyncData#4": "c813049ad69cc206",
+    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRResetQueryWithoutFastResyncData#5": "c813049ad69cc206"
+  },
+  "verdict": "enforced"
+}

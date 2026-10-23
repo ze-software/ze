@@ -1,0 +1,13 @@
+{
+  "note": "TestRFC6793ReceivedAS4PathAcceptedAlongsideASPath: ReconcileASPathFamily accepts AS_PATH+AS4_PATH from an OLD speaker and uses the AS4_PATH ASNs; the negative shows no 4-octet AS invented without AS4_PATH.",
+  "requirement_sha": "ee79e941fc1d5665",
+  "tests": {
+    "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793ASPathAloneNotInventedIntoFourOctet": "4e9759edcd069569",
+    "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793ReceivedAS4PathAcceptedAlongsideASPath": "4e9759edcd069569"
+  },
+  "units": {
+    "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793ASPathAloneNotInventedIntoFourOctet": "1d6516d3d1fb32af",
+    "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793ReceivedAS4PathAcceptedAlongsideASPath": "bda7a9587182fabd"
+  },
+  "verdict": "enforced"
+}

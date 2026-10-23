@@ -1,0 +1,12 @@
+{
+  "code": {},
+  "note": "Independent rejudge 2026-10-21 after 74626ae4b4 (unit change is the VALIDATES comment only; the producer grammar changed). RFC 8955 Section 4.2.2.9: \"Type 9 component bitmasks MUST be encoded as 1- or 2-octet bitmask (bitmask_op len=00 or len=01).\" TestRFC8955TCPFlagsBitmaskSingleOctet drives the config producer buildFlowSpecComponents with tcp-flags \"syn&!=ack\" and \"cwr\"; under the new grammar that is three terms (syn, AND !=ack, cwr), required exactly, and every emitted bitmask must be non-empty and at most 2 octets. Each operand comes from parseBitmaskOperand as a uint8 (names or parseUint8, 0..255), and writeToAFI takes its width from operandWidth, so a mutation widening tcp-flags to len=10 or len=11 reddens the <=2 assertion. The single-polarity argument still holds: no encode path builds a Type-9 operand above 0xFFFF (text and config are uint8; the decoder refuses valueLen > 2 for FlowTCPFlags, so re-encoding a received value yields at most 2 octets). Finding: the row's {single-polarity} annotation cites parseFlowTCPFlagMatches and config_builder.go:415-447, which 74626ae4b4 deleted; the producer is now parseFlowBitmaskMatches -> parseBitmaskTermsText -> parseBitmaskOperand (plugin_encode_text.go). The argument is true, its citation is stale. Recorded break (writeToAFI panics) proves reach only; the width-specific red is established by reading.",
+  "requirement_sha": "f382e60cf70ce69c",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955TCPFlagsBitmaskSingleOctet": "edf3d98f88af0674"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955TCPFlagsBitmaskSingleOctet": "9017378aeafc641f"
+  },
+  "verdict": "enforced"
+}

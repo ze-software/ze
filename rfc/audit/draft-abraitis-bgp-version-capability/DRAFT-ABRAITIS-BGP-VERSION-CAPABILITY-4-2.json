@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: advertising code 75 without explicit configuration. TestSoftverNotAdvertisedWithoutExplicitConfiguration asserts no declaration for a peer with no capability block, an empty capability block, and a group without the key (assert.Empty), red if any advertises. Positive: an explicit mode enable declares code 75 with encodeValue's payload.",
+  "requirement_sha": "2039575d3a16c7b5",
+  "tests": {
+    "internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go::TestSoftverAdvertisedOnlyAfterExplicitConfiguration": "621a76bf24368516",
+    "internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go::TestSoftverNotAdvertisedWithoutExplicitConfiguration": "621a76bf24368516"
+  },
+  "units": {
+    "internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go::TestSoftverAdvertisedOnlyAfterExplicitConfiguration": "889d972de6960d8c",
+    "internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go::TestSoftverNotAdvertisedWithoutExplicitConfiguration": "cf7548ae1ec58582"
+  },
+  "verdict": "enforced"
+}

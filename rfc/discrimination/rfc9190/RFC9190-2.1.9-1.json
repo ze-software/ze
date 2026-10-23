@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9190-2.1.9-1",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc9190_fragmentation_test.go::TestEAPTLSKeepsTheLengthBitOnAFragmentedMessage",
+    "unit-sha": "9acc153c3b4a84b2",
+    "claim-sha": "0475a4b9cbe96d9c",
+    "route": "revert",
+    "producer": "internal/core/eap/eap_tls.go::nextFragment",
+    "producer-sha": "31c577b9e5afba22",
+    "break": "body of nextFragment replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9190-2.1.9-1",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc9190_fragmentation_test.go::TestEAPTLSSetsNoLengthBitOnAnUnfragmentedMessage",
+    "unit-sha": "11060c04d24b7f10",
+    "claim-sha": "e6601aea5c485908",
+    "route": "revert",
+    "producer": "internal/core/eap/eap_tls.go::nextFragment",
+    "producer-sha": "31c577b9e5afba22",
+    "break": "body of nextFragment replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

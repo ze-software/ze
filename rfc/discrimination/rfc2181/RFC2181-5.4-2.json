@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC2181-5.4-2",
+    "polarity": "positive",
+    "unit": "internal/component/resolve/dns/rfc2181_cache_rrset_test.go::TestRFC2181FormingAnRRSetDiscardsTheWholeCachedSet",
+    "unit-sha": "309dbc9e28979c38",
+    "claim-sha": "d96eac9a3034aef0",
+    "route": "revert",
+    "producer": "internal/component/resolve/dns/cache.go::put",
+    "producer-sha": "86bd12d0d5340a7e",
+    "break": "body of put replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2181-5.4-2",
+    "polarity": "negative",
+    "unit": "internal/component/resolve/dns/rfc2181_cache_rrset_test.go::TestRFC2181FormingAnRRSetDiscardsTheWholeCachedSet",
+    "unit-sha": "309dbc9e28979c38",
+    "claim-sha": "f4f088e7f6664ab9",
+    "route": "revert",
+    "producer": "internal/component/resolve/dns/cache.go::put",
+    "producer-sha": "86bd12d0d5340a7e",
+    "break": "body of put replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2181-5.4-2",
+    "polarity": "positive",
+    "unit": "internal/component/resolve/dns/rfc2181_cache_test.go::TestRFC2181_CacheReplacesRRSetNoMerge",
+    "unit-sha": "104a32380f88701a",
+    "claim-sha": "63a895d1fd0c0992",
+    "route": "revert",
+    "producer": "internal/component/resolve/dns/cache.go::put",
+    "producer-sha": "86bd12d0d5340a7e",
+    "break": "body of put replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

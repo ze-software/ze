@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC9012-3.1-3",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong",
+    "unit-sha": "8f98639bfee45463",
+    "claim-sha": "c4412ab5cd463a99",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/forward_build.go::buildModifiedPayload",
+    "producer-sha": "eed15e82d68e132d",
+    "break": "body of buildModifiedPayload replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9012-3.1-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong",
+    "unit-sha": "8f98639bfee45463",
+    "claim-sha": "8b186210c025b724",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::applyTunnelEncap",
+    "producer-sha": "c1496a1bdb3c536f",
+    "break": "body of applyTunnelEncap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9012-3.1-3",
+    "polarity": "positive",
+    "unit": "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012ReservedOctetsPropagateUnchanged",
+    "unit-sha": "3fd6b34fbee9a400",
+    "claim-sha": "65b6404efb2a6c39",
+    "route": "revert",
+    "producer": "internal/core/bgp/attribute/tunnel_encap.go::WriteTo",
+    "producer-sha": "0ae017dcddbdf116",
+    "break": "body of WriteTo replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9012-3.1-3",
+    "polarity": "negative",
+    "unit": "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012ReservedOctetsPropagateUnchanged",
+    "unit-sha": "3fd6b34fbee9a400",
+    "claim-sha": "58458a8ac6c8e513",
+    "route": "revert",
+    "producer": "internal/core/bgp/attribute/tunnel_encap.go::WriteTo",
+    "producer-sha": "0ae017dcddbdf116",
+    "break": "body of WriteTo replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

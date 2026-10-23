@@ -1,0 +1,19 @@
+{
+  "note": "Rejudged the whole RFC 9252 Section 2 unchanged-next-hop propagation and Reserved-field obligation after the implemented identity-condition fix. applyFactsNextHop now records only next-hop operations; applyEgressPrefixSIDNextHop compares the original received entity with the final effective carrier after policy, configured rewriting and scope normalization on cached and RS paths. Equal identity records no Service-TLV removal, including explicit A-to-A and configured restoration of the original address. The migrated TestPrefixSIDPropagationNextHop and new TestRFC9252EffectiveNextHopControlsServiceTLVs inspect actual recipient Session output after validated receipt and cache publication, asserting exact Service-TLV Reserved and unknown nested bytes for unchanged identity, with changed-identity counter-controls. The matrix covers native IPv6/VPNv6 carriers, operation and raw-policy changes, RS export fallback, mixed legacy/MP output, pair trimming and repaired intermediate addressless MP fields. MP carrier presence is selected by base.mpFamily rather than address validity, so a legacy sibling or absent companion operation cannot decide the MP service identity. The earlier reserved-field fixture remains complementary materialized-body evidence, not the sole end-to-end proof. Legacy/mapped and extra L2 fixtures are propagation controls, not claims of service origination or EVPN support. The former explicit-equality defect is fixed, not retained as a scope gap. Re-judged 2026-10-14 (independent reader, after 8c1c4013f2 and 7d37dcd562). The only edit to TestRFC9252EffectiveNextHopControlsServiceTLVs changes the expected Label-Index from normalized to as received, since on these carriers (not labeled unicast) the TLV is unrecognized (RFC 8669 Section 3.1); the Service-TLV Reserved and unknown nested-byte assertions are unchanged. Verdict unchanged.",
+  "requirement_sha": "a14cd59919a27569",
+  "tests": {
+    "internal/component/bgp/reactor/rfc9252_effective_next_hop_test.go::TestRFC9252EffectiveNextHopControlsServiceTLVs": "87862cd048077d14",
+    "internal/component/bgp/reactor/rfc9252_effective_next_hop_test.go::TestRFC9252EffectiveNextHopControlsServiceTLVs#2": "87862cd048077d14",
+    "internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop": "ecf02c1d9bcb0077",
+    "internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop#2": "ecf02c1d9bcb0077",
+    "internal/component/bgp/reactor/rfc9252_reserved_propagated_test.go::TestRFC9252ReservedFieldsPropagatedUnchanged": "1e5dc6de8905bcd3"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc9252_effective_next_hop_test.go::TestRFC9252EffectiveNextHopControlsServiceTLVs": "0db9b7d14f865241",
+    "internal/component/bgp/reactor/rfc9252_effective_next_hop_test.go::TestRFC9252EffectiveNextHopControlsServiceTLVs#2": "0db9b7d14f865241",
+    "internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop": "6c50bed30bbf7b9b",
+    "internal/component/bgp/reactor/rfc9252_peer_forward_facts_test.go::TestPrefixSIDPropagationNextHop#2": "6c50bed30bbf7b9b",
+    "internal/component/bgp/reactor/rfc9252_reserved_propagated_test.go::TestRFC9252ReservedFieldsPropagatedUnchanged": "104fdfe95b708141"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "(a) forbidden: treating the MAY as a MUST by discarding a request without Message-Authenticator by default. (b) TestRFC5176MessageAuthenticatorAbsentIsAcceptedByDefault asserts Disconnect-ACK and one teardown with no Message-Authenticator; TestCoAListenerMissingMessageAuthenticatorDroppedWhenRequired asserts discard only when the operator leaf requires it.",
+  "requirement_sha": "76d3f6211fedecf1",
+  "tests": {
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go::TestCoAListenerMissingMessageAuthenticatorDroppedWhenRequired": "abaf30a8356b8748",
+    "internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_optional_test.go::TestRFC5176MessageAuthenticatorAbsentIsAcceptedByDefault": "c6a157b9291bccdc"
+  },
+  "units": {
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go::TestCoAListenerMissingMessageAuthenticatorDroppedWhenRequired": "9c09d916e4dcb687",
+    "internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_optional_test.go::TestRFC5176MessageAuthenticatorAbsentIsAcceptedByDefault": "1d756817447ce43c"
+  },
+  "verdict": "enforced"
+}

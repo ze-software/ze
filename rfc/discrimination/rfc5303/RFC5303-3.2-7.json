@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC5303-3.2-7",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/adjacency/rfc5303_invalid_state_test.go::TestRFC5303InvalidStateLeavesAdjacencyUntouched",
+    "unit-sha": "f0e707d053068cf4",
+    "claim-sha": "8cec8b34027f65af",
+    "route": "revert",
+    "producer": "internal/plugins/isis/adjacency/fsm.go::ReceiveHello",
+    "producer-sha": "7fed9bee9043160e",
+    "break": "body of ReceiveHello replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5303-3.2-7",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/circuit/rfc5303_invalid_state_test.go::TestRFC5303InvalidStateBeforeValidDuplicate",
+    "unit-sha": "0ea14a355cf7d6a3",
+    "claim-sha": "25b54f69e5c138a3",
+    "route": "revert",
+    "producer": "internal/plugins/isis/circuit/runtime.go::handleP2PHello",
+    "producer-sha": "42354fbbd946a760",
+    "break": "body of handleP2PHello replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5303-3.2-7",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/circuit/rfc5303_invalid_state_test.go::TestRFC5303InvalidStateWireDiscard",
+    "unit-sha": "a26c247570868f06",
+    "claim-sha": "6b741d1197007d6f",
+    "route": "revert",
+    "producer": "internal/plugins/isis/circuit/runtime.go::handleP2PHello",
+    "producer-sha": "42354fbbd946a760",
+    "break": "body of handleP2PHello replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5303-3.2-7",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/circuit/rfc5303_invalid_state_test.go::TestRFC5303InvalidStateWireDiscard",
+    "unit-sha": "a26c247570868f06",
+    "claim-sha": "6fb7b677f8338259",
+    "route": "revert",
+    "producer": "internal/plugins/isis/circuit/runtime.go::handleP2PHello",
+    "producer-sha": "42354fbbd946a760",
+    "break": "body of handleP2PHello replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

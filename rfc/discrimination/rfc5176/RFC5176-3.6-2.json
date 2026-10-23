@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5176-3.6-2",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176VendorSpecificIsAChangeOnly",
+    "unit-sha": "96a313bcfb876406",
+    "claim-sha": "2551cb297f9f49af",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authradius/coa.go::readCoAChange",
+    "producer-sha": "f754405f54ce41e1",
+    "break": "body of readCoAChange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5176-3.6-2",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176VendorSpecificIsNeverAnIdentity",
+    "unit-sha": "17c27c03fe2d530e",
+    "claim-sha": "81d51f16826d2115",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authradius/coa.go::oneSession",
+    "producer-sha": "e4e2644e7cdfd24e",
+    "break": "body of oneSession replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,39 @@
+{
+  "note": "Re-judged 2026-10-14 (independent auditor) after the Recognizer became a three-way verdict (spec-bgp-update-propagation-rfc-defects N-3). RFC 7606 Section 5.4: \"A BGP speaker advertising support for such a typed address family MUST handle routes with unrecognized NLRI types within that address family by discarding them, unless the relevant specification for that address family specifies otherwise.\" Re-read the four changed units diff by diff: mup and mvpn TestRecognizeNLRIRejectsUnimplementedTypes now compare against nlritype.Keep and nlritype.Discard exactly, which is stricter than the old bool (a recognizer answering Withdraw for an unknown type now goes red); the one moved expectation, a one-octet T1ST body, is now Withdraw (malformed implemented type) and still never Discard. The reactor fake recognizers changed only their return type through keepIf; the survivor-byte, ActionNone and BGP-LS override assertions are unchanged. All other covers and their earlier reading stand. Rejudged 2026-10-16 (independent reader) after the owner-approved multi-label withdrawal change (RFC 8277 Section 2.4, nlrisplit.LabeledWithdrawal): SynthesizeWithdraw gained an addPath bool and SynthesizeWithdrawFamilies/mpReachToUnreach an addPath predicate, which mpReachToUnreach reads only for a family nlrisplit.CarriesCompatibility names (labeled unicast, VPN). The edits in TestRFC7606Section54DropsMPUnreachOnlyUpdateRatherThanForgeEOR, TestRFC7606Section54FiltersTreatAsWithdrawSynthesis and TestRFC7606Section54FiltersWhenTheAttributeWalkIsAbandoned pass a nil addPath predicate to SynthesizeWithdrawFamilies; their families (EVPN, MVPN, MUP) carry no Compatibility field, so the predicate is never read and the discard/filter assertions are unchanged. RFC 7606 Section 5.4: \"A BGP speaker advertising support for such a typed address family MUST handle routes with unrecognized NLRI types within that address family by discarding them, unless the relevant specification for that address family specifies otherwise.\" Verdict stands.",
+  "requirement_sha": "9f4d0f6f62749d2a",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/mup/rfc7606_test.go::TestRecognizeNLRIRejectsUnimplementedTypes": "a20a0f7a7ea7dd16",
+    "internal/component/bgp/plugins/nlri/mvpn/rfc7606_test.go::TestRecognizeNLRIRejectsUnimplementedTypes": "a372fdc4a42df1c1",
+    "internal/component/bgp/reactor/rfc7606_session_validation_nlritype_test.go::TestRFC7606Section54DiscardsUnrecognizedEVPNType": "4839b4c5f38ba71f",
+    "internal/component/bgp/reactor/rfc7606_session_validation_nlritype_test.go::TestRFC7606Section54DropsMPUnreachOnlyUpdateRatherThanForgeEOR": "4839b4c5f38ba71f",
+    "internal/component/bgp/reactor/rfc7606_session_validation_nlritype_test.go::TestRFC7606Section54PropagatesUnknownBGPLSType": "4839b4c5f38ba71f",
+    "internal/component/bgp/reactor/rfc7606_session_validation_nlritype_test.go::TestRFC7606Section54SessionResetsUnparseableTypedNLRI": "4839b4c5f38ba71f",
+    "internal/component/bgp/reactor/rfc7606_session_validation_nlritype_typed_test.go::TestRFC7606Section54DiscardsUnrecognizedMUPType": "498b67ae2a187448",
+    "internal/component/bgp/reactor/rfc7606_session_validation_nlritype_typed_test.go::TestRFC7606Section54DiscardsUnrecognizedMVPNType": "498b67ae2a187448",
+    "internal/component/bgp/reactor/rfc7606_session_validation_nlritype_typed_test.go::TestRFC7606Section54FiltersTreatAsWithdrawSynthesis": "498b67ae2a187448",
+    "internal/component/bgp/reactor/session_validation_nlritype_bypass_test.go::TestRFC7606Section54FiltersWhenTheAttributeWalkIsAbandoned": "d39f8e1a55320a07",
+    "internal/component/bgp/reactor/session_validation_nlritype_bypass_test.go::TestRFC7606Section54ReadsTypedNLRIUnderAddPath": "d39f8e1a55320a07",
+    "internal/le/interoplab/bgp/check_rfc.go::checkRFC7606TypedNLRIDiscard": "9d03834af3f0f054",
+    "test/plugin/rfc7606-54-bgpls-override-propagates.ci": "d72def77449d8e79",
+    "test/plugin/rfc7606-54-discard-unrecognized-mup-nlri.ci": "1162cb8dbc70a683",
+    "test/plugin/rfc7606-54-discard-unrecognized-nlri.ci": "a80055c71e6a4c05"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/mup/rfc7606_test.go::TestRecognizeNLRIRejectsUnimplementedTypes": "2d10edf2bd416f64",
+    "internal/component/bgp/plugins/nlri/mvpn/rfc7606_test.go::TestRecognizeNLRIRejectsUnimplementedTypes": "810205bbda0bc874",
+    "internal/component/bgp/reactor/rfc7606_session_validation_nlritype_test.go::TestRFC7606Section54DiscardsUnrecognizedEVPNType": "8724841c177bbac1",
+    "internal/component/bgp/reactor/rfc7606_session_validation_nlritype_test.go::TestRFC7606Section54DropsMPUnreachOnlyUpdateRatherThanForgeEOR": "80ecfc955783d2bd",
+    "internal/component/bgp/reactor/rfc7606_session_validation_nlritype_test.go::TestRFC7606Section54PropagatesUnknownBGPLSType": "f3d69167c28a318a",
+    "internal/component/bgp/reactor/rfc7606_session_validation_nlritype_test.go::TestRFC7606Section54SessionResetsUnparseableTypedNLRI": "81e8736cd6b83252",
+    "internal/component/bgp/reactor/rfc7606_session_validation_nlritype_typed_test.go::TestRFC7606Section54DiscardsUnrecognizedMUPType": "5f1508f4aebe0dc4",
+    "internal/component/bgp/reactor/rfc7606_session_validation_nlritype_typed_test.go::TestRFC7606Section54DiscardsUnrecognizedMVPNType": "f4bb4d8ea9c92c04",
+    "internal/component/bgp/reactor/rfc7606_session_validation_nlritype_typed_test.go::TestRFC7606Section54FiltersTreatAsWithdrawSynthesis": "3043d4380ec0a385",
+    "internal/component/bgp/reactor/session_validation_nlritype_bypass_test.go::TestRFC7606Section54FiltersWhenTheAttributeWalkIsAbandoned": "8df64b58da2a78fa",
+    "internal/component/bgp/reactor/session_validation_nlritype_bypass_test.go::TestRFC7606Section54ReadsTypedNLRIUnderAddPath": "d3d62cdd889ef0c3",
+    "internal/le/interoplab/bgp/check_rfc.go::checkRFC7606TypedNLRIDiscard": "5939f163938e3d95",
+    "test/plugin/rfc7606-54-bgpls-override-propagates.ci": "d72def77449d8e79",
+    "test/plugin/rfc7606-54-discard-unrecognized-mup-nlri.ci": "1162cb8dbc70a683",
+    "test/plugin/rfc7606-54-discard-unrecognized-nlri.ci": "a80055c71e6a4c05"
+  },
+  "verdict": "enforced"
+}

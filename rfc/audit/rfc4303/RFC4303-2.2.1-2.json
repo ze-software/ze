@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden behaviour: keying an SA with ESN that the SA management protocol did not negotiate. Negative: TestEsnInitiatorRefusesAnESNValueItNeverOffered requires verifyAcceptedOffer to return errAcceptedOfferESN for an answer selecting ESN (and for two ESN values), t.Fatalf otherwise. Positive: the offered non-ESN value is accepted and the offer is pinned to the single value. Ze never offers ESN and manual OSPFv3 SAs set none, so no un-negotiated ESN path exists.",
+  "requirement_sha": "eda636389f3020ee",
+  "tests": {
+    "internal/component/ike/engine/rfc7296_esn_test.go::TestEsnInitiatorRefusesAnESNValueItNeverOffered": "c6cc102fdb5f482d",
+    "internal/component/ike/engine/rfc7296_esn_test.go::TestEsnInitiatorRefusesAnESNValueItNeverOffered#2": "c6cc102fdb5f482d"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7296_esn_test.go::TestEsnInitiatorRefusesAnESNValueItNeverOffered": "2fedffa338667684",
+    "internal/component/ike/engine/rfc7296_esn_test.go::TestEsnInitiatorRefusesAnESNValueItNeverOffered#2": "2fedffa338667684"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged 2026-10-02 (BGP c28 judge). Forbidden: a single label entry transmitted with S=0. Positive: TestRFC8277BuilderLabelLayout pins the one-label entry 000641 through both WriteLabelValues builders (labeled plain/ADD-PATH, VPN) as whole-NLRI literals, plus HEAD TestLabeledSingleLabelSection22Encoding for WriteTo. Genuine negative (R1(b)): TestRFC8277RelayedStackSBitRewritten hands WriteTo a lone entry 0x000640 with S=0, the relayed-entry input, and asserts 20 000641 0a. Judge overlays: dropping 'entry |= 1' in WriteLabelStack reds the negative (200006400a); dropping the S line of WriteLabelValues reds all five builder cases. The {single-polarity} marker is dropped (correction paragraph), records on both polarities.",
+  "requirement_sha": "14e9407d18f45b31",
+  "tests": {
+    "internal/component/bgp/message/rfc8277_label_layout_test.go::TestRFC8277BuilderLabelLayout": "bc0d36b08721c366",
+    "internal/component/bgp/plugins/nlri/labeled/rfc8277_sbit_relay_test.go::TestRFC8277RelayedStackSBitRewritten": "06c2f61c2345346e",
+    "internal/component/bgp/plugins/nlri/labeled/rfc8277_test.go::TestLabeledSingleLabelSection22Encoding": "20798a2559b785cc"
+  },
+  "units": {
+    "internal/component/bgp/message/rfc8277_label_layout_test.go::TestRFC8277BuilderLabelLayout": "3ca769542f91b6c7",
+    "internal/component/bgp/plugins/nlri/labeled/rfc8277_sbit_relay_test.go::TestRFC8277RelayedStackSBitRewritten": "e3f38f06486d5120",
+    "internal/component/bgp/plugins/nlri/labeled/rfc8277_test.go::TestLabeledSingleLabelSection22Encoding": "77e0c650c10c42ab"
+  },
+  "verdict": "enforced"
+}

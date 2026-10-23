@@ -1,0 +1,13 @@
+{
+  "note": "Judge 2026-09-30 (access cont 10, independent). + TestRFC5176UnsupportedServiceTypeValueIsNAKed: Service-Type 1/2/6/8 in a CoA-Request -> CoA-NAK with Error-Cause exactly [405], no change (MUST and the SHOULD both asserted). - TestRFC5176CoAWithoutServiceTypeIsACKed: the same request without Service-Type -> CoA-ACK, no Error-Cause, one change, so the NAK is owed to the value. Both over a real UDP socket; records observed red (handlePacket, handleCoA).",
+  "requirement_sha": "a8f1a3401141717d",
+  "tests": {
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176CoAWithoutServiceTypeIsACKed": "9b6dfc18b62099d5",
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176UnsupportedServiceTypeValueIsNAKed": "9b6dfc18b62099d5"
+  },
+  "units": {
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176CoAWithoutServiceTypeIsACKed": "cb880bbd5ea1a94b",
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176UnsupportedServiceTypeValueIsNAKed": "4df2782893290dc0"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,14 @@
+{
+  "note": "Re-judged 2026-10-01 under owner ruling 5 (ruling 2 reading). Ze sends no CFG_REQUEST: no production code constructs a wire.PayloadCP (only the parser does), and TestZeSendsNoConfigRequestNetmask sweeps every engine-built chain (IKE_SA_INIT, IKE_AUTH, INFORMATIONAL, delete, IKE rekey; outer and decrypted inner, with a vacuity guard) and asserts no CP(CFG_REQUEST). Negative (handling of a peer's violation): a peer CFG_REQUEST with a non-empty 4-octet netmask is decrypted and parsed, not rejected, with the value preserved (RFC 7296 Section 2.5 tolerance). Both polarities hold observed-red revert records added 2026-09-30 (buildEncryptedMessageEx, decryptAndParse). The positive would miss a future CP builder only on an exchange the sweep does not drive.",
+  "requirement_sha": "f8e396762d072fc7",
+  "tests": {
+    "internal/component/ike/engine/rfc7296_cp_test.go::TestZeSendsNoConfigRequestNetmask": "38bdb8cdc7d2fb80",
+    "internal/component/ike/engine/rfc7296_cp_test.go::TestZeSendsNoConfigRequestNetmask#2": "38bdb8cdc7d2fb80"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7296_cp_test.go::TestZeSendsNoConfigRequestNetmask": "7f5a11b266fb9186",
+    "internal/component/ike/engine/rfc7296_cp_test.go::TestZeSendsNoConfigRequestNetmask#2": "7f5a11b266fb9186"
+  },
+  "upgrade_reason": "No unit changed; the earlier weak verdict read the receive tolerance as a neighbouring rule. Owner ruling 5 (2026-09-30) rules it this row's negative under ruling 2, and the unit now carries observed-red records for both polarities.",
+  "verdict": "enforced"
+}

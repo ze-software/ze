@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC5216-2.1.1-9",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216PeerFlightAnswersTheCertificateRequest",
+    "unit-sha": "240a2306cbf5c540",
+    "claim-sha": "e7c9e8628444c3b8",
+    "route": "revert",
+    "producer": "internal/core/eap/peer.go::readAndSendTLS",
+    "producer-sha": "1ae79fc6880755e3",
+    "break": "body of readAndSendTLS replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5216-2.1.1-9",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry",
+    "unit-sha": "5a6b45d845517dc3",
+    "claim-sha": "015f9c1f9917de69",
+    "route": "revert",
+    "producer": "internal/core/eap/peer.go::tlsClientConfig",
+    "producer-sha": "1b211a4c01804785",
+    "break": "body of tlsClientConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5216-2.1.1-9",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights",
+    "unit-sha": "09358a5abd2a85cc",
+    "claim-sha": "381a4675247de279",
+    "route": "revert",
+    "producer": "internal/core/eap/peer.go::tlsClientConfig",
+    "producer-sha": "1b211a4c01804785",
+    "break": "body of tlsClientConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

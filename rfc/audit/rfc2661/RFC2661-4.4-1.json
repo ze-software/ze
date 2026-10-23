@@ -1,0 +1,13 @@
+{
+  "note": "TestRFC2661WrittenAVPFlags compares every AVP of the ten writers to the Section 4.4 M-bit table, and TestRFC2661HelloAVPMandatoryBits closes the one emitted body that walk missed (HELLO). Every Message Type emission site is covered. Single-polarity marker accepted: a sender obligation with no receiver refusal.",
+  "requirement_sha": "591358fa378b8919",
+  "tests": {
+    "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661WrittenAVPFlags": "d54398d7e62b2795",
+    "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661HelloAVPMandatoryBits": "055162183ff6df00"
+  },
+  "units": {
+    "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661WrittenAVPFlags": "e66f097d3cc22261",
+    "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661HelloAVPMandatoryBits": "45f808619ffc7c89"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,28 @@
+{
+  "code": {
+    "internal/component/bgp/reactor/session_validation.go::applyRFC7606": "9a0fe8636fd06fae"
+  },
+  "note": "Re-judged 2026-10-19 (independent auditor, after 839819ea2d). RFC 7606 Section 5.1: \"Since older BGP speakers may not implement these restrictions, an implementation MUST still be prepared to receive these fields in any position or combination.\" 839819ea2d changes one comment line in test/plugin/rfc7606-relay-one-field.ci (\"./le verify current mode full\" becomes \"./le verify current\", the verify spelling rename); no expectation, config, stimulus or assertion of the carrier changed, and no Go producer or other tagged unit of this row was touched. Mechanical shift; verdict holds. The prior judgment stands: exact ActionNone assertions cover late MP_REACH, late MP_UNREACH, the MP pair and each MP attribute with legacy NLRI, the native combinations carrier requires receipt of every component, and the FRR checker requires session survival and installation of the announced half. Single-polarity positive per the row annotation.",
+  "requirement_sha": "9a74ae4539a69bb6",
+  "tests": {
+    "internal/component/bgp/message/rfc7606_section51_receive_test.go::TestRFC7606Section51AcceptsMPReachWithLegacyNLRI": "b2618235905384c1",
+    "internal/component/bgp/message/rfc7606_section51_receive_test.go::TestRFC7606Section51AcceptsMPUnreachAfterOtherAttributes": "b2618235905384c1",
+    "internal/component/bgp/message/rfc7606_section51_receive_test.go::TestRFC7606Section51AcceptsMPUnreachWithLegacyNLRI": "b2618235905384c1",
+    "internal/component/bgp/message/rfc7606_section51_receive_test.go::TestRFC7606Section51AcceptsReachAndUnreachTogether": "b2618235905384c1",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachIPv4NextHopValid": "b7acaf2569904b8f",
+    "internal/le/interoplab/bgp/check_rfc.go::checkRFC7606MixedUpdate": "9d03834af3f0f054",
+    "test/plugin/rfc7606-receive-combinations.ci": "eb4533acb6353793",
+    "test/plugin/rfc7606-relay-one-field.ci": "67bb2a200311d324"
+  },
+  "units": {
+    "internal/component/bgp/message/rfc7606_section51_receive_test.go::TestRFC7606Section51AcceptsMPReachWithLegacyNLRI": "319eea7142888e0d",
+    "internal/component/bgp/message/rfc7606_section51_receive_test.go::TestRFC7606Section51AcceptsMPUnreachAfterOtherAttributes": "da822bf33cdff942",
+    "internal/component/bgp/message/rfc7606_section51_receive_test.go::TestRFC7606Section51AcceptsMPUnreachWithLegacyNLRI": "ae76d2f3a5fa4325",
+    "internal/component/bgp/message/rfc7606_section51_receive_test.go::TestRFC7606Section51AcceptsReachAndUnreachTogether": "98d86680268ef586",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachIPv4NextHopValid": "e8d83289676a1ed9",
+    "internal/le/interoplab/bgp/check_rfc.go::checkRFC7606MixedUpdate": "e1180909d8f20129",
+    "test/plugin/rfc7606-receive-combinations.ci": "eb4533acb6353793",
+    "test/plugin/rfc7606-relay-one-field.ci": "67bb2a200311d324"
+  },
+  "verdict": "enforced"
+}

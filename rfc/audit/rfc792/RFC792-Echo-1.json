@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged 2026-09-30. Positive: TestRFC792EchoRequestType takes the pair from probe.EchoTypes, which every ping and traceroute caller now uses (ping.go, ping/stream.go, traceroute probe_round.go and stream.go re-read), asserts (8,0) for IPv4, a built request of Type 8 and a Type 0 datagram matched as the reply; vrrp TestGatewayICMPEchoReply asserts the reply the stack forms is Type 0. Negative: ParseEchoReply refuses a Type 8 datagram and an ICMPv6 Type 129 as the IPv4 reply. Records: EchoTypes and ParseEchoReply reverts observed red; the vrrp record breaks Ze's netlink AddAddress, which proves the unit observes the reply of the stack Ze configures (whole-stack rule: Ze forms no reply itself).",
+  "requirement_sha": "6fa3c0bc857d4be0",
+  "tests": {
+    "internal/core/probe/icmp_test.go::TestRFC792EchoRequestType": "e4aad773ce5cac19",
+    "internal/core/probe/icmp_test.go::TestRFC792EchoRequestType#2": "e4aad773ce5cac19",
+    "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "6fa365d5d54aea79"
+  },
+  "units": {
+    "internal/core/probe/icmp_test.go::TestRFC792EchoRequestType": "c5846996807f5493",
+    "internal/core/probe/icmp_test.go::TestRFC792EchoRequestType#2": "c5846996807f5493",
+    "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "2e14d56234529006"
+  },
+  "verdict": "enforced"
+}

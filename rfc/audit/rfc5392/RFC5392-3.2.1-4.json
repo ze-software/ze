@@ -1,0 +1,13 @@
+{
+  "note": "Judged 2026-10-21 over current tags, units and records. Stale only from the added 3.3.1-2 tags; assertions unchanged. Every originated Inter-AS-TE-v2 Link TLV carries Remote-AS (sub-TLV 21), and a received one without it is skipped.",
+  "requirement_sha": "957e941a8b9d883b",
+  "tests": {
+    "internal/plugins/ospf/rfc5392_te_originate_test.go::TestInterAsTEOriginateScopePolicy": "db1397ebe20dcae7",
+    "internal/plugins/ospf/rfc5392_te_test.go::TestTEReceiveType6MissingRemoteASSkipped": "4bb75eea7a38dce7"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc5392_te_originate_test.go::TestInterAsTEOriginateScopePolicy": "39b9b15ba1317cde",
+    "internal/plugins/ospf/rfc5392_te_test.go::TestTEReceiveType6MissingRemoteASSkipped": "ddb86636630eaf40"
+  },
+  "verdict": "enforced"
+}

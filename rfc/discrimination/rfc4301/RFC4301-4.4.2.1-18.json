@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4301-4.4.2.1-18",
+    "polarity": "negative",
+    "unit": "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemMixedFamilyTunnelHeaderIsRefused",
+    "unit-sha": "0c88b44aecc26a8d",
+    "claim-sha": "a9f2a72e698414d7",
+    "route": "revert",
+    "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
+    "producer-sha": "20b949de8627ad06",
+    "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4301-4.4.2.1-18",
+    "polarity": "positive",
+    "unit": "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemTunnelHeaderAddressesAreInstalled",
+    "unit-sha": "924aa636513117b6",
+    "claim-sha": "3ab42e532d3b77c5",
+    "route": "revert",
+    "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
+    "producer-sha": "20b949de8627ad06",
+    "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

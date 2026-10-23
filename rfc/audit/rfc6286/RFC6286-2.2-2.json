@@ -1,0 +1,17 @@
+{
+  "note": "(a) accepting the local identifier from an internal peer, or rejecting it from an external one; (b) TestOpenValidateBGPIdentifier rows 'local identifier from internal peer' wantErr 2/3 and 'from external peer' no error, plus localID+-1 accepted; zero rows cover the first clause. TestHandleOpenRejectsBadBGPIdentifier repeats both polarities on the FSM rail.",
+  "requirement_sha": "096d9b6b65628ff0",
+  "tests": {
+    "internal/component/bgp/message/open_test.go::TestOpenValidateBGPIdentifier": "9a2a4c8f9ca41e49",
+    "internal/component/bgp/message/open_test.go::TestOpenValidateBGPIdentifier#2": "9a2a4c8f9ca41e49",
+    "internal/component/bgp/reactor/rfc6286_session_open_validation_test.go::TestHandleOpenRejectsBadBGPIdentifier": "5792605e48ba6d19",
+    "internal/component/bgp/reactor/rfc6286_session_open_validation_test.go::TestHandleOpenRejectsBadBGPIdentifier#2": "5792605e48ba6d19"
+  },
+  "units": {
+    "internal/component/bgp/message/open_test.go::TestOpenValidateBGPIdentifier": "8b0aae630fe94931",
+    "internal/component/bgp/message/open_test.go::TestOpenValidateBGPIdentifier#2": "8b0aae630fe94931",
+    "internal/component/bgp/reactor/rfc6286_session_open_validation_test.go::TestHandleOpenRejectsBadBGPIdentifier": "d591fe02f97c155a",
+    "internal/component/bgp/reactor/rfc6286_session_open_validation_test.go::TestHandleOpenRejectsBadBGPIdentifier#2": "d591fe02f97c155a"
+  },
+  "verdict": "enforced"
+}

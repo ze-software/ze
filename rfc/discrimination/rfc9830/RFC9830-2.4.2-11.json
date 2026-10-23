@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9830-2.4.2-11",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDLabelRange",
+    "unit-sha": "60f7f4a6d81c871b",
+    "claim-sha": "65c36edb5338d056",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/nlri/srpolicy/config.go::checkBindingSIDLabel",
+    "producer-sha": "e64047dd4b18b920",
+    "break": "body of checkBindingSIDLabel replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9830-2.4.2-11",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDLabelRange",
+    "unit-sha": "60f7f4a6d81c871b",
+    "claim-sha": "f3a8f71ad6193931",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/nlri/srpolicy/config.go::checkBindingSIDLabel",
+    "producer-sha": "e64047dd4b18b920",
+    "break": "body of checkBindingSIDLabel replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

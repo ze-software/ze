@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: a further Configure-Request carrying the interface-identifier option after a valid Interface-Identifier Configure-Reject. TestIPv6CPInterfaceIDRejectIsFatal fails when no EventSessionDown follows the Reject (absorbIPv6CPReject returns ncpReplyFatal, so no new CR is ever sent); a regression that absorbs and resends keeps the session up and goes red. Negative TestIPv6CPUnknownOptionRejectNotFatal fails if a Reject of an unrequested option stops negotiation.",
+  "requirement_sha": "afe6272ed58fa5ff",
+  "tests": {
+    "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPInterfaceIDRejectIsFatal": "99a68f4293234999",
+    "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPUnknownOptionRejectNotFatal": "99a68f4293234999"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPInterfaceIDRejectIsFatal": "484bfec1198ca9e6",
+    "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPUnknownOptionRejectNotFatal": "14a5174f7200286a"
+  },
+  "verdict": "enforced"
+}

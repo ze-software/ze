@@ -1,0 +1,13 @@
+{
+  "note": "algorithm 0 not in the originator's SR-Algorithm list installs no mpls-fib entry; advertised algorithm installs push 16009",
+  "requirement_sha": "14f6b666aa332fb3",
+  "tests": {
+    "internal/plugins/ospf/rfc8666_test.go::TestRFC8666PrefixSIDAdvertisedAlgorithmInstalls": "4729a15d3adeda26",
+    "internal/plugins/ospf/rfc8666_test.go::TestRFC8666PrefixSIDUnadvertisedAlgorithmIgnored": "4729a15d3adeda26"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc8666_test.go::TestRFC8666PrefixSIDAdvertisedAlgorithmInstalls": "af8e4917c7867ac2",
+    "internal/plugins/ospf/rfc8666_test.go::TestRFC8666PrefixSIDUnadvertisedAlgorithmIgnored": "beb27cde8f9a57dd"
+  },
+  "verdict": "enforced"
+}

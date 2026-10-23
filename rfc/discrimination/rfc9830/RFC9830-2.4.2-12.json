@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC9830-2.4.2-12",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_bsid_srv6_test.go::TestRFC9830BindingSIDSRv6Decode",
+    "unit-sha": "3877f687d44dcac1",
+    "claim-sha": "7f59ed99cd843824",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/nlri/srpolicy/attr_json.go::bindingSIDToJSON",
+    "producer-sha": "4c127447ed5ad5d4",
+    "break": "body of bindingSIDToJSON replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9830-2.4.2-12",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_bsid_srv6_test.go::TestRFC9830BindingSIDSRv6Decode",
+    "unit-sha": "3877f687d44dcac1",
+    "claim-sha": "895f527151ffdfa0",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/nlri/srpolicy/attr_json.go::bindingSIDToJSON",
+    "producer-sha": "4c127447ed5ad5d4",
+    "break": "body of bindingSIDToJSON replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9830-2.4.2-12",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_bsid_srv6_test.go::TestRFC9830BindingSIDSRv6Encode",
+    "unit-sha": "68ac89408c1ceebf",
+    "claim-sha": "7b509b1e3084c885",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/nlri/srpolicy/config.go::buildBindingSIDSRv6SubTLV",
+    "producer-sha": "15b59c2608432f4f",
+    "break": "body of buildBindingSIDSRv6SubTLV replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9830-2.4.2-12",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_bsid_srv6_test.go::TestRFC9830BindingSIDSRv6Encode",
+    "unit-sha": "68ac89408c1ceebf",
+    "claim-sha": "2b19bc5578af2207",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/nlri/srpolicy/config.go::buildBindingSIDSubTLV",
+    "producer-sha": "4ffeb43b7b9be89b",
+    "break": "body of buildBindingSIDSubTLV replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

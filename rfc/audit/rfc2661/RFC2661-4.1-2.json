@@ -1,0 +1,17 @@
+{
+  "note": "Positive TestRFC2661EveryEmittedMessageOpensWithMessageType reads the first AVP of all ten body writers plus the HELLO; these are the eleven non-test sites that write a Message Type AVP (SCCRQ, SCCRP, SCCCN, StopCCN, ICRQ, ICRP, ICCN, OCRQ, OCRP, CDN, HELLO). Negative TestReactor_MalformedSCCRQCreatesNoTunnel: an SCCRQ with Host Name first is refused and creates no tunnel. Text duplicates RFC2661-4.4.1-2.",
+  "requirement_sha": "c54b46bf2c0af1c0",
+  "tests": {
+    "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661EveryEmittedMessageOpensWithMessageType": "055162183ff6df00",
+    "internal/component/l2tp/rfc2661_reactor_test.go::TestReactor_MalformedSCCRQCreatesNoTunnel": "967923124e21ac52",
+    "internal/component/l2tp/rfc2661_session_fsm_test.go::TestWriteICRPBody": "9f78f3f88883c2a2",
+    "test/l2tp/rfc2661-emitted-control-shape.ci": "c54a95273ff244c5"
+  },
+  "units": {
+    "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661EveryEmittedMessageOpensWithMessageType": "065306e52fee5819",
+    "internal/component/l2tp/rfc2661_reactor_test.go::TestReactor_MalformedSCCRQCreatesNoTunnel": "86a21ba31274ae48",
+    "internal/component/l2tp/rfc2661_session_fsm_test.go::TestWriteICRPBody": "f4398307be960a76",
+    "test/l2tp/rfc2661-emitted-control-shape.ci": "c54a95273ff244c5"
+  },
+  "verdict": "enforced"
+}

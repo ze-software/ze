@@ -1,0 +1,17 @@
+{
+  "note": "Judge 2026-09-30 (rejudge, subnet). Row quotes \u00a76.8.7 \"Version Set to the current version number (1)\" (dated correction explains the kept id). + session TestRFC5880TransmittedControlCarriesVersionOne encodes Build in Down/Init/Up/AdminDown and BuildFinal through WriteTo and asserts octet0>>5 == 1; - session TestRFC5880TransmittedVersionNeverOverwrittenByDiag (Diag 0xFF cannot write into the version bits, packet still parses). Records: + revert session/fsm.go::Build, - revert packet/control.go::WriteTo, both observed red; author overlay dropping the Diag mask reds only the -. Residual: the older packet-level negative TestRFC5880VersionNotOneDiscarded asserts the receive discard, which is RFC5880-6.8.6-1, not this transmit row; it stays tagged but carries no weight here.",
+  "requirement_sha": "6624684cbfbad7ed",
+  "tests": {
+    "internal/component/bfd/packet/rfc5880_test.go::TestRFC5880VersionNotOneDiscarded": "fba3b65e315e32aa",
+    "internal/component/bfd/packet/rfc5880_test.go::TestRFC5880VersionOneAccepted": "fba3b65e315e32aa",
+    "internal/component/bfd/session/rfc5880_transmit_header_test.go::TestRFC5880TransmittedControlCarriesVersionOne": "0967332bf993e4d7",
+    "internal/component/bfd/session/rfc5880_transmit_header_test.go::TestRFC5880TransmittedVersionNeverOverwrittenByDiag": "0967332bf993e4d7"
+  },
+  "units": {
+    "internal/component/bfd/packet/rfc5880_test.go::TestRFC5880VersionNotOneDiscarded": "49d802130717b593",
+    "internal/component/bfd/packet/rfc5880_test.go::TestRFC5880VersionOneAccepted": "cdaae158f996673a",
+    "internal/component/bfd/session/rfc5880_transmit_header_test.go::TestRFC5880TransmittedControlCarriesVersionOne": "a8ad42f56e105919",
+    "internal/component/bfd/session/rfc5880_transmit_header_test.go::TestRFC5880TransmittedVersionNeverOverwrittenByDiag": "1fa3c29054b0bdef"
+  },
+  "verdict": "enforced"
+}

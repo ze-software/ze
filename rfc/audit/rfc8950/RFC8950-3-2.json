@@ -1,0 +1,14 @@
+{
+  "code": {},
+  "note": "Re-judged 2026-09-30. TestRFC8950VPNIPv6NextHopCarriesZeroRD writes AFI 1 SAFI 128 with an IPv6 next hop into a 0xFF-filled buffer: Length 24 = zero RD + global, Length 48 = zero RD + global + zero RD + link-local, and parses back to the same addresses; observed red on a break of mpnlri.go::writeNextHops. {single-polarity: positive} valid: a sender-side encoding, the encoder takes no RD input, so no non-zero RD can be produced or refused. TestParseMPReachNLRI_VPNWithIPv6NextHop is the decode-side neighbour. The RFC8950-3-2 tag on TestMPReachNLRI_RoundTrip_VPN was dropped by the judge (D-15): it encodes an IPv4 VPN next hop (RFC 4364) on a zeroed buffer and asserts no clause of this row.",
+  "requirement_sha": "e399c98a362732ab",
+  "tests": {
+    "internal/core/bgp/attribute/mpnlri_test.go::TestParseMPReachNLRI_VPNWithIPv6NextHop": "2d5c4702ca88dcc3",
+    "internal/core/bgp/attribute/rfc8950_vpn_nexthop_test.go::TestRFC8950VPNIPv6NextHopCarriesZeroRD": "58771bf5c6996eb3"
+  },
+  "units": {
+    "internal/core/bgp/attribute/mpnlri_test.go::TestParseMPReachNLRI_VPNWithIPv6NextHop": "630eb519ab626e3f",
+    "internal/core/bgp/attribute/rfc8950_vpn_nexthop_test.go::TestRFC8950VPNIPv6NextHopCarriesZeroRD": "2b7fef1b6631ca27"
+  },
+  "verdict": "enforced"
+}

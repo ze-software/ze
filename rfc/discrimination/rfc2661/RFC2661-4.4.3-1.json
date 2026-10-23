@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2661-4.4.3-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661CallCapabilitiesChecked",
+    "unit-sha": "66b45d8712f9fa4b",
+    "claim-sha": "fe616d50280efb8a",
+    "route": "revert",
+    "producer": "internal/component/l2tp/session_initiator.go::placeIncomingCall",
+    "producer-sha": "6426b9631d1ea1b7",
+    "break": "body of placeIncomingCall replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2661-4.4.3-1",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661CallCapabilitiesChecked",
+    "unit-sha": "66b45d8712f9fa4b",
+    "claim-sha": "448caf3d4b19621d",
+    "route": "revert",
+    "producer": "internal/component/l2tp/session_initiator.go::peerFramingAllows",
+    "producer-sha": "6a0ccc09986cce48",
+    "break": "body of peerFramingAllows replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

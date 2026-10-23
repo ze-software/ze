@@ -1,0 +1,15 @@
+{
+  "note": "Judge 2026-09-30 (rejudge, netns+pinning). \u00a72 \"a separate BFD session MUST be established for each protocol (and thus encapsulated by that protocol) over that link\". The missing encapsulation clause is now observed on the wire: TestRFC5881EachProtocolSessionEncapsulatedInItsProtocol (rootless netns) runs one Loop over a real transport.Dual with a v4 and a v6 session on lo, distinct discriminators; the peer's IPv4 socket gets the v4 session's Control and never the v6's, the IPv6 socket the v6's and never the v4's. With TestRFC5881PerProtocolSessions (+) and TestRFC5881SamePeerCoalesces (-) for separation. Revert record on dual.go::Send observed red; overlay routing every peer to V4 reds the IPv6 clause (author pin-ov3). This unit also exercises the IPV6_PKTINFO pin on send (Interface lo, unbound Dual).",
+  "requirement_sha": "f847315439c3d8c8",
+  "tests": {
+    "internal/component/bfd/engine/rfc5881_per_protocol_wire_linux_test.go::TestRFC5881EachProtocolSessionEncapsulatedInItsProtocol": "b320f9a6fe935c99",
+    "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881PerProtocolSessions": "c8bf3135e7e74ea3",
+    "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881SamePeerCoalesces": "c8bf3135e7e74ea3"
+  },
+  "units": {
+    "internal/component/bfd/engine/rfc5881_per_protocol_wire_linux_test.go::TestRFC5881EachProtocolSessionEncapsulatedInItsProtocol": "522c61e7c8f15dbb",
+    "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881PerProtocolSessions": "bd9f84e966d68179",
+    "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881SamePeerCoalesces": "1dafce6c30c4a7ec"
+  },
+  "verdict": "enforced"
+}

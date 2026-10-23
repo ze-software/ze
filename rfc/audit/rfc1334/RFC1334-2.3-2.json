@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: a rejected pair answered with anything but a PAP Code 3. TestPAPRejectWritesNak (accept=false) asserts payload[0]==PAPAuthenticateNak; TestPAPRequestEmitsEvent asserts the accept path sends Ack, so an unconditional Nak goes red. The SHOULD-terminate half of the sentence is RFC1334-2.3-5 and is not claimed here.",
+  "requirement_sha": "1413540851c632dd",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRejectWritesNak": "0c82c27f5303e953",
+    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRequestEmitsEvent": "0c82c27f5303e953"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRejectWritesNak": "b7ebe0b83b88d00c",
+    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRequestEmitsEvent": "8b0bcf1632ad30bf"
+  },
+  "verdict": "enforced"
+}

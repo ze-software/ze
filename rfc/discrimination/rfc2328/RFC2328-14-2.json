@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC2328-14-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFASExternalPurgeRetainedAcrossAreas",
+    "unit-sha": "1ae780499619f431",
+    "claim-sha": "a09c38cecb799962",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/lsdb/flooding.go::deletePurgedIfAcked",
+    "producer-sha": "039d6c681b397c69",
+    "break": "body of deletePurgedIfAcked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-14-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFPurgeRetainedForExchangeOrLoading",
+    "unit-sha": "1bcfca027b4204f1",
+    "claim-sha": "3605f327da95e74b",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/lsdb/flooding.go::hasExchangeOrLoadingForKey",
+    "producer-sha": "18426377e6d27d55",
+    "break": "body of hasExchangeOrLoadingForKey replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-14-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/lsdb/rfc2328_maxage_exchange_test.go::TestRFC2328MaxAgeKeptWhileNeighborInExchangeOrLoading",
+    "unit-sha": "b55f69e49f3a1ca1",
+    "claim-sha": "c29d4f04f5b39a90",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/lsdb/flooding.go::hasExchangeOrLoadingForKey",
+    "producer-sha": "18426377e6d27d55",
+    "break": "body of hasExchangeOrLoadingForKey replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-14-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/lsdb/rfc2328_maxage_exchange_test.go::TestRFC2328MaxAgeRemovedOnceNoNeighborExchangingOrLoading",
+    "unit-sha": "3f5228968431c07a",
+    "claim-sha": "79847ed6226c2d33",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/lsdb/flooding.go::deletePurgedIfAcked",
+    "producer-sha": "039d6c681b397c69",
+    "break": "body of deletePurgedIfAcked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

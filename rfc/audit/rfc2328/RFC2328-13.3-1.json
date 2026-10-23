@@ -1,0 +1,19 @@
+{
+  "note": "Re-judged 2026-10-12 (independent auditor). SHIFTED by 6e063fb498 (tests: give ten assert-nothing tests a real assertion), whose hunks sit in untagged sibling tests and the import block. The tagged unit is byte-identical (gate-verified) and no helper it calls changed. Verdict stands. Clauses: (a) flooded LSAs go on the adjacency's retransmission list: TestOSPFFloodOutOtherInterfaces + (eth1 Full neighbor queued; record on queueRetransmit observed red) and TestOSPFFloodQueuesExchangeAndLoadingNeighbors - (2-Way and the receiving neighbor never queued; record on isFloodEligibleNeighborState observed red). (b) retransmitted until acknowledged, every configurable per-interface RxmtInterval: TestRFC2328RetransmitEveryConfiguredRxmtInterval parses a real OSPFv2 config (eth1 retransmit-interval 3, eth2 11, eth0 default), takes RxmtInterval from engine.lsdbTopology, floods via ReceiveUpdate and ticks RetransmitTick each second 1..24: + eth1 at 3,6,9,12 and eth2 at 11,22 (repeated, per interface); - nothing on any other second, so a hard-coded 5 s or a single retransmission fails, and after eth1's ack at 12 no eth1 resend at 15..24 while unacknowledged eth2 still resends at 22. Exact per-second set compared, buffers isolated (one LSA, one neighbor per interface). TestOSPFRetransmitTimer keeps its earlier default-interval pin. Records on RetransmitTick observed red for both polarities.",
+  "requirement_sha": "d6a44568dd86b581",
+  "tests": {
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFFloodOutOtherInterfaces": "818da1eec578ea28",
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFFloodQueuesExchangeAndLoadingNeighbors": "818da1eec578ea28",
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFRetransmitTimer": "818da1eec578ea28",
+    "internal/plugins/ospf/rfc2328_retransmit_interval_test.go::TestRFC2328RetransmitEveryConfiguredRxmtInterval": "84c49eaebde9a3c9",
+    "internal/plugins/ospf/rfc2328_retransmit_interval_test.go::TestRFC2328RetransmitEveryConfiguredRxmtInterval#2": "84c49eaebde9a3c9"
+  },
+  "units": {
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFFloodOutOtherInterfaces": "b4dc922a664c2c10",
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFFloodQueuesExchangeAndLoadingNeighbors": "83ee1dc511a59967",
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFRetransmitTimer": "eaf3259d54925587",
+    "internal/plugins/ospf/rfc2328_retransmit_interval_test.go::TestRFC2328RetransmitEveryConfiguredRxmtInterval": "7725a0719db8fdf5",
+    "internal/plugins/ospf/rfc2328_retransmit_interval_test.go::TestRFC2328RetransmitEveryConfiguredRxmtInterval#2": "7725a0719db8fdf5"
+  },
+  "verdict": "enforced"
+}

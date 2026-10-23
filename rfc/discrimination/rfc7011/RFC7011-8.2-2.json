@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7011-8.2-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/flowexport/ipfix/rfc7011_export_test.go::TestRFC7011DataExportTimeNotBeforeTemplate",
+    "unit-sha": "2673cca201e24b1c",
+    "claim-sha": "3156b98c903cfcf3",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/ipfix/adapter.go::Encode",
+    "producer-sha": "88cc757598c7a877",
+    "break": "body of Encode replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7011-8.2-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/flowexport/ipfix/rfc7011_export_test.go::TestRFC7011StaleSnapshotClampedToTemplateTime",
+    "unit-sha": "14c0917d7aa2fc79",
+    "claim-sha": "e42ed358c64199f7",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/ipfix/adapter.go::Encode",
+    "producer-sha": "88cc757598c7a877",
+    "break": "body of Encode replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

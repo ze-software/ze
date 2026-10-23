@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged after the R3 split: the row is now only the Section 1 clause 'MUST be configurable via management interfaces' (the IKE negotiation clause is the gap row RFC4303-1-2). Forbidden behaviour: the management interface refusing, or silently altering, an integrity-only ESP configuration. Positive: TestIPsecESPRequiresIntegrity drives esp + null cipher + sha256 through parseOSPFConfig/validateConfig and t.Fatalf on any refusal. Negative (R1(b), inputs pushed toward a refusal): TestRFC4303IntegrityOnlyESPIsConfigurable, for every integrity algorithm in ipsecAuthKeyLen x {cipher leaf omitted, explicit null}, validates and installs and asserts proto 50 (not AH), cipher null with no key, and the configured integrity algorithm and key length, so a validator requiring a cipher for ESP or accepting integrity-only for one algorithm only goes red. The old negative (null cipher with no integrity refused) proved RFC4303-3.2-1 and was removed from this row. Revert records on validateESPConfidentiality for both units observed red (positive recorded by this judge). Only the OSPFv3 manual-SA surface offers integrity-only ESP; IKE's absence is RFC4303-1-2.",
+  "requirement_sha": "029162b34730685e",
+  "tests": {
+    "internal/plugins/ospf/config_ipsec_test.go::TestIPsecESPRequiresIntegrity": "5c20e3c0dfa0036c",
+    "internal/plugins/ospf/rfc4303_esp_test.go::TestRFC4303IntegrityOnlyESPIsConfigurable": "01b10f93731e39a0"
+  },
+  "units": {
+    "internal/plugins/ospf/config_ipsec_test.go::TestIPsecESPRequiresIntegrity": "86bbfd0cbbcea447",
+    "internal/plugins/ospf/rfc4303_esp_test.go::TestRFC4303IntegrityOnlyESPIsConfigurable": "0b869b7e29d6fe12"
+  },
+  "verdict": "enforced"
+}

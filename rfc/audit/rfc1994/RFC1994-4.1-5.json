@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: a Challenge sent with the previous Challenge's Identifier. TestCHAPIdentifierMonotonic seeds the counter with the Identifier the first Challenge carried and asserts the next Challenge's differs (and is +1); TestCHAPIdentifierWraps asserts 0xFF moves to 0x00. A runCHAPAuthPhase that did not advance the counter turns both red. Single-polarity marker.",
+  "requirement_sha": "3c81bf9ace3a184a",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPIdentifierMonotonic": "5b49028a86478309",
+    "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPIdentifierWraps": "5b49028a86478309"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPIdentifierMonotonic": "b1c9e3a6928ad2b6",
+    "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPIdentifierWraps": "11ce778f62c4378e"
+  },
+  "verdict": "enforced"
+}

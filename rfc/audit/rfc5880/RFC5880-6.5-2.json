@@ -1,0 +1,16 @@
+{
+  "code": {},
+  "note": "Judge rejudge 2026-09-30 (bfd session+engine continuation). TestRFC5880PollRidesTheScheduledPacket: a Poll raised in Up leaves NextTxDeadline unchanged and the packet built at that deadline carries P; the engine has no send path keyed on PollOutstanding (only BuildFinal answers a received Poll), so no additional packet exists. Mutant ApplyEchoSlowdown pollSequenceIdle guard observed red. P-bit negative unchanged.",
+  "requirement_sha": "23be4adfe2ed9de8",
+  "tests": {
+    "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880PollRidesTheScheduledPacket": "73ca576e23cbd659",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880FinalReplyClearsPollBit": "8db25cbb4534cc2d",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PollPacketHasNoFinalBit": "8db25cbb4534cc2d"
+  },
+  "units": {
+    "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880PollRidesTheScheduledPacket": "b73d998693d271c3",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880FinalReplyClearsPollBit": "e298a947dd60ac25",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PollPacketHasNoFinalBit": "8bd7c7a3e3e873e6"
+  },
+  "verdict": "enforced"
+}

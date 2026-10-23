@@ -1,0 +1,17 @@
+{
+  "note": "Independent post-lint judgment against RFC 2385 Section 2.0: 'More importantly, the sending of signatures must be under the complete control of the application, not at the mercy of the remote host not understanding the option.' Re-read all four tags. ConfiguredKeyReachesBothSockets checks exact parsed password, dialer key/address and listener key/address via parsePeerFromTree, NewSession and md5PeersForListener; NoKeyWithoutConfiguration requires empty dialer key, nil signing peer and no listener key entries. Wire positive UnsignedSYNACKDoesNotDisableSignatures observes the exact unsigned SYNACK, then the same SYN retransmitted with independently checked digest and a dial timeout. Wire negative UnconfiguredSocketSendsNoSignature completes ordinary unkeyed TCP, rejects Kind 19 on captured handshake traffic and requires two SYN-bearing packets. receive/option errors now return to the calling test's Fatal. These are distinct configured and absent-key inputs/assertions. network.go::DialContext and ::Listen install only configured keys, propagate installation errors and reach md5_linux.go::setTCPMD5Sig before connect/bind. The absent-key wire test does not reach setTCPMD5Sig; its renewal producer remains DialContext. The digest helper's fixed rfc2385Key is the exact key these keyed fixtures install. Reviewed parent's job-network-wire-observers-privileged-cdc8e23e.log: both wire carriers PASS, signed retransmission logged, no skips. Parent reports native Linux -race with -exec 'sudo -n'; builds/native job stay unprivileged. This clean run does not renew existing discrimination; current-unit attributed reds remain owed.",
+  "requirement_sha": "611964454087c34b",
+  "tests": {
+    "internal/component/bgp/reactor/rfc2385_test.go::TestRFC2385ConfiguredKeyReachesBothSockets": "96faf21876447ffa",
+    "internal/component/bgp/reactor/rfc2385_test.go::TestRFC2385NoKeyWithoutConfiguration": "96faf21876447ffa",
+    "internal/core/network/rfc2385_md5_egress_integration_linux_test.go::TestRFC2385UnconfiguredSocketSendsNoSignature": "a690b5595c4752e6",
+    "internal/core/network/rfc2385_md5_egress_integration_linux_test.go::TestRFC2385UnsignedSYNACKDoesNotDisableSignatures": "a690b5595c4752e6"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc2385_test.go::TestRFC2385ConfiguredKeyReachesBothSockets": "fba309906b57361a",
+    "internal/component/bgp/reactor/rfc2385_test.go::TestRFC2385NoKeyWithoutConfiguration": "9ce28b033935792e",
+    "internal/core/network/rfc2385_md5_egress_integration_linux_test.go::TestRFC2385UnconfiguredSocketSendsNoSignature": "230532e80d1bfc4b",
+    "internal/core/network/rfc2385_md5_egress_integration_linux_test.go::TestRFC2385UnsignedSYNACKDoesNotDisableSignatures": "81643b0be1ad4348"
+  },
+  "verdict": "enforced"
+}

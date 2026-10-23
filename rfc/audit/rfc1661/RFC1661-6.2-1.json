@@ -1,0 +1,11 @@
+{
+  "note": "{single-polarity} justified. Forbidden: two Authentication-Protocol options in a request. TestRFC1661SingleAuthProtocolOptionInRequest goes red when BuildLocalConfigRequest emits a count != 1 for PAP, CHAP-MD5 or MS-CHAPv2.",
+  "requirement_sha": "6f7f0277882137cf",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661SingleAuthProtocolOptionInRequest": "9afaf002f0fd81ec"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661SingleAuthProtocolOptionInRequest": "103815069eb4809e"
+  },
+  "verdict": "enforced"
+}

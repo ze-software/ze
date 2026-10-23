@@ -1,0 +1,17 @@
+{
+  "note": "Judge 2026-09-30 (R34, D-8 fixed). Producer reactor/rfc8092_large_community.go::removeRedundantLargeCommunities, called from publishBase: scan first (pairwise up to 16 values, seeded 64k-bit stack filter with exact confirm above), rebuild only on a repeat, keeping first occurrences in order, the peer's flags and header width, length rewritten, other attributes copied unchanged. Positive TestRFC8092RedundantLargeCommunityRemovedBeforePropagation: 2 copies (1-octet length) and 23 values with 3 repeats (extended length, filter path): no error, ActionNone, published and forwarded attribute hold each value once in first-occurrence order. Negative TestRFC8092DistinctLargeCommunitiesKeptWhole: 3 and 22 distinct values (filter path) published octet-equal to the received body and forwarded whole. Both have observed-red revert records. A non-multiple-of-12 value stays treat-as-withdraw (publishBase not reached). Attribute-package tags on ParseLargeCommunities remain unproven secondary units.",
+  "requirement_sha": "ae06df7fca1a32ad",
+  "tests": {
+    "internal/component/bgp/reactor/rfc8092_duplicate_not_malformed_test.go::TestRFC8092DistinctLargeCommunitiesKeptWhole": "d985ac23bb1022c7",
+    "internal/component/bgp/reactor/rfc8092_duplicate_not_malformed_test.go::TestRFC8092RedundantLargeCommunityRemovedBeforePropagation": "d985ac23bb1022c7",
+    "internal/core/bgp/attribute/community_test.go::TestLargeCommunitiesDeduplication": "34fcdbe05b3de369",
+    "internal/core/bgp/attribute/community_test.go::TestLargeCommunitiesParse": "34fcdbe05b3de369"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc8092_duplicate_not_malformed_test.go::TestRFC8092DistinctLargeCommunitiesKeptWhole": "83db492e0286cd99",
+    "internal/component/bgp/reactor/rfc8092_duplicate_not_malformed_test.go::TestRFC8092RedundantLargeCommunityRemovedBeforePropagation": "55dbfb70e788b1f7",
+    "internal/core/bgp/attribute/community_test.go::TestLargeCommunitiesDeduplication": "e82a9367647ad21d",
+    "internal/core/bgp/attribute/community_test.go::TestLargeCommunitiesParse": "28d1e753677422b3"
+  },
+  "verdict": "enforced"
+}

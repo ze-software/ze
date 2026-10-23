@@ -1,0 +1,11 @@
+{
+  "note": "Collateral source re-judgment 2026-10-02 after unrelated tag removals from TestRFC2385MatchingKeysCarryASignedSession; the executable body and this retained tag are unchanged. RFC2385 Section4.3 requires total TCP header plus options at most60bytes, leaving40bytes for options. Ze contributes no manual TCP header/options assembly: actual RealDialer and RealListenerFactory configure TCP_MD5SIG, and Linux owns the option list and data-offset field. The retained positive unit establishes keyed TCP and carries256KiB through the listener, so options fit the interoperating TCP header rather than preventing the protected connection; this is boundary evidence under the whole-stack rule. The single-positive annotation remains appropriate because Ze has no independent oversized TCP-option input/reject branch. Independent new captured-lifecycle evidence additionally observes52-byte handshake TCP headers and40-byte data/FIN headers, but that untagged observation is not substituted for this retained unit's identity. This is the header ceiling, not retired4.3-1 advertised-MSS advice; RFC6691 corrects the latter only. No native run or record refresh claimed in this source-only collateral judgment.",
+  "requirement_sha": "e29f75a7863aecd0",
+  "tests": {
+    "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MatchingKeysCarryASignedSession": "6928fc5dd6ae1436"
+  },
+  "units": {
+    "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MatchingKeysCarryASignedSession": "b1d71be4493819d9"
+  },
+  "verdict": "enforced"
+}

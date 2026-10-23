@@ -1,0 +1,13 @@
+{
+  "note": "Rejudged 2026-10-22 by independent route-policy auditor. RFC 7947 Section 2.1: \"The route server SHOULD forward UPDATE messages from its Loc-RIB or Loc-RIBs to its clients as determined by local policy.\" Both current tags are on reactor/rfc7947_consumer_test.go::TestRFC7947ClientPolicyControlsWire. Read the whole body and its producing/consuming boundaries. Across two rounds that exchange the accepting destination, reactorForwardRS must send zero policy-agnostic copies and defer both clients; ForwardUpdate then runs each destination policy exactly once. The session-worker output must contain exactly one UPDATE per destination: exact announced NLRI and ORIGIN for the accepted client, no announced NLRI and the exact withdrawn prefix for the rejected client. Producers: forward_rs.go::reactorForwardRSSection selects the fallback using each peer forwarding snapshot; peer_forward_facts.go::buildForwardFacts publishes the whole export policy; filter_ordered.go::runEgressPolicyChainASN4 and filter_chain.go::PolicyFilterChain evaluate it; reactor_api_forward.go::forwardUpdateSection consumes rejection as withdrawal and accepted overrides as the per-peer base wire. The typed ExportPolicy/FinalAccept replacement preserves the earlier filter seam, both policy rounds, and every wire assertion. The withdrawal-on-rejection behavior is retained as the existing owner choice, not an extra RFC obligation. Retain enforced at the existing per-client redistribution-policy scope; no new runtime/discrimination result is asserted.",
+  "requirement_sha": "857304c8df464c87",
+  "tests": {
+    "internal/component/bgp/reactor/rfc7947_consumer_test.go::TestRFC7947ClientPolicyControlsWire": "441cc87352fafc4f",
+    "internal/component/bgp/reactor/rfc7947_consumer_test.go::TestRFC7947ClientPolicyControlsWire#2": "441cc87352fafc4f"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc7947_consumer_test.go::TestRFC7947ClientPolicyControlsWire": "84313ae64bb9cd24",
+    "internal/component/bgp/reactor/rfc7947_consumer_test.go::TestRFC7947ClientPolicyControlsWire#2": "84313ae64bb9cd24"
+  },
+  "verdict": "enforced"
+}

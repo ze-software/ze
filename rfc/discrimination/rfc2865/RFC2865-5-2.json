@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC2865-5-2",
+    "polarity": "positive",
+    "unit": "internal/component/radius/rfc2865_test.go::TestRFC2865AttributeLengthBound",
+    "unit-sha": "8ff7bebbe2ac1fc6",
+    "claim-sha": "dcb435f96551bb3c",
+    "route": "revert",
+    "producer": "internal/component/radius/packet.go::Decode",
+    "producer-sha": "1cfcbbae411360f3",
+    "break": "body of Decode replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2865-5-2",
+    "polarity": "negative",
+    "unit": "internal/component/radius/rfc2865_test.go::TestRFC2865AttributeLengthBound",
+    "unit-sha": "8ff7bebbe2ac1fc6",
+    "claim-sha": "dec1d1d4be980557",
+    "route": "revert",
+    "producer": "internal/component/radius/packet.go::Decode",
+    "producer-sha": "1cfcbbae411360f3",
+    "break": "body of Decode replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2865-5-2",
+    "polarity": "positive",
+    "unit": "internal/component/radius/rfc2865_wire_rules_test.go::TestRFC2865AttributeLengthOctetCountsTypeLengthAndValue",
+    "unit-sha": "87de877ea0d731a6",
+    "claim-sha": "fbf9acba93d0da94",
+    "route": "revert",
+    "producer": "internal/component/radius/packet.go::EncodeTo",
+    "producer-sha": "39536cf0cd7bb7e7",
+    "break": "body of EncodeTo replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2865-5-2",
+    "polarity": "negative",
+    "unit": "internal/component/radius/rfc2865_wire_rules_test.go::TestRFC2865AttributeLengthOctetThatOmitsTheHeaderIsRefused",
+    "unit-sha": "464e02ef4dd0f953",
+    "claim-sha": "e5c45d57fdba6b3b",
+    "route": "revert",
+    "producer": "internal/component/radius/packet.go::Decode",
+    "producer-sha": "1cfcbbae411360f3",
+    "break": "body of Decode replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

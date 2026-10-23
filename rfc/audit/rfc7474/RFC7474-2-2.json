@@ -1,0 +1,11 @@
+{
+  "note": "Forbidden: boot count and per-packet counter swapped or merged. TestSetBootCountSeedsSequence asserts signKey's seq == 0x1234<<32|1 after setBootCount(0x1234), red on any other composition. Single-polarity marker: a construction property with no violating input.",
+  "requirement_sha": "0b2c501881fc65b2",
+  "tests": {
+    "internal/plugins/ospf/auth_keystore_test.go::TestSetBootCountSeedsSequence": "daf32645cbe50ccd"
+  },
+  "units": {
+    "internal/plugins/ospf/auth_keystore_test.go::TestSetBootCountSeedsSequence": "ebaa89e50b3f4a0f"
+  },
+  "verdict": "enforced"
+}

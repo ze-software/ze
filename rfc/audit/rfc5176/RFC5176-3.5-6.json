@@ -1,0 +1,13 @@
+{
+  "note": "Judge 2026-09-30 (access cont 10, independent). + TestRFC5176ResidualSessionCauseOnlyInADisconnectACK: coaResponsePaths drives 15 response paths (both ACKs, NAK 401/404/405/407/503/504/506/508 for CoA and Disconnect), asserts each exact code+cause, requires all four response codes seen, and fails on 201 outside a Disconnect-ACK. - TestRFC5176ResidualSessionCauseInARequestNeverReachesANAK (R1(b)): requests carrying Error-Cause 201 and a Proxy-State holding a 201 TLV -> NAK with only [401], Proxy-State whole, no teardown. Records observed red.",
+  "requirement_sha": "bbee71285b27127d",
+  "tests": {
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176ResidualSessionCauseInARequestNeverReachesANAK": "9b6dfc18b62099d5",
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176ResidualSessionCauseOnlyInADisconnectACK": "9b6dfc18b62099d5"
+  },
+  "units": {
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176ResidualSessionCauseInARequestNeverReachesANAK": "50a43786731391bc",
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176ResidualSessionCauseOnlyInADisconnectACK": "cd59c8fe94c16700"
+  },
+  "verdict": "enforced"
+}

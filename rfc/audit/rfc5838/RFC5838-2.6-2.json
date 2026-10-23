@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged 2026-09-29 (independent judge, continuation 2). The {single-polarity} annotation is gone (the translation path could carry non-zero trailing bits, D-8). Positive: the originated NSSA-LSA and the translated AS-external-LSA each read all 16 FA bytes as 192.0.2.7 plus 96 zero bits, both IPv4 AFs. Negative: TestRFC5838IPv4AFTranslatorRefusesNonZeroTrailingBits feeds a Type-7 with 192.0.2.7 and bit 127 set and finds no translated Type-5, isolated (the same FA without the bit translates in the positive). Revert records on forwardingAddressForAF and translatableForwardingAddressV6.",
+  "requirement_sha": "ab1696848a715e70",
+  "tests": {
+    "internal/plugins/ospf/rfc5838_forwarding_test.go::TestRFC5838IPv4AFNSSAForwardingAddressIsIPv4": "60f823dd52fcc1f1",
+    "internal/plugins/ospf/rfc5838_translate_test.go::TestRFC5838IPv4AFTranslatedForwardingAddressIsIPv4": "943420c3b72e5888",
+    "internal/plugins/ospf/rfc5838_translate_test.go::TestRFC5838IPv4AFTranslatorRefusesNonZeroTrailingBits": "943420c3b72e5888"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc5838_forwarding_test.go::TestRFC5838IPv4AFNSSAForwardingAddressIsIPv4": "98650907f0a3cc3c",
+    "internal/plugins/ospf/rfc5838_translate_test.go::TestRFC5838IPv4AFTranslatedForwardingAddressIsIPv4": "edd02add2ad5e19a",
+    "internal/plugins/ospf/rfc5838_translate_test.go::TestRFC5838IPv4AFTranslatorRefusesNonZeroTrailingBits": "89d4531618807001"
+  },
+  "verdict": "enforced"
+}

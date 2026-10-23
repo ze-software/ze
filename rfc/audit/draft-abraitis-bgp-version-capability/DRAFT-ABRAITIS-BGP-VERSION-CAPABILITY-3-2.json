@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: advertising code 75 by default. TestSoftverDefaultsToDisabled asserts a peer whose capability block has no software-version key gets no declaration, red if the capability were on by default. Negative: TestSoftverDefaultIsNotABlanketRefusal, the same peer with the key present gets code 75, so the empty answer is the default and not a refusal of everything.",
+  "requirement_sha": "1c7a39f0897e51ac",
+  "tests": {
+    "internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go::TestSoftverDefaultIsNotABlanketRefusal": "621a76bf24368516",
+    "internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go::TestSoftverDefaultsToDisabled": "621a76bf24368516"
+  },
+  "units": {
+    "internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go::TestSoftverDefaultIsNotABlanketRefusal": "5e58d19f2493807e",
+    "internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go::TestSoftverDefaultsToDisabled": "198727a91158e901"
+  },
+  "verdict": "enforced"
+}

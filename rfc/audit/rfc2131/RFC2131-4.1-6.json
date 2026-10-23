@@ -1,0 +1,17 @@
+{
+  "note": "positive: TestRFC2131EveryReplyOptionContainedInItsField walks OFFER, ACK and the separately built DHCPNAK by length octets to End inside the options field and requires sname/file all zero with no option 52; TestOptionsContainedWithinTheirField keeps the OFFER/ACK walk. negative: a 300-octet bootfile; judge overlay removing the 255 guard in safeAppendOption reddens it ('option code 98 at offset 555 declares length 98, overrunning the options field'). Receiver side: TestOptionsContainedWithinTheirField negative, an overrunning received option is not read past the field. Config refuses bootfile-bios/uefi over 255 (TestParsePXEConfigInvalid)",
+  "requirement_sha": "8f5d3302ba626476",
+  "tests": {
+    "internal/plugins/dhcpserver/rfc2131_identity_options_test.go::TestRFC2131EveryReplyOptionContainedInItsField": "b5a39ec9f84423c9",
+    "internal/plugins/dhcpserver/rfc2131_identity_options_test.go::TestRFC2131EveryReplyOptionContainedInItsField#2": "b5a39ec9f84423c9",
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestOptionsContainedWithinTheirField": "8365c04cdfc2a046",
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestOptionsContainedWithinTheirField#2": "8365c04cdfc2a046"
+  },
+  "units": {
+    "internal/plugins/dhcpserver/rfc2131_identity_options_test.go::TestRFC2131EveryReplyOptionContainedInItsField": "45cadecdc056e081",
+    "internal/plugins/dhcpserver/rfc2131_identity_options_test.go::TestRFC2131EveryReplyOptionContainedInItsField#2": "45cadecdc056e081",
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestOptionsContainedWithinTheirField": "319a69f7f334107b",
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestOptionsContainedWithinTheirField#2": "319a69f7f334107b"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-15 (subagent, after 14d1c8f19c and 224b0ef514). The tagged unit changed only in its setup call: mgr.apply/applyListeners became reconcile(..., BindLenient), the policy the deleted wrappers passed; the unit binds one free loopback port, where lenient and strict bind alike, and every assertion line is byte-identical. Where this unit carries a revert record (TestDoTListener, TestDoHListener, TestRFC7858DoTNegotiatesOnlyBCP195Suites, the two RFC 2181 4.1-1 units), it was re-observed red today. Prior judgement re-read against the current body and stands: Re-judged 2026-09-30. Clause 2 now discriminates: TestDefaultSecureConfig compares the default DoT port with the literal 853 (no longer DefaultDoTPort against itself) and a config enabling tls without listen-port parses to 853; clause 1 stays TestDoTListener (listen, accept, answer). Record: DefaultSecureConfig revert observed red. {single-polarity} holds: a listen-and-accept mandate has no refusal path. Edit to a HEAD test adds assertions only (approval D-15).",
+  "requirement_sha": "7e27afd1b47d3da4",
+  "tests": {
+    "internal/core/dnsserver/secure_test.go::TestDefaultSecureConfig": "8772da30b26b9efc",
+    "internal/core/dnsserver/secure_test.go::TestDoTListener": "8772da30b26b9efc"
+  },
+  "units": {
+    "internal/core/dnsserver/secure_test.go::TestDefaultSecureConfig": "994c902b60d99365",
+    "internal/core/dnsserver/secure_test.go::TestDoTListener": "5a13f43dda020cb1"
+  },
+  "verdict": "enforced"
+}

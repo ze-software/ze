@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-10-20 (independent auditor, after 4bf9935e38). Section 7.6.5: \"Otherwise, the leaf MUST exist if the ancestor node exists in the data tree.\" Tagged units unchanged; walkTree's fingerprint changed because the per-level scan moved into requireMandatoryChildren with the same checks for non-choice children (see RFC7950-7.6.5-1), and walkTree now finds data keys through schemaChild. TestRFC7950MandatoryOutsideValidatedSections (bfd auth presence container, both exact paths, from mandatoryFailures) and TestRFC7950MandatoryRequiredWhenAncestorExists (list entry and presence container) are green at HEAD, and ./le rfc discriminate id RFC7950-7.6.5-3 lists four records, none stale. The latent exclusion the previous verdict recorded, that walkTree did not descend into case data so a list or presence container inside a case was never checked, is closed: probe shows a presence container present inside a case with its mandatory leaf absent reported at its path, and the same container absent owing nothing. The revert-route records prove reachability only; the verdict rests on the exact-path negatives and the supplied-leaf positives, which an over-eager or skipped check would turn red. Verdict stands.",
+  "requirement_sha": "0a31fd7b708ec18f",
+  "tests": {
+    "internal/component/config/rfc7950_mandatory_sections_test.go::TestRFC7950MandatoryOutsideValidatedSections": "52bcb6bcc2373e82",
+    "internal/component/config/rfc7950_mandatory_sections_test.go::TestRFC7950MandatoryOutsideValidatedSections#2": "52bcb6bcc2373e82",
+    "internal/component/config/yang/rfc7950_mandatory_test.go::TestRFC7950MandatoryRequiredWhenAncestorExists": "39faaa97711e3fdf",
+    "internal/component/config/yang/rfc7950_mandatory_test.go::TestRFC7950MandatoryRequiredWhenAncestorExists#2": "39faaa97711e3fdf"
+  },
+  "units": {
+    "internal/component/config/rfc7950_mandatory_sections_test.go::TestRFC7950MandatoryOutsideValidatedSections": "516b20e80e7cdb1b",
+    "internal/component/config/rfc7950_mandatory_sections_test.go::TestRFC7950MandatoryOutsideValidatedSections#2": "516b20e80e7cdb1b",
+    "internal/component/config/yang/rfc7950_mandatory_test.go::TestRFC7950MandatoryRequiredWhenAncestorExists": "f8dfd9fe5ac550a6",
+    "internal/component/config/yang/rfc7950_mandatory_test.go::TestRFC7950MandatoryRequiredWhenAncestorExists#2": "f8dfd9fe5ac550a6"
+  },
+  "verdict": "enforced"
+}

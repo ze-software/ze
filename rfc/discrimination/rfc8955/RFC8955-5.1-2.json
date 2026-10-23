@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC8955-5.1-2",
+    "polarity": "positive",
+    "unit": "internal/core/bgp/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecPrecedenceFromWire",
+    "unit-sha": "b81e89aa84362cd1",
+    "claim-sha": "4b3a13664bf1b362",
+    "route": "revert",
+    "producer": "internal/core/bgp/nlri/flowspec/compare.go::Compare",
+    "producer-sha": "915d2d9660fb4bc4",
+    "break": "body of Compare replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8955-5.1-2",
+    "polarity": "negative",
+    "unit": "internal/core/bgp/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecPrecedenceFromWire",
+    "unit-sha": "b81e89aa84362cd1",
+    "claim-sha": "d14a76baa34c64d7",
+    "route": "revert",
+    "producer": "internal/core/bgp/nlri/flowspec/compare.go::Compare",
+    "producer-sha": "915d2d9660fb4bc4",
+    "break": "body of Compare replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8955-5.1-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics",
+    "unit-sha": "682ef46b74cff9a9",
+    "claim-sha": "816251ae780212b7",
+    "route": "revert",
+    "producer": "internal/plugins/flowspec-firewall/rule_chains.go::ruleChains",
+    "producer-sha": "fd06b7eac61538ae",
+    "break": "body of ruleChains replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8955-5.1-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/flowspec-firewall/rfc8955_selected_integration_linux_test.go::TestSelectedFlowSpecKernelPacketSemantics",
+    "unit-sha": "682ef46b74cff9a9",
+    "claim-sha": "a6993c56fe7548ba",
+    "route": "revert",
+    "producer": "internal/plugins/flowspec-firewall/rule_chains.go::ruleChains",
+    "producer-sha": "fd06b7eac61538ae",
+    "break": "body of ruleChains replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

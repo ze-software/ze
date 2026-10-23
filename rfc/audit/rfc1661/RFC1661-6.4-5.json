@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: requesting option 5 before a Magic-Number is chosen. TestMagicNumberChosenBeforeRequested goes red if BuildLocalConfigRequest emits option 5 with no chosen value, or if the chosen request carries a value other than the generated non-zero one.",
+  "requirement_sha": "d629fd6bdd2c7475",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1661_magic_choice_test.go::TestMagicNumberChosenBeforeRequested": "9f240fbd5fc8e9de",
+    "internal/component/l2tp/ppp/rfc1661_magic_choice_test.go::TestMagicNumberChosenBeforeRequested#2": "9f240fbd5fc8e9de"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1661_magic_choice_test.go::TestMagicNumberChosenBeforeRequested": "7e5122f58101f8df",
+    "internal/component/l2tp/ppp/rfc1661_magic_choice_test.go::TestMagicNumberChosenBeforeRequested#2": "7e5122f58101f8df"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7606-5.3-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc7606_receive_boundary_test.go::TestRFC7606CoalescedMalformedNLRIBoundaries",
+    "unit-sha": "79d8e3e86d645816",
+    "claim-sha": "e513db0d955c506a",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_validation_receive.go::validateRFC7606IPv4",
+    "producer-sha": "1f7839683557d5c9",
+    "break": "body of validateRFC7606IPv4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7606-5.3-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc7606_receive_boundary_test.go::TestRFC7606CoalescedMalformedNLRIBoundaries",
+    "unit-sha": "79d8e3e86d645816",
+    "claim-sha": "9aa2866978aa374d",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_validation_receive.go::validateRFC7606IPv4",
+    "producer-sha": "1f7839683557d5c9",
+    "break": "body of validateRFC7606IPv4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

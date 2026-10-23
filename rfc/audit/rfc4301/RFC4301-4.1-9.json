@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-10-18 (independent auditor, after c85342c940). Section 4.1: \"The receiver MUST process the packets from the different SAs without prejudice.\" The two dataplane SAD boundary units changed only by the deleted RFC4301-4.4.2.1-3 tag lines; their bodies are identical, and the engine units are byte-identical. Judged on the positive under owner ruling 5: TestRFC4301ParallelSAsWithOneSelectorAreEachReceived installs two Child SAs on one selector pair through createFirstChildSA over real XFRM in a rootless netns and delivers an in-selector packet on SA1, SA2, then SA1 again; a per-SA template or reqid mismatch, or shared replay state that dropped the sibling's packets, goes red. The builder positive asserts two SAD entries with distinct SPIs 0x1000 and 0x2000 from xfrmStateFromParams. The negatives (TestRFC4301ParallelSAsAreHeldToTheOneSharedPolicy, which proves the 4.4.1-10 post-decryption SPD check, and the SAD refusal unit, which proves an unbuildable SA installs nothing) stay supplementary: no receive-side input can inject prejudiced processing.",
+  "requirement_sha": "9155c82e5e69deae",
+  "tests": {
+    "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySADEntryCarriesWhatTheKernelLooksUp": "69d0d6fedadb8664",
+    "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySADEntryIsRefusedRatherThanInstalledWrong": "69d0d6fedadb8664",
+    "internal/component/ike/engine/rfc4301_parallel_sa_linux_test.go::TestRFC4301ParallelSAsAreHeldToTheOneSharedPolicy": "4c7d6435e335e97b",
+    "internal/component/ike/engine/rfc4301_parallel_sa_linux_test.go::TestRFC4301ParallelSAsWithOneSelectorAreEachReceived": "4c7d6435e335e97b"
+  },
+  "units": {
+    "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySADEntryCarriesWhatTheKernelLooksUp": "500e0e082e266fac",
+    "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySADEntryIsRefusedRatherThanInstalledWrong": "7526337720204893",
+    "internal/component/ike/engine/rfc4301_parallel_sa_linux_test.go::TestRFC4301ParallelSAsAreHeldToTheOneSharedPolicy": "f17abddffa400d24",
+    "internal/component/ike/engine/rfc4301_parallel_sa_linux_test.go::TestRFC4301ParallelSAsWithOneSelectorAreEachReceived": "fe81deb1bdb10c45"
+  },
+  "verdict": "enforced"
+}

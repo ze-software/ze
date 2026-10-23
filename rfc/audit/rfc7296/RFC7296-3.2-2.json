@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-10-11 by an independent judge; row widened to the Critical item head, kept clause 'MUST be ignored by the recipient if the recipient understands the payload type code' (RFC 7296 3.2). TestCriticalBitIgnoredForKnownType (Message.ReadFrom, outer chain) and TestInnerChainIgnoresCriticalOnKnownType (ParsePayloadChain, inner chain) parse a critical Nonce to the same *PayloadNonce and data with no error, so a parser that refused or altered a critical known payload fails. The negatives (critical unknown type refused with ErrUnsupportedCrit) are scoping controls showing the bit is read, not violations of this clause. One known type (Nonce) is sampled; chain.go consults Critical only in the unknown-payload branch. No discrimination record.",
+  "requirement_sha": "164ed6cc1fa7db85",
+  "tests": {
+    "internal/component/ike/wire/rfc7296_innerchain_test.go::TestInnerChainIgnoresCriticalOnKnownType": "b59b31b934d5e2ea",
+    "internal/component/ike/wire/rfc7296_innerchain_test.go::TestInnerChainIgnoresCriticalOnKnownType#2": "b59b31b934d5e2ea",
+    "internal/component/ike/wire/rfc7296_test.go::TestCriticalBitIgnoredForKnownType": "459954f82bfe6b71",
+    "internal/component/ike/wire/rfc7296_test.go::TestCriticalBitIgnoredForKnownType#2": "459954f82bfe6b71"
+  },
+  "units": {
+    "internal/component/ike/wire/rfc7296_innerchain_test.go::TestInnerChainIgnoresCriticalOnKnownType": "56a2593fb00909e3",
+    "internal/component/ike/wire/rfc7296_innerchain_test.go::TestInnerChainIgnoresCriticalOnKnownType#2": "56a2593fb00909e3",
+    "internal/component/ike/wire/rfc7296_test.go::TestCriticalBitIgnoredForKnownType": "eabeb50bdbbb1955",
+    "internal/component/ike/wire/rfc7296_test.go::TestCriticalBitIgnoredForKnownType#2": "eabeb50bdbbb1955"
+  },
+  "verdict": "enforced"
+}

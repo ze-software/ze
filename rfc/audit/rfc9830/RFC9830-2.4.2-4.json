@@ -1,0 +1,14 @@
+{
+  "note": "Row narrowed to the two clauses ze produces: 6 with an SR-MPLS BSID, 2 with none (the 18-octet SRv6 clause split to RFC9830-2.4.2-12, a {gap}). TestRFC9830BindingSIDSubTLV asserts require.Len(withBSID, 6) from a binding-sid mpls config and require.Len(noBSID, 2) from binding-sid null, through the sub-TLV the config encoder emits; a constant-length or swapped encoder fails one of them. Revert records observed red for both tags (buildBindingSIDSubTLV, buildBindingSIDNullSubTLV). The label-width defect (spec-bgp-sr-policy-rfc-defects D2) will change buildBindingSIDSubTLV and stale the positive record",
+  "requirement_sha": "2f3d1ac097d58295",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDSubTLV": "450f2364530acf19",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDSubTLV#2": "450f2364530acf19"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDSubTLV": "6eaba5e67a485e4c",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDSubTLV#2": "6eaba5e67a485e4c"
+  },
+  "upgrade_reason": "The earlier weak verdict rested only on the unproven 18-octet SRv6 clause, which the row no longer states (split to RFC9830-2.4.2-12 {gap}). Re-read the narrowed row, RFC 9830 Section 2.4.2 and the unchanged unit: both remaining clauses are asserted exactly, and each tag now carries an observed-red record",
+  "verdict": "enforced"
+}

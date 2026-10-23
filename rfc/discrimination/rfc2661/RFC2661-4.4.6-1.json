@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC2661-4.4.6-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661CallErrorsReservedZero",
+    "unit-sha": "685f31b08b05fb31",
+    "claim-sha": "9f83aac458195539",
+    "route": "revert",
+    "producer": "internal/component/l2tp/avp_compound.go::writeAVPCallErrors",
+    "producer-sha": "0adae23f239d3fa3",
+    "break": "body of writeAVPCallErrors replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

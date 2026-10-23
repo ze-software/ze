@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC3748-4-4",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc3748_clause_test.go::TestRFC3748PaddingPastLengthIsNotData",
+    "unit-sha": "87e1f6cb623eb1c9",
+    "claim-sha": "3ba757089a4f5afe",
+    "route": "revert",
+    "producer": "internal/core/eap/eap.go::DecodePacket",
+    "producer-sha": "6ac2ff5effdaaf5e",
+    "break": "body of DecodePacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3748-4-4",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc3748_clause_test.go::TestRFC3748PaddingPastLengthIsNotData",
+    "unit-sha": "87e1f6cb623eb1c9",
+    "claim-sha": "dacecd9d189e0d25",
+    "route": "revert",
+    "producer": "internal/core/eap/eap.go::DecodePacket",
+    "producer-sha": "6ac2ff5effdaaf5e",
+    "break": "body of DecodePacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3748-4-4",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc3748_walk_test.go::TestRFC3748LengthBoundsTypeData",
+    "unit-sha": "e77326e1f3dafdc2",
+    "claim-sha": "c54e703c9d7951e9",
+    "route": "revert",
+    "producer": "internal/core/eap/eap.go::DecodePacket",
+    "producer-sha": "6ac2ff5effdaaf5e",
+    "break": "body of DecodePacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3748-4-4",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc3748_walk_test.go::TestRFC3748LengthBoundsTypeData",
+    "unit-sha": "e77326e1f3dafdc2",
+    "claim-sha": "5b4e7431a90d3c3e",
+    "route": "revert",
+    "producer": "internal/core/eap/eap.go::DecodePacket",
+    "producer-sha": "6ac2ff5effdaaf5e",
+    "break": "body of DecodePacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

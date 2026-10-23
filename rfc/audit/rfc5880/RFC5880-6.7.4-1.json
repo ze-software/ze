@@ -1,0 +1,17 @@
+{
+  "note": "Judge 2026-09-29. Both clauses. Positive TestRFC5880KeyedSHA1SectionHeader asserts Auth Type 4/5 and Auth Len 28 (observed red with digestSigner.Sign broken). Negative TestRFC5880KeyedSHA1OtherAlgorithmFieldsDiscarded, types 4 and 5, hashes Auth Type 2/3 or Auth Len 24 in after the alteration, exact ErrDigestMismatch, unaltered accepted; isolated as for 6.7.3-1 (Control Length correct, digest valid). Auth Type half recorded by mutant; Auth Len half isolated by construction, no record. Older confounded tags not relied on.",
+  "requirement_sha": "4b2b81703111d3e1",
+  "tests": {
+    "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedSHA1OversizedKeyNotSigned": "69049dc5fe6d5288",
+    "internal/component/bfd/auth/rfc5880_section_fields_test.go::TestRFC5880KeyedSHA1OtherAlgorithmFieldsDiscarded": "7078094d8d649608",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KeyedSHA1RejectsForeignSectionShape": "5a25c74cc2d9bd47",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KeyedSHA1SectionHeader": "5a25c74cc2d9bd47"
+  },
+  "units": {
+    "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedSHA1OversizedKeyNotSigned": "cf119a6c947bdf87",
+    "internal/component/bfd/auth/rfc5880_section_fields_test.go::TestRFC5880KeyedSHA1OtherAlgorithmFieldsDiscarded": "bc71be91b8b3cd45",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KeyedSHA1RejectsForeignSectionShape": "96e4716a7aa39cb1",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KeyedSHA1SectionHeader": "619def3d9758d595"
+  },
+  "verdict": "enforced"
+}

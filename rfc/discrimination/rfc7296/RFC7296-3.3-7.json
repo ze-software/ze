@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC7296-3.3-7",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_alternate_key_length_test.go::TestRFC7296AlternateKeyLengthsAreOfferedAsSeparateTransforms",
+    "unit-sha": "4ea558e3818e7a0f",
+    "claim-sha": "e980b13400ae3221",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/initiator.go::wireIKEOffer",
+    "producer-sha": "2c8eeccc7a2b8917",
+    "break": "body of wireIKEOffer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-3.3-7",
+    "polarity": "negative",
+    "unit": "internal/component/ike/wire/rfc7296_sa_test.go::TestPropAlternateKeyLengthsUseSeparateTransforms",
+    "unit-sha": "4fb84e54d3ac2cf1",
+    "claim-sha": "4c3888f14976a4c7",
+    "route": "revert",
+    "producer": "internal/component/ike/wire/payload_sa.go::rejectTransform",
+    "producer-sha": "54852b8db39bbe45",
+    "break": "body of rejectTransform replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-3.3-7",
+    "polarity": "positive",
+    "unit": "internal/component/ike/wire/rfc7296_sa_test.go::TestPropAlternateKeyLengthsUseSeparateTransforms",
+    "unit-sha": "4fb84e54d3ac2cf1",
+    "claim-sha": "f2c5465d3d9409de",
+    "route": "revert",
+    "producer": "internal/component/ike/wire/payload_sa.go::checkAttr",
+    "producer-sha": "62f873004484b399",
+    "break": "body of checkAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC5082-3-4",
+    "polarity": "positive",
+    "unit": "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMDeliversAnICMPErrorNoSessionClaims",
+    "unit-sha": "b88c53446cd89c7d",
+    "claim-sha": "aa60a30b3e55d6a3",
+    "route": "revert",
+    "producer": "internal/plugins/firewall/nft/lower_linux.go::quotedIPv4HeaderGuard",
+    "producer-sha": "1a818f5437fd005d",
+    "break": "body of quotedIPv4HeaderGuard replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5082-3-4",
+    "polarity": "positive",
+    "unit": "internal/core/network/rfc5082_ttl_gtsm_linux_test.go::TestGTSMFloorDeliversATrustedPacket",
+    "unit-sha": "902369bf8e5f7fcc",
+    "claim-sha": "042102514bd25eb8",
+    "route": "revert",
+    "producer": "internal/core/network/ttl_linux.go::setIPMinTTL",
+    "producer-sha": "eb0c54d8b4ca66c2",
+    "break": "body of setIPMinTTL replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5082-3-4",
+    "polarity": "negative",
+    "unit": "internal/core/network/rfc5082_ttl_gtsm_linux_test.go::TestGTSMNoFloorDeliversAnUnknownPacket",
+    "unit-sha": "3ef814c91f0625bd",
+    "claim-sha": "8b8a2d5f9a4cea3c",
+    "route": "revert",
+    "producer": "internal/core/network/ttl_linux.go::setIPMinTTL",
+    "producer-sha": "eb0c54d8b4ca66c2",
+    "break": "body of setIPMinTTL replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

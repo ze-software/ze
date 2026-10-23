@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: an LSDB that cannot hold Type-7. lsdb/nssa_test.go TestOSPFType7Origination requires the originated route under LSTypeNSSA in the NSSA area store (require.True line 38) and asserts it is absent from the AS-wide Type-5 store (line 52). Received Type-7 storage is covered under RFC3101-x-4.",
+  "requirement_sha": "e5b55dd5b4fa1e80",
+  "tests": {
+    "internal/plugins/ospf/lsdb/rfc3101_nssa_test.go::TestOSPFType7Origination": "c20c5e21de837ab8",
+    "internal/plugins/ospf/lsdb/rfc3101_nssa_test.go::TestOSPFType7Origination#2": "c20c5e21de837ab8"
+  },
+  "units": {
+    "internal/plugins/ospf/lsdb/rfc3101_nssa_test.go::TestOSPFType7Origination": "a9ff7f924309e5ea",
+    "internal/plugins/ospf/lsdb/rfc3101_nssa_test.go::TestOSPFType7Origination#2": "a9ff7f924309e5ea"
+  },
+  "verdict": "enforced"
+}

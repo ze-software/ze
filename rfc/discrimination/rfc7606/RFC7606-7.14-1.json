@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7606-7.14-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/message/rfc7606_clause_test.go::TestRFC7606ExtendedCommunityNonMultipleOf8IsMalformed",
+    "unit-sha": "a5f75fc9e63d633f",
+    "claim-sha": "098b82388d06dc15",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/rfc7606.go::validateExtCommunityAttr",
+    "producer-sha": "96802613d2d986bf",
+    "break": "body of validateExtCommunityAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7606-7.14-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/message/rfc7606_clause_test.go::TestRFC7606ExtendedCommunityNonMultipleOf8IsMalformed",
+    "unit-sha": "a5f75fc9e63d633f",
+    "claim-sha": "4d5db6df0c8fe3f1",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/rfc7606.go::validateExtCommunityAttr",
+    "producer-sha": "96802613d2d986bf",
+    "break": "body of validateExtCommunityAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

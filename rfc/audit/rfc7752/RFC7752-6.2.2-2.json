@@ -1,0 +1,21 @@
+{
+  "note": "D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV->WriteTLV and field-export renames (TLV code constants verified unchanged). RFC 7752 Section 6.2.2: \"An implementation of BGP-LS MUST perform the following syntactic checks for determining if a message is malformed.\" Whole list carried by the reactor TestRFC7752 length-sum units (MP_REACH/MP_UNREACH outer and descriptor sums, code29 TLV sums, both polarities, unchanged). The ls units now assert bgpls.ErrBGPLSTruncated for the TLV-sum overrun and the 3-octet Router-ID fixed-length TLV; exact-sum walk positive unchanged.",
+  "requirement_sha": "d752ea60c051e852",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752AttrSyntacticChecks": "6c7da98fd78cb69c",
+    "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752MalformedTLVNotPreserved": "6c7da98fd78cb69c",
+    "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752AttributeLengthSumsOnReceive": "6f2c9e2f2b169813",
+    "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752AttributeLengthSumsOnReceive#2": "6f2c9e2f2b169813",
+    "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752LinkStateLengthSumsOnReceive": "6f2c9e2f2b169813",
+    "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752LinkStateLengthSumsOnReceive#2": "6f2c9e2f2b169813"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752AttrSyntacticChecks": "bdebb291411ab9fb",
+    "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752MalformedTLVNotPreserved": "45729f99aa376256",
+    "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752AttributeLengthSumsOnReceive": "b7119d61ce285be4",
+    "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752AttributeLengthSumsOnReceive#2": "b7119d61ce285be4",
+    "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752LinkStateLengthSumsOnReceive": "e3944c818f8097ff",
+    "internal/component/bgp/reactor/rfc7752_length_sums_test.go::TestRFC7752LinkStateLengthSumsOnReceive#2": "e3944c818f8097ff"
+  },
+  "verdict": "enforced"
+}

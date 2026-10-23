@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC7432-10-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/nlri/evpn/rfc7432_ip_length_send_test.go::TestRFC7432MACIPSenderUsesBitLengths",
+    "unit-sha": "c509c164495c4b70",
+    "claim-sha": "c84d75e5e359141b",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/nlri/evpn/types.go::NewEVPNType2",
+    "producer-sha": "45ab51468c3c8c81",
+    "break": "body of NewEVPNType2 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7432-10-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNIPAddressLength",
+    "unit-sha": "0d715d329a8f5268",
+    "claim-sha": "f29558575f9b2e7d",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/nlri/evpn/types.go::parseEVPNType2",
+    "producer-sha": "f19a9242edb113a1",
+    "break": "body of parseEVPNType2 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7432-10-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNIPAddressLength",
+    "unit-sha": "0d715d329a8f5268",
+    "claim-sha": "bfe30cf51a9a73e8",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/nlri/evpn/types.go::parseEVPNType2",
+    "producer-sha": "f19a9242edb113a1",
+    "break": "body of parseEVPNType2 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

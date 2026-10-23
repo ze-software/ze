@@ -1,0 +1,13 @@
+{
+  "note": "Rejudged 2026-10-21 over the current tags, units and records. NP=1/E=0 gives ActionKeep with 16009 imposed, and NP=1/E=1 does not keep the Prefix-SID.",
+  "requirement_sha": "2093ce4509101e03",
+  "tests": {
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665ExplicitNullReplacesPrefixSID": "dcc89abea6ba13ce",
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665NoPHPKeepsPrefixSIDLabel": "dcc89abea6ba13ce"
+  },
+  "units": {
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665ExplicitNullReplacesPrefixSID": "91f028433fb53896",
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665NoPHPKeepsPrefixSIDLabel": "444536801c4546bd"
+  },
+  "verdict": "enforced"
+}

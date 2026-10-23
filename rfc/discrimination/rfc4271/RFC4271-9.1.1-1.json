@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC4271-9.1.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/rfc4271_test.go::TestRFC4271DegreeOfPreferenceIgnoresOtherRoutes",
+    "unit-sha": "b996135b3e0b8ad4",
+    "claim-sha": "f89de4a63933345b",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/bestpath.go::SelectBest",
+    "producer-sha": "a049a8f03195997a",
+    "break": "body of SelectBest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

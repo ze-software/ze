@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC3768-7.1-7",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/instance_test.go::TestInstanceV2AddressListMatchReachesFSM",
+    "unit-sha": "98cab2178eb7f140",
+    "claim-sha": "72fbcdbe949fb7f7",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/instance.go::onPacket",
+    "producer-sha": "311d2786f273a10b",
+    "break": "body of onPacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3768-7.1-7",
+    "polarity": "negative",
+    "unit": "internal/plugins/vrrp/instance_test.go::TestInstanceV2AddressListMismatchDrops",
+    "unit-sha": "274d05aa859fcc02",
+    "claim-sha": "1184dd1a466aca96",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/instance.go::onPacket",
+    "producer-sha": "311d2786f273a10b",
+    "break": "body of onPacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3768-7.1-7",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/instance_test.go::TestInstanceV2AddressListMismatchFromOwnerContinues",
+    "unit-sha": "72cbaafe0e5af012",
+    "claim-sha": "088160f053c20df3",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/instance.go::onPacket",
+    "producer-sha": "311d2786f273a10b",
+    "break": "body of onPacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

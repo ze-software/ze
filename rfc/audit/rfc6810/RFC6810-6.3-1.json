@@ -1,0 +1,17 @@
+{
+  "note": "Same units as RFC8210-8.3-1: TestRTRCacheResetReloadsTheWholeSet, one-session group, Cache Reset makes the next wire query a Reset Query and its load replaces the old set; negative: data in answer to the Serial Query keeps Serial Queries and merges.",
+  "requirement_sha": "ffe9f790aa8a5991",
+  "tests": {
+    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRCacheResetReloadsTheWholeSet": "f4affe67e61b8df8",
+    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRCacheResetReloadsTheWholeSet#2": "f4affe67e61b8df8",
+    "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestCacheResetTriggersResetQuery": "9de8363060757013",
+    "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestCacheResetTriggersResetQuery#2": "9de8363060757013"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRCacheResetReloadsTheWholeSet": "36d27e409e1c2fef",
+    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRCacheResetReloadsTheWholeSet#2": "36d27e409e1c2fef",
+    "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestCacheResetTriggersResetQuery": "cb81b414628b3cf1",
+    "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestCacheResetTriggersResetQuery#2": "cb81b414628b3cf1"
+  },
+  "verdict": "enforced"
+}

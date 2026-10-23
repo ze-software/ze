@@ -1,0 +1,19 @@
+{
+  "note": "TestNrsResponseNeverDrawsAResponse drives the responder handshake, out-of-SA admission (with a matching source so the flag is the only difference), INFORMATIONAL and CREATE_CHILD_SA paths: a message marked as a response builds and sends nothing, the same message with the flag clear is answered. TestNrsInformationalHandlerRefusesAResponse takes handleInformationalOwned at its own entry point, both ways. TestResponseBitMatchesDirection's moved negative repeats the handshake arm (R-set IKE_SA_INIT leaves the responder idle, the clear one reaches sa-init-received). The Section 2.21.2 exception is not exercised here.",
+  "requirement_sha": "9541df22d0b78b28",
+  "tests": {
+    "internal/component/ike/engine/rfc7296_header_test.go::TestResponseBitMatchesDirection": "3621c3a699e1b772",
+    "internal/component/ike/engine/rfc7296_noresponse_test.go::TestNrsInformationalHandlerRefusesAResponse": "13157a7cdb7a412c",
+    "internal/component/ike/engine/rfc7296_noresponse_test.go::TestNrsInformationalHandlerRefusesAResponse#2": "13157a7cdb7a412c",
+    "internal/component/ike/engine/rfc7296_noresponse_test.go::TestNrsResponseNeverDrawsAResponse": "13157a7cdb7a412c",
+    "internal/component/ike/engine/rfc7296_noresponse_test.go::TestNrsResponseNeverDrawsAResponse#2": "13157a7cdb7a412c"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7296_header_test.go::TestResponseBitMatchesDirection": "214ee371f8ae3d13",
+    "internal/component/ike/engine/rfc7296_noresponse_test.go::TestNrsInformationalHandlerRefusesAResponse": "c1f1126655818085",
+    "internal/component/ike/engine/rfc7296_noresponse_test.go::TestNrsInformationalHandlerRefusesAResponse#2": "c1f1126655818085",
+    "internal/component/ike/engine/rfc7296_noresponse_test.go::TestNrsResponseNeverDrawsAResponse": "8dd6d4d67c2a1072",
+    "internal/component/ike/engine/rfc7296_noresponse_test.go::TestNrsResponseNeverDrawsAResponse#2": "8dd6d4d67c2a1072"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-10-02 (independent judge, ospf c28). OSPF exporter as judged 2026-09-30 (+ TestRFC9085OSPFCapabilitiesOnOriginatorNode, - TestRFC9085OSPFCapabilitiesOnNoOtherNLRI, targeted breaks red). IS-IS exporter now driven (new isis/bgpls_export_rfc9085_placement_test.go): two L1 LSPs through the LSDB and bgplsBuilder.build; + TestRFC9085ISISCapabilitiesOnOriginatorNode: 0000.0000.0002 (TLV 242 with sub-TLVs 2/19/22) gets exactly one 1034/1035/1036 with exact bytes; - TestRFC9085ISISCapabilitiesOnNoOtherNLRI: 0000.0000.0003 Node NLRI, both Link and both Prefix NLRIs (presence asserted) carry none. Judge overlay: TLV 242 deferred and applied to the last node built (0000.0000.0003) -> + red (0 TLV 1034) and - red ('node 0000.0000.0003 carries TLV 1034'); author overlays (copy to other node / to every Link and Prefix NLRI) -> - red only. Revert records on capabilities observed. Support remaining sentence 'tested on the OSPF exporter only' removed as now false.",
+  "requirement_sha": "b46d65388027e52f",
+  "tests": {
+    "internal/plugins/isis/rfc9085_bgpls_export_placement_test.go::TestRFC9085ISISCapabilitiesOnNoOtherNLRI": "b8c618822a908f41",
+    "internal/plugins/isis/rfc9085_bgpls_export_placement_test.go::TestRFC9085ISISCapabilitiesOnOriginatorNode": "b8c618822a908f41",
+    "internal/plugins/ospf/rfc9085_bgpls_export_test.go::TestRFC9085OSPFCapabilitiesOnNoOtherNLRI": "e14c93300ea1c323",
+    "internal/plugins/ospf/rfc9085_bgpls_export_test.go::TestRFC9085OSPFCapabilitiesOnOriginatorNode": "e14c93300ea1c323"
+  },
+  "units": {
+    "internal/plugins/isis/rfc9085_bgpls_export_placement_test.go::TestRFC9085ISISCapabilitiesOnNoOtherNLRI": "b02b9eab3834837f",
+    "internal/plugins/isis/rfc9085_bgpls_export_placement_test.go::TestRFC9085ISISCapabilitiesOnOriginatorNode": "318064a1ce2e78cc",
+    "internal/plugins/ospf/rfc9085_bgpls_export_test.go::TestRFC9085OSPFCapabilitiesOnNoOtherNLRI": "3be6e5fb610eb096",
+    "internal/plugins/ospf/rfc9085_bgpls_export_test.go::TestRFC9085OSPFCapabilitiesOnOriginatorNode": "a9e52b30be6266b8"
+  },
+  "verdict": "enforced"
+}

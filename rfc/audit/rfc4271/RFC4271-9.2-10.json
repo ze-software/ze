@@ -1,0 +1,17 @@
+{
+  "note": "RFC 4271 Section 9.2: \u201cIf, due to the limits on the maximum size of an UPDATE message (see Section 4), a single route doesn't fit into the message, the BGP speaker MUST not advertise the route to its peers and MAY choose to log an error locally.\u201d The changed splitter pair retains equivalent non-ADD-PATH framing. Its oversized opaque-attribute case requires an error and zero callbacks; the fitting control preserves attributes and NLRI in one output. The genuine relay pair supplies protocol-shaped input: a single route with 900 communities fits and is relayed byte-identically; 1100 communities exceed the 4096-byte destination limit and yield ok=false with neither raw nor parsed output. Both forwarding callers explicitly release and skip failed items, so failure is not later dispatched. Final ordinary-write admission also refuses an indivisible effective chunk. The corrected test tag accurately says an error, not an assertion of the exact ErrAttributesTooLarge identity. Logging is optional. Whole-producer halt records are reachability evidence, not selective size-check mutations.",
+  "requirement_sha": "17cf9a33430fda7d",
+  "tests": {
+    "internal/component/bgp/message/rfc4271_test.go::TestRFC4271FittingRouteIsAdvertised": "abbe4d642c22df9a",
+    "internal/component/bgp/message/rfc4271_test.go::TestRFC4271OversizeSingleRouteNotAdvertised": "abbe4d642c22df9a",
+    "internal/component/bgp/reactor/rfc4271_forward_oversize_route_test.go::TestRFC4271RelayedRouteTooLargeForThePeerIsWithheld": "4ae6ed42ec547fb7",
+    "internal/component/bgp/reactor/rfc4271_forward_oversize_route_test.go::TestRFC4271RelayedRouteTooLargeForThePeerIsWithheld#2": "4ae6ed42ec547fb7"
+  },
+  "units": {
+    "internal/component/bgp/message/rfc4271_test.go::TestRFC4271FittingRouteIsAdvertised": "e5fe0384e82a9ec6",
+    "internal/component/bgp/message/rfc4271_test.go::TestRFC4271OversizeSingleRouteNotAdvertised": "a7db01e738f9e64a",
+    "internal/component/bgp/reactor/rfc4271_forward_oversize_route_test.go::TestRFC4271RelayedRouteTooLargeForThePeerIsWithheld": "3869fa5b27305bbe",
+    "internal/component/bgp/reactor/rfc4271_forward_oversize_route_test.go::TestRFC4271RelayedRouteTooLargeForThePeerIsWithheld#2": "3869fa5b27305bbe"
+  },
+  "verdict": "enforced"
+}

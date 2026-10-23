@@ -1,0 +1,11 @@
+{
+  "note": "{single-polarity} justified. Forbidden: any reply or effect for a Discard-Request. TestRFC1661DiscardRequestSilentlyDiscarded goes red on any written frame, a state change or a lifecycle event.",
+  "requirement_sha": "16a398957ab53f0d",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661DiscardRequestSilentlyDiscarded": "9afaf002f0fd81ec"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661DiscardRequestSilentlyDiscarded": "9004fde53b8be35d"
+  },
+  "verdict": "enforced"
+}

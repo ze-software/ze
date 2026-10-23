@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden behaviour: an L1L2 router advertising back into L2 an L2->L1 inter-area route it learned via L1. TestISISLeakFixpoint round 2 re-injects the leaked-down prefix as an L1 advertisement with UpDown set and fails on hasPrefix(r2.IntoL2, l2Derived); round 1 (negative) requires the same L2 prefix to leak down, so suppressing all leaking goes red too.",
+  "requirement_sha": "7b34fbd8c3cd9509",
+  "tests": {
+    "internal/plugins/isis/spf/leak_test.go::TestISISLeakFixpoint": "65952e292e4f6c83",
+    "internal/plugins/isis/spf/leak_test.go::TestISISLeakFixpoint#2": "65952e292e4f6c83"
+  },
+  "units": {
+    "internal/plugins/isis/spf/leak_test.go::TestISISLeakFixpoint": "ddd75c5118817528",
+    "internal/plugins/isis/spf/leak_test.go::TestISISLeakFixpoint#2": "ddd75c5118817528"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC3209-4.4.3-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/rfc3209_relay_test.go::TestRFC3209RRODroppedWhenTooBig",
+    "unit-sha": "28016c09156d9d99",
+    "claim-sha": "92afbe8a223739ef",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/rro.go::prependRRO",
+    "producer-sha": "128a23cf9593adb5",
+    "break": "body of prependRRO replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3209-4.4.3-3",
+    "polarity": "negative",
+    "unit": "internal/plugins/rsvpte/rfc3209_relay_test.go::TestRFC3209RROKeptWhenItFits",
+    "unit-sha": "63dc5111bf5640f7",
+    "claim-sha": "28b6b5b0ddf4d5d9",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/rro.go::prependRRO",
+    "producer-sha": "128a23cf9593adb5",
+    "break": "body of prependRRO replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3209-4.4.3-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/rfc3209_signaling_test.go::TestRFC3209PathRRODroppedWhenTooBig",
+    "unit-sha": "eb3895d4dab304ff",
+    "claim-sha": "613ce675fe54b199",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/rro.go::prependRRO",
+    "producer-sha": "128a23cf9593adb5",
+    "break": "body of prependRRO replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3209-4.4.3-3",
+    "polarity": "negative",
+    "unit": "internal/plugins/rsvpte/rfc3209_signaling_test.go::TestRFC3209PathRROKeptWhenItFits",
+    "unit-sha": "0ab8f3eb31f0cc18",
+    "claim-sha": "b213207e74e600de",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/rro.go::prependRRO",
+    "producer-sha": "128a23cf9593adb5",
+    "break": "body of prependRRO replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

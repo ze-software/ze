@@ -1,0 +1,11 @@
+{
+  "note": "Independent MRTJudge 2026-10-02, rejudged changed checked-encoder call. RFC6396 section 4.3.1: The View Name is OPTIONAL and, if not present, the View Name Length MUST be set to 0. TestPeerIndexTableEmptyViewName asserts the actual encoded two octets at offset 4 are zero and decoded name empty; errors from the migrated encoder are checked. The production writePeerIndexTable passes an empty string; the additional dump-producer test inspected under 4.3.1-2 pins the entire emitted empty-name PIT body. Single-positive annotation is valid because no independently supplied absent-name length exists. Native record disables WritePeerIndexTable; enforcement rests on the zero-field assertion, not the panic.",
+  "requirement_sha": "47bf8b0aa4c0f0a7",
+  "tests": {
+    "internal/mrt/mrt_test.go::TestPeerIndexTableEmptyViewName": "fb2e8a7edf55af3c"
+  },
+  "units": {
+    "internal/mrt/mrt_test.go::TestPeerIndexTableEmptyViewName": "c68177d749e81a44"
+  },
+  "verdict": "enforced"
+}

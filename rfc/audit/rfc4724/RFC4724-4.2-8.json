@@ -1,0 +1,19 @@
+{
+  "note": "Re-judged 2026-10-02 (BGP c25 judge) after the D-8 fix. Producer read: gr.go forgetGRCapability (deletes peerCaps and peerLLGRCaps, RFC 4724 4.2 and RFC 9494 4.5 quoted) is called from handleOpenEvent and handleStructuredOpen only when the received OPEN has no code 64; an OPEN carrying 64 still stores the new capability, so GR state is not dropped. Opens are subscribed 'direction received' and the server filters by direction (events.go PeerScopedProcs), so Ze's own OPEN never reaches it. peerCaps is read only by gr.go's two state handlers. All three triggers are now proven at the production dispatch: F clear and family omitted (OPEN through handleEvent) purge exactly that family; capability absent purges both on the JSON path (OPEN with only cap 65) and the structured path (only cap 65, no optional parameters) through a real down/up cycle. Negative: F set for both purges nothing. Judge overlay probe removing the peerCaps delete turned exactly the three absent-capability subtests red. Records: forgetGRCapability revert (both positives), onSessionReestablished revert (negative). Not proven here: the JSON path's test hex omits the 2-byte capability header that format.JSONEncoder.Open's fallback includes for code 64; production runs the structured path.",
+  "requirement_sha": "53f5275147da817c",
+  "tests": {
+    "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerReconnectFBitZero": "7ff5f8c62f5f9ada",
+    "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerReconnectWithFBit": "7ff5f8c62f5f9ada",
+    "internal/component/bgp/plugins/gr/rfc4724_capability_absent_test.go::TestRFC4724ReestablishedWithoutCapabilityPurgesOnTheStructuredPath": "8ce3d1800e39f6e4",
+    "internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go::TestRFC4724ReestablishedWithForwardingStateKeepsTheRoutes": "02daf774960d8500",
+    "internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go::TestRFC4724ReestablishedWithoutForwardingStatePurgesTheFamily": "02daf774960d8500"
+  },
+  "units": {
+    "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerReconnectFBitZero": "21af448503016e9e",
+    "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerReconnectWithFBit": "98922aa8b0bd0781",
+    "internal/component/bgp/plugins/gr/rfc4724_capability_absent_test.go::TestRFC4724ReestablishedWithoutCapabilityPurgesOnTheStructuredPath": "b197e233f8a15a12",
+    "internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go::TestRFC4724ReestablishedWithForwardingStateKeepsTheRoutes": "b20261f7ccf4db92",
+    "internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go::TestRFC4724ReestablishedWithoutForwardingStatePurgesTheFamily": "cff8dc3c6dd9dfe9"
+  },
+  "verdict": "enforced"
+}

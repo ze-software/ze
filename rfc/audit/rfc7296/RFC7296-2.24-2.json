@@ -1,0 +1,21 @@
+{
+  "note": "same units: XFRM state carries no NOECN path, VPP sets DECAP_COPY_ECN; transport mode refused by VPP backend",
+  "requirement_sha": "79a9734e767384bd",
+  "tests": {
+    "internal/component/ike/dataplane/rfc7296_ecn_linux_test.go::TestEcnInstalledStateDisablesNothing": "38ec105d43e07435",
+    "internal/component/ike/dataplane/rfc7296_ecn_linux_test.go::TestEcnTheScannedStateIsTheOneZeInstalls": "38ec105d43e07435",
+    "internal/component/ike/dataplane/rfc7296_vpp_message_test.go::TestVPPInstallSACopiesECN": "ddb14b46cb0e3e82",
+    "internal/component/ike/dataplane/rfc7296_vpp_message_test.go::TestVPPInstallSAECNIsOnTheSAZeInstalls": "ddb14b46cb0e3e82",
+    "internal/component/ike/engine/rfc7296_ecn_test.go::TestEcnInstalledChildSAAsksForNoECNChange": "84a6a3e42bf96d67",
+    "internal/component/ike/engine/rfc7296_ecn_test.go::TestEcnTheInstalledSAsAreRealAndDirectional": "84a6a3e42bf96d67"
+  },
+  "units": {
+    "internal/component/ike/dataplane/rfc7296_ecn_linux_test.go::TestEcnInstalledStateDisablesNothing": "509eab17a198ace1",
+    "internal/component/ike/dataplane/rfc7296_ecn_linux_test.go::TestEcnTheScannedStateIsTheOneZeInstalls": "d108e4bf9d530bf8",
+    "internal/component/ike/dataplane/rfc7296_vpp_message_test.go::TestVPPInstallSACopiesECN": "d8446e54f00d264d",
+    "internal/component/ike/dataplane/rfc7296_vpp_message_test.go::TestVPPInstallSAECNIsOnTheSAZeInstalls": "096e67120fc6408f",
+    "internal/component/ike/engine/rfc7296_ecn_test.go::TestEcnInstalledChildSAAsksForNoECNChange": "14022f6655ade6d8",
+    "internal/component/ike/engine/rfc7296_ecn_test.go::TestEcnTheInstalledSAsAreRealAndDirectional": "c2ae70dc848cc41d"
+  },
+  "verdict": "enforced"
+}

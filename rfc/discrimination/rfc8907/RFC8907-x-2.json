@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8907-x-2",
+    "polarity": "positive",
+    "unit": "internal/component/tacacs/rfc8907_status_test.go::TestRFC8907FollowIsNotAuthenticated",
+    "unit-sha": "43390028b328ef76",
+    "claim-sha": "5b7ecf93ee5f0161",
+    "route": "revert",
+    "producer": "internal/component/tacacs/authenticator.go::Authenticate",
+    "producer-sha": "4f32ab33835cd7c4",
+    "break": "body of Authenticate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8907-x-2",
+    "polarity": "negative",
+    "unit": "internal/component/tacacs/rfc8907_status_test.go::TestRFC8907FollowTargetIsNeverContacted",
+    "unit-sha": "ab01674a788a7852",
+    "claim-sha": "e6b1eb8798b736d3",
+    "route": "revert",
+    "producer": "internal/component/tacacs/authenticator.go::Authenticate",
+    "producer-sha": "4f32ab33835cd7c4",
+    "break": "body of Authenticate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

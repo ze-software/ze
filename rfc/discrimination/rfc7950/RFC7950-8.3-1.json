@@ -1,0 +1,57 @@
+[
+  {
+    "rid": "RFC7950-8.3-1",
+    "polarity": "negative",
+    "unit": "cmd/ze/hub/rfc7950_web_commit_validation_test.go::TestRFC7950WebCommitRefusesAConstraintViolation",
+    "unit-sha": "033a085f533fdfd2",
+    "claim-sha": "1cacdc3336c8bbdc",
+    "route": "revert",
+    "producer": "internal/component/web/editor_commit_window.go::validateTransition",
+    "producer-sha": "a9fcf37371463de2",
+    "break": "body of validateTransition replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7950-8.3-1",
+    "polarity": "positive",
+    "unit": "cmd/ze/hub/rfc7950_web_commit_validation_test.go::TestRFC7950WebCommitWritesAValidEdit",
+    "unit-sha": "a5edd4c54b777df4",
+    "claim-sha": "3aa8199d205825fe",
+    "route": "revert",
+    "producer": "internal/component/cli/editor_commit.go::validateStagedTree",
+    "producer-sha": "4634bdc826e7f752",
+    "break": "body of validateStagedTree replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7950-8.3-1",
+    "polarity": "positive",
+    "unit": "internal/component/config/rfc7950_datastore_test.go::TestRFC7950RunningDatastoreAcceptsAValidConfig",
+    "unit-sha": "6af704744a3076a3",
+    "claim-sha": "22e34c5e987155a6",
+    "route": "revert",
+    "producer": "internal/component/config/loader.go::parseTreeWithYANG",
+    "producer-sha": "2d19cd1aeb26d86b",
+    "break": "body of parseTreeWithYANG replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7950-8.3-1",
+    "polarity": "negative",
+    "unit": "internal/component/config/rfc7950_datastore_test.go::TestRFC7950RunningDatastoreRefusesAViolationAfterParse",
+    "unit-sha": "a174d339584e73d3",
+    "claim-sha": "3dc41dada0d99db7",
+    "route": "revert",
+    "producer": "internal/component/config/validate_sections.go::refuseInvalidCustomSections",
+    "producer-sha": "6fd82cf98d14978e",
+    "break": "body of refuseInvalidCustomSections replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7950-8.3-1",
+    "polarity": "negative",
+    "unit": "internal/component/config/rfc7950_datastore_test.go::TestRFC7950RunningDatastoreRefusesAViolationAtParse",
+    "unit-sha": "e1bc117faab9dad4",
+    "claim-sha": "adc8a9c3f02c7631",
+    "route": "revert",
+    "producer": "internal/component/config/loader.go::parseTreeWithYANG",
+    "producer-sha": "2d19cd1aeb26d86b",
+    "break": "body of parseTreeWithYANG replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

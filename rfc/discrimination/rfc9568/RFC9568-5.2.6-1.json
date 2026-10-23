@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC9568-5.2.6-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV3IPv4",
+    "unit-sha": "426437dba8db9f30",
+    "claim-sha": "77e9697eb37d329b",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/packet/packet.go::WriteTo",
+    "producer-sha": "a5408de5358174ba",
+    "break": "body of WriteTo replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

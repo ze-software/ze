@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-09-30. Same unit: 4096 advertised in both validating modes, and a ~2900-octet uncompressed UDP answer is accepted whole (all 110 records), tying the advertised size to what the receive path accepts (the earlier finding). Record: query revert observed red. {single-polarity} holds.",
+  "requirement_sha": "6893035753d68473",
+  "tests": {
+    "internal/component/resolve/dns/rfc4035_security_aware_test.go::TestRFC4035SecurityAwareQueryInEveryValidatingMode": "746f59740ccc2275",
+    "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_QueryCarriesEDNS0DOAndClearAD": "1b164a1a570b2a91"
+  },
+  "units": {
+    "internal/component/resolve/dns/rfc4035_security_aware_test.go::TestRFC4035SecurityAwareQueryInEveryValidatingMode": "c9a01f3e6c6e622b",
+    "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_QueryCarriesEDNS0DOAndClearAD": "075584d2fc9ab234"
+  },
+  "verdict": "enforced"
+}

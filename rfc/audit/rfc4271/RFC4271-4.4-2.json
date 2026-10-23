@@ -1,0 +1,17 @@
+{
+  "note": "Session level: handleOpen+handleKeepalive with a 1 s configured keepalive. Positive: negotiated hold 9 -> timers hold 9, KeepaliveTimer running, >=1 KEEPALIVE in 1.6 s. Negative: negotiated zero from either side -> timers hold 0, KeepaliveTimer stopped, zero octets in 1.6 s. Judge break: negotiateWith feeding the configured hold into the timers when the peer offers 0 turned the negative red. Old fsm timer_test.go tags are supplementary.",
+  "requirement_sha": "3842d65d888c9e9e",
+  "tests": {
+    "internal/component/bgp/fsm/rfc4271_timer_test.go::TestKeepaliveWithZeroHoldTime": "c1acf4c219f9cfb6",
+    "internal/component/bgp/fsm/rfc4271_timer_test.go::TestTimersKeepaliveTimer": "c1acf4c219f9cfb6",
+    "internal/component/bgp/reactor/rfc4271_keepalive_session_test.go::TestRFC4271NonZeroNegotiatedHoldSendsPeriodicKeepalives": "5f8f67ef39a01742",
+    "internal/component/bgp/reactor/rfc4271_keepalive_session_test.go::TestRFC4271ZeroNegotiatedHoldSendsNoPeriodicKeepalive": "5f8f67ef39a01742"
+  },
+  "units": {
+    "internal/component/bgp/fsm/rfc4271_timer_test.go::TestKeepaliveWithZeroHoldTime": "b5085232cd78eb17",
+    "internal/component/bgp/fsm/rfc4271_timer_test.go::TestTimersKeepaliveTimer": "9d12c289d62cd299",
+    "internal/component/bgp/reactor/rfc4271_keepalive_session_test.go::TestRFC4271NonZeroNegotiatedHoldSendsPeriodicKeepalives": "5dead24ec81737fd",
+    "internal/component/bgp/reactor/rfc4271_keepalive_session_test.go::TestRFC4271ZeroNegotiatedHoldSendsNoPeriodicKeepalive": "cef3ce72f71f752a"
+  },
+  "verdict": "enforced"
+}

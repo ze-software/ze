@@ -1,0 +1,17 @@
+{
+  "note": "Forbidden: a state other than Down reported with no adjacency. circuit TestRFC5303SentIIHReportsDownWithoutAdjacency decodes the transmitted IIH's TLV 240: Down before any peer Hello and again after Teardown (positive), and not Down while an Up adjacency exists (negative), so a sender that always reported Down, or kept a stale state after teardown, goes red. Recorded +/- on p2pThreeWayState.",
+  "requirement_sha": "16e182ca3538b1b3",
+  "tests": {
+    "internal/plugins/isis/circuit/rfc5303_sent_iih_test.go::TestRFC5303SentIIHReportsDownWithoutAdjacency": "103ec73a1dc2a973",
+    "internal/plugins/isis/circuit/rfc5303_sent_iih_test.go::TestRFC5303SentIIHReportsDownWithoutAdjacency#2": "103ec73a1dc2a973",
+    "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayDownWhenNoAdjacency": "d32edc6561822cd6",
+    "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayDownWhenNoAdjacency#2": "d32edc6561822cd6"
+  },
+  "units": {
+    "internal/plugins/isis/circuit/rfc5303_sent_iih_test.go::TestRFC5303SentIIHReportsDownWithoutAdjacency": "e0fcdee256c43eab",
+    "internal/plugins/isis/circuit/rfc5303_sent_iih_test.go::TestRFC5303SentIIHReportsDownWithoutAdjacency#2": "e0fcdee256c43eab",
+    "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayDownWhenNoAdjacency": "7c568b6070b0af32",
+    "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayDownWhenNoAdjacency#2": "7c568b6070b0af32"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,23 @@
+{
+  "note": "vrrp judge 2026-09-29 (independent): the previously missing v2 'Priority greater' clause is now TestV2MasterYieldsToAHigherPriority: a Version 2 Master (source 192.0.2.2) gets Priority 250 from the LOWER sender 192.0.2.1, so only priority decides; it must be Backup, in.advert nil, silent for two intervals, Backup at MDI-1ms and Master at MDI+1ms with MDI = 3 s + 56/256 s (RFC 3768 6.1); a Priority 150 advert from the greater 192.0.2.8 holds Master with the timer armed (negative). Records: revert demoteToBackup, both polarities. The equal-priority tie-break clause stays proven by TestInstanceTieBreakComparesTheAdvertisementSource and TestInstanceV2TieBreakDemotionRestartsTheTimers (records syncSourceLocked, senderWinsTieBreak, demoteToBackup).",
+  "requirement_sha": "80a1a3beb686d37f",
+  "tests": {
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "52489f84876bdb6f",
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "52489f84876bdb6f",
+    "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2MasterYieldsToAHigherPriority": "8b5d8c7a41e8e18e",
+    "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2MasterYieldsToAHigherPriority#2": "8b5d8c7a41e8e18e",
+    "internal/plugins/vrrp/tiebreak_test.go::TestInstanceTieBreakComparesTheAdvertisementSource": "a878e0cdb3eac07e",
+    "internal/plugins/vrrp/tiebreak_test.go::TestInstanceTieBreakComparesTheAdvertisementSource#2": "a878e0cdb3eac07e",
+    "internal/plugins/vrrp/tiebreak_test.go::TestInstanceV2TieBreakDemotionRestartsTheTimers": "a878e0cdb3eac07e"
+  },
+  "units": {
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "c06b69f55bb239a3",
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "c06b69f55bb239a3",
+    "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2MasterYieldsToAHigherPriority": "f3702054888a3750",
+    "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2MasterYieldsToAHigherPriority#2": "f3702054888a3750",
+    "internal/plugins/vrrp/tiebreak_test.go::TestInstanceTieBreakComparesTheAdvertisementSource": "4d178cb352853a19",
+    "internal/plugins/vrrp/tiebreak_test.go::TestInstanceTieBreakComparesTheAdvertisementSource#2": "4d178cb352853a19",
+    "internal/plugins/vrrp/tiebreak_test.go::TestInstanceV2TieBreakDemotionRestartsTheTimers": "a472093b66ff5214"
+  },
+  "verdict": "enforced"
+}

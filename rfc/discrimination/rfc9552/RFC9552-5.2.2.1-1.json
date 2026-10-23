@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC9552-5.2.2.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeISISTopologyReservedBits",
+    "unit-sha": "34d7f1b438c3d6ed",
+    "claim-sha": "57aa98d52fcd8794",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/ls_export/export_encode.go::validateExportTopology",
+    "producer-sha": "908a0748a2623a36",
+    "break": "body of validateExportTopology replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

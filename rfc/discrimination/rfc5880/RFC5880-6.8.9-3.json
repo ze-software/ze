@@ -1,0 +1,57 @@
+[
+  {
+    "rid": "RFC5880-6.8.9-3",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880EchoSteadySpacingHonorsPeerFloor",
+    "unit-sha": "c1c9bc140b6e357e",
+    "claim-sha": "ecad41cd70662601",
+    "route": "revert",
+    "producer": "internal/component/bfd/session/timers.go::EchoInterval",
+    "producer-sha": "1042c678c03a1736",
+    "break": "body of EchoInterval replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.8.9-3",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880EchoLoweredPeerFloorTakesEffect",
+    "unit-sha": "99d3f6037da1dde7",
+    "claim-sha": "f7833c533347e5d7",
+    "route": "revert",
+    "producer": "internal/component/bfd/session/timers.go::rescheduleEchoLocked",
+    "producer-sha": "7e6a6c63b0a8a78a",
+    "break": "body of rescheduleEchoLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.8.9-3",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880EchoRaisedPeerFloorDelaysNextEcho",
+    "unit-sha": "1967ce956bdfd120",
+    "claim-sha": "ae2791e17e06b0d1",
+    "route": "revert",
+    "producer": "internal/component/bfd/session/timers.go::rescheduleEchoLocked",
+    "producer-sha": "7e6a6c63b0a8a78a",
+    "break": "body of rescheduleEchoLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.8.9-3",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoIntervalHonorsPeerFloor",
+    "unit-sha": "18eacf34a0d74c45",
+    "claim-sha": "6fb73b69b91bec64",
+    "route": "revert",
+    "producer": "internal/component/bfd/session/timers.go::EchoInterval",
+    "producer-sha": "1042c678c03a1736",
+    "break": "body of EchoInterval replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.8.9-3",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoIntervalNotBelowLocalTarget",
+    "unit-sha": "844b76c6694139b8",
+    "claim-sha": "39f974985b44f7ac",
+    "route": "revert",
+    "producer": "internal/component/bfd/session/timers.go::EchoInterval",
+    "producer-sha": "1042c678c03a1736",
+    "break": "body of EchoInterval replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

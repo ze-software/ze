@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-10-21 (round 5 judge). Positive: TestOSPFAuthReplay accepts 10, 11, 11 then rejects 10, true only if 11 was stored. New negative TestRFC2328FailedAuthenticationLeavesSequenceAlone: after a genuine Hello at 10, a Hello at 1000 with a wrong digest is digest-mismatch and the per-neighbor slot stays 10, then a genuine 12 verifies and is stored; a store before the digest check turns it red (record on verify). The off-row tag on TestNeighborDownResetsCryptoSeq is gone.",
+  "requirement_sha": "affd17c59f70abd9",
+  "tests": {
+    "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplay": "daf32645cbe50ccd",
+    "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplay#2": "daf32645cbe50ccd",
+    "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplayEqualSequenceByAuType": "daf32645cbe50ccd",
+    "internal/plugins/ospf/rfc2328_auth_failed_seq_test.go::TestRFC2328FailedAuthenticationLeavesSequenceAlone": "d1360d39c66029ef"
+  },
+  "units": {
+    "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplay": "a7dd2213be26a266",
+    "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplay#2": "a7dd2213be26a266",
+    "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplayEqualSequenceByAuType": "e3dec75102f7b783",
+    "internal/plugins/ospf/rfc2328_auth_failed_seq_test.go::TestRFC2328FailedAuthenticationLeavesSequenceAlone": "6548e2c1e4332e9d"
+  },
+  "verdict": "enforced"
+}

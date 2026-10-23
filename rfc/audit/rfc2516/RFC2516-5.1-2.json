@@ -1,0 +1,11 @@
+{
+  "note": "single-polarity; TestBuildPADIDiscovery asserts the PADI DstMAC is the broadcast address",
+  "requirement_sha": "8b13c7635f060c0d",
+  "tests": {
+    "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestBuildPADIDiscovery": "b7c2fae4a50abe95"
+  },
+  "units": {
+    "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestBuildPADIDiscovery": "32dda3340079cba9"
+  },
+  "verdict": "enforced"
+}

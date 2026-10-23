@@ -1,0 +1,15 @@
+{
+  "note": "RFC 8277 Section 2.5: \"If [RFC7911] is not being used, UPDATE U2 MUST be interpreted as meaning that L2 is now bound to P at N1 and that L1 is no longer bound to P at N1. That is, the UPDATE U1 is implicitly withdrawn and is replaced by UPDATE U2.\" Read the full same-session, same-prefix, same-next-hop premise and both tagged carriers. TestLabeledImplicitWithdrawalNoAddPath positively requires exactly one received route and labels [200] after replacing [100]; its negative sends another prefix, requires two routes and the original prefix still bound to [200]. TestRFC8277VPNRelabelReplacesTheRoute sends SAFI-128 with fixed peer, RD, prefix, next hop and attributes, changing only label 100 to 200; it requires one stored route, lookup by the old labeled NLRI, an iteration returning only the new NLRI, and a second best-change naming that new NLRI. The post-lint vpnv4NLRI has removed only the constant /8 argument: length remains 96 and label/RD/prefix bytes remain unchanged. RouteKey strips label identity, insertOpaqueNoOp refuses the old-wire shortcut on relabel, and insertOpaque/setRouteNLRI stores the latest wire NLRI. Distinct same-prefix/different-prefix controls isolate implicit replacement and current assertions would fail on old-label retention or duplicate bindings. Existing enforced judgment is preserved after current source rejudgment; renew the existing VPN RouteKey discrimination record natively. This is no claim of generic VPN RS/RR withdrawal correctness; RFC8277-2.4-1 remains weak.",
+  "requirement_sha": "57e1a0588d672167",
+  "tests": {
+    "internal/component/bgp/plugins/rib/rfc8277_test.go::TestLabeledImplicitWithdrawalNoAddPath": "b185b12eb909f16a",
+    "internal/component/bgp/plugins/rib/rfc8277_test.go::TestLabeledImplicitWithdrawalNoAddPath#2": "b185b12eb909f16a",
+    "internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_test.go::TestRFC8277VPNRelabelReplacesTheRoute": "e55fba0b818b9f39"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rib/rfc8277_test.go::TestLabeledImplicitWithdrawalNoAddPath": "0c4f435dc21741b2",
+    "internal/component/bgp/plugins/rib/rfc8277_test.go::TestLabeledImplicitWithdrawalNoAddPath#2": "0c4f435dc21741b2",
+    "internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_test.go::TestRFC8277VPNRelabelReplacesTheRoute": "137f824ce379e7af"
+  },
+  "verdict": "enforced"
+}

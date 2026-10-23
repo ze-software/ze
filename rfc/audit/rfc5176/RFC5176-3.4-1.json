@@ -1,0 +1,17 @@
+{
+  "note": "(a) forbidden: computing the HMAC-MD5 with the Request Authenticator or the Message-Authenticator not zeroed. (b) TestRFC5176MessageAuthenticatorRefusesEveryOtherStream refuses the Request Authenticator hashed as on the wire and the attribute not zeroed; TestRFC5176MessageAuthenticatorZeroesBothFields accepts the conformant stream with a non-zero wire Request Authenticator; the listener-level walk test discards the pre-fix computation.",
+  "requirement_sha": "88faa1987d20f72c",
+  "tests": {
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176MessageAuthenticatorZeroesBothFields": "2b3357f1f1e8ec93",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176MessageAuthenticatorZeroesBothFields#2": "2b3357f1f1e8ec93",
+    "internal/component/radius/rfc5176_message_authenticator_test.go::TestRFC5176MessageAuthenticatorRefusesEveryOtherStream": "4e8828b1e015967c",
+    "internal/component/radius/rfc5176_message_authenticator_test.go::TestRFC5176MessageAuthenticatorZeroesBothFields": "4e8828b1e015967c"
+  },
+  "units": {
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176MessageAuthenticatorZeroesBothFields": "693fbe320cc3371c",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176MessageAuthenticatorZeroesBothFields#2": "693fbe320cc3371c",
+    "internal/component/radius/rfc5176_message_authenticator_test.go::TestRFC5176MessageAuthenticatorRefusesEveryOtherStream": "a693a135ff7926f5",
+    "internal/component/radius/rfc5176_message_authenticator_test.go::TestRFC5176MessageAuthenticatorZeroesBothFields": "0686affadeb345a7"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-09-30 after the L1 half was added. Positive: TestRFC2966NativePrefixesGoOutWithBitZero runs a started engine, stores a connected prefix (ConnectedPrefixInfos) and a redistributed one (Consumer.InjectRoute) at both levels, down-leaks 10.2/24 into L1, then decodes TLV 135 from the stored L1 AND L2 LSPs: the down-leaked prefix carries the bit, the connected and redistributed prefixes carry it zero in both LSPs, so an originator setting the bit on every L1 entry or on own prefixes goes red (per-prefix, read from the wire). The L2 half stays on TestISISEngineLeakOrigination (TLV 135) and TestRFC2966NarrowLeakUpDownBit (TLV 128 bit 8). Negative: spf TestISISLeakOriginationL1L2 keeps the down-bit alreadyDown out of IntoL2 while the clear-bit L1 prefix leaks up with the bit false. Each cover holds an observed-red revert record (ConnectedPrefixInfos, narrowIPReachEntryBytes, leakedToPrefixInfos, leakInto).",
+  "requirement_sha": "edaf53dcef6c676d",
+  "tests": {
+    "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination": "3a8286879ea42019",
+    "internal/plugins/isis/rfc2966_narrow_updown_test.go::TestRFC2966NarrowLeakUpDownBit": "dd48108ecb3a7768",
+    "internal/plugins/isis/rfc2966_narrow_updown_test.go::TestRFC2966NativePrefixesGoOutWithBitZero": "dd48108ecb3a7768",
+    "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2": "65952e292e4f6c83"
+  },
+  "units": {
+    "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination": "b9a1a5e2daa88030",
+    "internal/plugins/isis/rfc2966_narrow_updown_test.go::TestRFC2966NarrowLeakUpDownBit": "78206b8f1729be15",
+    "internal/plugins/isis/rfc2966_narrow_updown_test.go::TestRFC2966NativePrefixesGoOutWithBitZero": "d5961c948856b482",
+    "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2": "682f56baeb8524c2"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC4301-3.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc4301_esp_test.go::TestRFC4301ChildSAIsInstalledAsESP",
+    "unit-sha": "b3fd04e3080b22f4",
+    "claim-sha": "8123e74c331388cf",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/child.go::installChildSA",
+    "producer-sha": "528023fd0f737e3f",
+    "break": "body of installChildSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

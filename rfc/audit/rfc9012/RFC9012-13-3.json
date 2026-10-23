@@ -1,0 +1,17 @@
+{
+  "note": "Independent FinalTunnelRejudgment retained this allocated obligation; Main read RFC9012 full text, session_tunnel_encap.go::applyTunnelEncap/tunnelTLVLayout/tunnelEndpointValid, tunnel_encap.go codec producers and the real consumer. RFC9012 \u00a713 forbids calling a correctly framed unknown tunnel type malformed. Isolated0xfffe and type2 controls share valid endpoint framing and require exact ActionNone, attribute retention and downstream delivery. applyTunnelEncap restricts tunnel types only on the separately governed SR-Policy SAFI73, not this ordinary-unicast carrier. Genuine outer-framing rejection controls remain. Actual consumer: internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong and teForwardedAttrs drive Session.processMessage, cache publication, ForwardUpdate, worker/socket output and downstream Session receipt. These are two cached export modes, not an independently exercised reactor-native RS rail; no absent attribute-driven tunnel-selection feature is credited.",
+  "requirement_sha": "591f3d4d672f65af",
+  "tests": {
+    "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "8e898ec9c074ca2b",
+    "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "8e898ec9c074ca2b",
+    "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MalformedAttributeIsRejected": "e8576a1ee12543a9",
+    "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012UnrecognizedTunnelTypeIsCarried": "e8576a1ee12543a9"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "4331bc08d9c40b95",
+    "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "4331bc08d9c40b95",
+    "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MalformedAttributeIsRejected": "2de6a91cf462b5a5",
+    "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012UnrecognizedTunnelTypeIsCarried": "fbefb1e9b40920c0"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC7296-2.23-9",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_natt_test.go::TestEncapNeverRequestedOnPort500",
+    "unit-sha": "04587559baec1ec2",
+    "claim-sha": "24684dd401b4ad47",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/create_child.go::localEncapPort",
+    "producer-sha": "55daf12ae27abf44",
+    "break": "body of localEncapPort replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

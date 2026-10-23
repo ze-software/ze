@@ -1,0 +1,47 @@
+[
+  {
+    "rid": "RFC3579-3-2",
+    "polarity": "positive",
+    "unit": "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapAccessRequestNamesThePort",
+    "unit-sha": "3695ae3bd003c5ea",
+    "claim-sha": "65f978f9fec29646",
+    "route": "revert",
+    "producer": "internal/component/radius/authenticator.go::exchange",
+    "producer-sha": "5919ec42f7709891",
+    "break": "body of exchange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3579-3-2",
+    "polarity": "negative",
+    "unit": "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapAccessRequestNamesThePort",
+    "unit-sha": "3695ae3bd003c5ea",
+    "claim-sha": "541d26a25aeb99bd",
+    "route": "revert",
+    "producer": "internal/component/radius/authenticator.go::exchange",
+    "producer-sha": "5919ec42f7709891",
+    "break": "body of exchange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3579-3-2",
+    "polarity": "positive",
+    "unit": "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminPapAccessRequestNamesThePort",
+    "unit-sha": "6c4a3366718cfa46",
+    "claim-sha": "d43c5f174b52182c",
+    "route": "revert",
+    "producer": "internal/component/radius/authenticator.go::exchange",
+    "producer-sha": "5919ec42f7709891",
+    "break": "body of exchange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3579-3-2",
+    "polarity": "positive",
+    "unit": "test/plugin/aaa-radius-admin.ci",
+    "unit-sha": "8283180e1991b18c",
+    "claim-sha": "6d49bcaa62531528",
+    "route": "revert",
+    "producer": "internal/component/radius/authenticator.go::exchange",
+    "producer-sha": "5919ec42f7709891",
+    "break": "body of exchange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+    "citation": "expect=stderr:pattern=OK: RADIUS server read NAS-Port-Id ssh"
+  }
+]

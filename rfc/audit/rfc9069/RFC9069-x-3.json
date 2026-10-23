@@ -1,0 +1,11 @@
+{
+  "note": "Forbidden: a received-OPEN field that is not a repeat of the sent OPEN. internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestHandleBestChangeEmitsPeerUpThenRM: len(up.SentOpenMsg)==0 is Fatal and !bytes.Equal(SentOpenMsg, ReceivedOpenMsg) is Errorf. Single-polarity marker. The fabricated-OPEN sentence is RFC9069-5.2-1's quote.",
+  "requirement_sha": "3e9c25ed3e737992",
+  "tests": {
+    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestHandleBestChangeEmitsPeerUpThenRM": "0d66046a7112fdb8"
+  },
+  "units": {
+    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestHandleBestChangeEmitsPeerUpThenRM": "4a48461c2e40df46"
+  },
+  "verdict": "enforced"
+}

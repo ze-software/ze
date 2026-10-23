@@ -1,0 +1,91 @@
+[
+  {
+    "rid": "RFC2866-4.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc2866_acct_address_test.go::TestAcctFramedIPAddressIsSubscriberNotNAS",
+    "unit-sha": "166753ba1739102f",
+    "claim-sha": "cedb83a778404675",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authradius/acct.go::buildAcctPacket",
+    "producer-sha": "95509f5b3525dc3f",
+    "break": "body of buildAcctPacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2866-4.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc2866_acct_address_test.go::TestAcctFramedIPAddressOmittedWhenNotIPv4",
+    "unit-sha": "1bb3e277a19cf8f9",
+    "claim-sha": "35a323da9c2b6a6c",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authradius/acct.go::buildAcctPacket",
+    "producer-sha": "95509f5b3525dc3f",
+    "break": "body of buildAcctPacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2866-4.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc2866_acct_address_test.go::TestAcctFramedIPAddressPresent",
+    "unit-sha": "5709125c461629b8",
+    "claim-sha": "96e04fa81d28a085",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authradius/acct.go::buildAcctPacket",
+    "producer-sha": "95509f5b3525dc3f",
+    "break": "body of buildAcctPacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2866-4.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc2866_acct_address_test.go::TestSessionEventDrivesAddressAndPortID",
+    "unit-sha": "fd3a5b6ce4740560",
+    "claim-sha": "5a60e88ffd6334e0",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authradius/acct.go::onSessionIPAssigned",
+    "producer-sha": "253e901268d65011",
+    "break": "body of onSessionIPAssigned replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2866-4.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc2866_acct_lifetime_test.go::TestAccountingAddressFamiliesShareLifetime",
+    "unit-sha": "f3258b7f77d9ba1c",
+    "claim-sha": "9444d8e4a639c4c9",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authradius/acct.go::onSessionDown",
+    "producer-sha": "c2aae0ffb58cef8d",
+    "break": "body of onSessionDown replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2866-4.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc2866_special_framed_ip_test.go::TestRFC2866AccountingReportsTheAddressTheNASAssigned",
+    "unit-sha": "ddedd160f9cffb05",
+    "claim-sha": "3b581246cd568248",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authradius/extract.go::extractAuthMetadata",
+    "producer-sha": "1e75cee3c580be2d",
+    "break": "body of extractAuthMetadata replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2866-4.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc2866_special_framed_ip_test.go::TestRFC2866SpecialFramedIPValueIsNeverTheSubscriberAddress",
+    "unit-sha": "6d572fec903121e4",
+    "claim-sha": "d651995fa37afbdb",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authradius/extract.go::extractAuthMetadata",
+    "producer-sha": "1e75cee3c580be2d",
+    "break": "body of extractAuthMetadata replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2866-4.1-1",
+    "polarity": "positive",
+    "unit": "test/l2tp/radius-acct-wire.ci",
+    "unit-sha": "21e8ec901462dd71",
+    "claim-sha": "8156e80885b14e7e",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authradius/acct.go::onSessionIPAssigned",
+    "producer-sha": "253e901268d65011",
+    "break": "body of onSessionIPAssigned replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+    "citation": "expect=stdout:contains=OK: Accounting-Start Framed-IP-Address matches the IPCP-negotiated address 10.99.7.10"
+  }
+]

@@ -1,0 +1,11 @@
+{
+  "note": "Judge 2026-09-30 (rejudge, 6-2 + rest). Unit TestRFC5881ControlSourcePortFixedOnTheWire unchanged: five datagrams observed with one source AddrPort in a rootless user+net namespace, ran and passed. Its producer UDP.Send changed twice (pinning 637aa9c186 and the reaches fix); the revert record was re-observed red against the current Send (sub2-rec-43). The {single-polarity: positive} marker still holds: every Control packet leaves through the one socket the loop binds, so no per-packet source-port choice exists to exercise.",
+  "requirement_sha": "e531182695e85c79",
+  "tests": {
+    "internal/component/bfd/rfc5881_wire_port_linux_test.go::TestRFC5881ControlSourcePortFixedOnTheWire": "ec3f2024a41e142b"
+  },
+  "units": {
+    "internal/component/bfd/rfc5881_wire_port_linux_test.go::TestRFC5881ControlSourcePortFixedOnTheWire": "9b7d5ccc4302417a"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "losing rows leave state and timers untouched; the extra SendAdvert they assert is RFC 9568 Section 6.4.3's added step, recorded on the row's superseded marker, and does not act on the advert's contents",
+  "requirement_sha": "5758833f16a2e950",
+  "tests": {
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "52489f84876bdb6f",
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "52489f84876bdb6f"
+  },
+  "units": {
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "c06b69f55bb239a3",
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "c06b69f55bb239a3"
+  },
+  "verdict": "enforced"
+}

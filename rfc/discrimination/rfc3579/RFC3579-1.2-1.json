@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC3579-1.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapNotificationDoesNotSteerTheLogin",
+    "unit-sha": "9f9bd98692404a62",
+    "claim-sha": "9545ac5023f9b8be",
+    "route": "revert",
+    "producer": "internal/component/radius/authenticator_eap.go::processEAPMessage",
+    "producer-sha": "c7d38f123ca41ea0",
+    "break": "body of processEAPMessage replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3579-1.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapNotificationIsAnsweredAndLogged",
+    "unit-sha": "6fbeb8e8bbb43412",
+    "claim-sha": "b7a9dbf859dc862b",
+    "route": "revert",
+    "producer": "internal/component/radius/authenticator_eap.go::processEAPMessage",
+    "producer-sha": "c7d38f123ca41ea0",
+    "break": "body of processEAPMessage replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,68 @@
+[
+  {
+    "rid": "RFC7296-3.3.6-5",
+    "polarity": "positive",
+    "unit": "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropUnknownTransformIDMakesTransformUnacceptable",
+    "unit-sha": "c1d4df874d7067c8",
+    "claim-sha": "bb7ac87282e9da03",
+    "route": "revert",
+    "producer": "internal/component/ike/crypto/proposal.go::negotiateIKE",
+    "producer-sha": "ac5863854a6c6b04",
+    "break": "body of negotiateIKE replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-3.3.6-5",
+    "polarity": "negative",
+    "unit": "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropUnknownTransformIDMakesTransformUnacceptable",
+    "unit-sha": "c1d4df874d7067c8",
+    "claim-sha": "3133829d24d58cd2",
+    "route": "revert",
+    "producer": "internal/component/ike/crypto/proposal.go::negotiateIKE",
+    "producer-sha": "ac5863854a6c6b04",
+    "break": "body of negotiateIKE replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-3.3.6-5",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_transform_alternatives_test.go::TestAltDHAlternativesAreBothOffered",
+    "unit-sha": "3def506374a523b9",
+    "claim-sha": "893b4ec88b48eb8c",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/initiator.go::appendIKECombinations",
+    "producer-sha": "2f8c5f7c0ec79a25",
+    "break": "body of appendIKECombinations replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-3.3.6-5",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_transform_alternatives_test.go::TestAltUnusableAlternativesAreStillRefused",
+    "unit-sha": "a52682df12fbdfc3",
+    "claim-sha": "1081a2e38d2ff2e3",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/initiator.go::appendIKECombinations",
+    "producer-sha": "2f8c5f7c0ec79a25",
+    "break": "body of appendIKECombinations replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-3.3.6-5",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_unknown_transform_test.go::TestRFC7296UnacceptableTransformAloneRefusesTheProposal",
+    "unit-sha": "bb46aaabb1701795",
+    "claim-sha": "2a29546007121e1d",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/responder.go::espProposalMatches",
+    "producer-sha": "bec5a1b2e45da33e",
+    "break": "body of espProposalMatches replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-3.3.6-5",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_unknown_transform_test.go::TestRFC7296UnacceptableTransformLeavesSiblingsOnOffer",
+    "unit-sha": "47f933e96f3c244e",
+    "claim-sha": "e99f643e9eef28b7",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/initiator.go::appendIKECombinations",
+    "producer-sha": "2f8c5f7c0ec79a25",
+    "break": "body of appendIKECombinations replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

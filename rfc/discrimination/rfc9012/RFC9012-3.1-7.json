@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9012-3.1-7",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9012EndpointInvalidTLVsRemovedOnUnicast",
+    "unit-sha": "1fbfeca5576253b3",
+    "claim-sha": "06915c582c79d01c",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::tunnelEndpointValid",
+    "producer-sha": "2ae6f013fcfa65ce",
+    "break": "body of tunnelEndpointValid replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9012-3.1-7",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestTunnelEndpointLengthsAccepted",
+    "unit-sha": "5b06ad218aed87e1",
+    "claim-sha": "1921026212ccc619",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::tunnelEndpointValid",
+    "producer-sha": "2ae6f013fcfa65ce",
+    "break": "body of tunnelEndpointValid replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

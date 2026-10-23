@@ -1,0 +1,15 @@
+{
+  "note": "TestRFC2661StopCCNClearsSessionsSilently clears an established and a wait-connect session and now asserts sendQueue does not grow beside no datagram and nextSendSeq unchanged, which removes the cwnd-1 confound the earlier verdict named: a CDN handleStopCCN enqueued behind the unacknowledged ICRP now turns it red. Clearing also held by TestSession_StopCCN_CascadeSessions, and TestStopCCNQueuesAllTeardowns is the negative.",
+  "requirement_sha": "d0add38fb6db42ea",
+  "tests": {
+    "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661StopCCNClearsSessionsSilently": "055162183ff6df00",
+    "internal/component/l2tp/rfc2661_session_fsm_test.go::TestSession_StopCCN_CascadeSessions": "9f78f3f88883c2a2",
+    "internal/component/l2tp/rfc2661_session_fsm_test.go::TestStopCCNQueuesAllTeardowns": "9f78f3f88883c2a2"
+  },
+  "units": {
+    "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661StopCCNClearsSessionsSilently": "327914a7c874074a",
+    "internal/component/l2tp/rfc2661_session_fsm_test.go::TestSession_StopCCN_CascadeSessions": "71c01fff365324a4",
+    "internal/component/l2tp/rfc2661_session_fsm_test.go::TestStopCCNQueuesAllTeardowns": "3fe8db9561cef6f5"
+  },
+  "verdict": "enforced"
+}

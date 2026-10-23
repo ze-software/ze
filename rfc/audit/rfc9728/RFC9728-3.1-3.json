@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-18 (independent auditor, after d8e084c3eb). Section 3.1: \"If the resource identifier value contains a path or query component, any terminating slash (/) following the host component MUST be removed before inserting /.well-known/ and the well-known URI path suffix between the host component and the path and/or query components.\" The earlier wrong finding is fixed at the producer: resourceOriginAndPath (streamable_auth.go) no longer TrimRights the path; it drops only a path of \"/\" standing alone after the host, the slash that both follows the host and terminates the identifier's path. Read that way, RFC 8414 Section 3.1's broader \"any terminating /\" is narrowed by RFC 9728's \"following the host component\"; the reading was approved by the owner on 2026-10-18 and agrees with the Section 3.1 example. TestRFC9728TerminatingSlashRemovedBeforeInsertion: positive, https://mcp.example/ maps to .../oauth-protected-resource and https://mcp.example/?x=1 to .../oauth-protected-resource?x=1; negative, https://mcp.example/mcp/ keeps its own slash at .../oauth-protected-resource/mcp/. Each case also asserts resourceMetadataPath, the value streamable.go stores as metadataPath and ServeHTTP matches against r.URL.RequestURI(), and that no URL carries //.well-known. Restoring TrimRight reddens the /mcp/ case; losing the lone-slash removal reddens both positives.",
+  "requirement_sha": "368fd46bb4b53f52",
+  "tests": {
+    "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728TerminatingSlashRemovedBeforeInsertion": "70cb12fbb65e4490",
+    "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728TerminatingSlashRemovedBeforeInsertion#2": "70cb12fbb65e4490"
+  },
+  "units": {
+    "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728TerminatingSlashRemovedBeforeInsertion": "c62c9edfa3546627",
+    "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728TerminatingSlashRemovedBeforeInsertion#2": "c62c9edfa3546627"
+  },
+  "verdict": "enforced"
+}

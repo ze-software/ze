@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC9190-2.1.8-5",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc9190_nai_test.go::TestEAPTLS13PeerSendsTheFixedUsernameWhenTheIdentityHasNoRealm",
+    "unit-sha": "774a970c18226b70",
+    "claim-sha": "8923289c1f735504",
+    "route": "revert",
+    "producer": "internal/core/eap/nai.go::anonymousNAI",
+    "producer-sha": "861bfe2b4a5852b7",
+    "break": "body of anonymousNAI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

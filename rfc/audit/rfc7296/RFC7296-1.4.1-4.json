@@ -1,0 +1,13 @@
+{
+  "note": "TestDelCrossingDeleteAnswersWithoutAPairedDelete runs the production crossing sequence (recordOwnDelete, send, remove) and asserts the response to the peer's crossing Delete carries no Delete payload; reddens when crossOwnDelete stops detecting the crossing. TestDelWithoutOwnDeleteTheSameRequestIsPaired pins the row's own 'In that case' scope: outside the exception the same Delete draws the paired Delete \u00a71.4.1 requires ('Normally, the response ... will contain Delete payloads for the paired SAs'), so a responder that never pairs cannot pass. The tags on TestLcyInformationalResponseCarriesNoDeletePayload are gone and its stale premise rewritten.",
+  "requirement_sha": "48702badce76b398",
+  "tests": {
+    "internal/component/ike/engine/rfc7296_delete_test.go::TestDelCrossingDeleteAnswersWithoutAPairedDelete": "7748979df6c29890",
+    "internal/component/ike/engine/rfc7296_delete_test.go::TestDelWithoutOwnDeleteTheSameRequestIsPaired": "7748979df6c29890"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7296_delete_test.go::TestDelCrossingDeleteAnswersWithoutAPairedDelete": "54d69523e0d10920",
+    "internal/component/ike/engine/rfc7296_delete_test.go::TestDelWithoutOwnDeleteTheSameRequestIsPaired": "3acb69c9a41b012b"
+  },
+  "verdict": "enforced"
+}

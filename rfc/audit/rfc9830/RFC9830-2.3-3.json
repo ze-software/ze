@@ -1,0 +1,17 @@
+{
+  "note": "Independent RFC 9830 Section 2.3 rejudgment retains enforced for ignoring sub-TLVs without explicitly defined applicability to the SR Policy SAFI; the same full sentence permits their removal during propagation. TestRFC9012MeaninglessSubTLVIgnoredNotRemoved proves the applicable Preference counter-control but is not the sole proof. TestRFC9830InapplicableSubTLVsIgnoredOnReceipt isolates well-framed VXLAN, Embedded Label Handling and UDP sub-TLVs on both SAFI 73 AFIs and requires exact no-action, intact MP_REACH and readable Preference. teForwardedAttrs traverses actual receive/cache/ForwardUpdate/Session output/downstream receipt with unchanged and MED-rebuilt cached forwarding. The corrected tag now describes those two cached modes rather than claiming the separate RS rail. applyTunnelEncap/tunnelTLVLayout ignore inapplicable semantics while retaining framing checks; Preference consumes only its applicable type. A native four-octet next hop on AFI-2 SR Policy remains legal under the independent wire-family contract. Preserving the bytes is a conforming choice, not a prohibition on the RFC\u2019s MAY removal. No SRPM, dataplane, full-RFC or fresh selective execution claim is made.",
+  "requirement_sha": "58c3a539f651edbd",
+  "tests": {
+    "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9830InapplicableSubTLVsIgnoredOnReceipt": "cd227ea5764f94be",
+    "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9830InapplicableSubTLVsIgnoredOnReceipt#2": "cd227ea5764f94be",
+    "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved": "e8576a1ee12543a9",
+    "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved#2": "e8576a1ee12543a9"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9830InapplicableSubTLVsIgnoredOnReceipt": "58b2ba0312cc9ecc",
+    "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9830InapplicableSubTLVsIgnoredOnReceipt#2": "58b2ba0312cc9ecc",
+    "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved": "08d7f773742e8a39",
+    "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved#2": "08d7f773742e8a39"
+  },
+  "verdict": "enforced"
+}

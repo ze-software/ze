@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-09-30: TestTFTPReadLargeFile changed only by losing the retired RFC1350-5-2 tag comment; every assertion is unchanged. TestRFC2348ShortBlockIsTheFinalPacket at a negotiated 1024: a 600-octet file must be exactly [600] with silence after its ACK (a server comparing against 512 sends a block 2 and goes red), and 2500 must be [1024,1024,452] then silence (red on DATA after the short block). Negative: full 1024 blocks are followed by the next block.",
+  "requirement_sha": "6c06103dac56424f",
+  "tests": {
+    "internal/plugins/tftpserver/handler_test.go::TestTFTPReadExact512": "0809d9c9f8739da3",
+    "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "0809d9c9f8739da3",
+    "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2348ShortBlockIsTheFinalPacket": "402f4bee572c1a29",
+    "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2348ShortBlockIsTheFinalPacket#2": "402f4bee572c1a29"
+  },
+  "units": {
+    "internal/plugins/tftpserver/handler_test.go::TestTFTPReadExact512": "98ffa756092d4fbe",
+    "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "240d5ea9ba163958",
+    "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2348ShortBlockIsTheFinalPacket": "2e2d2f3569240d7a",
+    "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2348ShortBlockIsTheFinalPacket#2": "2e2d2f3569240d7a"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,11 @@
+{
+  "note": "A MAY: the permission is proven by the capability working. TestRFC2328VirtualCostChangeReoriginatesBackbone brings a virtual link to Full through real Hello/DD ingress (establishVirtualRoute) and asserts the backbone Router-LSA advertises the virtual neighbor at metric 10, red if the area 0 adjacency cannot run over a virtual link. Single-polarity marker on the MAY.",
+  "requirement_sha": "55546ed380fafc7f",
+  "tests": {
+    "internal/plugins/ospf/rfc2328_virtual_route_test.go::TestRFC2328VirtualCostChangeReoriginatesBackbone": "275bbc417919f739"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc2328_virtual_route_test.go::TestRFC2328VirtualCostChangeReoriginatesBackbone": "d4f5e4cfc4fc39c0"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC8907-10.5.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907MatchingObfuscationKeepsStatusAndConnection",
+    "unit-sha": "67e61b8582c39074",
+    "claim-sha": "2aca54a4e13e8b43",
+    "route": "revert",
+    "producer": "internal/component/tacacs/client.go::trySend",
+    "producer-sha": "521ecbc2921e4804",
+    "break": "body of trySend replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8907-10.5.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907ObfuscationMismatchClosesAndFails",
+    "unit-sha": "d99c0b77d8f8672d",
+    "claim-sha": "59e8a6bdcac0f073",
+    "route": "revert",
+    "producer": "internal/component/tacacs/client.go::trySend",
+    "producer-sha": "521ecbc2921e4804",
+    "break": "body of trySend replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8907-10.5.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/tacacs/rfc8907_obfuscation_test.go::TestRFC8907ClientAcceptsObfuscatedReply",
+    "unit-sha": "205c91fdd18df62d",
+    "claim-sha": "397098acb212e5cf",
+    "route": "revert",
+    "producer": "internal/component/tacacs/packet.go::Encrypt",
+    "producer-sha": "a22b0d7352d4472d",
+    "break": "body of Encrypt replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8907-10.5.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/tacacs/rfc8907_obfuscation_test.go::TestRFC8907ClientRefusesUnobfuscatedReply",
+    "unit-sha": "5e673ef225a53fe2",
+    "claim-sha": "ec13a7df1abc0263",
+    "route": "revert",
+    "producer": "internal/component/tacacs/client.go::trySend",
+    "producer-sha": "521ecbc2921e4804",
+    "break": "body of trySend replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

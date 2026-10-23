@@ -1,0 +1,17 @@
+{
+  "note": "Judge 2026-09-30 (cont 6). Row corrected under R5 to the Section 5.13 legend line '1 Exactly one instance of this attribute MUST be present.' (verbatim), binding Acct-Status-Type and Acct-Session-Id; id kept because internal/le/rfc/quote_backfill_test.go pins it and the HEAD tags stay valid, which is honest: the id names the obligation the old span carried, narrowed. Positives: TestRFC2866AcctStatusTypePresent (count 1, right value, per status) and TestRFC2866EveryRecordCarriesOneOfEachOneMarkedAttribute (Start/Interim/Stop encoded and decoded: exactly one non-empty Acct-Status-Type and Acct-Session-Id, same session id). Negative TestRFC2866ExclusionsCannotRemoveAOneMarkedAttribute is genuine: the operator's attributes-exclude control is the only input that could drop either attribute; it refuses both names, and excluding every accepted name (derived from excludableAttributes) still leaves each exactly once. Recorded red on buildAcctPacket and parseAttributeExclusions. TestRFC2866AcctStatusTypeNeverOmitted still repeats the positive's presence check; the pair no longer depends on it.",
+  "requirement_sha": "fbb5d50733489929",
+  "tests": {
+    "internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go::TestRFC2866AcctStatusTypeNeverOmitted": "dfbffaac55a01b67",
+    "internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go::TestRFC2866AcctStatusTypePresent": "dfbffaac55a01b67",
+    "internal/component/l2tp/plugins/authradius/rfc2866_attribute_table_test.go::TestRFC2866EveryRecordCarriesOneOfEachOneMarkedAttribute": "31a5e844ce599efa",
+    "internal/component/l2tp/plugins/authradius/rfc2866_attribute_table_test.go::TestRFC2866ExclusionsCannotRemoveAOneMarkedAttribute": "31a5e844ce599efa"
+  },
+  "units": {
+    "internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go::TestRFC2866AcctStatusTypeNeverOmitted": "f36995f057ab8d85",
+    "internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go::TestRFC2866AcctStatusTypePresent": "dd4c3cca0784f0a3",
+    "internal/component/l2tp/plugins/authradius/rfc2866_attribute_table_test.go::TestRFC2866EveryRecordCarriesOneOfEachOneMarkedAttribute": "8f2ae68c59e77b9b",
+    "internal/component/l2tp/plugins/authradius/rfc2866_attribute_table_test.go::TestRFC2866ExclusionsCannotRemoveAOneMarkedAttribute": "042fbc81ced9bbe8"
+  },
+  "verdict": "enforced"
+}

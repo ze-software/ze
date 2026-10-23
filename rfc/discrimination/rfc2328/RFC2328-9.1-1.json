@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2328-9.1-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328DROriginatesNetworkLSA",
+    "unit-sha": "018fc10e4faed9da",
+    "claim-sha": "12e6bf8e2abb74e8",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/lsdb/origination.go::OriginateNetwork",
+    "producer-sha": "0c9722d968292cd3",
+    "break": "body of OriginateNetwork replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-9.1-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328NonDROriginatesNoNetworkLSA",
+    "unit-sha": "872d141799813016",
+    "claim-sha": "be30a574d1f92479",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/lsdb/origination.go::OriginateFromTopology",
+    "producer-sha": "8bf32b8c07722529",
+    "break": "body of OriginateFromTopology replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

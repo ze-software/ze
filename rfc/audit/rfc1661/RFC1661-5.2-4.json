@@ -1,0 +1,17 @@
+{
+  "note": "Rejudge ppp8 2026-09-30: pppoeclient TestClientLCPReplyCorrelation changed only to read frameLog through the locked snapshot() (frameLog race fix); every assertion, input and comparison is unchanged, so the verdict stands. Forbidden: accepting an Ack whose options differ from the request. TestLCPRepliesMatchOutstandingRequest goes red when a changed value, a missing, extra or reordered option changes the FSM or wire; TestClientLCPReplyCorrelation goes red if a nil, modified or reordered Ack completes LCP. The exact Ack advances in both.",
+  "requirement_sha": "d4341112f3ab2d9b",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest": "6e1e87cfaa4fb86b",
+    "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest#2": "6e1e87cfaa4fb86b",
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation": "94dbfbde4e1ef3d7",
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation#2": "94dbfbde4e1ef3d7"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest": "fdaf9e91d2c10be4",
+    "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest#2": "fdaf9e91d2c10be4",
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation": "63dcc89441d39416",
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation#2": "63dcc89441d39416"
+  },
+  "verdict": "enforced"
+}

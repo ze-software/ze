@@ -1,0 +1,145 @@
+[
+  {
+    "rid": "RFC9190-5.4-3",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc9190_ocsp_test.go::TestCertificateStatusAcceptsADelegatedResponder",
+    "unit-sha": "17823b6902c07d0e",
+    "claim-sha": "741a391039a23572",
+    "route": "revert",
+    "producer": "internal/core/eap/ocsp.go::CheckCertificateStatus",
+    "producer-sha": "e700dc22197d32f5",
+    "break": "body of CheckCertificateStatus replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9190-5.4-3",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc9190_ocsp_test.go::TestCertificateStatusRefusesAResponseAboutAnotherCertificate",
+    "unit-sha": "059594a04deded9d",
+    "claim-sha": "352912dd681ead8e",
+    "route": "revert",
+    "producer": "internal/core/eap/ocsp.go::CheckCertificateStatus",
+    "producer-sha": "e700dc22197d32f5",
+    "break": "body of CheckCertificateStatus replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9190-5.4-3",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc9190_ocsp_test.go::TestCertificateStatusRefusesAResponseDatedAhead",
+    "unit-sha": "54a2394e0d03a433",
+    "claim-sha": "434e58a77b07da40",
+    "route": "revert",
+    "producer": "internal/core/eap/ocsp.go::CheckCertificateStatus",
+    "producer-sha": "e700dc22197d32f5",
+    "break": "body of CheckCertificateStatus replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9190-5.4-3",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc9190_ocsp_test.go::TestCertificateStatusRefusesAnExpiredResponse",
+    "unit-sha": "1dd68f76a5444897",
+    "claim-sha": "3da5523376337222",
+    "route": "revert",
+    "producer": "internal/core/eap/ocsp.go::CheckCertificateStatus",
+    "producer-sha": "e700dc22197d32f5",
+    "break": "body of CheckCertificateStatus replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9190-5.4-3",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc9190_ocsp_test.go::TestCertificateStatusRefusesAnUndelegatedResponder",
+    "unit-sha": "18edd8633b6938a2",
+    "claim-sha": "bccffcabc03c3dc2",
+    "route": "revert",
+    "producer": "internal/core/eap/ocsp.go::delegatedOCSPSigner",
+    "producer-sha": "760f12d483479f62",
+    "break": "body of delegatedOCSPSigner replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9190-5.4-3",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc9190_ocsp_test.go::TestCertificateStatusRefusesAnUnknownStatus",
+    "unit-sha": "e4f68914a36f9155",
+    "claim-sha": "41e73ded94b4b2d7",
+    "route": "revert",
+    "producer": "internal/core/eap/ocsp.go::CheckCertificateStatus",
+    "producer-sha": "e700dc22197d32f5",
+    "break": "body of CheckCertificateStatus replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9190-5.4-3",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc9190_ocsp_test.go::TestEAPTLS13PeerCompletesWithAValidStapledStatus",
+    "unit-sha": "8b970a8d311783b8",
+    "claim-sha": "6ed7dd8cc3a625e1",
+    "route": "revert",
+    "producer": "internal/core/eap/ocsp.go::checkStapledChainStatus",
+    "producer-sha": "c595d749c453f238",
+    "break": "body of checkStapledChainStatus replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9190-5.4-3",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc9190_ocsp_test.go::TestEAPTLS13PeerRefusesARevokedStapledStatus",
+    "unit-sha": "871309b3971e957a",
+    "claim-sha": "b6b70ddbedf6bf3e",
+    "route": "revert",
+    "producer": "internal/core/eap/ocsp.go::CheckCertificateStatus",
+    "producer-sha": "e700dc22197d32f5",
+    "break": "body of CheckCertificateStatus replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9190-5.4-3",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc9190_ocsp_test.go::TestEAPTLS13PeerRefusesAnAuthenticatorThatStaplesNothing",
+    "unit-sha": "cb463a516bd57cb8",
+    "claim-sha": "8109a4e98d146414",
+    "route": "revert",
+    "producer": "internal/core/eap/ocsp.go::checkStapledChainStatus",
+    "producer-sha": "c595d749c453f238",
+    "break": "body of checkStapledChainStatus replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9190-5.4-3",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc9190_ocsp_test.go::TestEAPTLS13PeerRefusesAnIntermediateItCannotReadTheStatusOf",
+    "unit-sha": "2d32028e806f77fb",
+    "claim-sha": "b8923930aa5a1e4d",
+    "route": "revert",
+    "producer": "internal/core/eap/ocsp.go::checkStapledChain",
+    "producer-sha": "502dba87bd480224",
+    "break": "body of checkStapledChain replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9190-5.4-3",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc9190_ocsp_test.go::TestEAPTLS13PeerWithoutTheStatusLeafAcceptsAnAuthenticatorThatStaplesNothing",
+    "unit-sha": "5dce1ed1cd900741",
+    "claim-sha": "e646fa73ccfc21ff",
+    "route": "revert",
+    "producer": "internal/core/eap/peer_chain.go::verifyConnection",
+    "producer-sha": "cba739e85fedbc8a",
+    "break": "body of verifyConnection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9190-5.4-3",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc9190_ocsp_test.go::TestStapledChainStatusExceptsTheTrustAnchor",
+    "unit-sha": "c4363792260a81c2",
+    "claim-sha": "d7b470d5d96de17d",
+    "route": "revert",
+    "producer": "internal/core/eap/ocsp.go::checkStapledChain",
+    "producer-sha": "502dba87bd480224",
+    "break": "body of checkStapledChain replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9190-5.4-3",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc9190_ocsp_test.go::TestStapledChainStatusRefusesAnEmptyChainSet",
+    "unit-sha": "ceefc67b81ed04b5",
+    "claim-sha": "4a30c4b1fc47965e",
+    "route": "revert",
+    "producer": "internal/core/eap/ocsp.go::checkStapledChainStatus",
+    "producer-sha": "c595d749c453f238",
+    "break": "body of checkStapledChainStatus replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

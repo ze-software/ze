@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC8907-5.4.2.2-2",
+    "polarity": "positive",
+    "unit": "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907PAPStartOnWireCarriesUserAndPassword",
+    "unit-sha": "43be7b51919d887f",
+    "claim-sha": "51dd0b4090b8c8b6",
+    "route": "revert",
+    "producer": "internal/component/tacacs/authen.go::NewPAPAuthenStart",
+    "producer-sha": "15000cb3e5c110af",
+    "break": "body of NewPAPAuthenStart replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8907-5.4.2.2-2",
+    "polarity": "negative",
+    "unit": "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907PAPStartWithoutUsernameNeverSent",
+    "unit-sha": "d5926ef384db3815",
+    "claim-sha": "6528a643b224e578",
+    "route": "revert",
+    "producer": "internal/component/tacacs/authen.go::MarshalBinaryInto",
+    "producer-sha": "8fa98677a3b14d93",
+    "break": "body of MarshalBinaryInto replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8907-5.4.2.2-2",
+    "polarity": "positive",
+    "unit": "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907PAPStartCarriesUserAndPassword",
+    "unit-sha": "d65fb6d518602805",
+    "claim-sha": "5bb37ddbb68f6c4b",
+    "route": "revert",
+    "producer": "internal/component/tacacs/authen.go::NewPAPAuthenStart",
+    "producer-sha": "15000cb3e5c110af",
+    "break": "body of NewPAPAuthenStart replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8907-5.4.2.2-2",
+    "polarity": "negative",
+    "unit": "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907PAPStartRefusesPasswordItCannotCarry",
+    "unit-sha": "26d867f9f0beaf88",
+    "claim-sha": "9705fbd2908c9068",
+    "route": "revert",
+    "producer": "internal/component/tacacs/authen.go::MarshalBinaryInto",
+    "producer-sha": "8fa98677a3b14d93",
+    "break": "body of MarshalBinaryInto replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

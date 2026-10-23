@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC5072-3-1",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPNoResponseBeforeNetworkPhase",
+    "unit-sha": "07bc3a43b3eb0cc9",
+    "claim-sha": "e3d2771b3f3f1d3e",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/session_run.go::handleFrame",
+    "producer-sha": "15bf63c906944976",
+    "break": "body of handleFrame replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5072-3-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPOpenedEmitsAssigned",
+    "unit-sha": "34cec2ab6dba4e56",
+    "claim-sha": "cb083ca5056b046e",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/ncp.go::sendIPAssigned",
+    "producer-sha": "896f99912ffbdc26",
+    "break": "body of sendIPAssigned replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5072-3-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestNCPHeldUntilNetworkPhase",
+    "unit-sha": "0ce7ea71d7abe63c",
+    "claim-sha": "8ab0c4eb25ff409f",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/ncp.go::runNCPPhase",
+    "producer-sha": "fb302bd261a2d076",
+    "break": "body of runNCPPhase replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5072-3-1",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestNCPHeldUntilNetworkPhase",
+    "unit-sha": "0ce7ea71d7abe63c",
+    "claim-sha": "875d643592dcfb13",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/session_run.go::runAuthPhase",
+    "producer-sha": "16b68ded075d3f96",
+    "break": "body of runAuthPhase replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

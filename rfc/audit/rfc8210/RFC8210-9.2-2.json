@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: authenticating to the cache with a router certificate that carries no iPAddress SAN. Negative TestRTRTLSRejectsUnusableClientIdentity \"missing IP SAN\" installs a client-auth certificate without an IP SAN and asserts assertRTRTLSRefused (syncOnce error, zero query bytes); the fixture server does not check IP SANs, so the refusal is Ze's and a Ze that sent the certificate would sync and go red. Positive TestRTRTLSAuthenticatedCache presents the fixture router certificate (issued with an iPAddress SAN) and asserts it is the one the cache received; it does not assert the SAN content itself.",
+  "requirement_sha": "c4557d38bc48c6b4",
+  "tests": {
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go::TestRTRTLSAuthenticatedCache": "cc96e0e57341d7a8",
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go::TestRTRTLSRejectsUnusableClientIdentity": "cc96e0e57341d7a8"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go::TestRTRTLSAuthenticatedCache": "46740446577221b8",
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go::TestRTRTLSRejectsUnusableClientIdentity": "46b884503ab4ccd2"
+  },
+  "verdict": "enforced"
+}

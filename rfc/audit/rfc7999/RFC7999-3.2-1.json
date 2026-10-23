@@ -1,0 +1,17 @@
+{
+  "note": "Positive TestRFC7999ReceivedBlackholeRouteGainsThePropagationCommunity: config leaf parsed, [BLACKHOLE 64496:1] leaves applyIngressFilter with NO_EXPORT (or NO_ADVERTISE) appended and the other community kept. Negative TestRFC7999RouteWithoutBlackholeGainsNoPropagationCommunity: with the guard on, no COMMUNITY, 65535:665 (one below BLACKHOLE) and 64496:1 pass unchanged, so the trigger is BLACKHOLE alone. Both carry revert records on blackholePropagationGuard. SHOULD: the add is operator-enabled (no leaf: unchanged), which 3.2-2 permits.",
+  "requirement_sha": "d39585bfbbd1e803",
+  "tests": {
+    "internal/component/bgp/plugins/filter_community/rfc7999_blackhole_guard_test.go::TestRFC7999BlackholeFieldHasReader": "01445f68041be7b4",
+    "internal/component/bgp/plugins/filter_community/rfc7999_blackhole_propagation_test.go::TestRFC7999ReceivedBlackholeRouteGainsThePropagationCommunity": "8504f6d9864f16f2",
+    "internal/component/bgp/plugins/filter_community/rfc7999_blackhole_propagation_test.go::TestRFC7999RouteWithoutBlackholeGainsNoPropagationCommunity": "8504f6d9864f16f2",
+    "test/plugin/community-blackhole-noexport.ci": "5027f3f5b21e254d"
+  },
+  "units": {
+    "internal/component/bgp/plugins/filter_community/rfc7999_blackhole_guard_test.go::TestRFC7999BlackholeFieldHasReader": "eacfe9ac70880fbc",
+    "internal/component/bgp/plugins/filter_community/rfc7999_blackhole_propagation_test.go::TestRFC7999ReceivedBlackholeRouteGainsThePropagationCommunity": "e89478426e039e95",
+    "internal/component/bgp/plugins/filter_community/rfc7999_blackhole_propagation_test.go::TestRFC7999RouteWithoutBlackholeGainsNoPropagationCommunity": "71a267ba2179b3d3",
+    "test/plugin/community-blackhole-noexport.ci": "5027f3f5b21e254d"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,15 @@
+{
+  "note": "Unchanged after comment-only edits. Single-polarity positive (row marker): with the literal label 'client EAP encryption' and the 128-octet export read from the TLS session, the authenticator MSK equals octets 0-63 and the EMSK 64-127 (TLS 1.2); MSKs identical on both ends. Recorded.",
+  "requirement_sha": "d3491a145ec72315",
+  "tests": {
+    "internal/core/eap/rfc3748_emsk_test.go::TestRFC3748EAPTLSExportsASixtyFourOctetEMSK": "52158d2dcfac6f3e",
+    "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "24154b07f453f130",
+    "internal/core/eap/rfc5216_msk_label_test.go::TestRFC5216MSKIsTheExportUnderTheRFCLabel": "f5655db2d5743b85"
+  },
+  "units": {
+    "internal/core/eap/rfc3748_emsk_test.go::TestRFC3748EAPTLSExportsASixtyFourOctetEMSK": "d6ebf420f338a34e",
+    "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "0b6c374cdbde2cae",
+    "internal/core/eap/rfc5216_msk_label_test.go::TestRFC5216MSKIsTheExportUnderTheRFCLabel": "e482c403b597818e"
+  },
+  "verdict": "enforced"
+}

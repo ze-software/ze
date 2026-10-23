@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC1661-3.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661RunSendsNCPAfterLCPOpens",
+    "unit-sha": "8f37331d6a7d16a9",
+    "claim-sha": "699b0b5c823e1787",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/ncp.go::runNCPPhase",
+    "producer-sha": "fb302bd261a2d076",
+    "break": "body of runNCPPhase replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1661-3.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NCPConfiguresEachFamilySeparately",
+    "unit-sha": "52b59f4851e6bb58",
+    "claim-sha": "0622ba11c9b0392d",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/ncp.go::sendNCPConfigureRequest",
+    "producer-sha": "bb0b510833344112",
+    "break": "body of sendNCPConfigureRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1661-3.1-2",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoNCPPacketsWhenNoNetworkProtocol",
+    "unit-sha": "7764c53e66cbd89e",
+    "claim-sha": "c0bb32e9c1bf91e5",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/ncp.go::runNCPPhase",
+    "producer-sha": "fb302bd261a2d076",
+    "break": "body of runNCPPhase replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

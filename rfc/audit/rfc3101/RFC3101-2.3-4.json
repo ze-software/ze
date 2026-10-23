@@ -1,0 +1,13 @@
+{
+  "note": "Judged 2026-10-21 over current tags, units and records. Quote is item 1 of RFC 3101 Section 2.3's list ('Type-7 LSAs are identical to Type-5 LSAs except for the following'), the item dropped beside RFC3101-2.3-2. The positive checks h.Type, the stored LSA's wire type octet and the decoded header type are all 7. The negative originates the same route as Type-5: its type octet is 5, and its body is byte-identical to the Type-7 body, so only the type field separates them, as the list says.",
+  "requirement_sha": "8939113858382ed6",
+  "tests": {
+    "internal/plugins/ospf/lsdb/rfc3101_type7_header_type_test.go::TestRFC3101Type5HeaderTypeIsNot7": "a66d19cc18abb09b",
+    "internal/plugins/ospf/lsdb/rfc3101_type7_header_type_test.go::TestRFC3101Type7HeaderTypeIs7": "a66d19cc18abb09b"
+  },
+  "units": {
+    "internal/plugins/ospf/lsdb/rfc3101_type7_header_type_test.go::TestRFC3101Type5HeaderTypeIsNot7": "f5a78ec0c701b29c",
+    "internal/plugins/ospf/lsdb/rfc3101_type7_header_type_test.go::TestRFC3101Type7HeaderTypeIs7": "0df6875028469408"
+  },
+  "verdict": "enforced"
+}

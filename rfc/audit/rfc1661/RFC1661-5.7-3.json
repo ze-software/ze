@@ -1,0 +1,11 @@
+{
+  "note": "{single-polarity} justified. Forbidden: two Protocol-Rejects with one Identifier. TestRFC1661ProtocolRejectIdentifierChanges goes red when the two consecutive Protocol-Rejects carry equal Identifiers.",
+  "requirement_sha": "ea640e6cf3145e99",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go::TestRFC1661ProtocolRejectIdentifierChanges": "b6e0cb190623fbb9"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go::TestRFC1661ProtocolRejectIdentifierChanges": "e0d272dab7a7622b"
+  },
+  "verdict": "enforced"
+}

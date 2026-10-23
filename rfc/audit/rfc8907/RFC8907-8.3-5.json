@@ -1,0 +1,13 @@
+{
+  "note": "(a) forbidden: a command accounting record without service or cmd, or dropping needed cmd-arg arguments. (b) TestRFC8907CommandRecordsCarryServiceCmdAndArgs asserts service=shell, cmd=show, cmd-arg=bgp, cmd-arg=summary in START and STOP; TestRFC8907EmptyCommandRecordStillCarriesServiceAndCmd asserts service=shell and cmd= for an empty command.",
+  "requirement_sha": "67f6c9ff90704364",
+  "tests": {
+    "internal/component/tacacs/rfc8907_accounting_test.go::TestRFC8907CommandRecordsCarryServiceCmdAndArgs": "d6e03486f174ca78",
+    "internal/component/tacacs/rfc8907_accounting_test.go::TestRFC8907EmptyCommandRecordStillCarriesServiceAndCmd": "d6e03486f174ca78"
+  },
+  "units": {
+    "internal/component/tacacs/rfc8907_accounting_test.go::TestRFC8907CommandRecordsCarryServiceCmdAndArgs": "a85746a5b4367b32",
+    "internal/component/tacacs/rfc8907_accounting_test.go::TestRFC8907EmptyCommandRecordStillCarriesServiceAndCmd": "acc0bf9ce922d92d"
+  },
+  "verdict": "enforced"
+}

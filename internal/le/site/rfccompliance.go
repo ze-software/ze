@@ -800,7 +800,7 @@ func rfcComplianceBody(snapshot *rfcCompliance, ledger rfcLedger) string {
 	body.Str("            <section aria-labeledby=\"rfc-compliance-title\" class=\"md-content reveal cat-observe\">\n")
 	body.Str(pageHero("RFC Compliance Gate Report",
 		"Source: <code>internal/le/rfc</code>, <code>rfc/short/*.md</code>, and "+
-			"<code>rfc/audit/*.json</code>.",
+			"<code>rfc/audit/*/*.json</code>.",
 		"Quality", ` id="rfc-compliance-title"`, heroClasses)).Byte('\n')
 	body.Str(rfcComplianceStyle)
 	body.Str(rfcCardGrid(snapshot, ledger))
@@ -1863,7 +1863,7 @@ func rfcComplianceMirror(snapshot *rfcCompliance, ledger rfcLedger) string {
 	var mirror textbuf.Buffer
 	mirror.Str("# RFC Compliance Gate Report\n\n")
 	mirror.Str("Source: `internal/le/rfc`, `rfc/short/*.md`, and ").
-		Str("`rfc/audit/*.json`.\n\n")
+		Str("`rfc/audit/*/*.json`.\n\n")
 	mirror.Str("## Gate verdict\n\n").Str(rfcGateWord(snapshot.Gate.OK)).Str(". ").
 		Str(rfcGateVerdictText(snapshot)).Str(" Reproduce it with `").Str(snapshot.Verify.Command).
 		Str("`. The gate's own line reads `").Str(snapshot.Gate.Message).Str("`.\n\n")
@@ -2693,7 +2693,7 @@ func rfcMechanismRows(snapshot *rfcCompliance) [][3]string {
 		{"Public ledger", "<code>rfc/short/*.md</code>, the <code>| Support |</code> Meta row",
 			groupThousands(snapshot.Gaps.RFCs) + " RFCs with gaps, " + groupThousands(supported) +
 				" Supported with Remaining"},
-		{"Semantic audits", "<code>rfc/audit/*.json</code>",
+		{"Semantic audits", "<code>rfc/audit/*/*.json</code>",
 			groupThousands(snapshot.Audit.Fresh) + " fresh, " +
 				groupThousands(snapshot.Audit.Shifted) + " shifted, " +
 				groupThousands(snapshot.Audit.Stale) + " stale, " +

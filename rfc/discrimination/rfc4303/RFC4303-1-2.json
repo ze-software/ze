@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC4303-1-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/crypto/rfc4303_integrity_only_test.go::TestIntegrityOnlyESPRefusals",
+    "unit-sha": "49ce76a4f10010c9",
+    "claim-sha": "57fc2eb0bdc736db",
+    "route": "mutant",
+    "producer": "internal/component/ike/crypto/proposal.go::espProposalComplete",
+    "producer-sha": "d52445483cc45687",
+    "break": "line 483: \"p.Encryption.ID == ENCR_NULL \u0026\u0026 p.Integrity.ID == AUTH_NONE\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC4303-1-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/crypto/rfc4303_integrity_only_test.go::TestRFC4303IntegrityOnlyESPIsAccepted",
+    "unit-sha": "67d6505006e24ba3",
+    "claim-sha": "ffba8ca9af8e3ff3",
+    "route": "mutant",
+    "producer": "internal/component/ike/crypto/proposal.go::acceptESPEncryption",
+    "producer-sha": "9abd5b90eca7a949",
+    "break": "line 503: \"local.ID != ENCR_NULL\" -\u003e \"true\""
+  },
+  {
+    "rid": "RFC4303-1-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/dataplane/rfc4301_esp_null_vpp_test.go::TestRFC4303VPPIntegrityOnlyESPIsInstalled",
+    "unit-sha": "1fa33d60817e9db8",
+    "claim-sha": "8aec66e90ba78196",
+    "route": "revert",
+    "producer": "internal/component/ike/dataplane/vpp.go::vppCryptoAlg",
+    "producer-sha": "f22d6a8ab817910d",
+    "break": "body of vppCryptoAlg replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4303-1-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc4303_integrity_only_test.go::TestRFC4303IntegrityOnlyESPIsNegotiated",
+    "unit-sha": "c71fa62719045292",
+    "claim-sha": "427cb4d00a76205d",
+    "route": "mutant",
+    "producer": "internal/component/ike/crypto/proposal.go::acceptESPEncryption",
+    "producer-sha": "9abd5b90eca7a949",
+    "break": "line 503: \"local.ID != ENCR_NULL\" -\u003e \"true\""
+  }
+]

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4301-7.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc4301_portless_test.go::TestRFC4301PortScopedSAIsNeverInstalledAsAnyPort",
+    "unit-sha": "f286fae6731878ae",
+    "claim-sha": "ec1b93bba0690840",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/child.go::selectorPort",
+    "producer-sha": "4c4b86bbd9da77ac",
+    "break": "body of selectorPort replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4301-7.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc4301_portless_test.go::TestRFC4301TunnelSAPassesTrafficWithoutRegardToPorts",
+    "unit-sha": "b00ecbc7d7067074",
+    "claim-sha": "4f43c93e6fb42447",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/child.go::childPolicies",
+    "producer-sha": "2c0d9a26dc943e66",
+    "break": "body of childPolicies replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

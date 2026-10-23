@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7752-3.2-6",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc7752_vpn_family_test.go::TestRFC7752VPNFamilyReachesMPReach",
+    "unit-sha": "b10d0144f8cedce1",
+    "claim-sha": "6c26d8a25b0c1b7e",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/reactor_api_batch.go::buildBatchAnnounceUpdate",
+    "producer-sha": "44ccbe7f2ba0402d",
+    "break": "body of buildBatchAnnounceUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7752-3.2-6",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc7752_vpn_family_test.go::TestRFC7752VPNFamilyReachesMPReach",
+    "unit-sha": "b10d0144f8cedce1",
+    "claim-sha": "36a42097cfe51664",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/reactor_api_batch.go::buildBatchAnnounceUpdate",
+    "producer-sha": "44ccbe7f2ba0402d",
+    "break": "body of buildBatchAnnounceUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

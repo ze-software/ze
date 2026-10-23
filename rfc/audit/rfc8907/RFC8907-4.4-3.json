@@ -1,0 +1,13 @@
+{
+  "note": "(a) forbidden: leaving the broken single-connect connection open. (b) TestRFC8907BrokenPooledConnectionIsClosed requires waitClosed on the server side of the broken TCP; TestRFC8907HealthyPooledConnectionStaysOpen requires isClosed false after three healthy sessions.",
+  "requirement_sha": "09815f2df724ee46",
+  "tests": {
+    "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907BrokenPooledConnectionIsClosed": "7c6845571ca0fb19",
+    "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907HealthyPooledConnectionStaysOpen": "7c6845571ca0fb19"
+  },
+  "units": {
+    "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907BrokenPooledConnectionIsClosed": "9af7ecbd19df93a0",
+    "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907HealthyPooledConnectionStaysOpen": "bbcc84e1c6b1339e"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,14 @@
+[
+  {
+    "rid": "RFC9234-4.1-2",
+    "polarity": "positive",
+    "unit": "test/plugin/dynamic-peer-gets-group-role-capability.ci",
+    "unit-sha": "e8a4cfb156bc9a8a",
+    "claim-sha": "2a84f6f1389d5f6b",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/role/config.go::extractRoleCapabilities",
+    "producer-sha": "a4b287b96d81936c",
+    "break": "body of extractRoleCapabilities replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+    "citation": "expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002E0104FFFD001E0102030411020F01040001000141040000FFFD090101"
+  }
+]

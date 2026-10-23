@@ -1,0 +1,23 @@
+{
+  "note": "Re-judged 2026-10-20 (independent judge, after 13c1b058ed, f9d98e8ab1, 6f87487816 and the rename to rfc4301_child_multi_pair_test.go). Section 5.2 step 4: \"Then match the packet against the inbound selectors identified by the SAD entry to verify that the received packet is appropriate for the SA via which it was received.\" Step 5: \"If an IPsec system receives an inbound packet on an SA and the packet's header fields are not consistent with the selectors for the SA, it MUST discard the packet.\" The stale unit TestRFC4301TransportStateSelectorIsTheNegotiatedPair (renamed file) asserts the transport state selector equals the single pair field by field (hosts, protocol 6, any->179) and equals the inbound policy; the cover that admitted a decrypted packet in no pair (reachable to the IKE or an operator BYPASS entry) is gone, so the selectors the kernel matches are the SA's own. Whole-stack carriers TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors and TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy ran on real XFRM (not skipped) and PASS; dataplane boundary units PASS. Where the initiator installed a reduced subset (see RFC4301-4.4.2-2 gap a) the kernel still checks against the selectors the SAD entry holds, which is what this step names. Verdict stands.",
+  "requirement_sha": "94eb5a2239326989",
+  "tests": {
+    "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate": "69d0d6fedadb8664",
+    "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryIsRefusedRatherThanWidened": "69d0d6fedadb8664",
+    "internal/component/ike/engine/rfc4301_child_multi_pair_test.go::TestRFC4301TransportStateSelectorIsTheNegotiatedPair": "574abc2fa42f900d",
+    "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors": "d0849a2d44763916",
+    "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors#2": "d0849a2d44763916",
+    "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy": "d0849a2d44763916",
+    "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy#2": "d0849a2d44763916"
+  },
+  "units": {
+    "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate": "4f6a7698e201b01f",
+    "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryIsRefusedRatherThanWidened": "3d5e8a87d96a8a98",
+    "internal/component/ike/engine/rfc4301_child_multi_pair_test.go::TestRFC4301TransportStateSelectorIsTheNegotiatedPair": "d307edef3a8df9b4",
+    "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors": "7d08653f3b7fd580",
+    "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors#2": "7d08653f3b7fd580",
+    "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy": "49a2c1af0af816c9",
+    "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy#2": "49a2c1af0af816c9"
+  },
+  "verdict": "enforced"
+}

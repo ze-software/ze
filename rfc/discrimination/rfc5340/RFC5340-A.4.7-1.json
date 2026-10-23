@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5340-A.4.7-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc5340_nssa_translate_test.go::TestRFC5340TranslatorNeverAdvertisesLinkLocalForwarding",
+    "unit-sha": "499e847a10752e22",
+    "claim-sha": "1c6ce19b203ec7fb",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/interface_addr.go::v6UsableForwardingAddress",
+    "producer-sha": "eb2d5e5866cce567",
+    "break": "body of v6UsableForwardingAddress replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5340-A.4.7-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/rfc5340_nssa_translate_test.go::TestRFC5340TranslatorNeverAdvertisesLinkLocalForwarding",
+    "unit-sha": "499e847a10752e22",
+    "claim-sha": "f1d7dfcca1539231",
+    "route": "mutant",
+    "producer": "internal/plugins/ospf/interface_addr.go::v6UsableForwardingAddress",
+    "producer-sha": "eb2d5e5866cce567",
+    "break": "line 73: \"return !addr.IsLinkLocalUnicast() \u0026\u0026 \" -\u003e \"return \""
+  }
+]

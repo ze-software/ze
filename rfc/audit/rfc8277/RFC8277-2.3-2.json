@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged 2026-10-02 (BGP c28 judge). Forbidden: the last label entry transmitted with S=0. Positive: the builder stacks in TestRFC8277BuilderLabelLayout end 0012c1 and 000c81 (WriteLabelValues), HEAD TestLabeledLabelStackSBitPlacement for WriteTo. Genuine negative (R1(b)): TestRFC8277RelayedStackSBitRewritten gives the last entry 0x0012c0 (S=0) and the lone entry 0x000640, and asserts S=1 is transmitted. Judge overlay dropping 'entry |= 1' reds both subcases; dropping the WriteLabelValues S line reds both builder stacks. The negative shares its stack buffer with 2.3-1, but each break is isolated to its own octet and the whole NLRI is compared. Marker dropped, records on both polarities.",
+  "requirement_sha": "269494b6a72a82ae",
+  "tests": {
+    "internal/component/bgp/message/rfc8277_label_layout_test.go::TestRFC8277BuilderLabelLayout": "bc0d36b08721c366",
+    "internal/component/bgp/plugins/nlri/labeled/rfc8277_sbit_relay_test.go::TestRFC8277RelayedStackSBitRewritten": "06c2f61c2345346e",
+    "internal/component/bgp/plugins/nlri/labeled/rfc8277_test.go::TestLabeledLabelStackSBitPlacement": "20798a2559b785cc"
+  },
+  "units": {
+    "internal/component/bgp/message/rfc8277_label_layout_test.go::TestRFC8277BuilderLabelLayout": "3ca769542f91b6c7",
+    "internal/component/bgp/plugins/nlri/labeled/rfc8277_sbit_relay_test.go::TestRFC8277RelayedStackSBitRewritten": "e3f38f06486d5120",
+    "internal/component/bgp/plugins/nlri/labeled/rfc8277_test.go::TestLabeledLabelStackSBitPlacement": "21e8850ccf2757d1"
+  },
+  "verdict": "enforced"
+}

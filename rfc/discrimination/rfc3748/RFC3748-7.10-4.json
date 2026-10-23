@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC3748-7.10-4",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc3748_clause_test.go::TestRFC3748KeyDerivingMethodsAuthenticateThePeerToo",
+    "unit-sha": "e7e3304ccae70a37",
+    "claim-sha": "6fc8855316051215",
+    "route": "revert",
+    "producer": "internal/core/eap/eap_mschapv2.go::handleResponse",
+    "producer-sha": "9c1c1e9d01d96b65",
+    "break": "body of handleResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3748-7.10-4",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc3748_clause_test.go::TestRFC3748KeyDerivingMethodsAuthenticateThePeerToo",
+    "unit-sha": "e7e3304ccae70a37",
+    "claim-sha": "d3b1c8bc2df6512d",
+    "route": "revert",
+    "producer": "internal/core/eap/peer.go::handleMSCHAPv2Success",
+    "producer-sha": "0b3dea95e269663e",
+    "break": "body of handleMSCHAPv2Success replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3748-7.10-4",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc3748_walk_test.go::TestRFC3748KeyDerivingMethodAuthenticatesBothEnds",
+    "unit-sha": "06916f12891e9579",
+    "claim-sha": "047c13fff6e6b260",
+    "route": "revert",
+    "producer": "internal/core/eap/peer_chain.go::verifyPeerCertificate",
+    "producer-sha": "21a7756cc3463e46",
+    "break": "body of verifyPeerCertificate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3748-7.10-4",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc3748_walk_test.go::TestRFC3748KeyDerivingMethodAuthenticatesBothEnds",
+    "unit-sha": "06916f12891e9579",
+    "claim-sha": "3644069e744127fe",
+    "route": "revert",
+    "producer": "internal/core/eap/eap_tls.go::newTLSMethod",
+    "producer-sha": "9d4ae49c78228895",
+    "break": "body of newTLSMethod replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

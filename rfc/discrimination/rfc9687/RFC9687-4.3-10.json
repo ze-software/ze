@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC9687-4.3-10",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc9687_reactor_b_test.go::TestRFC9687PeerDrivenTeardownStopsTheSendHoldTimer",
+    "unit-sha": "90f2d4e1b2658ea4",
+    "claim-sha": "bc18d7cb9fb5028f",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_write.go::stopSendHoldTimerLocked",
+    "producer-sha": "55d74fbf4080236e",
+    "break": "body of stopSendHoldTimerLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

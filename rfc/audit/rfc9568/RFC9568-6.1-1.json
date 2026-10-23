@@ -1,0 +1,13 @@
+{
+  "note": "TestAcceptFilterAcceptsNeighborDiscoveryBeforeAnyDrop requires ICMPv6 135 and 136 accept terms ahead of the first drop term in the Accept_Mode False table, and fails if the table has no drop",
+  "requirement_sha": "a73e1b36b60d61bf",
+  "tests": {
+    "internal/plugins/vrrp/acceptfilter_test.go::TestAcceptFilterAcceptsNeighborDiscoveryBeforeAnyDrop": "ac94e88781e5c08d",
+    "internal/plugins/vrrp/acceptfilter_test.go::TestAcceptFilterAcceptsNeighborDiscoveryBeforeAnyDrop#2": "ac94e88781e5c08d"
+  },
+  "units": {
+    "internal/plugins/vrrp/acceptfilter_test.go::TestAcceptFilterAcceptsNeighborDiscoveryBeforeAnyDrop": "4617f787264e227c",
+    "internal/plugins/vrrp/acceptfilter_test.go::TestAcceptFilterAcceptsNeighborDiscoveryBeforeAnyDrop#2": "4617f787264e227c"
+  },
+  "verdict": "enforced"
+}

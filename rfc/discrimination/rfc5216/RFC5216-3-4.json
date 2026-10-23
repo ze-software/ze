@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5216-3-4",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216PaddingPastTheLengthIsIgnored",
+    "unit-sha": "f6f43f84ed816423",
+    "claim-sha": "99cebfe04dae1a3e",
+    "route": "revert",
+    "producer": "internal/core/eap/eap.go::DecodePacket",
+    "producer-sha": "6ac2ff5effdaaf5e",
+    "break": "body of DecodePacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5216-3-4",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216PaddingPastTheLengthIsIgnored",
+    "unit-sha": "f6f43f84ed816423",
+    "claim-sha": "486bc0cd7c2b6130",
+    "route": "revert",
+    "producer": "internal/core/eap/eap.go::DecodePacket",
+    "producer-sha": "6ac2ff5effdaaf5e",
+    "break": "body of DecodePacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

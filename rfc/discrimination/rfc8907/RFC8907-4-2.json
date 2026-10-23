@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC8907-4-2",
+    "polarity": "positive",
+    "unit": "internal/component/tacacs/rfc8907_client_test.go::TestTacacsClientAuthenticatePass",
+    "unit-sha": "62f24f983bdd76d8",
+    "claim-sha": "a386d7987faafee6",
+    "route": "revert",
+    "producer": "internal/component/tacacs/client.go::trySend",
+    "producer-sha": "521ecbc2921e4804",
+    "break": "body of trySend replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8907-4-2",
+    "polarity": "negative",
+    "unit": "internal/component/tacacs/rfc8907_client_test.go::TestTacacsClientRejectsBadResponseHeader",
+    "unit-sha": "7852a4ba63da2b07",
+    "claim-sha": "8e74c2e74c5fb7da",
+    "route": "revert",
+    "producer": "internal/component/tacacs/client.go::validateResponseHeader",
+    "producer-sha": "48e12afe17dae9cf",
+    "break": "body of validateResponseHeader replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8907-4-2",
+    "polarity": "positive",
+    "unit": "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907ClientSendsOddSequenceNumbers",
+    "unit-sha": "893ee084e1e2c38a",
+    "claim-sha": "596da0442f1e131d",
+    "route": "revert",
+    "producer": "internal/component/tacacs/client.go::trySend",
+    "producer-sha": "521ecbc2921e4804",
+    "break": "body of trySend replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8907-4-2",
+    "polarity": "negative",
+    "unit": "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907ReplyWithOddSequenceNumberRefused",
+    "unit-sha": "b4dbef67fedff3e0",
+    "claim-sha": "6f9b73395a30905b",
+    "route": "revert",
+    "producer": "internal/component/tacacs/client.go::validateResponseHeader",
+    "producer-sha": "48e12afe17dae9cf",
+    "break": "body of validateResponseHeader replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC7296-2.23-13",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_dynamic_update_test.go::TestRFC7296ValidatedPacketDoesNotMoveTheSAOutsideTheRow",
+    "unit-sha": "c686dcd35f116254",
+    "claim-sha": "261f8be4101b0938",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/sa.go::adoptAuthenticatedEndpoint",
+    "producer-sha": "142d234e21a24324",
+    "break": "body of adoptAuthenticatedEndpoint replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.23-13",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_dynamic_update_test.go::TestRFC7296ValidatedPacketFromANewEndpointMovesTheSA",
+    "unit-sha": "5ec2465c46ce0d36",
+    "claim-sha": "a257219dccfa6376",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/sa.go::adoptAuthenticatedEndpoint",
+    "producer-sha": "142d234e21a24324",
+    "break": "body of adoptAuthenticatedEndpoint replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.23-13",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_natt_test.go::TestNattUnauthenticatedPacketDoesNotMoveTheEndpoint",
+    "unit-sha": "1fc4ababdc9d5fc8",
+    "claim-sha": "423585bedc83f1ce",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/sa.go::adoptAuthenticatedEndpoint",
+    "producer-sha": "142d234e21a24324",
+    "break": "body of adoptAuthenticatedEndpoint replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

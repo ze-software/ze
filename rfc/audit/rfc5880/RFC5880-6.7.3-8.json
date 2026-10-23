@@ -1,0 +1,13 @@
+{
+  "note": "Judge rejudge 2026-09-30 (phase 8: row cites 6.7.3 only; the Keyed SHA1 session units moved to RFC5880-6.7.4-11). Positive TestRFC5880MD5SequenceFieldIsXmitAuthSeq (new): both MD5 types through Machine.Sign, field = 0x11223344 and then the advanced value. Negative (R1b, forced input) TestRFC5880SequenceFieldIsXmitAuthSeqAcrossTheCounterRange: XmitAuthSeq forced to 0, 1, 0x7FFFFFFF, 0x80000000, 0xFFFFFFFE, 0xFFFFFFFF and across the wrap, field equal after every Sign, all four keyed types; an earlier judge break (seq masked to 31 bits) reds it.",
+  "requirement_sha": "c24fbc16bc161834",
+  "tests": {
+    "internal/component/bfd/session/rfc5880_auth_seq_field_test.go::TestRFC5880SequenceFieldIsXmitAuthSeqAcrossTheCounterRange": "0df1fe339d3b5712",
+    "internal/component/bfd/session/rfc5880_md5_seq_field_test.go::TestRFC5880MD5SequenceFieldIsXmitAuthSeq": "1290b5d7e13e5b1c"
+  },
+  "units": {
+    "internal/component/bfd/session/rfc5880_auth_seq_field_test.go::TestRFC5880SequenceFieldIsXmitAuthSeqAcrossTheCounterRange": "ce52ac3db274b855",
+    "internal/component/bfd/session/rfc5880_md5_seq_field_test.go::TestRFC5880MD5SequenceFieldIsXmitAuthSeq": "a388bf39645e70fc"
+  },
+  "verdict": "enforced"
+}

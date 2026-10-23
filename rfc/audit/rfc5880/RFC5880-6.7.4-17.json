@@ -1,0 +1,13 @@
+{
+  "note": "Judge 2026-09-30 (phase 8). Positive TestRFC5880DigestMatchAccepted (Keyed SHA1 signed packet accepted). Negative TestRFC5880DigestMismatchDiscarded: flipped hash and other-secret hash refused with the floor left at the known value. Judge break making the constant-time compare never fail reds the negative. The positive uses the product signer, not an independent SHA1 (the MD5 row has a crypto/md5 hand-built packet); acceptable because the negative pins the compare.",
+  "requirement_sha": "75a6863607b67f17",
+  "tests": {
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880DigestMatchAccepted": "5a25c74cc2d9bd47",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880DigestMismatchDiscarded": "5a25c74cc2d9bd47"
+  },
+  "units": {
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880DigestMatchAccepted": "64e894f6f290ea44",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880DigestMismatchDiscarded": "4da054c1d39b8bf7"
+  },
+  "verdict": "enforced"
+}

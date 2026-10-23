@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC5880-6.8.3-2",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880PollInitiatedForEachIntervalAlone",
+    "unit-sha": "feea045acd28d2d6",
+    "claim-sha": "bb051a8452c4887f",
+    "route": "mutant",
+    "producer": "internal/component/bfd/session/fsm.go::onStateChange",
+    "producer-sha": "4ed1ee92b4f69d5a",
+    "break": "line 177: \"||\" -\u003e \"\u0026\u0026\""
+  },
+  {
+    "rid": "RFC5880-6.8.3-2",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880PollInitiatedWhenDownEntryRaisesDesiredMinTx",
+    "unit-sha": "d0a718710a4ad2be",
+    "claim-sha": "2459d3272aa817c0",
+    "route": "mutant",
+    "producer": "internal/component/bfd/session/fsm.go::onStateChange",
+    "producer-sha": "4ed1ee92b4f69d5a",
+    "break": "line 204: \"!=\" -\u003e \"==\""
+  },
+  {
+    "rid": "RFC5880-6.8.3-2",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/session/rfc5880_test.go::TestRFC5880NoPollWhenIntervalsUnchanged",
+    "unit-sha": "984ca748e2eb806f",
+    "claim-sha": "2eddf43f4676d7bb",
+    "route": "revert",
+    "producer": "internal/component/bfd/session/fsm.go::onStateChange",
+    "producer-sha": "4ed1ee92b4f69d5a",
+    "break": "body of onStateChange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.8.3-2",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PollInitiatedOnIntervalChange",
+    "unit-sha": "e78d666140a5198d",
+    "claim-sha": "61a9b7bdc0730182",
+    "route": "revert",
+    "producer": "internal/component/bfd/session/fsm.go::onStateChange",
+    "producer-sha": "4ed1ee92b4f69d5a",
+    "break": "body of onStateChange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

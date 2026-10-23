@@ -1,0 +1,13 @@
+{
+  "note": "forbidden: an SRLB Range Size of 0 sent or accepted. Receive: the SRLB case of srDecodeRemoteCapabilities uses DecodeRangeValue with an rerr == nil gate, and TestRFC8665RangeSizeZeroRejected requires it to reject size 0. Send: the same test requires Validate to reject a configured SRLB of size 0 (the cfgLB case), and Validate gates config verify. Positive TestRFC8665RangeTLVRoundTrip",
+  "requirement_sha": "81436ba447ddc544",
+  "tests": {
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665RangeSizeZeroRejected": "dcc89abea6ba13ce",
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665RangeTLVRoundTrip": "dcc89abea6ba13ce"
+  },
+  "units": {
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665RangeSizeZeroRejected": "5264dbe3161fbb4d",
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665RangeTLVRoundTrip": "8a1b750313ffdde0"
+  },
+  "verdict": "enforced"
+}

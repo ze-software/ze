@@ -1,0 +1,19 @@
+{
+  "note": "Re-read 2026-09-27. Forbidden: a configuration that cannot accept RSA-1024/2048 PKIX under ID_KEY_ID, ID_FQDN, ID_RFC822_ADDR, ID_DER_ASN1_DN, or PSK under ID_KEY_ID, ID_FQDN, ID_RFC822_ADDR. TestCfmConformanceConfigurationSetIsAcceptable fails if verifyRemoteAuth refuses RSA-1024+FQDN, RSA-2048+RFC822, RSA-2048+DN, RSA-2048+KEY_ID or PSK with each of the three; TestCfmConformanceSetDoesNotAcceptWhatItMustNot shows a mismatched identity is refused; the .ci tests show the DN remote-id commits and remote-id-type is a closed set. Every key size and every ID type is covered, not the full cross product. Re-judge 2026-10-12 (independent auditor) after 6e7a370dba changed test/parse/ipsec-hash-and-url-accepted.ci: the only edit adds bgp router-id 203.0.113.253 to the peer block, because a YANG mandatory leaf is now refused when absent (RFC 7950 7.6.5). The vpn ipsec block, the hash-and-url/certificate-url/certificate-url-allow leaves, the der-asn1-dn remote-id and the expectations (exit 0, stdout 'configuration valid') are unchanged. The edit keeps the buffer isolated: without it validate would fail on the bgp mandatory leaf, a neighbouring rule, rather than on the IPsec surface under test. RFC 7296 text re-read at the cited section. Verdict unchanged.",
+  "requirement_sha": "13aad53fa52d08cf",
+  "tests": {
+    "internal/component/ike/engine/rfc7296_conformance_test.go::TestCfmConformanceConfigurationSetIsAcceptable": "15b287689f37c517",
+    "internal/component/ike/engine/rfc7296_conformance_test.go::TestCfmConformanceConfigurationSetIsAcceptable#2": "15b287689f37c517",
+    "internal/component/ike/engine/rfc7296_conformance_test.go::TestCfmConformanceSetDoesNotAcceptWhatItMustNot": "15b287689f37c517",
+    "test/parse/ipsec-hash-and-url-accepted.ci": "4b6a2cdc01f7dd63",
+    "test/parse/ipsec-remote-id-type-enum.ci": "7d66ea9b32d48e68"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7296_conformance_test.go::TestCfmConformanceConfigurationSetIsAcceptable": "4bce994fea49ab9f",
+    "internal/component/ike/engine/rfc7296_conformance_test.go::TestCfmConformanceConfigurationSetIsAcceptable#2": "4bce994fea49ab9f",
+    "internal/component/ike/engine/rfc7296_conformance_test.go::TestCfmConformanceSetDoesNotAcceptWhatItMustNot": "79844da7ff4dc910",
+    "test/parse/ipsec-hash-and-url-accepted.ci": "4b6a2cdc01f7dd63",
+    "test/parse/ipsec-remote-id-type-enum.ci": "7d66ea9b32d48e68"
+  },
+  "verdict": "enforced"
+}

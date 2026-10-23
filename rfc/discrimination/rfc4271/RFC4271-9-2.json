@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4271-9-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271ReceivedRouteWithIdenticalNLRIReplacesTheOlder",
+    "unit-sha": "ddbca68e1d36b8a6",
+    "claim-sha": "a18d42a3c3d8cd5d",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/storage/peerrib.go::InsertEntry",
+    "producer-sha": "0f012d1964f08c71",
+    "break": "body of InsertEntry replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-9-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271ReplacementWithdrawsTheOlderRouteEvenWhenItWasBetter",
+    "unit-sha": "9d803066cbbbad6e",
+    "claim-sha": "39df211394cc91a3",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/storage/peerrib.go::InsertEntry",
+    "producer-sha": "0f012d1964f08c71",
+    "break": "body of InsertEntry replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

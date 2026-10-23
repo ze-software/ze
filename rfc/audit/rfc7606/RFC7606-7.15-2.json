@@ -1,0 +1,11 @@
+{
+  "note": "IMPLEMENTED 2026-07-20, and the basis CHANGED. Previously met by omission (nothing validated code 25, so nothing could error). Now met by design: validateIPv6ExtCommunityAttr takes the attribute value as `_` and tests length alone, so no Type or Sub-Type can reach a rejection. TestRFC7606IPv6ExtCommunityUnrecognizedType pins Type 0x3f / Sub-Type 0xee with a valid length 20 to Action None -- the length clause cannot fire and mask the type question. Positive-only by the same argument as 7.14-2: the rule is a prohibition, so a negative would assert the rejection the RFC forbids. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quoted sentence states the same obligation the paraphrase did, and no clause is new. Verdict unchanged.",
+  "requirement_sha": "295c56aef9d4895b",
+  "tests": {
+    "internal/component/bgp/message/rfc7606_optional_attrs_test.go::TestRFC7606IPv6ExtCommunityUnrecognizedType": "abce9f66859f2e88"
+  },
+  "units": {
+    "internal/component/bgp/message/rfc7606_optional_attrs_test.go::TestRFC7606IPv6ExtCommunityUnrecognizedType": "d2b5621f4f7fd98c"
+  },
+  "verdict": "enforced"
+}

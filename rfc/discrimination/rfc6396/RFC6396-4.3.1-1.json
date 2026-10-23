@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC6396-4.3.1-1",
+    "polarity": "positive",
+    "unit": "internal/mrt/mrt_test.go::TestPeerIndexTableEmptyViewName",
+    "unit-sha": "240618c8f77bd66e",
+    "claim-sha": "4208262012a9fd3c",
+    "route": "revert",
+    "producer": "internal/mrt/encode.go::WritePeerIndexTable",
+    "producer-sha": "91bff780ac77a3bc",
+    "break": "body of WritePeerIndexTable replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

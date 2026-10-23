@@ -1,0 +1,15 @@
+{
+  "note": "non-compliant: OTC route from Customer or RS-Client accepted. TestCheckOTCIngress reject_customer_with_otc and reject_rs_client_with_otc assert otcRejectLeak; TestOTCIngressGateRunsForADynamicGroupMember asserts accept=false for an RS-Client member; negative accept_provider_has_otc/accept_rs_has_otc assert otcAccept",
+  "requirement_sha": "af215f89cdddb4ff",
+  "tests": {
+    "internal/component/bgp/plugins/role/rfc9234_dynamic_group_test.go::TestOTCIngressGateRunsForADynamicGroupMember": "2ac8fba09ccdee06",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestCheckOTCIngress": "7b0a9e434ba435f3",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestCheckOTCIngress#2": "7b0a9e434ba435f3"
+  },
+  "units": {
+    "internal/component/bgp/plugins/role/rfc9234_dynamic_group_test.go::TestOTCIngressGateRunsForADynamicGroupMember": "d248f6d80a39daa8",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestCheckOTCIngress": "a8f63ea4d0fba230",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestCheckOTCIngress#2": "a8f63ea4d0fba230"
+  },
+  "verdict": "enforced"
+}

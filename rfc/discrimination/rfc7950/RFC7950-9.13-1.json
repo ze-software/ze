@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC7950-9.13-1",
+    "polarity": "positive",
+    "unit": "internal/component/config/yang/rfc7950_reference_canonical_test.go::TestRFC7950InstanceIdentifierCanonicalValue",
+    "unit-sha": "0cc88e9a5f37dac5",
+    "claim-sha": "00d855273e76964a",
+    "route": "revert",
+    "producer": "internal/component/config/yang/validator_instance.go::sameValue",
+    "producer-sha": "65c5a3a27361ff8a",
+    "break": "body of sameValue replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7950-9.13-1",
+    "polarity": "positive",
+    "unit": "internal/component/config/yang/rfc7950_reference_test.go::TestRFC7950InstanceIdentifierExists",
+    "unit-sha": "6dc5f3db707d9728",
+    "claim-sha": "b341523c674a2a39",
+    "route": "revert",
+    "producer": "internal/component/config/yang/validator_instance.go::instanceExists",
+    "producer-sha": "93c61ca9c3bab471",
+    "break": "body of instanceExists replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7950-9.13-1",
+    "polarity": "negative",
+    "unit": "internal/component/config/yang/rfc7950_reference_test.go::TestRFC7950InstanceIdentifierKeys",
+    "unit-sha": "60db93a91a1f6241",
+    "claim-sha": "a056ccfbe23f464e",
+    "route": "revert",
+    "producer": "internal/component/config/yang/validator_reference.go::checkInstanceKeys",
+    "producer-sha": "4b3f2ba735303837",
+    "break": "body of checkInstanceKeys replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7950-9.13-1",
+    "polarity": "positive",
+    "unit": "internal/component/config/yang/rfc7950_reference_walk_test.go::TestRFC7950InstanceIdentifierDefaultInUse",
+    "unit-sha": "4b98b99e354efc60",
+    "claim-sha": "91510e045d06ba61",
+    "route": "revert",
+    "producer": "internal/component/config/yang/validator_instance.go::absentLeafInUse",
+    "producer-sha": "37b004e548f17260",
+    "break": "body of absentLeafInUse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

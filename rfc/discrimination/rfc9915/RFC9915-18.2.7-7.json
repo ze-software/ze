@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC9915-18.2.7-7",
+    "polarity": "positive",
+    "unit": "internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go::TestDHCPv6ReleaseOnStop",
+    "unit-sha": "d38918d708805a0f",
+    "claim-sha": "ebbf1f4bb883f85e",
+    "route": "revert",
+    "producer": "internal/plugins/iface/dhcp/dhcp_v6_linux.go::shutdown",
+    "producer-sha": "6a08352640b3198a",
+    "break": "body of shutdown replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: an SRv6-capable node with no TLV 1038, or with two. TestRFC9514ISISSRv6CapabilitiesSingleInstance positive fails on len(got)!=1 for a node advertising SRv6 Capabilities (absence goes red); negative feeds two native sub-TLVs and fails on len(got)!=1 (a second instance goes red).",
+  "requirement_sha": "a8f9b83f79fae37b",
+  "tests": {
+    "internal/plugins/isis/rfc9514_bgpls_export_test.go::TestRFC9514ISISSRv6CapabilitiesSingleInstance": "3534ed7ab329be12",
+    "internal/plugins/isis/rfc9514_bgpls_export_test.go::TestRFC9514ISISSRv6CapabilitiesSingleInstance#2": "3534ed7ab329be12"
+  },
+  "units": {
+    "internal/plugins/isis/rfc9514_bgpls_export_test.go::TestRFC9514ISISSRv6CapabilitiesSingleInstance": "8804c79f1d32ff93",
+    "internal/plugins/isis/rfc9514_bgpls_export_test.go::TestRFC9514ISISSRv6CapabilitiesSingleInstance#2": "8804c79f1d32ff93"
+  },
+  "verdict": "enforced"
+}

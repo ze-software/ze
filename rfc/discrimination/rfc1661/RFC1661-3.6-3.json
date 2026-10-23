@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC1661-3.6-3",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go::TestRFC1661UnsupportedProtocolNotRejectedBeforeOpened",
+    "unit-sha": "86eff8c3679bbfd2",
+    "claim-sha": "d8ba3eee6697658c",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/session_run.go::rejectUnsupportedProtocol",
+    "producer-sha": "0e912d3f18f3ad7a",
+    "break": "body of rejectUnsupportedProtocol replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1661-3.6-3",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go::TestRFC1661UnsupportedProtocolRejectedInOpened",
+    "unit-sha": "d6fa63bb797282f5",
+    "claim-sha": "ac8ca036d13004ef",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/session_run.go::sendProtocolReject",
+    "producer-sha": "05f4700bf8d77857",
+    "break": "body of sendProtocolReject replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

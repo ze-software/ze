@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden behaviour: ConnectRetryTimer left running after Event 29. The positive unit arms it as a precondition and asserts IsConnectRetryTimerRunning false after the expiry; the negative asserts it still runs inside the SendHoldTime.",
+  "requirement_sha": "3ac305a15007b4c0",
+  "tests": {
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "8caa1cc8f2fc140d",
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "8caa1cc8f2fc140d"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "d962e371f1fc6714",
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "e00ce51f6b78477b"
+  },
+  "verdict": "enforced"
+}

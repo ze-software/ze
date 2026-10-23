@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9012-13-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9012TunnelFramingReceiveVerdicts",
+    "unit-sha": "d717a9e5c9a0cf2e",
+    "claim-sha": "a5f4ee4155d50fda",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::tunnelTLVLayout",
+    "producer-sha": "78c99487a1b959d5",
+    "break": "body of tunnelTLVLayout replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9012-13-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9012TunnelFramingReceiveVerdicts",
+    "unit-sha": "d717a9e5c9a0cf2e",
+    "claim-sha": "8bce94920ae8ba79",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_tunnel_encap.go::tunnelTLVLayout",
+    "producer-sha": "78c99487a1b959d5",
+    "break": "body of tunnelTLVLayout replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

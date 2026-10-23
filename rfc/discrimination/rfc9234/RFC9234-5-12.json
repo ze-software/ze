@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9234-5-12",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/role/rfc9234_otc_malformed_test.go::TestRFC9234OTCOfAnyLengthButFourIsTreatedAsWithdraw",
+    "unit-sha": "8df9f7515bd84783",
+    "claim-sha": "0088620f5f0f903d",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/role/otc.go::findOTC",
+    "producer-sha": "26ba284f79356960",
+    "break": "body of findOTC replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9234-5-12",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/role/rfc9234_otc_malformed_test.go::TestRFC9234OTCOfLengthFourIsNotTreatedAsWithdraw",
+    "unit-sha": "e6466410e373a7a9",
+    "claim-sha": "d72d3b6c70abc7fb",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/role/otc.go::findOTC",
+    "producer-sha": "26ba284f79356960",
+    "break": "body of findOTC replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

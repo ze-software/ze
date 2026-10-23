@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC3101-x-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/iface/rfc3101_hello_nssa_test.go::TestOSPFNSSANbitMismatch",
+    "unit-sha": "26114166de6a32fc",
+    "claim-sha": "bc9d5f19555ed2b2",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/iface/iface.go::validateHelloLocked",
+    "producer-sha": "b461a33440420dd6",
+    "break": "body of validateHelloLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3101-x-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/iface/rfc3101_hello_options_test.go::TestRFC3101NSSAHelloSentWithNSetAndEClear",
+    "unit-sha": "84baae58315d19f6",
+    "claim-sha": "df00f6dc6dd4e88d",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/iface/iface.go::expectedOptionsLocked",
+    "producer-sha": "d520e240f4def45d",
+    "break": "body of expectedOptionsLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3101-x-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/iface/rfc3101_hello_options_test.go::TestRFC3101NSSAHelloWithNAndESetRefused",
+    "unit-sha": "261604cdc23fb842",
+    "claim-sha": "b8ad1b00d7cfdadf",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/iface/iface.go::validateHelloLocked",
+    "producer-sha": "b461a33440420dd6",
+    "break": "body of validateHelloLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

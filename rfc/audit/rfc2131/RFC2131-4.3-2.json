@@ -1,0 +1,11 @@
+{
+  "note": "single-polarity positive: the OFFER's option 51 must be four octets equal to the configured lease seconds",
+  "requirement_sha": "96873a352e0b1a53",
+  "tests": {
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestLeaseTimeInOfferAndAck": "8365c04cdfc2a046"
+  },
+  "units": {
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestLeaseTimeInOfferAndAck": "5fa7dafdd97c6f2c"
+  },
+  "verdict": "enforced"
+}

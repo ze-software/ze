@@ -1,0 +1,13 @@
+{
+  "note": "Insert of a stale prefix clears StaleLevel to fresh with the new attributes; the negative keeps an unrefreshed stale prefix stale while a new prefix is fresh",
+  "requirement_sha": "eb9b7c4980430e56",
+  "tests": {
+    "internal/component/bgp/plugins/rib/storage/rfc4724_stale_test.go::TestFamilyRIB_InsertClearsStale": "dc1f58aea4e1377e",
+    "internal/component/bgp/plugins/rib/storage/rfc4724_stale_test.go::TestFamilyRIB_InsertNewDuringStale": "dc1f58aea4e1377e"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rib/storage/rfc4724_stale_test.go::TestFamilyRIB_InsertClearsStale": "282085d10ccf597b",
+    "internal/component/bgp/plugins/rib/storage/rfc4724_stale_test.go::TestFamilyRIB_InsertNewDuringStale": "8d7ae43ea109aa66"
+  },
+  "verdict": "enforced"
+}

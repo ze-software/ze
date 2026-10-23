@@ -1,0 +1,13 @@
+{
+  "note": "OSPFv2 link opaque from Extended Link LSA reaches TLV 1097; RI-LSA provenance refused without replacing the valid state; the OSPFv2 link allowlist has one member, so the pair discriminates it",
+  "requirement_sha": "8cd3406105cbc7e9",
+  "tests": {
+    "internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go::TestRFC9552NativeOpaqueOSPFv2LinkProvenance": "d43002f22020b856",
+    "internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go::TestRFC9552NativeOpaqueOSPFv2LinkProvenance#2": "d43002f22020b856"
+  },
+  "units": {
+    "internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go::TestRFC9552NativeOpaqueOSPFv2LinkProvenance": "eecaba302089ad15",
+    "internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go::TestRFC9552NativeOpaqueOSPFv2LinkProvenance#2": "eecaba302089ad15"
+  },
+  "verdict": "enforced"
+}

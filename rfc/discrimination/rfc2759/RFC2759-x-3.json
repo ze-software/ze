@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC2759-x-3",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerSendsTheResponseValueLayout",
+    "unit-sha": "7158357ca2bab67f",
+    "claim-sha": "ab9a7b388369443d",
+    "route": "revert",
+    "producer": "internal/core/eap/peer.go::handleMSCHAPv2Challenge",
+    "producer-sha": "ae265bc0e1f63da2",
+    "break": "body of handleMSCHAPv2Challenge replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2759-x-3",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerSendsTheResponseValueLayout",
+    "unit-sha": "7158357ca2bab67f",
+    "claim-sha": "ed5e6540157b0ee0",
+    "route": "revert",
+    "producer": "internal/core/eap/eap_mschapv2.go::handleResponse",
+    "producer-sha": "9c1c1e9d01d96b65",
+    "break": "body of handleResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2759-x-3",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc2759_eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation",
+    "unit-sha": "0bf0abdce09fb312",
+    "claim-sha": "c35614c2c708d362",
+    "route": "revert",
+    "producer": "internal/core/eap/peer.go::handleMSCHAPv2Challenge",
+    "producer-sha": "ae265bc0e1f63da2",
+    "break": "body of handleMSCHAPv2Challenge replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2759-x-3",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc2759_eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation",
+    "unit-sha": "0bf0abdce09fb312",
+    "claim-sha": "6c7dfce039e88061",
+    "route": "revert",
+    "producer": "internal/core/eap/eap_mschapv2.go::handleResponse",
+    "producer-sha": "9c1c1e9d01d96b65",
+    "break": "body of handleResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

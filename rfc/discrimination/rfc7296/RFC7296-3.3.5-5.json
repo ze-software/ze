@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC7296-3.3.5-5",
+    "polarity": "positive",
+    "unit": "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropKeyLengthRequiredTransformRejectedWithoutIt",
+    "unit-sha": "1b0fad03a43e2c26",
+    "claim-sha": "5e526bf7bdca3855",
+    "route": "revert",
+    "producer": "internal/component/ike/crypto/proposal.go::acceptEncryption",
+    "producer-sha": "62247f481f88d39a",
+    "break": "body of acceptEncryption replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-3.3.5-5",
+    "polarity": "negative",
+    "unit": "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropKeyLengthRequiredTransformRejectedWithoutIt",
+    "unit-sha": "1b0fad03a43e2c26",
+    "claim-sha": "7f387a3d8bf52210",
+    "route": "revert",
+    "producer": "internal/component/ike/crypto/proposal.go::acceptEncryption",
+    "producer-sha": "62247f481f88d39a",
+    "break": "body of acceptEncryption replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-3.3.5-5",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_keylength_sender_test.go::TestRFC7296OffersAlwaysCarryTheRequiredKeyLength",
+    "unit-sha": "71e86aa6b532695c",
+    "claim-sha": "13080db55cb46e34",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/initiator.go::encAttrs",
+    "producer-sha": "5f591c51cecce19a",
+    "break": "body of encAttrs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

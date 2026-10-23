@@ -1,0 +1,15 @@
+{
+  "note": "the fresh-admission PADS is now observed: two hosts each get CODE 0x65, a non-zero SESSION_ID equal to the SID the table holds for that host, and the two SIDs differ (TestRFC2516AdmittedPADSCarriesTheNewSessionsID); the replay path stays covered; the client refuses a zero-SID PADS (pppoeclient negative). Records observed red on handlePADR and tryReadPADS",
+  "requirement_sha": "412e1bbe52a4b5f9",
+  "tests": {
+    "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516AdmittedPADSCarriesTheNewSessionsID": "3ea2cf3cd3f3abda",
+    "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516PADSCarriesTheSessionsID": "e5818bbbd45fc77f",
+    "internal/component/l2tp/pppoeclient/rfc2516_discovery_test.go::TestRFC2516PADSWithZeroSessionIDIsARefusal": "038fbf24238f4209"
+  },
+  "units": {
+    "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516AdmittedPADSCarriesTheNewSessionsID": "4a6839fa921e86e8",
+    "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516PADSCarriesTheSessionsID": "0e117b8860733b78",
+    "internal/component/l2tp/pppoeclient/rfc2516_discovery_test.go::TestRFC2516PADSWithZeroSessionIDIsARefusal": "d1dde7a724786092"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC7911-3-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/format/rfc7911_withdraw_only_test.go::TestWithdrawOnlyUpdateKeepsPathIdentifier",
+    "unit-sha": "fb97c65d3a91d533",
+    "claim-sha": "9c86a26ae4760a27",
+    "route": "revert",
+    "producer": "internal/component/bgp/types/rawmessage.go::SourceEncodingContext",
+    "producer-sha": "a26e53b30d215667",
+    "break": "body of SourceEncodingContext replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

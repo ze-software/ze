@@ -1,0 +1,57 @@
+[
+  {
+    "rid": "RFC2205-3-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC2205ErrorSpecClassRecognized",
+    "unit-sha": "5380035e42e7e7be",
+    "claim-sha": "582a16d2c98cdb65",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/message_validation.go::knownCType",
+    "producer-sha": "89b1704c6343ea26",
+    "break": "body of knownCType replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2205-3-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/rsvpte/repairs_rfc2205_test.go::TestRFC2205NullObjectNotRejected",
+    "unit-sha": "43330b0c3dffc3cb",
+    "claim-sha": "e752d8d58a2c80fc",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/wire.go::classKnownUnprocessed",
+    "producer-sha": "dfdbdc0c90ae1800",
+    "break": "body of classKnownUnprocessed replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2205-3-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/repairs_rfc2205_test.go::TestRFC2205NullObjectRecognized",
+    "unit-sha": "983a343e75ed0ef8",
+    "claim-sha": "f0a8bc5b36f09743",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/wire.go::classKnownUnprocessed",
+    "producer-sha": "dfdbdc0c90ae1800",
+    "break": "body of classKnownUnprocessed replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2205-3-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/rfc2205_wire_test.go::TestRFC2205KnownClassesRecognized",
+    "unit-sha": "226bed5f5c805774",
+    "claim-sha": "6b8d76a263f6fd22",
+    "route": "mutant",
+    "producer": "internal/plugins/rsvpte/wire.go::classKnownUnprocessed",
+    "producer-sha": "dfdbdc0c90ae1800",
+    "break": "line 921: \"true\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC2205-3-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/rsvpte/rfc2205_wire_test.go::TestRFC2205UnlistedClassNotRecognized",
+    "unit-sha": "3330d06eb7b28f34",
+    "claim-sha": "baa71aec27197567",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/wire.go::classifyUnknownClass",
+    "producer-sha": "91cd22b94014af18",
+    "break": "body of classifyUnknownClass replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

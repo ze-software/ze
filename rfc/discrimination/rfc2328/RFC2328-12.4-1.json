@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC2328-12.4-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328AdvertisedSummaryNotFlushed",
+    "unit-sha": "57f74c8b01a6696e",
+    "claim-sha": "635547714fa20848",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/lsdb/origination.go::FlushStaleSummaryLSAs",
+    "producer-sha": "366acdadb9fb978c",
+    "break": "body of FlushStaleSummaryLSAs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-12.4-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328WithdrawnSummaryFlushedAtMaxAge",
+    "unit-sha": "56205064f08b82c1",
+    "claim-sha": "87626437515ec621",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/lsdb/origination.go::FlushStaleSummaryLSAs",
+    "producer-sha": "366acdadb9fb978c",
+    "break": "body of FlushStaleSummaryLSAs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-12.4-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/spf/rfc2328_unreachable_summary_test.go::TestRFC2328SummaryFlushedWhenDestinationUnreachable",
+    "unit-sha": "0ae87425b0f69995",
+    "claim-sha": "7adeb8abae6ab0dd",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/lsdb/origination.go::FlushStaleSummaryLSAs",
+    "producer-sha": "366acdadb9fb978c",
+    "break": "body of FlushStaleSummaryLSAs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-12.4-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/spf/rfc2328_unreachable_summary_test.go::TestRFC2328SummaryKeptWhileDestinationReachable",
+    "unit-sha": "aedb13b60cc23f4a",
+    "claim-sha": "c119408c79796a1c",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/spf/summary.go::collectSummaryNetworks",
+    "producer-sha": "5cb52c521e8b635c",
+    "break": "body of collectSummaryNetworks replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

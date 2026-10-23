@@ -1,0 +1,13 @@
+{
+  "note": "positive pins the exact IEEE 754 bits for byte and packet rates; negative asserts '-1 packets' is refused. The negative input is packets only, but both subtypes share the one guard in flowspec_encode.go (rate < 0). Test doc names parseFlowSpecTrafficRateBits in route_community.go, which does not exist",
+  "requirement_sha": "8c9845407f2122ee",
+  "tests": {
+    "internal/component/bgp/route/rfc8955_route_parse_test.go::TestParseExtendedCommunitiesTrafficRatePackets": "b3ed1464deb27a9e",
+    "internal/component/bgp/route/rfc8955_route_parse_test.go::TestParseExtendedCommunitiesTrafficRatePackets#2": "b3ed1464deb27a9e"
+  },
+  "units": {
+    "internal/component/bgp/route/rfc8955_route_parse_test.go::TestParseExtendedCommunitiesTrafficRatePackets": "3a3f6b12839bc1d7",
+    "internal/component/bgp/route/rfc8955_route_parse_test.go::TestParseExtendedCommunitiesTrafficRatePackets#2": "3a3f6b12839bc1d7"
+  },
+  "verdict": "enforced"
+}

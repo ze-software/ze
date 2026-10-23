@@ -1,0 +1,19 @@
+{
+  "note": "Collateral source re-judgment 2026-10-02 after unrelated MD5 requirement tags were removed from TestRFC2385MatchingKeysCarryASignedSession's enclosing doc comment. RFC4271 AppendixE states: An implementation MUST support the TCP MD5 option [RFC2385]. Its Security Considerations also require per-peer activation support. Every currently tagged unit was reread: TestRFC2385ConfiguredKeyReachesBothSockets drives an operator password through parsePeerFromTree and NewSession and asserts the exact key and peer address in RealDialer and md5PeersForListener; TestMD5PeersForListener and its second polarity assert two keyed default-port peers, MD5IP override, exclusion of an unkeyed peer and differently bound listener, the separate keyed custom-port peer, and an empty unrelated port. TestRFC2385MatchingKeysCarryASignedSession exercises actual RealDialer/RealListenerFactory sockets with matching keys and requires256KiB received; TestRFC2385KeyOnOneEndOnlyCarriesNoSession requires timeout for an unsigned dial into the keyed listener and fails on a successful connection, discriminating a no-op option installer. Source trace reaches reactor.newListenerFactory, which installs the collected keys in RealListenerFactory, and both socket Control callbacks reach md5_linux.go::setTCPMD5Sig before bind/connect with errors propagated. Configuration-only tests are supplementary, not a substitute for the real sockets. This preserves the Linux support verdict and does not claim macOS MD5 support, exact wire digest composition from the old loopback unit, or any new native execution. Unsupported-kernel skips are not positive evidence; the separately reviewed configured runtime and stock kernel emitted configs now establish TCP_MD5SIG availability. Existing executable assertions and this row's tag claims are unchanged; Main must stamp fresh enclosing-unit hashes with mode rejudge, not treat changed doc comments as mere shifted-file reseals.",
+  "requirement_sha": "01a02f927b0178f7",
+  "tests": {
+    "internal/component/bgp/reactor/reactor_test.go::TestMD5PeersForListener": "590d9861717bf190",
+    "internal/component/bgp/reactor/reactor_test.go::TestMD5PeersForListener#2": "590d9861717bf190",
+    "internal/component/bgp/reactor/rfc2385_test.go::TestRFC2385ConfiguredKeyReachesBothSockets": "96faf21876447ffa",
+    "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385KeyOnOneEndOnlyCarriesNoSession": "6928fc5dd6ae1436",
+    "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MatchingKeysCarryASignedSession": "6928fc5dd6ae1436"
+  },
+  "units": {
+    "internal/component/bgp/reactor/reactor_test.go::TestMD5PeersForListener": "a0a57186213387d0",
+    "internal/component/bgp/reactor/reactor_test.go::TestMD5PeersForListener#2": "a0a57186213387d0",
+    "internal/component/bgp/reactor/rfc2385_test.go::TestRFC2385ConfiguredKeyReachesBothSockets": "fba309906b57361a",
+    "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385KeyOnOneEndOnlyCarriesNoSession": "c5801fb420fa5fd9",
+    "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MatchingKeysCarryASignedSession": "b1d71be4493819d9"
+  },
+  "verdict": "enforced"
+}

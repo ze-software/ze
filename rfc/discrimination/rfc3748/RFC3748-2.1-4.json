@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC3748-2.1-4",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc3748_clause_test.go::TestRFC3748TheAuthenticatorSendsNoRequestOfAnotherType",
+    "unit-sha": "e5a5678abb9c3b2d",
+    "claim-sha": "25188eec7aff24f7",
+    "route": "revert",
+    "producer": "internal/core/eap/eap.go::handleMethod",
+    "producer-sha": "fcb74148a4de64e4",
+    "break": "body of handleMethod replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3748-2.1-4",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc3748_clause_test.go::TestRFC3748TheAuthenticatorSendsNoRequestOfAnotherType",
+    "unit-sha": "e5a5678abb9c3b2d",
+    "claim-sha": "b2af041ff56cbb15",
+    "route": "revert",
+    "producer": "internal/core/eap/eap.go::handleMethod",
+    "producer-sha": "fcb74148a4de64e4",
+    "break": "body of handleMethod replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3748-2.1-4",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc3748_discard_test.go::TestPeerDiscardsARequestOfAnotherType",
+    "unit-sha": "b12f2c0cb66ab440",
+    "claim-sha": "3122082367c4c68b",
+    "route": "revert",
+    "producer": "internal/core/eap/peer.go::handleRequest",
+    "producer-sha": "0a90e14d16adb589",
+    "break": "body of handleRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3748-2.1-4",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc3748_discard_test.go::TestPeerProcessesARequestOfTheMethodType",
+    "unit-sha": "7e9b9637173f2e58",
+    "claim-sha": "2465b64208400964",
+    "route": "revert",
+    "producer": "internal/core/eap/peer.go::handleRequest",
+    "producer-sha": "0a90e14d16adb589",
+    "break": "body of handleRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

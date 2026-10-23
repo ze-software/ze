@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: no Protocol-Reject for an unrecognized protocol in Opened. TestRFC1661UnsupportedProtocolRejectedInOpened goes red unless one LCP code-8 frame names 0x8281; TestRFC1661UnsupportedProtocolNotRejectedBeforeOpened goes red on any frame outside Opened.",
+  "requirement_sha": "744d413be21b2a4a",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go::TestRFC1661UnsupportedProtocolNotRejectedBeforeOpened": "b6e0cb190623fbb9",
+    "internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go::TestRFC1661UnsupportedProtocolRejectedInOpened": "b6e0cb190623fbb9"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go::TestRFC1661UnsupportedProtocolNotRejectedBeforeOpened": "f5ccb4b293bca977",
+    "internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go::TestRFC1661UnsupportedProtocolRejectedInOpened": "e246a3ae0acfbd29"
+  },
+  "verdict": "enforced"
+}

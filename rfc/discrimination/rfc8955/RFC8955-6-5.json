@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8955-6-5",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rib/rfc8955_flowspec_bestchange_test.go::TestRFC8955FlowSpecLosingPathIsNeverPublished",
+    "unit-sha": "a3b9e25c643f0cc3",
+    "claim-sha": "bd100247e82e8d38",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/bestpath_selection.go::selectBestCandidates",
+    "producer-sha": "2f1d07c11c858e50",
+    "break": "body of selectBestCandidates replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8955-6-5",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/rfc8955_flowspec_bestchange_test.go::TestRFC8955FlowSpecPathSelectionPicksOneSetOfAttributes",
+    "unit-sha": "aa35e4074fcd07f8",
+    "claim-sha": "bc1bf2bc576ef3f2",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange",
+    "producer-sha": "a5957db57472ecce",
+    "break": "body of checkRouteBestChange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

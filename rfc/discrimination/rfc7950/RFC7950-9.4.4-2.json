@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7950-9.4.4-2",
+    "polarity": "negative",
+    "unit": "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950LengthRestrictionMustNotWiden",
+    "unit-sha": "30734c9bbe631fa9",
+    "claim-sha": "535f0f0c03a115b4",
+    "route": "revert",
+    "producer": "internal/component/config/yang/loader.go::Resolve",
+    "producer-sha": "51150ebc8d4880b3",
+    "break": "body of Resolve replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7950-9.4.4-2",
+    "polarity": "positive",
+    "unit": "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950LengthRestrictionMustNotWiden",
+    "unit-sha": "30734c9bbe631fa9",
+    "claim-sha": "92a611c9c7a245c4",
+    "route": "revert",
+    "producer": "internal/component/config/yang/loader.go::Resolve",
+    "producer-sha": "51150ebc8d4880b3",
+    "break": "body of Resolve replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

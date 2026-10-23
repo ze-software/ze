@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5880-6.8.6-8",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/session/rfc5880_test.go::TestRFC5880ZeroYourDiscriminatorAcceptedWhenDown",
+    "unit-sha": "5fedfc02713bf1ba",
+    "claim-sha": "d224bf6100ef32da",
+    "route": "revert",
+    "producer": "internal/component/bfd/session/fsm.go::Receive",
+    "producer-sha": "358034a974de9c16",
+    "break": "body of Receive replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.8.6-8",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/session/rfc5880_test.go::TestRFC5880ZeroYourDiscriminatorDiscardedWhenLive",
+    "unit-sha": "d54c32034b0b2eb3",
+    "claim-sha": "239e549266dd9ccb",
+    "route": "revert",
+    "producer": "internal/component/bfd/session/fsm.go::Receive",
+    "producer-sha": "358034a974de9c16",
+    "break": "body of Receive replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

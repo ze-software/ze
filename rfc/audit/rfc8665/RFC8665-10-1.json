@@ -1,0 +1,15 @@
+{
+  "note": "Rejudged 2026-10-21 over the current tags, units and records. Shift only. Every truncation is rejected without panic, a zero-length SR-Algorithm TLV is ignored, and well-formed values decode.",
+  "requirement_sha": "1c7474a9c2a5e277",
+  "tests": {
+    "internal/plugins/ospf/rfc8665_sr_algorithm_length_test.go::TestRFC8665ZeroLengthSRAlgorithmIgnoresLSA": "4aa51ec26827ad60",
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665TruncatedTLVsRejectedWithoutPanic": "dcc89abea6ba13ce",
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665WellFormedTLVsDecode": "dcc89abea6ba13ce"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc8665_sr_algorithm_length_test.go::TestRFC8665ZeroLengthSRAlgorithmIgnoresLSA": "80042e51f9287374",
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665TruncatedTLVsRejectedWithoutPanic": "613d49c45b41bda8",
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665WellFormedTLVsDecode": "22d8770ac38fe4af"
+  },
+  "verdict": "enforced"
+}

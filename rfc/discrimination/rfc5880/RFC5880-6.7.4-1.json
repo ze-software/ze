@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC5880-6.7.4-1",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedSHA1OversizedKeyNotSigned",
+    "unit-sha": "fa166aec778f69c6",
+    "claim-sha": "c321aa9251237d5e",
+    "route": "revert",
+    "producer": "internal/component/bfd/auth/signer.go::NewSigner",
+    "producer-sha": "74964565965a495f",
+    "break": "body of NewSigner replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.7.4-1",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/auth/rfc5880_section_fields_test.go::TestRFC5880KeyedSHA1OtherAlgorithmFieldsDiscarded",
+    "unit-sha": "89e158cee4fbc1e1",
+    "claim-sha": "336cdfd6e659e9fe",
+    "route": "mutant",
+    "producer": "internal/component/bfd/auth/sha1.go::Verify",
+    "producer-sha": "a96f098f3c6f9288",
+    "break": "line 160: \"data[off+0] != v.authType\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC5880-6.7.4-1",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KeyedSHA1RejectsForeignSectionShape",
+    "unit-sha": "a7c351eed9792bc7",
+    "claim-sha": "0a51ce2b27d45191",
+    "route": "revert",
+    "producer": "internal/component/bfd/auth/sha1.go::Verify",
+    "producer-sha": "a96f098f3c6f9288",
+    "break": "body of Verify replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.7.4-1",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KeyedSHA1SectionHeader",
+    "unit-sha": "e021e611d6fc7030",
+    "claim-sha": "219f9a5b7efe85a2",
+    "route": "revert",
+    "producer": "internal/component/bfd/auth/sha1.go::Sign",
+    "producer-sha": "b934a94ef59e0b8a",
+    "break": "body of Sign replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

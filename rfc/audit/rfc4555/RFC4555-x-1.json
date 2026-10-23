@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-09-30 (independent judge). Clause: the MOBIKE_SUPPORTED offer is in IKE_AUTH, and with several IKE_AUTH exchanges in the message carrying the SA payload. rfc4555_mobike_offer_test.go::TestRFC4555EAPOfferRidesTheIKEAuthMessageCarryingSA drives an EAP initiator: the first IKE_AUTH request (SA, no AUTH) decrypted off the wire carries MOBIKE_SUPPORTED, the later buildEAPResponse request carries neither SA nor the offer, and the peer's answer then enables MOBIKE. TestRFC4555NoOwnOfferNoMOBIKE is the negative for THIS row: an initiator whose own IKE_AUTH carried no offer (never built, or no migrating dataplane, checked off the wire) does not enable MOBIKE on the peer's offer (acceptMobikeOffer gates on mobike.offered). Revert records observed red on mobike.go::mobikeAuthOffer and ::acceptMobikeOffer. Single-exchange placement for both roles stays on TestMobikeAuthNegotiation. The responder's multi-exchange case is not driven end to end; its only offer site is buildAuthResponse (responder.go), the SA-carrying final response, after the SA payload unconditionally, the same builder TestMobikeAuthNegotiation asserts.",
+  "requirement_sha": "02c2f816be600836",
+  "tests": {
+    "internal/component/ike/engine/mobike_test.go::TestMobikeAuthNegotiation": "7591039c742210b3",
+    "internal/component/ike/engine/mobike_test.go::TestMobikeAuthNegotiation#2": "7591039c742210b3",
+    "internal/component/ike/engine/rfc4555_mobike_offer_test.go::TestRFC4555EAPOfferRidesTheIKEAuthMessageCarryingSA": "bccb3b1b8ac7882b",
+    "internal/component/ike/engine/rfc4555_mobike_offer_test.go::TestRFC4555NoOwnOfferNoMOBIKE": "bccb3b1b8ac7882b"
+  },
+  "units": {
+    "internal/component/ike/engine/mobike_test.go::TestMobikeAuthNegotiation": "e2739b5ba06d541a",
+    "internal/component/ike/engine/mobike_test.go::TestMobikeAuthNegotiation#2": "e2739b5ba06d541a",
+    "internal/component/ike/engine/rfc4555_mobike_offer_test.go::TestRFC4555EAPOfferRidesTheIKEAuthMessageCarryingSA": "fd3d694f2e32d3c6",
+    "internal/component/ike/engine/rfc4555_mobike_offer_test.go::TestRFC4555NoOwnOfferNoMOBIKE": "b8ed42afa8067b2c"
+  },
+  "verdict": "enforced"
+}

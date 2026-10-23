@@ -1,0 +1,13 @@
+{
+  "note": "First verdict 2026-10-21 (round 4 judge). Split from 13-3. Negative: LS Acks from 2.2.2.2 in Init and in ExStart are each dropped with reason state (2) and transmit nothing. Positive: from Exchange the LS Ack removes the summary-LSA from the retransmission list (a later tick resends nothing). Records on handleLSAck and AcceptsFlooding.",
+  "requirement_sha": "681a2b5edc9e57cd",
+  "tests": {
+    "internal/plugins/ospf/rfc2328_active_neighbor_test.go::TestRFC2328ActiveNeighborPacketsProcessed": "980a431d5da12d3c",
+    "internal/plugins/ospf/rfc2328_active_neighbor_test.go::TestRFC2328LSAckBelowExchangeDiscarded": "980a431d5da12d3c"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc2328_active_neighbor_test.go::TestRFC2328ActiveNeighborPacketsProcessed": "7181129bfbe2f438",
+    "internal/plugins/ospf/rfc2328_active_neighbor_test.go::TestRFC2328LSAckBelowExchangeDiscarded": "8099308247a395f6"
+  },
+  "verdict": "enforced"
+}

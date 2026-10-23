@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4360-x-1",
+    "polarity": "positive",
+    "unit": "internal/core/bgp/attribute/rfc4360_length_test.go::TestRFC4360ExtendedCommunitiesAreWholeEightOctetQuantities",
+    "unit-sha": "69bba8fccea3580d",
+    "claim-sha": "6d22d2511be8efed",
+    "route": "revert",
+    "producer": "internal/core/bgp/attribute/community.go::ParseExtendedCommunities",
+    "producer-sha": "08a3f604ef4b87e5",
+    "break": "body of ParseExtendedCommunities replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4360-x-1",
+    "polarity": "negative",
+    "unit": "internal/core/bgp/attribute/rfc4360_length_test.go::TestRFC4360ExtendedCommunitiesAreWholeEightOctetQuantities",
+    "unit-sha": "69bba8fccea3580d",
+    "claim-sha": "543fe09669b5f858",
+    "route": "revert",
+    "producer": "internal/core/bgp/attribute/community.go::ParseExtendedCommunities",
+    "producer-sha": "08a3f604ef4b87e5",
+    "break": "body of ParseExtendedCommunities replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

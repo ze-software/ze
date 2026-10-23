@@ -1,0 +1,13 @@
+{
+  "note": "impossible prefix length and truncated NLRI (and truncated withdrawn) reset with NOTIFICATION 3/10 read off the socket after a good UPDATE was accepted on the same session; a valid prefix is announced 2026-10-01 re-judge (BGP c9 judge, wrote none of these units): stale only because TestSessionRFC4271RetainedUpdateNotifications gained one RFC4271-6.3-1 tag comment line; no executable line moved. Verdict unchanged.",
+  "requirement_sha": "358a61c3b3f2f598",
+  "tests": {
+    "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RetainedUpdateNotifications": "fdc816af536ef714",
+    "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RetainedUpdateNotifications#2": "fdc816af536ef714"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RetainedUpdateNotifications": "4a613c4e4d1f16d9",
+    "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RetainedUpdateNotifications#2": "4a613c4e4d1f16d9"
+  },
+  "verdict": "enforced"
+}

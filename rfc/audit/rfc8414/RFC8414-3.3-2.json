@@ -1,0 +1,19 @@
+{
+  "note": "Clause 1 (issuer MUST be identical): TestRFC8414MetadataIssuerIdentity asserts slash, dot-path and NFC aliases of the configured issuer return an error and zero metadata, and the identical (JSON-escaped) issuer is accepted; TestNewStreamable_OAuth_RejectsIssuerMismatch-style unit asserts 'does not match configured'. Clause 2 (data MUST NOT be used): TestOAuthRejectsIssuerAliases asserts keyRequests==0, so the mismatched document's jwks_uri is never fetched, and no server is returned.",
+  "requirement_sha": "3d6bb0158b73e67d",
+  "tests": {
+    "internal/component/mcp/oauth_e2e_test.go::TestNewStreamable_OAuth_AcceptsValidToken": "be7f22ecbf523ed0",
+    "internal/component/mcp/oauth_e2e_test.go::TestNewStreamable_OAuth_RejectsIssuerMismatch": "be7f22ecbf523ed0",
+    "internal/component/mcp/oauth_e2e_test.go::TestOAuthRejectsIssuerAliases": "be7f22ecbf523ed0",
+    "internal/component/mcp/rfc8414_metadata_request_test.go::TestRFC8414MetadataIssuerIdentity": "2f4d742cea5bceef",
+    "internal/component/mcp/rfc8414_metadata_request_test.go::TestRFC8414MetadataIssuerIdentity#2": "2f4d742cea5bceef"
+  },
+  "units": {
+    "internal/component/mcp/oauth_e2e_test.go::TestNewStreamable_OAuth_AcceptsValidToken": "a0be4da11d76a9d6",
+    "internal/component/mcp/oauth_e2e_test.go::TestNewStreamable_OAuth_RejectsIssuerMismatch": "91e2f0d7eab9b530",
+    "internal/component/mcp/oauth_e2e_test.go::TestOAuthRejectsIssuerAliases": "39d0bba3fe3c5acc",
+    "internal/component/mcp/rfc8414_metadata_request_test.go::TestRFC8414MetadataIssuerIdentity": "93bb9c8813eeb775",
+    "internal/component/mcp/rfc8414_metadata_request_test.go::TestRFC8414MetadataIssuerIdentity#2": "93bb9c8813eeb775"
+  },
+  "verdict": "enforced"
+}

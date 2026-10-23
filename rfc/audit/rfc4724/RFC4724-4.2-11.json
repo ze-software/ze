@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-10-02 (BGP c24 judge). The production removal is now asserted: TestRFC4724EndOfRIBRemovesThatFamilysStaleRoutes (production callbacks, session-down sequence consumed) sends an IPv4 unicast End-of-RIB and asserts exactly one dispatch, purge-stale <peer> ipv4/unicast, before handleEOREvent returns; TestRFC4724EndOfRIBLeavesOtherFamiliesStale asserts no ipv6 or peer-wide purge and nothing for an End-of-RIB of a family never retained. Judge overlay probe (handleEOREvent purging regardless of onEORReceived) turned only the negative red; the author's probe (purge-stale without the family) turned both red. Rib side: TestRIBPurgeStaleFamilyCommand. HEAD gr_state_test units stay supplementary.",
+  "requirement_sha": "3a7dc061a2a9ae09",
+  "tests": {
+    "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerEORForNonGRPeer": "7ff5f8c62f5f9ada",
+    "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerEORPurge": "7ff5f8c62f5f9ada",
+    "internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go::TestRFC4724EndOfRIBLeavesOtherFamiliesStale": "02daf774960d8500",
+    "internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go::TestRFC4724EndOfRIBRemovesThatFamilysStaleRoutes": "02daf774960d8500"
+  },
+  "units": {
+    "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerEORForNonGRPeer": "ddefbb62b2a30101",
+    "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRStateManagerEORPurge": "f68e4286fabb5ec1",
+    "internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go::TestRFC4724EndOfRIBLeavesOtherFamiliesStale": "32961464794de1dd",
+    "internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go::TestRFC4724EndOfRIBRemovesThatFamilysStaleRoutes": "a69883b5669c4135"
+  },
+  "verdict": "enforced"
+}

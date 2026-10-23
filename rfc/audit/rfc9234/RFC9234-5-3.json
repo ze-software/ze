@@ -1,0 +1,17 @@
+{
+  "note": "non-compliant: a route without OTC from Provider, Peer or RS left unstamped or stamped with another ASN. TestOTCIngressFilter stamp_from_provider finds OTC == remote AS 65002 in the rewritten payload; TestCheckOTCIngress stamp_from_provider/peer/rs assert stampASN == remote ASN for each of the three roles. Negatives: Customer/RS-Client not stamped, pure withdrawal and MP_UNREACH-only not stamped",
+  "requirement_sha": "2ee81cb8e6e90e03",
+  "tests": {
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestCheckOTCIngress": "7b0a9e434ba435f3",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCIngressFilter": "7b0a9e434ba435f3",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCIngressNoStampOnMPUnreachOnly": "7b0a9e434ba435f3",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCIngressNoStampOnPureWithdrawal": "7b0a9e434ba435f3"
+  },
+  "units": {
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestCheckOTCIngress": "a8f63ea4d0fba230",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCIngressFilter": "5c8a60dca8e82b66",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCIngressNoStampOnMPUnreachOnly": "672d94622228e76b",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCIngressNoStampOnPureWithdrawal": "b961bc40b65c9d04"
+  },
+  "verdict": "enforced"
+}

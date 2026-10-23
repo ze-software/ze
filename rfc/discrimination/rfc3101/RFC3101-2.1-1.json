@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC3101-2.1-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/iface/rfc3101_hello_nssa_test.go::TestOSPFNSSANbitMismatch",
+    "unit-sha": "26114166de6a32fc",
+    "claim-sha": "d3dafd601d4ae95d",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/iface/iface.go::validateHelloLocked",
+    "producer-sha": "b461a33440420dd6",
+    "break": "body of validateHelloLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3101-2.1-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/iface/rfc3101_hello_nssa_test.go::TestOSPFNSSANbitMismatch",
+    "unit-sha": "26114166de6a32fc",
+    "claim-sha": "d403193fa322b8bc",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/iface/iface.go::validateHelloLocked",
+    "producer-sha": "b461a33440420dd6",
+    "break": "body of validateHelloLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3101-2.1-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/iface/rfc3101_hello_options_test.go::TestRFC3101HelloOptionsMatchingAreaTypeAccepted",
+    "unit-sha": "32056b2451a4254f",
+    "claim-sha": "b107dc624810d162",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/iface/iface.go::validateHelloLocked",
+    "producer-sha": "b461a33440420dd6",
+    "break": "body of validateHelloLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3101-2.1-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/iface/rfc3101_hello_options_test.go::TestRFC3101HelloOptionsMismatchDroppedOnEveryAreaType",
+    "unit-sha": "e566ea5b7016347b",
+    "claim-sha": "29dd2bb4ff2c69ef",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/iface/iface.go::validateHelloLocked",
+    "producer-sha": "b461a33440420dd6",
+    "break": "body of validateHelloLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

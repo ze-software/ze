@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC3954-x-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/flowexport/netflow9/rfc3954_encoder_test.go::TestWriteExportPacketWithTemplate",
+    "unit-sha": "dfaf770f3ddeb672",
+    "claim-sha": "22eb3e86a6b0915d",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/netflow9/encoder.go::writeExportPacket",
+    "producer-sha": "e01918f1915c402a",
+    "break": "body of writeExportPacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3954-x-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/flowexport/netflow9/rfc3954_test.go::TestRFC3954RestartedEncodersSendTemplateBeforeData",
+    "unit-sha": "4910f8f135066086",
+    "claim-sha": "01d3313f9cd1efb9",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/netflow9/flow_adapter.go::EncodeFlowTemplate",
+    "producer-sha": "f55eecb77e4a2fa0",
+    "break": "body of EncodeFlowTemplate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3954-x-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/flowexport/netflow9/rfc3954_test.go::TestRFC3954TemplateFlowSetPrecedesItsDataInOnePacket",
+    "unit-sha": "9eb0b74a3a76a8ea",
+    "claim-sha": "f550325be59bf1bc",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/netflow9/encoder.go::writeExportPacket",
+    "producer-sha": "e01918f1915c402a",
+    "break": "body of writeExportPacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3954-x-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/flowexport/rfc3954_exporter_lifecycle_test.go::TestExporterTemplateFailureRetriesBeforeData",
+    "unit-sha": "a0388cf45e2b0eec",
+    "claim-sha": "a0dc9ff0dfef36ff",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/exporter.go::notifySnapshot",
+    "producer-sha": "760461d784934c54",
+    "break": "body of notifySnapshot replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

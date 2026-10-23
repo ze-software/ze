@@ -1,0 +1,17 @@
+{
+  "note": "Ze's IKE_SA_INIT proposals carry SPI Size 0; responder kills an initial request with SPI Size 8 and answers nothing",
+  "requirement_sha": "4f9f8b625b745aef",
+  "tests": {
+    "internal/component/ike/engine/rfc7296_spisize_test.go::TestSpzInitialIKESANegotiationNeedsZeroSPISize": "8aeccaad3f083196",
+    "internal/component/ike/engine/rfc7296_spisize_test.go::TestSpzInitialIKESANegotiationNeedsZeroSPISize#2": "8aeccaad3f083196",
+    "internal/component/ike/wire/rfc7296_sa_test.go::TestPropSPISizeMatchesProtocol": "ef5bab924185575c",
+    "internal/component/ike/wire/rfc7296_sa_test.go::TestPropSPISizeMatchesProtocol#2": "ef5bab924185575c"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7296_spisize_test.go::TestSpzInitialIKESANegotiationNeedsZeroSPISize": "c821f59c50c793db",
+    "internal/component/ike/engine/rfc7296_spisize_test.go::TestSpzInitialIKESANegotiationNeedsZeroSPISize#2": "c821f59c50c793db",
+    "internal/component/ike/wire/rfc7296_sa_test.go::TestPropSPISizeMatchesProtocol": "b4514efd5902a77c",
+    "internal/component/ike/wire/rfc7296_sa_test.go::TestPropSPISizeMatchesProtocol#2": "b4514efd5902a77c"
+  },
+  "verdict": "enforced"
+}

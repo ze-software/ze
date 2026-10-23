@@ -1,0 +1,18 @@
+{
+  "code": {},
+  "note": "Judge rejudge 2026-09-30 (bfd session+engine continuation). TestRFC5880SlowStartFloorInEveryStateButUp adds the floor (live variable and Build field) in Init, on Up->Down by detection expiry, by peer Down and by peer AdminDown, with 300 ms in Up between, closing the gap the earlier note named; local AdminDown stays covered by FloorRestoredOnAdminDown, negative LiftedWhenUp. Mutant onStateChange state guard and whole-body revert both observed red after the Poll fix.",
+  "requirement_sha": "2afbdb9ec892567b",
+  "tests": {
+    "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880SlowStartFloorInEveryStateButUp": "73ca576e23cbd659",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880SlowStartFloorLiftedWhenUp": "8db25cbb4534cc2d",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880SlowStartFloorRestoredOnAdminDown": "8db25cbb4534cc2d",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880SlowStartFloorWhileNotUp": "8db25cbb4534cc2d"
+  },
+  "units": {
+    "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880SlowStartFloorInEveryStateButUp": "c1f5381cf350b5eb",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880SlowStartFloorLiftedWhenUp": "b6c65bc1a7a3e4b0",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880SlowStartFloorRestoredOnAdminDown": "090d5ccfa263cbae",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880SlowStartFloorWhileNotUp": "1321a760756f4711"
+  },
+  "verdict": "enforced"
+}

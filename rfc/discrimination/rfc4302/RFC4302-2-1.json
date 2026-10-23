@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4302-2-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAProtocolNumber",
+    "unit-sha": "ca8f825ae96efac8",
+    "claim-sha": "f3abeb078f966b1b",
+    "route": "mutant",
+    "producer": "internal/plugins/ospf/ipsec_install.go::ipsecProtoNumber",
+    "producer-sha": "c05a39ef55486b0e",
+    "break": "line 690: \"protocol == ipsecProtoAH\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC4302-2-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAProtocolNumber",
+    "unit-sha": "ca8f825ae96efac8",
+    "claim-sha": "da8d8feef7bd794d",
+    "route": "mutant",
+    "producer": "internal/plugins/ospf/ipsec_install.go::ipsecProtoNumber",
+    "producer-sha": "c05a39ef55486b0e",
+    "break": "line 690: \"protocol == ipsecProtoAH\" -\u003e \"true\""
+  }
+]

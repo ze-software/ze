@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged 2026-10-21. The AuType 2 tags flagged last round are gone from TestOSPFAuthReplay (now RFC 2328 rows). Split confirmed against the texts: RFC 7474 Section 2 'MUST be greater than the sequence number in the last OSPF packet of that type accepted from the sending OSPF neighbor' binds AuType 3; RFC 2328 D.5.3 (2) discards only 'less than the cryptographic sequence number recorded in the sending neighbor's data structure' (one field per neighbour, D.3). replayedSequence returns seq <= last for AuTypeCryptographicESN. Positive TestRFC7474GreaterExtendedSequenceAccepted accepts boot 2 low 1 after boot 1 low 6; negative TestRFC7474NotGreaterExtendedSequenceDropped drops smaller-boot, smaller and equal with reason replay; TestOSPFAuthReplayEqualSequenceByAuType drops an equal AuType 3 sequence. Replacing <= by < or comparing the low word only reddens a named assertion.",
+  "requirement_sha": "f272c44f4bf140f5",
+  "tests": {
+    "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplayEqualSequenceByAuType": "daf32645cbe50ccd",
+    "internal/plugins/ospf/rfc7474_replay_test.go::TestRFC7474GreaterExtendedSequenceAccepted": "1ec0e3d98b6b2c33",
+    "internal/plugins/ospf/rfc7474_replay_test.go::TestRFC7474NotGreaterExtendedSequenceDropped": "1ec0e3d98b6b2c33"
+  },
+  "units": {
+    "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplayEqualSequenceByAuType": "e3dec75102f7b783",
+    "internal/plugins/ospf/rfc7474_replay_test.go::TestRFC7474GreaterExtendedSequenceAccepted": "dc1c82df981a0f4d",
+    "internal/plugins/ospf/rfc7474_replay_test.go::TestRFC7474NotGreaterExtendedSequenceDropped": "ef009ee08f52a5ec"
+  },
+  "verdict": "enforced"
+}

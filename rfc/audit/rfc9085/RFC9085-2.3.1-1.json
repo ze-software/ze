@@ -1,0 +1,19 @@
+{
+  "note": "rejudge 2026-09-30 (independent): owed OSPF half delivered. Set-0: isis SID units (+/-); ospf TestRFC9085OSPFOriginatedSIDReservedZero (+, exact 1158 = 40 01 0000 0000004d) / TestRFC9085OSPFSourceReservedNeverReachesSIDReserved (-, native Prefix-SID Reserved ff -> 0000); the 1158 nested in the OSPF 1159 is also asserted byte-exact. Receipt: nlri/ls TestRFC9085SIDReceiptIgnoresReserved (decodePrefixSID, Reserved ffff). Records observed red.",
+  "requirement_sha": "f25b19666ede48dc",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go::TestRFC9085SIDReceiptIgnoresReserved": "367af3d70449d973",
+    "internal/plugins/isis/rfc9085_bgpls_export_sid_test.go::TestRFC9085ISISAllOnesSourceNeverReachesSIDReserved": "af00c5aec3959523",
+    "internal/plugins/isis/rfc9085_bgpls_export_sid_test.go::TestRFC9085ISISOriginatedSIDReservedZero": "af00c5aec3959523",
+    "internal/plugins/ospf/rfc9085_bgpls_export_test.go::TestRFC9085OSPFOriginatedSIDReservedZero": "e14c93300ea1c323",
+    "internal/plugins/ospf/rfc9085_bgpls_export_test.go::TestRFC9085OSPFSourceReservedNeverReachesSIDReserved": "e14c93300ea1c323"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/ls/rfc9085_capabilities_receipt_test.go::TestRFC9085SIDReceiptIgnoresReserved": "be6bfcb7bd35f639",
+    "internal/plugins/isis/rfc9085_bgpls_export_sid_test.go::TestRFC9085ISISAllOnesSourceNeverReachesSIDReserved": "98eb7f29183a3e20",
+    "internal/plugins/isis/rfc9085_bgpls_export_sid_test.go::TestRFC9085ISISOriginatedSIDReservedZero": "8e2cd3bceb4d5513",
+    "internal/plugins/ospf/rfc9085_bgpls_export_test.go::TestRFC9085OSPFOriginatedSIDReservedZero": "16454f3f3065891c",
+    "internal/plugins/ospf/rfc9085_bgpls_export_test.go::TestRFC9085OSPFSourceReservedNeverReachesSIDReserved": "ecb19f384cabfb87"
+  },
+  "verdict": "enforced"
+}

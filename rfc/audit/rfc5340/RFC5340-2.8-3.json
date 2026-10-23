@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: a Network-LSA that omits a router attached to the link. TestRFC5340NetworkLSAListsAttachedRouters drives v6OriginateNetwork, decodes the installed Network-LSA and asserts got[self] (the DR) and got[full] (a Full neighbor), each red on omission; got[twoWay] false and Len 2 bound the list to the routers RFC 2328 12.4.2 counts as attached (fully adjacent), which RFC 5340 leaves unchanged.",
+  "requirement_sha": "446d8d14acf2b688",
+  "tests": {
+    "internal/plugins/ospf/rfc5340_test.go::TestRFC5340NetworkLSAListsAttachedRouters": "cdf4f5c0d8a37340",
+    "internal/plugins/ospf/rfc5340_test.go::TestRFC5340NetworkLSAListsAttachedRouters#2": "cdf4f5c0d8a37340"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc5340_test.go::TestRFC5340NetworkLSAListsAttachedRouters": "8ffe65e2132664d4",
+    "internal/plugins/ospf/rfc5340_test.go::TestRFC5340NetworkLSAListsAttachedRouters#2": "8ffe65e2132664d4"
+  },
+  "verdict": "enforced"
+}

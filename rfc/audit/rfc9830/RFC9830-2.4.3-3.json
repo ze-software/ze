@@ -1,0 +1,11 @@
+{
+  "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SRv6BindingSIDSubTLV. Forbidden: a length other than 18 without the Endpoint Behavior and SID Structure. Red: require.Len(value, 18). The 26 case has no producer (buildSRv6BindingSIDSubTLV never appends the structure), carried by the row's single-polarity annotation.",
+  "requirement_sha": "4dedfecf69bfd236",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SRv6BindingSIDSubTLV": "450f2364530acf19"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SRv6BindingSIDSubTLV": "3c28273914b6db0b"
+  },
+  "verdict": "enforced"
+}

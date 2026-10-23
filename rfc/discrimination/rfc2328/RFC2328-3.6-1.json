@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2328-3.6-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/spf/rfc2328_abr_summary_test.go::TestRFC2328NormalAreaGetsNoDefaultSummary",
+    "unit-sha": "81bcefc5b40b2e40",
+    "claim-sha": "a5d9e81e8a64d15d",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/spf/area_type.go::applyAreaTypePolicy",
+    "producer-sha": "fe2392f24e27251d",
+    "break": "body of applyAreaTypePolicy replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-3.6-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/spf/rfc2328_abr_summary_test.go::TestRFC2328StubAreaGetsDefaultSummary",
+    "unit-sha": "94a596c0227c3751",
+    "claim-sha": "94d890fd17285931",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/spf/area_type.go::applyAreaTypePolicy",
+    "producer-sha": "fe2392f24e27251d",
+    "break": "body of applyAreaTypePolicy replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

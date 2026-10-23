@@ -1,0 +1,15 @@
+{
+  "note": "Forbidden: no configuration vehicle for the P-bit. nssa_import_lifecycle_test.go TestNSSAPerSourcePropagationEnabled parses nssa-propagate true and asserts P set on the imported route and default (line 204); TestNSSAPerSourcePropagationDisabled asserts P clear for explicit false and unconfigured sources (line 226); TestNSSAPerSourcePropagationCannotOverrideType5 asserts P clear with a Type-5 twin (line 251).",
+  "requirement_sha": "2b879ef85689ae6e",
+  "tests": {
+    "internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go::TestNSSAPerSourcePropagationCannotOverrideType5": "98ecc3fedcb96b09",
+    "internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go::TestNSSAPerSourcePropagationDisabled": "98ecc3fedcb96b09",
+    "internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go::TestNSSAPerSourcePropagationEnabled": "98ecc3fedcb96b09"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go::TestNSSAPerSourcePropagationCannotOverrideType5": "ef30e2634943bb4b",
+    "internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go::TestNSSAPerSourcePropagationDisabled": "375db7146acd698e",
+    "internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go::TestNSSAPerSourcePropagationEnabled": "66dbcc509ce9d80f"
+  },
+  "verdict": "enforced"
+}

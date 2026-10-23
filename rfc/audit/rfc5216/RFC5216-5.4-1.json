@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged 2026-10-12 (independent auditor) after 37dbe54095, where the authenticator with resumption on installs redeemTLS13Only (resumption.go), which refuses every TLS 1.2 ticket. This unit is byte-identical; the file around it changed. Its helpers (tls12Exchange, fullTLS12Flights) gained a tune argument passed as nil to driveTunedEAPTLSFlight, which driveEAPTLSFlight itself calls with nil, and fresh stores offer no ticket, so the producer change never runs here. Verdict stands. Server half: a CRL revoking the client certificate refuses the TLS 1.2 exchange, a CRL naming nobody completes. Peer half (new, TestRFC5216PeerRefusesARevokedServerCertificateOverTLS12): a peer CRL revoking the authenticator certificate over TLS 1.2 gives a peer error, no EAP-Success, no MSK; isolated by TestEAPTLS12CompletesWithAnUnrevokedChain, where the peer holds a CRL that revokes nothing and completes. Every tagged unit carries a record.",
+  "requirement_sha": "90205fa573853cfd",
+  "tests": {
+    "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216PeerRefusesARevokedServerCertificateOverTLS12": "07752e8e18f47c94",
+    "internal/core/eap/rfc9190_revocation_test.go::TestEAPTLS12CompletesWithAnUnrevokedChain": "b20b4e35d426ac54",
+    "internal/core/eap/rfc9190_revocation_test.go::TestEAPTLS12RefusesARevokedClientCertificate": "b20b4e35d426ac54"
+  },
+  "units": {
+    "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216PeerRefusesARevokedServerCertificateOverTLS12": "7c51ed98476eb5ad",
+    "internal/core/eap/rfc9190_revocation_test.go::TestEAPTLS12CompletesWithAnUnrevokedChain": "1d1e1b453e978163",
+    "internal/core/eap/rfc9190_revocation_test.go::TestEAPTLS12RefusesARevokedClientCertificate": "f34d73c2202cfb6f"
+  },
+  "verdict": "enforced"
+}

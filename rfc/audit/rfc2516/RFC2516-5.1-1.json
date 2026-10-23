@@ -1,0 +1,11 @@
+{
+  "note": "single-polarity; TestBuildPADIDiscovery counts exactly one Service-Name tag",
+  "requirement_sha": "4e1fe9ea97e8c1b9",
+  "tests": {
+    "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestBuildPADIDiscovery": "b7c2fae4a50abe95"
+  },
+  "units": {
+    "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestBuildPADIDiscovery": "32dda3340079cba9"
+  },
+  "verdict": "enforced"
+}

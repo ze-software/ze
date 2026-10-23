@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC2328-13-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/neighbor/rfc2328_test.go::TestRFC2328FloodingRequiresExchangeOrHigher",
+    "unit-sha": "725d3030d7759a3f",
+    "claim-sha": "8d6d396e09148190",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/neighbor/table.go::AcceptsFlooding",
+    "producer-sha": "2824e06c16337298",
+    "break": "body of AcceptsFlooding replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-13-3",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/neighbor/rfc2328_test.go::TestRFC2328FloodingRequiresExchangeOrHigher",
+    "unit-sha": "725d3030d7759a3f",
+    "claim-sha": "61296d58ac5f9ec1",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/neighbor/table.go::AcceptsFlooding",
+    "producer-sha": "2824e06c16337298",
+    "break": "body of AcceptsFlooding replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-13-3",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/rfc2328_flood_state_gate_test.go::TestRFC2328LSUpdateBelowExchangeDroppedByEngine",
+    "unit-sha": "3c26c945ea333158",
+    "claim-sha": "7c6e73702369a0e3",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/instance.go::handleLSUpdate",
+    "producer-sha": "b5c1b43ecdf10792",
+    "break": "body of handleLSUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-13-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc2328_flood_state_gate_test.go::TestRFC2328LSUpdateFromExchangeNeighborProcessed",
+    "unit-sha": "f4fb0e5e3dcd55bc",
+    "claim-sha": "73e6a09891fb5f9b",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/instance.go::handleLSUpdate",
+    "producer-sha": "b5c1b43ecdf10792",
+    "break": "body of handleLSUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

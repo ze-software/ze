@@ -1,0 +1,13 @@
+{
+  "note": "Judge 2026-09-29 (R16). RFC 1661 4.3 RTR note plus 4.4 tlf read. TestRFC1661StoppedAfterPeerTerminateTakesNewConfigureRequest: Opened + Terminate-Request, Timeout -> run not ended, Stopped, exactly one EventSessionDown (User Request, the tlf signal), then a Configure-Request with no Open event draws ze's CONFREQ and an Ack echoing Id 0x32, Ack-Sent, no end, no second down. Red if Stopped ends the session (sessionEndedAt) or if tlf is not signalled (recorded against signalLayerFinished). Producer checked: signalLayerFinished runs only on a Stopped sessionEndedAt kept; sendEvent's at-most-once drop cannot swallow a legitimate down because every other emitter (fail, auth, NCP, run exit paths, ncp.go) ends the session and was the first down; after tlf a renegotiation ends at Opened (TestRFC1661StoppedAfterPeerTerminateEndsOnOpened) or at a later Stopped/Closed, so the wait is bounded by the CDN/PADT teardown ze started (L2TP teardownSession -> kernel worker closes the PPPoX socket; PPPoE handleSessionDown closes the transport). Valid single-polarity: no refusing counterpart; marker still true.",
+  "requirement_sha": "feb5b73545defe92",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661StoppedAfterPeerTerminateTakesNewConfigureRequest": "480d72ff3c4dac57",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NewConfigureRequestAcceptedAfterTerminateRequest": "9afaf002f0fd81ec"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661StoppedAfterPeerTerminateTakesNewConfigureRequest": "06bf1c114efa31b7",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NewConfigureRequestAcceptedAfterTerminateRequest": "e3190fb1f22c8d05"
+  },
+  "verdict": "enforced"
+}

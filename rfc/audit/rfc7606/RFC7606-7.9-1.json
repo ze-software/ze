@@ -1,0 +1,15 @@
+{
+  "note": "Negative pins the exact eBGP-context discard: attr_discard_test.go:449 (originator_id_ebgp_reason_1, isIBGP=false, code 9) asserts Action==AttributeDiscard, DiscardEntries len 1, Code==9, Reason==DiscardReasonEBGPInvalid; rfc7606_test.go:913 repeats AttributeDiscard+AttrCode 9+\"7.9\". Positive rfc7606_test.go:935 sends the identical ORIGINATOR_ID from iBGP and asserts ActionNone, pinning the context dependence. Fails if the code stopped discarding eBGP ORIGINATOR_ID. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quoted sentence states the same obligation the paraphrase did, and no clause is new. Verdict unchanged.",
+  "requirement_sha": "6e604485fdbefbc9",
+  "tests": {
+    "internal/component/bgp/message/rfc7606_attr_discard_test.go::TestRFC7606DiscardEntryReasonCodes": "c6ef70edfa51afe7",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606OriginatorIDEBGPDiscard": "b7acaf2569904b8f",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606OriginatorIDIBGPValid": "b7acaf2569904b8f"
+  },
+  "units": {
+    "internal/component/bgp/message/rfc7606_attr_discard_test.go::TestRFC7606DiscardEntryReasonCodes": "37b93f552b985f8b",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606OriginatorIDEBGPDiscard": "ecc81e533fdf2495",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606OriginatorIDIBGPValid": "0e505e33edab1f63"
+  },
+  "verdict": "enforced"
+}

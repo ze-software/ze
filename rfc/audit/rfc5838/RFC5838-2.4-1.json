@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden behaviour (a): a non-default-AF instance accepting a Hello with the AF-bit clear. (b) TestAFBitGatesFullNonDefault dispatches that Hello on an IPv4-unicast instance and asserts neighborSnapshot() is empty (a processed Hello would create an Init neighbor), then the same Hello with SetAF() yields one neighbor, isolating the AF-bit as the only difference.",
+  "requirement_sha": "43c492e526df2eb9",
+  "tests": {
+    "internal/plugins/ospf/rfc5838_multiaf_engine_test.go::TestAFBitGatesFullNonDefault": "1f18d003751f1799",
+    "internal/plugins/ospf/rfc5838_multiaf_engine_test.go::TestAFBitGatesFullNonDefault#2": "1f18d003751f1799"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc5838_multiaf_engine_test.go::TestAFBitGatesFullNonDefault": "986c4eef6c815748",
+    "internal/plugins/ospf/rfc5838_multiaf_engine_test.go::TestAFBitGatesFullNonDefault#2": "986c4eef6c815748"
+  },
+  "verdict": "enforced"
+}

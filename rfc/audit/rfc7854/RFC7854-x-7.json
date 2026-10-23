@@ -1,0 +1,11 @@
+{
+  "note": "live Initiation carries sysName equal to the system identity and a sysDescr; single-polarity marker",
+  "requirement_sha": "f8527623bb343db3",
+  "tests": {
+    "internal/component/bgp/plugins/bmp/rfc7854_sender_test.go::TestBMPSenderInitiation": "b1d529e5dcb7872e"
+  },
+  "units": {
+    "internal/component/bgp/plugins/bmp/rfc7854_sender_test.go::TestBMPSenderInitiation": "5e81b25bfa147221"
+  },
+  "verdict": "enforced"
+}

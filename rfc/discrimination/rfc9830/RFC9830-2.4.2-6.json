@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC9830-2.4.2-6",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission",
+    "unit-sha": "e79992f48bbe3a55",
+    "claim-sha": "036486e8a7728865",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/nlri/srpolicy/config.go::buildBindingSIDSubTLV",
+    "producer-sha": "4ffeb43b7b9be89b",
+    "break": "body of buildBindingSIDSubTLV replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9830-2.4.2-6",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission",
+    "unit-sha": "e79992f48bbe3a55",
+    "claim-sha": "032d5b0ce109ab72",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/nlri/srpolicy/config.go::buildBindingSIDSubTLV",
+    "producer-sha": "4ffeb43b7b9be89b",
+    "break": "body of buildBindingSIDSubTLV replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9830-2.4.2-6",
+    "polarity": "positive",
+    "unit": "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead",
+    "unit-sha": "beac6722ff53de86",
+    "claim-sha": "440f6a3cc7bb35ed",
+    "route": "revert",
+    "producer": "internal/core/bgp/attribute/tunnel_encap.go::Preference",
+    "producer-sha": "9c4ab4344f4c22ff",
+    "break": "body of Preference replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9830-2.4.2-6",
+    "polarity": "negative",
+    "unit": "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead",
+    "unit-sha": "beac6722ff53de86",
+    "claim-sha": "3dc28a4f18389aba",
+    "route": "revert",
+    "producer": "internal/core/bgp/attribute/tunnel_encap.go::Preference",
+    "producer-sha": "9c4ab4344f4c22ff",
+    "break": "body of Preference replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

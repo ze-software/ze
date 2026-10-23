@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC2348-x-5",
+    "polarity": "positive",
+    "unit": "internal/plugins/tftpserver/handler_test.go::TestTFTPReadExact512",
+    "unit-sha": "987ab8ab67c44a6b",
+    "claim-sha": "ec0ec5fe4eecd6a5",
+    "route": "revert",
+    "producer": "internal/plugins/tftpserver/handler.go::serveFile",
+    "producer-sha": "752d1aacf0a11d42",
+    "break": "body of serveFile replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2348-x-5",
+    "polarity": "negative",
+    "unit": "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile",
+    "unit-sha": "6152642f5773d2be",
+    "claim-sha": "1c9bf0b83fb19a65",
+    "route": "revert",
+    "producer": "internal/plugins/tftpserver/handler.go::serveFile",
+    "producer-sha": "752d1aacf0a11d42",
+    "break": "body of serveFile replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2348-x-5",
+    "polarity": "positive",
+    "unit": "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2348ZeroLengthBlockEndsAnExactMultiple",
+    "unit-sha": "7e42e69e0a8b4ac8",
+    "claim-sha": "f79feb84e8705e14",
+    "route": "revert",
+    "producer": "internal/plugins/tftpserver/handler.go::serveFile",
+    "producer-sha": "752d1aacf0a11d42",
+    "break": "body of serveFile replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2348-x-5",
+    "polarity": "negative",
+    "unit": "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2348ZeroLengthBlockEndsAnExactMultiple",
+    "unit-sha": "7e42e69e0a8b4ac8",
+    "claim-sha": "ca674b7dc88205b3",
+    "route": "revert",
+    "producer": "internal/plugins/tftpserver/handler.go::serveFile",
+    "producer-sha": "752d1aacf0a11d42",
+    "break": "body of serveFile replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

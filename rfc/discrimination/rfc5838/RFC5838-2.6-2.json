@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC5838-2.6-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc5838_forwarding_test.go::TestRFC5838IPv4AFNSSAForwardingAddressIsIPv4",
+    "unit-sha": "2512837f4ffb9df6",
+    "claim-sha": "5b44f50fab380e50",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/origination_v6_nssa.go::forwardingAddressForAF",
+    "producer-sha": "6ab39d98763f8491",
+    "break": "body of forwardingAddressForAF replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5838-2.6-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc5838_translate_test.go::TestRFC5838IPv4AFTranslatedForwardingAddressIsIPv4",
+    "unit-sha": "af7ee07efc391722",
+    "claim-sha": "9e7792752c3b349f",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/nssa.go::translatableForwardingAddressV6",
+    "producer-sha": "67b3f706320cb028",
+    "break": "body of translatableForwardingAddressV6 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5838-2.6-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/rfc5838_translate_test.go::TestRFC5838IPv4AFTranslatorRefusesNonZeroTrailingBits",
+    "unit-sha": "2137513a168e606d",
+    "claim-sha": "83ccf7601027593c",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/nssa.go::translatableForwardingAddressV6",
+    "producer-sha": "67b3f706320cb028",
+    "break": "body of translatableForwardingAddressV6 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

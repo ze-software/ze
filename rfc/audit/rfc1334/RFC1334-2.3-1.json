@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: an accepted Peer-ID/Password pair answered with anything but a PAP Code 2. TestPAPRequestEmitsEvent (accept=true) asserts reply proto ProtoPAP and payload[0]==PAPAuthenticateAck through runPAPAuthPhase; TestPAPRejectWritesNak asserts the reject path sends Nak, so an unconditional Ack goes red.",
+  "requirement_sha": "5924f6ce926f17d2",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRejectWritesNak": "0c82c27f5303e953",
+    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRequestEmitsEvent": "0c82c27f5303e953"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRejectWritesNak": "b7ebe0b83b88d00c",
+    "internal/component/l2tp/ppp/rfc1334_pap_test.go::TestPAPRequestEmitsEvent": "8b0bcf1632ad30bf"
+  },
+  "verdict": "enforced"
+}

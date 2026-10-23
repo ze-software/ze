@@ -1,0 +1,13 @@
+{
+  "note": "with remote-id set, a certificate carrying the asserted ID (SAN, or CN without SAN) is admitted and one issued to another name is refused naming the asserted ID",
+  "requirement_sha": "cfee9a102bbbfbd2",
+  "tests": {
+    "internal/component/ike/engine/rfc4301_pad_exact_test.go::TestRFC4301PadRefusesACertificateWithoutTheIKEID": "c1e955304cec35bc",
+    "internal/component/ike/engine/rfc4301_pad_exact_test.go::TestRFC4301PadRequiresTheCertificateToCarryTheIKEID": "c1e955304cec35bc"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc4301_pad_exact_test.go::TestRFC4301PadRefusesACertificateWithoutTheIKEID": "269f744fa74bc584",
+    "internal/component/ike/engine/rfc4301_pad_exact_test.go::TestRFC4301PadRequiresTheCertificateToCarryTheIKEID": "f837a04207e1dabe"
+  },
+  "verdict": "enforced"
+}

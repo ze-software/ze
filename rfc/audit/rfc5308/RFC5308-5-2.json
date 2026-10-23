@@ -1,0 +1,13 @@
+{
+  "note": "(a) forbidden: a path metric that exceeds MAX_V6_PATH_METRIC kept (or wrapped) instead of taken as MAX_V6_PATH_METRIC. (b) TestISISMetricWidth asserts clampMetric(MaxPathMetric-1, 10) == MaxPathMetric (negative) and clampMetric(1000, 2000) == 3000 (positive). clampMetric is the one saturating adder the IPv6 builder calls (spf/ipv6.go) and MaxPathMetric is 0xFE000000, the MAX_V6_PATH_METRIC value. Re-judged 2026-10-02: TestISISMetricWidth changed only in the prose of its RFC5305-4-1 positive tag line (claim narrowed to node reachability); the clampMetric assertions this row rests on are unchanged.",
+  "requirement_sha": "f03b68f3f813bbfc",
+  "tests": {
+    "internal/plugins/isis/spf/spf_test.go::TestISISMetricWidth": "8ac1834d7b1eafca",
+    "internal/plugins/isis/spf/spf_test.go::TestISISMetricWidth#2": "8ac1834d7b1eafca"
+  },
+  "units": {
+    "internal/plugins/isis/spf/spf_test.go::TestISISMetricWidth": "fb0db267776a29fe",
+    "internal/plugins/isis/spf/spf_test.go::TestISISMetricWidth#2": "fb0db267776a29fe"
+  },
+  "verdict": "enforced"
+}

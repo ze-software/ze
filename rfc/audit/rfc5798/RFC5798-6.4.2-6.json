@@ -1,0 +1,13 @@
+{
+  "note": "matrix row backup/shutdown asserts exactly StopTimers + EmitStateChange to Initialize; a non-Shutdown event leaves Backup",
+  "requirement_sha": "f94501bf15d47185",
+  "tests": {
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "52489f84876bdb6f",
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "52489f84876bdb6f"
+  },
+  "units": {
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "c06b69f55bb239a3",
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "c06b69f55bb239a3"
+  },
+  "verdict": "enforced"
+}

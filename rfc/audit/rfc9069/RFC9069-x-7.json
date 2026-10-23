@@ -1,0 +1,11 @@
+{
+  "note": "Forbidden: Peer BGP ID other than the global instance router-id. internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBPeerHeader PeerBGPID != 0x0a141e01 Errorf. Single-polarity marker. The VRF clause is conditional on a VRF Loc-RIB instance, which ze does not implement (one global instance), so it has no reachable case.",
+  "requirement_sha": "0835222fb0c435e2",
+  "tests": {
+    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeader": "0d66046a7112fdb8"
+  },
+  "units": {
+    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeader": "ae73890fff201115"
+  },
+  "verdict": "enforced"
+}

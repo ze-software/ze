@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-10-21 (round 5 judge). New TestRFC2328RangeCondensesSeveralNetworksIntoOneSummary: three /24 networks under 10.10.0.0/16 give exactly one Type 3 summary-LSA, at 10.10.0.0 with mask /16, so a per-component mask rewrite fails the count. Negative: a network outside the range keeps its own /24 summary beside the one range summary (count 2). Records on applyAreaRanges.",
+  "requirement_sha": "c7d50d766ca155d4",
+  "tests": {
+    "internal/plugins/ospf/spf/rfc2328_abr_summary_test.go::TestRFC2328ABRComponentNeverEscapesRange": "cf9d36f27437477d",
+    "internal/plugins/ospf/spf/rfc2328_abr_summary_test.go::TestRFC2328ABRSummarizesAndCondenses": "cf9d36f27437477d",
+    "internal/plugins/ospf/spf/rfc2328_summary_flush_condense_test.go::TestRFC2328NetworkOutsideRangeKeepsOwnSummary": "0f7a6f96f747c9f1",
+    "internal/plugins/ospf/spf/rfc2328_summary_flush_condense_test.go::TestRFC2328RangeCondensesSeveralNetworksIntoOneSummary": "0f7a6f96f747c9f1"
+  },
+  "units": {
+    "internal/plugins/ospf/spf/rfc2328_abr_summary_test.go::TestRFC2328ABRComponentNeverEscapesRange": "fd737079deb22656",
+    "internal/plugins/ospf/spf/rfc2328_abr_summary_test.go::TestRFC2328ABRSummarizesAndCondenses": "c9d139f36a5c6414",
+    "internal/plugins/ospf/spf/rfc2328_summary_flush_condense_test.go::TestRFC2328NetworkOutsideRangeKeepsOwnSummary": "4b7e2db6febbc1db",
+    "internal/plugins/ospf/spf/rfc2328_summary_flush_condense_test.go::TestRFC2328RangeCondensesSeveralNetworksIntoOneSummary": "e459ef40054dc864"
+  },
+  "verdict": "enforced"
+}

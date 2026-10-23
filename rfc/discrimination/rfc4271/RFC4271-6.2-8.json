@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4271-6.2-8",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_session_open_error_test.go::TestRFC4271OpenErrorSubcodes",
+    "unit-sha": "4a9c96647ef297b7",
+    "claim-sha": "f47f299b132e1a0c",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_open_validation.go::validateOpenIdentifier",
+    "producer-sha": "b52d7659c25e4b8a",
+    "break": "body of validateOpenIdentifier replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-6.2-8",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_session_open_error_test.go::TestRFC4271OpenErrorSubcodes",
+    "unit-sha": "4a9c96647ef297b7",
+    "claim-sha": "64b229a89758901c",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_open_validation.go::validateOpenIdentifier",
+    "producer-sha": "b52d7659c25e4b8a",
+    "break": "body of validateOpenIdentifier replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

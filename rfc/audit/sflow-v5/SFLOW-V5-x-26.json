@@ -1,0 +1,17 @@
+{
+  "note": "Chain now whole. TestSFlowV5DueCountersAreSent requires every due poll over 30 late ticks to send a datagram listing all three interfaces, and requires a due snapshot that meets a held exporter mutex still to send them (the old TryLock drop goes red). The real encoder's part: writeCounterDatagrams units require all 30 sources emitted with the partial tail not held back, and TestSFlowV5ConfiguredMaxDatagramBoundsEveryDatagram counts all 30 samples on the collector socket through CounterEncoder.Encode. Trigger (x-14) now enforced.",
+  "requirement_sha": "3f8b68a2d68e6d5b",
+  "tests": {
+    "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5OutstandingCountersAllSent": "2b3441f1e34ff01f",
+    "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5TailDatagramNotWithheld": "2b3441f1e34ff01f",
+    "internal/plugins/flowexport/sflow_v5_polling_test.go::TestSFlowV5DueCountersAreSent": "86e3042da06611be",
+    "internal/plugins/flowexport/sflow_v5_polling_test.go::TestSFlowV5DueCountersAreSent#2": "86e3042da06611be"
+  },
+  "units": {
+    "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5OutstandingCountersAllSent": "f29492873650df5d",
+    "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5TailDatagramNotWithheld": "4d5b75c2446d7845",
+    "internal/plugins/flowexport/sflow_v5_polling_test.go::TestSFlowV5DueCountersAreSent": "a6cc19a1799b69f2",
+    "internal/plugins/flowexport/sflow_v5_polling_test.go::TestSFlowV5DueCountersAreSent#2": "a6cc19a1799b69f2"
+  },
+  "verdict": "enforced"
+}

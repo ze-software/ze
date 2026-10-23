@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC7313-5-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc7313_error_scope_test.go::TestRouteRefreshUnknownSubtypeIsIgnoredWhateverItsLength",
+    "unit-sha": "534b0c18560045de",
+    "claim-sha": "8ccd967f2ed7b3da",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_handlers.go::validateRouteRefreshLength",
+    "producer-sha": "e70f302491486b10",
+    "break": "body of validateRouteRefreshLength replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

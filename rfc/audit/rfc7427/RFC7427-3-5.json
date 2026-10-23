@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: with the notify exchanged and signature authentication in use, emitting a legacy AUTH method (1 RSA, 3 DSS) instead of Digital Signature (14). TestRFC7427DigitalSignatureMethodIsUsed asserts auth.AuthMethod == wire.AuthMethodDigitalSig with RemoteHashAlgos set (red on any other method) and, as the negative, that with no notify received computeX509Auth returns an error and a nil payload rather than falling back to a legacy method.",
+  "requirement_sha": "10c463074286513c",
+  "tests": {
+    "internal/component/ike/engine/rfc7427_method_test.go::TestRFC7427DigitalSignatureMethodIsUsed": "99c1f2646db3b221",
+    "internal/component/ike/engine/rfc7427_method_test.go::TestRFC7427DigitalSignatureMethodIsUsed#2": "99c1f2646db3b221"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7427_method_test.go::TestRFC7427DigitalSignatureMethodIsUsed": "e4c84de1ab6e540c",
+    "internal/component/ike/engine/rfc7427_method_test.go::TestRFC7427DigitalSignatureMethodIsUsed#2": "e4c84de1ab6e540c"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "encryption key then integrity key per direction, positional, asserted against recomputed KEYMAT",
+  "requirement_sha": "6a907b588d629355",
+  "tests": {
+    "internal/component/ike/crypto/rfc7296_test.go::TestChildSAKeymatOrder": "92f4c9e647e3de21",
+    "internal/component/ike/crypto/rfc7296_test.go::TestChildSAKeymatOrder#2": "92f4c9e647e3de21"
+  },
+  "units": {
+    "internal/component/ike/crypto/rfc7296_test.go::TestChildSAKeymatOrder": "275a850ead3da96a",
+    "internal/component/ike/crypto/rfc7296_test.go::TestChildSAKeymatOrder#2": "275a850ead3da96a"
+  },
+  "verdict": "enforced"
+}

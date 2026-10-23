@@ -1,0 +1,25 @@
+{
+  "note": "Re-judged 2026-09-30 under R-C1: row text and tagged units (IS-IS and OSPF) unchanged. Positive: TestISISChecksumMatchesClosedForm and TestFletcherGenerateMatchesClosedForm compare the producer at every field offset against an independent B.3.4 derivation in L-n notation; fixed vectors pin values. Negative: TestISISChecksumRefusesMisplacedXY and TestFletcherGenerateRefusesMisplacedXY refuse the pair swapped or shifted one octet early. The B.3.5 placement obligation is now its own row, RFC905-B.3.5-1.",
+  "requirement_sha": "cd8ac8ccdcfa8946",
+  "tests": {
+    "internal/plugins/isis/packet/rfc905_checksum_test.go::TestISISChecksumMatchesClosedForm": "d26e0552240a6091",
+    "internal/plugins/isis/packet/rfc905_checksum_test.go::TestISISChecksumRefusesMisplacedXY": "d26e0552240a6091",
+    "internal/plugins/isis/packet/rfc905_checksum_vectors_test.go::TestISISChecksumFixedVector": "b9f243f3624e524f",
+    "internal/plugins/isis/packet/rfc905_checksum_vectors_test.go::TestISISChecksumVectors": "b9f243f3624e524f",
+    "internal/plugins/ospf/packet/checksum_test.go::TestOSPFLSAChecksum": "8ac8573c092c7f1a",
+    "internal/plugins/ospf/types/checksum_test.go::TestFletcherRFC905Vectors": "66165fee03c7d467",
+    "internal/plugins/ospf/types/rfc_checksum_forms_test.go::TestFletcherGenerateMatchesClosedForm": "cc5064006e5e0814",
+    "internal/plugins/ospf/types/rfc_checksum_forms_test.go::TestFletcherGenerateRefusesMisplacedXY": "cc5064006e5e0814"
+  },
+  "units": {
+    "internal/plugins/isis/packet/rfc905_checksum_test.go::TestISISChecksumMatchesClosedForm": "95f458f3abe370cc",
+    "internal/plugins/isis/packet/rfc905_checksum_test.go::TestISISChecksumRefusesMisplacedXY": "681a3768cefedbee",
+    "internal/plugins/isis/packet/rfc905_checksum_vectors_test.go::TestISISChecksumFixedVector": "d0e0e6ba7b0d1347",
+    "internal/plugins/isis/packet/rfc905_checksum_vectors_test.go::TestISISChecksumVectors": "7416218e47d3c785",
+    "internal/plugins/ospf/packet/checksum_test.go::TestOSPFLSAChecksum": "5771613ca67997af",
+    "internal/plugins/ospf/types/checksum_test.go::TestFletcherRFC905Vectors": "d58c3ac8f36eac05",
+    "internal/plugins/ospf/types/rfc_checksum_forms_test.go::TestFletcherGenerateMatchesClosedForm": "2d8be6829b051954",
+    "internal/plugins/ospf/types/rfc_checksum_forms_test.go::TestFletcherGenerateRefusesMisplacedXY": "9d55e2cf568ded55"
+  },
+  "verdict": "enforced"
+}

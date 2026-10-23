@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9915-18.2.12-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/iface/dhcp/rfc9915_dhcp_v6_attach_linux_test.go::TestRFC9915Section18212ConfirmOnMove",
+    "unit-sha": "184585ef1d0fc778",
+    "claim-sha": "61ac260b1cc95574",
+    "route": "revert",
+    "producer": "internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::setConfirmIAs",
+    "producer-sha": "7d5b43bce6e3009d",
+    "break": "body of setConfirmIAs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9915-18.2.12-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/iface/dhcp/rfc9915_dhcp_v6_attach_linux_test.go::TestRFC9915Section18212NoMoveNoConfirm",
+    "unit-sha": "3ce3938e36f2d20c",
+    "claim-sha": "048b75cef972563a",
+    "route": "revert",
+    "producer": "internal/plugins/iface/dhcp/dhcp_v6_attach_linux.go::linkMoved",
+    "producer-sha": "aee73540f36a66e3",
+    "break": "body of linkMoved replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

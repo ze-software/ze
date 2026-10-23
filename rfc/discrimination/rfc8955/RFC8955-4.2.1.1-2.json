@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC8955-4.2.1.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/nlri/flowspec/rfc8955_text_encode_reserved_test.go::TestRFC8955TextLeadingAndEncodedUnset",
+    "unit-sha": "de5b0dd8a65cf947",
+    "claim-sha": "6ca68e82d2e3ef1e",
+    "route": "revert",
+    "producer": "internal/core/bgp/nlri/flowspec/types_numeric.go::writeToAFI",
+    "producer-sha": "60d1d6394148d40e",
+    "break": "body of writeToAFI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

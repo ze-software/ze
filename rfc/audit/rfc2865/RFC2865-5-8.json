@@ -1,0 +1,21 @@
+{
+  "note": "Forbidden: sending text of length zero. TestZeroLengthAttributeIsOmitted asserts an empty Filter-Id is dropped from the encoded packet (Len 1), and the admin and L2TP units assert an empty User-Name produces no attribute; TestOneOctetAttributeIsNotOmitted is the negative that bounds the guard.",
+  "requirement_sha": "dd0998d9eec58a51",
+  "tests": {
+    "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberZeroLengthUserNameOmitted": "657481ec16afb1c3",
+    "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberZeroLengthUserNameOmitted#2": "657481ec16afb1c3",
+    "internal/component/radius/rfc2865_nas_obligations_test.go::TestRFC2865ZeroLengthTextIsOmitted": "ae06d1fa559aa47c",
+    "internal/component/radius/rfc2865_nas_obligations_test.go::TestRFC2865ZeroLengthTextIsOmitted#2": "ae06d1fa559aa47c",
+    "internal/component/radius/rfc2865_walk_test.go::TestOneOctetAttributeIsNotOmitted": "a3f1d9fa74292a7a",
+    "internal/component/radius/rfc2865_walk_test.go::TestZeroLengthAttributeIsOmitted": "a3f1d9fa74292a7a"
+  },
+  "units": {
+    "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberZeroLengthUserNameOmitted": "61c96ed940b3fb09",
+    "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberZeroLengthUserNameOmitted#2": "61c96ed940b3fb09",
+    "internal/component/radius/rfc2865_nas_obligations_test.go::TestRFC2865ZeroLengthTextIsOmitted": "b164a4f4bdf242f7",
+    "internal/component/radius/rfc2865_nas_obligations_test.go::TestRFC2865ZeroLengthTextIsOmitted#2": "b164a4f4bdf242f7",
+    "internal/component/radius/rfc2865_walk_test.go::TestOneOctetAttributeIsNotOmitted": "49aa7ad37658033b",
+    "internal/component/radius/rfc2865_walk_test.go::TestZeroLengthAttributeIsOmitted": "3164a430247ebe78"
+  },
+  "verdict": "enforced"
+}

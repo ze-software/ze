@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: a Version field that is not UTF-8. TestSoftverVersionFieldIsUTF8 asserts utf8.Valid over the whole Capability Value encodeValue writes for the default draft encoding, which is the version string with no length octet, and equality with ZeVersion; red on invalid UTF-8 or on any octet beside the string. The legacy encoding's length octet is the D-13 deviation and is outside this verdict. Negative: TestSoftverNonUTF8VersionFieldIsRefused, C3 28 61 is refused by decodeSoftwareVersion.",
+  "requirement_sha": "423ed21dfb754d3c",
+  "tests": {
+    "internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go::TestSoftverNonUTF8VersionFieldIsRefused": "621a76bf24368516",
+    "internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go::TestSoftverVersionFieldIsUTF8": "621a76bf24368516"
+  },
+  "units": {
+    "internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go::TestSoftverNonUTF8VersionFieldIsRefused": "32d3b2dfe2a502e1",
+    "internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go::TestSoftverVersionFieldIsUTF8": "0cdd7a60ab5a8f68"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "ICMPv6 135 and 136 accepts must precede the first drop of the accept-filter chain; the test fails if either is missing or placed after a drop",
+  "requirement_sha": "a73e1b36b60d61bf",
+  "tests": {
+    "internal/plugins/vrrp/acceptfilter_test.go::TestAcceptFilterAcceptsNeighborDiscoveryBeforeAnyDrop": "ac94e88781e5c08d",
+    "internal/plugins/vrrp/acceptfilter_test.go::TestAcceptFilterAcceptsNeighborDiscoveryBeforeAnyDrop#2": "ac94e88781e5c08d"
+  },
+  "units": {
+    "internal/plugins/vrrp/acceptfilter_test.go::TestAcceptFilterAcceptsNeighborDiscoveryBeforeAnyDrop": "4617f787264e227c",
+    "internal/plugins/vrrp/acceptfilter_test.go::TestAcceptFilterAcceptsNeighborDiscoveryBeforeAnyDrop#2": "4617f787264e227c"
+  },
+  "verdict": "enforced"
+}

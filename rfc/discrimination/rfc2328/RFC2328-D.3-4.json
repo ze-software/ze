@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC2328-D.3-4",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplay",
+    "unit-sha": "56fedea51ab8e1cc",
+    "claim-sha": "c83eb72e9cf0fff0",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/auth_keystore.go::replayedSequence",
+    "producer-sha": "72fc611d0163d903",
+    "break": "body of replayedSequence replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-D.3-4",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplay",
+    "unit-sha": "56fedea51ab8e1cc",
+    "claim-sha": "e105cba34b996629",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/auth_keystore.go::verify",
+    "producer-sha": "bcff38bb08de4782",
+    "break": "body of verify replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-D.3-4",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc5709_crypto_sequence_test.go::TestRFC5709CryptoSequenceNonDecreasingOnInterface",
+    "unit-sha": "92840c78dc06c3d4",
+    "claim-sha": "884db92859f3673f",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/auth_keystore.go::signKey",
+    "producer-sha": "412de4d415a5f680",
+    "break": "body of signKey replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

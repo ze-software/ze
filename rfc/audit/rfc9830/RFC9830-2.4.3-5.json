@@ -1,0 +1,24 @@
+{
+  "code": {
+    "internal/component/bgp/plugins/nlri/srpolicy/config.go::buildSRv6BindingSIDSubTLV": "5e4b79076052a458"
+  },
+  "note": "Independent TX-completion rejudgment. RFC9830 Section 2.4.3: \"The unassigned bits in the Flags field MUST be set to zero upon transmission and MUST be ignored upon receipt.\" TestRFC9830ReservedFieldsIgnoredOnReceipt uses valid route-target/ASN4 carriers for both SAFI-73 AFIs, exact no-action and one-attribute assertions before real cache/export/downstream announcement, and nonzero meaningful neighbors. Renewed receive-source-mapped-assessment.json maps actual teSRPolicyValue offsets to immutable mutant/log victim names; its corrected receive victims, not original classifier false flags, are credited. Selective overvalidation of SRv6 Binding SID unassigned Flags now fails the intended receive-action assertion while clean and structurally valid B=1 controls survive. The corrected 14-case aggregate is 34 isolated victim leaves plus 28 all-ignored-fields failures and 56 clean controls, not 62 isolated field tests. The missing transmission counterfactual is now executed: rfc9830-tx-07-srv6-binding-sid-unassigned-flags changes buf[2] = 1 in buildSRv6BindingSIDSubTLV and produces only the field diagnostics [\"SRv6 Binding SID Flags = 0x01 on transmission, want 0\"]. Current TestRFC9830FieldsToIgnoreAreZeroOnTransmission traverses config parsing/buildTunnelEncap, pins zero/mask fields beside the configured Preference, labels, SID, Weight, endpoint behavior/structure, Priority and names, and keeps the positive neighbors intact. Only that tagged unit fails under each TX fault; TestRFC9830SinglePolicyTLVPerAttribute passes. The selected baseline unit passes without overlays. Both clauses are therefore independently discriminated, replacing the prior TX-evidence hold; the earlier RX mapping limitations are unchanged. This is executed host semantic evidence, not a canonical native discrimination renewal. Native recording/stamping and the five FRR scenarios remain parent-owned and are not declared verified here. No SRPM, dataplane, absent encoding form, full-RFC, or exhaustive-per-bit claim follows.",
+  "requirement_sha": "8ec033bf8c00276e",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission": "e8c93af9c3519a1c",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission#2": "e8c93af9c3519a1c",
+    "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "8e898ec9c074ca2b",
+    "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "8e898ec9c074ca2b",
+    "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead": "a929cacac0d74fc0",
+    "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead#2": "a929cacac0d74fc0"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission": "9deb30b51012888d",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission#2": "9deb30b51012888d",
+    "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt": "f039c3f0e09ace86",
+    "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9830ReservedFieldsIgnoredOnReceipt#2": "f039c3f0e09ace86",
+    "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead": "d4706ce342d09aa5",
+    "internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830ReceivedFieldsAreIgnoredNotRead#2": "d4706ce342d09aa5"
+  },
+  "verdict": "enforced"
+}

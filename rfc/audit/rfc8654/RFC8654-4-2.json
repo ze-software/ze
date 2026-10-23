@@ -1,0 +1,27 @@
+{
+  "note": "Non-compliant: an UPDATE on the wire larger than the negotiated maximum. TestSendUpdateWithSplitBoundsAnOversizePayload drives Peer.sendUpdateWithSplit with an over-4096 payload to a non-extended peer and asserts every wire frame length <= 4096 with the NLRI preserved; TestSendUpdateWithSplitTracksTheNegotiatedMaximum asserts the bound is 65535 when negotiated; BuildUnicastWithMaxSize refuses an oversize build (ErrUpdateTooLarge). Both polarities.",
+  "requirement_sha": "a3e1fd65268f54e7",
+  "tests": {
+    "internal/component/bgp/message/rfc8654_update_split_test.go::TestSplitUpdate_VPNChunksFitMaxMessageSize": "ecb979ab4ffb5948",
+    "internal/component/bgp/message/update_build_test.go::TestBuildUnicast_MaxSize_Fits": "d6b185b5f352d180",
+    "internal/component/bgp/message/update_build_test.go::TestBuildUnicast_MaxSize_TooLarge": "d6b185b5f352d180",
+    "internal/component/bgp/reactor/rfc8654_max_message_size_test.go::TestSendPluginRoutesBoundsAnOversizeGroup": "ced3ad313c9ae5a7",
+    "internal/component/bgp/reactor/rfc8654_max_message_size_test.go::TestSendPluginRoutesLeavesAFittingGroupWhole": "ced3ad313c9ae5a7",
+    "internal/component/bgp/reactor/rfc8654_max_message_size_test.go::TestSendPluginRoutesTracksTheNegotiatedMaximum": "ced3ad313c9ae5a7",
+    "internal/component/bgp/reactor/rfc8654_max_message_size_test.go::TestSendUpdateWithSplitBoundsAnOversizePayload": "ced3ad313c9ae5a7",
+    "internal/component/bgp/reactor/rfc8654_max_message_size_test.go::TestSendUpdateWithSplitLeavesAFittingPayloadWhole": "ced3ad313c9ae5a7",
+    "internal/component/bgp/reactor/rfc8654_max_message_size_test.go::TestSendUpdateWithSplitTracksTheNegotiatedMaximum": "ced3ad313c9ae5a7"
+  },
+  "units": {
+    "internal/component/bgp/message/rfc8654_update_split_test.go::TestSplitUpdate_VPNChunksFitMaxMessageSize": "4efbe639d79d5b32",
+    "internal/component/bgp/message/update_build_test.go::TestBuildUnicast_MaxSize_Fits": "98db371592636a58",
+    "internal/component/bgp/message/update_build_test.go::TestBuildUnicast_MaxSize_TooLarge": "934405b4511f63b2",
+    "internal/component/bgp/reactor/rfc8654_max_message_size_test.go::TestSendPluginRoutesBoundsAnOversizeGroup": "4aee02fb9c072981",
+    "internal/component/bgp/reactor/rfc8654_max_message_size_test.go::TestSendPluginRoutesLeavesAFittingGroupWhole": "9cd898c03e20535a",
+    "internal/component/bgp/reactor/rfc8654_max_message_size_test.go::TestSendPluginRoutesTracksTheNegotiatedMaximum": "39a63c8b63ac95f4",
+    "internal/component/bgp/reactor/rfc8654_max_message_size_test.go::TestSendUpdateWithSplitBoundsAnOversizePayload": "d0b51a677c8ccf29",
+    "internal/component/bgp/reactor/rfc8654_max_message_size_test.go::TestSendUpdateWithSplitLeavesAFittingPayloadWhole": "4680d54e0c90591d",
+    "internal/component/bgp/reactor/rfc8654_max_message_size_test.go::TestSendUpdateWithSplitTracksTheNegotiatedMaximum": "2582754ce6cc96e4"
+  },
+  "verdict": "enforced"
+}

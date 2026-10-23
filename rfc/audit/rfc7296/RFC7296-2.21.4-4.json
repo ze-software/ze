@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-10-15 after 1ae1c731bd moved the .ci's stderr rejects under the daemon cmd line (whole-run scope, no assertion weakened). RFC 7296 Section 2.21.4: 'The response MUST NOT be cryptographically protected and MUST contain an INVALID_IKE_SPI Notify payload.' TestNtfOutOfSAAnswersWithInvalidIKESPI parses the answer and requires exactly one payload, a Notify of type INVALID_IKE_SPI with an empty SPI and no data, so a wrong type, a missing Notify, an extra payload or an SK payload fails; the fixture behind ipsec-error-notify-no-loop.ci requires the body after the header to be one 4-octet Notify of type 4 (INVALID_IKE_SPI) with next payload 0 through the real UDP path. The negatives (an IKE_SA_INIT to an unknown SPI draws nothing) are controls on the emitter's guard rather than violating inputs. No discrimination record.",
+  "requirement_sha": "caa14f78e936e131",
+  "tests": {
+    "internal/component/ike/engine/rfc7296_notify_out_of_sa_test.go::TestNtfOutOfSAAnswersWithInvalidIKESPI": "46d06959b3cb4475",
+    "internal/component/ike/engine/rfc7296_notify_out_of_sa_test.go::TestNtfOutOfSAAnswersWithInvalidIKESPI#2": "46d06959b3cb4475",
+    "test/ipsec/ipsec-error-notify-no-loop.ci": "623bc86b2e72ee5e",
+    "test/ipsec/ipsec-error-notify-no-loop.ci#2": "623bc86b2e72ee5e"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7296_notify_out_of_sa_test.go::TestNtfOutOfSAAnswersWithInvalidIKESPI": "a331953769e2ca3e",
+    "internal/component/ike/engine/rfc7296_notify_out_of_sa_test.go::TestNtfOutOfSAAnswersWithInvalidIKESPI#2": "a331953769e2ca3e",
+    "test/ipsec/ipsec-error-notify-no-loop.ci": "623bc86b2e72ee5e",
+    "test/ipsec/ipsec-error-notify-no-loop.ci#2": "623bc86b2e72ee5e"
+  },
+  "verdict": "enforced"
+}

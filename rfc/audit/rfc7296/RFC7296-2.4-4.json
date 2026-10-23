@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-12 (independent auditor). SHIFTED by 6e063fb498 (tests: give ten assert-nothing tests a real assertion), whose hunks sit in untagged sibling tests and the import block. The tagged unit is byte-identical (gate-verified) and no helper it calls changed. Verdict stands. Re-read 2026-09-27. Forbidden: INITIAL_CONTACT sent outside the first IKE_AUTH. TestInitiatorEmitsInitialContact fails if the responder did not parse it from the first IKE_AUTH; TestInitialContactAbsentFromRekey fails if an IKE rekey CREATE_CHILD_SA carries it. buildAuthRequest (auth.go) is the only producer of NotifyInitialContact, so no other exchange can carry it.",
+  "requirement_sha": "7a75a12e3c5c39ca",
+  "tests": {
+    "internal/component/ike/engine/rfc7296_responder_test.go::TestInitiatorEmitsInitialContact": "dc42b3cca38785d0",
+    "internal/component/ike/engine/rfc7296_test.go::TestInitialContactAbsentFromRekey": "e032382b6fba7977"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7296_responder_test.go::TestInitiatorEmitsInitialContact": "f259e9f58519674e",
+    "internal/component/ike/engine/rfc7296_test.go::TestInitialContactAbsentFromRekey": "9e6df4d49da9fbcb"
+  },
+  "verdict": "enforced"
+}

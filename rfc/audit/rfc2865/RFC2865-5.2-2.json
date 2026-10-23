@@ -1,0 +1,17 @@
+{
+  "note": "Forbidden: a password not null-padded to a multiple of 16, or longer than 128. TestEncodeUserPassword asserts len%16 == 0 and the decoded pad octets are 0; TestEncodeUserPasswordEmpty asserts 16; TestEncodeUserPasswordMultiBlock asserts 32 and the chain over the null-padded plaintext; TestRFC2865UserPasswordClamp asserts 128 for a 130-octet input. Single-polarity marker on the row.",
+  "requirement_sha": "ad3cd6cd6e5d0f77",
+  "tests": {
+    "internal/component/radius/rfc2865_attr_test.go::TestEncodeUserPassword": "e76b99b8ec888664",
+    "internal/component/radius/rfc2865_attr_test.go::TestEncodeUserPasswordEmpty": "e76b99b8ec888664",
+    "internal/component/radius/rfc2865_attr_test.go::TestEncodeUserPasswordMultiBlock": "e76b99b8ec888664",
+    "internal/component/radius/rfc2865_test.go::TestRFC2865UserPasswordClamp": "9e5b9d00bb0a5c97"
+  },
+  "units": {
+    "internal/component/radius/rfc2865_attr_test.go::TestEncodeUserPassword": "aadf0897134b3c36",
+    "internal/component/radius/rfc2865_attr_test.go::TestEncodeUserPasswordEmpty": "17f49d94fe53f13f",
+    "internal/component/radius/rfc2865_attr_test.go::TestEncodeUserPasswordMultiBlock": "4c60521b9b93f140",
+    "internal/component/radius/rfc2865_test.go::TestRFC2865UserPasswordClamp": "6312def790eeb3e5"
+  },
+  "verdict": "enforced"
+}

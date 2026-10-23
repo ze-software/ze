@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-09-30. Code 0 on both messages: probe TestRFC792EchoRequestCode pins byte 1 of the request Ze builds, vrrp TestGatewayICMPEchoReply pins Code 0 on the reply the stack forms for the gateway address Ze installs. {single-polarity} holds: Ze never varies the code, so no non-zero-code echo exists to refuse. vrrp record breaks AddAddress (reachability of the stack reply); the request-side assertion is exact.",
+  "requirement_sha": "2923f8d76b399c94",
+  "tests": {
+    "internal/core/probe/icmp_test.go::TestRFC792EchoRequestCode": "e4aad773ce5cac19",
+    "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "6fa365d5d54aea79"
+  },
+  "units": {
+    "internal/core/probe/icmp_test.go::TestRFC792EchoRequestCode": "d5b109231b5c7514",
+    "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "2e14d56234529006"
+  },
+  "verdict": "enforced"
+}

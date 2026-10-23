@@ -1,0 +1,11 @@
+{
+  "note": "single-polarity positive: RemoteSessionState is Down after Init.",
+  "requirement_sha": "bc399e49abeb4c4f",
+  "tests": {
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880InitStatesAreDown": "8db25cbb4534cc2d"
+  },
+  "units": {
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880InitStatesAreDown": "05c25578fc1db9d1"
+  },
+  "verdict": "enforced"
+}

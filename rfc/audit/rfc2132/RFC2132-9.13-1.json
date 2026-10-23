@@ -1,0 +1,11 @@
+{
+  "note": "TestIgnoresUnknownVendorClass (PXE enabled) asserts an unrecognized vendor class 'MSFT 5.0' yields an OFFER byte-identical to one without option 60 and no option 66/67; class-driven handling fails it",
+  "requirement_sha": "8f6e56cbffaab954",
+  "tests": {
+    "internal/plugins/dhcpserver/handler_test.go::TestIgnoresUnknownVendorClass": "3c71d2e2f2b59688"
+  },
+  "units": {
+    "internal/plugins/dhcpserver/handler_test.go::TestIgnoresUnknownVendorClass": "6ba076dac16452c3"
+  },
+  "verdict": "enforced"
+}

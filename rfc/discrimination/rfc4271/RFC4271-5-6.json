@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4271-5-6",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/message/rfc4271_out_of_order_receive_test.go::TestRFC4271OutOfOrderAttributesReachTheReceivePathIntact",
+    "unit-sha": "0dd5324d50dce0b7",
+    "claim-sha": "52caabbd4614a5a6",
+    "route": "revert",
+    "producer": "internal/core/bgp/attribute/wire.go::Get",
+    "producer-sha": "3b6b5118dd14f1f6",
+    "break": "body of Get replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-5-6",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/message/rfc4271_out_of_order_receive_test.go::TestRFC4271OutOfOrderAttributesReachTheReceivePathIntact",
+    "unit-sha": "0dd5324d50dce0b7",
+    "claim-sha": "7b3a1c8846e03119",
+    "route": "revert",
+    "producer": "internal/core/bgp/attribute/wire.go::Get",
+    "producer-sha": "3b6b5118dd14f1f6",
+    "break": "body of Get replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2205-3.1.1-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205NonzeroChecksumStillVerified",
+    "unit-sha": "74cb235b346c6924",
+    "claim-sha": "1d6a2c77e71337fb",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/wire.go::DecodeMessage",
+    "producer-sha": "739fb9690da55f7f",
+    "break": "body of DecodeMessage replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2205-3.1.1-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205ZeroChecksumMeansNoneTransmitted",
+    "unit-sha": "40b1e39424c99598",
+    "claim-sha": "e16e60cb74edfd73",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/wire.go::DecodeMessage",
+    "producer-sha": "739fb9690da55f7f",
+    "break": "body of DecodeMessage replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

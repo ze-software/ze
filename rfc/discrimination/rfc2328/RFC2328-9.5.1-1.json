@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC2328-9.5.1-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/iface/rfc2328_dr_test.go::TestOSPFNBMAEligibleRouterHellosEveryEligibleNeighbor",
+    "unit-sha": "9aed901d78bcc77a",
+    "claim-sha": "3c9d22655786c2c8",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/iface/nbma.go::helloTargetsLocked",
+    "producer-sha": "46d93f7baebb187e",
+    "break": "body of helloTargetsLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-9.5.1-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/iface/rfc2328_dr_test.go::TestOSPFNBMAPeriodicHelloSkipsIneligibleNeighbor",
+    "unit-sha": "5cb05096f408a758",
+    "claim-sha": "630947160c8b5fff",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/iface/nbma.go::helloTargetsLocked",
+    "producer-sha": "46d93f7baebb187e",
+    "break": "body of helloTargetsLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-9.5.1-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/iface/rfc2328_nbma_hello_roles_test.go::TestRFC2328NBMAHelloTargetsByRole",
+    "unit-sha": "ac68d6b635ca195c",
+    "claim-sha": "12859de64465fe77",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/iface/nbma.go::helloTargetsLocked",
+    "producer-sha": "46d93f7baebb187e",
+    "break": "body of helloTargetsLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

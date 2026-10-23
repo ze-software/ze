@@ -1,0 +1,13 @@
+{
+  "note": "forbidden: using a later SR-Algorithm TLV of the same RI LSA. TestRFC8665RepeatedAlgorithmAndSRMSInstancesIgnored feeds srDecodeRemoteCapabilities (the receive decode) one body with {0} then {1} and fails unless the result is exactly {0}, red on last-wins and on union; positive TestRFC8665SingleAlgorithmAndSRMSInstanceUsed pins the single-TLV case",
+  "requirement_sha": "9155d796d7562864",
+  "tests": {
+    "internal/plugins/ospf/rfc8665_test.go::TestRFC8665RepeatedAlgorithmAndSRMSInstancesIgnored": "7f2eeb6dac97643c",
+    "internal/plugins/ospf/rfc8665_test.go::TestRFC8665SingleAlgorithmAndSRMSInstanceUsed": "7f2eeb6dac97643c"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc8665_test.go::TestRFC8665RepeatedAlgorithmAndSRMSInstancesIgnored": "4f0455a9b04e2cbb",
+    "internal/plugins/ospf/rfc8665_test.go::TestRFC8665SingleAlgorithmAndSRMSInstanceUsed": "cae7885d5f5bc037"
+  },
+  "verdict": "enforced"
+}

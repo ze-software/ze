@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC5036-3.5-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ldp/rfc5036_sessionparams_test.go::TestRFC5036RequiredParametersInSpecifiedOrder",
+    "unit-sha": "884a3d670a36e5d8",
+    "claim-sha": "940ed91a19044287",
+    "route": "revert",
+    "producer": "internal/plugins/ldp/wire.go::EncodeInit",
+    "producer-sha": "e5c13751227dd1f4",
+    "break": "body of EncodeInit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

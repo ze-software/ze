@@ -1,0 +1,15 @@
+{
+  "note": "TestRFC2516PADOCarriesACNameAndServiceNames drives handlePADI and asserts exactly one AC-Name equal to the configured name, the first Service-Name identical to the PADI's, then the other offered name in order; TestPADOAlwaysCarriesServiceName pins the Service-Name list and the zero-length edge. Records observed red on BuildPADO",
+  "requirement_sha": "199969b843741437",
+  "tests": {
+    "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516PADOCarriesACNameAndServiceNames": "3ea2cf3cd3f3abda",
+    "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestPADOAlwaysCarriesServiceName": "b7c2fae4a50abe95",
+    "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestPADOAlwaysCarriesServiceName#2": "b7c2fae4a50abe95"
+  },
+  "units": {
+    "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516PADOCarriesACNameAndServiceNames": "42757d0b8bd06339",
+    "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestPADOAlwaysCarriesServiceName": "277700ccd22fff67",
+    "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestPADOAlwaysCarriesServiceName#2": "277700ccd22fff67"
+  },
+  "verdict": "enforced"
+}

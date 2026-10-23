@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC1195-5.2-4",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/rfc1195_selection_test.go::TestRFC1195ExternalEntryWithoutDefaultMetricRefused",
+    "unit-sha": "fc6923251eb2ef77",
+    "claim-sha": "686398634e12af5b",
+    "route": "revert",
+    "producer": "internal/plugins/isis/packet/tlv_narrow_ipv4.go::DecodeNarrowIPReachTLV",
+    "producer-sha": "adf6795d00099f68",
+    "break": "body of DecodeNarrowIPReachTLV replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1195-5.2-4",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/rfc1195_selection_test.go::TestRFC1195OriginatedExternalEntriesCarryDefaultMetric",
+    "unit-sha": "6f0f4fac90b72ff3",
+    "claim-sha": "ddd62adf450070ef",
+    "route": "revert",
+    "producer": "internal/plugins/isis/lsdb/encode.go::narrowIPReachEntryBytes",
+    "producer-sha": "5d4a7ae620aa3de2",
+    "break": "body of narrowIPReachEntryBytes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

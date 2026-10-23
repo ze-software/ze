@@ -1,0 +1,23 @@
+{
+  "code": {
+    "internal/component/ike/engine/ts_narrow.go::closedSubset": "16360f376346ca62",
+    "internal/component/ike/engine/ts_narrow.go::narrowSelectors": "b3a98ea38c2a69aa"
+  },
+  "note": "Re-judged 2026-10-20 (independent judge, after d5af024e2a, e52de83fbd, f69b6cace8, d822d12769, 7f4f79d49e; HEAD 818c9edb34). Section 2.9: \"If the responder's policy allows it to accept the first selector of TSi and TSr, then the responder MUST narrow the Traffic Selectors to a subset that includes the initiator's first choices.\" narrowSelectors still collects the (proposedI[0], proposedR[0]) intersections apart and puts them first, and closedSubset always keeps the first pair. e52de83fbd changes only the floor branch (Section 2.9.2 scope in use, answered when wholly inside a proposed combination); when it declines, ordinary narrowing with first choices first runs as before. TestNarrowingIncludesFirstChoice and TestRFC7296ResponderAnswersOnlyCombinationsItChose PASS with -race at HEAD. Verdict stands; ./le rfc check reports the row STALE on narrowChildSelectors/narrowSelectors, this entry replaces it.",
+  "requirement_sha": "30ccb42f9f5fd42e",
+  "tests": {
+    "internal/component/ike/engine/rfc7296_child_rekey_orientation_test.go::TestPeerInitiatedRekeyIsNarrowedInTheExchangeOrientation": "936446b574e018e5",
+    "internal/component/ike/engine/rfc7296_transport_one_pair_test.go::TestRFC7296TransportResponderNarrowsToFirstPair": "d8b72938b2447748",
+    "internal/component/ike/engine/rfc7296_transport_test.go::TestAuthResponsePayloadsCarryTheNarrowedSelectors": "fabd90e9a9b5f392",
+    "internal/component/ike/engine/ts_narrow_test.go::TestNarrowingIncludesFirstChoice": "f8202c6c1c2c2a71",
+    "internal/component/ike/engine/ts_narrow_test.go::TestNarrowingIncludesFirstChoice#2": "f8202c6c1c2c2a71"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7296_child_rekey_orientation_test.go::TestPeerInitiatedRekeyIsNarrowedInTheExchangeOrientation": "c0a9c8efaeaceeca",
+    "internal/component/ike/engine/rfc7296_transport_one_pair_test.go::TestRFC7296TransportResponderNarrowsToFirstPair": "80f18c772867f0db",
+    "internal/component/ike/engine/rfc7296_transport_test.go::TestAuthResponsePayloadsCarryTheNarrowedSelectors": "b2194a3f02562d55",
+    "internal/component/ike/engine/ts_narrow_test.go::TestNarrowingIncludesFirstChoice": "3b6040212dbc1915",
+    "internal/component/ike/engine/ts_narrow_test.go::TestNarrowingIncludesFirstChoice#2": "3b6040212dbc1915"
+  },
+  "verdict": "enforced"
+}

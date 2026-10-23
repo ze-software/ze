@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-10-21 after a comment-only spelling change (honoured to honored) in TestRFC5340ReservedHeaderOctetIgnoredOnReceive; its assertions are byte-identical. Receive: a Hello with Reserved 0xFF forms the neighbor (assert.Len 1), record on v3 DecodeHeader. Negative TestRFC5340ReservedOctetNeverReachesDecodedHeader: headers differing only in octet 15 decode identically. Send: TestRFC5340ReservedHeaderOctetZeroOnSend, record on EncodeHello. Earlier enforced judgement stands.",
+  "requirement_sha": "34e76e291aebb156",
+  "tests": {
+    "internal/plugins/ospf/rfc5340_reserved_send_test.go::TestRFC5340ReservedHeaderOctetZeroOnSend": "509493c7b6b76283",
+    "internal/plugins/ospf/rfc5340_reserved_send_test.go::TestRFC5340ReservedHeaderOctetZeroOnSend#2": "509493c7b6b76283",
+    "internal/plugins/ospf/rfc5340_test.go::TestRFC5340ReservedHeaderOctetIgnoredOnReceive": "cdf4f5c0d8a37340",
+    "internal/plugins/ospf/v3/packet/rfc5340_header_test.go::TestRFC5340ReservedOctetNeverReachesDecodedHeader": "e14535824f889d9c"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc5340_reserved_send_test.go::TestRFC5340ReservedHeaderOctetZeroOnSend": "9d93b6e2c67eb715",
+    "internal/plugins/ospf/rfc5340_reserved_send_test.go::TestRFC5340ReservedHeaderOctetZeroOnSend#2": "9d93b6e2c67eb715",
+    "internal/plugins/ospf/rfc5340_test.go::TestRFC5340ReservedHeaderOctetIgnoredOnReceive": "26154e96b7eab6f5",
+    "internal/plugins/ospf/v3/packet/rfc5340_header_test.go::TestRFC5340ReservedOctetNeverReachesDecodedHeader": "4ccab91e72914f0c"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,15 @@
+{
+  "note": "Rejudged 2026-09-29. The missing direction is now proven: TestRFC8907OverlongReplyComponentsRejected sends replies whose server_msg_len, data_len or argument length sums past the datalength, for all three kinds, and requires error + zero status (discard and ERROR). The < direction (TestRFC8907TrailingReplyBytesRejected) and exact positive (TestRFC8907ExactReplyLengthsAccepted) stand; producer validateReplyBody.",
+  "requirement_sha": "3ad5559b6a36797e",
+  "tests": {
+    "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907OverlongReplyComponentsRejected": "879b13e19509fb75",
+    "internal/component/tacacs/rfc8907_validation_test.go::TestRFC8907ExactReplyLengthsAccepted": "59ca691aca621600",
+    "internal/component/tacacs/rfc8907_validation_test.go::TestRFC8907TrailingReplyBytesRejected": "59ca691aca621600"
+  },
+  "units": {
+    "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907OverlongReplyComponentsRejected": "868d2f2ee5219f3a",
+    "internal/component/tacacs/rfc8907_validation_test.go::TestRFC8907ExactReplyLengthsAccepted": "f5de926cf26ce67c",
+    "internal/component/tacacs/rfc8907_validation_test.go::TestRFC8907TrailingReplyBytesRejected": "31ac6a0bb353fdc7"
+  },
+  "verdict": "enforced"
+}

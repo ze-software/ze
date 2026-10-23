@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC2328-13.3-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/lsdb/rfc2328_flood_age_test.go::TestRFC2328FloodIncrementsAgeByInfTransDelay",
+    "unit-sha": "6c31e562e52d5ba8",
+    "claim-sha": "20e637e1a7f11dff",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/lsdb/flooding.go::floodCopy",
+    "producer-sha": "3020b7dc3a46d43b",
+    "break": "body of floodCopy replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-13.3-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/lsdb/rfc2328_flood_age_test.go::TestRFC2328FloodIncrementsAgeByInfTransDelay",
+    "unit-sha": "6c31e562e52d5ba8",
+    "claim-sha": "11cd82f70190c5a4",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/lsdb/flooding.go::floodCopy",
+    "producer-sha": "3020b7dc3a46d43b",
+    "break": "body of floodCopy replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-13.3-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc2328_transmit_delay_test.go::TestRFC2328TransmitDelayMustBePositive",
+    "unit-sha": "cb2e9a370b4cafc3",
+    "claim-sha": "d024deb1f9b9e7e6",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/config.go::validateConfigAF",
+    "producer-sha": "f0d03a69269f9ba3",
+    "break": "body of validateConfigAF replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-13.3-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/rfc2328_transmit_delay_test.go::TestRFC2328TransmitDelayMustBePositive",
+    "unit-sha": "cb2e9a370b4cafc3",
+    "claim-sha": "5c3c52751a115440",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/config.go::validateConfigAF",
+    "producer-sha": "f0d03a69269f9ba3",
+    "break": "body of validateConfigAF replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

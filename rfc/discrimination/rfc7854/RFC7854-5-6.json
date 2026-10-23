@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC7854-5-6",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854ChangedAttributesCanReturnToEarlierValue",
+    "unit-sha": "0a333a365970175a",
+    "claim-sha": "9077c0ac6a15e779",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/bmp/bmp_events.go::handleSenderUpdate",
+    "producer-sha": "200984a416980b14",
+    "break": "body of handleSenderUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

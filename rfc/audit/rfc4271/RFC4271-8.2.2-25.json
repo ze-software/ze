@@ -1,0 +1,13 @@
+{
+  "note": "Judged 2026-10-01 (BGP c11 judge). Positive TestRFC4271OpenConfirmUpdateIsAnFSMError: a running Peer in OpenConfirm receiving an empty UPDATE (Event 27) or an UPDATE whose Withdrawn Routes Length overruns the message (Event 28) writes exactly one NOTIFICATION 5/0, drops TCP (EOF), stops ConnectRetry/Hold/Keepalive timers, releases the session, counter 0->1: every listed action. The producer (processMessage -> updateIsUnexpected -> fsmMessageEvent) intercepts the UPDATE before RFC 7606 parsing and plugin delivery. Negative TestRFC4271ExpectedMessagesRaiseNoFSMError: KEEPALIVE in OpenConfirm (Event 26, not listed) reaches Established with nothing written, connection/session kept, counter 0; the same UPDATE in Established draws nothing, so the state decides. Events 9, 12-13, 20 do not occur in Ze's OpenConfirm (no ConnectRetryTimer running, no DelayOpen, no IdleHoldTimer). Records observed red on updateIsUnexpected both polarities.",
+  "requirement_sha": "2ecaaa6f206572d9",
+  "tests": {
+    "internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go::TestRFC4271ExpectedMessagesRaiseNoFSMError": "0016171daa459363",
+    "internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go::TestRFC4271OpenConfirmUpdateIsAnFSMError": "0016171daa459363"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go::TestRFC4271ExpectedMessagesRaiseNoFSMError": "306e1bb5c30d988b",
+    "internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go::TestRFC4271OpenConfirmUpdateIsAnFSMError": "a1962ea722a87625"
+  },
+  "verdict": "enforced"
+}

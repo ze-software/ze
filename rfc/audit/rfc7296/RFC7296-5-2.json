@@ -1,0 +1,20 @@
+{
+  "code": {
+    "internal/component/ike/crypto/proposal.go::NegotiateIKE": "3013350d3ad7914b",
+    "internal/component/ike/crypto/proposal.go::ikeProposalComplete": "575fd0e6fe3deaf7",
+    "internal/component/ike/crypto/transform.go::LookupIntegrity": "ce3cea3ad320b5e0"
+  },
+  "note": "Re-judged 2026-09-30. RFC 7296 Section 5: 'implementations MUST NOT negotiate NONE as the IKE integrity protection algorithm or ENCR_NULL as the IKE encryption algorithm.' The earlier residual is closed: the negative in TestRFC7296NegotiationRefusesNullIntegrityAndNullCipher now asserts errors.Is ErrProposalIncomplete for AUTH_NONE beside AES-CBC and ErrTransformUnspecified for ENCR_NULL, on both NegotiateIKE (responder) and VerifyAcceptedIKE (initiator), with policy holding the identical proposal; its positive accepts AES-CBC/HMAC-SHA2-256-128 on both. TestIKENeverNegotiatesNullAlgorithms keeps only its positive tag (the lookups refuse none/null, so ze cannot build a null proposal); its trailing block is now labelled a control, which it is. Three records observed red. Judge's own probe: removing the AUTH_NONE clause of ikeProposalComplete via go test -overlay reddens the negative on both sides.",
+  "requirement_sha": "0636fb68d1c52210",
+  "tests": {
+    "internal/component/ike/crypto/rfc7296_null_negotiation_test.go::TestRFC7296NegotiationRefusesNullIntegrityAndNullCipher": "5e99ca800a957018",
+    "internal/component/ike/crypto/rfc7296_null_negotiation_test.go::TestRFC7296NegotiationRefusesNullIntegrityAndNullCipher#2": "5e99ca800a957018",
+    "internal/component/ike/crypto/rfc7296_test.go::TestIKENeverNegotiatesNullAlgorithms": "92f4c9e647e3de21"
+  },
+  "units": {
+    "internal/component/ike/crypto/rfc7296_null_negotiation_test.go::TestRFC7296NegotiationRefusesNullIntegrityAndNullCipher": "791ac49b89778163",
+    "internal/component/ike/crypto/rfc7296_null_negotiation_test.go::TestRFC7296NegotiationRefusesNullIntegrityAndNullCipher#2": "791ac49b89778163",
+    "internal/component/ike/crypto/rfc7296_test.go::TestIKENeverNegotiatesNullAlgorithms": "cbb056d65d5c77a0"
+  },
+  "verdict": "enforced"
+}

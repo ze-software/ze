@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged 2026-09-30 after R30 D-8 (lookups return errors). The sentence (Section 3.3, rfc/full/rfc7296.txt:4308) obliges an initiator offering both classes to use two proposals. Send side: TestESPProposalsNeverMixAEADClass builds a group holding an AEAD and a non-AEAD proposal through the offer builder (now wireESPOffer via the test-only one-value wrapper) and asserts two proposals, AEAD with one ENCR and no INTEG, non-AEAD with one ENCR and one INTEG; a merge or an INTEG beside the AEAD cipher goes red. ipsec.ESPProposal holds one cipher, so the send-side negative is inexpressible (single-polarity positive on that side). Receive side: TestAeadMixInOneProposalIsRefused (negative) feeds espProposalMatches one proposal with the AEAD cipher plus a real INTEG and asserts refusal; TestAeadAloneInItsOwnProposalIsAccepted (positive, absent INTEG and explicit NONE) rules out a comparison that refuses every AEAD proposal. The edit to the negative is mechanical: lookupIntegrity now returns (T, error) and the test fails on the error; assertions and fixture unchanged. Records: negative revert on responder.go::espProposalMatches, observed red. The two positives carry no record (tags predate the record ratchet).",
+  "requirement_sha": "81063204dec4fd71",
+  "tests": {
+    "internal/component/ike/engine/rfc7296_aead_mix_test.go::TestAeadAloneInItsOwnProposalIsAccepted": "8548638729d67e42",
+    "internal/component/ike/engine/rfc7296_aead_mix_test.go::TestAeadMixInOneProposalIsRefused": "8548638729d67e42",
+    "internal/component/ike/engine/rfc7296_test.go::TestESPProposalsNeverMixAEADClass": "e032382b6fba7977"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7296_aead_mix_test.go::TestAeadAloneInItsOwnProposalIsAccepted": "abeb51a4922d4ca4",
+    "internal/component/ike/engine/rfc7296_aead_mix_test.go::TestAeadMixInOneProposalIsRefused": "051fc2b22946fdb5",
+    "internal/component/ike/engine/rfc7296_test.go::TestESPProposalsNeverMixAEADClass": "304e342b5f71e225"
+  },
+  "verdict": "enforced"
+}

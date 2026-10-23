@@ -1,0 +1,13 @@
+{
+  "note": "cleanupTick removes the LSP whose PATH is older than period x multiplier and keeps a refreshed one Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 7.2 and the enforced verdict holds unchanged.",
+  "requirement_sha": "2f3040ebf2d16f4e",
+  "tests": {
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090StateExpiresWithoutRefresh": "3fb9184431da8daf",
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090StateExpiresWithoutRefresh#2": "3fb9184431da8daf"
+  },
+  "units": {
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090StateExpiresWithoutRefresh": "df0ad7fc6fac38b6",
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090StateExpiresWithoutRefresh#2": "df0ad7fc6fac38b6"
+  },
+  "verdict": "enforced"
+}

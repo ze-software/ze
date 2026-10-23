@@ -1,0 +1,19 @@
+{
+  "note": "Judge 2026-09-28. MD5: TestRFC5880KeyedMD5FirstPacketSeedsReplayFloor sets AuthSeqKnown and RcvAuthSeq from an authentic and a forged first packet (seeding precedes the digest, owner decision D-14, kept); TestRFC5880KeyedMD5KnownFloorNotReseeded shows the branch runs only while AuthSeqKnown is 0 (a forged in-window and a +2^31 packet leave the floor at 100). SHA1 (cited 6.7.4) keeps the older seeding units. RFC5880-6.8.1-13 stays a gap.",
+  "requirement_sha": "4f21cec2bfc078f8",
+  "tests": {
+    "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedMD5FirstPacketSeedsReplayFloor": "69049dc5fe6d5288",
+    "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedMD5KnownFloorNotReseeded": "69049dc5fe6d5288",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880FirstAuthenticatedPacketSeedsReplayFloor": "5a25c74cc2d9bd47",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880FirstPacketSeedsReplayFloorBeforeDigest": "5a25c74cc2d9bd47",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KnownSequenceNotReseededByForgedPacket": "5a25c74cc2d9bd47"
+  },
+  "units": {
+    "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedMD5FirstPacketSeedsReplayFloor": "9467f8a7c378f2a7",
+    "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedMD5KnownFloorNotReseeded": "81d7aedade0db84b",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880FirstAuthenticatedPacketSeedsReplayFloor": "204b9c6763b0c91b",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880FirstPacketSeedsReplayFloorBeforeDigest": "c53a09b89ad72fab",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KnownSequenceNotReseededByForgedPacket": "81fd175304d884cd"
+  },
+  "verdict": "enforced"
+}

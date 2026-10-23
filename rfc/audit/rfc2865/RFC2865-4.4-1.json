@@ -1,0 +1,21 @@
+{
+  "note": "The L2TP half is now proven at authradius handler.go doRADIUS: an Access-Challenge (State + Reply-Message) to PAP and CHAP-MD5 subscriber logins is refused with exactly one answer to PPP, and the same logins with an Access-Accept (Framed-User) are admitted, so the refusal is specific to the Challenge code. The admin PAP half was already enforced (ErrAuthRejected, chain stops).",
+  "requirement_sha": "1b4d7075e742011f",
+  "tests": {
+    "internal/component/l2tp/plugins/authradius/rfc2865_access_challenge_test.go::TestRFC2865SubscriberAccessAcceptIsNotTreatedAsReject": "09d2189aaf539a9c",
+    "internal/component/l2tp/plugins/authradius/rfc2865_access_challenge_test.go::TestRFC2865SubscriberAccessChallengeIsTreatedAsReject": "09d2189aaf539a9c",
+    "internal/component/radius/rfc2865_nas_obligations_test.go::TestRFC2865AccessChallengeIsRejection": "ae06d1fa559aa47c",
+    "internal/component/radius/rfc2865_nas_obligations_test.go::TestRFC2865AccessChallengeIsRejection#2": "ae06d1fa559aa47c",
+    "internal/component/radius/rfc2865_walk_test.go::TestAccessChallengeDoesNotFallThroughToTheNextBackend": "a3f1d9fa74292a7a",
+    "internal/component/radius/rfc2865_walk_test.go::TestAccessChallengeIsTreatedAsAccessReject": "a3f1d9fa74292a7a"
+  },
+  "units": {
+    "internal/component/l2tp/plugins/authradius/rfc2865_access_challenge_test.go::TestRFC2865SubscriberAccessAcceptIsNotTreatedAsReject": "3670cfd0a3806924",
+    "internal/component/l2tp/plugins/authradius/rfc2865_access_challenge_test.go::TestRFC2865SubscriberAccessChallengeIsTreatedAsReject": "59a345f50172c176",
+    "internal/component/radius/rfc2865_nas_obligations_test.go::TestRFC2865AccessChallengeIsRejection": "75bdb47ffa846320",
+    "internal/component/radius/rfc2865_nas_obligations_test.go::TestRFC2865AccessChallengeIsRejection#2": "75bdb47ffa846320",
+    "internal/component/radius/rfc2865_walk_test.go::TestAccessChallengeDoesNotFallThroughToTheNextBackend": "4e5bed20a9284efc",
+    "internal/component/radius/rfc2865_walk_test.go::TestAccessChallengeIsTreatedAsAccessReject": "0e8a7a1034a4954a"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5305-4.1-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/redistribute/rfc5305_inject_test.go::TestRFC5305ConnectedInjectionClearsUpDown",
+    "unit-sha": "2ec4048bd14a62d5",
+    "claim-sha": "68da8c0b19ee22e0",
+    "route": "revert",
+    "producer": "internal/plugins/isis/redistribute/source.go::ConnectedPrefixInfos",
+    "producer-sha": "eabe51a41e921877",
+    "break": "body of ConnectedPrefixInfos replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5305-4.1-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/redistribute/rfc5305_inject_test.go::TestRFC5305FirstInjectionClearsUpDown",
+    "unit-sha": "905b30507fcb86d5",
+    "claim-sha": "31c6ea83d01fc3ff",
+    "route": "revert",
+    "producer": "internal/plugins/isis/redistribute/consumer.go::InjectRoute",
+    "producer-sha": "092d358ab22aadd2",
+    "break": "body of InjectRoute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

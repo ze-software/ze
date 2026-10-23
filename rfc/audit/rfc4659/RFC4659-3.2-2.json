@@ -1,0 +1,11 @@
+{
+  "note": "Forbidden: MP_REACH for a VPNv6 route with AFI != 2 or SAFI != 128. internal/component/bgp/message/update_build_test.go::TestUpdateBuilder_BuildVPN_IPv6: afi != 2 and value[2] != 128 are Errorf. Single-polarity marker.",
+  "requirement_sha": "d5385b13e97e1813",
+  "tests": {
+    "internal/component/bgp/message/update_build_test.go::TestUpdateBuilder_BuildVPN_IPv6": "d6b185b5f352d180"
+  },
+  "units": {
+    "internal/component/bgp/message/update_build_test.go::TestUpdateBuilder_BuildVPN_IPv6": "a4f0ba787744350c"
+  },
+  "verdict": "enforced"
+}

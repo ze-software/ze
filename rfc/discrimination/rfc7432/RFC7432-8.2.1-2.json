@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC7432-8.2.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go::TestConfiguredEVPNPerESRoute",
+    "unit-sha": "c79f6f9f48ed9b34",
+    "claim-sha": "efd0d51fc8203e9b",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/nlri/evpn/config.go::parseConfigRoute",
+    "producer-sha": "dc4776b43501671f",
+    "break": "body of parseConfigRoute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7432-8.2.1-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go::TestConfiguredEVPNRefusesInvalidPerESRoute",
+    "unit-sha": "458f383e18e07f53",
+    "claim-sha": "8f892164e25f25e3",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/nlri/evpn/config.go::parseConfigRoute",
+    "producer-sha": "dc4776b43501671f",
+    "break": "body of parseConfigRoute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7432-8.2.1-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go::TestOriginEthernetADPerESRefusesLabelStack",
+    "unit-sha": "22ac43f580914832",
+    "claim-sha": "782ac53a65f07a8c",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/nlri/evpn/encode.go::EncodeRoute",
+    "producer-sha": "469dbdab4becf550",
+    "break": "body of EncodeRoute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7432-8.2.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go::TestOriginEthernetADPerESUsesTypeOneRD",
+    "unit-sha": "fbea9e5305756bc0",
+    "claim-sha": "ef9fa0ffb28fc6e0",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/nlri/evpn/encode.go::EncodeRoute",
+    "producer-sha": "469dbdab4becf550",
+    "break": "body of EncodeRoute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

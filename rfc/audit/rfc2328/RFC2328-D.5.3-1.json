@@ -1,0 +1,13 @@
+{
+  "note": "First verdict 2026-10-21 (round 4 judge). TestOSPFAuthReplayPerNeighborAuType2, for MD5 and HMAC-SHA-256: after a Hello at 100, an LS Ack at 5 from the same neighbor is discarded as replay under either key (one per-neighbor slot, replaySlotFor), and LS Acks at 100 and 101 are accepted, so only 'less than' discards. Per-type slots or a <= comparison turn it red. Records on replaySlotFor.",
+  "requirement_sha": "70525242d518a41f",
+  "tests": {
+    "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplayPerNeighborAuType2": "daf32645cbe50ccd",
+    "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplayPerNeighborAuType2#2": "daf32645cbe50ccd"
+  },
+  "units": {
+    "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplayPerNeighborAuType2": "753fa14ba10253a2",
+    "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplayPerNeighborAuType2#2": "753fa14ba10253a2"
+  },
+  "verdict": "enforced"
+}

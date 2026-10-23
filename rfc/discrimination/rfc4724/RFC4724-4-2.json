@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC4724-4-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/gr/rfc4724_close_reason_test.go::TestRFC4724NotificationCloseRetainsNothing",
+    "unit-sha": "a141e817c240eaef",
+    "claim-sha": "ed6fabe89912193c",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/gr/gr.go::handleStructuredState",
+    "producer-sha": "d4c5a2b5a306671c",
+    "break": "body of handleStructuredState replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4724-4-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/gr/rfc4724_close_reason_test.go::TestRFC4724TransportCloseRetains",
+    "unit-sha": "9cefc42461fb67d7",
+    "claim-sha": "476524dc0218db15",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/gr/gr.go::handleStructuredState",
+    "producer-sha": "d4c5a2b5a306671c",
+    "break": "body of handleStructuredState replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4724-4-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/peer_close_test.go::TestPeerCloseNamesTheNotificationTheNeighborSent",
+    "unit-sha": "3ab17403fe5f660c",
+    "claim-sha": "75e4c5f1f23fc90f",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/peer_close.go::sessionCloseFor",
+    "producer-sha": "6954f89b6f4bc8ec",
+    "break": "body of sessionCloseFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4724-4-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/peer_close_test.go::TestPeerCloseNamesTheTransportLoss",
+    "unit-sha": "7f6b3dcbfe1b1bd4",
+    "claim-sha": "2d7e2edcbd5ccac1",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/peer_close.go::sessionCloseFor",
+    "producer-sha": "6954f89b6f4bc8ec",
+    "break": "body of sessionCloseFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,13 @@
+{
+  "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV. Forbidden: a length other than 26 with the Endpoint Behavior and SID Structure, or other than 18 without it. Red: require.Len(value, 26) on the srpDirty segment and require.Len(bare[0], 18) on the bare type-b segment; both clauses have an assertion and the pair shows the length tracks the content.",
+  "requirement_sha": "c9eaeae04b8c9efc",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV": "450f2364530acf19",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV#2": "450f2364530acf19"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV": "bcfcf99bdcd49711",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV#2": "bcfcf99bdcd49711"
+  },
+  "verdict": "enforced"
+}

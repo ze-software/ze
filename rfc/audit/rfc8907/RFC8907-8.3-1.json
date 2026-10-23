@@ -1,0 +1,13 @@
+{
+  "note": "(a) forbidden: a Section 8.2 argument (service, cmd, cmd-arg) before task_id/start_time/stop_time in an accounting record. (b) TestRFC8907AccountingArgumentsPrecedeAuthorizationOnes asserts task_id and start_time (START) and task_id and stop_time (STOP) index below service; TestRFC8907NoAuthorizationArgumentPrecedesAccountingOne fails on any service/cmd/cmd-arg seen before task_id or start_time in START. Both records share accountingArguments.",
+  "requirement_sha": "ad94b439faedce0f",
+  "tests": {
+    "internal/component/tacacs/rfc8907_accounting_test.go::TestRFC8907AccountingArgumentsPrecedeAuthorizationOnes": "d6e03486f174ca78",
+    "internal/component/tacacs/rfc8907_accounting_test.go::TestRFC8907NoAuthorizationArgumentPrecedesAccountingOne": "d6e03486f174ca78"
+  },
+  "units": {
+    "internal/component/tacacs/rfc8907_accounting_test.go::TestRFC8907AccountingArgumentsPrecedeAuthorizationOnes": "ea45a3343001bac1",
+    "internal/component/tacacs/rfc8907_accounting_test.go::TestRFC8907NoAuthorizationArgumentPrecedesAccountingOne": "fc8f1f54ed19d5d9"
+  },
+  "verdict": "enforced"
+}

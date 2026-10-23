@@ -1,0 +1,13 @@
+{
+  "note": "all-ports End Port 65535; single-port 443 discriminator",
+  "requirement_sha": "95053d78048c3563",
+  "tests": {
+    "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131": "f8202c6c1c2c2a71",
+    "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131#2": "f8202c6c1c2c2a71"
+  },
+  "units": {
+    "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131": "9aebd2917a3a0115",
+    "internal/component/ike/engine/ts_narrow_test.go::TestPortEncodingFollowsSection3131#2": "9aebd2917a3a0115"
+  },
+  "verdict": "enforced"
+}

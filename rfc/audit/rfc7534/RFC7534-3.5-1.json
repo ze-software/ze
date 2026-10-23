@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged 2026-09-30. Positive now covers every served Direct-Delegation zone (>=20 probed) through the real handler: SOA at the apex is AA, NOERROR, the zone's own SOA. Negative TestZoneAnswer_OutOfZoneRefused: a name outside every served zone draws REFUSED with AA clear. Records: answerQuestions revert, positive (author) and negative (judge) observed red.",
+  "requirement_sha": "03a38b1e814d657d",
+  "tests": {
+    "internal/plugins/as112/rfc7534_direct_delegation_test.go::TestRFC7534EveryDirectDelegationZoneAuthoritativeAndBare": "067e1ca0797c0743",
+    "internal/plugins/as112/zones_test.go::TestZoneAnswer_OutOfZoneRefused": "99aa05744211cc95",
+    "internal/plugins/as112/zones_test.go::TestZoneAnswer_ReverseZoneNoData": "99aa05744211cc95"
+  },
+  "units": {
+    "internal/plugins/as112/rfc7534_direct_delegation_test.go::TestRFC7534EveryDirectDelegationZoneAuthoritativeAndBare": "d780aabfba166d76",
+    "internal/plugins/as112/zones_test.go::TestZoneAnswer_OutOfZoneRefused": "392cd26698cb502b",
+    "internal/plugins/as112/zones_test.go::TestZoneAnswer_ReverseZoneNoData": "8c2857c3a22d4d1b"
+  },
+  "verdict": "enforced"
+}

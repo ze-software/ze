@@ -1,0 +1,13 @@
+{
+  "note": "Single-polarity row. TestRFC7011TemplateIDsUniqueInSession reads the Template ID of all three Template Sets one Transport Session carries (counter, IPv4 flow, IPv6 flow) and requires each >= 256 and all three distinct, so setting FlowTemplateID to 256 goes red (recorded). The exporter emits no other Template.",
+  "requirement_sha": "c8c69648254189bc",
+  "tests": {
+    "internal/plugins/flowexport/ipfix/integral_rfc7011_test.go::TestRFC7011TemplateIDsUniqueInSession": "d2589d22d82f3024",
+    "internal/plugins/flowexport/ipfix/rfc7011_test.go::TestRFC7011TemplateIDAbove255": "1e121054ccd5ea2a"
+  },
+  "units": {
+    "internal/plugins/flowexport/ipfix/integral_rfc7011_test.go::TestRFC7011TemplateIDsUniqueInSession": "3f33a6573c64643c",
+    "internal/plugins/flowexport/ipfix/rfc7011_test.go::TestRFC7011TemplateIDAbove255": "2b037c09082060c2"
+  },
+  "verdict": "enforced"
+}

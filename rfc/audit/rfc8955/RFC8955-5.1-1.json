@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-16: the unit moved verbatim to core compare_rfc8955_test.go, with only the family identifier renamed. RFC 8955 Section 5.1: \"This ordering function is such that it does not depend on the arrival order of the Flow Specification via BGP and thus is consistent in the network.\" Compare is required to be antisymmetric and reflexive (a<b, b>a, a==a) over type, prefix, operator-byte and width pairs. Core Compare reads only component content (no peer, time or action). The arrival-order sort itself is exercised by RFC5575-5.1-1's TestRFC5575PrecedenceIndependentOfArrival, which this row does not tag.",
+  "requirement_sha": "403ddbf13affec9d",
+  "tests": {
+    "internal/core/bgp/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecPrecedenceFromWire": "8a8b7496f21e3491",
+    "internal/core/bgp/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecPrecedenceFromWire#2": "8a8b7496f21e3491"
+  },
+  "units": {
+    "internal/core/bgp/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecPrecedenceFromWire": "883b15a889ee68c6",
+    "internal/core/bgp/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecPrecedenceFromWire#2": "883b15a889ee68c6"
+  },
+  "verdict": "enforced"
+}

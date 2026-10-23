@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: a ROUTE-REFRESH carrying a type other than 5. TestRouteRefreshType asserts r.Type() == msgtype.MessageType(5), red if the send-side type changes. TestParseHeaderAllTypes asserts header type byte 5 decodes to TypeROUTEREFRESH and bytes 1..4 decode to the other types, red if the receive mapping moves.",
+  "requirement_sha": "4b543ee588a7f965",
+  "tests": {
+    "internal/component/bgp/message/header_test.go::TestParseHeaderAllTypes": "4eb31663a97bb3a8",
+    "internal/component/bgp/message/routerefresh_test.go::TestRouteRefreshType": "30b8b3abfb09b975"
+  },
+  "units": {
+    "internal/component/bgp/message/header_test.go::TestParseHeaderAllTypes": "91ac0506a9739db3",
+    "internal/component/bgp/message/routerefresh_test.go::TestRouteRefreshType": "fc7308e226f16f21"
+  },
+  "verdict": "enforced"
+}

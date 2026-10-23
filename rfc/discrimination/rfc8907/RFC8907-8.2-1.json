@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC8907-8.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907EveryRequestKindLeadsWithService",
+    "unit-sha": "ac682597635bbe34",
+    "claim-sha": "ecaa302fa72efe58",
+    "route": "revert",
+    "producer": "internal/component/tacacs/authenticator.go::handlePass",
+    "producer-sha": "0247cf0da95085bf",
+    "break": "body of handlePass replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8907-8.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907NoRequestKindOmitsService",
+    "unit-sha": "b545550f12dc019f",
+    "claim-sha": "85ca3a4270ef7feb",
+    "route": "revert",
+    "producer": "internal/component/tacacs/authorizer.go::splitTacacsArgs",
+    "producer-sha": "819675c57be7f0b0",
+    "break": "body of splitTacacsArgs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8907-8.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907ServiceArgumentAlwaysFirst",
+    "unit-sha": "23bf1ae3f4b1f54b",
+    "claim-sha": "bd60b231cb661783",
+    "route": "revert",
+    "producer": "internal/component/tacacs/authorizer.go::splitTacacsTokens",
+    "producer-sha": "bef583b61647e3ca",
+    "break": "body of splitTacacsTokens replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8907-8.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907ServiceArgumentPresentForEmptyCommand",
+    "unit-sha": "806b5959c7911592",
+    "claim-sha": "558a21f07a1f1b44",
+    "route": "revert",
+    "producer": "internal/component/tacacs/authorizer.go::splitTacacsTokens",
+    "producer-sha": "bef583b61647e3ca",
+    "break": "body of splitTacacsTokens replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

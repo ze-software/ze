@@ -1,0 +1,15 @@
+{
+  "note": "RFC 9234 Section 4.2: \"An operator may choose to apply a \"strict mode\" in which the receipt of a BGP Role Capability from the remote AS is required.\" \"When operating in the \"strict mode\", if the BGP Role Capability is sent but one is not received, the connection is rejected using the Role Mismatch Notification (code 2, subcode 11).\" role/validate.go::validateOpenRolePair branches on cfg.strict when peerRoles is empty. role-strict-enforcement.ci configures customer and strict true, drops capability 9 from the remote OPEN and requires exact NOTIFICATION 2/11. TestValidateOpenStrictModeRefusesADynamicGroupMemberWithNoRole checks strict refusal with 2/11 and acceptance of the corresponding group member; TestValidateOpenRolePair_NoPeerRole_NoStrict accepts a missing remote role with strict false. The adjacent backward-compatibility sentence says SHOULD ignore absence, not MUST; the negative pins the chosen non-strict behavior without upgrading that SHOULD. The functional fixture remains ASN 1/1 as before; it is supplemented by the role/group unit controls, not described as an eBGP wire fixture. Rejudged independently against RFC source and every tagged carrier on 2026-10-22. Functional judgments use the corresponding test/draft/plugin files, not the unpromoted old-syntax live files. Their inactive NO-TRANSIT import/export policies explicitly end in accept; reactor runEgressPolicyChain applies that final only after mandatory in-process OTC, and OPEN validation is independent. This is a source judgment, not a new runtime or discrimination result; parent owns promotion and native freshness before stamping.",
+  "requirement_sha": "b2d38199632f7300",
+  "tests": {
+    "internal/component/bgp/plugins/role/rfc9234_dynamic_group_test.go::TestValidateOpenStrictModeRefusesADynamicGroupMemberWithNoRole": "2ac8fba09ccdee06",
+    "internal/component/bgp/plugins/role/rfc9234_validate_test.go::TestValidateOpenRolePair_NoPeerRole_NoStrict": "8064b6dabf4a8794",
+    "test/plugin/role-strict-enforcement.ci": "adc6532d5d974899"
+  },
+  "units": {
+    "internal/component/bgp/plugins/role/rfc9234_dynamic_group_test.go::TestValidateOpenStrictModeRefusesADynamicGroupMemberWithNoRole": "f38dcceb5b394a37",
+    "internal/component/bgp/plugins/role/rfc9234_validate_test.go::TestValidateOpenRolePair_NoPeerRole_NoStrict": "67b526c8dcb9acde",
+    "test/plugin/role-strict-enforcement.ci": "adc6532d5d974899"
+  },
+  "verdict": "enforced"
+}

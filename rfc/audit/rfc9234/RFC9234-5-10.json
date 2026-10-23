@@ -1,0 +1,19 @@
+{
+  "note": "non-compliant: OTC procedures applied to a non AFI1/2 SAFI1 family. Egress stamp: TestOTCEgressUnicastOnly (ipv4 multicast, mods.Len()==0) and TestOTCEgressNonUnicastWithdrawalNotProcessed (VPNv4); egress rule 2: TestOTCNonUnicastWithdrawalSkipsOTCProcedures egress_rule_2_does_not_suppress; ingress rule 1: its ingress_rule_1_does_not_reject subtest; family gate: TestIsPayloadUnicastMPUnreachFamily. Negative TestOTCEgressStampMod stamps IPv4 unicast",
+  "requirement_sha": "2374441580699bca",
+  "tests": {
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestIsPayloadUnicastMPUnreachFamily": "7b0a9e434ba435f3",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressNonUnicastWithdrawalNotProcessed": "7b0a9e434ba435f3",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressStampMod": "7b0a9e434ba435f3",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressUnicastOnly": "7b0a9e434ba435f3",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCNonUnicastWithdrawalSkipsOTCProcedures": "7b0a9e434ba435f3"
+  },
+  "units": {
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestIsPayloadUnicastMPUnreachFamily": "951fbe646d051a7b",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressNonUnicastWithdrawalNotProcessed": "a425d071c1f06300",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressStampMod": "0f30c8c530aea5b4",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressUnicastOnly": "e0753292cabd224a",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCNonUnicastWithdrawalSkipsOTCProcedures": "d7905a340caed690"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "two clauses. Sent: TestRFC8665AdjSIDReservedFlagBitsZeroOnSend encodes all five flags for Adj-SID and LAN Adj-SID and fails if bits 5-7 (0x07) are set. Received: TestRFC8665AdjSIDReservedFlagBitsIgnoredOnReceive sets 0x07 and requires no error and a decode equal to the clean one",
+  "requirement_sha": "dcdb9a64eea8b9f7",
+  "tests": {
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665AdjSIDReservedFlagBitsIgnoredOnReceive": "dcc89abea6ba13ce",
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665AdjSIDReservedFlagBitsZeroOnSend": "dcc89abea6ba13ce"
+  },
+  "units": {
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665AdjSIDReservedFlagBitsIgnoredOnReceive": "2265748595d3c01f",
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665AdjSIDReservedFlagBitsZeroOnSend": "e5789bf9f65e6586"
+  },
+  "verdict": "enforced"
+}

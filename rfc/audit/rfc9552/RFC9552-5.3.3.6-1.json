@@ -1,0 +1,13 @@
+{
+  "note": "OSPFv2 prefix opaque from Extended Prefix LSA reaches TLV 1157; Extended Link LSA provenance refused; single-member allowlist, so the pair discriminates it",
+  "requirement_sha": "0e1873f96ab3d623",
+  "tests": {
+    "internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go::TestRFC9552NativeOpaqueOSPFv2PrefixProvenance": "d43002f22020b856",
+    "internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go::TestRFC9552NativeOpaqueOSPFv2PrefixProvenance#2": "d43002f22020b856"
+  },
+  "units": {
+    "internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go::TestRFC9552NativeOpaqueOSPFv2PrefixProvenance": "7df62daffbe05108",
+    "internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go::TestRFC9552NativeOpaqueOSPFv2PrefixProvenance#2": "7df62daffbe05108"
+  },
+  "verdict": "enforced"
+}

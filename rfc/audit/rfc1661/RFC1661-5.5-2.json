@@ -1,0 +1,13 @@
+{
+  "note": "Independent re-judge (R10). TestTerminateRequestIdentifierChanges: Terminate-Request, a Terminate-Ack with its Identifier accepted as a valid reply (state Closed asserted), a second Terminate-Request; red when the second reuses the Identifier, and only the two requests are written. Data is empty on both and asserted so: sendTerminateRequest always writes nil Data, so the Data-change clause has no reachable case. The negative tag reads the same Identifier assertion as the positive; the send-side MUST has no refusing input, so this is in substance a single-polarity positive (a marker on the row would say so). The recorded break panics sendTerminateRequest; the reply-clause break (dropping terminateID++) is caught by reading the assertion.",
+  "requirement_sha": "db76e473ecf13877",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestTerminateRequestIdentifierChanges": "034fb31a9e383e0e",
+    "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestTerminateRequestIdentifierChanges#2": "034fb31a9e383e0e"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestTerminateRequestIdentifierChanges": "fb53993a1897b2e5",
+    "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestTerminateRequestIdentifierChanges#2": "fb53993a1897b2e5"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,79 @@
+[
+  {
+    "rid": "RFC5881-3-2",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/engine/rfc5881_first_packet_binding_test.go::TestRFC5881FirstPacketBoundToRemoteInterfaceAndProtocol",
+    "unit-sha": "3d14b21b71d9bf48",
+    "claim-sha": "76b383e369efe504",
+    "route": "revert",
+    "producer": "internal/component/bfd/engine/loop.go::handleInbound",
+    "producer-sha": "f721533856857321",
+    "break": "body of handleInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5881-3-2",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/engine/rfc5881_first_packet_binding_test.go::TestRFC5881FirstPacketBoundToRemoteInterfaceAndProtocol",
+    "unit-sha": "3d14b21b71d9bf48",
+    "claim-sha": "d38c1cb79265f019",
+    "route": "revert",
+    "producer": "internal/component/bfd/engine/loop.go::handleInbound",
+    "producer-sha": "f721533856857321",
+    "break": "body of handleInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5881-3-2",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/engine/rfc5881_link_local_first_packet_test.go::TestFirstPacketSelectsALinkLocalPeer",
+    "unit-sha": "144be2366e84270e",
+    "claim-sha": "03a8ceeb7bd4762d",
+    "route": "mutant",
+    "producer": "internal/component/bfd/engine/engine.go::reconcileZone",
+    "producer-sha": "cdf9895a814b4106",
+    "break": "line 305: \"zone != \\\"\\\"\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC5881-3-2",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/engine/rfc5881_link_local_first_packet_test.go::TestFirstPacketTakesTheLinkFromTheZone",
+    "unit-sha": "ab440c2aed0e8016",
+    "claim-sha": "786b2ef42af7d1dd",
+    "route": "mutant",
+    "producer": "internal/component/bfd/engine/engine.go::reconcileZone",
+    "producer-sha": "cdf9895a814b4106",
+    "break": "line 305: \"zone != \\\"\\\"\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC5881-3-2",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/engine/rfc5881_link_local_first_packet_test.go::TestTwoLinkLocalSessionsStayApart",
+    "unit-sha": "553191fa735c1e81",
+    "claim-sha": "dde8b86341820804",
+    "route": "mutant",
+    "producer": "internal/component/bfd/engine/engine.go::reconcileZone",
+    "producer-sha": "cdf9895a814b4106",
+    "break": "line 305: \"zone != \\\"\\\"\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC5881-3-2",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881FirstPacketMatchesByTuple",
+    "unit-sha": "30662db0eae0fa96",
+    "claim-sha": "3891362651e294ac",
+    "route": "revert",
+    "producer": "internal/component/bfd/engine/loop.go::handleInbound",
+    "producer-sha": "f721533856857321",
+    "break": "body of handleInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5881-3-2",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881FirstPacketWrongSourceDropped",
+    "unit-sha": "94e0727348755163",
+    "claim-sha": "48d03f8273490cb8",
+    "route": "revert",
+    "producer": "internal/component/bfd/engine/loop.go::handleInbound",
+    "producer-sha": "f721533856857321",
+    "break": "body of handleInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,17 @@
+{
+  "note": "Rejudged 2026-09-29 on the narrowed row (verbatim second sentence of 5.4.2.6; the first sentence is RFC8907-5.4.2.6-1, feature-declined; correction recorded). Negative TestRFC8907NoRequestCarriesEnableService checks the authen_service octet of all five requests Ze sends (PAP START and session/command authorization from the wire, accounting START/STOP) and requires none be 0x02; it is no longer the positive's assertion in a second hat. Positive TestRFC8907PAPLoginOnWireCarriesLoginService requires LOGIN on the wire START.",
+  "requirement_sha": "7d1952978907e2f7",
+  "tests": {
+    "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907NoRequestCarriesEnableService": "fb302ebfa0d9b135",
+    "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907PAPLoginOnWireCarriesLoginService": "fb302ebfa0d9b135",
+    "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907LoginStartCarriesLoginService": "226ab125232efc32",
+    "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907LoginStartNeverCarriesEnableService": "226ab125232efc32"
+  },
+  "units": {
+    "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907NoRequestCarriesEnableService": "343bf3bc5a2d3e45",
+    "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907PAPLoginOnWireCarriesLoginService": "305e717107f48a1d",
+    "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907LoginStartCarriesLoginService": "04f220c0abc1be87",
+    "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907LoginStartNeverCarriesEnableService": "ca342f3735210996"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,15 @@
+{
+  "note": "(a) forbidden: STOP with WATCHDOG set. (b) TestRFC8907AccountingStopWatchdogCombinationRefused requires errRequestInvalid for STOP|WATCHDOG; TestRFC8907StopRecordNeverCarriesWatchdog requires Flags&WATCHDOG == 0 on the queued STOP; TestRFC8907StopRecordCarriesStopFlagOnly requires Flags == STOP.",
+  "requirement_sha": "52dd37fb9ba1f50e",
+  "tests": {
+    "internal/component/tacacs/rfc8907_accounting_test.go::TestRFC8907StopRecordCarriesStopFlagOnly": "d6e03486f174ca78",
+    "internal/component/tacacs/rfc8907_accounting_test.go::TestRFC8907StopRecordNeverCarriesWatchdog": "d6e03486f174ca78",
+    "internal/component/tacacs/rfc8907_validation_test.go::TestRFC8907AccountingStopWatchdogCombinationRefused": "59ca691aca621600"
+  },
+  "units": {
+    "internal/component/tacacs/rfc8907_accounting_test.go::TestRFC8907StopRecordCarriesStopFlagOnly": "a81ed9cb4b325beb",
+    "internal/component/tacacs/rfc8907_accounting_test.go::TestRFC8907StopRecordNeverCarriesWatchdog": "12ddaf8aa3f1a34e",
+    "internal/component/tacacs/rfc8907_validation_test.go::TestRFC8907AccountingStopWatchdogCombinationRefused": "a62d0e255ccbde98"
+  },
+  "verdict": "enforced"
+}

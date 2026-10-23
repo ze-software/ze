@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC3209-4.2.4-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/rfc3209_engine_label_test.go::TestRFC3209IngressProcessesResvLabel",
+    "unit-sha": "e48f6591b11f31cd",
+    "claim-sha": "f193e16440833dec",
+    "route": "mutant",
+    "producer": "internal/plugins/rsvpte/reservation.go::acceptReservation",
+    "producer-sha": "be57c2a7bd537cdc",
+    "break": "line 213: \"repaired\" -\u003e \"true\""
+  },
+  {
+    "rid": "RFC3209-4.2.4-3",
+    "polarity": "negative",
+    "unit": "internal/plugins/rsvpte/rfc3209_engine_label_test.go::TestRFC3209IngressRefusesResvWithoutLabel",
+    "unit-sha": "9641c179a97f7e30",
+    "claim-sha": "41861647f7024bc7",
+    "route": "mutant",
+    "producer": "internal/plugins/rsvpte/message_validation.go::checkFlowDescriptors",
+    "producer-sha": "983565323b1a5a1e",
+    "break": "line 197: \"==\" -\u003e \"!=\""
+  }
+]

@@ -1,0 +1,17 @@
+{
+  "note": "Every PDU class of the row now has both polarities. IS-IS Hello, L1/L2 LSP and L1/L2 CSNP/PSNP: auth_rfc1195_test.go TestRFC1195PDUClassSignedWithItsScope and TestRFC1195PDUClassRefusedUnderOtherScopes (recorded on signLevelPDU). ISO 9542 IS Hello, the clause the earlier verdict found missing: TestRFC1195ISHCarriesPerLinkPassword configures distinct link, area and domain cleartext passwords, requires the transmitted ISH to verify with the link password and with neither other, and a link-password peer ISH to initialize; TestRFC1195ISHRefusesAreaAndDomainPasswords requires a peer ISH carrying the area or domain password to create no adjacency state. Recorded red on signISHPDU and verifyISHFrame.",
+  "requirement_sha": "18e4b53ad174feed",
+  "tests": {
+    "internal/plugins/isis/rfc1195_auth_test.go::TestRFC1195PDUClassRefusedUnderOtherScopes": "a9a6dbe2e81ed00b",
+    "internal/plugins/isis/rfc1195_auth_test.go::TestRFC1195PDUClassSignedWithItsScope": "a9a6dbe2e81ed00b",
+    "internal/plugins/isis/rfc1195_ish_scope_test.go::TestRFC1195ISHCarriesPerLinkPassword": "da65f8d64c204d56",
+    "internal/plugins/isis/rfc1195_ish_scope_test.go::TestRFC1195ISHRefusesAreaAndDomainPasswords": "da65f8d64c204d56"
+  },
+  "units": {
+    "internal/plugins/isis/rfc1195_auth_test.go::TestRFC1195PDUClassRefusedUnderOtherScopes": "d9d53879b7018d37",
+    "internal/plugins/isis/rfc1195_auth_test.go::TestRFC1195PDUClassSignedWithItsScope": "9a8f0061db6c337a",
+    "internal/plugins/isis/rfc1195_ish_scope_test.go::TestRFC1195ISHCarriesPerLinkPassword": "0b1dd31d324001e3",
+    "internal/plugins/isis/rfc1195_ish_scope_test.go::TestRFC1195ISHRefusesAreaAndDomainPasswords": "9dcf43f48428674f"
+  },
+  "verdict": "enforced"
+}

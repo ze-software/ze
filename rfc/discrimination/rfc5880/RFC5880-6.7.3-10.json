@@ -1,0 +1,57 @@
+[
+  {
+    "rid": "RFC5880-6.7.3-10",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880MeticulousOutsideWindowDiscarded",
+    "unit-sha": "4248b1e63c76d7e0",
+    "claim-sha": "53e109e75278d687",
+    "route": "revert",
+    "producer": "internal/component/bfd/auth/meticulous.go::Check",
+    "producer-sha": "0d7ec3911e063f57",
+    "break": "body of Check replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.7.3-10",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880MeticulousWindowFollowsReceivedDetectMult",
+    "unit-sha": "bb3fdde7aa04c99b",
+    "claim-sha": "fc1c02fc12d493d0",
+    "route": "revert",
+    "producer": "internal/component/bfd/auth/meticulous.go::Check",
+    "producer-sha": "0d7ec3911e063f57",
+    "break": "body of Check replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.7.3-10",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880MeticulousSequenceInsideWindowAccepted",
+    "unit-sha": "ede166b63a88a6c1",
+    "claim-sha": "be84840e083edf82",
+    "route": "revert",
+    "producer": "internal/component/bfd/auth/meticulous.go::Check",
+    "producer-sha": "0d7ec3911e063f57",
+    "break": "body of Check replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.7.3-10",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880MeticulousSequenceOutsideWindowDiscarded",
+    "unit-sha": "c49e6221da8f6115",
+    "claim-sha": "642764e430419f93",
+    "route": "revert",
+    "producer": "internal/component/bfd/auth/meticulous.go::Check",
+    "producer-sha": "0d7ec3911e063f57",
+    "break": "body of Check replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.7.3-10",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/session/rfc5880_auth_wrap_test.go::TestRFC5880SequenceFieldOtherThanXmitAuthSeqDiscarded",
+    "unit-sha": "0ce70cc718a74088",
+    "claim-sha": "e440affa35bc54be",
+    "route": "revert",
+    "producer": "internal/component/bfd/auth/meticulous.go::Check",
+    "producer-sha": "0d7ec3911e063f57",
+    "break": "body of Check replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

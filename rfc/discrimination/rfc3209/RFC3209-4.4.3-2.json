@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC3209-4.4.3-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/rfc3209_rro_test.go::TestRFC3209RROLabelRecordFollowsAddress",
+    "unit-sha": "a36675c677cec5bd",
+    "claim-sha": "6089c371b12a6dd2",
+    "route": "mutant",
+    "producer": "internal/plugins/rsvpte/rro.go::prependRRO",
+    "producer-sha": "128a23cf9593adb5",
+    "break": "line 41: \"recordLabel != 0\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC3209-4.4.3-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/rsvpte/rfc3209_rro_test.go::TestRFC3209RRONoLabelRecordWithoutAddress",
+    "unit-sha": "8868262fb6bd3882",
+    "claim-sha": "ffe1739f1ebb1687",
+    "route": "mutant",
+    "producer": "internal/plugins/rsvpte/rro.go::prependRRO",
+    "producer-sha": "128a23cf9593adb5",
+    "break": "line 39: \"self.IsValid()\" -\u003e \"true\""
+  }
+]

@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: a non-zero subcode when none is specified. TestRFC4271NotificationUnspecifiedSubcodeIsZero asserts data[HeaderLen+1]==0 on the packed NOTIFICATION and 0 after decode. The negative is a same-producer contrast (three specified subcodes packed verbatim and non-zero), which rules out an encoder that writes a constant zero, so the zero is shown to come from absence.",
+  "requirement_sha": "1a0863a8cbd8cbf8",
+  "tests": {
+    "internal/component/bgp/message/rfc4271_test.go::TestRFC4271NotificationSpecifiedSubcodePreserved": "abbe4d642c22df9a",
+    "internal/component/bgp/message/rfc4271_test.go::TestRFC4271NotificationUnspecifiedSubcodeIsZero": "abbe4d642c22df9a"
+  },
+  "units": {
+    "internal/component/bgp/message/rfc4271_test.go::TestRFC4271NotificationSpecifiedSubcodePreserved": "6142e9cfc5efaf08",
+    "internal/component/bgp/message/rfc4271_test.go::TestRFC4271NotificationUnspecifiedSubcodeIsZero": "dbc6fc5095fddee5"
+  },
+  "verdict": "enforced"
+}

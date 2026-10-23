@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC2328-4.4-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/transport/rfc2328_socket_linux_test.go::TestOSPFMulticastMembershipInstalled",
+    "unit-sha": "8d0a3af9a2d0c753",
+    "claim-sha": "c693ebcdfb96ac42",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/transport/backend_linux.go::joinGroup",
+    "producer-sha": "5e1c79ad5397380a",
+    "break": "body of joinGroup replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-4.4-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/transport/rfc2328_socket_linux_test.go::TestOSPFMulticastMembershipRefusesForeignGroup",
+    "unit-sha": "f9f6a6ce5650e372",
+    "claim-sha": "166c864d3aa682a9",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/transport/backend_linux.go::joinGroup",
+    "producer-sha": "5e1c79ad5397380a",
+    "break": "body of joinGroup replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-4.4-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go::TestOSPFTransportAllDRoutersReceive",
+    "unit-sha": "ef6d98cf4176c0e4",
+    "claim-sha": "b53cd731e3140e51",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/transport/backend_linux.go::leaveGroup",
+    "producer-sha": "05f13fb311bd27b9",
+    "break": "body of leaveGroup replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-4.4-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go::TestOSPFTransportVethMulticastRoundTrip",
+    "unit-sha": "912dc70cf6c0619d",
+    "claim-sha": "af086876a33744e9",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/transport/backend_linux.go::setMulticastOptions",
+    "producer-sha": "57357c85c1ce52bc",
+    "break": "body of setMulticastOptions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

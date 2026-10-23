@@ -1,0 +1,57 @@
+[
+  {
+    "rid": "RFC4271-5.1.3-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ThirdPartyNextHopCanBeDisabled",
+    "unit-sha": "def7fe9b4fff9e7b",
+    "claim-sha": "3b2ab24b4bec337a",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/peer_forward_facts.go::precomputeNextHop",
+    "producer-sha": "d9473e369d277c3a",
+    "break": "body of precomputeNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-5.1.3-3",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ThirdPartyNextHopDisableFailsClosed",
+    "unit-sha": "4898d7974cba978a",
+    "claim-sha": "d4175e75ca812f34",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/peer_forward_facts.go::precomputeNextHop",
+    "producer-sha": "d9473e369d277c3a",
+    "break": "body of precomputeNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-5.1.3-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_third_party_nexthop_test.go::TestRFC4271NextHopSelfDisablesThirdPartyNextHopOnTheWire",
+    "unit-sha": "2d6aec7a096cc831",
+    "claim-sha": "cff5c50259ee9a07",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/peer_forward_facts.go::applyFactsNextHop",
+    "producer-sha": "1d62d7092f0bab86",
+    "break": "body of applyFactsNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-5.1.3-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_third_party_nexthop_test.go::TestRFC4271NextHopSelfWithAutoLocalAddressSendsTheConnectedEndpoint",
+    "unit-sha": "67d2969e2d08f190",
+    "claim-sha": "2ab3ab50d80a56e4",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_connection.go::connectedLocalAddress",
+    "producer-sha": "f490def7e230b82a",
+    "break": "body of connectedLocalAddress replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-5.1.3-3",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_third_party_nexthop_test.go::TestRFC4271NextHopSelfWithNoLocalAddressWithholdsTheRoute",
+    "unit-sha": "57aac84e8cdc3482",
+    "claim-sha": "6c76512044648e27",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/peer_forward_facts.go::precomputeNextHop",
+    "producer-sha": "d9473e369d277c3a",
+    "break": "body of precomputeNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

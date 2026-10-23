@@ -1,0 +1,57 @@
+[
+  {
+    "rid": "RFC8669-3.1-5",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/config/rfc8669_test.go::TestRFC8669LabelIndexTLVReservedAndFlagsClearOnTransmission",
+    "unit-sha": "ddad9bf822653523",
+    "claim-sha": "454d21938b9ffecb",
+    "route": "revert",
+    "producer": "internal/core/bgp/attribute/prefixsid.go::EncodePrefixSID",
+    "producer-sha": "15e1bf769285daa1",
+    "break": "body of EncodePrefixSID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8669-3.1-5",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/config/rfc8669_test.go::TestRFC8669SRGBFormLabelIndexReservedAndFlagsClearOnTransmission",
+    "unit-sha": "f7716b96c27c0ca4",
+    "claim-sha": "efa2d2d9ede260ef",
+    "route": "revert",
+    "producer": "internal/core/bgp/attribute/prefixsid.go::parsePrefixSIDWithSRGB",
+    "producer-sha": "b23e3a84eafeef4f",
+    "break": "body of parsePrefixSIDWithSRGB replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8669-3.1-5",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc8669_label_index_family_test.go::TestClearTransmittedLabelIndexOnlyOnLabeledUnicast",
+    "unit-sha": "51dc6f5ef5f421dc",
+    "claim-sha": "9eab0a2e7029140c",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_prefix_sid.go::clearLabelIndexTLVs",
+    "producer-sha": "539539cdde15ec30",
+    "break": "body of clearLabelIndexTLVs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8669-3.1-5",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go::TestRFC8669LabelIndexTransmissionClearsReservedAndFlags",
+    "unit-sha": "99516c2eb5d4c8e1",
+    "claim-sha": "e5628584d5c4fd01",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_prefix_sid.go::clearLabelIndexTLVs",
+    "producer-sha": "539539cdde15ec30",
+    "break": "body of clearLabelIndexTLVs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8669-3.1-5",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go::TestRFC8669LabelIndexTransmissionClearsReservedAndFlags",
+    "unit-sha": "99516c2eb5d4c8e1",
+    "claim-sha": "0b4809dfddce4ef0",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_prefix_sid.go::clearLabelIndexTLVs",
+    "producer-sha": "539539cdde15ec30",
+    "break": "body of clearLabelIndexTLVs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

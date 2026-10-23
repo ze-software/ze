@@ -1,0 +1,21 @@
+{
+  "note": "Re-judged 2026-10-12 (independent auditor). STALE from 96ec49327b (owner-approved lint only): TestRFC9085NativeExportAttributePlacement replaces counted byte loops with range byte(3) (same 0,1,2), an if/else-if chain on kind with a tagless switch carrying the same arms and default Fatalf, and a dead route := 0 initialisation with a declaration where it is assigned. No input or assertion changed. Verdict stands. RFC 9085 \u00a72.2 says, \u201cThese TLVs should only be added to the BGP-LS Attribute associated with the Link NLRI that describes the link of the IGP node that is originating the corresponding IGP TLV/sub-TLV described below.\u201d Native IS-IS LSP and OSPFv2/v3 LSDB tests establish association of emitted 1099/1100 with the advertising router and correct link, including parallel links and tested topology identities, while populated Node/Prefix controls exclude link attributes. Separate replace/reconcile/export tests preserve that association into Link NLRIs, assert complete expected interface-ID/address descriptors, exact SID values and multiplicity, and reject cross-object placement. This proves the conditional placement duty for the current native producers, not implementation of all \u00a72.2 features: native IS-IS 1172 remains absent, and RFC 9085 defines no corresponding OSPF bundle feature. It is composed native-derivation and exporter-association evidence, not a single integrated IGP-daemon-to-peer run. Independent source judgment: BGPLSPlacementWholeReview. Current five-root race-enabled observation: job-bgpls-complete-object-identity-after-9a6e8f72.log.",
+  "requirement_sha": "810bc3229000560f",
+  "tests": {
+    "internal/component/bgp/plugins/ls_export/rfc9085_export_placement_test.go::TestRFC9085NativeExportAttributePlacement": "16ef7f3c99da2ebe",
+    "internal/component/bgp/plugins/ls_export/rfc9085_export_placement_test.go::TestRFC9085NativeExportAttributePlacement#2": "16ef7f3c99da2ebe",
+    "internal/plugins/isis/rfc9085_bgpls_object_placement_test.go::TestRFC9085ISISLinkPlacement": "a91e66326c29a1a9",
+    "internal/plugins/isis/rfc9085_bgpls_object_placement_test.go::TestRFC9085ISISLinkPlacement#2": "a91e66326c29a1a9",
+    "internal/plugins/ospf/rfc9085_bgpls_object_placement_test.go::TestRFC9085OSPFLinkPlacement": "6840f10ea9e875b5",
+    "internal/plugins/ospf/rfc9085_bgpls_object_placement_test.go::TestRFC9085OSPFLinkPlacement#2": "6840f10ea9e875b5"
+  },
+  "units": {
+    "internal/component/bgp/plugins/ls_export/rfc9085_export_placement_test.go::TestRFC9085NativeExportAttributePlacement": "9a9abae9215589d9",
+    "internal/component/bgp/plugins/ls_export/rfc9085_export_placement_test.go::TestRFC9085NativeExportAttributePlacement#2": "9a9abae9215589d9",
+    "internal/plugins/isis/rfc9085_bgpls_object_placement_test.go::TestRFC9085ISISLinkPlacement": "a9eeba75e90a0a0d",
+    "internal/plugins/isis/rfc9085_bgpls_object_placement_test.go::TestRFC9085ISISLinkPlacement#2": "a9eeba75e90a0a0d",
+    "internal/plugins/ospf/rfc9085_bgpls_object_placement_test.go::TestRFC9085OSPFLinkPlacement": "2d0b4d0e2545984c",
+    "internal/plugins/ospf/rfc9085_bgpls_object_placement_test.go::TestRFC9085OSPFLinkPlacement#2": "2d0b4d0e2545984c"
+  },
+  "verdict": "enforced"
+}

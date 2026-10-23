@@ -1,0 +1,25 @@
+{
+  "note": "Re-judged 2026-10-12 (independent auditor). SHIFTED by 4e731b2d96 (owner-approved lint-only reactor test edits). The tagged unit is byte-identical (gate-verified); the file-level changes are comment punctuation, slices.Concat over the same bytes, joined appends, strings.SplitSeq, newDefaultOriginatePeer taking its fixed addresses from constants with the same values, and registerTypeLenRecognizer losing a lo every caller passed as 1, none of which changes what a helper this unit calls produces. Verdict stands. independently re-read RFC7311 \u00a73.4.3, \u201cIn all the computations discussed in this section, the AIGP value MUST be capped at its maximum unsigned value 0xffffffffffffffff\u201d; the four-carrier composition covers each accumulation site rather than merely testing Add\u2014TestRFC7311DirectLinkCostNeverWrapsOrDisappears and TestAIGPForwardedMetricsReachFinalWire cover finite/overflowing source additions through applyFactsAIGP and the final writer, TestAIGPRecursiveDistanceUsesReceivedMetrics covers BGP-hop accumulation in igpcost.Resolve with exact finite 330/530 and overflowing maximum, and the corrected recursive-wire carrier covers terminal accumulation at MaxUint64\u22125 plus 7, source-only overflow at MaxUint64\u221250 plus 7 plus received 100, and exact 507 recovery after each; execution evidence inspected is Main's after.sh and job-aigp-wire-readiness-after-race20-bfa85e8a.log, showing controlled-overlay root20 plus ordinary changed-root20 and received-recursive-root20 with both depth subcases passing and status 0, while the original full-reactor census remains 2446 roots, 48919 passes and one failure\u2014not a green full run The corrected controlled-schedule carrier passed twenty race iterations, and the ordinary corrected carrier and received-recursive companion each passed twenty race iterations in job-aigp-wire-readiness-after-race20-bfa85e8a.log. Native job-aigp-wire-readiness-native-renewals-391566bc.log successfully renews both polarities of both changed claims: Resolve for RFC7311-3.4.3-2 and readvertiseAIGP for RFC7311-3.4.3-7. These producer-halting bindings are distinct from the controlled-schedule synchronization proof. The original full-reactor run remains red; no whole-corpus freshness or terminal-IGP threshold implementation is claimed. Re-judged 2026-10-21 (spec-bgp-rs-replacement-on-withdrawal Phase 3b, author of the change): the only edit to the tagged units TestAIGPForwardedMetricsReachFinalWire and TestRFC7311DirectLinkCostNeverWrapsOrDisappears is the nil source encoding context added to their buildWithdrawalPayload call; both pass a unicast payload, for which buildWithdrawalPayload never reads the context (a family with no nlrisplit.WithdrawalWriter is copied as before), so every assertion and every byte they check is unchanged. Verdict stands.",
+  "requirement_sha": "b0ac1abb10e91bc0",
+  "tests": {
+    "internal/component/bgp/reactor/rfc7311_direct_link_test.go::TestRFC7311DirectLinkCostNeverWrapsOrDisappears": "2f2c9cf15cc845d3",
+    "internal/component/bgp/reactor/rfc7311_direct_link_test.go::TestRFC7311DirectLinkCostNeverWrapsOrDisappears#2": "2f2c9cf15cc845d3",
+    "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire": "11e7d83c10c1bca3",
+    "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire#2": "11e7d83c10c1bca3",
+    "internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go::TestRFC7311RecursiveAIGPChangeReachesWire": "f147cc30b83734c8",
+    "internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go::TestRFC7311RecursiveAIGPChangeReachesWire#2": "f147cc30b83734c8",
+    "internal/component/sysrib/rfc7311_metric_test.go::TestAIGPRecursiveDistanceUsesReceivedMetrics": "23e963e4106c6a6f",
+    "internal/component/sysrib/rfc7311_metric_test.go::TestAIGPRecursiveDistanceUsesReceivedMetrics#2": "23e963e4106c6a6f"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc7311_direct_link_test.go::TestRFC7311DirectLinkCostNeverWrapsOrDisappears": "c03b979bc8b9f8be",
+    "internal/component/bgp/reactor/rfc7311_direct_link_test.go::TestRFC7311DirectLinkCostNeverWrapsOrDisappears#2": "c03b979bc8b9f8be",
+    "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire": "d801386b8495e4e9",
+    "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire#2": "d801386b8495e4e9",
+    "internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go::TestRFC7311RecursiveAIGPChangeReachesWire": "b8b0da3b113e4268",
+    "internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go::TestRFC7311RecursiveAIGPChangeReachesWire#2": "b8b0da3b113e4268",
+    "internal/component/sysrib/rfc7311_metric_test.go::TestAIGPRecursiveDistanceUsesReceivedMetrics": "8c1b0962325795a0",
+    "internal/component/sysrib/rfc7311_metric_test.go::TestAIGPRecursiveDistanceUsesReceivedMetrics#2": "8c1b0962325795a0"
+  },
+  "verdict": "enforced"
+}

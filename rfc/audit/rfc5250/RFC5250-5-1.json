@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-21 (round 4 judge). Unit changed only by added 5-4 tag lines. Real SPF: not usable while SPF is pending, not usable for a reached router without the E-bit (no ASBR entry), not usable for an unknown originator, usable once the E-bit Router-LSA yields an ASBR entry; the verdict therefore comes from the ASBR routing table entry. Records on spf/reachability.go::ASBRReachable.",
+  "requirement_sha": "23a09580e5b0c1fe",
+  "tests": {
+    "internal/plugins/ospf/rfc5250_asbr_lookup_test.go::TestRFC5250Type11LooksUpOriginatorRoutingEntry": "1aff1dc1dc617118",
+    "internal/plugins/ospf/rfc5250_asbr_lookup_test.go::TestRFC5250Type11LooksUpOriginatorRoutingEntry#2": "1aff1dc1dc617118"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc5250_asbr_lookup_test.go::TestRFC5250Type11LooksUpOriginatorRoutingEntry": "70ced49ed3fc8a16",
+    "internal/plugins/ospf/rfc5250_asbr_lookup_test.go::TestRFC5250Type11LooksUpOriginatorRoutingEntry#2": "70ced49ed3fc8a16"
+  },
+  "verdict": "enforced"
+}

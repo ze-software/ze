@@ -1,0 +1,11 @@
+{
+  "note": "Non-compliant behaviour: non-zero Originator SRGB Flags emitted. config/rfc8669_test.go::TestRFC8669OriginatorSRGBTLVFlagsClearOnTransmission asserts require.Equal([]byte{0,0}, srgb[3:5]) on EncodePrefixSID output. Single-polarity marker present.",
+  "requirement_sha": "0dbfd3b32f15d2b5",
+  "tests": {
+    "internal/component/bgp/config/rfc8669_test.go::TestRFC8669OriginatorSRGBTLVFlagsClearOnTransmission": "e3e1f3a30a4af6f1"
+  },
+  "units": {
+    "internal/component/bgp/config/rfc8669_test.go::TestRFC8669OriginatorSRGBTLVFlagsClearOnTransmission": "acb10accb7b04bcd"
+  },
+  "verdict": "enforced"
+}

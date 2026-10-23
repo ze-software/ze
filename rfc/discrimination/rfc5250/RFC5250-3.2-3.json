@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5250-3.2-3",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/lsdb/rfc5250_dd_summary_test.go::TestRFC5250SummaryListsOpaqueAndGlobalLSAs",
+    "unit-sha": "44cb441d782eceff",
+    "claim-sha": "5d2a0ef53febd90b",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/lsdb/lsdb.go::Summary",
+    "producer-sha": "f3b533b8d260fc58",
+    "break": "body of Summary replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5250-3.2-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/lsdb/rfc5250_dd_summary_test.go::TestRFC5250SummaryOmitsGlobalLSAsInStubAndNSSA",
+    "unit-sha": "f9c659a9cdc0bb05",
+    "claim-sha": "ffffbcbc637a56e8",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/lsdb/lsdb.go::Summary",
+    "producer-sha": "f3b533b8d260fc58",
+    "break": "body of Summary replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

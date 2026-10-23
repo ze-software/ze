@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2131-4.4.5-8",
+    "polarity": "positive",
+    "unit": "internal/plugins/iface/dhcp/rfc2131_dhcp_v4_timers_linux_test.go::TestV4RetransmitSchedule",
+    "unit-sha": "09cac805ec75c59b",
+    "claim-sha": "f5097d806263e326",
+    "route": "revert",
+    "producer": "internal/plugins/iface/dhcp/dhcp_v4_linux.go::v4NextAttempt",
+    "producer-sha": "6a9fc65c9227f751",
+    "break": "body of v4NextAttempt replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2131-4.4.5-8",
+    "polarity": "negative",
+    "unit": "internal/plugins/iface/dhcp/rfc2131_dhcp_v4_timers_linux_test.go::TestV4RetransmitSchedule",
+    "unit-sha": "09cac805ec75c59b",
+    "claim-sha": "9bf01710217fd5f0",
+    "route": "revert",
+    "producer": "internal/plugins/iface/dhcp/dhcp_v4_linux.go::v4NextAttempt",
+    "producer-sha": "6a9fc65c9227f751",
+    "break": "body of v4NextAttempt replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

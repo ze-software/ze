@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged 2026-10-21 (independent auditor, authored none of 32ff59085b). Section 3.1.3.1 Endpoint Address Length 32 or 128, \"Any other value is considered as an invalid and a malformed Endpoint Address.\" The changed unit is the negative TestMUPWellFormedRouteKeptAtIngress: its two T1ST cases gained the zero Source Address Length octet and are now complete routes under the corrected parser; every other case, and every assertion (section kept whole, Withdrawn and Unkeyable empty, Discarded zero), is unchanged. The ingress positive case (length 24) is unchanged and remains confounded (with 3 endpoint octets the trailing 0x01 reads as an invalid Source Address Length), which is why the isolating unit TestMUPT1STEndpointLengthIsTheOnlyFault (unchanged, its addressBitsOctets record verifies) carries this proof. Negative 32 and 128 kept, now complete routes. Re-taken parseBodyT1ST records observed red. ",
+  "requirement_sha": "f050c5d3bfc23c82",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPMalformedRouteTreatedAsWithdrawnAtIngress": "12c86ed974d8d4cd",
+    "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPWellFormedRouteKeptAtIngress": "12c86ed974d8d4cd",
+    "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_t1st_address_length_test.go::TestMUPT1STEndpointLengthIsTheOnlyFault": "03ae6e37b7f40342"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPMalformedRouteTreatedAsWithdrawnAtIngress": "ce08ffce82ad21e4",
+    "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPWellFormedRouteKeptAtIngress": "4768c016671053bd",
+    "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_t1st_address_length_test.go::TestMUPT1STEndpointLengthIsTheOnlyFault": "bbbac8de693f31c2"
+  },
+  "verdict": "enforced"
+}

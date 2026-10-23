@@ -1,0 +1,13 @@
+{
+  "note": "The row obliges every Section 4.3 procedure. The tagged units prove one: TestRFC9494_LLGRStaleRouteIsLeastPreferred fails unless attach-community raises StaleLevel to the depreference threshold and the stale LOCAL_PREF 500 candidate loses to a fresh LOCAL_PREF 100; the negative keeps an unmarked route competing normally. The other Section 4.3 procedures (LLGR_STALE on receipt from the peer, NO_LLGR handling, advertisement restrictions) have no assertion in these units.",
+  "requirement_sha": "f0d920fae4f620e9",
+  "tests": {
+    "internal/component/bgp/plugins/rib/rfc9494_test.go::TestRFC9494_LLGRStaleRouteIsLeastPreferred": "e5d6319873861ae8",
+    "internal/component/bgp/plugins/rib/rfc9494_test.go::TestRFC9494_RouteWithoutLLGRStaleNotLeastPreferred": "e5d6319873861ae8"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rib/rfc9494_test.go::TestRFC9494_LLGRStaleRouteIsLeastPreferred": "ccf144f073d63fff",
+    "internal/component/bgp/plugins/rib/rfc9494_test.go::TestRFC9494_RouteWithoutLLGRStaleNotLeastPreferred": "d5abf184bff4c826"
+  },
+  "verdict": "weak"
+}

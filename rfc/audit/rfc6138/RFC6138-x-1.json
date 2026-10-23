@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged 2026-10-21. The precondition negative (SPF not yet run) is gone. Positive TestRFC6138PendingSPFRunBeforeCutEdgeAfterLinkLoss: the P2P links are withdrawn with a one-hour SPF pending, IsCutEdge answers true from the pending graph; negative TestRFC6138PendingSPFNeverLeavesStaleCutEdge: the reverse change answers false, never the stale true. TestLDPSyncCutEdgeUsesFreshSPF: a nil graph would answer true. Records on flushPendingSPF.",
+  "requirement_sha": "3b339a011fded81d",
+  "tests": {
+    "internal/plugins/ospf/spf/rfc6138_cutedge_pending_spf_test.go::TestRFC6138PendingSPFNeverLeavesStaleCutEdge": "84d626d6fe8551bb",
+    "internal/plugins/ospf/spf/rfc6138_cutedge_pending_spf_test.go::TestRFC6138PendingSPFRunBeforeCutEdgeAfterLinkLoss": "84d626d6fe8551bb",
+    "internal/plugins/ospf/spf/rfc6138_ldp_sync_cutedge_test.go::TestLDPSyncCutEdgeUsesFreshSPF": "0497e3e4c3970f53"
+  },
+  "units": {
+    "internal/plugins/ospf/spf/rfc6138_cutedge_pending_spf_test.go::TestRFC6138PendingSPFNeverLeavesStaleCutEdge": "51356ab0b3870519",
+    "internal/plugins/ospf/spf/rfc6138_cutedge_pending_spf_test.go::TestRFC6138PendingSPFRunBeforeCutEdgeAfterLinkLoss": "012d4be5ca63a926",
+    "internal/plugins/ospf/spf/rfc6138_ldp_sync_cutedge_test.go::TestLDPSyncCutEdgeUsesFreshSPF": "3cefc243f773d07d"
+  },
+  "verdict": "enforced"
+}

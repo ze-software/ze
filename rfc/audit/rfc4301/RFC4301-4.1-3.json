@@ -1,0 +1,11 @@
+{
+  "note": "every IKE peer SA is asserted modeTunnel; OSPFv3 transport SAs fall under the security-gateway-acting-as-host exception; single-polarity annotated",
+  "requirement_sha": "95378853d65e42a9",
+  "tests": {
+    "internal/component/ike/engine/child_test.go::TestChildSAInstallsInDataplane": "cde4b65c1f5b67d5"
+  },
+  "units": {
+    "internal/component/ike/engine/child_test.go::TestChildSAInstallsInDataplane": "2a472ab8d65d410d"
+  },
+  "verdict": "enforced"
+}

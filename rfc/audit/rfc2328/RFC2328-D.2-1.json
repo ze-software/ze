@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: accepting a Simple-password packet whose 64-bit authentication field differs from the configured password. Red: TestRFC2328SimplePasswordMismatchDiscarded fails if a packet signed with 'badpass' is accepted, and fails unless the reason is exactly password-mismatch (isolated: the AuType matches). Other polarity: the same unit fails if the configured 'goodpass' is rejected. One clause, both polarities.",
+  "requirement_sha": "fd696729307de7e7",
+  "tests": {
+    "internal/plugins/ospf/rfc2328_test.go::TestRFC2328SimplePasswordMismatchDiscarded": "ac7ea73b79de263c",
+    "internal/plugins/ospf/rfc2328_test.go::TestRFC2328SimplePasswordMismatchDiscarded#2": "ac7ea73b79de263c"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc2328_test.go::TestRFC2328SimplePasswordMismatchDiscarded": "77f621bde7a82d96",
+    "internal/plugins/ospf/rfc2328_test.go::TestRFC2328SimplePasswordMismatchDiscarded#2": "77f621bde7a82d96"
+  },
+  "verdict": "enforced"
+}

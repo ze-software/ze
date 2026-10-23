@@ -1,0 +1,16 @@
+{
+  "code": {
+    "internal/plugins/tftpserver/handler.go::handleRRQ": "a648bbc3c9a75a6a"
+  },
+  "note": "Re-judged 2026-10-19 (independent auditor, after 49c588c14d). Section 4: \"In order to create a connection, each end of the connection chooses a TID for itself, to be used for the duration of that connection.\" 49c588c14d closes the prior finding: tftpFetch now t.Fatalf's when the first DATA's source port equals srvAddr.Port (69 in TestListenTFTPLoopbackRoundTrip), before it fixes the TID and ACKs every block to it. The rewritten claim (fresh socket per RRQ at handler.go:293, DATA from a port other than 69, asserted on the first DATA, every block ACKed to it, transfer completes) now matches the body; it does not claim later blocks share the TID, and the helper does not check that. handler.go:293 is net.DialUDP at HEAD, and the rfc/short annotation now cites the same line; the {single-polarity: positive} marker holds (no input reuses port 69). The 'duration of that connection' half is proven by TestRFC1350ServerChoosesOneTIDForTheTransfer (unchanged, passes at HEAD): all three DATA blocks from one port that is not the request port. The new mutant (block 1 written from the listener socket) targets exactly the new assertion; its red was observed by the author in the QEMU guest, not by this judge: on this host the integration unit SKIPs (bind lo:69 permission denied), so the round-trip unit's evidence here is compile plus reading. TestListenTFTPDeviceFilter shares tftpFetch and expects no response, which the new check does not disturb.",
+  "requirement_sha": "d8ce09cd32156ece",
+  "tests": {
+    "internal/plugins/tftpserver/rfc1350_socket_integration_linux_test.go::TestListenTFTPLoopbackRoundTrip": "323b002633b85aeb",
+    "internal/plugins/tftpserver/rfc1350_transfer_test.go::TestRFC1350ServerChoosesOneTIDForTheTransfer": "60a1b8ea3f073355"
+  },
+  "units": {
+    "internal/plugins/tftpserver/rfc1350_socket_integration_linux_test.go::TestListenTFTPLoopbackRoundTrip": "770991017c952dc7",
+    "internal/plugins/tftpserver/rfc1350_transfer_test.go::TestRFC1350ServerChoosesOneTIDForTheTransfer": "d6258b5c6c294eaf"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC3748-4.2-14",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc3748_result_indication_test.go::TestRFC3748FailedAuthenticationIsRefusedNotGranted",
+    "unit-sha": "dc1249bd006a7bd3",
+    "claim-sha": "189834c2d6bc4a49",
+    "route": "revert",
+    "producer": "internal/core/eap/eap_mschapv2.go::handleResponse",
+    "producer-sha": "9c1c1e9d01d96b65",
+    "break": "body of handleResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3748-4.2-14",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc3748_result_indication_test.go::TestRFC3748FailedAuthenticationIsRefusedNotGranted",
+    "unit-sha": "dc1249bd006a7bd3",
+    "claim-sha": "75e6edf28ea62338",
+    "route": "revert",
+    "producer": "internal/core/eap/eap_mschapv2.go::handleResponse",
+    "producer-sha": "9c1c1e9d01d96b65",
+    "break": "body of handleResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4301-4.5.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/crypto/rfc4301_keymat_test.go::TestRFC4301KeymatEncryptionKeysLeadEachSA",
+    "unit-sha": "eba7d59cf6796a60",
+    "claim-sha": "c9d9fa6e9a96eff4",
+    "route": "revert",
+    "producer": "internal/component/ike/crypto/keys.go::DeriveChildSAKeys",
+    "producer-sha": "027acb09a8edc598",
+    "break": "body of DeriveChildSAKeys replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4301-4.5.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/crypto/rfc4301_keymat_test.go::TestRFC4301KeymatIntegrityKeysNeverLead",
+    "unit-sha": "21eb6e761968798e",
+    "claim-sha": "303a8d26e507f631",
+    "route": "revert",
+    "producer": "internal/component/ike/crypto/keys.go::DeriveChildSAKeys",
+    "producer-sha": "027acb09a8edc598",
+    "break": "body of DeriveChildSAKeys replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

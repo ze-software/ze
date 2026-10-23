@@ -1,0 +1,23 @@
+{
+  "note": "(a) forbidden: not sending Error 7/subcode 1 for a BoRR or EoRR whose body is not 4 octets; (b) TestRouteRefreshBadLengthByMessageSubtype asserts the exact NOTIFICATION for subtypes 1 and 2, too short and too long, and TestRouteRefreshInvalidLengthNotDelivered asserts octets 7/1. Negatives: subtype 0 draws Bad Message Length, a peer without capability 70 draws Bad Message Length, a 4-octet body draws nothing, and an unknown subtype of any length draws no NOTIFICATION and is not delivered (TestRouteRefreshUnknownSubtypeIsIgnoredWhateverItsLength, whose well-formed cases now expect 0 deliveries after the RFC7313-5-3 fix).",
+  "requirement_sha": "15d178478c5a4262",
+  "tests": {
+    "internal/component/bgp/reactor/rfc7313_error_scope_test.go::TestRouteRefreshBadLengthByMessageSubtype": "3e1a8969432bbe09",
+    "internal/component/bgp/reactor/rfc7313_error_scope_test.go::TestRouteRefreshBadLengthByMessageSubtype#2": "3e1a8969432bbe09",
+    "internal/component/bgp/reactor/rfc7313_error_scope_test.go::TestRouteRefreshBadLengthWithoutCapability70": "3e1a8969432bbe09",
+    "internal/component/bgp/reactor/rfc7313_error_scope_test.go::TestRouteRefreshUnknownSubtypeIsIgnoredWhateverItsLength": "3e1a8969432bbe09",
+    "internal/component/bgp/reactor/rfc7313_error_scope_test.go::TestRouteRefreshWellFormedWithoutCapability70DrawsNoNotification": "3e1a8969432bbe09",
+    "internal/component/bgp/reactor/session_test.go::TestRouteRefreshInvalidLengthNotDelivered": "aeb6993b67f2a376",
+    "internal/component/bgp/reactor/session_test.go::TestRouteRefreshValidLengthDelivered": "aeb6993b67f2a376"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc7313_error_scope_test.go::TestRouteRefreshBadLengthByMessageSubtype": "6fd88cf95310ee55",
+    "internal/component/bgp/reactor/rfc7313_error_scope_test.go::TestRouteRefreshBadLengthByMessageSubtype#2": "6fd88cf95310ee55",
+    "internal/component/bgp/reactor/rfc7313_error_scope_test.go::TestRouteRefreshBadLengthWithoutCapability70": "f2e071f12d3ddd3b",
+    "internal/component/bgp/reactor/rfc7313_error_scope_test.go::TestRouteRefreshUnknownSubtypeIsIgnoredWhateverItsLength": "609ea9cea55823ac",
+    "internal/component/bgp/reactor/rfc7313_error_scope_test.go::TestRouteRefreshWellFormedWithoutCapability70DrawsNoNotification": "d5741f71a517dda1",
+    "internal/component/bgp/reactor/session_test.go::TestRouteRefreshInvalidLengthNotDelivered": "e5d31e6524dc7d92",
+    "internal/component/bgp/reactor/session_test.go::TestRouteRefreshValidLengthDelivered": "0bde78dc5372e023"
+  },
+  "verdict": "enforced"
+}

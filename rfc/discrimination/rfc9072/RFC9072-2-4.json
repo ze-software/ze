@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC9072-2-4",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/message/open_test.go::TestOpenPackExtendedParams",
+    "unit-sha": "eda9b634499715e6",
+    "claim-sha": "6f9d9661c8f257f7",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/open.go::writeToExtended",
+    "producer-sha": "88ac46ccdf758979",
+    "break": "body of writeToExtended replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

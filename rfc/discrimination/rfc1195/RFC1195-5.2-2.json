@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC1195-5.2-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/lsdb/rfc1195_origination_test.go::TestISISOriginateOnAdjacencyUp",
+    "unit-sha": "06a38897c3491f72",
+    "claim-sha": "b02dd743c5db0011",
+    "route": "revert",
+    "producer": "internal/plugins/isis/lsdb/origination.go::Originate",
+    "producer-sha": "c3ebd1aa4af2c24f",
+    "break": "body of Originate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1195-5.2-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/rfc1195_selection_test.go::TestRFC1195SameInterfaceAddressesBothLevels",
+    "unit-sha": "f40d8c8617a7f784",
+    "claim-sha": "ad1204d88f8e21da",
+    "route": "revert",
+    "producer": "internal/plugins/isis/lsdb_wiring.go::levelState",
+    "producer-sha": "3a25a6b2e7d74162",
+    "break": "body of levelState replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

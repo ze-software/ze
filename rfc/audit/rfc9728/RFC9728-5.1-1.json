@@ -1,0 +1,15 @@
+{
+  "note": "[MAY] permission row with {single-polarity: positive}, which holds: no challenge Ze sends can violate a permission. TestRFC9728ChallengeNamesMetadataURL asserts the 401 WWW-Authenticate is Bearer with resource_metadata EXACTLY https://mcp.example/.well-known/oauth-protected-resource/api for a metadata resource that differs from the audience, and a GET there returns that resource's document, so a prefix, the audience-derived URL, or a missing parameter goes red. The oauth_test.go and oauth_e2e_test.go prefix-only positives keep their tags.",
+  "requirement_sha": "d5562ccb14f23c74",
+  "tests": {
+    "internal/component/mcp/oauth_e2e_test.go::TestNewStreamable_OAuth_RejectsMissingBearer": "be7f22ecbf523ed0",
+    "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728ChallengeNamesMetadataURL": "70cb12fbb65e4490",
+    "internal/component/mcp/rfc9728_oauth_test.go::TestOAuth_Authenticate_MissingHeader": "03ef63ac8871aaba"
+  },
+  "units": {
+    "internal/component/mcp/oauth_e2e_test.go::TestNewStreamable_OAuth_RejectsMissingBearer": "212d03f3614335a2",
+    "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728ChallengeNamesMetadataURL": "bcba5dc1f782c4b9",
+    "internal/component/mcp/rfc9728_oauth_test.go::TestOAuth_Authenticate_MissingHeader": "81bee8a0e0f14c69"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "IMPLEMENTED 2026-07-20. validateTrafficEngineeringAttr (message/rfc7606_optional_attrs.go) registers code 24 and rejects anything shorter than one RFC 5543 descriptor (36 octets: SwitchingCap+Encoding+Reserved+8x4 bandwidth). Negative TestRFC7606TrafficEngineeringTooShort pins lengths 0/1/35 to TreatAsWithdraw with AttrCode 24; positive TestRFC7606TrafficEngineeringValid pins 36/44/72 to Action None, so a validator that rejected everything would fail. Both drive ValidateUpdateRFC7606, not the validator directly. The check is deliberately minimal because 7.13 states RFC 5543 'does not detail what constitutes malformation'; over-validating would blackhole valid routes. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quoted sentence states the same obligation the paraphrase did, and no clause is new. Verdict unchanged.",
+  "requirement_sha": "ecc70bcac122cc2e",
+  "tests": {
+    "internal/component/bgp/message/rfc7606_optional_attrs_test.go::TestRFC7606TrafficEngineeringTooShort": "abce9f66859f2e88",
+    "internal/component/bgp/message/rfc7606_optional_attrs_test.go::TestRFC7606TrafficEngineeringValid": "abce9f66859f2e88"
+  },
+  "units": {
+    "internal/component/bgp/message/rfc7606_optional_attrs_test.go::TestRFC7606TrafficEngineeringTooShort": "f616b09cc2b5b615",
+    "internal/component/bgp/message/rfc7606_optional_attrs_test.go::TestRFC7606TrafficEngineeringValid": "6d345775e6dadd74"
+  },
+  "verdict": "enforced"
+}

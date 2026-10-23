@@ -1,0 +1,21 @@
+{
+  "note": "all three sentences, both polarities: (1) default valid for the type and (2) no default beside mandatory true, by TestRFC7950DefaultInvalidForType/ValidForType on validateLeafDefaults; (3) if-feature on the default's definition, for an enum named directly (TestRFC7950DefaultNotAnIfFeatureEnum) and through a union member enumeration, a bits type and a typedef chain (TestRFC7950DefaultNotAnIfFeatureMemberBitOrTypedef: x / 'b1 b2' / x refused naming the if-feature, y / 'b1' / y load). The union branch was a D-8 defect fixed here: validateDefaultNotIfFeature now follows the first member type that accepts the default (Section 9.12 order); red observed before the fix. Records on validateDefaultNotIfFeature and validateLeafDefaults.",
+  "requirement_sha": "03829072c89b74fe",
+  "tests": {
+    "internal/component/config/rfc7950_yang_schema_defaults_clauses_test.go::TestRFC7950DefaultNotAnIfFeatureEnum": "84d97cbfeb51f19f",
+    "internal/component/config/rfc7950_yang_schema_defaults_clauses_test.go::TestRFC7950DefaultNotAnIfFeatureEnum#2": "84d97cbfeb51f19f",
+    "internal/component/config/rfc7950_yang_schema_defaults_clauses_test.go::TestRFC7950DefaultNotAnIfFeatureMemberBitOrTypedef": "84d97cbfeb51f19f",
+    "internal/component/config/rfc7950_yang_schema_defaults_clauses_test.go::TestRFC7950DefaultNotAnIfFeatureMemberBitOrTypedef#2": "84d97cbfeb51f19f",
+    "internal/component/config/rfc7950_yang_schema_defaults_test.go::TestRFC7950DefaultInvalidForType": "493cd4132fb31c5c",
+    "internal/component/config/rfc7950_yang_schema_defaults_test.go::TestRFC7950DefaultValidForType": "493cd4132fb31c5c"
+  },
+  "units": {
+    "internal/component/config/rfc7950_yang_schema_defaults_clauses_test.go::TestRFC7950DefaultNotAnIfFeatureEnum": "4cdf20b902ecd08c",
+    "internal/component/config/rfc7950_yang_schema_defaults_clauses_test.go::TestRFC7950DefaultNotAnIfFeatureEnum#2": "4cdf20b902ecd08c",
+    "internal/component/config/rfc7950_yang_schema_defaults_clauses_test.go::TestRFC7950DefaultNotAnIfFeatureMemberBitOrTypedef": "423de41b2a2cd2c5",
+    "internal/component/config/rfc7950_yang_schema_defaults_clauses_test.go::TestRFC7950DefaultNotAnIfFeatureMemberBitOrTypedef#2": "423de41b2a2cd2c5",
+    "internal/component/config/rfc7950_yang_schema_defaults_test.go::TestRFC7950DefaultInvalidForType": "5b28008f4ac0a18b",
+    "internal/component/config/rfc7950_yang_schema_defaults_test.go::TestRFC7950DefaultValidForType": "a31a5554debe5da0"
+  },
+  "verdict": "enforced"
+}

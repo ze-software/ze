@@ -1,0 +1,13 @@
+{
+  "note": "256 encodes 01 00; swapped octets read as 1",
+  "requirement_sha": "0dc5b88116e28191",
+  "tests": {
+    "internal/component/ike/wire/rfc7296_sa_test.go::TestPropKeyLengthUsesNetworkByteOrder": "ef5bab924185575c",
+    "internal/component/ike/wire/rfc7296_sa_test.go::TestPropKeyLengthUsesNetworkByteOrder#2": "ef5bab924185575c"
+  },
+  "units": {
+    "internal/component/ike/wire/rfc7296_sa_test.go::TestPropKeyLengthUsesNetworkByteOrder": "01971afe3fcad493",
+    "internal/component/ike/wire/rfc7296_sa_test.go::TestPropKeyLengthUsesNetworkByteOrder#2": "01971afe3fcad493"
+  },
+  "verdict": "enforced"
+}

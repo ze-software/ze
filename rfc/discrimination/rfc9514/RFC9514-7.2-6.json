@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9514-7.2-6",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514PeerNodeSIDReservedIgnored",
+    "unit-sha": "2c23af72deca579b",
+    "claim-sha": "2646cc7faacd5585",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/nlri/ls/attr_srv6.go::decodeSRv6BGPPeerNodeSID",
+    "producer-sha": "f58a100ab6ba6b05",
+    "break": "body of decodeSRv6BGPPeerNodeSID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9514-7.2-6",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514PeerNodeSIDReservedIgnored",
+    "unit-sha": "2c23af72deca579b",
+    "claim-sha": "8bcbe35b7c430b19",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/nlri/ls/attr_srv6.go::decodeSRv6BGPPeerNodeSID",
+    "producer-sha": "f58a100ab6ba6b05",
+    "break": "body of decodeSRv6BGPPeerNodeSID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

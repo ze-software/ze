@@ -1,0 +1,11 @@
+{
+  "note": "Judge 2026-09-29. TestRFC1661RunSendsLCPBeforeAnyOtherProtocol drives run() from Initial with IPCP enabled (the input pushed toward a violation) and readLifecyclePacket fails on any first frame other than LCP Configure-Request (one frame read, exact protocol/code). Observed red with sendConfigureRequest broken; a run() writing an NCP or auth frame first turns it red by construction. Tag removed from TestRFC1661LCPPacketsSentFirst (performAction only); no orphan record left. single-polarity: positive marker stands.",
+  "requirement_sha": "3148ef29e13a3adf",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661RunSendsLCPBeforeAnyOtherProtocol": "d6b4e2cbd1b095e9"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661RunSendsLCPBeforeAnyOtherProtocol": "5ff3e6cbcff16440"
+  },
+  "verdict": "enforced"
+}

@@ -8,8 +8,8 @@ import (
 	"testing"
 )
 
-// checkAuditBaselineRel is where the fixture's one audit file lives.
-const checkAuditBaselineRel = auditRel + "/rfc9999.json"
+// checkAuditBaselineRel is where the fixture's one verdict lives.
+const checkAuditBaselineRel = auditRel + "/rfc9999/" + selftestRIDSend + ".json"
 
 // checkAuditBaselineTree commits a corpus whose audit records a 'weak' finding
 // on the send row, then commits tip on top of it and checks the result out
@@ -27,7 +27,7 @@ func checkAuditBaselineTree(t *testing.T, tip func(document map[string]any) map[
 	from := stampPending(t, root, "rfc9999", map[string]any{selftestRIDSend: map[string]any{
 		"verdict": VerdictWeak, "note": "the widget test asserts nothing about the send",
 	}})
-	if _, err := auditStamp(root, "rfc9999", from, stampModeNew, stampNow); err != nil {
+	if _, err := auditStamp(root, "rfc9999", from, stampModeNew); err != nil {
 		t.Fatalf("stamp the base finding: %v", err)
 	}
 	if err := os.Remove(from); err != nil {
@@ -40,10 +40,11 @@ func checkAuditBaselineTree(t *testing.T, tip func(document map[string]any) map[
 	if err != nil {
 		t.Fatalf("read the stamped audit: %v", err)
 	}
-	var document map[string]any
-	if err := json.Unmarshal(raw, &document); err != nil {
+	var verdict map[string]any
+	if err := json.Unmarshal(raw, &verdict); err != nil {
 		t.Fatalf("parse the stamped audit: %v", err)
 	}
+	document := map[string]any{auditFieldRequirements: map[string]any{selftestRIDSend: verdict}}
 	files := fixtureCorpusNudge()
 	if tip != nil {
 		files = tip(document)
@@ -52,6 +53,19 @@ func checkAuditBaselineTree(t *testing.T, tip func(document map[string]any) map[
 	commitFixture(t, root, "tip")
 	gitFixture(t, root, []string{"checkout", "-q", "--detach"})
 	return root
+}
+
+// checkAuditBaselineFiles answers the files that write document's send verdict
+// back, or remove it when the tip deleted it.
+func checkAuditBaselineFiles(t *testing.T, document map[string]any) map[string]string {
+	t.Helper()
+
+	requirements, _ := document[auditFieldRequirements].(map[string]any)
+	verdict, held := requirements[selftestRIDSend]
+	if !held {
+		return map[string]string{checkAuditBaselineRel: fixtureRemoved}
+	}
+	return map[string]string{checkAuditBaselineRel: string(renderAuditVerdict(verdict))}
 }
 
 // checkAuditBaselineSendVerdict answers the send row's verdict in document.
@@ -109,7 +123,7 @@ func TestCheckAuditRatchetSeesTipCommit(t *testing.T) {
 		t.Run(one.name, func(t *testing.T) {
 			root := checkAuditBaselineTree(t, func(document map[string]any) map[string]string {
 				one.tip(t, document)
-				return map[string]string{checkAuditBaselineRel: pyDump(document) + "\n"}
+				return checkAuditBaselineFiles(t, document)
 			})
 			report, code := Check(root, nil)
 			joined := strings.Join(report.Violations, "\n")
@@ -188,7 +202,7 @@ func TestPartialFindingRatchetSeesTipCommit(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			document := audit.Document
+			document := map[string]any{auditFieldRequirements: audit.Verdicts}
 			requirements, verdict := checkAuditBaselineSendVerdict(t, document)
 			switch change {
 			case "delete":
@@ -201,7 +215,7 @@ func TestPartialFindingRatchetSeesTipCommit(t *testing.T) {
 			case "untouched":
 				writeFixtureFiles(t, root, map[string]string{"nudge.txt": "unrelated change\n"})
 			}
-			writeFixtureFiles(t, root, map[string]string{checkAuditBaselineRel: pyDump(document) + "\n"})
+			writeFixtureFiles(t, root, checkAuditBaselineFiles(t, document))
 			layFixture(t, root, nil)
 			commitFixture(t, root, "tip")
 			gitFixture(t, root, []string{"checkout", "-q", "--detach"})

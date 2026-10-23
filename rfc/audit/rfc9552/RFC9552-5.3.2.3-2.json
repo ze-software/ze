@@ -1,0 +1,18 @@
+{
+  "code": {},
+  "note": "Independent rejudge 2026-10-17, upgraded from weak because the live originator is now tagged. RFC 9552 Section 5.3.2.4: \"IS-IS small metrics are 6 bits in size but are encoded in a 1-octet field; therefore, the two most significant bits of the field MUST be set to 0 by the originator and MUST be ignored by the receiver.\" (row carries the originator clause). Ze originates the 1-octet TLV 1095 only in internal/plugins/isis/bgpls_export.go narrowLinks: metric[0] = entry.DefaultMetricValue, where DefaultMetricValue is filled by packet.DecodeNarrowISReachTLV as def & narrowMetricValueMask (0x3f). TestRFC9552ISISSmallMetricOriginatedWithTopBitsZero (source octet ca, reserved bit 8 and I/E over metric 10, -> 0a) and ...FlagBitsNeverReachIGPMetric (ff -> 3f) store a real TLV 2 LSP, run bgplsBuilder.build and assert the exact octet; dropping the mask emits ca/ff and reddens both. That the mask sits in the shared decoder rather than in narrowLinks does not weaken it: per ai/rules/rfc-compliance.md the verdict is judged on what the stack Ze runs produces, and the tests assert the octet the BGP-LS Producer emits, so any change that lets the S or I/E bit reach TLV 1095 (decoder or originator) goes red. The old plugin-ls units stay tagged but drive an encoder with no production caller and carry no weight. The recorded breaks panic the whole decoder, so they prove reach; the mask-specific red is established by reading.",
+  "requirement_sha": "9df9c814474f8e54",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552IGPMetricWidthGrowsInsteadOfTruncating": "40036e95d2697aef",
+    "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552ISISSmallMetricTwoMSBsZero": "40036e95d2697aef",
+    "internal/plugins/isis/rfc9552_bgpls_export_metric_test.go::TestRFC9552ISISSmallMetricFlagBitsNeverReachIGPMetric": "6dbf420a1e0e7477",
+    "internal/plugins/isis/rfc9552_bgpls_export_metric_test.go::TestRFC9552ISISSmallMetricOriginatedWithTopBitsZero": "6dbf420a1e0e7477"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552IGPMetricWidthGrowsInsteadOfTruncating": "ef65071b7beab1d2",
+    "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552ISISSmallMetricTwoMSBsZero": "a0c5e720c1b7bda0",
+    "internal/plugins/isis/rfc9552_bgpls_export_metric_test.go::TestRFC9552ISISSmallMetricFlagBitsNeverReachIGPMetric": "600fb96c9176cd1b",
+    "internal/plugins/isis/rfc9552_bgpls_export_metric_test.go::TestRFC9552ISISSmallMetricOriginatedWithTopBitsZero": "7a3142e18c90ddf0"
+  },
+  "verdict": "enforced"
+}

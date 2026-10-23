@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC5798-5.1.1.3-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertV3IPv4HeaderTTLProtoDst",
+    "unit-sha": "9ddafe15441a7e22",
+    "claim-sha": "3709b304b3d5158c",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/transport/transport.go::buildIPv4Header",
+    "producer-sha": "e64c42f1d89bd574",
+    "break": "body of buildIPv4Header replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

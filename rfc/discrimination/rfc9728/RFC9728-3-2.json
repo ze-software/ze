@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC9728-3-2",
+    "polarity": "positive",
+    "unit": "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728WellKnownInsertedBeforeQuery",
+    "unit-sha": "b4a0594aee967d34",
+    "claim-sha": "0699c0af1ee3bf8b",
+    "route": "revert",
+    "producer": "internal/component/mcp/streamable_auth.go::resourceMetadataURL",
+    "producer-sha": "6ce4052c860d42eb",
+    "break": "body of resourceMetadataURL replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9728-3-2",
+    "polarity": "negative",
+    "unit": "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728WellKnownInsertedBeforeQuery",
+    "unit-sha": "b4a0594aee967d34",
+    "claim-sha": "4fbe2265ad8a460e",
+    "route": "revert",
+    "producer": "internal/component/mcp/streamable_auth.go::resourceMetadataPath",
+    "producer-sha": "9f311125629433be",
+    "break": "body of resourceMetadataPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9728-3-2",
+    "polarity": "negative",
+    "unit": "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728WellKnownInsertedBetweenHostAndPath",
+    "unit-sha": "bed20e3b92b984a3",
+    "claim-sha": "ad2cb2b49dc1b09a",
+    "route": "revert",
+    "producer": "internal/component/mcp/streamable_auth.go::resourceMetadataPath",
+    "producer-sha": "9f311125629433be",
+    "break": "body of resourceMetadataPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9728-3-2",
+    "polarity": "positive",
+    "unit": "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728WellKnownInsertedBetweenHostAndPath",
+    "unit-sha": "bed20e3b92b984a3",
+    "claim-sha": "8e71c673e15e9d9e",
+    "route": "revert",
+    "producer": "internal/component/mcp/streamable_auth.go::resourceOriginAndPath",
+    "producer-sha": "51958a183fa15af4",
+    "break": "body of resourceOriginAndPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

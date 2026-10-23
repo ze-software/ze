@@ -1,0 +1,23 @@
+{
+  "note": "Forbidden: a border router leaving an attached NSSA without a default. nssa_ac14_16_test.go TestOSPFNSSABorderRouterDefaultsEveryArea requires one self Type-7 default in the regular NSSA (line 33) on an ABR with two NSSAs; origination_v6_nssa_default_test.go TestOSPFv3NSSABorderRouterOriginatesDefault requires the v3 0x2007 default (line 66); spf/area_type_test.go TestOSPFNSSANoSummaryDefaultInjection requires the Type-3 default in the no-summary NSSA (line 133). Negatives: an internal NSSA router originates none (nssa_ac14_16_test.go line 54, v6 line 175). The interop check checkNSSADefault is also tagged.",
+  "requirement_sha": "4b357d8f2afb7da7",
+  "tests": {
+    "internal/le/interoplab/bgp/check_rfc.go::checkNSSADefault": "9d03834af3f0f054",
+    "internal/plugins/ospf/rfc3101_nssa_ac14_16_test.go::TestOSPFNSSABorderRouterDefaultsEveryArea": "49a610561289e458",
+    "internal/plugins/ospf/rfc3101_nssa_ac14_16_test.go::TestOSPFNSSAInternalRouterOriginatesNoBorderDefault": "49a610561289e458",
+    "internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go::TestOSPFv3NSSABorderRouterOriginatesDefault": "6e7d1420848b435e",
+    "internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go::TestOSPFv3NSSAInternalRouterDefaultNeedsForwardingAddress": "6e7d1420848b435e",
+    "internal/plugins/ospf/spf/rfc3101_area_type_test.go::TestOSPFNSSANoSummaryDefaultInjection": "cd0b5106bcb1bcdc",
+    "internal/plugins/ospf/spf/rfc3101_area_type_test.go::TestOSPFNSSAType3SummaryImport": "cd0b5106bcb1bcdc"
+  },
+  "units": {
+    "internal/le/interoplab/bgp/check_rfc.go::checkNSSADefault": "322e3dcf95ec3fd6",
+    "internal/plugins/ospf/rfc3101_nssa_ac14_16_test.go::TestOSPFNSSABorderRouterDefaultsEveryArea": "eb4d5bf09d6bb264",
+    "internal/plugins/ospf/rfc3101_nssa_ac14_16_test.go::TestOSPFNSSAInternalRouterOriginatesNoBorderDefault": "c9c53a484f5748d4",
+    "internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go::TestOSPFv3NSSABorderRouterOriginatesDefault": "c90da797563d21c8",
+    "internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go::TestOSPFv3NSSAInternalRouterDefaultNeedsForwardingAddress": "71efafdc760b612f",
+    "internal/plugins/ospf/spf/rfc3101_area_type_test.go::TestOSPFNSSANoSummaryDefaultInjection": "56db5f97fcfce795",
+    "internal/plugins/ospf/spf/rfc3101_area_type_test.go::TestOSPFNSSAType3SummaryImport": "b2e130ace4c20410"
+  },
+  "verdict": "enforced"
+}

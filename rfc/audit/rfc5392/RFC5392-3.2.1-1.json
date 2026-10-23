@@ -1,0 +1,13 @@
+{
+  "note": "Judged 2026-10-21 over current tags, units and records. Stale only because RFC5392-3.3.1-2 tags were added in the same functions; assertions unchanged. Origination never emits Link ID in a type-6 Link TLV, and reception rejects one that carries it.",
+  "requirement_sha": "dd74178bb777124d",
+  "tests": {
+    "internal/plugins/ospf/rfc5392_te_originate_test.go::TestInterAsTEOriginateScopePolicy": "db1397ebe20dcae7",
+    "internal/plugins/ospf/rfc5392_te_test.go::TestTEReceiveMalformedNoEntry": "4bb75eea7a38dce7"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc5392_te_originate_test.go::TestInterAsTEOriginateScopePolicy": "39b9b15ba1317cde",
+    "internal/plugins/ospf/rfc5392_te_test.go::TestTEReceiveMalformedNoEntry": "b5692fc2f1e9fd4d"
+  },
+  "verdict": "enforced"
+}

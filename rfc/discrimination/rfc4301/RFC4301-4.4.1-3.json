@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC4301-4.4.1-3",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc4301_final_entry_test.go::TestRFC4301DefaultFinalSPDEntryDiscards",
+    "unit-sha": "3ace9661d9011512",
+    "claim-sha": "486fbbef34626bb4",
+    "route": "revert",
+    "producer": "internal/component/ike/ipsec/config.go::parseUnmatched",
+    "producer-sha": "f46c4916d1feb5c5",
+    "break": "body of parseUnmatched replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4301-4.4.1-3",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go::TestRFC4301InboundClearPacketIsDiscardedByTheDefaultFinalEntry",
+    "unit-sha": "aaffa5f98c6ba835",
+    "claim-sha": "825b293ce08e7d81",
+    "route": "revert",
+    "producer": "internal/component/ike/ipsec/config.go::parseUnmatched",
+    "producer-sha": "f46c4916d1feb5c5",
+    "break": "body of parseUnmatched replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4301-4.4.1-3",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc4301_spd_lifecycle_test.go::TestRFC4301FinalEntryIsUnderEveryZeSPDEntry",
+    "unit-sha": "3d8eaf37a2ccc061",
+    "claim-sha": "4cc894c702d8299f",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/apply.go::shutdown",
+    "producer-sha": "ba1436a4aa6f56e7",
+    "break": "line 487: \"s.stopAllPeers()\" -\u003e \"s.releaseSPD(dataplane.Get(), log); s.stopAllPeers()\""
+  }
+]

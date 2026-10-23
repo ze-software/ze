@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC2328-12.2-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328LookupByTriple",
+    "unit-sha": "8a71efe96ed59965",
+    "claim-sha": "dbe76360c23beece",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/lsdb/lsdb.go::Lookup",
+    "producer-sha": "26270d03aee7e502",
+    "break": "body of Lookup replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-12.2-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328LookupNeedsFullTriple",
+    "unit-sha": "3d3cbd24796c561d",
+    "claim-sha": "7b4621000d9ad62c",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/lsdb/lsdb.go::Lookup",
+    "producer-sha": "26270d03aee7e502",
+    "break": "body of Lookup replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-12.2-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/lsdb/rfc2328_lookup_triple_test.go::TestRFC2328LookupMissesWhenOneElementDiffers",
+    "unit-sha": "5e8b572ce59727e2",
+    "claim-sha": "51db2306a88e69db",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/lsdb/lsdb.go::Lookup",
+    "producer-sha": "26270d03aee7e502",
+    "break": "body of Lookup replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-12.2-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/lsdb/rfc2328_lookup_triple_test.go::TestRFC2328LookupTellsApartLSAsSharingTwoElements",
+    "unit-sha": "4d64786189aba446",
+    "claim-sha": "d9bd7962f6b4aa23",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/lsdb/lsdb.go::Lookup",
+    "producer-sha": "26270d03aee7e502",
+    "break": "body of Lookup replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

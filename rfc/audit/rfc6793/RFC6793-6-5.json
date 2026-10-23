@@ -1,0 +1,13 @@
+{
+  "note": "TestCollapseAS4DiscardsMalformedAS4Aggregator: a 7-octet AS4_AGGREGATOR is removed from the collapsed payload, not promoted, NLRI kept, drop reported; negative reads an 8-octet one.",
+  "requirement_sha": "20ce2c1576d939e2",
+  "tests": {
+    "internal/component/bgp/wireu/rfc6793_aspath_collapse_test.go::TestCollapseAS4DiscardsMalformedAS4Aggregator": "509a541062e0b9dd",
+    "internal/component/bgp/wireu/rfc6793_aspath_collapse_test.go::TestCollapseAS4SelectsAggregatorPerSection423": "509a541062e0b9dd"
+  },
+  "units": {
+    "internal/component/bgp/wireu/rfc6793_aspath_collapse_test.go::TestCollapseAS4DiscardsMalformedAS4Aggregator": "662c49e9781805ca",
+    "internal/component/bgp/wireu/rfc6793_aspath_collapse_test.go::TestCollapseAS4SelectsAggregatorPerSection423": "ef2b6847ee5d358f"
+  },
+  "verdict": "enforced"
+}

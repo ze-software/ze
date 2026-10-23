@@ -1,0 +1,15 @@
+{
+  "note": "Positive TestRFC1350TimeoutEndsTheTransferOfAGonePeer: with no ACK, block 1 must arrive exactly maxRetransmit+1 times then silence past a full ackTimeout+2 s (red on retransmitting forever or on no timeout), and a one-slot server must then serve a new RRQ (red if the failed transfer never releases its slot). Negative TestRFC1350TimeoutThenACKContinuesTheTransfer: an ACK after one timeout-driven retransmission continues to block 2 (red on treating the first timeout as fatal). The old single-polarity test-cost argument is gone from the row.",
+  "requirement_sha": "c8b39b85a1e38f5e",
+  "tests": {
+    "internal/plugins/tftpserver/handler_test.go::TestTFTPRetransmitOnTimeout": "0809d9c9f8739da3",
+    "internal/plugins/tftpserver/rfc1350_transfer_test.go::TestRFC1350TimeoutEndsTheTransferOfAGonePeer": "60a1b8ea3f073355",
+    "internal/plugins/tftpserver/rfc1350_transfer_test.go::TestRFC1350TimeoutThenACKContinuesTheTransfer": "60a1b8ea3f073355"
+  },
+  "units": {
+    "internal/plugins/tftpserver/handler_test.go::TestTFTPRetransmitOnTimeout": "f5dc7f7c0717b732",
+    "internal/plugins/tftpserver/rfc1350_transfer_test.go::TestRFC1350TimeoutEndsTheTransferOfAGonePeer": "195bde41d8569195",
+    "internal/plugins/tftpserver/rfc1350_transfer_test.go::TestRFC1350TimeoutThenACKContinuesTheTransfer": "049c3baf802e9515"
+  },
+  "verdict": "enforced"
+}

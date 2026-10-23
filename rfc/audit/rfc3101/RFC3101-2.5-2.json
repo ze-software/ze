@@ -1,0 +1,17 @@
+{
+  "note": "Forbidden: taking a Type-7's ASBR entry from another area. nssa_scope_test.go TestNSSAASBRUsesOriginatingArea asserts own-area cost 15 via 192.0.2.9 despite a cheaper backbone entry (line 105); TestNSSAASBRRejectsOtherArea asserts no route when the ASBR is reachable only outside the NSSA, with and without forwarding address (line 120); spf/external_nssa_recalc_test.go repeats both through Computer.Run.",
+  "requirement_sha": "36fec9324e48655c",
+  "tests": {
+    "internal/plugins/ospf/rfc3101_nssa_scope_test.go::TestNSSAASBRRejectsOtherArea": "851652176e157f7d",
+    "internal/plugins/ospf/rfc3101_nssa_scope_test.go::TestNSSAASBRUsesOriginatingArea": "851652176e157f7d",
+    "internal/plugins/ospf/spf/rfc3101_external_nssa_recalc_test.go::TestNSSAExternalCalculationDropsLostASBR": "3353280a27f2ef90",
+    "internal/plugins/ospf/spf/rfc3101_external_nssa_recalc_test.go::TestNSSAExternalCalculationRunsOnType7Change": "3353280a27f2ef90"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc3101_nssa_scope_test.go::TestNSSAASBRRejectsOtherArea": "9e84412d7ddf6cbd",
+    "internal/plugins/ospf/rfc3101_nssa_scope_test.go::TestNSSAASBRUsesOriginatingArea": "80ed47f21d5473f3",
+    "internal/plugins/ospf/spf/rfc3101_external_nssa_recalc_test.go::TestNSSAExternalCalculationDropsLostASBR": "e02793fa3c75138b",
+    "internal/plugins/ospf/spf/rfc3101_external_nssa_recalc_test.go::TestNSSAExternalCalculationRunsOnType7Change": "094c87dc544572ca"
+  },
+  "verdict": "enforced"
+}

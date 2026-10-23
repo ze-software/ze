@@ -1,0 +1,13 @@
+{
+  "note": "Judge 2026-09-30 (access cont 10, independent). Re-judged after the D-15 tag narrowing (unit changed only in comment). (a) forbidden: a 200-299 Error-Cause in a NAK, or a 400-599 value in an ACK. + TestRFC5176ErrorCausePlacement fails on a NAK cause outside 400-599; - (#2) fails on any Error-Cause in a CoA-ACK or Disconnect-ACK; both kinds required seen. The 201/202/502/504 clauses moved to RFC5176-3.5-6..9, which drive all 15 response paths (incl. 504, 506, 508). Negative record re-observed red (sendResponse).",
+  "requirement_sha": "a65b3e293de2fe17",
+  "tests": {
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ErrorCausePlacement": "2b3357f1f1e8ec93",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ErrorCausePlacement#2": "2b3357f1f1e8ec93"
+  },
+  "units": {
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ErrorCausePlacement": "94e5eede3b2182f0",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ErrorCausePlacement#2": "94e5eede3b2182f0"
+  },
+  "verdict": "enforced"
+}

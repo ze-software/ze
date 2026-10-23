@@ -1,0 +1,21 @@
+{
+  "note": "RFC 7296 Section 2.7 (rfc/full/rfc7296.txt): \"The responder MUST accept a single proposal or reject them all and return an error. The error is given in a notification of type NO_PROPOSAL_CHOSEN.\" and \"The accepted cryptographic suite MUST contain exactly one transform of each type included in the proposal.\" NegotiateIKE picks one proposal or returns ErrNoProposalChosen (TestProposalNegotiationFirstMatch/NoMatch); TestEsnResponderAnswersOnlyAValueTheOfferCarried asserts SAr2 carries one proposal with exactly one ESN transform of a value the offer carried and maps refusal to NO_PROPOSAL_CHOSEN. Interop: checkESNExtendedOnlyRefused isolates the ESN type (aes256gcm16-esn alone) and asserts ze reached NO_PROPOSAL_CHOSEN (logged by buildChildlessAuthResponse as it builds the refusal notify) with no CHILD_SA on strongSwan and zero XFRM states on both ends, recorded red with the espProposalMatches ESN comparison reverted; checkESNBothOffered asserts both ends keyed, strongSwan's state carries no esn, and traffic crosses, so both ends selected the same single ESN value. Limitation, not a defect: the interop negative reads ze's log, not strongSwan's receipt of the notify; the wire mapping is held by the engine unit test. Re-judged 2026-10-10 (independent judge, mode rejudge): every tagged unit, and the helpers they call (waitLog, listSAs, checkXFRMCount, establish, waitXFRM, xfrmState, verifyTunnelTraffic), is byte-identical between 35c3b0b699 and HEAD; the diff touches the scenarioCheckers registry shape (both ESN scenarios still map to these checkers) and the childless-IKE-SA checkers, and the producer change adds only a fix field to the refusal log line, so the verdict stands.",
+  "requirement_sha": "1641f0dba643a5b2",
+  "tests": {
+    "internal/component/ike/crypto/rfc7296_proposal_negotiation_test.go::TestProposalNegotiationFirstMatch": "a6de5fb37ffc1f6e",
+    "internal/component/ike/crypto/rfc7296_proposal_negotiation_test.go::TestProposalNegotiationNoMatch": "a6de5fb37ffc1f6e",
+    "internal/component/ike/engine/rfc7296_esn_test.go::TestEsnResponderAnswersOnlyAValueTheOfferCarried": "c6cc102fdb5f482d",
+    "internal/component/ike/engine/rfc7296_esn_test.go::TestEsnResponderAnswersOnlyAValueTheOfferCarried#2": "c6cc102fdb5f482d",
+    "internal/le/interoplab/ipsec/checkers.go::checkESNBothOffered": "18e8b846ea01dbd9",
+    "internal/le/interoplab/ipsec/checkers.go::checkESNExtendedOnlyRefused": "18e8b846ea01dbd9"
+  },
+  "units": {
+    "internal/component/ike/crypto/rfc7296_proposal_negotiation_test.go::TestProposalNegotiationFirstMatch": "eb95e994924bfa94",
+    "internal/component/ike/crypto/rfc7296_proposal_negotiation_test.go::TestProposalNegotiationNoMatch": "fd3e619539d52379",
+    "internal/component/ike/engine/rfc7296_esn_test.go::TestEsnResponderAnswersOnlyAValueTheOfferCarried": "a7b63ca86fb81625",
+    "internal/component/ike/engine/rfc7296_esn_test.go::TestEsnResponderAnswersOnlyAValueTheOfferCarried#2": "a7b63ca86fb81625",
+    "internal/le/interoplab/ipsec/checkers.go::checkESNBothOffered": "af3bf92a86a8c0e8",
+    "internal/le/interoplab/ipsec/checkers.go::checkESNExtendedOnlyRefused": "6bcd7a5aa4526b9b"
+  },
+  "verdict": "enforced"
+}

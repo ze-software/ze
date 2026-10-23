@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged 2026-09-29. rfc7854_wire_header_test.go::TestRFC7854PeerASIsFourOctetsWithTheShortASZeroPadded writes a Peer Down (writePeerHeader) into a patterned buffer and reads per-peer octets 26-29 raw: 65001 must be 00 00 FD E9 (the 16 most significant bits zero) and 4200000001 must be FA 56 EA 01, so a 2-octet field, a lost padding or a misplaced AS goes red. {single-polarity: positive} holds: the field is a fixed 4-octet encode with no shorter variant to refuse.",
+  "requirement_sha": "4b3f05b4fcce9a20",
+  "tests": {
+    "internal/component/bgp/plugins/bmp/header_test.go::TestBMPPeerHeaderDecode": "49dfad3eed97ec32",
+    "internal/component/bgp/plugins/bmp/header_test.go::TestBMPPeerHeaderEncode": "49dfad3eed97ec32",
+    "internal/component/bgp/plugins/bmp/rfc7854_wire_header_test.go::TestRFC7854PeerASIsFourOctetsWithTheShortASZeroPadded": "8a330a29c2d73330"
+  },
+  "units": {
+    "internal/component/bgp/plugins/bmp/header_test.go::TestBMPPeerHeaderDecode": "1acfbf2d5394c14b",
+    "internal/component/bgp/plugins/bmp/header_test.go::TestBMPPeerHeaderEncode": "e0c40f2ef5f0a53a",
+    "internal/component/bgp/plugins/bmp/rfc7854_wire_header_test.go::TestRFC7854PeerASIsFourOctetsWithTheShortASZeroPadded": "d44922be8fc24982"
+  },
+  "verdict": "enforced"
+}

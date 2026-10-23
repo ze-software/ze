@@ -1,0 +1,13 @@
+{
+  "note": "Encoder emits the GOSIP NET with reserved octets zero; ParseNET and DecodeISH refuse either nonzero reserved octet with ErrNETReserved.",
+  "requirement_sha": "b34459d48143ff14",
+  "tests": {
+    "internal/plugins/isis/packet/rfc1195_ish_test.go::TestRFC1195ISHGOSIPReservedRefused": "f60366c975e54699",
+    "internal/plugins/isis/packet/rfc1195_ish_test.go::TestRFC1195ISHGOSIPReservedZero": "f60366c975e54699"
+  },
+  "units": {
+    "internal/plugins/isis/packet/rfc1195_ish_test.go::TestRFC1195ISHGOSIPReservedRefused": "a8a26be9d6280f63",
+    "internal/plugins/isis/packet/rfc1195_ish_test.go::TestRFC1195ISHGOSIPReservedZero": "fc006e3959c2647e"
+  },
+  "verdict": "enforced"
+}

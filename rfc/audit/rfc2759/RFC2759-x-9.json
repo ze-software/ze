@@ -1,0 +1,15 @@
+{
+  "note": "Row re-levelled MUST->SHOULD (same correction). The source clause is on the crypto/rand.Reader substitution unit; the used-in-NT-Response clause now on TestRFC2759PeerChallengeEntersTheNTResponse: the wire NT-Response equals the one over the sent Peer-Challenge, and flipping one Peer-Challenge octet makes the authenticator refuse it.",
+  "requirement_sha": "b35159574d13d7a6",
+  "tests": {
+    "internal/core/eap/peer_test.go::TestMSCHAPv2PeerChallengeRandom16": "93404fe1a5065a94",
+    "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerChallengeEntersTheNTResponse": "56143b27bc08b27f",
+    "internal/core/eap/rfc2759_peer_challenge_test.go::TestRFC2759PeerChallengeComesFromCryptoRand": "c59064ad278415f3"
+  },
+  "units": {
+    "internal/core/eap/peer_test.go::TestMSCHAPv2PeerChallengeRandom16": "4f013d5dbcad8886",
+    "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerChallengeEntersTheNTResponse": "a360a8be76cc878b",
+    "internal/core/eap/rfc2759_peer_challenge_test.go::TestRFC2759PeerChallengeComesFromCryptoRand": "501409090308a85d"
+  },
+  "verdict": "enforced"
+}

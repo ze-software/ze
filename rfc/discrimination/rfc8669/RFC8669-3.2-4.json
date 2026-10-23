@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8669-3.2-4",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/message/rfc8669_tlv_length_test.go::TestRFC8669SRGBAnyLengthIgnoredOffLabeledUnicast",
+    "unit-sha": "0a293dd2b2a02f78",
+    "claim-sha": "7d014c346d7def56",
+    "route": "revert",
+    "producer": "internal/core/bgp/attribute/prefixsid_classify.go::ClassifyPrefixSID",
+    "producer-sha": "00a49549792e5674",
+    "break": "body of ClassifyPrefixSID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8669-3.2-4",
+    "polarity": "positive",
+    "unit": "internal/core/bgp/attribute/rfc8669_prefixsid_family_test.go::TestParsePrefixSIDAcceptsOffFamilyLabelIndexLength",
+    "unit-sha": "08c890d51150f610",
+    "claim-sha": "4830c4bdbea9beca",
+    "route": "revert",
+    "producer": "internal/core/bgp/attribute/prefixsid_wire.go::validatePrefixSIDTLVs",
+    "producer-sha": "12292fb431326eae",
+    "break": "body of validatePrefixSIDTLVs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

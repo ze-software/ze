@@ -1,0 +1,25 @@
+[
+  {
+    "rid": "RFC9234-4.2-5",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/role/rfc9234_validate_test.go::TestValidateOpenRolePair_NoPeerRole_NoStrict",
+    "unit-sha": "ded1538137ca802b",
+    "claim-sha": "0c4f0c0c997f02f5",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/role/validate.go::validateOpenRolePair",
+    "producer-sha": "d0851e2a01f45365",
+    "break": "body of validateOpenRolePair replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9234-4.2-5",
+    "polarity": "positive",
+    "unit": "test/plugin/role-strict-enforcement.ci",
+    "unit-sha": "14617793e8619488",
+    "claim-sha": "960647921d746ba9",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/role/validate.go::validateOpenRolePair",
+    "producer-sha": "d0851e2a01f45365",
+    "break": "line 86: \"cfg.strict\" -\u003e \"false\"",
+    "citation": "expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001503020B"
+  }
+]

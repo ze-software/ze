@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC9552-8.2.2-10",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752MalformedTLVNotPreserved",
+    "unit-sha": "e103516de61346fe",
+    "claim-sha": "34f1d40bb926d7da",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/nlri/ls/attr.go::iterateAttrTLVs",
+    "producer-sha": "193a961cd2733ca4",
+    "break": "body of iterateAttrTLVs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,13 @@
+{
+  "note": "positive: neither OFFER nor ACK carries option 61; negative: requests carrying option 61 still draw OFFER/ACK without it. The NAK column (MAY) is correctly left unasserted",
+  "requirement_sha": "658fd497873e6d4d",
+  "tests": {
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyDoesNotEchoClientOptions": "8365c04cdfc2a046",
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyOmitsClientOnlyOptions": "8365c04cdfc2a046"
+  },
+  "units": {
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyDoesNotEchoClientOptions": "50766840a8f13e96",
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyOmitsClientOnlyOptions": "deef6372c11cdf5e"
+  },
+  "verdict": "enforced"
+}

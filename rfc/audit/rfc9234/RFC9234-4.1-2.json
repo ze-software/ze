@@ -1,0 +1,13 @@
+{
+  "note": "RFC 9234 Section 4.1: \"An eBGP speaker MUST NOT advertise multiple versions of the BGP Role Capability.\" The single-polarity annotation remains justified: config.go::parseRoleContainer reads one scalar import role and extractRoleCapabilities emits one declaration per selected peer; reactor/peer.go::getPluginCapabilities consumes those declarations for its selector set. TestExtractRoleCapabilities_ParseBGPConfig requires exactly one capability and one peer for every configured role. dynamic-peer-gets-group-role-capability.ci asserts the whole OPEN with exactly one 090101 TLV, including all enclosing lengths; duplicate emission cannot hide behind a substring assertion. No fabricated negative configuration is required. Rejudged independently against RFC source and every tagged carrier on 2026-10-22. Functional judgments use the corresponding test/draft/plugin files, not the unpromoted old-syntax live files. Their inactive NO-TRANSIT import/export policies explicitly end in accept; reactor runEgressPolicyChain applies that final only after mandatory in-process OTC, and OPEN validation is independent. This is a source judgment, not a new runtime or discrimination result; parent owns promotion and native freshness before stamping.",
+  "requirement_sha": "1ec6661c117f3362",
+  "tests": {
+    "internal/component/bgp/plugins/role/rfc9234_config_test.go::TestExtractRoleCapabilities_ParseBGPConfig": "fe6a1844d24f559d",
+    "test/plugin/dynamic-peer-gets-group-role-capability.ci": "404bb4f4cfe5b8da"
+  },
+  "units": {
+    "internal/component/bgp/plugins/role/rfc9234_config_test.go::TestExtractRoleCapabilities_ParseBGPConfig": "56e78e6bbc863460",
+    "test/plugin/dynamic-peer-gets-group-role-capability.ci": "404bb4f4cfe5b8da"
+  },
+  "verdict": "enforced"
+}

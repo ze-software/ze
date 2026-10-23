@@ -1,0 +1,15 @@
+{
+  "note": "Rejudged 2026-09-29 (routing child). TestRFC4090RepairSetsInUseAndAvailable drives handleLinkDown onto the bypass, then sendResv from the stored state, and reads the PLR's own RRO subobject with both 0x01 and 0x02 set; the fixture asserts in-use was clear before repair. Existing negative keeps in-use clear while no repair happened. Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 6.5 and the enforced verdict holds unchanged.",
+  "requirement_sha": "2981612b4e5351ad",
+  "tests": {
+    "internal/plugins/rsvpte/frr_test.go::TestRROProtectionFlagsReflectState": "9e1595a34e264d7e",
+    "internal/plugins/rsvpte/frr_test.go::TestRROProtectionFlagsReflectState#2": "9e1595a34e264d7e",
+    "internal/plugins/rsvpte/rfc4090_plr_flags_test.go::TestRFC4090RepairSetsInUseAndAvailable": "8d4223b7e1a9680f"
+  },
+  "units": {
+    "internal/plugins/rsvpte/frr_test.go::TestRROProtectionFlagsReflectState": "9508a9ff6c4a2645",
+    "internal/plugins/rsvpte/frr_test.go::TestRROProtectionFlagsReflectState#2": "9508a9ff6c4a2645",
+    "internal/plugins/rsvpte/rfc4090_plr_flags_test.go::TestRFC4090RepairSetsInUseAndAvailable": "63b4acb65ba9a3eb"
+  },
+  "verdict": "enforced"
+}

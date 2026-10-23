@@ -1,0 +1,11 @@
+{
+  "note": "Forbidden: the type-2 Functional Capabilities TLV carried outside the first instance. ri_registry_test.go TestRITLVRegistered requires buildRIInstances(area scope, backbone) to return exactly one instance whose TLV types are [1, 2, 8], so type-2 is in Instance 0. Re-judged 2026-09-30 after the call-site signature change; assertion unchanged. Single-polarity marker on the row covers the absent negative.",
+  "requirement_sha": "e3e048d8302b0376",
+  "tests": {
+    "internal/plugins/ospf/rfc7770_ri_registry_test.go::TestRITLVRegistered": "daec37ca4a67c0dc"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc7770_ri_registry_test.go::TestRITLVRegistered": "ba62555032814e17"
+  },
+  "verdict": "enforced"
+}

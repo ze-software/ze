@@ -1,0 +1,13 @@
+{
+  "note": "First verdict 2026-10-21 (round 4 judge). Split from 8.2-3. Through the real dispatcher on a keyed-MD5 interface: a Hello signed with the configured key is not dropped and forms a neighbor; the same Hello signed with another key (AuType and Key ID matching) is dropped once and forms none, isolating the digest check. Records on auth_wiring.go::verifyPacket.",
+  "requirement_sha": "4c53509786419218",
+  "tests": {
+    "internal/plugins/ospf/rfc2328_packet_authenticated_test.go::TestRFC2328AuthenticatedPacketAccepted": "04b52fb85f4245cf",
+    "internal/plugins/ospf/rfc2328_packet_authenticated_test.go::TestRFC2328UnauthenticatedPacketDropped": "04b52fb85f4245cf"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc2328_packet_authenticated_test.go::TestRFC2328AuthenticatedPacketAccepted": "0df98f1d5be07f9c",
+    "internal/plugins/ospf/rfc2328_packet_authenticated_test.go::TestRFC2328UnauthenticatedPacketDropped": "0c2ec3773aff9266"
+  },
+  "verdict": "enforced"
+}

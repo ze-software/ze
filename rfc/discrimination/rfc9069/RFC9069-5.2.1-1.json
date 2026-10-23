@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9069-5.2.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestLocRIBPeerUpAndPeerDownCarryTheGlobalTableName",
+    "unit-sha": "4e83473bbad1eecf",
+    "claim-sha": "7a9859a4d9ecc93f",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/bmp/bmp_locrib.go::locRIBTableNameTLV",
+    "producer-sha": "12bb84cc07a5835c",
+    "break": "body of locRIBTableNameTLV replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9069-5.2.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestMonitoredPeerUpCarriesNoTableNameTLV",
+    "unit-sha": "717747f069c951d2",
+    "claim-sha": "17d66a54552a252a",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/bmp/sender.go::writePeerUpLocked",
+    "producer-sha": "ad07ac77807a7773",
+    "break": "body of writePeerUpLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

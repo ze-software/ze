@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4302-2-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc4302_ipsec_test.go::TestAHParametersComeFromConfiguration",
+    "unit-sha": "06660fd8d4bb59ec",
+    "claim-sha": "d1c73b47eedcf395",
+    "route": "mutant",
+    "producer": "internal/plugins/ospf/config_ipsec.go::parseIPsec",
+    "producer-sha": "79a7da837a737a9a",
+    "break": "line 97: \"\u003c=\" -\u003e \"\u003e\""
+  },
+  {
+    "rid": "RFC4302-2-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/rfc4302_ipsec_test.go::TestAHParametersComeFromConfiguration",
+    "unit-sha": "06660fd8d4bb59ec",
+    "claim-sha": "7cf4a2152c02d8b3",
+    "route": "mutant",
+    "producer": "internal/plugins/ospf/config_ipsec.go::validateIPsecInterface",
+    "producer-sha": "30c3ee956902c48e",
+    "break": "line 128: \"!\" -\u003e \"\""
+  }
+]

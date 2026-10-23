@@ -1,0 +1,13 @@
+{
+  "note": "(a) forbidden: answering or acting on a packet whose Code is not CoA-Request or Disconnect-Request. (b) TestRFC5176InvalidCodeDiscarded: sendRawCoAPacketExpectNoResponse for a correctly signed Code 44 packet; the CoA-Request with the same attributes is answered. One invalid value exercises the whitelist in handlePacket.",
+  "requirement_sha": "7cdebd543f5954e7",
+  "tests": {
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176InvalidCodeDiscarded": "2b3357f1f1e8ec93",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176InvalidCodeDiscarded#2": "2b3357f1f1e8ec93"
+  },
+  "units": {
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176InvalidCodeDiscarded": "b04f2427bad3dddf",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176InvalidCodeDiscarded#2": "b04f2427bad3dddf"
+  },
+  "verdict": "enforced"
+}

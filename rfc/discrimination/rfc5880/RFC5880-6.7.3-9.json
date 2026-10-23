@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC5880-6.7.3-9",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedOutsideWindowDiscarded",
+    "unit-sha": "2cd3d53d5f3c85d9",
+    "claim-sha": "a72219c5546d79d9",
+    "route": "revert",
+    "producer": "internal/component/bfd/auth/meticulous.go::Check",
+    "producer-sha": "0d7ec3911e063f57",
+    "break": "body of Check replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.7.3-9",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedWindowFollowsReceivedDetectMult",
+    "unit-sha": "50ef1e92926bf9b3",
+    "claim-sha": "3fa73a8a99b59773",
+    "route": "revert",
+    "producer": "internal/component/bfd/auth/meticulous.go::Check",
+    "producer-sha": "0d7ec3911e063f57",
+    "break": "body of Check replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.7.3-9",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KeyedSequenceBeyondWindowDiscarded",
+    "unit-sha": "1de1b88a65dc8f60",
+    "claim-sha": "0a41ed1cc6cfa3e4",
+    "route": "revert",
+    "producer": "internal/component/bfd/auth/meticulous.go::Check",
+    "producer-sha": "0d7ec3911e063f57",
+    "break": "body of Check replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.7.3-9",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/session/rfc5880_auth_wrap_test.go::TestRFC5880SequenceFieldOtherThanXmitAuthSeqDiscarded",
+    "unit-sha": "0ce70cc718a74088",
+    "claim-sha": "0a9b7d23847961d5",
+    "route": "revert",
+    "producer": "internal/component/bfd/auth/meticulous.go::Check",
+    "producer-sha": "0d7ec3911e063f57",
+    "break": "body of Check replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

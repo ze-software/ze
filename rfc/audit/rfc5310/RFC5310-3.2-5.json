@@ -1,0 +1,13 @@
+{
+  "note": "Single-polarity positive (no sign-before-pad path, no padding-disable option). Both IIH producers are now asserted: circuit TestISISHelloSignedOverPaddedPDU on the LAN IIH (sendLANHello) and TestRFC5310P2PHelloSignedOverPaddedPDU on the point-to-point IIH (sendP2PHello), each capturing the bytes handed to the CRYPTO_AUTH signer and requiring length MTU - LLC with Padding TLV 8 present, so signing before padding on either path goes red. Recorded + on hello.go padHello for the P2P unit.",
+  "requirement_sha": "117c020645b89acb",
+  "tests": {
+    "internal/plugins/isis/circuit/rfc5303_sent_iih_test.go::TestRFC5310P2PHelloSignedOverPaddedPDU": "103ec73a1dc2a973",
+    "internal/plugins/isis/circuit/runtime_test.go::TestISISHelloSignedOverPaddedPDU": "e4e11f5b96d66de5"
+  },
+  "units": {
+    "internal/plugins/isis/circuit/rfc5303_sent_iih_test.go::TestRFC5310P2PHelloSignedOverPaddedPDU": "8ff43de19dc120b0",
+    "internal/plugins/isis/circuit/runtime_test.go::TestISISHelloSignedOverPaddedPDU": "3431ee8e9d228c16"
+  },
+  "verdict": "enforced"
+}

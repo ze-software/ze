@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8955-4.2.1.1-3",
+    "polarity": "positive",
+    "unit": "internal/core/bgp/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecNumericReservedAndEightOctetOperand",
+    "unit-sha": "5a120768fa5654fc",
+    "claim-sha": "066edc337211d011",
+    "route": "revert",
+    "producer": "internal/core/bgp/nlri/flowspec/types_numeric.go::parseNumericComponent",
+    "producer-sha": "955992031c86f3d3",
+    "break": "body of parseNumericComponent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8955-4.2.1.1-3",
+    "polarity": "negative",
+    "unit": "internal/core/bgp/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecNumericReservedAndEightOctetOperand",
+    "unit-sha": "5a120768fa5654fc",
+    "claim-sha": "2f09970b87ec006b",
+    "route": "revert",
+    "producer": "internal/core/bgp/nlri/flowspec/types_numeric.go::parseNumericComponent",
+    "producer-sha": "955992031c86f3d3",
+    "break": "body of parseNumericComponent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC6396-1-1",
+    "polarity": "positive",
+    "unit": "internal/mrt/rfc6396_remaining_fields_test.go::TestRFC6396RemainingNumericFields",
+    "unit-sha": "5031fce28837548e",
+    "claim-sha": "98bd89277d931f4c",
+    "route": "revert",
+    "producer": "internal/mrt/encode.go::WriteExtendedHeader",
+    "producer-sha": "f7447a48de3e1a9e",
+    "break": "body of WriteExtendedHeader replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC6396-1-1",
+    "polarity": "positive",
+    "unit": "internal/mrt/rfc6396_wire_fields_test.go::TestRFC6396NumericFieldsUseExternalNetworkOrder",
+    "unit-sha": "a2ef0a61a32a14bc",
+    "claim-sha": "7734a8f90e0e021b",
+    "route": "revert",
+    "producer": "internal/mrt/encode.go::WritePeerIndexTable",
+    "producer-sha": "91bff780ac77a3bc",
+    "break": "body of WritePeerIndexTable replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

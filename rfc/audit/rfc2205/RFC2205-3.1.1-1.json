@@ -1,0 +1,13 @@
+{
+  "note": "Judged 2026-09-29 (routing child, continuation judge). Positive TestRFC2205ZeroChecksumMeansNoneTransmitted: an all-zero checksum over a body that would fail verification is accepted at handlePacket (PSB installed, PATH relayed). Negative TestRFC2205NonzeroChecksumStillVerified bounds the rule: a nonzero failing checksum is dropped. Records break the whole DecodeMessage; a targeted mutant of the zero test would be sharper.",
+  "requirement_sha": "dccf5db3adc1e14d",
+  "tests": {
+    "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205NonzeroChecksumStillVerified": "7bc063943de30e7b",
+    "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205ZeroChecksumMeansNoneTransmitted": "7bc063943de30e7b"
+  },
+  "units": {
+    "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205NonzeroChecksumStillVerified": "1298ba3cc53f8e79",
+    "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205ZeroChecksumMeansNoneTransmitted": "0c999bcd2f086616"
+  },
+  "verdict": "enforced"
+}

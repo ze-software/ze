@@ -1,0 +1,13 @@
+{
+  "note": "Same unit: the route path is the AS_PATH widened with AS_TRANS intact; the AS_TRANS counterpart reconstructs instead.",
+  "requirement_sha": "96172fa13d87b65c",
+  "tests": {
+    "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithASTransPromotesAS4Aggregator": "4e9759edcd069569",
+    "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithRealASIgnoresAS4Attributes": "4e9759edcd069569"
+  },
+  "units": {
+    "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithASTransPromotesAS4Aggregator": "d82348d675d1a7e2",
+    "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793AggregatorWithRealASIgnoresAS4Attributes": "408158c19befb73c"
+  },
+  "verdict": "enforced"
+}

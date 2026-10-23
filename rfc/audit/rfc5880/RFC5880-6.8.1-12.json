@@ -1,0 +1,17 @@
+{
+  "note": "Judge 2026-09-28. Positive TestRFC5880NewSessionAuthSeqKnownZero: a new Machine with SetAuth has AuthSeqKnown 0 and accepts a first packet at 0x80000000, which Check would refuse from any initialized floor of 0. Negative TestRFC5880AuthSeqKnownOneDiscardsFirstPacket builds the violating initial state (AuthSeqKnown 1) and shows the same packet is refused, so the observable outcome depends on the zero start; an initialization has no refusal path, and the violating state is the non-conforming input.",
+  "requirement_sha": "af0148874e278084",
+  "tests": {
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthSeqKnownSetAfterFirstPacket": "5a25c74cc2d9bd47",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthSeqKnownStartsZero": "5a25c74cc2d9bd47",
+    "internal/component/bfd/session/rfc5880_auth_seq_test.go::TestRFC5880AuthSeqKnownOneDiscardsFirstPacket": "4991f8b5efadecf0",
+    "internal/component/bfd/session/rfc5880_auth_seq_test.go::TestRFC5880NewSessionAuthSeqKnownZero": "4991f8b5efadecf0"
+  },
+  "units": {
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthSeqKnownSetAfterFirstPacket": "942f7e90f7f29c16",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthSeqKnownStartsZero": "cbae9fa027f1185a",
+    "internal/component/bfd/session/rfc5880_auth_seq_test.go::TestRFC5880AuthSeqKnownOneDiscardsFirstPacket": "ab4019c9c4352582",
+    "internal/component/bfd/session/rfc5880_auth_seq_test.go::TestRFC5880NewSessionAuthSeqKnownZero": "bc56e54195c4bdd8"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,15 @@
+{
+  "note": "Judge ppp4 2026-09-30. Row text is the verbatim RFC 1661 Section 5 sentence (rfc/full/rfc1661.txt lines 1582-1584), MUST under D-3, listed in extraction section 5 unsourced-ids. TestRFC1661InvalidLengthPacketSilentlyDiscarded (+): an Opened session with a matching peer Magic, through handleFrame, gets an Echo-Request that would draw a reply, with Length 3 (below the header) and Length 16 (past the 8 octets present): no frame written, still Opened, no lifecycle event; the buffer is otherwise valid, so only the Length decides. TestRFC1661ValidLengthWithPaddingIsAnswered (-): Length 8 plus 4 padding octets is answered (Echo-Reply Id 0x62, still Opened), so an over-eager discard turns it red. TestIPCPFrameRejectsNonSinglePacket (+) proves ParseLCPPacket's errLCPLengthMismatch detection on an IPCP packet; its claim names only the detection. Records: ParseLCPPacket revert, observed red, all three units.",
+  "requirement_sha": "0061613f736b6302",
+  "tests": {
+    "internal/component/l2tp/ppp/frame_test.go::TestIPCPFrameRejectsNonSinglePacket": "f5b41639f95677f8",
+    "internal/component/l2tp/ppp/rfc1661_packet_length_test.go::TestRFC1661InvalidLengthPacketSilentlyDiscarded": "28ba8a1633392946",
+    "internal/component/l2tp/ppp/rfc1661_packet_length_test.go::TestRFC1661ValidLengthWithPaddingIsAnswered": "28ba8a1633392946"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/frame_test.go::TestIPCPFrameRejectsNonSinglePacket": "fc1c502d91d383ab",
+    "internal/component/l2tp/ppp/rfc1661_packet_length_test.go::TestRFC1661InvalidLengthPacketSilentlyDiscarded": "d2e13b93fa427028",
+    "internal/component/l2tp/ppp/rfc1661_packet_length_test.go::TestRFC1661ValidLengthWithPaddingIsAnswered": "0d96d6a07be1e60d"
+  },
+  "verdict": "enforced"
+}

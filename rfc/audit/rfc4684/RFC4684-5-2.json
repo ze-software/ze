@@ -1,0 +1,17 @@
+{
+  "note": "TestRFC4684RTCAdvertisedAsMultiprotocolPair reads Ze's built OPEN: ipv4/rtc configured -> MP (1,132) present and negotiated with a peer offering it; mode disable -> absent and not negotiated. Judge break: disabled-family skip removed turned it red. The codec-level tag is supplementary. Summary prose that said 5-2 carries no test is corrected.",
+  "requirement_sha": "71b051fe88579d1a",
+  "tests": {
+    "internal/component/bgp/reactor/rfc_open_family_capability_test.go::TestRFC4684RTCAdvertisedAsMultiprotocolPair": "48d5a544cfcb8b61",
+    "internal/component/bgp/reactor/rfc_open_family_capability_test.go::TestRFC4684RTCAdvertisedAsMultiprotocolPair#2": "48d5a544cfcb8b61",
+    "internal/core/bgp/capability/rfc4684_rtc_test.go::TestRFC4684RTCFamilyIsAMultiprotocolCapability": "39bf14ba25dcd356",
+    "internal/core/bgp/capability/rfc4684_rtc_test.go::TestRFC4684RTCPairUnderAnotherCodeIsNotTheFamily": "39bf14ba25dcd356"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc_open_family_capability_test.go::TestRFC4684RTCAdvertisedAsMultiprotocolPair": "c72db7131d7f6e8d",
+    "internal/component/bgp/reactor/rfc_open_family_capability_test.go::TestRFC4684RTCAdvertisedAsMultiprotocolPair#2": "c72db7131d7f6e8d",
+    "internal/core/bgp/capability/rfc4684_rtc_test.go::TestRFC4684RTCFamilyIsAMultiprotocolCapability": "f1bcb90f5a4c6a74",
+    "internal/core/bgp/capability/rfc4684_rtc_test.go::TestRFC4684RTCPairUnderAnotherCodeIsNotTheFamily": "fdbd2aedb7e15e31"
+  },
+  "verdict": "enforced"
+}

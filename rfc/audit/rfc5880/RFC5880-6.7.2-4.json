@@ -1,0 +1,13 @@
+{
+  "note": "Judge rejudge 2026-09-30 (phase 8: row cites 6.7.2 only; the SHA1 type units moved to RFC5880-6.7.4-14, the MD5 clause is RFC5880-6.7.3-16). Positive accepts Auth Type 1 sections for 1/8/16-byte passwords; negative TestRFC5880SimplePasswordMissingSectionOrOtherTypeDiscarded refuses an A-clear Length-24 packet (ErrShortAuthBody) and types 0,2,3,4,5,6,255 with every other field valid, isolated because Simple Password has no digest. Stack-level no-section discard is Receive's A-bit gate (RFC5880-6.8.6-10).",
+  "requirement_sha": "a44c7486a95757b9",
+  "tests": {
+    "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880SimplePasswordMissingSectionOrOtherTypeDiscarded": "69049dc5fe6d5288",
+    "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880SimplePasswordSectionOfTypeOneAccepted": "69049dc5fe6d5288"
+  },
+  "units": {
+    "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880SimplePasswordMissingSectionOrOtherTypeDiscarded": "7036f46ebad31940",
+    "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880SimplePasswordSectionOfTypeOneAccepted": "58793f9c7fa99759"
+  },
+  "verdict": "enforced"
+}

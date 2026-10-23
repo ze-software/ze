@@ -1,0 +1,13 @@
+{
+  "note": "TestRFC5310HelloUsesLinkString: signHelloPDU signs a LAN and a P2P IIH that verify with iihsecret under Key ID 3 and not with areasecret under Key ID 3, and verifyFrame accepts them, so a sender using the area chain goes red. TestRFC5310HelloRefusesAreaAndDomainStrings: the IIHs signed with the area or domain string, under Key ID 3 and under their own Key IDs (1, 2), are rejected while the link-signed IIH is accepted. Recorded red on signHelloPDU and verifyFrame. The old self-consistent round trip and no-TLV-10 tags are gone.",
+  "requirement_sha": "a6b88459b143242a",
+  "tests": {
+    "internal/plugins/isis/rfc5310_auth_scope_test.go::TestRFC5310HelloRefusesAreaAndDomainStrings": "207e51c924c43a50",
+    "internal/plugins/isis/rfc5310_auth_scope_test.go::TestRFC5310HelloUsesLinkString": "207e51c924c43a50"
+  },
+  "units": {
+    "internal/plugins/isis/rfc5310_auth_scope_test.go::TestRFC5310HelloRefusesAreaAndDomainStrings": "c6d354d4e3cc9466",
+    "internal/plugins/isis/rfc5310_auth_scope_test.go::TestRFC5310HelloUsesLinkString": "4767eb278a0353bb"
+  },
+  "verdict": "enforced"
+}

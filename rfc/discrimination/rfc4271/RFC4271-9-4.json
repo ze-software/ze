@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4271-9-4",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/adj_rib_in/rfc4271_rib_test.go::TestRFC4271AdjRIBInPlacesNewRoute",
+    "unit-sha": "97d030f0c018a7c0",
+    "claim-sha": "629a73936b139249",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/adj_rib_in/rib.go::installStructuredNLRIs",
+    "producer-sha": "70ad8368ab11c74c",
+    "break": "body of installStructuredNLRIs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-9-4",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/adj_rib_in/rfc4271_rib_test.go::TestRFC4271AdjRIBInPlacesNewRoute",
+    "unit-sha": "97d030f0c018a7c0",
+    "claim-sha": "090a89390aee22f7",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/adj_rib_in/rib.go::installStructuredNLRIs",
+    "producer-sha": "70ad8368ab11c74c",
+    "break": "body of installStructuredNLRIs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

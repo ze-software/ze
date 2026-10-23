@@ -1,0 +1,15 @@
+{
+  "note": "positive: a PADR with a PRESENT unserved Service-Name through handlePADR draws one PADS with Service-Name-Error and SESSION_ID 0x0000, no session, no socket (TestRFC2516UnservedServiceNameIsRefused); the absent-tag branch stays covered by TestPADRWithoutServiceNameGetsServiceNameError. negative: a served name draws a non-zero SID and no Service-Name-Error. All three recorded red on handlePADR",
+  "requirement_sha": "75b8ee3323a4be3a",
+  "tests": {
+    "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516AdmittedPADSCarriesTheNewSessionsID": "3ea2cf3cd3f3abda",
+    "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516UnservedServiceNameIsRefused": "3ea2cf3cd3f3abda",
+    "internal/component/l2tp/pppoe/rfc2516_server_test.go::TestPADRWithoutServiceNameGetsServiceNameError": "d951b855bd7c56c0"
+  },
+  "units": {
+    "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516AdmittedPADSCarriesTheNewSessionsID": "4a6839fa921e86e8",
+    "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516UnservedServiceNameIsRefused": "eda063201199cd46",
+    "internal/component/l2tp/pppoe/rfc2516_server_test.go::TestPADRWithoutServiceNameGetsServiceNameError": "444f8a3e21e8fa29"
+  },
+  "verdict": "enforced"
+}

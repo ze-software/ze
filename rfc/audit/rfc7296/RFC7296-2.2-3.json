@@ -1,0 +1,13 @@
+{
+  "note": "finishResponderEstablish advances only the inbound counter; responder's first request id 0 is classified as new by the initiator",
+  "requirement_sha": "6288b242eb184ce2",
+  "tests": {
+    "internal/component/ike/engine/rfc7296_msgid_responder_request_test.go::TestResponderFirstRequestMatchesWhatTheInitiatorExpects": "71774b33deb0f09c",
+    "internal/component/ike/engine/rfc7296_msgid_test.go::TestMidResponderEstablishDoesNotWrapTheCounter": "627835c6b1b632fb"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7296_msgid_responder_request_test.go::TestResponderFirstRequestMatchesWhatTheInitiatorExpects": "ee1fb2c93cb7ede0",
+    "internal/component/ike/engine/rfc7296_msgid_test.go::TestMidResponderEstablishDoesNotWrapTheCounter": "8791c36986131a6d"
+  },
+  "verdict": "enforced"
+}

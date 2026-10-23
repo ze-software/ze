@@ -1,0 +1,13 @@
+{
+  "note": "Re-read 2026-09-27. Forbidden: a receiver interpreting an invalid UTF-8 Shutdown Communication. TestRFC8203UTF8Invalid fails unless ShutdownMessage errors and returns empty for 0xff 0xfe 0xfd; TestRFC8203UTF8Valid shows valid multibyte text is interpreted.",
+  "requirement_sha": "5cab220eae8c9d30",
+  "tests": {
+    "internal/component/bgp/message/notification_test.go::TestRFC8203UTF8Invalid": "9710bf0872e82b0b",
+    "internal/component/bgp/message/notification_test.go::TestRFC8203UTF8Valid": "9710bf0872e82b0b"
+  },
+  "units": {
+    "internal/component/bgp/message/notification_test.go::TestRFC8203UTF8Invalid": "2e939366e427c751",
+    "internal/component/bgp/message/notification_test.go::TestRFC8203UTF8Valid": "db8547b1fd85e2e7"
+  },
+  "verdict": "enforced"
+}

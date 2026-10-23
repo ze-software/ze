@@ -1,0 +1,17 @@
+{
+  "note": "vrrp judge 2026-09-29 (independent, continuation 3): Wiring now proven on the host: TestBackupDiscardFollowsTheState asserts promotion withdraws the discard exactly once and only after the address install, and that it holds before promotion and after demotion (records observed red on doInstallVIPs and doRemoveVIPs). Wire effect: TestVRRPBackupDoesNotForwardVirtualMACFrames (QEMU guest) forwards the datagram sent to the Virtual Router MAC once the filter is withdrawn and the address installed, and not while the filter holds (records on clearBackupFilter).",
+  "requirement_sha": "7a688a4e1ee35cb7",
+  "tests": {
+    "internal/plugins/vrrp/backupfilter_test.go::TestBackupDiscardFollowsTheState": "222f08528bf57944",
+    "internal/plugins/vrrp/backupfilter_test.go::TestBackupDiscardFollowsTheState#2": "222f08528bf57944",
+    "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames": "44393888cc66696b",
+    "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames#2": "44393888cc66696b"
+  },
+  "units": {
+    "internal/plugins/vrrp/backupfilter_test.go::TestBackupDiscardFollowsTheState": "79074dcf716f8085",
+    "internal/plugins/vrrp/backupfilter_test.go::TestBackupDiscardFollowsTheState#2": "79074dcf716f8085",
+    "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames": "ae65b076e9153ae9",
+    "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPBackupDoesNotForwardVirtualMACFrames#2": "ae65b076e9153ae9"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "session-stage addressing is set by connecting the pppox socket: the positive asserts each admitted session's socket is bound to its PADR's unicast source MAC; the negative shows a broadcast- and a multicast-sourced PADR are refused by ParseDiscovery before HandleDiscovery and bind nothing, while a unicast source binds itself. The negative mirrors Subsystem.discoveryReader's parse-then-dispatch inline (read at subsystem.go, it matches), so a change to the reader itself would not turn it red. Records red on createTransport and ParseDiscovery",
+  "requirement_sha": "8f7946242975f977",
+  "tests": {
+    "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516AdmittedPADSCarriesTheNewSessionsID": "3ea2cf3cd3f3abda",
+    "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516SessionNeverBoundToANonUnicastPeer": "3ea2cf3cd3f3abda"
+  },
+  "units": {
+    "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516AdmittedPADSCarriesTheNewSessionsID": "4a6839fa921e86e8",
+    "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516SessionNeverBoundToANonUnicastPeer": "fe9dcfe2326f51cd"
+  },
+  "verdict": "enforced"
+}

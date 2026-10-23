@@ -1,0 +1,29 @@
+{
+  "note": "Re-judged 2026-10-01 (BGP c11 judge). All five fatal-error classes of Section 6 are now proven at peer level never to be answered with Cease: Message Header Error (TestRFC4271MessageHeaderErrorIsReported, exactly one code 1; TestRFC4271OpenSentErrorReleasesTheConnection 1/1, 1/2), OPEN Message Error (2/1), UPDATE Message Error (TestRFC4271EstablishedUpdateErrorReleasesTheConnection, exactly one code 3), Hold Timer Expired (exactly one 4/0), and now Finite State Machine Error (Section 6.6): TestRFC4271OpenSentUnexpectedMessageIsAnFSMError and TestRFC4271OpenConfirmUpdateIsAnFSMError assert exactly one 5/0, never Cease, and TestSessionBFDStrictSecondOpenIsAnFSMErrorOnTheWire (newly tagged) asserts the first wire message is code 5. Positive TestRFC4271PrefixLimitTeardownSendsCease shows Cease where no fatal error exists. Each new negative carries an observed-red record (fsmMessageEvent x2, handleOpen). HEAD units rfc4271_test.go:636 and session_prefix_test.go:110 stay supplementary without records.",
+  "requirement_sha": "0d1d2cb48444318c",
+  "tests": {
+    "internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go::TestRFC4271EstablishedUpdateErrorReleasesTheConnection": "75930a8f452295fa",
+    "internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go::TestRFC4271OpenConfirmUpdateIsAnFSMError": "0016171daa459363",
+    "internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go::TestRFC4271OpenSentUnexpectedMessageIsAnFSMError": "0016171daa459363",
+    "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerExpiryRunsTheEvent10List": "33aaf37273eacf0d",
+    "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271MessageHeaderErrorIsReported": "fec6a921b0bf494e",
+    "internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go::TestRFC4271OpenSentErrorReleasesTheConnection": "56ab87e3b9f2067a",
+    "internal/component/bgp/reactor/rfc4271_prefix_limit_cease_peer_test.go::TestRFC4271PrefixLimitTeardownSendsCease": "671526884de3c8f0",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271UpdateErrorReportedAsUpdateMessageError": "94aa07ebd53dcc5b",
+    "internal/component/bgp/reactor/session_bfd_strict_test.go::TestSessionBFDStrictSecondOpenIsAnFSMErrorOnTheWire": "56ded9ff159b946a",
+    "internal/component/bgp/reactor/session_prefix_test.go::TestPrefixExceedTeardown": "a65faf019fcdeda5"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go::TestRFC4271EstablishedUpdateErrorReleasesTheConnection": "0feb9a83208798c9",
+    "internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go::TestRFC4271OpenConfirmUpdateIsAnFSMError": "a1962ea722a87625",
+    "internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go::TestRFC4271OpenSentUnexpectedMessageIsAnFSMError": "50a2659960b1038a",
+    "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271EstablishedHoldTimerExpiryRunsTheEvent10List": "51b56c66410541f9",
+    "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271MessageHeaderErrorIsReported": "9bc76112384a3dc9",
+    "internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go::TestRFC4271OpenSentErrorReleasesTheConnection": "853449b49fd69683",
+    "internal/component/bgp/reactor/rfc4271_prefix_limit_cease_peer_test.go::TestRFC4271PrefixLimitTeardownSendsCease": "132a6b151f557edb",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271UpdateErrorReportedAsUpdateMessageError": "0a127f4f78abb98f",
+    "internal/component/bgp/reactor/session_bfd_strict_test.go::TestSessionBFDStrictSecondOpenIsAnFSMErrorOnTheWire": "b29ba6fed1414d29",
+    "internal/component/bgp/reactor/session_prefix_test.go::TestPrefixExceedTeardown": "aedcd5f0ac08ce83"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "Judged 2026-10-21 over current tags, units and records. Quote verified in RFC 8666 Section 6 (same sentence as RFC 8665 Section 5). The IPv6 mirror through newTestInstallerV6 checks that the next hop's own NP clear pops 18009 and its NP+E pushes the IPv6 Explicit NULL, and that a non-advertising next hop gets 17009 with no pop. The fix is the shared srInstaller.forwarding. Minor: the IPv6 Explicit NULL is compared with the sr.ExplicitNullV6 constant, not the literal 2.",
+  "requirement_sha": "4c6660e1a1c0f65a",
+  "tests": {
+    "internal/plugins/ospf/rfc8666_nexthop_off_best_path_test.go::TestRFC8666NextHopFlagsAppliedOffBestPath": "a44dbeeeaadb4b4a",
+    "internal/plugins/ospf/rfc8666_nexthop_off_best_path_test.go::TestRFC8666OffPathAdvertiserFlagsNotAppliedToNextHop": "a44dbeeeaadb4b4a"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc8666_nexthop_off_best_path_test.go::TestRFC8666NextHopFlagsAppliedOffBestPath": "4b57725020cc9c19",
+    "internal/plugins/ospf/rfc8666_nexthop_off_best_path_test.go::TestRFC8666OffPathAdvertiserFlagsNotAppliedToNextHop": "372f0090bb1548ad"
+  },
+  "verdict": "enforced"
+}

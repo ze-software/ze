@@ -1,0 +1,17 @@
+{
+  "note": "Transmission: every EncodePrefixSID shape (bare, all-ones index, SRGB-leading) has Label-Index Reserved 0. Reception: Reserved 0xFF gives Action None, no discard, bytes unchanged, ParsePrefixSID ok. Judge break (Reserved 1 in the SRGB-path encoder): red.",
+  "requirement_sha": "766845e506eae9e5",
+  "tests": {
+    "internal/component/bgp/message/rfc8669_reserved_flags_test.go::TestRFC8669ReservedAndFlagsClearOnTransmissionIgnoredOnReception": "ed31817182a67ebb",
+    "internal/component/bgp/message/rfc8669_reserved_flags_test.go::TestRFC8669ReservedAndFlagsClearOnTransmissionIgnoredOnReception#2": "ed31817182a67ebb",
+    "internal/component/bgp/message/rfc8669_test.go::TestRFC8669LabelIndexNonZeroReservedIgnored": "43a22ffce691e1e9",
+    "internal/component/bgp/message/rfc8669_test.go::TestRFC8669LabelIndexReservedAndFlagsZeroAccepted": "43a22ffce691e1e9"
+  },
+  "units": {
+    "internal/component/bgp/message/rfc8669_reserved_flags_test.go::TestRFC8669ReservedAndFlagsClearOnTransmissionIgnoredOnReception": "1727fbdcee1646c6",
+    "internal/component/bgp/message/rfc8669_reserved_flags_test.go::TestRFC8669ReservedAndFlagsClearOnTransmissionIgnoredOnReception#2": "1727fbdcee1646c6",
+    "internal/component/bgp/message/rfc8669_test.go::TestRFC8669LabelIndexNonZeroReservedIgnored": "d8b4711cce14ab9e",
+    "internal/component/bgp/message/rfc8669_test.go::TestRFC8669LabelIndexReservedAndFlagsZeroAccepted": "f4b89a3d0c38a5d4"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,21 @@
+{
+  "note": "Both entry points now proven. TestConfiguredPAPStillOffersCHAPFirst starts a session through Driver/spawnSession with AuthMethod PAP and the default order: the first Configure-Request must offer CHAP 0xc223 (red on the old copy of StartSession.AuthMethod, observed before the fix and recorded against initialAuthMethod), PAP only after the peer's PAP Nak; the PAP-alone control keeps PAP first where no stronger method is included. TestAuthOffersCHAPBeforePAP drives the default path and the fallback after a PAP Nak. The negative (first Configure-Request never PAP while CHAP is in the order) reads the same first frame as the positive; a send-side MUST has no refusing input, so the pair is the correct shape. TestDefaultAuthFallbackOrder and TestSelectAuthFallback are supporting unit tags with no discrimination record.",
+  "requirement_sha": "b9bbe3e692d702fa",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1334_auth_test.go::TestDefaultAuthFallbackOrder": "e73935b035b39f17",
+    "internal/component/l2tp/ppp/rfc1334_auth_test.go::TestSelectAuthFallback": "e73935b035b39f17",
+    "internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestAuthOffersCHAPBeforePAP": "06a708c70689e703",
+    "internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestAuthOffersCHAPBeforePAP#2": "06a708c70689e703",
+    "internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestConfiguredPAPStillOffersCHAPFirst": "06a708c70689e703",
+    "internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestConfiguredPAPStillOffersCHAPFirst#2": "06a708c70689e703"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1334_auth_test.go::TestDefaultAuthFallbackOrder": "30409a962cf295b9",
+    "internal/component/l2tp/ppp/rfc1334_auth_test.go::TestSelectAuthFallback": "dea6d9069e7dbadf",
+    "internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestAuthOffersCHAPBeforePAP": "b38caa18171af324",
+    "internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestAuthOffersCHAPBeforePAP#2": "b38caa18171af324",
+    "internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestConfiguredPAPStillOffersCHAPFirst": "4b7e163795183f4f",
+    "internal/component/l2tp/ppp/rfc1334_clauses_test.go::TestConfiguredPAPStillOffersCHAPFirst#2": "4b7e163795183f4f"
+  },
+  "verdict": "enforced"
+}

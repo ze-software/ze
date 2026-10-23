@@ -1,0 +1,13 @@
+{
+  "note": "a concluding Access-Accept's EAP Notification (and, in the negative, an undecodable EAP-Message) reaches the log before the code decides; a loop that reads resp.Code first and returns would log nothing",
+  "requirement_sha": "42d9170152e845c0",
+  "tests": {
+    "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapProcessesAnUnparseableEAPMessageBeforeTheCode": "2b1b1ce908f454a5",
+    "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapProcessesTheEAPMessageBeforeTheCode": "2b1b1ce908f454a5"
+  },
+  "units": {
+    "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapProcessesAnUnparseableEAPMessageBeforeTheCode": "0ccd4635075ff29a",
+    "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapProcessesTheEAPMessageBeforeTheCode": "451108d4e74266eb"
+  },
+  "verdict": "enforced"
+}

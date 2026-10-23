@@ -1,0 +1,79 @@
+[
+  {
+    "rid": "RFC2661-7.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661InvalidOrMalformedMessageClearsControlConnection",
+    "unit-sha": "6ee5d6f7f47b4f71",
+    "claim-sha": "209771310b440403",
+    "route": "revert",
+    "producer": "internal/component/l2tp/tunnel_fsm.go::teardownStopCCN",
+    "producer-sha": "5b260806112bc55c",
+    "break": "body of teardownStopCCN replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2661-7.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661InvalidOrMalformedMessageClearsControlConnection",
+    "unit-sha": "6ee5d6f7f47b4f71",
+    "claim-sha": "32062daf6c22dbd3",
+    "route": "revert",
+    "producer": "internal/component/l2tp/tunnel_fsm.go::handleMessage",
+    "producer-sha": "e5d1ed8bd17ce9de",
+    "break": "body of handleMessage replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2661-7.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/rfc2661_scccn_wrong_order_test.go::TestRFC2661OutOfOrderSCCCNClearsControlConnection",
+    "unit-sha": "232f1cb7c6f297fc",
+    "claim-sha": "e07a91abe34f454b",
+    "route": "revert",
+    "producer": "internal/component/l2tp/tunnel_fsm.go::handleSCCCN",
+    "producer-sha": "8ef253bdca7c3b84",
+    "break": "body of handleSCCCN replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2661-7.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/rfc2661_scccn_wrong_order_test.go::TestRFC2661OutOfOrderSCCCNClearsControlConnection",
+    "unit-sha": "232f1cb7c6f297fc",
+    "claim-sha": "4e4a0443b26fc35e",
+    "route": "revert",
+    "producer": "internal/component/l2tp/tunnel_fsm.go::handleSCCCN",
+    "producer-sha": "8ef253bdca7c3b84",
+    "break": "body of handleSCCCN replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2661-7.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/rfc2661_sccrq_sccrp_wrong_order_test.go::TestRFC2661InSequenceSCCRQAndSCCRPKeepControlConnection",
+    "unit-sha": "e9b369df1c07dea7",
+    "claim-sha": "6197e661f821a651",
+    "route": "revert",
+    "producer": "internal/component/l2tp/tunnel_initiator.go::handleSCCRP",
+    "producer-sha": "ebc344a3ecf6c52d",
+    "break": "body of handleSCCRP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2661-7.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/rfc2661_sccrq_sccrp_wrong_order_test.go::TestRFC2661OutOfOrderSCCRQOrSCCRPClearsControlConnection",
+    "unit-sha": "d779ec9ee070f7e0",
+    "claim-sha": "4bafd9e0e0eff404",
+    "route": "revert",
+    "producer": "internal/component/l2tp/tunnel_fsm.go::clearImproperSequence",
+    "producer-sha": "a1f715b7d521fc59",
+    "break": "body of clearImproperSequence replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2661-7.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/rfc2661_sccrq_sccrp_wrong_order_test.go::TestRFC2661StraySCCRPInIdleSendsStopCCN",
+    "unit-sha": "48e2fbfb54cc13b8",
+    "claim-sha": "a1acf76c9c1428c8",
+    "route": "revert",
+    "producer": "internal/component/l2tp/tunnel_initiator.go::handleSCCRP",
+    "producer-sha": "ebc344a3ecf6c52d",
+    "break": "body of handleSCCRP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

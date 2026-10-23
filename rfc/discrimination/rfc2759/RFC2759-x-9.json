@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC2759-x-9",
+    "polarity": "positive",
+    "unit": "internal/core/eap/peer_test.go::TestMSCHAPv2PeerChallengeRandom16",
+    "unit-sha": "02243f8cab89f67e",
+    "claim-sha": "2cb7447eafc80b64",
+    "route": "revert",
+    "producer": "internal/core/eap/peer.go::handleMSCHAPv2Challenge",
+    "producer-sha": "ae265bc0e1f63da2",
+    "break": "body of handleMSCHAPv2Challenge replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2759-x-9",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerChallengeEntersTheNTResponse",
+    "unit-sha": "c8e9593055b38f1a",
+    "claim-sha": "c6dd93c23e6f58a4",
+    "route": "revert",
+    "producer": "internal/core/eap/peer.go::handleMSCHAPv2Challenge",
+    "producer-sha": "ae265bc0e1f63da2",
+    "break": "body of handleMSCHAPv2Challenge replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2759-x-9",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc2759_peer_challenge_test.go::TestRFC2759PeerChallengeComesFromCryptoRand",
+    "unit-sha": "147cecccd8d3dba8",
+    "claim-sha": "dd952036dd99b163",
+    "route": "revert",
+    "producer": "internal/core/eap/peer.go::handleMSCHAPv2Challenge",
+    "producer-sha": "ae265bc0e1f63da2",
+    "break": "body of handleMSCHAPv2Challenge replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

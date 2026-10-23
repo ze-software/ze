@@ -1,0 +1,21 @@
+{
+  "note": "Unchanged judgement after a comment-only edit to TestRFC3748EAPTLSExportsASixtyFourOctetEMSK (new 7.10-6 tag): MSK and EMSK values, not sizes, on both methods; EMSK is export octets 64-127 (EAP-TLS) or the HKDF expansion (MS-CHAPv2), equal on both ends; negatives show no EMSK without a completed export or successful exchange. All units recorded.",
+  "requirement_sha": "e446a523bd787487",
+  "tests": {
+    "internal/core/eap/rfc3748_emsk_test.go::TestRFC3748EAPTLSExportsASixtyFourOctetEMSK": "52158d2dcfac6f3e",
+    "internal/core/eap/rfc3748_emsk_test.go::TestRFC3748NoEMSKWithoutACompletedExport": "52158d2dcfac6f3e",
+    "internal/core/eap/rfc3748_mschapv2_emsk_test.go::TestRFC3748MSCHAPv2ExportsASixtyFourOctetEMSK": "82ca9b4e9bade4f2",
+    "internal/core/eap/rfc3748_mschapv2_emsk_test.go::TestRFC3748NoMSCHAPv2EMSKWithoutASuccessfulExchange": "82ca9b4e9bade4f2",
+    "internal/core/eap/rfc3748_remaining_clause_test.go::TestRFC3748MSCHAPv2MSKIsTheRFC3079Derivation": "a4c2ccc90d93cad9",
+    "internal/core/eap/rfc3748_test.go::TestRFC3748MSKSize": "c7d9cf3b0751a797"
+  },
+  "units": {
+    "internal/core/eap/rfc3748_emsk_test.go::TestRFC3748EAPTLSExportsASixtyFourOctetEMSK": "d6ebf420f338a34e",
+    "internal/core/eap/rfc3748_emsk_test.go::TestRFC3748NoEMSKWithoutACompletedExport": "c39778ddd0693a2c",
+    "internal/core/eap/rfc3748_mschapv2_emsk_test.go::TestRFC3748MSCHAPv2ExportsASixtyFourOctetEMSK": "9bd189584eef16ca",
+    "internal/core/eap/rfc3748_mschapv2_emsk_test.go::TestRFC3748NoMSCHAPv2EMSKWithoutASuccessfulExchange": "35b5d750a4884626",
+    "internal/core/eap/rfc3748_remaining_clause_test.go::TestRFC3748MSCHAPv2MSKIsTheRFC3079Derivation": "b7a0017ccb0eba21",
+    "internal/core/eap/rfc3748_test.go::TestRFC3748MSKSize": "938438179bf04f78"
+  },
+  "verdict": "enforced"
+}

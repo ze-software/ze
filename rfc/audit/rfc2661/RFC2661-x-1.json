@@ -1,0 +1,17 @@
+{
+  "note": "Send clause: TestRFC2661ReservedHeaderBitsSentZero masks every reserved bit of the control header and of all 16 data-header shapes (red on any reserved bit emitted 1); the .ci reads the SCCRP header off the wire. Receive clause: TestRFC2661ReservedHeaderBitsIgnoredOnReceive sets every reserved bit on a control and a data header and asserts ParseMessageHeader returns the identical struct with no error; ParseMessageHeader is the receive entry and no other receive path re-tests the flag word. The wrong single-polarity marker is gone.",
+  "requirement_sha": "9b391db3f3100ed3",
+  "tests": {
+    "internal/component/l2tp/rfc2661_header_test.go::TestWriteControlHeader": "076c21360cefe770",
+    "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661ReservedHeaderBitsIgnoredOnReceive": "055162183ff6df00",
+    "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661ReservedHeaderBitsSentZero": "055162183ff6df00",
+    "test/l2tp/rfc2661-emitted-control-shape.ci": "c54a95273ff244c5"
+  },
+  "units": {
+    "internal/component/l2tp/rfc2661_header_test.go::TestWriteControlHeader": "205c671eb38ce353",
+    "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661ReservedHeaderBitsIgnoredOnReceive": "36ccce509459be1f",
+    "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661ReservedHeaderBitsSentZero": "7e3b3dd983648c06",
+    "test/l2tp/rfc2661-emitted-control-shape.ci": "c54a95273ff244c5"
+  },
+  "verdict": "enforced"
+}

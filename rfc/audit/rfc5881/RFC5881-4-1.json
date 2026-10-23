@@ -1,0 +1,13 @@
+{
+  "note": "Judge 2026-09-30 (rejudge, netns+pinning). Units now run in a rootless user+net namespace (userns.Enter), which removes the prior weak reason (fixed host ports colliding with a running ze or a parallel run); the judge ran them: each child ran and passed, none skipped. \u00a74 \"BFD Control packets MUST be transmitted in UDP packets with destination port 3784\". + TestRFC5881ControlSentToPort3784OnTheWire (IPv4 and IPv6), - TestRFC5881EchoTransportNeverAddressesControlPort (echo at 3785, silence at 3784). Revert records on udp.go::destination (+) and bfd.go::newEchoTransport (-) observed red.",
+  "requirement_sha": "682d88bc17ed036a",
+  "tests": {
+    "internal/component/bfd/rfc5881_wire_port_linux_test.go::TestRFC5881ControlSentToPort3784OnTheWire": "ec3f2024a41e142b",
+    "internal/component/bfd/rfc5881_wire_port_linux_test.go::TestRFC5881EchoTransportNeverAddressesControlPort": "ec3f2024a41e142b"
+  },
+  "units": {
+    "internal/component/bfd/rfc5881_wire_port_linux_test.go::TestRFC5881ControlSentToPort3784OnTheWire": "1be3046735ff3449",
+    "internal/component/bfd/rfc5881_wire_port_linux_test.go::TestRFC5881EchoTransportNeverAddressesControlPort": "2fafbd0498301f8d"
+  },
+  "verdict": "enforced"
+}

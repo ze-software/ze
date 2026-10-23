@@ -1,0 +1,11 @@
+{
+  "note": "independent re-read: TestRFC8955FragmentBitmaskSingleOctet drives config fragment with all four flags through buildFlowSpecComponents (now parseFlowBitmaskMatches/parseBitmaskTermsText), walks the Type 12 operator list and asserts each of the four values is exactly one octet; a len=01 encoding fails it. Doc comment renamed to the shared bitmask parser on 2026-10-21; the body is unchanged.",
+  "requirement_sha": "75f8108d190d68be",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955FragmentBitmaskSingleOctet": "edf3d98f88af0674"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955FragmentBitmaskSingleOctet": "125b7e777e1a9749"
+  },
+  "verdict": "enforced"
+}

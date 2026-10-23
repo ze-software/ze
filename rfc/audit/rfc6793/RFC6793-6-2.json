@@ -1,0 +1,13 @@
+{
+  "note": "TestRFC6793AS4AggregatorLengthEight: ParseAS4Aggregator accepts 8 octets and refuses 0,6,7,9,12 with ErrInvalidLength.",
+  "requirement_sha": "9ed58a3ddec6f232",
+  "tests": {
+    "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793AS4AggregatorLengthEight": "fdd3980327455f38",
+    "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793AS4AggregatorLengthEight#2": "fdd3980327455f38"
+  },
+  "units": {
+    "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793AS4AggregatorLengthEight": "f44a81d1d63aba87",
+    "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793AS4AggregatorLengthEight#2": "f44a81d1d63aba87"
+  },
+  "verdict": "enforced"
+}

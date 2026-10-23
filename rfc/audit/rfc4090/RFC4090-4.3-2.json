@@ -1,0 +1,17 @@
+{
+  "note": "Rejudged 2026-09-29 (routing child). The 'otherwise cleared' clause is now driven through buildPath: TestRFC4090NodeDesiredClearedWhenNotDesired builds a protected PATH without node protection and reads SESSION_ATTRIBUTE 0x01 set, 0x10 clear. The set clause stays proven on the built PATH. Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 5 and the enforced verdict holds unchanged.",
+  "requirement_sha": "a82ed308ec17af1d",
+  "tests": {
+    "internal/plugins/rsvpte/frr_test.go::TestBuildPathIncludesFastReroute": "9e1595a34e264d7e",
+    "internal/plugins/rsvpte/frr_test.go::TestSessionAttributeEmptyName": "9e1595a34e264d7e",
+    "internal/plugins/rsvpte/frr_test.go::TestSessionAttributeProtectionFlags": "9e1595a34e264d7e",
+    "internal/plugins/rsvpte/rfc4090_plr_flags_test.go::TestRFC4090NodeDesiredClearedWhenNotDesired": "8d4223b7e1a9680f"
+  },
+  "units": {
+    "internal/plugins/rsvpte/frr_test.go::TestBuildPathIncludesFastReroute": "8afb37c101daf9db",
+    "internal/plugins/rsvpte/frr_test.go::TestSessionAttributeEmptyName": "79d0c33d415f9055",
+    "internal/plugins/rsvpte/frr_test.go::TestSessionAttributeProtectionFlags": "1b22f30f6fce2f0b",
+    "internal/plugins/rsvpte/rfc4090_plr_flags_test.go::TestRFC4090NodeDesiredClearedWhenNotDesired": "32d424a308546ea1"
+  },
+  "verdict": "enforced"
+}

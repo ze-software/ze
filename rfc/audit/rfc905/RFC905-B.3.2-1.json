@@ -1,0 +1,13 @@
+{
+  "note": "Judged 2026-09-30. Positive TestRFC905GeneratorStartsFromZeroSums: an all-zero 24-octet region yields 0xFF,0xFF at every field offset (sums that start at zero stay zero), and a non-zero region equals the derivation that starts C0 and C1 at zero. Negative TestRFC905SenderWithSeededSumsRefused: pairs from C0 or C1 seeded with 1 (guarded to differ) are refused by VerifyChecksum, the compliant pair accepted. Records observed red.",
+  "requirement_sha": "222345a2a2c309cc",
+  "tests": {
+    "internal/plugins/isis/packet/rfc905_annexb_steps_test.go::TestRFC905GeneratorStartsFromZeroSums": "17c596069f248d2b",
+    "internal/plugins/isis/packet/rfc905_annexb_steps_test.go::TestRFC905SenderWithSeededSumsRefused": "17c596069f248d2b"
+  },
+  "units": {
+    "internal/plugins/isis/packet/rfc905_annexb_steps_test.go::TestRFC905GeneratorStartsFromZeroSums": "28c7f6b98967240d",
+    "internal/plugins/isis/packet/rfc905_annexb_steps_test.go::TestRFC905SenderWithSeededSumsRefused": "867e655e80909e5c"
+  },
+  "verdict": "enforced"
+}

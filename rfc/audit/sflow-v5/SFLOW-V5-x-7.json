@@ -1,0 +1,19 @@
+{
+  "note": "Single-polarity row, every sflow writer now compared as XDR words with distinct-octet values: datagram header and sampled_header padding (TestSFlowV5FlowDatagramIsXDR), counters_sample wrapper (TestSFlowV5CounterSampleWrapperIsXDR), all flow_sample words (TestSFlowV5FlowSampleWordsAreXDR), extended_gateway IPv4 and IPv6 unions and variable-length arrays (TestSFlowV5ExtendedGatewayIsXDR), if_counters (TestSFlowIfCounters). A little-endian, reordered or unpadded write changes compared bytes. Every unit recorded.",
+  "requirement_sha": "ecaa925946995695",
+  "tests": {
+    "internal/plugins/flowexport/sflow/sflow_v5_counter_test.go::TestSFlowIfCounters": "7769a8fe6e20a7e4",
+    "internal/plugins/flowexport/sflow/sflow_v5_flow_sampling_test.go::TestSFlowV5FlowDatagramIsXDR": "c09c030ae4130286",
+    "internal/plugins/flowexport/sflow/sflow_v5_xdr_test.go::TestSFlowV5CounterSampleWrapperIsXDR": "b823d0baa838d52c",
+    "internal/plugins/flowexport/sflow/sflow_v5_xdr_test.go::TestSFlowV5ExtendedGatewayIsXDR": "b823d0baa838d52c",
+    "internal/plugins/flowexport/sflow/sflow_v5_xdr_test.go::TestSFlowV5FlowSampleWordsAreXDR": "b823d0baa838d52c"
+  },
+  "units": {
+    "internal/plugins/flowexport/sflow/sflow_v5_counter_test.go::TestSFlowIfCounters": "6e9c11c222c3f7f3",
+    "internal/plugins/flowexport/sflow/sflow_v5_flow_sampling_test.go::TestSFlowV5FlowDatagramIsXDR": "7d087708f2f49356",
+    "internal/plugins/flowexport/sflow/sflow_v5_xdr_test.go::TestSFlowV5CounterSampleWrapperIsXDR": "1963bcfb2729fec6",
+    "internal/plugins/flowexport/sflow/sflow_v5_xdr_test.go::TestSFlowV5ExtendedGatewayIsXDR": "4571ba24792dd2cc",
+    "internal/plugins/flowexport/sflow/sflow_v5_xdr_test.go::TestSFlowV5FlowSampleWordsAreXDR": "e6b968c702ebc8be"
+  },
+  "verdict": "enforced"
+}

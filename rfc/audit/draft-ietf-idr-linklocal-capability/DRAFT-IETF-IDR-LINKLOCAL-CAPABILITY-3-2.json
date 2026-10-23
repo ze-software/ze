@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-10-01 (BGP c21 judge). The c19 finding is closed: TestLinkLocalBothAddressesSetTheWireLengthOctetToThirtyTwo reads the MP_REACH_NLRI Length of Next Hop octet off the bytes sendStaticRoutes wrote to the one-hop internal peer's connection and asserts 0x20 followed by exactly 2001:db8:1::1 then fe80::1 (both clauses: length 32, both addresses); TestLinkLocalSingleAddressSetsTheWireLengthOctetToSixteen asserts 0x10 and the lone global for a route through another router, so the 32-octet length is tied to sending both. mpReachNextHopField slices exactly the octets the length announces and fails when none is written. Records observed red on mpnlri.go::nextHopLen. The older facts-level units stay tagged; their assert.Len over a [32]byte array is vacuous and carries no weight in this verdict.",
+  "requirement_sha": "4af2fb7eef0b4feb",
+  "tests": {
+    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_announce_test.go::TestLinkLocalBothAddressesSetTheWireLengthOctetToThirtyTwo": "eda240ce7fd2c20c",
+    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_announce_test.go::TestLinkLocalSingleAddressSetsTheWireLengthOctetToSixteen": "eda240ce7fd2c20c",
+    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go::TestLinkLocalBothAddressesUseThirtyTwoOctets": "8b6df8728f9a616d",
+    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go::TestLinkLocalSingleAddressKeepsSixteenOctets": "8b6df8728f9a616d"
+  },
+  "units": {
+    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_announce_test.go::TestLinkLocalBothAddressesSetTheWireLengthOctetToThirtyTwo": "444d14cf9d062586",
+    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_announce_test.go::TestLinkLocalSingleAddressSetsTheWireLengthOctetToSixteen": "bc461ac88770e007",
+    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go::TestLinkLocalBothAddressesUseThirtyTwoOctets": "dca4ee3b28586c6f",
+    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go::TestLinkLocalSingleAddressKeepsSixteenOctets": "bf1c6ea9e32ea6e8"
+  },
+  "verdict": "enforced"
+}

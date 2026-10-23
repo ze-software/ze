@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-09-30: unit changed only by the lookupPrefix area argument (types.BackboneArea, the zero AreaID the receive path keys an unset area with); assertions unchanged. Forbidden behaviour: honouring an N-Flag received on a prefix that is not a host prefix. TestExtPrefixNFlagIgnoredNonHost drives extPrefixOnReceive with N set on a /24 and fails if the stored entry's flags still carry ExtPrefixFlagN; the positive half fails if N is dropped from a /32 host prefix. Both polarities present.",
+  "requirement_sha": "ff58b703a1cb3758",
+  "tests": {
+    "internal/plugins/ospf/rfc7684_ext_prefix_recv_test.go::TestExtPrefixNFlagIgnoredNonHost": "ba85a5be9e5d5c57",
+    "internal/plugins/ospf/rfc7684_ext_prefix_recv_test.go::TestExtPrefixNFlagIgnoredNonHost#2": "ba85a5be9e5d5c57"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc7684_ext_prefix_recv_test.go::TestExtPrefixNFlagIgnoredNonHost": "2b0016ac187bc75c",
+    "internal/plugins/ospf/rfc7684_ext_prefix_recv_test.go::TestExtPrefixNFlagIgnoredNonHost#2": "2b0016ac187bc75c"
+  },
+  "verdict": "enforced"
+}

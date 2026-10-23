@@ -1,0 +1,58 @@
+[
+  {
+    "rid": "RFC2661-4.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/rfc2661_avp_test.go::TestAVPCatalogRoundTrip",
+    "unit-sha": "836b3e97a10938fb",
+    "claim-sha": "33bacf2b9e49e2bd",
+    "route": "revert",
+    "producer": "internal/component/l2tp/avp.go::WriteAVPUint16",
+    "producer-sha": "65a1aa9d9a059b69",
+    "break": "body of WriteAVPUint16 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2661-4.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/rfc2661_avp_test.go::TestAVPIteratorReservedBits",
+    "unit-sha": "6418fa513ef7d04d",
+    "claim-sha": "af37c44e92fc68f8",
+    "route": "revert",
+    "producer": "internal/component/l2tp/avp.go::Next",
+    "producer-sha": "124bc6045a0a7368",
+    "break": "body of Next replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2661-4.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661ReservedAVPBitTreatedAsUnrecognized",
+    "unit-sha": "358c2dcdfeaffb14",
+    "claim-sha": "936c2f2c27f558f7",
+    "route": "revert",
+    "producer": "internal/component/l2tp/session_fsm.go::parseICRQ",
+    "producer-sha": "4af56fac1cad4104",
+    "break": "body of parseICRQ replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2661-4.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/rfc2661_unrecognized_mandatory_avp_test.go::TestUnrecognizedMandatoryAVPInHelloClearsTunnel",
+    "unit-sha": "d46c6ec236c965d2",
+    "claim-sha": "63af39935460c86c",
+    "route": "revert",
+    "producer": "internal/component/l2tp/tunnel_fsm.go::parseHello",
+    "producer-sha": "cbad43831ea390d9",
+    "break": "body of parseHello replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2661-4.1-1",
+    "polarity": "positive",
+    "unit": "test/l2tp/rfc2661-emitted-control-shape.ci",
+    "unit-sha": "709d2fdc35a37503",
+    "claim-sha": "4c895343921b0e6a",
+    "route": "revert",
+    "producer": "internal/component/l2tp/avp.go::WriteAVPHeader",
+    "producer-sha": "22f1927f30a428fe",
+    "break": "body of WriteAVPHeader replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+    "citation": "expect=stdout:contains=PASS: all SCCRP AVP reserved bits 2-5 clear"
+  }
+]

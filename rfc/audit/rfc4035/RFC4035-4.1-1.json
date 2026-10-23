@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-09-30. TestRFC4035SecurityAwareQueryInEveryValidatingMode now runs permissive AND strict (the earlier strict-only finding): the query carries an OPT with DO set in both. Record: Resolver.query revert observed red. {single-polarity} holds: an emitted field with no input to refuse.",
+  "requirement_sha": "f8b38c66c9f1c8ff",
+  "tests": {
+    "internal/component/resolve/dns/rfc4035_security_aware_test.go::TestRFC4035SecurityAwareQueryInEveryValidatingMode": "746f59740ccc2275",
+    "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_QueryCarriesEDNS0DOAndClearAD": "1b164a1a570b2a91"
+  },
+  "units": {
+    "internal/component/resolve/dns/rfc4035_security_aware_test.go::TestRFC4035SecurityAwareQueryInEveryValidatingMode": "c9a01f3e6c6e622b",
+    "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_QueryCarriesEDNS0DOAndClearAD": "075584d2fc9ab234"
+  },
+  "verdict": "enforced"
+}

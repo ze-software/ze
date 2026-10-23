@@ -1,0 +1,13 @@
+{
+  "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NLRIAddressFamilies. Forbidden: a length octet other than 96 for AFI 1 or other than 192 for AFI 2. Red: assert.Equal(byte(96), v4[0]) and assert.Equal(byte(192), v6[0]) on EncodeNLRIHex output, with assert.Len on the 12/24-octet body. Negative: Parse(AFIIPv6, 12-octet body) require.ErrorIs ErrSRPolicyTruncated, and SplitSRPolicy refuses a 100-bit length.",
+  "requirement_sha": "f6271708d3fe7b20",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NLRIAddressFamilies": "450f2364530acf19",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NLRIAddressFamilies#2": "450f2364530acf19"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NLRIAddressFamilies": "7da4d468ba80b959",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NLRIAddressFamilies#2": "7da4d468ba80b959"
+  },
+  "verdict": "enforced"
+}

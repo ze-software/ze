@@ -1,0 +1,33 @@
+{
+  "note": "Re-judged 2026-10-21 (independent auditor, authored none of 445b2e05f1 or 3bc47af4f2) after CheckMatchable gained the value checks in unmatchable_values.go. RFC 8955 Section 4.2: \"A specific packet is considered to match the Flow Specification when it matches the intersection (AND) of all the components present in the Flow Specification.\" and \"However, some combinations cannot match any packets (e.g., \"ICMP Type AND Port\" will never match any packets) and thus SHOULD NOT be propagated by BGP.\" The earlier weak finding is closed: checkPortValues now refuses port beside destination-port and source-port when port meets neither (Section 4.2.2.4: \"This component matches if either the destination port OR the source port of an IP packet matches the value.\"); the reasoning is sound, since with each list non-empty a packet (d,s) exists exactly when port meets destination-port or source-port, and with one of the two absent the free port always satisfies port. Also new: one numeric list admitting no value its field holds (AND groups, values above port/ICMP/IPv4 packet-length/DSCP/flow-label/protocol widths), an IPv6 next-header admitting only RFC 8200 extension headers (RFC 8956 Section 3.3), contradictory TCP-flag terms, and a fragment list admitting none of the four packet states; the states match the Section 4.2.2.12 bit definitions (LF needs offset not 0, so FF AND LF and FF AND IsF admit nothing). Tests assert exact outcomes: TestCheckMatchable runs every row built, from the wire, as VPN and VPN from the wire with errors.Is equality, each refusal beside its nearest matchable control (port 80 / dst 443 / src 443 refused vs dst 80 or src 80 accepted vs src-port absent accepted; >1000 vs <=1000 with src 1000-or-1001 accepted; >100&<50 vs >100&<500 vs >100&<50-or-80; dscp 64 vs 63; next-header 44-or-43 vs 44-or-6; syn&!syn vs syn&!ack; FF&IsF vs FF-or-IsF); TestFlowSpecUnmatchableByValueRefused drives the config and update-text paths for the port, AND-group and TCP-flag classes; TestFlowSpecUnmatchableByValueReceivedRuleIsNotPropagated pins receive-side ineligibility, no install event and no candidate for the port, AND-group, DSCP, fragment and TCP-flag classes with eligible controls; the ICMP/protocol/fragment pair carriers and flowspec-unmatchable-refused.ci are unchanged in meaning. Polarity pairs are genuine and isolate the rule. Not judged a miss: lower bounds on packet-length against header sizes (the RFC names no such case, and its own \"unable to locate the transport header\" clause is implementation-dependent). Types-only callers (ExaBGP bridge, migration) pass nil matches and get the type checks only; the FlowSpec is judged again with values when built. The .ci revert record staled by the producer change was re-taken.",
+  "requirement_sha": "dde0966d4475e57a",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/flowspec/rfc8955_unmatchable_test.go::TestFlowSpecUnmatchableRefused": "2246318a0930397c",
+    "internal/component/bgp/plugins/nlri/flowspec/rfc8955_unmatchable_test.go::TestFlowSpecUnmatchableRefused#2": "2246318a0930397c",
+    "internal/component/bgp/plugins/nlri/flowspec/rfc8955_unmatchable_values_test.go::TestFlowSpecUnmatchableByValueRefused": "3b634bb3697d6635",
+    "internal/component/bgp/plugins/nlri/flowspec/rfc8955_unmatchable_values_test.go::TestFlowSpecUnmatchableByValueRefused#2": "3b634bb3697d6635",
+    "internal/component/bgp/plugins/rib/rfc8955_rib_flowspec_unmatchable_values_test.go::TestFlowSpecUnmatchableByValueReceivedRuleIsNotPropagated": "a9a5c896d4f603f7",
+    "internal/component/bgp/plugins/rib/rfc8955_rib_flowspec_unmatchable_values_test.go::TestFlowSpecUnmatchableByValueReceivedRuleIsNotPropagated#2": "a9a5c896d4f603f7",
+    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecUnmatchableReceivedRuleIsNotPropagated": "e900920dae82a00f",
+    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecUnmatchableReceivedRuleIsNotPropagated#2": "e900920dae82a00f",
+    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecUnmatchableReceivedRuleWithdraw": "e900920dae82a00f",
+    "internal/core/bgp/nlri/flowspec/rfc8955_unmatchable_test.go::TestCheckMatchable": "7ed0aea124a2e7a7",
+    "internal/core/bgp/nlri/flowspec/rfc8955_unmatchable_test.go::TestCheckMatchable#2": "7ed0aea124a2e7a7",
+    "test/parse/flowspec-unmatchable-refused.ci": "8d5e63d00f9f8f3a"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/flowspec/rfc8955_unmatchable_test.go::TestFlowSpecUnmatchableRefused": "ce38ece6b5966f34",
+    "internal/component/bgp/plugins/nlri/flowspec/rfc8955_unmatchable_test.go::TestFlowSpecUnmatchableRefused#2": "ce38ece6b5966f34",
+    "internal/component/bgp/plugins/nlri/flowspec/rfc8955_unmatchable_values_test.go::TestFlowSpecUnmatchableByValueRefused": "84f5107033818390",
+    "internal/component/bgp/plugins/nlri/flowspec/rfc8955_unmatchable_values_test.go::TestFlowSpecUnmatchableByValueRefused#2": "84f5107033818390",
+    "internal/component/bgp/plugins/rib/rfc8955_rib_flowspec_unmatchable_values_test.go::TestFlowSpecUnmatchableByValueReceivedRuleIsNotPropagated": "ea702f22c3e42734",
+    "internal/component/bgp/plugins/rib/rfc8955_rib_flowspec_unmatchable_values_test.go::TestFlowSpecUnmatchableByValueReceivedRuleIsNotPropagated#2": "ea702f22c3e42734",
+    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecUnmatchableReceivedRuleIsNotPropagated": "709dd13bfc93b62f",
+    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecUnmatchableReceivedRuleIsNotPropagated#2": "709dd13bfc93b62f",
+    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecUnmatchableReceivedRuleWithdraw": "6a03de98bb9dcadc",
+    "internal/core/bgp/nlri/flowspec/rfc8955_unmatchable_test.go::TestCheckMatchable": "4206a8368b6de9c3",
+    "internal/core/bgp/nlri/flowspec/rfc8955_unmatchable_test.go::TestCheckMatchable#2": "4206a8368b6de9c3",
+    "test/parse/flowspec-unmatchable-refused.ci": "8d5e63d00f9f8f3a"
+  },
+  "verdict": "enforced"
+}

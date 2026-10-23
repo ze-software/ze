@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8907-10.5.1-2",
+    "polarity": "negative",
+    "unit": "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907SharedKeyIsNotTruncated",
+    "unit-sha": "be6754f3870b4c35",
+    "claim-sha": "6e027de60d091fd3",
+    "route": "revert",
+    "producer": "internal/component/tacacs/packet.go::Encrypt",
+    "producer-sha": "a22b0d7352d4472d",
+    "break": "body of Encrypt replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8907-10.5.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907LongSharedKeysAuthenticate",
+    "unit-sha": "04dabe2bad5b2ec4",
+    "claim-sha": "f8e6fecc7bb26631",
+    "route": "revert",
+    "producer": "internal/component/tacacs/packet.go::Encrypt",
+    "producer-sha": "a22b0d7352d4472d",
+    "break": "body of Encrypt replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

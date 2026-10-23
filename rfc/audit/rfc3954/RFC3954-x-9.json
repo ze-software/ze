@@ -1,0 +1,15 @@
+{
+  "note": "Single-polarity row. TestRFC3954TemplateIDsConstantAcrossRefresh sends two full rounds and requires Templates 256, 257, 258 unchanged in round two and the Data FlowSets to name 256 and 257, so a refresh that reassigns an ID goes red (recorded, BuildFlowTemplate6). The IPv6 Template 258 is now asserted.",
+  "requirement_sha": "14e790065b81cd48",
+  "tests": {
+    "internal/plugins/flowexport/netflow9/rfc3954_flow_template_test.go::TestNetflow9FlowTemplate": "21633af1362424a6",
+    "internal/plugins/flowexport/netflow9/rfc3954_template_test.go::TestNetflow9Template": "0081b80a2c9f5a4d",
+    "internal/plugins/flowexport/netflow9/rfc3954_test.go::TestRFC3954TemplateIDsConstantAcrossRefresh": "6f1d1ac6cc9c72ac"
+  },
+  "units": {
+    "internal/plugins/flowexport/netflow9/rfc3954_flow_template_test.go::TestNetflow9FlowTemplate": "231bf739d29fa46f",
+    "internal/plugins/flowexport/netflow9/rfc3954_template_test.go::TestNetflow9Template": "b2a9999aaa04cad0",
+    "internal/plugins/flowexport/netflow9/rfc3954_test.go::TestRFC3954TemplateIDsConstantAcrossRefresh": "11abca04fecba78b"
+  },
+  "verdict": "enforced"
+}

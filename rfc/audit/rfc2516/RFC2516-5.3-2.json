@@ -1,0 +1,11 @@
+{
+  "note": "single-polarity; TestBuildPADREchoesTags counts exactly one Service-Name tag",
+  "requirement_sha": "7c9d08d99fed1c00",
+  "tests": {
+    "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestBuildPADREchoesTags": "b7c2fae4a50abe95"
+  },
+  "units": {
+    "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestBuildPADREchoesTags": "2d4d0fbe32696197"
+  },
+  "verdict": "enforced"
+}

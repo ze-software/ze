@@ -1,0 +1,17 @@
+{
+  "note": "FewerThanThreeOctetsRemainTreatAsWithdraw isolates one- and two-octet tails and an incomplete extended-length header; AttributeLengthConflictTreatAsWithdraw isolates a declared attribute length exceeding the remaining section and requires exact treat-as-withdraw; clean controls require None, and stronger no-reachable-NLRI or unparseable-NLRI outcomes remain separately exercised rather than being counted as equivalent withdrawals",
+  "requirement_sha": "9027ac42bdf73e4d",
+  "tests": {
+    "internal/component/bgp/message/rfc7606_clause_test.go::TestRFC7606FewerThanThreeOctetsRemainTreatAsWithdraw": "a8996fb398de9acf",
+    "internal/component/bgp/message/rfc7606_clause_test.go::TestRFC7606FewerThanThreeOctetsRemainTreatAsWithdraw#2": "a8996fb398de9acf",
+    "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606AttributeLengthConflictTreatAsWithdraw": "669936946251c215",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "b7acaf2569904b8f"
+  },
+  "units": {
+    "internal/component/bgp/message/rfc7606_clause_test.go::TestRFC7606FewerThanThreeOctetsRemainTreatAsWithdraw": "a02beace3815f0ac",
+    "internal/component/bgp/message/rfc7606_clause_test.go::TestRFC7606FewerThanThreeOctetsRemainTreatAsWithdraw#2": "a02beace3815f0ac",
+    "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606AttributeLengthConflictTreatAsWithdraw": "6215492127a94045",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "07b9d95ed1e789a5"
+  },
+  "verdict": "enforced"
+}

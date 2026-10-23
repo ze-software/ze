@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-16: the emission unit changed only by package qualification (constructors and types now from core flowspec), and the reactor forwarding unit is unchanged. RFC 8955 Section 4.2.2.5: \"Type 5 component values SHOULD be encoded as 1- or 2-octet quantities (numeric_op len=00 or len=01).\" TestFlowSpecPreferredNumericEmission requires exact literal operator and value bytes at 0/255/256/65535 from typed, generic, registered config (ConfigRouteParserByFamily) and registered text (EncodeNLRIByFamily) producers, and from the EncodeRoute route command's MP_REACH. TestFlowSpecPreferredNumericForwarding carries the recipient TCP observation. Single-polarity as annotated, and the shortest width is Ze policy. The legal wide-reception compatibility control, which this row does not tag, moved to core numeric_wide_reception_test.go::TestFlowSpecPreferredNumericWideReception. Second re-judgement 2026-10-16: TestFlowSpecPreferredNumericEmission's typed packet-length producer is now the test helper packetLengthComponent (plugin types_test.go), which builds FlowMatch{Op: FlowOpEqual, Value: v} through NewFlowNumericComponent(FlowPacketLength, ...). That is byte-for-byte the matches that the deleted NewFlowPacketLengthComponent built at HEAD (plugin types_numeric.go:457-463). The deleted constructor had no non-test caller at HEAD, so no production producer lost coverage. The typed and generic cases now drive the same constructor, and the registered config, text and forwarding producers carry the distinct evidence.",
+  "requirement_sha": "be10025decf5c2c3",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go::TestFlowSpecPreferredNumericEmission": "3702e53b4d70ea3b",
+    "internal/component/bgp/reactor/rfc8955_width_wire_test.go::TestFlowSpecPreferredNumericForwarding": "311948b78efd3b10"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go::TestFlowSpecPreferredNumericEmission": "bc7f944d7cc6c556",
+    "internal/component/bgp/reactor/rfc8955_width_wire_test.go::TestFlowSpecPreferredNumericForwarding": "b1aebcd1b508a409"
+  },
+  "verdict": "enforced"
+}

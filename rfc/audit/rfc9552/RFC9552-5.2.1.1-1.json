@@ -1,0 +1,13 @@
+{
+  "note": "D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV->WriteTLV and field-export renames (TLV code constants verified unchanged). RFC 9552 Section 5.2.1.1: \"(A) The same node MUST NOT be represented by two keys (otherwise, one node will look like two nodes).\" Moved verbatim to core: one node parsed from 512,514,515 and 515,514,512 re-encodes to the identical canonical ascending bytes; WriteTo and Bytes emit identical octets. Native Node Descriptors come from one builder (ls_export exportNodeID), so encoder canonicality is the remaining way to mint a second key. The negative is an encoder-consistency check rather than a rejected input; accepted because the violation it guards (two encodings of one node) is exactly two keys.",
+  "requirement_sha": "8681cae084ee2329",
+  "tests": {
+    "internal/core/bgp/nlri/bgpls/rfc9552_types_descriptor_key_test.go::TestNodeDescriptorWriteToMatchesBytes": "10be0d7e1e109192",
+    "internal/core/bgp/nlri/bgpls/rfc9552_types_descriptor_key_test.go::TestSameNodeHasOneKeyWhateverTheStorageOrder": "10be0d7e1e109192"
+  },
+  "units": {
+    "internal/core/bgp/nlri/bgpls/rfc9552_types_descriptor_key_test.go::TestNodeDescriptorWriteToMatchesBytes": "307f9fe101227dff",
+    "internal/core/bgp/nlri/bgpls/rfc9552_types_descriptor_key_test.go::TestSameNodeHasOneKeyWhateverTheStorageOrder": "9ee5ac17cad1dcb2"
+  },
+  "verdict": "enforced"
+}

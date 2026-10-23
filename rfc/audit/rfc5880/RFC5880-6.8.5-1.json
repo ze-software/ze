@@ -1,0 +1,15 @@
+{
+  "note": "Judge rejudge 2026-09-30 (bfd engine 2). Engine TestRFC5880EngineFailsSessionOnMissingEchoes: echoTickLocked sends an echo, none returns, and the tick after the echo detection time leaves Down with diag 2; the test never calls EchoFail. The targeted break the earlier note named, removing the EchoFail call in echoTickLocked, observed red (state stays Up). Session +/- units unchanged.",
+  "requirement_sha": "6dd9b077f5fb61ca",
+  "tests": {
+    "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880EngineFailsSessionOnMissingEchoes": "836d84530c95a8b2",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoMissDetectedAndReported": "8db25cbb4534cc2d",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoReturnClearsMissAndFailIsScoped": "8db25cbb4534cc2d"
+  },
+  "units": {
+    "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880EngineFailsSessionOnMissingEchoes": "5f35cc568d6e73aa",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoMissDetectedAndReported": "68107e0c01859bd6",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoReturnClearsMissAndFailIsScoped": "1a00d85089a7aa80"
+  },
+  "verdict": "enforced"
+}

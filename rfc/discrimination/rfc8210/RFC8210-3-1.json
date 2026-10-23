@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8210-3-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rpki/rtr_transport_rfc8210_test.go::TestRTRUnprotectedTCPFromConfig",
+    "unit-sha": "2b6b60cfaa07e625",
+    "claim-sha": "593bf442bd0a8da9",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rpki/rtr_session.go::connectAndSync",
+    "producer-sha": "804f476bac7d1fc7",
+    "break": "body of connectAndSync replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8210-3-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rpki/rtr_transport_rfc8210_test.go::TestRTRUnprotectedTCPFromConfig",
+    "unit-sha": "2b6b60cfaa07e625",
+    "claim-sha": "e23e8c13af182c10",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rpki/rpki_config.go::parseRPKIConfig",
+    "producer-sha": "e2df66b49b6dd700",
+    "break": "body of parseRPKIConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

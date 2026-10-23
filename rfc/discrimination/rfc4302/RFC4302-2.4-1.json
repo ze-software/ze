@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC4302-2.4-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc4302_ipsec_test.go::TestAHSAIdentifiedBySPIAndProtocol",
+    "unit-sha": "76150f7de074b229",
+    "claim-sha": "08b876305d7717bb",
+    "route": "mutant",
+    "producer": "internal/plugins/ospf/ipsec_install.go::ipsecProtoNumber",
+    "producer-sha": "c05a39ef55486b0e",
+    "break": "line 690: \"protocol == ipsecProtoAH\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC4302-2.4-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/rfc4302_ipsec_test.go::TestAHSAIdentifiedBySPIAndProtocol",
+    "unit-sha": "76150f7de074b229",
+    "claim-sha": "6db684b87fa574e0",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/ipsec_install.go::buildIPsecSA",
+    "producer-sha": "6a340d64849a22e0",
+    "break": "body of buildIPsecSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4302-2.4-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc4302_sa_set_test.go::TestRFC4302UnicastAHStateIdentifiedBySPI",
+    "unit-sha": "603258eade515e1f",
+    "claim-sha": "605a7b2b02868111",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/ipsec_install.go::buildIPsecInterfaceSAs",
+    "producer-sha": "585210642d31eeae",
+    "break": "body of buildIPsecInterfaceSAs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4302-2.4-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/rfc4302_sa_set_test.go::TestRFC4302UnicastAHStateIdentifiedBySPI",
+    "unit-sha": "603258eade515e1f",
+    "claim-sha": "1af36c646b0ec271",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/ipsec_install.go::buildIPsecSA",
+    "producer-sha": "6a340d64849a22e0",
+    "break": "body of buildIPsecSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

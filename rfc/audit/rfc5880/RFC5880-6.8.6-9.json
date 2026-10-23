@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: processing A=1 at an AuthType-0 session. TestRFC5880UnauthenticatedSessionDiscardsAuthenticatedPacket fails unless Receive returns ErrAuthMismatch and the state stays Down; the engine hands such a packet to Receive because HasAuth is false. Positive TestRFC5880UnauthenticatedSessionAcceptsUnauthenticatedPacket: A=0 accepted.",
+  "requirement_sha": "bf5577632350e4b8",
+  "tests": {
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880UnauthenticatedSessionAcceptsUnauthenticatedPacket": "8db25cbb4534cc2d",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880UnauthenticatedSessionDiscardsAuthenticatedPacket": "8db25cbb4534cc2d"
+  },
+  "units": {
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880UnauthenticatedSessionAcceptsUnauthenticatedPacket": "fefd4abc134dc118",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880UnauthenticatedSessionDiscardsAuthenticatedPacket": "3516af8bbdf26e04"
+  },
+  "verdict": "enforced"
+}

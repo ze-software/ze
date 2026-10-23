@@ -1,0 +1,19 @@
+{
+  "note": "Judge rejudge 2026-10-02 (tag move under the 2026-09-30 owner ruling, OWNER RULING 6(b)); judged by an agent that authored neither test. Stale only because the RFC5880-6.1-3 negative tag comment was removed from session TestRFC5880PassiveRoleSilentUntilReception; body unchanged. Proof unchanged: + engine TestRFC5880ActiveSessionSendsBeforeAnyReception; - engine TestRFC5880ActiveSessionSendsAfterThePeerFallsSilent, both recorded revert loop.go::tick observed red. The session-level negative stays supplementary.",
+  "requirement_sha": "9235ea6a87c1482a",
+  "tests": {
+    "internal/component/bfd/engine/rfc5880_role_transmit_test.go::TestRFC5880ActiveSessionSendsAfterThePeerFallsSilent": "1a3ca4dc854245d8",
+    "internal/component/bfd/engine/rfc5880_role_transmit_test.go::TestRFC5880ActiveSessionSendsBeforeAnyReception": "1a3ca4dc854245d8",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880ActiveRoleTransmitsWithoutReception": "8db25cbb4534cc2d",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleSilentUntilReception": "8db25cbb4534cc2d",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleTransmitsAfterReception": "8db25cbb4534cc2d"
+  },
+  "units": {
+    "internal/component/bfd/engine/rfc5880_role_transmit_test.go::TestRFC5880ActiveSessionSendsAfterThePeerFallsSilent": "e1685b9301773ecc",
+    "internal/component/bfd/engine/rfc5880_role_transmit_test.go::TestRFC5880ActiveSessionSendsBeforeAnyReception": "f0a130b0c8773dbf",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880ActiveRoleTransmitsWithoutReception": "df2f701c25b0dca8",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleSilentUntilReception": "dd48fab2844e8fc1",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleTransmitsAfterReception": "5a65964a85953f8b"
+  },
+  "verdict": "enforced"
+}

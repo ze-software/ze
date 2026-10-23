@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC5798-6.4.3-7",
+    "polarity": "negative",
+    "unit": "internal/plugins/vrrp/acceptfilter_test.go::TestActiveAddressOwnerAcceptsWhateverAcceptModeSays",
+    "unit-sha": "8997a5436245d6da",
+    "claim-sha": "2af93c549b5e3300",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/groups.go::EffectiveAcceptMode",
+    "producer-sha": "4c01765b8b2b548e",
+    "break": "body of EffectiveAcceptMode replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5798-6.4.3-7",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/acceptfilter_test.go::TestActiveNonOwnerWithAcceptModeFalseSuppressesLocalDelivery",
+    "unit-sha": "5c2869c915aa5684",
+    "claim-sha": "cba70b0860793eb4",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/instance.go::doInstallVIPs",
+    "producer-sha": "6c990de7776ea965",
+    "break": "body of doInstallVIPs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5798-6.4.3-7",
+    "polarity": "negative",
+    "unit": "internal/plugins/vrrp/acceptfilter_test.go::TestActiveNonOwnerWithAcceptModeTrueAcceptsLocalDelivery",
+    "unit-sha": "74a6060b135cb411",
+    "claim-sha": "b67bffb2c38617fd",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/instance.go::doInstallVIPs",
+    "producer-sha": "6c990de7776ea965",
+    "break": "body of doInstallVIPs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

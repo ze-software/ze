@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7705-3.3-4",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc7705_local_as_test.go::TestLocalASReplaceASSendsOnlyTheLocalAS",
+    "unit-sha": "df81e96bb4ed7e9a",
+    "claim-sha": "53dd2895de837de7",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/peer_forward_facts.go::secondaryPrependAS",
+    "producer-sha": "61b8ec6638a4d864",
+    "break": "body of secondaryPrependAS replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7705-3.3-4",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc7705_local_as_test.go::TestLocalASReplaceASSendsOnlyTheLocalAS",
+    "unit-sha": "df81e96bb4ed7e9a",
+    "claim-sha": "2b2b39f17df777d3",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/peer_forward_facts.go::secondaryPrependAS",
+    "producer-sha": "61b8ec6638a4d864",
+    "break": "body of secondaryPrependAS replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,16 @@
+{
+  "note": "Both 'these requirements' asserted at the authenticator: a Response of another Type draws nil and does not complete the exchange (exact nil, Succeeded false), a Nak after the initial non-Nak Response is discarded and the method still concludes; the method-Type control Response is processed to EAP-Success, so the discard is the Type check, not a refusal of every Response. All three units carry observed-red records.",
+  "requirement_sha": "44a8418ad5971d2c",
+  "tests": {
+    "internal/core/eap/rfc3748_discard_test.go::TestAuthenticatorDiscardsAResponseOfAnotherType": "e0e4c426f5444d02",
+    "internal/core/eap/rfc3748_discard_test.go::TestAuthenticatorProcessesAResponseOfTheMethodType": "e0e4c426f5444d02",
+    "internal/core/eap/rfc3748_remaining_clause_test.go::TestRFC3748AuthenticatorDiscardsANakAfterTheInitialNonNakResponse": "a4c2ccc90d93cad9"
+  },
+  "units": {
+    "internal/core/eap/rfc3748_discard_test.go::TestAuthenticatorDiscardsAResponseOfAnotherType": "6a9684489e3baf29",
+    "internal/core/eap/rfc3748_discard_test.go::TestAuthenticatorProcessesAResponseOfTheMethodType": "ede359664aabea59",
+    "internal/core/eap/rfc3748_remaining_clause_test.go::TestRFC3748AuthenticatorDiscardsANakAfterTheInitialNonNakResponse": "453482f99e75f67e"
+  },
+  "upgrade_reason": "Re-read TestAuthenticatorDiscardsAResponseOfAnotherType and TestAuthenticatorProcessesAResponseOfTheMethodType: the assertions were sound and the earlier weak rested only on the missing records, which now exist (handleMethod, observed red).",
+  "verdict": "enforced"
+}

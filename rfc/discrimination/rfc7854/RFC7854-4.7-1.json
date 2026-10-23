@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC7854-4.7-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854RouteMirroringBGPMessageTLVLast",
+    "unit-sha": "01800dce11be8767",
+    "claim-sha": "f2a94a71e9fd0df5",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/bmp/sender.go::writeRouteMirroring",
+    "producer-sha": "81edd51269581c83",
+    "break": "body of writeRouteMirroring replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

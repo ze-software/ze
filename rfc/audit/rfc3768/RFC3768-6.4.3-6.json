@@ -1,0 +1,17 @@
+{
+  "note": "vrrp judge 2026-09-29 (independent): TestV2MasterAdverTimerFires on VRRPv2: the live expiry yields exactly SendAdvert{100,2000}, StartAdvertTimer{2s}; an unarmed generation yields nothing.",
+  "requirement_sha": "a7409bcd52827d36",
+  "tests": {
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMStaleTimerGenerationIgnored": "52489f84876bdb6f",
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "52489f84876bdb6f",
+    "internal/plugins/vrrp/fsm/rfc_verdict_test.go::TestV2MasterAdverTimerFires": "529420a351d8b685",
+    "internal/plugins/vrrp/fsm/rfc_verdict_test.go::TestV2MasterAdverTimerFires#2": "529420a351d8b685"
+  },
+  "units": {
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMStaleTimerGenerationIgnored": "7c0fe29c87ffeb1d",
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "c06b69f55bb239a3",
+    "internal/plugins/vrrp/fsm/rfc_verdict_test.go::TestV2MasterAdverTimerFires": "135ae36f44f73018",
+    "internal/plugins/vrrp/fsm/rfc_verdict_test.go::TestV2MasterAdverTimerFires#2": "135ae36f44f73018"
+  },
+  "verdict": "enforced"
+}

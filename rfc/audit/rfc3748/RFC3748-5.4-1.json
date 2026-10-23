@@ -1,0 +1,15 @@
+{
+  "note": "Positive: the peer answers ze's MD5-Challenge Request with a Type-4 Response carrying the Request's Identifier and the MD5 value computed outside the package. Negative: a Type-4 Request carrying no challenge (Value-Size 0, or no Type-Data) violates the row's first sentence and draws no Response and an error. The Identity Requery tag was removed; its orphan record is the stale entry rfc check reports.",
+  "requirement_sha": "d620a813de478214",
+  "tests": {
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748MD5ChallengeAnswersOnlyARequestThatCarriesOne": "8ca42a58d78f22be",
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748MD5ChallengeAnswersOnlyARequestThatCarriesOne#2": "8ca42a58d78f22be",
+    "internal/core/eap/rfc3748_md5challenge_test.go::TestRFC3748MD5ChallengeRequestDrawsAResponse": "5a891130078b8f2b"
+  },
+  "units": {
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748MD5ChallengeAnswersOnlyARequestThatCarriesOne": "3a918c6e6b77cefb",
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748MD5ChallengeAnswersOnlyARequestThatCarriesOne#2": "3a918c6e6b77cefb",
+    "internal/core/eap/rfc3748_md5challenge_test.go::TestRFC3748MD5ChallengeRequestDrawsAResponse": "05ae4d42a89ec8b6"
+  },
+  "verdict": "enforced"
+}

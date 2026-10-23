@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: an NSSA area that discards Type-7. lsdb/area_capability_rfc3101_test.go TestRFC3101NSSAAreaAcceptsType7 fails if a received Type-7 is not installed in an NSSA area; TestRFC3101NormalAreaRejectsType7 fails if the same LSA is installed in a normal area.",
+  "requirement_sha": "d6d83e8e4765aa6d",
+  "tests": {
+    "internal/plugins/ospf/lsdb/rfc3101_area_capability_test.go::TestRFC3101NSSAAreaAcceptsType7": "65fa31ece0c5ae88",
+    "internal/plugins/ospf/lsdb/rfc3101_area_capability_test.go::TestRFC3101NormalAreaRejectsType7": "65fa31ece0c5ae88"
+  },
+  "units": {
+    "internal/plugins/ospf/lsdb/rfc3101_area_capability_test.go::TestRFC3101NSSAAreaAcceptsType7": "42cc0f7b2aa591c9",
+    "internal/plugins/ospf/lsdb/rfc3101_area_capability_test.go::TestRFC3101NormalAreaRejectsType7": "a7c103d82b870f28"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "TestRFC2661RetransmitBackoffDoubles ticks 1ns before and at 1s, 3s and 7s: a constant 1s interval fires before the 3s deadline and goes red, a missing retransmit goes red. Single-polarity marker accepted.",
+  "requirement_sha": "addfe6b5d5db6066",
+  "tests": {
+    "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661RetransmitBackoffDoubles": "055162183ff6df00",
+    "internal/component/l2tp/rfc2661_reliable_test.go::TestTickBackoffSchedule": "1da6320bfe08bd17"
+  },
+  "units": {
+    "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661RetransmitBackoffDoubles": "f869a32ded318671",
+    "internal/component/l2tp/rfc2661_reliable_test.go::TestTickBackoffSchedule": "4e410de38c96a079"
+  },
+  "verdict": "enforced"
+}

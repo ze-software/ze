@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC5880-6.8.4-1",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880DetectionExpiryFromUpDownDiagOne",
+    "unit-sha": "e57ebe906119592e",
+    "claim-sha": "e97ae075ca8448c2",
+    "route": "mutant",
+    "producer": "internal/component/bfd/session/timers.go::CheckDetection",
+    "producer-sha": "1386b1ea81534415",
+    "break": "line 122: \"m.vars.SessionState != packet.StateInit \u0026\u0026 m.vars.SessionState != packet.StateUp\" -\u003e \"true\""
+  },
+  {
+    "rid": "RFC5880-6.8.4-1",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/session/rfc5880_test.go::TestRFC5880DetectionExpiryDownDiagOne",
+    "unit-sha": "ea14a7d7ea6f4f76",
+    "claim-sha": "905958505e922d97",
+    "route": "revert",
+    "producer": "internal/component/bfd/session/timers.go::CheckDetection",
+    "producer-sha": "1386b1ea81534415",
+    "break": "body of CheckDetection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.8.4-1",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/session/rfc5880_test.go::TestRFC5880DetectionExpiryIgnoredWhenDown",
+    "unit-sha": "2903f2d671878c70",
+    "claim-sha": "0a58ecb9416098c6",
+    "route": "revert",
+    "producer": "internal/component/bfd/session/timers.go::CheckDetection",
+    "producer-sha": "1386b1ea81534415",
+    "break": "body of CheckDetection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

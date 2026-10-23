@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC7296-2.15-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_psk_terminator_test.go::TestRFC7296PSKIsUsedWithoutANullTerminator",
+    "unit-sha": "8ac7c0a783be01c0",
+    "claim-sha": "7ae60170be032e27",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/auth.go::computePSKAuth",
+    "producer-sha": "a70e12a66ef54cf2",
+    "break": "body of computePSKAuth replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.15-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_psk_terminator_test.go::TestRFC7296PSKWithANullTerminatorAddedIsRefused",
+    "unit-sha": "8b5a31c8a24b92d7",
+    "claim-sha": "43d1fcca3e6d43e4",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/auth.go::verifyPSKAuth",
+    "producer-sha": "787766f67c4b8934",
+    "break": "body of verifyPSKAuth replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.15-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/ipsec/rfc7296_test.go::TestPSKHasNoNullTerminatorAdded",
+    "unit-sha": "b3f24602cf9a3950",
+    "claim-sha": "e1c00db6c72f1754",
+    "route": "revert",
+    "producer": "internal/component/ike/ipsec/config.go::parseAuthConfig",
+    "producer-sha": "7d3b9464e36c0b06",
+    "break": "body of parseAuthConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.15-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/ipsec/rfc7296_test.go::TestPSKHasNoNullTerminatorAdded",
+    "unit-sha": "b3f24602cf9a3950",
+    "claim-sha": "27ac8ca6ee2fff8b",
+    "route": "revert",
+    "producer": "internal/component/ike/ipsec/config.go::parseAuthConfig",
+    "producer-sha": "7d3b9464e36c0b06",
+    "break": "body of parseAuthConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

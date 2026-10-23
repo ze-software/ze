@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-12 (independent auditor). SHIFTED by 6e063fb498 (tests: give ten assert-nothing tests a real assertion), whose hunks sit in untagged sibling tests and the import block. The tagged unit is byte-identical (gate-verified) and no helper it calls changed. Verdict stands. Forbidden: applying the partial-deployment delivery to a non-internal neighbor. TestLLGREgressFilter_EBGPNonLLGR (PeerAS!=LocalAS, no LLGR) fails unless mods.IsWithdraw(). Positive: the internal neighbor (PeerAS==LocalAS) keeps the announce with NO_EXPORT 0xFFFFFF01 added and LOCAL_PREF set to 0, each value asserted.",
+  "requirement_sha": "e7ee81b6b57096e6",
+  "tests": {
+    "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_EBGPNonLLGR": "02a10ecb6f38be0e",
+    "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_IBGPPartial": "02a10ecb6f38be0e"
+  },
+  "units": {
+    "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_EBGPNonLLGR": "84dc8716c970c2bd",
+    "internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go::TestLLGREgressFilter_IBGPPartial": "676abf5b78ab027b"
+  },
+  "verdict": "enforced"
+}

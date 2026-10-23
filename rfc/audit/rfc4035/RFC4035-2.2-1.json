@@ -1,0 +1,6 @@
+{
+  "no_code_path": "The rule constrains the RRSIGs of a signed zone, which only the zone signer produces. Ze creates no DNSKEY, RRSIG, NSEC or DS record: geodns answerQuestions synthesizes A/AAAA/SRV/SOA/NS only and as112 answers negatively, and no layer signs on Ze's behalf.",
+  "note": "Binds the signer of a signed zone; Ze signs no zone.",
+  "requirement_sha": "12bd90ea60de8337",
+  "verdict": "not-applicable"
+}

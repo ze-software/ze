@@ -1,0 +1,11 @@
+{
+  "note": "Single-polarity positive. Forbidden: an emitted flags octet with any of bits 3-7 set. TestTLSFragmentReservedFlagBitsAreZero fatals if the S constant or any flags octet nextFragment produces for first (L+M), middle (M), last and single-fragment (L) sends intersects 0x1F. The only other flags octet sent is the literal 0x00 ACK.",
+  "requirement_sha": "01d913c8c583d432",
+  "tests": {
+    "internal/core/eap/peer_test.go::TestTLSFragmentReservedFlagBitsAreZero": "93404fe1a5065a94"
+  },
+  "units": {
+    "internal/core/eap/peer_test.go::TestTLSFragmentReservedFlagBitsAreZero": "c08ada895dc29ab8"
+  },
+  "verdict": "enforced"
+}

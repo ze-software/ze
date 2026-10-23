@@ -1,0 +1,13 @@
+{
+  "note": "armed-generation expiry sends an advert and re-arms at 1s; a stale generation does nothing",
+  "requirement_sha": "a716945f2bc9bd3b",
+  "tests": {
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMStaleTimerGenerationIgnored": "52489f84876bdb6f",
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "52489f84876bdb6f"
+  },
+  "units": {
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMStaleTimerGenerationIgnored": "7c0fe29c87ffeb1d",
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "c06b69f55bb239a3"
+  },
+  "verdict": "enforced"
+}

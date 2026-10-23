@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-18 (independent auditor, after c85342c940). Section 4.4.2.1: \"Anti-Replay Window: a 64-bit counter and a bit-map (or equivalent) used to determine whether an inbound AH or ESP packet is a replay.\" TestRFC4301BoundarySADEntryCarriesWhatTheKernelLooksUp changed only by the deleted RFC4301-4.4.2.1-3 tag line; body identical, it asserts ReplayWindow == 64 on the entry xfrmStateFromParams builds (internal/component/ike/dataplane/xfrm_linux.go sets state.ReplayWindow from p.ReplayWin). TestRFC4301SADItemAntiReplayWindowIsInstalled reads windows 32 and 64 back. Builder-level, zero not asserted; the kernel performs the replay check on the window Ze installs. Single polarity as annotated: every window is installed as given.",
+  "requirement_sha": "c3a0d2406dfe86ff",
+  "tests": {
+    "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySADEntryCarriesWhatTheKernelLooksUp": "69d0d6fedadb8664",
+    "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemAntiReplayWindowIsInstalled": "9705c65b7b397cd1"
+  },
+  "units": {
+    "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySADEntryCarriesWhatTheKernelLooksUp": "500e0e082e266fac",
+    "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemAntiReplayWindowIsInstalled": "9ea45688870c590a"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,14 @@
+{
+  "code": {},
+  "note": "Row now quotes the SPI item alone (split, Correction 2026-09-30). Positive TestRFC4301SADItemSPIIsTheNegotiatedValue: inbound and outbound SAD entries carry the SPI given, unchanged. Negative TestRFC4301SADItemZeroSPIIsRefused: SPI 0 (RFC 4303 section 2.1: reserved, MUST NOT be sent on the wire, so it identifies no SA) builds no state; the refusal is the D-8 fix in xfrmStateFromParams. Unit-level over the builder; both records observed red.",
+  "requirement_sha": "19a226ed8c32a5c9",
+  "tests": {
+    "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemSPIIsTheNegotiatedValue": "9705c65b7b397cd1",
+    "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemZeroSPIIsRefused": "9705c65b7b397cd1"
+  },
+  "units": {
+    "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemSPIIsTheNegotiatedValue": "397afe2385b59336",
+    "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemZeroSPIIsRefused": "b5cbfb81785dff1c"
+  },
+  "verdict": "enforced"
+}

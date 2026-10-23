@@ -3,12 +3,12 @@
 // Related: reseal.go -- the writer this shares, and the re-stamp this never performs
 //
 // audit_stamp.go is `./le rfc audit-stamp`: it adds the verdicts an author has
-// just judged to rfc/audit/<stem>.json. The author writes the judgement in a
+// just judged to rfc/audit/<stem>/<requirement-id>.json. The author writes the judgement in a
 // pending file outside rfc/audit/: the verdict word, the note, the producer keys
 // a `code` map cites, and `no_code_path`. This fills the fingerprints the audit
 // skill forbids computing by hand -- requirement_sha from the row's text, `tests`
 // and `units` from the row's tags, a sha for each cited producer -- and merges
-// the stamped verdicts into the audit file.
+// each stamped verdict into its own file.
 //
 // The pending file lives OUTSIDE rfc/audit/ because an unstamped verdict there
 // fails the validating load, and that load feeds `./le rfc check` and the
@@ -26,8 +26,6 @@ package rfc
 
 import (
 	"maps"
-	"os"
-	"time"
 
 	"github.com/ze-software/ze/internal/core/cliio"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -74,15 +72,14 @@ func parseStampMode(word string, given bool) (stampMode, error) {
 // pendingFileKeys are the keys a pending file may carry. The re-stamp notes
 // belong to reseal.
 var pendingFileKeys = map[string]bool{
-	auditFieldRFC: true, auditFieldAudited: true, auditFieldRequirements: true,
+	auditFieldRFC: true, auditFieldRequirements: true,
 }
 
 // pendingVerdicts is one pending file, read: its verdicts in the order the
-// author wrote them, and the date the author judged them on.
+// author wrote them.
 type pendingVerdicts struct {
 	Verdicts map[string]any
 	Order    []string
-	Audited  string
 }
 
 // authoredVerdictKeys are the fields an author writes. Every other verdict
@@ -113,7 +110,7 @@ func (r AuditStampReport) Text() string {
 		tb.Str("stamped ").Str(rid).Byte('\n')
 	}
 	return tb.Str("stamped ").Int(int64(len(r.Stamped))).Str(" verdict(s) into ").Str(auditRel).
-		Byte('/').Str(r.Stem).Str(".json. The ledger now needs: ./le rfc index-update\n").String()
+		Byte('/').Str(r.Stem).Str("/. The ledger now needs: ./le rfc index-update\n").String()
 }
 
 // auditStamp stamps every verdict of one pending file and merges them into the
@@ -123,7 +120,7 @@ func (r AuditStampReport) Text() string {
 // nothing, so a half-merged file never lands and the author fixes the whole
 // list in one pass. The write itself is staged and renamed by replaceAudit,
 // which validates the merged file before it replaces the old one.
-func auditStamp(tree, rfcStem, fromPath string, mode stampMode, now time.Time) (AuditStampReport, error) {
+func auditStamp(tree, rfcStem, fromPath string, mode stampMode) (AuditStampReport, error) {
 	if mode == stampModeUnspecified {
 		return AuditStampReport{}, parseErr(new(textbuf.Buffer).Str("BUG: rfc audit-stamp called with no mode"))
 	}
@@ -137,7 +134,7 @@ func auditStamp(tree, rfcStem, fromPath string, mode stampMode, now time.Time) (
 			Str(" is not an enrolled stem. `./le rfc check` refuses an audit file for a stem ").
 			Str("it does not gate, so a verdict for it has nowhere durable to live"))
 	}
-	pending, err := readPendingVerdicts(tree, rfcStem, fromPath, now)
+	pending, err := readPendingVerdicts(tree, rfcStem, fromPath)
 	if err != nil {
 		return AuditStampReport{}, err
 	}
@@ -145,9 +142,8 @@ func auditStamp(tree, rfcStem, fromPath string, mode stampMode, now time.Time) (
 	if err != nil {
 		return AuditStampReport{}, err
 	}
-	if audit.Document == nil {
+	if audit.Verdicts == nil {
 		audit.Verdicts = map[string]any{}
-		audit.Document = map[string]any{auditFieldRFC: rfcStem, auditFieldRequirements: audit.Verdicts}
 	}
 
 	rows := map[string]Requirement{}
@@ -203,30 +199,21 @@ func auditStamp(tree, rfcStem, fromPath string, mode stampMode, now time.Time) (
 	if len(refused) > 0 {
 		var tb textbuf.Buffer
 		tb.Str(relTo(tree, fromPath)).Str(": refused ").Int(int64(len(refused))).
-			Str(" verdict(s), nothing written to ").Str(auditRel).Byte('/').Str(rfcStem).Str(".json:")
+			Str(" verdict(s), nothing written to ").Str(auditRel).Byte('/').Str(rfcStem).Str("/:")
 		for _, why := range refused {
 			tb.Str("\n  ").Str(why)
 		}
 		return AuditStampReport{}, parseErr(&tb)
 	}
 
-	// A re-judged id keeps its place in the file, so the diff of a re-judge
-	// shows one entry changed, never a deletion beside an addition, which the
-	// findings ratchet would read as a deleted finding.
+	// Only the stamped ids are written: each lands in its own file, so a
+	// re-judge shows as that one file changed, never as a deletion beside an
+	// addition, which the findings ratchet would read as a deleted finding.
+	stamped := Audit{Verdicts: map[string]any{}, Order: pending.Order}
 	for _, rid := range pending.Order {
-		if _, judged := audit.Verdicts[rid]; !judged {
-			audit.Order = append(audit.Order, rid)
-		}
-		audit.Verdicts[rid] = pending.Verdicts[rid]
+		stamped.Verdicts[rid] = pending.Verdicts[rid]
 	}
-	audit.Document[auditFieldAudited] = pending.Audited
-	// Made here rather than when the file was found absent, so a refusal
-	// leaves no empty directory behind.
-	if err := os.MkdirAll(treePath(tree, auditRel), 0o750); err != nil {
-		var tb textbuf.Buffer
-		return AuditStampReport{}, parseErr(tb.Str(auditRel).Str(": cannot create: ").Err(err))
-	}
-	if err := replaceAudit(tree, rfcStem, audit); err != nil {
+	if err := replaceAudit(tree, rfcStem, stamped); err != nil {
 		return AuditStampReport{}, err
 	}
 	return AuditStampReport{Stem: rfcStem, Stamped: pending.Order}, nil
@@ -235,12 +222,11 @@ func auditStamp(tree, rfcStem, fromPath string, mode stampMode, now time.Time) (
 // readPendingVerdicts reads the pending file and answers its verdicts in the
 // order the author wrote them.
 //
-// The file is shaped like an audit file so an author writes one form, and it
-// must name the stem the command was given: a file for another RFC merged here
-// would judge rows it never read. Its `audited` date, when present, is the day
-// the author judged the verdicts and becomes the audit file's date; absent, the
-// stamp's own day is.
-func readPendingVerdicts(tree, rfcStem, fromPath string, now time.Time) (pendingVerdicts, error) {
+// The file is one object, `rfc` and `requirements` keyed by id, so one pending
+// file judges many rows of one RFC, and it must name the stem the command was given: a file for another RFC merged here
+// would judge rows it never read. It carries no date: each verdict's history
+// is its own file's git log.
+func readPendingVerdicts(tree, rfcStem, fromPath string) (pendingVerdicts, error) {
 	rel := relTo(tree, fromPath)
 	var tb textbuf.Buffer
 	raw, err := cliio.ReadFile(fromPath)
@@ -273,16 +259,9 @@ func readPendingVerdicts(tree, rfcStem, fromPath string, now time.Time) (pending
 		return pendingVerdicts{}, parseErr(tb.Str(rel).Str(": 'requirements' names no verdict. A pending ").
 			Str("file that judges nothing cannot be told from one whose verdicts went to the wrong key"))
 	}
-	audited := now.Format("2006-01-02")
-	if data[auditFieldAudited] != nil {
-		if audited, err = strField(data, auditFieldAudited, rel, true); err != nil {
-			return pendingVerdicts{}, err
-		}
-	}
 	return pendingVerdicts{
 		Verdicts: verdicts,
 		Order:    order.child("requirements").orderOf(verdicts),
-		Audited:  audited,
 	}, nil
 }
 
@@ -303,13 +282,13 @@ func readPendingVerdicts(tree, rfcStem, fromPath string, now time.Time) (pending
 func stampRefusal(rid string, entry any, mode stampMode, judged, held bool, tagCount int, rfcStem string) string {
 	var tb textbuf.Buffer
 	if judged && mode == stampModeNew {
-		return tb.Str(rid).Str(" already has a verdict in ").Str(auditRel).Byte('/').Str(rfcStem).
-			Str(".json. A re-judgement nobody made must not look fresh: re-read the tests, then ").
+		return tb.Str(rid).Str(" already has a verdict in ").Str(auditRecordRel(rfcStem, rid)).
+			Str(". A re-judgement nobody made must not look fresh: re-read the tests, then ").
 			Str("replace the verdict with `mode rejudge`").String()
 	}
 	if !judged && mode == stampModeRejudge {
-		return tb.Str(rid).Str(" has no verdict in ").Str(auditRel).Byte('/').Str(rfcStem).
-			Str(".json to re-judge. A first judgement is stamped without `mode rejudge`").String()
+		return tb.Str(rid).Str(" has no verdict in ").Str(auditRecordRel(rfcStem, rid)).
+			Str(" to re-judge. A first judgement is stamped without `mode rejudge`").String()
 	}
 	if !held {
 		return tb.Str(rid).Str(" is not a requirement row of rfc/short/").Str(rfcStem).

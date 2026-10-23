@@ -1,0 +1,11 @@
+{
+  "note": "Forbidden: a one's complement sum without end-around carry. Red on it: TestChecksumRFC1071 compares checksum16 with an independent straight-line reference (t.Fatalf on got != want) over inputs whose sums overflow 16 bits (0xDEAD+0xBEEF, the golden VRRP packets). Single-polarity marker on the row.",
+  "requirement_sha": "7990b1d5a557ad13",
+  "tests": {
+    "internal/plugins/vrrp/packet/checksum_test.go::TestChecksumRFC1071": "50d6babad947a56f"
+  },
+  "units": {
+    "internal/plugins/vrrp/packet/checksum_test.go::TestChecksumRFC1071": "b25621b78a3057fc"
+  },
+  "verdict": "enforced"
+}

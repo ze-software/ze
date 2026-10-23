@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-18 (independent auditor, after e5724325c1). Section 4.2.1: \"The SR Policy NLRI MUST include a distinguisher, Color, and Endpoint field that implies that the length of the NLRI MUST be either 12 or 24 octets (depending on the address family of the Endpoint).\" TestRFC9830NLRILengthReceiveVerdicts changed only in its MP_UNREACH-alone block, which bears the RFC9830-5-2 and RFC7606-5.2-1 claims, not this row's. The two RFC9830-4.2.1-2 blocks are identical: positive, 12 octets under AFI 1 and 24 under AFI 2 accepted through processMessage with nothing written and dispatched byte-identical (srRequireKept); negative, 13 and 24 octets under AFI 1, 12 and 25 under AFI 2, a 13-octet NLRI beside a good one and in MP_UNREACH beside reachable NLRI are treat-as-withdraw with the session Established and the received body never dispatched (srRequireWithdrawn). Producer: srpolicy/split.go judgeSRPolicySection; a receiver accepting any byte-aligned length reddens the negative, and 12 octets under AFI 2 is the missing-field case.",
+  "requirement_sha": "6c8518fcdfb5abb9",
+  "tests": {
+    "internal/component/bgp/reactor/rfc9830_nlri_receive_test.go::TestRFC9830NLRILengthReceiveVerdicts": "5189635b831d2fc2",
+    "internal/component/bgp/reactor/rfc9830_nlri_receive_test.go::TestRFC9830NLRILengthReceiveVerdicts#2": "5189635b831d2fc2"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc9830_nlri_receive_test.go::TestRFC9830NLRILengthReceiveVerdicts": "917a41bcd9145c5f",
+    "internal/component/bgp/reactor/rfc9830_nlri_receive_test.go::TestRFC9830NLRILengthReceiveVerdicts#2": "917a41bcd9145c5f"
+  },
+  "verdict": "enforced"
+}

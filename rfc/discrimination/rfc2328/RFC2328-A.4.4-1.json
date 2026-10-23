@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2328-A.4.4-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328Type3SummaryKeepsMask",
+    "unit-sha": "0dbd068c3b6ff4db",
+    "claim-sha": "84c180293adc2bb3",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/lsdb/origination.go::OriginateSummary",
+    "producer-sha": "33527c0e59626c6e",
+    "break": "body of OriginateSummary replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-A.4.4-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328Type4SummaryMaskIsZero",
+    "unit-sha": "f4b31a711c6352f1",
+    "claim-sha": "b35df6877d525095",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/lsdb/origination.go::OriginateSummary",
+    "producer-sha": "33527c0e59626c6e",
+    "break": "body of OriginateSummary replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

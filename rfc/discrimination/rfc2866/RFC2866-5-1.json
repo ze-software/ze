@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC2866-5-1",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go::TestRFC2866AcctStatusTypeNeverOmitted",
+    "unit-sha": "73a898de19a31b3a",
+    "claim-sha": "f9e4aa12b3516bda",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authradius/acct.go::buildAcctPacket",
+    "producer-sha": "95509f5b3525dc3f",
+    "break": "body of buildAcctPacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2866-5-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go::TestRFC2866AcctStatusTypePresent",
+    "unit-sha": "11da757013360e18",
+    "claim-sha": "b38df625d273016c",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authradius/acct.go::buildAcctPacket",
+    "producer-sha": "95509f5b3525dc3f",
+    "break": "body of buildAcctPacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2866-5-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc2866_attribute_table_test.go::TestRFC2866EveryRecordCarriesOneOfEachOneMarkedAttribute",
+    "unit-sha": "bff7d62efd6a8056",
+    "claim-sha": "ba09ecf0d41c99cf",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authradius/acct.go::buildAcctPacket",
+    "producer-sha": "95509f5b3525dc3f",
+    "break": "body of buildAcctPacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2866-5-1",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc2866_attribute_table_test.go::TestRFC2866ExclusionsCannotRemoveAOneMarkedAttribute",
+    "unit-sha": "16c9dc69d76ba9a3",
+    "claim-sha": "5a666fce76726e34",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authradius/exclude.go::parseAttributeExclusions",
+    "producer-sha": "1597e1377ebabf60",
+    "break": "body of parseAttributeExclusions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,19 @@
+{
+  "note": "Re-judged 2026-10-11 by an independent judge because the unit TestSKAcceptsAnyIVOnReceipt moved; the move is a claim comment for RFC7296-3.14-3 only, and its RFC7296-3.14-6 negative claim and body are unchanged. RFC 7296 3.14: \"The checksum MUST be computed over the encrypted message.\" The proof rests on the dedicated pair: TestRFC7296ChecksumIsTheHMACOfTheEncryptedMessage recomputes HMAC-SHA2-256-128 under SK_ai outside Ze over header, SK header, IV and ciphertext and requires Ze's ICV to equal it, and TestRFC7296ChecksumOverThePlaintextIsRefused refuses an ICV computed over the plaintext while the same construction over the ciphertext is accepted. TestSKAcceptsAnyIVOnReceipt's negative (a flipped final ICV octet refused) and TestSKPaddingAlignsAndChecksumCoversCiphertext add integrity-refusal floors only; a plaintext-MAC implementation would also refuse a flipped octet, so those units alone would not discriminate the scope, but the pair above does.",
+  "requirement_sha": "5439e1831480eefd",
+  "tests": {
+    "internal/component/ike/engine/rfc7296_checksum_scope_test.go::TestRFC7296ChecksumIsTheHMACOfTheEncryptedMessage": "3ceaa9f84e99828e",
+    "internal/component/ike/engine/rfc7296_checksum_scope_test.go::TestRFC7296ChecksumOverThePlaintextIsRefused": "3ceaa9f84e99828e",
+    "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKAcceptsAnyIVOnReceipt": "10094853fa461fff",
+    "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKPaddingAlignsAndChecksumCoversCiphertext": "10094853fa461fff",
+    "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKPaddingAlignsAndChecksumCoversCiphertext#2": "10094853fa461fff"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7296_checksum_scope_test.go::TestRFC7296ChecksumIsTheHMACOfTheEncryptedMessage": "b8795b1f309fc3ae",
+    "internal/component/ike/engine/rfc7296_checksum_scope_test.go::TestRFC7296ChecksumOverThePlaintextIsRefused": "d9cd06dd50dcae62",
+    "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKAcceptsAnyIVOnReceipt": "8864d3535ed7acf9",
+    "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKPaddingAlignsAndChecksumCoversCiphertext": "a1d95e7010770c80",
+    "internal/component/ike/engine/rfc7296_encrypt_test.go::TestSKPaddingAlignsAndChecksumCoversCiphertext#2": "a1d95e7010770c80"
+  },
+  "verdict": "enforced"
+}

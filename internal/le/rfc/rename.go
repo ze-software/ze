@@ -375,7 +375,8 @@ func sourceDiffersFromHead(tree, rel string) string {
 // planEvidence rewrites every path key and field naming a source in the
 // discrimination records and the audit verdicts.
 //
-// The rewrite is by field and in place: in a discrimination file the `unit` and
+// The rewrite is by field and in place, over every per-requirement file under
+// both directories: in a discrimination file the `unit` and
 // `producer` of each record, in an audit file each key of a requirement's
 // `tests`, `units` and `code` maps, when it equals the source or opens with the
 // source then `::`. Every other string keeps its bytes, however it reads, and so
@@ -385,22 +386,12 @@ func planEvidence(tree string, pairs []renamePair) ([]renameFile, error) {
 	for dir, fields := range map[string]func(evidenceString) bool{
 		discriminationRel: discriminationPathField, auditRel: auditPathKey,
 	} {
-		entries, err := os.ReadDir(treePath(tree, dir))
-		if os.IsNotExist(err) {
-			continue
-		}
+		files, err := listEvidence(tree, dir)
 		if err != nil {
-			var tb textbuf.Buffer
-			return nil, parseErr(tb.Str(dir).Str(": cannot read: ").Err(err))
+			return nil, err
 		}
-		for _, entry := range entries {
-			if entry.IsDir() {
-				continue
-			}
-			if !strings.HasSuffix(entry.Name(), jsonSuffix) {
-				continue
-			}
-			rel := path.Join(dir, entry.Name())
+		for _, file := range files {
+			rel := file.Rel
 			original, err := os.ReadFile(treePath(tree, rel)) // #nosec G304 -- a listed evidence file
 			if err != nil {
 				var tb textbuf.Buffer
@@ -420,37 +411,32 @@ func planEvidence(tree string, pairs []renamePair) ([]renameFile, error) {
 	return out, nil
 }
 
-// discriminationPathField holds a record's `unit` and `producer` values.
+// discriminationPathField holds a record's `unit` and `producer` values. A
+// requirement's file is an array of records.
 func discriminationPathField(found evidenceString) bool {
 	if found.Key {
 		return false
 	}
-	if len(found.Path) != 3 {
+	if len(found.Path) != 2 {
 		return false
 	}
-	if found.Path[0] != "records" {
+	if found.Path[0] != evidenceArrayStep {
 		return false
 	}
-	if found.Path[1] != evidenceArrayStep {
-		return false
-	}
-	return found.Path[2] == "unit" || found.Path[2] == "producer"
+	return found.Path[1] == "unit" || found.Path[1] == "producer"
 }
 
-// auditPathKey holds the keys of a requirement's `tests`, `units` and `code`
-// fingerprint maps.
+// auditPathKey holds the keys of a verdict's `tests`, `units` and `code`
+// fingerprint maps. A requirement's file is the verdict object itself.
 func auditPathKey(found evidenceString) bool {
 	if !found.Key {
 		return false
 	}
-	if len(found.Path) != 3 {
+	if len(found.Path) != 1 {
 		return false
 	}
-	if found.Path[0] != "requirements" {
-		return false
-	}
-	switch found.Path[2] {
-	case "tests", "units", fingerprintCode:
+	switch found.Path[0] {
+	case fingerprintTests, fingerprintUnits, fingerprintCode:
 		return true
 	}
 	return false

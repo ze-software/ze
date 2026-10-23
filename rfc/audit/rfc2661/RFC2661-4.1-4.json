@@ -1,0 +1,17 @@
+{
+  "note": "TestUnrecognizedMandatoryAVPInHelloClearsTunnel drives handleMessage with a HELLO on an established tunnel holding one session, for a vendor AVP, an undefined IETF type and a reserved-bit AVP: M=1 sends one StopCCN, clears the session and closes the tunnel; M=0 sends nothing and keeps both. This closes the '(and all sessions within)' clause the earlier verdict found missing. TestTunnelSCCCNUnknownMandatoryAVP_StopCCN keeps the SCCCN case; TestTunnelInitiatorHandshake is the clean-exchange positive. Producer checked: parseHello/handleHello (Error Code 8), parseSCCCN/parseStopCCN/parseSCCRP branch on FlagUnrecognized, handleStopCCN now closes on a malformed StopCCN.",
+  "requirement_sha": "44d2c6a04226b6d2",
+  "tests": {
+    "internal/component/l2tp/rfc2661_tunnel_initiator_test.go::TestTunnelInitiatorHandshake": "fb2f8aaa2ddb2a00",
+    "internal/component/l2tp/rfc2661_tunnel_initiator_test.go::TestTunnelSCCCNUnknownMandatoryAVP_StopCCN": "fb2f8aaa2ddb2a00",
+    "internal/component/l2tp/rfc2661_unrecognized_mandatory_avp_test.go::TestUnrecognizedMandatoryAVPInHelloClearsTunnel": "beb7a378ea5d3333",
+    "internal/component/l2tp/rfc2661_unrecognized_mandatory_avp_test.go::TestUnrecognizedMandatoryAVPInHelloClearsTunnel#2": "beb7a378ea5d3333"
+  },
+  "units": {
+    "internal/component/l2tp/rfc2661_tunnel_initiator_test.go::TestTunnelInitiatorHandshake": "45a43dfbc39206d3",
+    "internal/component/l2tp/rfc2661_tunnel_initiator_test.go::TestTunnelSCCCNUnknownMandatoryAVP_StopCCN": "1b0b2c19242c0473",
+    "internal/component/l2tp/rfc2661_unrecognized_mandatory_avp_test.go::TestUnrecognizedMandatoryAVPInHelloClearsTunnel": "0f7cd3930854a462",
+    "internal/component/l2tp/rfc2661_unrecognized_mandatory_avp_test.go::TestUnrecognizedMandatoryAVPInHelloClearsTunnel#2": "0f7cd3930854a462"
+  },
+  "verdict": "enforced"
+}

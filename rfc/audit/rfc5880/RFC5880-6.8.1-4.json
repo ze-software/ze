@@ -1,0 +1,13 @@
+{
+  "note": "Judge rejudge 2026-09-30 (bfd engine 2). Positive TestRFC5880InitVariableDefaults fails on RemoteDiscriminator()!=0 after Init. Genuine negative (R1 route b) TestRFC5880InitClearsLearnedRemoteDiscr: a Machine that learned the peer discriminator 1 is Init-ed again and must hold 0. Targeted break Init literal RemoteDiscr: 0 -> m.vars.RemoteDiscr (carry the learned value) observed red on the negative (the positive stays green under it, since a fresh Machine holds 0 anyway). The old negative tag (Receive installing My Discriminator, a 6.8.6 step) was removed with approval.",
+  "requirement_sha": "750f5c751756b7d1",
+  "tests": {
+    "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880InitClearsLearnedRemoteDiscr": "73ca576e23cbd659",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880InitVariableDefaults": "8db25cbb4534cc2d"
+  },
+  "units": {
+    "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880InitClearsLearnedRemoteDiscr": "653238f848f341bc",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880InitVariableDefaults": "a5a2b73d55f078ff"
+  },
+  "verdict": "enforced"
+}

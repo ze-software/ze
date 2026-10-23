@@ -1,0 +1,17 @@
+{
+  "note": "Rejudged 2026-09-29. Positive TestRFC8907AccountingValidFlagsWritten writes 0x02, 0x04, 0x08 and 0x0a unchanged. Negative TestRFC8907AccountingOtherFlagsRefused refuses all 252 other values (every undefined bit 0x01, 0x10-0x80 and invalid combinations) and SendAccounting refuses 0x82 before contacting the server. Producer acct.go MarshalBinaryInto allowlist switch; a denylist now goes red.",
+  "requirement_sha": "53789bea9b4985eb",
+  "tests": {
+    "internal/component/tacacs/rfc8907_acct_test.go::TestAcctRequestMarshalStartStop": "75b965d7ba21dabe",
+    "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907AccountingOtherFlagsRefused": "fb302ebfa0d9b135",
+    "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907AccountingValidFlagsWritten": "fb302ebfa0d9b135",
+    "internal/component/tacacs/rfc8907_validation_test.go::TestRFC8907AccountingMoreFlagRefused": "59ca691aca621600"
+  },
+  "units": {
+    "internal/component/tacacs/rfc8907_acct_test.go::TestAcctRequestMarshalStartStop": "72b09318dca8a267",
+    "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907AccountingOtherFlagsRefused": "e6756f70e1fc889f",
+    "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907AccountingValidFlagsWritten": "2a442778a380b1e0",
+    "internal/component/tacacs/rfc8907_validation_test.go::TestRFC8907AccountingMoreFlagRefused": "71625675e53b5e7c"
+  },
+  "verdict": "enforced"
+}

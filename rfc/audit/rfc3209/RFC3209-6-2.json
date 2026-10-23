@@ -1,0 +1,13 @@
+{
+  "note": "Rejudged 2026-10-08 after the tagged units shifted byte-identical; re-read against rfc/full/rfc3209.txt and the current producers. Section 4.6.4: \"On receipt of the Path message, the egress node sends a Resv message with the STYLE Shared Explicit toward the ingress node.\" TestRFC3209EgressResvStyleIsSharedExplicit drives a PATH into an egress engine through handlePacket and asserts the STYLE of the RESV it sends is 0x12. TestBuildResvRoundTrip proves the builder encodes SE when asked.",
+  "requirement_sha": "5c909aad02e9253a",
+  "tests": {
+    "internal/plugins/rsvpte/rfc3209_build_test.go::TestBuildResvRoundTrip": "af8410d3ed30ac9e",
+    "internal/plugins/rsvpte/rfc3209_signaling_test.go::TestRFC3209EgressResvStyleIsSharedExplicit": "0fabf3da631549e2"
+  },
+  "units": {
+    "internal/plugins/rsvpte/rfc3209_build_test.go::TestBuildResvRoundTrip": "8eacced533e97ba3",
+    "internal/plugins/rsvpte/rfc3209_signaling_test.go::TestRFC3209EgressResvStyleIsSharedExplicit": "8e5999082c236449"
+  },
+  "verdict": "enforced"
+}

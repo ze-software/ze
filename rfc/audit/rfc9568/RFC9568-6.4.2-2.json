@@ -1,0 +1,13 @@
+{
+  "note": "TestInstanceIPv6VIPLivesOnVirtualMACDevice requires a Backup to install no IPv6 virtual address and the Active router to install it on the vMAC macvlan only",
+  "requirement_sha": "5a93fce211a2f67d",
+  "tests": {
+    "internal/plugins/vrrp/instance_test.go::TestInstanceIPv6VIPLivesOnVirtualMACDevice": "90d279832a92de75",
+    "internal/plugins/vrrp/instance_test.go::TestInstanceIPv6VIPLivesOnVirtualMACDevice#2": "90d279832a92de75"
+  },
+  "units": {
+    "internal/plugins/vrrp/instance_test.go::TestInstanceIPv6VIPLivesOnVirtualMACDevice": "bb1f308ff09eb61c",
+    "internal/plugins/vrrp/instance_test.go::TestInstanceIPv6VIPLivesOnVirtualMACDevice#2": "bb1f308ff09eb61c"
+  },
+  "verdict": "enforced"
+}

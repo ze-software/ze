@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: supporting an AES GCM ICV other than 16, 8, 12. Red: TestRFC5282AEADRefusesAForbiddenICVLength fatals if OpenIKEAEAD(ENCR_AES_GCM_16) accepts a real 13, 14 or 15 octet ICV sealing; TestRFC5282AEADOpensTheFullLengthICV keeps 16 open. Lengths below 12 are not constructed (stdlib limit); ze's only GCM transform (20) fixes the tag at 16, so no other length is reachable.",
+  "requirement_sha": "085bec220b27ec83",
+  "tests": {
+    "internal/component/ike/crypto/rfc5282_aead_test.go::TestRFC5282AEADOpensTheFullLengthICV": "7023705f0a1c4b4b",
+    "internal/component/ike/crypto/rfc5282_aead_test.go::TestRFC5282AEADRefusesAForbiddenICVLength": "7023705f0a1c4b4b"
+  },
+  "units": {
+    "internal/component/ike/crypto/rfc5282_aead_test.go::TestRFC5282AEADOpensTheFullLengthICV": "cef667dcf43a1d67",
+    "internal/component/ike/crypto/rfc5282_aead_test.go::TestRFC5282AEADRefusesAForbiddenICVLength": "3d1aaae396ecf58c"
+  },
+  "verdict": "enforced"
+}

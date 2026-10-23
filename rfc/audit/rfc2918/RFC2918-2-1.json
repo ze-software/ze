@@ -1,0 +1,15 @@
+{
+  "note": "Forbidden: advertising Route Refresh with a code other than 2 or a length other than 0. TestRFC2918RouteRefreshCapabilityOctetsInSentOpen walks the octets sendOpen writes and asserts exactly one TLV with code 2 and an empty value, and none when not configured; red on another code, a payload, or a duplicate. Negative TestOpenRejectsMalformedKnownCapability: a received code 2 with length 1 (a violation of this definition by the peer) is refused with OPEN Message Error before negotiation. TestCapabilityWriteTo remains a self-consistency check only.",
+  "requirement_sha": "bb2659c612dc6645",
+  "tests": {
+    "internal/component/bgp/reactor/reactor_b_open_caps_test.go::TestRFC2918RouteRefreshCapabilityOctetsInSentOpen": "8cb84a3ecc21b2cc",
+    "internal/component/bgp/reactor/session_handlers_test.go::TestOpenRejectsMalformedKnownCapability": "c387bdc6c423bd19",
+    "internal/core/bgp/capability/capability_test.go::TestCapabilityWriteTo": "3b6ab22b8c99761b"
+  },
+  "units": {
+    "internal/component/bgp/reactor/reactor_b_open_caps_test.go::TestRFC2918RouteRefreshCapabilityOctetsInSentOpen": "54f0c133096aefc1",
+    "internal/component/bgp/reactor/session_handlers_test.go::TestOpenRejectsMalformedKnownCapability": "67908494b5038760",
+    "internal/core/bgp/capability/capability_test.go::TestCapabilityWriteTo": "38dac687429f1885"
+  },
+  "verdict": "enforced"
+}

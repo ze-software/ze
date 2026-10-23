@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC5881-2-2",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/engine/rfc5881_per_protocol_wire_linux_test.go::TestRFC5881EachProtocolSessionEncapsulatedInItsProtocol",
+    "unit-sha": "4d735e7116dfbc35",
+    "claim-sha": "46163f1264fa4230",
+    "route": "revert",
+    "producer": "internal/component/bfd/transport/dual.go::Send",
+    "producer-sha": "9748136a04a985b7",
+    "break": "body of Send replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5881-2-2",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881PerProtocolSessions",
+    "unit-sha": "6b7de6577c684501",
+    "claim-sha": "93a2ae5245ff0345",
+    "route": "revert",
+    "producer": "internal/component/bfd/api/events.go::Key",
+    "producer-sha": "c74d9afe0c996b38",
+    "break": "body of Key replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5881-2-2",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881SamePeerCoalesces",
+    "unit-sha": "ecd2585ec65eb266",
+    "claim-sha": "7800a10bab583d76",
+    "route": "revert",
+    "producer": "internal/component/bfd/engine/engine.go::EnsureSession",
+    "producer-sha": "72d103412413e69c",
+    "break": "body of EnsureSession replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

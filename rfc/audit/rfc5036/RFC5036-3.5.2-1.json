@@ -1,0 +1,13 @@
+{
+  "note": "TestRFC5036HelloHoldTimeZeroUsesDefault checks Hold Time 0 keeps the adjacency with 15s for a Link Hello and 45s for a Targeted Hello and not expired; TestRFC5036HelloHoldTimeNonZeroNotDefaulted checks non-zero values below and above the default are used as sent.",
+  "requirement_sha": "2436e8e56f006425",
+  "tests": {
+    "internal/plugins/ldp/rfc5036_test.go::TestRFC5036HelloHoldTimeNonZeroNotDefaulted": "0c099031be03877f",
+    "internal/plugins/ldp/rfc5036_test.go::TestRFC5036HelloHoldTimeZeroUsesDefault": "0c099031be03877f"
+  },
+  "units": {
+    "internal/plugins/ldp/rfc5036_test.go::TestRFC5036HelloHoldTimeNonZeroNotDefaulted": "7b40deb43fc43277",
+    "internal/plugins/ldp/rfc5036_test.go::TestRFC5036HelloHoldTimeZeroUsesDefault": "b46d209e271ea52b"
+  },
+  "verdict": "enforced"
+}

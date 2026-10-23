@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9086-5-10",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB",
+    "unit-sha": "8f41c860bd5d880f",
+    "claim-sha": "c5af3b5b6b32ebfc",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/epe/epe_source.go::publishLocked",
+    "producer-sha": "326f0928961a7220",
+    "break": "body of publishLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9086-5-10",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerIndexRequiresSRGB",
+    "unit-sha": "9951f15de8f82a35",
+    "claim-sha": "cef49ee537d172b1",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/ls_export/export_epe.go::validateNativeEPE",
+    "producer-sha": "c05854b2250443a4",
+    "break": "body of validateNativeEPE replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

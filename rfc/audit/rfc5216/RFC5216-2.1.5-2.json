@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: the peer answering an M-set Request with data or with anything but an EAP-TLS Response. TestRFC5216PeerAcksEachServerFragmentWithNoData errors unless every M-set Request is answered by bareEAPTLSResponse, and errors if the last fragment (M clear) draws the no-data ACK instead of the TLS flight; driveFragmentedFlight fatals unless both sides fragment and the MSKs match.",
+  "requirement_sha": "66609512c62b7660",
+  "tests": {
+    "internal/core/eap/rfc5216_fragment_ack_test.go::TestRFC5216PeerAcksEachServerFragmentWithNoData": "2d0ca832c5975065",
+    "internal/core/eap/rfc5216_fragment_ack_test.go::TestRFC5216PeerAcksEachServerFragmentWithNoData#2": "2d0ca832c5975065"
+  },
+  "units": {
+    "internal/core/eap/rfc5216_fragment_ack_test.go::TestRFC5216PeerAcksEachServerFragmentWithNoData": "90d4ea1bc29a0086",
+    "internal/core/eap/rfc5216_fragment_ack_test.go::TestRFC5216PeerAcksEachServerFragmentWithNoData#2": "90d4ea1bc29a0086"
+  },
+  "verdict": "enforced"
+}

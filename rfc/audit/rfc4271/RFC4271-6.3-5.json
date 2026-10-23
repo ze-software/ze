@@ -1,0 +1,17 @@
+{
+  "note": "Revised by RFC 7606 3(c) to treat-as-withdraw unless the attribute's specification mandates other flag handling. Flag conflicts are decided by one table (AttributeCode.FlagsConflict via validateAttributeFlags). Tagged units now cover ORIGIN (well-known), MED, AGGREGATOR and ATOMIC_AGGREGATE with conflicting Optional/Transitive bits: exact withdraw-only payload, session Established; the same attributes with specified flags keep the prefix and the value byte for byte. AGGREGATOR flags go to withdraw because RFC 7606 7.7 mandates attribute discard only for its length conditions, not for flags. Observed-red records on validateAttributeFlags both polarities.",
+  "requirement_sha": "138f66b7cb2afca7",
+  "tests": {
+    "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst": "7c393f540d8a8390",
+    "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst#2": "7c393f540d8a8390",
+    "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "fdc816af536ef714",
+    "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "fdc816af536ef714"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst": "3fbb82b3c24c3e42",
+    "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst#2": "3fbb82b3c24c3e42",
+    "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "d80d6195ec19508d",
+    "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "d80d6195ec19508d"
+  },
+  "verdict": "enforced"
+}

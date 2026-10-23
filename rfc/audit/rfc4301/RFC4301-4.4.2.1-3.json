@@ -1,0 +1,9 @@
+{
+  "code": {
+    "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams": "82c928a10be6b083",
+    "internal/component/ike/engine/rekey.go::newLifetimeState": "ec8a5aaeb7223f1e"
+  },
+  "note": "Re-judged 2026-10-18 (independent auditor, after c85342c940). Section 4.4.2.1 lifetime item (a): \"If byte count is used, then the implementation SHOULD count the number of bytes ... Note that implementations MUST be able to handle having the counters at the ends of an SA get out of synch\". The row is now {gap} and no test tags it: the two SAD boundary tags, which asserted the anti-replay window and were recorded wrong, were moved off by owner ruling. The gap is real: newLifetimeState (internal/component/ike/engine/rekey.go) sets softTime and hardTime only, lifetimeState.softBytes and byteCount are never written by non-test code, and xfrmStateFromParams installs no byte limit, so Ze keeps no byte-count lifetime whose counters could fall out of synch. The obligation is conditional on byte-count lifetimes, whose absence is the RFC4301-4.4.2.1-2 gap; scheduled in plan/spec-ipsec-lifetime-volume.md. Recording this gap authorizes no implementation.",
+  "requirement_sha": "c34a4dddcbd80efb",
+  "verdict": "unimplemented"
+}

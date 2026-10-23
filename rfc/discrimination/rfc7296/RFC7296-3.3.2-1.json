@@ -1,0 +1,90 @@
+[
+  {
+    "rid": "RFC7296-3.3.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_proposal_mandatory_test.go::TestRFC7296PeerIKEProposalMissingAMandatoryTypeIsRefused",
+    "unit-sha": "21a4438b64e7cdb2",
+    "claim-sha": "be63470cf75d147c",
+    "route": "revert",
+    "producer": "internal/component/ike/crypto/proposal.go::ikeProposalComplete",
+    "producer-sha": "e3e9e2fd8c069126",
+    "break": "body of ikeProposalComplete replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-3.3.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_proposal_mandatory_test.go::TestRFC7296PeerIKEProposalWithTheMandatoryTypesIsAccepted",
+    "unit-sha": "e9c395fedb0a94e9",
+    "claim-sha": "ec4b4ead92fd6e7a",
+    "route": "revert",
+    "producer": "internal/component/ike/crypto/proposal.go::negotiateIKE",
+    "producer-sha": "ac5863854a6c6b04",
+    "break": "body of negotiateIKE replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-3.3.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_test.go::TestIKEWireProposalHasAllTransforms",
+    "unit-sha": "4927f8e8f6577748",
+    "claim-sha": "6eed4d64c51f0194",
+    "route": "revert",
+    "producer": "internal/component/ike/crypto/proposal.go::negotiateIKE",
+    "producer-sha": "ac5863854a6c6b04",
+    "break": "body of negotiateIKE replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-3.3.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_test.go::TestIKEWireProposalHasAllTransforms",
+    "unit-sha": "4927f8e8f6577748",
+    "claim-sha": "90b1081dd1c0026f",
+    "route": "revert",
+    "producer": "internal/component/ike/crypto/proposal.go::ikeProposalComplete",
+    "producer-sha": "e3e9e2fd8c069126",
+    "break": "body of ikeProposalComplete replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-3.3.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_test.go::TestResponderRequiresKEForDH",
+    "unit-sha": "f547a6f344cf792a",
+    "claim-sha": "9257645754cf05a9",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/responder.go::handleSAInitRequest",
+    "producer-sha": "141c3183fc5fad3f",
+    "break": "body of handleSAInitRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-3.3.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_test.go::TestResponderRequiresKEForDH",
+    "unit-sha": "f547a6f344cf792a",
+    "claim-sha": "c12c2b5667544df2",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/responder.go::handleSAInitRequest",
+    "producer-sha": "141c3183fc5fad3f",
+    "break": "body of handleSAInitRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-3.3.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_transformtype_test.go::TestTftUnknownTransformTypeMakesProposalUnacceptable",
+    "unit-sha": "f908935bed452493",
+    "claim-sha": "6ffe8d52310e2716",
+    "route": "revert",
+    "producer": "internal/component/ike/crypto/proposal.go::TransformTypeUnderstoodIKE",
+    "producer-sha": "edd674dbfcf4bebf",
+    "break": "body of TransformTypeUnderstoodIKE replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-3.3.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_transformtype_test.go::TestTftUnknownTransformTypeMakesProposalUnacceptable",
+    "unit-sha": "f908935bed452493",
+    "claim-sha": "684032f52080d50e",
+    "route": "revert",
+    "producer": "internal/component/ike/crypto/proposal.go::TransformTypeUnderstoodIKE",
+    "producer-sha": "edd674dbfcf4bebf",
+    "break": "body of TransformTypeUnderstoodIKE replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

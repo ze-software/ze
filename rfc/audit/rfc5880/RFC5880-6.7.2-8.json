@@ -1,0 +1,15 @@
+{
+  "note": "Judge 2026-09-28. Positive TestRFC5880SimplePasswordSectionHeader pins Auth Type 1 and Auth Len password+3 within 4..19. Auth Type clause negative: TestRFC5880SimplePasswordRejectsForeignSectionShape, a receiver refusing a section built against the transmit rule, isolated (no digest). Auth Len clause negative: TestRFC5880SimplePasswordSectionOutsideProperLengthNotBuilt, NewSigner refuses the 0 and 17-byte passwords that would carry Auth Len 3 and 20.",
+  "requirement_sha": "6d588e984d7fb192",
+  "tests": {
+    "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880SimplePasswordSectionOutsideProperLengthNotBuilt": "69049dc5fe6d5288",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880SimplePasswordRejectsForeignSectionShape": "5a25c74cc2d9bd47",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880SimplePasswordSectionHeader": "5a25c74cc2d9bd47"
+  },
+  "units": {
+    "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880SimplePasswordSectionOutsideProperLengthNotBuilt": "1fdfb79c78cbf823",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880SimplePasswordRejectsForeignSectionShape": "132b4c3ca58a55d1",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880SimplePasswordSectionHeader": "979c3ddf59239f75"
+  },
+  "verdict": "enforced"
+}

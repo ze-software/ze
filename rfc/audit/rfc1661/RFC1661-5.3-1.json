@@ -1,0 +1,13 @@
+{
+  "note": "Sentence: if every instance of the received options is recognizable but some values are not acceptable, the implementation MUST transmit a Configure-Nak. (a) Answering an unacceptable MRU 2000 with Ack, Reject or nothing: TestRFC1661ConfigureNakSuggestsAcceptableValue findCode(LCPConfigureNak) fails. (b) Nak where all values are acceptable: TestRFC1661NoNakForAcceptableValue findCode(LCPConfigureNak) ok goes red.",
+  "requirement_sha": "b5f424f6b06d75bf",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureNakSuggestsAcceptableValue": "9afaf002f0fd81ec",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoNakForAcceptableValue": "9afaf002f0fd81ec"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureNakSuggestsAcceptableValue": "ed8353763fa234db",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoNakForAcceptableValue": "ffd0dd58968a4914"
+  },
+  "verdict": "enforced"
+}

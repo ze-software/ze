@@ -1,0 +1,13 @@
+{
+  "note": "OSPFv3 prefix opaque from E-NSSA-LSA reaches TLV 1157; E-Link-LSA provenance refused; the other three permitted LSAs and other forbidden sources are not driven, one representative of each side",
+  "requirement_sha": "bdd22dfb84e1a5e3",
+  "tests": {
+    "internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go::TestRFC9552NativeOpaqueOSPFv3PrefixProvenance": "d43002f22020b856",
+    "internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go::TestRFC9552NativeOpaqueOSPFv3PrefixProvenance#2": "d43002f22020b856"
+  },
+  "units": {
+    "internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go::TestRFC9552NativeOpaqueOSPFv3PrefixProvenance": "d041cc4d7d3602c9",
+    "internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go::TestRFC9552NativeOpaqueOSPFv3PrefixProvenance#2": "d041cc4d7d3602c9"
+  },
+  "verdict": "enforced"
+}

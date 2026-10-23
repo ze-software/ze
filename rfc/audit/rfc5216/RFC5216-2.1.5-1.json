@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-10-01 (owner ruling 5). Positive TestTLSFragmenterRoundTrip: a 3000-octet message is split into >=3 fragments and reassembled byte-for-byte. Negatives (inconsistent reassembly is refused): TestRFC5216ReassemblyLongerThanDeclaredIsRefused declares 30, sends 20+20, and the overrunning fragment is refused with 'exceeds declared length', no answer, buffer keeps the 20-octet prefix; TestRFC5216ReassemblyShorterThanDeclaredIsRefused declares 3000 and ends at 1524 (M clear), refused naming '1524 of 3000', no answer, not drained to crypto/tls. Both drive the peer's handleTLSRequest; the authenticator shares reassemble/reassemblyComplete. TestTLSReassemblyRejectsOversized (cap) stays as a supplementary DoS bound. All four units hold observed-red revert records.",
+  "requirement_sha": "b7485b4874dfa938",
+  "tests": {
+    "internal/core/eap/peer_test.go::TestTLSFragmenterRoundTrip": "93404fe1a5065a94",
+    "internal/core/eap/peer_test.go::TestTLSReassemblyRejectsOversized": "93404fe1a5065a94",
+    "internal/core/eap/rfc5216_reassembly_refusal_test.go::TestRFC5216ReassemblyLongerThanDeclaredIsRefused": "c8157bdfbb11bcb5",
+    "internal/core/eap/rfc5216_reassembly_refusal_test.go::TestRFC5216ReassemblyShorterThanDeclaredIsRefused": "c8157bdfbb11bcb5"
+  },
+  "units": {
+    "internal/core/eap/peer_test.go::TestTLSFragmenterRoundTrip": "b6f673c522bbab14",
+    "internal/core/eap/peer_test.go::TestTLSReassemblyRejectsOversized": "71bcc302538985a2",
+    "internal/core/eap/rfc5216_reassembly_refusal_test.go::TestRFC5216ReassemblyLongerThanDeclaredIsRefused": "ae0f0702bed650f7",
+    "internal/core/eap/rfc5216_reassembly_refusal_test.go::TestRFC5216ReassemblyShorterThanDeclaredIsRefused": "2959abc165f73b3a"
+  },
+  "verdict": "enforced"
+}

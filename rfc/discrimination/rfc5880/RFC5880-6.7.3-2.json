@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC5880-6.7.3-2",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880DigestOverPartialPacketDiscarded",
+    "unit-sha": "ae3bb70c7b421c92",
+    "claim-sha": "12980098869f2550",
+    "route": "revert",
+    "producer": "internal/component/bfd/auth/sha1.go::Verify",
+    "producer-sha": "a96f098f3c6f9288",
+    "break": "body of Verify replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.7.3-2",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880DigestSpansEntirePacket",
+    "unit-sha": "74200761bf24a59e",
+    "claim-sha": "f6636aad762075bb",
+    "route": "revert",
+    "producer": "internal/component/bfd/auth/sha1.go::Sign",
+    "producer-sha": "b934a94ef59e0b8a",
+    "break": "body of Sign replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.7.3-2",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880DigestCoversWholePacket",
+    "unit-sha": "d49641f933af53fd",
+    "claim-sha": "fca1085b04ac9c02",
+    "route": "revert",
+    "producer": "internal/component/bfd/auth/sha1.go::Sign",
+    "producer-sha": "b934a94ef59e0b8a",
+    "break": "body of Sign replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.7.3-2",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880DigestRejectsMandatorySectionTamper",
+    "unit-sha": "96e79cb306e4180f",
+    "claim-sha": "05384e185cd9fc42",
+    "route": "revert",
+    "producer": "internal/component/bfd/auth/sha1.go::Verify",
+    "producer-sha": "a96f098f3c6f9288",
+    "break": "body of Verify replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

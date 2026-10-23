@@ -1,0 +1,16 @@
+{
+  "code": {
+    "internal/component/ike/engine/sa.go::GenerateNonce": "2dfa6888005dfce1"
+  },
+  "note": "Re-judged 2026-09-30 after the row text was widened to the whole verbatim Section 2.10 sentence (D-10, rfc/corrections/rfc7296.md). The gated clause is the half-PRF-key floor; the random choice is gated by RFC7296-2.10-4 and the 128-bit floor by RFC7296-2.10-2, which quote the leading spans of the same sentence, so this row's tests are judged on the final clause alone. Positive TestRFC7296EmittedNoncesMeetHalfOfEveryPRFKey reads every PRF from the registry and asserts all six emission sites (IKE_SA_INIT Ni/Nr, Child SA rekey Ni/Nr, IKE SA rekey Ni/Nr, rekey nonces off the wire); negative TestRFC7296EmittedNoncesMeetTheLargestPRFBound negotiates prf-hmac-sha2-512 on a rekey and checks the wire Ni/Nr meet 32 octets. Records re-recorded (GenerateNonce revert). Judge's own clause probe: GenerateNonce capped at 16 octets via go test -overlay reddens both units (sha384/sha512 halves), so both discriminate the half-PRF clause, not merely call the producer.",
+  "requirement_sha": "81e294f01574238f",
+  "tests": {
+    "internal/component/ike/engine/rfc7296_nonce_size_test.go::TestRFC7296EmittedNoncesMeetHalfOfEveryPRFKey": "65add4d99ee3e401",
+    "internal/component/ike/engine/rfc7296_nonce_size_test.go::TestRFC7296EmittedNoncesMeetTheLargestPRFBound": "65add4d99ee3e401"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7296_nonce_size_test.go::TestRFC7296EmittedNoncesMeetHalfOfEveryPRFKey": "27b8b1633c09b31a",
+    "internal/component/ike/engine/rfc7296_nonce_size_test.go::TestRFC7296EmittedNoncesMeetTheLargestPRFBound": "0e1ce0df1864e875"
+  },
+  "verdict": "enforced"
+}

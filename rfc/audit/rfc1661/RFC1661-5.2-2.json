@@ -1,0 +1,15 @@
+{
+  "note": "Sentence: the acknowledged Configuration Options MUST NOT be reordered or modified in any way. (a) Reordering: TestRFC1661ConfigureAckDoesNotReorderOptions sends MRU,Magic and Magic,MRU and bytes.Equal(pkt.Data, data) goes red on a normalized order. (b) Modifying: TestRFC1661ConfigureAckEchoesOptionsVerbatim bytes.Equal(pkt.Data, data) goes red on any changed value or length; TestRFC1877ConfigureAckEchoesAcceptable carries the same check for IPCP.",
+  "requirement_sha": "e4e0a40a9df761c7",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1661_dns_options_test.go::TestRFC1877ConfigureAckEchoesAcceptable": "a65c290db4ba68a7",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureAckDoesNotReorderOptions": "9afaf002f0fd81ec",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureAckEchoesOptionsVerbatim": "9afaf002f0fd81ec"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1661_dns_options_test.go::TestRFC1877ConfigureAckEchoesAcceptable": "bbba5bcde2729466",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureAckDoesNotReorderOptions": "a665a70e308bc642",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureAckEchoesOptionsVerbatim": "d94762f04091a218"
+  },
+  "verdict": "enforced"
+}

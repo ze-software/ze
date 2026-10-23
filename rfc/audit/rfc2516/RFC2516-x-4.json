@@ -1,0 +1,15 @@
+{
+  "note": "first sentence: TestParseEndOfListTag. TAG_LENGTH MUST: Ze builds no End-Of-List; TestRFC2516NoSentFrameCarriesEndOfList walks the raw TLVs of the PADO and PADS replies and shows a received End-Of-List of TAG_LENGTH 4 is never copied out. Not observed: BuildPADR and BuildPADSError, which copy tags by type the same way (AddTagCopy of FindTag) and so cannot carry one either. Stale single-polarity marker removed",
+  "requirement_sha": "801d7cfe99f18e84",
+  "tests": {
+    "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516NoSentFrameCarriesEndOfList": "3ea2cf3cd3f3abda",
+    "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516NoSentFrameCarriesEndOfList#2": "3ea2cf3cd3f3abda",
+    "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestParseEndOfListTag": "b7c2fae4a50abe95"
+  },
+  "units": {
+    "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516NoSentFrameCarriesEndOfList": "278ad3188a65dfbd",
+    "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516NoSentFrameCarriesEndOfList#2": "278ad3188a65dfbd",
+    "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestParseEndOfListTag": "98e23dfb38572195"
+  },
+  "verdict": "enforced"
+}

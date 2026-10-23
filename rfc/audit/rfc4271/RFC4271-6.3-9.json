@@ -1,0 +1,13 @@
+{
+  "note": "RFC 7606 Section 7.1 (Updates: 4271) replaces the subcode and Data clauses with treat-as-withdraw for an undefined ORIGIN. ORIGIN 3, the first undefined value, require.Equals the payload to a withdrawal (red on a keep) and the following good UPDATE is received (red on a reset). Negative: ORIGIN IGP announces the prefix.",
+  "requirement_sha": "ff8f1dc2be6fe7ba",
+  "tests": {
+    "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "fdc816af536ef714",
+    "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "fdc816af536ef714"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "d80d6195ec19508d",
+    "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "d80d6195ec19508d"
+  },
+  "verdict": "enforced"
+}

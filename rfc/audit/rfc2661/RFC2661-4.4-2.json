@@ -1,0 +1,11 @@
+{
+  "note": "Forbidden = an M=0-defined AVP (Tie Breaker, the one Ze emits) sent with M=1. message_rfc2661_test.go::TestRFC2661WrittenAVPFlags compares the emitted M bit to rfc2661MandatoryBit (false for Tie Breaker) over the SCCRQ writer that emits it. Row carries single-polarity.",
+  "requirement_sha": "96f0fd4eda3281c8",
+  "tests": {
+    "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661WrittenAVPFlags": "d54398d7e62b2795"
+  },
+  "units": {
+    "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661WrittenAVPFlags": "e66f097d3cc22261"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,15 @@
+{
+  "note": "Forbidden: an Access-Request without User-Name when the name is available. The admin (radius TestRFC2865AccessRequestUserName) and L2TP (authradius buildAuthAttrs test) units assert User-Name present with the right value; the negative TestRFC2865AccessRequestOmitsAnUnavailableUserName covers the if-available condition.",
+  "requirement_sha": "437669fad98017c7",
+  "tests": {
+    "internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go::TestRFC2865AccessRequestOmitsAnUnavailableUserName": "a196c38aadacaac3",
+    "internal/component/l2tp/plugins/authradius/rfc2865_test.go::TestRFC2865SubscriberAccessRequestUserName": "3e3eaab50ae82f2a",
+    "internal/component/radius/rfc2865_test.go::TestRFC2865AccessRequestUserName": "9e5b9d00bb0a5c97"
+  },
+  "units": {
+    "internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go::TestRFC2865AccessRequestOmitsAnUnavailableUserName": "9124583de2883fdd",
+    "internal/component/l2tp/plugins/authradius/rfc2865_test.go::TestRFC2865SubscriberAccessRequestUserName": "11168d7dfe297c7d",
+    "internal/component/radius/rfc2865_test.go::TestRFC2865AccessRequestUserName": "043b4bc65d28cb2b"
+  },
+  "verdict": "enforced"
+}

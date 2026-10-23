@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go::TestSoftverCapabilityLengthIsGreaterThanZero",
+    "unit-sha": "96dc8a84dfb5b8e6",
+    "claim-sha": "6a9860c79cebcc4f",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/softver/softver.go::encodeValue",
+    "producer-sha": "04b1eb5e0fd34d32",
+    "break": "body of encodeValue replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-3",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go::TestSoftverZeroCapabilityLengthIsRefused",
+    "unit-sha": "aa99c618c92be7d7",
+    "claim-sha": "ce6a939e047d42e2",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/softver/softver.go::decodeSoftwareVersion",
+    "producer-sha": "71df08c9500fd2b0",
+    "break": "body of decodeSoftwareVersion replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

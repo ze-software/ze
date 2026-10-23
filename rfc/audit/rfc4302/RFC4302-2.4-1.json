@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-09-29 (independent judge). The unicast clause is now asserted: TestRFC4302UnicastAHStateIdentifiedBySPI builds the interface's whole SA set and finds exactly one inbound state for the unicast link-local fe80::1 with SPI 0x1000, proto AH, source wildcarded; with SPI 0x2000 configured the unicast state carries 0x2000, so the mapping key follows the configured SPI. Records on buildIPsecInterfaceSAs and buildIPsecSA. Multicast units stand. Ze's role is installing the state the kernel maps inbound AH by; the kernel lookup itself is XFRM.",
+  "requirement_sha": "1c40d5ea6827b71c",
+  "tests": {
+    "internal/plugins/ospf/rfc4302_ipsec_test.go::TestAHSAIdentifiedBySPIAndProtocol": "4eb7d1753c913cce",
+    "internal/plugins/ospf/rfc4302_ipsec_test.go::TestAHSAIdentifiedBySPIAndProtocol#2": "4eb7d1753c913cce",
+    "internal/plugins/ospf/rfc4302_sa_set_test.go::TestRFC4302UnicastAHStateIdentifiedBySPI": "f39ffa84edbeaf0f",
+    "internal/plugins/ospf/rfc4302_sa_set_test.go::TestRFC4302UnicastAHStateIdentifiedBySPI#2": "f39ffa84edbeaf0f"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc4302_ipsec_test.go::TestAHSAIdentifiedBySPIAndProtocol": "fe9892d839b88960",
+    "internal/plugins/ospf/rfc4302_ipsec_test.go::TestAHSAIdentifiedBySPIAndProtocol#2": "fe9892d839b88960",
+    "internal/plugins/ospf/rfc4302_sa_set_test.go::TestRFC4302UnicastAHStateIdentifiedBySPI": "13af0c0de68f9619",
+    "internal/plugins/ospf/rfc4302_sa_set_test.go::TestRFC4302UnicastAHStateIdentifiedBySPI#2": "13af0c0de68f9619"
+  },
+  "verdict": "enforced"
+}

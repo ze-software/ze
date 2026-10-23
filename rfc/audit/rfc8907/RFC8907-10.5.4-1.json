@@ -1,0 +1,19 @@
+{
+  "note": "Rejudged 2026-09-29. The consistent interpretation of shared values Ze consumes is now proven: priv-lvl 0/1/15 select exactly their profiles, and 16, ' 15', '0x0f', '1.5' are rejected (ErrAuthRejected, no profile); full-width digits refused with no profile; a PASS_REPL naming the same cmd/cmd-arg in order authorizes, and a case or order change denies. Old units keep the unrecognized-mandatory-argument case.",
+  "requirement_sha": "09d36698b087b9f7",
+  "tests": {
+    "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907SharedArgumentsKeepDefinedMeaning": "fb302ebfa0d9b135",
+    "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907SharedArgumentsNeverReinterpreted": "fb302ebfa0d9b135",
+    "internal/component/tacacs/rfc8907_authorization_test.go::TestRFC8907MandatoryCommandPolicyAccepted": "7e3084d65c3e691a",
+    "internal/component/tacacs/rfc8907_authorization_test.go::TestRFC8907MandatoryCommandPolicyDenied": "7e3084d65c3e691a",
+    "internal/component/tacacs/rfc8907_authorization_test.go::TestRFC8907MandatorySessionPolicyDenied": "7e3084d65c3e691a"
+  },
+  "units": {
+    "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907SharedArgumentsKeepDefinedMeaning": "0f98d0756ec86dd4",
+    "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907SharedArgumentsNeverReinterpreted": "e2a7935cd7ff7dcc",
+    "internal/component/tacacs/rfc8907_authorization_test.go::TestRFC8907MandatoryCommandPolicyAccepted": "a6b83fef8cfbc0d2",
+    "internal/component/tacacs/rfc8907_authorization_test.go::TestRFC8907MandatoryCommandPolicyDenied": "79786e270f25c885",
+    "internal/component/tacacs/rfc8907_authorization_test.go::TestRFC8907MandatorySessionPolicyDenied": "347a302bc9732184"
+  },
+  "verdict": "enforced"
+}

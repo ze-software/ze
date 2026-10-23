@@ -1,0 +1,13 @@
+{
+  "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SRv6BindingSIDSubTLV. Forbidden: a non-zero RESERVED octet on transmission. Red: assert.Equal(byte(0), value[1]). Negative: assert.NotEqual(make([]byte, 18), value).",
+  "requirement_sha": "636a3e51ef50c878",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SRv6BindingSIDSubTLV": "450f2364530acf19",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SRv6BindingSIDSubTLV#2": "450f2364530acf19"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SRv6BindingSIDSubTLV": "3c28273914b6db0b",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SRv6BindingSIDSubTLV#2": "3c28273914b6db0b"
+  },
+  "verdict": "enforced"
+}

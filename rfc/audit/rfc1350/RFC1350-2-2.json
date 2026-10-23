@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-09-30: the units changed only by dropping the retired RFC1350-5-2 tag comments; every assertion is unchanged. Forbidden: DATA block 2 before block 1 is ACKed. TestRFC1350LockstepWaitsForTheACK requires block 1 to be exactly octets 0..511, then expectSilence for 1 s with block 1 unacked (red on a server that streams ahead; the ACK timeout is 5 s so no retransmission confounds it), then after ACK 1 block 2 must be octets 512..1023. Both clauses (one block per packet, ACK before the next) are asserted in both polarities. The older handler_test units stay weak on their own.",
+  "requirement_sha": "6e51c71ee33b5d30",
+  "tests": {
+    "internal/plugins/tftpserver/handler_test.go::TestTFTPConcurrentLimit": "0809d9c9f8739da3",
+    "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "0809d9c9f8739da3",
+    "internal/plugins/tftpserver/rfc1350_transfer_test.go::TestRFC1350LockstepWaitsForTheACK": "60a1b8ea3f073355",
+    "internal/plugins/tftpserver/rfc1350_transfer_test.go::TestRFC1350LockstepWaitsForTheACK#2": "60a1b8ea3f073355"
+  },
+  "units": {
+    "internal/plugins/tftpserver/handler_test.go::TestTFTPConcurrentLimit": "f8798044238d59e6",
+    "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile": "240d5ea9ba163958",
+    "internal/plugins/tftpserver/rfc1350_transfer_test.go::TestRFC1350LockstepWaitsForTheACK": "261ca4e70842cd88",
+    "internal/plugins/tftpserver/rfc1350_transfer_test.go::TestRFC1350LockstepWaitsForTheACK#2": "261ca4e70842cd88"
+  },
+  "verdict": "enforced"
+}

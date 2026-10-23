@@ -1,0 +1,17 @@
+{
+  "note": "RFC 5492 \u00a74, rfc/full/rfc5492.txt:201-211: 'However, for backward compatibility, a BGP speaker MUST be prepared to receive an OPEN message that contains multiple Capabilities Optional Parameters, each of which contains one or more capabilities TLVs.' The next sentence requires processing the capability set the same way whether combined or split. Read all four units. internal/core/bgp/capability/capability_test.go::TestParseFromOptionalParamsMultipleCapabilitiesParameters requires exactly two decoded capabilities, first Multiprotocol IPv4/unicast and second ASN4=65002. ::TestOptionalParamRejectsTruncatedCapabilityTLV requires ErrShortRead, but its outer parameter length is itself truncated: this supplementary unit does NOT independently isolate inner-TLV validation and its prose must not be credited as doing so. internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492CapabilitiesSpreadOverSeveralParameters sends RR, Extended Message and unknown 254 in three parameters and requires OpenConfirm, exactly one KEEPALIVE, RR and both ExtendedMessageRecv/Send flags. ::TestRFC5492EveryCapabilitiesParameterReadBeforeRefusing varies which required capability is present across two parameters and requires Idle and exact NOTIFICATION 2/7 Data [6,0] or [2,0], naming only the capability absent from the entire parameter population.\nProducer path read: capability.go::ParseFromOptionalParams bounds-checks and loops over every parameter, appending Parse results; session_open_as.go::validateOpenPeerAS returns the full list; session_handlers.go::handleOpen passes it to session_negotiate.go::negotiateWith, then validates required modes and advances. Unknown code 254 remains external protocol input, not an impossible closed-enum value. Q1 yes collectively; Q2 yes: returning after the first parameter changes negotiated flags and exact missing-capability Data; Q3 yes for the session pair, with the confounded supplemental malformed parser fixture disclosed; Q4 yes for split-parameter acceptance. The missing-capability negatives are policy-boundary controls, not a claim that multiple parameters themselves warrant rejection. No current semantic overlay was executed.\nPending note: retain enforced with the exact session assertions and parser-fixture limitation above; no claim of newly observed discrimination or live-peer acceptance.",
+  "requirement_sha": "3ac3408f07f25667",
+  "tests": {
+    "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492CapabilitiesSpreadOverSeveralParameters": "38d39a330e488737",
+    "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492EveryCapabilitiesParameterReadBeforeRefusing": "38d39a330e488737",
+    "internal/core/bgp/capability/capability_test.go::TestOptionalParamRejectsTruncatedCapabilityTLV": "3b6ab22b8c99761b",
+    "internal/core/bgp/capability/capability_test.go::TestParseFromOptionalParamsMultipleCapabilitiesParameters": "3b6ab22b8c99761b"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492CapabilitiesSpreadOverSeveralParameters": "2edb86517474ad73",
+    "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492EveryCapabilitiesParameterReadBeforeRefusing": "19f65d18d69c910c",
+    "internal/core/bgp/capability/capability_test.go::TestOptionalParamRejectsTruncatedCapabilityTLV": "6437edcbd51ff175",
+    "internal/core/bgp/capability/capability_test.go::TestParseFromOptionalParamsMultipleCapabilitiesParameters": "c4610e5b4c316eeb"
+  },
+  "verdict": "enforced"
+}

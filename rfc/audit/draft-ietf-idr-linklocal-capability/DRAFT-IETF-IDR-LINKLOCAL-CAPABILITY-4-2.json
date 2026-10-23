@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-10-04 after f93a30fbfc. Forbidden: including a Link-Local next hop toward an internal peer more than one hop away. The third-party case the earlier weak verdict named is now driven: TestLinkLocalReceivedPairStrippedForMultihopInternalPeer relays the received 32-octet 2001:db8:1::1 + fe80::9 pair through forwardUpdateCore under next hop unchanged and under auto to an internal (AS 65000) peer off every connected subnet and asserts the exact 16-octet Global alone; the control in the same fan-out, an internal peer on the advertiser's subnet, keeps the exact 32-octet pair, which RFC 2545 Section 3 permits without the capability. Restoring the pass-through turns the positive red. The facts-level units still cover the next-hop-self half.",
+  "requirement_sha": "0484129d31f8abcf",
+  "tests": {
+    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go::TestLinkLocalIncludedForPeerOneHopAway": "8b6df8728f9a616d",
+    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go::TestLinkLocalNotIncludedForPeerMoreThanOneHopAway": "8b6df8728f9a616d",
+    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go::TestLinkLocalReceivedPairStrippedForMultihopInternalPeer": "1f41fe0d3b72271c",
+    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go::TestLinkLocalReceivedPairStrippedForMultihopInternalPeer#2": "1f41fe0d3b72271c"
+  },
+  "units": {
+    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go::TestLinkLocalIncludedForPeerOneHopAway": "4630c7a31a65cda7",
+    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go::TestLinkLocalNotIncludedForPeerMoreThanOneHopAway": "cf2dc79a791333e4",
+    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go::TestLinkLocalReceivedPairStrippedForMultihopInternalPeer": "e6331a483e87aad9",
+    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go::TestLinkLocalReceivedPairStrippedForMultihopInternalPeer#2": "e6331a483e87aad9"
+  },
+  "verdict": "enforced"
+}

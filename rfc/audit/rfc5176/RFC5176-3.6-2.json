@@ -1,0 +1,13 @@
+{
+  "note": "Judge 2026-09-30 (access cont 10, independent). + TestRFC5176VendorSpecificIsAChangeOnly: Acct-Session-Id + MikroTik rate VSA -> CoA-ACK and one 10 Mbit/s change on session 20 (VSA used for change only). - TestRFC5176VendorSpecificIsNeverAnIdentity: VSA alone -> NAK 503, VSA beside an unknown Acct-Session-Id -> 503 (the VSA never selects the one live session), Disconnect + VSA -> 401; no change, no teardown. Records observed red (readCoAChange, oneSession).",
+  "requirement_sha": "74c4feca4fbe26ea",
+  "tests": {
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176VendorSpecificIsAChangeOnly": "9b6dfc18b62099d5",
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176VendorSpecificIsNeverAnIdentity": "9b6dfc18b62099d5"
+  },
+  "units": {
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176VendorSpecificIsAChangeOnly": "2d4aeb61bb0496f2",
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176VendorSpecificIsNeverAnIdentity": "a6c549f0f16f1f46"
+  },
+  "verdict": "enforced"
+}

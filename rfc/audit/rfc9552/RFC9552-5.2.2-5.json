@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged 2026-10-02 (BGP c22 judge). Genuine negative added: TestRFC9552NativeLinkNonDefaultTopologyNotCollapsed feeds one IS-IS link in topologies 0, 2, 2 and asserts exactly two Link NLRIs, each with exactly one TLV 263, MT-IDs {0,2}: a producer collapsing onto the default topology or dropping 263 on the topology-2 NLRI goes red. Positive TestRFC9552NativeLinkNonDefaultTopology asserts 263 = MT-ID 2; its inline negative tag still re-asserts the same value and proves nothing on its own. Over-constraint noted: the negative also requires TLV 263 with MT-ID 0 on the default-topology NLRI, which RFC 9552 does not require (only the non-default case is a MUST). Revert records on encodeNativeLink observed red.",
+  "requirement_sha": "260a5bccfdcc07a3",
+  "tests": {
+    "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeLinkNonDefaultTopology": "de280b1c094e08d4",
+    "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeLinkNonDefaultTopology#2": "de280b1c094e08d4",
+    "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeLinkNonDefaultTopologyNotCollapsed": "de280b1c094e08d4"
+  },
+  "units": {
+    "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeLinkNonDefaultTopology": "79859cfd2f05848c",
+    "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeLinkNonDefaultTopology#2": "79859cfd2f05848c",
+    "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeLinkNonDefaultTopologyNotCollapsed": "ac662a38af2b5fd2"
+  },
+  "verdict": "enforced"
+}

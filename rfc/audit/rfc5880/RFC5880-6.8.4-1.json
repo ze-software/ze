@@ -1,0 +1,15 @@
+{
+  "note": "Judge rejudge 2026-09-30 (bfd engine 2). TestRFC5880DetectionExpiryDownDiagOne lost its 6.8.1-14 negative tag (comment only, body unchanged); it still proves expiry from Init sets Down and diag 1. Judgement unchanged: Judge rejudge 2026-09-30 (bfd session+engine continuation). TestRFC5880DetectionExpiryFromUpDownDiagOne adds expiry from Up (D bit clear and set in the last packet): 1 ns early no change, at the Detection Time Down, diag 1, one notify; Init expiry and the ignored-when-Down negative stand. Ze never sets bfd.DemandMode, so the 'Demand mode is not active' condition always holds; local Demand mode is an absent feature, not a branch to test. Mutant CheckDetection state guard observed red.",
+  "requirement_sha": "6694052db4b70630",
+  "tests": {
+    "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880DetectionExpiryFromUpDownDiagOne": "73ca576e23cbd659",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880DetectionExpiryDownDiagOne": "8db25cbb4534cc2d",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880DetectionExpiryIgnoredWhenDown": "8db25cbb4534cc2d"
+  },
+  "units": {
+    "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880DetectionExpiryFromUpDownDiagOne": "7b4e312a6ed5ff2d",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880DetectionExpiryDownDiagOne": "e220bfe605899995",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880DetectionExpiryIgnoredWhenDown": "9a9552864d76bb9e"
+  },
+  "verdict": "enforced"
+}

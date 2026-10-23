@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC3209-4.4.1-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/wire_rfc3209_test.go::TestRFC3209RROSubobjectLengthOnSend",
+    "unit-sha": "ff2cdb5eee479964",
+    "claim-sha": "2afc6524d09c8e2c",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/wire.go::encodeRRO",
+    "producer-sha": "7881a3bd68a4f8aa",
+    "break": "body of encodeRRO replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3209-4.4.1-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/rsvpte/wire_rfc3209_test.go::TestRFC3209RROSubobjectLengthShortRefused",
+    "unit-sha": "8fce967886693328",
+    "claim-sha": "0a74bb7e4493e7fa",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/wire.go::decodeRRO",
+    "producer-sha": "643a2193dfe86389",
+    "break": "body of decodeRRO replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

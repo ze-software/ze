@@ -1,0 +1,13 @@
+{
+  "note": "First verdict 2026-10-21 (round 4 judge). Split from 9.5.1-1. Positive: Start brings an eligible NBMA interface to Waiting and a unicast Hello reaches the configured neighbor within 1.5 s while still Waiting. Negative: a stopped interface (Down) sends nothing over 2.5 s after Stop, which a Hello timer surviving InterfaceDown breaks; the never-started half is weaker but harmless. Records on iface.go Start and Stop.",
+  "requirement_sha": "34818f8e25257bff",
+  "tests": {
+    "internal/plugins/ospf/iface/rfc2328_nbma_hello_state_test.go::TestRFC2328NBMAHelloSentOnceWaiting": "2b97b2ff576b2521",
+    "internal/plugins/ospf/iface/rfc2328_nbma_hello_state_test.go::TestRFC2328NBMANoHelloWhileDown": "2b97b2ff576b2521"
+  },
+  "units": {
+    "internal/plugins/ospf/iface/rfc2328_nbma_hello_state_test.go::TestRFC2328NBMAHelloSentOnceWaiting": "767627519a363590",
+    "internal/plugins/ospf/iface/rfc2328_nbma_hello_state_test.go::TestRFC2328NBMANoHelloWhileDown": "cda4ae07287f0f7a"
+  },
+  "verdict": "enforced"
+}

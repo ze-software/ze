@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7705-3.3-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc7705_local_as_test.go::TestLocalASNoPrependLeavesEveryOutboundPathAlone",
+    "unit-sha": "172baf847812701e",
+    "claim-sha": "ff6be918c0ebe94b",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/peer_forward_facts.go::secondaryPrependAS",
+    "producer-sha": "61b8ec6638a4d864",
+    "break": "body of secondaryPrependAS replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7705-3.3-3",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc7705_local_as_test.go::TestLocalASNoPrependLeavesEveryOutboundPathAlone",
+    "unit-sha": "172baf847812701e",
+    "claim-sha": "4b29cb25c7bdc043",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_as_migration.go::isIBGPWith",
+    "producer-sha": "015180dd93c516f4",
+    "break": "body of isIBGPWith replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,15 @@
+{
+  "note": "c21 judge (independent). Positive TestRFC2328ChangedContentsRecalculateEveryArea drives the production wiring (newEngine -> initSPF: lsdb.SetOnChange -> Computer.TriggerArea -> Run), nothing triggers by hand: a changed router-LSA and a changed network-LSA installed in area 0.0.0.1 each withdraw the neighbor stub 203.0.113.64/26 and move BOTH areas last-run stamps past the settled baseline; not-advertised ranges keep the ABR summary origination from triggering the backbone, so only the 13.2 whole-table behaviour recalculates area 0 (isolated). Judge re-ran the dirty-only Computer.Run overlay: both subtests red \"area 0.0.0.0 was not recalculated\"; record on TriggerArea observed red. Run is monolithic (every configured area, then summary and external steps), so the entire table follows. TestSPFRecalculatesEveryAreaOnOneAreaChange stays as unit-level supplement. Negative TestSPFRecalculationBoundedToConfiguredAreas bounds the recalculation to configured areas; 13.2 offers no refusal path (unchanged contents is a permission, not an obligation), so the row is judged on its positive, the negative held as supplementary.",
+  "requirement_sha": "244a38bae13ed753",
+  "tests": {
+    "internal/plugins/ospf/rfc2328_contents_change_recalc_test.go::TestRFC2328ChangedContentsRecalculateEveryArea": "3e811d64399f491a",
+    "internal/plugins/ospf/spf/rfc2328_recalc_test.go::TestSPFRecalculatesEveryAreaOnOneAreaChange": "498067c5c0bbcb76",
+    "internal/plugins/ospf/spf/rfc2328_recalc_test.go::TestSPFRecalculationBoundedToConfiguredAreas": "498067c5c0bbcb76"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc2328_contents_change_recalc_test.go::TestRFC2328ChangedContentsRecalculateEveryArea": "009432bc26a6de46",
+    "internal/plugins/ospf/spf/rfc2328_recalc_test.go::TestSPFRecalculatesEveryAreaOnOneAreaChange": "eda8f70bcaae06ec",
+    "internal/plugins/ospf/spf/rfc2328_recalc_test.go::TestSPFRecalculationBoundedToConfiguredAreas": "7d11149d6e47437d"
+  },
+  "verdict": "enforced"
+}

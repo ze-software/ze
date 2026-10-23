@@ -1,0 +1,13 @@
+{
+  "note": "forbidden: advertising overlapping SRLB ranges. TestRFC8665OverlappingRangesRejected requires Validate to reject two overlapping SRLB ranges (and an SRLB overlapping the SRGB), red on a missing check; Validate gates config verify. Positive TestRFC8665NonOverlappingRangesAccepted accepts disjoint SRLB ranges",
+  "requirement_sha": "eaff7fbbeeadda7c",
+  "tests": {
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665NonOverlappingRangesAccepted": "dcc89abea6ba13ce",
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665OverlappingRangesRejected": "dcc89abea6ba13ce"
+  },
+  "units": {
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665NonOverlappingRangesAccepted": "078ac273313a3a2e",
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665OverlappingRangesRejected": "9c47fc57a25ab7b2"
+  },
+  "verdict": "enforced"
+}

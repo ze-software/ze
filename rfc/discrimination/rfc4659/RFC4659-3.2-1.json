@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC4659-3.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/config/rfc4659_vpnv6_label_test.go::TestRFC4659ConfiguredVPNv6RouteKeepsItsLabel",
+    "unit-sha": "f431afd9dc71a253",
+    "claim-sha": "7dc458d9047c38f8",
+    "route": "revert",
+    "producer": "internal/component/bgp/config/peers.go::patchStaticRoutes",
+    "producer-sha": "21b23a42631c082f",
+    "break": "body of patchStaticRoutes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4659-3.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/config/rfc4659_vpnv6_label_test.go::TestRFC4659ConfiguredVPNv6RouteWithoutLabelRefused",
+    "unit-sha": "88f40834ee01ae72",
+    "claim-sha": "d8fdd5bd391dac28",
+    "route": "revert",
+    "producer": "internal/component/bgp/config/peers.go::patchStaticRoutes",
+    "producer-sha": "21b23a42631c082f",
+    "break": "body of patchStaticRoutes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4659-3.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/cmd/update/rfc4659_vpnv6_label_test.go::TestRFC4659VPNv6AnnouncementCarriesItsLabel",
+    "unit-sha": "0d2e3ba98de5b3bc",
+    "claim-sha": "1e2cac04bcbb3fc7",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/cmd/update/update_text_nlri.go::parseVPNNLRI",
+    "producer-sha": "3ae70a1f4d4f4418",
+    "break": "body of parseVPNNLRI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4659-3.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/cmd/update/rfc4659_vpnv6_label_test.go::TestRFC4659VPNv6AnnouncementWithoutLabelRefused",
+    "unit-sha": "a70e06be2f5bcde4",
+    "claim-sha": "0db9d2263902efe7",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/cmd/update/update_text_nlri.go::parseVPNNLRI",
+    "producer-sha": "3ae70a1f4d4f4418",
+    "break": "body of parseVPNNLRI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

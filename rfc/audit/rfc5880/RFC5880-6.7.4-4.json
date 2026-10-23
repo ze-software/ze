@@ -1,0 +1,17 @@
+{
+  "note": "Judge 2026-09-29. Same units as 6.7.3-4 over type 5: the positive wrap test runs type 5 through Machine.Sign, and the negative loop runs type 5 after type 3 through the same Verify/Check path, repeat refused with ErrSequenceOutsideWindow and 0 accepted. The recorded red fired on the type-3 iteration; the type-5 iteration asserts the same outcome over the SHA1 verifier.",
+  "requirement_sha": "688d11a4ee42cd94",
+  "tests": {
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880MeticulousRejectsUnincrementedSequence": "5a25c74cc2d9bd47",
+    "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880MeticulousSequenceIncrementsPerPacket": "4b885928a870b00d",
+    "internal/component/bfd/session/rfc5880_auth_seq_test.go::TestRFC5880MeticulousXmitAuthSeqWrapsAt32Bits": "4991f8b5efadecf0",
+    "internal/component/bfd/session/rfc5880_auth_wrap_test.go::TestRFC5880MeticulousNonCircularRepeatAtWrapDiscarded": "ee4106e33861f3d9"
+  },
+  "units": {
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880MeticulousRejectsUnincrementedSequence": "0ab9ccf4c5898ef3",
+    "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880MeticulousSequenceIncrementsPerPacket": "d890c4e4cd9e9fa5",
+    "internal/component/bfd/session/rfc5880_auth_seq_test.go::TestRFC5880MeticulousXmitAuthSeqWrapsAt32Bits": "fcce817c8a98ec95",
+    "internal/component/bfd/session/rfc5880_auth_wrap_test.go::TestRFC5880MeticulousNonCircularRepeatAtWrapDiscarded": "d07a6bc579fed0b6"
+  },
+  "verdict": "enforced"
+}

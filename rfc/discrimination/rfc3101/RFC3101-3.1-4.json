@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC3101-3.1-4",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc3101_translator_election_test.go::TestRFC3101ElectionRuleDisablesCandidate",
+    "unit-sha": "582921ea15f3d86b",
+    "claim-sha": "4863683a26443b49",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/nssa.go::electNSSATranslator",
+    "producer-sha": "30c87fd06e3720a8",
+    "break": "body of electNSSATranslator replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3101-3.1-4",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/rfc3101_translator_election_test.go::TestRFC3101ElectionRuleDisablesCandidate",
+    "unit-sha": "582921ea15f3d86b",
+    "claim-sha": "358dbb18cd6e4be2",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/nssa.go::electNSSATranslator",
+    "producer-sha": "30c87fd06e3720a8",
+    "break": "body of electNSSATranslator replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

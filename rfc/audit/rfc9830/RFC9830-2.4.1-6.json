@@ -1,0 +1,13 @@
+{
+  "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PreferenceSubTLV. Forbidden: a non-zero Preference RESERVED octet on transmission. Red: assert.Equal(byte(0), value[1]) on the srpDirty encoding. Negative: assert.NotEqual(make([]byte, 6), value).",
+  "requirement_sha": "55d8293f9dc70a3a",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PreferenceSubTLV": "450f2364530acf19",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PreferenceSubTLV#2": "450f2364530acf19"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PreferenceSubTLV": "b4f8573bcddb0e83",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PreferenceSubTLV#2": "b4f8573bcddb0e83"
+  },
+  "verdict": "enforced"
+}

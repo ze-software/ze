@@ -1,0 +1,11 @@
+{
+  "note": "Forbidden: the type-1 Informational Capabilities TLV not being the first TLV of Instance 0. ri_test.go TestRITLVType1First registers a type-8 builder, decodes buildRIInstances(area scope, backbone)[0] (Instance 0) and fails unless decoded[0].Type is RITLVInformationalCapabilities. Re-judged 2026-09-30 after the call site gained the (area, iface) scope target; the assertion is unchanged. Single-polarity marker on the row covers the absent negative.",
+  "requirement_sha": "1a85660b8f889a8e",
+  "tests": {
+    "internal/plugins/ospf/rfc7770_ri_test.go::TestRITLVType1First": "bae5b63e3ddea225"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc7770_ri_test.go::TestRITLVType1First": "4261492ff5686f76"
+  },
+  "verdict": "enforced"
+}

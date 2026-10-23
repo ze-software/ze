@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-10-21 (round 5 judge). The round 4 defect is fixed: flushReceivedSelfLSA now installs and refloods the received instance at MaxAge with its own sequence (Section 14.1 'while leaving its LS sequence number alone'), and TestOSPFSelfOriginatedNoLocalCopyFlush asserts the received sequence, MaxAge and a flood through ReceiveUpdate. Detection by Router ID and by network-LSA own interface address, and the three foreign negatives, in rfc2328_self_detect_test. Records on flushReceivedSelfLSA and handleSelfReceived.",
+  "requirement_sha": "fde3f33741605652",
+  "tests": {
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_edges_test.go::TestOSPFSelfOriginatedNoLocalCopyFlush": "6896ce74509062b9",
+    "internal/plugins/ospf/lsdb/rfc2328_origination_test.go::TestOSPFOriginateSelfReceivedHigherSeq": "75776239979d316e",
+    "internal/plugins/ospf/lsdb/rfc2328_self_detect_test.go::TestRFC2328ForeignLSANotTakenAsSelfOriginated": "2cbb435378a5a937",
+    "internal/plugins/ospf/lsdb/rfc2328_self_detect_test.go::TestRFC2328SelfOriginatedDetectedByRouterIDOrInterfaceAddress": "2cbb435378a5a937"
+  },
+  "units": {
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_edges_test.go::TestOSPFSelfOriginatedNoLocalCopyFlush": "ce096fa0c2336c09",
+    "internal/plugins/ospf/lsdb/rfc2328_origination_test.go::TestOSPFOriginateSelfReceivedHigherSeq": "d5539cd869082e77",
+    "internal/plugins/ospf/lsdb/rfc2328_self_detect_test.go::TestRFC2328ForeignLSANotTakenAsSelfOriginated": "2673985a5730131f",
+    "internal/plugins/ospf/lsdb/rfc2328_self_detect_test.go::TestRFC2328SelfOriginatedDetectedByRouterIDOrInterfaceAddress": "be5ff54e901fc620"
+  },
+  "verdict": "enforced"
+}

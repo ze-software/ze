@@ -1,0 +1,9 @@
+{
+  "code": {
+    "internal/component/bgp/plugins/epe/epe_config.go::ParseConfig": "92e03c31f41202ad",
+    "internal/component/bgp/plugins/ls_export/export_config.go::parseExportConfig": "3ead3d87a079d8e5"
+  },
+  "note": "Independent EPEReconcileNow first judgment against the complete RFC9086 Section 7 operator-control sentence and owner R3. The retained split-gap clause requires PeerAdj SID and PeerSet SID advertisement controls and selection of information for each internal or external recipient. internal/component/bgp/plugins/epe/epe_config.go::ParseConfig accepts PeerNode assignments only; it has no PeerAdj or PeerSet assignment. internal/component/bgp/plugins/ls_export/export_config.go::parseExportConfig configures exporter enablement and domain mappings, not per-recipient EPE information controls. The exporter supplies the same desired topology to its attached collectors. These absent capabilities remain disclosed in Support remaining and the gap annotation. Existing PeerNode enable/disable tests prove none of this absent scope; recording it does not authorize implementation or imply another distinct RFC sentence.",
+  "requirement_sha": "4720bad2539a3889",
+  "verdict": "unimplemented"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "\u00a76.1 confidentiality sentence, whole-stack: TestRFC8414MetadataFetchUsesConfidentialIntegritySuite + the fetch negotiates TLS with a suite in tls.CipherSuites and not in tls.InsecureCipherSuites; - a cleartext server behind an https issuer (nil client, the production path of buildAuthForMode) and a TLS 1.2 server offering only TLS_RSA_WITH_RC4_128_SHA each give zero metadata with neither handler reached. The suite refusal is performed by Go's crypto/tls default client suite list, which Ze keeps by never setting TLSClientConfig in oauthHTTPClient; the RC4 case uses the httptest client (to isolate this from the 6.1-3 certificate check), so a caller passing a custom insecure transport is not exercised. Records are whole-function panic breaks of fetchASMetadata (+) and oauthHTTPClient (-).",
+  "requirement_sha": "f506cc6de11a805d",
+  "tests": {
+    "internal/component/mcp/rfc8414_metadata_request_test.go::TestRFC8414MetadataFetchUsesConfidentialIntegritySuite": "2f4d742cea5bceef",
+    "internal/component/mcp/rfc8414_metadata_request_test.go::TestRFC8414MetadataFetchUsesConfidentialIntegritySuite#2": "2f4d742cea5bceef"
+  },
+  "units": {
+    "internal/component/mcp/rfc8414_metadata_request_test.go::TestRFC8414MetadataFetchUsesConfidentialIntegritySuite": "2e71360d03ee6ac8",
+    "internal/component/mcp/rfc8414_metadata_request_test.go::TestRFC8414MetadataFetchUsesConfidentialIntegritySuite#2": "2e71360d03ee6ac8"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,17 @@
+{
+  "note": "Rejudged 2026-09-29 (routing child). Both clauses on the built PATH: TestRFC4090OneToOneRequestInPath (FAST_REROUTE present, 0x01 set) and TestBuildPathIncludesFastReroute for facility; TestRFC4090RequestNeverNamesOtherMethod shows each request leaves the other method's flag clear and the facility request sets 0x02. Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 5 and the enforced verdict holds unchanged.",
+  "requirement_sha": "5187a2282474adb8",
+  "tests": {
+    "internal/plugins/rsvpte/frr_test.go::TestBuildPathIncludesFastReroute": "9e1595a34e264d7e",
+    "internal/plugins/rsvpte/frr_test.go::TestFastRerouteOneToOneMethodFlag": "9e1595a34e264d7e",
+    "internal/plugins/rsvpte/rfc4090_plr_flags_test.go::TestRFC4090OneToOneRequestInPath": "8d4223b7e1a9680f",
+    "internal/plugins/rsvpte/rfc4090_plr_flags_test.go::TestRFC4090RequestNeverNamesOtherMethod": "8d4223b7e1a9680f"
+  },
+  "units": {
+    "internal/plugins/rsvpte/frr_test.go::TestBuildPathIncludesFastReroute": "8afb37c101daf9db",
+    "internal/plugins/rsvpte/frr_test.go::TestFastRerouteOneToOneMethodFlag": "314edf9664b0c651",
+    "internal/plugins/rsvpte/rfc4090_plr_flags_test.go::TestRFC4090OneToOneRequestInPath": "225af3a9396bfd6f",
+    "internal/plugins/rsvpte/rfc4090_plr_flags_test.go::TestRFC4090RequestNeverNamesOtherMethod": "d9974b394c13c61d"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,11 @@
+{
+  "note": "Single-polarity positive per the row annotation (no per-level divergence path to drive a refusal). TestRFC1195SameInterfaceAddressesBothLevels runs an L1L2 engine with two circuits on the connected-prefix test backend and requires the TLV 132 set of its own fragment 0 at Level 1 and at Level 2 to equal exactly {192.0.2.9, 198.51.100.9}; a producer that dropped or added an address at one level goes red. Recorded red on lsdb_wiring.go levelState. The old tag on TestISISEngineOriginateOnAdjacencyUp, which compared nothing, is gone. Re-judged 2026-09-30: TestRFC1195SameInterfaceAddressesBothLevels changed only by an added RFC1195-5.2-2 tag comment.",
+  "requirement_sha": "c525e1bf6aa7c48d",
+  "tests": {
+    "internal/plugins/isis/rfc1195_selection_test.go::TestRFC1195SameInterfaceAddressesBothLevels": "1ef6f2102a068439"
+  },
+  "units": {
+    "internal/plugins/isis/rfc1195_selection_test.go::TestRFC1195SameInterfaceAddressesBothLevels": "7ddfe3c23f1ba086"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,11 @@
+{
+  "note": "Forbidden: advertising a functional capability Ze does not have. Ze supports none, so any set bit is non-compliant; ri_test.go TestRIFunctionalCapabilitiesEmittedZero fails if any byte of the type-2 value in Instance 0 is non-zero or RIReadCapabilities is non-zero. Re-judged 2026-09-30 after the call-site signature change; assertion unchanged. Single-polarity marker on the row covers the absent negative.",
+  "requirement_sha": "2f7328aefc204d11",
+  "tests": {
+    "internal/plugins/ospf/rfc7770_ri_test.go::TestRIFunctionalCapabilitiesEmittedZero": "bae5b63e3ddea225"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc7770_ri_test.go::TestRIFunctionalCapabilitiesEmittedZero": "92a23a3b25b8fb1e"
+  },
+  "verdict": "enforced"
+}

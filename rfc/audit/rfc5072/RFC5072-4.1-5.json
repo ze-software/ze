@@ -1,0 +1,11 @@
+{
+  "note": "Judge 2026-09-29. TestIPv6CPSuggestionDiffersFromLocalIdentifier now feeds crypto/rand.Reader a first draw equal to the local identifier (u bit clear) and a distinct second: the suggestion must be the second draw. Deleting the id == local rejection in suggestIPv6CPInterfaceID returns the local identifier and fails both assertions. Valid single-polarity: the forced colliding draw is the violating input; ze produces no suggestion outside this function. Marker text corrected.",
+  "requirement_sha": "620a78d00de64eba",
+  "tests": {
+    "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPSuggestionDiffersFromLocalIdentifier": "99a68f4293234999"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPSuggestionDiffersFromLocalIdentifier": "d1daf4702a44ee0b"
+  },
+  "verdict": "enforced"
+}

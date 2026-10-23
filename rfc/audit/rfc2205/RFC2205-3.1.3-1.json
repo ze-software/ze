@@ -1,0 +1,23 @@
+{
+  "note": "Judged 2026-09-29 (routing child, continuation judge). Verify clause: TestDecodeMandatoryObjects and the engine TIME_VALUES pair. Not-in-ERROR_SPEC and logged-locally clauses: TestRFC2205MalformedMessageLoggedLocally asserts a WARN \"decode failed\" record naming the source and the error, nothing sent, no state; TestRFC2205WellFormedMessageNotLogged asserts no WARN for a conforming PATH.",
+  "requirement_sha": "827c7b4c298934f8",
+  "tests": {
+    "internal/plugins/rsvpte/rfc2205_mandatory_test.go::TestDecodeMandatoryObjects": "bb9f9aad959fe57d",
+    "internal/plugins/rsvpte/rfc2205_mandatory_test.go::TestDecodeMandatoryObjects#2": "bb9f9aad959fe57d",
+    "internal/plugins/rsvpte/rfc2205_mandatory_test.go::TestEnginePathWithTimeValuesAccepted": "bb9f9aad959fe57d",
+    "internal/plugins/rsvpte/rfc2205_mandatory_test.go::TestEnginePathWithoutTimeValuesDropped": "bb9f9aad959fe57d",
+    "internal/plugins/rsvpte/rfc2205_mandatory_test.go::TestEnginePathWithoutTimeValuesDropped#2": "bb9f9aad959fe57d",
+    "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205MalformedMessageLoggedLocally": "7bc063943de30e7b",
+    "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205WellFormedMessageNotLogged": "7bc063943de30e7b"
+  },
+  "units": {
+    "internal/plugins/rsvpte/rfc2205_mandatory_test.go::TestDecodeMandatoryObjects": "6dd9835e18cbfe05",
+    "internal/plugins/rsvpte/rfc2205_mandatory_test.go::TestDecodeMandatoryObjects#2": "6dd9835e18cbfe05",
+    "internal/plugins/rsvpte/rfc2205_mandatory_test.go::TestEnginePathWithTimeValuesAccepted": "826c82ac19e88536",
+    "internal/plugins/rsvpte/rfc2205_mandatory_test.go::TestEnginePathWithoutTimeValuesDropped": "26830ea5d812e3d0",
+    "internal/plugins/rsvpte/rfc2205_mandatory_test.go::TestEnginePathWithoutTimeValuesDropped#2": "26830ea5d812e3d0",
+    "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205MalformedMessageLoggedLocally": "cef863a47011e53c",
+    "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205WellFormedMessageNotLogged": "172983c9f991e2a2"
+  },
+  "verdict": "enforced"
+}

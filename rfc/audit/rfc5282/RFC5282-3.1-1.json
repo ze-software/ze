@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: an IV other than eight octets. Sender: TestRFC5282AEADSendIVIsEightOctets opens ze's LastSentMsg with the first 8 octets as IV and asserts gotIVOctets == 8. Receiver: TestRFC5282AEADReceiveRefusesAnIVThatIsNotEightOctets expectRefused for 7 and 9. The IV length is the shared ikeIVOctets for GCM and CCM.",
+  "requirement_sha": "07347e83ecb9a22a",
+  "tests": {
+    "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADReceiveRefusesAnIVThatIsNotEightOctets": "2d69d15f1cde2ecb",
+    "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADSendIVIsEightOctets": "2d69d15f1cde2ecb"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADReceiveRefusesAnIVThatIsNotEightOctets": "fad3704e7ae63953",
+    "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADSendIVIsEightOctets": "57e8ee3e0e037c8b"
+  },
+  "verdict": "enforced"
+}

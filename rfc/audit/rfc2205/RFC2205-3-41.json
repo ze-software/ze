@@ -1,0 +1,11 @@
+{
+  "note": "Single-polarity capability. Forbidden: a PATH following the ordinary route instead of the forced link. TestIntegrationRSVPPathCarriage fails unless the frame's L2 destination is link 0's peer while the endpoint's ordinary route uses link 1, as the Send control on link 1 shows.",
+  "requirement_sha": "c1f96d0a085f7ad7",
+  "tests": {
+    "internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage": "900cfdf5bd3d05c0"
+  },
+  "units": {
+    "internal/plugins/rsvpte/rfc2205_transport_integration_linux_test.go::TestIntegrationRSVPPathCarriage": "a8f5620947d5259e"
+  },
+  "verdict": "enforced"
+}

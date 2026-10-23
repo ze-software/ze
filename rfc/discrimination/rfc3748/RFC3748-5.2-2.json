@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC3748-5.2-2",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc3748_notification_test.go::TestPeerNaksAnAuthenticationTypeButNotANotification",
+    "unit-sha": "d95e384ec2fa12eb",
+    "claim-sha": "82d1fbf7654194ee",
+    "route": "revert",
+    "producer": "internal/core/eap/peer.go::nakResponse",
+    "producer-sha": "c5f2c67dd78a95b9",
+    "break": "body of nakResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3748-5.2-2",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc3748_notification_test.go::TestPeerNeverNaksANotificationRequest",
+    "unit-sha": "3c6a2ecea7d320a1",
+    "claim-sha": "3d2fa6f9c36e33d5",
+    "route": "revert",
+    "producer": "internal/core/eap/peer.go::notificationResponse",
+    "producer-sha": "55a37fd1efe713de",
+    "break": "body of notificationResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

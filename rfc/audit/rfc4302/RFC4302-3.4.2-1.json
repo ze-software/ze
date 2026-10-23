@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-09-30 (OSPF judge, continuations 3+4): whole-stack: new rfc4302_ah_unknown_spi_linux_test.go runs in a private user+net namespace (judge ran it: child PASS, not SKIP), installs the OSPF AH SAs (SPI 256) through newIPsecInstaller over real XFRM, and sends a raw AH packet to fe80::1. Positive: unknown SPI -> nothing reaches a raw-89 socket and XfrmInNoStates rises by exactly 1 (the auditable event; a counter, no audit log with SPI/time/addresses, which is the SHOULD beside this row). Negative: the installed SPI -> XfrmInNoStates unchanged and XfrmInStateProtoError +1, proving the lookup runs against the SAD Ze installed. The kernel performs the discard; Ze's part is the SAD. HEAD tags on TestAHInboundRequirePolicyInstalled kept as supplementary (coverage ratchet).",
+  "requirement_sha": "71ad1e125ba6b922",
+  "tests": {
+    "internal/plugins/ospf/rfc4302_ah_unknown_spi_linux_test.go::TestRFC4302InstalledSPIAHPacketFindsItsSA": "7de3f752da6c6b0c",
+    "internal/plugins/ospf/rfc4302_ah_unknown_spi_linux_test.go::TestRFC4302UnknownSPIAHPacketIsDiscardedAndCounted": "7de3f752da6c6b0c",
+    "internal/plugins/ospf/rfc4302_ipsec_test.go::TestAHInboundRequirePolicyInstalled": "4eb7d1753c913cce",
+    "internal/plugins/ospf/rfc4302_ipsec_test.go::TestAHInboundRequirePolicyInstalled#2": "4eb7d1753c913cce"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc4302_ah_unknown_spi_linux_test.go::TestRFC4302InstalledSPIAHPacketFindsItsSA": "bd7e211a6ea7bd18",
+    "internal/plugins/ospf/rfc4302_ah_unknown_spi_linux_test.go::TestRFC4302UnknownSPIAHPacketIsDiscardedAndCounted": "862d8c86cbed26ad",
+    "internal/plugins/ospf/rfc4302_ipsec_test.go::TestAHInboundRequirePolicyInstalled": "edb23718e29c581e",
+    "internal/plugins/ospf/rfc4302_ipsec_test.go::TestAHInboundRequirePolicyInstalled#2": "edb23718e29c581e"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,31 @@
+{
+  "note": "Clause (a) unrecognized: TestRFC1661ConfigureRejectForUnrecognizedOption and the OutranksInvalidLength units. Clause (b) refused by configuration: TestRFC1661ConfigureRejectForOptionRefusedByConfiguration sends Auth-Protocol (any session) and ACCM (PPPoE), red unless the Reject carries exactly that option and no Ack is written; the same ACCM on L2TP, which configuration accepts, must be Acked with no Reject.",
+  "requirement_sha": "441f1e38a240dc66",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661ConfigureRejectForOptionRefusedByConfiguration": "480d72ff3c4dac57",
+    "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661ConfigureRejectForOptionRefusedByConfiguration#2": "480d72ff3c4dac57",
+    "internal/component/l2tp/ppp/rfc1661_dns_options_test.go::TestRFC1877ConfigureRejectEchoesUnsupportedOnly": "a65c290db4ba68a7",
+    "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPUnrecognizedTypeOutranksInvalidLength": "2325ea607f732027",
+    "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661NCPUnrecognizedTypeOutranksInvalidLength": "2325ea607f732027",
+    "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661NCPUnrecognizedTypeOutranksInvalidLength#2": "2325ea607f732027",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureRejectForUnrecognizedOption": "9afaf002f0fd81ec",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoConfigureRejectWhenAllOptionsRecognized": "9afaf002f0fd81ec",
+    "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientAcceptsServerAuthProtocol": "0d3244b2c125eaa3",
+    "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientUnrecognizedTypeOutranksInvalidLength": "0d3244b2c125eaa3",
+    "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientUnrecognizedTypeOutranksInvalidLength#2": "0d3244b2c125eaa3"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661ConfigureRejectForOptionRefusedByConfiguration": "294a5ed66c64fe52",
+    "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661ConfigureRejectForOptionRefusedByConfiguration#2": "294a5ed66c64fe52",
+    "internal/component/l2tp/ppp/rfc1661_dns_options_test.go::TestRFC1877ConfigureRejectEchoesUnsupportedOnly": "81d311016702fec4",
+    "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPUnrecognizedTypeOutranksInvalidLength": "574c3e977e88ab81",
+    "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661NCPUnrecognizedTypeOutranksInvalidLength": "54fe4404adf7db3d",
+    "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661NCPUnrecognizedTypeOutranksInvalidLength#2": "54fe4404adf7db3d",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureRejectForUnrecognizedOption": "01ea5207dfc1ae98",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoConfigureRejectWhenAllOptionsRecognized": "321e10cc4d02ca83",
+    "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientAcceptsServerAuthProtocol": "bb390290343fa1a6",
+    "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientUnrecognizedTypeOutranksInvalidLength": "6ba552ceaf7cafec",
+    "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientUnrecognizedTypeOutranksInvalidLength#2": "6ba552ceaf7cafec"
+  },
+  "verdict": "enforced"
+}

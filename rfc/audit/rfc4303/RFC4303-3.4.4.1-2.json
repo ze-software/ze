@@ -1,0 +1,10 @@
+{
+  "code": {
+    "internal/component/ike/dataplane/vpp.go::InstallSA": "5f356035488b52bd",
+    "internal/component/ike/dataplane/vpp.go::vppSAFlags": "75c15129e87bb04b",
+    "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams": "82c928a10be6b083"
+  },
+  "note": "Re-judged 2026-10-11 by an independent judge after 3c3792805f rewrote the {gap}. RFC 4303 3.4.4.1: \"If the default padding scheme (see Section 2.4) has been employed, the receiver SHOULD inspect the Padding field before removing the padding prior to passing the decrypted data to the next layer.\" Ze's Go performs no ESP decryption on either backend. Linux XFRM: xfrmStateFromParams builds the netlink XfrmState and carries no attribute asking for the Padding bytes to be checked. VPP: vppBackend.InstallSA writes an ipsec_sad_entry_v3 whose flags come from vppSAFlags (IS_INBOUND, IS_TUNNEL, IS_TUNNEL_V6, USE_ANTI_REPLAY, USE_ESN, UDP_ENCAP), and the vendored govpp ipsec_types vocabulary (NONE, USE_ESN, USE_ANTI_REPLAY, IS_TUNNEL, IS_TUNNEL_V6, UDP_ENCAP, IS_INBOUND, ASYNC) has no padding check to ask for. Nothing in the repository shows either layer inspecting the padding values, so the SHOULD is unmet. The annotation now names both backends and their producers, resolving the earlier defect. No test tags the row, which is correct for a {gap}.",
+  "requirement_sha": "dea07385ec5c5f6a",
+  "verdict": "unimplemented"
+}

@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 5798 Section 5.2.8 says \"The checksum is the 16-bit one's complement of the one's complement sum of the entire VRRP message starting with the version field and a \"pseudo-header\" as defined in Section 8.1 of [RFC2460]. The next header field in the ...\" Ze now computes this form for IPv4 only in a group configured checksum rfc5798-compatible, because RFC 9568 Section 5.2.8, which obsoletes this text, says the IPv4 checksum \"only includes the VRRP message\"; the default IPv4 group neither sends nor accepts it, and the earlier sentence about dual-accept is withdrawn. TestFillChecksumFamilies (v3v4 under rfc5798-compatible) and TestFillChecksumZeroesFieldAndCoversPseudoHeader pin the IPv4 pseudo-header sum 0xDEFB and the IPv6 one in every mode; an overlay mutant forcing verifyReceived to the message-only form reddened the compatible-mode decodes. The only proof that a compatible group carries the mode from instance.doSendAdvert to the wire is the keepalived interop scenario, which no tag names. Enforced for the compatible mode only.",
+  "requirement_sha": "44ceb649acacb99e",
+  "tests": {
+    "internal/plugins/vrrp/packet/checksum_test.go::TestFillChecksumFamilies": "50d6babad947a56f",
+    "internal/plugins/vrrp/packet/rfc_rx_verdict_test.go::TestFillChecksumZeroesFieldAndCoversPseudoHeader": "42ac89061f52b9ae",
+    "internal/plugins/vrrp/packet/rfc_rx_verdict_test.go::TestFillChecksumZeroesFieldAndCoversPseudoHeader#2": "42ac89061f52b9ae",
+    "internal/plugins/vrrp/packet/validate_test.go::TestDecodeV3IPv6ChecksumAndHopLimit": "5bbc8ddba98cd418"
+  },
+  "units": {
+    "internal/plugins/vrrp/packet/checksum_test.go::TestFillChecksumFamilies": "87c5427f3acd88f1",
+    "internal/plugins/vrrp/packet/rfc_rx_verdict_test.go::TestFillChecksumZeroesFieldAndCoversPseudoHeader": "91682b5dc1a39b6e",
+    "internal/plugins/vrrp/packet/rfc_rx_verdict_test.go::TestFillChecksumZeroesFieldAndCoversPseudoHeader#2": "91682b5dc1a39b6e",
+    "internal/plugins/vrrp/packet/validate_test.go::TestDecodeV3IPv6ChecksumAndHopLimit": "2e3e761c5e3df207"
+  },
+  "verdict": "enforced"
+}

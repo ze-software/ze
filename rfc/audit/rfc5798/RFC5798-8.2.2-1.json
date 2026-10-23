@@ -1,0 +1,25 @@
+{
+  "note": "Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 5798 Section 8.2.2 says \"The Virtual Router Master MUST NOT respond with its physical MAC address. This allows the client to always use the same MAC address regardless of the current Master router.\" TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly and TestVRRPOwnerAnswersWithVirtualMACOnly changed only by the checksum-mode plumbing (a Checksum: packet.ChecksumRFC9568 field added to the GroupSpec, AdvertParams or packet.Local literal, or the mode argument added to packet.FillChecksum); every assertion and every isolating input is byte-for-byte the same; the Neighbor Advertisement captures and their physical-MAC controls are unchanged. Verdict unchanged; the guest records are owed a re-record.",
+  "requirement_sha": "69bf23020edcd2f4",
+  "tests": {
+    "internal/plugins/vrrp/instance_test.go::TestInstanceIPv6VIPLivesOnVirtualMACDevice": "90d279832a92de75",
+    "internal/plugins/vrrp/instance_test.go::TestInstanceIPv6VIPLivesOnVirtualMACDevice#2": "90d279832a92de75",
+    "internal/plugins/vrrp/nd_nonowner_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly": "6a808b402c2b1816",
+    "internal/plugins/vrrp/nd_nonowner_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly#2": "6a808b402c2b1816",
+    "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly": "3fc09c91529cf075",
+    "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly#2": "3fc09c91529cf075",
+    "internal/plugins/vrrp/ownerfilter_test.go::TestOwnerFilterWiredOnPromotionForEveryFamily": "9bbf08a19af0da85",
+    "internal/plugins/vrrp/ownerfilter_test.go::TestOwnerFilterWiredOnPromotionForEveryFamily#2": "9bbf08a19af0da85"
+  },
+  "units": {
+    "internal/plugins/vrrp/instance_test.go::TestInstanceIPv6VIPLivesOnVirtualMACDevice": "bb1f308ff09eb61c",
+    "internal/plugins/vrrp/instance_test.go::TestInstanceIPv6VIPLivesOnVirtualMACDevice#2": "bb1f308ff09eb61c",
+    "internal/plugins/vrrp/nd_nonowner_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly": "ae3eed96053bbf49",
+    "internal/plugins/vrrp/nd_nonowner_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly#2": "ae3eed96053bbf49",
+    "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly": "157f04cf834b3eeb",
+    "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly#2": "157f04cf834b3eeb",
+    "internal/plugins/vrrp/ownerfilter_test.go::TestOwnerFilterWiredOnPromotionForEveryFamily": "ddef6ffca811100b",
+    "internal/plugins/vrrp/ownerfilter_test.go::TestOwnerFilterWiredOnPromotionForEveryFamily#2": "ddef6ffca811100b"
+  },
+  "verdict": "enforced"
+}

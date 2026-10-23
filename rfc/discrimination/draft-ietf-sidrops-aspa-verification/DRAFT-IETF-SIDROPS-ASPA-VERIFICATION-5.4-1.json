@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.4-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_role_mode_test.go::TestASPAUpstreamAppliesToCustomerPeerAndRSRoutes",
+    "unit-sha": "bcde861a848c44e4",
+    "claim-sha": "e546c742ddb7f2c7",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rpki/rpki_config.go::configuredASPAMode",
+    "producer-sha": "063455b7e212d3ce",
+    "break": "body of configuredASPAMode replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.4-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_role_mode_test.go::TestASPAUpstreamAppliesToCustomerPeerAndRSRoutes",
+    "unit-sha": "bcde861a848c44e4",
+    "claim-sha": "8f67f7f3ceec5af5",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rpki/rpki_config.go::configuredASPAMode",
+    "producer-sha": "063455b7e212d3ce",
+    "break": "body of configuredASPAMode replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

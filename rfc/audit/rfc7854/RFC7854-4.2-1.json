@@ -1,0 +1,13 @@
+{
+  "note": "transmitted Route Monitoring on both directions has reserved bits 0; a Peer Up with every reserved bit set is accepted and its defined flags decode unchanged",
+  "requirement_sha": "b3c873c60b23f271",
+  "tests": {
+    "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854ReservedFlagsIgnoredOnReceipt": "94e84131af3555be",
+    "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854ReservedFlagsTransmittedAsZero": "94e84131af3555be"
+  },
+  "units": {
+    "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854ReservedFlagsIgnoredOnReceipt": "8cea30311bb6a00b",
+    "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854ReservedFlagsTransmittedAsZero": "ee3d0998a1a23da9"
+  },
+  "verdict": "enforced"
+}

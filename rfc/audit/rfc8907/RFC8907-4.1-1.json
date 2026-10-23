@@ -1,0 +1,17 @@
+{
+  "note": "Rejudged 2026-09-29. New units extend the old data-only proof to server_msg, data and reply arguments in all three reply kinds: TestRFC8907ZeroLengthFieldsAreNotPresent requires empty msg/data and that zero-length arguments yield no entry (Args == [a=b]); TestRFC8907PresentFieldsFollowZeroLengthOnes requires present fields read at the offsets the zero-length fields leave (read-past goes red). Request-side fields are written by Ze, not read.",
+  "requirement_sha": "e3e572c6aacc5767",
+  "tests": {
+    "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907PresentFieldsFollowZeroLengthOnes": "879b13e19509fb75",
+    "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907ZeroLengthFieldsAreNotPresent": "879b13e19509fb75",
+    "internal/component/tacacs/rfc8907_status_test.go::TestRFC8907PresentZeroByteIsNotReadAsAbsent": "689cf5032c29eb6d",
+    "internal/component/tacacs/rfc8907_status_test.go::TestRFC8907ZeroLengthDataIsReadAsAbsent": "689cf5032c29eb6d"
+  },
+  "units": {
+    "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907PresentFieldsFollowZeroLengthOnes": "a3cf9fa4638ec0c1",
+    "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907ZeroLengthFieldsAreNotPresent": "b63066283ddbb965",
+    "internal/component/tacacs/rfc8907_status_test.go::TestRFC8907PresentZeroByteIsNotReadAsAbsent": "0c8a09a1ad89c050",
+    "internal/component/tacacs/rfc8907_status_test.go::TestRFC8907ZeroLengthDataIsReadAsAbsent": "2a45fc2fc267a767"
+  },
+  "verdict": "enforced"
+}

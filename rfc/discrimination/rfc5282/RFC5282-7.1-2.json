@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC5282-7.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/crypto/rfc5282_aead_test.go::TestRFC5282AEADEncryptionKeysCarryTheirSalt",
+    "unit-sha": "5cbfd92fc4203686",
+    "claim-sha": "9898003597a5e624",
+    "route": "revert",
+    "producer": "internal/component/ike/crypto/aead.go::SealIKEAEAD",
+    "producer-sha": "05468201f8fe5b54",
+    "break": "body of SealIKEAEAD replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5282-7.1-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/crypto/rfc5282_aead_test.go::TestRFC5282NonAEADEncryptionKeysCarryNoSalt",
+    "unit-sha": "ba40f22a99afedfd",
+    "claim-sha": "b8402ae14d5e4348",
+    "route": "revert",
+    "producer": "internal/component/ike/crypto/keys.go::encKeyMaterialLen",
+    "producer-sha": "04402ade258d3213",
+    "break": "body of encKeyMaterialLen replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5282-7.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/crypto/rfc5282_ccm_keys_test.go::TestRFC5282CCMEncryptionKeysCarryTheirSalt",
+    "unit-sha": "b148ddb3cb73a21e",
+    "claim-sha": "7afdd4d50d99f810",
+    "route": "revert",
+    "producer": "internal/component/ike/crypto/keys.go::encKeyMaterialLen",
+    "producer-sha": "04402ade258d3213",
+    "break": "body of encKeyMaterialLen replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

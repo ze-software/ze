@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC4271-4.3-7",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271MixedUpdateStillAppliesItsOtherWithdrawals",
+    "unit-sha": "a23b9160d985b095",
+    "claim-sha": "ce6caf01110a7263",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/storage/peerrib.go::Remove",
+    "producer-sha": "beaee774aa5ba054",
+    "break": "body of Remove replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

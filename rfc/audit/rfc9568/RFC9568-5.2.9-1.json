@@ -1,0 +1,17 @@
+{
+  "note": "TestValidateIPv6LinkLocal refuses a global-first IPv6 group and accepts a link-local-first one (transmit side); TestValidationOrder row 13 rejects a received global-first advert with ErrFirstNotLinkLocal",
+  "requirement_sha": "db9157e6a345c00d",
+  "tests": {
+    "internal/plugins/vrrp/groups_test.go::TestValidateIPv6LinkLocal": "30e27105e8a9f202",
+    "internal/plugins/vrrp/groups_test.go::TestValidateIPv6LinkLocal#2": "30e27105e8a9f202",
+    "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv6": "5bbc8ddba98cd418",
+    "internal/plugins/vrrp/packet/validate_test.go::TestValidationOrder": "5bbc8ddba98cd418"
+  },
+  "units": {
+    "internal/plugins/vrrp/groups_test.go::TestValidateIPv6LinkLocal": "a29abb886acdd502",
+    "internal/plugins/vrrp/groups_test.go::TestValidateIPv6LinkLocal#2": "a29abb886acdd502",
+    "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv6": "2a54600c4cbf442d",
+    "internal/plugins/vrrp/packet/validate_test.go::TestValidationOrder": "e9e509cbd07a9bdc"
+  },
+  "verdict": "enforced"
+}

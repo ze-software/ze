@@ -1,0 +1,13 @@
+{
+  "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDSubTLV. Forbidden: non-zero TC, S or TTL in the transmitted label stack entry. Red: assert.Equal(byte(0), withBSID[4]&0x0E) (TC), withBSID[4]&0x01 (S), withBSID[5] (TTL). Negative: the 20-bit label reads 0xFFFFF, so the zeroes are field layout, not a small label.",
+  "requirement_sha": "0f66d44610fc1d2b",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDSubTLV": "450f2364530acf19",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDSubTLV#2": "450f2364530acf19"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDSubTLV": "6eaba5e67a485e4c",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDSubTLV#2": "6eaba5e67a485e4c"
+  },
+  "verdict": "enforced"
+}

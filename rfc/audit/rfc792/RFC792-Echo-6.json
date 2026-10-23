@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-09-30. Positive: reply reverses addresses, Type 0, recomputed checksum verifies (TestGatewayICMPEchoReply). Negative: a request to the secondary 192.0.2.253 is answered from .253 to the request's source, never from the primary .254 a route-picked source would use (TestGatewayICMPEchoReplyToTheQueriedAddress). Records break AddAddress (stack reply reachability); the address clause is discriminated by the secondary-address design. Whole-stack rule applies as for Echo-5.",
+  "requirement_sha": "36d67f4bacdd017c",
+  "tests": {
+    "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "6fa365d5d54aea79",
+    "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReplyToTheQueriedAddress": "6fa365d5d54aea79"
+  },
+  "units": {
+    "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "2e14d56234529006",
+    "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReplyToTheQueriedAddress": "59493216366409b7"
+  },
+  "verdict": "enforced"
+}

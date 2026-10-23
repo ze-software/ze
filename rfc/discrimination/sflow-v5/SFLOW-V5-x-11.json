@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "SFLOW-V5-x-11",
+    "polarity": "positive",
+    "unit": "internal/plugins/flowexport/sflow/sflow_v5_flow_adapter_test.go::TestSFlowFlowSamplePoolTracksTotal",
+    "unit-sha": "58796a9ae7dd8b60",
+    "claim-sha": "65b5bd999314ec43",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/sflow/flow_adapter.go::EncodeFlowSample",
+    "producer-sha": "867f774adfa95509",
+    "break": "body of EncodeFlowSample replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

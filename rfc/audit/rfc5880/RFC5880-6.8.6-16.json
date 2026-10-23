@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: no immediate F=1/P=0 reply to P=1. TestRFC5880PollAnsweredWithImmediateFinal fails if handleInbound sends nothing, or the reply lacks F or sets P; TestRFC5880NonPollProducesNoImmediateReply fails if a P=0 packet triggers a reply.",
+  "requirement_sha": "a6747ed6e17bfaef",
+  "tests": {
+    "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880NonPollProducesNoImmediateReply": "4b885928a870b00d",
+    "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880PollAnsweredWithImmediateFinal": "4b885928a870b00d"
+  },
+  "units": {
+    "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880NonPollProducesNoImmediateReply": "8f616636aa2e6eff",
+    "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880PollAnsweredWithImmediateFinal": "adfd9bbbbfd6430b"
+  },
+  "verdict": "enforced"
+}

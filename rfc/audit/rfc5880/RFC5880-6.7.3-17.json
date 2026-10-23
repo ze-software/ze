@@ -1,0 +1,13 @@
+{
+  "note": "Judge 2026-09-30 (phase 8). Positive TestRFC5880MD5ConfiguredKeyIDAccepted; negative TestRFC5880MD5UnconfiguredKeyIDDiscarded (ids 2/4/255 vs 3, both MD5 types, floor unset). Judge break removing the key-id check in digestVerifier.Verify reds the negative (floor seeded), so it is isolated from the digest.",
+  "requirement_sha": "e43369a0cb69a90f",
+  "tests": {
+    "internal/component/bfd/auth/rfc5880_md5_split_test.go::TestRFC5880MD5ConfiguredKeyIDAccepted": "561a897285e69b5a",
+    "internal/component/bfd/auth/rfc5880_md5_split_test.go::TestRFC5880MD5UnconfiguredKeyIDDiscarded": "561a897285e69b5a"
+  },
+  "units": {
+    "internal/component/bfd/auth/rfc5880_md5_split_test.go::TestRFC5880MD5ConfiguredKeyIDAccepted": "70eca9897630eb62",
+    "internal/component/bfd/auth/rfc5880_md5_split_test.go::TestRFC5880MD5UnconfiguredKeyIDDiscarded": "fccd817061665842"
+  },
+  "verdict": "enforced"
+}

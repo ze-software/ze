@@ -1,0 +1,11 @@
+{
+  "note": "Forbidden = a backoff cap under 8 s. reliable_seq_test.go::TestBackoffCapAtLeast8Seconds asserts DefaultRTimeoutCap>=8s and that newTunnel (the reactor's construction path) yields engine rtimeoutCap>=8s; lowering the constant or the default wiring goes red. Row carries single-polarity.",
+  "requirement_sha": "c1203171f3a5ab77",
+  "tests": {
+    "internal/component/l2tp/rfc2661_reliable_seq_test.go::TestBackoffCapAtLeast8Seconds": "550efa0df380328a"
+  },
+  "units": {
+    "internal/component/l2tp/rfc2661_reliable_seq_test.go::TestBackoffCapAtLeast8Seconds": "cec934e08aa40e86"
+  },
+  "verdict": "enforced"
+}

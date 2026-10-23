@@ -1,0 +1,13 @@
+{
+  "note": "Judge 2026-09-30, re-read after the RFC9012-13-7 tag lines left the unit (assertions unchanged). TestRFC9012DuplicateSingleInstanceSubTLVs: + with two Preference sub-TLVs Preference() returns the first (100); - the second value standing alone IS returned (200), so the choice is positional.",
+  "requirement_sha": "df21740158624797",
+  "tests": {
+    "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012DuplicateSingleInstanceSubTLVs": "e8576a1ee12543a9",
+    "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012DuplicateSingleInstanceSubTLVs#2": "e8576a1ee12543a9"
+  },
+  "units": {
+    "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012DuplicateSingleInstanceSubTLVs": "0f66262cbfae7a17",
+    "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012DuplicateSingleInstanceSubTLVs#2": "0f66262cbfae7a17"
+  },
+  "verdict": "enforced"
+}

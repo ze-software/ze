@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC5216-3-5",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216SendersWriteZeroReservedFlagBits",
+    "unit-sha": "a4fc1563c4f019eb",
+    "claim-sha": "dd3e64b951bc988e",
+    "route": "revert",
+    "producer": "internal/core/eap/eap_tls.go::nextFragment",
+    "producer-sha": "31c577b9e5afba22",
+    "break": "body of nextFragment replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5216-3-5",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216ReservedFlagBitsAreIgnoredOnReception",
+    "unit-sha": "31ae6912a8b4f7e3",
+    "claim-sha": "f3d12db59d5410f1",
+    "route": "revert",
+    "producer": "internal/core/eap/peer.go::handleTLSRequest",
+    "producer-sha": "5800e2be67824c12",
+    "break": "body of handleTLSRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5216-3-5",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216ReservedFlagBitsAreIgnoredOnReception",
+    "unit-sha": "31ae6912a8b4f7e3",
+    "claim-sha": "f31258cb5719534e",
+    "route": "revert",
+    "producer": "internal/core/eap/eap_tls.go::Process",
+    "producer-sha": "a7122cb1288ea14a",
+    "break": "body of Process replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,8 @@
+{
+  "code": {
+    "internal/plugins/ospf/te.go::registerTEConsumer": "85ec6fe6e10157bc"
+  },
+  "note": "The Inter-AS-TE-v3 clause of the \u00a73.2.1 sentence: ze registers inter-AS TE only as the OSPFv2 Opaque type-6 consumer (registerTEConsumer, te.go) and implements no OSPFv3 Inter-AS-TE-v3 LSA (function code 13), so there is no v3 inter-AS Link TLV in which to include sub-TLV 21. Absent feature, recorded as a {gap}; the v2 clause is RFC5392-3.2.1-4. Disclosed on the Support remaining text (Five MUST gaps).",
+  "requirement_sha": "64397456d6c0596f",
+  "verdict": "unimplemented"
+}

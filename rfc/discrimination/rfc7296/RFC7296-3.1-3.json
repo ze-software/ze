@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC7296-3.1-3",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_header_test.go::TestSPIZeroRules",
+    "unit-sha": "794c0685d3667d56",
+    "claim-sha": "3475258234fcb72d",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/sa.go::GenerateSPI",
+    "producer-sha": "7ecca7b9476d0a5f",
+    "break": "body of GenerateSPI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-3.1-3",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_zero_ispi_natt_test.go::TestRFC7296ZeroInitiatorSPIIsDroppedOnTheNATTSocket",
+    "unit-sha": "db58cd76bcc4fd06",
+    "claim-sha": "59a5158f1c0e4a44",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/register.go::dispatchNATTInbound",
+    "producer-sha": "8d9753a65c037be9",
+    "break": "body of dispatchNATTInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-3.1-3",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_zero_ispi_test.go::TestRFC7296ZeroInitiatorSPIIsDroppedOnReceipt",
+    "unit-sha": "617c5b7abb90142a",
+    "claim-sha": "a23b0820a0121be1",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/register.go::dispatchInbound",
+    "producer-sha": "2179a1200b494a53",
+    "break": "body of dispatchInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

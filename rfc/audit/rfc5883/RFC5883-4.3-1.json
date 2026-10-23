@@ -1,0 +1,13 @@
+{
+  "note": "Re-read 2026-09-27. Forbidden: the sender taking the Passive role (silent). TestRFC5883DefaultSessionActiveArmsTx fails on m.role != RoleActive or a zero NextTxDeadline; TestRFC5883PassiveSessionDoesNotArmTx shows arming depends on the role.",
+  "requirement_sha": "d1a26ab8bfb1cd81",
+  "tests": {
+    "internal/component/bfd/session/rfc5883_test.go::TestRFC5883DefaultSessionActiveArmsTx": "02489ee222a86857",
+    "internal/component/bfd/session/rfc5883_test.go::TestRFC5883PassiveSessionDoesNotArmTx": "02489ee222a86857"
+  },
+  "units": {
+    "internal/component/bfd/session/rfc5883_test.go::TestRFC5883DefaultSessionActiveArmsTx": "6c0903b4fe0c6cb5",
+    "internal/component/bfd/session/rfc5883_test.go::TestRFC5883PassiveSessionDoesNotArmTx": "d80e5335f85bc52e"
+  },
+  "verdict": "enforced"
+}

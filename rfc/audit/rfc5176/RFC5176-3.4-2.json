@@ -1,0 +1,13 @@
+{
+  "note": "(a) forbidden: a Request Authenticator computed over a zeroed Message-Authenticator, i.e. the attribute not inserted first. (b) TestRFC5176RequestAuthenticatorRefusesTheInvertedOrder refuses the inverted order and a Message-Authenticator changed after signing; TestRFC5176RequestAuthenticatorCoversTheSignedMessageAuthenticator accepts the conformant order with a non-zero attribute.",
+  "requirement_sha": "9acf424e94ce50fd",
+  "tests": {
+    "internal/component/radius/rfc5176_message_authenticator_test.go::TestRFC5176RequestAuthenticatorCoversTheSignedMessageAuthenticator": "4e8828b1e015967c",
+    "internal/component/radius/rfc5176_message_authenticator_test.go::TestRFC5176RequestAuthenticatorRefusesTheInvertedOrder": "4e8828b1e015967c"
+  },
+  "units": {
+    "internal/component/radius/rfc5176_message_authenticator_test.go::TestRFC5176RequestAuthenticatorCoversTheSignedMessageAuthenticator": "825d72a787661575",
+    "internal/component/radius/rfc5176_message_authenticator_test.go::TestRFC5176RequestAuthenticatorRefusesTheInvertedOrder": "f7aeb0e39658748b"
+  },
+  "verdict": "enforced"
+}

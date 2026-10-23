@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC9568-6.4.3-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/promote_install_test.go::TestPromotionInstallsIPv4AddressOnVirtualMACDevice",
+    "unit-sha": "b4ab7ccbe6981367",
+    "claim-sha": "c52978ac8fa14933",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/instance.go::doInstallVIPs",
+    "producer-sha": "6c990de7776ea965",
+    "break": "body of doInstallVIPs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9568-6.4.3-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly",
+    "unit-sha": "b700c87dc50de836",
+    "claim-sha": "e9936682748d1f3a",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/register.go::vipCIDRs",
+    "producer-sha": "eeae85e66629ec86",
+    "break": "body of vipCIDRs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9568-6.4.3-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly",
+    "unit-sha": "b700c87dc50de836",
+    "claim-sha": "d92ba9bb73f5d105",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/register.go::vipCIDRs",
+    "producer-sha": "eeae85e66629ec86",
+    "break": "body of vipCIDRs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

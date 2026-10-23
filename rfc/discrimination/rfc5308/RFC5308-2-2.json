@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC5308-2-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/spf/rfc5305_max_metric_order_test.go::TestRFC5308PrefixAboveMaxV6PathMetricNotConsidered",
+    "unit-sha": "e1a84b279895f57f",
+    "claim-sha": "ce67de5ecf4bd2f2",
+    "route": "revert",
+    "producer": "internal/plugins/isis/spf/ipv6.go::BuildRoutesV6",
+    "producer-sha": "8ab3ef61dd0aa8cd",
+    "break": "body of BuildRoutesV6 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5308-2-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/spf/rfc5305_max_metric_order_test.go::TestRFC5308PrefixAboveMaxV6PathMetricNotConsidered",
+    "unit-sha": "e1a84b279895f57f",
+    "claim-sha": "bafc41b1debc78ff",
+    "route": "revert",
+    "producer": "internal/plugins/isis/spf/ipv6.go::BuildRoutesV6",
+    "producer-sha": "8ab3ef61dd0aa8cd",
+    "break": "body of BuildRoutesV6 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5308-2-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/spf/rfc5308_ipv6_test.go::TestISISIPv6MetricAboveMaxIgnored",
+    "unit-sha": "43dad2bf12ee41a8",
+    "claim-sha": "fd72b5dbc35a8f13",
+    "route": "revert",
+    "producer": "internal/plugins/isis/spf/ipv6.go::BuildRoutesV6",
+    "producer-sha": "8ab3ef61dd0aa8cd",
+    "break": "body of BuildRoutesV6 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5308-2-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/spf/rfc5308_ipv6_test.go::TestISISIPv6MetricAboveMaxIgnored",
+    "unit-sha": "43dad2bf12ee41a8",
+    "claim-sha": "04b91ff30a68fd3c",
+    "route": "revert",
+    "producer": "internal/plugins/isis/spf/ipv6.go::BuildRoutesV6",
+    "producer-sha": "8ab3ef61dd0aa8cd",
+    "break": "body of BuildRoutesV6 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

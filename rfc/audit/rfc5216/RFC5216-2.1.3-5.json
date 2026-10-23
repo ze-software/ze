@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: the packet before EAP-Success is not an EAP-TLS Request carrying change_cipher_spec then the Finished handshake record, or a rejected peer receives that flight. TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess fatals on a non-Request/non-TLS packet or a bare ACK there, errors unless record types are [change_cipher_spec, handshake], and requires equal non-zero MSKs. Negative: TestRFC5216NoClosingFlightOrSuccessWhenThePeerIsRejected errors on any change_cipher_spec record sent to a rejected peer.",
+  "requirement_sha": "9697324aefd997fd",
+  "tests": {
+    "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216NoClosingFlightOrSuccessWhenThePeerIsRejected": "60bd713e09c87b21",
+    "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess": "60bd713e09c87b21"
+  },
+  "units": {
+    "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216NoClosingFlightOrSuccessWhenThePeerIsRejected": "65a97f8762ec7529",
+    "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess": "37ba54cebdeabbad"
+  },
+  "verdict": "enforced"
+}

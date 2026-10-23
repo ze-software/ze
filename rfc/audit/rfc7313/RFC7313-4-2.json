@@ -1,0 +1,21 @@
+{
+  "note": "Re-judged after the D-8 fix: BoRR/EoRR now ride the peer's opQueue as PeerOpRefreshMarker (Peer.sendRefreshMarker, gate read and append under one p.mu hold, same predicate as shouldQueue minus the state check sendRouteRefresh already makes); both drains write the marker in place, count RefreshSent on send, and drop a marker whose session is no longer the peer's. Order at the rib (sendRoutes then EoRR) stays proven by TestRFC7313BoRRRoutesEoRRInOneSequence (observed red). Order on the wire now proven by TestRFC7313EoRRFollowsTheRoutesItCloses through reactorAPIAdapter SendBoRR/AnnounceNLRIBatch/SendEoRR on a recording socket: + outside the sync [eor, borr, route, eorr], - during the sync (inputs forced toward the violation: route held in the queue) nothing leaves early and after the drain [borr, route, eorr, eor]; both counters asserted. Author's red-first log showed [borr eorr route eor] before the fix; records observed on sendQueuedRefreshMarker (+) and sendRefreshMarker (-). {single-polarity} marker correctly removed (R1 route b). Not covered by a test: the stale-session drop branch (a guard, logged).",
+  "requirement_sha": "6584db627c7f1be9",
+  "tests": {
+    "internal/component/bgp/message/routerefresh_test.go::TestRouteRefreshSubtypes": "30b8b3abfb09b975",
+    "internal/component/bgp/plugins/rib/rfc7313_sequence_test.go::TestRFC7313BoRRRoutesEoRRInOneSequence": "03887458b95e04ff",
+    "internal/component/bgp/plugins/rib/rfc7313_test.go::TestRFC7313RefreshBracketsReadvertisementWithBoRRAndEoRR": "d1f258c5c47320ef",
+    "internal/component/bgp/plugins/route_refresh/handler/rfc7313_dispatch_test.go::TestDispatchBGPPeerEoRR": "bf7992ea6a608871",
+    "internal/component/bgp/reactor/rfc7313_refresh_order_test.go::TestRFC7313EoRRFollowsTheRoutesItCloses": "f0ac57160e665611",
+    "internal/component/bgp/reactor/rfc7313_refresh_order_test.go::TestRFC7313EoRRFollowsTheRoutesItCloses#2": "f0ac57160e665611"
+  },
+  "units": {
+    "internal/component/bgp/message/routerefresh_test.go::TestRouteRefreshSubtypes": "e6ccc2c8b29f98ab",
+    "internal/component/bgp/plugins/rib/rfc7313_sequence_test.go::TestRFC7313BoRRRoutesEoRRInOneSequence": "e976b5455ae2814b",
+    "internal/component/bgp/plugins/rib/rfc7313_test.go::TestRFC7313RefreshBracketsReadvertisementWithBoRRAndEoRR": "ec4bff056223bc10",
+    "internal/component/bgp/plugins/route_refresh/handler/rfc7313_dispatch_test.go::TestDispatchBGPPeerEoRR": "364103f5f9c61a8f",
+    "internal/component/bgp/reactor/rfc7313_refresh_order_test.go::TestRFC7313EoRRFollowsTheRoutesItCloses": "7b476fe3aa2ac203",
+    "internal/component/bgp/reactor/rfc7313_refresh_order_test.go::TestRFC7313EoRRFollowsTheRoutesItCloses#2": "7b476fe3aa2ac203"
+  },
+  "verdict": "enforced"
+}

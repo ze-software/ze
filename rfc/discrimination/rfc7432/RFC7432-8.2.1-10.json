@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC7432-8.2.1-10",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go::TestConfiguredEVPNPerESRoute",
+    "unit-sha": "c79f6f9f48ed9b34",
+    "claim-sha": "97be83b1e71f99aa",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/nlri/evpn/config.go::parseConfigRoute",
+    "producer-sha": "dc4776b43501671f",
+    "break": "body of parseConfigRoute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7432-8.2.1-10",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go::TestConfiguredEVPNRefusesInvalidPerESRoute",
+    "unit-sha": "458f383e18e07f53",
+    "claim-sha": "6688af120bb4a6ac",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/nlri/evpn/config.go::parseConfigRoute",
+    "producer-sha": "dc4776b43501671f",
+    "break": "body of parseConfigRoute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7432-8.2.1-10",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go::TestOriginEthernetADPerESRefusesASTypeRD",
+    "unit-sha": "9285a0c8727f8815",
+    "claim-sha": "97c8bcf14cdb3cbb",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/update_build_evpn.go::ValidateEVPNOriginationMode",
+    "producer-sha": "73cef2878b31ebb9",
+    "break": "body of ValidateEVPNOriginationMode replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7432-8.2.1-10",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go::TestOriginEthernetADPerESUsesTypeOneRD",
+    "unit-sha": "fbea9e5305756bc0",
+    "claim-sha": "9d0fb8d7dd80e1ce",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/update_build_evpn.go::ValidateEVPNOriginationMode",
+    "producer-sha": "73cef2878b31ebb9",
+    "break": "body of ValidateEVPNOriginationMode replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

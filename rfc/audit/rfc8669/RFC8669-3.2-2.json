@@ -1,0 +1,17 @@
+{
+  "note": "Same unit: SRGB Flags 0 on send including all-ones base/range; received SRGB Flags 0xFFFF ignored, bytes unchanged (the assertion the earlier note missed). Judge break (SRGB Flags 1): red.",
+  "requirement_sha": "67eb1f44573c65f2",
+  "tests": {
+    "internal/component/bgp/message/rfc8669_reserved_flags_test.go::TestRFC8669ReservedAndFlagsClearOnTransmissionIgnoredOnReception": "ed31817182a67ebb",
+    "internal/component/bgp/message/rfc8669_reserved_flags_test.go::TestRFC8669ReservedAndFlagsClearOnTransmissionIgnoredOnReception#2": "ed31817182a67ebb",
+    "internal/component/bgp/message/rfc8669_test.go::TestRFC8669SRGBFlagsZeroAccepted": "43a22ffce691e1e9",
+    "internal/component/bgp/message/rfc8669_test.go::TestRFC8669SRGBNonZeroFlagsIgnored": "43a22ffce691e1e9"
+  },
+  "units": {
+    "internal/component/bgp/message/rfc8669_reserved_flags_test.go::TestRFC8669ReservedAndFlagsClearOnTransmissionIgnoredOnReception": "1727fbdcee1646c6",
+    "internal/component/bgp/message/rfc8669_reserved_flags_test.go::TestRFC8669ReservedAndFlagsClearOnTransmissionIgnoredOnReception#2": "1727fbdcee1646c6",
+    "internal/component/bgp/message/rfc8669_test.go::TestRFC8669SRGBFlagsZeroAccepted": "81f204421b0ee317",
+    "internal/component/bgp/message/rfc8669_test.go::TestRFC8669SRGBNonZeroFlagsIgnored": "ba12537f8edc0fc4"
+  },
+  "verdict": "enforced"
+}

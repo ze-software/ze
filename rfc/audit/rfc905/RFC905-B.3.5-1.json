@@ -1,0 +1,13 @@
+{
+  "note": "Judged 2026-09-30. Positive TestRFC905LSPPlacesXAtNAndYAtNPlus1: LSP.WriteTo stores the independently derived X at octet n and Y at n+1 (X != Y guarded, so a swap cannot pass) and the decoded LSP verifies. Negative TestRFC905LSPWithSwappedXYRefused: the same LSP with the two octets swapped is refused by LSP.VerifyChecksum, the check the flooding path runs, while the unswapped one is accepted. Records on lsp.go::WriteTo and VerifyChecksum, observed red.",
+  "requirement_sha": "3b9795779933f161",
+  "tests": {
+    "internal/plugins/isis/packet/rfc905_annexb_steps_test.go::TestRFC905LSPPlacesXAtNAndYAtNPlus1": "17c596069f248d2b",
+    "internal/plugins/isis/packet/rfc905_annexb_steps_test.go::TestRFC905LSPWithSwappedXYRefused": "17c596069f248d2b"
+  },
+  "units": {
+    "internal/plugins/isis/packet/rfc905_annexb_steps_test.go::TestRFC905LSPPlacesXAtNAndYAtNPlus1": "ea812e94dd3a3638",
+    "internal/plugins/isis/packet/rfc905_annexb_steps_test.go::TestRFC905LSPWithSwappedXYRefused": "33e074975c883da4"
+  },
+  "verdict": "enforced"
+}

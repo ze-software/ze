@@ -1,0 +1,21 @@
+{
+  "note": "Judged 2026-09-30 at the producers after the D-8 fix: wire Transform.AttrsUnderstood (attrFormats, Key Length only); appendIKECombinations and espProposalMatches drop a transform carrying an unknown attribute and keep its siblings, and refuse the proposal only when an offered type loses every transform (IKEProposal.UnacceptableTransformType -> ErrTransformUnacceptable in ikeProposalComplete; ESP offered!=usable). This matches Section 3.3.6: the transform is unacceptable, other transforms of the same type are processed as usual, and a type with nothing acceptable leaves no complete set to select. Negative TestRFC7296UnacceptableTransformAloneRefusesTheProposal: unknown ENCR id alone, and each IKE type (ENCR/PRF/INTEG/D-H) and ESP type (ENCR/INTEG/ESN) carrying attribute 99 alone is refused, with a per-type control without the attribute accepted, so the attribute is the only difference (isolated); this failed before the fix. Positive TestRFC7296UnacceptableTransformLeavesSiblingsOnOffer: the unknown-id and unknown-attribute transform beside an understood sibling, both orders, IKE accepted with the sibling's ENCR and ESP matched (catches an over-reaction that refuses the type or proposal). ESP response is built from config, so no unacceptable attribute is echoed. HEAD crypto/engine tags remain supplementary. Records: appendIKECombinations +, espProposalMatches -, observed red.",
+  "requirement_sha": "23d7364b03dabbb1",
+  "tests": {
+    "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropUnknownTransformIDMakesTransformUnacceptable": "08f2f5dac8da8a2b",
+    "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropUnknownTransformIDMakesTransformUnacceptable#2": "08f2f5dac8da8a2b",
+    "internal/component/ike/engine/rfc7296_transform_alternatives_test.go::TestAltDHAlternativesAreBothOffered": "ff3d9ab01e05bb35",
+    "internal/component/ike/engine/rfc7296_transform_alternatives_test.go::TestAltUnusableAlternativesAreStillRefused": "ff3d9ab01e05bb35",
+    "internal/component/ike/engine/rfc7296_unknown_transform_test.go::TestRFC7296UnacceptableTransformAloneRefusesTheProposal": "931cc5eb9032ffd5",
+    "internal/component/ike/engine/rfc7296_unknown_transform_test.go::TestRFC7296UnacceptableTransformLeavesSiblingsOnOffer": "931cc5eb9032ffd5"
+  },
+  "units": {
+    "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropUnknownTransformIDMakesTransformUnacceptable": "4a993fd959306c98",
+    "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropUnknownTransformIDMakesTransformUnacceptable#2": "4a993fd959306c98",
+    "internal/component/ike/engine/rfc7296_transform_alternatives_test.go::TestAltDHAlternativesAreBothOffered": "5e4fa5e5c62520e7",
+    "internal/component/ike/engine/rfc7296_transform_alternatives_test.go::TestAltUnusableAlternativesAreStillRefused": "2606dc524a2b1607",
+    "internal/component/ike/engine/rfc7296_unknown_transform_test.go::TestRFC7296UnacceptableTransformAloneRefusesTheProposal": "6e0add8e91dd7d2e",
+    "internal/component/ike/engine/rfc7296_unknown_transform_test.go::TestRFC7296UnacceptableTransformLeavesSiblingsOnOffer": "d1665001c8788f96"
+  },
+  "verdict": "enforced"
+}

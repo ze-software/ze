@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2131-4.4.5-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/iface/dhcp/rfc2131_dhcp_v4_timers_linux_test.go::TestV4ServerTimersHonoredWhenOrdered",
+    "unit-sha": "6cb1b06018d84fad",
+    "claim-sha": "8de2045ee1721d64",
+    "route": "revert",
+    "producer": "internal/plugins/iface/dhcp/dhcp_v4_linux.go::v4LeaseTimers",
+    "producer-sha": "4bf35d54c806f20c",
+    "break": "body of v4LeaseTimers replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2131-4.4.5-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/iface/dhcp/rfc2131_dhcp_v4_timers_linux_test.go::TestV4ServerTimersHonoredWhenOrdered",
+    "unit-sha": "6cb1b06018d84fad",
+    "claim-sha": "4a8d46c1a5e01f44",
+    "route": "revert",
+    "producer": "internal/plugins/iface/dhcp/dhcp_v4_linux.go::v4LeaseTimers",
+    "producer-sha": "4bf35d54c806f20c",
+    "break": "body of v4LeaseTimers replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

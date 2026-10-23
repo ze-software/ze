@@ -1,0 +1,17 @@
+{
+  "note": "Judge 2026-09-29. TestRFC1661NoNetworkPhaseBeforeAuthenticationCompletes (IPCP enabled, CHAP): Challenge unanswered for 1 s -> no address request (-), rejected -> still none (-), accepted -> address request and IPCP Configure-Request (+). Isolated: IPCP enabled so runNCPPhase is observable. Targeted swap (runNCPPhase before runAuthPhase) observed red (ppp3-swap.log); revert records on runNCPPhase/runAuthPhase.",
+  "requirement_sha": "4f0e0d174ab38afb",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661NoNetworkPhaseBeforeAuthenticationCompletes": "d6b4e2cbd1b095e9",
+    "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661NoNetworkPhaseBeforeAuthenticationCompletes#2": "d6b4e2cbd1b095e9",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NetworkPhaseRunsAfterAuthCompletes": "9afaf002f0fd81ec",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoNetworkPhaseUntilAuthCompletes": "9afaf002f0fd81ec"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661NoNetworkPhaseBeforeAuthenticationCompletes": "8f6cbb91e1160c73",
+    "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661NoNetworkPhaseBeforeAuthenticationCompletes#2": "8f6cbb91e1160c73",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NetworkPhaseRunsAfterAuthCompletes": "683f309d5a4f56fb",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoNetworkPhaseUntilAuthCompletes": "af3d083160618d4f"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: a receiver refusing a message for its Padding length (0..255). Red: TestRFC5282AEADReceiveAcceptsAnyPaddingTo255 fatals 'decryptAndParse = %v, want the message accepted' for every length 0..255. Negative TestRFC5282AEADReceiveRefusesATruncatedInnerPayload bounds it (expectRefused).",
+  "requirement_sha": "6a210d63f3f55d0c",
+  "tests": {
+    "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADReceiveAcceptsAnyPaddingTo255": "2d69d15f1cde2ecb",
+    "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADReceiveRefusesATruncatedInnerPayload": "2d69d15f1cde2ecb"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADReceiveAcceptsAnyPaddingTo255": "a8ceaafea2f09fa7",
+    "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADReceiveRefusesATruncatedInnerPayload": "b299e98f0fa022bf"
+  },
+  "verdict": "enforced"
+}

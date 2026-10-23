@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-10-01 (BGP c18 judge). The MISSING clause 'based on the configured acceptance policy' is now driven: NEW TestRFC4271OverlappingRoutesAcceptedByPolicyBothReachTheDecisionProcess receives 10.0.0.0/8 then 10.1.0.0/24 from an external peer with an import filter configured through notifyMessageReceiver; the ingress policy chain (runIngressPolicyChain, policy answered through policyFilterSeam) is asked about each route and both NLRI are dispatched, in order, to the RIB consumer that runs the Decision Process. NEW TestRFC4271OverlappingRouteRejectedByPolicyIsNotConsidered: the policy rejects the /24, only the /8 is dispatched, so the policy and not the overlap decides what is considered. The rib units (both accepted overlapping routes held, neither displaced, observed-red on checkBestPathChange) carry the Decision Process half. Records: + on reactor_notify.go::notifyMessageReceiver, - on filter_ordered.go::runIngressPolicyChain; semantic overlay (PolicyReject answered as accept) reddens the negative (c18-ov-924.log). Residual: the policy verdict is supplied through the seam rather than a parsed filter config, the same reactor composition accepted for 5.1.4-3.",
+  "requirement_sha": "a0ad53f9cd71410a",
+  "tests": {
+    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271OverlappingReceivedRoutesAreBothInstalled": "e914a6452ddec559",
+    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271OverlappingRouteArrivalDisplacesNeither": "e914a6452ddec559",
+    "internal/component/bgp/reactor/rfc4271_overlap_acceptance_test.go::TestRFC4271OverlappingRouteRejectedByPolicyIsNotConsidered": "788bfed5f4fb150c",
+    "internal/component/bgp/reactor/rfc4271_overlap_acceptance_test.go::TestRFC4271OverlappingRoutesAcceptedByPolicyBothReachTheDecisionProcess": "788bfed5f4fb150c"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271OverlappingReceivedRoutesAreBothInstalled": "eb45d769d02cad24",
+    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271OverlappingRouteArrivalDisplacesNeither": "369ff347b6413c88",
+    "internal/component/bgp/reactor/rfc4271_overlap_acceptance_test.go::TestRFC4271OverlappingRouteRejectedByPolicyIsNotConsidered": "7b12020ce77a6cc6",
+    "internal/component/bgp/reactor/rfc4271_overlap_acceptance_test.go::TestRFC4271OverlappingRoutesAcceptedByPolicyBothReachTheDecisionProcess": "254fa32c6a19ea3e"
+  },
+  "verdict": "enforced"
+}

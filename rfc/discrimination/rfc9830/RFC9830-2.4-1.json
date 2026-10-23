@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9830-2.4-1",
+    "polarity": "positive",
+    "unit": "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012DuplicateSingleInstanceSubTLVs",
+    "unit-sha": "15f31c607d87d882",
+    "claim-sha": "0b38e18724c2e073",
+    "route": "revert",
+    "producer": "internal/core/bgp/attribute/tunnel_encap.go::Preference",
+    "producer-sha": "9c4ab4344f4c22ff",
+    "break": "body of Preference replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9830-2.4-1",
+    "polarity": "negative",
+    "unit": "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012DuplicateSingleInstanceSubTLVs",
+    "unit-sha": "15f31c607d87d882",
+    "claim-sha": "a73f4ea8d6c61024",
+    "route": "revert",
+    "producer": "internal/core/bgp/attribute/tunnel_encap.go::Preference",
+    "producer-sha": "9c4ab4344f4c22ff",
+    "break": "body of Preference replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

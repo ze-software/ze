@@ -1,0 +1,47 @@
+[
+  {
+    "rid": "RFC2661-x-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/rfc2661_header_test.go::TestWriteControlHeader",
+    "unit-sha": "aa829663ed91d455",
+    "claim-sha": "ee3c14799e6fdf86",
+    "route": "revert",
+    "producer": "internal/component/l2tp/header.go::WriteControlHeader",
+    "producer-sha": "dbf0242ff433065e",
+    "break": "body of WriteControlHeader replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2661-x-1",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661ReservedHeaderBitsIgnoredOnReceive",
+    "unit-sha": "162b2c0c0575b769",
+    "claim-sha": "e5f2afecb251ab12",
+    "route": "revert",
+    "producer": "internal/component/l2tp/header.go::ParseMessageHeader",
+    "producer-sha": "220c906f1ea2c907",
+    "break": "body of ParseMessageHeader replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2661-x-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661ReservedHeaderBitsSentZero",
+    "unit-sha": "c70d4729542b6783",
+    "claim-sha": "10d9491504d10a3c",
+    "route": "revert",
+    "producer": "internal/component/l2tp/header.go::WriteControlHeader",
+    "producer-sha": "dbf0242ff433065e",
+    "break": "body of WriteControlHeader replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2661-x-1",
+    "polarity": "positive",
+    "unit": "test/l2tp/rfc2661-emitted-control-shape.ci",
+    "unit-sha": "709d2fdc35a37503",
+    "claim-sha": "22ac5c430613e3f2",
+    "route": "revert",
+    "producer": "internal/component/l2tp/header.go::WriteControlHeader",
+    "producer-sha": "dbf0242ff433065e",
+    "break": "body of WriteControlHeader replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+    "citation": "expect=stdout:contains=PASS: SCCRP header reserved bits 8-11 zero"
+  }
+]

@@ -1,0 +1,25 @@
+{
+  "note": "D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV->WriteTLV and field-export renames (TLV code constants verified unchanged). RFC 9552 Section 8.2.2: \"A BGP-LS Propagator, even when it has a coexisting BGP-LS Consumer on the same node, should not perform semantic validation of the Link-State NLRI or the BGP-LS Attribute to determine if it is malformed or invalid.\" Reactor receive path (ls plugin linked) refuses none of the semantic NLRIs/attributes and discards every framing twin (unchanged). Core and ls decoder-level units are supplementary, moved/renamed only.",
+  "requirement_sha": "1c65fee67ce3cbce",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552AttributeSyntaxStillRejected": "40036e95d2697aef",
+    "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552UnorderedUnexpectedAttributeTLVs": "40036e95d2697aef",
+    "internal/component/bgp/reactor/rfc9552_semantic_test.go::TestRFC9552BGPLSAttributeFramingTwinsAreDiscarded": "6f2a8b2f884bcadc",
+    "internal/component/bgp/reactor/rfc9552_semantic_test.go::TestRFC9552BGPLSAttributeSemanticErrorsAreNotMalformed": "6f2a8b2f884bcadc",
+    "internal/component/bgp/reactor/rfc9552_semantic_test.go::TestRFC9552LinkStateNLRIFramingTwinsAreDiscarded": "6f2a8b2f884bcadc",
+    "internal/component/bgp/reactor/rfc9552_semantic_test.go::TestRFC9552LinkStateNLRISemanticErrorsAreNotMalformed": "6f2a8b2f884bcadc",
+    "internal/core/bgp/nlri/bgpls/rfc9552_test.go::TestRFC9552NLRIContentsNeverMakeItMalformed": "4cefb336b005cdaf",
+    "internal/core/bgp/nlri/bgpls/rfc9552_test.go::TestRFC9552NLRIFramingErrorsRejected": "4cefb336b005cdaf"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552AttributeSyntaxStillRejected": "e47aa6584a030d4e",
+    "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552UnorderedUnexpectedAttributeTLVs": "336130c28a5c850d",
+    "internal/component/bgp/reactor/rfc9552_semantic_test.go::TestRFC9552BGPLSAttributeFramingTwinsAreDiscarded": "39bc476c33aac263",
+    "internal/component/bgp/reactor/rfc9552_semantic_test.go::TestRFC9552BGPLSAttributeSemanticErrorsAreNotMalformed": "08e86e41e3de99a4",
+    "internal/component/bgp/reactor/rfc9552_semantic_test.go::TestRFC9552LinkStateNLRIFramingTwinsAreDiscarded": "6a24ff75de55e526",
+    "internal/component/bgp/reactor/rfc9552_semantic_test.go::TestRFC9552LinkStateNLRISemanticErrorsAreNotMalformed": "7b63f6a5431ada7e",
+    "internal/core/bgp/nlri/bgpls/rfc9552_test.go::TestRFC9552NLRIContentsNeverMakeItMalformed": "2c5bdd2c21ad18f5",
+    "internal/core/bgp/nlri/bgpls/rfc9552_test.go::TestRFC9552NLRIFramingErrorsRejected": "a22a1f8f9435e7a7"
+  },
+  "verdict": "enforced"
+}

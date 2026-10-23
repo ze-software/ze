@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC5798-7.2-4",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire",
+    "unit-sha": "d1defdd9ea537b29",
+    "claim-sha": "ad73c998201cc19c",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/transport/transport.go::buildIPv4Header",
+    "producer-sha": "e64c42f1d89bd574",
+    "break": "body of buildIPv4Header replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5798-7.2-4",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV6OnWire",
+    "unit-sha": "c0d31136fc3806c0",
+    "claim-sha": "1476c90b23c5c8a1",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/transport/backend_linux.go::SendAdvert",
+    "producer-sha": "9265e212af6e45ac",
+    "break": "body of SendAdvert replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5798-7.2-4",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertV3IPv4HeaderTTLProtoDst",
+    "unit-sha": "9ddafe15441a7e22",
+    "claim-sha": "35063e9212fc93c8",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/transport/transport.go::buildIPv4Header",
+    "producer-sha": "e64c42f1d89bd574",
+    "break": "body of buildIPv4Header replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

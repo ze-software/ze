@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-10-21 (round 4 judge). Units changed only by added 10.6-2/10.6-3 tag lines. Positive TestRFC2328SlaveResendsLastDDInLoadingAndFull: in Loading and Full a duplicate of the master's last DD at 0 s and RouterDeadInterval-1 s draws exactly one packet, sameDD as the slave's last DD, state unchanged; TestRFC2328SlaveRepliesAndRepeatsOnDuplicate covers the Exchange duplicate. Negatives: a non-duplicate (Init DD 99, new DD 101) is SeqNumberMismatch to ExStart with an Init DD, never the last DD; out-of-sequence 101 in Exchange likewise. Records on resendLastDDLocked, sameDD, handleExchangeDDLocked.",
+  "requirement_sha": "122bbe03ebe1aa45",
+  "tests": {
+    "internal/plugins/ospf/neighbor/rfc2328_dd_slave_after_exchange_test.go::TestRFC2328SlaveRepeatsOnlyForTheLastMasterDD": "bd48c77ab672555d",
+    "internal/plugins/ospf/neighbor/rfc2328_dd_slave_after_exchange_test.go::TestRFC2328SlaveResendsLastDDInLoadingAndFull": "bd48c77ab672555d",
+    "internal/plugins/ospf/neighbor/rfc2328_dd_slave_test.go::TestRFC2328SlaveRefusesOutOfSequenceDD": "e5e68f42c963f76a",
+    "internal/plugins/ospf/neighbor/rfc2328_dd_slave_test.go::TestRFC2328SlaveRepliesAndRepeatsOnDuplicate": "e5e68f42c963f76a"
+  },
+  "units": {
+    "internal/plugins/ospf/neighbor/rfc2328_dd_slave_after_exchange_test.go::TestRFC2328SlaveRepeatsOnlyForTheLastMasterDD": "e812c8a3576b91be",
+    "internal/plugins/ospf/neighbor/rfc2328_dd_slave_after_exchange_test.go::TestRFC2328SlaveResendsLastDDInLoadingAndFull": "e06a4ba16a23f5bb",
+    "internal/plugins/ospf/neighbor/rfc2328_dd_slave_test.go::TestRFC2328SlaveRefusesOutOfSequenceDD": "17da72bb29c87f94",
+    "internal/plugins/ospf/neighbor/rfc2328_dd_slave_test.go::TestRFC2328SlaveRepliesAndRepeatsOnDuplicate": "ac11cfa295d3b810"
+  },
+  "verdict": "enforced"
+}

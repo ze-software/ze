@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC1661-3.6-2",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NetworkLayerPacketDiscardedBeforeNCPOpened",
+    "unit-sha": "bcbb01d59a6afb91",
+    "claim-sha": "7a30a89126426664",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/session_run.go::supportsProtocol",
+    "producer-sha": "af7a465d762f6874",
+    "break": "body of supportsProtocol replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

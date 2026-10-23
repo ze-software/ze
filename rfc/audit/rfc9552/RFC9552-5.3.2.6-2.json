@@ -1,0 +1,13 @@
+{
+  "note": "OSPFv3 link opaque from E-Router-LSA reaches TLV 1097; E-Inter-Area-Prefix provenance refused; E-Link-LSA acceptance and other forbidden sources are not driven, one representative of each side",
+  "requirement_sha": "fb93a7fdf3d2050c",
+  "tests": {
+    "internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go::TestRFC9552NativeOpaqueOSPFv3LinkProvenance": "d43002f22020b856",
+    "internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go::TestRFC9552NativeOpaqueOSPFv3LinkProvenance#2": "d43002f22020b856"
+  },
+  "units": {
+    "internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go::TestRFC9552NativeOpaqueOSPFv3LinkProvenance": "fdb451a0a63badf9",
+    "internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go::TestRFC9552NativeOpaqueOSPFv3LinkProvenance#2": "fdb451a0a63badf9"
+  },
+  "verdict": "enforced"
+}

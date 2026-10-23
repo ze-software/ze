@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4271-8.2.2-25",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go::TestRFC4271ExpectedMessagesRaiseNoFSMError",
+    "unit-sha": "e16920263c6efb1c",
+    "claim-sha": "a98b4642001e6326",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_handlers.go::updateIsUnexpected",
+    "producer-sha": "1c988224469fd34e",
+    "break": "body of updateIsUnexpected replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-8.2.2-25",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go::TestRFC4271OpenConfirmUpdateIsAnFSMError",
+    "unit-sha": "a56f96c1a571728c",
+    "claim-sha": "dbff641f289904d2",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_handlers.go::updateIsUnexpected",
+    "producer-sha": "1c988224469fd34e",
+    "break": "body of updateIsUnexpected replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

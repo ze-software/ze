@@ -1,0 +1,13 @@
+{
+  "note": "type 200 is skipped and the following Termination is consumed; a malformed Peer Up still ends the session",
+  "requirement_sha": "1a3a13edba299c64",
+  "tests": {
+    "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854MalformedKnownTypeStillEndsSession": "94e84131af3555be",
+    "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854UnrecognizedMessageTypeIgnored": "94e84131af3555be"
+  },
+  "units": {
+    "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854MalformedKnownTypeStillEndsSession": "8838e8908cca26d2",
+    "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854UnrecognizedMessageTypeIgnored": "6d154cf6768e609b"
+  },
+  "verdict": "enforced"
+}

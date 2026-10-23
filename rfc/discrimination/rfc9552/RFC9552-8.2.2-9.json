@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9552-8.2.2-9",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateRecognizedTLVSubTLVOverrunIsDiscarded",
+    "unit-sha": "9141e4014f63d8d9",
+    "claim-sha": "3a07802e1a6a7511",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/rfc7606_bgpls_nlri.go::bgplsNodeDescriptorWellFormed",
+    "producer-sha": "acc9c64dbaa6141c",
+    "break": "body of bgplsNodeDescriptorWellFormed replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9552-8.2.2-9",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateUnreachLengthOverrunResetsSession",
+    "unit-sha": "0441e29f6c90d783",
+    "claim-sha": "e224af5757de157a",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/rfc7606_bgpls_nlri.go::judgeBGPLSNLRISection",
+    "producer-sha": "4bd48747b61d05be",
+    "break": "body of judgeBGPLSNLRISection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

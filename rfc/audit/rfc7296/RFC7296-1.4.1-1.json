@@ -1,0 +1,19 @@
+{
+  "code": {
+    "internal/component/ike/engine/delete.go::sendDeleteESP": "4776f751621e687f",
+    "internal/component/ike/engine/inbound.go::handleCreateChildSAOwned": "ff8eab9dd5afbc8c"
+  },
+  "note": "Re-judged 2026-10-20 (independent judge, after 967dbf7883, 5450fa29e9, b87fdb0b43; HEAD 6dce69a77c). Section 1.4.1: \"ESP and AH SAs always exist in pairs, with one SA in each direction. When an SA is closed, both members of the pair MUST be closed (that is, deleted). Each endpoint MUST close its incoming SAs and allow the other endpoint to close the other SA in each pair.\" No prior audit entry. 5450fa29e9 closes the last path found: a CREATE_CHILD_SA rekey answer with no error notify (so the peer installed its half) that Ze refused for a reason outside the named arms used to only log in the default arm of handleCreateChildSAOwned (inbound.go); it now calls sendDeleteESP with p.newInboundSPI, as the errChildEncapPort arm already did, and keeps the old Child SA. Arms that carry an error notify (TEMPORARY_FAILURE, NO_ADDITIONAL_SAS, CHILD_SA_NOT_FOUND, other refusals) correctly send nothing, because the peer created no SA. A refused IKE_AUTH answer tears the IKE SA down, which RFC 7296 Section 1.4.1 says \"implicitly closes any remaining Child SAs\". The retirement path deletes both halves and names the inbound SPI (cleanupChild -> removeChildSA). TestRFC7296RefusedRekeyAnswerDeletesTheNewPair (Delete lists the new inbound SPI, never the in-use SPI, nothing installed) and TestLcyClosingAChildSAClosesBothHalvesAndDeletesOurInbound PASS at HEAD; the new unit's claim states what it asserts. Discrimination recorded with the Delete removed (rfc/discrimination/rfc7296.json).",
+  "requirement_sha": "818d09283b550b29",
+  "tests": {
+    "internal/component/ike/engine/rfc7296_lifecycle_test.go::TestLcyClosingAChildSAClosesBothHalvesAndDeletesOurInbound": "1d52b16c2d61f057",
+    "internal/component/ike/engine/rfc7296_lifecycle_test.go::TestLcyClosingAChildSAClosesBothHalvesAndDeletesOurInbound#2": "1d52b16c2d61f057",
+    "internal/component/ike/engine/rfc7296_rekey_refused_delete_test.go::TestRFC7296RefusedRekeyAnswerDeletesTheNewPair": "a72262a0398a1cf5"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7296_lifecycle_test.go::TestLcyClosingAChildSAClosesBothHalvesAndDeletesOurInbound": "10bcbf3df9761138",
+    "internal/component/ike/engine/rfc7296_lifecycle_test.go::TestLcyClosingAChildSAClosesBothHalvesAndDeletesOurInbound#2": "10bcbf3df9761138",
+    "internal/component/ike/engine/rfc7296_rekey_refused_delete_test.go::TestRFC7296RefusedRekeyAnswerDeletesTheNewPair": "8c3a68d1a4b17855"
+  },
+  "verdict": "enforced"
+}

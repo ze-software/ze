@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC5303-3.2-11",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/adjacency/rfc5303_fsm_test.go::TestISISThreeWayProceduresEngagedByOption",
+    "unit-sha": "5cec10d78147765b",
+    "claim-sha": "f1d72b8d992d38df",
+    "route": "revert",
+    "producer": "internal/plugins/isis/adjacency/fsm.go::threeWayTableAction",
+    "producer-sha": "a6818b6a91423daa",
+    "break": "body of threeWayTableAction replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5303-3.2-11",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go::TestRFC5303ThreeWayStateTable",
+    "unit-sha": "1feb377b31d2dbab",
+    "claim-sha": "77a1b938875a472c",
+    "route": "revert",
+    "producer": "internal/plugins/isis/adjacency/fsm.go::threeWayTableAction",
+    "producer-sha": "a6818b6a91423daa",
+    "break": "body of threeWayTableAction replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5303-3.2-11",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go::TestRFC5303ThreeWayStateTable",
+    "unit-sha": "1feb377b31d2dbab",
+    "claim-sha": "cf5bece904124376",
+    "route": "revert",
+    "producer": "internal/plugins/isis/adjacency/fsm.go::threeWayTableAction",
+    "producer-sha": "a6818b6a91423daa",
+    "break": "body of threeWayTableAction replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

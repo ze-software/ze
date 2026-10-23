@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged 2026-10-14 (independent reader, after 8c1c4013f2 and 7d37dcd562). RFC 9252 Section 7: 'If multiple instances of the SRv6 L2 Service TLV are encountered, all but the first instance MUST be ignored.' Same fix as RFC9252-7-1 for type 6: TestRFC9252SecondL2ServiceTLVIgnoredWhenFirstHasNoSID asserts no SID for each first instance without a valid SID, and TestRFC9252FirstServiceTLVWins#2 the first instance's SID when both are valid. Revert record over ExtractSRv6SIDFull re-observed 2026-10-14.",
+  "requirement_sha": "d301a6e8508330fc",
+  "tests": {
+    "internal/component/bgp/plugins/rib/pool/rfc9252_first_service_tlv_test.go::TestRFC9252FirstServiceTLVWins": "0c4a2b64bfa87678",
+    "internal/component/bgp/plugins/rib/pool/rfc9252_first_service_tlv_test.go::TestRFC9252FirstServiceTLVWins#2": "0c4a2b64bfa87678",
+    "internal/component/bgp/plugins/rib/pool/rfc9252_service_tlv_first_instance_test.go::TestRFC9252SecondL2ServiceTLVIgnoredWhenFirstHasNoSID": "fa7c89c582bffe00"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rib/pool/rfc9252_first_service_tlv_test.go::TestRFC9252FirstServiceTLVWins": "a8af079a11f0c79c",
+    "internal/component/bgp/plugins/rib/pool/rfc9252_first_service_tlv_test.go::TestRFC9252FirstServiceTLVWins#2": "a8af079a11f0c79c",
+    "internal/component/bgp/plugins/rib/pool/rfc9252_service_tlv_first_instance_test.go::TestRFC9252SecondL2ServiceTLVIgnoredWhenFirstHasNoSID": "47a6fee8601eb0cd"
+  },
+  "verdict": "enforced"
+}

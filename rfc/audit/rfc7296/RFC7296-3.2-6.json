@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-11 by an independent judge; row widened to the Critical item head, kept clause 'MUST be set to one if the sender wants the recipient to reject this entire message if it does not understand the payload type' (RFC 7296 3.2). TestCritSenderOneBitRequestsWholeMessageRejection asserts the encoded bit is 0x80 when the sender chose rejection and that ReadFrom then rejects the whole message (ErrUnsupportedCrit, zero payloads, the payload type named); the negative asserts the bit is clear and the message accepted when the sender did not choose it. The obligation is met at the wire encoder; no engine path wants a rejection (RFC7296-3.2-4). No discrimination record.",
+  "requirement_sha": "ace57143a1ce7f1d",
+  "tests": {
+    "internal/component/ike/wire/rfc7296_critpayload_test.go::TestCritSenderOneBitRequestsWholeMessageRejection": "02e1b5b1293a3513",
+    "internal/component/ike/wire/rfc7296_critpayload_test.go::TestCritSenderOneBitRequestsWholeMessageRejection#2": "02e1b5b1293a3513"
+  },
+  "units": {
+    "internal/component/ike/wire/rfc7296_critpayload_test.go::TestCritSenderOneBitRequestsWholeMessageRejection": "014ac3ab0ea6561e",
+    "internal/component/ike/wire/rfc7296_critpayload_test.go::TestCritSenderOneBitRequestsWholeMessageRejection#2": "014ac3ab0ea6561e"
+  },
+  "verdict": "enforced"
+}

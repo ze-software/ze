@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "DRAFT-IETF-SIDROPS-8210BIS-7-4",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_8210bis_version_open_test.go::TestRTRSessionOpensAtTheHighestVersion",
+    "unit-sha": "4b8f8d31ce9d1919",
+    "claim-sha": "8a0e9bd583ad03a9",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rpki/rtr_session.go::connectAndSync",
+    "producer-sha": "804f476bac7d1fc7",
+    "break": "body of connectAndSync replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "DRAFT-IETF-SIDROPS-8210BIS-7-4",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_8210bis_version_open_test.go::TestRTRSessionOpensAtTheHighestVersion",
+    "unit-sha": "4b8f8d31ce9d1919",
+    "claim-sha": "e232fef34d16f732",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rpki/rtr_session.go::handlePDU",
+    "producer-sha": "fcaaae8230f48b20",
+    "break": "line 615: \"errCode == errUnsupportedVersion\" -\u003e \"true\""
+  }
+]

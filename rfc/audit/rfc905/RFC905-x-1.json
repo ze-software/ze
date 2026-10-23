@@ -1,0 +1,17 @@
+{
+  "note": "B.2: addition modulo 255, or one's complement with 255 read as 0. Positive TestRFC905MinusZeroReadAsZero: VerifyChecksum accepts five 0xFF octets (mod 256, or one's complement keeping 255 distinct, leaves C0 non-zero and goes red) and every seed region where Checksum stored 255 for a computed zero. Negative TestRFC905FaultySenderChecksumRefused/modulo-256: the X,Y closed form solves mod 256 too, so a mod-256 verifier would accept the mod-256 sender's checksum and refuse the compliant one; the test requires the opposite, and its guard (faulty != Checksum's) goes red on a mod-256 Checksum. TestISISChecksumFixedVector pins 0x0b,0xed. The old single-octet-flip negative (not an arithmetic violation) was untagged. Recorded red on VerifyChecksum.",
+  "requirement_sha": "5cd66c1aa17d7578",
+  "tests": {
+    "internal/plugins/isis/packet/rfc905_arithmetic_test.go::TestRFC905FaultySenderChecksumRefused": "60d205373562b160",
+    "internal/plugins/isis/packet/rfc905_arithmetic_test.go::TestRFC905MinusZeroReadAsZero": "60d205373562b160",
+    "internal/plugins/isis/packet/rfc905_checksum_vectors_test.go::TestISISChecksumFixedVector": "b9f243f3624e524f",
+    "internal/plugins/isis/packet/rfc905_checksum_vectors_test.go::TestISISChecksumModulus": "b9f243f3624e524f"
+  },
+  "units": {
+    "internal/plugins/isis/packet/rfc905_arithmetic_test.go::TestRFC905FaultySenderChecksumRefused": "82471eafe509af0b",
+    "internal/plugins/isis/packet/rfc905_arithmetic_test.go::TestRFC905MinusZeroReadAsZero": "fc49da1e9d13a6bb",
+    "internal/plugins/isis/packet/rfc905_checksum_vectors_test.go::TestISISChecksumFixedVector": "d0e0e6ba7b0d1347",
+    "internal/plugins/isis/packet/rfc905_checksum_vectors_test.go::TestISISChecksumModulus": "754effd059dc54e3"
+  },
+  "verdict": "enforced"
+}

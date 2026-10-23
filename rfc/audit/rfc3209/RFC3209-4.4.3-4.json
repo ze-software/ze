@@ -1,0 +1,13 @@
+{
+  "note": "Judged 2026-09-29 (routing child, continuation judge). Row widened to the verbatim trigger plus ban; the tests already drive the trigger. TestRFC3209PathRROWithdrawal: after a Path without an RRO, the next relayed RESV and a sendResv refresh carry no RRO, at transit and egress. Negative TestRFC3209PathRROForwarded keeps the RRO while the PATH requests it, so an always-drop implementation goes red.",
+  "requirement_sha": "32e6efd65d1bbacf",
+  "tests": {
+    "internal/plugins/rsvpte/rfc3209_relay_test.go::TestRFC3209PathRROForwarded": "76ac04cc7023e893",
+    "internal/plugins/rsvpte/rfc3209_relay_test.go::TestRFC3209PathRROWithdrawal": "76ac04cc7023e893"
+  },
+  "units": {
+    "internal/plugins/rsvpte/rfc3209_relay_test.go::TestRFC3209PathRROForwarded": "3e9445edcb531d72",
+    "internal/plugins/rsvpte/rfc3209_relay_test.go::TestRFC3209PathRROWithdrawal": "bb4106d8c7d19da7"
+  },
+  "verdict": "enforced"
+}

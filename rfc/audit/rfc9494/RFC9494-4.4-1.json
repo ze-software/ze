@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: a least-preferred route beating one that is not. TestSelectBest_LLGRStaleDepreference gives the stale candidate LOCAL_PREF 300 against 100 and fails, in both input orders, unless the normal route wins, so removing Step 0 goes red. Negative: TestSelectBest_BothLLGRStale fails unless two stale candidates fall through to LOCAL_PREF, so the rule orders only across the least-preferred boundary.",
+  "requirement_sha": "a3a019491077def8",
+  "tests": {
+    "internal/component/bgp/plugins/rib/bestpath_test.go::TestSelectBest_BothLLGRStale": "ae729071cdaf7dce",
+    "internal/component/bgp/plugins/rib/bestpath_test.go::TestSelectBest_LLGRStaleDepreference": "ae729071cdaf7dce"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rib/bestpath_test.go::TestSelectBest_BothLLGRStale": "844428dff19e287b",
+    "internal/component/bgp/plugins/rib/bestpath_test.go::TestSelectBest_LLGRStaleDepreference": "1c03e7016f963cbf"
+  },
+  "verdict": "enforced"
+}

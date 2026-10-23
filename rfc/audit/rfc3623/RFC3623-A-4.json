@@ -1,0 +1,23 @@
+{
+  "note": "Re-judged 2026-10-21. Origination: TestRFC3623GraceLSANeverOmitsAddressOnSharedMedia requires the type-3 TLV with the address for broadcast, NBMA and P2MP through grSharedMedia. Use: gr_helper.go graceRestarterV4 matches body.InterfaceAddr against FloodNeighbors on shared media, refuses a missing TLV or unknown address, and uses the Advertising Router elsewhere. TestRFC3623HelperIdentifiesRestarterByInterfaceAddress now loops broadcast, NBMA and P2MP: Grace-LSA from A naming B's address helps B, not A, exactly one session; on P2P it helps A. TestRFC3623HelperRefusesUnmatchedInterfaceAddress: unknown address or no TLV gives zero sessions on all three. TestRFC3623HelperFlushExitsNamedRestarter: a flush from A naming B's address ends B's session and keeps A's, on all three. Keying on the Advertising Router reddens every one; the earlier broadcast-only limitation is gone.",
+  "requirement_sha": "d1cd3dd926b92d50",
+  "tests": {
+    "internal/plugins/ospf/rfc3623_gr_lsa_test.go::TestGraceLSAv4BodyBuild": "14f3e48bdf980061",
+    "internal/plugins/ospf/rfc3623_gr_lsa_test.go::TestRFC3623GraceLSANeverOmitsAddressOnSharedMedia": "14f3e48bdf980061",
+    "internal/plugins/ospf/rfc3623_grace_helper_identity_test.go::TestRFC3623HelperFlushExitsNamedRestarter": "44a1ffddb79f8b37",
+    "internal/plugins/ospf/rfc3623_grace_helper_identity_test.go::TestRFC3623HelperIdentifiesRestarterByInterfaceAddress": "44a1ffddb79f8b37",
+    "internal/plugins/ospf/rfc3623_grace_helper_identity_test.go::TestRFC3623HelperRefusesUnmatchedInterfaceAddress": "44a1ffddb79f8b37",
+    "internal/plugins/ospf/rfc3623_grace_origination_test.go::TestRFC3623SharedMediaGraceLSACarriesInterfaceAddress": "58f3a76a57e8a603",
+    "internal/plugins/ospf/rfc3623_grace_tlv_octets_test.go::TestRFC3623OriginatedGraceLSATLVOctets": "88abc512204c607b"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc3623_gr_lsa_test.go::TestGraceLSAv4BodyBuild": "a60297fcfa0a372a",
+    "internal/plugins/ospf/rfc3623_gr_lsa_test.go::TestRFC3623GraceLSANeverOmitsAddressOnSharedMedia": "0eb6fdebe508414f",
+    "internal/plugins/ospf/rfc3623_grace_helper_identity_test.go::TestRFC3623HelperFlushExitsNamedRestarter": "c488193017277871",
+    "internal/plugins/ospf/rfc3623_grace_helper_identity_test.go::TestRFC3623HelperIdentifiesRestarterByInterfaceAddress": "4305659705e6524d",
+    "internal/plugins/ospf/rfc3623_grace_helper_identity_test.go::TestRFC3623HelperRefusesUnmatchedInterfaceAddress": "0321926145b931e3",
+    "internal/plugins/ospf/rfc3623_grace_origination_test.go::TestRFC3623SharedMediaGraceLSACarriesInterfaceAddress": "fbcb989e428d9e0b",
+    "internal/plugins/ospf/rfc3623_grace_tlv_octets_test.go::TestRFC3623OriginatedGraceLSATLVOctets": "df00db538804e21c"
+  },
+  "verdict": "enforced"
+}

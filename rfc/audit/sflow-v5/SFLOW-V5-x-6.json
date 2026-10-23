@@ -1,0 +1,13 @@
+{
+  "note": "Single-polarity row. TestSFlowV5FlowSampleSentWithinOneSecond hands a sample to the real sflow FlowEncoder with a real Sender and requires the datagram on the collector socket within one second of the call, so an encoder holding a sample longer than 1 s goes red while one flushing sooner passes, matching the quote; TestExportFlowSampleDispatch proves exportFlowSample dispatches synchronously. Counter samples are sent synchronously in the poll (x-26 units).",
+  "requirement_sha": "b9952440cdffd397",
+  "tests": {
+    "internal/plugins/flowexport/sflow/sflow_v5_datagram_test.go::TestSFlowV5FlowSampleSentWithinOneSecond": "e743d810dcc73b88",
+    "internal/plugins/flowexport/sflow_v5_exporter_test.go::TestExportFlowSampleDispatch": "5b23473bbddf172c"
+  },
+  "units": {
+    "internal/plugins/flowexport/sflow/sflow_v5_datagram_test.go::TestSFlowV5FlowSampleSentWithinOneSecond": "e229bcab8ed88a71",
+    "internal/plugins/flowexport/sflow_v5_exporter_test.go::TestExportFlowSampleDispatch": "cee0a841cf2b1aba"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-10-19 (independent judge, after 4c41f84038, which replaced childPolicyParams with childPolicies: one inbound and one outbound policy per negotiated pair, all bound to the one SA, plus inboundStateSelector for the transport-mode state). RFC 4301 Section 4.4.1: \"Thus, a user or administrator MUST be able to order the entries to express a desired access control policy.\" Prior verdict enforced. The tagged units changed only by childPolicyParams(x, dir) becoming childPolicies(x, dir)[0]; their fixtures carry no selector set, so childPolicies returns exactly one policy and [0] is the same SPParams as before. childPairPolicy resolves Priority from child.PolicyPriority (zero to PriorityChildSA) for every pair, so a multi-pair Child SA carries the operator's rank on every policy. Assertions unchanged: operator rank reaches both directions and orders overlapping peers; unstated order is not 0 and a rekey keeps the default rank; an order capturing IKE is refused (engine and ipsec). All PASS at HEAD. Verdict stands. Owed by the author: the revert record on TestSpdOperatorOrdersOverlappingPeers names childPolicyParams and no longer verifies (unit-changed); re-record it on childPolicies.",
+  "requirement_sha": "dafc8d3e6f262328",
+  "tests": {
+    "internal/component/ike/engine/rfc4301_spd_order_test.go::TestSpdOperatorOrdersOverlappingPeers": "812d6a03f2aa02e6",
+    "internal/component/ike/engine/rfc4301_spd_order_test.go::TestSpdOrderCannotCaptureTheIKEControlPlane": "812d6a03f2aa02e6",
+    "internal/component/ike/engine/rfc4301_spd_order_test.go::TestSpdUnstatedOrderTakesTheDefaultRank": "812d6a03f2aa02e6",
+    "internal/component/ike/ipsec/rfc4301_spd_discard_test.go::TestSPDPolicyOrderInsideBypassBandRefused": "a05a17c69692d82b"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc4301_spd_order_test.go::TestSpdOperatorOrdersOverlappingPeers": "6fb14365acae950d",
+    "internal/component/ike/engine/rfc4301_spd_order_test.go::TestSpdOrderCannotCaptureTheIKEControlPlane": "dbcfabb91c150a6f",
+    "internal/component/ike/engine/rfc4301_spd_order_test.go::TestSpdUnstatedOrderTakesTheDefaultRank": "220c5efd9c6cc96e",
+    "internal/component/ike/ipsec/rfc4301_spd_discard_test.go::TestSPDPolicyOrderInsideBypassBandRefused": "6c06f4f886570ed0"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-02 (independent judge, ospf c26). Row now carries {single-polarity: positive} citing owner ruling 8 (f): 'MUST be supported' has no violating input, so the 1/31 refusal in TestIPsecReplayWindowRange is Ze policy and its negative tag left the row under a D-15 approval citing owner ruling 8; the assertions and their comment (restated as policy) are kept. Positives: TestIPsecReplayWindowRange accepts 32, 64 and 255 through parseOSPFConfig/validateConfig (mutant record on validateIPsecReplayWindow -> false), and TestRFC4302MinimumReplayWindowReachesEverySA carries replay-window 32 from config text to all three SAs of buildIPsecInterfaceSAs (revert record on buildIPsecSA). The kernel XFRM state itself is not read. The HEAD negative mutant record on TestIPsecReplayWindowRange (-> true) is now an orphan with no negative unit on the row, left in place for the main thread.",
+  "requirement_sha": "f615c5ec9826eb4d",
+  "tests": {
+    "internal/plugins/ospf/config_ipsec_test.go::TestIPsecReplayWindowRange": "5c20e3c0dfa0036c",
+    "internal/plugins/ospf/rfc4302_sa_set_test.go::TestRFC4302MinimumReplayWindowReachesEverySA": "f39ffa84edbeaf0f"
+  },
+  "units": {
+    "internal/plugins/ospf/config_ipsec_test.go::TestIPsecReplayWindowRange": "cb5c9ee324c6ddf4",
+    "internal/plugins/ospf/rfc4302_sa_set_test.go::TestRFC4302MinimumReplayWindowReachesEverySA": "28de7da421630189"
+  },
+  "verdict": "enforced"
+}

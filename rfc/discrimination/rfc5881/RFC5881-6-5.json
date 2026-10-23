@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC5881-6-5",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/engine/rfc5881_demux_solely_test.go::TestRFC5881AddressingNeverOverridesTheDiscriminator",
+    "unit-sha": "66112d2059ac72dc",
+    "claim-sha": "50f718aa35bc90a9",
+    "route": "revert",
+    "producer": "internal/component/bfd/engine/loop.go::handleInbound",
+    "producer-sha": "f721533856857321",
+    "break": "body of handleInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5881-6-5",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/engine/rfc5881_demux_solely_test.go::TestRFC5881DiscriminatorAloneSelectsTheSession",
+    "unit-sha": "da2876014d2c74bb",
+    "claim-sha": "c2e3093b6e9bc9f9",
+    "route": "revert",
+    "producer": "internal/component/bfd/engine/loop.go::handleInbound",
+    "producer-sha": "f721533856857321",
+    "break": "body of handleInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5881-6-5",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881DiscriminatorDemuxDelivers",
+    "unit-sha": "aa415f12743ead04",
+    "claim-sha": "8b3b08e706c42b5a",
+    "route": "revert",
+    "producer": "internal/component/bfd/engine/loop.go::handleInbound",
+    "producer-sha": "f721533856857321",
+    "break": "body of handleInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5881-6-5",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881DiscriminatorDemuxUnknownDropped",
+    "unit-sha": "8a052a194653966c",
+    "claim-sha": "de61848adac7de7a",
+    "route": "revert",
+    "producer": "internal/component/bfd/engine/loop.go::handleInbound",
+    "producer-sha": "f721533856857321",
+    "break": "body of handleInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

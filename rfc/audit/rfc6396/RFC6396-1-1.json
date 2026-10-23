@@ -1,0 +1,15 @@
+{
+  "note": "Independent final source rejudgment after formatting. RFC 6396 section 1: \"Fields which contain multi-octet numeric values are encoded in network octet order from most significant octet to least significant octet.\" The following sentence separately preserves routing-message field order; this row is the numeric-order sentence, not an assertion of every encapsulated protocol's semantics. Q1 yes: all three tagged units assert external network order rather than accepting a mutually wrong encoder/decoder roundtrip. internal/mrt/mrt_test.go::TestCommonHeaderRoundTrip checks the exact timestamp/type/subtype/length octets before decoding them. internal/mrt/rfc6396_wire_fields_test.go::TestRFC6396NumericFieldsUseExternalNetworkOrder independently constructs PIT name-length/count/AS2/AS4, RIB sequence/count/index/time/attribute-length and BGP4MP AS2/AS4/interface/AFI octets, compares writer output, then decodes the literals. internal/mrt/rfc6396_remaining_fields_test.go::TestRFC6396RemainingNumericFields independently pins ET microseconds, both FSM state fields and AS widths, RIB_GENERIC sequence/AFI, and TABLE_DUMP view/sequence/time/ASN/attribute-length under both address widths. Q2 yes by source: asymmetric values and exact lengths/bytes/decoded values reject endian reversal, missing fields and offset shifts; formatted multi-line conditionals retain their failures. No runtime execution or renewed discrimination is claimed. Q3 yes for numeric layout: independent expected buffers and structural lengths reach the intended fields. Opaque repeated attribute bytes are not evidence of BGP attribute validity and are not parsed as such by these MRT envelope readers. Q4 yes across the implemented base-RFC numeric envelope fields; the three carriers are complementary, not each whole-scope alone. RFC 8050 Path Identifiers and RFC 6397 geolocation are separately specified extensions. Read internal/mrt/encode.go numeric writers and internal/mrt/decode.go readers: their 16/32-bit numeric operations are big-endian, while address and message octets are copied unchanged. The declared single positive polarity is appropriate to an encoder layout invariant without an alternate-endianness mode to reject. This judgment does not erase the separate RFC6396-4.4.3-1 AS_PATH-width gap.",
+  "requirement_sha": "2760ee7de2407440",
+  "tests": {
+    "internal/mrt/mrt_test.go::TestCommonHeaderRoundTrip": "fb2e8a7edf55af3c",
+    "internal/mrt/rfc6396_remaining_fields_test.go::TestRFC6396RemainingNumericFields": "4f9b9c1a06dc7569",
+    "internal/mrt/rfc6396_wire_fields_test.go::TestRFC6396NumericFieldsUseExternalNetworkOrder": "6e5ac96a9c02ebe6"
+  },
+  "units": {
+    "internal/mrt/mrt_test.go::TestCommonHeaderRoundTrip": "449046ff5ce584d2",
+    "internal/mrt/rfc6396_remaining_fields_test.go::TestRFC6396RemainingNumericFields": "ba28388e6273f95d",
+    "internal/mrt/rfc6396_wire_fields_test.go::TestRFC6396NumericFieldsUseExternalNetworkOrder": "79869150e6692262"
+  },
+  "verdict": "enforced"
+}

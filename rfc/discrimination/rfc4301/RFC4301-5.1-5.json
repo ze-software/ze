@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4301-5.1-5",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc4301_outbound_steps_linux_test.go::TestRFC4301OutboundPacketIsDiscardedByTheEntryItMatches",
+    "unit-sha": "a20a9f9c8e4aaa95",
+    "claim-sha": "76e50ec722d96d6b",
+    "route": "revert",
+    "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmPolicyFromParams",
+    "producer-sha": "9560ce5abe6dc41e",
+    "break": "body of xfrmPolicyFromParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4301-5.1-5",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc4301_outbound_steps_linux_test.go::TestRFC4301OutboundPacketTakesTheDispositionOfTheEntryItMatches",
+    "unit-sha": "1caadc7014d799e1",
+    "claim-sha": "973a0066d85b5d64",
+    "route": "revert",
+    "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmPolicyFromParams",
+    "producer-sha": "9560ce5abe6dc41e",
+    "break": "body of xfrmPolicyFromParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

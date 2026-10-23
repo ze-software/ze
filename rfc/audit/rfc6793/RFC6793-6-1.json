@@ -1,0 +1,15 @@
+{
+  "note": "TestRFC6793AS4PathMalformedRejected drives every Section 6 condition (odd length, <6 octets, zero and overrunning segment length, undefined type) through ParseAS4Path; positive accepts a well-formed path. The tag at rfc6793_reconcile_test.go TestRFC6793MalformedAS4PathIsDiscarded describes the RFC6793-6-4 discard obligation rather than this row.",
+  "requirement_sha": "55a6a0bc03464f13",
+  "tests": {
+    "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793AS4PathMalformedRejected": "fdd3980327455f38",
+    "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793AS4PathWellFormedAccepted": "fdd3980327455f38",
+    "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793MalformedAS4PathIsDiscarded": "4e9759edcd069569"
+  },
+  "units": {
+    "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793AS4PathMalformedRejected": "6de46a78a99b3e36",
+    "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793AS4PathWellFormedAccepted": "8e70d8d9c7bdb160",
+    "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793MalformedAS4PathIsDiscarded": "643f9e028c709dd5"
+  },
+  "verdict": "enforced"
+}

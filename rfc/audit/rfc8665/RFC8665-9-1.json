@@ -1,0 +1,35 @@
+{
+  "note": "Rejudged 2026-10-21 over the current tags, units and records. Comment-only edit (ErrLength wraps ErrMalformed). Length-invalid SR TLVs and sub-TLVs cause the carrying RI, Extended Prefix and Extended Link LSAs to be ignored by SR install and BGP-LS export, and well-formed ones are applied.",
+  "requirement_sha": "2363507fd25d8603",
+  "tests": {
+    "internal/plugins/ospf/rfc8665_ext_malformed_test.go::TestRFC8665LengthInvalidAdjSIDIgnoresExtendedLinkLSA": "ef2971c9ee845d41",
+    "internal/plugins/ospf/rfc8665_ext_malformed_test.go::TestRFC8665LengthInvalidAdjSIDIgnoresExtendedLinkLSA#2": "ef2971c9ee845d41",
+    "internal/plugins/ospf/rfc8665_ext_malformed_test.go::TestRFC8665LengthInvalidSubTLVIgnoredByBGPLSExport": "ef2971c9ee845d41",
+    "internal/plugins/ospf/rfc8665_ext_malformed_test.go::TestRFC8665LengthInvalidSubTLVIgnoredByBGPLSExport#2": "ef2971c9ee845d41",
+    "internal/plugins/ospf/rfc8665_ext_malformed_test.go::TestRFC8665LengthInvalidSubTLVIgnoresExtendedPrefixLSA": "ef2971c9ee845d41",
+    "internal/plugins/ospf/rfc8665_ext_malformed_test.go::TestRFC8665LengthInvalidSubTLVIgnoresExtendedPrefixLSA#2": "ef2971c9ee845d41",
+    "internal/plugins/ospf/rfc8665_malformed_lsa_test.go::TestRFC8665LengthInvalidSRGBIgnoresLSA": "71d30bc409f505ca",
+    "internal/plugins/ospf/rfc8665_malformed_lsa_test.go::TestRFC8665LengthInvalidTLVIgnoresLSA": "71d30bc409f505ca",
+    "internal/plugins/ospf/rfc8665_malformed_lsa_test.go::TestRFC8665LengthInvalidTLVIgnoresLSA#2": "71d30bc409f505ca",
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665TruncatedTLVsRejectedWithoutPanic": "dcc89abea6ba13ce",
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665WellFormedTLVsDecode": "dcc89abea6ba13ce",
+    "internal/plugins/ospf/sr_length_before_flags_test.go::TestRFC8665LengthBeforeFlagsIgnoresLSA": "a57eda77c987d4f1",
+    "internal/plugins/ospf/sr_length_before_flags_test.go::TestRFC8665LengthBeforeFlagsIgnoresLSA#2": "a57eda77c987d4f1"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc8665_ext_malformed_test.go::TestRFC8665LengthInvalidAdjSIDIgnoresExtendedLinkLSA": "2869be4a64da8e5e",
+    "internal/plugins/ospf/rfc8665_ext_malformed_test.go::TestRFC8665LengthInvalidAdjSIDIgnoresExtendedLinkLSA#2": "2869be4a64da8e5e",
+    "internal/plugins/ospf/rfc8665_ext_malformed_test.go::TestRFC8665LengthInvalidSubTLVIgnoredByBGPLSExport": "3fcf4118b01019e8",
+    "internal/plugins/ospf/rfc8665_ext_malformed_test.go::TestRFC8665LengthInvalidSubTLVIgnoredByBGPLSExport#2": "3fcf4118b01019e8",
+    "internal/plugins/ospf/rfc8665_ext_malformed_test.go::TestRFC8665LengthInvalidSubTLVIgnoresExtendedPrefixLSA": "087887b02bab48d8",
+    "internal/plugins/ospf/rfc8665_ext_malformed_test.go::TestRFC8665LengthInvalidSubTLVIgnoresExtendedPrefixLSA#2": "087887b02bab48d8",
+    "internal/plugins/ospf/rfc8665_malformed_lsa_test.go::TestRFC8665LengthInvalidSRGBIgnoresLSA": "098d3a8387d57414",
+    "internal/plugins/ospf/rfc8665_malformed_lsa_test.go::TestRFC8665LengthInvalidTLVIgnoresLSA": "f1271a8538e3fd01",
+    "internal/plugins/ospf/rfc8665_malformed_lsa_test.go::TestRFC8665LengthInvalidTLVIgnoresLSA#2": "f1271a8538e3fd01",
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665TruncatedTLVsRejectedWithoutPanic": "613d49c45b41bda8",
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665WellFormedTLVsDecode": "22d8770ac38fe4af",
+    "internal/plugins/ospf/sr_length_before_flags_test.go::TestRFC8665LengthBeforeFlagsIgnoresLSA": "4ef21c7e98d0d463",
+    "internal/plugins/ospf/sr_length_before_flags_test.go::TestRFC8665LengthBeforeFlagsIgnoresLSA#2": "4ef21c7e98d0d463"
+  },
+  "verdict": "enforced"
+}

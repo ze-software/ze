@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC1334-2.2.1-4",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestPAPReanswerDiscardsMalformedRequest",
+    "unit-sha": "cf210aae7ad412d0",
+    "claim-sha": "110478af98f8672d",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/pap.go::reanswerPAP",
+    "producer-sha": "cee20f0f665b211a",
+    "break": "body of reanswerPAP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1334-2.2.1-4",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestPAPReanswersAfterAuthentication",
+    "unit-sha": "9dc992cbec3a1c71",
+    "claim-sha": "f7f4e0d9b0702528",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/pap.go::reanswerPAP",
+    "producer-sha": "cee20f0f665b211a",
+    "break": "body of reanswerPAP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

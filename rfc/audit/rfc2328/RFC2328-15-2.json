@@ -1,0 +1,21 @@
+{
+  "note": "Re-judged 2026-09-30 (independent judge, c10/c11). Prior clauses unchanged: cost = intra-area path cost carried by the routing table entry (spf/TestRFC2328VirtualCostIsTransitPathCost), a cost change originates a new backbone router-LSA (TestRFC2328VirtualCostChangeOriginatesNewInstance, TestRFC2328VirtualCostChangeReoriginatesBackbone +, TestRFC2328VirtualUnusablePathWithdrawsBackboneLink -). The missing MUST clause 'The cost of a virtual link is NOT configured' now has negatives on both virtual-link lists through the operator path (config text -> config.ParseTreeWithYANG over ZeOSPFConfYANG -> ToPluginMap -> parseOSPFConfig): TestRFC2328VirtualLinkCostNotConfigurable (ospf areas area virtual-link) and TestRFC2328VirtualLinkCostNotConfigurableV3 (address-family ipv6, ospf-af-topology grouping), each accepting the link without cost (reaches cfg.VirtualLinks / cfg.V6.VirtualLinks) and refusing `cost 10` with an error naming cost. Their records are no-break declaration-only (the tool cannot mutate an embedded YANG file); the judge observed the red with an overlay mutants (go test -overlay, tree untouched, scratch/ospf-judge-mut) adding `leaf cost { type uint16; }` to both lists of ze-ospf-conf.yang: both units red at the refusal assertion.",
+  "requirement_sha": "6896c8eda4295cbb",
+  "tests": {
+    "internal/plugins/ospf/rfc2328_virtual_cost_config_test.go::TestRFC2328VirtualLinkCostNotConfigurable": "dfe400de775ae1bb",
+    "internal/plugins/ospf/rfc2328_virtual_cost_config_test.go::TestRFC2328VirtualLinkCostNotConfigurableV3": "dfe400de775ae1bb",
+    "internal/plugins/ospf/rfc2328_virtual_cost_test.go::TestRFC2328VirtualCostChangeOriginatesNewInstance": "8865f8b75d270fdf",
+    "internal/plugins/ospf/rfc2328_virtual_route_test.go::TestRFC2328VirtualCostChangeReoriginatesBackbone": "275bbc417919f739",
+    "internal/plugins/ospf/rfc2328_virtual_route_test.go::TestRFC2328VirtualUnusablePathWithdrawsBackboneLink": "275bbc417919f739",
+    "internal/plugins/ospf/spf/rfc2328_virtual_cost_test.go::TestRFC2328VirtualCostIsTransitPathCost": "ef3111fe49656676"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc2328_virtual_cost_config_test.go::TestRFC2328VirtualLinkCostNotConfigurable": "ae524452132aa0c3",
+    "internal/plugins/ospf/rfc2328_virtual_cost_config_test.go::TestRFC2328VirtualLinkCostNotConfigurableV3": "3ec1f675f175ee9b",
+    "internal/plugins/ospf/rfc2328_virtual_cost_test.go::TestRFC2328VirtualCostChangeOriginatesNewInstance": "ce0a7a42bbb5664d",
+    "internal/plugins/ospf/rfc2328_virtual_route_test.go::TestRFC2328VirtualCostChangeReoriginatesBackbone": "d4f5e4cfc4fc39c0",
+    "internal/plugins/ospf/rfc2328_virtual_route_test.go::TestRFC2328VirtualUnusablePathWithdrawsBackboneLink": "302b46566516eeee",
+    "internal/plugins/ospf/spf/rfc2328_virtual_cost_test.go::TestRFC2328VirtualCostIsTransitPathCost": "1dbd5f7d727ad4e2"
+  },
+  "verdict": "enforced"
+}

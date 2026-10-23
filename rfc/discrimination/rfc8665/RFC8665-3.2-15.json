@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8665-3.2-15",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/rfc8665_test.go::TestRFC8665SRCapabilityTLVsAbsentFromOtherScopes",
+    "unit-sha": "f650ee2b08292e2b",
+    "claim-sha": "ae5088ff256f91c6",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/ri_registry.go::riTLVBuildersForScope",
+    "producer-sha": "9d33f19653bfe131",
+    "break": "body of riTLVBuildersForScope replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8665-3.2-15",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc8665_test.go::TestRFC8665SRCapabilityTLVsAreAreaScoped",
+    "unit-sha": "405d3e5af69c21b1",
+    "claim-sha": "a29489c5b00cae98",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/register_sr.go::srRegisterWire",
+    "producer-sha": "987008a6dd27f413",
+    "break": "body of srRegisterWire replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

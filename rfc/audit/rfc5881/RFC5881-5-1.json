@@ -1,0 +1,15 @@
+{
+  "note": "Judge 2026-09-30 (rejudge, netns+pinning). \u00a75 \"If BFD authentication is not in use on a session, all BFD Control packets for the session MUST be sent with a Time to Live (TTL) or Hop Limit value of 255.\" + TestRFC5881ControlLeavesWithTTL255OnTheWire reads 255 off the received IP header (IPv4 and IPv6), now in a rootless netns. - (R1 a, receiving side) TestRFC5881UnauthenticatedControlBelow255IsDiscardedOffTheWire: a peer socket sends Control at TTL 254 / Hop Limit 254 to a started Loop on a real transport.UDP; session stays Down with RemoteDiscr 0, the same packet at 255 reaches Init. Old plain-kernel-socket negative tag removed. Revert records on loop.go::passesTTLGate (-) and udp_linux.go::applySocketOptionsV6 (+) observed red.",
+  "requirement_sha": "65870646048361fd",
+  "tests": {
+    "internal/component/bfd/engine/rfc5881_ttl_wire_linux_test.go::TestRFC5881UnauthenticatedControlBelow255IsDiscardedOffTheWire": "b27d2d5cb5079f05",
+    "internal/component/bfd/transport/rfc5881_ttl_wire_linux_test.go::TestRFC5881ControlLeavesWithTTL255OnTheWire": "1aa2d39d3b0cd82e",
+    "internal/component/bfd/transport/rfc5881_udp_ttl_linux_test.go::TestUDPSetOutboundTTL255": "9fd41d7683776620"
+  },
+  "units": {
+    "internal/component/bfd/engine/rfc5881_ttl_wire_linux_test.go::TestRFC5881UnauthenticatedControlBelow255IsDiscardedOffTheWire": "c222fee642adb96a",
+    "internal/component/bfd/transport/rfc5881_ttl_wire_linux_test.go::TestRFC5881ControlLeavesWithTTL255OnTheWire": "fde61bb234e77c2b",
+    "internal/component/bfd/transport/rfc5881_udp_ttl_linux_test.go::TestUDPSetOutboundTTL255": "672d376abb95068a"
+  },
+  "verdict": "enforced"
+}

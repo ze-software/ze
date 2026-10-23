@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC1195-4.4-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/fib/kernel/rfc1195_onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix",
+    "unit-sha": "3e899cc3c83f0b81",
+    "claim-sha": "53ac4a1a8c941d82",
+    "route": "revert",
+    "producer": "internal/plugins/fib/kernel/fibkernel.go::processEvent",
+    "producer-sha": "1ba199aaa6a897bd",
+    "break": "body of processEvent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1195-4.4-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/fib/kernel/rfc1195_onlink_integration_linux_test.go::TestFIBOnLinkAdjacencyAndUnsupportedPrefix",
+    "unit-sha": "3e899cc3c83f0b81",
+    "claim-sha": "e1d1fe0869902884",
+    "route": "revert",
+    "producer": "internal/plugins/fib/kernel/fibkernel.go::processEvent",
+    "producer-sha": "1ba199aaa6a897bd",
+    "break": "body of processEvent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1195-4.4-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/rfc1195_neighbor_addresses_test.go::TestRFC1195OffSubnetNeighborIsOnLinkNextHop",
+    "unit-sha": "08b265ae146abd65",
+    "claim-sha": "db34088fc989481c",
+    "route": "revert",
+    "producer": "internal/plugins/isis/spf_wiring.go::ResolveNextHop",
+    "producer-sha": "fa86deec17306279",
+    "break": "body of ResolveNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1195-4.4-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/rfc1195_neighbor_addresses_test.go::TestRFC1195OffSubnetNeighborNotResolvedBySubnet",
+    "unit-sha": "5b034ef2858e977e",
+    "claim-sha": "51257049647c66df",
+    "route": "revert",
+    "producer": "internal/plugins/isis/spf_wiring.go::ResolveNextHop",
+    "producer-sha": "fa86deec17306279",
+    "break": "body of ResolveNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

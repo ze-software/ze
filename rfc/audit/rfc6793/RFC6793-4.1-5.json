@@ -1,0 +1,13 @@
+{
+  "note": "TestRFC6793DecodeFourOctetWhenNegotiated reads ParseASPath/ParseAggregator with fourByte=true and recovers 4200000001; the negative shows the same bytes decode on a 2-octet stride and an 8-octet AGGREGATOR is refused without the capability.",
+  "requirement_sha": "85a225abd5568a33",
+  "tests": {
+    "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793DecodeFourOctetWhenNegotiated": "fdd3980327455f38",
+    "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793DecodeTwoOctetWhenNotNegotiated": "fdd3980327455f38"
+  },
+  "units": {
+    "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793DecodeFourOctetWhenNegotiated": "e426f08bfe6c6f60",
+    "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793DecodeTwoOctetWhenNotNegotiated": "35f72eec2c5c6841"
+  },
+  "verdict": "enforced"
+}

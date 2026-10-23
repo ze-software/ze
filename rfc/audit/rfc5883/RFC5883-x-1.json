@@ -1,0 +1,13 @@
+{
+  "note": "Re-read 2026-09-27; the quote is the same \u00a73 sentence as RFC5883-3-1 and the same two units carry it. Forbidden: Echo used over multiple hops; TestRFC5883MultiHopEchoRejected fails when validate accepts it, TestRFC5883SingleHopEchoAccepted is the scoping contrast.",
+  "requirement_sha": "03fdcefb3e140eb7",
+  "tests": {
+    "internal/component/bfd/rfc5883_test.go::TestRFC5883MultiHopEchoRejected": "ba279384b03d7bf9",
+    "internal/component/bfd/rfc5883_test.go::TestRFC5883SingleHopEchoAccepted": "ba279384b03d7bf9"
+  },
+  "units": {
+    "internal/component/bfd/rfc5883_test.go::TestRFC5883MultiHopEchoRejected": "b8c712631580734b",
+    "internal/component/bfd/rfc5883_test.go::TestRFC5883SingleHopEchoAccepted": "dd78e4a3f8c7f343"
+  },
+  "verdict": "enforced"
+}

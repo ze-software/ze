@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4301-4.4.2.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemSPIIsTheNegotiatedValue",
+    "unit-sha": "9dd3c29e2801ea6a",
+    "claim-sha": "06fcc8dbf2a60dd5",
+    "route": "revert",
+    "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
+    "producer-sha": "20b949de8627ad06",
+    "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4301-4.4.2.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemZeroSPIIsRefused",
+    "unit-sha": "678601a87b68cd79",
+    "claim-sha": "14f72ba2a1ca3059",
+    "route": "revert",
+    "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
+    "producer-sha": "20b949de8627ad06",
+    "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

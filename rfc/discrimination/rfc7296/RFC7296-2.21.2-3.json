@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.21.2-3",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/mobike_test.go::TestMobikeAuthExtensionErrorsRequirePeerUnderstanding",
+    "unit-sha": "00c264bd98ec6ad3",
+    "claim-sha": "747aba6f853f5887",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/responder.go::handleAuthRequest",
+    "producer-sha": "391521701bb06eef",
+    "break": "body of handleAuthRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.21.2-3",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/mobike_test.go::TestMobikeAuthExtensionErrorsRequirePeerUnderstanding",
+    "unit-sha": "00c264bd98ec6ad3",
+    "claim-sha": "2ec8e380ffe52947",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/responder.go::handleAuthRequest",
+    "producer-sha": "391521701bb06eef",
+    "break": "body of handleAuthRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

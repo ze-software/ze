@@ -1,0 +1,8 @@
+{
+  "code": {
+    "internal/component/config/yang/validator.go::walkTree": "a1127b4c14f9746a"
+  },
+  "note": "Re-judged 2026-10-20 (independent judge, after 4bf9935e38). Section 8.1: \"Nodes MUST be present for at most one case branch in all choices.\" walkTree's change (schemaChild descent into case data, requireMandatoryChildren/requireMandatoryInPresentCases) checks each case holding data for its mandatory nodes but never counts the cases: judge probe ValidateTree(\"wrap\", {a-flag, a-need, g-one, g-need}) with two cases of one choice present returns no error. unique constraints are extracted into ListNode.Unique and consumed only by the web UI, never validated; Ze modules declare no when or if-feature, and walkTree evaluates neither. {gap} stands. Owned by spec-config-yang-when-unique-choice.",
+  "requirement_sha": "db7a7bd15882fa47",
+  "verdict": "unimplemented"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged c18. Sentence: fold the long sum by adding 16-bit segments; each addition may carry again and those carries must be added. TestRFC1071FoldRepeatsUntilNoCarry sums FFFF FFFF 0001 = 0x1FFFF, whose first fold 0x10000 carries again; internetChecksum and InternetChecksumPair must both answer exactly 0xFFFE (a single fold answers 0xFFFF), and internetChecksumValid accepts the data with 0xFFFE appended. Record breaks internetChecksum, observed red. TestInternetChecksumRFC1071Vectors prose narrowed to its one carry (D-15). Single-polarity positive valid: a fold has no reject path.",
+  "requirement_sha": "3d5df36b6e1eb1ef",
+  "tests": {
+    "internal/plugins/ospf/types/checksum_test.go::TestInternetChecksumRFC1071Vectors": "66165fee03c7d467",
+    "internal/plugins/ospf/types/rfc1071_fold_test.go::TestRFC1071FoldRepeatsUntilNoCarry": "606551ba53a6cd63"
+  },
+  "units": {
+    "internal/plugins/ospf/types/checksum_test.go::TestInternetChecksumRFC1071Vectors": "2444e63534991810",
+    "internal/plugins/ospf/types/rfc1071_fold_test.go::TestRFC1071FoldRepeatsUntilNoCarry": "5d01780caf18be5d"
+  },
+  "verdict": "enforced"
+}

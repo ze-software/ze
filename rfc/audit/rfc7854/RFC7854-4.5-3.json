@@ -1,0 +1,13 @@
+{
+  "note": "live shutdown Termination carries exactly one two-octet Reason; absent, empty, short and long Reason TLVs fail decode and end the session",
+  "requirement_sha": "db7b336be90a3b4e",
+  "tests": {
+    "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestRFC7854SenderTerminationCarriesReason": "4c8de7d703105fd1",
+    "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestRFC7854TerminationRequiresTwoByteReason": "4c8de7d703105fd1"
+  },
+  "units": {
+    "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestRFC7854SenderTerminationCarriesReason": "2c962093f1686a33",
+    "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestRFC7854TerminationRequiresTwoByteReason": "e2410420a6d0a0d2"
+  },
+  "verdict": "enforced"
+}

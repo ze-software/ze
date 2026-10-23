@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: keeping a Type-7 whose forwarding interface went Down. nssa_import_lifecycle_test.go TestNSSAImportReoriginatesAfterForwardingInterfaceDown asserts after onInterfaceDown the next forwarding address, Sequence.Next(), not MaxAge (line 138), and MaxAge when no address remains (line 145); TestNSSAImportIgnoresUnrelatedDownAndWithdrawnIntent asserts an unrelated Down leaves sequence and address unchanged (line 170).",
+  "requirement_sha": "360c6bc39ddddad9",
+  "tests": {
+    "internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go::TestNSSAImportIgnoresUnrelatedDownAndWithdrawnIntent": "98ecc3fedcb96b09",
+    "internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go::TestNSSAImportReoriginatesAfterForwardingInterfaceDown": "98ecc3fedcb96b09"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go::TestNSSAImportIgnoresUnrelatedDownAndWithdrawnIntent": "19e5f5f7b72be51b",
+    "internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go::TestNSSAImportReoriginatesAfterForwardingInterfaceDown": "9695b633b187bbe8"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-21. TestRFC5250DiscontinueOpaqueFromUnreachableOriginator: two Type-11 extended-prefix LSAs from 2.2.2.2 are usable, then with no new LSA the originator becomes unreachable and both rows turn unusable (record extPrefixUsable). Detection is stubbed here and proven in 5-1. The TED consumer has its own live gate (te_ted.go usableLocked), tested by TestInterAsTEType11UnreachableUnusable, which carries no tag.",
+  "requirement_sha": "1ace7b50155ea702",
+  "tests": {
+    "internal/plugins/ospf/rfc5250_discontinue_test.go::TestRFC5250DiscontinueOpaqueFromUnreachableOriginator": "89e3bd7e3890df87",
+    "internal/plugins/ospf/rfc5250_discontinue_test.go::TestRFC5250DiscontinueOpaqueFromUnreachableOriginator#2": "89e3bd7e3890df87"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc5250_discontinue_test.go::TestRFC5250DiscontinueOpaqueFromUnreachableOriginator": "15324195f3bef120",
+    "internal/plugins/ospf/rfc5250_discontinue_test.go::TestRFC5250DiscontinueOpaqueFromUnreachableOriginator#2": "15324195f3bef120"
+  },
+  "verdict": "enforced"
+}

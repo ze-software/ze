@@ -1570,7 +1570,7 @@ let the gate re-seal a verdict against a fingerprint the guard does not compute.
 ### What a verdict cannot replay: the discrimination record
 
 An audit verdict is a person's judgement, written on the day they read the test.
-`rfc/discrimination/<stem>.json` records a machine-replayable answer to the same
+`rfc/discrimination/<stem>/<requirement-id>.json` records a machine-replayable answer to the same
 question: a named break of the producing code, and the observation that the tagged unit
 went RED under that break and green again after it. `./le rfc check` replays the
 fingerprints on every run, so a rewritten unit, a reworded claim or a moved producer

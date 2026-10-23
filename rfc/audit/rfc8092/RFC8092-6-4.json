@@ -1,0 +1,17 @@
+{
+  "note": "Independent semantic rejudgment: RFC8092 Section 6: \"A BGP UPDATE message with a malformed BGP Large Communities attribute SHALL be handled using the approach of \"treat-as-withdraw\" as described in Section 2 of [RFC7606].\" Current TestRFC8092MalformedLargeCommunityWithdrawsTheRoutes asserts actual reactor handoff as withdrawn NLRI with no reachable NLRI/attributes, Established retained and no notification, paired with unchanged valid attribute/NLRI delivery. The caller-bypass mutation now fails that withdrawal oracle, not merely ValidateUpdateRFC7606 Action. The duplicate-values-as-malformed fault independently fails the valid duplicate carrier, providing legitimate admission discrimination; it does not create a new judgment for an unrequested duplicate requirement. Source and tagged consumers therefore protect the actual RFC7606 caller behavior, while unexecuted foreign FRR carriers remain pending. These are inspected scratch semantic executions, not canonical discrimination records. Current native record renewal/stamping remains parent-owned; no pending FRR carrier run, SRPM behavior, dataplane behavior, or full-RFC acceptance is inferred.",
+  "requirement_sha": "25a1fc1019385ad0",
+  "tests": {
+    "internal/component/bgp/message/rfc8092_test.go::TestRFC8092LargeCommunityMalformedLength": "64840271479cd6ab",
+    "internal/component/bgp/message/rfc8092_test.go::TestRFC8092LargeCommunityValidReservedASN": "64840271479cd6ab",
+    "internal/component/bgp/reactor/rfc8092_treat_as_withdraw_test.go::TestRFC8092MalformedLargeCommunityWithdrawsTheRoutes": "652a5d2bf24456a1",
+    "internal/component/bgp/reactor/rfc8092_treat_as_withdraw_test.go::TestRFC8092WellFormedLargeCommunityKeepsTheRoutes": "652a5d2bf24456a1"
+  },
+  "units": {
+    "internal/component/bgp/message/rfc8092_test.go::TestRFC8092LargeCommunityMalformedLength": "3bf72eb68ee49fcf",
+    "internal/component/bgp/message/rfc8092_test.go::TestRFC8092LargeCommunityValidReservedASN": "b15463f27b3fd389",
+    "internal/component/bgp/reactor/rfc8092_treat_as_withdraw_test.go::TestRFC8092MalformedLargeCommunityWithdrawsTheRoutes": "4ce5db79e3c2ab79",
+    "internal/component/bgp/reactor/rfc8092_treat_as_withdraw_test.go::TestRFC8092WellFormedLargeCommunityKeepsTheRoutes": "ff13c96587a6b70f"
+  },
+  "verdict": "enforced"
+}

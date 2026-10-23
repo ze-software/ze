@@ -1,0 +1,15 @@
+{
+  "note": "Judge 2026-09-30. Now driven through the operator's entry: config text parsed against the bfd YANG, the plugin config section, parseSections, resolveProfile, asserting the session request's Auth.Secret byte for byte. Positive: a plain ASCII password for simple-password. Negative (R1b, inputs forced toward the violation): every ASCII byte 0x01-0x7F including quote, backslash, ; { } # and whitespace, plus leading/trailing spaces, in 16-byte chunks. Judge's own break (parseAuthConfig strips one trailing space) reds the negative in all 5 types while the positive stays green; revert records observed red on both. Old direct parseAuthConfig positive kept; the 4.2-1 length refusal no longer carries this row (D-15).",
+  "requirement_sha": "807a589e85a475d4",
+  "tests": {
+    "internal/component/bfd/rfc5880_key_management_config_test.go::TestRFC5880KeyManagementConfigEntryAcceptsASCIIStrings": "ba2adf6f782f3d31",
+    "internal/component/bfd/rfc5880_key_management_config_test.go::TestRFC5880KeyManagementConfigEntryKeepsEveryASCIICharacter": "ba2adf6f782f3d31",
+    "internal/component/bfd/rfc5880_test.go::TestRFC5880SimplePasswordManagementAcceptsASCIIStrings": "79f92760f00616a6"
+  },
+  "units": {
+    "internal/component/bfd/rfc5880_key_management_config_test.go::TestRFC5880KeyManagementConfigEntryAcceptsASCIIStrings": "38e7efe8ff8bbddd",
+    "internal/component/bfd/rfc5880_key_management_config_test.go::TestRFC5880KeyManagementConfigEntryKeepsEveryASCIICharacter": "479e38e5a0b6abaa",
+    "internal/component/bfd/rfc5880_test.go::TestRFC5880SimplePasswordManagementAcceptsASCIIStrings": "a612ba2366437119"
+  },
+  "verdict": "enforced"
+}

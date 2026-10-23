@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithANextHopIsAdvertised",
+    "unit-sha": "77a5550b75f8c3f2",
+    "claim-sha": "c0d2a2c46c8e296c",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/peer_rib_routes.go::buildRIBRouteUpdate",
+    "producer-sha": "3f86f9f49b4aa5c6",
+    "break": "body of buildRIBRouteUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithNoNextHopIsNotAdvertised",
+    "unit-sha": "a79302188ff833bc",
+    "claim-sha": "2f5ab70e7ded6a86",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/peer_rib_routes.go::buildRIBRouteUpdate",
+    "producer-sha": "3f86f9f49b4aa5c6",
+    "break": "body of buildRIBRouteUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go::TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer",
+    "unit-sha": "97c3d7a6a0df9c32",
+    "claim-sha": "06ff1ebb3deab52a",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopLinkLocalOnlyOffLink",
+    "producer-sha": "c041921634486eb8",
+    "break": "body of egressNextHopLinkLocalOnlyOffLink replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go::TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer",
+    "unit-sha": "97c3d7a6a0df9c32",
+    "claim-sha": "32e33856758b4777",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopLinkLocalOnlyOffLink",
+    "producer-sha": "c041921634486eb8",
+    "break": "body of egressNextHopLinkLocalOnlyOffLink replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

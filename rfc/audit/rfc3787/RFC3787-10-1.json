@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged 2026-09-30 (independent judge) under OWNER RULING 2. Positive circuit TestISISIIHOriginationTLVs requires exactly one TLV 132 whose value is the configured c0 00 02 01 in the sent LAN and P2P IIH (record + revert ipv4InterfaceAddrTLV). Negatives: circuit TestISISHelloTLV132RequiresInterfaceAddr (generation side: a circuit with no IPv4 omits TLV 132 rather than fabricating one; record - revert ipv4InterfaceAddrTLV) and NEW root TestRFC3787PeerWithoutIPInterfaceAddressHasNoNextHop (handling of absence: a peer IIH advertising 0xCC with no TLV 132, or TLV 132 with zero entries, still forms an Up adjacency, as RFC 3787 section 10 and RFC 1195 section 4.4 form adjacencies 'independent of the IP interface addresses', and ResolveNextHop answers not-found, inventing neither gateway nor rejection; record - revert spf_wiring.go ResolveNextHop, author's overlay returning an address-less on-link hop went red on both subtests). Read against ResolveNextHop: row.IPv4 empty -> continue -> (NextHop{}, false).",
+  "requirement_sha": "3d484bb30936d1f8",
+  "tests": {
+    "internal/plugins/isis/circuit/hello_test.go::TestISISHelloTLV132RequiresInterfaceAddr": "d2a6a39b4a89fc93",
+    "internal/plugins/isis/circuit/hello_test.go::TestISISIIHOriginationTLVs": "d2a6a39b4a89fc93",
+    "internal/plugins/isis/rfc3787_absence_test.go::TestRFC3787PeerWithoutIPInterfaceAddressHasNoNextHop": "a940981abe536df7"
+  },
+  "units": {
+    "internal/plugins/isis/circuit/hello_test.go::TestISISHelloTLV132RequiresInterfaceAddr": "ccce6b2d66d0df36",
+    "internal/plugins/isis/circuit/hello_test.go::TestISISIIHOriginationTLVs": "1cff299a6fa05a25",
+    "internal/plugins/isis/rfc3787_absence_test.go::TestRFC3787PeerWithoutIPInterfaceAddressHasNoNextHop": "f9c5fe7a057b3f64"
+  },
+  "verdict": "enforced"
+}

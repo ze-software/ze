@@ -1,0 +1,6 @@
+{
+  "no_code_path": "Both MAY sentences apply to the SSH transport. Ze's RTR client implements plain TCP and TLS only (rtr_session.go connectAndSync); no SSH transport code exists to offer or omit host or password authentication.",
+  "note": "SSH-transport option",
+  "requirement_sha": "a195ddb5e0dccde9",
+  "verdict": "not-applicable"
+}

@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC1350-2-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/tftpserver/handler_test.go::TestTFTPConcurrentLimit",
+    "unit-sha": "febeb4148ef90f42",
+    "claim-sha": "2ee7488023d88acf",
+    "route": "revert",
+    "producer": "internal/plugins/tftpserver/handler.go::sendAndWaitACK",
+    "producer-sha": "815b4f92d7eacb96",
+    "break": "body of sendAndWaitACK replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1350-2-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/tftpserver/handler_test.go::TestTFTPReadLargeFile",
+    "unit-sha": "6152642f5773d2be",
+    "claim-sha": "9cdb89430acea20a",
+    "route": "revert",
+    "producer": "internal/plugins/tftpserver/handler.go::sendAndWaitACK",
+    "producer-sha": "815b4f92d7eacb96",
+    "break": "body of sendAndWaitACK replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1350-2-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/tftpserver/rfc1350_transfer_test.go::TestRFC1350LockstepWaitsForTheACK",
+    "unit-sha": "3e6eab759135dd9e",
+    "claim-sha": "12f8451ec82d8f25",
+    "route": "revert",
+    "producer": "internal/plugins/tftpserver/handler.go::sendAndWaitACK",
+    "producer-sha": "815b4f92d7eacb96",
+    "break": "body of sendAndWaitACK replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1350-2-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/tftpserver/rfc1350_transfer_test.go::TestRFC1350LockstepWaitsForTheACK",
+    "unit-sha": "3e6eab759135dd9e",
+    "claim-sha": "d7b7b46c6f96494f",
+    "route": "revert",
+    "producer": "internal/plugins/tftpserver/handler.go::sendAndWaitACK",
+    "producer-sha": "815b4f92d7eacb96",
+    "break": "body of sendAndWaitACK replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

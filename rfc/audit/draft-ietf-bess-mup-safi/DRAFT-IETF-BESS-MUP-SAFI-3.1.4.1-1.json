@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-21 (independent auditor, authored none of 32ff59085b). Section 3.1.4.1: \"The TEID value of 0 is considered as an invalid and a malformed TEID.\" with treat-as-withdraw. The changed unit is the negative TestMUPWellFormedRouteKeptAtIngress: its two T1ST cases gained the zero Source Address Length octet and are now complete routes under the corrected parser; every other case, and every assertion (section kept whole, Withdrawn and Unkeyable empty, Discarded zero), is unchanged. The T2ST TEID 0 positive (withdrawn exactly) and the TEID 1 and no-TEID negatives are byte-identical. Both revert records were re-taken today with ./le rfc discriminate-record over HEAD and observed red naming the unit. ",
+  "requirement_sha": "3edcbbc121e838ba",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPMalformedRouteTreatedAsWithdrawnAtIngress": "12c86ed974d8d4cd",
+    "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPWellFormedRouteKeptAtIngress": "12c86ed974d8d4cd"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPMalformedRouteTreatedAsWithdrawnAtIngress": "ce08ffce82ad21e4",
+    "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go::TestMUPWellFormedRouteKeptAtIngress": "4768c016671053bd"
+  },
+  "verdict": "enforced"
+}

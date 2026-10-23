@@ -1,0 +1,17 @@
+{
+  "note": "Peer level: running Peer Established with ipv4/unicast maximum 2 and teardown default, far end announces 3 prefixes -> exactly one NOTIFICATION 6/1 (Cease, Maximum Number of Prefixes Reached) read off the socket, then EOF (TestRFC4271PrefixLimitTeardownSendsCease). Negative: teardown false, same 3 prefixes -> no NOTIFICATION in 500 ms, connection up, Established, so the Cease is bound to the decision to terminate. checkPrefixLimits break observed red both polarities. Closes 'the send to the neighbor is not exercised'. HEAD units TestPrefixExceedTeardown/TestPrefixExceedDrop stay supplementary (return-value level). Re-read 2026-10-01 (c10 judge): the only change under this verdict is a tag comment line for another id (RFC4271-6.7-1 / RFC4271-Security-1 added, RFC4271-9.1.2.1-1 removed) in the unit's doc comment; every assertion is byte-identical, so the judgement stands.",
+  "requirement_sha": "4c4d0951b7909646",
+  "tests": {
+    "internal/component/bgp/reactor/rfc4271_prefix_limit_cease_peer_test.go::TestRFC4271PrefixLimitTeardownSendsCease": "671526884de3c8f0",
+    "internal/component/bgp/reactor/rfc4271_prefix_limit_cease_peer_test.go::TestRFC4271PrefixLimitWithoutTeardownSendsNoCease": "671526884de3c8f0",
+    "internal/component/bgp/reactor/session_prefix_test.go::TestPrefixExceedDrop": "a65faf019fcdeda5",
+    "internal/component/bgp/reactor/session_prefix_test.go::TestPrefixExceedTeardown": "a65faf019fcdeda5"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc4271_prefix_limit_cease_peer_test.go::TestRFC4271PrefixLimitTeardownSendsCease": "132a6b151f557edb",
+    "internal/component/bgp/reactor/rfc4271_prefix_limit_cease_peer_test.go::TestRFC4271PrefixLimitWithoutTeardownSendsNoCease": "3f0d289b74c4d3c0",
+    "internal/component/bgp/reactor/session_prefix_test.go::TestPrefixExceedDrop": "18016f5fdf8f3a8a",
+    "internal/component/bgp/reactor/session_prefix_test.go::TestPrefixExceedTeardown": "aedcd5f0ac08ce83"
+  },
+  "verdict": "enforced"
+}

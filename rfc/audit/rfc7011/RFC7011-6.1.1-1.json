@@ -1,0 +1,19 @@
+{
+  "note": "Both Data Record paths now proven. Per-flow path: the three existing units (recorded). Counter path writeCounterRecord: TestRFC7011CounterRecordIntegralsNetworkByteOrder compares the whole record to the big-endian concatenation of ingressInterface, octetTotalCount, packetTotalCount, egressInterface and the two dateTimeSeconds, each built from distinct octets; TestRFC7011CounterRecordIntegralsNeverLittleEndian requires no byte-reversed field (both recorded, writeCounterRecord).",
+  "requirement_sha": "0595711242bc3bb2",
+  "tests": {
+    "internal/plugins/flowexport/ipfix/integral_rfc7011_test.go::TestRFC7011CounterRecordIntegralsNetworkByteOrder": "d2589d22d82f3024",
+    "internal/plugins/flowexport/ipfix/integral_rfc7011_test.go::TestRFC7011CounterRecordIntegralsNeverLittleEndian": "d2589d22d82f3024",
+    "internal/plugins/flowexport/ipfix/rfc7011_export_test.go::TestRFC7011IntegralNetworkByteOrder": "49e03ede36d04954",
+    "internal/plugins/flowexport/ipfix/rfc7011_export_test.go::TestRFC7011IntegralNeverLittleEndian": "49e03ede36d04954",
+    "internal/plugins/flowexport/ipfix/rfc7011_flow_data_test.go::TestIPFIXFlowData": "b257f38e5c551214"
+  },
+  "units": {
+    "internal/plugins/flowexport/ipfix/integral_rfc7011_test.go::TestRFC7011CounterRecordIntegralsNetworkByteOrder": "c45cd60ec1fb4062",
+    "internal/plugins/flowexport/ipfix/integral_rfc7011_test.go::TestRFC7011CounterRecordIntegralsNeverLittleEndian": "3eb937d917ef0be2",
+    "internal/plugins/flowexport/ipfix/rfc7011_export_test.go::TestRFC7011IntegralNetworkByteOrder": "8d8fcbd94e108e09",
+    "internal/plugins/flowexport/ipfix/rfc7011_export_test.go::TestRFC7011IntegralNeverLittleEndian": "03a780b25c8da618",
+    "internal/plugins/flowexport/ipfix/rfc7011_flow_data_test.go::TestIPFIXFlowData": "5acac2d3797049aa"
+  },
+  "verdict": "enforced"
+}

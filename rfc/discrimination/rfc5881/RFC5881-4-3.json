@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC5881-4-3",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/rfc5881_wire_port_linux_test.go::TestRFC5881ControlSourcePortFixedOnTheWire",
+    "unit-sha": "8bf71d2415277f87",
+    "claim-sha": "ab34dd0e59edab63",
+    "route": "revert",
+    "producer": "internal/component/bfd/transport/udp.go::Send",
+    "producer-sha": "70c1c3a4a38c6fa7",
+    "break": "body of Send replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC5838-2.6-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc5838_forwarding_test.go::TestRFC5838IPv4AFNSSAForwardingAddressIsIPv4",
+    "unit-sha": "2512837f4ffb9df6",
+    "claim-sha": "47c77783a6a97229",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/origination_v6_nssa.go::forwardingAddressForAF",
+    "producer-sha": "6ab39d98763f8491",
+    "break": "body of forwardingAddressForAF replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5838-2.6-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/rfc5838_forwarding_test.go::TestRFC5838IPv4AFNSSANeverEncodesIPv6ForwardingAddress",
+    "unit-sha": "ceca10b1a9dad255",
+    "claim-sha": "99fb01813e8bf53e",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/origination_v6_nssa.go::forwardingAddressForAF",
+    "producer-sha": "6ab39d98763f8491",
+    "break": "body of forwardingAddressForAF replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5838-2.6-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc5838_translate_test.go::TestRFC5838IPv4AFTranslatedForwardingAddressIsIPv4",
+    "unit-sha": "af7ee07efc391722",
+    "claim-sha": "6ee567beec0bb08e",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/nssa.go::translatableForwardingAddressV6",
+    "producer-sha": "67b3f706320cb028",
+    "break": "body of translatableForwardingAddressV6 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5838-2.6-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/rfc5838_translate_test.go::TestRFC5838IPv4AFTranslatorRefusesIPv6ForwardingAddress",
+    "unit-sha": "232e51645c052007",
+    "claim-sha": "9e8e116da8e60780",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/nssa.go::translatableForwardingAddressV6",
+    "producer-sha": "67b3f706320cb028",
+    "break": "body of translatableForwardingAddressV6 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

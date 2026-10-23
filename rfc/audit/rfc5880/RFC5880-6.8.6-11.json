@@ -1,0 +1,17 @@
+{
+  "note": "Judge 2026-09-30. Positive TestRFC5880AuthenticatedUnderEachSessionAuthType: for each of the 5 Auth Types a session configured with it delivers a packet signed under it through handleInbound (RemoteDiscr learned), so a verifier fixed on one type fails. Negative TestRFC5880AuthenticatedPacketOfAnotherAuthTypeDiscarded: every configured type x every other type, same key id and secret, correctly signed, is discarded (RemoteDiscr 0); the Keyed-vs-Meticulous pairs of one hash isolate the Auth Type byte (same length and digest). Judge's own break (sha1.go Verify accepts any nonzero Auth Type) reds exactly those 4 pairs while the positive and both old Keyed SHA1 units stay green. Old tamper/wrong-key units kept.",
+  "requirement_sha": "6cdad1540caf35d8",
+  "tests": {
+    "internal/component/bfd/engine/rfc5880_auth_type_test.go::TestRFC5880AuthenticatedPacketOfAnotherAuthTypeDiscarded": "278872a86df97fcc",
+    "internal/component/bfd/engine/rfc5880_auth_type_test.go::TestRFC5880AuthenticatedUnderEachSessionAuthType": "278872a86df97fcc",
+    "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880AuthenticatedPacketVerifiedAndDelivered": "4b885928a870b00d",
+    "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880UnauthenticPacketDiscarded": "4b885928a870b00d"
+  },
+  "units": {
+    "internal/component/bfd/engine/rfc5880_auth_type_test.go::TestRFC5880AuthenticatedPacketOfAnotherAuthTypeDiscarded": "adbeec6f29fe8b32",
+    "internal/component/bfd/engine/rfc5880_auth_type_test.go::TestRFC5880AuthenticatedUnderEachSessionAuthType": "b79f4bebaa38d1df",
+    "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880AuthenticatedPacketVerifiedAndDelivered": "85b09338a1a5fb9c",
+    "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880UnauthenticPacketDiscarded": "0048629c968568c4"
+  },
+  "verdict": "enforced"
+}

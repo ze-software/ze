@@ -1,0 +1,13 @@
+{
+  "note": "(a) forbidden: an EPE-enabled BGP session advertised as a Link NLRI whose BGP-LS Attribute lacks the PeerNode SID TLV 1101. (b) TestRFC9086NativePeerIndexAdvertisesSRGB asserts exportTLVValues(linkAttrs, 1101) equals exactly the assigned SID; TestRFC9086NativeLinkWithoutPeerNodeRefused asserts a BGP Link snapshot with no 1101 is refused (replace errors, no command emitted).",
+  "requirement_sha": "a237fa9f14cfadd4",
+  "tests": {
+    "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9086NativeLinkWithoutPeerNodeRefused": "de280b1c094e08d4",
+    "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB": "6bdfb4d672851af6"
+  },
+  "units": {
+    "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9086NativeLinkWithoutPeerNodeRefused": "5f3cfdb2d2321a90",
+    "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB": "00d1c00c5318c067"
+  },
+  "verdict": "enforced"
+}

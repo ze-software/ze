@@ -1,0 +1,13 @@
+{
+  "note": "(a) forbidden: a BGP-LS Link NLRI whose Remote Node Descriptors lack TLV 516 or TLV 512 of the peer. (b) TestRFC9086NativePeerIndexAdvertisesSRGB asserts remote 516=192.0.2.2 and remote 512=65001 on the Link NLRI; each goes red if that TLV is dropped or carries the local value. Negative: TestRFC9086NativePeerRequiresNodeIdentities, a remote Router-ID of 0.0.0.0 refuses origination, installs no label and emits no command.",
+  "requirement_sha": "b363a5df9b3da09c",
+  "tests": {
+    "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB": "6bdfb4d672851af6",
+    "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerRequiresNodeIdentities": "6bdfb4d672851af6"
+  },
+  "units": {
+    "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB": "00d1c00c5318c067",
+    "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerRequiresNodeIdentities": "a0cda248915e86da"
+  },
+  "verdict": "enforced"
+}

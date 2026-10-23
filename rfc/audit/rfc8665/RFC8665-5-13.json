@@ -1,0 +1,13 @@
+{
+  "note": "Judged 2026-10-21 against Section 5: \"When the M-Flag is set, the NP-Flag and the E-Flag MUST be ignored on reception.\" OutgoingActionFor (sr/install.go) returns ActionKeep on M before reading NP or E. Positive: M=1, NP=0, E=1 gives ActionKeep and label 16009 imposed; honoring NP would give PHP, honoring E with NP ignored would give Explicit NULL, so either reddens. Negative TestRFC8665MappingServerFlagClearHonorsNPAndE: without M the same NP=0/E=1 gives PHP and NP=1/E=1 gives ActionExplicitNull, so the ignore is conditional on M. Proven at the action function the installer calls, not through the installer.",
+  "requirement_sha": "b2f25aa8f262ed82",
+  "tests": {
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665MappingServerFlagClearHonorsNPAndE": "dcc89abea6ba13ce",
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665MappingServerFlagIgnoresNPAndE": "dcc89abea6ba13ce"
+  },
+  "units": {
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665MappingServerFlagClearHonorsNPAndE": "2ad9ba23c107a4f5",
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665MappingServerFlagIgnoresNPAndE": "021e0e61cf9cfc2a"
+  },
+  "verdict": "enforced"
+}

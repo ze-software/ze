@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: Rejected-Information exceeding the peer's MRU. TestRFC1661ProtocolRejectInformationTruncatedToMRU goes red unless the frame is frameLen(100) and the kept data is 94 octets from the head; TestRFC1661ProtocolRejectInformationKeptWhenItFits goes red if a fitting 40-octet packet is cut.",
+  "requirement_sha": "b7f2dd6f9b4e656f",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go::TestRFC1661ProtocolRejectInformationKeptWhenItFits": "b6e0cb190623fbb9",
+    "internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go::TestRFC1661ProtocolRejectInformationTruncatedToMRU": "b6e0cb190623fbb9"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go::TestRFC1661ProtocolRejectInformationKeptWhenItFits": "71e1ff75235a48ac",
+    "internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go::TestRFC1661ProtocolRejectInformationTruncatedToMRU": "f55774e646acf5df"
+  },
+  "verdict": "enforced"
+}

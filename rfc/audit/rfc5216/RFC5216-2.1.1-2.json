@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: the answer to the Start is not an EAP-Response of Type 13, or its data is not a TLS record carrying client_hello. TestEAPTLSPeerFirstResponseCarriesClientHello fatals on Code != CodeResponse or Type != TypeTLS, and assertHandshakeRecord fails unless the TypeData holds a handshake record of type client_hello. Negative: TestEAPTLSPeerStalledClientFailsRatherThanAcknowledging fatals if a peer whose TLS engine produced nothing sends any Response instead of errTLSClientStalled, so an EAP-TLS Response with no client_hello is refused.",
+  "requirement_sha": "bcd0f831cd05295d",
+  "tests": {
+    "internal/core/eap/rfc5216_eap_tls_flight_test.go::TestEAPTLSPeerFirstResponseCarriesClientHello": "ab1c361f29703a0d",
+    "internal/core/eap/rfc5216_eap_tls_flight_test.go::TestEAPTLSPeerStalledClientFailsRatherThanAcknowledging": "ab1c361f29703a0d"
+  },
+  "units": {
+    "internal/core/eap/rfc5216_eap_tls_flight_test.go::TestEAPTLSPeerFirstResponseCarriesClientHello": "706520c303aed14d",
+    "internal/core/eap/rfc5216_eap_tls_flight_test.go::TestEAPTLSPeerStalledClientFailsRatherThanAcknowledging": "8a5286332a11a78b"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2385-3.0-1",
+    "polarity": "positive",
+    "unit": "internal/core/network/rfc2385_md5_egress_integration_linux_test.go::TestRFC2385CapturedSegmentsHaveIndependentDigests",
+    "unit-sha": "47106cef1d35cfa9",
+    "claim-sha": "488996715b319beb",
+    "route": "revert",
+    "producer": "internal/core/network/md5_linux.go::setTCPMD5Sig",
+    "producer-sha": "1259fa61f40ba41e",
+    "break": "body of setTCPMD5Sig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2385-3.0-1",
+    "polarity": "negative",
+    "unit": "internal/core/network/rfc2385_md5_egress_integration_linux_test.go::TestRFC2385MalformedWireSignaturesAreDropped",
+    "unit-sha": "3f900c6e3553d7c7",
+    "claim-sha": "1bb4cb7ef3bfb6e4",
+    "route": "revert",
+    "producer": "internal/core/network/md5_linux.go::setTCPMD5Sig",
+    "producer-sha": "1259fa61f40ba41e",
+    "break": "body of setTCPMD5Sig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

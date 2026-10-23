@@ -1,0 +1,11 @@
+{
+  "note": "Forbidden: padding as long as or longer than a record of the Set. TestRFC7011PaddingShorterThanRecord asserts the padding is > 0, < FlowRecordSize and <= 3 octets, red otherwise. Single-polarity marker: 4-octet alignment padding cannot reach the smallest record.",
+  "requirement_sha": "af17437ff3c941b9",
+  "tests": {
+    "internal/plugins/flowexport/ipfix/rfc7011_test.go::TestRFC7011PaddingShorterThanRecord": "1e121054ccd5ea2a"
+  },
+  "units": {
+    "internal/plugins/flowexport/ipfix/rfc7011_test.go::TestRFC7011PaddingShorterThanRecord": "fb0af766060a84c9"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "positive: a 60-octet skb gives frame_length 64 and stripped 4, the FCS added to both; negative: over 64, 1500 and 9000 octets frame_length minus stripped is always the skb length",
+  "requirement_sha": "ca8fc636675ca974",
+  "tests": {
+    "internal/plugins/flowexport/sflow/sflow_v5_counters_test.go::TestSFlowV5FrameCompensationNeverUnstripped": "6a390a00daec00b1",
+    "internal/plugins/flowexport/sflow/sflow_v5_counters_test.go::TestSFlowV5FrameLengthAndStrippedIncludeFCS": "6a390a00daec00b1"
+  },
+  "units": {
+    "internal/plugins/flowexport/sflow/sflow_v5_counters_test.go::TestSFlowV5FrameCompensationNeverUnstripped": "bfdec32a2b4a89e1",
+    "internal/plugins/flowexport/sflow/sflow_v5_counters_test.go::TestSFlowV5FrameLengthAndStrippedIncludeFCS": "b72047620d2ae6df"
+  },
+  "verdict": "enforced"
+}

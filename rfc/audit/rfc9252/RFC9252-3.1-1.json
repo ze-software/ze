@@ -1,0 +1,11 @@
+{
+  "note": "(a) forbidden: the sender emits a non-zero Service TLV RESERVED octet. (b) TestEncodePrefixSIDSRv6_ReservedFieldsZero asserts ps[3]==0 on EncodePrefixSIDSRv6 output, with a non-zero behavior code so the zero is not a zero-filled buffer. Single-polarity marker present (no reject path on encode).",
+  "requirement_sha": "b47821bc22d25891",
+  "tests": {
+    "internal/component/bgp/config/routeattr_test.go::TestEncodePrefixSIDSRv6_ReservedFieldsZero": "2be9754894f7f33d"
+  },
+  "units": {
+    "internal/component/bgp/config/routeattr_test.go::TestEncodePrefixSIDSRv6_ReservedFieldsZero": "1157e5aaecaac365"
+  },
+  "verdict": "enforced"
+}

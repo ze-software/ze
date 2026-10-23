@@ -1,0 +1,101 @@
+[
+  {
+    "rid": "RFC3948-2.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/child_test.go::TestChildSANATTEncapPorts",
+    "unit-sha": "fd974ac307c059f0",
+    "claim-sha": "891f857a9a849218",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/create_child.go::childEncapPorts",
+    "producer-sha": "d41770da992a0464",
+    "break": "body of childEncapPorts replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3948-2.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc3948_encap_port_test.go::TestRFC3948ChildSAFollowsANATMappedPeerPort500",
+    "unit-sha": "52083a8b770f08d0",
+    "claim-sha": "116c9ccf105b71a8",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/create_child.go::childEncapPorts",
+    "producer-sha": "d41770da992a0464",
+    "break": "body of childEncapPorts replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3948-2.1-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc3948_encap_port_test.go::TestRFC3948ChildSARefusesEncapWithoutAnIKEPort",
+    "unit-sha": "34e7ef9cfce6feab",
+    "claim-sha": "7ed99f4190d80a10",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/create_child.go::childEncapPorts",
+    "producer-sha": "d41770da992a0464",
+    "break": "body of childEncapPorts replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3948-2.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc3948_encap_port_test.go::TestRFC3948EAPResponderChildSAEncapsulatesToTheIKEPeerPort",
+    "unit-sha": "18ea47242ef2635d",
+    "claim-sha": "54d062c68b7c129b",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/create_child.go::childEncapPorts",
+    "producer-sha": "d41770da992a0464",
+    "break": "body of childEncapPorts replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3948-2.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc3948_encap_port_test.go::TestRFC3948ResponderChildSAEncapsulatesToTheIKEPeerPort",
+    "unit-sha": "aa5308fc1276167d",
+    "claim-sha": "a1ef1288953d5aac",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/create_child.go::childEncapPorts",
+    "producer-sha": "d41770da992a0464",
+    "break": "body of childEncapPorts replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3948-2.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc3948_rebind_test.go::TestRFC3948RebindMigratesTunnelChildSAs",
+    "unit-sha": "45f68036325345b1",
+    "claim-sha": "a9e39e175fb2ebda",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/rebind.go::rebindChildSAs",
+    "producer-sha": "3bd7b8f811af8ead",
+    "break": "body of rebindChildSAs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3948-2.1-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc3948_rebind_test.go::TestRFC3948RebindNotRunWithoutAnAdoptedMove",
+    "unit-sha": "9d4f77291afdcc63",
+    "claim-sha": "f6cc042b93599052",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/sa.go::adoptAuthenticatedEndpoint",
+    "producer-sha": "142d234e21a24324",
+    "break": "body of adoptAuthenticatedEndpoint replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3948-2.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc3948_rebind_test.go::TestRFC3948RebindRekeysTransportChildSA",
+    "unit-sha": "1904a56518ea98ea",
+    "claim-sha": "6fdf4128b3ada499",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/rebind.go::rebindChildSAs",
+    "producer-sha": "3bd7b8f811af8ead",
+    "break": "body of rebindChildSAs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3948-2.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc3948_rebind_test.go::TestRFC3948RebindRekeysWithoutAMigrator",
+    "unit-sha": "3f8c7355e2288866",
+    "claim-sha": "7ee383ebcaf9fa1b",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/rebind.go::rebindChildSAs",
+    "producer-sha": "3bd7b8f811af8ead",
+    "break": "body of rebindChildSAs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

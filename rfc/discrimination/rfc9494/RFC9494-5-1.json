@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC9494-5-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/gr/rfc9494_helper_default_red_test.go::TestRFC9494HelperProceduresOffWithoutLocalConfig",
+    "unit-sha": "cc6fb4179f0884bd",
+    "claim-sha": "e0405ad1936d25e7",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/gr/gr_llgr_exchange.go::exchangedLLGRLocked",
+    "producer-sha": "53ee09548c7492af",
+    "break": "body of exchangedLLGRLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9494-5-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/gr/rfc9494_helper_default_red_test.go::TestRFC9494HelperProceduresOnPerConfiguredFamily",
+    "unit-sha": "829ef1f982d06b28",
+    "claim-sha": "438c2c10cbd9bd15",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/gr/gr_llgr_exchange.go::exchangedLLGRLocked",
+    "producer-sha": "53ee09548c7492af",
+    "break": "body of exchangedLLGRLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9494-5-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/gr/rfc9494_test.go::TestRFC9494_LLGREnabledByExplicitConfig",
+    "unit-sha": "0d7039fc2d78e8c8",
+    "claim-sha": "dcb7fd7166826f35",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/gr/gr_llgr.go::parseLLGRCapValue",
+    "producer-sha": "e746ab56fb60b031",
+    "break": "body of parseLLGRCapValue replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9494-5-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/gr/rfc9494_test.go::TestRFC9494_LLGRNotEnabledByDefault",
+    "unit-sha": "950fe7860493c223",
+    "claim-sha": "9efb8e1d1179f642",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/gr/gr_llgr.go::parseLLGRCapValue",
+    "producer-sha": "e746ab56fb60b031",
+    "break": "body of parseLLGRCapValue replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

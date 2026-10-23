@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: no Terminate-Ack for a Terminate-Request. TestRFC1661TerminateAckSentAndLinkHeld goes red on no Terminate-Ack or Identifier != 0x77 (driven in Opened only); TestRFC1661NoTerminateAckForTerminateAck goes red if a Terminate-Ack draws one.",
+  "requirement_sha": "71d5c82cfcaeb473",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoTerminateAckForTerminateAck": "9afaf002f0fd81ec",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661TerminateAckSentAndLinkHeld": "9afaf002f0fd81ec"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoTerminateAckForTerminateAck": "603e6a540427ca0e",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661TerminateAckSentAndLinkHeld": "3825213225d359e1"
+  },
+  "verdict": "enforced"
+}

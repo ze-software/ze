@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: a metadata document without resource, or with a value other than the resource identifier. Red: oauth_test.go writeResourceMetadata test fails on got[\"resource\"] != \"https://mcp.example/\"; oauth_e2e_test.go checks the served document carries resource. Single-polarity marker on the row: the field is emitted unconditionally.",
+  "requirement_sha": "6dd86ff04e64604d",
+  "tests": {
+    "internal/component/mcp/oauth_e2e_test.go::TestNewStreamable_OAuth_MetadataEndpoint": "be7f22ecbf523ed0",
+    "internal/component/mcp/rfc9728_oauth_test.go::TestResourceMetadata_Document": "03ef63ac8871aaba"
+  },
+  "units": {
+    "internal/component/mcp/oauth_e2e_test.go::TestNewStreamable_OAuth_MetadataEndpoint": "33b84f87a8f4a2ae",
+    "internal/component/mcp/rfc9728_oauth_test.go::TestResourceMetadata_Document": "d9504d74e4d6dd3a"
+  },
+  "verdict": "enforced"
+}

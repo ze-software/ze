@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: a Hello whose E, N or DC bit does not follow the area type or the wish to suppress Hellos. TestRFC5340HelloOptionsBits sends Hellos through the real send path and asserts E set and N clear for a regular area, N set and E clear for NSSA, both clear for stub (both directions of each 'if and only if'), and DC zero in all three; ze has no demand-circuit support and never wishes to suppress Hellos, so DC clear is the only correct value.",
+  "requirement_sha": "40197c708c35d7c9",
+  "tests": {
+    "internal/plugins/ospf/rfc5340_test.go::TestRFC5340HelloOptionsBits": "cdf4f5c0d8a37340",
+    "internal/plugins/ospf/rfc5340_test.go::TestRFC5340HelloOptionsBits#2": "cdf4f5c0d8a37340"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc5340_test.go::TestRFC5340HelloOptionsBits": "bcbc0d7879b85f81",
+    "internal/plugins/ospf/rfc5340_test.go::TestRFC5340HelloOptionsBits#2": "bcbc0d7879b85f81"
+  },
+  "verdict": "enforced"
+}

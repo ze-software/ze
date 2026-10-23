@@ -1,0 +1,13 @@
+{
+  "note": "positive drives Total Attribute Length and Withdrawn Routes Length overruns through enforceRFC7606 and asserts SessionReset plus NOTIFICATION 3/1 read off the written bytes (RFC 7606 3(b) keeps this subcode); negative: consistent lengths draw no NOTIFICATION",
+  "requirement_sha": "6a04c2aaed92eb12",
+  "tests": {
+    "internal/component/bgp/reactor/rfc4271_session_update_error_test.go::TestRFC4271UpdateMalformedAttributeList": "94d61a2a18724b8b",
+    "internal/component/bgp/reactor/rfc4271_session_update_error_test.go::TestRFC4271UpdateMalformedAttributeList#2": "94d61a2a18724b8b"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc4271_session_update_error_test.go::TestRFC4271UpdateMalformedAttributeList": "9a1a00bcefb97b8d",
+    "internal/component/bgp/reactor/rfc4271_session_update_error_test.go::TestRFC4271UpdateMalformedAttributeList#2": "9a1a00bcefb97b8d"
+  },
+  "verdict": "enforced"
+}

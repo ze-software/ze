@@ -1,0 +1,20 @@
+{
+  "code": {},
+  "note": "Re-judged 2026-10-15 after f49cfab6e7 by an auditor who authored none of 2f0b126768, c9c935547a, f49cfab6e7. RFC 8669 Section 6: \"This is equivalent to the \"Attribute discard\" action specified in [RFC7606].  When discarding an attribute, a BGP speaker SHOULD log an error for further analysis.\" Read as binding the attribute discard of the paragraph it closes (malformed or invalid code 40 on labeled unicast); the RFC 7606 Section 3.g keep-first strip of a repeated code 40 (next paragraph, row 6-2) logs only at Debug and is not judged here. Positives: TestRFC8669PrefixSIDDiscardLoggedAtDefaultLevel (TLV overrun, trailing bytes; exactly one ERROR, attr=40, attr-name, event, description, peer, at slogutil.DefaultLevel) and, new, TestRFC8669PrefixSIDDiscardBesideAnotherLogsBoth (TLV overrun with a one-octet ATOMIC_AGGREGATE before and after code 40, plus the EBGP boundary case; exactly one attr=40 record citing RFC 8669 and one attr=6 record that does not), with TestRFC8669MalformedPrefixSIDDiscardDiagnostic keeping the Debug detail. Negatives: TestRFC8669CleanPrefixSIDNoErrorLog (well-formed Label-Index, ActionNone, no attr=40 ERROR) and TestRFC8669CleanPrefixSIDNoDiscardDiagnostic. The weak finding of 452cfef3db/d16c1740fa is closed: the multi-discard unit is now tagged and fingerprinted, its record is the M1 mutant (logRFC7606Discards logs result.AttrCode/result.Description, the pre-c9c935547a behaviour), and the negative's record is a mutant that logs attr 40 on the ActionNone return of applyRFC7606, not a crash. Independent overlay probes (go test -overlay under ./le job run, tree untouched, baseline green): M1 reddens all three BesideAnother cases and both Invalid BesideAnother cases; M7 (log only the first discard entry) reddens the same five; M6 (EBGP boundary AddDiscard only when it took result.AttrCode) reddens the EBGP case; M8 (one rate-limit window shared by all codes) reddens all five BesideAnother cases. Isolation holds: the ATOMIC_AGGREGATE-before ordering makes code 6 result.AttrCode so a first-only log loses attr=40, and the reason assertions catch a record carrying the other attribute's description. Residual, not a finding: records of one code from one peer are rate-limited to one per second with a suppressed count, which keeps the evidence for analysis.",
+  "requirement_sha": "e42ca2867b6700fd",
+  "tests": {
+    "internal/component/bgp/reactor/rfc8669_discard_diagnostics_test.go::TestRFC8669CleanPrefixSIDNoDiscardDiagnostic": "0d21c5574e91a20d",
+    "internal/component/bgp/reactor/rfc8669_discard_diagnostics_test.go::TestRFC8669MalformedPrefixSIDDiscardDiagnostic": "0d21c5574e91a20d",
+    "internal/component/bgp/reactor/rfc8669_error_log_test.go::TestRFC8669CleanPrefixSIDNoErrorLog": "3a02d9c466bfb03e",
+    "internal/component/bgp/reactor/rfc8669_error_log_test.go::TestRFC8669PrefixSIDDiscardBesideAnotherLogsBoth": "3a02d9c466bfb03e",
+    "internal/component/bgp/reactor/rfc8669_error_log_test.go::TestRFC8669PrefixSIDDiscardLoggedAtDefaultLevel": "3a02d9c466bfb03e"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc8669_discard_diagnostics_test.go::TestRFC8669CleanPrefixSIDNoDiscardDiagnostic": "4db07eb488c77296",
+    "internal/component/bgp/reactor/rfc8669_discard_diagnostics_test.go::TestRFC8669MalformedPrefixSIDDiscardDiagnostic": "42b7b6a58766bcd3",
+    "internal/component/bgp/reactor/rfc8669_error_log_test.go::TestRFC8669CleanPrefixSIDNoErrorLog": "64afc0d1b5632311",
+    "internal/component/bgp/reactor/rfc8669_error_log_test.go::TestRFC8669PrefixSIDDiscardBesideAnotherLogsBoth": "938788d699bf73d0",
+    "internal/component/bgp/reactor/rfc8669_error_log_test.go::TestRFC8669PrefixSIDDiscardLoggedAtDefaultLevel": "2b8d4dab4306bd69"
+  },
+  "verdict": "enforced"
+}

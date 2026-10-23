@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: accepting or emitting a Version other than 2. Red: TestOSPFHeaderRejectsBadVersionAndLength fails unless DecodeHeader returns ErrBadVersion for Version 3. Other polarity: TestOSPFHeaderRoundTrip fails unless every packet type written by WriteTo decodes, which needs the emitted Version octet to equal 2. One clause, both polarities.",
+  "requirement_sha": "5fb48e943f437e19",
+  "tests": {
+    "internal/plugins/ospf/packet/rfc2328_header_test.go::TestOSPFHeaderRejectsBadVersionAndLength": "3690176478e839f0",
+    "internal/plugins/ospf/packet/rfc2328_header_test.go::TestOSPFHeaderRoundTrip": "3690176478e839f0"
+  },
+  "units": {
+    "internal/plugins/ospf/packet/rfc2328_header_test.go::TestOSPFHeaderRejectsBadVersionAndLength": "c509a086b22449c8",
+    "internal/plugins/ospf/packet/rfc2328_header_test.go::TestOSPFHeaderRoundTrip": "9214b193f049085b"
+  },
+  "verdict": "enforced"
+}

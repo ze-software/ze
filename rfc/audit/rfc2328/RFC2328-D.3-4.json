@@ -1,0 +1,15 @@
+{
+  "note": "First verdict 2026-10-21 (round 4 judge). Split from D.3-2. Positive: five Hellos signed through the engine on eth0, across a key change, each carry a sequence not below the previous (record on signKey); AuType 2 accepts equal and higher sequences. Negative: Hellos at 5 and 10 below the last accepted 11 are discarded with reason replay although their digest verifies (record on verify).",
+  "requirement_sha": "f4b4bb7c79c1d709",
+  "tests": {
+    "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplay": "daf32645cbe50ccd",
+    "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplay#2": "daf32645cbe50ccd",
+    "internal/plugins/ospf/rfc5709_crypto_sequence_test.go::TestRFC5709CryptoSequenceNonDecreasingOnInterface": "383680bed2a31b45"
+  },
+  "units": {
+    "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplay": "a7dd2213be26a266",
+    "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplay#2": "a7dd2213be26a266",
+    "internal/plugins/ospf/rfc5709_crypto_sequence_test.go::TestRFC5709CryptoSequenceNonDecreasingOnInterface": "2a29c724d3a0ad5f"
+  },
+  "verdict": "enforced"
+}

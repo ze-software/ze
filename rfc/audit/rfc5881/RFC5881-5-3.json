@@ -1,0 +1,15 @@
+{
+  "note": "Judge 2026-09-30 (rejudge, netns+pinning). \u00a75 \"If BFD authentication is in use on a session, all BFD Control packets MUST be sent with a TTL or Hop Limit value of 255.\" + same wire unit with an auth section, now in netns. - (R1 a) TestRFC5881AuthenticatedControlBelow255IsDiscardedOffTheWire: Keyed SHA1 session, signed packets at 254 dropped (Down, RemoteDiscr 0), at 255 accepted (Init). Revert records on passesTTLGate (-) and applySocketOptions (+) observed red.",
+  "requirement_sha": "f2f1ffe5ae8db6b9",
+  "tests": {
+    "internal/component/bfd/engine/rfc5881_ttl_wire_linux_test.go::TestRFC5881AuthenticatedControlBelow255IsDiscardedOffTheWire": "b27d2d5cb5079f05",
+    "internal/component/bfd/transport/rfc5881_ttl_wire_linux_test.go::TestRFC5881ControlLeavesWithTTL255OnTheWire": "1aa2d39d3b0cd82e",
+    "internal/component/bfd/transport/rfc5881_udp_ttl_linux_test.go::TestUDPSetOutboundTTL255": "9fd41d7683776620"
+  },
+  "units": {
+    "internal/component/bfd/engine/rfc5881_ttl_wire_linux_test.go::TestRFC5881AuthenticatedControlBelow255IsDiscardedOffTheWire": "2d9ec136aa6767e7",
+    "internal/component/bfd/transport/rfc5881_ttl_wire_linux_test.go::TestRFC5881ControlLeavesWithTTL255OnTheWire": "fde61bb234e77c2b",
+    "internal/component/bfd/transport/rfc5881_udp_ttl_linux_test.go::TestUDPSetOutboundTTL255": "672d376abb95068a"
+  },
+  "verdict": "enforced"
+}

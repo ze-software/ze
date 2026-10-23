@@ -1,0 +1,11 @@
+{
+  "note": "Judged 2026-10-11 by an independent judge. RFC 4555 3.6: \"The initiator MAY include these notifications in the same request as UPDATE_SA_ADDRESSES.\" A MAY whose alternative (a separate request) is also permitted, so the {single-polarity: positive} annotation holds. TestMobikeUpdateCarriesItsAddressList requires both UPDATE_SA_ADDRESSES and NO_ADDITIONAL_ADDRESSES in the decrypted chain of the one INFORMATIONAL request startMobikeRequest sends, so dropping the address notification from that request turns it red. Revert record on mobike.go::startMobikeRequest.",
+  "requirement_sha": "4b6b671d0000cec9",
+  "tests": {
+    "internal/component/ike/engine/mobike_test.go::TestMobikeUpdateCarriesItsAddressList": "7591039c742210b3"
+  },
+  "units": {
+    "internal/component/ike/engine/mobike_test.go::TestMobikeUpdateCarriesItsAddressList": "5e8d91f138bcf454"
+  },
+  "verdict": "enforced"
+}

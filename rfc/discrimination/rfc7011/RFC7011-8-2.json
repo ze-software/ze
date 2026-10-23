@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC7011-8-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/flowexport/rfc7011_template_refresh_test.go::TestRFC7011ConfiguredRefreshDrivesRetransmit",
+    "unit-sha": "c9fcb809e4f07afa",
+    "claim-sha": "09bb22c8b1346c79",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/exporter.go::notifySnapshot",
+    "producer-sha": "760461d784934c54",
+    "break": "body of notifySnapshot replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7011-8-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/flowexport/rfc7011_template_refresh_test.go::TestRFC7011ConfiguredRefreshOverridesDefault",
+    "unit-sha": "5a1edf4f20ca0936",
+    "claim-sha": "a6ba8b01a84e04e8",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/exporter.go::notifySnapshot",
+    "producer-sha": "760461d784934c54",
+    "break": "body of notifySnapshot replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7011-8-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/flowexport/rfc7011_test.go::TestRFC7011TemplateRefreshConfigurable",
+    "unit-sha": "ffc037d734c11265",
+    "claim-sha": "84adff64e5986bb8",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/config.go::ParseConfig",
+    "producer-sha": "a367cd56c505a517",
+    "break": "body of ParseConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7011-8-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/flowexport/rfc7011_test.go::TestRFC7011TemplateRefreshRangeRejected",
+    "unit-sha": "4bc6eb952b5941e0",
+    "claim-sha": "742a6858b12ea6a9",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/config.go::Validate",
+    "producer-sha": "5681502e5edf38f7",
+    "break": "body of Validate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

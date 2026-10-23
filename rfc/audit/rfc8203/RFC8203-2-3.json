@@ -1,0 +1,17 @@
+{
+  "note": "TestRFC8203ShutdownCommunicationSentAsShortestFormUTF8: valid 2/3/4-octet UTF-8 sent octet-exact; stray octets, overlong, surrogate and a 128-octet cut inside a character each yield a field with a consistent length octet, utf8.Valid and <=128 octets; overlong input sent as 'xy'.",
+  "requirement_sha": "62b9cd0540b3bece",
+  "tests": {
+    "internal/component/bgp/message/notification_test.go::TestRFC8203UTF8Invalid": "9710bf0872e82b0b",
+    "internal/component/bgp/message/notification_test.go::TestRFC8203UTF8Valid": "9710bf0872e82b0b",
+    "internal/component/bgp/message/rfc8203_shutdown_send_test.go::TestRFC8203ShutdownCommunicationSentAsShortestFormUTF8": "908f887506cc5456",
+    "internal/component/bgp/message/rfc8203_shutdown_send_test.go::TestRFC8203ShutdownCommunicationSentAsShortestFormUTF8#2": "908f887506cc5456"
+  },
+  "units": {
+    "internal/component/bgp/message/notification_test.go::TestRFC8203UTF8Invalid": "2e939366e427c751",
+    "internal/component/bgp/message/notification_test.go::TestRFC8203UTF8Valid": "db8547b1fd85e2e7",
+    "internal/component/bgp/message/rfc8203_shutdown_send_test.go::TestRFC8203ShutdownCommunicationSentAsShortestFormUTF8": "1b7f88382840a524",
+    "internal/component/bgp/message/rfc8203_shutdown_send_test.go::TestRFC8203ShutdownCommunicationSentAsShortestFormUTF8#2": "1b7f88382840a524"
+  },
+  "verdict": "enforced"
+}

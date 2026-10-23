@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC3209-4.2.4-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/rfc3209_relay_test.go::TestRFC3209LabelFollowsLabelRequest",
+    "unit-sha": "fe6164e0ba5cde06",
+    "claim-sha": "fbfe03d4cd79b84f",
+    "route": "mutant",
+    "producer": "internal/plugins/rsvpte/wire.go::encodeLabelObject",
+    "producer-sha": "480260bb9ab9792d",
+    "break": "line 445: \"+\" -\u003e \"-\""
+  },
+  {
+    "rid": "RFC3209-4.2.4-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/rsvpte/rfc3209_relay_test.go::TestRFC3209NoLabelWithoutLabelRequest",
+    "unit-sha": "401e9e3c2cfd1493",
+    "claim-sha": "8f7367d8794937fd",
+    "route": "mutant",
+    "producer": "internal/plugins/rsvpte/engine.go::handlePath",
+    "producer-sha": "74cd7424a48c1a00",
+    "break": "line 452: \"!msg.HasLabelRequest\" -\u003e \"false\""
+  }
+]

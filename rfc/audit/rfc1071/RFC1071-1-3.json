@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged c18. Sub-span: compute the 16-bit one's complement sum and place its complement in the checksum field. Placement is now ze's: TestRFC1071PacketChecksumClearedSummedAndComplemented reads back the field Packet.WriteTo wrote and compares it with the complement of the test's independent sum (the 0xFFFF fold of the covered packet pins the complement). The exact vector 0x1411 in TestInternetChecksumRFC1071Vectors still pins the complement in internetChecksum. Record breaks PacketChecksum, observed red. Single-polarity positive valid (no reject path).",
+  "requirement_sha": "7e6c6e5ec37d332b",
+  "tests": {
+    "internal/plugins/ospf/packet/rfc1071_checksum_test.go::TestRFC1071PacketChecksumClearedSummedAndComplemented": "e33d335070dd836a",
+    "internal/plugins/ospf/types/checksum_test.go::TestInternetChecksumRFC1071Vectors": "66165fee03c7d467"
+  },
+  "units": {
+    "internal/plugins/ospf/packet/rfc1071_checksum_test.go::TestRFC1071PacketChecksumClearedSummedAndComplemented": "fd7de707aa0ed334",
+    "internal/plugins/ospf/types/checksum_test.go::TestInternetChecksumRFC1071Vectors": "2444e63534991810"
+  },
+  "verdict": "enforced"
+}

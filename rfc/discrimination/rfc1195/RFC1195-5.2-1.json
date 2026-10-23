@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC1195-5.2-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/circuit/hello_test.go::TestISISIIHOriginationTLVs",
+    "unit-sha": "4d5855ae8d953c32",
+    "claim-sha": "e1be9dec123bd900",
+    "route": "revert",
+    "producer": "internal/plugins/isis/circuit/hello.go::protocolsSupportedTLV",
+    "producer-sha": "1d45130d31599694",
+    "break": "body of protocolsSupportedTLV replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1195-5.2-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/lsdb/rfc1195_origination_test.go::TestISISOriginateOnAdjacencyUp",
+    "unit-sha": "06a38897c3491f72",
+    "claim-sha": "5b103ffbdd6ef950",
+    "route": "revert",
+    "producer": "internal/plugins/isis/lsdb/origination.go::Originate",
+    "producer-sha": "c3ebd1aa4af2c24f",
+    "break": "body of Originate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1195-5.2-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195ISHTransmitReceive",
+    "unit-sha": "f1a2526422b8829f",
+    "claim-sha": "c7960a830f2501c5",
+    "route": "revert",
+    "producer": "internal/plugins/isis/circuit/hello.go::protocolsSupportedTLV",
+    "producer-sha": "1d45130d31599694",
+    "break": "body of protocolsSupportedTLV replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1195-5.2-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195NodeProtocolsAcrossInterfaces",
+    "unit-sha": "e063b6b3b89f9e14",
+    "claim-sha": "79e274d578e41819",
+    "route": "revert",
+    "producer": "internal/plugins/isis/circuit/hello.go::protocolsSupportedTLV",
+    "producer-sha": "1d45130d31599694",
+    "break": "body of protocolsSupportedTLV replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

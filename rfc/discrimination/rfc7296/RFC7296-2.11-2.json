@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC7296-2.11-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_natt_test.go::TestNattRepliesToTheObservedSourcePort",
+    "unit-sha": "a180112f5995d4c6",
+    "claim-sha": "e3b0c44298fc1c14",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/sa.go::adoptAuthenticatedEndpoint",
+    "producer-sha": "142d234e21a24324",
+    "break": "body of adoptAuthenticatedEndpoint replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.11-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_reply_port_test.go::TestRFC7296ReplyDoesNotGoToTheConfiguredEndpoint",
+    "unit-sha": "cc4870e55c4d0969",
+    "claim-sha": "17c9f0241ffdaffd",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/sa.go::adoptAuthenticatedEndpoint",
+    "producer-sha": "142d234e21a24324",
+    "break": "body of adoptAuthenticatedEndpoint replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.11-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_reply_port_test.go::TestRFC7296ReplyLandsOnTheRequestSourcePort",
+    "unit-sha": "358f69c973f99dc1",
+    "claim-sha": "917fed3795734729",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/sa.go::adoptAuthenticatedEndpoint",
+    "producer-sha": "142d234e21a24324",
+    "break": "body of adoptAuthenticatedEndpoint replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

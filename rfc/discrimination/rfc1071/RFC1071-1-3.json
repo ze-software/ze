@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC1071-1-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/packet/rfc1071_checksum_test.go::TestRFC1071PacketChecksumClearedSummedAndComplemented",
+    "unit-sha": "9af36f501d59531b",
+    "claim-sha": "d79fd4f13ef4b357",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/packet/checksum.go::PacketChecksum",
+    "producer-sha": "9244c5fe39339180",
+    "break": "body of PacketChecksum replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1071-1-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/types/checksum_test.go::TestInternetChecksumRFC1071Vectors",
+    "unit-sha": "7bc6f20b0313ee63",
+    "claim-sha": "2bcacab7fb71f7da",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/types/checksum.go::internetChecksum",
+    "producer-sha": "9e4cb41d3bb33899",
+    "break": "body of internetChecksum replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

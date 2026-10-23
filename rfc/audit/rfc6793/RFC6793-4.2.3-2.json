@@ -1,0 +1,11 @@
+{
+  "note": "TestRFC6793ReceivedAS4AggregatorAccepted: the AGGREGATOR+AS4_AGGREGATOR pair from an OLD speaker is accepted and the 4-octet aggregating AS survives ingest (single-polarity marker).",
+  "requirement_sha": "a1df36166b90e99a",
+  "tests": {
+    "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793ReceivedAS4AggregatorAccepted": "4e9759edcd069569"
+  },
+  "units": {
+    "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793ReceivedAS4AggregatorAccepted": "1b39548cc51c585c"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC7296-3.10.1-3",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_inner_error_answers_test.go::TestRFC7296UncoveredInnerErrorsDrawInvalidSyntax",
+    "unit-sha": "fe1818594c8a0ae1",
+    "claim-sha": "afe64e74cad62ac4",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/inbound.go::respondInnerParseError",
+    "producer-sha": "85f45866bb5510fa",
+    "break": "body of respondInnerParseError replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-3.10.1-3",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrInnerParseFailureDrawsInvalidSyntaxAndOuterDrawsNothing",
+    "unit-sha": "b515e30c703f328c",
+    "claim-sha": "053c6f0829f10062",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/inbound.go::respondInnerParseError",
+    "producer-sha": "85f45866bb5510fa",
+    "break": "body of respondInnerParseError replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-3.10.1-3",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrInnerParseFailureDrawsInvalidSyntaxAndOuterDrawsNothing",
+    "unit-sha": "b515e30c703f328c",
+    "claim-sha": "2091125866c51d16",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/inbound.go::respondInnerParseError",
+    "producer-sha": "85f45866bb5510fa",
+    "break": "body of respondInnerParseError replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

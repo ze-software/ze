@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9728-6-3",
+    "polarity": "negative",
+    "unit": "internal/component/mcp/rfc9728_jwt_test.go::TestRFC9728EscapeTextIsNotUnescapedTwice",
+    "unit-sha": "2c3a31b474b4783f",
+    "claim-sha": "f9707c62f8494625",
+    "route": "revert",
+    "producer": "internal/component/mcp/jwt.go::UnmarshalJSON",
+    "producer-sha": "68c6400c8dbed711",
+    "break": "body of UnmarshalJSON replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9728-6-3",
+    "polarity": "positive",
+    "unit": "internal/component/mcp/rfc9728_jwt_test.go::TestRFC9728EscapedAudienceMatchesResource",
+    "unit-sha": "83de36a2634cd0d9",
+    "claim-sha": "77eb35f78da238e8",
+    "route": "revert",
+    "producer": "internal/component/mcp/jwt.go::UnmarshalJSON",
+    "producer-sha": "68c6400c8dbed711",
+    "break": "body of UnmarshalJSON replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

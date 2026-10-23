@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC2385-2.0-4",
+    "polarity": "positive",
+    "unit": "internal/core/network/rfc2385_md5_egress_integration_linux_test.go::TestRFC2385UnsignedSYNACKDoesNotDisableSignatures",
+    "unit-sha": "e18dc91418aa0d7d",
+    "claim-sha": "3866af5b5de6cfa5",
+    "route": "revert",
+    "producer": "internal/core/network/md5_linux.go::setTCPMD5Sig",
+    "producer-sha": "1259fa61f40ba41e",
+    "break": "body of setTCPMD5Sig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

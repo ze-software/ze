@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC9728-7.1-2",
+    "polarity": "negative",
+    "unit": "cmd/ze/hub/rfc9728_service_mcp_test.go::TestRFC9728MCPServingTLSVersions",
+    "unit-sha": "26310dd007140893",
+    "claim-sha": "0918612847051060",
+    "route": "revert",
+    "producer": "cmd/ze/hub/service_mcp.go::loadMCPTLSConfig",
+    "producer-sha": "fa3507b812cc82c6",
+    "break": "body of loadMCPTLSConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9728-7.1-2",
+    "polarity": "positive",
+    "unit": "cmd/ze/hub/rfc9728_service_mcp_test.go::TestRFC9728MCPServingTLSVersions",
+    "unit-sha": "26310dd007140893",
+    "claim-sha": "a5089ed95a56896a",
+    "route": "revert",
+    "producer": "cmd/ze/hub/service_mcp.go::loadMCPTLSConfig",
+    "producer-sha": "fa3507b812cc82c6",
+    "break": "body of loadMCPTLSConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9728-7.1-2",
+    "polarity": "positive",
+    "unit": "cmd/ze/hub/rfc9728_service_mcp_tls_suites_test.go::TestRFC9728MCPListenerNegotiatesOnlyBCP195Suites",
+    "unit-sha": "312664f30240b3d7",
+    "claim-sha": "0b42b567ca2083f8",
+    "route": "revert",
+    "producer": "cmd/ze/hub/service_mcp.go::loadMCPTLSConfig",
+    "producer-sha": "fa3507b812cc82c6",
+    "break": "body of loadMCPTLSConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9728-7.1-2",
+    "polarity": "negative",
+    "unit": "cmd/ze/hub/rfc9728_service_mcp_tls_suites_test.go::TestRFC9728MCPListenerNegotiatesOnlyBCP195Suites",
+    "unit-sha": "312664f30240b3d7",
+    "claim-sha": "1f582e369a259eab",
+    "route": "revert",
+    "producer": "cmd/ze/hub/service_mcp.go::loadMCPTLSConfig",
+    "producer-sha": "fa3507b812cc82c6",
+    "break": "body of loadMCPTLSConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,13 @@
+{
+  "note": "(a) forbidden: a leaf-list default invalid for its type loading; a leaf-list default beside min-elements >= 1 loading. (b) TestRFC7950DefaultInvalidForType: leaf-list range 1..10 default 30 requires an error containing `default \"30\" is not valid for type uint8`, and leaf-list min-elements 1 default 1 requires \"min-elements 1 is invalid\"; positive TestRFC7950DefaultValidForType: leaf-list default 3 inside 1..10 with no min-elements, assert.NoError. min-elements above 1 is not cased separately; 1 is the boundary.",
+  "requirement_sha": "dfb02e2ae4d5fb8c",
+  "tests": {
+    "internal/component/config/rfc7950_yang_schema_defaults_test.go::TestRFC7950DefaultInvalidForType": "493cd4132fb31c5c",
+    "internal/component/config/rfc7950_yang_schema_defaults_test.go::TestRFC7950DefaultValidForType": "493cd4132fb31c5c"
+  },
+  "units": {
+    "internal/component/config/rfc7950_yang_schema_defaults_test.go::TestRFC7950DefaultInvalidForType": "5b28008f4ac0a18b",
+    "internal/component/config/rfc7950_yang_schema_defaults_test.go::TestRFC7950DefaultValidForType": "a31a5554debe5da0"
+  },
+  "verdict": "enforced"
+}

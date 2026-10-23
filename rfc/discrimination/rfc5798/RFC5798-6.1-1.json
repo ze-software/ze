@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5798-6.1-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/acceptfilter_test.go::TestAcceptFilterAcceptsNeighborDiscoveryBeforeAnyDrop",
+    "unit-sha": "5ca67c41aa0026a1",
+    "claim-sha": "9e8d0f65cd3e9743",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/acceptfilter.go::acceptFilterTables",
+    "producer-sha": "7a597bf1d20138d8",
+    "break": "body of acceptFilterTables replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5798-6.1-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/vrrp/acceptfilter_test.go::TestAcceptFilterAcceptsNeighborDiscoveryBeforeAnyDrop",
+    "unit-sha": "5ca67c41aa0026a1",
+    "claim-sha": "645e395385c87bf2",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/acceptfilter.go::acceptFilterTables",
+    "producer-sha": "7a597bf1d20138d8",
+    "break": "body of acceptFilterTables replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

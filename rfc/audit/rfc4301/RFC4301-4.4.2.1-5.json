@@ -1,0 +1,11 @@
+{
+  "note": "Single-polarity positive accepted: no config leaf or negotiation offers rollover or ESN. The unit builds ESP and AH SAs in both directions through xfrmStateFromParams and asserts OSeqMayWrap and ESN unset, so the kernel (xfrm_replay_overflow) audits the overflow and stops transmission. Would go red if the producer set rollover. Record: revert xfrmStateFromParams, observed red. Judge finding (not fixed): the stop-not-rollover decision is the zero value of netlink.XfrmState.OSeqMayWrap and xfrmStateFromParams never names it; under the principles rule a zero another component relies on is a guard that must be named (explicit assignment with the RFC quote). The test pins it, so it cannot vanish silently, but the producer still owes the named guard.",
+  "requirement_sha": "58439513be8b987c",
+  "tests": {
+    "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemSequenceCounterOverflowIsNeverRollover": "9705c65b7b397cd1"
+  },
+  "units": {
+    "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemSequenceCounterOverflowIsNeverRollover": "0241bd501d4faef5"
+  },
+  "verdict": "enforced"
+}

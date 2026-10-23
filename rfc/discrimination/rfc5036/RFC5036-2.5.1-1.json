@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5036-2.5.1-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ldp/rfc5036_establishment_test.go::TestRFC5036ActiveRoleInitiatesNegotiation",
+    "unit-sha": "d5f0e0e6b9144675",
+    "claim-sha": "00351b084e56c396",
+    "route": "revert",
+    "producer": "internal/plugins/ldp/register.go::runSession",
+    "producer-sha": "5d8b542ccbc28f8e",
+    "break": "body of runSession replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5036-2.5.1-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ldp/rfc5036_test.go::TestRFC5036SessionNotOperationalWithoutOwnInit",
+    "unit-sha": "edcee0c2de9b963b",
+    "claim-sha": "603461873b2df643",
+    "route": "revert",
+    "producer": "internal/plugins/ldp/session.go::handleInit",
+    "producer-sha": "15c93b4f03ff0848",
+    "break": "body of handleInit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

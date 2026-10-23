@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC3748-4.1-11",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc3748_discard_test.go::TestAuthenticatorDiscardsAResponseOfAnotherType",
+    "unit-sha": "c44886fdcb99ec00",
+    "claim-sha": "2e10f60dc0a4cc84",
+    "route": "revert",
+    "producer": "internal/core/eap/eap.go::handleMethod",
+    "producer-sha": "fcb74148a4de64e4",
+    "break": "body of handleMethod replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3748-4.1-11",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc3748_discard_test.go::TestAuthenticatorProcessesAResponseOfTheMethodType",
+    "unit-sha": "3569c0aba60afa37",
+    "claim-sha": "4249da4ead5085aa",
+    "route": "revert",
+    "producer": "internal/core/eap/eap.go::handleMethod",
+    "producer-sha": "fcb74148a4de64e4",
+    "break": "body of handleMethod replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3748-4.1-11",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc3748_remaining_clause_test.go::TestRFC3748AuthenticatorDiscardsANakAfterTheInitialNonNakResponse",
+    "unit-sha": "919cc0370d5a4384",
+    "claim-sha": "4a71b812100dfab2",
+    "route": "revert",
+    "producer": "internal/core/eap/eap.go::nakUnexpected",
+    "producer-sha": "e38d1f2082ae35f5",
+    "break": "body of nakUnexpected replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

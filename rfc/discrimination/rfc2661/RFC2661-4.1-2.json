@@ -1,0 +1,47 @@
+[
+  {
+    "rid": "RFC2661-4.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661EveryEmittedMessageOpensWithMessageType",
+    "unit-sha": "42fb2e2edec2a529",
+    "claim-sha": "f73e7b718dfafb81",
+    "route": "revert",
+    "producer": "internal/component/l2tp/tunnel_fsm.go::handleHelloTimer",
+    "producer-sha": "0b3fcce0b237fa19",
+    "break": "body of handleHelloTimer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2661-4.1-2",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/rfc2661_reactor_test.go::TestReactor_MalformedSCCRQCreatesNoTunnel",
+    "unit-sha": "83054f52037722ec",
+    "claim-sha": "54832a623831f67f",
+    "route": "revert",
+    "producer": "internal/component/l2tp/tunnel_fsm.go::parseSCCRQ",
+    "producer-sha": "a2d762d78b7d2c53",
+    "break": "body of parseSCCRQ replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2661-4.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/rfc2661_session_fsm_test.go::TestWriteICRPBody",
+    "unit-sha": "66e2ddb7eded0336",
+    "claim-sha": "d25c3995a9bb8d75",
+    "route": "revert",
+    "producer": "internal/component/l2tp/session_fsm.go::writeICRPBody",
+    "producer-sha": "88995b6714882c2b",
+    "break": "body of writeICRPBody replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2661-4.1-2",
+    "polarity": "positive",
+    "unit": "test/l2tp/rfc2661-emitted-control-shape.ci",
+    "unit-sha": "709d2fdc35a37503",
+    "claim-sha": "f725c2644926dbd6",
+    "route": "revert",
+    "producer": "internal/component/l2tp/tunnel_fsm.go::writeSCCRPBody",
+    "producer-sha": "0e95e041fa000906",
+    "break": "body of writeSCCRPBody replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+    "citation": "expect=stdout:contains=PASS: Message Type AVP is first in SCCRP"
+  }
+]

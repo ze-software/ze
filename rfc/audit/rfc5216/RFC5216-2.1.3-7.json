@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: the peer answering the server's closing flight with anything but a no-data EAP-TLS Response. TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess errors unless bareEAPTLSResponse(peerSent[successAt-1]). Negative: TestRFC5216PeerSendsItsAlertRatherThanTheNoDataResponse errors if a peer refusing the server sends the no-data Response as its last packet.",
+  "requirement_sha": "009b12e84674488f",
+  "tests": {
+    "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216PeerSendsItsAlertRatherThanTheNoDataResponse": "60bd713e09c87b21",
+    "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess": "60bd713e09c87b21"
+  },
+  "units": {
+    "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216PeerSendsItsAlertRatherThanTheNoDataResponse": "4bc306464590658a",
+    "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess": "37ba54cebdeabbad"
+  },
+  "verdict": "enforced"
+}

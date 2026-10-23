@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9190-2.1.8-4",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc9190_nai_test.go::TestEAPTLS13AuthenticatorTreatsAnEmptyCertificateListAsTerminal",
+    "unit-sha": "bd17f4098d205ab2",
+    "claim-sha": "9b1b5f72aaa807e4",
+    "route": "revert",
+    "producer": "internal/core/eap/eap_tls.go::newTLSMethod",
+    "producer-sha": "9d4ae49c78228895",
+    "break": "body of newTLSMethod replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9190-2.1.8-4",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc9190_tls_layer_test.go::TestEAPTLS13PeerHoldingACertificateSendsIt",
+    "unit-sha": "70279aa72c357695",
+    "claim-sha": "44d47a78c35db15a",
+    "route": "revert",
+    "producer": "internal/core/eap/peer.go::answerCertificateRequest",
+    "producer-sha": "c4905821222489fd",
+    "break": "body of answerCertificateRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

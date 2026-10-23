@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-09-29. rfc7854_wire_header_test.go::TestRFC7854PerPeerHeaderFollowsTheCommonHeader writes all seven types and decodes a per-peer header at octet 6 of Route Monitoring, Statistics Report, Peer Down, Peer Up and Route Mirroring, requiring it to equal the header the writer was given (4-octet AS 4200000001); for Initiation and Termination it requires the first TLV (type 1, length 2) at octet 6 and a message too short to hold a per-peer header, which is the 'most' of the sentence. The older TestHasPeerHeader tags stay: hasPeerHeader has no non-test caller, so those two tags prove a helper table only.",
+  "requirement_sha": "7a60dc9c971fd4d3",
+  "tests": {
+    "internal/component/bgp/plugins/bmp/header_test.go::TestHasPeerHeader": "49dfad3eed97ec32",
+    "internal/component/bgp/plugins/bmp/header_test.go::TestHasPeerHeader#2": "49dfad3eed97ec32",
+    "internal/component/bgp/plugins/bmp/rfc7854_wire_header_test.go::TestRFC7854PerPeerHeaderFollowsTheCommonHeader": "8a330a29c2d73330",
+    "internal/component/bgp/plugins/bmp/rfc7854_wire_header_test.go::TestRFC7854PerPeerHeaderFollowsTheCommonHeader#2": "8a330a29c2d73330"
+  },
+  "units": {
+    "internal/component/bgp/plugins/bmp/header_test.go::TestHasPeerHeader": "0a9e2a964cdf4c55",
+    "internal/component/bgp/plugins/bmp/header_test.go::TestHasPeerHeader#2": "0a9e2a964cdf4c55",
+    "internal/component/bgp/plugins/bmp/rfc7854_wire_header_test.go::TestRFC7854PerPeerHeaderFollowsTheCommonHeader": "699083b0b7f42abf",
+    "internal/component/bgp/plugins/bmp/rfc7854_wire_header_test.go::TestRFC7854PerPeerHeaderFollowsTheCommonHeader#2": "699083b0b7f42abf"
+  },
+  "verdict": "enforced"
+}

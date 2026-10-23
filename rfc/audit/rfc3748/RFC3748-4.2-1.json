@@ -1,0 +1,11 @@
+{
+  "note": "{single-polarity: positive} carried on the row. Forbidden: the authenticator re-sending Success or Failure. TestRFC3748SuccessFailureNotRetransmitted fails on a non-nil packet from Process after a Failure (Nak path) and after a Success (full MS-CHAPv2 flight).",
+  "requirement_sha": "c0a1e960bf77e219",
+  "tests": {
+    "internal/core/eap/rfc3748_test.go::TestRFC3748SuccessFailureNotRetransmitted": "c7d9cf3b0751a797"
+  },
+  "units": {
+    "internal/core/eap/rfc3748_test.go::TestRFC3748SuccessFailureNotRetransmitted": "cf8077ad6658a84d"
+  },
+  "verdict": "enforced"
+}

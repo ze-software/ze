@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7950-7.7.5-1",
+    "polarity": "positive",
+    "unit": "internal/component/config/yang/rfc7950_validator_test.go::TestRFC7950MinElementsMet",
+    "unit-sha": "844ac353b128b572",
+    "claim-sha": "bb85d26dd1ec7da8",
+    "route": "revert",
+    "producer": "internal/component/config/yang/validator.go::checkCardinality",
+    "producer-sha": "dc715436c49df95b",
+    "break": "body of checkCardinality replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7950-7.7.5-1",
+    "polarity": "negative",
+    "unit": "internal/component/config/yang/rfc7950_validator_test.go::TestRFC7950MinElementsViolated",
+    "unit-sha": "2195a4ae0182f3d8",
+    "claim-sha": "374ac128473743bb",
+    "route": "revert",
+    "producer": "internal/component/config/yang/validator.go::checkCardinality",
+    "producer-sha": "dc715436c49df95b",
+    "break": "body of checkCardinality replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

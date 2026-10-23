@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5880-6.7.4-15",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthKeyIDMatchAccepted",
+    "unit-sha": "18934da7c574178a",
+    "claim-sha": "705195982200cb63",
+    "route": "revert",
+    "producer": "internal/component/bfd/auth/sha1.go::Verify",
+    "producer-sha": "a96f098f3c6f9288",
+    "break": "body of Verify replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.7.4-15",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthKeyIDMismatchDiscarded",
+    "unit-sha": "4bded1af1fbf7088",
+    "claim-sha": "9474149891bd8c8e",
+    "route": "revert",
+    "producer": "internal/component/bfd/auth/sha1.go::Verify",
+    "producer-sha": "a96f098f3c6f9288",
+    "break": "body of Verify replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

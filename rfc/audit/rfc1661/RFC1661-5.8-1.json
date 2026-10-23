@@ -1,0 +1,13 @@
+{
+  "note": "Judge ppp4 2026-09-30. TestRFC1661EchoReplyInOpened: Opened, Echo-Request with the peer's Magic-Number draws an Echo-Reply with Identifier 0x51 and ze's Magic (+). TestRFC1661NoEchoOutsideOpened (-): now sets peerMagic 0x99887766 and sends that Magic, so the Magic-Number filter in handleLCPPacket passes and the FSM state alone decides; at HEAD the Data equalled the local magic with peerMagic 0 and the packet was dropped before the FSM, a vacuous negative that is now fixed.",
+  "requirement_sha": "2809e0c90d984ada",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661EchoReplyInOpened": "9afaf002f0fd81ec",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoEchoOutsideOpened": "9afaf002f0fd81ec"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661EchoReplyInOpened": "2bb8cc697c6e3454",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoEchoOutsideOpened": "ec0d0ea97932d3f4"
+  },
+  "verdict": "enforced"
+}

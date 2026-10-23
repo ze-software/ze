@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC9252-3.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/config/routeattr_test.go::TestEncodePrefixSIDSRv6_ReservedFieldsZero",
+    "unit-sha": "9396171b4b7ae274",
+    "claim-sha": "6da8349c8082a9a0",
+    "route": "revert",
+    "producer": "internal/core/bgp/attribute/prefixsid.go::EncodePrefixSIDSRv6",
+    "producer-sha": "c1008036db791826",
+    "break": "body of EncodePrefixSIDSRv6 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

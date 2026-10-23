@@ -1,0 +1,13 @@
+{
+  "note": "TestRFC6793OpenMyASIsASTransWithoutTwoOctetAS asserts the sent OPEN My AS is 23456 for AS 4200000001; the negative keeps 65001 as itself.",
+  "requirement_sha": "5e22ab9245f8205a",
+  "tests": {
+    "internal/component/bgp/reactor/rfc6793_as4_open_test.go::TestRFC6793OpenMyASIsASTransWithoutTwoOctetAS": "419ce83b3e0c3ed0",
+    "internal/component/bgp/reactor/rfc6793_as4_open_test.go::TestRFC6793OpenMyASIsRealASWhenMappable": "419ce83b3e0c3ed0"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc6793_as4_open_test.go::TestRFC6793OpenMyASIsASTransWithoutTwoOctetAS": "1a91defadde2d106",
+    "internal/component/bgp/reactor/rfc6793_as4_open_test.go::TestRFC6793OpenMyASIsRealASWhenMappable": "43e604f5876295d2"
+  },
+  "verdict": "enforced"
+}

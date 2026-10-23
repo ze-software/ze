@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC3748-4.2-2",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc3748_clause_test.go::TestRFC3748SuccessAndFailureCarryNoData",
+    "unit-sha": "a13013e6ea74460a",
+    "claim-sha": "d48882f29ad7ca4b",
+    "route": "revert",
+    "producer": "internal/core/eap/eap.go::Encode",
+    "producer-sha": "9e024da3abf13b80",
+    "break": "body of Encode replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3748-4.2-2",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc3748_clause_test.go::TestRFC3748SuccessAndFailureCarryNoData",
+    "unit-sha": "a13013e6ea74460a",
+    "claim-sha": "32bfbc63130f20cf",
+    "route": "revert",
+    "producer": "internal/core/eap/eap.go::DecodePacket",
+    "producer-sha": "6ac2ff5effdaaf5e",
+    "break": "body of DecodePacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3748-4.2-2",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc3748_test.go::TestRFC3748SuccessFailureFormat",
+    "unit-sha": "a0929f0b3e5258a8",
+    "claim-sha": "eb757146d79c858f",
+    "route": "revert",
+    "producer": "internal/core/eap/eap.go::Encode",
+    "producer-sha": "9e024da3abf13b80",
+    "break": "body of Encode replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

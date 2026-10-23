@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-09-27 by QF-2 after the row's trailing implementation note lost its parenthesis, so the quote ends at the \u00a74 sub-span 'Hellos MUST NOT be exchanged over the inter-AS link'. Forbidden: an inter-AS interface that runs Hellos. TestRFC5392InterASInterfaceIsPassive asserts `!ic.Passive || active` fails the test when parseInterface leaves an inter-as interface active, with an intra-AS TE control. Enforced stands.",
+  "requirement_sha": "20168becb3d64f38",
+  "tests": {
+    "internal/plugins/ospf/rfc5392_interas_passive_test.go::TestRFC5392InterASInterfaceIsPassive": "255440a277e9ad5e",
+    "internal/plugins/ospf/rfc5392_te_originate_test.go::TestInterASTEOriginatesWithoutNeighbor": "db1397ebe20dcae7"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc5392_interas_passive_test.go::TestRFC5392InterASInterfaceIsPassive": "2b1983544a4d2c9e",
+    "internal/plugins/ospf/rfc5392_te_originate_test.go::TestInterASTEOriginatesWithoutNeighbor": "fd7c7388a3cc2a9f"
+  },
+  "verdict": "enforced"
+}

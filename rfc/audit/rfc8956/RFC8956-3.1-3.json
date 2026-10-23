@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged 2026-10-16: both units changed only by package qualification. The plugin unit now calls core flowspec.ParseFlowSpec and flowspec.KwDestinationIPv6; the firewall unit names the IPv6 FlowSpec family as a family.Family literal. RFC 8956 Section 3.1: \"If length = 0 and offset = 0, this component matches every address; otherwise, length MUST be in the range offset < length < 129 or the component is malformed.\" First clause: flowspec-firewall TestRFC8956ZeroLengthZeroOffsetMatchesEveryAddress parses 03 01 00 00 and 03 02 00 00 and requires the firewall matches to be exactly MatchDestinationAddress{::/0} and MatchSourceAddress{::/0}. Its containment loop checks the constant and adds nothing, so the require.Equal is the proof. Second clause: TestIPv6FlowPrefixRejectsMalformedBounds requires parse errors for 0/1, 64/64, 63/64, 129/0 and a truncated pattern, and config refusal for /64/64, /64/65 and /0/1. It also requires 80/64 to encode and compare equal to its received form.",
+  "requirement_sha": "6a4509e65d495227",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go::TestIPv6FlowPrefixRejectsMalformedBounds": "f95b7c0bdfb0b6c7",
+    "internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go::TestIPv6FlowPrefixRejectsMalformedBounds#2": "f95b7c0bdfb0b6c7",
+    "internal/plugins/flowspec-firewall/rfc8956_zero_prefix_test.go::TestRFC8956ZeroLengthZeroOffsetMatchesEveryAddress": "c797f188a57160d0"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go::TestIPv6FlowPrefixRejectsMalformedBounds": "132c8a4deb2189e6",
+    "internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go::TestIPv6FlowPrefixRejectsMalformedBounds#2": "132c8a4deb2189e6",
+    "internal/plugins/flowspec-firewall/rfc8956_zero_prefix_test.go::TestRFC8956ZeroLengthZeroOffsetMatchesEveryAddress": "f321b6f6b976ce86"
+  },
+  "verdict": "enforced"
+}

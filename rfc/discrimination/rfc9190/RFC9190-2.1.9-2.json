@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9190-2.1.9-2",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc9190_fragmentation_test.go::TestEAPTLSAcceptsAnUnfragmentedMessageWithAndWithoutTheLengthBit",
+    "unit-sha": "e862f3d4ee1de23b",
+    "claim-sha": "7299261a6d01df2b",
+    "route": "revert",
+    "producer": "internal/core/eap/eap_tls.go::reassemble",
+    "producer-sha": "b33123e6dfd063e9",
+    "break": "body of reassemble replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9190-2.1.9-2",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc9190_fragmentation_test.go::TestEAPTLSRefusesAnUnfragmentedMessageThatContradictsItself",
+    "unit-sha": "2e056dd311ee7e41",
+    "claim-sha": "65e32d49b1a9e5c6",
+    "route": "revert",
+    "producer": "internal/core/eap/eap_tls.go::reassemble",
+    "producer-sha": "b33123e6dfd063e9",
+    "break": "body of reassemble replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

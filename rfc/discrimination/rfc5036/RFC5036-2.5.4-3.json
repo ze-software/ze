@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC5036-2.5.4-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/ldp/rfc5036_keepalive_expiry_test.go::TestReadLoopKeepaliveExpirySendsFatalNotification",
+    "unit-sha": "08a7943be22cd8d6",
+    "claim-sha": "a95f59f74401fc27",
+    "route": "revert",
+    "producer": "internal/plugins/ldp/session.go::keepaliveTimerExpired",
+    "producer-sha": "d6884594db96973a",
+    "break": "body of keepaliveTimerExpired replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5036-2.5.4-3",
+    "polarity": "negative",
+    "unit": "internal/plugins/ldp/rfc5036_keepalive_expiry_test.go::TestReadLoopKeepaliveTrafficRestartsTimer",
+    "unit-sha": "c9c510a94fefee86",
+    "claim-sha": "d151aeb694e649fd",
+    "route": "revert",
+    "producer": "internal/plugins/ldp/session.go::keepaliveTimerExpired",
+    "producer-sha": "d6884594db96973a",
+    "break": "body of keepaliveTimerExpired replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5036-2.5.4-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/ldp/rfc5036_keepalive_expiry_test.go::TestRunSessionKeepaliveExpiryNotifiesThenCloses",
+    "unit-sha": "08e34bbb87b8a60f",
+    "claim-sha": "6b162a53148bb2f2",
+    "route": "revert",
+    "producer": "internal/plugins/ldp/session.go::keepaliveTimerExpired",
+    "producer-sha": "d6884594db96973a",
+    "break": "body of keepaliveTimerExpired replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

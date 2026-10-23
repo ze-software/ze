@@ -1,0 +1,22 @@
+{
+  "code": {
+    "internal/component/l2tp/config.go::ExtractParameters": "1dc42bb71926de52",
+    "internal/component/l2tp/reactor.go::locateTunnelLocked": "5c28f70701fb2898",
+    "internal/component/l2tp/reactor_dial.go::handleDial": "bc9fb4d5a224dff9",
+    "internal/component/l2tp/reactor_setters.go::reliableConfig": "197015a9a6014813",
+    "internal/component/l2tp/reactor_setters.go::setMaxRetransmit": "c5df77b9812f8ccc",
+    "internal/component/l2tp/reliable.go::Tick": "3fcecb3ab8d2478c",
+    "internal/component/l2tp/subsystem.go::tunnelDefaults": "f9cf1535af2646f7"
+  },
+  "note": "Re-judged 2026-10-18 (independent auditor, after cb8e90f006). RFC 2661 Section 5.8: \"If no peer response is detected after several retransmissions, (a recommended default is 5, but SHOULD be configurable), the tunnel and all sessions within MUST be cleared.\" The leaf l2tp max-retransmit (uint8, 1..255, default 5) is read by ExtractParameters and passes through Subsystem.tunnelDefaults and setMaxRetransmit into reliableConfig, which both tunnel constructors (locateTunnelLocked, handleDial) call; ReliableEngine.Tick tears the tunnel down once attempts exceed it. TestRFC2661ConfiguredMaxRetransmitClearsTunnel uses a budget of 2: the tunnel stays Established through both retransmissions and is Closed, with a StopCCN, on the next deadline. The auditor's overlay mutants of reliableConfig turned it red at the deciding assertions (MaxRetransmit dropped to 0 fails the Closed check; MaxRetransmit-1 fails the Established loop); the stored records use the revert route. Parse and reload are pinned by TestConfig_MaxRetransmit and TestReloadAppliesMaxRetransmit; the startup path reaches tunnelDefaults only through the reload test.",
+  "requirement_sha": "31ed4fbaf5ba0708",
+  "tests": {
+    "internal/component/l2tp/rfc2661_retransmit_exhaustion_test.go::TestRFC2661ConfiguredMaxRetransmitClearsTunnel": "7046da3338c57d75",
+    "internal/component/l2tp/rfc2661_retransmit_exhaustion_test.go::TestRFC2661ConfiguredMaxRetransmitClearsTunnel#2": "7046da3338c57d75"
+  },
+  "units": {
+    "internal/component/l2tp/rfc2661_retransmit_exhaustion_test.go::TestRFC2661ConfiguredMaxRetransmitClearsTunnel": "8bbb52aa68f01e11",
+    "internal/component/l2tp/rfc2661_retransmit_exhaustion_test.go::TestRFC2661ConfiguredMaxRetransmitClearsTunnel#2": "8bbb52aa68f01e11"
+  },
+  "verdict": "enforced"
+}

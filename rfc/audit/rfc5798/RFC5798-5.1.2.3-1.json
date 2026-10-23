@@ -1,0 +1,11 @@
+{
+  "note": "single-polarity by annotation: integration test reads IPV6_MULTICAST_HOPS 255 back from the tx socket; runs only under the privileged QEMU suite",
+  "requirement_sha": "e30a16b3b8010e7c",
+  "tests": {
+    "internal/plugins/vrrp/transport/transport_integration_linux_test.go::TestIntegrationOpenInstanceSocketOptions": "72419e6316df8b6d"
+  },
+  "units": {
+    "internal/plugins/vrrp/transport/transport_integration_linux_test.go::TestIntegrationOpenInstanceSocketOptions": "c4a068e79f43afef"
+  },
+  "verdict": "enforced"
+}

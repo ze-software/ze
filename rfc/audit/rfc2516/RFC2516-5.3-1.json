@@ -1,0 +1,13 @@
+{
+  "note": "TestBuildPADREchoesTags compares the echoed AC-Cookie bytes; TestBuildPADRNoOptionalTags shows none is invented",
+  "requirement_sha": "36be1d5c5af85ab0",
+  "tests": {
+    "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestBuildPADREchoesTags": "b7c2fae4a50abe95",
+    "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestBuildPADRNoOptionalTags": "b7c2fae4a50abe95"
+  },
+  "units": {
+    "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestBuildPADREchoesTags": "2d4d0fbe32696197",
+    "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestBuildPADRNoOptionalTags": "c3b53f1ee581bf25"
+  },
+  "verdict": "enforced"
+}

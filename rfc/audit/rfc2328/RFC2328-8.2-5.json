@@ -1,0 +1,13 @@
+{
+  "note": "First verdict 2026-10-21 (round 4 judge). Split from 8.2-3. Negative: DD, LS Request, LS Update and LS Ack from 9.9.9.9 (no Hello) are each dropped with reason neighbor (4), create no neighbor, install nothing, transmit nothing. Positive: from the Exchange neighbor 2.2.2.2 the LS Update is installed and the LS Ack clears the retransmission, with no neighbor/state drops. Records on neighbor/table.go::AcceptsFlooding.",
+  "requirement_sha": "d878757c8277b966",
+  "tests": {
+    "internal/plugins/ospf/rfc2328_active_neighbor_test.go::TestRFC2328ActiveNeighborPacketsProcessed": "980a431d5da12d3c",
+    "internal/plugins/ospf/rfc2328_active_neighbor_test.go::TestRFC2328NonHelloFromUnknownRouterDropped": "980a431d5da12d3c"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc2328_active_neighbor_test.go::TestRFC2328ActiveNeighborPacketsProcessed": "7181129bfbe2f438",
+    "internal/plugins/ospf/rfc2328_active_neighbor_test.go::TestRFC2328NonHelloFromUnknownRouterDropped": "2d5b97cfb729aac4"
+  },
+  "verdict": "enforced"
+}

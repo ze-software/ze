@@ -1,0 +1,13 @@
+{
+  "note": "Independent source rejudgment against complete RFC 4301 Section 4.4.1.2: \u2018An SPD is an ordered list of entries each of which contains the following fields.\u2019 The assigned complete item is: \u2018One to N selector sets that correspond to the \"condition\" for applying a particular IPsec action.\u2019 internal/component/ike/ipsec/config.go::ParseIPsecConfig calls parseSPDPolicies, and internal/component/ike/ipsec/spd_policy.go::parseSPDPolicy constructs one SPDPolicy with one local/remote prefix, one protocol and one port pair. N=1 satisfies this structural item; this does not prove the separately allocated users-MUST-NOT rule or multi-selector negotiation. Read both tagged units and their helpers in internal/component/ike/ipsec/rfc4301_selector_set_test.go. TestRFC4301SPDEntryHoldsOneSelectorSet parses an actual config tree and checks both exact prefixes, protocol 17, local port value 53 and remote ANY. TestRFC4301SPDEntryCannotCarryASecondSelectorSet checks the returned model for selector-bearing collections and exactly four scalar prefix/port fields. The latter is a structural guard, not an exhaustive validator of hypothetical future nested models. The single-positive annotation is justified for the one-set representation, which has no selectable zero-set/multiple-set cardinality; it does not mean malformed configurations have no refusal paths. The enum-owned edits are ordinary exhaustive comments in the test and holdsSelector, outside the tag claim. They stale the audit unit but do not themselves change discrimination behavior or claim hashes; the canonical scope report records the tagged comment-only cover as verified. No new execution or baseline-freshness claim.",
+  "requirement_sha": "b7e3b12a692cdf74",
+  "tests": {
+    "internal/component/ike/ipsec/rfc4301_selector_set_test.go::TestRFC4301SPDEntryCannotCarryASecondSelectorSet": "3d14d31516b85788",
+    "internal/component/ike/ipsec/rfc4301_selector_set_test.go::TestRFC4301SPDEntryHoldsOneSelectorSet": "3d14d31516b85788"
+  },
+  "units": {
+    "internal/component/ike/ipsec/rfc4301_selector_set_test.go::TestRFC4301SPDEntryCannotCarryASecondSelectorSet": "e36059a837c5acc6",
+    "internal/component/ike/ipsec/rfc4301_selector_set_test.go::TestRFC4301SPDEntryHoldsOneSelectorSet": "d96c393ccd9f6ba5"
+  },
+  "verdict": "enforced"
+}

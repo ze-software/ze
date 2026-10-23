@@ -1,0 +1,15 @@
+{
+  "note": "TestRFC1661ConfigureRequestInOpenedRenegotiates drives handleLCPPacket with an acceptable Configure-Request in Opened: red unless ze writes its own Configure-Request and a Configure-Ack, lands in Ack-Sent, returns no end and emits no EventSessionDown. The table-level units (Opened+RCR has scr; RXR does not) stay as the specificity control.",
+  "requirement_sha": "f615a6f02dc3c0c1",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661ConfigureRequestInOpenedRenegotiates": "480d72ff3c4dac57",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661EchoDoesNotRenegotiate": "9afaf002f0fd81ec",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661RenegotiateOnConfigureRequestInOpened": "9afaf002f0fd81ec"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661ConfigureRequestInOpenedRenegotiates": "10e4e2442df38e91",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661EchoDoesNotRenegotiate": "f3f36def7d607344",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661RenegotiateOnConfigureRequestInOpened": "75ec212ec74da79a"
+  },
+  "verdict": "enforced"
+}

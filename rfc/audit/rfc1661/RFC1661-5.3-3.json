@@ -1,0 +1,15 @@
+{
+  "note": "Forbidden: a Nak that repeats an unacceptable single-instance value. TestRFC1661ConfigureNakSuggestsAcceptableValue goes red unless the Nak carries one MRU at 1500 for a requested 2000; TestRFC1661RepeatedOptionDrawsOneNakEntry goes red on more than one Magic entry; TestRFC1661NoNakForAcceptableValue goes red if an acceptable MRU is Nak'd or modified.",
+  "requirement_sha": "285f46846bc6ccaf",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestRFC1661RepeatedOptionDrawsOneNakEntry": "6e1e87cfaa4fb86b",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureNakSuggestsAcceptableValue": "9afaf002f0fd81ec",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoNakForAcceptableValue": "9afaf002f0fd81ec"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestRFC1661RepeatedOptionDrawsOneNakEntry": "5b4b61755e0177de",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureNakSuggestsAcceptableValue": "ed8353763fa234db",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoNakForAcceptableValue": "ffd0dd58968a4914"
+  },
+  "verdict": "enforced"
+}

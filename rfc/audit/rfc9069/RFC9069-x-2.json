@@ -1,0 +1,11 @@
+{
+  "note": "Forbidden: a Loc-RIB instance with no emulated peer, i.e. no Loc-RIB Peer Up. internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBSinglePeerUpPerInstance: peerUps != 1 is Errorf, red on zero (and on one per BGP peer). Single-polarity marker. Ze runs one Loc-RIB instance, so the 'such as with VRFs' plurality has no second instance to exercise.",
+  "requirement_sha": "97426f7d41647786",
+  "tests": {
+    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBSinglePeerUpPerInstance": "0d66046a7112fdb8"
+  },
+  "units": {
+    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBSinglePeerUpPerInstance": "3eda43fed7591d14"
+  },
+  "verdict": "enforced"
+}

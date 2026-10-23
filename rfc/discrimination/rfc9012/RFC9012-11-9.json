@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9012-11-9",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc9012_encapsulation_filter_test.go::TestRFC9012ConfiguredEncapsulationECIngress",
+    "unit-sha": "4901b7b78a5e390e",
+    "claim-sha": "61e6e35d90fe8301",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/filter_community/filter.go::ingressStripCommunities",
+    "producer-sha": "31ae0aa2f8b18852",
+    "break": "body of ingressStripCommunities replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9012-11-9",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc9012_encapsulation_filter_test.go::TestRFC9012ConfiguredEncapsulationECIngress",
+    "unit-sha": "4901b7b78a5e390e",
+    "claim-sha": "c1a242c858333a18",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/filter_community/filter.go::ingressStripCommunities",
+    "producer-sha": "31ae0aa2f8b18852",
+    "break": "body of ingressStripCommunities replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

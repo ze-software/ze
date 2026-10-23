@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-10-21. TestOSPFAuthCryptoRejectsKeyIDMismatch (codec) unchanged: a non-matching Key ID fails even with the same secret, a matching one verifies. TestEngineReceiveSelectsSecurityAssociation: Key IDs 7 (SHA-256), 8 (SHA-512), 9 (other secret); each valid packet passes, an unknown Key ID and another association's algorithm or secret are dropped and counted. The only change is per-case sequence offsets for the per-neighbour AuType 2 slot, which leaves every assertion intact.",
+  "requirement_sha": "c7ec6bba8578baec",
+  "tests": {
+    "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthCryptoRejectsKeyIDMismatch": "b1f49f5bb6bbafb8",
+    "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthCryptoRejectsKeyIDMismatch#2": "b1f49f5bb6bbafb8",
+    "internal/plugins/ospf/rfc5709_auth_wiring_test.go::TestEngineReceiveSelectsSecurityAssociation": "2b638531844d3e37",
+    "internal/plugins/ospf/rfc5709_auth_wiring_test.go::TestEngineReceiveSelectsSecurityAssociation#2": "2b638531844d3e37"
+  },
+  "units": {
+    "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthCryptoRejectsKeyIDMismatch": "3e66930bd14e4a79",
+    "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthCryptoRejectsKeyIDMismatch#2": "3e66930bd14e4a79",
+    "internal/plugins/ospf/rfc5709_auth_wiring_test.go::TestEngineReceiveSelectsSecurityAssociation": "1e90f9dc76a424cf",
+    "internal/plugins/ospf/rfc5709_auth_wiring_test.go::TestEngineReceiveSelectsSecurityAssociation#2": "1e90f9dc76a424cf"
+  },
+  "verdict": "enforced"
+}

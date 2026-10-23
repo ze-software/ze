@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4271-6.8-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_collision_open_receipt_test.go::TestRFC4271ReceivedOpenExaminesTheOpenConfirmConnection",
+    "unit-sha": "681955196b359d0f",
+    "claim-sha": "aa0dee96bdedc62a",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session.go::detectCollision",
+    "producer-sha": "b86ae7eeedc401ea",
+    "break": "body of detectCollision replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-6.8-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_collision_open_receipt_test.go::TestRFC4271ReceivedOpenWithNoOpenConfirmConnection",
+    "unit-sha": "fd7a86449bb1215a",
+    "claim-sha": "cf1c11cbb784bacb",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session.go::detectCollision",
+    "producer-sha": "b86ae7eeedc401ea",
+    "break": "body of detectCollision replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

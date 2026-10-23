@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5798-6.4.3-10",
+    "polarity": "negative",
+    "unit": "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix",
+    "unit-sha": "897cb80e504bb312",
+    "claim-sha": "b6f763806b98084e",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/fsm/fsm.go::Handle",
+    "producer-sha": "2ffd8b034483c3b8",
+    "break": "body of Handle replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5798-6.4.3-10",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix",
+    "unit-sha": "897cb80e504bb312",
+    "claim-sha": "6c57e4961e79755f",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/fsm/fsm.go::Handle",
+    "producer-sha": "2ffd8b034483c3b8",
+    "break": "body of Handle replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

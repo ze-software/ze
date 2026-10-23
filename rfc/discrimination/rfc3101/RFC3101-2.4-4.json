@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC3101-2.4-4",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/rfc3101_border_default_pbit_test.go::TestRFC3101BorderRouterDefaultStaysPClearUnderPropagatingImport",
+    "unit-sha": "f7db2ffd76932886",
+    "claim-sha": "31a46ac0f84c8b29",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/nssa.go::applyNSSADefaults",
+    "producer-sha": "89fbd1b79067a688",
+    "break": "body of applyNSSADefaults replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3101-2.4-4",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc3101_nssa_ac14_16_test.go::TestOSPFNSSABorderRouterDefaultsEveryArea",
+    "unit-sha": "2fd3b58be58acc2b",
+    "claim-sha": "2a96e0889e3d88e5",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/nssa.go::applyNSSADefaults",
+    "producer-sha": "89fbd1b79067a688",
+    "break": "body of applyNSSADefaults replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3101-2.4-4",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go::TestOSPFv3NSSABorderRouterOriginatesDefault",
+    "unit-sha": "8f9f0940d9d20bb4",
+    "claim-sha": "b79ea17ec0bbbb72",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/nssa.go::applyNSSADefaults",
+    "producer-sha": "89fbd1b79067a688",
+    "break": "body of applyNSSADefaults replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

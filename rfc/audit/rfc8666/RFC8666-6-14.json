@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-21 after the doc comment of TestRFC8666WithoutMappingServerFlagNPAndEApply gained an RFC8666-6-13 tag; its body is unchanged. Positive TestRFC8666MappingServerFlagIgnoresNPAndE: M=1, NP=0, E=1 keeps 16009, no Explicit NULL, no pop, so both flags are ignored. Negative: the same NP=0/E=1 without M pops 18009 and pushes nothing, so the ignore is conditional on M. OutgoingActionFor returns ActionKeep on M first.",
+  "requirement_sha": "b364b405b60ae381",
+  "tests": {
+    "internal/plugins/ospf/rfc8666_test.go::TestRFC8666MappingServerFlagIgnoresNPAndE": "4729a15d3adeda26",
+    "internal/plugins/ospf/rfc8666_test.go::TestRFC8666WithoutMappingServerFlagNPAndEApply": "4729a15d3adeda26"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc8666_test.go::TestRFC8666MappingServerFlagIgnoresNPAndE": "e3beb9349250fa3b",
+    "internal/plugins/ospf/rfc8666_test.go::TestRFC8666WithoutMappingServerFlagNPAndEApply": "0183e144a1e3a85c"
+  },
+  "verdict": "enforced"
+}

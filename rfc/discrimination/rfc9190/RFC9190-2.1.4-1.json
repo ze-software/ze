@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9190-2.1.4-1",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc9190_handshake_rules_test.go::TestEAPTLS12EachEndAnswersWithRecordsOfTheNegotiatedVersion",
+    "unit-sha": "1f54650251cf3350",
+    "claim-sha": "86c2bd49303b6cee",
+    "route": "revert",
+    "producer": "internal/core/eap/eap_tls.go::Process",
+    "producer-sha": "a7122cb1288ea14a",
+    "break": "body of Process replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9190-2.1.4-1",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc9190_handshake_rules_test.go::TestEAPTLS13EachEndAnswersWithRecordsOfTheNegotiatedVersion",
+    "unit-sha": "f29857a61b2cb153",
+    "claim-sha": "f9532ed258507d3d",
+    "route": "revert",
+    "producer": "internal/core/eap/eap_tls.go::Process",
+    "producer-sha": "a7122cb1288ea14a",
+    "break": "body of Process replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

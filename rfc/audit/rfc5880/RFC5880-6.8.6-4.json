@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: accepting Detect Mult 0. TestRFC5880DetectMultZeroDiscarded fails unless ParseControl returns ErrZeroDetectMult; TestRFC5880DetectMultNonZeroAccepted fails if 1, 3 or 255 is rejected or mis-decoded. handleInbound returns on the error.",
+  "requirement_sha": "cc6e080124ccaec1",
+  "tests": {
+    "internal/component/bfd/packet/rfc5880_test.go::TestRFC5880DetectMultNonZeroAccepted": "fba3b65e315e32aa",
+    "internal/component/bfd/packet/rfc5880_test.go::TestRFC5880DetectMultZeroDiscarded": "fba3b65e315e32aa"
+  },
+  "units": {
+    "internal/component/bfd/packet/rfc5880_test.go::TestRFC5880DetectMultNonZeroAccepted": "c9dd530379ab0597",
+    "internal/component/bfd/packet/rfc5880_test.go::TestRFC5880DetectMultZeroDiscarded": "25704626b7cd3d0a"
+  },
+  "verdict": "enforced"
+}

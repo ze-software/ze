@@ -1,0 +1,17 @@
+{
+  "note": "NAK half added: a CoA-Request carrying State (0xdead00beef, embedded zero) answered by CoA-NAK 506 and by CoA-NAK 503 gets the State back byte-equal; a NAK to a request with no State carries none. The ACK half and its no-State counterpart were already held. Producer sendResponse.",
+  "requirement_sha": "b992cfc072eb68b9",
+  "tests": {
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176NAKForARequestWithoutStateCarriesNone": "ff37f19e24dbd668",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176StateReturnedUnmodifiedInANAK": "ff37f19e24dbd668",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176StateReturnedUnmodified": "2b3357f1f1e8ec93",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176StateReturnedUnmodified#2": "2b3357f1f1e8ec93"
+  },
+  "units": {
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176NAKForARequestWithoutStateCarriesNone": "9bdc19e931fcb9bc",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176StateReturnedUnmodifiedInANAK": "a71098d28e9779e7",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176StateReturnedUnmodified": "9617bef322aff058",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176StateReturnedUnmodified#2": "9617bef322aff058"
+  },
+  "verdict": "enforced"
+}

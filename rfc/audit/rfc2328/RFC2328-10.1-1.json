@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-10-21. TestOSPFDDRetransmit now requires the retransmitted DD to equal the outstanding one (sameDD), not merely be a DD. The dedicated pair TestRFC2328MasterHoldsOneOutstandingDD / TestRFC2328MasterSendsNoSecondDDWithoutAck is unchanged: a master with more than one DD of headers sends only DD n until acked. Records on resendLastDDLocked and handleExchangeDDLocked.",
+  "requirement_sha": "6fabb95ec6c3ba94",
+  "tests": {
+    "internal/plugins/ospf/neighbor/rfc2328_dd_outstanding_test.go::TestRFC2328MasterHoldsOneOutstandingDD": "cf75f320761de34a",
+    "internal/plugins/ospf/neighbor/rfc2328_dd_outstanding_test.go::TestRFC2328MasterSendsNoSecondDDWithoutAck": "cf75f320761de34a",
+    "internal/plugins/ospf/neighbor/rfc2328_nsm_test.go::TestOSPFDDRetransmit": "e39921501ea6fed3",
+    "internal/plugins/ospf/neighbor/rfc2328_nsm_test.go::TestOSPFDuplicateDD": "e39921501ea6fed3"
+  },
+  "units": {
+    "internal/plugins/ospf/neighbor/rfc2328_dd_outstanding_test.go::TestRFC2328MasterHoldsOneOutstandingDD": "cd9993a9dd59ab43",
+    "internal/plugins/ospf/neighbor/rfc2328_dd_outstanding_test.go::TestRFC2328MasterSendsNoSecondDDWithoutAck": "94617f8f823ae62d",
+    "internal/plugins/ospf/neighbor/rfc2328_nsm_test.go::TestOSPFDDRetransmit": "8b919875988a83ec",
+    "internal/plugins/ospf/neighbor/rfc2328_nsm_test.go::TestOSPFDuplicateDD": "5dc1e7c93e6332d0"
+  },
+  "verdict": "enforced"
+}

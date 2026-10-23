@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC7770-2.2-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc7770_ri_v3_instance0_test.go::TestRFC7770V3InstanceZeroCarriesCapabilities",
+    "unit-sha": "9cc03632b37b845d",
+    "claim-sha": "4d679a005a71acca",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/origination_v6_ri.go::v6OriginateRIScope",
+    "producer-sha": "4f5e031ee6fa5c0d",
+    "break": "body of v6OriginateRIScope replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

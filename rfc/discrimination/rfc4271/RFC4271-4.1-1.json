@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4271-4.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/message/rfc4271_header_send_test.go::TestRFC4271EveryMessageSentWithAllOnesMarker",
+    "unit-sha": "7999d48733ee7077",
+    "claim-sha": "4e78075ad0572646",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/message.go::writeHeader",
+    "producer-sha": "4d9802d4aa4e3af1",
+    "break": "body of writeHeader replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-4.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/message/rfc4271_header_send_test.go::TestRFC4271EveryMessageSentWithAllOnesMarker",
+    "unit-sha": "7999d48733ee7077",
+    "claim-sha": "d34de7162a4c6a20",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/message.go::writeHeader",
+    "producer-sha": "4d9802d4aa4e3af1",
+    "break": "body of writeHeader replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

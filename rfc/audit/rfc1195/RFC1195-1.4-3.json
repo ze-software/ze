@@ -1,0 +1,6 @@
+{
+  "no_code_path": "The sentence constrains the composition of a dual area within a dual routing domain (which routers an operator may place in it), not an implementation's behavior. Ze runs pure-IP Integrated IS-IS and routes no OSI/CLNP traffic, so it is never a dual router and has no code path that could admit or refuse area membership on that basis; mirrors RFC1195-1.4-1.",
+  "note": "Judged 2026-09-30. Level MUST over 'only dual routers may be used' kept under D-3; {not-applicable} accepted (binds the network design, same as 1.4-1).",
+  "requirement_sha": "948eed7b2137df9e",
+  "verdict": "not-applicable"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDSubTLV. Forbidden: two Binding SID sub-TLVs. Red: assert.Len(srpAll(repeated, subTLVBindingSID), 1) for 'binding-sid mpls 24000 binding-sid null'. Negative: none configured, none emitted (assert.Empty).",
+  "requirement_sha": "e60461388f148763",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDSubTLV": "450f2364530acf19",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDSubTLV#2": "450f2364530acf19"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDSubTLV": "6eaba5e67a485e4c",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDSubTLV#2": "6eaba5e67a485e4c"
+  },
+  "verdict": "enforced"
+}

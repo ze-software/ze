@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC5176-2.3-7",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176CoAMatchingOneSessionIsACKed",
+    "unit-sha": "10af4f4b83f801fc",
+    "claim-sha": "20a6b6d90778cfef",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authradius/coa.go::handleCoA",
+    "producer-sha": "f7c7c770125f61d8",
+    "break": "body of handleCoA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5176-2.3-7",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176CoAMatchingSeveralSessionsIsNAKed",
+    "unit-sha": "d2bcbfe382f40966",
+    "claim-sha": "55d68338a773f3b8",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authradius/coa.go::oneSession",
+    "producer-sha": "e4e2644e7cdfd24e",
+    "break": "body of oneSession replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5176-2.3-7",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176MultipleMatchingSessionsNAKed",
+    "unit-sha": "f1b08e10eb8d50e6",
+    "claim-sha": "18dedaef6449a619",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authradius/coa.go::oneSession",
+    "producer-sha": "e4e2644e7cdfd24e",
+    "break": "body of oneSession replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5176-2.3-7",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176MultipleMatchingSessionsNAKed",
+    "unit-sha": "f1b08e10eb8d50e6",
+    "claim-sha": "dc48d280f21e8daa",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authradius/coa.go::oneSession",
+    "producer-sha": "e4e2644e7cdfd24e",
+    "break": "body of oneSession replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

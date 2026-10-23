@@ -1,0 +1,15 @@
+{
+  "note": "positive: requested subnet mask, router, DNS and domain name each equal the configured bytes exactly (DNS now byte for byte, closing the length-only gap); negative: a request suggesting other values for all four still gets the configured ones, so a server echoing client-suggested values goes red. {single-polarity} correctly removed from the row",
+  "requirement_sha": "ad560228b493607d",
+  "tests": {
+    "internal/plugins/dhcpserver/rfc2131_identity_options_test.go::TestRFC2131ConfiguredParameterValuesReturned": "b5a39ec9f84423c9",
+    "internal/plugins/dhcpserver/rfc2131_identity_options_test.go::TestRFC2131ConfiguredParameterValuesReturned#2": "b5a39ec9f84423c9",
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestUnconfiguredParametersOmitted": "8365c04cdfc2a046"
+  },
+  "units": {
+    "internal/plugins/dhcpserver/rfc2131_identity_options_test.go::TestRFC2131ConfiguredParameterValuesReturned": "c1d5a1844df6ae7b",
+    "internal/plugins/dhcpserver/rfc2131_identity_options_test.go::TestRFC2131ConfiguredParameterValuesReturned#2": "c1d5a1844df6ae7b",
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestUnconfiguredParametersOmitted": "e8e630b69239f509"
+  },
+  "verdict": "enforced"
+}

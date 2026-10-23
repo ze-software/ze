@@ -1,7 +1,7 @@
 // Design: docs/architecture/core-design.md -- the audit record's schema
 // Overview: rfc.go -- the types, the paths and the closed sets every reader here shares
 //
-// audit.go reads rfc/audit/<stem>.json: the per-requirement verdicts the
+// audit.go reads rfc/audit/<stem>/<requirement-id>.json: the per-requirement verdicts the
 // ze-rfc-audit skill records, and the fingerprints that say which text each
 // verdict judged. freshness.go decides what those fingerprints mean and
 // reseal.go rewrites them.
@@ -16,7 +16,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"os"
-	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
@@ -80,18 +79,12 @@ func AuditVerdictMeaning(verdict string) (string, bool) {
 // builds a file from them.
 const (
 	auditFieldRFC          = "rfc"
-	auditFieldAudited      = "audited"
 	auditFieldRequirements = "requirements"
 	verdictFieldVerdict    = "verdict"
 	verdictFieldNote       = "note"
 
 	verdictFieldUpgradeReason = "upgrade_reason"
 )
-
-var auditFileKeys = map[string]bool{
-	auditFieldRFC: true, auditFieldAudited: true, auditFieldRequirements: true,
-	"reaudit_note": true, "reaudit_history": true,
-}
 
 // The three verdict fields whose keys become filesystem reads: the tests that
 // prove the requirement, the units they judged, and the production code.
@@ -349,13 +342,13 @@ func validateVerdict(rid string, verdict any, order *keyOrder, where string) err
 	return nil
 }
 
-// Audit is one rfc/audit/<stem>.json, loaded and validated.
+// Audit is one RFC's verdicts, loaded and validated from its per-requirement
+// files under rfc/audit/<stem>/.
 //
-// Document holds the whole decoded file so the writer can rewrite it without a
-// second parse, and Verdicts is the `requirements` object with its authored key
-// order preserved, which is what decides which malformed verdict is named first.
+// Verdicts maps each requirement id to its decoded verdict object, Order is the
+// ids in file order, which is sorted, and order holds each verdict's authored
+// key order, which is what decides which malformed field is named first.
 type Audit struct {
-	Document map[string]any
 	Verdicts map[string]any
 	Order    []string
 	order    *keyOrder
@@ -416,107 +409,83 @@ func (a Audit) Record(rid string) (VerdictRecord, bool) {
 	return record, true
 }
 
-// auditStems answers every stem with an rfc/audit/<stem>.json.
+// auditStems answers every stem with a verdict under rfc/audit/<stem>/.
 //
 // The direction the freshness check never walked: it iterates REQUIREMENTS and
 // asks each for its verdict, so an audit file for a stem that is not enrolled,
 // or has no summary at all, was read by nothing and reported by nothing.
 func auditStems(tree string) (map[string]bool, error) {
-	entries, err := os.ReadDir(treePath(tree, auditRel))
+	files, err := listEvidence(tree, auditRel)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return map[string]bool{}, nil
-		}
-		var tb textbuf.Buffer
-		return nil, parseErr(tb.Str(auditRel).Str(": cannot read: ").Err(err))
+		return nil, err
 	}
 	out := map[string]bool{}
-	for _, entry := range entries {
-		if stem, isJSON := strings.CutSuffix(entry.Name(), ".json"); isJSON {
-			out[stem] = true
-		}
+	for _, file := range files {
+		out[file.Stem] = true
 	}
 	return out, nil
 }
 
-// loadAudit reads and VALIDATES one rfc/audit/<stem>.json.
+// loadAudit reads and VALIDATES one RFC's verdicts, one file per requirement.
 //
-// An absent file is an empty answer rather than a refusal: most enrolled RFCs
-// have never been audited, and that is a state the ledger reports rather than a
-// tree the gate cannot read.
+// An absent directory is an empty answer rather than a refusal: most enrolled
+// RFCs have never been audited, and that is a state the ledger reports rather
+// than a tree the gate cannot read. A per-stem file of the retired layout is
+// refused, so a writer never stamps beside verdicts the loader would not see.
 func loadAudit(tree, rfcStem string) (Audit, error) {
-	var name textbuf.Buffer
-	path := treePath(tree, auditRel, name.Str(rfcStem).Str(".json").String())
-	var relBuf textbuf.Buffer
-	rel := relBuf.Str(auditRel).Byte('/').Str(rfcStem).Str(".json").String()
-	var tb textbuf.Buffer
-
-	raw, err := os.ReadFile(path) // #nosec G304 -- a path under the checkout this gate judges
+	var retired textbuf.Buffer
+	retiredName := retired.Str(rfcStem).Str(jsonSuffix).String()
+	if _, err := os.Stat(treePath(tree, auditRel, retiredName)); err == nil {
+		return Audit{}, retiredLayoutErr(auditRel, retiredName)
+	}
+	var stemRel textbuf.Buffer
+	stemDir := stemRel.Str(auditRel).Byte('/').Str(rfcStem).String()
+	entries, err := os.ReadDir(treePath(tree, stemDir))
 	if err != nil {
 		if os.IsNotExist(err) {
 			return Audit{}, nil
 		}
-		return Audit{}, parseErr(tb.Str(rel).Str(": cannot read: ").Err(err))
+		var tb textbuf.Buffer
+		return Audit{}, parseErr(tb.Str(stemDir).Str(": cannot read: ").Err(err))
 	}
-	document, order, err := decodeOrdered(raw)
-	if err != nil {
-		return Audit{}, parseErr(tb.Str(rel).Str(": cannot read: ").Err(err))
-	}
-	data, isObject := document.(map[string]any)
-	if !isObject {
-		return Audit{}, parseErr(tb.Str(rel).Str(": expected a JSON object, got ").
-			Str(pyTypeName(document)))
-	}
-	if err := rejectUnknownKeys(data, auditFileKeys, rel); err != nil {
-		return Audit{}, err
-	}
-	stem, err := strField(data, "rfc", rel, true)
-	if err != nil {
-		return Audit{}, err
-	}
-	if stem != rfcStem {
-		return Audit{}, parseErr(tb.Str(rel).Str(": 'rfc' is ").Str(pyRepr(stem)).
-			Str(" but the filename says ").Str(pyRepr(rfcStem)).
-			Str(". The record names the RFC it judges; the two can never drift apart"))
-	}
-	if _, err := strField(data, auditFieldAudited, rel, true); err != nil {
-		return Audit{}, err
-	}
-	if history, held := data["reaudit_history"]; held && history != nil {
-		if !isStringList(history) {
-			return Audit{}, parseErr(tb.Str(rel).Str(": 'reaudit_history' must be a list of strings"))
+	audit := Audit{Verdicts: map[string]any{}, order: &keyOrder{children: map[string]*keyOrder{}}}
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
 		}
-	}
-	verdicts, isObject := data["requirements"].(map[string]any)
-	if !isObject {
-		return Audit{}, parseErr(tb.Str(rel).Str(": 'requirements' must be an object"))
-	}
-	verdictOrder := order.child("requirements")
-	for _, rid := range verdictOrder.orderOf(verdicts) {
-		if err := validateVerdict(rid, verdicts[rid], verdictOrder.child(rid), rel); err != nil {
+		var fileRel textbuf.Buffer
+		file, held := evidenceAt(auditRel, fileRel.Str(stemDir).Byte('/').Str(entry.Name()).String())
+		if !held {
+			continue
+		}
+		verdict, order, err := loadAuditVerdict(tree, file)
+		if err != nil {
 			return Audit{}, err
 		}
+		audit.Verdicts[file.RID] = verdict
+		audit.Order = append(audit.Order, file.RID)
+		audit.order.keys = append(audit.order.keys, file.RID)
+		audit.order.children[file.RID] = order
 	}
-	return Audit{
-		Document: data,
-		Verdicts: verdicts,
-		Order:    verdictOrder.orderOf(verdicts),
-		order:    verdictOrder,
-	}, nil
+	return audit, nil
 }
 
-// isStringList reports whether a decoded value is a JSON array of strings.
-func isStringList(value any) bool {
-	items, isList := value.([]any)
-	if !isList {
-		return false
+// loadAuditVerdict reads and VALIDATES one requirement's verdict file. The file
+// is the verdict object itself: its path names the RFC and the requirement.
+func loadAuditVerdict(tree string, file evidenceFile) (any, *keyOrder, error) {
+	var tb textbuf.Buffer
+	raw, err := os.ReadFile(treePath(tree, file.Rel)) // #nosec G304 -- a path under the checkout this gate judges
+	if err != nil {
+		return nil, nil, parseErr(tb.Str(file.Rel).Str(": cannot read: ").Err(err))
 	}
-	for _, one := range items {
-		if _, isText := one.(string); !isText {
-			return false
-		}
+	verdict, order, err := decodeOrdered(raw)
+	if err != nil {
+		return nil, nil, parseErr(tb.Str(file.Rel).Str(": cannot read: ").Err(err))
 	}
-	return true
+	if err := validateVerdict(file.RID, verdict, order, file.Rel); err != nil {
+		return nil, nil, err
+	}
+	return verdict, order, nil
 }
 
 // loadAudits reads every enrolled RFC's verdicts.
@@ -661,8 +630,7 @@ func scanKeyOrder(decoder *json.Decoder) (*keyOrder, error) {
 	return noOrder, nil
 }
 
-// auditPath answers where one RFC's verdicts live.
-func auditPath(tree, rfcStem string) string {
-	var name textbuf.Buffer
-	return filepath.Join(treePath(tree, auditRel), name.Str(rfcStem).Str(".json").String())
+// auditRecordPath answers where one requirement's verdict lives.
+func auditRecordPath(tree, rfcStem, rid string) string {
+	return treePath(tree, auditRecordRel(rfcStem, rid))
 }

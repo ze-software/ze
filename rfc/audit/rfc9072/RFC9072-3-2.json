@@ -1,0 +1,16 @@
+{
+  "code": {},
+  "note": "Re-judged 2026-10-14 (independent auditor). Unit changed only by the move to the one packer (capability.PackOptionalParams via packPeerOptionalParams). TestRFC9072ParameterType255OnlyAsTheExtendedMarker fills capability values with 0xFF octets, writes the OPEN and walks the framing the OPEN announces: below 256 octets no envelope and types [2]; above, the 255/255 envelope and every parameter type 2, framing ending exactly at the OPEN's end. TestOpenPackExtendedParams carries the positive marker position. A packer emitting 255 as a parameter type, or the marker on a short OPEN, goes red.",
+  "requirement_sha": "0ec0274767359d45",
+  "tests": {
+    "internal/component/bgp/message/open_test.go::TestOpenPackExtendedParams": "9a2a4c8f9ca41e49",
+    "internal/component/bgp/reactor/rfc9072_param_type_test.go::TestRFC9072ParameterType255OnlyAsTheExtendedMarker": "e713fe444a3988b8",
+    "internal/component/bgp/reactor/rfc9072_param_type_test.go::TestRFC9072ParameterType255OnlyAsTheExtendedMarker#2": "e713fe444a3988b8"
+  },
+  "units": {
+    "internal/component/bgp/message/open_test.go::TestOpenPackExtendedParams": "cbb4380d23e4e649",
+    "internal/component/bgp/reactor/rfc9072_param_type_test.go::TestRFC9072ParameterType255OnlyAsTheExtendedMarker": "f6708dfe30f6cf64",
+    "internal/component/bgp/reactor/rfc9072_param_type_test.go::TestRFC9072ParameterType255OnlyAsTheExtendedMarker#2": "f6708dfe30f6cf64"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC7296-3.1-11",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_header_notify_writers_test.go::TestInvalidIKESPIClearsXAndVBits",
+    "unit-sha": "063a83e16c4bdd09",
+    "claim-sha": "7a29bae3e45b38b3",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/notify_error.go::sendInvalidIKESPI",
+    "producer-sha": "682c9fd35741df87",
+    "break": "line 299: \"wire.FlagResponse\" -\u003e \"wire.FlagResponse | wire.FlagVersion\""
+  },
+  {
+    "rid": "RFC7296-3.1-11",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_header_notify_writers_test.go::TestSAInitNotifiesClearXAndVBits",
+    "unit-sha": "5b0634510bf7aa17",
+    "claim-sha": "bf4e967e68fe2b3b",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/responder.go::sendSAInitNotifyRaw",
+    "producer-sha": "e8b4803c4c646a9c",
+    "break": "line 477: \"wire.FlagResponse\" -\u003e \"wire.FlagResponse | wire.FlagVersion\""
+  },
+  {
+    "rid": "RFC7296-3.1-11",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_header_test.go::TestXBitsIgnoredOnReceipt",
+    "unit-sha": "dabaa3cbdab52a99",
+    "claim-sha": "250e0546936e1d44",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/register.go::tryResponderSAInit",
+    "producer-sha": "20be1f2568547369",
+    "break": "line 774: \"pkt.Data[19]\u0026wire.FlagResponse != 0\" -\u003e \"pkt.Data[19]\u0026^wire.FlagInitiator != 0\""
+  }
+]

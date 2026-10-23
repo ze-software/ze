@@ -1,0 +1,21 @@
+{
+  "note": "Judge ppp4 2026-09-30. TestRFC1994EqualResponseValueDrawsSuccessThroughLocalVerifier (+): MD5(Id, configured secret, Challenge) through the registered local verifier draws Code 3 on the wire. TestRFC1994DifferentResponseValueDrawsFailureThroughLocalVerifier (-): a differing Value never draws Code 3; red under the always-accept break (ppp4-tb-1994-accept.log). This closes the earlier two-half gap: one unit now carries the Response Value to the wire Code. Records: verifyCHAPMD5 revert.",
+  "requirement_sha": "4b3cc1c54ce6dd2e",
+  "tests": {
+    "internal/component/l2tp/plugins/authlocal/rfc1994_auth_test.go::TestLocalAuthCHAPMD5Accept": "46afc25a5ef3f4d8",
+    "internal/component/l2tp/plugins/authlocal/rfc1994_auth_test.go::TestLocalAuthCHAPMD5Reject": "46afc25a5ef3f4d8",
+    "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPRejectWritesFailure": "5b49028a86478309",
+    "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPResponseEmitsEvent": "5b49028a86478309",
+    "internal/component/l2tp/ppp/rfc1994_local_verifier_test.go::TestRFC1994DifferentResponseValueDrawsFailureThroughLocalVerifier": "c02fd0b8d066402c",
+    "internal/component/l2tp/ppp/rfc1994_local_verifier_test.go::TestRFC1994EqualResponseValueDrawsSuccessThroughLocalVerifier": "c02fd0b8d066402c"
+  },
+  "units": {
+    "internal/component/l2tp/plugins/authlocal/rfc1994_auth_test.go::TestLocalAuthCHAPMD5Accept": "f414aa88f0f00ffc",
+    "internal/component/l2tp/plugins/authlocal/rfc1994_auth_test.go::TestLocalAuthCHAPMD5Reject": "373a3509d899eeda",
+    "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPRejectWritesFailure": "6bb3184784140766",
+    "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPResponseEmitsEvent": "a1826b62ff5ad546",
+    "internal/component/l2tp/ppp/rfc1994_local_verifier_test.go::TestRFC1994DifferentResponseValueDrawsFailureThroughLocalVerifier": "bc2a16f58650477a",
+    "internal/component/l2tp/ppp/rfc1994_local_verifier_test.go::TestRFC1994EqualResponseValueDrawsSuccessThroughLocalVerifier": "f6abef15a53bd65c"
+  },
+  "verdict": "enforced"
+}

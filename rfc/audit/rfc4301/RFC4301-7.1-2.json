@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-19 (independent judge, after 4c41f84038, which replaced childPolicyParams with childPolicies: one inbound and one outbound policy per negotiated pair, all bound to the one SA, plus inboundStateSelector for the transport-mode state). RFC 4301 Section 7.1: \"If the SA will carry traffic for specified protocols, the selector set for the SA MUST specify the port fields (or ICMP type/code or Mobility Header type) as ANY.\" Prior verdict enforced. selectorPort now takes the side (tsSelector) instead of (child, local); childPolicies picks local/remote by SelectorsLocalIsTSi exactly as the old side choice did, and the ANY/single/OPAQUE mapping is byte-identical. The units changed only to childPolicies(rfc4301ChildWith(pair), dir)[0]; rfc4301ChildWith carries one pair, so the slice holds one policy. Each negotiated pair now gets its own protocol and ports, so a multi-pair SA no longer inherits pair 0's. Positive asserts UpperProto 17 and both ports ANY in both directions; negative asserts no ExactPortMatch(8080/9090/0) leaks under ANY. PASS at HEAD. Verdict stands. Owed: both revert records (break on selectorPort) report unit-changed and must be re-observed.",
+  "requirement_sha": "4ff77c81d0d34ac2",
+  "tests": {
+    "internal/component/ike/engine/rfc4301_portless_test.go::TestRFC4301AnyPortFormNeverLeaksAPortNumber": "c3e006762679b3ae",
+    "internal/component/ike/engine/rfc4301_portless_test.go::TestRFC4301ProtocolScopedSASpecifiesPortsAsAny": "c3e006762679b3ae"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc4301_portless_test.go::TestRFC4301AnyPortFormNeverLeaksAPortNumber": "62cd1055ba391c3b",
+    "internal/component/ike/engine/rfc4301_portless_test.go::TestRFC4301ProtocolScopedSASpecifiesPortsAsAny": "b83447d4c770d951"
+  },
+  "verdict": "enforced"
+}

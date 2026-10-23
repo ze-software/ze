@@ -1,0 +1,11 @@
+{
+  "note": "TestIntegrationOpenInstanceSocketOptions/v6 reads IPV6_MULTICAST_HOPS back from the tx and NA sockets and requires 255; runs only under integration && linux with CAP_NET_RAW/ADMIN, as the row's marker discloses",
+  "requirement_sha": "e30a16b3b8010e7c",
+  "tests": {
+    "internal/plugins/vrrp/transport/transport_integration_linux_test.go::TestIntegrationOpenInstanceSocketOptions": "72419e6316df8b6d"
+  },
+  "units": {
+    "internal/plugins/vrrp/transport/transport_integration_linux_test.go::TestIntegrationOpenInstanceSocketOptions": "c4a068e79f43afef"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "TestLocalRepairSwitchesFIB asserts the exact backup stack [5000 bypass, 18000 MP label]; negative TestLocalRepairFallsBackToTeardown programs no stacked swap without a usable bypass. The quoted Section 3.2 sentence is descriptive ('will be switched') and carries no RFC 2119 keyword, although the row is [MUST] Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 3.2 and the enforced verdict holds unchanged.",
+  "requirement_sha": "0fe5fef4622f6b24",
+  "tests": {
+    "internal/plugins/rsvpte/frr_test.go::TestLocalRepairFallsBackToTeardown": "9e1595a34e264d7e",
+    "internal/plugins/rsvpte/frr_test.go::TestLocalRepairSwitchesFIB": "9e1595a34e264d7e"
+  },
+  "units": {
+    "internal/plugins/rsvpte/frr_test.go::TestLocalRepairFallsBackToTeardown": "8333e42c422f9185",
+    "internal/plugins/rsvpte/frr_test.go::TestLocalRepairSwitchesFIB": "1cebb013258cad76"
+  },
+  "verdict": "enforced"
+}

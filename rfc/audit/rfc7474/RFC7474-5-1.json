@@ -1,0 +1,13 @@
+{
+  "note": "Rejudged 2026-10-21 over the current tags, units and records. The positive unit now holds the independent digest over packet || sequence || Apad, which is the First-Hash content, beside the round trip; the negative refuses a tampered sequence octet.",
+  "requirement_sha": "805f8881d67c24a2",
+  "tests": {
+    "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SequenceTamperRejected": "b1f49f5bb6bbafb8",
+    "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SequenceTrailer": "b1f49f5bb6bbafb8"
+  },
+  "units": {
+    "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SequenceTamperRejected": "bfc7d173c09b772c",
+    "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SequenceTrailer": "c723648fe686fb2a"
+  },
+  "verdict": "enforced"
+}

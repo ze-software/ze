@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC9568-6.4.2-7",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/fsm/rfc_verdict_test.go::TestPromotionSetsAdverTimerToOwnInterval",
+    "unit-sha": "b7523bbadbd353f9",
+    "claim-sha": "eb8ecf09e563493e",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/fsm/fsm.go::promoteToMaster",
+    "producer-sha": "203d2be53b5889c1",
+    "break": "body of promoteToMaster replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9568-6.4.2-7",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/promote_install_v6_test.go::TestPromotionInstallsIPv6AddressesOnVirtualMACDevice",
+    "unit-sha": "30abde8dae00ae73",
+    "claim-sha": "82b73ef3e2db2b94",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/instance.go::doInstallVIPs",
+    "producer-sha": "6c990de7776ea965",
+    "break": "body of doInstallVIPs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9568-6.4.2-7",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/transport/rfc_announce_verdict_test.go::TestAnnounceMasterFramesPerAddress",
+    "unit-sha": "9a946463ff413405",
+    "claim-sha": "4a79bcd4a99a2b4e",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/transport/garp.go::buildGARP",
+    "producer-sha": "bfabb203bd887d68",
+    "break": "body of buildGARP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

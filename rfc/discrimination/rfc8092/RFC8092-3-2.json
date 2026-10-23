@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8092-3-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc8092_duplicate_not_malformed_test.go::TestRFC8092DistinctLargeCommunitiesKeptWhole",
+    "unit-sha": "594dcae877acdfe1",
+    "claim-sha": "5976ffc3ced984ca",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/rfc8092_large_community.go::removeRedundantLargeCommunities",
+    "producer-sha": "262cb2668d24e4f9",
+    "break": "body of removeRedundantLargeCommunities replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8092-3-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc8092_duplicate_not_malformed_test.go::TestRFC8092RedundantLargeCommunityRemovedBeforePropagation",
+    "unit-sha": "88fc802185307aee",
+    "claim-sha": "85a9551ce371e91e",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/rfc8092_large_community.go::removeRedundantLargeCommunities",
+    "producer-sha": "262cb2668d24e4f9",
+    "break": "body of removeRedundantLargeCommunities replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

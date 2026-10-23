@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-09-30 (OSPF judge, continuations 3+4): TestRFC5340DBDescOptionsBits tags now claim only the DC-bit: DDs of a regular and a stub area carry DC clear (Ze suppresses no Hellos, so 'if and only if' requires clear), and neutral Options carrying DC handed to the encoder still yield DC clear. Revert records on encoder_v6.go::neutralToV6Options observed red. The 'set when suppressing' direction has no Ze path (no demand circuits).",
+  "requirement_sha": "156ed79b0cb0e1d6",
+  "tests": {
+    "internal/plugins/ospf/rfc5340_test.go::TestRFC5340DBDescOptionsBits": "cdf4f5c0d8a37340",
+    "internal/plugins/ospf/rfc5340_test.go::TestRFC5340DBDescOptionsBits#2": "cdf4f5c0d8a37340"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc5340_test.go::TestRFC5340DBDescOptionsBits": "9835fa21eb3735d5",
+    "internal/plugins/ospf/rfc5340_test.go::TestRFC5340DBDescOptionsBits#2": "9835fa21eb3735d5"
+  },
+  "verdict": "enforced"
+}

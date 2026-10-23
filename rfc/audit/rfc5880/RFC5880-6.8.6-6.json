@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: accepting My Discriminator 0. TestRFC5880MyDiscriminatorZeroDiscarded fails unless ParseControl returns ErrZeroMyDisc; TestRFC5880MyDiscriminatorNonZeroAccepted fails if a nonzero value is rejected or mis-decoded. handleInbound returns on the error.",
+  "requirement_sha": "a8d4cae0f07bf3c1",
+  "tests": {
+    "internal/component/bfd/packet/rfc5880_test.go::TestRFC5880MyDiscriminatorNonZeroAccepted": "fba3b65e315e32aa",
+    "internal/component/bfd/packet/rfc5880_test.go::TestRFC5880MyDiscriminatorZeroDiscarded": "fba3b65e315e32aa"
+  },
+  "units": {
+    "internal/component/bfd/packet/rfc5880_test.go::TestRFC5880MyDiscriminatorNonZeroAccepted": "65312bc6c5867f0d",
+    "internal/component/bfd/packet/rfc5880_test.go::TestRFC5880MyDiscriminatorZeroDiscarded": "8c0f7247e7c9c3a0"
+  },
+  "verdict": "enforced"
+}

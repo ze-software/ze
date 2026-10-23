@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: a Point-to-Point IIH without TLV 240. internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISP2PIIHCarriesThreeWayOption: the IIH buildP2PHello emits (the builder sendP2PHello always uses) must decode with TLV 240 (absent is Fatal); negative: a LAN IIH never carries it.",
+  "requirement_sha": "bcf7d94811f2a0be",
+  "tests": {
+    "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISP2PIIHCarriesThreeWayOption": "d32edc6561822cd6",
+    "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISP2PIIHCarriesThreeWayOption#2": "d32edc6561822cd6"
+  },
+  "units": {
+    "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISP2PIIHCarriesThreeWayOption": "ac0bb789323a694c",
+    "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISP2PIIHCarriesThreeWayOption#2": "ac0bb789323a694c"
+  },
+  "verdict": "enforced"
+}

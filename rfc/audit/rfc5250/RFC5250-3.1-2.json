@@ -1,0 +1,15 @@
+{
+  "note": "Forbidden: a Type 10 flooded to or read from an area other than its own. TestOpaqueType10ConfinedToItsArea fatals if the LSA is readable (LookupLSA or Lookup) from area 0.0.0.2, if floodExcept emits anything but exactly one send, on eth0, which also refuses any acknowledgement out the other area interface, or if the eth1 neighbor is queued to retransmit it.",
+  "requirement_sha": "58e2c5a72b4ea3b0",
+  "tests": {
+    "internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go::TestOpaqueScopeRouting": "458b73167251be99",
+    "internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go::TestOpaqueType10ConfinedToItsArea": "458b73167251be99",
+    "internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go::TestOpaqueType10ConfinedToItsArea#2": "458b73167251be99"
+  },
+  "units": {
+    "internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go::TestOpaqueScopeRouting": "683f71e010417287",
+    "internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go::TestOpaqueType10ConfinedToItsArea": "473710695596ac44",
+    "internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go::TestOpaqueType10ConfinedToItsArea#2": "473710695596ac44"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "Judge 2026-09-30 (phase 8). Positive TestRFC5880MD5AuthTypeCorrectAccepted (types 2 and 3). Negative TestRFC5880KeyedMissingSectionOrWrongTypeDiscarded: A-clear Length-24 packet -> ErrShortAuthBody, and types 0,1,2..6,255 relabelled on an authentic packet -> discard with the replay floor unset. Judge break removing the Auth Type check in digestVerifier.Verify reds it (the floor assertion isolates it from the digest). The no-section clause at stack level is enforced by Receive's A-bit gate (session/fsm.go, proven under RFC5880-6.8.6-10, loop.go skips Verify for A=0); this unit proves the verifier refuses it too.",
+  "requirement_sha": "515d8b4ba348520d",
+  "tests": {
+    "internal/component/bfd/auth/rfc5880_md5_split_test.go::TestRFC5880KeyedMissingSectionOrWrongTypeDiscarded": "561a897285e69b5a",
+    "internal/component/bfd/auth/rfc5880_md5_split_test.go::TestRFC5880MD5AuthTypeCorrectAccepted": "561a897285e69b5a"
+  },
+  "units": {
+    "internal/component/bfd/auth/rfc5880_md5_split_test.go::TestRFC5880KeyedMissingSectionOrWrongTypeDiscarded": "1a8d6c886fe854df",
+    "internal/component/bfd/auth/rfc5880_md5_split_test.go::TestRFC5880MD5AuthTypeCorrectAccepted": "d5f404c55824f574"
+  },
+  "verdict": "enforced"
+}

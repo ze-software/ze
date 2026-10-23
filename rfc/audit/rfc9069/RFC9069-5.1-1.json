@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: a timestamp that is not the install time (a wall clock on a replay), or zero where the install time is known. internal/component/bgp/plugins/bmp/rfc9069_test.go::TestLocRIBIncrementalRouteMonitoringCarriesTheInstallTime: got==0 Fatal and outside [before,after] Errorf; ::TestLocRIBReplayAndPeerUpCarryNoTimestamp: replay RM and Peer Up timestamps must be (0,0). Precision is implementation dependent, so microseconds are not owed.",
+  "requirement_sha": "e9c461a2597f18ff",
+  "tests": {
+    "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestLocRIBIncrementalRouteMonitoringCarriesTheInstallTime": "5fb0f6e9f181c421",
+    "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestLocRIBReplayAndPeerUpCarryNoTimestamp": "5fb0f6e9f181c421"
+  },
+  "units": {
+    "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestLocRIBIncrementalRouteMonitoringCarriesTheInstallTime": "fd549f95538cd862",
+    "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestLocRIBReplayAndPeerUpCarryNoTimestamp": "f46366114e46ae3f"
+  },
+  "verdict": "enforced"
+}

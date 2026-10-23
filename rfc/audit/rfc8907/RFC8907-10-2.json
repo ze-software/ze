@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged 2026-10-12 (independent auditor). SHIFTED by 6e063fb498 (tests: give ten assert-nothing tests a real assertion), whose hunks sit in untagged sibling tests and the import block. The tagged unit is byte-identical (gate-verified) and no helper it calls changed. Verdict stands. (a) forbidden: a client request whose flags octet has 0x01 set, or a send with no key. (b) TestRFC8907ClientNeverSendsUnobfuscatedBody fails when wire[3]&FlagUnencrypted != 0 and requires the body to decode through the pad; TestPacketMarshalNoEncryption requires ErrNoSharedSecret for nil and empty keys with zero bytes written; TestRFC8907BuildRejectsMissingSecret requires Build to refuse a keyless server with ErrNoSharedSecret and no authenticator.",
+  "requirement_sha": "84f6c26612a40f44",
+  "tests": {
+    "internal/component/tacacs/rfc8907_obfuscation_test.go::TestRFC8907ClientNeverSendsUnobfuscatedBody": "f08ee3a6ab81099d",
+    "internal/component/tacacs/rfc8907_packet_test.go::TestPacketMarshalNoEncryption": "540fad3fac560cd1",
+    "internal/component/tacacs/rfc8907_security_config_test.go::TestRFC8907BuildRejectsMissingSecret": "2f7cb9ed0258662a"
+  },
+  "units": {
+    "internal/component/tacacs/rfc8907_obfuscation_test.go::TestRFC8907ClientNeverSendsUnobfuscatedBody": "0c92650dfaa20700",
+    "internal/component/tacacs/rfc8907_packet_test.go::TestPacketMarshalNoEncryption": "3077fa6bf0aa75a8",
+    "internal/component/tacacs/rfc8907_security_config_test.go::TestRFC8907BuildRejectsMissingSecret": "e7a2fbe87313aa1a"
+  },
+  "verdict": "enforced"
+}

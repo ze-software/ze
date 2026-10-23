@@ -1,0 +1,13 @@
+{
+  "note": "Re-read 2026-09-27. Transmit clause: TestRFC8671ReservedPeerFlagsTransmittedAsZero fails if peerHeaderFromEvent, locRIBPeerHeader or the byte writePeerHeader puts on the wire carries a reserved bit. Receipt clause: TestRFC8671ReservedPeerFlagsIgnoredOnReceipt fails if a header with every reserved bit set is refused or changes a defined flag, over two bases.",
+  "requirement_sha": "edc718f92035419f",
+  "tests": {
+    "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671ReservedPeerFlagsIgnoredOnReceipt": "70e97cb3744c3532",
+    "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671ReservedPeerFlagsTransmittedAsZero": "70e97cb3744c3532"
+  },
+  "units": {
+    "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671ReservedPeerFlagsIgnoredOnReceipt": "99410a2dd5338591",
+    "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671ReservedPeerFlagsTransmittedAsZero": "d37d9dba39f2439a"
+  },
+  "verdict": "enforced"
+}

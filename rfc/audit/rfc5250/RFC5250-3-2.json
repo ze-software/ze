@@ -1,0 +1,11 @@
+{
+  "note": "Forbidden: a Link State ID split other than 8-bit type and 24-bit ID. TestOpaqueLinkStateIDSplit fatals if OpaqueTypeOf(AA BB CC DD) != 0xAA or OpaqueIDOf != 0x00BBCCDD, on a failed round trip, on a high id byte leaking into the type, and at the 0xFF/0xFFFFFF boundary. Row carries {single-polarity: positive}.",
+  "requirement_sha": "2892090dbaf8690a",
+  "tests": {
+    "internal/plugins/ospf/packet/rfc5250_lsa_opaque_test.go::TestOpaqueLinkStateIDSplit": "6f1180c707686e66"
+  },
+  "units": {
+    "internal/plugins/ospf/packet/rfc5250_lsa_opaque_test.go::TestOpaqueLinkStateIDSplit": "433c526a4f838c7c"
+  },
+  "verdict": "enforced"
+}

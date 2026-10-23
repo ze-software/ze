@@ -1,0 +1,17 @@
+{
+  "note": "Rejudged 2026-09-29 (routing child). Path direction now covered: TestRFC3209PathRRODroppedWhenTooBig (32 subobjects in, PATH forwarded without RRO, path state installed) and TestRFC3209PathRROKeptWhenItFits (31 in, 32 out headed by this router); the Resv direction was already covered. 'Too big' is realised as maxRecordRouteHops (32), the bound that keeps the RRO inside the fixed encode buffer (wire.go); that threshold is a model choice, not the message size.",
+  "requirement_sha": "b6d911eff3bb1ee2",
+  "tests": {
+    "internal/plugins/rsvpte/rfc3209_relay_test.go::TestRFC3209RRODroppedWhenTooBig": "76ac04cc7023e893",
+    "internal/plugins/rsvpte/rfc3209_relay_test.go::TestRFC3209RROKeptWhenItFits": "76ac04cc7023e893",
+    "internal/plugins/rsvpte/rfc3209_signaling_test.go::TestRFC3209PathRRODroppedWhenTooBig": "0fabf3da631549e2",
+    "internal/plugins/rsvpte/rfc3209_signaling_test.go::TestRFC3209PathRROKeptWhenItFits": "0fabf3da631549e2"
+  },
+  "units": {
+    "internal/plugins/rsvpte/rfc3209_relay_test.go::TestRFC3209RRODroppedWhenTooBig": "cc53b143b444aa34",
+    "internal/plugins/rsvpte/rfc3209_relay_test.go::TestRFC3209RROKeptWhenItFits": "d641f5955ff44350",
+    "internal/plugins/rsvpte/rfc3209_signaling_test.go::TestRFC3209PathRRODroppedWhenTooBig": "ae106bae9844b7a6",
+    "internal/plugins/rsvpte/rfc3209_signaling_test.go::TestRFC3209PathRROKeptWhenItFits": "f60dcfc7edca29ae"
+  },
+  "verdict": "enforced"
+}

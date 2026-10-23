@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: a jwks_uri that does not use https. TestRFC8414JWKSMetadataSecurity 'HTTP keys' subtest serves jwks_uri on http and asserts NewStreamable returns an error, no server, and plainHits==0; 'redirect to HTTP' asserts the same for an https jwks_uri redirecting to http. Positive 'labeled keys' verifies a token with the key fetched over https.",
+  "requirement_sha": "a96dd431b6a7578b",
+  "tests": {
+    "internal/component/mcp/oauth_e2e_test.go::TestRFC8414JWKSMetadataSecurity": "be7f22ecbf523ed0",
+    "internal/component/mcp/oauth_e2e_test.go::TestRFC8414JWKSMetadataSecurity#2": "be7f22ecbf523ed0"
+  },
+  "units": {
+    "internal/component/mcp/oauth_e2e_test.go::TestRFC8414JWKSMetadataSecurity": "a32bc861f26718e8",
+    "internal/component/mcp/oauth_e2e_test.go::TestRFC8414JWKSMetadataSecurity#2": "a32bc861f26718e8"
+  },
+  "verdict": "enforced"
+}

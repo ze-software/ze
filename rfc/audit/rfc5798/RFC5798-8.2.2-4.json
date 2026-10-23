@@ -1,0 +1,21 @@
+{
+  "note": "vrrp judge 2026-09-29 (independent, continuations 1-2): TestEngineWaitsForALateVirtualMACDevice (ipv6) runs the live macvlanCreator.create over a registry that creates the device 30ms late and a transport that refuses an absent device: order is device, install, Neighbor Advertisement; a device that never appears gives no instance, install or NA. Deleting the wait reddens the positive (records on register.go create, observed red). With TestEngineAnnouncesNothingBeforeTheVirtualMACDevice and TestInstanceDelaysAnnounceUntilParentUsable (address half). Kernel-originated RA/NS are outside ze's announce path and not observed.",
+  "requirement_sha": "2b3f0f5db443f8b1",
+  "tests": {
+    "internal/plugins/vrrp/boot_late_device_test.go::TestEngineWaitsForALateVirtualMACDevice": "f5e911ac6de85b6f",
+    "internal/plugins/vrrp/boot_late_device_test.go::TestEngineWaitsForALateVirtualMACDevice#2": "f5e911ac6de85b6f",
+    "internal/plugins/vrrp/boot_order_test.go::TestEngineAnnouncesNothingBeforeTheVirtualMACDevice": "ed30f38ef8942327",
+    "internal/plugins/vrrp/boot_order_test.go::TestEngineAnnouncesNothingBeforeTheVirtualMACDevice#2": "ed30f38ef8942327",
+    "internal/plugins/vrrp/instance_test.go::TestInstanceDelaysAnnounceUntilParentUsable": "90d279832a92de75",
+    "internal/plugins/vrrp/instance_test.go::TestInstanceDelaysAnnounceUntilParentUsable#2": "90d279832a92de75"
+  },
+  "units": {
+    "internal/plugins/vrrp/boot_late_device_test.go::TestEngineWaitsForALateVirtualMACDevice": "efe0afaccbd4e14e",
+    "internal/plugins/vrrp/boot_late_device_test.go::TestEngineWaitsForALateVirtualMACDevice#2": "efe0afaccbd4e14e",
+    "internal/plugins/vrrp/boot_order_test.go::TestEngineAnnouncesNothingBeforeTheVirtualMACDevice": "23b0bca01ece16b0",
+    "internal/plugins/vrrp/boot_order_test.go::TestEngineAnnouncesNothingBeforeTheVirtualMACDevice#2": "23b0bca01ece16b0",
+    "internal/plugins/vrrp/instance_test.go::TestInstanceDelaysAnnounceUntilParentUsable": "c44d29a40bf193fd",
+    "internal/plugins/vrrp/instance_test.go::TestInstanceDelaysAnnounceUntilParentUsable#2": "c44d29a40bf193fd"
+  },
+  "verdict": "enforced"
+}

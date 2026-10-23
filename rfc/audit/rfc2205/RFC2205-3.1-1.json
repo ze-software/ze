@@ -1,0 +1,15 @@
+{
+  "note": "Rejudged 2026-10-08 against RFC 2205 Section 3.1.1 ('Protocol version number.  This is version 1.'). DecodeHeader still refuses Version != rsvpVersion (1) with errBadVersion; TestRSVPDecodeHeaderBadVersion feeds Vers 2 and requires the error, TestRSVPHeaderRoundTrip and TestRFC2205EmittedVersionIsOne pin the emitted Vers nibble at 1. Units byte-identical since the 2026-09-29 judgement; only the files around them moved. Both polarities hold.",
+  "requirement_sha": "ba592ac3d76f6cc7",
+  "tests": {
+    "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC2205EmittedVersionIsOne": "8cea1a3ca4572fd1",
+    "internal/plugins/rsvpte/wire_test.go::TestRSVPDecodeHeaderBadVersion": "9e0ed20ca4d343e6",
+    "internal/plugins/rsvpte/wire_test.go::TestRSVPHeaderRoundTrip": "9e0ed20ca4d343e6"
+  },
+  "units": {
+    "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC2205EmittedVersionIsOne": "4ea4647b508c6227",
+    "internal/plugins/rsvpte/wire_test.go::TestRSVPDecodeHeaderBadVersion": "be9f05986782b47f",
+    "internal/plugins/rsvpte/wire_test.go::TestRSVPHeaderRoundTrip": "5e35fdddc4b09470"
+  },
+  "verdict": "enforced"
+}

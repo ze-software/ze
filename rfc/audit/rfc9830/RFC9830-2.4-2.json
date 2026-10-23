@@ -1,0 +1,13 @@
+{
+  "note": "Judge 2026-09-30, re-read after the RFC9012-13-7 tag lines left the unit (assertions unchanged). TestRFC9012DuplicateSingleInstanceSubTLVs: the duplicate Preference parses without error, both sub-TLVs are enumerated and the attribute round-trips octet-equal, so the ignored instance is not treated as malformed.",
+  "requirement_sha": "25fc1827c2d6725e",
+  "tests": {
+    "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012DuplicateSingleInstanceSubTLVs": "e8576a1ee12543a9",
+    "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MalformedAttributeIsRejected": "e8576a1ee12543a9"
+  },
+  "units": {
+    "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012DuplicateSingleInstanceSubTLVs": "0f66262cbfae7a17",
+    "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MalformedAttributeIsRejected": "2de6a91cf462b5a5"
+  },
+  "verdict": "enforced"
+}

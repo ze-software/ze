@@ -1,0 +1,15 @@
+{
+  "note": "AES GCM: TestRFC5282AEADProposalCarriesTheKeyLengthAttribute (IKE and ESP rails, exactly one attribute), TestRFC5282AEADOfferWithoutAKeyLengthIsRefused (ErrKeyLengthMissing). AES CCM: TestRFC5282AEADCCMProposalCarriesTheKeyLengthAttribute asserts IDs 14/15/16 x 128/256 each carry exactly one Key Length attribute of the key size from buildWireIKEProposals; ESP does not offer CCM (ipsec.EncryptionImplementedESP excludes it). Residual observation: the receive-side refusal names CCM in keyLengthRequired but only a GCM offer is driven.",
+  "requirement_sha": "d2a62399850c6bbe",
+  "tests": {
+    "internal/component/ike/crypto/rfc5282_aead_test.go::TestRFC5282AEADOfferWithoutAKeyLengthIsRefused": "7023705f0a1c4b4b",
+    "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282AEADCCMProposalCarriesTheKeyLengthAttribute": "d2a8fe0dab3c6a2d",
+    "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADProposalCarriesTheKeyLengthAttribute": "2d69d15f1cde2ecb"
+  },
+  "units": {
+    "internal/component/ike/crypto/rfc5282_aead_test.go::TestRFC5282AEADOfferWithoutAKeyLengthIsRefused": "76d2719bc0f4ac46",
+    "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282AEADCCMProposalCarriesTheKeyLengthAttribute": "3a12f7bee52ddd53",
+    "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADProposalCarriesTheKeyLengthAttribute": "fe735abd044dc1f5"
+  },
+  "verdict": "enforced"
+}

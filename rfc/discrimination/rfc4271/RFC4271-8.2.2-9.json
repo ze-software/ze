@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC4271-8.2.2-9",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterQuietOnHealthyEstablishedTraffic",
+    "unit-sha": "1faed90b7d932e35",
+    "claim-sha": "5142eeb8002a3f61",
+    "route": "revert",
+    "producer": "internal/component/bgp/fsm/fsm.go::handleIdle",
+    "producer-sha": "60826e7f42a8269d",
+    "break": "body of handleIdle replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-8.2.2-9",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271OpenSentHoldTimerExpiryReleasesTheConnection",
+    "unit-sha": "93b36110e7aec8e4",
+    "claim-sha": "e77321c5e96d08b0",
+    "route": "revert",
+    "producer": "internal/component/bgp/fsm/timer.go::fireHold",
+    "producer-sha": "e5bd69b76f532126",
+    "break": "body of fireHold replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-8.2.2-9",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go::TestRFC4271OpenSentWellFormedOpenKeepsTheConnection",
+    "unit-sha": "2e4357718a773a5e",
+    "claim-sha": "351e9c298e9f8bfd",
+    "route": "revert",
+    "producer": "internal/component/bgp/fsm/fsm.go::handleOpenSent",
+    "producer-sha": "11b4ebaf65ecfc01",
+    "break": "body of handleOpenSent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

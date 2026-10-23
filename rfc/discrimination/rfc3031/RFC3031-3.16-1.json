@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC3031-3.16-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ldp/rfc3031_label_test.go::TestApplyRemoteBindingImplicitNull",
+    "unit-sha": "d36422a03d59497e",
+    "claim-sha": "87638678c6fb3294",
+    "route": "mutant",
+    "producer": "internal/plugins/ldp/fib.go::applyRemoteBinding",
+    "producer-sha": "85b09e864a867c53",
+    "break": "line 34: \"label == ImplicitNull\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC3031-3.16-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ldp/rfc3031_label_test.go::TestApplyRemoteBindingRealLabel",
+    "unit-sha": "d98ffc10d8ccec55",
+    "claim-sha": "1c0c0f8d53059ee7",
+    "route": "mutant",
+    "producer": "internal/plugins/ldp/fib.go::applyRemoteBinding",
+    "producer-sha": "85b09e864a867c53",
+    "break": "line 34: \"label == ImplicitNull\" -\u003e \"true\""
+  }
+]

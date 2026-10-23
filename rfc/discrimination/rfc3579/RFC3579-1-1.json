@@ -1,0 +1,44 @@
+[
+  {
+    "rid": "RFC3579-1-1",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc5176_proxy_state_opaque_test.go::TestRFC3579SubscriberNASRefusesEAPMessage",
+    "unit-sha": "5e77a4e4318aa559",
+    "claim-sha": "bf31eeeee6a7710b",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authradius/coa.go::unsupportedAttr",
+    "producer-sha": "d3c60711cf64c92d",
+    "break": "body of unsupportedAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3579-1-1",
+    "polarity": "positive",
+    "unit": "internal/component/radius/rfc2869_unoffered_service_attributes_test.go::TestRFC2869DictionaryCoversTheServicesZeOffers",
+    "unit-sha": "2e44b8dd9e97149c",
+    "claim-sha": "83eba4e8f8f7fd5c",
+    "route": "no-break",
+    "producer": "internal/component/radius/dict.go",
+    "reason": "declaration-only"
+  },
+  {
+    "rid": "RFC3579-1-1",
+    "polarity": "negative",
+    "unit": "internal/component/radius/rfc2869_unoffered_service_attributes_test.go::TestRFC2869DictionaryDeclaresNoAttributeForAnUnofferedService",
+    "unit-sha": "e4b5a7999efe4ba8",
+    "claim-sha": "0a77f0d81af91869",
+    "route": "no-break",
+    "producer": "internal/component/radius/dict.go",
+    "reason": "declaration-only"
+  },
+  {
+    "rid": "RFC3579-1-1",
+    "polarity": "positive",
+    "unit": "internal/component/radius/rfc3579_nas_obligations_test.go::TestRFC3579EAPAttributesServeALiveEAPMethod",
+    "unit-sha": "89de8a72b1802f23",
+    "claim-sha": "d9b14c96fcfc63b0",
+    "route": "revert",
+    "producer": "internal/component/radius/authenticator_eap.go::authenticateEAP",
+    "producer-sha": "3e963a2a64e7441c",
+    "break": "body of authenticateEAP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

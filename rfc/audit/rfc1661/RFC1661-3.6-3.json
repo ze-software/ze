@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: silence for an unsupported protocol in Opened. TestRFC1661UnsupportedProtocolRejectedInOpened goes red unless exactly one LCP Protocol-Reject naming 0x8281 with the Information field is written; the negative TestRFC1661UnsupportedProtocolNotRejectedBeforeOpened goes red on any frame in ReqSent/AckSent/Stopped.",
+  "requirement_sha": "1ab7e6a94e541ead",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go::TestRFC1661UnsupportedProtocolNotRejectedBeforeOpened": "b6e0cb190623fbb9",
+    "internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go::TestRFC1661UnsupportedProtocolRejectedInOpened": "b6e0cb190623fbb9"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go::TestRFC1661UnsupportedProtocolNotRejectedBeforeOpened": "f5ccb4b293bca977",
+    "internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go::TestRFC1661UnsupportedProtocolRejectedInOpened": "e246a3ae0acfbd29"
+  },
+  "verdict": "enforced"
+}

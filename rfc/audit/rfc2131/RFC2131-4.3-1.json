@@ -1,0 +1,11 @@
+{
+  "note": "single-polarity positive: option 54 in OFFER, ACK and NAK must equal the server address, so omitting or mis-setting it goes red",
+  "requirement_sha": "594a4b981bf77ae8",
+  "tests": {
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestServerIdentifierInEveryReply": "8365c04cdfc2a046"
+  },
+  "units": {
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestServerIdentifierInEveryReply": "4de491c673954ee9"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,11 @@
+{
+  "note": "Judged 2026-10-21 over current tags, units and records. Stale only from the added 3.3.1-2 tags; the origination assertion of the IPv4 Remote ASBR ID sub-TLV 22 is unchanged (row keeps its single-polarity argument).",
+  "requirement_sha": "f17a6f5232dee1c9",
+  "tests": {
+    "internal/plugins/ospf/rfc5392_te_originate_test.go::TestInterAsTEOriginateScopePolicy": "db1397ebe20dcae7"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc5392_te_originate_test.go::TestInterAsTEOriginateScopePolicy": "39b9b15ba1317cde"
+  },
+  "verdict": "enforced"
+}

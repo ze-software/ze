@@ -1,0 +1,14 @@
+{
+  "note": "Row corrected (rfc/corrections/rfc1195.md) to the Section 5.3.4 bit-7 sentence of the DELAY/EXPENSE/ERROR octets, verbatim at rfc1195.txt line 2365; default-metric bit 8 is RFC 2966 sec 2's up/down bit (extraction site 5.3.4:3 excluded cross-document). Transmit: TestRFC1195NarrowMetricReservedTransmit encodes 0xff/0x6a/0xc7 and pins 0xbf/0x2a/0x87, so bit 7 (0x40) is cleared while S and the six-bit value survive; an encoder that passed bit 7 through goes red. Receive: TestRFC1195NarrowMetricReservedReceive sets 0x40 on all three octets and requires the decoded entry equal the clean one (63, 0x80, 7), so a decoder that kept bit 7 goes red. Recorded red on WriteTo and DecodeNarrowIPReachTLV.",
+  "requirement_sha": "a96b9cdd2f9bf0ac",
+  "tests": {
+    "internal/plugins/isis/packet/rfc1195_tlv_narrow_ipv4_test.go::TestRFC1195NarrowMetricReservedReceive": "bdf5e0fa437efb48",
+    "internal/plugins/isis/packet/rfc1195_tlv_narrow_ipv4_test.go::TestRFC1195NarrowMetricReservedTransmit": "bdf5e0fa437efb48"
+  },
+  "units": {
+    "internal/plugins/isis/packet/rfc1195_tlv_narrow_ipv4_test.go::TestRFC1195NarrowMetricReservedReceive": "27dab5844ab7d4d4",
+    "internal/plugins/isis/packet/rfc1195_tlv_narrow_ipv4_test.go::TestRFC1195NarrowMetricReservedTransmit": "1310acb87f70d516"
+  },
+  "upgrade_reason": "The earlier wrong verdict was about the row, not the units: it quoted the default-metric bit-8 sentence while the units prove the optional-metric bit-7 sentence. The row now quotes the bit-7 sentence, re-read against rfc/full/rfc1195.txt Section 5.3.4, and the unchanged units prove both clauses of it.",
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "RFC 3948 Section 3.1.2 (rfc/full/rfc3948.txt): \"When a transport mode has been used to transmit packets, contained TCP or UDP headers will have incorrect checksums due to the change of parts of the IP header during transit.\" and \"Depending on local policy, one of the following MUST be done:\". Forbidden: dropping a transport-mode ESP-in-UDP datagram whose inner TCP/UDP checksum a NAT invalidated because none of the three alternatives is done. checkNATTTransportInnerChecksum asserts Ze installs transport mode with the espinudp template (the state that puts Linux XFRM on this path), delivers intact TCP and UDP markers, and that nping --badsum TCP and UDP probes are delivered (checkInnerChecksums true). The test proves the outcome any of the three alternatives yields, not which one the kernel picks, which the requirement leaves to local policy. checkNATTTunnelInnerChecksum, differing in mode alone, refuses the same probes: it is the non-compliant outcome (a decapsulator applying no alternative verifies and drops) on identical input, and proves the corruption is real so the positive cannot pass vacuously; it also carries RFC3948-3.1.2-2 positive. Re-judged 2026-10-10 (independent judge, mode rejudge): both tagged units and their helpers establishNATT and checkInnerChecksums are byte-identical between 35c3b0b699 and HEAD, deliverMarker (helpers.go) is untouched, the ike crypto, dataplane and child.go producers are unchanged, and both scenarios still map to these checkers in the reshaped scenarioCheckers registry, so the verdict stands.",
+  "requirement_sha": "637ce5ff3c56e746",
+  "tests": {
+    "internal/le/interoplab/ipsec/checkers.go::checkNATTTransportInnerChecksum": "18e8b846ea01dbd9",
+    "internal/le/interoplab/ipsec/checkers.go::checkNATTTunnelInnerChecksum": "18e8b846ea01dbd9"
+  },
+  "units": {
+    "internal/le/interoplab/ipsec/checkers.go::checkNATTTransportInnerChecksum": "ac994d7ac287f161",
+    "internal/le/interoplab/ipsec/checkers.go::checkNATTTunnelInnerChecksum": "435f66354f3492b5"
+  },
+  "verdict": "enforced"
+}

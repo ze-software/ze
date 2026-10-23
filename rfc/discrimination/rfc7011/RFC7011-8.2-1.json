@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC7011-8.2-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/flowexport/ipfix/rfc7011_export_test.go::TestRFC7011TemplateExportTimeIsSendTime",
+    "unit-sha": "a9179e1e58610e68",
+    "claim-sha": "3c824f527ef98c39",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/ipfix/flow_adapter.go::sendTemplateMessage",
+    "producer-sha": "7b70016ee0db36aa",
+    "break": "body of sendTemplateMessage replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7011-8.2-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/flowexport/ipfix/rfc7011_export_test.go::TestRFC7011TemplateExportTimeNeverRegresses",
+    "unit-sha": "5c46bdc69f0d697d",
+    "claim-sha": "8c7cd587e86a6ad7",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/ipfix/flow_adapter.go::sendTemplateMessage",
+    "producer-sha": "7b70016ee0db36aa",
+    "break": "body of sendTemplateMessage replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7011-8.2-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/flowexport/ipfix/rfc7011_template_time_test.go::TestRFC7011CounterTemplateExportTimeIsSendTime",
+    "unit-sha": "b1d97b4d2024882b",
+    "claim-sha": "2f38f2738bd60651",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/ipfix/adapter.go::EncodeTemplate",
+    "producer-sha": "c7cf2e5c1eb4bacb",
+    "break": "body of EncodeTemplate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7011-8.2-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/flowexport/ipfix/rfc7011_template_time_test.go::TestRFC7011TemplateRefreshAfterClockRollbackKeepsOrder",
+    "unit-sha": "bbdba96ab01a29b9",
+    "claim-sha": "4c1bbb9d01453259",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/ipfix/adapter.go::EncodeTemplate",
+    "producer-sha": "c7cf2e5c1eb4bacb",
+    "break": "body of EncodeTemplate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

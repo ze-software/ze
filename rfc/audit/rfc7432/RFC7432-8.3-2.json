@@ -1,0 +1,13 @@
+{
+  "note": "update_build_evpn_rfc7432_test.go::TestRFC7432PerESRouteDistributesESILabel: a per-ES A-D route with the ESI Label community (flags 0, All-Active) and an RT builds an UPDATE carrying both; without the ESI Label community it is refused with ErrEVPNOrigination while the RT is present, so the RT rule cannot trip first",
+  "requirement_sha": "cf84d906eda4f62c",
+  "tests": {
+    "internal/component/bgp/message/rfc7432_update_build_evpn_test.go::TestRFC7432PerESRouteDistributesESILabel": "b846c7b1492f098e",
+    "internal/component/bgp/message/rfc7432_update_build_evpn_test.go::TestRFC7432PerESRouteDistributesESILabel#2": "b846c7b1492f098e"
+  },
+  "units": {
+    "internal/component/bgp/message/rfc7432_update_build_evpn_test.go::TestRFC7432PerESRouteDistributesESILabel": "7862a8c573638042",
+    "internal/component/bgp/message/rfc7432_update_build_evpn_test.go::TestRFC7432PerESRouteDistributesESILabel#2": "7862a8c573638042"
+  },
+  "verdict": "enforced"
+}

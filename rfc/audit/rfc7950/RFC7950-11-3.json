@@ -1,0 +1,8 @@
+{
+  "code": {
+    "internal/component/config/yang/loader.go::LoadEmbedded": "31aadc9bc0e3ef90"
+  },
+  "note": "{gap} stands, re-judged 2026-10-09 after 180df07922: LoadEmbedded only gained the refuseLoad guard and still parses ze-extensions.yang and ze-types.yang with no comparison against a previous revision, so a reordering of data definition substatements passes. RFC 11: 'In statements that have any data definition statements as substatements, those data definition substatements MUST NOT be reordered.' Recorded under OWNER RULING 4 (2026-09-30), not closed.",
+  "requirement_sha": "01c29bfdc98dfa83",
+  "verdict": "unimplemented"
+}

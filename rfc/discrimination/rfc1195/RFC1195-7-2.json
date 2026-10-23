@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC1195-7-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/rfc1195_selection_test.go::TestRFC1195PeriodicSPFRemovesMissedWithdrawal",
+    "unit-sha": "b4af4f6f22e0dcfd",
+    "claim-sha": "6d5e07b4912a2f88",
+    "route": "revert",
+    "producer": "internal/plugins/isis/lsdb_wiring.go::refreshOwnLSPs",
+    "producer-sha": "a0f4731ca8b571dd",
+    "break": "body of refreshOwnLSPs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1195-7-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195PeriodicSPFRecoversMissedUpdate",
+    "unit-sha": "d62d136b6899fffd",
+    "claim-sha": "94245178173ceab8",
+    "route": "revert",
+    "producer": "internal/plugins/isis/lsdb_wiring.go::refreshOwnLSPs",
+    "producer-sha": "a0f4731ca8b571dd",
+    "break": "body of refreshOwnLSPs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

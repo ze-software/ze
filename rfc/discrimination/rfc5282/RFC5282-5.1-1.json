@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC5282-5.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282AEADSendAssociatedDataRunsThroughTheSKHeader",
+    "unit-sha": "f69b53c3b58ea8af",
+    "claim-sha": "ae18fb7fde4e0aba",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/auth.go::buildSKMessageAEADWithMsgID",
+    "producer-sha": "2bcba23be754aec5",
+    "break": "body of buildSKMessageAEADWithMsgID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5282-5.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADAssociatedDataCoversAnInterveningPayload",
+    "unit-sha": "1404e7d7122a5f2d",
+    "claim-sha": "3bbeffb0bb9b48f8",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/auth.go::decryptSKPayload",
+    "producer-sha": "d7d446228e538738",
+    "break": "body of decryptSKPayload replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5282-5.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADRefusesAnAlteredInterveningPayload",
+    "unit-sha": "58a472f1b023dedc",
+    "claim-sha": "45e512a82d9a9cef",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/auth.go::decryptSKPayload",
+    "producer-sha": "d7d446228e538738",
+    "break": "body of decryptSKPayload replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

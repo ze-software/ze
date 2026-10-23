@@ -1,0 +1,11 @@
+{
+  "note": "single-polarity (marker: the exporter holds no path that emits a datagram without advancing): writeCounterDatagrams' two datagrams carry sequence 1 and 2 and return 3 as the next, so a sender that did not increment per datagram fails seq2 != 2 and nextSeq != 3",
+  "requirement_sha": "d02ac6c40aaa9ae3",
+  "tests": {
+    "internal/plugins/flowexport/sflow/sflow_v5_encoder_test.go::TestSFlowMultiInterface": "3fd871610d6c96e0"
+  },
+  "units": {
+    "internal/plugins/flowexport/sflow/sflow_v5_encoder_test.go::TestSFlowMultiInterface": "cda6880016df2aa6"
+  },
+  "verdict": "enforced"
+}

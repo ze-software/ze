@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8907-8.3-1",
+    "polarity": "positive",
+    "unit": "internal/component/tacacs/rfc8907_accounting_test.go::TestRFC8907AccountingArgumentsPrecedeAuthorizationOnes",
+    "unit-sha": "a0fcc2bdab375b3c",
+    "claim-sha": "43e1ca99b9f0c3ea",
+    "route": "revert",
+    "producer": "internal/component/tacacs/accounting.go::CommandStart",
+    "producer-sha": "ec98e896c367ffa0",
+    "break": "body of CommandStart replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8907-8.3-1",
+    "polarity": "negative",
+    "unit": "internal/component/tacacs/rfc8907_accounting_test.go::TestRFC8907NoAuthorizationArgumentPrecedesAccountingOne",
+    "unit-sha": "7b870ffa20a3f3cd",
+    "claim-sha": "c3a9781549aff659",
+    "route": "revert",
+    "producer": "internal/component/tacacs/accounting.go::CommandStart",
+    "producer-sha": "ec98e896c367ffa0",
+    "break": "body of CommandStart replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

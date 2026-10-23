@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7684-5-3",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/rfc7684_ext_receive_test.go::TestExtIngressMalformedDiscard",
+    "unit-sha": "324264b8cbdc0c48",
+    "claim-sha": "472cde0423190c3a",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/ext.go::validateExtLSA",
+    "producer-sha": "ffc276e43bf3c376",
+    "break": "body of validateExtLSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7684-5-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc7684_ext_receive_test.go::TestExtIngressValidCarriage",
+    "unit-sha": "3176482834d0ad36",
+    "claim-sha": "9fe2b179e51afa0e",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/lsdb/flooding.go::ReceiveUpdate",
+    "producer-sha": "6df8e607849558ea",
+    "break": "body of ReceiveUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

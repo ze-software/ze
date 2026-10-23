@@ -1,0 +1,17 @@
+{
+  "note": "Judge 2026-09-29. Both clauses. Positive TestRFC5880MeticulousXmitAuthSeqWrapsAt32Bits puts 0xFFFFFFFE, 0xFFFFFFFF, 0, 1 on the wire through Machine.Sign/AdvanceAuthSeq (observed red with AdvanceAuthSeq broken), so a saturating or non-incrementing XmitAuthSeq goes red. Negative TestRFC5880MeticulousNonCircularRepeatAtWrapDiscarded (type 3) signs 0xFFFFFFFF twice through Machine.Sign, the exact output of a non-circular transmitter, and the peer refuses the repeat with ErrSequenceOutsideWindow, then accepts the circular successor 0 in the same state (observed red with the meticulous.go equality check mutated). The held incremented-clause negative stays.",
+  "requirement_sha": "2b16c338c8deef26",
+  "tests": {
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880MeticulousRejectsUnincrementedSequence": "5a25c74cc2d9bd47",
+    "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880MeticulousSequenceIncrementsPerPacket": "4b885928a870b00d",
+    "internal/component/bfd/session/rfc5880_auth_seq_test.go::TestRFC5880MeticulousXmitAuthSeqWrapsAt32Bits": "4991f8b5efadecf0",
+    "internal/component/bfd/session/rfc5880_auth_wrap_test.go::TestRFC5880MeticulousNonCircularRepeatAtWrapDiscarded": "ee4106e33861f3d9"
+  },
+  "units": {
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880MeticulousRejectsUnincrementedSequence": "0ab9ccf4c5898ef3",
+    "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880MeticulousSequenceIncrementsPerPacket": "d890c4e4cd9e9fa5",
+    "internal/component/bfd/session/rfc5880_auth_seq_test.go::TestRFC5880MeticulousXmitAuthSeqWrapsAt32Bits": "fcce817c8a98ec95",
+    "internal/component/bfd/session/rfc5880_auth_wrap_test.go::TestRFC5880MeticulousNonCircularRepeatAtWrapDiscarded": "d07a6bc579fed0b6"
+  },
+  "verdict": "enforced"
+}

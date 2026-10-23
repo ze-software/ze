@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC2205-2-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/rfc2205_engine_test.go::TestRFC2205ResvSentToPreviousHop",
+    "unit-sha": "8a7757e0c626ee39",
+    "claim-sha": "8e26b296cb084e1b",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/engine.go::handlePathEgress",
+    "producer-sha": "69edc65089534730",
+    "break": "body of handlePathEgress replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2205-2-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/rsvpte/rfc2205_engine_test.go::TestRFC2205ResvWithoutPathStateNotRelayed",
+    "unit-sha": "cf4263238d348774",
+    "claim-sha": "60020cfea356a405",
+    "route": "mutant",
+    "producer": "internal/plugins/rsvpte/reservation.go::acceptReservation",
+    "producer-sha": "be57c2a7bd537cdc",
+    "break": "line 107: \"e.rejectReservation(src, msg, \u0026failed, e.missingSenderCode(msg.Session), 0, false)\" -\u003e \"e.transport.Send(filter.Filter.SenderAddr, buildResv(\u0026resvStateBlock{Session: msg.Session, Style: msg.Style, FlowSpec: descriptor.FlowSpec, Label: filter.Label}, filter.Filter, e.cfg().RefreshPeriod, e.cfg().RouterID))\""
+  },
+  {
+    "rid": "RFC2205-2-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205ResvFollowsEachSendersReversePath",
+    "unit-sha": "65f1b21ade8f60cc",
+    "claim-sha": "346b0bb96352b658",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/engine.go::sendResv",
+    "producer-sha": "5780f6a886b291ae",
+    "break": "body of sendResv replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2205-2-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205ResvNeverTakesAnotherSendersPath",
+    "unit-sha": "63be4d48db9221f7",
+    "claim-sha": "1aa49eec444244ef",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/engine.go::handlePathEgress",
+    "producer-sha": "69edc65089534730",
+    "break": "body of handlePathEgress replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4271-8.2.2-21",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_active_any_other_event_peer_test.go::TestRFC4271ActiveAutomaticStopReleasesThePeer",
+    "unit-sha": "a708fa551614abbc",
+    "claim-sha": "2dd7d719b5236da9",
+    "route": "revert",
+    "producer": "internal/component/bgp/fsm/fsm.go::handleActive",
+    "producer-sha": "d25b8a681def50c7",
+    "break": "body of handleActive replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-8.2.2-21",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_active_any_other_event_peer_test.go::TestRFC4271ActiveDuplicateStartKeepsThePeer",
+    "unit-sha": "4409825a237c4774",
+    "claim-sha": "85aea8b655158ef6",
+    "route": "revert",
+    "producer": "internal/component/bgp/fsm/fsm.go::handleActive",
+    "producer-sha": "d25b8a681def50c7",
+    "break": "body of handleActive replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

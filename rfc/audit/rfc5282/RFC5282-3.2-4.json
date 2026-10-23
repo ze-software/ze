@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: an AES CCM ICV length other than 8, 16, 12. Red: TestRFC5282CCMRefusesEveryOtherICVLength sweeps Transform IDs 0..35, errors if AEADICVOctets answers a length outside {8,12,16} or answers for any id beyond 14,15,16,20, and requires SealIKEAEAD/OpenIKEAEAD to refuse the rest; TestRFC5282CCMSupportsTheThreePermittedICVLengths seals and opens 8, 12 and 16.",
+  "requirement_sha": "7eafec6ff0bf1ee2",
+  "tests": {
+    "internal/component/ike/crypto/rfc5282_ccm_test.go::TestRFC5282CCMRefusesEveryOtherICVLength": "74209c0dcbc95d02",
+    "internal/component/ike/crypto/rfc5282_ccm_test.go::TestRFC5282CCMSupportsTheThreePermittedICVLengths": "74209c0dcbc95d02"
+  },
+  "units": {
+    "internal/component/ike/crypto/rfc5282_ccm_test.go::TestRFC5282CCMRefusesEveryOtherICVLength": "858570df2d89be01",
+    "internal/component/ike/crypto/rfc5282_ccm_test.go::TestRFC5282CCMSupportsTheThreePermittedICVLengths": "9755688391761b15"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC4724-4.1-4",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/grmarker/rfc4724_grmarker_test.go::TestSetRBitOnCapability",
+    "unit-sha": "f521f8662fae7f15",
+    "claim-sha": "2fd4534d4d2b071d",
+    "route": "revert",
+    "producer": "internal/component/bgp/grmarker/grmarker.go::SetRBit",
+    "producer-sha": "ec9ad23299eff2fb",
+    "break": "body of SetRBit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4724-4.1-4",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/grmarker/rfc4724_grmarker_test.go::TestSetRBitTimeGatePattern",
+    "unit-sha": "51f50c2462a313c4",
+    "claim-sha": "e3eb2c5e62f8bfdb",
+    "route": "revert",
+    "producer": "internal/component/bgp/grmarker/grmarker.go::SetRBit",
+    "producer-sha": "ec9ad23299eff2fb",
+    "break": "body of SetRBit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4724-4.1-4",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4724_restart_state_test.go::TestRFC4724OpenInsideTheRestartWindowSetsRestartState",
+    "unit-sha": "ec31a313225d20a1",
+    "claim-sha": "8d60a66582327e06",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/peer_gr_flags.go::restartFlagsFor",
+    "producer-sha": "e3ce79b7b265094b",
+    "break": "body of restartFlagsFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4724-4.1-4",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4724_restart_state_test.go::TestRFC4724OpenOutsideTheRestartWindowClearsRestartState",
+    "unit-sha": "7eeaa6a8775c8b55",
+    "claim-sha": "12be7e2ba24a503d",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/peer.go::getPluginCapabilities",
+    "producer-sha": "c1e4d4e4d0c8a4d8",
+    "break": "body of getPluginCapabilities replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

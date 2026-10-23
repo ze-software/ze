@@ -1,0 +1,17 @@
+{
+  "note": "RFC 7947 Section 2.2.3: \"Contrary to Section 5.1.4 of [RFC4271], if applied to an NLRI UPDATE sent to a route server, this attribute SHOULD be propagated to other route server clients, and the route server SHOULD NOT modify its value.\" TestReactorForwardRSTransparent requires body identity with MED 100; TestForwardKeepsMEDForRouteServerClient pins no MED operation/no rebuild; med-not-propagated-across-as.ci separately compares complete actual UPDATEs at an RS client (MED retained unchanged) and ordinary eBGP destination (MED absent). applyFactsMED uses the RS destination exception and otherwise records suppression of a received, unmodified metric. Thus both propagation and unchanged value are asserted, and preserving MED for all destinations would fail the negative. No source capability was widened. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.",
+  "requirement_sha": "91cb65f9bb46cfd0",
+  "tests": {
+    "internal/component/bgp/reactor/forward_med_test.go::TestForwardKeepsMEDForRouteServerClient": "677aec0a7e53cb68",
+    "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSTransparent": "8a8cb162fbac99e6",
+    "test/plugin/med-not-propagated-across-as.ci": "7ddd56d72dc48f9a",
+    "test/plugin/med-not-propagated-across-as.ci#2": "7ddd56d72dc48f9a"
+  },
+  "units": {
+    "internal/component/bgp/reactor/forward_med_test.go::TestForwardKeepsMEDForRouteServerClient": "35e5ce69bc0a0fa6",
+    "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSTransparent": "b6c7cccf999cf20e",
+    "test/plugin/med-not-propagated-across-as.ci": "7ddd56d72dc48f9a",
+    "test/plugin/med-not-propagated-across-as.ci#2": "7ddd56d72dc48f9a"
+  },
+  "verdict": "enforced"
+}

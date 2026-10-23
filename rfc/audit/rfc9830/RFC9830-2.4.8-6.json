@@ -1,0 +1,13 @@
+{
+  "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NameSubTLVs. Forbidden: a non-zero SR Policy Name RESERVED octet on transmission. Red: assert.Equal(byte(0), value[0]) in the loop case for 'alpha'. Negative: assert.NotEqual(make([]byte, 6), ...) and assert.Equal(want, string(value[1:])), so the zero is written ahead of the whole name.",
+  "requirement_sha": "cdade31fe3da99de",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NameSubTLVs": "450f2364530acf19",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NameSubTLVs#2": "450f2364530acf19"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NameSubTLVs": "4d7575ed7e5b51b7",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NameSubTLVs#2": "4d7575ed7e5b51b7"
+  },
+  "verdict": "enforced"
+}

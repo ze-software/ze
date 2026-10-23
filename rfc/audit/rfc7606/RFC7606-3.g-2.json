@@ -1,0 +1,17 @@
+{
+  "note": "Recognized case held by the HEAD first-wins pair; unrecognized case now proven: TestRFC7606UnrecognizedDuplicateAttributeLaterOccurrenceDiscarded (0xF0 twice) requires Action None, DuplicateRanges exactly the later occurrence, and StripAttrRanges leaving mandatory+first byte for byte; the reactor applies StripAttrRanges (session_validation.go).",
+  "requirement_sha": "12e83ee6ee94ee1c",
+  "tests": {
+    "internal/component/bgp/message/rfc7606_clause_test.go::TestRFC7606UnrecognizedDuplicateAttributeLaterOccurrenceDiscarded": "a8996fb398de9acf",
+    "internal/component/bgp/message/rfc7606_clause_test.go::TestRFC7606UnrecognizedDuplicateAttributeLaterOccurrenceDiscarded#2": "a8996fb398de9acf",
+    "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606DuplicateAttributeFirstOccurrenceIsValidated": "669936946251c215",
+    "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606DuplicateAttributeFirstOccurrenceWins": "669936946251c215"
+  },
+  "units": {
+    "internal/component/bgp/message/rfc7606_clause_test.go::TestRFC7606UnrecognizedDuplicateAttributeLaterOccurrenceDiscarded": "eb2bb0246d8e884e",
+    "internal/component/bgp/message/rfc7606_clause_test.go::TestRFC7606UnrecognizedDuplicateAttributeLaterOccurrenceDiscarded#2": "eb2bb0246d8e884e",
+    "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606DuplicateAttributeFirstOccurrenceIsValidated": "89d4621d5dfdbb6c",
+    "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606DuplicateAttributeFirstOccurrenceWins": "022af2a0c9578d2d"
+  },
+  "verdict": "enforced"
+}

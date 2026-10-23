@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5216-2.1.5-5",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc5216_fragment_ack_test.go::TestRFC5216ServerAcksEachPeerFragmentWithNoData",
+    "unit-sha": "503f10c0dadbbc81",
+    "claim-sha": "bec5c37610df4e8c",
+    "route": "revert",
+    "producer": "internal/core/eap/eap_tls.go::Process",
+    "producer-sha": "a7122cb1288ea14a",
+    "break": "body of Process replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5216-2.1.5-5",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc5216_fragment_ack_test.go::TestRFC5216ServerAcksEachPeerFragmentWithNoData",
+    "unit-sha": "503f10c0dadbbc81",
+    "claim-sha": "3073765d9090d20f",
+    "route": "revert",
+    "producer": "internal/core/eap/eap_tls.go::Process",
+    "producer-sha": "a7122cb1288ea14a",
+    "break": "body of Process replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

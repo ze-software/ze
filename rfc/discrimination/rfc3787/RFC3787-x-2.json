@@ -1,0 +1,57 @@
+[
+  {
+    "rid": "RFC3787-x-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/circuit/hello_test.go::TestISISHelloTLV132RequiresInterfaceAddr",
+    "unit-sha": "cc1c8d4f90a97fb3",
+    "claim-sha": "ca1443450ba1cf5c",
+    "route": "revert",
+    "producer": "internal/plugins/isis/circuit/hello.go::protocolsSupportedTLV",
+    "producer-sha": "1d45130d31599694",
+    "break": "body of protocolsSupportedTLV replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3787-x-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/circuit/hello_test.go::TestISISIIHOriginationTLVs",
+    "unit-sha": "4d5855ae8d953c32",
+    "claim-sha": "bf6bb63c0e7668b8",
+    "route": "revert",
+    "producer": "internal/plugins/isis/circuit/hello.go::protocolsSupportedTLV",
+    "producer-sha": "1d45130d31599694",
+    "break": "body of protocolsSupportedTLV replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3787-x-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195ISHTransmitReceive",
+    "unit-sha": "f1a2526422b8829f",
+    "claim-sha": "c4a789ad489e3ec5",
+    "route": "revert",
+    "producer": "internal/plugins/isis/circuit/hello.go::protocolsSupportedTLV",
+    "producer-sha": "1d45130d31599694",
+    "break": "body of protocolsSupportedTLV replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3787-x-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/protocol_rfc1195_test.go::TestRFC1195NodeProtocolsAcrossInterfaces",
+    "unit-sha": "e063b6b3b89f9e14",
+    "claim-sha": "16ac29fc3bc11a97",
+    "route": "revert",
+    "producer": "internal/plugins/isis/circuit/hello.go::protocolsSupportedTLV",
+    "producer-sha": "1d45130d31599694",
+    "break": "body of protocolsSupportedTLV replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3787-x-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/rfc3787_absence_test.go::TestRFC3787PeerWithoutIPProtocolsSupportedIsRejected",
+    "unit-sha": "884d3738db42c1ad",
+    "claim-sha": "3695129dade515b8",
+    "route": "revert",
+    "producer": "internal/plugins/isis/circuit/ish.go::receivedProtocols",
+    "producer-sha": "b86b99e34fdd7035",
+    "break": "body of receivedProtocols replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

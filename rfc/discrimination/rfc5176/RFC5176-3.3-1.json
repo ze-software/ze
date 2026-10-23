@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC5176-3.3-1",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176MatchedIdentificationSucceeds",
+    "unit-sha": "4e56466b04916916",
+    "claim-sha": "9a92e397df5dc36d",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authradius/coa.go::handleCoA",
+    "producer-sha": "f7c7c770125f61d8",
+    "break": "body of handleCoA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5176-3.3-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176UnmatchedIdentificationIsNAKed",
+    "unit-sha": "3d088b7102125c9c",
+    "claim-sha": "40ae128da8fc816e",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authradius/coa.go::oneSession",
+    "producer-sha": "e4e2644e7cdfd24e",
+    "break": "body of oneSession replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5176-3.3-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go::TestDisconnectReplayReturnsCachedResponse",
+    "unit-sha": "329bf85733c3605a",
+    "claim-sha": "57d832711e155a61",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authradius/coa.go::findSessions",
+    "producer-sha": "f62a214577dacfe5",
+    "break": "body of findSessions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5176-3.3-1",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go::TestRFC5176NoSessionIdNotActedOn",
+    "unit-sha": "c9cf3ad890c9d2df",
+    "claim-sha": "6ade0d61bc8516fe",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authradius/coa.go::findSessions",
+    "producer-sha": "f62a214577dacfe5",
+    "break": "body of findSessions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

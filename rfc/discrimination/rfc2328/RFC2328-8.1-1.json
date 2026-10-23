@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2328-8.1-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/transport/rfc2328_unnumbered_source_linux_test.go::TestOSPFRefusesDeviceWithoutRouterAddress",
+    "unit-sha": "80e34605deb8bbed",
+    "claim-sha": "2624bf4652ddc39d",
+    "route": "mutant",
+    "producer": "internal/plugins/ospf/transport/backend_linux.go::interfaceIPv4",
+    "producer-sha": "892738c62667e3b3",
+    "break": "line 308: \"fmt.Errorf(\\\"ospf/transport: interface %s has no IPv4 address\\\", name)\" -\u003e \"nil\""
+  },
+  {
+    "rid": "RFC2328-8.1-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/transport/rfc2328_unnumbered_source_linux_test.go::TestOSPFUnnumberedSourcesFromDonorAddress",
+    "unit-sha": "5b03915054b3edcb",
+    "claim-sha": "f42611dc572a2285",
+    "route": "mutant",
+    "producer": "internal/plugins/ospf/transport/backend_linux.go::multicastDevice",
+    "producer-sha": "33a4f88176f62fe4",
+    "break": "line 366: \"int32(ifindex)\" -\u003e \"0\""
+  }
+]

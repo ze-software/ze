@@ -1,0 +1,21 @@
+{
+  "note": "send side (attribute encoders), receive-path clear (enforceRFC7606), readvertise rails (rib CommitService, storage ToWireBytes) and the RS relay each fed 0x60/0xA0 and asserted 0x40/0x80 on the wire, COMMUNITIES 0xE0 kept",
+  "requirement_sha": "156aea092a643db1",
+  "tests": {
+    "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271PartialBitClearedOnReadvertisedWellKnown": "ab16100811ce8d90",
+    "internal/component/bgp/reactor/rfc4271_relay_partial_test.go::TestRFC4271PartialClearedOnTheRelayedWire": "71651bbb29bf74fa",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271PartialNotSetOnRecognizedOrNonTransitive": "94aa07ebd53dcc5b",
+    "internal/component/bgp/rib/rfc4271_partial_test.go::TestRFC4271PartialClearedWhenTheRailReadvertises": "f16e4cbdf16366d6",
+    "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271PartialBitClearOnSend": "4d1e0cbb7558949b",
+    "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271PartialNotStampedOnExcludedClasses": "4d1e0cbb7558949b"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271PartialBitClearedOnReadvertisedWellKnown": "d87e9f9a0b7f0c20",
+    "internal/component/bgp/reactor/rfc4271_relay_partial_test.go::TestRFC4271PartialClearedOnTheRelayedWire": "4a5929435fc3c5cd",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271PartialNotSetOnRecognizedOrNonTransitive": "df046c55527de47b",
+    "internal/component/bgp/rib/rfc4271_partial_test.go::TestRFC4271PartialClearedWhenTheRailReadvertises": "70df500c12038a63",
+    "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271PartialBitClearOnSend": "e0b76f97bbef5bfc",
+    "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271PartialNotStampedOnExcludedClasses": "52eaa9d2e7608dee"
+  },
+  "verdict": "enforced"
+}

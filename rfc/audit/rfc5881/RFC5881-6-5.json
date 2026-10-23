@@ -1,0 +1,17 @@
+{
+  "note": "Judge 2026-09-30 (rejudge, netns+pinning). \u00a76 \"subsequent BFD packets MUST be demultiplexed solely by the Your Discriminator field\". The missing dimensions are now varied: + TestRFC5881DiscriminatorAloneSelectsTheSession (source, local address and ingress interface all differ from the session: delivered); - TestRFC5881AddressingNeverOverridesTheDiscriminator (session 1's exact tuple with session 2's YD goes to 2, 1 untouched). Old source-dimension tags kept. Revert records on loop.go::handleInbound observed red; overlays byDiscr-also-requiring-iface and byKey-before-byDiscr red the new + and - respectively (author e4-ov9a/b).",
+  "requirement_sha": "20717f228d4fb731",
+  "tests": {
+    "internal/component/bfd/engine/rfc5881_demux_solely_test.go::TestRFC5881AddressingNeverOverridesTheDiscriminator": "95413c5e57ea5808",
+    "internal/component/bfd/engine/rfc5881_demux_solely_test.go::TestRFC5881DiscriminatorAloneSelectsTheSession": "95413c5e57ea5808",
+    "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881DiscriminatorDemuxDelivers": "c8bf3135e7e74ea3",
+    "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881DiscriminatorDemuxUnknownDropped": "c8bf3135e7e74ea3"
+  },
+  "units": {
+    "internal/component/bfd/engine/rfc5881_demux_solely_test.go::TestRFC5881AddressingNeverOverridesTheDiscriminator": "3effd2e0b0bff8dc",
+    "internal/component/bfd/engine/rfc5881_demux_solely_test.go::TestRFC5881DiscriminatorAloneSelectsTheSession": "1c29fd68731ca3c1",
+    "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881DiscriminatorDemuxDelivers": "3880f5c58e9af09b",
+    "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881DiscriminatorDemuxUnknownDropped": "4112a6d497979c4a"
+  },
+  "verdict": "enforced"
+}

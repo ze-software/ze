@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC5492-4-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492RepeatedCapabilityInstancesAcceptedAtTheSession",
+    "unit-sha": "abc88de8ea80f6c8",
+    "claim-sha": "57d1e3b2a684db1c",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_handlers.go::handleOpen",
+    "producer-sha": "f4f23c1e31de5efd",
+    "break": "body of handleOpen replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

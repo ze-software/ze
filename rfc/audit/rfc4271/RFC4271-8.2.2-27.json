@@ -1,0 +1,13 @@
+{
+  "note": "Judged 2026-10-01 (BGP c12 judge). Row is the OpenConfirm Event 24 list verbatim (RFC 4271 Section 8.2.2, 'If the local system receives a NOTIFICATION message with a version error (NotifMsgVerErr (Event 24)), the local system: ... and - changes its state to Idle.'). Positive TestRFC4271VersionErrorNotificationReleasesQuietly/OPENCONFIRM: 2/1 at counter 3 draws no NOTIFICATION, EOF, three timers stopped, session released, Idle, counter stays 3. Negative TestRFC4271OtherOpenErrorNotificationIsNotAVersionError/OPENCONFIRM: 2/2 is Event 25 (the Event 18/25 list): no NOTIFICATION and counter 3->4, so the counter is the discriminating clause between the two lists and both directions are pinned. Records observed red on notificationEvent both polarities; before the fix the positive moved the counter to 4 (D-9). Supplementary: fsm.TestRFC4271ConnectRetryCounterQuietOnVersionErrorInOpenStates proves the same counter half at FSM level but stays tagged RFC4271-8.2.2-12 negative (a valid state-boundary negative there).",
+  "requirement_sha": "a202c9ed1a5db311",
+  "tests": {
+    "internal/component/bgp/reactor/rfc4271_version_error_peer_test.go::TestRFC4271OtherOpenErrorNotificationIsNotAVersionError": "20aa7ce5c43aad4a",
+    "internal/component/bgp/reactor/rfc4271_version_error_peer_test.go::TestRFC4271VersionErrorNotificationReleasesQuietly": "20aa7ce5c43aad4a"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc4271_version_error_peer_test.go::TestRFC4271OtherOpenErrorNotificationIsNotAVersionError": "c7f8655b7f5daa9e",
+    "internal/component/bgp/reactor/rfc4271_version_error_peer_test.go::TestRFC4271VersionErrorNotificationReleasesQuietly": "5f3586a60efb68ca"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-3.1-8",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_header_test.go::TestXBitsIgnoredOnReceipt",
+    "unit-sha": "dabaa3cbdab52a99",
+    "claim-sha": "197c4dbfaf8e3454",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/register.go::tryResponderSAInit",
+    "producer-sha": "20be1f2568547369",
+    "break": "line 774: \"pkt.Data[19]\u0026wire.FlagResponse != 0\" -\u003e \"pkt.Data[19]\u0026^wire.FlagInitiator != 0\""
+  },
+  {
+    "rid": "RFC7296-3.1-8",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_header_test.go::TestXBitsIgnoredOnReceipt",
+    "unit-sha": "dabaa3cbdab52a99",
+    "claim-sha": "a7e6b779f371e998",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/register.go::tryResponderSAInit",
+    "producer-sha": "20be1f2568547369",
+    "break": "line 774: \"pkt.Data[19]\u0026wire.FlagResponse != 0\" -\u003e \"false\""
+  }
+]

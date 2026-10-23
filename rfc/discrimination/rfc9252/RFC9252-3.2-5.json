@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9252-3.2-5",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rib/pool/rfc9252_sid_structure_validity_test.go::TestExtractSRv6SIDFull_NonZeroArgumentLengthInvalid",
+    "unit-sha": "0323d0452071b35f",
+    "claim-sha": "56e88fc73671a664",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/pool/srv6sid.go::parseSIDStructure",
+    "producer-sha": "2c451f3ea888ca80",
+    "break": "body of parseSIDStructure replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9252-3.2-5",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/pool/rfc9252_sid_structure_validity_test.go::TestExtractSRv6SIDFull_NonZeroArgumentLengthInvalid",
+    "unit-sha": "0323d0452071b35f",
+    "claim-sha": "87b80b02088ae847",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/pool/srv6sid.go::parseSIDStructure",
+    "producer-sha": "2c451f3ea888ca80",
+    "break": "body of parseSIDStructure replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

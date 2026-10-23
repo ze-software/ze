@@ -1,0 +1,17 @@
+{
+  "note": "(a) forbidden: a Request Authenticator not computed as RFC 2866 specifies (MD5 over Code+Identifier+Length+16 zero octets+attributes+secret). (b) TestRFC5176CoARequestAuthenticatorMatchesTheFormula compares AccountingRequestAuth with an independent MD5 in the test over non-zero wire octets; TestRFC5176CoARequestAuthenticatorCoversEveryNamedField refuses changed Code, Identifier, attribute and secret; packet_test.go refuses a corrupted byte.",
+  "requirement_sha": "2d9de43efa8e23df",
+  "tests": {
+    "internal/component/radius/packet_test.go::TestVerifyCoARequestAuth": "8d639d23d04e7dff",
+    "internal/component/radius/packet_test.go::TestVerifyCoARequestAuth#2": "8d639d23d04e7dff",
+    "internal/component/radius/rfc2865_response_auth_test.go::TestRFC5176CoARequestAuthenticatorCoversEveryNamedField": "afe9edcd4686e40f",
+    "internal/component/radius/rfc2865_response_auth_test.go::TestRFC5176CoARequestAuthenticatorMatchesTheFormula": "afe9edcd4686e40f"
+  },
+  "units": {
+    "internal/component/radius/packet_test.go::TestVerifyCoARequestAuth": "b419dd9aa00b51a7",
+    "internal/component/radius/packet_test.go::TestVerifyCoARequestAuth#2": "b419dd9aa00b51a7",
+    "internal/component/radius/rfc2865_response_auth_test.go::TestRFC5176CoARequestAuthenticatorCoversEveryNamedField": "855b4740730be016",
+    "internal/component/radius/rfc2865_response_auth_test.go::TestRFC5176CoARequestAuthenticatorMatchesTheFormula": "502d026b32858c73"
+  },
+  "verdict": "enforced"
+}

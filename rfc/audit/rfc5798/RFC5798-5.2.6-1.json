@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 5798 Section 5.2.6 says \"This field MUST be set to zero on transmission and ignored on reception.\" TestEncodeGoldenV3IPv4 now runs a subtest per checksum mode, and each still requires the rsvd nibble to be zero and the exact golden bytes; TestEncodeV3ReserveZeroOverDirtyBuffer encodes over an all-0xFF buffer against the default-mode golden G2. The reception half is TestDecodeV3ReserveIgnoredOnReceive, unchanged. Verdict unchanged.",
+  "requirement_sha": "3b95c99b3ca55ebb",
+  "tests": {
+    "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV3IPv4": "15a7697300d1b17c",
+    "internal/plugins/vrrp/packet/rfc_rx_verdict_test.go::TestEncodeV3ReserveZeroOverDirtyBuffer": "42ac89061f52b9ae",
+    "internal/plugins/vrrp/packet/validate_test.go::TestDecodeV3ReserveIgnoredOnReceive": "5bbc8ddba98cd418"
+  },
+  "units": {
+    "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV3IPv4": "f665d3473b49bc02",
+    "internal/plugins/vrrp/packet/rfc_rx_verdict_test.go::TestEncodeV3ReserveZeroOverDirtyBuffer": "d615bf51d7947bc0",
+    "internal/plugins/vrrp/packet/validate_test.go::TestDecodeV3ReserveIgnoredOnReceive": "59d3ebc558c91ec2"
+  },
+  "verdict": "enforced"
+}

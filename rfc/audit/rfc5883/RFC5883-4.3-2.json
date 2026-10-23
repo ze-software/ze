@@ -1,0 +1,13 @@
+{
+  "note": "Re-read 2026-09-27. Forbidden: a receiver in the Passive role transmitting before it has received a packet. TestRFC5883PassiveSessionSilentUntilRx fails on a non-zero NextTxDeadline before any Receive; TestRFC5883PassiveSessionTransmitsAfterRx shows the silence lifts on the first packet. Ze has no unidirectional-link notion: the operator configures passive, and the units prove the Passive role behaves as defined.",
+  "requirement_sha": "db1a5956ef42f069",
+  "tests": {
+    "internal/component/bfd/session/rfc5883_test.go::TestRFC5883PassiveSessionSilentUntilRx": "02489ee222a86857",
+    "internal/component/bfd/session/rfc5883_test.go::TestRFC5883PassiveSessionTransmitsAfterRx": "02489ee222a86857"
+  },
+  "units": {
+    "internal/component/bfd/session/rfc5883_test.go::TestRFC5883PassiveSessionSilentUntilRx": "ce26dc057ec299cd",
+    "internal/component/bfd/session/rfc5883_test.go::TestRFC5883PassiveSessionTransmitsAfterRx": "bf4927462b3544ac"
+  },
+  "verdict": "enforced"
+}

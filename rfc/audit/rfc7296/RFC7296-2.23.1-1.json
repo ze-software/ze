@@ -1,0 +1,22 @@
+{
+  "code": {
+    "internal/component/ike/engine/transport_mode.go::transportSelectorPairs": "472481f3c9bd32b1",
+    "internal/component/ike/engine/ts_narrow.go::keepSingleAddress": "af457c70d2e3d922",
+    "internal/component/ike/engine/ts_narrow.go::oneTransportPair": "1237ea1e3012660a"
+  },
+  "note": "Re-judged 2026-10-20 (independent judge, after 0b324c6182). Section 2.23.1: \"For transport mode, it MUST use exactly one IP address in the TSi and TSr payloads.\" The STALE unit oneTransportPair (ts_narrow.go) changed only in its doc comment (0b324c6182 adds the pointer to Linux limitation LL-XFRM-STATE-ONE-SELECTOR); the body is unchanged, as are keepSingleAddress and transportSelectorPairs. Responder: keepSingleAddress then oneTransportPair, TS_UNACCEPTABLE when no single-address pair is left; initiator: proposal with the SA endpoint addresses, more than one answered pair refused. Tagged carriers TestTransportModeUsesExactlyOneAddress and TestResponderAnswersTheIKESAAddressesBehindANAT PASS with -race at HEAD; claims match the bodies. Capability note from the prior judgement unchanged (several port ranges narrowed to one pair). Verdict stands.",
+  "requirement_sha": "94c565064d74a38f",
+  "tests": {
+    "internal/component/ike/engine/rfc7296_transport_nat_test.go::TestResponderAnswersTheIKESAAddressesBehindANAT": "235c6f7e874e30ca",
+    "internal/component/ike/engine/rfc7296_transport_nat_test.go::TestResponderAnswersTheIKESAAddressesBehindANAT#2": "235c6f7e874e30ca",
+    "internal/component/ike/engine/rfc7296_transport_test.go::TestTransportModeUsesExactlyOneAddress": "fabd90e9a9b5f392",
+    "internal/component/ike/engine/rfc7296_transport_test.go::TestTransportModeUsesExactlyOneAddress#2": "fabd90e9a9b5f392"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7296_transport_nat_test.go::TestResponderAnswersTheIKESAAddressesBehindANAT": "c0bd95f2cca724db",
+    "internal/component/ike/engine/rfc7296_transport_nat_test.go::TestResponderAnswersTheIKESAAddressesBehindANAT#2": "c0bd95f2cca724db",
+    "internal/component/ike/engine/rfc7296_transport_test.go::TestTransportModeUsesExactlyOneAddress": "399692f1a15b5b25",
+    "internal/component/ike/engine/rfc7296_transport_test.go::TestTransportModeUsesExactlyOneAddress#2": "399692f1a15b5b25"
+  },
+  "verdict": "enforced"
+}

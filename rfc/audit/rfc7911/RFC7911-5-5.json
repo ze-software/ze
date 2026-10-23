@@ -1,0 +1,23 @@
+{
+  "note": "RFC 7911 Section 5: \"The peer SHALL act accordingly in processing an UPDATE message related to a particular <AFI, SAFI>.\" Read together with the immediately preceding full send/receive negotiation and extended-(prefix,Path Identifier) encoding sentence. All four current carriers read: TestRFC7911AddPathStateAppliesPerFamily, TestEnforceRFC7606_MPAddPathLargePathIDAccepted, TestEnforceRFC7606_IPv4BodyAddPathLargePathIDAccepted and TestRFC7606Section54ReadsTypedNLRIUnderAddPath. The receive matrix positively accepts only the encoding selected for each family and negatively requires exact SessionReset on wrong framing in both IPv4/IPv6 orientations; large identifier octets isolate the framing misread. The typed test now installs a real receive context and verifies the recognized EVPN route retains its identifier while the unknown route disappears. enforceRFC7606 and typedNLRIEdit consult recvCtx.AddPathFor on the specific family. This is receive-side evidence, not an extra generation claim. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.",
+  "requirement_sha": "fd396f7cd202829b",
+  "tests": {
+    "internal/component/bgp/reactor/rfc7911_reactor_b_test.go::TestRFC7911AddPathStateAppliesPerFamily": "75b4ff7b6ed1bd04",
+    "internal/component/bgp/reactor/rfc7911_reactor_b_test.go::TestRFC7911AddPathStateAppliesPerFamily#2": "75b4ff7b6ed1bd04",
+    "internal/component/bgp/reactor/rfc7911_session_addpath_test.go::TestEnforceRFC7606_IPv4BodyAddPathLargePathIDAccepted": "8d5eb17dbb438d04",
+    "internal/component/bgp/reactor/rfc7911_session_addpath_test.go::TestEnforceRFC7606_IPv4BodyAddPathLargePathIDAccepted#2": "8d5eb17dbb438d04",
+    "internal/component/bgp/reactor/rfc7911_session_addpath_test.go::TestEnforceRFC7606_MPAddPathLargePathIDAccepted": "8d5eb17dbb438d04",
+    "internal/component/bgp/reactor/rfc7911_session_addpath_test.go::TestEnforceRFC7606_MPAddPathLargePathIDAccepted#2": "8d5eb17dbb438d04",
+    "internal/component/bgp/reactor/session_validation_nlritype_bypass_test.go::TestRFC7606Section54ReadsTypedNLRIUnderAddPath": "d39f8e1a55320a07"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc7911_reactor_b_test.go::TestRFC7911AddPathStateAppliesPerFamily": "da5d88f2c8b20920",
+    "internal/component/bgp/reactor/rfc7911_reactor_b_test.go::TestRFC7911AddPathStateAppliesPerFamily#2": "da5d88f2c8b20920",
+    "internal/component/bgp/reactor/rfc7911_session_addpath_test.go::TestEnforceRFC7606_IPv4BodyAddPathLargePathIDAccepted": "b1a86e67ee138224",
+    "internal/component/bgp/reactor/rfc7911_session_addpath_test.go::TestEnforceRFC7606_IPv4BodyAddPathLargePathIDAccepted#2": "b1a86e67ee138224",
+    "internal/component/bgp/reactor/rfc7911_session_addpath_test.go::TestEnforceRFC7606_MPAddPathLargePathIDAccepted": "968617fdd0387cf2",
+    "internal/component/bgp/reactor/rfc7911_session_addpath_test.go::TestEnforceRFC7606_MPAddPathLargePathIDAccepted#2": "968617fdd0387cf2",
+    "internal/component/bgp/reactor/session_validation_nlritype_bypass_test.go::TestRFC7606Section54ReadsTypedNLRIUnderAddPath": "d3d62cdd889ef0c3"
+  },
+  "verdict": "enforced"
+}

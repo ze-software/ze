@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC7950-7.6.3-1",
+    "polarity": "negative",
+    "unit": "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950LeafTypeMustNameAnExistingType",
+    "unit-sha": "f5ddceb52dba2ad2",
+    "claim-sha": "d9ef8ed1fcfcd94b",
+    "route": "revert",
+    "producer": "internal/component/config/yang/loader.go::Resolve",
+    "producer-sha": "51150ebc8d4880b3",
+    "break": "body of Resolve replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7950-7.6.3-1",
+    "polarity": "positive",
+    "unit": "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950LeafTypeMustNameAnExistingType",
+    "unit-sha": "f5ddceb52dba2ad2",
+    "claim-sha": "58691f6a1dfd39a9",
+    "route": "revert",
+    "producer": "internal/component/config/yang/loader.go::Resolve",
+    "producer-sha": "51150ebc8d4880b3",
+    "break": "body of Resolve replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7950-7.6.3-1",
+    "polarity": "positive",
+    "unit": "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadAccepted",
+    "unit-sha": "d21091dc1c116998",
+    "claim-sha": "4d2f4a5a2114c7fa",
+    "route": "revert",
+    "producer": "internal/component/config/yang/loader.go::AddModuleFromText",
+    "producer-sha": "4887216187fdb0bc",
+    "break": "body of AddModuleFromText replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7950-7.6.3-1",
+    "polarity": "negative",
+    "unit": "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadRefused",
+    "unit-sha": "f2401b4ae86ac548",
+    "claim-sha": "168d66a35c810d35",
+    "route": "revert",
+    "producer": "internal/component/config/yang/loader.go::AddModuleFromText",
+    "producer-sha": "4887216187fdb0bc",
+    "break": "body of AddModuleFromText replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

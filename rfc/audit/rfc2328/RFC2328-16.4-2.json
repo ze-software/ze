@@ -1,0 +1,15 @@
+{
+  "note": "First judgement 2026-10-21. RFC 2328 16.4 (1): If the cost specified by the LSA is LSInfinity, or if the LSA LS age is equal to MaxAge, then examine the next LSA; (2) self-originated, examine the next. Positive TestOSPFExternalE1Cost installs a conforming external through its ASBR (record ComputeExternalWith). Negative TestOSPFExternalLSInfinityDropped: v4ExternalReader yields no record for an LSA whose own cost is LSInfinity and nothing installs through an ASBR 10 away (record v4ExternalReader). Negative TestRFC2328ExternalSkipsMaxAgeAndSelf: a MaxAge external and one advertised by the root, whose ASBR entry is the root at cost 10, install nothing. The two skips share one unit and one revert record, so the record cannot say which assertion went red.",
+  "requirement_sha": "506fae0e104ea1af",
+  "tests": {
+    "internal/plugins/ospf/spf/rfc2328_external_test.go::TestOSPFExternalE1Cost": "001e1343c94a70fb",
+    "internal/plugins/ospf/spf/rfc2328_external_test.go::TestOSPFExternalLSInfinityDropped": "001e1343c94a70fb",
+    "internal/plugins/ospf/spf/rfc2328_test.go::TestRFC2328ExternalSkipsMaxAgeAndSelf": "8d93d452c47b92ee"
+  },
+  "units": {
+    "internal/plugins/ospf/spf/rfc2328_external_test.go::TestOSPFExternalE1Cost": "18822812125657ce",
+    "internal/plugins/ospf/spf/rfc2328_external_test.go::TestOSPFExternalLSInfinityDropped": "48a1bebe3fd99ab7",
+    "internal/plugins/ospf/spf/rfc2328_test.go::TestRFC2328ExternalSkipsMaxAgeAndSelf": "f6349371069f07a8"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC8950-3-2",
+    "polarity": "positive",
+    "unit": "internal/core/bgp/attribute/rfc8950_vpn_nexthop_test.go::TestRFC8950VPNIPv6NextHopCarriesZeroRD",
+    "unit-sha": "1d68257105c2300d",
+    "claim-sha": "b999b340b88bf735",
+    "route": "revert",
+    "producer": "internal/core/bgp/attribute/mpnlri.go::writeNextHops",
+    "producer-sha": "40d1fdc5b62b1ace",
+    "break": "body of writeNextHops replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

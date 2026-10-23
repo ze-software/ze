@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: discriminator 0 or a value held by another session. Red: TestRFC5880DiscriminatorsAreNonZeroAndUnique Fatalf on d==0 or a repeat across 32 EnsureSession calls; TestRFC5880DiscriminatorAllocatorSkipsReservedAndTaken parks nextDiscr on 0 with 1 and 2 taken and Fatalf if 0, 1 or 2 is returned. 'Opaque' carries no testable behaviour.",
+  "requirement_sha": "1fdd8138075ac8f6",
+  "tests": {
+    "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880DiscriminatorAllocatorSkipsReservedAndTaken": "4b885928a870b00d",
+    "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880DiscriminatorsAreNonZeroAndUnique": "4b885928a870b00d"
+  },
+  "units": {
+    "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880DiscriminatorAllocatorSkipsReservedAndTaken": "b8c705c4718c3093",
+    "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880DiscriminatorsAreNonZeroAndUnique": "fc1d32c23ece625a"
+  },
+  "verdict": "enforced"
+}

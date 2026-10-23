@@ -1,0 +1,17 @@
+{
+  "note": "Engine drop now exercised: LS Updates dispatched through eng.dispatch from an unknown neighbor, Init, and ExStart are not stored and draw no LS Ack or LS Update even after FlushDelayedAcks; the same packet after Exchange is installed and acknowledged. Disabling the AcceptsFlooding drop in handleLSUpdate turns all three negatives red. 2-Way (not reachable on point-to-point) stays on the neighbor-package AcceptsFlooding units, which gate the same call.",
+  "requirement_sha": "95a4879db9a4ee2f",
+  "tests": {
+    "internal/plugins/ospf/neighbor/rfc2328_test.go::TestRFC2328FloodingRequiresExchangeOrHigher": "42818b298d1598fb",
+    "internal/plugins/ospf/neighbor/rfc2328_test.go::TestRFC2328FloodingRequiresExchangeOrHigher#2": "42818b298d1598fb",
+    "internal/plugins/ospf/rfc2328_flood_state_gate_test.go::TestRFC2328LSUpdateBelowExchangeDroppedByEngine": "8e5e783989311c9c",
+    "internal/plugins/ospf/rfc2328_flood_state_gate_test.go::TestRFC2328LSUpdateFromExchangeNeighborProcessed": "8e5e783989311c9c"
+  },
+  "units": {
+    "internal/plugins/ospf/neighbor/rfc2328_test.go::TestRFC2328FloodingRequiresExchangeOrHigher": "cadda7a50eab55a9",
+    "internal/plugins/ospf/neighbor/rfc2328_test.go::TestRFC2328FloodingRequiresExchangeOrHigher#2": "cadda7a50eab55a9",
+    "internal/plugins/ospf/rfc2328_flood_state_gate_test.go::TestRFC2328LSUpdateBelowExchangeDroppedByEngine": "edf5b0bb6dee884c",
+    "internal/plugins/ospf/rfc2328_flood_state_gate_test.go::TestRFC2328LSUpdateFromExchangeNeighborProcessed": "48a6b532f9d331be"
+  },
+  "verdict": "enforced"
+}

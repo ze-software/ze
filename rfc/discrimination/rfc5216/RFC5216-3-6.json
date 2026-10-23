@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5216-3-6",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216ResponseIdentifierIsCopiedNotCounted",
+    "unit-sha": "4800f715f2040f44",
+    "claim-sha": "27e7347f5cb6b56c",
+    "route": "revert",
+    "producer": "internal/core/eap/peer.go::handleRequest",
+    "producer-sha": "0a90e14d16adb589",
+    "break": "body of handleRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5216-3-6",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216ResponseIdentifierMatchesTheRequest",
+    "unit-sha": "7c31855f2d39e9b5",
+    "claim-sha": "fe44e5b9f5a09dff",
+    "route": "revert",
+    "producer": "internal/core/eap/peer.go::handleTLSRequest",
+    "producer-sha": "5800e2be67824c12",
+    "break": "body of handleTLSRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

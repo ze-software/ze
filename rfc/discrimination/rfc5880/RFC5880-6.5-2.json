@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC5880-6.5-2",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880PollRidesTheScheduledPacket",
+    "unit-sha": "291ca6e1279dba8c",
+    "claim-sha": "8d305c36e800f46e",
+    "route": "mutant",
+    "producer": "internal/component/bfd/session/timers.go::ApplyEchoSlowdown",
+    "producer-sha": "17a6b966760c734e",
+    "break": "line 402: \"!m.pollSequenceIdle()\" -\u003e \"true\""
+  },
+  {
+    "rid": "RFC5880-6.5-2",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/session/rfc5880_test.go::TestRFC5880FinalReplyClearsPollBit",
+    "unit-sha": "d2a9a988337b574d",
+    "claim-sha": "8b08b1b7f606e014",
+    "route": "revert",
+    "producer": "internal/component/bfd/session/fsm.go::Build",
+    "producer-sha": "7804fa2f9f889820",
+    "break": "body of Build replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.5-2",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PollPacketHasNoFinalBit",
+    "unit-sha": "814e3de2141f2dc6",
+    "claim-sha": "2f9a6da403088eb4",
+    "route": "revert",
+    "producer": "internal/component/bfd/session/fsm.go::Build",
+    "producer-sha": "7804fa2f9f889820",
+    "break": "body of Build replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

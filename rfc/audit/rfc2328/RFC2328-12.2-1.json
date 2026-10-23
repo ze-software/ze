@@ -1,0 +1,17 @@
+{
+  "note": "Forbidden: a lookup that ignores any element of the (LS type, Link State ID, Advertising Router) triple. + TestRFC2328LookupTellsApartLSAsSharingTwoElements: three LSAs from 4.4.4.4 (Router 4.4.4.4; Summary 4.4.4.4 differing only in type; Summary 9.9.9.9 differing only in LSID) each found by its own triple with its own sequence. - TestRFC2328LookupMissesWhenOneElementDiffers: a triple differing in LS type alone, LSID alone, or Advertising Router alone finds nothing. Records on lsdb.go::Lookup observed red; TestRFC2328LookupByTriple/NeedsFullTriple unchanged.",
+  "requirement_sha": "ff1fe39c2f7cc844",
+  "tests": {
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328LookupByTriple": "c4cd81c5b8b7e97a",
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328LookupNeedsFullTriple": "c4cd81c5b8b7e97a",
+    "internal/plugins/ospf/lsdb/rfc2328_lookup_triple_test.go::TestRFC2328LookupMissesWhenOneElementDiffers": "24a0673d180030dd",
+    "internal/plugins/ospf/lsdb/rfc2328_lookup_triple_test.go::TestRFC2328LookupTellsApartLSAsSharingTwoElements": "24a0673d180030dd"
+  },
+  "units": {
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328LookupByTriple": "607cf228b4afa5b0",
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328LookupNeedsFullTriple": "ee34ba499f9bcfd8",
+    "internal/plugins/ospf/lsdb/rfc2328_lookup_triple_test.go::TestRFC2328LookupMissesWhenOneElementDiffers": "8174e385d7515acb",
+    "internal/plugins/ospf/lsdb/rfc2328_lookup_triple_test.go::TestRFC2328LookupTellsApartLSAsSharingTwoElements": "40e0c15567e0a01a"
+  },
+  "verdict": "enforced"
+}

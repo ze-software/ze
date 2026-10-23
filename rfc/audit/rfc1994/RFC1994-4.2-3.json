@@ -1,0 +1,11 @@
+{
+  "note": "Forbidden: a Success or Failure whose Identifier is not the Response's. TestCHAPResponseEmitsEvent sends a Response carrying the Challenge Identifier and asserts the Success frame's Identifier equals it, red on any other Identifier. Single-polarity marker: waitCHAPResponse admits only a Response whose Identifier matches the outstanding Challenge.",
+  "requirement_sha": "fccabf53c9cec790",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPResponseEmitsEvent": "5b49028a86478309"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPResponseEmitsEvent": "a1826b62ff5ad546"
+  },
+  "verdict": "enforced"
+}

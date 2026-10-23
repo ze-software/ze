@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9190-2.1.2-3",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc9190_resumption_test.go::TestEAPTLS13IssuesASessionTicketTheNextExchangeRedeems",
+    "unit-sha": "144c79f5935885d9",
+    "claim-sha": "00a46d92e20c9a9a",
+    "route": "revert",
+    "producer": "internal/core/eap/resumption.go::TicketKeys",
+    "producer-sha": "c7e047f9231e686f",
+    "break": "body of TicketKeys replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9190-2.1.2-3",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc9190_tls_layer_test.go::TestEAPTLS13AuthenticatorConfigSendsNoEarlyDataOrPostHandshakeRequest",
+    "unit-sha": "1d6707873c2b5b68",
+    "claim-sha": "82d2cd75a1d76bbb",
+    "route": "revert",
+    "producer": "internal/core/eap/eap_tls.go::newTLSMethod",
+    "producer-sha": "9d4ae49c78228895",
+    "break": "body of newTLSMethod replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,13 @@
+{
+  "note": "\u00a77.6.1 third branch, both polarities on one isolated unit (own schema build and map per subtest). Positive: an existing presence container and an existing list entry each receive their child leaf's default through ApplyDefaults. Negative: with both ancestors absent ApplyDefaults creates neither and the map stays empty. Records: positive on applyContainerDefault (revert); negative on the targeted mutant 'c.Presence' -> 'false' (a presence container treated as non-presence), observed red on the ancestor-absent subtest, so the negative discriminates the rule rather than a panic.",
+  "requirement_sha": "8de16dbd638d1c06",
+  "tests": {
+    "internal/component/config/rfc7950_leaf_default_test.go::TestRFC7950LeafDefaultFollowsItsAncestor": "d66c7886cead82ee",
+    "internal/component/config/rfc7950_leaf_default_test.go::TestRFC7950LeafDefaultFollowsItsAncestor#2": "d66c7886cead82ee"
+  },
+  "units": {
+    "internal/component/config/rfc7950_leaf_default_test.go::TestRFC7950LeafDefaultFollowsItsAncestor": "5098c68b62d0e263",
+    "internal/component/config/rfc7950_leaf_default_test.go::TestRFC7950LeafDefaultFollowsItsAncestor#2": "5098c68b62d0e263"
+  },
+  "verdict": "enforced"
+}

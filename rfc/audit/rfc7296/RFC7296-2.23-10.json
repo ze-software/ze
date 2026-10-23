@@ -1,0 +1,13 @@
+{
+  "note": "every Child SA accepts both ESP forms inbound (AcceptBothESPForms) and both forms are programmable; kernel behavior measured by the cited QEMU tests",
+  "requirement_sha": "f3ea7ec017873610",
+  "tests": {
+    "internal/component/ike/engine/rfc7296_natt_bothforms_test.go::TestBfmBothESPFormsAreReachable": "54e305e7bb842fcf",
+    "internal/component/ike/engine/rfc7296_natt_bothforms_test.go::TestBfmBothESPFormsReceivedOnOneChildSA": "54e305e7bb842fcf"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7296_natt_bothforms_test.go::TestBfmBothESPFormsAreReachable": "d2da5f9a3068b806",
+    "internal/component/ike/engine/rfc7296_natt_bothforms_test.go::TestBfmBothESPFormsReceivedOnOneChildSA": "d6fe123fc4a563da"
+  },
+  "verdict": "enforced"
+}

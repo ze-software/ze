@@ -1,0 +1,23 @@
+{
+  "note": "Judged 2026-10-21 over current tags, units and records. Row text correction only ('sub- TLV' to 'sub-TLV', rfc/corrections/rfc7684.md), checked against RFC 7684 Section 5. Units unchanged: the malformed-permutation table and the fuzz targets detect without panic, and well-formed bodies decode.",
+  "requirement_sha": "d1c59e5e1cf965d3",
+  "tests": {
+    "internal/plugins/ospf/packet/rfc7684_ext_link_test.go::TestExtLinkTLVRoundTrip": "756688445ad159bf",
+    "internal/plugins/ospf/packet/rfc7684_ext_prefix_test.go::TestExtPrefixTLVRoundTrip": "6abd3ff550588c47",
+    "internal/plugins/ospf/packet/rfc7684_fuzz_test.go::FuzzOSPFExtLinkBody": "b02a6265fe53ccd9",
+    "internal/plugins/ospf/packet/rfc7684_fuzz_test.go::FuzzOSPFExtPrefixBody": "b02a6265fe53ccd9",
+    "internal/plugins/ospf/packet/rfc7684_malformed_test.go::TestRFC7684MalformedPermutationsDetected": "d6b47c34d8e9252f",
+    "internal/plugins/ospf/packet/rfc7684_malformed_test.go::TestRFC7684MalformedPermutationsDetected#2": "d6b47c34d8e9252f",
+    "internal/plugins/ospf/rfc7684_ext_prefix_recv_test.go::TestExtPrefixMalformedCounted": "ba85a5be9e5d5c57"
+  },
+  "units": {
+    "internal/plugins/ospf/packet/rfc7684_ext_link_test.go::TestExtLinkTLVRoundTrip": "304b858afdc04282",
+    "internal/plugins/ospf/packet/rfc7684_ext_prefix_test.go::TestExtPrefixTLVRoundTrip": "02b1ff221be93aed",
+    "internal/plugins/ospf/packet/rfc7684_fuzz_test.go::FuzzOSPFExtLinkBody": "6bf39fe85a060f65",
+    "internal/plugins/ospf/packet/rfc7684_fuzz_test.go::FuzzOSPFExtPrefixBody": "aad0e21f86dcf6a7",
+    "internal/plugins/ospf/packet/rfc7684_malformed_test.go::TestRFC7684MalformedPermutationsDetected": "0b94eb0bed2c0602",
+    "internal/plugins/ospf/packet/rfc7684_malformed_test.go::TestRFC7684MalformedPermutationsDetected#2": "0b94eb0bed2c0602",
+    "internal/plugins/ospf/rfc7684_ext_prefix_recv_test.go::TestExtPrefixMalformedCounted": "336ab995aae3b4df"
+  },
+  "verdict": "enforced"
+}

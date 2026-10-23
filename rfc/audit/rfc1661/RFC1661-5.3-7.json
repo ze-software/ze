@@ -1,0 +1,17 @@
+{
+  "note": "Rejudge ppp8 2026-09-30: pppoeclient TestClientLCPReplyCorrelation changed only to read frameLog through the locked snapshot() (frameLog race fix); every assertion, input and comparison is unchanged, so the verdict stands. Forbidden: acting on a Nak whose Identifier differs from the last request. TestLCPRepliesMatchOutstandingRequest (\"Nak wrong Identifier\") goes red on any state/wire change; TestClientLCPReplyCorrelation goes red if Identifier+1 Nak emits a frame. Positives: matching Nak yields a new request carrying MRU 1400 (server) and a new request (client).",
+  "requirement_sha": "fc804cfd2a5f7edc",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest": "6e1e87cfaa4fb86b",
+    "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest#2": "6e1e87cfaa4fb86b",
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPNakChangesIdentifierAndDropsStaleReply": "94dbfbde4e1ef3d7",
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation": "94dbfbde4e1ef3d7"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest": "fdaf9e91d2c10be4",
+    "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRepliesMatchOutstandingRequest#2": "fdaf9e91d2c10be4",
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPNakChangesIdentifierAndDropsStaleReply": "d3962be51c53da88",
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPReplyCorrelation": "63dcc89441d39416"
+  },
+  "verdict": "enforced"
+}

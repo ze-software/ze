@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC4271-8.2.2-24",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go::TestRFC4271ExpectedMessagesRaiseNoFSMError",
+    "unit-sha": "e16920263c6efb1c",
+    "claim-sha": "b488c428d07cfc6c",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_handlers.go::fsmMessageEvent",
+    "producer-sha": "2d6fdcbb9b8fc0a3",
+    "break": "body of fsmMessageEvent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-8.2.2-24",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_fsm_error_peer_test.go::TestRFC4271OpenSentUnexpectedMessageIsAnFSMError",
+    "unit-sha": "9b6e3d58dc4a91a9",
+    "claim-sha": "8bd1cd02cf96324c",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_handlers.go::fsmMessageEvent",
+    "producer-sha": "2d6fdcbb9b8fc0a3",
+    "break": "body of fsmMessageEvent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-8.2.2-24",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_version_error_peer_test.go::TestRFC4271VersionErrorNotificationReleasesQuietly",
+    "unit-sha": "164dbafe2aea0ba4",
+    "claim-sha": "1889048f5b0ccc65",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_handlers.go::notificationEvent",
+    "producer-sha": "f35c150705b625ed",
+    "break": "body of notificationEvent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

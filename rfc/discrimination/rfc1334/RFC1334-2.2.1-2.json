@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC1334-2.2.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go::TestClientPAPRetriesUntilMatchingReply",
+    "unit-sha": "950e66b9ac5cb4f0",
+    "claim-sha": "649b5f88538b3dfa",
+    "route": "revert",
+    "producer": "internal/component/l2tp/pppoeclient/session.go::runClientAuth",
+    "producer-sha": "c83d1658af0a4fc7",
+    "break": "body of runClientAuth replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1334-2.2.1-2",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/pppoeclient/rfc1334_pap_request_test.go::TestClientPAPRetriesUntilMatchingReply",
+    "unit-sha": "950e66b9ac5cb4f0",
+    "claim-sha": "55acc47f9afa7fe8",
+    "route": "revert",
+    "producer": "internal/component/l2tp/pppoeclient/session.go::runClientAuth",
+    "producer-sha": "c83d1658af0a4fc7",
+    "break": "body of runClientAuth replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

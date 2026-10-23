@@ -1,0 +1,13 @@
+{
+  "note": "Collateral source re-judgment 2026-10-02 after unrelated tag removals in MatchingKeys and MismatchedKey doc comments; executable assertions remain unchanged. RFC2385 Section2.0 requires receiving TCP to validate a signed segment by calculating with its own key and comparing. Positive TestRFC2385MatchingKeysCarryASignedSession installs matching keys on real TCP sockets and requires256KiB received. Negative TestRFC2385MismatchedKeyIsDroppedWithNoResponse installs different listener/dialer keys and requires timeout rather than establishment; rfc2385DialDropped explicitly fails on successful dial. The actual configured TCP_MD5SIG socket path is network.go::RealDialer.DialContext and RealListenerFactory.Listen through md5_linux.go::setTCPMD5Sig, with Linux doing verification. Matching acceptance plus mismatching refusal discriminates key-dependent receiver validation at that boundary; exact independent digest composition is separately covered by the new2.0-6 packet carrier and is not attributed to this old loopback unit. Unsupported-kernel skips are not positive evidence. Source-only rejudgment, no new test run or native record claimed.",
+  "requirement_sha": "17f616b2903a8a99",
+  "tests": {
+    "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MatchingKeysCarryASignedSession": "6928fc5dd6ae1436",
+    "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MismatchedKeyIsDroppedWithNoResponse": "6928fc5dd6ae1436"
+  },
+  "units": {
+    "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MatchingKeysCarryASignedSession": "b1d71be4493819d9",
+    "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MismatchedKeyIsDroppedWithNoResponse": "0e9a80241fad5c26"
+  },
+  "verdict": "enforced"
+}

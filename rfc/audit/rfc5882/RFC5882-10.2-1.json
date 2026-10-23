@@ -1,0 +1,31 @@
+{
+  "note": "Judge 2026-10-11 (independent re-judge after ef70c19e79 changed TestRFC5882AuthJoinDifferentAuthRefused; judge authored none of it). Row quotes Section 10.2 verbatim (rfc5882.txt 'BFD authentication SHOULD be used and is strongly encouraged.'). Ze's part: let an EBGP-advised BFD session run authenticated, hold it to that, and name the unauthenticated case. Unchanged units re-read against the 2026-09-30 judgement: + SignsItsSession (A bit, Auth Type 4, Len 28, Key ID 7, Up), - MismatchedNeighbor and - UnauthenticatedNeighbor (never Up, no fallback), - WithoutAuthRunsUnauthenticated; reactor + NamesAuthenticatedProfile and the four commit Warn units. Changed unit - AuthJoinDifferentAuthRefused now runs seven cases on both join arms (exact key, shared join): auth->none, none->auth, key id, secret, Auth Type alone (keyed-md5 vs keyed-sha1), keyed-sha1 then meticulous-keyed-sha1, and the Meticulous flag alone (resolved 'secure' auth with Meticulous inverted, sent under no profile because authTypeFromEnum ties each meticulous enum to its own wire Auth Type). Each asserts errors.Is ErrAuthMismatch, peer named, one session, first session's next Control packet keeps its auth or none. The earlier caveat (Type and Meticulous comparisons in engine sameAuth unexercised) is closed: judge re-ran go test -overlay with each comparison deleted; the Type mutant reddens only different_auth_type on both arms, the Meticulous mutant only different_meticulous_flag on both arms; clean run green (-race). Discrimination record for the negative (revert of joinAuthCheck) re-written at unit-sha 15bc152837a4dfa6; it proves the refusal path, the overlay mutants prove the field comparisons. + AuthJoinIdenticalAuthShares unchanged (same auth under two names; none twice). Remaining limit: the Meticulous-alone case is a request no profile can produce, so it guards the comparison rather than a configured path.",
+  "requirement_sha": "454495c41f1df8ee",
+  "tests": {
+    "internal/component/bfd/rfc5882_auth_join_test.go::TestRFC5882AuthJoinDifferentAuthRefused": "57e9552f9d7b709b",
+    "internal/component/bfd/rfc5882_auth_join_test.go::TestRFC5882AuthJoinIdenticalAuthShares": "57e9552f9d7b709b",
+    "internal/component/bfd/rfc5882_bgp_auth_test.go::TestRFC5882BGPPeerAuthProfileRefusesMismatchedNeighbor": "9ff7a7a5b87adb14",
+    "internal/component/bfd/rfc5882_bgp_auth_test.go::TestRFC5882BGPPeerAuthProfileRefusesUnauthenticatedNeighbor": "9ff7a7a5b87adb14",
+    "internal/component/bfd/rfc5882_bgp_auth_test.go::TestRFC5882BGPPeerAuthProfileSignsItsSession": "9ff7a7a5b87adb14",
+    "internal/component/bfd/rfc5882_bgp_auth_test.go::TestRFC5882BGPPeerProfileWithoutAuthRunsUnauthenticated": "9ff7a7a5b87adb14",
+    "internal/component/bgp/reactor/rfc5882_bfd_auth_test.go::TestRFC5882EBGPPeerNamesAuthenticatedProfile": "a2d2325a92ac9eda",
+    "internal/component/bgp/reactor/rfc5882_bfd_auth_warn_test.go::TestRFC5882AuthenticatedOrIBGPProfileDoesNotWarn": "513acfb597ea8807",
+    "internal/component/bgp/reactor/rfc5882_bfd_auth_warn_test.go::TestRFC5882EBGPPeerWithoutProfileWarns": "513acfb597ea8807",
+    "internal/component/bgp/reactor/rfc5882_bfd_auth_warn_test.go::TestRFC5882EBGPUnauthenticatedProfileWarns": "513acfb597ea8807",
+    "internal/component/bgp/reactor/rfc5882_bfd_auth_warn_test.go::TestRFC5882IBGPPeerWithoutProfileDoesNotWarn": "513acfb597ea8807"
+  },
+  "units": {
+    "internal/component/bfd/rfc5882_auth_join_test.go::TestRFC5882AuthJoinDifferentAuthRefused": "43248baf9de8a268",
+    "internal/component/bfd/rfc5882_auth_join_test.go::TestRFC5882AuthJoinIdenticalAuthShares": "acaa5eea3ce9cc65",
+    "internal/component/bfd/rfc5882_bgp_auth_test.go::TestRFC5882BGPPeerAuthProfileRefusesMismatchedNeighbor": "9b70f406ca9929ee",
+    "internal/component/bfd/rfc5882_bgp_auth_test.go::TestRFC5882BGPPeerAuthProfileRefusesUnauthenticatedNeighbor": "721f023511e8e80b",
+    "internal/component/bfd/rfc5882_bgp_auth_test.go::TestRFC5882BGPPeerAuthProfileSignsItsSession": "ef9d91536fb011c3",
+    "internal/component/bfd/rfc5882_bgp_auth_test.go::TestRFC5882BGPPeerProfileWithoutAuthRunsUnauthenticated": "881a0f9e29f74683",
+    "internal/component/bgp/reactor/rfc5882_bfd_auth_test.go::TestRFC5882EBGPPeerNamesAuthenticatedProfile": "1048badd1e12d627",
+    "internal/component/bgp/reactor/rfc5882_bfd_auth_warn_test.go::TestRFC5882AuthenticatedOrIBGPProfileDoesNotWarn": "9354d2c1244b218c",
+    "internal/component/bgp/reactor/rfc5882_bfd_auth_warn_test.go::TestRFC5882EBGPPeerWithoutProfileWarns": "96269e55dd9cefd8",
+    "internal/component/bgp/reactor/rfc5882_bfd_auth_warn_test.go::TestRFC5882EBGPUnauthenticatedProfileWarns": "c0df3aaaa3366ef2",
+    "internal/component/bgp/reactor/rfc5882_bfd_auth_warn_test.go::TestRFC5882IBGPPeerWithoutProfileDoesNotWarn": "2b1ebc800bc8d655"
+  },
+  "verdict": "enforced"
+}

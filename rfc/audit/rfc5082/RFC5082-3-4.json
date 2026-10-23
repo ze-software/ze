@@ -1,0 +1,15 @@
+{
+  "note": "Re-read 2026-10-17 against Section 3: \"MUST NOT drop (as part of GTSM processing) packets classified as Trusted or Unknown.\" Trusted: TestGTSMFloorDeliversATrustedPacket fails if the packet at the floor is not received, unchanged. Unknown: TestGTSMNoFloorDeliversAnUnknownPacket is unchanged; TestGTSMDeliversAnICMPErrorNoSessionClaims, with the filter published, injects three unclaimed ICMP errors at TTL 1 and fails unless IcmpMsg InType3 rises by exactly one and no term's counter moved (a rule with no counter fails rather than reading zero). The test no longer proves the chain evaluated the message, an assertion the owner approved losing on 2026-10-17 because a match-scoped counter cannot see a non-match; that does not weaken this MUST NOT, whose observable is delivery, and TestGTSMDropsADangerousQuotedICMPError proves the same chain sees type-3 messages on the same path. With the 0x45 version/IHL match removed from quotedIPv4HeaderGuard, the options case was observed red in an arm64 guest on kernel 7.2.9 (InType3 did not rise), while the other two cases stayed green.",
+  "requirement_sha": "bd0ad5653d46a163",
+  "tests": {
+    "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMDeliversAnICMPErrorNoSessionClaims": "6bd308700f8c332b",
+    "internal/core/network/rfc5082_ttl_gtsm_linux_test.go::TestGTSMFloorDeliversATrustedPacket": "dc6c6456da36476d",
+    "internal/core/network/rfc5082_ttl_gtsm_linux_test.go::TestGTSMNoFloorDeliversAnUnknownPacket": "dc6c6456da36476d"
+  },
+  "units": {
+    "internal/component/gtsm/rfc5082_gtsm_linux_test.go::TestGTSMDeliversAnICMPErrorNoSessionClaims": "7931e07403bfcf65",
+    "internal/core/network/rfc5082_ttl_gtsm_linux_test.go::TestGTSMFloorDeliversATrustedPacket": "bbc0359121576ce1",
+    "internal/core/network/rfc5082_ttl_gtsm_linux_test.go::TestGTSMNoFloorDeliversAnUnknownPacket": "f7737db010b0a5c1"
+  },
+  "verdict": "enforced"
+}

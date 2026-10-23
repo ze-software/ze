@@ -1,0 +1,17 @@
+{
+  "note": "Originate builders and TranscodeASPath omit AS4_PATH when all ASNs are mappable; negatives show it present for a non-mappable AS.",
+  "requirement_sha": "0db6ce76c03b5a3c",
+  "tests": {
+    "internal/component/bgp/message/rfc6793_originate_as4_test.go::TestOriginatedUpdateCarriesAS4PathTowardOldSpeaker": "f906f1ec41d71b88",
+    "internal/component/bgp/message/rfc6793_originate_as4_test.go::TestOriginatedUpdateOmitsAS4PathWhenEveryASIsMappable": "f906f1ec41d71b88",
+    "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793TranscodeEmitsAS4PathForNonMappable": "46921ad87659919b",
+    "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793TranscodeOmitsAS4PathWhenAllMappable": "46921ad87659919b"
+  },
+  "units": {
+    "internal/component/bgp/message/rfc6793_originate_as4_test.go::TestOriginatedUpdateCarriesAS4PathTowardOldSpeaker": "643fb90f959f56a3",
+    "internal/component/bgp/message/rfc6793_originate_as4_test.go::TestOriginatedUpdateOmitsAS4PathWhenEveryASIsMappable": "ef3214d65f6ca840",
+    "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793TranscodeEmitsAS4PathForNonMappable": "9b40c63c0b6a8c06",
+    "internal/component/bgp/wireu/rfc6793_as4_test.go::TestRFC6793TranscodeOmitsAS4PathWhenAllMappable": "c325d57571e03b93"
+  },
+  "verdict": "enforced"
+}

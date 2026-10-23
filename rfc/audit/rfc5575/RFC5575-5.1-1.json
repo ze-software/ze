@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-10-16: both units moved verbatim to internal/core/bgp/nlri/flowspec, only the family identifier changed to the test-local ipv4FlowSpec literal (AFI 1, SAFI 133). RFC 5575 Section 5.1: \"This ordering function must be such that it must not depend on the arrival order of the flow specification's rules and must be constant in the network.\" TestFlowSpecPrecedenceFromWire requires Compare(a,b)<0, Compare(b,a)>0 and Compare(a,a)==0 over overlap, disjoint, component-type, operator-byte, received-width and extra-component pairs; TestRFC5575PrecedenceIndependentOfArrival parses independent copies in both arrival orders, sorts with production Compare and requires identical exact byte order. Compare (core compare.go) reads only component content, no identity or arrival metadata.",
+  "requirement_sha": "84505218df9a4cde",
+  "tests": {
+    "internal/core/bgp/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecPrecedenceFromWire": "8a8b7496f21e3491",
+    "internal/core/bgp/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecPrecedenceFromWire#2": "8a8b7496f21e3491",
+    "internal/core/bgp/nlri/flowspec/rfc5575_arrival_order_test.go::TestRFC5575PrecedenceIndependentOfArrival": "828faa3899e2b931",
+    "internal/core/bgp/nlri/flowspec/rfc5575_arrival_order_test.go::TestRFC5575PrecedenceIndependentOfArrival#2": "828faa3899e2b931"
+  },
+  "units": {
+    "internal/core/bgp/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecPrecedenceFromWire": "883b15a889ee68c6",
+    "internal/core/bgp/nlri/flowspec/compare_rfc8955_test.go::TestFlowSpecPrecedenceFromWire#2": "883b15a889ee68c6",
+    "internal/core/bgp/nlri/flowspec/rfc5575_arrival_order_test.go::TestRFC5575PrecedenceIndependentOfArrival": "5815fcd52f333122",
+    "internal/core/bgp/nlri/flowspec/rfc5575_arrival_order_test.go::TestRFC5575PrecedenceIndependentOfArrival#2": "5815fcd52f333122"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "Step 3a no-match discard. Negative: an ESP packet on an SPI no SA holds is counted XfrmInNoStates +1 and never delivered. Positive: the same packet on the installed SPI is delivered, so the discard is the SAD miss and not a blanket drop. Unicast probed here; the multicast lookup miss (SPI+group) is proven under RFC4301-4.1-6 (ospf rfc4301_multicast_sa_linux_test.go) as a kernel SAD lookup, not a delivered-packet probe. Records: xfrmStateFromParams revert red both polarities.",
+  "requirement_sha": "aeea63df9335d748",
+  "tests": {
+    "internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go::TestRFC4301InboundESPIsProcessedWithTheSAItsSPISelects": "c3dd0c022a249aa6",
+    "internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go::TestRFC4301InboundESPWithNoSADMatchIsDiscarded": "c3dd0c022a249aa6"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go::TestRFC4301InboundESPIsProcessedWithTheSAItsSPISelects": "7705731634c17541",
+    "internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go::TestRFC4301InboundESPWithNoSADMatchIsDiscarded": "f126d36ce8eab474"
+  },
+  "verdict": "enforced"
+}

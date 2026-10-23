@@ -33,18 +33,18 @@ func sealFixture(t *testing.T, files map[string]string, record DiscriminationRec
 	return sealed
 }
 
-// discriminationArtifact renders records as one rfc/discrimination/<stem>.json.
-//
-// It marshals the schema type, so a fixture cannot drift from the schema the
-// loader reads.
-func discriminationArtifact(t *testing.T, records ...DiscriminationRecord) string {
+// putDiscrimination renders records into a fixture's files, one file per
+// requirement in the writer's own form, as the tree holds them.
+func putDiscrimination(t *testing.T, files map[string]string, records ...DiscriminationRecord) {
 	t.Helper()
 
-	raw, err := json.Marshal(discriminationFile{RFC: selftestStem, Records: records})
+	rendered, err := selftestDiscriminationFiles(records)
 	if err != nil {
 		t.Fatalf("render the fixture artifact: %v", err)
 	}
-	return string(raw)
+	for rel, body := range rendered {
+		files[rel] = body + "\n"
+	}
 }
 
 // discriminationFixture is the sources a proof record is verified against, plus

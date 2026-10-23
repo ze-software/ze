@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4271-10-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_hold_time_config_test.go::TestRFC4271HoldTimeConfiguredPerPeerFromConfig",
+    "unit-sha": "7bbdee97c8d21e9e",
+    "claim-sha": "db4330a4b63b9cbd",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/config.go::parsePeerFromTree",
+    "producer-sha": "2da70d4b66fff4a1",
+    "break": "body of parsePeerFromTree replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-10-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_hold_time_config_test.go::TestRFC4271HoldTimeUnconfiguredPeerKeepsTheDefault",
+    "unit-sha": "e085215dd8edc8a3",
+    "claim-sha": "4218739f7108c49b",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/config.go::parsePeerFromTree",
+    "producer-sha": "2da70d4b66fff4a1",
+    "break": "body of parsePeerFromTree replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

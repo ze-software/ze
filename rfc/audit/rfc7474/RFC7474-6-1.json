@@ -1,0 +1,13 @@
+{
+  "note": "Rejudged 2026-10-21 over the current tags, units and records. The positive unit's independent reference digest appends Protocol ID 00 01 to the key and must equal Sign's trailer, so a missing suffix fails it; the negative rejects a digest made from the bare key.",
+  "requirement_sha": "968e2777025873fa",
+  "tests": {
+    "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3RequiresProtocolIDSuffix": "b1f49f5bb6bbafb8",
+    "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SequenceTrailer": "b1f49f5bb6bbafb8"
+  },
+  "units": {
+    "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3RequiresProtocolIDSuffix": "44b77265835a4740",
+    "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SequenceTrailer": "c723648fe686fb2a"
+  },
+  "verdict": "enforced"
+}

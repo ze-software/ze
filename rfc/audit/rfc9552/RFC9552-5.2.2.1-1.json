@@ -1,0 +1,13 @@
+{
+  "note": "D2 rejudge 2026-10-16 (independent judge, second pass after the coordinator's comment-only fix). RFC 9552 Section 5.2.2.1: \"When used as a Link or Prefix Descriptor for IS-IS, the Bits R are reserved and MUST be set to 0 (as per Section 7.2 of [RFC5120]) when originated and ignored on receipt.\" Receipt: TestRFC9552ISISMTIDReservedBitsIgnoredOnReceipt builds IS-IS (Protocol-ID 2) Link and Prefix NLRIs with MT-ID 0x00E and R bits 0x0 vs 0xF; bgpls.ParseBGPLSLinkTLVs and ParseBGPLSPrefixTLVs (descriptor_info.go:74/:188, mask & 0x0FFF; reached from the NLRI JSON path) must yield the same MT-ID [14] and still decode the following descriptor (192.0.2.1, 192.0.2.0/24). Its doc comment now names those producers correctly, and the body is unchanged. Origination: ls_export TestRFC9552NativeISISTopologyReservedBits gives an IS-IS link topology 4096 (an R bit set), requires replace to error and no UPDATE to be emitted. Both clauses exercised at real producers.",
+  "requirement_sha": "477054ca97395af9",
+  "tests": {
+    "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeISISTopologyReservedBits": "de280b1c094e08d4",
+    "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552ISISMTIDReservedBitsIgnoredOnReceipt": "40036e95d2697aef"
+  },
+  "units": {
+    "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeISISTopologyReservedBits": "3f3e4711e5140e4f",
+    "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552ISISMTIDReservedBitsIgnoredOnReceipt": "aedf833161cd2422"
+  },
+  "verdict": "enforced"
+}

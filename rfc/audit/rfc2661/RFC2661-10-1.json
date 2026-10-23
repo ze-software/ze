@@ -1,0 +1,21 @@
+{
+  "note": "Cleanup: TestRFC2661CDNCleansUpAndSendsNothing (session removed, one session-down, one kernel teardown for the established case only) and TestRFC2661CDNCleansUpSilently (tags merged from retired 6.12-1). 'does not send back any indication': the send-queue assertion now closes the cwnd-1 confound the earlier verdict named, and TestRFC2661CDNCleansUpSilently asserts nothing but a ZLB goes back. Negative TestSession_CDN_UnknownSessionDropped accepted as the 'specific call' scope.",
+  "requirement_sha": "7eadfdeae6dfa6d7",
+  "tests": {
+    "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661CDNCleansUpAndSendsNothing": "055162183ff6df00",
+    "internal/component/l2tp/rfc2661_session_fsm_test.go::TestSession_CDN_AnyState": "9f78f3f88883c2a2",
+    "internal/component/l2tp/rfc2661_session_fsm_test.go::TestSession_CDN_EstablishedSession": "9f78f3f88883c2a2",
+    "internal/component/l2tp/rfc2661_session_fsm_test.go::TestSession_CDN_UnknownSessionDropped": "9f78f3f88883c2a2",
+    "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661CDNCleansUpSilently": "ed0cb3271bdc0590",
+    "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661CDNCleansUpSilently#2": "ed0cb3271bdc0590"
+  },
+  "units": {
+    "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661CDNCleansUpAndSendsNothing": "e0497c8ce3c03564",
+    "internal/component/l2tp/rfc2661_session_fsm_test.go::TestSession_CDN_AnyState": "4b5173ad5983463a",
+    "internal/component/l2tp/rfc2661_session_fsm_test.go::TestSession_CDN_EstablishedSession": "d86ede09628ce00a",
+    "internal/component/l2tp/rfc2661_session_fsm_test.go::TestSession_CDN_UnknownSessionDropped": "2ce27ac82b948758",
+    "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661CDNCleansUpSilently": "aa0a807dd2080044",
+    "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661CDNCleansUpSilently#2": "aa0a807dd2080044"
+  },
+  "verdict": "enforced"
+}

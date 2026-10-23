@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC3748-4.2-9",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc3748_discard_test.go::TestRFC3748PeerDiscardsAFailureAfterMutualSuccess",
+    "unit-sha": "d7c1c45eeab132cb",
+    "claim-sha": "99469acd7a748e44",
+    "route": "revert",
+    "producer": "internal/core/eap/peer.go::Process",
+    "producer-sha": "1d3fda7628c9da27",
+    "break": "body of Process replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3748-4.2-9",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc3748_discard_test.go::TestRFC3748PeerDiscardsAFailureAfterMutualSuccess",
+    "unit-sha": "d7c1c45eeab132cb",
+    "claim-sha": "e88d0120cb319115",
+    "route": "revert",
+    "producer": "internal/core/eap/peer.go::Process",
+    "producer-sha": "1d3fda7628c9da27",
+    "break": "body of Process replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

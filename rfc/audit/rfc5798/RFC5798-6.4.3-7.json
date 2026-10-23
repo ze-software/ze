@@ -1,0 +1,15 @@
+{
+  "note": "vrrp judge 2026-09-29 (independent): Forbidden: a Master that is neither owner nor Accept_Mode True accepting packets to the VIP. TestActiveNonOwnerWithAcceptModeFalseSuppressesLocalDelivery requires accept=false; both exemptions are now tagged: Accept_Mode True (accept=true) and the address owner with Accept_Mode False (TestActiveAddressOwnerAcceptsWhateverAcceptModeSays, accept=true), so a suppression applied to the owner goes red. Record: revert EffectiveAcceptMode on the owner unit.",
+  "requirement_sha": "190c8d9f09c9dc34",
+  "tests": {
+    "internal/plugins/vrrp/acceptfilter_test.go::TestActiveAddressOwnerAcceptsWhateverAcceptModeSays": "ac94e88781e5c08d",
+    "internal/plugins/vrrp/acceptfilter_test.go::TestActiveNonOwnerWithAcceptModeFalseSuppressesLocalDelivery": "ac94e88781e5c08d",
+    "internal/plugins/vrrp/acceptfilter_test.go::TestActiveNonOwnerWithAcceptModeTrueAcceptsLocalDelivery": "ac94e88781e5c08d"
+  },
+  "units": {
+    "internal/plugins/vrrp/acceptfilter_test.go::TestActiveAddressOwnerAcceptsWhateverAcceptModeSays": "ae0d8891a374b6cf",
+    "internal/plugins/vrrp/acceptfilter_test.go::TestActiveNonOwnerWithAcceptModeFalseSuppressesLocalDelivery": "4eac158ec037028e",
+    "internal/plugins/vrrp/acceptfilter_test.go::TestActiveNonOwnerWithAcceptModeTrueAcceptsLocalDelivery": "8ef0833629bc1166"
+  },
+  "verdict": "enforced"
+}

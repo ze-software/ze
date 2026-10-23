@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC9552-5.3.2.2-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeDefinedFlags",
+    "unit-sha": "a76420f780fa1f71",
+    "claim-sha": "390b19a327fd0e8c",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/ls_export/export_encode.go::clearOriginatedReserved",
+    "producer-sha": "52e68cb09ad57c46",
+    "break": "body of clearOriginatedReserved replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9552-5.3.2.2-3",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeReservedFlagsCleared",
+    "unit-sha": "32f57a2d5693123e",
+    "claim-sha": "98289970b8222b0c",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/ls_export/export_encode.go::clearOriginatedReserved",
+    "producer-sha": "52e68cb09ad57c46",
+    "break": "body of clearOriginatedReserved replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9552-5.3.2.2-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/nlri/ls/rfc9552_attr_flags_test.go::TestRFC9552MPLSProtocolMaskDecode",
+    "unit-sha": "15e39762a3c7490e",
+    "claim-sha": "32a6c82d17814f8a",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/nlri/ls/attr_link.go::decodeMPLSProtocolMask",
+    "producer-sha": "95948db5fac7b1e6",
+    "break": "body of decodeMPLSProtocolMask replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9552-5.3.2.2-3",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/nlri/ls/rfc9552_attr_flags_test.go::TestRFC9552MPLSProtocolMaskReservedIgnored",
+    "unit-sha": "65b2a9289b93ca7e",
+    "claim-sha": "304c06cf2ddb20de",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/nlri/ls/attr_link.go::decodeMPLSProtocolMask",
+    "producer-sha": "95948db5fac7b1e6",
+    "break": "body of decodeMPLSProtocolMask replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

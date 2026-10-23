@@ -1,0 +1,11 @@
+{
+  "note": "single-polarity positive: neither the padded nor the raw secret appears in the emitted bytes.",
+  "requirement_sha": "db27c529288e858b",
+  "tests": {
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880SecretKeyNotCarriedInPacket": "5a25c74cc2d9bd47"
+  },
+  "units": {
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880SecretKeyNotCarriedInPacket": "fada90398032f917"
+  },
+  "verdict": "enforced"
+}

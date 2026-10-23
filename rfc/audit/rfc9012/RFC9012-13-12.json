@@ -1,0 +1,17 @@
+{
+  "note": "Independent FinalTunnelRejudgment retained this allocated obligation; Main read RFC9012 full text, session_tunnel_encap.go::applyTunnelEncap/tunnelTLVLayout/tunnelEndpointValid, tunnel_encap.go codec producers and the real consumer. RFC9012 \u00a713 generally treats a malformed sub-TLV as unrecognized, with the explicit malformed-endpoint exception retained. Applicable MPLS-in-UDP type13 inputs with UDP length3 or value0, against absent/valid controls, retain ActionNone and exact bytes through actual default/rebuilt cached output like unknown sub-TLVs. TunnelTLV.Preference skips malformed four-byte Preference and reads a following valid six-byte777, with standalone555 control. No UDP-header or tunnel-consumer feature is claimed. Actual consumer: internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong and teForwardedAttrs drive Session.processMessage, cache publication, ForwardUpdate, worker/socket output and downstream Session receipt. These are two cached export modes, not an independently exercised reactor-native RS rail; no absent attribute-driven tunnel-selection feature is credited.",
+  "requirement_sha": "0b58e28bb0bb4f21",
+  "tests": {
+    "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "8e898ec9c074ca2b",
+    "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "8e898ec9c074ca2b",
+    "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MalformedSubTLVTreatedAsUnrecognized": "e8576a1ee12543a9",
+    "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MalformedSubTLVTreatedAsUnrecognized#2": "e8576a1ee12543a9"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "4331bc08d9c40b95",
+    "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "4331bc08d9c40b95",
+    "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MalformedSubTLVTreatedAsUnrecognized": "a794ebe4d8d51aa9",
+    "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MalformedSubTLVTreatedAsUnrecognized#2": "a794ebe4d8d51aa9"
+  },
+  "verdict": "enforced"
+}

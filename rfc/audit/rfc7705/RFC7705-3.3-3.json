@@ -1,0 +1,13 @@
+{
+  "note": "RFC 7705 Section 3.3: \"\"No Prepend Inbound\": When the BGP router receives inbound BGP UPDATEs from its eBGP neighbor configured with this option, it MUST NOT append the \"Local AS\" ASN value in the AS_PATH attribute when installing the route or advertising that UPDATE to iBGP neighbors, but it MUST still append the globally configured ASN as normal when advertising the UPDATE to other local eBGP neighbors (i.e., those natively peering with the globally configured ASN).\" The row owns the latter MUST, while 3.3-2 owns the inbound clause. TestLocalASNoPrependLeavesEveryOutboundPathAlone calls forwardLocalAS with noPrepend on the source, forwards actual NLRI, and compares decoded AS_PATH exactly: native eBGP [65000,65002], iBGP [65002], local-AS/no-prepend destination [legacy,global,source]. The first two independently pin append and its boundary. Producers peer_forward_facts.go secondaryPrependAS and session_as_migration.go isIBGPWith select the destination facts, not an outbound interpretation of the source's no-prepend option. A missing global ASN or blanket prepend fails. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.",
+  "requirement_sha": "4f9f1b3e508e2e94",
+  "tests": {
+    "internal/component/bgp/reactor/rfc7705_local_as_test.go::TestLocalASNoPrependLeavesEveryOutboundPathAlone": "bba32d8498654d0c",
+    "internal/component/bgp/reactor/rfc7705_local_as_test.go::TestLocalASNoPrependLeavesEveryOutboundPathAlone#2": "bba32d8498654d0c"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc7705_local_as_test.go::TestLocalASNoPrependLeavesEveryOutboundPathAlone": "e287446165fd24ec",
+    "internal/component/bgp/reactor/rfc7705_local_as_test.go::TestLocalASNoPrependLeavesEveryOutboundPathAlone#2": "e287446165fd24ec"
+  },
+  "verdict": "enforced"
+}

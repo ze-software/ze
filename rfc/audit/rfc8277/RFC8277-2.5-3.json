@@ -1,0 +1,15 @@
+{
+  "note": "Independent post-edit judgment by AddPathProofReview, not the test author. RFC 8277 Section 2.5: \"If I1 is not the same as I2, U2 MUST be interpreted as meaning that L2 is now bound to P at N1, but U2 MUST NOT be interpreted as meaning that L1 is no longer bound to P at N1.\" The new positive TestRFC8277AddPathSameNextHopKeepsIndependentLabels holds the same-next-hop premise that the earlier different-next-hop test did not isolate: path 9 binds [200] while path 7 keeps [100], including across relabel and targeted withdrawal. TestRFC8277AddPathSameIdentifierRebinds supplies the negative boundary: the SAME path 7 leaves one route with [200] alone. Both reach received UPDATE ingestion and per-path label storage. Parent observed the new positive fail with path 7 reading [200] when setLabels bound every update to the first entry; normal complete RIB race run passed. This closes both the formerly absent negative tag and the same-next-hop proof gap.",
+  "requirement_sha": "4cfb6903cb079bf6",
+  "tests": {
+    "internal/component/bgp/plugins/rib/rfc8277_same_next_hop_test.go::TestRFC8277AddPathSameNextHopKeepsIndependentLabels": "ddc271ea38bff667",
+    "internal/component/bgp/plugins/rib/rfc8277_test.go::TestRFC8277AddPathLabelsBoundPerPath": "b185b12eb909f16a",
+    "internal/component/bgp/plugins/rib/rfc8277_test.go::TestRFC8277AddPathSameIdentifierRebinds": "b185b12eb909f16a"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rib/rfc8277_same_next_hop_test.go::TestRFC8277AddPathSameNextHopKeepsIndependentLabels": "6324c6dc9f1b1493",
+    "internal/component/bgp/plugins/rib/rfc8277_test.go::TestRFC8277AddPathLabelsBoundPerPath": "5e4d66177578306a",
+    "internal/component/bgp/plugins/rib/rfc8277_test.go::TestRFC8277AddPathSameIdentifierRebinds": "39c40f71cb75d122"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,57 @@
+[
+  {
+    "rid": "RFC5798-7.2-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire",
+    "unit-sha": "d1defdd9ea537b29",
+    "claim-sha": "1d9bf1f1f7f690af",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/transport/transport.go::resolveParentPrimaryV4",
+    "producer-sha": "93e7bfe0ac1b9d0c",
+    "break": "body of resolveParentPrimaryV4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5798-7.2-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV6OnWire",
+    "unit-sha": "c0d31136fc3806c0",
+    "claim-sha": "c57823c02d829d32",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/transport/backend_linux.go::macvlanLinkLocal",
+    "producer-sha": "2d43fc431a81100c",
+    "break": "body of macvlanLinkLocal replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5798-7.2-3",
+    "polarity": "negative",
+    "unit": "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertNoLinkLocalSkipsAndCounts",
+    "unit-sha": "2c95ea4b4c17a475",
+    "claim-sha": "4baf257cb8ca0668",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/transport/transport.go::SendAdvert",
+    "producer-sha": "77a350ddcd603626",
+    "break": "body of SendAdvert replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5798-7.2-3",
+    "polarity": "negative",
+    "unit": "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertNoPrimaryV4SkipsAndCounts",
+    "unit-sha": "957a6a3ed82bbf08",
+    "claim-sha": "7029b10f408f505f",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/transport/transport.go::encodeLocked",
+    "producer-sha": "cf0664c9c920f778",
+    "break": "body of encodeLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5798-7.2-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertUsesParentPrimaryV4Source",
+    "unit-sha": "de3677b4dc6d6ca4",
+    "claim-sha": "4bf67183bf19c05d",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/transport/transport.go::resolveParentPrimaryV4",
+    "producer-sha": "93e7bfe0ac1b9d0c",
+    "break": "body of resolveParentPrimaryV4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

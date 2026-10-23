@@ -1,0 +1,13 @@
+{
+  "note": "Judged 2026-09-30. Positive TestRFC905VerifierAcceptsEveryPlacement: VerifyChecksum accepts correct X,Y at every field offset 0..L-2 of 4, 9, 24 and 41-octet regions, so a verifier with the a)/b) steps out of order or a wrong range refuses some case. Negative TestRFC905VerifierReadsTheFirstAndLastOctet: a region whose first or last octet changed 0->1 is refused, with a guard proving that sums skipping that octet would end at zero, so a receiver not running i = 1 to L accepts it. Records on VerifyChecksum, observed red.",
+  "requirement_sha": "77fa354642cf64fc",
+  "tests": {
+    "internal/plugins/isis/packet/rfc905_annexb_steps_test.go::TestRFC905VerifierAcceptsEveryPlacement": "17c596069f248d2b",
+    "internal/plugins/isis/packet/rfc905_annexb_steps_test.go::TestRFC905VerifierReadsTheFirstAndLastOctet": "17c596069f248d2b"
+  },
+  "units": {
+    "internal/plugins/isis/packet/rfc905_annexb_steps_test.go::TestRFC905VerifierAcceptsEveryPlacement": "ab13c6b68b7ac567",
+    "internal/plugins/isis/packet/rfc905_annexb_steps_test.go::TestRFC905VerifierReadsTheFirstAndLastOctet": "ac52e4ab70770f53"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,40 @@
+{
+  "code": {
+    "internal/plugins/ospf/lsdb/nssa.go::HigherRIDTranslatorExternals": "3cedb59c86586627",
+    "internal/plugins/ospf/nssa.go::equivalentType5": "1200606e751ccb0e",
+    "internal/plugins/ospf/nssa.go::equivalentType5V6": "78d4e744329ac952"
+  },
+  "note": "Owner decision D-12: translator = router whose Router-LSA in the NSSA carries the B-bit (nssaABRs/nssaABRsV6 with B), equivalent = same destination and mask, same metric, same non-zero forwarding address (equivalentType5, equivalentType5V6 over lsdb.HigherRIDTranslatorExternals). TestRFC3101TranslatorYieldsOnlyToEquivalentType5 and its V6 twin assert the yield for an equivalent Type-5 and translation for a different metric, forwarding address, mask, or a non-translator advertiser; TestOSPFNSSAHigherRIDType5Suppresses and lsdb TestOSPFHigherRIDType5Exists keep the higher-RID ordering. Weak because the clause 'and that are reachable over area 0 and the NSSA' is neither implemented nor tested: the translator set is read from the NSSA LSDB, not from per-area SPF reachability.",
+  "requirement_sha": "2028717c11468c93",
+  "tests": {
+    "internal/plugins/ospf/lsdb/rfc3101_nssa_higher_rid_test.go::TestOSPFHigherRIDType5Exists": "9b819c85416f1c4b",
+    "internal/plugins/ospf/lsdb/rfc3101_nssa_higher_rid_test.go::TestOSPFHigherRIDType5Exists#2": "9b819c85416f1c4b",
+    "internal/plugins/ospf/lsdb/rfc3101_nssa_higher_rid_test.go::TestOSPFHigherRIDType5Exists#3": "9b819c85416f1c4b",
+    "internal/plugins/ospf/rfc3101_nssa_ac14_16_test.go::TestOSPFNSSAHigherRIDType5Suppresses": "49a610561289e458",
+    "internal/plugins/ospf/rfc3101_nssa_ac14_16_test.go::TestOSPFNSSAHigherRIDType5Suppresses#2": "49a610561289e458",
+    "internal/plugins/ospf/rfc3101_translator_equivalence_test.go::TestRFC3101TranslatorYieldsOnlyToEquivalentType5": "613283b22a228606",
+    "internal/plugins/ospf/rfc3101_translator_equivalence_test.go::TestRFC3101TranslatorYieldsOnlyToEquivalentType5#2": "613283b22a228606",
+    "internal/plugins/ospf/rfc3101_translator_equivalence_test.go::TestRFC3101TranslatorYieldsOnlyToEquivalentType5#3": "613283b22a228606",
+    "internal/plugins/ospf/rfc3101_translator_equivalence_test.go::TestRFC3101TranslatorYieldsOnlyToEquivalentType5#4": "613283b22a228606",
+    "internal/plugins/ospf/rfc3101_translator_equivalence_test.go::TestRFC3101TranslatorYieldsOnlyToEquivalentType5#5": "613283b22a228606",
+    "internal/plugins/ospf/rfc3101_translator_equivalence_test.go::TestRFC3101TranslatorYieldsOnlyToEquivalentType5V6": "613283b22a228606",
+    "internal/plugins/ospf/rfc3101_translator_equivalence_test.go::TestRFC3101TranslatorYieldsOnlyToEquivalentType5V6#2": "613283b22a228606",
+    "internal/plugins/ospf/rfc3101_translator_equivalence_test.go::TestRFC3101TranslatorYieldsOnlyToEquivalentType5V6#3": "613283b22a228606"
+  },
+  "units": {
+    "internal/plugins/ospf/lsdb/rfc3101_nssa_higher_rid_test.go::TestOSPFHigherRIDType5Exists": "e98176e04ba89461",
+    "internal/plugins/ospf/lsdb/rfc3101_nssa_higher_rid_test.go::TestOSPFHigherRIDType5Exists#2": "e98176e04ba89461",
+    "internal/plugins/ospf/lsdb/rfc3101_nssa_higher_rid_test.go::TestOSPFHigherRIDType5Exists#3": "e98176e04ba89461",
+    "internal/plugins/ospf/rfc3101_nssa_ac14_16_test.go::TestOSPFNSSAHigherRIDType5Suppresses": "a4429060e42cf7f4",
+    "internal/plugins/ospf/rfc3101_nssa_ac14_16_test.go::TestOSPFNSSAHigherRIDType5Suppresses#2": "a4429060e42cf7f4",
+    "internal/plugins/ospf/rfc3101_translator_equivalence_test.go::TestRFC3101TranslatorYieldsOnlyToEquivalentType5": "c011a53ece5f4d68",
+    "internal/plugins/ospf/rfc3101_translator_equivalence_test.go::TestRFC3101TranslatorYieldsOnlyToEquivalentType5#2": "c011a53ece5f4d68",
+    "internal/plugins/ospf/rfc3101_translator_equivalence_test.go::TestRFC3101TranslatorYieldsOnlyToEquivalentType5#3": "c011a53ece5f4d68",
+    "internal/plugins/ospf/rfc3101_translator_equivalence_test.go::TestRFC3101TranslatorYieldsOnlyToEquivalentType5#4": "c011a53ece5f4d68",
+    "internal/plugins/ospf/rfc3101_translator_equivalence_test.go::TestRFC3101TranslatorYieldsOnlyToEquivalentType5#5": "c011a53ece5f4d68",
+    "internal/plugins/ospf/rfc3101_translator_equivalence_test.go::TestRFC3101TranslatorYieldsOnlyToEquivalentType5V6": "fb2fb71bfb79b3cb",
+    "internal/plugins/ospf/rfc3101_translator_equivalence_test.go::TestRFC3101TranslatorYieldsOnlyToEquivalentType5V6#2": "fb2fb71bfb79b3cb",
+    "internal/plugins/ospf/rfc3101_translator_equivalence_test.go::TestRFC3101TranslatorYieldsOnlyToEquivalentType5V6#3": "fb2fb71bfb79b3cb"
+  },
+  "verdict": "weak"
+}

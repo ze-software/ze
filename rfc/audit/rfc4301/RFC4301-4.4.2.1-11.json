@@ -1,0 +1,17 @@
+{
+  "note": "Both halves of the row now proven. Interval: the pass-4 units (newLifetimeState, the producer established.go uses) prove hard = build + configured lifetime with soft (replace) before hard (terminate). Indication of which action: the owner-loop units drive the real maintainSA over one tick. Positive: soft past, hard far -> a CREATE_CHILD_SA request on the wire, loop alive, pendingRekey kind rekeyChild naming the old Child SA with a new non-zero inbound SPI (replace with a new SA and new SPI). Negative: soft far, hard past -> loop returns errTimeout, no pendingRekey, Child SA cleared, old inbound SPI removed from the dataplane, silence on the wire (terminate). Revert records on established.go::maintainSA observed red for both; the author's soft/hard swap overlay turned both red, so the pair discriminates the mapping, not only the loop's existence.",
+  "requirement_sha": "ce0949965f330cc1",
+  "tests": {
+    "internal/component/ike/engine/rfc4301_sad_lifetime_action_test.go::TestRFC4301SADLifetimeHardTimeTerminatesTheSA": "c218017646048958",
+    "internal/component/ike/engine/rfc4301_sad_lifetime_action_test.go::TestRFC4301SADLifetimeSoftTimeReplacesTheSA": "c218017646048958",
+    "internal/component/ike/engine/rfc4301_sad_lifetime_test.go::TestRFC4301SADLifetimeIndicatesReplaceBeforeTerminate": "26c4427924e9a4bf",
+    "internal/component/ike/engine/rfc4301_sad_lifetime_test.go::TestRFC4301SADLifetimeTerminatesTheSAAtTheEndOfItsInterval": "26c4427924e9a4bf"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc4301_sad_lifetime_action_test.go::TestRFC4301SADLifetimeHardTimeTerminatesTheSA": "6c9654cac40bd417",
+    "internal/component/ike/engine/rfc4301_sad_lifetime_action_test.go::TestRFC4301SADLifetimeSoftTimeReplacesTheSA": "53e9e59eeddd7dfb",
+    "internal/component/ike/engine/rfc4301_sad_lifetime_test.go::TestRFC4301SADLifetimeIndicatesReplaceBeforeTerminate": "583bddfa92ea9eda",
+    "internal/component/ike/engine/rfc4301_sad_lifetime_test.go::TestRFC4301SADLifetimeTerminatesTheSAAtTheEndOfItsInterval": "09e92af6f937d25a"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,17 @@
+{
+  "note": "vrrp judge 2026-09-29 (independent): TestV2MasterDemotesOrDiscards on VRRPv2: higher priority and equal priority from 192.0.2.200 (greater than .10 only unsigned) each yield exactly StopTimers, RemoveVIPs, StartMasterDownTimer{6.609375s literal}, Master->Backup; equal from a smaller sender and lower priority yield nothing and stay Master.",
+  "requirement_sha": "385f3f1ac94268bd",
+  "tests": {
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "52489f84876bdb6f",
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "52489f84876bdb6f",
+    "internal/plugins/vrrp/fsm/rfc_verdict_test.go::TestV2MasterDemotesOrDiscards": "529420a351d8b685",
+    "internal/plugins/vrrp/fsm/rfc_verdict_test.go::TestV2MasterDemotesOrDiscards#2": "529420a351d8b685"
+  },
+  "units": {
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "c06b69f55bb239a3",
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "c06b69f55bb239a3",
+    "internal/plugins/vrrp/fsm/rfc_verdict_test.go::TestV2MasterDemotesOrDiscards": "0deca011c4ec6fe1",
+    "internal/plugins/vrrp/fsm/rfc_verdict_test.go::TestV2MasterDemotesOrDiscards#2": "0deca011c4ec6fe1"
+  },
+  "verdict": "enforced"
+}

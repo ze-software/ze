@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC3954-x-8",
+    "polarity": "negative",
+    "unit": "internal/plugins/flowexport/netflow9/rfc3954_adapter_test.go::TestNetflow9SeqNumNotAdvancedOnSendError",
+    "unit-sha": "46f0e4117aea0c9c",
+    "claim-sha": "fc6a2be0a1ff720b",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/netflow9/adapter.go::Encode",
+    "producer-sha": "e32bc9a0c4176c57",
+    "break": "body of Encode replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3954-x-8",
+    "polarity": "positive",
+    "unit": "internal/plugins/flowexport/netflow9/rfc3954_flow_adapter_test.go::TestNetflow9FlowSeqNumPerPacket",
+    "unit-sha": "139725e3b45a87e3",
+    "claim-sha": "bf0794f8709df6c6",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/netflow9/flow_adapter.go::EncodeFlows",
+    "producer-sha": "d626ce0f6131538e",
+    "break": "body of EncodeFlows replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3954-x-8",
+    "polarity": "positive",
+    "unit": "internal/plugins/flowexport/netflow9/rfc3954_test.go::TestRFC3954SequenceCountsEveryExportPacket",
+    "unit-sha": "35993f96e5b2d83b",
+    "claim-sha": "309165775a575368",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/netflow9/flow_adapter.go::sendTemplatePacket",
+    "producer-sha": "d69e05a3079f8c91",
+    "break": "body of sendTemplatePacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

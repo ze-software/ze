@@ -1,0 +1,13 @@
+{
+  "note": "non-compliant: Peer route whose OTC differs from the Peer's AS accepted. TestOTCIngressFilter reject_peer_otc_mismatch asserts accept=false (OTC 65099 vs PeerAS 65003); negative accept_peer_otc_matches asserts accept=true and no rewrite; TestCheckOTCIngress also pins reject_peer_otc_wrong and zero ASN",
+  "requirement_sha": "d6339ba62c2c3e53",
+  "tests": {
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCIngressFilter": "7b0a9e434ba435f3",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCIngressFilter#2": "7b0a9e434ba435f3"
+  },
+  "units": {
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCIngressFilter": "5c8a60dca8e82b66",
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCIngressFilter#2": "5c8a60dca8e82b66"
+  },
+  "verdict": "enforced"
+}

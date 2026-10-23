@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_announce_test.go::TestLinkLocalBothAddressesSetTheWireLengthOctetToThirtyTwo",
+    "unit-sha": "2712bcc177979816",
+    "claim-sha": "f943ab27b1e650d5",
+    "route": "revert",
+    "producer": "internal/core/bgp/attribute/mpnlri.go::nextHopLen",
+    "producer-sha": "894ab2b4e7e7a9f8",
+    "break": "body of nextHopLen replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_announce_test.go::TestLinkLocalSingleAddressSetsTheWireLengthOctetToSixteen",
+    "unit-sha": "376da1e4275f5447",
+    "claim-sha": "becdfa8c8b442cd7",
+    "route": "revert",
+    "producer": "internal/core/bgp/attribute/mpnlri.go::nextHopLen",
+    "producer-sha": "894ab2b4e7e7a9f8",
+    "break": "body of nextHopLen replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go::TestLinkLocalBothAddressesUseThirtyTwoOctets",
+    "unit-sha": "99154c5b91e01f56",
+    "claim-sha": "c8e9640dbfd63331",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/link_scope.go::applyLinkLocalNextHop",
+    "producer-sha": "04aaa23d9f5c1540",
+    "break": "body of applyLinkLocalNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go::TestLinkLocalSingleAddressKeepsSixteenOctets",
+    "unit-sha": "3ea112c65000b49b",
+    "claim-sha": "e1f7704337350a7a",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/link_scope.go::applyLinkLocalNextHop",
+    "producer-sha": "04aaa23d9f5c1540",
+    "break": "body of applyLinkLocalNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

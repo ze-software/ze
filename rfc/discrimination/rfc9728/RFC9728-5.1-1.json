@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC9728-5.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/mcp/oauth_e2e_test.go::TestNewStreamable_OAuth_RejectsMissingBearer",
+    "unit-sha": "ee28f981a8e7fd04",
+    "claim-sha": "243134ffe80f77c5",
+    "route": "revert",
+    "producer": "internal/component/mcp/streamable_auth.go::resourceMetadataURL",
+    "producer-sha": "6ce4052c860d42eb",
+    "break": "body of resourceMetadataURL replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9728-5.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728ChallengeNamesMetadataURL",
+    "unit-sha": "ca9e0e3475f01730",
+    "claim-sha": "b3dbbfeda7be1438",
+    "route": "revert",
+    "producer": "internal/component/mcp/streamable_auth.go::resourceMetadataURL",
+    "producer-sha": "6ce4052c860d42eb",
+    "break": "body of resourceMetadataURL replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9728-5.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/mcp/rfc9728_oauth_test.go::TestOAuth_Authenticate_MissingHeader",
+    "unit-sha": "bc2838fe2f972d86",
+    "claim-sha": "5887226a7c389c54",
+    "route": "revert",
+    "producer": "internal/component/mcp/oauth.go::challengeError",
+    "producer-sha": "330a8540cf426c99",
+    "break": "body of challengeError replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

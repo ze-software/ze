@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-09-30. New root units drive the engine path (dispatched P2P IIH -> adjacency table -> engineNextHopResolver) with a fake iface backend. Positive TestRFC1195MultiAddressNeighborForwarding: a neighbor listing the TLV 132 maximum of 63 addresses forms an Up adjacency and resolves to its own first address, on-link via the arrival interface, so a receiver that refused, truncated or mis-read a 63-address list goes red. Negative TestRFC1195MultiAddressNeighborRenumbered: the same neighbor re-sends a different 63-address list and no address of the old list survives as the next hop; forwarding to an address the neighbor no longer assigns (sec 4.2: each Hello carries the interface's current list) is an incorrect interaction and is rejected. Producer circuit/runtime.go helloInput takes the first decoded TLV 132 address per Hello; +/- recorded on it. The older packet units (63-address decode, truncated TLV refused) remain as codec cover.",
+  "requirement_sha": "8f1725cbc6016e64",
+  "tests": {
+    "internal/plugins/isis/packet/rfc1195_tlv_ipv4_test.go::TestRFC1195InterfaceAddrTLV63Addresses": "66a6e168f4df2485",
+    "internal/plugins/isis/packet/rfc1195_tlv_ipv4_test.go::TestRFC1195InterfaceAddrTLVTruncatedAddressRefused": "66a6e168f4df2485",
+    "internal/plugins/isis/rfc1195_neighbor_addresses_test.go::TestRFC1195MultiAddressNeighborForwarding": "9c0ed40540bf5ffb",
+    "internal/plugins/isis/rfc1195_neighbor_addresses_test.go::TestRFC1195MultiAddressNeighborRenumbered": "9c0ed40540bf5ffb"
+  },
+  "units": {
+    "internal/plugins/isis/packet/rfc1195_tlv_ipv4_test.go::TestRFC1195InterfaceAddrTLV63Addresses": "4ca69e4e0032d701",
+    "internal/plugins/isis/packet/rfc1195_tlv_ipv4_test.go::TestRFC1195InterfaceAddrTLVTruncatedAddressRefused": "8073946b97c64385",
+    "internal/plugins/isis/rfc1195_neighbor_addresses_test.go::TestRFC1195MultiAddressNeighborForwarding": "3f59f85a7a4d0f32",
+    "internal/plugins/isis/rfc1195_neighbor_addresses_test.go::TestRFC1195MultiAddressNeighborRenumbered": "48e50c8d9f28c6d1"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,17 @@
+{
+  "note": "D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV->WriteTLV and field-export renames (TLV code constants verified unchanged). RFC 7752 Section 3.2: \"All non-VPN link, node, and prefix information SHALL be encoded using AFI 16388 / SAFI 71.\" BGPLSFamily now registers in plugin ls register.go from family.AFIBGPLS/SAFIBGPLinkState; the unit still pins (16388, 71), bgp-ls/bgp-ls, and that a bgpls.NewBGPLSNode reports that family. Native positive (ls_export TestRFC7752NativeNLRIAnnouncedAsSAFI71) and the non-(16388,71) refusal negative unchanged.",
+  "requirement_sha": "c02dc7b4d3d42fa3",
+  "tests": {
+    "internal/component/bgp/plugins/ls_export/rfc7752_export_family_test.go::TestRFC7752NativeNLRIAnnouncedAsSAFI71": "58d7f6ee712871b3",
+    "internal/component/bgp/plugins/ls_export/rfc7752_export_family_test.go::TestRFC7752NativeNLRINeverAnnouncedAsVPN": "58d7f6ee712871b3",
+    "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752NonLinkStateFamilyRefused": "6c7da98fd78cb69c",
+    "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752NonVPNFamilyIsAFI16388SAFI71": "6c7da98fd78cb69c"
+  },
+  "units": {
+    "internal/component/bgp/plugins/ls_export/rfc7752_export_family_test.go::TestRFC7752NativeNLRIAnnouncedAsSAFI71": "dd48177406bb8a3d",
+    "internal/component/bgp/plugins/ls_export/rfc7752_export_family_test.go::TestRFC7752NativeNLRINeverAnnouncedAsVPN": "145ff734a959fb97",
+    "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752NonLinkStateFamilyRefused": "5e07d0147ccb6a0b",
+    "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752NonVPNFamilyIsAFI16388SAFI71": "506593fb7b32aad7"
+  },
+  "verdict": "enforced"
+}

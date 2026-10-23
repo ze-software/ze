@@ -1,0 +1,28 @@
+{
+  "code": {
+    "internal/component/config/validate_mandatory_bgp.go::EverySessionCarries": "d21db7ccfef7cbac",
+    "internal/component/config/validate_mandatory_bgp.go::bgpMandatoryFailures": "dfd3af9fd105979f",
+    "internal/component/config/validate_sections.go::ValidateCustomSections": "846e256df6f2b4f4"
+  },
+  "note": "Independently rejudged 2026-10-22; no execution or stamping. RFC 7950 Section 7.6.5: \"If \"mandatory\" is \"true\", the behavior of the constraint depends on the type of the leaf's closest ancestor node in the schema tree that is not a non-presence container (see Section 7.5.1): o If no such ancestor exists in the schema tree, the leaf MUST exist.\" Tested \"the leaf MUST exist\"; Gap \"If no such ancestor exists in the schema tree\"; Producer internal/component/config/validate_sections.go::ValidateCustomSections. Read all four tagged units and both polarities where present: config/rfc7950_mandatory_bgp_test.go::TestRFC7950MandatoryRefusesBGPConfig, config/rfc7950_validator_yang_test.go::TestValidateTree_MandatoryMissing and TestValidator_MandatoryField, config/yang/rfc7950_mandatory_test.go::TestRFC7950MandatoryWithNoQualifyingAncestor (under internal/component). The direct validator requires exact missing path top/mid/need under an absent non-presence ancestor, the corrective set command, and no missing errors when supplied. Config carriers require LoadConfig refusal of missing local ASN or router-id with the expected path and validation category, then accept the corresponding complete config with an actual peer. The patch prepends validateOriginalTree to ValidateCustomSections. Its registered bgp-filter-policy validator reads original bgp/group/peer import/export directions and requires an explicit final on a present direction; these mandatory-leaf fixtures contain no policy direction, so that validator returns normally and does not confound the missing-leaf assertions. The mandatory producer still calls walkTree/requireMandatoryChildren/requireMandatoryUnderAbsent; bgpMandatoryFailures retains only missing errors and EverySessionCarries implements the declared deviations. The whole top-level absent section remains unwalked, inherited session values still excuse global router-id/local ASN, and a BGP section without session sources still excuses those two leaves. Preserve every declared Tested/Gap restriction and the owner-approved deviations; none becomes RFC conformance and this row retains zero whole-requirement credit. Supplied discrimination metadata is not a new runtime observation.",
+  "requirement_sha": "55319edcf486ce80",
+  "tests": {
+    "internal/component/config/rfc7950_mandatory_bgp_test.go::TestRFC7950MandatoryRefusesBGPConfig": "0505b52aac821ba0",
+    "internal/component/config/rfc7950_mandatory_bgp_test.go::TestRFC7950MandatoryRefusesBGPConfig#2": "0505b52aac821ba0",
+    "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_MandatoryMissing": "ba2f54bedfde8139",
+    "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_MandatoryField": "ba2f54bedfde8139",
+    "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_MandatoryField#2": "ba2f54bedfde8139",
+    "internal/component/config/yang/rfc7950_mandatory_test.go::TestRFC7950MandatoryWithNoQualifyingAncestor": "39faaa97711e3fdf",
+    "internal/component/config/yang/rfc7950_mandatory_test.go::TestRFC7950MandatoryWithNoQualifyingAncestor#2": "39faaa97711e3fdf"
+  },
+  "units": {
+    "internal/component/config/rfc7950_mandatory_bgp_test.go::TestRFC7950MandatoryRefusesBGPConfig": "87aa17250985fe1f",
+    "internal/component/config/rfc7950_mandatory_bgp_test.go::TestRFC7950MandatoryRefusesBGPConfig#2": "87aa17250985fe1f",
+    "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_MandatoryMissing": "e1f1cd96991029ac",
+    "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_MandatoryField": "72905f9389bf09d7",
+    "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_MandatoryField#2": "72905f9389bf09d7",
+    "internal/component/config/yang/rfc7950_mandatory_test.go::TestRFC7950MandatoryWithNoQualifyingAncestor": "eb90e34b1ceb7ce1",
+    "internal/component/config/yang/rfc7950_mandatory_test.go::TestRFC7950MandatoryWithNoQualifyingAncestor#2": "eb90e34b1ceb7ce1"
+  },
+  "verdict": "partial"
+}

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC3209-4.6.1-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC3209SessionReservedZeroOverDirtyBuffer",
+    "unit-sha": "64a89f6937502396",
+    "claim-sha": "d8f12ad2836be006",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/wire.go::encodeSessionIPv4",
+    "producer-sha": "bc4b162ccd175b02",
+    "break": "body of encodeSessionIPv4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3209-4.6.1-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/wire_test.go::TestRSVPSessionObjectEncoding",
+    "unit-sha": "ceb79b193aaab230",
+    "claim-sha": "7885c5049fa766b8",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/wire.go::encodeSessionIPv4",
+    "producer-sha": "bc4b162ccd175b02",
+    "break": "body of encodeSessionIPv4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

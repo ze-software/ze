@@ -1,0 +1,13 @@
+{
+  "note": "forbidden: using a later SRMS Preference TLV of the same RI LSA. TestRFC8665RepeatedAlgorithmAndSRMSInstancesIgnored decodes an RI body with Preference 100 then 250 via srDecodeRemoteCapabilities and fails unless SRMSPref is 100, red on last-wins; positive pins the single-TLV case. The preference has no consumer (RFC8665-3.4-2 gap), so the decode is the only use",
+  "requirement_sha": "ec77e72c6824bcc9",
+  "tests": {
+    "internal/plugins/ospf/rfc8665_test.go::TestRFC8665RepeatedAlgorithmAndSRMSInstancesIgnored": "7f2eeb6dac97643c",
+    "internal/plugins/ospf/rfc8665_test.go::TestRFC8665SingleAlgorithmAndSRMSInstanceUsed": "7f2eeb6dac97643c"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc8665_test.go::TestRFC8665RepeatedAlgorithmAndSRMSInstancesIgnored": "4f0455a9b04e2cbb",
+    "internal/plugins/ospf/rfc8665_test.go::TestRFC8665SingleAlgorithmAndSRMSInstanceUsed": "cae7885d5f5bc037"
+  },
+  "verdict": "enforced"
+}

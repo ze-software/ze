@@ -1,0 +1,15 @@
+{
+  "note": "Rejudged 2026-10-21 over the current tags, units and records. Negative now isolates the pairing: an NSSA Hello with N set (agreeing with the area) AND E set is refused DropReasonOptionsE, so only the N-implies-E-clear rule can refuse it. TestRFC3101NSSAHelloWithNAndESetRefused pins the same on receive, and the positive reads the sent Options octet with N set and E clear. The old accept-tag that wore the 2.1-1 hat was removed.",
+  "requirement_sha": "c2f99629ac81af34",
+  "tests": {
+    "internal/plugins/ospf/iface/rfc3101_hello_nssa_test.go::TestOSPFNSSANbitMismatch": "c51400cc948bb21a",
+    "internal/plugins/ospf/iface/rfc3101_hello_options_test.go::TestRFC3101NSSAHelloSentWithNSetAndEClear": "4184129f1a0e776d",
+    "internal/plugins/ospf/iface/rfc3101_hello_options_test.go::TestRFC3101NSSAHelloWithNAndESetRefused": "4184129f1a0e776d"
+  },
+  "units": {
+    "internal/plugins/ospf/iface/rfc3101_hello_nssa_test.go::TestOSPFNSSANbitMismatch": "5ce61578ff0d72b4",
+    "internal/plugins/ospf/iface/rfc3101_hello_options_test.go::TestRFC3101NSSAHelloSentWithNSetAndEClear": "1c152a7c5d3e59b9",
+    "internal/plugins/ospf/iface/rfc3101_hello_options_test.go::TestRFC3101NSSAHelloWithNAndESetRefused": "9987661d6ac3a143"
+  },
+  "verdict": "enforced"
+}

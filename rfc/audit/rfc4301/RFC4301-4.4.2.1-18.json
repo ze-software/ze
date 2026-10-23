@@ -1,0 +1,14 @@
+{
+  "code": {},
+  "note": "Positive: IPv4 and IPv6 tunnel header pairs read back unchanged. Negative: IPv4 source with IPv6 destination refused, no state (D-8 fix in xfrmStateFromParams). No legitimate caller builds a mixed pair: engine SAs use the IKE endpoints, OSPF SAs are transport. Builder-level.",
+  "requirement_sha": "ae2e0aeafcf5bfe0",
+  "tests": {
+    "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemMixedFamilyTunnelHeaderIsRefused": "9705c65b7b397cd1",
+    "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemTunnelHeaderAddressesAreInstalled": "9705c65b7b397cd1"
+  },
+  "units": {
+    "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemMixedFamilyTunnelHeaderIsRefused": "398964ec841792f6",
+    "internal/component/ike/dataplane/rfc4301_sad_items_linux_test.go::TestRFC4301SADItemTunnelHeaderAddressesAreInstalled": "c3392751085381f3"
+  },
+  "verdict": "enforced"
+}

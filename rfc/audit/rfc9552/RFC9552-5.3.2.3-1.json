@@ -1,0 +1,18 @@
+{
+  "code": {},
+  "note": "Independent rejudge 2026-10-17, upgraded from weak because the live originator is now tagged. RFC 9552 Section 5.3.2.3: \"If a source protocol uses a metric width of fewer than 32 bits, then the high-order bits of this field MUST be padded with zero.\" Ze widens a metric into TLV 1092 only in internal/plugins/isis/bgpls_export.go linkAttribute case 18 (RFC 5305 sub-TLV 18, 24 bits): alloc(4) then copy(v[1:], value); OSPF TE metric is already 32 bits. TestRFC9552ISISTEDefaultMetricZeroPaddedHighOrder (80 00 01 -> 00 80 00 01) and ...SourceNeverInHighOrder (fe dc ba -> 00 fe dc ba) store a real LSP (TLV 22 with sub-TLV 18), run bgplsBuilder.build (the same build publishBGPLSLocked calls) and assert the exact TLV 1092 octets; copy(v, value) or a wrong width reddens both. The old plugin-ls TestRFC7752TEDefaultMetricZeroPadded stays tagged but drives a decode-side type with no production encoder and carries no weight. The arena dependency is now covered too: TestRFC9552ISISTEDefaultMetricRebuildNeverCarriesStaleArena (negative) builds twice on ONE builder, as the persistent exporter does; the first build fills the arena with 0xff from a 200-octet unmapped TLV 251, a fixture check proves the arena octet under the new TLV 1092 was non-zero before the second build, and the exact 00 0a 0b 0c assertion goes red (ff 0a 0b 0c) if clear(value) is removed from bgplsBuilder.alloc. Every way Ze could leave a non-zero high-order octet (wrong offset, wrong width, dirty arena) now reddens a tagged unit.",
+  "requirement_sha": "2cf617d2e6ae56bb",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752TEDefaultMetricZeroPadded": "6c7da98fd78cb69c",
+    "internal/plugins/isis/rfc9552_bgpls_export_metric_test.go::TestRFC9552ISISTEDefaultMetricRebuildNeverCarriesStaleArena": "6dbf420a1e0e7477",
+    "internal/plugins/isis/rfc9552_bgpls_export_metric_test.go::TestRFC9552ISISTEDefaultMetricSourceNeverInHighOrder": "6dbf420a1e0e7477",
+    "internal/plugins/isis/rfc9552_bgpls_export_metric_test.go::TestRFC9552ISISTEDefaultMetricZeroPaddedHighOrder": "6dbf420a1e0e7477"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752TEDefaultMetricZeroPadded": "51bd02f228461791",
+    "internal/plugins/isis/rfc9552_bgpls_export_metric_test.go::TestRFC9552ISISTEDefaultMetricRebuildNeverCarriesStaleArena": "cb135cf0f7ae0448",
+    "internal/plugins/isis/rfc9552_bgpls_export_metric_test.go::TestRFC9552ISISTEDefaultMetricSourceNeverInHighOrder": "550bbfd567b8f2ab",
+    "internal/plugins/isis/rfc9552_bgpls_export_metric_test.go::TestRFC9552ISISTEDefaultMetricZeroPaddedHighOrder": "c384f8005386365f"
+  },
+  "verdict": "enforced"
+}

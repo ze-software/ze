@@ -1,0 +1,13 @@
+{
+  "note": "Access-Reject returns aaa.ErrAuthRejected with no profiles; the negative carries an EAP-Success inside the Access-Reject and still denies",
+  "requirement_sha": "9fa69412a76bab90",
+  "tests": {
+    "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapAccessRejectDeniesAccess": "2b1b1ce908f454a5",
+    "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapAccessRejectDeniesEvenCarryingEAPSuccess": "2b1b1ce908f454a5"
+  },
+  "units": {
+    "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapAccessRejectDeniesAccess": "7d9c6511a23b39ec",
+    "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapAccessRejectDeniesEvenCarryingEAPSuccess": "8d4f659e9da2a941"
+  },
+  "verdict": "enforced"
+}

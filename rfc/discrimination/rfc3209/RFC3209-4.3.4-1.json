@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC3209-4.3.4-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/rfc3209_engine_test.go::TestEngineTransitForwarding",
+    "unit-sha": "88e195edf59fad24",
+    "claim-sha": "06e007b85219b52d",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/routing.go::resolveExplicitPath",
+    "producer-sha": "0deccc8d4603d01c",
+    "break": "body of resolveExplicitPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3209-4.3.4-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/rsvpte/rfc3209_engine_test.go::TestEngineTransitNoUsableERONextHop",
+    "unit-sha": "5e22b0a1d4045c97",
+    "claim-sha": "263ac15c6dbe1608",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/routing.go::resolveExplicitPath",
+    "producer-sha": "0deccc8d4603d01c",
+    "break": "body of resolveExplicitPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3209-4.3.4-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/rsvpte/rfc3209_signaling_test.go::TestRFC3209TransitNotAdjacentToSecondSubobject",
+    "unit-sha": "d51becfae8e7347c",
+    "claim-sha": "9274b20cacf0fd60",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/routing.go::resolveExplicitPath",
+    "producer-sha": "0deccc8d4603d01c",
+    "break": "body of resolveExplicitPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

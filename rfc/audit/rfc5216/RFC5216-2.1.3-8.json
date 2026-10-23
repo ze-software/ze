@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: the server answering the peer's no-data Response with anything but EAP-Success. TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess errors unless serverSent[successAt].Code == CodeSuccess directly after that Response. Negative: TestRFC5216NoClosingFlightOrSuccessWhenThePeerIsRejected errors on any Success to a rejected peer.",
+  "requirement_sha": "c1f354ff6707f33a",
+  "tests": {
+    "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216NoClosingFlightOrSuccessWhenThePeerIsRejected": "60bd713e09c87b21",
+    "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess": "60bd713e09c87b21"
+  },
+  "units": {
+    "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216NoClosingFlightOrSuccessWhenThePeerIsRejected": "65a97f8762ec7529",
+    "internal/core/eap/rfc5216_success_flight_test.go::TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess": "37ba54cebdeabbad"
+  },
+  "verdict": "enforced"
+}

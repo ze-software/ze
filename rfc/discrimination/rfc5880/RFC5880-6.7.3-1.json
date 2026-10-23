@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC5880-6.7.3-1",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedMD5OversizedKeyNotSigned",
+    "unit-sha": "6c34eea8dea185ca",
+    "claim-sha": "2455b9779f2df04b",
+    "route": "revert",
+    "producer": "internal/component/bfd/auth/signer.go::NewSigner",
+    "producer-sha": "74964565965a495f",
+    "break": "body of NewSigner replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.7.3-1",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/auth/rfc5880_section_fields_test.go::TestRFC5880KeyedMD5OtherAlgorithmFieldsDiscarded",
+    "unit-sha": "c78ed28720022f7f",
+    "claim-sha": "4a250164526e9b78",
+    "route": "mutant",
+    "producer": "internal/component/bfd/auth/sha1.go::Verify",
+    "producer-sha": "a96f098f3c6f9288",
+    "break": "line 160: \"data[off+0] != v.authType\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC5880-6.7.3-1",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KeyedMD5RejectsForeignSectionShape",
+    "unit-sha": "585f61665958461f",
+    "claim-sha": "58150bc36eb19332",
+    "route": "revert",
+    "producer": "internal/component/bfd/auth/sha1.go::Verify",
+    "producer-sha": "a96f098f3c6f9288",
+    "break": "body of Verify replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.7.3-1",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KeyedMD5SectionHeader",
+    "unit-sha": "be74425335406f29",
+    "claim-sha": "10d9ebf12751c1b3",
+    "route": "revert",
+    "producer": "internal/component/bfd/auth/sha1.go::Sign",
+    "producer-sha": "b934a94ef59e0b8a",
+    "break": "body of Sign replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

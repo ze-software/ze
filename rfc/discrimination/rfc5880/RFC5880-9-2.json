@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC5880-9-2",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880SingleHopReceiveTTLNotMaxDiscarded",
+    "unit-sha": "3cf47e888835b4bd",
+    "claim-sha": "fc4faec086ff0bee",
+    "route": "revert",
+    "producer": "internal/component/bfd/engine/loop.go::passesTTLGate",
+    "producer-sha": "1fb7bea19248a34f",
+    "break": "body of passesTTLGate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-9-2",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/engine/rfc5880_ttl_accept_test.go::TestRFC5880SingleHopReceiveTTLMaxAccepted",
+    "unit-sha": "245bbd7f314e73a7",
+    "claim-sha": "294a5a72e7e54e82",
+    "route": "revert",
+    "producer": "internal/component/bfd/engine/loop.go::passesTTLGate",
+    "producer-sha": "1fb7bea19248a34f",
+    "break": "body of passesTTLGate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-9-2",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/transport/rfc5880_hop_limit_linux_test.go::TestRFC5880SingleHopTransmitHopLimitIsMaximumIPv6",
+    "unit-sha": "c005124e204b5695",
+    "claim-sha": "ab0826b556401db3",
+    "route": "revert",
+    "producer": "internal/component/bfd/transport/udp_linux.go::applySocketOptionsV6",
+    "producer-sha": "8b2167e5073107c7",
+    "break": "body of applySocketOptionsV6 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-9-2",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/transport/rfc5880_test.go::TestRFC5880SingleHopTransmitTTLIsMaximum",
+    "unit-sha": "6b01b7991cea4157",
+    "claim-sha": "1ab90d6efaf14bae",
+    "route": "revert",
+    "producer": "internal/component/bfd/transport/udp_linux.go::applySocketOptions",
+    "producer-sha": "018c89e51ff3391c",
+    "break": "body of applySocketOptions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

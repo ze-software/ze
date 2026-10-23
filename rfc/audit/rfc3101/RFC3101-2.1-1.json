@@ -1,0 +1,17 @@
+{
+  "note": "Rejudged 2026-10-21 over the current tags, units and records. TestOSPFNSSANbitMismatch keeps its positive (N set, E clear accepted) and negative (E set dropped DropReasonOptionsE); the unit changed only by an appended x-1 case. With the option tests' matching-accepted and mismatch-dropped-on-every-area-type pair, the received N/E agreement check is proven for every area type.",
+  "requirement_sha": "c6957237a63eeeba",
+  "tests": {
+    "internal/plugins/ospf/iface/rfc3101_hello_nssa_test.go::TestOSPFNSSANbitMismatch": "c51400cc948bb21a",
+    "internal/plugins/ospf/iface/rfc3101_hello_nssa_test.go::TestOSPFNSSANbitMismatch#2": "c51400cc948bb21a",
+    "internal/plugins/ospf/iface/rfc3101_hello_options_test.go::TestRFC3101HelloOptionsMatchingAreaTypeAccepted": "4184129f1a0e776d",
+    "internal/plugins/ospf/iface/rfc3101_hello_options_test.go::TestRFC3101HelloOptionsMismatchDroppedOnEveryAreaType": "4184129f1a0e776d"
+  },
+  "units": {
+    "internal/plugins/ospf/iface/rfc3101_hello_nssa_test.go::TestOSPFNSSANbitMismatch": "5ce61578ff0d72b4",
+    "internal/plugins/ospf/iface/rfc3101_hello_nssa_test.go::TestOSPFNSSANbitMismatch#2": "5ce61578ff0d72b4",
+    "internal/plugins/ospf/iface/rfc3101_hello_options_test.go::TestRFC3101HelloOptionsMatchingAreaTypeAccepted": "9b9be4d9e73373f0",
+    "internal/plugins/ospf/iface/rfc3101_hello_options_test.go::TestRFC3101HelloOptionsMismatchDroppedOnEveryAreaType": "f164c3e081f1f30a"
+  },
+  "verdict": "enforced"
+}

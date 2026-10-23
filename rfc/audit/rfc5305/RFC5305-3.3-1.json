@@ -1,0 +1,13 @@
+{
+  "note": "Judged 2026-09-30 under OWNER RULING 2, same setup as RFC5305-3.2-1. Positive TestRFC5305TEAddressesLeaveOnlyReachabilityRoutes: with sub-TLV 8 (IPv4 neighbor address 203.0.113.2) on the received adjacency the Loc-RIB holds exactly 198.51.100.0/24 via the neighbor (Len == 1). Negative TestRFC5305TEAddressesInjectNoHostRoute: the BGP-LS builder decodes 203.0.113.2 as a link remote address, yet no 203.0.113.2/32 is in the Loc-RIB and no BGP-LS Prefix NLRI contains it. LIMIT: no Ze code path injects a /32 from sub-TLV 8, so no break of existing code reddens the ban assertions; the negative's observed red (linkAttribute disabled) comes from the decode precondition. Enforced under R1(b): input forced to the ban's trigger, output complies.",
+  "requirement_sha": "e08319bab55f6f46",
+  "tests": {
+    "internal/plugins/isis/rfc5305_no_host_route_test.go::TestRFC5305TEAddressesInjectNoHostRoute": "c01ada4bb0877a46",
+    "internal/plugins/isis/rfc5305_no_host_route_test.go::TestRFC5305TEAddressesLeaveOnlyReachabilityRoutes": "c01ada4bb0877a46"
+  },
+  "units": {
+    "internal/plugins/isis/rfc5305_no_host_route_test.go::TestRFC5305TEAddressesInjectNoHostRoute": "90d47471fe8d5dab",
+    "internal/plugins/isis/rfc5305_no_host_route_test.go::TestRFC5305TEAddressesLeaveOnlyReachabilityRoutes": "4beeac2b2af5f05d"
+  },
+  "verdict": "enforced"
+}

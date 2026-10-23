@@ -1,0 +1,17 @@
+{
+  "note": "Judge rejudge 2026-09-30 (last five). Earlier weak finding closed: new negative auth/rfc5880_sha1_authlen_test.go::TestRFC5880SHA1AuthLenByteDiscardedWithAuthenticDigest hashes the digest over the forged Auth Len byte (0/20/24/27/29/255) for Keyed SHA1 and Meticulous Keyed SHA1, keeps Control Length and the other section fields authentic, and asserts ErrDigestMismatch plus bfd.RcvAuthSeq unseeded, so only the Auth Len check can refuse it. Judge break (int(data[off+1]) != v.bodyLen -> if false && ..., sha1.go Verify, go overlay): new negative RED ('type 4: Auth Len 0 with an authentic digest: got <nil>'), new positive and the old pair green. Positive TestRFC5880SHA1AuthLen28HandBuiltAccepted shows the same builder at 28 is accepted (isolation). Old TestRFC5880AuthLenMismatchDiscarded keeps its tag but does not discriminate the Auth Len byte (digest refuses it); supplementary only. Records: Verify revert, observed red, all four units.",
+  "requirement_sha": "63458ba24e676e18",
+  "tests": {
+    "internal/component/bfd/auth/rfc5880_sha1_authlen_test.go::TestRFC5880SHA1AuthLen28HandBuiltAccepted": "dcda5abb3c8909d2",
+    "internal/component/bfd/auth/rfc5880_sha1_authlen_test.go::TestRFC5880SHA1AuthLenByteDiscardedWithAuthenticDigest": "dcda5abb3c8909d2",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthLenExpectedAccepted": "5a25c74cc2d9bd47",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthLenMismatchDiscarded": "5a25c74cc2d9bd47"
+  },
+  "units": {
+    "internal/component/bfd/auth/rfc5880_sha1_authlen_test.go::TestRFC5880SHA1AuthLen28HandBuiltAccepted": "64f1da49579a3a7e",
+    "internal/component/bfd/auth/rfc5880_sha1_authlen_test.go::TestRFC5880SHA1AuthLenByteDiscardedWithAuthenticDigest": "e7333c143cf27bfe",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthLenExpectedAccepted": "b6f3973c05be57e6",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthLenMismatchDiscarded": "b06b29bf85489e1b"
+  },
+  "verdict": "enforced"
+}

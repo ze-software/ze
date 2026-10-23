@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC5881-6-1",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/transport/rfc5881_one_hop_path_linux_test.go::TestRFC5881ControlLeavesOnTheProtectedLink",
+    "unit-sha": "ecaa581b34039d30",
+    "claim-sha": "ced774e03c3f4f0d",
+    "route": "revert",
+    "producer": "internal/component/bfd/transport/udp_linux.go::applySocketOptions",
+    "producer-sha": "018c89e51ff3391c",
+    "break": "body of applySocketOptions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5881-6-1",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/transport/rfc5881_one_hop_path_linux_test.go::TestRFC5881ControlNeverFollowsARouteOffTheProtectedLink",
+    "unit-sha": "ee5f0faff459a24d",
+    "claim-sha": "2a9dad421fb08031",
+    "route": "revert",
+    "producer": "internal/component/bfd/transport/udp_linux.go::applySocketOptions",
+    "producer-sha": "018c89e51ff3391c",
+    "break": "body of applySocketOptions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5881-6-1",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/transport/rfc5881_one_hop_path_linux_test.go::TestRFC5881UnboundLoopControlLeavesOnTheSessionLink",
+    "unit-sha": "0414603d8481932c",
+    "claim-sha": "dd3241d84896db94",
+    "route": "revert",
+    "producer": "internal/component/bfd/transport/udp.go::Send",
+    "producer-sha": "70c1c3a4a38c6fa7",
+    "break": "body of Send replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5881-6-1",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/transport/rfc5881_one_hop_path_v6_linux_test.go::TestRFC5881IPv6ControlNeverFollowsARouteOffTheSessionLink",
+    "unit-sha": "97dd6785257b70e1",
+    "claim-sha": "caaa2a336536e435",
+    "route": "revert",
+    "producer": "internal/component/bfd/transport/udp.go::pinsToLink",
+    "producer-sha": "aab765122ad6d2ca",
+    "break": "body of pinsToLink replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

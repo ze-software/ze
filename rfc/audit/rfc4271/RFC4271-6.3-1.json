@@ -1,0 +1,19 @@
+{
+  "note": "'All errors' that still produce a NOTIFICATION after RFC 7606 are now proven across the reset classes, each asserting Error Code 3 on the wire: duplicate MP_REACH_NLRI (TestRFC4271UpdateErrorReportedAsUpdateMessageError), duplicate MP_UNREACH_NLRI (TestSessionRFC7606DuplicateMPUnreachNotificationOnTheWire), unrecognized well-known attribute 3/2, impossible NLRI prefix length 3/10, truncated NLRI 3/10, truncated Withdrawn Routes 3/10 (TestSessionRFC4271RetainedUpdateNotifications), malformed MP_REACH_NLRI on a running Established Peer (TestRFC4271EstablishedUpdateErrorReleasesTheConnection). Producer check: every session-reset path funnels Session.rfc7606ResetNotification with NotifyUpdateMessage (rfc7606SessionReset, rfc7606NLRISyntaxAction, the 3(g) Notification in message/rfc7606.go), so the untagged 3(b) section-length and flag-conflict resets reach the same code. rfc7606ResetNotification break observed red for the three new units. Negative: a conformant UPDATE sends nothing (TestRFC4271ConformantUpdateSendsNoUpdateError). Errors RFC 7606 revises to treat-as-withdraw or attribute-discard send no NOTIFICATION by design. Re-read 2026-10-01 (c10 judge): the only change under this verdict is a tag comment line for another id (RFC4271-6.7-1 / RFC4271-Security-1 added, RFC4271-9.1.2.1-1 removed) in the unit's doc comment; every assertion is byte-identical, so the judgement stands.",
+  "requirement_sha": "bd0d71516e86fc07",
+  "tests": {
+    "internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go::TestRFC4271EstablishedUpdateErrorReleasesTheConnection": "75930a8f452295fa",
+    "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RetainedUpdateNotifications": "fdc816af536ef714",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ConformantUpdateSendsNoUpdateError": "94aa07ebd53dcc5b",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271UpdateErrorReportedAsUpdateMessageError": "94aa07ebd53dcc5b",
+    "internal/component/bgp/reactor/session_dupmp_unreach_wire_test.go::TestSessionRFC7606DuplicateMPUnreachNotificationOnTheWire": "052daf09fdcc69d4"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go::TestRFC4271EstablishedUpdateErrorReleasesTheConnection": "0feb9a83208798c9",
+    "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RetainedUpdateNotifications": "4a613c4e4d1f16d9",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ConformantUpdateSendsNoUpdateError": "ab53111fff0e5b7d",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271UpdateErrorReportedAsUpdateMessageError": "0a127f4f78abb98f",
+    "internal/component/bgp/reactor/session_dupmp_unreach_wire_test.go::TestSessionRFC7606DuplicateMPUnreachNotificationOnTheWire": "93d2242114ff07aa"
+  },
+  "verdict": "enforced"
+}

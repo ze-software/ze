@@ -1,0 +1,13 @@
+{
+  "note": "forbidden: using a range TLV that carries two SID/Label sub-TLVs. TestRFC8665RangeWithTwoSIDLabelSubTLVsIgnored builds two valid sub-TLVs and requires DecodeRangeValue to error, red on a decoder that picks one; the SRGB case of srDecodeRemoteCapabilities appends only on rerr == nil, so the error is the ignore. Positive TestRFC8665RangeWithSingleSIDLabelAccepted accepts exactly one",
+  "requirement_sha": "f250cf734ca85788",
+  "tests": {
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665RangeWithSingleSIDLabelAccepted": "dcc89abea6ba13ce",
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665RangeWithTwoSIDLabelSubTLVsIgnored": "dcc89abea6ba13ce"
+  },
+  "units": {
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665RangeWithSingleSIDLabelAccepted": "b7c4b8c278be52db",
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665RangeWithTwoSIDLabelSubTLVsIgnored": "2594ec02eb534809"
+  },
+  "verdict": "enforced"
+}

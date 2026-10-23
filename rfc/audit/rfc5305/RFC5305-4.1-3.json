@@ -1,0 +1,6 @@
+{
+  "no_code_path": "internal/plugins/isis/spf/leak.go LeakPrefixes builds IntoL1 only from the Level 2 result and IntoL2 only from the Level 1 result (leakInto with setDownBit true or false); no other producer re-advertises a prefix between areas at one level, so no same-level inter-area advertisement reaches TLV 135.",
+  "note": "The condition, a prefix advertised from one area to another at the same level, never arises in Ze.",
+  "requirement_sha": "36a8070bcad73fbe",
+  "verdict": "not-applicable"
+}

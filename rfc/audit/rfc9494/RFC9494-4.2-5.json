@@ -1,0 +1,23 @@
+{
+  "note": "Independently rejudged 2026-10-22 against test/draft/plugin/llgr-import-no-llgr.ci, not its still-old-syntax live counterpart; pending until parent promotion and stamping. No execution. RFC 9494 Section 4.2: \"If any of the routes from the peer have been marked with the NO_LLGR community, either as sent by the peer or as the result of a configured policy, they MUST NOT be retained and MUST be removed as per the normal operation of [RFC4271].\" Read every carrier: internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod; rib/rfc9494_rib_gr_test.go::TestDeleteWithCommunity; rib/rfc9494_test.go::TestRFC9494_StaleRouteWithoutNoLLGRRetained; rib/rfc9494_no_llgr_withdraw_test.go::TestRFC9494NoLLGRSweepWithdrawsTheBestPath and TestRFC9494SweepKeepsTheBestPathWithoutNoLLGR; both polarities of the named draft and internal/test/fixture/plugin_fixture_llgr_import.go::llgrImportNoLLGR. The GR carrier drives both JSON and structured DOWN paths with real received routes and requires the NO_LLGR route absent while the sibling survives at stale level 2 with LLGR_STALE. Exact community deletion and retention controls distinguish ffff0007 from LLGR_STALE and the real nonmatching 65001:100 community. The best-change pair requires exactly one IPv4/unicast Withdraw for 10.0.0.0/24 versus unchanged storage and no event. In the pending CI, both source UPDATEs lack communities; only marked has import { filters [ modify:NO-LLGR ]; final accept; }. The observer requires NO_LLGR on 10.0.0.0/24 and its absence from the plain control before sending TCP marker announcements that release both close actions; afterwards it requires marked absence and plain retention with LLGR_STALE before the stderr success fence. The explicit final preserves the modifier and the original assertions rather than bypassing policy. Producer/consumer chain read: filter_modify/config.go::parseCommOps and modify.go::buildDynamicDelta produce community-add; gr/gr.go::wireStateCallbacks issues delete-with-community before adding LLGR_STALE; rib/rib_commands_community.go::registerCommunityCommands explicitly routes that command to deleteWithCommunityCommand, which selectively removes stale matching routes, dispatches sent lifecycle reconciliation and recomputes/publishes best changes. Both peer-added and policy-added clauses remain evidenced compositionally. Preserve the existing scope: the import CI observes received RIB, not downstream recipient TCP, and no destination-wire proof or fresh functional green is claimed. Parent owns native freshness, draft promotion and the stamp.",
+  "requirement_sha": "fac8847e101227fd",
+  "tests": {
+    "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod": "b9cbfb5253395aa5",
+    "internal/component/bgp/plugins/rib/rfc9494_no_llgr_withdraw_test.go::TestRFC9494NoLLGRSweepWithdrawsTheBestPath": "e60d254188c8f1f0",
+    "internal/component/bgp/plugins/rib/rfc9494_no_llgr_withdraw_test.go::TestRFC9494SweepKeepsTheBestPathWithoutNoLLGR": "e60d254188c8f1f0",
+    "internal/component/bgp/plugins/rib/rfc9494_rib_gr_test.go::TestDeleteWithCommunity": "86fd60e2db71589a",
+    "internal/component/bgp/plugins/rib/rfc9494_test.go::TestRFC9494_StaleRouteWithoutNoLLGRRetained": "e5d6319873861ae8",
+    "test/plugin/llgr-import-no-llgr.ci": "8102329e5b44d941",
+    "test/plugin/llgr-import-no-llgr.ci#2": "8102329e5b44d941"
+  },
+  "units": {
+    "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod": "4d735a27f3177ed5",
+    "internal/component/bgp/plugins/rib/rfc9494_no_llgr_withdraw_test.go::TestRFC9494NoLLGRSweepWithdrawsTheBestPath": "c168de6e2c60822d",
+    "internal/component/bgp/plugins/rib/rfc9494_no_llgr_withdraw_test.go::TestRFC9494SweepKeepsTheBestPathWithoutNoLLGR": "a08a43a4dcd95e09",
+    "internal/component/bgp/plugins/rib/rfc9494_rib_gr_test.go::TestDeleteWithCommunity": "038dfabf77bd8451",
+    "internal/component/bgp/plugins/rib/rfc9494_test.go::TestRFC9494_StaleRouteWithoutNoLLGRRetained": "41bdc95fe854ca44",
+    "test/plugin/llgr-import-no-llgr.ci": "8102329e5b44d941",
+    "test/plugin/llgr-import-no-llgr.ci#2": "8102329e5b44d941"
+  },
+  "verdict": "enforced"
+}

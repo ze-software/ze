@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4090-7.1-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090DifferentPathsDoNotMerge",
+    "unit-sha": "c6f47efa97f2a8d9",
+    "claim-sha": "72713731f2ea073f",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/register.go::refreshPaths",
+    "producer-sha": "16323bbbb2f31d7a",
+    "break": "body of refreshPaths replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4090-7.1-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090ProtectedPathSurvivesRepair",
+    "unit-sha": "e2f24f1268c191f9",
+    "claim-sha": "70efdb772d06c7dd",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/register.go::refreshPaths",
+    "producer-sha": "16323bbbb2f31d7a",
+    "break": "body of refreshPaths replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,57 @@
+[
+  {
+    "rid": "RFC7432-8.2.1-4",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/message/rfc7432_esi_label_redundancy_test.go::TestRFC7432ESILabelRedundancyAccepted",
+    "unit-sha": "23bac433f37bf175",
+    "claim-sha": "518d738db58ec6e5",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/update_build_evpn.go::checkESILabelRedundancy",
+    "producer-sha": "e75efcfd73538646",
+    "break": "body of checkESILabelRedundancy replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7432-8.2.1-4",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/message/rfc7432_esi_label_redundancy_test.go::TestRFC7432ESILabelRedundancyRefused",
+    "unit-sha": "a2f9fefdbc66c541",
+    "claim-sha": "7567741cfd973345",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/update_build_evpn.go::checkESILabelRedundancy",
+    "producer-sha": "e75efcfd73538646",
+    "break": "body of checkESILabelRedundancy replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7432-8.2.1-4",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/nlri/evpn/rfc7432_redundancy_mode_test.go::TestConfiguredEVPNRefusesPerESRedundancyMismatch",
+    "unit-sha": "649eff6ea397f5a7",
+    "claim-sha": "0d17ac6bc25b89ca",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/nlri/evpn/config.go::parseConfigRoute",
+    "producer-sha": "dc4776b43501671f",
+    "break": "body of parseConfigRoute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7432-8.2.1-4",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/nlri/evpn/rfc7432_redundancy_mode_test.go::TestOriginPerESRedundancyModeAccepted",
+    "unit-sha": "bacdde6ae15e0438",
+    "claim-sha": "0793133acbe131cb",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/update_build_evpn.go::checkESILabelRedundancy",
+    "producer-sha": "e75efcfd73538646",
+    "break": "body of checkESILabelRedundancy replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7432-8.2.1-4",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/nlri/evpn/rfc7432_redundancy_mode_test.go::TestOriginPerESRedundancyModeRefused",
+    "unit-sha": "5d6fbd4e910774ce",
+    "claim-sha": "86251fa870f32dc6",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/update_build_evpn.go::checkESILabelRedundancy",
+    "producer-sha": "e75efcfd73538646",
+    "break": "body of checkESILabelRedundancy replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

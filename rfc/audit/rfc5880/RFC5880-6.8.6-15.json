@@ -1,0 +1,19 @@
+{
+  "note": "Judge rejudge 2026-10-02 (tag move under the 2026-09-30 owner ruling, OWNER RULING 6(b)); judged by an agent that authored neither test. Owner ruling 2026-09-30: no genuine negative exists, so the HEAD negative on TestRFC5880NoPeriodicTransmitWhileAdminDown (which proves the RFC5880-6.8.16-3 window, where it stays) was removed and the row carries {single-polarity: positive}. Judged on the positives: engine/rfc5880_demand_disjunct_test.go, one positive per disjunct with the other two false (ClearBothUp, SetLocalNotUpRemoteUp, SetLocalUpRemoteNotUp), each with a revert record on loop.go::tick observed red; rfc5880_demand_periodic_test.go and TestRFC5880PeriodicTransmitWhenRemoteDemandInactive supplementary. Ze never reads bfd.RemoteDemandMode, so it never enters the suppression the complement permits.",
+  "requirement_sha": "8cdcdb3774df1109",
+  "tests": {
+    "internal/component/bfd/engine/rfc5880_demand_disjunct_test.go::TestRFC5880PeriodicTransmitDemandClearBothUp": "12188412c110b3e7",
+    "internal/component/bfd/engine/rfc5880_demand_disjunct_test.go::TestRFC5880PeriodicTransmitDemandSetLocalNotUpRemoteUp": "12188412c110b3e7",
+    "internal/component/bfd/engine/rfc5880_demand_disjunct_test.go::TestRFC5880PeriodicTransmitDemandSetLocalUpRemoteNotUp": "12188412c110b3e7",
+    "internal/component/bfd/engine/rfc5880_demand_periodic_test.go::TestRFC5880PeriodicTransmitWhileDemandBitSetAndNotBothUp": "5162da39b05c3713",
+    "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880PeriodicTransmitWhenRemoteDemandInactive": "4b885928a870b00d"
+  },
+  "units": {
+    "internal/component/bfd/engine/rfc5880_demand_disjunct_test.go::TestRFC5880PeriodicTransmitDemandClearBothUp": "450bd1f42bcda7cf",
+    "internal/component/bfd/engine/rfc5880_demand_disjunct_test.go::TestRFC5880PeriodicTransmitDemandSetLocalNotUpRemoteUp": "f37d9a81e5905a89",
+    "internal/component/bfd/engine/rfc5880_demand_disjunct_test.go::TestRFC5880PeriodicTransmitDemandSetLocalUpRemoteNotUp": "7f7af51228d47e7e",
+    "internal/component/bfd/engine/rfc5880_demand_periodic_test.go::TestRFC5880PeriodicTransmitWhileDemandBitSetAndNotBothUp": "71131a440c3a8174",
+    "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880PeriodicTransmitWhenRemoteDemandInactive": "b39371a5a6575cd4"
+  },
+  "verdict": "enforced"
+}

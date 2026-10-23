@@ -1,0 +1,13 @@
+{
+  "note": "forbidden: accepting a SID with V set and L clear or the reverse. TestRFC8665InvalidVLCombinationIgnored requires Prefix-SID, Adj-SID and LAN Adj-SID decoders to error on both invalid pairs; the receive callers (srRemotePrefixSIDs sr_install.go, sr_tilfa.go) use a SID only on derr == nil, so the error is the ignore. Positive TestRFC8665ValidVLCombinationsDecode decodes V=0/L=0 index and V=1/L=1 label forms",
+  "requirement_sha": "942fc816ff306cde",
+  "tests": {
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665InvalidVLCombinationIgnored": "dcc89abea6ba13ce",
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665ValidVLCombinationsDecode": "dcc89abea6ba13ce"
+  },
+  "units": {
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665InvalidVLCombinationIgnored": "64ca05c074241ae4",
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665ValidVLCombinationsDecode": "101607d58aeaac09"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,11 @@
+{
+  "note": "TestRFC7871_ZeroAddressBitsNotRefused sends an ECS option with SOURCE PREFIX-LENGTH 0 and empty ADDRESS, and asserts Rcode is not REFUSED and the packet-source answer 10.0.0.5 is returned; a refusal on 0 address bits turns it red. Refuse-for-0-bits negative is unconstructible (geodns refuses only when disabled).",
+  "requirement_sha": "071c929f39c0da9a",
+  "tests": {
+    "internal/plugins/geodns/rfc7871_server_test.go::TestRFC7871_ZeroAddressBitsNotRefused": "4f94a9f098243c8d"
+  },
+  "units": {
+    "internal/plugins/geodns/rfc7871_server_test.go::TestRFC7871_ZeroAddressBitsNotRefused": "c8da27c7a9d59775"
+  },
+  "verdict": "enforced"
+}

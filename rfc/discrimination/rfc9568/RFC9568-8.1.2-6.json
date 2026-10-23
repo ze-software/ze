@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC9568-8.1.2-6",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly",
+    "unit-sha": "4a46814e5a4e2bbf",
+    "claim-sha": "fd47d12ce6a7c4d1",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/ownerfilter.go::ownerARPReplyTerm",
+    "producer-sha": "8024f9611f90edfc",
+    "break": "body of ownerARPReplyTerm replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9568-8.1.2-6",
+    "polarity": "negative",
+    "unit": "internal/plugins/vrrp/owner_answer_integration_linux_test.go::TestVRRPOwnerAnswersWithVirtualMACOnly",
+    "unit-sha": "4a46814e5a4e2bbf",
+    "claim-sha": "cdd49cbee40a663d",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/ownerfilter.go::ownerFilterTables",
+    "producer-sha": "fb7f88e51d55c670",
+    "break": "body of ownerFilterTables replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9568-8.1.2-6",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly",
+    "unit-sha": "b700c87dc50de836",
+    "claim-sha": "5c23f6547a447c63",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/dataplane_linux.go::applyDataplaneSysctls",
+    "producer-sha": "18af7d2e3bff87a5",
+    "break": "body of applyDataplaneSysctls replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9568-8.1.2-6",
+    "polarity": "negative",
+    "unit": "internal/plugins/vrrp/vmac_state_integration_linux_test.go::TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly",
+    "unit-sha": "b700c87dc50de836",
+    "claim-sha": "d224592a3a3540bf",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/dataplane_linux.go::applyDataplaneSysctls",
+    "producer-sha": "18af7d2e3bff87a5",
+    "break": "body of applyDataplaneSysctls replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

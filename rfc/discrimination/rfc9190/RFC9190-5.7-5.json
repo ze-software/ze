@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC9190-5.7-5",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc9190_resumption_refusal_test.go::TestEAPTLS13RefusesATicketPastTheSection57Lifetime",
+    "unit-sha": "8416c2268e64221e",
+    "claim-sha": "c4fa6b3f805e7935",
+    "route": "revert",
+    "producer": "internal/core/eap/resumption.go::TicketKeys",
+    "producer-sha": "c7e047f9231e686f",
+    "break": "body of TicketKeys replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9190-5.7-5",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc9190_resumption_test.go::TestEAPTLSPeerDropsAStoredTicketAtTheSection57Ceiling",
+    "unit-sha": "5889f21fc17e4dd7",
+    "claim-sha": "3cc674949c503a25",
+    "route": "revert",
+    "producer": "internal/core/eap/resumption.go::dropExpired",
+    "producer-sha": "ba6b6807ad41a78f",
+    "break": "body of dropExpired replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9190-5.7-5",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc9190_resumption_test.go::TestEAPTLSPeerDropsAStoredTicketAtTheSection57Ceiling",
+    "unit-sha": "5889f21fc17e4dd7",
+    "claim-sha": "4f0dfbc8c9a3d3a6",
+    "route": "revert",
+    "producer": "internal/core/eap/resumption.go::dropExpired",
+    "producer-sha": "ba6b6807ad41a78f",
+    "break": "body of dropExpired replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

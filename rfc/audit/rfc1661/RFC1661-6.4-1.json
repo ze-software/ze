@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: Configure-Rejecting a peer Magic-Number while ze sends one. TestRFC1661ZeroMagicNumberRefused goes red on any reject of a zero Magic; TestRFC1661UnknownOptionRejectedWhileMagicIsNot goes red unless the Magic is Acked while Type 99 in the same request is Rejected (proving the reject path is live).",
+  "requirement_sha": "415cda15367c6bdb",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661UnknownOptionRejectedWhileMagicIsNot": "9afaf002f0fd81ec",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ZeroMagicNumberRefused": "9afaf002f0fd81ec"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661UnknownOptionRejectedWhileMagicIsNot": "00c65d4673757887",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ZeroMagicNumberRefused": "b0f13de66997ec39"
+  },
+  "verdict": "enforced"
+}

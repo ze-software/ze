@@ -1,0 +1,11 @@
+{
+  "note": "(a) forbidden: the sender emits a non-zero SID Information RESERVED1 octet. (b) TestEncodePrefixSIDSRv6_ReservedFieldsZero asserts ps[7]==0. Single-polarity marker present.",
+  "requirement_sha": "5ef038ae3c80696c",
+  "tests": {
+    "internal/component/bgp/config/routeattr_test.go::TestEncodePrefixSIDSRv6_ReservedFieldsZero": "2be9754894f7f33d"
+  },
+  "units": {
+    "internal/component/bgp/config/routeattr_test.go::TestEncodePrefixSIDSRv6_ReservedFieldsZero": "1157e5aaecaac365"
+  },
+  "verdict": "enforced"
+}

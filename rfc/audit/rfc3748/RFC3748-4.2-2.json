@@ -1,0 +1,15 @@
+{
+  "note": "Positive: Encode of a Success and of a Failure carrying Type 26 and Type-Data yields exactly code,id,00,04. Negative: a received Success/Failure whose Length covers 3 data octets is delivered with Type 0 and nil Type-Data (DecodePacket). The sender obligation is fully proven by the exact 4-octet encode; the neighbouring Request-needs-Type arm is untagged.",
+  "requirement_sha": "949bae4788a168d1",
+  "tests": {
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748SuccessAndFailureCarryNoData": "8ca42a58d78f22be",
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748SuccessAndFailureCarryNoData#2": "8ca42a58d78f22be",
+    "internal/core/eap/rfc3748_test.go::TestRFC3748SuccessFailureFormat": "c7d9cf3b0751a797"
+  },
+  "units": {
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748SuccessAndFailureCarryNoData": "f980dd0725d0f151",
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748SuccessAndFailureCarryNoData#2": "f980dd0725d0f151",
+    "internal/core/eap/rfc3748_test.go::TestRFC3748SuccessFailureFormat": "3a0a3adbffa51aea"
+  },
+  "verdict": "enforced"
+}

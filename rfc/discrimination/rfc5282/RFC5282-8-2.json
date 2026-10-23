@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC5282-8-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc5282_aead_proposal_test.go::TestRFC5282AEADIKEProposalCarriesNoIntegrityTransform",
+    "unit-sha": "14418364447861e8",
+    "claim-sha": "e6da910f44e5c82c",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/initiator.go::wireIKEOffer",
+    "producer-sha": "2c8eeccc7a2b8917",
+    "break": "body of wireIKEOffer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5282-8-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc5282_aead_proposal_test.go::TestRFC5282NonAEADIKEProposalKeepsItsIntegrityTransform",
+    "unit-sha": "4fa72bd505fc2b69",
+    "claim-sha": "eadaa585faf5287c",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/initiator.go::wireIKEOffer",
+    "producer-sha": "2c8eeccc7a2b8917",
+    "break": "body of wireIKEOffer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5282-8-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282AEADESPProposalCarriesNoIntegrityTransform",
+    "unit-sha": "36ae76a9220dcfe0",
+    "claim-sha": "8a86576e581760d1",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/initiator.go::espProposalWire",
+    "producer-sha": "556059c9898aebda",
+    "break": "body of espProposalWire replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5282-8-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282NonAEADESPProposalKeepsItsIntegrityTransform",
+    "unit-sha": "d12569cea547e834",
+    "claim-sha": "19a0905e33795aaf",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/initiator.go::espProposalWire",
+    "producer-sha": "556059c9898aebda",
+    "break": "body of espProposalWire replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

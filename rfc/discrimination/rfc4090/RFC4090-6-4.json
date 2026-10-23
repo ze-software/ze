@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4090-6-4",
+    "polarity": "negative",
+    "unit": "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090FlagsClearUntilBypassEstablished",
+    "unit-sha": "6eba7e53d0277bc4",
+    "claim-sha": "e53a34bdf787774b",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/frr.go::bypassEstablished",
+    "producer-sha": "ee5c9515bf7879cb",
+    "break": "body of bypassEstablished replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4090-6-4",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/rfc4090_frr_bypass_test.go::TestRFC4090FlagsSetOnceBypassEstablished",
+    "unit-sha": "71f176a0724b0112",
+    "claim-sha": "9e3677d97ef3e404",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/frr.go::bypassEstablished",
+    "producer-sha": "ee5c9515bf7879cb",
+    "break": "body of bypassEstablished replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

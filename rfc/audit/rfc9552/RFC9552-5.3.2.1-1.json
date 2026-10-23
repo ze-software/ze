@@ -1,0 +1,23 @@
+{
+  "note": "Rejudged all current tagged carriers against RFC 9552 Section 5.3.2.1: 'All auxiliary Router-IDs of both the local and the remote node MUST be included in the link attribute of each Link NLRI.' Preserved IS-IS TestRFC9552ISISLinkRouterIDs and TestRFC9552ISISLinkCarriesAllRouterIDs assert exact local/remote IPv4 and IPv6 inclusion and separately forbid swapped values. OSPF TestRFC9552OSPFRouterIDsReachExporter uses conforming single Router Address LSAs and pins both directed links' exact 1028/1030 values through complete encoded attributes. TestRFC9552OSPFRouterIDAbsenceReachExporter uses absent, MaxAge and unrelated-opaque local sources with a live remote control: it requires the remote ID to remain on the correct side and forbids invented local IDs, with roles reversed on the reverse link. TestRFC9552OSPFInterASRouterIDsReachExporter uses RFC 5392 type-6 Link TLVs in both permitted area/AS scopes, mandatory remote-AS and permitted simultaneous remote IPv4/IPv6 ASBR IDs, with no prohibited Link ID; it requires local 1028 and remote 1030/1031 in exact final bytes and detects contamination from an internal same-four-octet-ID router. Read indexV2, trafficEngineering, linkAttributes and exporter attribute producers; Remote.ASN == 0 correctly prevents internal-ID borrowing. Literal complete snapshots and final attribute equality catch missing, swapped, duplicate or invented IDs rather than merely accepting a parse. The untagged multi-LSA case is robustness evidence, not a conforming positive; untagged wrong-scope and mixed-body regressions support provenance without adding tagged covers. This is a source-level judgment; new native discrimination observations remain Main's responsibility, and the documented FRR ordinary/inter-AS collectors are not claimed freshly passed.",
+  "requirement_sha": "418ca4fa3543e232",
+  "tests": {
+    "internal/plugins/isis/rfc9552_router_id_test.go::TestRFC9552ISISLinkCarriesAllRouterIDs": "07e1ba0c24d70214",
+    "internal/plugins/isis/rfc9552_router_id_test.go::TestRFC9552ISISLinkCarriesAllRouterIDs#2": "07e1ba0c24d70214",
+    "internal/plugins/isis/rfc9552_router_id_test.go::TestRFC9552ISISLinkRouterIDs": "07e1ba0c24d70214",
+    "internal/plugins/isis/rfc9552_router_id_test.go::TestRFC9552ISISLinkRouterIDs#2": "07e1ba0c24d70214",
+    "internal/plugins/ospf/rfc9552_router_id_test.go::TestRFC9552OSPFInterASRouterIDsReachExporter": "4354b106e8d6116b",
+    "internal/plugins/ospf/rfc9552_router_id_test.go::TestRFC9552OSPFRouterIDAbsenceReachExporter": "4354b106e8d6116b",
+    "internal/plugins/ospf/rfc9552_router_id_test.go::TestRFC9552OSPFRouterIDsReachExporter": "4354b106e8d6116b"
+  },
+  "units": {
+    "internal/plugins/isis/rfc9552_router_id_test.go::TestRFC9552ISISLinkCarriesAllRouterIDs": "fedfb153729e9d34",
+    "internal/plugins/isis/rfc9552_router_id_test.go::TestRFC9552ISISLinkCarriesAllRouterIDs#2": "fedfb153729e9d34",
+    "internal/plugins/isis/rfc9552_router_id_test.go::TestRFC9552ISISLinkRouterIDs": "4b831df520a7f1ce",
+    "internal/plugins/isis/rfc9552_router_id_test.go::TestRFC9552ISISLinkRouterIDs#2": "4b831df520a7f1ce",
+    "internal/plugins/ospf/rfc9552_router_id_test.go::TestRFC9552OSPFInterASRouterIDsReachExporter": "1a0724e121a229fe",
+    "internal/plugins/ospf/rfc9552_router_id_test.go::TestRFC9552OSPFRouterIDAbsenceReachExporter": "f64fed56fbf5214c",
+    "internal/plugins/ospf/rfc9552_router_id_test.go::TestRFC9552OSPFRouterIDsReachExporter": "84692a74980e05e3"
+  },
+  "verdict": "enforced"
+}

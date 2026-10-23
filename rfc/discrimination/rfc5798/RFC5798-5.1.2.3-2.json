@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5798-5.1.2.3-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV3IPv6",
+    "unit-sha": "77f08fdc100784ba",
+    "claim-sha": "6ecd879cbc76b064",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/packet/validate.go::Decode",
+    "producer-sha": "76516cb47bf2201c",
+    "break": "body of Decode replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5798-5.1.2.3-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/vrrp/packet/validate_test.go::TestDecodeV3IPv6ChecksumAndHopLimit",
+    "unit-sha": "7459a12c9b1d7376",
+    "claim-sha": "bd4fd9f346d004e7",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/packet/validate.go::Decode",
+    "producer-sha": "76516cb47bf2201c",
+    "break": "body of Decode replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

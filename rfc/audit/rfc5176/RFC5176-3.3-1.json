@@ -1,0 +1,17 @@
+{
+  "note": "Rejudged 2026-10-14 by a reader who did not author the tests; only TestDisconnectReplayReturnsCachedResponse changed (its two copies now leave one socket, so the replay is a duplicate under the source-port key) and it still asserts a Disconnect-ACK and one teardown for the matching Acct-Session-Id. TestRFC5176MatchedIdentificationSucceeds and TestRFC5176UnmatchedIdentificationIsNAKed keep both request kinds and both outcomes: CoA-NAK and Disconnect-NAK 503 with no event and no teardown when no session matches; TestRFC5176NoSessionIdNotActedOn the no-identification negative.",
+  "requirement_sha": "79cb52981c308285",
+  "tests": {
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176MatchedIdentificationSucceeds": "ff37f19e24dbd668",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176UnmatchedIdentificationIsNAKed": "ff37f19e24dbd668",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go::TestDisconnectReplayReturnsCachedResponse": "abaf30a8356b8748",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go::TestRFC5176NoSessionIdNotActedOn": "25c2b53f1b101476"
+  },
+  "units": {
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176MatchedIdentificationSucceeds": "18fb7991d427fefe",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176UnmatchedIdentificationIsNAKed": "48a54bb92cb5b6f7",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go::TestDisconnectReplayReturnsCachedResponse": "3af259e73ebb3526",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go::TestRFC5176NoSessionIdNotActedOn": "0004cdb472171249"
+  },
+  "verdict": "enforced"
+}

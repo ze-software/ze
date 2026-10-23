@@ -1,0 +1,13 @@
+{
+  "note": "TestRFC9012ReceiveRemovesInstalledNativeRoutes exercises all seven Section 6 carriers through actual Session receipt and received-route storage: exactly one endpoint installs, a marked valid sibling survives missing/duplicate-endpoint TLVs, and no survivor removes only the target route before same-session reinstall. tunnelTLVLayout counts endpoints and applyTunnelEncap removes offending TLVs.",
+  "requirement_sha": "9952193eac763c57",
+  "tests": {
+    "internal/component/bgp/reactor/rfc9012_receive_storage_test.go::TestRFC9012ReceiveRemovesInstalledNativeRoutes": "db256d42d0cdc6ff",
+    "internal/component/bgp/reactor/rfc9012_receive_storage_test.go::TestRFC9012ReceiveRemovesInstalledNativeRoutes#2": "db256d42d0cdc6ff"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc9012_receive_storage_test.go::TestRFC9012ReceiveRemovesInstalledNativeRoutes": "599b3d8b7a249ef6",
+    "internal/component/bgp/reactor/rfc9012_receive_storage_test.go::TestRFC9012ReceiveRemovesInstalledNativeRoutes#2": "599b3d8b7a249ef6"
+  },
+  "verdict": "enforced"
+}

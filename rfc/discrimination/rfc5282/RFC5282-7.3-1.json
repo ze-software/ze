@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC5282-7.3-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/crypto/rfc5282_aead_test.go::TestRFC5282AEADOfferWithoutAKeyLengthIsRefused",
+    "unit-sha": "83d7c324f72f86bf",
+    "claim-sha": "bc95674efdd57e71",
+    "route": "revert",
+    "producer": "internal/component/ike/crypto/proposal.go::keyLengthRequired",
+    "producer-sha": "4a3af9e33bdabe1b",
+    "break": "body of keyLengthRequired replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5282-7.3-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282AEADCCMProposalCarriesTheKeyLengthAttribute",
+    "unit-sha": "3c3053b652d4f250",
+    "claim-sha": "9256e50d1944f527",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/initiator.go::encAttrs",
+    "producer-sha": "5f591c51cecce19a",
+    "break": "body of encAttrs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5282-7.3-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADProposalCarriesTheKeyLengthAttribute",
+    "unit-sha": "88328d3d92252044",
+    "claim-sha": "ef88bd483e280d14",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/initiator.go::encAttrs",
+    "producer-sha": "5f591c51cecce19a",
+    "break": "body of encAttrs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

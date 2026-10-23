@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC4552-3-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/ipsec_install_test.go::TestIPsecInstallOnInterfaceUp",
+    "unit-sha": "4c5f0f60b7df2b90",
+    "claim-sha": "e40d6de3b4d20f54",
+    "route": "mutant",
+    "producer": "internal/plugins/ospf/ipsec_install.go::ipsecProtoNumber",
+    "producer-sha": "c05a39ef55486b0e",
+    "break": "line 690: \"protocol == ipsecProtoAH\" -\u003e \"true\""
+  }
+]

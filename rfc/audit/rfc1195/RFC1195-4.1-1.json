@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-09-30 (independent judge) under OWNER RULING 2, which names this row: an accept-on-reception obligation is proven by acceptance (positive) and by how Ze handles the absent or wrong form (negative), and 'refusing non-OSI encapsulation is that negative'. Positive transport TestRFC1195ParseFrameOSIEncapsulation: an 802.3 length + LLC FE/FE/03 frame is accepted and the PDU and source MAC come back intact. Negative TestRFC1195ParseFrameRefusesNonOSIEncapsulation (prose reworded, D-15; body unchanged): an Ethernet II ethertype yields ErrNotISO and a SNAP LLC yields ErrBadLLC, each with a nil PDU, so a frame lacking the normal OSI encapsulation is never read as an IS-IS PDU. Read against transport/frame.go ParseFrame. Records +/- revert ParseFrame, both observed red. The earlier weak verdict called the refusal a neighbouring strictness property; the owner ruled it is this row's negative.",
+  "requirement_sha": "f4dce2e8fa4bd0dd",
+  "tests": {
+    "internal/plugins/isis/transport/rfc1195_frame_test.go::TestRFC1195ParseFrameOSIEncapsulation": "e679d34165cba861",
+    "internal/plugins/isis/transport/rfc1195_frame_test.go::TestRFC1195ParseFrameRefusesNonOSIEncapsulation": "e679d34165cba861"
+  },
+  "units": {
+    "internal/plugins/isis/transport/rfc1195_frame_test.go::TestRFC1195ParseFrameOSIEncapsulation": "4c146cf6e2efad54",
+    "internal/plugins/isis/transport/rfc1195_frame_test.go::TestRFC1195ParseFrameRefusesNonOSIEncapsulation": "e343d316796a26fa"
+  },
+  "verdict": "enforced"
+}

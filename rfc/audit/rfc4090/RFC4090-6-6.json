@@ -1,0 +1,13 @@
+{
+  "note": "Judged 2026-09-29 (routing child, continuation judge). Unchanged judgement; TestRFC4090NodeBitClearWithoutNodeBypass lost only its RFC4090-4.4-7 tag. The set half is proven; the clear half still runs with no backup path armed, because selectBypass refuses an NHOP bypass for a node request, so no unit shows a backup path that does not protect the next node with the node bit cleared. Blocked by spec-rsvpte-frr-link-protection-fallback. Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 6 and the weak verdict holds unchanged.",
+  "requirement_sha": "af2cdee51c19ed65",
+  "tests": {
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090NodeBitClearWithoutNodeBypass": "3fb9184431da8daf",
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090NodeBitSetWhenNodeProtected": "3fb9184431da8daf"
+  },
+  "units": {
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090NodeBitClearWithoutNodeBypass": "fd19aa37c47a75dc",
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090NodeBitSetWhenNodeProtected": "2079573c25e36f52"
+  },
+  "verdict": "weak"
+}

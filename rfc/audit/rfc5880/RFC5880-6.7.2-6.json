@@ -1,0 +1,13 @@
+{
+  "note": "Judge rejudge 2026-09-30 (phase 8: row cites 6.7.2 only; the SHA1 Auth Len units moved to RFC5880-6.7.4-16). Positive accepts Auth Len = password+3 for 1/8/16 bytes; negative changes only the Auth Len byte (0, n+2, n+4, 255) with Control Length, type, key id and password valid and requires ErrPasswordMismatch; removing the byte check in simpleVerifier.Verify accepts them.",
+  "requirement_sha": "8b0035b9bba9589d",
+  "tests": {
+    "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880SimplePasswordAuthLenNotPlusThreeDiscarded": "69049dc5fe6d5288",
+    "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880SimplePasswordAuthLenPlusThreeAccepted": "69049dc5fe6d5288"
+  },
+  "units": {
+    "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880SimplePasswordAuthLenNotPlusThreeDiscarded": "46bbaeae94a5a668",
+    "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880SimplePasswordAuthLenPlusThreeAccepted": "e6f3e141f6764d5d"
+  },
+  "verdict": "enforced"
+}

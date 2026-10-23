@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC1195-7-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/spf/rfc1195_route_test.go::TestRFC1195ReachabilityEntryIsALeafKeyedByPrefix",
+    "unit-sha": "1e342bb9f36d1516",
+    "claim-sha": "58894e379960339a",
+    "route": "revert",
+    "producer": "internal/plugins/isis/spf/spf.go::Compute",
+    "producer-sha": "819f17307b651ed5",
+    "break": "body of Compute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

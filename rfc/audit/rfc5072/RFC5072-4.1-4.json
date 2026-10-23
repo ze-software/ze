@@ -1,0 +1,11 @@
+{
+  "note": "Forbidden: answering equal non-zero identifiers with Ack or Reject, or a Nak whose suggestion equals the colliding value or is zero. TestIPv6CPNakOnEqualNonZeroIdentifiers fails on verdict != unacceptable, code != Configure-Nak, opts.InterfaceID == local (not different) and opts.InterfaceID == zero (not non-zero). Every clause asserted; single-polarity marker present.",
+  "requirement_sha": "ecab5648a62ba83e",
+  "tests": {
+    "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPNakOnEqualNonZeroIdentifiers": "99a68f4293234999"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPNakOnEqualNonZeroIdentifiers": "03b6f4b5cf0a007a"
+  },
+  "verdict": "enforced"
+}

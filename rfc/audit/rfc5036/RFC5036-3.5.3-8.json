@@ -1,0 +1,11 @@
+{
+  "note": "First judgment; negative-only annotation is supported by handleInit: no Max PDU proposal is unacceptable to this implementation after <=255 normalization and minimum selection. Four live cases require KeepAlive rather than Notification, exact negotiated maximum, OPENREC then peer-KeepAlive Operational, and a timeout rather than EOF. No fatal rejection branch for an unsupported policy is invented.",
+  "requirement_sha": "4207680ac6ca8584",
+  "tests": {
+    "internal/plugins/ldp/rfc5036_sessionparams_test.go::TestRFC5036InitMaxPDULengthTakesTheSmallerProposal": "c0aa8fdb104978d5"
+  },
+  "units": {
+    "internal/plugins/ldp/rfc5036_sessionparams_test.go::TestRFC5036InitMaxPDULengthTakesTheSmallerProposal": "fc886fcee7bc55a5"
+  },
+  "verdict": "enforced"
+}

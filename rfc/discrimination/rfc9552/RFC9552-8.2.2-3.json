@@ -1,0 +1,79 @@
+[
+  {
+    "rid": "RFC9552-8.2.2-3",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/nlri/ls/rfc9552_test.go::TestRFC9552AttributeSyntaxStillRejected",
+    "unit-sha": "795f88f2ee273b14",
+    "claim-sha": "94faeaca60624db6",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/nlri/ls/attr.go::iterateAttrTLVs",
+    "producer-sha": "193a961cd2733ca4",
+    "break": "body of iterateAttrTLVs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9552-8.2.2-3",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc9552_semantic_test.go::TestRFC9552BGPLSAttributeFramingTwinsAreDiscarded",
+    "unit-sha": "bf68c35232039670",
+    "claim-sha": "560a8650a9b901ab",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/rfc7606_bgpls.go::validateBGPLSAttr",
+    "producer-sha": "9b44d8df35e9c475",
+    "break": "body of validateBGPLSAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9552-8.2.2-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc9552_semantic_test.go::TestRFC9552BGPLSAttributeSemanticErrorsAreNotMalformed",
+    "unit-sha": "98fddade9c4fa253",
+    "claim-sha": "48457b50e446c99a",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/rfc7606_bgpls.go::validateBGPLSAttr",
+    "producer-sha": "9b44d8df35e9c475",
+    "break": "body of validateBGPLSAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9552-8.2.2-3",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc9552_semantic_test.go::TestRFC9552LinkStateNLRIFramingTwinsAreDiscarded",
+    "unit-sha": "b3a5158d72e26eb7",
+    "claim-sha": "3e34df7be6f85eba",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/rfc7606_bgpls_nlri.go::bgplsNLRIWellFormed",
+    "producer-sha": "1e157272c89f3d1d",
+    "break": "body of bgplsNLRIWellFormed replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9552-8.2.2-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc9552_semantic_test.go::TestRFC9552LinkStateNLRISemanticErrorsAreNotMalformed",
+    "unit-sha": "a9c9881e19accc4e",
+    "claim-sha": "f1c5aa1979642fac",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/rfc7606_bgpls_nlri.go::bgplsNLRIWellFormed",
+    "producer-sha": "1e157272c89f3d1d",
+    "break": "body of bgplsNLRIWellFormed replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9552-8.2.2-3",
+    "polarity": "positive",
+    "unit": "internal/core/bgp/nlri/bgpls/rfc9552_test.go::TestRFC9552NLRIContentsNeverMakeItMalformed",
+    "unit-sha": "75529446b8036d8c",
+    "claim-sha": "09c0b74617560643",
+    "route": "revert",
+    "producer": "internal/core/bgp/nlri/bgpls/types.go::parseBGPLS",
+    "producer-sha": "0053c4e282d8830d",
+    "break": "body of parseBGPLS replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9552-8.2.2-3",
+    "polarity": "negative",
+    "unit": "internal/core/bgp/nlri/bgpls/rfc9552_test.go::TestRFC9552NLRIFramingErrorsRejected",
+    "unit-sha": "4fa9b3bce2700cff",
+    "claim-sha": "2eef1add380f6e87",
+    "route": "revert",
+    "producer": "internal/core/bgp/nlri/bgpls/types.go::parseBGPLS",
+    "producer-sha": "0053c4e282d8830d",
+    "break": "body of parseBGPLS replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

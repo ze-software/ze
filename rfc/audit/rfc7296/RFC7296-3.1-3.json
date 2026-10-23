@@ -1,0 +1,15 @@
+{
+  "note": "Send: GenerateSPI and new SAs asserted non-zero (TestSPIZeroRules, positive, recorded on GenerateSPI). Receive, both dispatchers: TestRFC7296ZeroInitiatorSPIIsDroppedOnReceipt (port 500, dispatchInbound) and TestRFC7296ZeroInitiatorSPIIsDroppedOnTheNATTSocket (port 4500, dispatchNATTInbound, non-ESP marker) each put an SA with a zero Initiator's SPI in the table, so without the guard the zero-iSPI datagram would reach that SA's owner; the following non-zero datagram is delivered (NAT-T: marker stripped). Records are whole-producer reverts (reach); the isolation comes from the zero-iSPI SA in the table. Closure rejudge 2026-10-02: the negative tag on TestSPIZeroRules was removed, since its body never calls dispatchInbound; the negative polarity rests on the two dedicated recorded units above.",
+  "requirement_sha": "df0a427bb2fa29ae",
+  "tests": {
+    "internal/component/ike/engine/rfc7296_header_test.go::TestSPIZeroRules": "3621c3a699e1b772",
+    "internal/component/ike/engine/rfc7296_zero_ispi_natt_test.go::TestRFC7296ZeroInitiatorSPIIsDroppedOnTheNATTSocket": "bec623016e9c3934",
+    "internal/component/ike/engine/rfc7296_zero_ispi_test.go::TestRFC7296ZeroInitiatorSPIIsDroppedOnReceipt": "9421156ced1ce8cb"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7296_header_test.go::TestSPIZeroRules": "8c22f393434b327c",
+    "internal/component/ike/engine/rfc7296_zero_ispi_natt_test.go::TestRFC7296ZeroInitiatorSPIIsDroppedOnTheNATTSocket": "1e1b9354165bd819",
+    "internal/component/ike/engine/rfc7296_zero_ispi_test.go::TestRFC7296ZeroInitiatorSPIIsDroppedOnReceipt": "a88a9b37b6cf5987"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5310-4-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthLSPChecksumAfterSign",
+    "unit-sha": "577d0ffd745b5f2f",
+    "claim-sha": "6f53c2d891506035",
+    "route": "revert",
+    "producer": "internal/plugins/isis/packet/auth_sign.go::lspAuthLayout",
+    "producer-sha": "7bec3c9bcb9de37b",
+    "break": "body of lspAuthLayout replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5310-4-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/packet/rfc5310_auth_lifetime_test.go::TestRFC5310LifetimeNotAuthenticated",
+    "unit-sha": "0865716fb5c59333",
+    "claim-sha": "bfea9c8c463aced3",
+    "route": "revert",
+    "producer": "internal/plugins/isis/packet/auth_sign.go::lspAuthLayout",
+    "producer-sha": "7bec3c9bcb9de37b",
+    "break": "body of lspAuthLayout replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

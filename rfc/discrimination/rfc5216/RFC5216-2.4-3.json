@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5216-2.4-3",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216NeitherSideNegotiatesCompression",
+    "unit-sha": "b1bfabe87575819b",
+    "claim-sha": "0638e043c23b2152",
+    "route": "revert",
+    "producer": "internal/core/eap/peer.go::tlsClientConfig",
+    "producer-sha": "1b211a4c01804785",
+    "break": "body of tlsClientConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5216-2.4-3",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216ServerRefusesTheCompressionAPeerOffers",
+    "unit-sha": "d099420c1b8bd987",
+    "claim-sha": "d37a0a41db722b47",
+    "route": "revert",
+    "producer": "internal/core/eap/eap_tls.go::newTLSMethod",
+    "producer-sha": "9d4ae49c78228895",
+    "break": "body of newTLSMethod replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,17 @@
+{
+  "note": "No unit calls checkBestPathChange itself. Positive: one received UPDATE puts the route in the Loc-RIB and publishes exactly one BestChangeAdd. Negative: peer A's withdrawal of the selected route leaves peer B's route installed, which a skipped run (stale best or none) fails. Judge mutants 2026-09-30 (go test -overlay, tree untouched): removing the decision run for legacy withdrawals reddens the negative.",
+  "requirement_sha": "e4253de42d023dd5",
+  "tests": {
+    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271AdjRIBInUpdateRunsTheDecisionProcess": "e914a6452ddec559",
+    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271AdjRIBInUpdateThatDisplacesTheBestReselects": "e914a6452ddec559",
+    "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeNoPublishSameBest": "dc546dccf368c8ad",
+    "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeWithdraw": "dc546dccf368c8ad"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271AdjRIBInUpdateRunsTheDecisionProcess": "448dc56158d37236",
+    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271AdjRIBInUpdateThatDisplacesTheBestReselects": "7e76ce2c3464e819",
+    "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeNoPublishSameBest": "60623f6b66fa6992",
+    "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeWithdraw": "53a0b7090ed25f50"
+  },
+  "verdict": "enforced"
+}

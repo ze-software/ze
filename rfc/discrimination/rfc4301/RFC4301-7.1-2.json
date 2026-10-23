@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4301-7.1-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc4301_portless_test.go::TestRFC4301AnyPortFormNeverLeaksAPortNumber",
+    "unit-sha": "32c0aeac0c82f589",
+    "claim-sha": "1abf1ad06b90ad71",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/child.go::selectorPort",
+    "producer-sha": "4c4b86bbd9da77ac",
+    "break": "body of selectorPort replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4301-7.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc4301_portless_test.go::TestRFC4301ProtocolScopedSASpecifiesPortsAsAny",
+    "unit-sha": "a290ec18562dc2a9",
+    "claim-sha": "972632628cfa08cb",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/child.go::selectorPort",
+    "producer-sha": "4c4b86bbd9da77ac",
+    "break": "body of selectorPort replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

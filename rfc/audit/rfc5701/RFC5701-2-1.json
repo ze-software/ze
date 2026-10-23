@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: flagging code 25 as anything but optional transitive (0x80 non-transitive, 0x40 well-known, partial on origination). TestRFC5701IPv6ExtCommunityFlags asserts IsOptional, IsTransitive, f != FlagOptional, !IsPartial and f == FlagOptional|FlagTransitive, each red on the corresponding wrong flag byte from Flags() (community.go). Both polarities.",
+  "requirement_sha": "d530d290148b080f",
+  "tests": {
+    "internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go::TestRFC5701IPv6ExtCommunityFlags": "769334093b6b8784",
+    "internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go::TestRFC5701IPv6ExtCommunityFlags#2": "769334093b6b8784"
+  },
+  "units": {
+    "internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go::TestRFC5701IPv6ExtCommunityFlags": "53601f8f0e06e47d",
+    "internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go::TestRFC5701IPv6ExtCommunityFlags#2": "53601f8f0e06e47d"
+  },
+  "verdict": "enforced"
+}

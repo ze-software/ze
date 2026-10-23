@@ -1,0 +1,13 @@
+{
+  "note": "vrrp judge 2026-09-29 (independent): the cascade confound is removed: the IPv6 group's IPv4 address now follows fe80::1, so the first-address-link-local rule cannot refuse it, and every refusal must carry the family error text ('is not an IPv6 address' / 'is not an IPv4 address'); same-family IPv4 and IPv6 lists validate. Records: revert validateGroup, both polarities.",
+  "requirement_sha": "0e09fb8c97fbaed5",
+  "tests": {
+    "internal/plugins/vrrp/groups_test.go::TestValidateVIPFamilyMatchesGroupFamily": "30e27105e8a9f202",
+    "internal/plugins/vrrp/groups_test.go::TestValidateVIPFamilyMatchesGroupFamily#2": "30e27105e8a9f202"
+  },
+  "units": {
+    "internal/plugins/vrrp/groups_test.go::TestValidateVIPFamilyMatchesGroupFamily": "d7ca52f2021d9d58",
+    "internal/plugins/vrrp/groups_test.go::TestValidateVIPFamilyMatchesGroupFamily#2": "d7ca52f2021d9d58"
+  },
+  "verdict": "enforced"
+}

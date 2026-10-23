@@ -1,0 +1,15 @@
+{
+  "note": "TestRFC3954SequenceCountsEveryExportPacket sends template-only, counter Data and flow Data packets from two encoders on one sender over two rounds and requires ten consecutive sequence values, so a template-only packet left out, or a per-encoder counter, goes red (recorded, sendTemplatePacket). Negative TestNetflow9SeqNumNotAdvancedOnSendError: an unsent packet does not advance the count of packets sent (recorded).",
+  "requirement_sha": "a8e194547afca21e",
+  "tests": {
+    "internal/plugins/flowexport/netflow9/rfc3954_adapter_test.go::TestNetflow9SeqNumNotAdvancedOnSendError": "a0a2734ee2e7877a",
+    "internal/plugins/flowexport/netflow9/rfc3954_flow_adapter_test.go::TestNetflow9FlowSeqNumPerPacket": "02cf4ff90ef1f4b1",
+    "internal/plugins/flowexport/netflow9/rfc3954_test.go::TestRFC3954SequenceCountsEveryExportPacket": "6f1d1ac6cc9c72ac"
+  },
+  "units": {
+    "internal/plugins/flowexport/netflow9/rfc3954_adapter_test.go::TestNetflow9SeqNumNotAdvancedOnSendError": "ba975a43e2467d77",
+    "internal/plugins/flowexport/netflow9/rfc3954_flow_adapter_test.go::TestNetflow9FlowSeqNumPerPacket": "80668a109a568110",
+    "internal/plugins/flowexport/netflow9/rfc3954_test.go::TestRFC3954SequenceCountsEveryExportPacket": "ac85259fe2819c50"
+  },
+  "verdict": "enforced"
+}

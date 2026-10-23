@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9190-2.3-3",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc9190_handshake_rules_test.go::TestRFC9190KeyMaterialIsOneFullLengthExport",
+    "unit-sha": "2e1e3bdc949ae502",
+    "claim-sha": "23b82a8fa7dc4790",
+    "route": "revert",
+    "producer": "internal/core/eap/eap_tls.go::exportEAPTLSKeys",
+    "producer-sha": "98b4d1240b3a48b9",
+    "break": "body of exportEAPTLSKeys replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9190-2.3-3",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc9190_handshake_rules_test.go::TestRFC9190KeysAreNotAShorterExport",
+    "unit-sha": "121ec94996ea0dd5",
+    "claim-sha": "42f994d466e2aa2a",
+    "route": "revert",
+    "producer": "internal/core/eap/eap_tls.go::exportEAPTLSKeys",
+    "producer-sha": "98b4d1240b3a48b9",
+    "break": "body of exportEAPTLSKeys replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,17 @@
+{
+  "note": "vrrp judge 2026-09-29 (independent): TestV2BoundaryPriority validates version-2 groups (version asserted at extraction): 1 and 254 accepted, 0 and 255 refused with the range-check text 'is out of range; configure 1..254' (so no other check can satisfy the case), and a v2 non-owner at 100 floors at 1 under decrements 99, 100, 4064. Records: revert validateGroup, both polarities.",
+  "requirement_sha": "395a0085cfbc094b",
+  "tests": {
+    "internal/plugins/vrrp/groups_test.go::TestBoundaryPriority": "30e27105e8a9f202",
+    "internal/plugins/vrrp/groups_test.go::TestBoundaryPriority#2": "30e27105e8a9f202",
+    "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2BoundaryPriority": "8b5d8c7a41e8e18e",
+    "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2BoundaryPriority#2": "8b5d8c7a41e8e18e"
+  },
+  "units": {
+    "internal/plugins/vrrp/groups_test.go::TestBoundaryPriority": "fcd4ad07247002db",
+    "internal/plugins/vrrp/groups_test.go::TestBoundaryPriority#2": "fcd4ad07247002db",
+    "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2BoundaryPriority": "4a24b4547d5df7e0",
+    "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2BoundaryPriority#2": "4a24b4547d5df7e0"
+  },
+  "verdict": "enforced"
+}

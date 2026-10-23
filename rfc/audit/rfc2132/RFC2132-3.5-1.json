@@ -1,0 +1,11 @@
+{
+  "note": "TestEmittedIPListOptionLengthsMultipleOfFour asserts the emitted router option length is a non-zero multiple of 4 and exactly 4 for the single configured router; a truncated encoding fails it. single-polarity annotated",
+  "requirement_sha": "0274e8f4d55624af",
+  "tests": {
+    "internal/plugins/dhcpserver/handler_test.go::TestEmittedIPListOptionLengthsMultipleOfFour": "3c71d2e2f2b59688"
+  },
+  "units": {
+    "internal/plugins/dhcpserver/handler_test.go::TestEmittedIPListOptionLengthsMultipleOfFour": "5fad7524f4a41bf2"
+  },
+  "verdict": "enforced"
+}

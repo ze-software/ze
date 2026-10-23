@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2328-13.4-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/lsdb/rfc2328_self_flush_test.go::TestRFC2328SelfOriginatedNoLongerWantedIsFlushed",
+    "unit-sha": "89d94d6a4a12c11e",
+    "claim-sha": "15e0c2853389fff7",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/lsdb/origination.go::flushReceivedSelfLSA",
+    "producer-sha": "8bd5c6a5c0fa13d3",
+    "break": "body of flushReceivedSelfLSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-13.4-3",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/lsdb/rfc2328_self_flush_test.go::TestRFC2328SelfOriginatedStillWantedIsNotFlushed",
+    "unit-sha": "8426a621798058cc",
+    "claim-sha": "652bd0e051a7b2bf",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/lsdb/origination.go::handleSelfReceived",
+    "producer-sha": "0571a19f035a98c7",
+    "break": "body of handleSelfReceived replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

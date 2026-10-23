@@ -1,0 +1,18 @@
+{
+  "note": "Re-judged 2026-10-18 (independent auditor, after d8e084c3eb). Section 3: \"Protected resources supporting metadata MUST make a JSON document containing metadata as specified in Section 2 available at a URL formed by inserting a well-known URI string into the protected resource's resource identifier between the host component and the path and/or query components, if any.\" Path clause: TestRFC9728WellKnownInsertedBetweenHostAndPath serves the document through ServeHTTP at /.well-known/oauth-protected-resource/mcp with resource https://mcp.example/mcp, advertises the same URL, and answers 404 at the suffix after the path and at the bare suffix. Query clause: TestRFC9728WellKnownInsertedBeforeQuery covers /mcp?tenant=a and the query-only identifier, and refuses the dropped query, suffix after path, bare suffix and suffix after query. The weak finding rested on the producer defect for https://mcp.example/mcp/, fixed in resourceOriginAndPath; that input is pinned at resourceMetadataURL and resourceMetadataPath by the RFC9728-3.1-3 units, not by this row's own units.",
+  "requirement_sha": "c9c94b41f41cee12",
+  "tests": {
+    "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728WellKnownInsertedBeforeQuery": "70cb12fbb65e4490",
+    "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728WellKnownInsertedBeforeQuery#2": "70cb12fbb65e4490",
+    "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728WellKnownInsertedBetweenHostAndPath": "70cb12fbb65e4490",
+    "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728WellKnownInsertedBetweenHostAndPath#2": "70cb12fbb65e4490"
+  },
+  "units": {
+    "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728WellKnownInsertedBeforeQuery": "6b81b9563f1f44a8",
+    "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728WellKnownInsertedBeforeQuery#2": "6b81b9563f1f44a8",
+    "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728WellKnownInsertedBetweenHostAndPath": "a1cc6fa1f8a9ab2d",
+    "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728WellKnownInsertedBetweenHostAndPath#2": "a1cc6fa1f8a9ab2d"
+  },
+  "upgrade_reason": "No tagged unit of this row changed. The earlier weak verdict rested on resourceOriginAndPath trimming the path's own trailing slash, a producer defect for one input that d8e084c3eb fixed (only a lone \"/\" path is dropped now). Re-read both tagged units at their bodies: they serve and refuse through ServeHTTP for the path, query and query-only identifiers, so a construction that appended, dropped or misplaced the suffix goes red. The trailing-slash input that this row's units do not carry is asserted, URL and served path, by TestRFC9728TerminatingSlashRemovedBeforeInsertion under RFC9728-3.1-3.",
+  "verdict": "enforced"
+}

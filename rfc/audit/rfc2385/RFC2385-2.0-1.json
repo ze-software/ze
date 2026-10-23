@@ -1,0 +1,13 @@
+{
+  "note": "Collateral source re-judgment 2026-10-02 after removing unrelated 2.0-6/3.0-1 and retired4.3-1 tags from the enclosing legacy test comment; executable assertions remain unchanged. RFC2385 Section2.0 says the key must be known by both ends. TestRFC2385MatchingKeysCarryASignedSession supplies the same key to RealListenerFactory through rfc2385Listener and to RealDialer, requires a completed connection, then requires exactly256KiB delivered. Negative TestRFC2385KeyOnOneEndOnlyCarriesNoSession keys only the listening socket, leaves the dialer unkeyed and requires a net.Error timeout; rfc2385DialDropped fails on a completed dial. A no-op key installation would make that negative connect and fail. Actual producer network.go controls call md5_linux.go::setTCPMD5Sig before bind/connect and propagate failures. This is Linux whole-stack key-sharing evidence, not an independent digest-composition claim. The legacy helper skips unsupported-kernel ENOPROTOOPT/EOPNOTSUPP, so skipped execution must never be reported as proof; the separately observed configured runtime now demonstrably supports keyed sockets. Source-only rejudgment; no new execution or discrimination completion claimed.",
+  "requirement_sha": "f60ce917acd3c4d8",
+  "tests": {
+    "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385KeyOnOneEndOnlyCarriesNoSession": "6928fc5dd6ae1436",
+    "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MatchingKeysCarryASignedSession": "6928fc5dd6ae1436"
+  },
+  "units": {
+    "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385KeyOnOneEndOnlyCarriesNoSession": "c5801fb420fa5fd9",
+    "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MatchingKeysCarryASignedSession": "b1d71be4493819d9"
+  },
+  "verdict": "enforced"
+}

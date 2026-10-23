@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2516-5.2-4",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516UnservedServiceNameIsRefused",
+    "unit-sha": "2b851e8bc29d3139",
+    "claim-sha": "83d4be0659b13afa",
+    "route": "revert",
+    "producer": "internal/component/l2tp/pppoe/server.go::handlePADI",
+    "producer-sha": "4f54524722d773c6",
+    "break": "body of handlePADI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2516-5.2-4",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516UnservedServiceNameIsRefused",
+    "unit-sha": "2b851e8bc29d3139",
+    "claim-sha": "85415edeba043805",
+    "route": "revert",
+    "producer": "internal/component/l2tp/pppoe/server.go::handlePADI",
+    "producer-sha": "4f54524722d773c6",
+    "break": "body of handlePADI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

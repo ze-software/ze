@@ -1,0 +1,12 @@
+{
+  "note": "RFC 5709 Section 3.2: 'Key storage SHOULD persist across a system restart, warm or cold'. The positive commits the key chain through config.LoadConfig, SerializeSet, storage.WriteCandidateVersion and PromoteCandidate into an on-disk store and closes it. It then reopens the store with storage.Open and ReadActiveConfig (the cmd/ze/hub/config_source.go read) and requires Key ID 1 to sign, with a neighbour holding the plaintext key accepting the Hello. A serializer, store or reader that lost or altered the key turns it red, and the untagged TestRFC5709AlteredStoredKeyRefused control shows the neighbour checks the key itself. The {single-polarity: positive} annotation is sound. The SHOULD constrains the implementation's storage, not a received input, so no input exists that Ze could accept or refuse in violation, and a negative could only be fault injection into the store. The annotation names PromoteCandidate, the producer the positive's discrimination record breaks.",
+  "requirement_sha": "800637344cba3628",
+  "tests": {
+    "internal/plugins/ospf/rfc5709_key_persistence_test.go::TestRFC5709KeysSurviveRestart": "b9534cface47886c"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc5709_key_persistence_test.go::TestRFC5709KeysSurviveRestart": "866dfe7e35dbfed3"
+  },
+  "upgrade_reason": "The weak verdict rested only on the former negative tag, which persisted a different key correctly and so did not violate this requirement. The author removed that tag and its record and annotated the row single-polarity positive. I re-read the positive unit and the new annotation. The positive already enforced the persistence claim, and the annotation's argument holds, so nothing remains to keep the verdict weak.",
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: sending the 16-octet Link-Local-only field for IPv4 NLRI when capability 77 plus RFC 8950 were not both negotiated. TestIPv4NLRINextHopIsThirtyTwoOctetsWithoutTheCombination asserts require.ErrorIs(err, ErrNextHopLinkLocalOnly) from resolveNextHop and assert.Len(field, 32) with Global then Link-Local; admitting the 16-octet form turns it red. The negative TestIPv4NLRILinkLocalOnlyNextHopNeedsTheCombination shows the 16-octet form is sent once both are negotiated.",
+  "requirement_sha": "d69e7eae06afe95f",
+  "tests": {
+    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_send_test.go::TestIPv4NLRILinkLocalOnlyNextHopNeedsTheCombination": "972da5b60cad2ef0",
+    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_send_test.go::TestIPv4NLRINextHopIsThirtyTwoOctetsWithoutTheCombination": "972da5b60cad2ef0"
+  },
+  "units": {
+    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_send_test.go::TestIPv4NLRILinkLocalOnlyNextHopNeedsTheCombination": "6a1150812b851024",
+    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_send_test.go::TestIPv4NLRINextHopIsThirtyTwoOctetsWithoutTheCombination": "efb9b6b9dfdfc4e8"
+  },
+  "verdict": "enforced"
+}

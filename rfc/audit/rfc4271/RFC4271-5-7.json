@@ -1,0 +1,21 @@
+{
+  "note": "Re-judged 2026-10-20 (independent auditor, authored none of the change). RFC 4271 Section 5: \"The sender of an UPDATE message SHOULD order path attributes within the UPDATE message in ascending order of attribute type.\" RFC 7606 (header: \"Updates: 1997, 4271, ...\") Section 5.1: \"The MP_REACH_NLRI or MP_UNREACH_NLRI attribute (if present) SHALL be encoded as the very first path attribute in an UPDATE message.\" f29e582ed4 changes the row text only: the verbatim Section 5 quote is unchanged and a Context note after (\u00a75) says RFC 7606 Section 5.1, which updates RFC 4271, puts MP_REACH_NLRI or MP_UNREACH_NLRI first and the ascending order applies after it. Checked against rfc/full/rfc7606.txt: RFC 7606 lists 4271 in Updates, and the note paraphrases the 5.1 bullet faithfully (it omits \"(if present)\", which does not change what it asserts, and adds no obligation). The note answers the finding of the previous judgement and now matches what the tagged units assert (requireAscendingAttributes skips a leading code 14 then requires strictly ascending codes; TestSplitMP_PreservesAscendingAttributeOrder and the reactor rails assert exact sequences after a leading 14/15). No code, test or claim changed; the claims already said \"after any leading MP_REACH_NLRI\", so no claim exceeds its assertion. Scope unchanged: originating builders and split preservation. Verdict stands.",
+  "requirement_sha": "a2e86fef25d2039d",
+  "tests": {
+    "internal/component/bgp/message/rfc4271_attr_order_send_test.go::TestRFC4271SentAttributesAscendEvenWithRawConfigAttributes": "32575342747d6802",
+    "internal/component/bgp/message/rfc4271_attr_order_send_test.go::TestRFC4271SentAttributesAscendEvenWithRawConfigAttributes#2": "32575342747d6802",
+    "internal/component/bgp/message/rfc4271_update_split_attr_order_test.go::TestSplitMP_PreservesAscendingAttributeOrder": "68f36ef303cb020d",
+    "internal/component/bgp/reactor/rfc4271_reactor_api_batch_attr_order_test.go::TestAnnounceBatchRail_AS4PathOrderedAgainstLargeCommunity": "8a0206de1d546ca7",
+    "internal/component/bgp/reactor/rfc4271_reactor_api_batch_attr_order_test.go::TestAnnounceBatchRail_AscendingTypeCodeOrder": "8a0206de1d546ca7",
+    "internal/component/bgp/reactor/rfc4271_reactor_api_batch_attr_order_test.go::TestAnnounceQueuedRail_AscendingTypeCodeOrder": "8a0206de1d546ca7"
+  },
+  "units": {
+    "internal/component/bgp/message/rfc4271_attr_order_send_test.go::TestRFC4271SentAttributesAscendEvenWithRawConfigAttributes": "dcd7d84bdee02b8b",
+    "internal/component/bgp/message/rfc4271_attr_order_send_test.go::TestRFC4271SentAttributesAscendEvenWithRawConfigAttributes#2": "dcd7d84bdee02b8b",
+    "internal/component/bgp/message/rfc4271_update_split_attr_order_test.go::TestSplitMP_PreservesAscendingAttributeOrder": "21b5826b2f0c1034",
+    "internal/component/bgp/reactor/rfc4271_reactor_api_batch_attr_order_test.go::TestAnnounceBatchRail_AS4PathOrderedAgainstLargeCommunity": "2323a119f1a1422a",
+    "internal/component/bgp/reactor/rfc4271_reactor_api_batch_attr_order_test.go::TestAnnounceBatchRail_AscendingTypeCodeOrder": "1609c528704f4af7",
+    "internal/component/bgp/reactor/rfc4271_reactor_api_batch_attr_order_test.go::TestAnnounceQueuedRail_AscendingTypeCodeOrder": "073483cbcad85930"
+  },
+  "verdict": "enforced"
+}

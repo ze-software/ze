@@ -1,0 +1,11 @@
+{
+  "note": "Re-read 2026-09-27. Forbidden: a Statistics Report with O=1. TestRFC8671StatisticsReportOnTheWireClearsTheOFlag fails when the report sendStatisticsReports puts on the collector pipe carries PeerFlagO for a peer whose header holds O, and asserts L survives. Single polarity is declared on the row.",
+  "requirement_sha": "aaffcefcbbe63f1b",
+  "tests": {
+    "internal/component/bgp/plugins/bmp/statistics_test.go::TestRFC8671StatisticsReportOnTheWireClearsTheOFlag": "b9942efbd6542cce"
+  },
+  "units": {
+    "internal/component/bgp/plugins/bmp/statistics_test.go::TestRFC8671StatisticsReportOnTheWireClearsTheOFlag": "2773a5c536e36680"
+  },
+  "verdict": "enforced"
+}

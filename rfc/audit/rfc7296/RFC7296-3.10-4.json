@@ -1,0 +1,13 @@
+{
+  "note": "SPI-bearing notify with AH/ESP round-trips; Protocol ID 0,1,4,255 beside an SPI refused with ErrNotifyProtocolID",
+  "requirement_sha": "b8b0031f06f5f459",
+  "tests": {
+    "internal/component/ike/wire/rfc7296_notify_test.go::TestNtfyChildSAProtocolIDIsAHOrESP": "e2c639ea8eaa7585",
+    "internal/component/ike/wire/rfc7296_notify_test.go::TestNtfyChildSAProtocolIDIsAHOrESP#2": "e2c639ea8eaa7585"
+  },
+  "units": {
+    "internal/component/ike/wire/rfc7296_notify_test.go::TestNtfyChildSAProtocolIDIsAHOrESP": "8acb152cff089bd4",
+    "internal/component/ike/wire/rfc7296_notify_test.go::TestNtfyChildSAProtocolIDIsAHOrESP#2": "8acb152cff089bd4"
+  },
+  "verdict": "enforced"
+}

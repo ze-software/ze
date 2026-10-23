@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC9252-7-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rib/pool/rfc9252_first_service_tlv_test.go::TestRFC9252FirstServiceTLVWins",
+    "unit-sha": "0bfa26fb005370d5",
+    "claim-sha": "189b217b0d38ce14",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/pool/srv6sid.go::ExtractSRv6SIDFull",
+    "producer-sha": "3970115401333034",
+    "break": "body of ExtractSRv6SIDFull replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9252-7-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/pool/rfc9252_first_service_tlv_test.go::TestRFC9252FirstServiceTLVWins",
+    "unit-sha": "0bfa26fb005370d5",
+    "claim-sha": "246834a5231acaf8",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/pool/srv6sid.go::ExtractSRv6SIDFull",
+    "producer-sha": "3970115401333034",
+    "break": "body of ExtractSRv6SIDFull replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9252-7-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rib/pool/rfc9252_service_tlv_first_instance_test.go::TestRFC9252SecondL2ServiceTLVIgnoredWhenFirstHasNoSID",
+    "unit-sha": "a7769b6fabde17da",
+    "claim-sha": "3f749d496c19d5f9",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/pool/srv6sid.go::ExtractSRv6SIDFull",
+    "producer-sha": "3970115401333034",
+    "break": "body of ExtractSRv6SIDFull replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

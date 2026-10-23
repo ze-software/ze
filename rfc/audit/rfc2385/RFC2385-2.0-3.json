@@ -1,0 +1,13 @@
+{
+  "note": "Independent post-lint judgment. RFC 2385 Section 2.0: 'A failing comparison must result in the segment being dropped and must not produce any response back to the sender.' TestRFC2385MalformedWireSignaturesAreDropped sends a SYN whose independently formed Kind 19 digest alone is corrupted and recalculates ordinary IP/TCP checksums; the same keyed RealListenerFactory receives an independently signed valid control on a distinct source port. rfc2385ExpectReply rejects any matching peer TCP response during the explicit 300ms window and requires SYNACK plus independently matching digest for the control. Non-TCP noise cannot bypass the deadline: a nonblocking receiveFrame is followed by the deadline check; EINTR/EAGAIN use errors.Is; len(packet) is checked before indexing. Capture errors return to the calling test's Fatal. The retained MatchingKeys negative requires a keyed handshake and exactly 256KiB delivered. This isolates invalid-signature silence from a dead path or rejecting everything; it is bounded packet evidence, not unlimited silence. Actual boundary: network.go::Listen installs the peer key before bind through md5_linux.go::setTCPMD5Sig and SetsockoptTCPMD5Sig; Linux TCP performs comparison and packet handling. Reviewed parent's job-network-wire-observers-privileged-cdc8e23e.log: malformed digest, missing, kind and length all PASS with a signed valid control after each 300ms silence window. Parent reports native Linux -race, only test executables elevated via -exec 'sudo -n', fixture-created private namespaces, no skips. Earlier unprivileged pre-body CAP_SYS_ADMIN/restore failure is not evidence. Current-unit native discrimination renewal remains owed; no new red is claimed.",
+  "requirement_sha": "9207f41bd81ad29e",
+  "tests": {
+    "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MatchingKeysCarryASignedSession": "6928fc5dd6ae1436",
+    "internal/core/network/rfc2385_md5_egress_integration_linux_test.go::TestRFC2385MalformedWireSignaturesAreDropped": "a690b5595c4752e6"
+  },
+  "units": {
+    "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MatchingKeysCarryASignedSession": "b1d71be4493819d9",
+    "internal/core/network/rfc2385_md5_egress_integration_linux_test.go::TestRFC2385MalformedWireSignaturesAreDropped": "cfb838787dcee9f7"
+  },
+  "verdict": "enforced"
+}

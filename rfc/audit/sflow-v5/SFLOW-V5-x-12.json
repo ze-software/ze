@@ -1,0 +1,13 @@
+{
+  "note": "positive: ifIndex 0x01000000 and 0xFFFFFFFF decode unchanged from expanded counter format 4 and flow format 3; negative: indexes at and above 2^24 never alias to their low 24 bits in source_id_index or if_counters.ifIndex",
+  "requirement_sha": "1406f4bb85de3721",
+  "tests": {
+    "internal/plugins/flowexport/sflow/sflow_v5_counter_test.go::TestSFlowCounterSampleSourceIDOverflow": "7769a8fe6e20a7e4",
+    "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5ExpandedEncodingForEveryInterface": "2b3441f1e34ff01f"
+  },
+  "units": {
+    "internal/plugins/flowexport/sflow/sflow_v5_counter_test.go::TestSFlowCounterSampleSourceIDOverflow": "0e3eb3f470ac17ec",
+    "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5ExpandedEncodingForEveryInterface": "71b07369ba38fc88"
+  },
+  "verdict": "enforced"
+}

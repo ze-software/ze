@@ -1,0 +1,13 @@
+{
+  "note": "(a) forbidden: acting on the single-connect flag after the second packet, by leaving the pool when a later reply clears it or by re-signalling it. (b) TestRFC8907FlagClearedOnLaterReplyIsIgnored requires one connection carrying three requests although replies after the first clear the flag; TestRFC8907ClientDoesNotResignalSingleConnect requires requests[1].Flags and requests[2].Flags == 0.",
+  "requirement_sha": "3c8fcc03a13867e6",
+  "tests": {
+    "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907ClientDoesNotResignalSingleConnect": "7c6845571ca0fb19",
+    "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907FlagClearedOnLaterReplyIsIgnored": "7c6845571ca0fb19"
+  },
+  "units": {
+    "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907ClientDoesNotResignalSingleConnect": "02fbdde1b4fee6b6",
+    "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907FlagClearedOnLaterReplyIsIgnored": "aa84d2976317ac93"
+  },
+  "verdict": "enforced"
+}

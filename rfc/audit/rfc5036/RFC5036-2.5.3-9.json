@@ -1,0 +1,15 @@
+{
+  "note": "The live positive requires acceptable Initialization followed by peer KeepAlive before Operational. Independent negative controls withhold KeepAlive or send it before any peer Initialization. The latter now requires fatal Shutdown 0x8000000a referencing KeepAlive 9, EOF and no recorded SessionUp after joining the worker; it no longer blesses premature KeepAlive silence. The former requires OPENREC and timeout-only silence. These distinguish both required peer messages.",
+  "requirement_sha": "42b6e4999220dac8",
+  "tests": {
+    "internal/plugins/ldp/rfc5036_openrec_test.go::TestRFC5036KeepAliveWithoutPeerInitializationNeverEstablishes": "79faa4a67fd8bdbe",
+    "internal/plugins/ldp/rfc5036_openrec_test.go::TestRFC5036OpenReceivedKeepAliveEstablishesSession": "79faa4a67fd8bdbe",
+    "internal/plugins/ldp/rfc5036_openrec_test.go::TestRFC5036OpenReceivedWaitsForPeerKeepAlive": "79faa4a67fd8bdbe"
+  },
+  "units": {
+    "internal/plugins/ldp/rfc5036_openrec_test.go::TestRFC5036KeepAliveWithoutPeerInitializationNeverEstablishes": "043234a8c4115477",
+    "internal/plugins/ldp/rfc5036_openrec_test.go::TestRFC5036OpenReceivedKeepAliveEstablishesSession": "0c5fee492c76e017",
+    "internal/plugins/ldp/rfc5036_openrec_test.go::TestRFC5036OpenReceivedWaitsForPeerKeepAlive": "42a39c5467a7d3c6"
+  },
+  "verdict": "enforced"
+}

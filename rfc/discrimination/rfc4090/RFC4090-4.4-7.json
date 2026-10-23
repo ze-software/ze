@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4090-4.4-7",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090NodeBitSetWhenNodeProtected",
+    "unit-sha": "3d749d857f3285b0",
+    "claim-sha": "fd4730f5692f9ba6",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/frr.go::rroProtectionFlags",
+    "producer-sha": "f485360d9b8e2b03",
+    "break": "body of rroProtectionFlags replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4090-4.4-7",
+    "polarity": "negative",
+    "unit": "internal/plugins/rsvpte/rfc4090_plr_flags_test.go::TestRFC4090LinkProtectionLeavesNodeBitClear",
+    "unit-sha": "b63e25a65c3aba80",
+    "claim-sha": "c4abcc2f31f01722",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/frr.go::rroProtectionFlags",
+    "producer-sha": "f485360d9b8e2b03",
+    "break": "body of rroProtectionFlags replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

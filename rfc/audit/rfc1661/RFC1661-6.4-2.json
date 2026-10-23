@@ -1,0 +1,17 @@
+{
+  "note": "Judge ppp4 2026-09-30. Re-read after the comment-only edit to TestRFC1661EchoReplyInOpened: it still asserts the Echo-Reply Magic-Number equals the local negotiated value (+); negatives and the Echo-Request half (TestEchoRequestCarriesNegotiatedMagic) unchanged. ze sends no Discard-Request (no producer).",
+  "requirement_sha": "88b6b79801644a6c",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestEchoRequestCarriesNegotiatedMagic": "034fb31a9e383e0e",
+    "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestEchoRequestCarriesNegotiatedMagic#2": "034fb31a9e383e0e",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661EchoReplyDoesNotMirrorPeerMagic": "9afaf002f0fd81ec",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661EchoReplyInOpened": "9afaf002f0fd81ec"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestEchoRequestCarriesNegotiatedMagic": "c6346cdc5edd76e3",
+    "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestEchoRequestCarriesNegotiatedMagic#2": "c6346cdc5edd76e3",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661EchoReplyDoesNotMirrorPeerMagic": "42086c5180046b91",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661EchoReplyInOpened": "2bb8cc697c6e3454"
+  },
+  "verdict": "enforced"
+}

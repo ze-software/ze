@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC4724-4.2-8",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/gr/rfc4724_capability_absent_test.go::TestRFC4724ReestablishedWithoutCapabilityPurgesOnTheStructuredPath",
+    "unit-sha": "5b6442a81a9a199a",
+    "claim-sha": "b3edbaf0b1808355",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/gr/gr.go::forgetGRCapability",
+    "producer-sha": "f2f626609337d487",
+    "break": "body of forgetGRCapability replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4724-4.2-8",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go::TestRFC4724ReestablishedWithForwardingStateKeepsTheRoutes",
+    "unit-sha": "e3c6dc7a5ba2987e",
+    "claim-sha": "c0e1839ae4d92e79",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/gr/gr_state.go::onSessionReestablished",
+    "producer-sha": "6d6a59547a1817ac",
+    "break": "body of onSessionReestablished replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4724-4.2-8",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go::TestRFC4724ReestablishedWithoutForwardingStatePurgesTheFamily",
+    "unit-sha": "08b39b9062390913",
+    "claim-sha": "1841d76ee75c3e9b",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/gr/gr.go::forgetGRCapability",
+    "producer-sha": "f2f626609337d487",
+    "break": "body of forgetGRCapability replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

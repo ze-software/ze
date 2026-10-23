@@ -1,0 +1,17 @@
+{
+  "note": "Rejudged 2026-09-29. Positive TestRFC8907AuthorUserLenCountsBytes: 'Alic\u00e9' writes user_len 6 (a rune count writes 5) and a 255-byte multibyte user writes 255, with the user bytes read back at that length. Negative TestRFC8907AuthorUserLenRefusesRuneCount: 128 runes / 256 bytes is refused, which a rune-count producer would accept.",
+  "requirement_sha": "5209b5d5e3658a33",
+  "tests": {
+    "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907AuthorUserLenCountsBytes": "fb302ebfa0d9b135",
+    "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907AuthorUserLenRefusesRuneCount": "fb302ebfa0d9b135",
+    "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907AuthorRequestRefusesUserItCannotMeasure": "226ab125232efc32",
+    "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907AuthorRequestUserLenMatchesUser": "226ab125232efc32"
+  },
+  "units": {
+    "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907AuthorUserLenCountsBytes": "e04032703e56317a",
+    "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907AuthorUserLenRefusesRuneCount": "84bcb0d1578609a5",
+    "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907AuthorRequestRefusesUserItCannotMeasure": "80e65480c6b77237",
+    "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907AuthorRequestUserLenMatchesUser": "e925a943e4a6cdab"
+  },
+  "verdict": "enforced"
+}

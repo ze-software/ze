@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC7011-8-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/flowexport/rfc7011_template_refresh_test.go::TestRFC7011EachActiveTemplateRetransmittedEveryInterval",
+    "unit-sha": "d2b04a3022ae2426",
+    "claim-sha": "2ff5a87d3f7af2a6",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/exporter.go::exportFlows",
+    "producer-sha": "12ac894cfc007af3",
+    "break": "body of exportFlows replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7011-8-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/flowexport/rfc7011_test.go::TestRFC7011TemplateNotRetransmittedBeforeInterval",
+    "unit-sha": "1070a997dda86172",
+    "claim-sha": "a526713aadcc967a",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/exporter.go::notifySnapshot",
+    "producer-sha": "760461d784934c54",
+    "break": "body of notifySnapshot replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7011-8-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/flowexport/rfc7011_test.go::TestRFC7011TemplateRetransmittedAtInterval",
+    "unit-sha": "0d5de9f926ac88e6",
+    "claim-sha": "0dd806212c88f792",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/exporter.go::notifySnapshot",
+    "producer-sha": "760461d784934c54",
+    "break": "body of notifySnapshot replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

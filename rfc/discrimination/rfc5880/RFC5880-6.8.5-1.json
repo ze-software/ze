@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC5880-6.8.5-1",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880EngineFailsSessionOnMissingEchoes",
+    "unit-sha": "e0b512f49c027c48",
+    "claim-sha": "dda7026ce221bce5",
+    "route": "revert",
+    "producer": "internal/component/bfd/session/timers.go::EchoFail",
+    "producer-sha": "7b7f943d237a89c2",
+    "break": "body of EchoFail replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.8.5-1",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoMissDetectedAndReported",
+    "unit-sha": "869ac56cce850b9d",
+    "claim-sha": "c4e048127e1ebb83",
+    "route": "revert",
+    "producer": "internal/component/bfd/session/timers.go::EchoFail",
+    "producer-sha": "7b7f943d237a89c2",
+    "break": "body of EchoFail replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.8.5-1",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoReturnClearsMissAndFailIsScoped",
+    "unit-sha": "a03504ac68e513cd",
+    "claim-sha": "3973fd621201e098",
+    "route": "revert",
+    "producer": "internal/component/bfd/session/timers.go::EchoFail",
+    "producer-sha": "7b7f943d237a89c2",
+    "break": "body of EchoFail replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,17 @@
+{
+  "note": "c23: add and remove now driven (TestRFC9552NativeDescriptorTLVAddRemoveWithdrawsFirst: TLV 260 added then removed, each time a del of exactly the previous NLRI precedes the add) beside the HEAD modify +/-; wire half TestRFC9552LinkStateWithdrawalLeavesInMPUnreach pins MP_UNREACH_NLRI = 40 04 47 + exact NLRI with empty Withdrawn Routes and NLRI. Records: revert on reconcilePeer and buildBatchWithdrawUpdate. Judge probes: skipping the withdraw when a replacement exists turned the add/remove unit red; routing AFI 16388 into Withdrawn Routes turned the wire unit red. The update-handler hop between them is generic and untagged. Sub-TLV changes alter the containing TLV value, the modify case",
+  "requirement_sha": "301c3e240cac344a",
+  "tests": {
+    "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeDescriptorChangeWithdrawsFirst": "de280b1c094e08d4",
+    "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeDescriptorChangeWithdrawsFirst#2": "de280b1c094e08d4",
+    "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeDescriptorTLVAddRemoveWithdrawsFirst": "de280b1c094e08d4",
+    "internal/component/bgp/reactor/rfc9552_withdraw_test.go::TestRFC9552LinkStateWithdrawalLeavesInMPUnreach": "910c9151d45186d2"
+  },
+  "units": {
+    "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeDescriptorChangeWithdrawsFirst": "4832ef0ecb775066",
+    "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeDescriptorChangeWithdrawsFirst#2": "4832ef0ecb775066",
+    "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeDescriptorTLVAddRemoveWithdrawsFirst": "f66977293338281f",
+    "internal/component/bgp/reactor/rfc9552_withdraw_test.go::TestRFC9552LinkStateWithdrawalLeavesInMPUnreach": "1a0584ba19674e67"
+  },
+  "verdict": "enforced"
+}

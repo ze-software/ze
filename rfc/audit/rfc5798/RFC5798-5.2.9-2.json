@@ -1,0 +1,13 @@
+{
+  "note": "vrrp judge 2026-09-29 (independent): TestValidateVIPFamilyMatchesGroupFamily now isolates both mixed-family cases: the IPv4 group lists 192.0.2.1 then 2001:db8::1, the IPv6 group lists fe80::1 then 192.0.2.1 (so the first-address-link-local rule cannot refuse it), and each refusal must carry the family error text; same-family lists validate. Records: revert validateGroup, both polarities.",
+  "requirement_sha": "0d3b9463a005ec4c",
+  "tests": {
+    "internal/plugins/vrrp/groups_test.go::TestValidateVIPFamilyMatchesGroupFamily": "30e27105e8a9f202",
+    "internal/plugins/vrrp/groups_test.go::TestValidateVIPFamilyMatchesGroupFamily#2": "30e27105e8a9f202"
+  },
+  "units": {
+    "internal/plugins/vrrp/groups_test.go::TestValidateVIPFamilyMatchesGroupFamily": "d7ca52f2021d9d58",
+    "internal/plugins/vrrp/groups_test.go::TestValidateVIPFamilyMatchesGroupFamily#2": "d7ca52f2021d9d58"
+  },
+  "verdict": "enforced"
+}

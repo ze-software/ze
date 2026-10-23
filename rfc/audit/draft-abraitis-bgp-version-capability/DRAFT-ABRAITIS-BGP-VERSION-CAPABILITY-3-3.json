@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: sending code 75 with Capability Length zero. TestSoftverCapabilityLengthIsGreaterThanZero asserts the Capability Value encodeValue produces for the default draft encoding is longer than zero (require.Greater) and is exactly the bytes of ZeVersion, so the Capability Length is len(ZeVersion); red on an empty value. The legacy encoding is an owner-approved deviation (D-13) and is not what this verdict covers. Negative: TestSoftverZeroCapabilityLengthIsRefused, decodeSoftwareVersion(nil) returns ok false and no version.",
+  "requirement_sha": "45c896fa3d686171",
+  "tests": {
+    "internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go::TestSoftverCapabilityLengthIsGreaterThanZero": "621a76bf24368516",
+    "internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go::TestSoftverZeroCapabilityLengthIsRefused": "621a76bf24368516"
+  },
+  "units": {
+    "internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go::TestSoftverCapabilityLengthIsGreaterThanZero": "4b3b698766c7e4cc",
+    "internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go::TestSoftverZeroCapabilityLengthIsRefused": "769f49d641646af0"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "ID_KEY_ID admitted only on octet-exact equality; prefix, suffix, case, trailing dot and sub-tree variants refused",
+  "requirement_sha": "9b37fec1f11fea70",
+  "tests": {
+    "internal/component/ike/engine/rfc4301_pad_exact_test.go::TestRFC4301PadOtherIDTypeAdmitsAnExactMatch": "c1e955304cec35bc",
+    "internal/component/ike/engine/rfc4301_pad_exact_test.go::TestRFC4301PadOtherIDTypeRefusesEverythingButExact": "c1e955304cec35bc"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc4301_pad_exact_test.go::TestRFC4301PadOtherIDTypeAdmitsAnExactMatch": "079043f57aa0f45a",
+    "internal/component/ike/engine/rfc4301_pad_exact_test.go::TestRFC4301PadOtherIDTypeRefusesEverythingButExact": "4430ddef76fb1aa7"
+  },
+  "verdict": "enforced"
+}

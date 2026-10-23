@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-10-01 (BGP c18 judge). Both clauses now driven. NEW TestRFC4271ExternalRoutePreferenceFromPolicyReachesRIBAndInternalPeers: an external route received without LOCAL_PREF through notifyMessageReceiver, with an import policy answering 'local-preference 200' (modifyingFilter seam), is dispatched to the RIB carrying LOCAL_PREF 200 (calculated by locally configured policy, the value extractCandidate reads to rank it); that dispatched payload on the general forward rail reaches an internal peer with LOCAL_PREF 200 and an external peer with none. NEW TestRFC4271ExternalRouteWithoutPolicyStillAdvertisesAPreferenceInternally: no import policy, RIB handed no LOCAL_PREF (never 200), internal peer still sent the default 100, never an omitted preference. Records: + on filter_ordered.go::runIngressPolicyChain, - on forward_local_pref.go::applyFactsLocalPref; semantic overlay (applyFactsLocalPref never adds the default toward internal peers) reddens the negative (c18-ov-515.log). HEAD rib units stay as the ranking half. Residual: the policy verdict comes through the seam, not a parsed filter config.",
+  "requirement_sha": "8c672a1a8f1ce19c",
+  "tests": {
+    "internal/component/bgp/plugins/rib/rfc4271_test.go::TestRFC4271DegreeOfPreferenceNotAHardcodedConstant": "0df229125a9cf20f",
+    "internal/component/bgp/plugins/rib/rfc4271_test.go::TestRFC4271ExternalRouteDegreeOfPreferenceFromLocalPolicy": "0df229125a9cf20f",
+    "internal/component/bgp/reactor/rfc4271_degree_of_preference_test.go::TestRFC4271ExternalRoutePreferenceFromPolicyReachesRIBAndInternalPeers": "315a739f73db9bac",
+    "internal/component/bgp/reactor/rfc4271_degree_of_preference_test.go::TestRFC4271ExternalRouteWithoutPolicyStillAdvertisesAPreferenceInternally": "315a739f73db9bac"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rib/rfc4271_test.go::TestRFC4271DegreeOfPreferenceNotAHardcodedConstant": "5fc5f0caeaad3e50",
+    "internal/component/bgp/plugins/rib/rfc4271_test.go::TestRFC4271ExternalRouteDegreeOfPreferenceFromLocalPolicy": "500dfbdcd473b3e3",
+    "internal/component/bgp/reactor/rfc4271_degree_of_preference_test.go::TestRFC4271ExternalRoutePreferenceFromPolicyReachesRIBAndInternalPeers": "43c55f48d016d5fd",
+    "internal/component/bgp/reactor/rfc4271_degree_of_preference_test.go::TestRFC4271ExternalRouteWithoutPolicyStillAdvertisesAPreferenceInternally": "fdaf0e303cee56f0"
+  },
+  "verdict": "enforced"
+}

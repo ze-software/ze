@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: a new NLRI not placed. handleReceivedStructured (the reactor UPDATE entry) asserts Len 1 then 2 and Get(10.0.0.0/8) with its own NEXT_HOP, red on a route not stored. Negative (the condition false, identical NLRI): Len stays 2 and the slot holds the newer NEXT_HOP, red on a route placed beside the existing one.",
+  "requirement_sha": "120e0e1395960bdf",
+  "tests": {
+    "internal/component/bgp/plugins/adj_rib_in/rfc4271_rib_test.go::TestRFC4271AdjRIBInPlacesNewRoute": "dee86a4c10627190",
+    "internal/component/bgp/plugins/adj_rib_in/rfc4271_rib_test.go::TestRFC4271AdjRIBInPlacesNewRoute#2": "dee86a4c10627190"
+  },
+  "units": {
+    "internal/component/bgp/plugins/adj_rib_in/rfc4271_rib_test.go::TestRFC4271AdjRIBInPlacesNewRoute": "fba8abfd85ae853d",
+    "internal/component/bgp/plugins/adj_rib_in/rfc4271_rib_test.go::TestRFC4271AdjRIBInPlacesNewRoute#2": "fba8abfd85ae853d"
+  },
+  "verdict": "enforced"
+}

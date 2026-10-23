@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC8907-4.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907PresentFieldsFollowZeroLengthOnes",
+    "unit-sha": "829efb8d5dfdc90d",
+    "claim-sha": "6c2d1f8a3059157a",
+    "route": "revert",
+    "producer": "internal/component/tacacs/author.go::UnmarshalAuthorResponse",
+    "producer-sha": "1d17a621ff401177",
+    "break": "body of UnmarshalAuthorResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8907-4.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907ZeroLengthFieldsAreNotPresent",
+    "unit-sha": "7d6f0d742e0cf61c",
+    "claim-sha": "11d3f28fbb1e0072",
+    "route": "revert",
+    "producer": "internal/component/tacacs/author.go::UnmarshalAuthorResponse",
+    "producer-sha": "1d17a621ff401177",
+    "break": "body of UnmarshalAuthorResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8907-4.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/tacacs/rfc8907_status_test.go::TestRFC8907PresentZeroByteIsNotReadAsAbsent",
+    "unit-sha": "d668b8a8163053c9",
+    "claim-sha": "89a77e4130b4fad9",
+    "route": "revert",
+    "producer": "internal/component/tacacs/authen.go::UnmarshalAuthenReply",
+    "producer-sha": "0dc41323122fcf8e",
+    "break": "body of UnmarshalAuthenReply replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8907-4.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/tacacs/rfc8907_status_test.go::TestRFC8907ZeroLengthDataIsReadAsAbsent",
+    "unit-sha": "ace8455615b9f324",
+    "claim-sha": "875c23e1a3f1e7c9",
+    "route": "revert",
+    "producer": "internal/component/tacacs/authen.go::UnmarshalAuthenReply",
+    "producer-sha": "0dc41323122fcf8e",
+    "break": "body of UnmarshalAuthenReply replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

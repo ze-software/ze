@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC5216-2.1.3-4",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc5216_eap_tls_alert_flight_test.go::TestEAPTLSAuthenticatorSendsTheAlertBeforeItReportsTheFailure",
+    "unit-sha": "898feadd52d22165",
+    "claim-sha": "afe5f9987f8ab310",
+    "route": "revert",
+    "producer": "internal/core/eap/eap.go::failure",
+    "producer-sha": "f09b8da03f973110",
+    "break": "body of failure replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5216-2.1.3-4",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc5216_eap_tls_alert_flight_test.go::TestEAPTLSSessionPutsTheAlertOnTheWireBeforeEAPFailure",
+    "unit-sha": "e78261db32daebb5",
+    "claim-sha": "23a3eebd5a4d70c8",
+    "route": "revert",
+    "producer": "internal/core/eap/eap_tls.go::Process",
+    "producer-sha": "a7122cb1288ea14a",
+    "break": "body of Process replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5216-2.1.3-4",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216AuthenticatorEndsTheConversationAfterItsFailure",
+    "unit-sha": "9a754e268cefc6a9",
+    "claim-sha": "81ddc7d71570e042",
+    "route": "revert",
+    "producer": "internal/core/eap/eap_tls.go::Process",
+    "producer-sha": "a7122cb1288ea14a",
+    "break": "body of Process replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5216-2.1.3-4",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc5216_termination_test.go::TestRFC5216ServerSendsNoEAPFailureWhenBothSidesAuthenticate",
+    "unit-sha": "0f7a6ddcfa53ebab",
+    "claim-sha": "a2d32a310c2ac8ef",
+    "route": "revert",
+    "producer": "internal/core/eap/eap_tls.go::Process",
+    "producer-sha": "a7122cb1288ea14a",
+    "break": "body of Process replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-09 after 180df07922 (Resolve returns *yang.Resolved, one Resolve per Loader; process, checkExtensions, checkPatterns, checkStructure still all run and join, refusals unchanged): cases unchanged. RFC 6.5: 'References to identifiers defined in external modules MUST be qualified with appropriate prefixes'. Prior judgement, still true: Re-judged 2026-10-09; unchanged cases. Clause 1: ModuleLoadRefused case \"external typedef without prefix\" (type port with ext imported) requires \"unknown type\", against Accepted case \"prefixed external and bare local\" (ext:port and bare local l load). Clause 2 (MAY): Accepted case \"extension with own and import prefix\" loads m:e under the module's own prefix. The submodule half of the MAY clause is not driven; a MAY imposes no refusal.",
+  "requirement_sha": "661d5d1d1920e101",
+  "tests": {
+    "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadAccepted": "26cd2578c196b22d",
+    "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadRefused": "26cd2578c196b22d"
+  },
+  "units": {
+    "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadAccepted": "205c57baa94df187",
+    "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadRefused": "9aa285d5018c168d"
+  },
+  "verdict": "enforced"
+}

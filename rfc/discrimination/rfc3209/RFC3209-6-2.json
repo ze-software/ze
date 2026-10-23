@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC3209-6-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/rfc3209_build_test.go::TestBuildResvRoundTrip",
+    "unit-sha": "63dfc2b05029fbe3",
+    "claim-sha": "4fbe801e63460012",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/wire.go::encodeStyle",
+    "producer-sha": "89df238e06c126d2",
+    "break": "body of encodeStyle replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3209-6-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/rfc3209_signaling_test.go::TestRFC3209EgressResvStyleIsSharedExplicit",
+    "unit-sha": "23ef9b735c6d1715",
+    "claim-sha": "741e5620a766d087",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/wire.go::encodeStyle",
+    "producer-sha": "89df238e06c126d2",
+    "break": "body of encodeStyle replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

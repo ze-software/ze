@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-09-30 after the D-8 (R39) fix: ReceiveHello now applies the section 3.2 table to a P2P adjacency that has seen TLV 240, and a new adjacency is created in StateDown so its first Hello reads the Down row. adjacency TestRFC5303NewAdjacencyReceivingUpDoesNotComeUp: a fresh adjacency receiving Initializing comes Up with SessionUp (positive, the Down row's Up cell); a fresh adjacency receiving Up with our System ID echoed stays Down with no session event and deleteAt=now (negative: the old code went straight Up), while an Initializing adjacency given the same Hello comes Up, so the refusal is the Down row's. Recorded +/- on fsm.go threeWayTableAction. circuit TestISISThreeWayNewAdjacencyStateDown stays tagged and proves only the neighbouring reporting rule (a Down record is reported Down); it carries no weight here.",
+  "requirement_sha": "68765c448c0420e5",
+  "tests": {
+    "internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go::TestRFC5303NewAdjacencyReceivingUpDoesNotComeUp": "138d0f89ea4cda2f",
+    "internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go::TestRFC5303NewAdjacencyReceivingUpDoesNotComeUp#2": "138d0f89ea4cda2f",
+    "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayNewAdjacencyStateDown": "d32edc6561822cd6",
+    "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayNewAdjacencyStateDown#2": "d32edc6561822cd6"
+  },
+  "units": {
+    "internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go::TestRFC5303NewAdjacencyReceivingUpDoesNotComeUp": "2c0598ab2e23c31c",
+    "internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go::TestRFC5303NewAdjacencyReceivingUpDoesNotComeUp#2": "2c0598ab2e23c31c",
+    "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayNewAdjacencyStateDown": "805fa799c2252101",
+    "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayNewAdjacencyStateDown#2": "805fa799c2252101"
+  },
+  "verdict": "enforced"
+}

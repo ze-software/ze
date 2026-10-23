@@ -1,0 +1,15 @@
+{
+  "note": "TLV overrun and trailing-octet attributes give AttributeDiscard with tombstone and MP_REACH kept; a well-formed attribute survives byte-identically",
+  "requirement_sha": "35965626c8d0610b",
+  "tests": {
+    "internal/component/bgp/reactor/rfc9552_test.go::TestRFC9552BGPLSAttributeTLVOverrunDiscarded": "5ea76a94f6a82a7c",
+    "internal/component/bgp/reactor/rfc9552_test.go::TestRFC9552BGPLSAttributeTrailingOctetsDiscarded": "5ea76a94f6a82a7c",
+    "internal/component/bgp/reactor/rfc9552_test.go::TestRFC9552BGPLSAttributeWellFormedIsKept": "5ea76a94f6a82a7c"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc9552_test.go::TestRFC9552BGPLSAttributeTLVOverrunDiscarded": "b050181a77cfc64b",
+    "internal/component/bgp/reactor/rfc9552_test.go::TestRFC9552BGPLSAttributeTrailingOctetsDiscarded": "abbf4bf2ed29c3d5",
+    "internal/component/bgp/reactor/rfc9552_test.go::TestRFC9552BGPLSAttributeWellFormedIsKept": "d355d6272aaf7240"
+  },
+  "verdict": "enforced"
+}

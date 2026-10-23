@@ -1,0 +1,19 @@
+{
+  "note": "Re-judged 2026-10-18 (independent auditor, after 9d4a5e79e2). Section 8.3: \"For configuration data, there are three windows when constraints MUST be enforced\": parsing, processing of <edit-config>, and validation. Parse and whole-tree validation stay proven through LoadConfig (TestRFC7950RunningDatastoreRefusesAViolationAtParse, ...AfterParse). The earlier finding (edit-processing window untested) is answered for the web editor: TestRFC7950WebCommitWritesAValidEdit (SetValue, CommitNow, file carries the edit) and TestRFC7950WebCommitRefusesAConstraintViolation (a value the YANG type accepts and the internal-plugin ze:validate rule refuses: CommitNow errors naming the value and the file is byte-identical), driven through newEditorFactory(ValidateContent), the factory service_web.go installs. Residual: the SSH CLI editor commit, which carries no pre-commit validator and is refused only at reload, and the gNMI/API session commit are not driven by a tagged unit.",
+  "requirement_sha": "a37c845b0879394f",
+  "tests": {
+    "cmd/ze/hub/rfc7950_web_commit_validation_test.go::TestRFC7950WebCommitRefusesAConstraintViolation": "49a840f6902a77aa",
+    "cmd/ze/hub/rfc7950_web_commit_validation_test.go::TestRFC7950WebCommitWritesAValidEdit": "49a840f6902a77aa",
+    "internal/component/config/rfc7950_datastore_test.go::TestRFC7950RunningDatastoreAcceptsAValidConfig": "881ae8cd8e73bade",
+    "internal/component/config/rfc7950_datastore_test.go::TestRFC7950RunningDatastoreRefusesAViolationAfterParse": "881ae8cd8e73bade",
+    "internal/component/config/rfc7950_datastore_test.go::TestRFC7950RunningDatastoreRefusesAViolationAtParse": "881ae8cd8e73bade"
+  },
+  "units": {
+    "cmd/ze/hub/rfc7950_web_commit_validation_test.go::TestRFC7950WebCommitRefusesAConstraintViolation": "f9f6416368621660",
+    "cmd/ze/hub/rfc7950_web_commit_validation_test.go::TestRFC7950WebCommitWritesAValidEdit": "b7d267364e6c5988",
+    "internal/component/config/rfc7950_datastore_test.go::TestRFC7950RunningDatastoreAcceptsAValidConfig": "a4dd1bf5400ad5d7",
+    "internal/component/config/rfc7950_datastore_test.go::TestRFC7950RunningDatastoreRefusesAViolationAfterParse": "cd1fa735402534b4",
+    "internal/component/config/rfc7950_datastore_test.go::TestRFC7950RunningDatastoreRefusesAViolationAtParse": "66e928625a6ded56"
+  },
+  "verdict": "enforced"
+}

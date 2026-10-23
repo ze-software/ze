@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC5880-6.8.1-14",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/engine/rfc5880_release_test.go::TestRFC5880ReleasedSessionAskedAgainKeepsRemoteState",
+    "unit-sha": "9e2973f513649e99",
+    "claim-sha": "88eb27e84f38de84",
+    "route": "revert",
+    "producer": "internal/component/bfd/engine/engine.go::reviveReleasedLocked",
+    "producer-sha": "bcb92415ff19add0",
+    "break": "body of reviveReleasedLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.8.1-14",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/engine/rfc5880_release_test.go::TestRFC5880ReleasedSessionPreservedForOneDetectionTime",
+    "unit-sha": "b70a43ee58dd8f5c",
+    "claim-sha": "59b056954d1a343b",
+    "route": "revert",
+    "producer": "internal/component/bfd/engine/engine.go::retireReleasedLocked",
+    "producer-sha": "956f1206310ba91c",
+    "break": "body of retireReleasedLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.8.1-14",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/session/rfc5880_test.go::TestRFC5880StatePreservedForOneDetectionTime",
+    "unit-sha": "9ccbe7deeed73455",
+    "claim-sha": "f0901754efbfe509",
+    "route": "revert",
+    "producer": "internal/component/bfd/session/timers.go::CheckDetection",
+    "producer-sha": "1386b1ea81534415",
+    "break": "body of CheckDetection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

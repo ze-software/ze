@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC4760-3-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4760_peer_rib_routes_nexthop_test.go::TestBuildRIBRouteUpdate_RefusesANextHopWithNoWireForm",
+    "unit-sha": "acb0b85d8d63e425",
+    "claim-sha": "96d493b633a228d8",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/peer_rib_routes.go::buildRIBRouteUpdate",
+    "producer-sha": "3f86f9f49b4aa5c6",
+    "break": "body of buildRIBRouteUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4760-3-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/rib/rfc4760_commit_nexthop_test.go::TestCommitRefusesAnAnnounceWhoseNextHopHasNoWireForm",
+    "unit-sha": "4ab0cf06a1ba4e24",
+    "claim-sha": "e9849b5a6cb88e27",
+    "route": "revert",
+    "producer": "internal/core/bgp/attribute/mpnlri.go::ValidateNextHops",
+    "producer-sha": "0e386620ae01bb4b",
+    "break": "body of ValidateNextHops replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4760-3-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/rib/rfc4760_commit_nexthop_test.go::TestCommitVPNAnnounceCarriesTheRFC4364NextHop",
+    "unit-sha": "64a02b07aec97276",
+    "claim-sha": "4d453c8e7684cd35",
+    "route": "revert",
+    "producer": "internal/core/bgp/attribute/mpnlri.go::nextHopOctets",
+    "producer-sha": "a68667871b730772",
+    "break": "body of nextHopOctets replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

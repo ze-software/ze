@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 5798 Section 5.2.9 says \"For IPv6, the first address must be the IPv6 link-local address associated with the virtual router.\" TestSendAdvertIPv6LeadsWithLinkLocal changed only by the checksum-mode plumbing (a Checksum: packet.ChecksumRFC9568 field added to the GroupSpec, AdvertParams or packet.Local literal, or the mode argument added to packet.FillChecksum); every assertion and every isolating input is byte-for-byte the same; octets 8-24 are still required to be fe80::1 ahead of 2001:db8::1. Verdict unchanged.",
+  "requirement_sha": "eb1fb10a958a22dd",
+  "tests": {
+    "internal/plugins/vrrp/groups_test.go::TestValidateIPv6LinkLocal": "30e27105e8a9f202",
+    "internal/plugins/vrrp/groups_test.go::TestValidateIPv6LinkLocal#2": "30e27105e8a9f202",
+    "internal/plugins/vrrp/rfc5798_tx_order_test.go::TestAdvertParamsIPv6LeadWithLinkLocal": "b5407d538ad7522d",
+    "internal/plugins/vrrp/transport/rfc5798_linklocal_first_test.go::TestSendAdvertIPv6LeadsWithLinkLocal": "64d33d3ecaec2c17"
+  },
+  "units": {
+    "internal/plugins/vrrp/groups_test.go::TestValidateIPv6LinkLocal": "a29abb886acdd502",
+    "internal/plugins/vrrp/groups_test.go::TestValidateIPv6LinkLocal#2": "a29abb886acdd502",
+    "internal/plugins/vrrp/rfc5798_tx_order_test.go::TestAdvertParamsIPv6LeadWithLinkLocal": "91e98dff7acc9deb",
+    "internal/plugins/vrrp/transport/rfc5798_linklocal_first_test.go::TestSendAdvertIPv6LeadsWithLinkLocal": "1f906bae2b4b9262"
+  },
+  "verdict": "enforced"
+}

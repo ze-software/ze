@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC4301-4.1-9",
+    "polarity": "positive",
+    "unit": "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySADEntryCarriesWhatTheKernelLooksUp",
+    "unit-sha": "123ec0767cac9453",
+    "claim-sha": "a2cef497b7a8a50f",
+    "route": "revert",
+    "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
+    "producer-sha": "20b949de8627ad06",
+    "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4301-4.1-9",
+    "polarity": "negative",
+    "unit": "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySADEntryIsRefusedRatherThanInstalledWrong",
+    "unit-sha": "2a10a734b6939a7b",
+    "claim-sha": "4d4b0b930be9ad7c",
+    "route": "revert",
+    "producer": "internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams",
+    "producer-sha": "20b949de8627ad06",
+    "break": "body of xfrmStateFromParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4301-4.1-9",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc4301_parallel_sa_linux_test.go::TestRFC4301ParallelSAsAreHeldToTheOneSharedPolicy",
+    "unit-sha": "f73d979416ec7638",
+    "claim-sha": "994755b2c5c7ec77",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/child.go::childPolicies",
+    "producer-sha": "2c0d9a26dc943e66",
+    "break": "body of childPolicies replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4301-4.1-9",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc4301_parallel_sa_linux_test.go::TestRFC4301ParallelSAsWithOneSelectorAreEachReceived",
+    "unit-sha": "fcbd6fe8cf0659fe",
+    "claim-sha": "62d03c4aa9cdaaf6",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/child.go::childPolicies",
+    "producer-sha": "2c0d9a26dc943e66",
+    "break": "body of childPolicies replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

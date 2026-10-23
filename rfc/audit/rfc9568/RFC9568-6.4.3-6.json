@@ -1,0 +1,19 @@
+{
+  "note": "vrrp judge 2026-09-29 (independent, continuations 1-2): Re-read: the unit's body is unchanged; only the 6.4.2 and 6.4.3 Virtual Router MAC proxy tags left it for TestVRRPBackupDoesNotForwardVirtualMACFrames, so the verdict stands. Prior note: vrrp judge 2026-09-29 re-read after RFC5798 tags were added to TestActiveAddressOwnerAcceptsWhateverAcceptModeSays (body unchanged): owner installs and accepts (instance and acceptfilter tests), Accept_Mode True hands no suppression, and a non-owner with Accept_Mode False gets a suppression: both conditions and the contrast are asserted",
+  "requirement_sha": "6ac828c3cd42a97d",
+  "tests": {
+    "internal/plugins/vrrp/acceptfilter_test.go::TestActiveAddressOwnerAcceptsWhateverAcceptModeSays": "ac94e88781e5c08d",
+    "internal/plugins/vrrp/acceptfilter_test.go::TestActiveNonOwnerWithAcceptModeFalseSuppressesLocalDelivery": "ac94e88781e5c08d",
+    "internal/plugins/vrrp/acceptfilter_test.go::TestActiveNonOwnerWithAcceptModeTrueAcceptsLocalDelivery": "ac94e88781e5c08d",
+    "internal/plugins/vrrp/instance_test.go::TestInstanceOwnerStartupGoesMaster": "90d279832a92de75",
+    "internal/plugins/vrrp/instance_test.go::TestInstanceStartupNonOwnerGoesBackup": "90d279832a92de75"
+  },
+  "units": {
+    "internal/plugins/vrrp/acceptfilter_test.go::TestActiveAddressOwnerAcceptsWhateverAcceptModeSays": "ae0d8891a374b6cf",
+    "internal/plugins/vrrp/acceptfilter_test.go::TestActiveNonOwnerWithAcceptModeFalseSuppressesLocalDelivery": "4eac158ec037028e",
+    "internal/plugins/vrrp/acceptfilter_test.go::TestActiveNonOwnerWithAcceptModeTrueAcceptsLocalDelivery": "8ef0833629bc1166",
+    "internal/plugins/vrrp/instance_test.go::TestInstanceOwnerStartupGoesMaster": "e1a785d3aeb30340",
+    "internal/plugins/vrrp/instance_test.go::TestInstanceStartupNonOwnerGoesBackup": "7e4b071c14d787cc"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "Sentence: if the received Magic-Number equals the one last sent, a Configure-Nak MUST be sent specifying a different Magic-Number value. (a) Acking or Rejecting the equal value, or Naking with the same value: TestEqualMagicNumberIsNaked goes red on len(acks) != 0, len(rejects) != 0, offered == localMagic (and offered == 0). Negative: a different value is Acked unchanged.",
+  "requirement_sha": "910cf82f88998ca1",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1661_magic_choice_test.go::TestEqualMagicNumberIsNaked": "9f240fbd5fc8e9de",
+    "internal/component/l2tp/ppp/rfc1661_magic_choice_test.go::TestEqualMagicNumberIsNaked#2": "9f240fbd5fc8e9de"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1661_magic_choice_test.go::TestEqualMagicNumberIsNaked": "49c0203728e52dac",
+    "internal/component/l2tp/ppp/rfc1661_magic_choice_test.go::TestEqualMagicNumberIsNaked#2": "49c0203728e52dac"
+  },
+  "verdict": "enforced"
+}

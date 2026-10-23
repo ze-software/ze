@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5282-3.1-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADSendIVDoesNotRepeatForARepeatedMessage",
+    "unit-sha": "694a1fa2cc3a4331",
+    "claim-sha": "8f1895aa0a2d3af3",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/auth.go::buildSKMessageAEADWithMsgID",
+    "producer-sha": "2bcba23be754aec5",
+    "break": "body of buildSKMessageAEADWithMsgID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5282-3.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADSendIVIsUniquePerKey",
+    "unit-sha": "7221c426f1e968d1",
+    "claim-sha": "40cd1f78966362f8",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/auth.go::buildSKMessageAEADWithMsgID",
+    "producer-sha": "2bcba23be754aec5",
+    "break": "body of buildSKMessageAEADWithMsgID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

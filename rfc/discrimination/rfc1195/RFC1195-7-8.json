@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC1195-7-8",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/rfc1195_auth_test.go::TestRFC1195KeyOutsideReceiveSetRefused",
+    "unit-sha": "633ff95a68359057",
+    "claim-sha": "0119ef50ed764fd9",
+    "route": "revert",
+    "producer": "internal/plugins/isis/auth_keystore.go::acceptKeys",
+    "producer-sha": "a1e1c4ca74caf1aa",
+    "break": "body of acceptKeys replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1195-7-8",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/rfc1195_auth_test.go::TestRFC1195OneTransmitPasswordManyReceivePasswords",
+    "unit-sha": "53fb8c8bd2e0dbdb",
+    "claim-sha": "090a0ee85dd8138c",
+    "route": "revert",
+    "producer": "internal/plugins/isis/auth_keystore.go::acceptKeys",
+    "producer-sha": "a1e1c4ca74caf1aa",
+    "break": "body of acceptKeys replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

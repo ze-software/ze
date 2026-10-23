@@ -1,0 +1,13 @@
+{
+  "note": "(a) forbidden: advertising an index-encoded PeerNode SID without advertising the SRGB through the RFC 9085 SR Capabilities TLV. (b) TestRFC9086NativePeerIndexAdvertisesSRGB asserts the Node NLRI attribute carries TLV 1034 with range 100 and base label 16000 alongside the index SID 7; TestRFC9086NativePeerIndexRequiresSRGB asserts an index SID with no SRGB is refused and no command is emitted.",
+  "requirement_sha": "b8c18495cecfb380",
+  "tests": {
+    "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB": "6bdfb4d672851af6",
+    "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerIndexRequiresSRGB": "6bdfb4d672851af6"
+  },
+  "units": {
+    "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB": "00d1c00c5318c067",
+    "internal/component/bgp/plugins/ls_export/rfc9086_epe_test.go::TestRFC9086NativePeerIndexRequiresSRGB": "a11f931e027cc40e"
+  },
+  "verdict": "enforced"
+}

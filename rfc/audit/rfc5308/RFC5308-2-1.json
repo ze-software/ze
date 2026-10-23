@@ -1,0 +1,13 @@
+{
+  "note": "(a) forbidden: a fe80::/64 link-local prefix advertised in TLV 236. (b) TestISISOriginateTLV236 decodes the originated LSP and errors on got[\"fe80::/64\"] present (negative); the same unit requires the two routable prefixes present with their metric and X bit (positive). The unit runs NonLinkLocalV6Prefixes, the filter lsdb_wiring.go calls on every TLV 236 origination, then Originator.Originate, so breaking the filter reddens it.",
+  "requirement_sha": "dc968dffb6613bd3",
+  "tests": {
+    "internal/plugins/isis/lsdb/rfc5308_origination_ipv6_test.go::TestISISOriginateTLV236": "6f31da93ea46f1e7",
+    "internal/plugins/isis/lsdb/rfc5308_origination_ipv6_test.go::TestISISOriginateTLV236#2": "6f31da93ea46f1e7"
+  },
+  "units": {
+    "internal/plugins/isis/lsdb/rfc5308_origination_ipv6_test.go::TestISISOriginateTLV236": "2678bb98cfcba512",
+    "internal/plugins/isis/lsdb/rfc5308_origination_ipv6_test.go::TestISISOriginateTLV236#2": "2678bb98cfcba512"
+  },
+  "verdict": "enforced"
+}

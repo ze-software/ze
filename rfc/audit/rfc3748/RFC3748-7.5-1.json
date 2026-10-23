@@ -1,0 +1,17 @@
+{
+  "note": "Peer clause: TestRFC3748EAPTLSValidatesItsPerPacketMIC. Server clause: TestRFC3748TheServerValidatesThePeersMIC: a clean flight ends in EAP-Success; one octet changed in the peer's second record-bearing Response (the TLS 1.3 encrypted client flight, so the octet sits under the AEAD tag) never draws EAP-Success. Ze's authenticator is the authentication server, no pass-through mode exists.",
+  "requirement_sha": "8cc87d68fc0fd5ed",
+  "tests": {
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748TheServerValidatesThePeersMIC": "8ca42a58d78f22be",
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748TheServerValidatesThePeersMIC#2": "8ca42a58d78f22be",
+    "internal/core/eap/rfc3748_walk_test.go::TestRFC3748EAPTLSValidatesItsPerPacketMIC": "08e46d8cbdf7058a",
+    "internal/core/eap/rfc3748_walk_test.go::TestRFC3748EAPTLSValidatesItsPerPacketMIC#2": "08e46d8cbdf7058a"
+  },
+  "units": {
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748TheServerValidatesThePeersMIC": "c20da329926c37cc",
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748TheServerValidatesThePeersMIC#2": "c20da329926c37cc",
+    "internal/core/eap/rfc3748_walk_test.go::TestRFC3748EAPTLSValidatesItsPerPacketMIC": "d597baa1e5357773",
+    "internal/core/eap/rfc3748_walk_test.go::TestRFC3748EAPTLSValidatesItsPerPacketMIC#2": "d597baa1e5357773"
+  },
+  "verdict": "enforced"
+}

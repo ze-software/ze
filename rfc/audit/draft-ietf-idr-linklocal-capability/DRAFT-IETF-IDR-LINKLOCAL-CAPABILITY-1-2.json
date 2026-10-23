@@ -1,0 +1,9 @@
+{
+  "code": {
+    "internal/component/bgp/plugins/rib/rib_bestchange.go::mpNextHopAddr": "61bd9af677748384",
+    "internal/component/bgp/reactor/config_nexthop_form.go::applyLinkLocal": "16cfde244a2843ee"
+  },
+  "note": "Judged 2026-10-01 (BGP c20 judge, R58(c)). Row text is a verbatim span of draft -06 Section 1 (lowercase must, ruled to bind the implementation). Gap confirmed at the producers: mpNextHopAddr (rib_bestchange.go) turns the received Next Hop octets into a bare netip.Addr with no zone and no interface, and nothing in the BGP best-change path sets one (no WithZone on that path); on the send side applyLinkLocal (config_nexthop_form.go) parses session link-local as a plain address with no tie to the session's interface. The {gap} annotation states both halves.",
+  "requirement_sha": "79bb0f7a5e2b1ea8",
+  "verdict": "unimplemented"
+}

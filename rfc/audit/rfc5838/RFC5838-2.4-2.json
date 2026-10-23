@@ -1,0 +1,11 @@
+{
+  "note": "Forbidden behaviour (a): the base IPv6-unicast AF discarding a Hello whose AF-bit is clear. (b) TestAFBitIgnoredDefaultAF dispatches an AF-bit-less Hello to the default IPv6-unicast engine and asserts neighborSnapshot() has one row, so an applied AF-bit check goes red. Single-polarity marker holds (the base AF has no reject path).",
+  "requirement_sha": "ba63887227c48a43",
+  "tests": {
+    "internal/plugins/ospf/rfc5838_multiaf_engine_test.go::TestAFBitIgnoredDefaultAF": "1f18d003751f1799"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc5838_multiaf_engine_test.go::TestAFBitIgnoredDefaultAF": "2c0595984ef71387"
+  },
+  "verdict": "enforced"
+}

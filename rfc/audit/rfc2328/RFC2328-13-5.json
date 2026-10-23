@@ -1,0 +1,15 @@
+{
+  "note": "TestRFC2328ReplacedInstanceLeavesSenderRetransmitList queues the old instance for 3.3.3.3, then the newer instance arrives FROM 3.3.3.3 so no flood can overwrite that entry; after install the list is empty for the key and a retransmit tick sends nothing on eth1. A no-op removeFromAllRetransmit turns it red while the older positive stays green. Negative: a duplicate leaves other lists intact (unchanged).",
+  "requirement_sha": "c8b29952038365ae",
+  "tests": {
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328DuplicateKeepsOtherRetransmitLists": "c4cd81c5b8b7e97a",
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328ReplacedInstanceLeavesRetransmitLists": "c4cd81c5b8b7e97a",
+    "internal/plugins/ospf/lsdb/rfc2328_replaced_retransmit_test.go::TestRFC2328ReplacedInstanceLeavesSenderRetransmitList": "3bee9ad489b41a5b"
+  },
+  "units": {
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328DuplicateKeepsOtherRetransmitLists": "8514659f5519acd1",
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328ReplacedInstanceLeavesRetransmitLists": "44cfc94f8a021574",
+    "internal/plugins/ospf/lsdb/rfc2328_replaced_retransmit_test.go::TestRFC2328ReplacedInstanceLeavesSenderRetransmitList": "3c3c388a971a927a"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "Judge 2026-09-30 (access cont 10, independent). + TestRFC5176InvalidEAPPacketCauseNeverSent: no response on any of the 15 paths carries 202. - TestRFC5176InvalidEAPPacketCauseNeverSentForAnEAPRequest (R1(b)): an injected 202 is never echoed (401 only), and a Disconnect with a malformed EAP-Message gets [401], never 202. Records observed red.",
+  "requirement_sha": "bc03b14600f3e37f",
+  "tests": {
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176InvalidEAPPacketCauseNeverSent": "9b6dfc18b62099d5",
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176InvalidEAPPacketCauseNeverSentForAnEAPRequest": "9b6dfc18b62099d5"
+  },
+  "units": {
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176InvalidEAPPacketCauseNeverSent": "807fe11eaec464b2",
+    "internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go::TestRFC5176InvalidEAPPacketCauseNeverSentForAnEAPRequest": "243cbd889bf77f60"
+  },
+  "verdict": "enforced"
+}

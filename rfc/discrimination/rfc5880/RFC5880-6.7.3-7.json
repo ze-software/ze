@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC5880-6.7.3-7",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/rfc5880_key_management_config_test.go::TestRFC5880KeyManagementConfigEntryAcceptsASCIIStrings",
+    "unit-sha": "d352840efffbda8a",
+    "claim-sha": "3f0bdbb0d7e0bdd1",
+    "route": "revert",
+    "producer": "internal/component/bfd/config.go::parseAuthConfig",
+    "producer-sha": "d2efdf939368ce6c",
+    "break": "body of parseAuthConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.7.3-7",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/rfc5880_key_management_config_test.go::TestRFC5880KeyManagementConfigEntryKeepsEveryASCIICharacter",
+    "unit-sha": "abf5f477f35f2e3e",
+    "claim-sha": "87d0cb388c711b29",
+    "route": "revert",
+    "producer": "internal/component/bfd/config.go::parseAuthConfig",
+    "producer-sha": "d2efdf939368ce6c",
+    "break": "body of parseAuthConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.7.3-7",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/rfc5880_test.go::TestRFC5880KeyManagementAcceptsASCIIStrings",
+    "unit-sha": "f109f893460ed8bc",
+    "claim-sha": "8977b875794c0ebd",
+    "route": "revert",
+    "producer": "internal/component/bfd/config.go::parseAuthConfig",
+    "producer-sha": "d2efdf939368ce6c",
+    "break": "body of parseAuthConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

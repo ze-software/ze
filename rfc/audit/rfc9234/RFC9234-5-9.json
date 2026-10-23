@@ -1,0 +1,11 @@
+{
+  "note": "single-polarity positive. non-compliant: egress OTC carrying a value other than the local (internet-facing) AS. TestOTCEgressStampLocalASN asserts the stamped value is dest.LocalAS 64999, not src AS 65001 nor dest peer AS 65002",
+  "requirement_sha": "0d1b5fb6f1229d3e",
+  "tests": {
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressStampLocalASN": "7b0a9e434ba435f3"
+  },
+  "units": {
+    "internal/component/bgp/plugins/role/rfc9234_otc_test.go::TestOTCEgressStampLocalASN": "d3c54cf60f14c3ea"
+  },
+  "verdict": "enforced"
+}

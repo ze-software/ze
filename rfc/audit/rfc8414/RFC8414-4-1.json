@@ -1,0 +1,17 @@
+{
+  "note": "Row now quotes the lead-in plus step 1 (remove JSON-applied escaping). Metadata path: TestRFC8414MetadataIssuerUnescapedBeforeCompare + matches a document issuer written with escaped solidi and a u0062 escape against the unescaped configured https://host/ab, which goes red if fetchASMetadata compared JSON text; - refuses a configured issuer holding the literal escape, which goes red if the configured side were also unescaped. That negative's configured value is not the full raw JSON text (its solidi are unescaped), so on the metadata path the text-compare violation is caught by the positive alone. JWT path: TestRFC8414IssuerCompareUnescapesJSON / TestRFC8414IssuerCompareNotOnJSONText isolate it exactly (expected issuer equal to the raw JSON text is refused with errJWTIssuerMismatch). Steps 2 and 3 stay on 4-2 and 4-3.",
+  "requirement_sha": "ce737695e61b6971",
+  "tests": {
+    "internal/component/mcp/rfc8414_jwt_test.go::TestRFC8414IssuerCompareNotOnJSONText": "18e93e5bd1969dca",
+    "internal/component/mcp/rfc8414_jwt_test.go::TestRFC8414IssuerCompareUnescapesJSON": "18e93e5bd1969dca",
+    "internal/component/mcp/rfc8414_metadata_request_test.go::TestRFC8414MetadataIssuerUnescapedBeforeCompare": "2f4d742cea5bceef",
+    "internal/component/mcp/rfc8414_metadata_request_test.go::TestRFC8414MetadataIssuerUnescapedBeforeCompare#2": "2f4d742cea5bceef"
+  },
+  "units": {
+    "internal/component/mcp/rfc8414_jwt_test.go::TestRFC8414IssuerCompareNotOnJSONText": "b7fb969414b3da0c",
+    "internal/component/mcp/rfc8414_jwt_test.go::TestRFC8414IssuerCompareUnescapesJSON": "6b3721d6e0a191d1",
+    "internal/component/mcp/rfc8414_metadata_request_test.go::TestRFC8414MetadataIssuerUnescapedBeforeCompare": "0031ac2f4fec9f97",
+    "internal/component/mcp/rfc8414_metadata_request_test.go::TestRFC8414MetadataIssuerUnescapedBeforeCompare#2": "0031ac2f4fec9f97"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: a Loc-RIB Peer Up without the type-3 TLV, a name other than 'global' for the zero-distinguisher default instance, a value outside 1..255 bytes, or a Peer Down missing the TLV. internal/component/bgp/plugins/bmp/rfc9069_test.go::TestLocRIBPeerUpAndPeerDownCarryTheGlobalTableName: Distinguisher 0, exactly one TLV, assertTableNameTLV (type, value, 1..255, length field) on Peer Up and on the Peer Down after reason 6. Negative ::TestMonitoredPeerUpCarriesNoTableNameTLV. 'If a name is configured' is conditional on a table-name leaf ze does not have.",
+  "requirement_sha": "aacb50e870ac85da",
+  "tests": {
+    "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestLocRIBPeerUpAndPeerDownCarryTheGlobalTableName": "5fb0f6e9f181c421",
+    "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestMonitoredPeerUpCarriesNoTableNameTLV": "5fb0f6e9f181c421"
+  },
+  "units": {
+    "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestLocRIBPeerUpAndPeerDownCarryTheGlobalTableName": "93e75135c927872e",
+    "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestMonitoredPeerUpCarriesNoTableNameTLV": "f02c65177836e26f"
+  },
+  "verdict": "enforced"
+}

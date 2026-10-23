@@ -1,0 +1,11 @@
+{
+  "note": "(a) forbidden: the sender emits a non-zero Service SID Flags octet. (b) TestEncodePrefixSIDSRv6_ReservedFieldsZero asserts ps[24]==0. The quote covers the sender half only; the receiver half (unknown flags MUST be ignored) has no row. Single-polarity marker present.",
+  "requirement_sha": "a705c750ebccad4f",
+  "tests": {
+    "internal/component/bgp/config/routeattr_test.go::TestEncodePrefixSIDSRv6_ReservedFieldsZero": "2be9754894f7f33d"
+  },
+  "units": {
+    "internal/component/bgp/config/routeattr_test.go::TestEncodePrefixSIDSRv6_ReservedFieldsZero": "1157e5aaecaac365"
+  },
+  "verdict": "enforced"
+}

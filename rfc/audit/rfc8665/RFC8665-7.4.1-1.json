@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged 2026-09-29 (independent judge). TestRFC8665AdjSIDWithdrawnThroughNeighborSink reports the neighbor down through the production sink (neighborEventSinkValue().NeighborDown -> bfdNeighborLost -> srAdjNeighborLost), then asserts the Adj-SID is gone from the store the Extended Link LSA reads, its pop entry removed, its SRLB label freed and one self-LSA re-origination queued (revert record on srAdjNeighborLost). The queue is also fed by the sink's own onChange, so the unit proves the withdrawal is in the store before a re-origination that is certainly queued, which is what carries it to the area. The wrong-adjacency negative stands.",
+  "requirement_sha": "16fad9c3653817ba",
+  "tests": {
+    "internal/plugins/ospf/rfc8665_adjsid_withdraw_test.go::TestRFC8665AdjSIDWithdrawnThroughNeighborSink": "b123d9392ac3d3ba",
+    "internal/plugins/ospf/rfc8665_test.go::TestRFC8665AdjSIDWithdrawKeyedByAdjacency": "7f2eeb6dac97643c",
+    "internal/plugins/ospf/rfc8665_test.go::TestRFC8665AdjSIDWithdrawnWhenAdjacencyDrops": "7f2eeb6dac97643c"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc8665_adjsid_withdraw_test.go::TestRFC8665AdjSIDWithdrawnThroughNeighborSink": "2f34f5b92fc130a9",
+    "internal/plugins/ospf/rfc8665_test.go::TestRFC8665AdjSIDWithdrawKeyedByAdjacency": "7072de1ffc544495",
+    "internal/plugins/ospf/rfc8665_test.go::TestRFC8665AdjSIDWithdrawnWhenAdjacencyDrops": "9df4eb44f66a7c72"
+  },
+  "verdict": "enforced"
+}

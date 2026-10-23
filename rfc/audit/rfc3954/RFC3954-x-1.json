@@ -1,0 +1,17 @@
+{
+  "note": "Both halves now proven. Exporter ordering: TestExporterTemplateFailureRetriesBeforeData (counter and flow subtests) goes red if data leaves after a failed Template or the retry transcript is not template-then-data (recorded, notifySnapshot). Corresponding Template: TestRFC3954RestartedEncodersSendTemplateBeforeData drives fresh real CounterEncoder and FlowEncoder and requires every Data FlowSet 256/257/258 to follow a packet whose Template FlowSet defines that ID, and each ID to be seen, so an encoder omitting 258 goes red (recorded, EncodeFlowTemplate). TestRFC3954TemplateFlowSetPrecedesItsDataInOnePacket pins same-packet order (recorded). The Options Template clause is vacuous: Ze emits no Options Data. TestWriteExportPacketWithTemplate stays a count-only floor and carries no record.",
+  "requirement_sha": "7e3aed98162306b2",
+  "tests": {
+    "internal/plugins/flowexport/netflow9/rfc3954_encoder_test.go::TestWriteExportPacketWithTemplate": "969513badc07322a",
+    "internal/plugins/flowexport/netflow9/rfc3954_test.go::TestRFC3954RestartedEncodersSendTemplateBeforeData": "6f1d1ac6cc9c72ac",
+    "internal/plugins/flowexport/netflow9/rfc3954_test.go::TestRFC3954TemplateFlowSetPrecedesItsDataInOnePacket": "6f1d1ac6cc9c72ac",
+    "internal/plugins/flowexport/rfc3954_exporter_lifecycle_test.go::TestExporterTemplateFailureRetriesBeforeData": "506b02f76d337928"
+  },
+  "units": {
+    "internal/plugins/flowexport/netflow9/rfc3954_encoder_test.go::TestWriteExportPacketWithTemplate": "bba2887a5f92539b",
+    "internal/plugins/flowexport/netflow9/rfc3954_test.go::TestRFC3954RestartedEncodersSendTemplateBeforeData": "f43501eb33e40def",
+    "internal/plugins/flowexport/netflow9/rfc3954_test.go::TestRFC3954TemplateFlowSetPrecedesItsDataInOnePacket": "fdc4ae23302d6666",
+    "internal/plugins/flowexport/rfc3954_exporter_lifecycle_test.go::TestExporterTemplateFailureRetriesBeforeData": "a5a3c267e9f24278"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,22 @@
+{
+  "code": {
+    "internal/plugins/vrrp/instance.go::doSendAdvert": "bfd3bc0b7e18da21",
+    "internal/plugins/vrrp/transport/backend_linux.go::openV6": "12a28f73c0a2cae8",
+    "internal/plugins/vrrp/transport/transport.go::encodeLocked": "f11ab57274c81c2c"
+  },
+  "note": "Re-judged 2026-10-18 (independent auditor, after d2abad70ad). RFC 5798 Section 7.2 says \"The following operations MUST be performed when transmitting a VRRP packet: - Fill in the VRRP packet fields with the appropriate virtual router configuration state - Compute the VRRP checksum\", and Section 5.2.8 defines that checksum over \"the entire VRRP message starting with the version field and a \\\"pseudo-header\\\"\" for both families. Fill clause: proven. TestTransmittedAdvertFilledFromInstanceState reds when doSendAdvert sends the configured instead of the effective priority, TestSendAdvertFillsFieldsAndChecksum pins every field through encodeLocked, TestEncodeGoldenV3IPv4 pins WriteTo, and the TestBoundaryInterval negative pins Validate refusing an interval the field cannot carry. IPv4 checksum clause (opt-in rfc5798-compatible, since RFC 9568 obsoletes the default form): proven. Overlay mutants run 2026-10-18 over the whole vrrp tree: doSendAdvert hard-coded to ChecksumRFC9568 reds the compatible subtest of TestTransmittedAdvertFilledFromInstanceState (the gap the previous verdict reported is closed); encodeLocked ignoring p.Checksum, or skipping FillChecksum, reds TestSendAdvertFillsFieldsAndChecksum, whose expected sum the test computes itself; G2c 0xDEFB was re-derived independently. IPv6 checksum clause: unproven by any tagged unit. On IPv6 the kernel computes the checksum because openV6 (backend_linux.go) sets IPV6_CHECKSUM 6; the transport unit test uses a fake backend and its IPv6 frame carries no checksum, and the IPv6 run of TestTransmittedAdvertFilledFromInstanceState calls FillChecksum in the test body, not on the production path. Removing that setsockopt leaves every tagged test green (reasoned: only TestIntegrationOpenInstanceSocketOptions and TestIntegrationAdvertV6OnWire, integration-tagged QEMU units, read IPV6_CHECKSUM; the overlay run could not build because another session's internal/component/iface/config_apply.go has undefined applyVLANMTU). Fix: tag TestIntegrationOpenInstanceSocketOptions or TestIntegrationAdvertV6OnWire positive for this row and take its QEMU discrimination record. Summary nit: the {superseded} marker names only RFC9568-7.2-1, but this row also carries the checksum step whose successor is RFC9568-7.2-5. The discrimination records on this row are body-panic replacements and prove reachability only; the deciding logic is proven by the mutants above. No tagged unit is a QEMU-guest unit.",
+  "requirement_sha": "fda7506724dfb32e",
+  "tests": {
+    "internal/plugins/vrrp/advert_fill_rfc5798_test.go::TestTransmittedAdvertFilledFromInstanceState": "e7d5de8bf303bc1f",
+    "internal/plugins/vrrp/packet/packet_test.go::TestBoundaryInterval": "15a7697300d1b17c",
+    "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV3IPv4": "15a7697300d1b17c",
+    "internal/plugins/vrrp/transport/advert_fill_checksum_test.go::TestSendAdvertFillsFieldsAndChecksum": "4b5ce6713448d3aa"
+  },
+  "units": {
+    "internal/plugins/vrrp/advert_fill_rfc5798_test.go::TestTransmittedAdvertFilledFromInstanceState": "fcb838baf697dbc9",
+    "internal/plugins/vrrp/packet/packet_test.go::TestBoundaryInterval": "edf2c3f01a20da48",
+    "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV3IPv4": "f665d3473b49bc02",
+    "internal/plugins/vrrp/transport/advert_fill_checksum_test.go::TestSendAdvertFillsFieldsAndChecksum": "84111e91bd9a4e83"
+  },
+  "verdict": "weak"
+}

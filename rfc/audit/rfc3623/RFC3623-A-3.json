@@ -1,0 +1,17 @@
+{
+  "note": "c23 re-judge (independent judge). Positive: TestRFC3623OriginatedGraceLSATLVOctets asserts the originated OSPFv2 Grace-LSA carries 00 02 00 01 02 00 00 00 (Type 2, Length 1, reason 2, padded) at octets 8..15 on both p2p and broadcast, and the p2p body is exactly these 16 octets; overlay GraceTLVReason=5 reds it, old units green (o2). Negative under owner ruling 2: a period-only body (600) through graceOnReceive is ignored, same session, same grace end, control with both TLVs applied; decoder overlay without the hasReason check reds only missing-restart-reason (o4). Observed-red revert records on EncodeGraceLSA and DecodeGraceLSA. HEAD codec units supplementary.",
+  "requirement_sha": "11574bd702f7ecb8",
+  "tests": {
+    "internal/plugins/ospf/packet/rfc3623_grace_lsa_test.go::TestGraceLSADecodeMissingMandatory": "2046191c51acf560",
+    "internal/plugins/ospf/packet/rfc3623_grace_lsa_test.go::TestGraceLSARoundTrip": "2046191c51acf560",
+    "internal/plugins/ospf/rfc3623_grace_tlv_octets_test.go::TestRFC3623HelperIgnoresGraceLSAMissingMandatoryTLV": "88abc512204c607b",
+    "internal/plugins/ospf/rfc3623_grace_tlv_octets_test.go::TestRFC3623OriginatedGraceLSATLVOctets": "88abc512204c607b"
+  },
+  "units": {
+    "internal/plugins/ospf/packet/rfc3623_grace_lsa_test.go::TestGraceLSADecodeMissingMandatory": "7a8f6b101f474687",
+    "internal/plugins/ospf/packet/rfc3623_grace_lsa_test.go::TestGraceLSARoundTrip": "808f71ac20696da4",
+    "internal/plugins/ospf/rfc3623_grace_tlv_octets_test.go::TestRFC3623HelperIgnoresGraceLSAMissingMandatoryTLV": "c8441ff4dbe08dc1",
+    "internal/plugins/ospf/rfc3623_grace_tlv_octets_test.go::TestRFC3623OriginatedGraceLSATLVOctets": "df00db538804e21c"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "NP set through the real OSPFv3 carriage and installer: push 16009, swap 18009->16009, no pop entry; negative shows NP clear does pop",
+  "requirement_sha": "598e389887c7dcad",
+  "tests": {
+    "internal/plugins/ospf/rfc8666_test.go::TestRFC8666NoPHPKeepsPrefixSIDOnStack": "4729a15d3adeda26",
+    "internal/plugins/ospf/rfc8666_test.go::TestRFC8666PHPPopsPrefixSID": "4729a15d3adeda26"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc8666_test.go::TestRFC8666NoPHPKeepsPrefixSIDOnStack": "8beab265bab70aba",
+    "internal/plugins/ospf/rfc8666_test.go::TestRFC8666PHPPopsPrefixSID": "c6ed225cb7ebf033"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,11 @@
+{
+  "note": "Forbidden: computing the checksum of an odd-length message without one trailing zero pad octet. Red on it: TestRFC792ChecksumOddLength builds an 11-octet echo and asserts checksumOnesFold == 0xffff, which fails if icmpChecksum dropped the last octet or padded it into the low byte. The receive side is Linux; ze verifies no received ICMP checksum. Single-polarity marker on the row.",
+  "requirement_sha": "4ee4c5d0dfa6a4c7",
+  "tests": {
+    "internal/core/probe/icmp_test.go::TestRFC792ChecksumOddLength": "e4aad773ce5cac19"
+  },
+  "units": {
+    "internal/core/probe/icmp_test.go::TestRFC792ChecksumOddLength": "530a366561c98c54"
+  },
+  "verdict": "enforced"
+}

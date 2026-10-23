@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC2865-1.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/radius/rfc2865_walk_test.go::TestAdminAccessRequestCarriesNoUnofferedServiceAttribute",
+    "unit-sha": "8e205ff286e78a5f",
+    "claim-sha": "dd9a911d0ec45283",
+    "route": "revert",
+    "producer": "internal/component/radius/authenticator.go::Authenticate",
+    "producer-sha": "cce9fdbace347544",
+    "break": "body of Authenticate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

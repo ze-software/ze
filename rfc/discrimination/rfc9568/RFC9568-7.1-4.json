@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC9568-7.1-4",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/rfc9568_rx_interface_v3_test.go::TestRxV3VRIDCheckedOnTheReceivingInterface",
+    "unit-sha": "6a612c60200cb43e",
+    "claim-sha": "8e9d705839367161",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/engine.go::dispatchRx",
+    "producer-sha": "64cbc500ec8b2c45",
+    "break": "body of dispatchRx replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9568-7.1-4",
+    "polarity": "negative",
+    "unit": "internal/plugins/vrrp/rfc9568_rx_interface_v3_test.go::TestRxV3VRIDCheckedOnTheReceivingInterface",
+    "unit-sha": "6a612c60200cb43e",
+    "claim-sha": "ea7a946e4ad7047e",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/instance.go::lookup",
+    "producer-sha": "40a818702be52449",
+    "break": "body of lookup replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9568-7.1-4",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go::TestRxAdvertScopedToReceivingInterface",
+    "unit-sha": "fdb504bb0624f1b3",
+    "claim-sha": "8c17c374dfceca0a",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/transport/backend_linux.go::openV4",
+    "producer-sha": "c97d0a6c20eda0c8",
+    "break": "body of openV4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9568-7.1-4",
+    "polarity": "negative",
+    "unit": "internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go::TestRxAdvertScopedToReceivingInterface",
+    "unit-sha": "fdb504bb0624f1b3",
+    "claim-sha": "52744d34625721a9",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/transport/backend_linux.go::openRawIP",
+    "producer-sha": "d25b5c54b893dffa",
+    "break": "body of openRawIP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,13 @@
+{
+  "note": "(a) forbidden: two active START records sharing a task_id, or a task_id reused in START before its STOP. (b) TestRFC8907ActiveTaskIDsAreDistinct fails on any repeat among sixteen START records with no STOP; TestRFC8907TaskIDNeverReappears asserts a used task_id never reappears in eight later STARTs.",
+  "requirement_sha": "df76e6f29fee70c7",
+  "tests": {
+    "internal/component/tacacs/rfc8907_accounting_test.go::TestRFC8907ActiveTaskIDsAreDistinct": "d6e03486f174ca78",
+    "internal/component/tacacs/rfc8907_accounting_test.go::TestRFC8907TaskIDNeverReappears": "d6e03486f174ca78"
+  },
+  "units": {
+    "internal/component/tacacs/rfc8907_accounting_test.go::TestRFC8907ActiveTaskIDsAreDistinct": "90c19ddae7d90427",
+    "internal/component/tacacs/rfc8907_accounting_test.go::TestRFC8907TaskIDNeverReappears": "7ffffa09894b2f87"
+  },
+  "verdict": "enforced"
+}

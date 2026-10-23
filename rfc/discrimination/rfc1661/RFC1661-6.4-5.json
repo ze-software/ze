@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC1661-6.4-5",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1661_magic_choice_test.go::TestMagicNumberChosenBeforeRequested",
+    "unit-sha": "1c374e1ac6ffc9d6",
+    "claim-sha": "dce6656b85c03771",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/lcp_options.go::BuildLocalConfigRequest",
+    "producer-sha": "c5b8fc036c365fd4",
+    "break": "body of BuildLocalConfigRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1661-6.4-5",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/ppp/rfc1661_magic_choice_test.go::TestMagicNumberChosenBeforeRequested",
+    "unit-sha": "1c374e1ac6ffc9d6",
+    "claim-sha": "03bb7ad5c286b897",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/lcp_options.go::BuildLocalConfigRequest",
+    "producer-sha": "c5b8fc036c365fd4",
+    "break": "body of BuildLocalConfigRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

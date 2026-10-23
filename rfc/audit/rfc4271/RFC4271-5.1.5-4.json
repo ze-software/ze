@@ -1,0 +1,13 @@
+{
+  "note": "SelectBest cases: higher wins, lower loses, equal falls through to AS_PATH; an inverted comparison fails two cases",
+  "requirement_sha": "348658b3349e1f64",
+  "tests": {
+    "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_LocalPref": "ae729071cdaf7dce",
+    "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_LocalPref#2": "ae729071cdaf7dce"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_LocalPref": "e03b2a69b22d9639",
+    "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_LocalPref#2": "e03b2a69b22d9639"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: the server answering an M-set Response with data or with a non-EAP-TLS Request. TestRFC5216ServerAcksEachPeerFragmentWithNoData errors unless each M-set Response is followed by a Request of Type 13 with TypeData exactly 0x00, and errors if the peer's last fragment is answered with an ACK instead of the closing flight.",
+  "requirement_sha": "7738541e62929b56",
+  "tests": {
+    "internal/core/eap/rfc5216_fragment_ack_test.go::TestRFC5216ServerAcksEachPeerFragmentWithNoData": "2d0ca832c5975065",
+    "internal/core/eap/rfc5216_fragment_ack_test.go::TestRFC5216ServerAcksEachPeerFragmentWithNoData#2": "2d0ca832c5975065"
+  },
+  "units": {
+    "internal/core/eap/rfc5216_fragment_ack_test.go::TestRFC5216ServerAcksEachPeerFragmentWithNoData": "efb34dfac9000d6f",
+    "internal/core/eap/rfc5216_fragment_ack_test.go::TestRFC5216ServerAcksEachPeerFragmentWithNoData#2": "efb34dfac9000d6f"
+  },
+  "verdict": "enforced"
+}

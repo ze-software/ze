@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC8669-4.1-15",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc8669_error_log_test.go::TestRFC8669CleanPrefixSIDNoErrorLog",
+    "unit-sha": "359e26c296111fc4",
+    "claim-sha": "081b25265afeffcd",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
+    "producer-sha": "66c0f3d227b0c731",
+    "break": "line 187: \"return wu, message.RFC7606ActionNone, nil\" -\u003e \"s.logRFC7606Error(\\\"attribute-discard\\\", 40, \\\"spurious\\\"); return wu, message.RFC7606ActionNone, nil\""
+  },
+  {
+    "rid": "RFC8669-4.1-15",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc8669_error_log_test.go::TestRFC8669InvalidPrefixSIDDiscardBesideAnotherLogsBoth",
+    "unit-sha": "99eb98efc1e5ec61",
+    "claim-sha": "dcba0a79e70b1cfa",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_rfc7606_errlog.go::logRFC7606Discards",
+    "producer-sha": "e3f12aa2ee83bc33",
+    "break": "line 106: \"entry.Code, result.DiscardDescriptions[i]\" -\u003e \"result.AttrCode, result.Description\""
+  },
+  {
+    "rid": "RFC8669-4.1-15",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc8669_error_log_test.go::TestRFC8669InvalidPrefixSIDLoggedAtDefaultLevel",
+    "unit-sha": "3e255e706f30cd01",
+    "claim-sha": "9c83d57f404f4910",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_rfc7606_errlog.go::logRFC7606Error",
+    "producer-sha": "7cd28c5f1c4a9539",
+    "break": "body of logRFC7606Error replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

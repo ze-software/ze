@@ -1,0 +1,13 @@
+{
+  "note": "(a) forbidden: an AH native-host implementation that gives the local sender no PMTU signal for the AH overhead. (b) TestAHPathMTUIsSignaledToTheLocalSender (real XFRM): the IPV6_MTU of a raw OSPF socket must drop by at least ahHeaderOctets after the installer writes the AH state and policy (protected >= clear is red), and return to the clear value when the state is removed. Ze is transport-mode host only, so the internal-signalling alternative the sentence gives native hosts is the one owed; ICMP generation for forwarded traffic is not exercised.",
+  "requirement_sha": "cb85941d72f6e4c2",
+  "tests": {
+    "internal/plugins/ospf/rfc4302_ipsec_pmtu_integration_linux_test.go::TestAHPathMTUIsSignaledToTheLocalSender": "402fac7c3f341aa8",
+    "internal/plugins/ospf/rfc4302_ipsec_pmtu_integration_linux_test.go::TestAHPathMTUIsSignaledToTheLocalSender#2": "402fac7c3f341aa8"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc4302_ipsec_pmtu_integration_linux_test.go::TestAHPathMTUIsSignaledToTheLocalSender": "a8d02622804657f7",
+    "internal/plugins/ospf/rfc4302_ipsec_pmtu_integration_linux_test.go::TestAHPathMTUIsSignaledToTheLocalSender#2": "a8d02622804657f7"
+  },
+  "verdict": "enforced"
+}

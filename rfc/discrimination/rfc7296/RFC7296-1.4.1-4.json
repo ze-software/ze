@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-1.4.1-4",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_delete_test.go::TestDelCrossingDeleteAnswersWithoutAPairedDelete",
+    "unit-sha": "a996fd924d7b8ade",
+    "claim-sha": "470a148f1a78a449",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/delete.go::crossOwnDelete",
+    "producer-sha": "396f690db0c9b659",
+    "break": "body of crossOwnDelete replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-1.4.1-4",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_delete_test.go::TestDelWithoutOwnDeleteTheSameRequestIsPaired",
+    "unit-sha": "cf977b3bc07ee511",
+    "claim-sha": "ccca5f0591ab6b7f",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/delete.go::crossOwnDelete",
+    "producer-sha": "396f690db0c9b659",
+    "break": "body of crossOwnDelete replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

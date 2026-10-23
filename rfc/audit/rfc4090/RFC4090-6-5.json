@@ -1,0 +1,13 @@
+{
+  "note": "in-use bit clear on the relayed RESV while armed and up, set only after link failure redirected traffic Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 6 and the enforced verdict holds unchanged.",
+  "requirement_sha": "4fcb307aadde9a38",
+  "tests": {
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090InUseOnlyWhileRedirecting": "3fb9184431da8daf",
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090InUseOnlyWhileRedirecting#2": "3fb9184431da8daf"
+  },
+  "units": {
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090InUseOnlyWhileRedirecting": "a355e00f5e171f3c",
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090InUseOnlyWhileRedirecting#2": "a355e00f5e171f3c"
+  },
+  "verdict": "enforced"
+}

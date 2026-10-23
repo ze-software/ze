@@ -1,0 +1,13 @@
+{
+  "note": "Judge ppp5 2026-09-30. Unit gained the RFC1332-2.1-4 tags only; body unchanged. TestIPMTUInstalledFromNegotiatedMRU fails unless exactly one MTU is installed on ppp7 and it equals the peer's negotiated MRU 1400 (the largest IP packet sent = the Information-field maximum); 1400 differs from the 1500 default and MaxMRU, so a producer ignoring the negotiated MRU is red (forced-input negative, R1 b). Recorded afterLCPOpen revert.",
+  "requirement_sha": "0fa5e41e13adac0d",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1332_mtu_test.go::TestIPMTUInstalledFromNegotiatedMRU": "5311f4ad1daacab2",
+    "internal/component/l2tp/ppp/rfc1332_mtu_test.go::TestIPMTUInstalledFromNegotiatedMRU#2": "5311f4ad1daacab2"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1332_mtu_test.go::TestIPMTUInstalledFromNegotiatedMRU": "c9b1748acb3cdb86",
+    "internal/component/l2tp/ppp/rfc1332_mtu_test.go::TestIPMTUInstalledFromNegotiatedMRU#2": "c9b1748acb3cdb86"
+  },
+  "verdict": "enforced"
+}

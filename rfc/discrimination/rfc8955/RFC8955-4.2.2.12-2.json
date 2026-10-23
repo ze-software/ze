@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC8955-4.2.2.12-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/nlri/flowspec/rfc8955_text_encode_reserved_test.go::TestRFC8955TextFragmentIPv4ReservedBitsCleared",
+    "unit-sha": "ed4d3c42b730254f",
+    "claim-sha": "d16e5ddda39b526d",
+    "route": "revert",
+    "producer": "internal/core/bgp/nlri/flowspec/types_numeric.go::fragmentMask",
+    "producer-sha": "fb59d6af99337175",
+    "break": "body of fragmentMask replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

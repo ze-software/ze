@@ -1,0 +1,13 @@
+{
+  "note": "two clauses. Pop: TestRFC8665PHPPopsWhenNoPHPFlagClear requires OutgoingActionFor(NP=0) to be ActionPHP and OutgoingLabel to impose nothing; E ignored: the same case sets E=1, so honoring E goes red. Negative TestRFC8665NoPHPKeepsPrefixSIDLabel: NP=1 must not pop. OutgoingActionFor is the sole producer of the penultimate-hop action (sr_install.go, sr_fib.go); the wiring to the next-hop case is row RFC8665-5-7",
+  "requirement_sha": "df3d0befffd667ff",
+  "tests": {
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665NoPHPKeepsPrefixSIDLabel": "dcc89abea6ba13ce",
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665PHPPopsWhenNoPHPFlagClear": "dcc89abea6ba13ce"
+  },
+  "units": {
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665NoPHPKeepsPrefixSIDLabel": "444536801c4546bd",
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665PHPPopsWhenNoPHPFlagClear": "d9c37fc9fac37c10"
+  },
+  "verdict": "enforced"
+}

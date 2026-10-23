@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5709-3.2-5",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/rfc5709_last_key_expiry_test.go::TestRFC5709ExpiredKeyRefusedOnceNotLast",
+    "unit-sha": "bde6eeed328423e9",
+    "claim-sha": "7e849d4dbcb3b372",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/auth_keystore.go::lastKeyExtendedIndex",
+    "producer-sha": "acf8ec3e05f78f1f",
+    "break": "body of lastKeyExtendedIndex replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5709-3.2-5",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc5709_last_key_expiry_test.go::TestRFC5709LastKeyExpiredKeepsAdjacency",
+    "unit-sha": "1f4375570cdd152d",
+    "claim-sha": "a80e1de3322d3f23",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/auth_keystore.go::lastKeyExtendedIndex",
+    "producer-sha": "acf8ec3e05f78f1f",
+    "break": "body of lastKeyExtendedIndex replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

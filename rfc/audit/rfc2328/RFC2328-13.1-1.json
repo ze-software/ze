@@ -1,0 +1,17 @@
+{
+  "note": "c20 judge: order and signedness now discriminated. TestRFC2328FreshnessStepsAppliedInOrder pits an earlier step against a later one in both argument orders (sequence over checksum+MaxAge, unsigned 0x8001 over 0x7FFF against MaxAge, MaxAge over age, age > MaxAgeDiff, MaxSequenceNumber over InitialSequenceNumber signed); TestRFC2328LessRecentByEarlierStepRefused through ReceiveUpdate (past MinLSArrival) keeps the database copy against a lower sequence or smaller checksum at MaxAge. Matrix and Older-sequence units kept. Revert records both polarities on CompareHeaders; author overlays (order swaps, signed checksum, unsigned sequence) red.",
+  "requirement_sha": "7f1e50f1e1a1cbd3",
+  "tests": {
+    "internal/plugins/ospf/lsdb/rfc2328_freshness_order_test.go::TestRFC2328FreshnessStepsAppliedInOrder": "ad7121ee95b70bef",
+    "internal/plugins/ospf/lsdb/rfc2328_freshness_order_test.go::TestRFC2328LessRecentByEarlierStepRefused": "ad7121ee95b70bef",
+    "internal/plugins/ospf/lsdb/rfc2328_lsdb_test.go::TestOSPFFreshnessCompareMatrix": "ae0055f5fef676ec",
+    "internal/plugins/ospf/lsdb/rfc2328_test.go::TestRFC2328OlderInstanceGetsDatabaseCopyBack": "6242f112e5a452b3"
+  },
+  "units": {
+    "internal/plugins/ospf/lsdb/rfc2328_freshness_order_test.go::TestRFC2328FreshnessStepsAppliedInOrder": "27f8293c0fade9eb",
+    "internal/plugins/ospf/lsdb/rfc2328_freshness_order_test.go::TestRFC2328LessRecentByEarlierStepRefused": "5f90dab7abd2a421",
+    "internal/plugins/ospf/lsdb/rfc2328_lsdb_test.go::TestOSPFFreshnessCompareMatrix": "5006bad58fcc1fda",
+    "internal/plugins/ospf/lsdb/rfc2328_test.go::TestRFC2328OlderInstanceGetsDatabaseCopyBack": "846d82d2765e89f7"
+  },
+  "verdict": "enforced"
+}

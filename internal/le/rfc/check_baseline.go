@@ -661,13 +661,16 @@ func baselineDiscrimination(tree string) (map[Cover]bool, bool) {
 		return nil, false
 	}
 	out := map[Cover]bool{}
-	for _, blob := range blobs {
-		var file discriminationFile
-		if json.Unmarshal([]byte(blob), &file) != nil {
+	for rel, blob := range blobs {
+		if _, held := evidenceAt(discriminationRel, rel); !held {
 			continue
 		}
-		for position := range file.Records {
-			out[file.Records[position].Cover()] = true
+		var records []DiscriminationRecord
+		if json.Unmarshal([]byte(blob), &records) != nil {
+			continue
+		}
+		for position := range records {
+			out[records[position].Cover()] = true
 		}
 	}
 	return out, true
@@ -787,26 +790,22 @@ func baselineAudits(tree string) (map[string]map[string]map[string]any, bool) {
 	}
 	out := map[string]map[string]map[string]any{}
 	for rel, blob := range blobs {
-		var document map[string]any
-		if json.Unmarshal([]byte(blob), &document) != nil {
-			continue
-		}
-		raw, held := document["requirements"].(map[string]any)
+		file, held := evidenceAt(auditRel, rel)
 		if !held {
 			continue
 		}
-		stem := strings.TrimSuffix(filepath.Base(rel), ".json")
-		out[stem] = map[string]map[string]any{}
-		for rid, value := range raw {
-			verdict, held := value.(map[string]any)
-			if !held {
-				continue
-			}
-			name, _ := verdict["verdict"].(string)
-			if _, known := auditVerdicts[name]; known {
-				out[stem][rid] = verdict
-			}
+		var verdict map[string]any
+		if json.Unmarshal([]byte(blob), &verdict) != nil {
+			continue
 		}
+		name, _ := verdict["verdict"].(string)
+		if _, known := auditVerdicts[name]; !known {
+			continue
+		}
+		if out[file.Stem] == nil {
+			out[file.Stem] = map[string]map[string]any{}
+		}
+		out[file.Stem][file.RID] = verdict
 	}
 	return out, true
 }

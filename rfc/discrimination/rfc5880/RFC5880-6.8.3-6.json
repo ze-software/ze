@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC5880-6.8.3-6",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880EchoSlowdownPollsAfterSettledPoll",
+    "unit-sha": "22cb90ba1bdd80f9",
+    "claim-sha": "d56234628a3d01c2",
+    "route": "revert",
+    "producer": "internal/component/bfd/session/timers.go::pollSequenceIdle",
+    "producer-sha": "9086fc3401dfe4b7",
+    "break": "body of pollSequenceIdle replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.8.3-6",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880EchoSlowdownRevertWaitsForOutstandingPoll",
+    "unit-sha": "997084d0a247b802",
+    "claim-sha": "785895aff735b4c8",
+    "route": "revert",
+    "producer": "internal/component/bfd/session/timers.go::pollSequenceIdle",
+    "producer-sha": "9086fc3401dfe4b7",
+    "break": "body of pollSequenceIdle replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.8.3-6",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880EchoSlowdownWaitsForOutstandingPoll",
+    "unit-sha": "1366d011c50b9574",
+    "claim-sha": "75683865c9c08894",
+    "route": "revert",
+    "producer": "internal/component/bfd/session/timers.go::pollSequenceIdle",
+    "producer-sha": "9086fc3401dfe4b7",
+    "break": "body of pollSequenceIdle replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

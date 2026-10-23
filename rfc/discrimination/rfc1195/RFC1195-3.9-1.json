@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC1195-3.9-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/auth_discard_rfc1195_test.go::TestRFC1195InvalidAuthLSPDiscardedAtReceive",
+    "unit-sha": "c662113631ad0ff0",
+    "claim-sha": "bdd03edf4d1427b2",
+    "route": "revert",
+    "producer": "internal/plugins/isis/auth_wiring.go::verifyFrame",
+    "producer-sha": "8c136abedada6b8d",
+    "break": "body of verifyFrame replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1195-3.9-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/auth_discard_rfc1195_test.go::TestRFC1195InvalidAuthLSPDiscardedAtReceive",
+    "unit-sha": "c662113631ad0ff0",
+    "claim-sha": "1d597f7fed320156",
+    "route": "revert",
+    "producer": "internal/plugins/isis/auth_wiring.go::verifyFrame",
+    "producer-sha": "8c136abedada6b8d",
+    "break": "body of verifyFrame replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1195-3.9-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthConstantTimeCompare",
+    "unit-sha": "63e448d59af258cc",
+    "claim-sha": "c107806c4f75c745",
+    "route": "revert",
+    "producer": "internal/plugins/isis/packet/auth_verify.go::verifyKey",
+    "producer-sha": "0c40faf47e16bca8",
+    "break": "body of verifyKey replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1195-3.9-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/packet/auth_verify_test.go::TestISISAuthSignVerifyHMACMD5",
+    "unit-sha": "10e0097ce51027a9",
+    "claim-sha": "ba62cb6933ad2510",
+    "route": "revert",
+    "producer": "internal/plugins/isis/packet/auth_verify.go::VerifyPDU",
+    "producer-sha": "c97d50142ac6f421",
+    "break": "body of VerifyPDU replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

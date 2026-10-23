@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5798-6.4.2-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/instance_test.go::TestInstanceBackupSendsNoRouterAdvertisement",
+    "unit-sha": "fbef07f2ca2ff956",
+    "claim-sha": "f114a7071c29df12",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/instance.go::execute",
+    "producer-sha": "730531e0948fb65d",
+    "break": "body of execute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5798-6.4.2-3",
+    "polarity": "negative",
+    "unit": "internal/plugins/vrrp/instance_test.go::TestInstanceBackupSendsNoRouterAdvertisement",
+    "unit-sha": "fbef07f2ca2ff956",
+    "claim-sha": "68e25c5061fc8811",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/transport/na.go::BuildNA",
+    "producer-sha": "56148ef852cbf5a7",
+    "break": "body of BuildNA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

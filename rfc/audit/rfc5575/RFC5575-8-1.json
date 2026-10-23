@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-16: the unit changed only in how the VPN family is named (family.Family{AFIIPv4, SAFIFlowSpecVPN} instead of the plugin constant). RFC 5575 Section 8: \"The NLRI length field shall include both the 8 bytes of the Route Distinguisher as well as the subsequent flow specification.\" TestFlowSpecVPNUpdateCountsRouteDistinguisher builds a VPN UPDATE through the real message builder and requires the exact MP_REACH NLRI 13|RD|5-octet value (red on a length of 5) with SAFI 134, re-parses it, and requires the core ParseFlowSpecVPN to error when the length octet is reduced by 8.",
+  "requirement_sha": "1f493f29578fe4c4",
+  "tests": {
+    "internal/component/bgp/message/flowspec_wire_contract_test.go::TestFlowSpecVPNUpdateCountsRouteDistinguisher": "0c3cf4704d7e9ed6",
+    "internal/component/bgp/message/flowspec_wire_contract_test.go::TestFlowSpecVPNUpdateCountsRouteDistinguisher#2": "0c3cf4704d7e9ed6"
+  },
+  "units": {
+    "internal/component/bgp/message/flowspec_wire_contract_test.go::TestFlowSpecVPNUpdateCountsRouteDistinguisher": "20cefd627c486e78",
+    "internal/component/bgp/message/flowspec_wire_contract_test.go::TestFlowSpecVPNUpdateCountsRouteDistinguisher#2": "20cefd627c486e78"
+  },
+  "verdict": "enforced"
+}

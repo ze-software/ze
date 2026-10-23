@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC5880-6.7.4-16",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/auth/rfc5880_sha1_authlen_test.go::TestRFC5880SHA1AuthLen28HandBuiltAccepted",
+    "unit-sha": "2f2b0e3e67c2fe2a",
+    "claim-sha": "c589080eb25bd387",
+    "route": "revert",
+    "producer": "internal/component/bfd/auth/sha1.go::Verify",
+    "producer-sha": "a96f098f3c6f9288",
+    "break": "body of Verify replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.7.4-16",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/auth/rfc5880_sha1_authlen_test.go::TestRFC5880SHA1AuthLenByteDiscardedWithAuthenticDigest",
+    "unit-sha": "167153f59a169332",
+    "claim-sha": "092bfa05ced2874e",
+    "route": "revert",
+    "producer": "internal/component/bfd/auth/sha1.go::Verify",
+    "producer-sha": "a96f098f3c6f9288",
+    "break": "body of Verify replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.7.4-16",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthLenExpectedAccepted",
+    "unit-sha": "3c811a80867763c2",
+    "claim-sha": "589d4b20fcf446e1",
+    "route": "revert",
+    "producer": "internal/component/bfd/auth/sha1.go::Verify",
+    "producer-sha": "a96f098f3c6f9288",
+    "break": "body of Verify replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.7.4-16",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthLenMismatchDiscarded",
+    "unit-sha": "4c01f263931ea5d5",
+    "claim-sha": "7175e130cfa6d3c5",
+    "route": "revert",
+    "producer": "internal/component/bfd/auth/sha1.go::Verify",
+    "producer-sha": "a96f098f3c6f9288",
+    "break": "body of Verify replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,39 @@
+{
+  "note": "Re-judged 2026-10-04 after f93a30fbfc. Originated-route units (writeUpdateGated/SendAnnounce tests and originated-nexthop-peer-own.ci) assert the route naming the peer's own address is withheld from that peer while other next hops are written. The forward-rail units now assert the owner is written no NLRI and the exact withdrawal of the refused prefix, with the bystander receiving both halves, on both rails; they extend the refusal to relayed routes, which this sentence (originated routes) does not name, and the withdrawal is the owner's decision rather than an RFC 4271 obligation.",
+  "requirement_sha": "709993367485dd2d",
+  "tests": {
+    "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestEgressNextHopIsPeerOwnReadsTheRewrittenAddress": "8acb5d36c93abfec",
+    "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestEgressNextHopIsPeerOwnReadsTheRewrittenAddress#2": "8acb5d36c93abfec",
+    "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestForwardRSWithholdsRouteWhoseNextHopIsTheClientsOwnAddress": "8acb5d36c93abfec",
+    "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestForwardRSWithholdsRouteWhoseNextHopIsTheClientsOwnAddress#2": "8acb5d36c93abfec",
+    "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestForwardWithdrawsFromDestinationWhoseNextHopIsItsOwnAddress": "8acb5d36c93abfec",
+    "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestForwardWithholdsRouteWhoseNextHopIsTheDestinationsOwnAddress": "8acb5d36c93abfec",
+    "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestForwardWithholdsRouteWhoseNextHopIsTheDestinationsOwnAddress#2": "8acb5d36c93abfec",
+    "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestSendAnnounceWithholdsRouteWithPeerOwnNextHop": "8acb5d36c93abfec",
+    "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestSendAnnounceWithholdsRouteWithPeerOwnNextHop#2": "8acb5d36c93abfec",
+    "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestSendUpdateWithholdsOriginatedRouteWithPeerOwnNextHop": "8acb5d36c93abfec",
+    "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestSendUpdateWithholdsOriginatedRouteWithPeerOwnNextHop#2": "8acb5d36c93abfec",
+    "internal/le/interoplab/bgp/check_rfc.go::checkSelfNextHopWithheld": "9d03834af3f0f054",
+    "internal/le/interoplab/bgp/check_rfc.go::checkSelfNextHopWithheld#2": "9d03834af3f0f054",
+    "test/plugin/originated-nexthop-peer-own.ci": "6c87b12a0724809a",
+    "test/plugin/originated-nexthop-peer-own.ci#2": "6c87b12a0724809a"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestEgressNextHopIsPeerOwnReadsTheRewrittenAddress": "ca018b40b86e5b81",
+    "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestEgressNextHopIsPeerOwnReadsTheRewrittenAddress#2": "ca018b40b86e5b81",
+    "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestForwardRSWithholdsRouteWhoseNextHopIsTheClientsOwnAddress": "508d3bf9642b79f3",
+    "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestForwardRSWithholdsRouteWhoseNextHopIsTheClientsOwnAddress#2": "508d3bf9642b79f3",
+    "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestForwardWithdrawsFromDestinationWhoseNextHopIsItsOwnAddress": "d5c0ff0b5ee7d8a4",
+    "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestForwardWithholdsRouteWhoseNextHopIsTheDestinationsOwnAddress": "74c962480ffbeeac",
+    "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestForwardWithholdsRouteWhoseNextHopIsTheDestinationsOwnAddress#2": "74c962480ffbeeac",
+    "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestSendAnnounceWithholdsRouteWithPeerOwnNextHop": "1c1a5448f1378870",
+    "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestSendAnnounceWithholdsRouteWithPeerOwnNextHop#2": "1c1a5448f1378870",
+    "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestSendUpdateWithholdsOriginatedRouteWithPeerOwnNextHop": "d5f44c5890b3470d",
+    "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestSendUpdateWithholdsOriginatedRouteWithPeerOwnNextHop#2": "d5f44c5890b3470d",
+    "internal/le/interoplab/bgp/check_rfc.go::checkSelfNextHopWithheld": "b5d635479a9b6635",
+    "internal/le/interoplab/bgp/check_rfc.go::checkSelfNextHopWithheld#2": "b5d635479a9b6635",
+    "test/plugin/originated-nexthop-peer-own.ci": "6c87b12a0724809a",
+    "test/plugin/originated-nexthop-peer-own.ci#2": "6c87b12a0724809a"
+  },
+  "verdict": "enforced"
+}

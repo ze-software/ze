@@ -1,0 +1,15 @@
+{
+  "note": "Judge rejudge 2026-09-30 (bfd AdminDown). Positive TestRFC5880ReleasedSessionPreservedForOneDetectionTime edited under D-15: the peer keeps sending past AdminDownTransmitEnd so the final removal is the one 6.8.1 sets, entry present one ns before the last deadline and gone at it; retention can now only be longer than 6.8.1 (retireReleasedLocked also waits for the 6.8.16 window), never shorter. Session-level positive TestRFC5880StatePreservedForOneDetectionTime and negative TestRFC5880ReleasedSessionAskedAgainKeepsRemoteState unchanged (revive keeps Machine, discriminator, RemoteDiscr, RemoteMinRx, LastReceived). Records: revert retireReleasedLocked (+) and reviveReleasedLocked (-) observed red.",
+  "requirement_sha": "961abbb724d8911d",
+  "tests": {
+    "internal/component/bfd/engine/rfc5880_release_test.go::TestRFC5880ReleasedSessionAskedAgainKeepsRemoteState": "4d673e57cff28d5a",
+    "internal/component/bfd/engine/rfc5880_release_test.go::TestRFC5880ReleasedSessionPreservedForOneDetectionTime": "4d673e57cff28d5a",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880StatePreservedForOneDetectionTime": "8db25cbb4534cc2d"
+  },
+  "units": {
+    "internal/component/bfd/engine/rfc5880_release_test.go::TestRFC5880ReleasedSessionAskedAgainKeepsRemoteState": "fe408f2ae27cd8f4",
+    "internal/component/bfd/engine/rfc5880_release_test.go::TestRFC5880ReleasedSessionPreservedForOneDetectionTime": "76cf7bbf25424648",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880StatePreservedForOneDetectionTime": "ed75f4dc7364e499"
+  },
+  "verdict": "enforced"
+}

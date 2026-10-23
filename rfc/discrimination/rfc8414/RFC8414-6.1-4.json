@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8414-6.1-4",
+    "polarity": "positive",
+    "unit": "internal/component/mcp/rfc8414_metadata_request_test.go::TestRFC8414MetadataFetchUsesConfidentialIntegritySuite",
+    "unit-sha": "efd513927db825d0",
+    "claim-sha": "ba033ea84f78be31",
+    "route": "revert",
+    "producer": "internal/component/mcp/as_metadata.go::fetchASMetadata",
+    "producer-sha": "9c3c0b8747d3dbfb",
+    "break": "body of fetchASMetadata replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8414-6.1-4",
+    "polarity": "negative",
+    "unit": "internal/component/mcp/rfc8414_metadata_request_test.go::TestRFC8414MetadataFetchUsesConfidentialIntegritySuite",
+    "unit-sha": "efd513927db825d0",
+    "claim-sha": "702e2d59929e7469",
+    "route": "revert",
+    "producer": "internal/component/mcp/as_metadata.go::oauthHTTPClient",
+    "producer-sha": "bdca43531f655a82",
+    "break": "body of oauthHTTPClient replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

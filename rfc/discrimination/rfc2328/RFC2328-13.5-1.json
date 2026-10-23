@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC2328-13.5-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFAckDecisionTable",
+    "unit-sha": "36aa84664fa890eb",
+    "claim-sha": "d5d0b339281c986d",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/lsdb/flooding.go::ackForReceive",
+    "producer-sha": "60b26e5086dbacd1",
+    "break": "body of ackForReceive replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-13.5-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFUnknownMaxAgeNoCopyIsAckedAndDiscarded",
+    "unit-sha": "767ed331c019ef42",
+    "claim-sha": "cf3cce42f6c94bc2",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/lsdb/flooding.go::ReceiveUpdate",
+    "producer-sha": "6df8e607849558ea",
+    "break": "body of ReceiveUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-13.5-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/lsdb/rfc2328_flooding_edges_test.go::TestOSPFDRRefloodsBackOutReceivingInterface",
+    "unit-sha": "02808749bc055408",
+    "claim-sha": "57552d7de303aea7",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/lsdb/flooding.go::ackForReceive",
+    "producer-sha": "60b26e5086dbacd1",
+    "break": "body of ackForReceive replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-13.5-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/lsdb/rfc2328_newer_lsa_ack_test.go::TestRFC2328NewerLSAAcknowledgedThroughReceiveUpdate",
+    "unit-sha": "911e5f23c3c14f31",
+    "claim-sha": "6e96d2e26bedc7ce",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/lsdb/flooding.go::ackForReceive",
+    "producer-sha": "60b26e5086dbacd1",
+    "break": "body of ackForReceive replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

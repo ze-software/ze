@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC5798-5.2.4-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/groups_test.go::TestBoundaryPriority",
+    "unit-sha": "f05c7902ea50e566",
+    "claim-sha": "70cfae019a4e4059",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/groups.go::validateGroup",
+    "producer-sha": "21cf349636cd79ec",
+    "break": "body of validateGroup replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5798-5.2.4-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/vrrp/groups_test.go::TestBoundaryPriority",
+    "unit-sha": "f05c7902ea50e566",
+    "claim-sha": "a2c6fb98add7801a",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/groups.go::validateGroup",
+    "producer-sha": "21cf349636cd79ec",
+    "break": "body of validateGroup replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5798-5.2.4-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/groups_test.go::TestEffectivePriorityWithTracking",
+    "unit-sha": "54c31fff0fef51dd",
+    "claim-sha": "04ccab5ad87a87fb",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/groups.go::EffectivePriority",
+    "producer-sha": "6cbc3832c7c5ed6c",
+    "break": "body of EffectivePriority replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

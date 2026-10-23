@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC3768-6.4.2-5",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/fsm/rfc_verdict_test.go::TestPromotionSetsAdverTimerToOwnInterval",
+    "unit-sha": "b7523bbadbd353f9",
+    "claim-sha": "5dbef33cc3242565",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/fsm/fsm.go::promoteToMaster",
+    "producer-sha": "203d2be53b5889c1",
+    "break": "body of promoteToMaster replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3768-6.4.2-5",
+    "polarity": "negative",
+    "unit": "internal/plugins/vrrp/fsm/rfc_verdict_test.go::TestPromotionSetsAdverTimerToOwnInterval",
+    "unit-sha": "b7523bbadbd353f9",
+    "claim-sha": "744647944b1a0dca",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/fsm/fsm.go::matches",
+    "producer-sha": "9bbb1db6f04bf1f4",
+    "break": "body of matches replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3768-6.4.2-5",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/transport/rfc_announce_verdict_test.go::TestAnnounceMasterFramesPerAddress",
+    "unit-sha": "9a946463ff413405",
+    "claim-sha": "96c6efc88d118e8c",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/transport/garp.go::buildGARP",
+    "producer-sha": "bfabb203bd887d68",
+    "break": "body of buildGARP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

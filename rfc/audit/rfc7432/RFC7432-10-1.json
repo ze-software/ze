@@ -1,0 +1,15 @@
+{
+  "note": "RFC 7432 \u00a710: \"For ARP and ND purposes, the IP Address Length field MUST be set to 32 for an IPv4 address or 128 for an IPv6 address.\" Independently reread both current tagged carriers after the parent repaired their shared fixture. internal/component/bgp/plugins/nlri/evpn/rfc7432_ip_length_send_test.go::TestRFC7432MACIPSenderUsesBitLengths pins the sender's raw octet 31 to 32/128, exact IPv4/IPv6 address octets, complete length and mandatory Label1=100 bytes. types_test.go::TestEVPNIPAddressLength separately accepts literal IPv4/IPv6 layouts with the exact decoded address and refuses non-0/32/128 lengths with ErrEVPNInvalidAddress. Its evpnT2Body now includes valid mandatory Label1 bytes 00 01 01 after the IP field; the former missing-label confound is gone. The absent-IP control is permitted by \u00a79.2.1, not an exception to \u00a710's present-IP obligation. Producers types.go::NewEVPNType2/EVPNType2.WriteTo choose bit lengths independently of parseEVPNType2's literal 0/32/128 branches. Exact raw sender expectations distinguish bits from octets, while parser negatives vary the tested length and retain valid surrounding fields. Current tags are two positive and one negative, backed by distinct conforming and invalid-length cases. The entire selected length obligation is now enforced at source level; no new runtime success or observed producer-break red is asserted. This fixture repair does not authorize EVPN forwarding or label-allocation features.",
+  "requirement_sha": "fe025b9ee98e7850",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/evpn/rfc7432_ip_length_send_test.go::TestRFC7432MACIPSenderUsesBitLengths": "c09f3bba72d552b2",
+    "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNIPAddressLength": "e95f85b8a1869210",
+    "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNIPAddressLength#2": "e95f85b8a1869210"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/evpn/rfc7432_ip_length_send_test.go::TestRFC7432MACIPSenderUsesBitLengths": "cad95612c9b73ef4",
+    "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNIPAddressLength": "55c028589efb28aa",
+    "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNIPAddressLength#2": "55c028589efb28aa"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,15 @@
+{
+  "note": "Rejudged 2026-09-29 (routing child). TestRFC4090LocalRepairNotifyLiterals compares the PathErr sent toward the head-end after handleLinkDown with the literals 25 and 0x0003, not the constants. Negative: an unrepairable failure sends code 24, not a Notify. Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 6.5.1 and the enforced verdict holds unchanged.",
+  "requirement_sha": "124f09fcad10d93d",
+  "tests": {
+    "internal/plugins/rsvpte/frr_test.go::TestLocalRepairFallsBackToTeardown": "9e1595a34e264d7e",
+    "internal/plugins/rsvpte/frr_test.go::TestLocalRepairSendsNotify": "9e1595a34e264d7e",
+    "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC4090LocalRepairNotifyLiterals": "8cea1a3ca4572fd1"
+  },
+  "units": {
+    "internal/plugins/rsvpte/frr_test.go::TestLocalRepairFallsBackToTeardown": "8333e42c422f9185",
+    "internal/plugins/rsvpte/frr_test.go::TestLocalRepairSendsNotify": "42aecaec47edce0b",
+    "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC4090LocalRepairNotifyLiterals": "c8be484a59cc4db0"
+  },
+  "verdict": "enforced"
+}

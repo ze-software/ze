@@ -1,0 +1,57 @@
+[
+  {
+    "rid": "RFC8907-3.7-2",
+    "polarity": "negative",
+    "unit": "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907ControlCharactersRefusedInEveryField",
+    "unit-sha": "700c8fb258263cfd",
+    "claim-sha": "1d7febc780b71be8",
+    "route": "revert",
+    "producer": "internal/component/tacacs/text.go::validateText",
+    "producer-sha": "1c82eb7b52721ba9",
+    "break": "body of validateText replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8907-3.7-2",
+    "polarity": "positive",
+    "unit": "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907PrintableTextInEveryField",
+    "unit-sha": "d07c8593041f59b7",
+    "claim-sha": "e7be5d6c35352f88",
+    "route": "revert",
+    "producer": "internal/component/tacacs/text.go::validateText",
+    "producer-sha": "1c82eb7b52721ba9",
+    "break": "body of validateText replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8907-3.7-2",
+    "polarity": "positive",
+    "unit": "internal/component/tacacs/rfc8907_dispatch_wire_test.go::TestRFC8907TrustedDispatchIdentitiesReachWire",
+    "unit-sha": "d4aec92a37c5e17e",
+    "claim-sha": "cdde0c700f4a2cb0",
+    "route": "revert",
+    "producer": "internal/component/tacacs/text.go::validateText",
+    "producer-sha": "1c82eb7b52721ba9",
+    "break": "body of validateText replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8907-3.7-2",
+    "polarity": "negative",
+    "unit": "internal/component/tacacs/rfc8907_validation_test.go::TestRFC8907NonPrintableTextRejected",
+    "unit-sha": "99fdba3f0621893d",
+    "claim-sha": "98a4ab590917d71f",
+    "route": "revert",
+    "producer": "internal/component/tacacs/acct.go::MarshalBinary",
+    "producer-sha": "a87454eb0170c070",
+    "break": "body of MarshalBinary replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8907-3.7-2",
+    "polarity": "positive",
+    "unit": "internal/component/tacacs/rfc8907_validation_test.go::TestRFC8907PrintableTextRoundTrip",
+    "unit-sha": "d4c70c3798cc1f6c",
+    "claim-sha": "04b7964fb918db00",
+    "route": "revert",
+    "producer": "internal/component/tacacs/text.go::validateText",
+    "producer-sha": "1c82eb7b52721ba9",
+    "break": "body of validateText replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

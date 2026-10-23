@@ -1,0 +1,30 @@
+{
+  "code": {
+    "internal/component/bgp/plugins/rib/rib_blackhole.go::blackholeRouteType": "e1f826bd1f11dd3e",
+    "internal/component/bgp/plugins/rib/rib_blackhole.go::blackholeRouteTypeForBest": "f82e890ce01f294b",
+    "internal/component/bgp/plugins/rib/rib_blackhole.go::coveredByAuthorized": "7ed18f8b8ba8b60f"
+  },
+  "note": "Independent source rejudgment of every current cover including checkRFC7999Blackhole. RFC 7999 Section 3.3: BGP speakers in a bilateral peering relationship using the BLACKHOLE community MUST only accept and honor BGP announcements carrying the BLACKHOLE community under the two following conditions: The announced prefix is covered by an equal or shorter prefix that the neighboring network is authorized to advertise. The receiving party agreed to honor the BLACKHOLE community on the particular BGP session. Equal-/24 and covered-/32 positives require exact Blackhole on best-change and Loc-RIB; longer-/25 authorization and outside-prefix negatives require exact type 0. Dynamic group tests require the matching group rule, peer override precedence, and event-carried group identity reaching Loc-RIB. coveredByAuthorized, blackholeRouteTypeForBest and checkBestPathChange produce the type consumed by sysrib and the kernel discard builder. checkRFC7999Blackhole assertion 4 requires a real kernel discard and assertion 5 positively requires forwarding for the unauthorized prefix, after both foreign sessions and all destination routes exist. Q1-Q4 pass for the authorization clause with agreement held true; the dynamic fixture is consumer-boundary rather than eBGP-admission evidence. Stored panic records establish reachability only. No checks were run; live FRR/BIRD/Linux and VPP acceptance and changed-unit proof maintenance remain pending.",
+  "requirement_sha": "7dede92b94f02a8a",
+  "tests": {
+    "internal/component/bgp/plugins/rib/rfc7999_equal_cover_test.go::TestRFC7999BlackholeHonoredOnAnEqualAuthorizedPrefix": "21e8ae7237b60916",
+    "internal/component/bgp/plugins/rib/rfc7999_equal_cover_test.go::TestRFC7999BlackholeRefusedUnderALongerAuthorizedPrefix": "21e8ae7237b60916",
+    "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_dynamic_test.go::TestBlackholeGroupIdentityArrivesOnAStructuredEvent": "e11848fab7255248",
+    "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go::TestBlackholeNotStampedOutsideAuthorization": "619a6a003fffd5d0",
+    "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go::TestBlackholeRouteTypeStampedOnBestPath": "619a6a003fffd5d0",
+    "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go::TestBlackholeRuleForDynamicGroup": "619a6a003fffd5d0",
+    "internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole": "9d03834af3f0f054",
+    "internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole#2": "9d03834af3f0f054"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rib/rfc7999_equal_cover_test.go::TestRFC7999BlackholeHonoredOnAnEqualAuthorizedPrefix": "7572508169fe6f87",
+    "internal/component/bgp/plugins/rib/rfc7999_equal_cover_test.go::TestRFC7999BlackholeRefusedUnderALongerAuthorizedPrefix": "9fbf037f461af03d",
+    "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_dynamic_test.go::TestBlackholeGroupIdentityArrivesOnAStructuredEvent": "e7dfbb8467f8a0c6",
+    "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go::TestBlackholeNotStampedOutsideAuthorization": "0a7b4e0d15a24fd2",
+    "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go::TestBlackholeRouteTypeStampedOnBestPath": "eb9ddfe720d6c4b0",
+    "internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go::TestBlackholeRuleForDynamicGroup": "055cdd66dfc1ef2d",
+    "internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole": "b9baf6f830c148ce",
+    "internal/le/interoplab/bgp/check_rfc.go::checkRFC7999Blackhole#2": "b9baf6f830c148ce"
+  },
+  "verdict": "enforced"
+}

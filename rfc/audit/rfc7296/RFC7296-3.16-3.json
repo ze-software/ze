@@ -1,0 +1,13 @@
+{
+  "note": "Success/Failure encode to four octets with no Type; Request keeps Type",
+  "requirement_sha": "6dafe9bcc0647f41",
+  "tests": {
+    "internal/core/eap/rfc7296_eap_test.go::TestEapfmtSuccessAndFailureCarryNoTypeField": "a7ebbbf496930178",
+    "internal/core/eap/rfc7296_eap_test.go::TestEapfmtSuccessAndFailureCarryNoTypeField#2": "a7ebbbf496930178"
+  },
+  "units": {
+    "internal/core/eap/rfc7296_eap_test.go::TestEapfmtSuccessAndFailureCarryNoTypeField": "62a14eef2419bfbc",
+    "internal/core/eap/rfc7296_eap_test.go::TestEapfmtSuccessAndFailureCarryNoTypeField#2": "62a14eef2419bfbc"
+  },
+  "verdict": "enforced"
+}

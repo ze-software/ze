@@ -1,0 +1,17 @@
+{
+  "note": "Forbidden: a transmitted IIH whose Adjacency Three-Way State is not the adjacency's current state. circuit TestRFC5303SentIIHReportsCurrentThreeWayState decodes the TLV 240 of the P2P IIH SendHello hands the transport (sendP2PHello -> p2pThreeWayState -> buildP2PHello): Initializing after a peer Hello that does not echo us, Up after the echo. The two values differ, so a send path that ignored the computed state or sent a fixed value goes red; recorded +/- on runtime.go p2pThreeWayState. The older helper-level units remain tagged and are subsumed.",
+  "requirement_sha": "983ac4d3863bd1e9",
+  "tests": {
+    "internal/plugins/isis/circuit/rfc5303_sent_iih_test.go::TestRFC5303SentIIHReportsCurrentThreeWayState": "103ec73a1dc2a973",
+    "internal/plugins/isis/circuit/rfc5303_sent_iih_test.go::TestRFC5303SentIIHReportsCurrentThreeWayState#2": "103ec73a1dc2a973",
+    "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayReportsCurrentState": "d32edc6561822cd6",
+    "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayReportsCurrentState#2": "d32edc6561822cd6"
+  },
+  "units": {
+    "internal/plugins/isis/circuit/rfc5303_sent_iih_test.go::TestRFC5303SentIIHReportsCurrentThreeWayState": "414b444523993a84",
+    "internal/plugins/isis/circuit/rfc5303_sent_iih_test.go::TestRFC5303SentIIHReportsCurrentThreeWayState#2": "414b444523993a84",
+    "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayReportsCurrentState": "f6e9f21978e1f073",
+    "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayReportsCurrentState#2": "f6e9f21978e1f073"
+  },
+  "verdict": "enforced"
+}

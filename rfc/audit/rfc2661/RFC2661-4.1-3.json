@@ -1,0 +1,27 @@
+{
+  "note": "Judge 2026-09-30 (cont 8, D-8 fix). Scope checked against RFC 2661 section 4.1: a message associated with a particular session ends that session, the tunnel only for tunnel-scoped messages (4.1-4). Producer: parseSingleAVPMessage wraps errUnrecognizedMandatoryAVP for IETF and vendor M=1; handleWEN/handleSLI tear down that session with CDN (quote above each). + TestRFC2661UnrecognizedMandatoryAVPInWENOrSLITerminatesSession (WEN, SLI x IETF 200 / vendor 9999: exactly one CDN, session gone; failing-first observed before the fix), + TestRFC2661UnrecognizedMandatoryAVPInEverySessionParserTerminatesSession (OCRQ, ICRP, OCRP, ICCN, OCCN x IETF/vendor: one CDN, 0 sessions), + TestSession_UnknownMandatoryAVP now asserts MsgCDN and 0 sessions (earlier overstatement fixed), + TestUnrecognizedMandatoryIETFAVPInICRQTerminatesSession. - TestRFC2661UnrecognizedMandatoryAVPInWENOrSLIEndsOnlyThatSession: two sessions, M=1 gives one CDN never StopCCN, tunnel established and the sibling session kept (the over-reaction polarity), M=0 sends nothing. Every tagged unit has an observed-red record. CDN not tabled: a received CDN ends the session whatever it carries. Residual supplementary positive at session_fsm_test.go (well-formed ICRQ accepted) has no record.",
+  "requirement_sha": "8af8f6c776a076f3",
+  "tests": {
+    "internal/component/l2tp/rfc2661_session_fsm_test.go::TestSession_IncomingLNS_ICRQ": "9f78f3f88883c2a2",
+    "internal/component/l2tp/rfc2661_session_fsm_test.go::TestSession_UnknownMandatoryAVP": "9f78f3f88883c2a2",
+    "internal/component/l2tp/rfc2661_session_fsm_test.go::TestSession_UnknownMandatoryAVP#2": "9f78f3f88883c2a2",
+    "internal/component/l2tp/rfc2661_session_fsm_test.go::TestSession_UnknownMandatoryAVP#3": "9f78f3f88883c2a2",
+    "internal/component/l2tp/rfc2661_unrecognized_mandatory_avp_session_messages_test.go::TestRFC2661UnrecognizedMandatoryAVPInEverySessionParserTerminatesSession": "c0360f2e4708f9ce",
+    "internal/component/l2tp/rfc2661_unrecognized_mandatory_avp_session_messages_test.go::TestRFC2661UnrecognizedMandatoryAVPInWENOrSLIEndsOnlyThatSession": "c0360f2e4708f9ce",
+    "internal/component/l2tp/rfc2661_unrecognized_mandatory_avp_session_messages_test.go::TestRFC2661UnrecognizedMandatoryAVPInWENOrSLITerminatesSession": "c0360f2e4708f9ce",
+    "internal/component/l2tp/rfc2661_unrecognized_mandatory_avp_test.go::TestUnrecognizedMandatoryIETFAVPInICRQTerminatesSession": "beb7a378ea5d3333",
+    "internal/component/l2tp/rfc2661_unrecognized_mandatory_avp_test.go::TestUnrecognizedMandatoryIETFAVPInICRQTerminatesSession#2": "beb7a378ea5d3333"
+  },
+  "units": {
+    "internal/component/l2tp/rfc2661_session_fsm_test.go::TestSession_IncomingLNS_ICRQ": "9ab121ace211e8cc",
+    "internal/component/l2tp/rfc2661_session_fsm_test.go::TestSession_UnknownMandatoryAVP": "d10589e80d4fa207",
+    "internal/component/l2tp/rfc2661_session_fsm_test.go::TestSession_UnknownMandatoryAVP#2": "d10589e80d4fa207",
+    "internal/component/l2tp/rfc2661_session_fsm_test.go::TestSession_UnknownMandatoryAVP#3": "d10589e80d4fa207",
+    "internal/component/l2tp/rfc2661_unrecognized_mandatory_avp_session_messages_test.go::TestRFC2661UnrecognizedMandatoryAVPInEverySessionParserTerminatesSession": "1efe1887de472085",
+    "internal/component/l2tp/rfc2661_unrecognized_mandatory_avp_session_messages_test.go::TestRFC2661UnrecognizedMandatoryAVPInWENOrSLIEndsOnlyThatSession": "bbf56fb399b9d653",
+    "internal/component/l2tp/rfc2661_unrecognized_mandatory_avp_session_messages_test.go::TestRFC2661UnrecognizedMandatoryAVPInWENOrSLITerminatesSession": "3824611792b8923c",
+    "internal/component/l2tp/rfc2661_unrecognized_mandatory_avp_test.go::TestUnrecognizedMandatoryIETFAVPInICRQTerminatesSession": "f26a74ab9c3fa8dc",
+    "internal/component/l2tp/rfc2661_unrecognized_mandatory_avp_test.go::TestUnrecognizedMandatoryIETFAVPInICRQTerminatesSession#2": "f26a74ab9c3fa8dc"
+  },
+  "verdict": "enforced"
+}

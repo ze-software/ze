@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4271-6.3-13",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_rfc7611_ingress_test.go::TestRFC4271LeftmostASMismatchIsMalformedASPath",
+    "unit-sha": "aabb97f481291ae2",
+    "claim-sha": "36880a640f2166f0",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_validation.go::firstASPathMismatch",
+    "producer-sha": "b25e0422718ef8e1",
+    "break": "body of firstASPathMismatch replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-6.3-13",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_rfc7611_ingress_test.go::TestRFC4271LeftmostASMismatchIsMalformedASPath",
+    "unit-sha": "aabb97f481291ae2",
+    "claim-sha": "0e3f2a05d33c0963",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_validation.go::firstASPathMismatch",
+    "producer-sha": "b25e0422718ef8e1",
+    "break": "body of firstASPathMismatch replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

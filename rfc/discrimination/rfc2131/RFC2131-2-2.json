@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2131-2-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go::TestDHCPv4ExtendIgnoresServerEchoesOnVeth",
+    "unit-sha": "093b21a989f48623",
+    "claim-sha": "2d504ff15526861a",
+    "route": "revert",
+    "producer": "internal/plugins/iface/dhcp/dhcp_v4_linux.go::v4RequestModifiers",
+    "producer-sha": "07fb4ebe779149ed",
+    "break": "body of v4RequestModifiers replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2131-2-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go::TestDHCPv4RenewCarriesClientID",
+    "unit-sha": "bb6ba0b64c3a79ab",
+    "claim-sha": "4a863a1e50bed076",
+    "route": "revert",
+    "producer": "internal/plugins/iface/dhcp/dhcp_v4_linux.go::v4RequestModifiers",
+    "producer-sha": "07fb4ebe779149ed",
+    "break": "body of v4RequestModifiers replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

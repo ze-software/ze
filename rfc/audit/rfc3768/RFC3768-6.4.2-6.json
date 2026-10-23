@@ -1,0 +1,17 @@
+{
+  "note": "vrrp judge 2026-09-29 (independent): TestV2BackupPriorityZeroSetsSkewTime: Priority 0 arms the literal 0.609375 s ((256-100)/256, not the v3 1.21875 s); non-zero Priority 1 arms the literal 6.609375 s Master_Down_Interval. Expectations no longer come from skewTime.",
+  "requirement_sha": "3bea368fe4c267fe",
+  "tests": {
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "52489f84876bdb6f",
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "52489f84876bdb6f",
+    "internal/plugins/vrrp/fsm/rfc_verdict_test.go::TestV2BackupPriorityZeroSetsSkewTime": "529420a351d8b685",
+    "internal/plugins/vrrp/fsm/rfc_verdict_test.go::TestV2BackupPriorityZeroSetsSkewTime#2": "529420a351d8b685"
+  },
+  "units": {
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "c06b69f55bb239a3",
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "c06b69f55bb239a3",
+    "internal/plugins/vrrp/fsm/rfc_verdict_test.go::TestV2BackupPriorityZeroSetsSkewTime": "c1f3b5b2b7ef068e",
+    "internal/plugins/vrrp/fsm/rfc_verdict_test.go::TestV2BackupPriorityZeroSetsSkewTime#2": "c1f3b5b2b7ef068e"
+  },
+  "verdict": "enforced"
+}

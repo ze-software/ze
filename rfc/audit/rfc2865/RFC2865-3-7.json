@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: accepting a packet shorter than its Length field. TestDecodeRefusesAPacketShorterThanItsLengthField sets Length to len+1 and requires Decode to error; the positive decodes an exact-length packet.",
+  "requirement_sha": "aa727fbc9d9838ec",
+  "tests": {
+    "internal/component/radius/rfc2865_walk_test.go::TestDecodeAcceptsAPacketAsLongAsItsLengthField": "a3f1d9fa74292a7a",
+    "internal/component/radius/rfc2865_walk_test.go::TestDecodeRefusesAPacketShorterThanItsLengthField": "a3f1d9fa74292a7a"
+  },
+  "units": {
+    "internal/component/radius/rfc2865_walk_test.go::TestDecodeAcceptsAPacketAsLongAsItsLengthField": "146ad4266df484c9",
+    "internal/component/radius/rfc2865_walk_test.go::TestDecodeRefusesAPacketShorterThanItsLengthField": "ab229cd170641e4d"
+  },
+  "verdict": "enforced"
+}

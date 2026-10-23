@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC6396-4.4.2-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc6396_wire_capture_test.go::TestRFC6396WireCaptureIgnoresSemanticSynthesis",
+    "unit-sha": "360de3cf4230caec",
+    "claim-sha": "8448f0768b0de878",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_wire.go::observeReceivedWire",
+    "producer-sha": "d4c65db515532f20",
+    "break": "body of observeReceivedWire replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC6396-4.4.2-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc6396_wire_capture_test.go::TestRFC6396WireMessagesNeverCoalesce",
+    "unit-sha": "63bfd95d9ad9f1b4",
+    "claim-sha": "6127f06edbe4fe0a",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_wire.go::observeReceivedWire",
+    "producer-sha": "d4c65db515532f20",
+    "break": "body of observeReceivedWire replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC6396-4.4.2-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/mrt/rfc6396_component_test.go::TestOneBGPMessagePerBGP4MPRecord",
+    "unit-sha": "7a6dab6363135cc3",
+    "claim-sha": "ec4b917e6114a7fc",
+    "route": "revert",
+    "producer": "internal/plugins/mrt/component.go::OnBGPMessage",
+    "producer-sha": "d97d12e7faf7fe86",
+    "break": "body of OnBGPMessage replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

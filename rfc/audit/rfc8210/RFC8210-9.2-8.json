@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: using a reference identifier other than the cache DNS name (the connected IP, or any name the certificate carries). Negative TestRTRTLSRejectsUnauthenticatedCaches: 'wrong DNS' (server-name other.rtr.test vs cert cache.rtr.test) and 'IP SAN only' (connect to 127.0.0.1, cert has only that IP SAN) both go red via assertRTRTLSRefused (syncOnce error, zero query bytes, nothing published). Positive TestRTRTLSDNSAddressIsTheReference: omitted server-name uses the configured cache DNS name, asserting state.ServerName == localhost and a published VRP.",
+  "requirement_sha": "febe8a56eb4a75af",
+  "tests": {
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go::TestRTRTLSDNSAddressIsTheReference": "cc96e0e57341d7a8",
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go::TestRTRTLSRejectsUnauthenticatedCaches": "cc96e0e57341d7a8"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go::TestRTRTLSDNSAddressIsTheReference": "7d29a0c3c20dcde4",
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go::TestRTRTLSRejectsUnauthenticatedCaches": "5079e5e699076586"
+  },
+  "verdict": "enforced"
+}

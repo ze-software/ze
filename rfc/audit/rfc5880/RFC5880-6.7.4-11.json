@@ -1,0 +1,13 @@
+{
+  "note": "Judge 2026-09-30 (phase 8). Keyed SHA1 via session Machine.Sign: positive TestRFC5880AuthSequenceFieldIsXmitAuthSeq pins 0x11223344 in the field; negative (forced input) TestRFC5880AuthSequenceFieldFollowsAdvance requires the field to follow AdvanceAuthSeq to first+1, so a constant or ignored seq fails; revert records observed red. Limit: neither unit drives the variable above 0x7FFFFFFF; the full-range unit TestRFC5880SequenceFieldIsXmitAuthSeqAcrossTheCounterRange loops the SHA1 types too but is tagged on 6.7.3-8 only (shared digestSigner.Sign producer).",
+  "requirement_sha": "4ef5c588e008528b",
+  "tests": {
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880AuthSequenceFieldFollowsAdvance": "8db25cbb4534cc2d",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880AuthSequenceFieldIsXmitAuthSeq": "8db25cbb4534cc2d"
+  },
+  "units": {
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880AuthSequenceFieldFollowsAdvance": "44c371e6ab17b536",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880AuthSequenceFieldIsXmitAuthSeq": "5e8f2d175a84a64b"
+  },
+  "verdict": "enforced"
+}

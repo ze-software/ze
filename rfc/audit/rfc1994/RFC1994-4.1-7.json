@@ -1,0 +1,11 @@
+{
+  "note": "Forbidden: a Challenge Value reused across Challenges. TestCHAPChallengeRandom runs runCHAPAuthPhase twice and asserts the two wire Values differ, red on a constant Value. Single-polarity marker.",
+  "requirement_sha": "3b7e57c0b3572e2d",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPChallengeRandom": "5b49028a86478309"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1994_chap_test.go::TestCHAPChallengeRandom": "147ac9bcb89427e5"
+  },
+  "verdict": "enforced"
+}

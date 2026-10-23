@@ -1,0 +1,17 @@
+{
+  "note": "(a) forbidden: under PASS_REPL, using the request arguments instead of the reply ones. (b) TestRFC8907PassReplCannotAuthorizeOriginalCommand fails if an empty, incomplete, changed, reordered or re-split replacement authorizes the original command or consults the local fallback; TestRFC8907IncompleteSessionReplacementDenied fails if session replacement inherits service/cmd from the request; positives TestRFC8907PassReplPreservesExactCommand and TestRFC8907SessionReplacementMapsZero (reply priv-lvl 0 applied).",
+  "requirement_sha": "2b4b4499859a55b0",
+  "tests": {
+    "internal/component/tacacs/rfc8907_authorization_test.go::TestRFC8907IncompleteSessionReplacementDenied": "7e3084d65c3e691a",
+    "internal/component/tacacs/rfc8907_authorization_test.go::TestRFC8907PassReplCannotAuthorizeOriginalCommand": "7e3084d65c3e691a",
+    "internal/component/tacacs/rfc8907_authorization_test.go::TestRFC8907PassReplPreservesExactCommand": "7e3084d65c3e691a",
+    "internal/component/tacacs/rfc8907_authorization_test.go::TestRFC8907SessionReplacementMapsZero": "7e3084d65c3e691a"
+  },
+  "units": {
+    "internal/component/tacacs/rfc8907_authorization_test.go::TestRFC8907IncompleteSessionReplacementDenied": "1d3f562eb50b0c8c",
+    "internal/component/tacacs/rfc8907_authorization_test.go::TestRFC8907PassReplCannotAuthorizeOriginalCommand": "29c381dc6ec63339",
+    "internal/component/tacacs/rfc8907_authorization_test.go::TestRFC8907PassReplPreservesExactCommand": "f45f72345528cd49",
+    "internal/component/tacacs/rfc8907_authorization_test.go::TestRFC8907SessionReplacementMapsZero": "b9db53338106c4fc"
+  },
+  "verdict": "enforced"
+}

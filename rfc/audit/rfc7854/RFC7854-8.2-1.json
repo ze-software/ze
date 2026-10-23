@@ -1,0 +1,13 @@
+{
+  "note": "Loc-RIB instance Peer Up carries ports 0/0; a BGP peer's Peer Up carries its real 179/40000",
+  "requirement_sha": "583da7efc8fdd685",
+  "tests": {
+    "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854BGPPeerUpCarriesTransportPorts": "94e84131af3555be",
+    "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854LocRIBPeerUpPortsZero": "94e84131af3555be"
+  },
+  "units": {
+    "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854BGPPeerUpCarriesTransportPorts": "2d0a8df5c36c9d1c",
+    "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854LocRIBPeerUpPortsZero": "c28d80ab2ff2af75"
+  },
+  "verdict": "enforced"
+}

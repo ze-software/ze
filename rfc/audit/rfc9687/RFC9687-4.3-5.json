@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden behaviour: the TCP connection left open after Event 29, or dropped before it. Positive: requireConnClosed(t, p.drainErr) after Run returned; negative: the drainErr select fails the test if the connection closed inside the SendHoldTime.",
+  "requirement_sha": "bbda20c2fb6b5685",
+  "tests": {
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "8caa1cc8f2fc140d",
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "8caa1cc8f2fc140d"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact": "d962e371f1fc6714",
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687SendHoldExpiryRunsTheEvent29ActionList": "e00ce51f6b78477b"
+  },
+  "verdict": "enforced"
+}

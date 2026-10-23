@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2205-3-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/rfc2205_carrier_test.go::TestRFC2205PathIPAddressesAreSenderAndSession",
+    "unit-sha": "2373fa1a8a4d333d",
+    "claim-sha": "6cb55cf48e3450e9",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/engine.go::sendPath",
+    "producer-sha": "731fc19567d68946",
+    "break": "body of sendPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2205-3-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/rsvpte/rfc2205_carrier_test.go::TestRFC2205PathIPAddressesNeverHopAddresses",
+    "unit-sha": "dde02f02b70e50f9",
+    "claim-sha": "a86e08d48b195e68",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/engine.go::sendPath",
+    "producer-sha": "731fc19567d68946",
+    "break": "body of sendPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,13 @@
+{
+  "note": "Judged 2026-09-30. Positive TestRFC3787TLV133IgnoredOnReceipt: an L2 LSP whose first TLV is TLV 133 (auth-type 1 + cleartext password) decodes, keeps TLV 133 as an opaque span, AuthTLVIndex returns -1 and VerifyPDU with no keys accepts it. Negative TestRFC3787TLV133NeverAuthenticates: under a cleartext key equal to TLV 133's password, VerifyPDU returns ErrAuthMissing; a receiver that honored TLV 133 as authentication would authenticate the LSP and go red. Recorded red on packet/tlv_opaque.go::AuthTLVIndex (both).",
+  "requirement_sha": "ce0b190218d971f5",
+  "tests": {
+    "internal/plugins/isis/packet/rfc3787_tlv133_test.go::TestRFC3787TLV133IgnoredOnReceipt": "fe9114b09a6b67b2",
+    "internal/plugins/isis/packet/rfc3787_tlv133_test.go::TestRFC3787TLV133NeverAuthenticates": "fe9114b09a6b67b2"
+  },
+  "units": {
+    "internal/plugins/isis/packet/rfc3787_tlv133_test.go::TestRFC3787TLV133IgnoredOnReceipt": "f7da128f67014335",
+    "internal/plugins/isis/packet/rfc3787_tlv133_test.go::TestRFC3787TLV133NeverAuthenticates": "d16e306bc3a47dfc"
+  },
+  "verdict": "enforced"
+}

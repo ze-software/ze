@@ -1,0 +1,13 @@
+{
+  "note": "full engine: armed bypass brought up, relayed RESV RRO subobject carries 0x01; negative is an unprotected LSP with zero flags Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 6 and the enforced verdict holds unchanged.",
+  "requirement_sha": "3d45fbb31eee1582",
+  "tests": {
+    "internal/plugins/rsvpte/frr_test.go::TestPLRArmsBypass": "9e1595a34e264d7e",
+    "internal/plugins/rsvpte/frr_test.go::TestPLRNoBypassWithoutProtection": "9e1595a34e264d7e"
+  },
+  "units": {
+    "internal/plugins/rsvpte/frr_test.go::TestPLRArmsBypass": "99a3872771b5e185",
+    "internal/plugins/rsvpte/frr_test.go::TestPLRNoBypassWithoutProtection": "07e3172f89bfbdb4"
+  },
+  "verdict": "enforced"
+}

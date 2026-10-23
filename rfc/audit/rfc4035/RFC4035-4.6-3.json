@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-09-30. Both bits now: under strict validation a NOERROR answer with AD=1 CD=1 yields exactly the records of the clear answer (a resolver requiring or honouring AD would differ), and SERVFAIL with AD, CD or both is refused, so no response bit lets a failure through. Records: query (+) and dnssecDecision (-) reverts observed red.",
+  "requirement_sha": "6d85ed1cc63e7cbe",
+  "tests": {
+    "internal/component/resolve/dns/rfc4035_security_aware_test.go::TestRFC4035ResponseCDAndADBitsChangeNothing": "746f59740ccc2275",
+    "internal/component/resolve/dns/rfc4035_security_aware_test.go::TestRFC4035ResponseCDAndADBitsChangeNothing#2": "746f59740ccc2275",
+    "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_ResponseADBitDisregarded": "1b164a1a570b2a91",
+    "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_ResponseADBitDisregarded#2": "1b164a1a570b2a91"
+  },
+  "units": {
+    "internal/component/resolve/dns/rfc4035_security_aware_test.go::TestRFC4035ResponseCDAndADBitsChangeNothing": "18f9c2b6c5c044e8",
+    "internal/component/resolve/dns/rfc4035_security_aware_test.go::TestRFC4035ResponseCDAndADBitsChangeNothing#2": "18f9c2b6c5c044e8",
+    "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_ResponseADBitDisregarded": "8c57c20275588fc1",
+    "internal/component/resolve/dns/rfc4035_test.go::TestRFC4035_ResponseADBitDisregarded#2": "8c57c20275588fc1"
+  },
+  "verdict": "enforced"
+}

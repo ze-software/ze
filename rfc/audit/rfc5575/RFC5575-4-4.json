@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-16 after the codec move; units changed only by package qualification. RFC 5575 Section 4: \"if present, it MUST precede any component of higher numeric type value.\" Positive asserts strictly ascending emitted types and the exact order 1,3,5,12; negative TestParseFlowSpecRefusesDescendingComponentType requires ErrFlowSpecTypeOrder from core parseComponents on 5-then-3, with the same components ascending accepted, so the refusal is isolated to order.",
+  "requirement_sha": "ebaab5cd3bb6fab3",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecComponentsAscendingOrder": "edf3d98f88af0674",
+    "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestParseFlowSpecRefusesDescendingComponentType": "edf3d98f88af0674"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecComponentsAscendingOrder": "ced2b5aa0d12f25a",
+    "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestParseFlowSpecRefusesDescendingComponentType": "07936c9d90ac97d1"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "unrecognized error-range notify in an IKE_AUTH response ends the exchange; unrecognized status type ignored and SA establishes Re-judged 2026-10-10 (independent judge, mode rejudge): every tagged unit is byte-identical to the judged one (git diff 2d57003d45..HEAD touches only other functions, a const block, and new functions appended to the file), so the verdict stands unchanged.",
+  "requirement_sha": "291e605c6b74ad60",
+  "tests": {
+    "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrUnrecognizedNotifyHandling": "f788331a490d2a61",
+    "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrUnrecognizedNotifyHandling#2": "f788331a490d2a61"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrUnrecognizedNotifyHandling": "31a05714961180b5",
+    "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrUnrecognizedNotifyHandling#2": "31a05714961180b5"
+  },
+  "verdict": "enforced"
+}

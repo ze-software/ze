@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC7296-2.1-3",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_eap_retransmit_test.go::TestEapRtxMidEAPReplayRefusesUnprotected",
+    "unit-sha": "85ada546a24f23c6",
+    "claim-sha": "47954d1d7c6a8113",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/responder.go::replayCachedResponse",
+    "producer-sha": "ac495c3e1e0a75c2",
+    "break": "body of replayCachedResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.1-3",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_eap_retransmit_test.go::TestEapRtxResponderReplaysCachedResponseMidEAP",
+    "unit-sha": "5fb7ee11fe935bf8",
+    "claim-sha": "acf693544cb09e2e",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/responder.go::replayCachedResponse",
+    "producer-sha": "ac495c3e1e0a75c2",
+    "break": "body of replayCachedResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.1-3",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_retransmit_test.go::TestRtxResponderReplaysCachedResponseOnlyForDuplicate",
+    "unit-sha": "56f97c2e0a07f8ff",
+    "claim-sha": "ef2c2a888bf90de8",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/inbound.go::handleOwnedInbound",
+    "producer-sha": "f3b0ef2765e9ecc4",
+    "break": "body of handleOwnedInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.1-3",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_retransmit_test.go::TestRtxResponderReplaysCachedResponseOnlyForDuplicate",
+    "unit-sha": "56f97c2e0a07f8ff",
+    "claim-sha": "ddc601ffd1951ec9",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/inbound.go::handleOwnedInbound",
+    "producer-sha": "f3b0ef2765e9ecc4",
+    "break": "body of handleOwnedInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

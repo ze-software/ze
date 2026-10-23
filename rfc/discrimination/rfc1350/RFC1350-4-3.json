@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC1350-4-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/tftpserver/rfc1350_socket_integration_linux_test.go::TestListenTFTPLoopbackRoundTrip",
+    "unit-sha": "da8b4c4d33faa617",
+    "claim-sha": "f25daee3efac5b84",
+    "route": "mutant",
+    "producer": "internal/plugins/tftpserver/handler.go::handleRRQ",
+    "producer-sha": "02c7706e79bf4197",
+    "break": "line 318: \"serveFile(transferConn, resolved, negotiatedBlksize, log)\" -\u003e \"if b, rErr := os.ReadFile(resolved); rErr == nil { _, _ = mainConn.WriteToUDP(buildData(1, b[:min(len(b), negotiatedBlksize)]), clientAddr) }\""
+  },
+  {
+    "rid": "RFC1350-4-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/tftpserver/rfc1350_transfer_test.go::TestRFC1350ServerChoosesOneTIDForTheTransfer",
+    "unit-sha": "652500271435feed",
+    "claim-sha": "1c3350f5ca4f0de0",
+    "route": "revert",
+    "producer": "internal/plugins/tftpserver/handler.go::handleRRQ",
+    "producer-sha": "02c7706e79bf4197",
+    "break": "body of handleRRQ replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

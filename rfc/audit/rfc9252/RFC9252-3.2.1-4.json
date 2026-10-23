@@ -1,0 +1,13 @@
+{
+  "note": "(a) forbidden: advertising a SID with a set bit inside the transposed range. (b) TestSRv6OriginRefusesNonzeroTransposedBits configures bit 79 set within offset 65 length 15 and requires ParseRouteAttributes to fail (validateSRv6OriginStructure); TestSRv6OriginTranspositionKeepsOnlyUntransposedBits is the positive, keeping the adjacent bit 64.",
+  "requirement_sha": "896b625dc8b5befb",
+  "tests": {
+    "internal/component/bgp/config/rfc9252_routeattr_srv6_test.go::TestSRv6OriginRefusesNonzeroTransposedBits": "320300b38039f539",
+    "internal/component/bgp/config/rfc9252_routeattr_srv6_test.go::TestSRv6OriginTranspositionKeepsOnlyUntransposedBits": "320300b38039f539"
+  },
+  "units": {
+    "internal/component/bgp/config/rfc9252_routeattr_srv6_test.go::TestSRv6OriginRefusesNonzeroTransposedBits": "61997ee033052444",
+    "internal/component/bgp/config/rfc9252_routeattr_srv6_test.go::TestSRv6OriginTranspositionKeepsOnlyUntransposedBits": "336e13890b0c3507"
+  },
+  "verdict": "enforced"
+}

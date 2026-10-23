@@ -1,0 +1,13 @@
+{
+  "note": "negative asserts an existing ORIGINATOR_ID 9.9.9.9 survives reflection unchanged, which is the SHOULD NOT itself; positive shows creation when none exists",
+  "requirement_sha": "e6fd52e4ce447c82",
+  "tests": {
+    "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRInjects": "b6fdc78829b3f890",
+    "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRPreservesOriginator": "b6fdc78829b3f890"
+  },
+  "units": {
+    "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRInjects": "12fecf3624468e58",
+    "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRPreservesOriginator": "24c38b6509acd085"
+  },
+  "verdict": "enforced"
+}

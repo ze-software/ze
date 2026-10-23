@@ -1,0 +1,17 @@
+{
+  "note": "D2 rejudge 2026-10-16 (independent judge). The receive unit changed only by the owner-approved rename LsSRv6EndpointBehavior -> lsSRv6EndpointBehavior; decodeSRv6EndpointBehavior changed only by bgpls.ErrBGPLSTruncated. RFC 9514 Section 7.1: \"Undefined flags MUST be set to 0 when originating and ignored on receipt.\" Originate: isis TestRFC9514ISISEndpointBehaviorOriginatedFlagsZero / ...NativeFlagsNeverOriginated assert TLV 1250 exactly 00 01 00 00 from native flags 0 and 0xff (unchanged). Receipt: Flags 0xFF decodes without error to the same Behavior 0x13 and Algorithm 0x80 as Flags 0.",
+  "requirement_sha": "4911510c5aec9d08",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514EndpointBehaviorUndefinedFlagsIgnored": "54ef8216fabaae35",
+    "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514EndpointBehaviorUndefinedFlagsIgnored#2": "54ef8216fabaae35",
+    "internal/plugins/isis/rfc9514_bgpls_export_sentence_test.go::TestRFC9514ISISEndpointBehaviorNativeFlagsNeverOriginated": "8dc79db14f32fa32",
+    "internal/plugins/isis/rfc9514_bgpls_export_sentence_test.go::TestRFC9514ISISEndpointBehaviorOriginatedFlagsZero": "8dc79db14f32fa32"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514EndpointBehaviorUndefinedFlagsIgnored": "c494b822646b288c",
+    "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514EndpointBehaviorUndefinedFlagsIgnored#2": "c494b822646b288c",
+    "internal/plugins/isis/rfc9514_bgpls_export_sentence_test.go::TestRFC9514ISISEndpointBehaviorNativeFlagsNeverOriginated": "cb96011879421996",
+    "internal/plugins/isis/rfc9514_bgpls_export_sentence_test.go::TestRFC9514ISISEndpointBehaviorOriginatedFlagsZero": "5753445e3b72489c"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,15 @@
+{
+  "note": "Both bullets proven. AES GCM bullet: TestRFC5282AEADEncryptionKeysCarryTheirSalt (20/36 octets, key-then-salt round trip). AES CCM bullet: new TestRFC5282CCMEncryptionKeysCarryTheirSalt, every CCM ID at 128/256 bits: SK_ei and SK_er are exactly cipher key + 3 octets (19/35), and a SealIKEAEAD output is opened by a ccm instance built in the test from key[:n] with nonce = trailing 3 salt octets || 8-octet IV, which is the RFC 4309 Section 7.1 KEYMAT format and Section 4 nonce; a 4-octet GCM salt or salt-first layout fails the length or the open. Negative: TestRFC5282NonAEADEncryptionKeysCarryNoSalt. Records: SealIKEAEAD and encKeyMaterialLen reverts observed red. Residual: the opener uses ze's own internal/core/ccm package, so it checks the key split, not the CCM primitive itself.",
+  "requirement_sha": "bebed250d8147013",
+  "tests": {
+    "internal/component/ike/crypto/rfc5282_aead_test.go::TestRFC5282AEADEncryptionKeysCarryTheirSalt": "7023705f0a1c4b4b",
+    "internal/component/ike/crypto/rfc5282_aead_test.go::TestRFC5282NonAEADEncryptionKeysCarryNoSalt": "7023705f0a1c4b4b",
+    "internal/component/ike/crypto/rfc5282_ccm_keys_test.go::TestRFC5282CCMEncryptionKeysCarryTheirSalt": "8e85c13476398244"
+  },
+  "units": {
+    "internal/component/ike/crypto/rfc5282_aead_test.go::TestRFC5282AEADEncryptionKeysCarryTheirSalt": "0c8faefce387f26b",
+    "internal/component/ike/crypto/rfc5282_aead_test.go::TestRFC5282NonAEADEncryptionKeysCarryNoSalt": "32f5cdea277e76fc",
+    "internal/component/ike/crypto/rfc5282_ccm_keys_test.go::TestRFC5282CCMEncryptionKeysCarryTheirSalt": "4f0e368fa13ae81c"
+  },
+  "verdict": "enforced"
+}

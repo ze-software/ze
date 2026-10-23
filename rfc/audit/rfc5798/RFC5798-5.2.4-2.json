@@ -1,0 +1,15 @@
+{
+  "note": "vrrp judge 2026-09-29 (independent): config range: TestBoundaryPriority accepts 1 and 254 and refuses 0 and 255; run-time: TestEffectivePriorityWithTracking (now tagged here) requires exact values including the floor at 1 for decrements equal to and past the priority (254/254, 100/100, 100/4064), so removing the clamp goes red. Record: revert EffectivePriority.",
+  "requirement_sha": "f17282153fbc54e9",
+  "tests": {
+    "internal/plugins/vrrp/groups_test.go::TestBoundaryPriority": "30e27105e8a9f202",
+    "internal/plugins/vrrp/groups_test.go::TestBoundaryPriority#2": "30e27105e8a9f202",
+    "internal/plugins/vrrp/groups_test.go::TestEffectivePriorityWithTracking": "30e27105e8a9f202"
+  },
+  "units": {
+    "internal/plugins/vrrp/groups_test.go::TestBoundaryPriority": "fcd4ad07247002db",
+    "internal/plugins/vrrp/groups_test.go::TestBoundaryPriority#2": "fcd4ad07247002db",
+    "internal/plugins/vrrp/groups_test.go::TestEffectivePriorityWithTracking": "0748e903dc3ed0cb"
+  },
+  "verdict": "enforced"
+}

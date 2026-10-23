@@ -1,0 +1,13 @@
+{
+  "note": "TestRFC2516UnservedServiceNameIsRefused drives handlePADI: a PADI naming an unserved Service-Name draws no frame, the same PADI naming a served one draws exactly one PADO, so the silence is specific to the unserved service. Both polarities recorded red on handlePADI",
+  "requirement_sha": "9ac162d298138a9a",
+  "tests": {
+    "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516UnservedServiceNameIsRefused": "3ea2cf3cd3f3abda",
+    "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516UnservedServiceNameIsRefused#2": "3ea2cf3cd3f3abda"
+  },
+  "units": {
+    "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516UnservedServiceNameIsRefused": "eda063201199cd46",
+    "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516UnservedServiceNameIsRefused#2": "eda063201199cd46"
+  },
+  "verdict": "enforced"
+}

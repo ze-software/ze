@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2865-5.6-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go::TestRFC2865SupportedServiceTypeIsHonored",
+    "unit-sha": "2b1df06358b99173",
+    "claim-sha": "a669d7b54b2b0107",
+    "route": "revert",
+    "producer": "internal/component/radius/attr.go::AcceptedServiceType",
+    "producer-sha": "9558e45866cb1b84",
+    "break": "body of AcceptedServiceType replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2865-5.6-1",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go::TestRFC2865UnknownOrUnsupportedServiceTypeIsARejection",
+    "unit-sha": "dcb4ae45bbaffe88",
+    "claim-sha": "474e7a119fb62905",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authradius/handler.go::doRADIUS",
+    "producer-sha": "a747657dd105aaec",
+    "break": "body of doRADIUS replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

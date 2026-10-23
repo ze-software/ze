@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC2661-3.1-3",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661HeaderFlagWord",
+    "unit-sha": "aec46f659a5e2725",
+    "claim-sha": "50d1500abc35f347",
+    "route": "revert",
+    "producer": "internal/component/l2tp/header.go::WriteControlHeader",
+    "producer-sha": "dbf0242ff433065e",
+    "break": "body of WriteControlHeader replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

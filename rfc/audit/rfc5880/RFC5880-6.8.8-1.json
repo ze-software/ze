@@ -1,0 +1,15 @@
+{
+  "note": "Judge 2026-09-30 (rejudge, 6-2 + rest). NEW TestRFC5880EchoDemultiplexedAmongSessions: two Up echo sessions in one loop; a returning echo naming session 2 records its RTT on session 2 and leaves session 1 at zero, then one naming session 1 records on session 1, so delivery to 'the only/first session' goes red. Record revert echo.go::handleEchoInbound observed red. - TestRFC5880UnknownEchoDropped sound; old one-session + kept.",
+  "requirement_sha": "df50cef55ae3cf09",
+  "tests": {
+    "internal/component/bfd/engine/rfc5880_echo_session_test.go::TestRFC5880EchoDemultiplexedAmongSessions": "88282a65c3374034",
+    "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880EchoDemultiplexedToItsSession": "4b885928a870b00d",
+    "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880UnknownEchoDropped": "4b885928a870b00d"
+  },
+  "units": {
+    "internal/component/bfd/engine/rfc5880_echo_session_test.go::TestRFC5880EchoDemultiplexedAmongSessions": "da6af90199897a51",
+    "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880EchoDemultiplexedToItsSession": "87403a1be17e5e08",
+    "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880UnknownEchoDropped": "a8911690baed96bc"
+  },
+  "verdict": "enforced"
+}

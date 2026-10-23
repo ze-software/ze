@@ -1,0 +1,19 @@
+{
+  "note": "Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 5798 Section 7.2 says \"If the protected address is an IPv4 address, then: + Set the source MAC address to virtual router MAC Address + Set the source IPv4 address to interface primary IPv4 address - else // ipv6 + Set the source MAC address to virtual ...\" TestTxAdvertV4OnWire and TestSendAdvertNoLinkLocalSkipsAndCounts changed only by the checksum-mode plumbing (a Checksum: packet.ChecksumRFC9568 field added to the GroupSpec, AdvertParams or packet.Local literal, or the mode argument added to packet.FillChecksum); every assertion and every isolating input is byte-for-byte the same; the IPv4 primary-source capture and the IPv6 no-link-local negative are unchanged. Verdict unchanged.",
+  "requirement_sha": "db7cf7598283f5a8",
+  "tests": {
+    "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "e6113ed83a42c0f9",
+    "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV6OnWire": "e6113ed83a42c0f9",
+    "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertNoLinkLocalSkipsAndCounts": "3b5f911a78dbf13d",
+    "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertNoPrimaryV4SkipsAndCounts": "3b5f911a78dbf13d",
+    "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertUsesParentPrimaryV4Source": "3b5f911a78dbf13d"
+  },
+  "units": {
+    "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "7a4414ac139af987",
+    "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV6OnWire": "743f9108e7f1c010",
+    "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertNoLinkLocalSkipsAndCounts": "cae31ad229b13b47",
+    "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertNoPrimaryV4SkipsAndCounts": "d010337619277e96",
+    "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertUsesParentPrimaryV4Source": "71d8d585b800743e"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-10-19 (independent judge, after 4c41f84038, which replaced childPolicyParams with childPolicies: one inbound and one outbound policy per negotiated pair, all bound to the one SA, plus inboundStateSelector for the transport-mode state). RFC 4301 Section 7.1: \"If the SA will carry traffic without regard to a specific protocol value (i.e., ANY is specified as the (Next Layer) protocol selector value), then the port field values are undefined and MUST be set to ANY as well.\" Prior verdict enforced. TestRFC4301ProtocolAnyChildSACarriesAnyPorts changed only to childPolicies(child, dir)[0] over a one-pair narrowing result; it still asserts UpperProto 0 and both ports ANY in and out. The negative (programmableSelector refuses protocol ANY with a port) and the ipsec supplementary units are unchanged. The new transport-state cover also widens ports to ANY whenever the protocol widens to any (inboundStateSelector), consistent with this sentence. PASS at HEAD. Verdict stands. Owed: the positive's revert record (break on selectorPort) reports unit-changed and must be re-observed.",
+  "requirement_sha": "4625ebd9c379b15c",
+  "tests": {
+    "internal/component/ike/engine/rfc4301_protocol_any_sa_test.go::TestRFC4301ProtocolAnyChildSACarriesAnyPorts": "47481f470ea02ddf",
+    "internal/component/ike/engine/rfc4301_protocol_any_sa_test.go::TestRFC4301ProtocolAnyChildSARefusesAPort": "47481f470ea02ddf",
+    "internal/component/ike/ipsec/rfc4301_spd_management_test.go::TestRFC4301ProtocolAnyEntryCarriesAnyPorts": "12c243c57454eddc",
+    "internal/component/ike/ipsec/rfc4301_spd_management_test.go::TestRFC4301ProtocolAnyEntryRefusesAPort": "12c243c57454eddc"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc4301_protocol_any_sa_test.go::TestRFC4301ProtocolAnyChildSACarriesAnyPorts": "24790b055b29b9db",
+    "internal/component/ike/engine/rfc4301_protocol_any_sa_test.go::TestRFC4301ProtocolAnyChildSARefusesAPort": "3663979f599f5472",
+    "internal/component/ike/ipsec/rfc4301_spd_management_test.go::TestRFC4301ProtocolAnyEntryCarriesAnyPorts": "9f1eed08e6c46528",
+    "internal/component/ike/ipsec/rfc4301_spd_management_test.go::TestRFC4301ProtocolAnyEntryRefusesAPort": "54ce6b4fc8f97c51"
+  },
+  "verdict": "enforced"
+}

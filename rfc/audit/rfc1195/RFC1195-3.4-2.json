@@ -1,0 +1,11 @@
+{
+  "note": "Judged 2026-09-30. Positive: TestRFC1195PseudonodeCannotInheritRouterPrefixes decodes every pseudonode TLV and fails on type 131. {single-polarity: positive} checked: packet/tlv.go has no TLV 131 constant and no Go producer writes type 131, so no input can drive a producer toward placing it and no refusal path exists; no HEAD negative on the row. Level MUST NOT over 'is not included in pseudonode LSPs' (no keyword) is a D-3 call, accepted. Record: revert on OriginatePseudonode, observed red.",
+  "requirement_sha": "76c743412ce4b8ab",
+  "tests": {
+    "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195PseudonodeCannotInheritRouterPrefixes": "b67887a5f61b2632"
+  },
+  "units": {
+    "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195PseudonodeCannotInheritRouterPrefixes": "d824f90aa4e55147"
+  },
+  "verdict": "enforced"
+}

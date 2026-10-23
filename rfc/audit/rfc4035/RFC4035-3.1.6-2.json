@@ -1,0 +1,11 @@
+{
+  "note": "single polarity: asserts AD clear on both the OPT-less and DO-set geodns replies, and ze authenticates nothing, so any AD-setting path goes red",
+  "requirement_sha": "c21164afcb4e05c4",
+  "tests": {
+    "internal/plugins/geodns/rfc4035_server_test.go::TestRFC4035_NoDNSSECAdditionalProcessing": "0d5a4b0eaf3ac272"
+  },
+  "units": {
+    "internal/plugins/geodns/rfc4035_server_test.go::TestRFC4035_NoDNSSECAdditionalProcessing": "999305cf4ef4fff2"
+  },
+  "verdict": "enforced"
+}

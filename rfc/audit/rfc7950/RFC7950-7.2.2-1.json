@@ -1,0 +1,18 @@
+{
+  "code": {
+    "internal/component/config/yang/loader_structure.go::checkStructure": "1ca0b5fdfca42dfc",
+    "internal/component/config/yang/loader_structure.go::includedSubmodule": "563e5ebca115cf2e",
+    "internal/component/config/yang/loader_structure.go::moduleIncludeErrors": "5e5361d2051de3d8"
+  },
+  "note": "Re-judged 2026-10-18 (independent auditor, after bb173975ea). Read at rfc/full/rfc7950.txt Section 7.2.2: \"A submodule MUST only be included by either the module to which it belongs or another submodule that belongs to that module.\" Producer: checkStructure (joined by Resolve) runs moduleIncludeErrors over every loaded module and submodule (sourceModules); it resolves the including unit's owner (its own name, or its belongs-to) and refuses an include whose submodule belongs to another module with ErrIncludeBelongsTo. TestRFC7950SubmoduleIncludedOnlyByItsModule covers both clauses in both polarities: negatives refuse module a including s (belongs-to b) and submodule a-s of a including s, each requiring the text \"belongs to module b\"; positives load module a including a-t and a-s including sibling a-t. Module b is loaded and includes s in the negatives, so only the belongs-to differs. Independent overlay mutants (tags ze_core ze_bgp), each red on an assertion: owner ignores belongs-to (submodule-sibling positive red), modules skipped (submodule negative red), submodules skipped (module negative red), comparison always passes (both negatives red), comparison always fails (both positives red). Two equivalent-in-test mutants survive: dropping either lookup in includedSubmodule (include.Module, or the SubModules map fallback) leaves the test green because the other still finds the submodule; the redundancy changes no verdict but no test proves the fallback is needed. The recorded revert tuples (panic in moduleIncludeErrors) prove reach only. {gap} removed from the row in bb173975ea; Ze ships no submodule of its own, so the check guards loaded module sets.",
+  "requirement_sha": "4111ba92ddb919e3",
+  "tests": {
+    "internal/component/config/yang/rfc7950_loader_structural_test.go::TestRFC7950SubmoduleIncludedOnlyByItsModule": "f7f46fb0e5438f42",
+    "internal/component/config/yang/rfc7950_loader_structural_test.go::TestRFC7950SubmoduleIncludedOnlyByItsModule#2": "f7f46fb0e5438f42"
+  },
+  "units": {
+    "internal/component/config/yang/rfc7950_loader_structural_test.go::TestRFC7950SubmoduleIncludedOnlyByItsModule": "b20ac4b500e3add9",
+    "internal/component/config/yang/rfc7950_loader_structural_test.go::TestRFC7950SubmoduleIncludedOnlyByItsModule#2": "b20ac4b500e3add9"
+  },
+  "verdict": "enforced"
+}

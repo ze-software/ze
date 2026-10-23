@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-10-12 (independent auditor). SHIFTED by 6e063fb498 (tests: give ten assert-nothing tests a real assertion), whose hunks sit in untagged sibling tests and the import block. The tagged unit is byte-identical (gate-verified) and no helper it calls changed. Verdict stands. c20 judge: TestRFC2328NewerLSAAcknowledgedThroughReceiveUpdate reaches the ordinary newer-LSA ack through ReceiveUpdate, not hand-set flags: point-to-point, DROther and Backup (from the DR) each send an LS Ack carrying the header on eth0 after FlushDelayedAcks; the DR receiving from a DROther acks implicitly by flooding back out eth0. Negative TestOSPFDRRefloodsBackOutReceivingInterface (flooded back, implicit ack, no explicit ack, Table 19) now carries a judge-observed revert record on ackForReceive. Direct ack of unknown MaxAge held by TestOSPFUnknownMaxAgeNoCopyIsAckedAndDiscarded.",
+  "requirement_sha": "24e8e5fb97afba29",
+  "tests": {
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFAckDecisionTable": "818da1eec578ea28",
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFUnknownMaxAgeNoCopyIsAckedAndDiscarded": "818da1eec578ea28",
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_edges_test.go::TestOSPFDRRefloodsBackOutReceivingInterface": "6896ce74509062b9",
+    "internal/plugins/ospf/lsdb/rfc2328_newer_lsa_ack_test.go::TestRFC2328NewerLSAAcknowledgedThroughReceiveUpdate": "09296c82da305f9e"
+  },
+  "units": {
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFAckDecisionTable": "8f25863a405c187e",
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFUnknownMaxAgeNoCopyIsAckedAndDiscarded": "1b631d6e9c599745",
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_edges_test.go::TestOSPFDRRefloodsBackOutReceivingInterface": "df4470387694a059",
+    "internal/plugins/ospf/lsdb/rfc2328_newer_lsa_ack_test.go::TestRFC2328NewerLSAAcknowledgedThroughReceiveUpdate": "5870efe0e2ea0b59"
+  },
+  "verdict": "enforced"
+}

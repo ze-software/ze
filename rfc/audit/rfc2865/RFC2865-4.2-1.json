@@ -1,0 +1,13 @@
+{
+  "note": "Judged 2026-09-30 (rfc/full/rfc2865.txt:1015-1018, Section 4.2, 'Invalid packets are silently discarded.', MUST under D-3). Forbidden: a client trusting an Access-Accept whose Response Authenticator does not verify. TestClientAuthenticatorVerify answers the first attempt with an Accept signed with the wrong secret and every later one correctly signed: attempts >= 2 fails if the first reply is accepted rather than dropped (the client retransmits only when it discarded it), and the Code assertion fails if the correctly signed reply is not accepted. Only the secret differs between the two replies, so the buffer isolates the authenticator. Producer packet.go::VerifyResponseAuth via Client.Exchange; both polarities recorded and observed red. Tags moved from the retired RFC2865-3-4 under ruling R11; test body unchanged.",
+  "requirement_sha": "a38aa7d3cc34b4fd",
+  "tests": {
+    "internal/component/radius/rfc2865_client_test.go::TestClientAuthenticatorVerify": "adb68f6dd9fd6bc5",
+    "internal/component/radius/rfc2865_client_test.go::TestClientAuthenticatorVerify#2": "adb68f6dd9fd6bc5"
+  },
+  "units": {
+    "internal/component/radius/rfc2865_client_test.go::TestClientAuthenticatorVerify": "1df35557f2a6d0d8",
+    "internal/component/radius/rfc2865_client_test.go::TestClientAuthenticatorVerify#2": "1df35557f2a6d0d8"
+  },
+  "verdict": "enforced"
+}

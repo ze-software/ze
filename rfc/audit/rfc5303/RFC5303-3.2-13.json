@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-09-30. Forbidden: on an Initialize action, generating an adjacency-up event or not setting Initializing. adjacency TestRFC5303InitializeActionOnEveryRow drives received Down on all three rows (Down, Initializing, Up, each reached by Hellos): every row ends Initializing with no SessionUp; Down and Initializing rows raise no flag at all; the Up row raises only SessionDown, which R39 keeps as Ze's internal withdraw notice (fsm.go applyThreeWayAction quotes RFC 5303 sec 3.2 and ISO 10589 sec 9.4/7.5), not the adjacencyStateChange event the sentence forbids. Negative: Initializing row + received Initializing is the Up action, leaving Initializing with SessionUp. This closes the earlier gap (Initializing and Up rows unasserted). TestISISThreeWayInitializeAction remains tagged. Recorded +/- on applyThreeWayAction for both units.",
+  "requirement_sha": "07e36258bb67fa66",
+  "tests": {
+    "internal/plugins/isis/adjacency/rfc5303_fsm_test.go::TestISISThreeWayInitializeAction": "9dbfe0180a8a24cd",
+    "internal/plugins/isis/adjacency/rfc5303_fsm_test.go::TestISISThreeWayInitializeAction#2": "9dbfe0180a8a24cd",
+    "internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go::TestRFC5303InitializeActionOnEveryRow": "138d0f89ea4cda2f",
+    "internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go::TestRFC5303InitializeActionOnEveryRow#2": "138d0f89ea4cda2f"
+  },
+  "units": {
+    "internal/plugins/isis/adjacency/rfc5303_fsm_test.go::TestISISThreeWayInitializeAction": "61ff66b3c619aae8",
+    "internal/plugins/isis/adjacency/rfc5303_fsm_test.go::TestISISThreeWayInitializeAction#2": "61ff66b3c619aae8",
+    "internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go::TestRFC5303InitializeActionOnEveryRow": "eec821cabcd8f9c4",
+    "internal/plugins/isis/adjacency/rfc5303_new_adjacency_red_test.go::TestRFC5303InitializeActionOnEveryRow#2": "eec821cabcd8f9c4"
+  },
+  "verdict": "enforced"
+}

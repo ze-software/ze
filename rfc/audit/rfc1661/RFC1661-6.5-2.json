@@ -1,0 +1,11 @@
+{
+  "note": "{single-polarity} justified: WriteFrame has no compressed branch. Forbidden: a compressed Protocol without negotiation. TestRFC1661TwoOctetProtocolField goes red if WriteFrame writes one octet. Its pfc loop is decorative (the built option list never reaches WriteFrame); the assertion that discriminates is the off != 2 check.",
+  "requirement_sha": "94d6d38ecb215a4c",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661TwoOctetProtocolField": "9afaf002f0fd81ec"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661TwoOctetProtocolField": "664651efc8839141"
+  },
+  "verdict": "enforced"
+}

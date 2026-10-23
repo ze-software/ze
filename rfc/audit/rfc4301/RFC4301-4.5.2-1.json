@@ -1,0 +1,13 @@
+{
+  "note": "encryption key asserted as the leading octets and integrity key the following octets per SA, and the swapped split asserted absent",
+  "requirement_sha": "283c3609ad3ac12c",
+  "tests": {
+    "internal/component/ike/crypto/rfc4301_keymat_test.go::TestRFC4301KeymatEncryptionKeysLeadEachSA": "4678b864daa66ee8",
+    "internal/component/ike/crypto/rfc4301_keymat_test.go::TestRFC4301KeymatIntegrityKeysNeverLead": "4678b864daa66ee8"
+  },
+  "units": {
+    "internal/component/ike/crypto/rfc4301_keymat_test.go::TestRFC4301KeymatEncryptionKeysLeadEachSA": "4839e2ddfb8adb21",
+    "internal/component/ike/crypto/rfc4301_keymat_test.go::TestRFC4301KeymatIntegrityKeysNeverLead": "19b79c928819d8fa"
+  },
+  "verdict": "enforced"
+}

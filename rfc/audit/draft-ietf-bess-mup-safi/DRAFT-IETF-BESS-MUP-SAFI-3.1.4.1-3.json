@@ -1,0 +1,17 @@
+{
+  "note": "Encoder (the sender side the MUST NOT binds): TestMUPT2STEncoderKeepsEndpointLengthWithinTEID asserts EncodeNLRIHex writes Endpoint Length address bits + 0/16/32 (32 default) for IPv4 and IPv6; TestMUPT2STEncoderRefusesEndpointLengthBeyondTEID asserts teid bits 33 and 40 (v4, v6), -8 and unreadable are refused with errTeidBits. Author observed all five negatives red on HEAD's parseTEIDWithBits (D-8 defect fixed in encode.go, re-checked at the producer: both callers propagate the error). Decode path: TestMUPT2STEndpointLengthBoundedByTEID, 64 parses, 72 refused ErrMUPEndpointTooLong. Not covered here: ingress (RecognizeNLRI) does not refuse an over-long Endpoint Length from a peer, so such a route is stored and relayed; that receive handling is the Section 3.1.4 malformed rule (3.1.4-1, a disclosed {gap}), not this sentence",
+  "requirement_sha": "6f8aa7a201b2de95",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_ingress_test.go::TestMUPT2STEncoderKeepsEndpointLengthWithinTEID": "979695ac9f064e0d",
+    "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_ingress_test.go::TestMUPT2STEncoderRefusesEndpointLengthBeyondTEID": "979695ac9f064e0d",
+    "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT2STEndpointLengthBoundedByTEID": "b8681e31e994fbcc",
+    "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT2STEndpointLengthBoundedByTEID#2": "b8681e31e994fbcc"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_ingress_test.go::TestMUPT2STEncoderKeepsEndpointLengthWithinTEID": "9b156ea648b7bdd8",
+    "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_ingress_test.go::TestMUPT2STEncoderRefusesEndpointLengthBeyondTEID": "621f3be132ec321a",
+    "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT2STEndpointLengthBoundedByTEID": "34448cf8e7194f90",
+    "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT2STEndpointLengthBoundedByTEID#2": "34448cf8e7194f90"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "First verdict 2026-09-29 (first clause of the \u00a75 sentence; the twice-sent-withdraw clause left with retired RFC7854-5-3). Producer peerHeaderFromEvent sets L only on the sent direction, so a route's announcement and its withdraw take their L from the same direction. Positive rfc7854_test.go::TestRFC7854LFlagFollowsPolicy: a received withdraw carries L clear like a received announce, a sent withdraw L set like a sent announce. Negative ::TestRFC7854LFlagNotDecidedByBody: the same withdraw body on both sides gets L clear and L set, so a withdraw cannot carry the other side's flag. Both observed red under the peerHeaderFromEvent break. The test does not pair one announce with its own withdraw by prefix; the direction is the only input L reads, so no pairing can diverge.",
+  "requirement_sha": "3487e1ff16b58dad",
+  "tests": {
+    "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854LFlagFollowsPolicy": "94e84131af3555be",
+    "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854LFlagNotDecidedByBody": "94e84131af3555be"
+  },
+  "units": {
+    "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854LFlagFollowsPolicy": "6e49c954267a390e",
+    "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854LFlagNotDecidedByBody": "6fa2951e961f3181"
+  },
+  "verdict": "enforced"
+}

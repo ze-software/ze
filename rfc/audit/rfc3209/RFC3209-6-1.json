@@ -1,0 +1,17 @@
+{
+  "note": "Rejudged 2026-09-29 (routing child). TestRFC3209ReroutePathKeepsSessionNewLSPID reads the emitted make-before-break PATH: SESSION equal to the original and to the PSB, same sender, new LSP_ID. TestRFC3209RerouteNeverReusesLSPID: two successive reroutes give three distinct LSP_IDs under one SESSION.",
+  "requirement_sha": "b48e92e4fb027dcd",
+  "tests": {
+    "internal/plugins/rsvpte/rfc3209_admission_se_test.go::TestSEAdmissionDistinctSessionsDoNotShare": "c02141cf63f6e3dc",
+    "internal/plugins/rsvpte/rfc3209_reroute_test.go::TestEngineMakeBeforeBreak": "3340fedb85bbe0d5",
+    "internal/plugins/rsvpte/rfc3209_signaling_test.go::TestRFC3209RerouteNeverReusesLSPID": "0fabf3da631549e2",
+    "internal/plugins/rsvpte/rfc3209_signaling_test.go::TestRFC3209ReroutePathKeepsSessionNewLSPID": "0fabf3da631549e2"
+  },
+  "units": {
+    "internal/plugins/rsvpte/rfc3209_admission_se_test.go::TestSEAdmissionDistinctSessionsDoNotShare": "e4a3259ae8e9dac4",
+    "internal/plugins/rsvpte/rfc3209_reroute_test.go::TestEngineMakeBeforeBreak": "0a8c5c93663955e2",
+    "internal/plugins/rsvpte/rfc3209_signaling_test.go::TestRFC3209RerouteNeverReusesLSPID": "ba3595a39287ef9c",
+    "internal/plugins/rsvpte/rfc3209_signaling_test.go::TestRFC3209ReroutePathKeepsSessionNewLSPID": "06f27f490237feed"
+  },
+  "verdict": "enforced"
+}

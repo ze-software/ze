@@ -1,0 +1,15 @@
+{
+  "note": "Forbidden: selecting a zero-discriminator packet on nothing, or on fields the receiver cannot observe. TestRFC5881FirstPacketMatchesByTuple fails if the matching tuple is not delivered; TestRFC5881FirstPacketWrongSourceDropped fails if a wrong source is delivered; TestFirstPacketMatchesWhatTheTransportSurfaces fails if another interface or the wildcard local address selects the session.",
+  "requirement_sha": "34e438d9da306905",
+  "tests": {
+    "internal/component/bfd/engine/rfc5881_test.go::TestFirstPacketMatchesWhatTheTransportSurfaces": "c8bf3135e7e74ea3",
+    "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881FirstPacketMatchesByTuple": "c8bf3135e7e74ea3",
+    "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881FirstPacketWrongSourceDropped": "c8bf3135e7e74ea3"
+  },
+  "units": {
+    "internal/component/bfd/engine/rfc5881_test.go::TestFirstPacketMatchesWhatTheTransportSurfaces": "060948fa548b4268",
+    "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881FirstPacketMatchesByTuple": "8d9ee703f1e56ddb",
+    "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881FirstPacketWrongSourceDropped": "b77f28c4e5257d51"
+  },
+  "verdict": "enforced"
+}

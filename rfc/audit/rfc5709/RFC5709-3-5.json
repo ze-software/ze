@@ -1,0 +1,11 @@
+{
+  "note": "Rejudged 2026-10-21 over the current tags, units and records. The redundant codec-level tag was removed. TestRFC5709AnyAlgorithmUnderAnyKeyID rotates all five algorithms over Key IDs 1, 77, 200, 254 and 255 through parseOSPFConfig, validateConfig and the engine verifyPacket hook, with no auth failure. The row's {single-polarity: positive} holds: the MUST is permissive and has no forbidden pairing to reject.",
+  "requirement_sha": "22f0335cb9c59a25",
+  "tests": {
+    "internal/plugins/ospf/rfc5709_any_algorithm_any_keyid_test.go::TestRFC5709AnyAlgorithmUnderAnyKeyID": "02be0738e6eb865d"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc5709_any_algorithm_any_keyid_test.go::TestRFC5709AnyAlgorithmUnderAnyKeyID": "3fb5de4c1b95b278"
+  },
+  "verdict": "enforced"
+}

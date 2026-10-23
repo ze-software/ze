@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden = a duplicate reprocessed, or a duplicate not acknowledged. reliable_test.go::TestOnReceiveDuplicate asserts Class==ClassDuplicate, Delivered empty (ignored from processing) and NeedsZLB true after the piggyback cleared it (MUST be acknowledged). The piggyback/ZLB alternative is permissive.",
+  "requirement_sha": "35d1f35b20c543f9",
+  "tests": {
+    "internal/component/l2tp/rfc2661_reliable_test.go::TestOnReceiveDuplicate": "1da6320bfe08bd17",
+    "internal/component/l2tp/rfc2661_reliable_test.go::TestOnReceiveDuplicate#2": "1da6320bfe08bd17"
+  },
+  "units": {
+    "internal/component/l2tp/rfc2661_reliable_test.go::TestOnReceiveDuplicate": "e92f0e6b467cf0fe",
+    "internal/component/l2tp/rfc2661_reliable_test.go::TestOnReceiveDuplicate#2": "e92f0e6b467cf0fe"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC1195-3.10-3",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/rfc1195_selection_test.go::TestRFC1195InternalEntryWithoutDefaultMetricRefused",
+    "unit-sha": "c3b14cd7b3dc4e97",
+    "claim-sha": "c56bbd614cc14df0",
+    "route": "revert",
+    "producer": "internal/plugins/isis/packet/tlv_narrow_ipv4.go::DecodeNarrowIPReachTLV",
+    "producer-sha": "adf6795d00099f68",
+    "break": "body of DecodeNarrowIPReachTLV replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1195-3.10-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/spf/rfc1195_route_test.go::TestRFC1195RouteForEachReachabilityEntry",
+    "unit-sha": "f821d83c846a2806",
+    "claim-sha": "002df7fdbfb3837b",
+    "route": "revert",
+    "producer": "internal/plugins/isis/spf/route.go::BuildRoutes",
+    "producer-sha": "7beede9dd623825b",
+    "break": "body of BuildRoutes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

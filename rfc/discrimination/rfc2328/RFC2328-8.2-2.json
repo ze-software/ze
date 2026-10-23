@@ -1,0 +1,79 @@
+[
+  {
+    "rid": "RFC2328-8.2-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc2328_receive_source_test.go::TestOSPFReceiveAcceptsOffNetworkSourceOnPointToPoint",
+    "unit-sha": "b2b81540f3104568",
+    "claim-sha": "aafaf7ea65933143",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/receive_source.go::sourceOnInterfaceNetworkLocked",
+    "producer-sha": "30673bede544f279",
+    "break": "body of sourceOnInterfaceNetworkLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-8.2-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc2328_receive_source_test.go::TestOSPFReceiveAcceptsOnNetworkSourceOnBroadcast",
+    "unit-sha": "34cba1267fd29a43",
+    "claim-sha": "f369e6fe142d16dd",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/receive_source.go::sourceOnInterfaceNetworkLocked",
+    "producer-sha": "30673bede544f279",
+    "break": "body of sourceOnInterfaceNetworkLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-8.2-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/rfc2328_receive_source_test.go::TestOSPFReceiveDropsOffNetworkSourceOnBroadcast",
+    "unit-sha": "a0c595d60f45bcdb",
+    "claim-sha": "c5b78bdd08a37d49",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/receive_source.go::sourceOnInterfaceNetworkLocked",
+    "producer-sha": "30673bede544f279",
+    "break": "body of sourceOnInterfaceNetworkLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-8.2-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc2328_receive_test.go::TestOSPFReceiveAcceptsMatchingAreaID",
+    "unit-sha": "5016a32f0cc4e3c9",
+    "claim-sha": "616c51797211ba26",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/instance.go::acceptsArea",
+    "producer-sha": "3ae15f582b7597eb",
+    "break": "body of acceptsArea replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-8.2-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/rfc2328_receive_test.go::TestOSPFReceiveDropsMismatchedAreaID",
+    "unit-sha": "51a4581d1055b3ca",
+    "claim-sha": "b69f51d1f18aae20",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/instance.go::acceptsArea",
+    "producer-sha": "3ae15f582b7597eb",
+    "break": "body of acceptsArea replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-8.2-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc2328_virtual_area_test.go::TestRFC2328VirtualLinkAreaIDAccepted",
+    "unit-sha": "075f97a18e88d1dd",
+    "claim-sha": "f7c5ac92737ed852",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/virtual_link.go::virtualLinkTargetLocked",
+    "producer-sha": "fd8f838bbeca900c",
+    "break": "body of virtualLinkTargetLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-8.2-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/rfc2328_virtual_area_test.go::TestRFC2328VirtualLinkAreaIDRefused",
+    "unit-sha": "3ec0ace74813737b",
+    "claim-sha": "cc3ff1fb1cc46844",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/virtual_link.go::virtualLinkTargetLocked",
+    "producer-sha": "fd8f838bbeca900c",
+    "break": "body of virtualLinkTargetLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

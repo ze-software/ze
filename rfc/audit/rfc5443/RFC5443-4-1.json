@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-09-29. Level: RFC 5443 section 4 reads lowercase 'should only be applied to the IP link cost'; under D-3 a lowercase keyword keeps the row's MUST level, so no correction is owed. TestRFC5443CostOutRaisesIPCostNotDefaultTEMetric originates both LSAs from one not-synchronized snapshot: the Router-LSA link is 0xFFFF and the TE Link LSA (teOriginateType1, decoded) keeps the TE metric defaulted from the configured IP cost, 100. TestRFC5443CostOutLeavesExplicitTEMetric covers the explicit te-metric branch (50 unchanged). Both branches of applyTELinkAttributes are covered and a TE metric raised by the cost-out goes red. The false 'Ze originates no TE LSA' tags were removed from TestLDPSyncTECostUntouched.",
+  "requirement_sha": "8e556c550ab9d30c",
+  "tests": {
+    "internal/plugins/ospf/rfc5443_origination_test.go::TestRFC5443CostOutLeavesExplicitTEMetric": "c9958c38f3f744bf",
+    "internal/plugins/ospf/rfc5443_origination_test.go::TestRFC5443CostOutRaisesIPCostNotDefaultTEMetric": "c9958c38f3f744bf"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc5443_origination_test.go::TestRFC5443CostOutLeavesExplicitTEMetric": "1a1f4507e06d8374",
+    "internal/plugins/ospf/rfc5443_origination_test.go::TestRFC5443CostOutRaisesIPCostNotDefaultTEMetric": "f0ec778a80eae22f"
+  },
+  "verdict": "enforced"
+}

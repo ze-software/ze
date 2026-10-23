@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC8092-6-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/message/rfc8092_error_handling_test.go::TestRFC8092LargeCommunityAnyGlobalAdministratorIsWellFormed",
+    "unit-sha": "383c1a4d6d2eca7e",
+    "claim-sha": "42bf045cda5bc0ee",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/rfc7606.go::validateLargeCommunityAttr",
+    "producer-sha": "0b3890a8f14078ec",
+    "break": "body of validateLargeCommunityAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4271-6.2-6",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_session_open_error_test.go::TestRFC4271OpenErrorSubcodes",
+    "unit-sha": "4a9c96647ef297b7",
+    "claim-sha": "7fb1417ee81c1df9",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_open_as.go::validateOpenPeerAS",
+    "producer-sha": "8cdc57d8ebca0af4",
+    "break": "body of validateOpenPeerAS replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-6.2-6",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_session_open_error_test.go::TestRFC4271OpenErrorSubcodes",
+    "unit-sha": "4a9c96647ef297b7",
+    "claim-sha": "df03ea9da0935f71",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_open_as.go::validateOpenPeerAS",
+    "producer-sha": "8cdc57d8ebca0af4",
+    "break": "body of validateOpenPeerAS replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

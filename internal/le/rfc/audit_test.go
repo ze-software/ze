@@ -570,7 +570,7 @@ func TestPartialScopeChangesInvalidateAudit(t *testing.T) {
 			if state != StaleRequirementState {
 				t.Fatalf("scope %s: %s", change, state)
 			}
-			report, err := ResealWithProof(root, func(string) bool { return true }, "test proof")
+			report, err := ResealWithProof(root, func(string) bool { return true })
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -594,7 +594,7 @@ func TestAddingPartialScopeRequiresRejudgment(t *testing.T) {
 	body := partialFiles()[selftestSummaryRel]
 	writeFixtureFiles(t, root, map[string]string{selftestSummaryRel: strings.Replace(body, " "+partialMarker, "", 1)})
 	from := stampPending(t, root, selftestStem, map[string]any{selftestRIDSend: map[string]any{"verdict": VerdictWeak, "note": "whole sentence is not demonstrated"}})
-	if _, err := auditStamp(root, selftestStem, from, stampModeNew, stampNow); err != nil {
+	if _, err := auditStamp(root, selftestStem, from, stampModeNew); err != nil {
 		t.Fatal(err)
 	}
 	writeFixtureFiles(t, root, map[string]string{selftestSummaryRel: body})
@@ -602,7 +602,7 @@ func TestAddingPartialScopeRequiresRejudgment(t *testing.T) {
 		t.Fatal(state)
 	}
 	from = stampPending(t, root, selftestStem, map[string]any{selftestRIDSend: partialPending()})
-	if _, err := auditStamp(root, selftestStem, from, stampModeRejudge, stampNow); err != nil {
+	if _, err := auditStamp(root, selftestStem, from, stampModeRejudge); err != nil {
 		t.Fatal(err)
 	}
 	if state := stampFreshness(t, root)[selftestRIDSend].State; state != FreshState {

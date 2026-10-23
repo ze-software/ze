@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC1195-3.2-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/rfc1195_selection_test.go::TestRFC1195SpecificLeakKeepsOnlyMinimum",
+    "unit-sha": "410608d84dc35635",
+    "claim-sha": "ce3882f4b2c96d7e",
+    "route": "revert",
+    "producer": "internal/plugins/isis/spf/leak.go::leakInto",
+    "producer-sha": "b5a4da90d430ea3e",
+    "break": "body of leakInto replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1195-3.2-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195SpecificLeakCollapsesDuplicatePrefix",
+    "unit-sha": "213ee42b651cedad",
+    "claim-sha": "30616da841483d94",
+    "route": "revert",
+    "producer": "internal/plugins/isis/spf/leak.go::leakInto",
+    "producer-sha": "b5a4da90d430ea3e",
+    "break": "body of leakInto replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

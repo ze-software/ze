@@ -1,0 +1,21 @@
+{
+  "note": "Forbidden: a Type-3 default into an NSSA that imports summaries. spf/area_type_test.go TestOSPFNSSANoSummaryDefaultInjection/regular asserts no summary default through OriginateSummaries (line 154), TestOSPFNSSAType3SummaryImport asserts it through applyAreaTypePolicy (line 94), and the v3 test asserts no inter-area default (line 121). Negatives show the ban is conditional on import (area_type_test.go lines 107, 133).",
+  "requirement_sha": "624ecf4c3946e8b6",
+  "tests": {
+    "internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go::TestOSPFv3NSSANoSummaryDefaultUsesSummaryLSA": "6e7d1420848b435e",
+    "internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go::TestOSPFv3NSSANoSummaryDefaultUsesSummaryLSA#2": "6e7d1420848b435e",
+    "internal/plugins/ospf/spf/rfc3101_area_type_test.go::TestOSPFNSSANoSummaryDefaultInjection": "cd0b5106bcb1bcdc",
+    "internal/plugins/ospf/spf/rfc3101_area_type_test.go::TestOSPFNSSANoSummaryDefaultInjection#2": "cd0b5106bcb1bcdc",
+    "internal/plugins/ospf/spf/rfc3101_area_type_test.go::TestOSPFNSSAType3SummaryImport": "cd0b5106bcb1bcdc",
+    "internal/plugins/ospf/spf/rfc3101_area_type_test.go::TestOSPFNSSAType3SummaryImport#2": "cd0b5106bcb1bcdc"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go::TestOSPFv3NSSANoSummaryDefaultUsesSummaryLSA": "c129732635a68daf",
+    "internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go::TestOSPFv3NSSANoSummaryDefaultUsesSummaryLSA#2": "c129732635a68daf",
+    "internal/plugins/ospf/spf/rfc3101_area_type_test.go::TestOSPFNSSANoSummaryDefaultInjection": "56db5f97fcfce795",
+    "internal/plugins/ospf/spf/rfc3101_area_type_test.go::TestOSPFNSSANoSummaryDefaultInjection#2": "56db5f97fcfce795",
+    "internal/plugins/ospf/spf/rfc3101_area_type_test.go::TestOSPFNSSAType3SummaryImport": "b2e130ace4c20410",
+    "internal/plugins/ospf/spf/rfc3101_area_type_test.go::TestOSPFNSSAType3SummaryImport#2": "b2e130ace4c20410"
+  },
+  "verdict": "enforced"
+}

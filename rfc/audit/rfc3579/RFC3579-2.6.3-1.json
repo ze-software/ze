@@ -1,0 +1,13 @@
+{
+  "note": "Access-Reject carrying EAP-Success denies (TestRadiusAdminEapDecisionFollowsTheRadiusCode) and Access-Accept carrying EAP-Failure at the identity round grants (TestRadiusAdminEapAcceptWithEapFailureStillAuthorizes); both directions, fixture chosen so an early return on eapErr would go red",
+  "requirement_sha": "d82d09a6968a78a8",
+  "tests": {
+    "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapAcceptWithEapFailureStillAuthorizes": "2f6a0814b0b8b9cb",
+    "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapDecisionFollowsTheRadiusCode": "2f6a0814b0b8b9cb"
+  },
+  "units": {
+    "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapAcceptWithEapFailureStillAuthorizes": "bf9c5d11822f4409",
+    "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapDecisionFollowsTheRadiusCode": "2be8f2eb7302b92d"
+  },
+  "verdict": "enforced"
+}

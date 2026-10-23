@@ -1,0 +1,19 @@
+{
+  "note": "Judge 2026-09-30 (cont 7 re-judge). AC half unchanged and enforced (TestBuildPADT, handleSessionDown sends the PADT for that SID, an unknown SID terminates nothing). Host half, the gap of the prior weak verdict, now proven on raw octets: TestRFC2516HostPADTNamesItsAccessConcentratorAndSession (PADO+PADS through tryReadPADO/tryReadPADS, then sendPADT: DESTINATION_ADDR = offering AC's MAC with the group bit clear, CODE 0xa7, SESSION_ID 0x2345 from the PADS), observed red under a revert of sendPADT; TestRFC2516HostPADTNeverAddressesAGroupOrAForeignSession (a PADO from broadcast or multicast source is never an offer, so no PADT can be addressed to a group; a PADS from another AC carrying 0x3456 is ignored and the PADT names 0x2345), observed red under a revert of tryReadPADS. Residual, named not disqualifying: the two-line acMAC copy from padoPkt.SrcMAC in Dial is mirrored in the test helper because Dial needs kernel PPPoE; Dial passes the same acMAC/sessID to sendPADT on every path (read at dialer.go).",
+  "requirement_sha": "218e5487eed4b7f3",
+  "tests": {
+    "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestBuildPADT": "b7c2fae4a50abe95",
+    "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516SessionDownSendsPADTForThatSession": "e5818bbbd45fc77f",
+    "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516UnknownSessionIDTerminatesNothing": "e5818bbbd45fc77f",
+    "internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go::TestRFC2516HostPADTNamesItsAccessConcentratorAndSession": "681144a1a5017cfe",
+    "internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go::TestRFC2516HostPADTNeverAddressesAGroupOrAForeignSession": "681144a1a5017cfe"
+  },
+  "units": {
+    "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestBuildPADT": "4af5887b466efb6a",
+    "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516SessionDownSendsPADTForThatSession": "acfed3d0bdabd176",
+    "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516UnknownSessionIDTerminatesNothing": "b69dc75510f54662",
+    "internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go::TestRFC2516HostPADTNamesItsAccessConcentratorAndSession": "12f916fd732acaad",
+    "internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go::TestRFC2516HostPADTNeverAddressesAGroupOrAForeignSession": "cf9d9c48ec1183da"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: a classful routing table (mask derived from address class) that cannot carry variable-length subnets or supernets. Red: TestRFC2328ClasslessPrefixesReachIPRIB fails unless 192.0.0.0/16 (a supernet of class-C networks), 192.0.2.0/24 and 192.0.2.128/25 (a variable-length subnet) each reach the IP Loc-RIB with its own next hop. Other polarity: TestRFC2328ClasslessWithdrawalPreservesOverlaps fails if withdrawing the /24 removes the /16 or the /25. Both the VLSM and the supernet clause have a prefix that a classful table would lose.",
+  "requirement_sha": "d3bf9d63997909ea",
+  "tests": {
+    "internal/plugins/ospf/spf/rfc2328_classless_test.go::TestRFC2328ClasslessPrefixesReachIPRIB": "18cd72fa200b49eb",
+    "internal/plugins/ospf/spf/rfc2328_classless_test.go::TestRFC2328ClasslessWithdrawalPreservesOverlaps": "18cd72fa200b49eb"
+  },
+  "units": {
+    "internal/plugins/ospf/spf/rfc2328_classless_test.go::TestRFC2328ClasslessPrefixesReachIPRIB": "9895c4c7a8ab506a",
+    "internal/plugins/ospf/spf/rfc2328_classless_test.go::TestRFC2328ClasslessWithdrawalPreservesOverlaps": "55f87b66d44b2923"
+  },
+  "verdict": "enforced"
+}

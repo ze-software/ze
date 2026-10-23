@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-02 (BGP c28 judge). Forbidden: a single-label binding transmitted in any layout other than the Section 2.2 one. All three transmitters now covered with whole-NLRI literals: LabeledUnicast.WriteTo by TestLabeledSingleLabelSection22Encoding (HEAD, require.Equal on the whole encoding), and UpdateBuilder.BuildLabeledUnicastNLRIBytes (plain and ADD-PATH) and buildVPNNLRIBytes by TestRFC8277BuilderLabelLayout (20 000641 0a, 00000007 20 000641 0a, 60 000641 <RD> 0a; recorded revert of WriteLabelValues; judge overlay dropping the S line of WriteLabelValues reds every case). {single-polarity: positive} is valid: a one-label stack has one layout and Length is computed from the input, so no input reaches a non-Section-2.2 encoding; the reason now names all three transmitters (correction paragraph in rfc/corrections/rfc8277.md). Residual: the HEAD WriteTo unit has no discrimination record of its own.",
+  "requirement_sha": "174d15118dbeada3",
+  "tests": {
+    "internal/component/bgp/message/rfc8277_label_layout_test.go::TestRFC8277BuilderLabelLayout": "bc0d36b08721c366",
+    "internal/component/bgp/plugins/nlri/labeled/rfc8277_test.go::TestLabeledSingleLabelSection22Encoding": "20798a2559b785cc"
+  },
+  "units": {
+    "internal/component/bgp/message/rfc8277_label_layout_test.go::TestRFC8277BuilderLabelLayout": "3ca769542f91b6c7",
+    "internal/component/bgp/plugins/nlri/labeled/rfc8277_test.go::TestLabeledSingleLabelSection22Encoding": "77e0c650c10c42ab"
+  },
+  "verdict": "enforced"
+}

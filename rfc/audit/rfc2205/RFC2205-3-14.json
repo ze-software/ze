@@ -1,0 +1,17 @@
+{
+  "note": "Judged 2026-09-29 (routing child, continuation judge). PathTear clause: TestRFC2205PathTearReleasesReservation / ...ForOtherLSPLeavesReservation. Timeout clause: TestRFC2205PathStateDeletedAtCleanupTimeout asserts the reservation bandwidth released with the expired path state; TestRFC2205RefreshedPathStateKept keeps it for refreshed state.",
+  "requirement_sha": "0e06fd2ac4e170be",
+  "tests": {
+    "internal/plugins/rsvpte/rfc2205_engine_test.go::TestRFC2205PathTearForOtherLSPLeavesReservation": "40d8aa6c3fe9e9e4",
+    "internal/plugins/rsvpte/rfc2205_engine_test.go::TestRFC2205PathTearReleasesReservation": "40d8aa6c3fe9e9e4",
+    "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205PathStateDeletedAtCleanupTimeout": "7bc063943de30e7b",
+    "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205RefreshedPathStateKept": "7bc063943de30e7b"
+  },
+  "units": {
+    "internal/plugins/rsvpte/rfc2205_engine_test.go::TestRFC2205PathTearForOtherLSPLeavesReservation": "665d3697793570cb",
+    "internal/plugins/rsvpte/rfc2205_engine_test.go::TestRFC2205PathTearReleasesReservation": "8d7eefd41232cad2",
+    "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205PathStateDeletedAtCleanupTimeout": "010341722a389017",
+    "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205RefreshedPathStateKept": "d3058bce5c537198"
+  },
+  "verdict": "enforced"
+}

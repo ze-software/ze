@@ -1,0 +1,13 @@
+{
+  "note": "vrrp judge 2026-09-29 (independent, continuations 1-2): Re-read: the unit's body is unchanged; only the 6.4.2 and 6.4.3 Virtual Router MAC proxy tags left it for TestVRRPBackupDoesNotForwardVirtualMACFrames, so the verdict stands. Prior note: Backup installs no VIP so no packet to it is delivered locally; Master contrast installs it",
+  "requirement_sha": "aa141be8239f3b53",
+  "tests": {
+    "internal/plugins/vrrp/instance_test.go::TestInstanceOwnerStartupGoesMaster": "90d279832a92de75",
+    "internal/plugins/vrrp/instance_test.go::TestInstanceStartupNonOwnerGoesBackup": "90d279832a92de75"
+  },
+  "units": {
+    "internal/plugins/vrrp/instance_test.go::TestInstanceOwnerStartupGoesMaster": "e1a785d3aeb30340",
+    "internal/plugins/vrrp/instance_test.go::TestInstanceStartupNonOwnerGoesBackup": "7e4b071c14d787cc"
+  },
+  "verdict": "enforced"
+}

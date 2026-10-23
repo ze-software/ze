@@ -1,0 +1,22 @@
+{
+  "code": {
+    "internal/plugins/ospf/instance.go::setConfig": "2fc75a6ed43d8658",
+    "internal/plugins/ospf/nssa.go::electNSSATranslator": "35d82a8159155cfa",
+    "internal/plugins/ospf/nssa.go::nssaABRs": "aa07e762e50db18a",
+    "internal/plugins/ospf/nssa.go::nssaABRsV6": "5e3c5b8fc560caa2",
+    "internal/plugins/ospf/nssa.go::nssaTranslatorEnabled": "092205a0017c470f"
+  },
+  "note": "Re-judged 2026-10-19 (independent judge, after 12454d4ac5); was unimplemented (disclosed deviation, owner reversal #31 of 2026-10-18). Section 3.1: \"If there exists another border router in this list whose router-LSA has bit Nt set or who has a higher router ID, then its NSSATranslatorState is disabled.  Otherwise its NSSATranslatorState is elected.\" And: \"However, when an NSSA border router has its NSSATranslatorState enabled, it sets bit Nt in the router-LSA it originates into the NSSA.\" Producer: for each listed member r (B-bit router-LSA in the NSSA, reached over the NSSA, ASBR over transit, r != self) electNSSATranslator returns disabled if r is in list.nt (B|Nt) or bytes.Compare(r, self) > 0 (unsigned big-endian Router ID, correct tie-break); otherwise elected, including with no other candidate, which matches 'Otherwise its NSSATranslatorState is elected'. Nt origination: nssaTranslatorEnabled is true only for role always on an NSSA, used by setConfig (OSPFv2 ntAreas) and v6NSSATranslatorArea (OSPFv3); the LSDB adds the ABR check. So a candidate, elected or not, leaves Nt clear and a higher-Router-ID 'translate never' border router now disables the candidate. TestRFC3101ElectionRuleDisablesCandidate: lower-RID Nt-set member -> 0, higher-RID Nt-clear member -> 0, lower-RID Nt-clear member -> 1. Hand mutants: dropping the Nt test reds case 1, dropping or inverting the Router ID test reds case 2 (and 3 when inverted). TestRFC3101OnlyAlwaysRoleSetsNtBit (untagged) pins the Nt decision. OSPFv3: shared electNSSATranslator; TestOSPFv6NSSAHigherBorderRouterDisablesCandidate (untagged) drives translateNSSAV6 for the higher-RID case only; the v6 Nt-member case has no test. Defect in the population: TestRFC3101HigherRouterIDWithoutNtDisablesCandidate (rfc3101_translator_list_test.go) still wraps a correct RFC assertion in rfcgap.Demonstrate and now FAILS 'gap RFC3101-3.1-4 closed'; its doc comment ('disclosed deviation', 'which Ze does not produce') is false at HEAD. It duplicates case 2 of TestRFC3101ElectionRuleDisablesCandidate. All carriers pass at HEAD except that stale demo.",
+  "requirement_sha": "2badb24d248e7b97",
+  "tests": {
+    "internal/plugins/ospf/rfc3101_translator_election_test.go::TestRFC3101ElectionRuleDisablesCandidate": "382e18427d531673",
+    "internal/plugins/ospf/rfc3101_translator_election_test.go::TestRFC3101ElectionRuleDisablesCandidate#2": "382e18427d531673",
+    "internal/plugins/ospf/rfc3101_translator_election_test.go::TestRFC3101ElectionRuleDisablesCandidate#3": "382e18427d531673"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc3101_translator_election_test.go::TestRFC3101ElectionRuleDisablesCandidate": "7237fc701317ed17",
+    "internal/plugins/ospf/rfc3101_translator_election_test.go::TestRFC3101ElectionRuleDisablesCandidate#2": "7237fc701317ed17",
+    "internal/plugins/ospf/rfc3101_translator_election_test.go::TestRFC3101ElectionRuleDisablesCandidate#3": "7237fc701317ed17"
+  },
+  "verdict": "enforced"
+}

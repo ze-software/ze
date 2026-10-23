@@ -1,0 +1,15 @@
+{
+  "note": "Sender: TestRFC5282AEADSendAssociatedDataRunsThroughTheSKHeader pins DataOffset 32 on both ends' real messages and opens them under raw[:32] with an independent AES-GCM, not under raw[:31] nor the fixed header alone; auth.go buildSKMessageAEADWithMsgID is the only seal site. Receiver: TestRFC5282AEADAssociatedDataCoversAnInterveningPayload accepts the span over an intervening payload, TestRFC5282AEADRefusesAnAlteredInterveningPayload refuses an altered one.",
+  "requirement_sha": "2e7176e219811541",
+  "tests": {
+    "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282AEADSendAssociatedDataRunsThroughTheSKHeader": "d2a8fe0dab3c6a2d",
+    "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADAssociatedDataCoversAnInterveningPayload": "2d69d15f1cde2ecb",
+    "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADRefusesAnAlteredInterveningPayload": "2d69d15f1cde2ecb"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282AEADSendAssociatedDataRunsThroughTheSKHeader": "0cf23504f4f4af34",
+    "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADAssociatedDataCoversAnInterveningPayload": "2998e981b3381787",
+    "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADRefusesAnAlteredInterveningPayload": "dd1267649a6aca17"
+  },
+  "verdict": "enforced"
+}

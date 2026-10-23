@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: no Notification Response to a Notification Request (the prohibiting-method exception applies to no method Ze runs). wantNotificationResponse fails in the identity state, on a 4000-octet message, on a zero-length and a non-UTF-8 message, and res.Discarded fails; the identity exchange must continue afterwards.",
+  "requirement_sha": "668690dba2577a73",
+  "tests": {
+    "internal/core/eap/rfc3748_notification_test.go::TestPeerAnswersANotificationRequest": "79f5764cee2c8dd4",
+    "internal/core/eap/rfc3748_notification_test.go::TestPeerNeverNaksANotificationRequest": "79f5764cee2c8dd4"
+  },
+  "units": {
+    "internal/core/eap/rfc3748_notification_test.go::TestPeerAnswersANotificationRequest": "399e9c7c07e9fea4",
+    "internal/core/eap/rfc3748_notification_test.go::TestPeerNeverNaksANotificationRequest": "7026cbcfd0540385"
+  },
+  "verdict": "enforced"
+}

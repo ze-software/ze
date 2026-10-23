@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5305-4.2-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/packet/rfc5305_tlv_ipv4_presence_test.go::TestRFC5305NoSubTLVsClearsPresenceBit",
+    "unit-sha": "b7f6c93327882d76",
+    "claim-sha": "db1f9d09c3e1e8d4",
+    "route": "revert",
+    "producer": "internal/plugins/isis/packet/tlv_ipv4.go::WriteTo",
+    "producer-sha": "6a861c3d37aec2b6",
+    "break": "body of WriteTo replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5305-4.2-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/packet/rfc5305_tlv_ipv4_presence_test.go::TestRFC5305SubTLVsSetPresenceBit",
+    "unit-sha": "280949d3164ff69e",
+    "claim-sha": "c550e77b2d92b68b",
+    "route": "revert",
+    "producer": "internal/plugins/isis/packet/tlv_ipv4.go::WriteTo",
+    "producer-sha": "6a861c3d37aec2b6",
+    "break": "body of WriteTo replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

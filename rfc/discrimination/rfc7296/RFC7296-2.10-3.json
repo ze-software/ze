@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.10-3",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_nonce_size_test.go::TestRFC7296EmittedNoncesMeetHalfOfEveryPRFKey",
+    "unit-sha": "2ff335e5790dfaa2",
+    "claim-sha": "52154c2d54c3449c",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/sa.go::GenerateNonce",
+    "producer-sha": "b9c79120a1a663fc",
+    "break": "body of GenerateNonce replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.10-3",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_nonce_size_test.go::TestRFC7296EmittedNoncesMeetTheLargestPRFBound",
+    "unit-sha": "c6d2951be8dc2c6d",
+    "claim-sha": "718d743b665a0844",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/sa.go::GenerateNonce",
+    "producer-sha": "b9c79120a1a663fc",
+    "break": "body of GenerateNonce replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

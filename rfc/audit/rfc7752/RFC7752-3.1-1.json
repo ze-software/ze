@@ -1,0 +1,15 @@
+{
+  "note": "D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV->WriteTLV and field-export renames (TLV code constants verified unchanged). RFC 7752 Section 3.1: \"Unrecognized types MUST be preserved and propagated.\" Proof is carried by reactor TestRFC7752UnknownTLVsReachForwardDestinations (exact forwarded NLRI and attribute bytes, internal and external peers, all-unknown attribute variant). The ls unit now calls bgpls.ParseBGPLSWithRest and additionally requires the one NLRI to consume the whole buffer (a strengthening); it keeps the opaque attribute TLV under a generic key and re-encodes the Node NLRI byte-identically.",
+  "requirement_sha": "6bcc9dd8d408a468",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752UnknownTLVPreservedAndPropagated": "6c7da98fd78cb69c",
+    "internal/component/bgp/reactor/rfc7752_unknown_forward_test.go::TestRFC7752UnknownTLVsReachForwardDestinations": "332e0cc9d3e5b4e2",
+    "internal/component/bgp/reactor/rfc7752_unknown_forward_test.go::TestRFC7752UnknownTLVsReachForwardDestinations#2": "332e0cc9d3e5b4e2"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752UnknownTLVPreservedAndPropagated": "21ef419701db2b3b",
+    "internal/component/bgp/reactor/rfc7752_unknown_forward_test.go::TestRFC7752UnknownTLVsReachForwardDestinations": "81e6314ee95d6b1d",
+    "internal/component/bgp/reactor/rfc7752_unknown_forward_test.go::TestRFC7752UnknownTLVsReachForwardDestinations#2": "81e6314ee95d6b1d"
+  },
+  "verdict": "enforced"
+}

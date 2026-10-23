@@ -1,0 +1,15 @@
+{
+  "note": "Forbidden: keeping the IKE_SA after a COOKIE2 mismatch. internal/component/ike/engine/mobike_test.go::TestMobikeCookie2ResponseControlsMigration, in the different and missing modes, requires f.local.State == StateDead and out.reestablish, and requires cleanup to remove both Child SPIs. In the match mode it requires no reestablish and a next request on the live SA. internal/component/ike/engine/mobike_test.go::TestMobikeChangedPathStillChecksCookie2 also requires teardown after a path change.",
+  "requirement_sha": "811cfbeb274f9fa2",
+  "tests": {
+    "internal/component/ike/engine/mobike_test.go::TestMobikeChangedPathStillChecksCookie2": "7591039c742210b3",
+    "internal/component/ike/engine/mobike_test.go::TestMobikeCookie2ResponseControlsMigration": "7591039c742210b3",
+    "internal/component/ike/engine/mobike_test.go::TestMobikeCookie2ResponseControlsMigration#2": "7591039c742210b3"
+  },
+  "units": {
+    "internal/component/ike/engine/mobike_test.go::TestMobikeChangedPathStillChecksCookie2": "7f908ffe868fa052",
+    "internal/component/ike/engine/mobike_test.go::TestMobikeCookie2ResponseControlsMigration": "8565973df7b19e7d",
+    "internal/component/ike/engine/mobike_test.go::TestMobikeCookie2ResponseControlsMigration#2": "8565973df7b19e7d"
+  },
+  "verdict": "enforced"
+}

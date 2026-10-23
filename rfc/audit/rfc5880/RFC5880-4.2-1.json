@@ -1,0 +1,17 @@
+{
+  "note": "Judge 2026-09-30 re-stamp: the bfd TestRFC5880SimplePasswordLengthOutOfRangeRefused unit lost only its 6.7.2-1 tag (D-15); body unchanged. Forbidden: a 0-byte or over-16-byte password accepted. Red: auth TestRFC5880SimplePasswordLengthOutOfRangeRefused Fatalf unless NewSigner and NewVerifier return ErrKeyLengthInvalid for 0, 17, 32, 255 bytes; bfd TestRFC5880SimplePasswordLengthOutOfRangeRefused Fatalf when parseAuthConfig accepts 0, 17 or 32 bytes. Positive: 1, 8, 16 bytes encode (auth SectionHeader) and 1, 14, 16 bytes parse (SimplePasswordManagementAcceptsASCIIStrings), both range ends.",
+  "requirement_sha": "33aa79e1d85a5696",
+  "tests": {
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880SimplePasswordLengthOutOfRangeRefused": "5a25c74cc2d9bd47",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880SimplePasswordSectionHeader": "5a25c74cc2d9bd47",
+    "internal/component/bfd/rfc5880_test.go::TestRFC5880SimplePasswordLengthOutOfRangeRefused": "79f92760f00616a6",
+    "internal/component/bfd/rfc5880_test.go::TestRFC5880SimplePasswordManagementAcceptsASCIIStrings": "79f92760f00616a6"
+  },
+  "units": {
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880SimplePasswordLengthOutOfRangeRefused": "a741bb9059ce66a3",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880SimplePasswordSectionHeader": "979c3ddf59239f75",
+    "internal/component/bfd/rfc5880_test.go::TestRFC5880SimplePasswordLengthOutOfRangeRefused": "fa2f318cb9131aa8",
+    "internal/component/bfd/rfc5880_test.go::TestRFC5880SimplePasswordManagementAcceptsASCIIStrings": "a612ba2366437119"
+  },
+  "verdict": "enforced"
+}

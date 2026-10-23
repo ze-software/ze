@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-16: same units and same change as RFC8955-4.2.2.5-1. RFC 8955 Section 4.2.2.8: \"Type 8 component values SHOULD be encoded as single octet (numeric_op len=00).\" ICMP-code emission requires the exact single octet at 0 and 255 across the typed (NewFlowICMPCodeComponent, now exported from core), generic, config and text producers, plus recipient forwarding. The route-command grammar has no ICMP-code criterion. Single-polarity as annotated. Second re-judgement 2026-10-16: TestFlowSpecPreferredNumericEmission's typed packet-length producer is now the test helper packetLengthComponent (plugin types_test.go), which builds FlowMatch{Op: FlowOpEqual, Value: v} through NewFlowNumericComponent(FlowPacketLength, ...). That is byte-for-byte the matches that the deleted NewFlowPacketLengthComponent built at HEAD (plugin types_numeric.go:457-463). The deleted constructor had no non-test caller at HEAD, so no production producer lost coverage. The typed and generic cases now drive the same constructor, and the registered config, text and forwarding producers carry the distinct evidence.",
+  "requirement_sha": "ede78e78a8974f4c",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go::TestFlowSpecPreferredNumericEmission": "3702e53b4d70ea3b",
+    "internal/component/bgp/reactor/rfc8955_width_wire_test.go::TestFlowSpecPreferredNumericForwarding": "311948b78efd3b10"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/flowspec/rfc8955_width_test.go::TestFlowSpecPreferredNumericEmission": "bc7f944d7cc6c556",
+    "internal/component/bgp/reactor/rfc8955_width_wire_test.go::TestFlowSpecPreferredNumericForwarding": "b1aebcd1b508a409"
+  },
+  "verdict": "enforced"
+}

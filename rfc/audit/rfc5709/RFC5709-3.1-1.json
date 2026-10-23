@@ -1,0 +1,13 @@
+{
+  "note": "(a) forbidden: sending an HMAC-SHA packet whose Authentication Type is not Cryptographic Authentication (2); (b) TestEngineSignPacketCrypto asserts the on-wire AuType of eng.signPacket output equals AuTypeCryptographic; negative TestOSPFAuthStoreSignVerify asserts a non-crypto AuType packet is refused under crypto config",
+  "requirement_sha": "fd5a822b2c2eb0b6",
+  "tests": {
+    "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthStoreSignVerify": "daf32645cbe50ccd",
+    "internal/plugins/ospf/rfc5709_auth_wiring_test.go::TestEngineSignPacketCrypto": "2b638531844d3e37"
+  },
+  "units": {
+    "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthStoreSignVerify": "887f67ec998a67d9",
+    "internal/plugins/ospf/rfc5709_auth_wiring_test.go::TestEngineSignPacketCrypto": "a5e4dca623c7683d"
+  },
+  "verdict": "enforced"
+}

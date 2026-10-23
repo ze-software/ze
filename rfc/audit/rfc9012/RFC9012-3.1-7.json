@@ -1,0 +1,13 @@
+{
+  "note": "TestTunnelEndpointLengthsAccepted accepts AFI zero with a six-octet value and no Address subfield. TestRFC9012EndpointInvalidTLVsRemovedOnUnicast rejects an overlong AFI-zero value, removing its TLV while preserving a valid sibling or selecting exact TreatAsWithdraw without one. No next-hop ownership or reachability procedure is inferred.",
+  "requirement_sha": "f684f9eb03db7e4f",
+  "tests": {
+    "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9012EndpointInvalidTLVsRemovedOnUnicast": "cd227ea5764f94be",
+    "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestTunnelEndpointLengthsAccepted": "cd227ea5764f94be"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9012EndpointInvalidTLVsRemovedOnUnicast": "3c4a5ad1a9f5bfb6",
+    "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestTunnelEndpointLengthsAccepted": "6d5df34ce0e5416c"
+  },
+  "verdict": "enforced"
+}

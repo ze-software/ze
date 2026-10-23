@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC5880-6.8.1-12",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthSeqKnownSetAfterFirstPacket",
+    "unit-sha": "4add5e6acf5ce183",
+    "claim-sha": "e48ec1a202886edd",
+    "route": "revert",
+    "producer": "internal/component/bfd/auth/meticulous.go::Advance",
+    "producer-sha": "9944f78355d62382",
+    "break": "body of Advance replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.8.1-12",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880AuthSeqKnownStartsZero",
+    "unit-sha": "025522a18257ea86",
+    "claim-sha": "5612514533418fbf",
+    "route": "revert",
+    "producer": "internal/component/bfd/auth/meticulous.go::Check",
+    "producer-sha": "0d7ec3911e063f57",
+    "break": "body of Check replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.8.1-12",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/session/rfc5880_auth_seq_test.go::TestRFC5880AuthSeqKnownOneDiscardsFirstPacket",
+    "unit-sha": "70ae3a85d5a47ed6",
+    "claim-sha": "a3b3c122b9d5e7eb",
+    "route": "revert",
+    "producer": "internal/component/bfd/auth/meticulous.go::Check",
+    "producer-sha": "0d7ec3911e063f57",
+    "break": "body of Check replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.8.1-12",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/session/rfc5880_auth_seq_test.go::TestRFC5880NewSessionAuthSeqKnownZero",
+    "unit-sha": "084ade98ccf4ae69",
+    "claim-sha": "0bf4b0f051550739",
+    "route": "revert",
+    "producer": "internal/component/bfd/auth/meticulous.go::Check",
+    "producer-sha": "0d7ec3911e063f57",
+    "break": "body of Check replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

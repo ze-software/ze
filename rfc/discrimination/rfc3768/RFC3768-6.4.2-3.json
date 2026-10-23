@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC3768-6.4.2-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2BackupHoldsNoVirtualAddress",
+    "unit-sha": "8b6c988c2bef4706",
+    "claim-sha": "e62699fb8c704426",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/instance.go::doInstallVIPs",
+    "producer-sha": "6c990de7776ea965",
+    "break": "body of doInstallVIPs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3768-6.4.2-3",
+    "polarity": "negative",
+    "unit": "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2BackupHoldsNoVirtualAddress",
+    "unit-sha": "8b6c988c2bef4706",
+    "claim-sha": "ed94491db266de53",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/instance.go::doInstallVIPs",
+    "producer-sha": "6c990de7776ea965",
+    "break": "body of doInstallVIPs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

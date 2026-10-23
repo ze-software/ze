@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-10-21. The InfTransDelay check is split from the cost check: TestRFC5340IPv6InterfaceTransmitDelay accepts 1 and rejects 0 with ErrTransmitDelayZero, and its first validateConfig call is now the transmit-delay case, so the validateConfigAF revert record hits this clause. Age increment by InfTransDelay before transmission: TestRFC5340FloodIncrementsAgeByInfTransDelay (records floodCopy).",
+  "requirement_sha": "8ba60b1cf2b1e805",
+  "tests": {
+    "internal/plugins/ospf/rfc5340_flood_age_test.go::TestRFC5340FloodIncrementsAgeByInfTransDelay": "83d10a2a4d2496b8",
+    "internal/plugins/ospf/rfc5340_flood_age_test.go::TestRFC5340FloodIncrementsAgeByInfTransDelay#2": "83d10a2a4d2496b8",
+    "internal/plugins/ospf/rfc5340_test.go::TestRFC5340IPv6InterfaceTransmitDelay": "cdf4f5c0d8a37340",
+    "internal/plugins/ospf/rfc5340_test.go::TestRFC5340IPv6InterfaceTransmitDelay#2": "cdf4f5c0d8a37340"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc5340_flood_age_test.go::TestRFC5340FloodIncrementsAgeByInfTransDelay": "fa5e8c7e98493ca8",
+    "internal/plugins/ospf/rfc5340_flood_age_test.go::TestRFC5340FloodIncrementsAgeByInfTransDelay#2": "fa5e8c7e98493ca8",
+    "internal/plugins/ospf/rfc5340_test.go::TestRFC5340IPv6InterfaceTransmitDelay": "f6f274b1a21dd725",
+    "internal/plugins/ospf/rfc5340_test.go::TestRFC5340IPv6InterfaceTransmitDelay#2": "f6f274b1a21dd725"
+  },
+  "verdict": "enforced"
+}

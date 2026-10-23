@@ -1,0 +1,19 @@
+{
+  "note": "(a) forbidden: any path order other than L1-up > L2-up > L2-down > L1-down. (b) spf TestRFC5308FourStepPathPreference advertises the four classes each from its own node at metrics that invert the class order (400, 300, 200, 100), then drops the best class in turn: the installed route is always the best class left (checked by next hop, level and up/down), so each adjacent pair is decided by class not metric, and a separate case pits L1 up against L2 down alone. This closes the two pairs the previous note named (L2-up over L2-down, L1-up over L2-down). Recorded +/- on route.go preferenceRank, which BuildRoutesV6 uses. TestISISLeakUpDownBit and TestISISIPv6LevelArbitration remain tagged.",
+  "requirement_sha": "55a55a90c0f66d8c",
+  "tests": {
+    "internal/plugins/isis/spf/rfc5305_max_metric_order_test.go::TestRFC5308FourStepPathPreference": "f8fc7ede978a8548",
+    "internal/plugins/isis/spf/rfc5305_max_metric_order_test.go::TestRFC5308FourStepPathPreference#2": "f8fc7ede978a8548",
+    "internal/plugins/isis/spf/rfc5308_ipv6_test.go::TestISISIPv6LevelArbitration": "f7be3a425e080e0c",
+    "internal/plugins/isis/spf/rfc5308_route_test.go::TestISISLeakUpDownBit": "6ebaa52ffdbace20",
+    "internal/plugins/isis/spf/rfc5308_route_test.go::TestISISLeakUpDownBit#2": "6ebaa52ffdbace20"
+  },
+  "units": {
+    "internal/plugins/isis/spf/rfc5305_max_metric_order_test.go::TestRFC5308FourStepPathPreference": "4afff7b7c3b7f8e5",
+    "internal/plugins/isis/spf/rfc5305_max_metric_order_test.go::TestRFC5308FourStepPathPreference#2": "4afff7b7c3b7f8e5",
+    "internal/plugins/isis/spf/rfc5308_ipv6_test.go::TestISISIPv6LevelArbitration": "bd83176381d1a12c",
+    "internal/plugins/isis/spf/rfc5308_route_test.go::TestISISLeakUpDownBit": "ed48979ada5d7ab4",
+    "internal/plugins/isis/spf/rfc5308_route_test.go::TestISISLeakUpDownBit#2": "ed48979ada5d7ab4"
+  },
+  "verdict": "enforced"
+}

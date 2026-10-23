@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7311-3.4.3-4",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire",
+    "unit-sha": "1911988133139e60",
+    "claim-sha": "cf2dd309468de84b",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/forward_aigp.go::applyFactsAIGP",
+    "producer-sha": "247742f0406bce81",
+    "break": "body of applyFactsAIGP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7311-3.4.3-4",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire",
+    "unit-sha": "1911988133139e60",
+    "claim-sha": "512c50bdd3ce8655",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/forward_aigp.go::applyFactsAIGP",
+    "producer-sha": "247742f0406bce81",
+    "break": "body of applyFactsAIGP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

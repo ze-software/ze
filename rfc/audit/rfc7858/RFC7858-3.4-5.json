@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-09-30. Both parties now: client-side close (HEAD TestDoTRobustToIdleConnectionClose) and server-side close (TestRFC7858ServerIdleCloseLeavesTheServerServing: EOF within 16 s of the 8 s idle timeout, then a fresh connection answered). Ze runs no DoT client. Record: bindDoT revert observed red. {single-polarity} holds: robustness has no failure input to refuse.",
+  "requirement_sha": "0a2559b977d30137",
+  "tests": {
+    "internal/core/dnsserver/rfc7858_idle_close_test.go::TestRFC7858ServerIdleCloseLeavesTheServerServing": "0b12e5fee2cec8ac",
+    "internal/core/dnsserver/secure_test.go::TestDoTRobustToIdleConnectionClose": "8772da30b26b9efc"
+  },
+  "units": {
+    "internal/core/dnsserver/rfc7858_idle_close_test.go::TestRFC7858ServerIdleCloseLeavesTheServerServing": "e4b102266aa5a8f9",
+    "internal/core/dnsserver/secure_test.go::TestDoTRobustToIdleConnectionClose": "1db687c99a3d6cf1"
+  },
+  "verdict": "enforced"
+}

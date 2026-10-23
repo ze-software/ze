@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 9568 Section 8.1.1 says \"If a VRRP Router is acting as the Active Router for Virtual Router(s) containing address(es) it does not own, then it must determine to which Virtual Router the packet was sent when selecting the redirect source address.\" TestVRRPRedirectSourceFollowsVirtualMAC changed only by the checksum-mode plumbing (a Checksum: packet.ChecksumRFC9568 field added to the GroupSpec, AdvertParams or packet.Local literal, or the mode argument added to packet.FillChecksum); every assertion and every isolating input is byte-for-byte the same; the redirect-source capture and its physical-MAC control are unchanged. Verdict unchanged; the guest record is owed a re-record.",
+  "requirement_sha": "271090d6061b89dd",
+  "tests": {
+    "internal/plugins/vrrp/redirect_integration_linux_test.go::TestVRRPRedirectSourceFollowsVirtualMAC": "884442d33f8f172b",
+    "internal/plugins/vrrp/redirect_integration_linux_test.go::TestVRRPRedirectSourceFollowsVirtualMAC#2": "884442d33f8f172b"
+  },
+  "units": {
+    "internal/plugins/vrrp/redirect_integration_linux_test.go::TestVRRPRedirectSourceFollowsVirtualMAC": "126a0ea3bd1a7d9c",
+    "internal/plugins/vrrp/redirect_integration_linux_test.go::TestVRRPRedirectSourceFollowsVirtualMAC#2": "126a0ea3bd1a7d9c"
+  },
+  "verdict": "enforced"
+}

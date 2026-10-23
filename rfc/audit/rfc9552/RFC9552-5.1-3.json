@@ -1,0 +1,15 @@
+{
+  "note": "D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV->WriteTLV and field-export renames (TLV code constants verified unchanged). RFC 9552 Section 5.1: \"Unknown and unsupported types MUST be preserved and propagated within both the NLRI and the BGP-LS Attribute.\" Proof stays reactor TestRFC9552UnknownTypesPropagateOnAForwardedUpdate / ...SurviveARewrittenUpdate (both halves byte-identical, internal and rewritten external path). The ls decoder-level positive now parses through bgpls.ParseBGPLSWithRest and requires an empty remainder.",
+  "requirement_sha": "91e96caf09e207c3",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752UnknownTLVPreservedAndPropagated": "6c7da98fd78cb69c",
+    "internal/component/bgp/reactor/rfc9552_propagate_test.go::TestRFC9552UnknownTypesPropagateOnAForwardedUpdate": "ff59223c2a162b0c",
+    "internal/component/bgp/reactor/rfc9552_propagate_test.go::TestRFC9552UnknownTypesSurviveARewrittenUpdate": "ff59223c2a162b0c"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/ls/rfc7752_test.go::TestRFC7752UnknownTLVPreservedAndPropagated": "21ef419701db2b3b",
+    "internal/component/bgp/reactor/rfc9552_propagate_test.go::TestRFC9552UnknownTypesPropagateOnAForwardedUpdate": "477828ebe591c582",
+    "internal/component/bgp/reactor/rfc9552_propagate_test.go::TestRFC9552UnknownTypesSurviveARewrittenUpdate": "3bbb83ada5e0259d"
+  },
+  "verdict": "enforced"
+}

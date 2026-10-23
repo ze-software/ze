@@ -1,0 +1,21 @@
+{
+  "note": "Re-judged 2026-10-21. Each skip has its own unit. LSInfinity: TestOSPFInterAreaLSInfinityDropped asserts v4SummaryReader yields no record for a summary whose own cost is LSInfinity and no route installs through an ABR 10 away. MaxAge: TestRFC2328InterAreaSkipsMaxAgeSummary, reachable ABR, no route. Self: TestRFC2328InterAreaSkipsSelfSummary, root vertex carries a next hop so only the AdvertisingRouter == Root skip (interarea.go:141) keeps it empty. Positive TestOSPFInterAreaRoute installs the conforming summary.",
+  "requirement_sha": "c98d70765b1a001e",
+  "tests": {
+    "internal/plugins/ospf/spf/rfc2328_interarea_test.go::TestOSPFInterAreaLSInfinityDropped": "e96d102cdf2cf611",
+    "internal/plugins/ospf/spf/rfc2328_interarea_test.go::TestOSPFInterAreaRoute": "e96d102cdf2cf611",
+    "internal/plugins/ospf/spf/rfc2328_summary_lsinfinity_test.go::TestRFC2328SummaryAdvertisingLSInfinitySkipped": "7df20734b224cbd1",
+    "internal/plugins/ospf/spf/rfc2328_summary_lsinfinity_test.go::TestRFC2328SummaryAdvertisingLSInfinitySkipped#2": "7df20734b224cbd1",
+    "internal/plugins/ospf/spf/rfc2328_test.go::TestRFC2328InterAreaSkipsMaxAgeSummary": "8d93d452c47b92ee",
+    "internal/plugins/ospf/spf/rfc2328_test.go::TestRFC2328InterAreaSkipsSelfSummary": "8d93d452c47b92ee"
+  },
+  "units": {
+    "internal/plugins/ospf/spf/rfc2328_interarea_test.go::TestOSPFInterAreaLSInfinityDropped": "a5e2e3dc4840d7c2",
+    "internal/plugins/ospf/spf/rfc2328_interarea_test.go::TestOSPFInterAreaRoute": "87561a4965f5c0f8",
+    "internal/plugins/ospf/spf/rfc2328_summary_lsinfinity_test.go::TestRFC2328SummaryAdvertisingLSInfinitySkipped": "bf29a1252208a3b5",
+    "internal/plugins/ospf/spf/rfc2328_summary_lsinfinity_test.go::TestRFC2328SummaryAdvertisingLSInfinitySkipped#2": "bf29a1252208a3b5",
+    "internal/plugins/ospf/spf/rfc2328_test.go::TestRFC2328InterAreaSkipsMaxAgeSummary": "987edb45ee6dbeea",
+    "internal/plugins/ospf/spf/rfc2328_test.go::TestRFC2328InterAreaSkipsSelfSummary": "da2151154aeed37a"
+  },
+  "verdict": "enforced"
+}

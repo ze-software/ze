@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-18 (independent auditor, after c85342c940). Section 4.6.1.1 LSP_TUNNEL_IPv4 Session Object diagram: the 16 bits before Tunnel ID are \"MUST be zero\". TestRSVPSessionObjectEncoding changed only by the deleted RFC3209-4.6.1-2 tag line; its body is identical and still encodes into a zeroed buffer, so alone it would not discriminate a skipped write. TestRFC3209SessionReservedZeroOverDirtyBuffer carries the verdict: it prefills 0xFF and asserts buf[8:10] zero, the header 0,16,1,7, the endpoint and Tunnel ID, so encodeSessionIPv4 (internal/plugins/rsvpte/wire.go) dropping buf[8]=0, buf[9]=0 goes red. Single polarity as annotated: no decoder reads the field.",
+  "requirement_sha": "93388d6496d487d1",
+  "tests": {
+    "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC3209SessionReservedZeroOverDirtyBuffer": "8cea1a3ca4572fd1",
+    "internal/plugins/rsvpte/wire_test.go::TestRSVPSessionObjectEncoding": "9e0ed20ca4d343e6"
+  },
+  "units": {
+    "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC3209SessionReservedZeroOverDirtyBuffer": "04175a5064f207a7",
+    "internal/plugins/rsvpte/wire_test.go::TestRSVPSessionObjectEncoding": "6167ee0065dd028f"
+  },
+  "verdict": "enforced"
+}

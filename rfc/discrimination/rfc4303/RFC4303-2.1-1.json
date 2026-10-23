@@ -1,0 +1,134 @@
+[
+  {
+    "rid": "RFC4303-2.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestChildRekeyRequestRefusesPeerSPIZero",
+    "unit-sha": "7877645e80501ad3",
+    "claim-sha": "b069f21d92cf23e6",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/rekey.go::respondChildRekey",
+    "producer-sha": "5806e3ed91074346",
+    "break": "body of respondChildRekey replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4303-2.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestChildRekeyRequestUsesPeerSPI",
+    "unit-sha": "6b9ea2711cad155a",
+    "claim-sha": "a3f9b45600b981ee",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/rekey.go::respondChildRekey",
+    "producer-sha": "5806e3ed91074346",
+    "break": "body of respondChildRekey replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4303-2.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestChildRekeyResponseRefusesPeerSPIZero",
+    "unit-sha": "7044e2075a200ed0",
+    "claim-sha": "9a54b1fbc2417f73",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/rekey.go::applyChildRekeyResponse",
+    "producer-sha": "887047cb0f5ec1b3",
+    "break": "body of applyChildRekeyResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4303-2.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestChildRekeyResponseUsesPeerSPI",
+    "unit-sha": "6bfd65ce064c2b10",
+    "claim-sha": "2919b1d152f354ac",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/rekey.go::applyChildRekeyResponse",
+    "producer-sha": "887047cb0f5ec1b3",
+    "break": "body of applyChildRekeyResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4303-2.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestInitiatorRefusesPeerSPIZero",
+    "unit-sha": "45abbe102b61fb1c",
+    "claim-sha": "b2da05e2ded98da2",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/fsm.go::handleAuthResponse",
+    "producer-sha": "838f19a0d283ae6c",
+    "break": "body of handleAuthResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4303-2.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestInitiatorUsesPeerSPI",
+    "unit-sha": "3c115073531f8955",
+    "claim-sha": "008a80505d784375",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/fsm.go::handleAuthResponse",
+    "producer-sha": "838f19a0d283ae6c",
+    "break": "body of handleAuthResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4303-2.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestResponderRefusesPeerSPIZero",
+    "unit-sha": "0a4e1d6bc6b881d6",
+    "claim-sha": "457618e7c6a012b6",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/responder.go::selectAuthChildSA",
+    "producer-sha": "7e741855084555ef",
+    "break": "body of selectAuthChildSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4303-2.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc4303_peer_spi_test.go::TestResponderUsesPeerSPI",
+    "unit-sha": "0b594c1dd02c1cec",
+    "claim-sha": "03476d8290b177db",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/responder.go::selectAuthChildSA",
+    "producer-sha": "7e741855084555ef",
+    "break": "body of selectAuthChildSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4303-2.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc4303_spi_test.go::TestGenerateESPSPISkipsTheReservedZero",
+    "unit-sha": "dd9388ddaf0823ad",
+    "claim-sha": "8a0eccab1effdebd",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/child.go::generateESPSPI",
+    "producer-sha": "bb8e37124734be7e",
+    "break": "body of generateESPSPI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4303-2.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc4303_spi_test.go::TestGenerateESPSPISkipsTheReservedZero",
+    "unit-sha": "dd9388ddaf0823ad",
+    "claim-sha": "903953315ed77e15",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/child.go::generateESPSPI",
+    "producer-sha": "bb8e37124734be7e",
+    "break": "line 218: \"spi != 0\" -\u003e \"true\""
+  },
+  {
+    "rid": "RFC4303-2.1-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc4303_spi_test.go::TestIPsecSPIZeroRefused",
+    "unit-sha": "a5ee183c4427972e",
+    "claim-sha": "6f17634c9be911f7",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/config_ipsec.go::validateIPsecInterface",
+    "producer-sha": "30c3ee956902c48e",
+    "break": "body of validateIPsecInterface replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4303-2.1-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/rfc4303_spi_test.go::TestIPsecSPIZeroRefused",
+    "unit-sha": "a5ee183c4427972e",
+    "claim-sha": "a85519af331b3561",
+    "route": "mutant",
+    "producer": "internal/plugins/ospf/config_ipsec.go::validateIPsecInterface",
+    "producer-sha": "30c3ee956902c48e",
+    "break": "line 117: \"\u003c\" -\u003e \"\u003e\""
+  }
+]

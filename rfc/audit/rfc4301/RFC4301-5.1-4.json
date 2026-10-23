@@ -1,0 +1,17 @@
+{
+  "note": "Step 2 (match the outbound packet headers against the SPD). Linux keeps no SPD cache, so the match is the kernel SPD lookup over the entries Ze installs through createFirstChildSA, installSPDPolicies and installUnmatched. Positive: from one source, a datagram to 10.1.0.5 meets the Child SA PROTECT entry (ESP at the tunnel endpoint under child.OutboundSPI, XfrmOutNoStates unchanged) and one to 10.3.0.5:7001 meets the operator BYPASS entry (delivered clear, no ESP). Negative: 10.3.0.5 on port 7009, differing from the BYPASS entry only by port, is not bypassed: EPERM, XfrmOutPolBlock +1, not delivered, so the match reads the headers, not the destination alone. Judge ran both units in their own user+net namespace: PASS, not skipped. Records: xfrmPolicyFromParams panic revert red both polarities; author's manual overlays (bypass->BLOCK reddens the positive, discard->ALLOW reddens the negative, scratch p7-ov-*.log) confirm each polarity reads the disposition. Re-judged 2026-09-30 (leftovers): the retired lead-in RFC4301-5.1-1's tags moved here onto the dataplane SPD boundary units, as supplementary builder-level cover of step 2's input: the positive asserts the outbound entry's out direction, 10.0.0.0/24 -> 10.1.0.0/24 prefixes and exact source port 443; the negative asserts a 0x00ff port mask is refused (nil policy) for SADirOut and SADirIn rather than widened. Claims match the assertions. Records: xfrmPolicyFromParams panic revert observed red both polarities. Judge ran both: PASS. Stack proof stays the two engine units.",
+  "requirement_sha": "928a43c75aa0ee39",
+  "tests": {
+    "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate": "69d0d6fedadb8664",
+    "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryIsRefusedRatherThanWidened": "69d0d6fedadb8664",
+    "internal/component/ike/engine/rfc4301_outbound_steps_linux_test.go::TestRFC4301OutboundPacketIsDiscardedByTheEntryItMatches": "8a9d29661d983142",
+    "internal/component/ike/engine/rfc4301_outbound_steps_linux_test.go::TestRFC4301OutboundPacketTakesTheDispositionOfTheEntryItMatches": "8a9d29661d983142"
+  },
+  "units": {
+    "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate": "4f6a7698e201b01f",
+    "internal/component/ike/dataplane/rfc4301_boundary_linux_test.go::TestRFC4301BoundarySPDEntryIsRefusedRatherThanWidened": "3d5e8a87d96a8a98",
+    "internal/component/ike/engine/rfc4301_outbound_steps_linux_test.go::TestRFC4301OutboundPacketIsDiscardedByTheEntryItMatches": "3dd4e913175fac34",
+    "internal/component/ike/engine/rfc4301_outbound_steps_linux_test.go::TestRFC4301OutboundPacketTakesTheDispositionOfTheEntryItMatches": "356dd358920fc52b"
+  },
+  "verdict": "enforced"
+}

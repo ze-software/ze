@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-21 (round 5 judge). TestOSPFOriginateSelfReceivedHigherSeq now proves the new instance: database sequence received+1, LS age 0, and an LS Update carrying that sequence below MaxAge is flooded (Section 12.4: age set to 0, added to the database and flooded). Negative: an older self copy leaves the sequence unchanged. Records on handleSelfReceived.",
+  "requirement_sha": "ca4107b1d8407de6",
+  "tests": {
+    "internal/plugins/ospf/lsdb/rfc2328_origination_test.go::TestOSPFOriginateSelfReceivedHigherSeq": "75776239979d316e",
+    "internal/plugins/ospf/lsdb/rfc2328_self_older_test.go::TestRFC2328SelfReceivedOlderIsNotReoriginated": "d81436e5b0ab002c"
+  },
+  "units": {
+    "internal/plugins/ospf/lsdb/rfc2328_origination_test.go::TestOSPFOriginateSelfReceivedHigherSeq": "d5539cd869082e77",
+    "internal/plugins/ospf/lsdb/rfc2328_self_older_test.go::TestRFC2328SelfReceivedOlderIsNotReoriginated": "8db817a0c1b31d29"
+  },
+  "verdict": "enforced"
+}

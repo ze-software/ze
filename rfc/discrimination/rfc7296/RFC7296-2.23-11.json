@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.23-11",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_natt_bothforms_test.go::TestBfmEncapsulatedESPAcceptedWithoutNAT",
+    "unit-sha": "6bbb9e4ed60cf624",
+    "claim-sha": "d87179bdb7d1edd1",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/child.go::installChildSA",
+    "producer-sha": "528023fd0f737e3f",
+    "break": "body of installChildSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.23-11",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_natt_bothforms_test.go::TestBfmEncapsulatedESPSentWhenNATDetected",
+    "unit-sha": "c7392484c5d0b1cd",
+    "claim-sha": "e7dcfdfb6e9dfccb",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/child.go::installChildSA",
+    "producer-sha": "528023fd0f737e3f",
+    "break": "body of installChildSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

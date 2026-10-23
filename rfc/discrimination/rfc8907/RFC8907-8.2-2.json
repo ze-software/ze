@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC8907-8.2-2",
+    "polarity": "positive",
+    "unit": "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907EveryShellRequestCarriesCmd",
+    "unit-sha": "ebb70e8180124d8e",
+    "claim-sha": "eff87eec76ec9262",
+    "route": "revert",
+    "producer": "internal/component/tacacs/authenticator.go::handlePass",
+    "producer-sha": "0247cf0da95085bf",
+    "break": "body of handlePass replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8907-8.2-2",
+    "polarity": "negative",
+    "unit": "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907ShellRequestNeverLacksCmd",
+    "unit-sha": "b6d7e3e0ab99aa9b",
+    "claim-sha": "78f5491aacb50203",
+    "route": "revert",
+    "producer": "internal/component/tacacs/authorizer.go::splitTacacsArgs",
+    "producer-sha": "819675c57be7f0b0",
+    "break": "body of splitTacacsArgs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8907-8.2-2",
+    "polarity": "positive",
+    "unit": "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907CmdArgumentFollowsShellService",
+    "unit-sha": "940477a83297d8f0",
+    "claim-sha": "76a130207d8dcf1e",
+    "route": "revert",
+    "producer": "internal/component/tacacs/authorizer.go::splitTacacsTokens",
+    "producer-sha": "bef583b61647e3ca",
+    "break": "body of splitTacacsTokens replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8907-8.2-2",
+    "polarity": "negative",
+    "unit": "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907CmdArgumentPresentForEmptyCommand",
+    "unit-sha": "98cd181b5fe69d5f",
+    "claim-sha": "29740922956c959f",
+    "route": "revert",
+    "producer": "internal/component/tacacs/authorizer.go::splitTacacsTokens",
+    "producer-sha": "bef583b61647e3ca",
+    "break": "body of splitTacacsTokens replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

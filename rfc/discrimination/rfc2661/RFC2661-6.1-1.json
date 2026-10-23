@@ -1,0 +1,70 @@
+[
+  {
+    "rid": "RFC2661-6.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661SCCRQCarriesSection61AVPs",
+    "unit-sha": "7f6d17e0f7db9266",
+    "claim-sha": "4f5208cd18bcc2d9",
+    "route": "revert",
+    "producer": "internal/component/l2tp/tunnel_initiator.go::writeSCCRQBody",
+    "producer-sha": "fd52028b34ceb6cf",
+    "break": "body of writeSCCRQBody replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2661-6.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/rfc2661_reactor_sccrq_mandatory_avp_test.go::TestSCCRQMissingMandatoryAVPIsAnswered",
+    "unit-sha": "4457360d2ab908dc",
+    "claim-sha": "721ed73309b98d91",
+    "route": "revert",
+    "producer": "internal/component/l2tp/reactor.go::sendUnassociatedStopCCN",
+    "producer-sha": "5a1a354cc4ce5400",
+    "break": "body of sendUnassociatedStopCCN replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2661-6.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/rfc2661_reactor_sccrq_mandatory_avp_test.go::TestSCCRQWithEveryMandatoryAVPEstablishes",
+    "unit-sha": "7f50ae036564fffe",
+    "claim-sha": "15945f76611dc204",
+    "route": "revert",
+    "producer": "internal/component/l2tp/tunnel_fsm.go::handleSCCRQ",
+    "producer-sha": "7b911f10b735d280",
+    "break": "body of handleSCCRQ replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2661-6.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/rfc2661_reactor_sccrq_mandatory_avp_test.go::TestSCCRQWithShortFramingCapabilitiesIsAnswered",
+    "unit-sha": "f7873d5de90d0016",
+    "claim-sha": "4999012f38c1a83d",
+    "route": "revert",
+    "producer": "internal/component/l2tp/reactor.go::answerRefusedSCCRQ",
+    "producer-sha": "8f5d726e0e9183a5",
+    "break": "body of answerRefusedSCCRQ replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2661-6.1-1",
+    "polarity": "negative",
+    "unit": "test/l2tp/rfc2661-sccrq-mandatory-avp.ci",
+    "unit-sha": "fcf327234f5c0c78",
+    "claim-sha": "70e2a021fac3ba59",
+    "route": "revert",
+    "producer": "internal/component/l2tp/reactor.go::sendUnassociatedStopCCN",
+    "producer-sha": "5a1a354cc4ce5400",
+    "break": "body of sendUnassociatedStopCCN replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+    "citation": "expect=stderr:contains=malformed SCCRQ answered with StopCCN"
+  },
+  {
+    "rid": "RFC2661-6.1-1",
+    "polarity": "positive",
+    "unit": "test/l2tp/rfc2661-sccrq-mandatory-avp.ci",
+    "unit-sha": "fcf327234f5c0c78",
+    "claim-sha": "19e6ebdfbf692c57",
+    "route": "revert",
+    "producer": "internal/component/l2tp/tunnel_fsm.go::handleSCCRQ",
+    "producer-sha": "7b911f10b735d280",
+    "break": "body of handleSCCRQ replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+    "citation": "expect=stderr:contains=new tunnel created from SCCRQ"
+  }
+]

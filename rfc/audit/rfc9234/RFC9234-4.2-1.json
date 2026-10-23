@@ -1,0 +1,15 @@
+{
+  "note": "non-compliant: accepting a pair outside Table 2. TestValidateOpenRolePair_InvalidPairs assert.False(output.Accept) over customer/customer, provider/provider, rs/rs, rsclient/rsclient, provider/rs, customer/peer, and TestValidateOpenRolePairRunsForADynamicGroupMember asserts RS/RS refused; positive TestValidateOpenRolePair_ValidPairs assert.True over all five Table 2 pairs",
+  "requirement_sha": "7da463726e545b5a",
+  "tests": {
+    "internal/component/bgp/plugins/role/rfc9234_dynamic_group_test.go::TestValidateOpenRolePairRunsForADynamicGroupMember": "2ac8fba09ccdee06",
+    "internal/component/bgp/plugins/role/rfc9234_validate_test.go::TestValidateOpenRolePair_InvalidPairs": "8064b6dabf4a8794",
+    "internal/component/bgp/plugins/role/rfc9234_validate_test.go::TestValidateOpenRolePair_ValidPairs": "8064b6dabf4a8794"
+  },
+  "units": {
+    "internal/component/bgp/plugins/role/rfc9234_dynamic_group_test.go::TestValidateOpenRolePairRunsForADynamicGroupMember": "681c3facc086468b",
+    "internal/component/bgp/plugins/role/rfc9234_validate_test.go::TestValidateOpenRolePair_InvalidPairs": "0104cf569f815f0e",
+    "internal/component/bgp/plugins/role/rfc9234_validate_test.go::TestValidateOpenRolePair_ValidPairs": "5263c40d7e0bb318"
+  },
+  "verdict": "enforced"
+}

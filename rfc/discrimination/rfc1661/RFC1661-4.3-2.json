@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC1661-4.3-2",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661StoppedAfterPeerTerminateTakesNewConfigureRequest",
+    "unit-sha": "6a5350bf063ab952",
+    "claim-sha": "7e3e3727acbadf73",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/session_run.go::signalLayerFinished",
+    "producer-sha": "4ee7612ac63c6517",
+    "break": "body of signalLayerFinished replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1661-4.3-2",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NewConfigureRequestAcceptedAfterTerminateRequest",
+    "unit-sha": "6c32af63c9946ee8",
+    "claim-sha": "6d6eceecff843292",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/ppp_fsm.go::LCPDoTransition",
+    "producer-sha": "796174bb0f8b3d29",
+    "break": "body of LCPDoTransition replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

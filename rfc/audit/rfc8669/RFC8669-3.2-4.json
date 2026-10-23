@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged 2026-10-14 (independent reader, after 8c1c4013f2 and 7d37dcd562). RFC 8669 Section 3.2: 'It MUST be ignored when received for other BGP AFI/SAFI combinations.' The RA33 finding (the parser refused an Originator SRGB whose length is not 2 + 6N on every family, untested off labeled unicast) is answered: message TestRFC8669SRGBAnyLengthIgnoredOffLabeledUnicast asserts RFC7606ActionNone for a 3-octet SRGB on IPv4 VPN; attribute TestParsePrefixSIDAcceptsOffFamilyLabelIndexLength asserts ParsePrefixSID accepts it, re-emits it octet-equal and renders it attribute-not-implemented-3; the pool test asserts the SRv6 extractor ignores it. ClassifyPrefixSID judges SRGB length on labeled unicast only. Single-polarity stands. Not asserted: an end-to-end relay of an SRGB off labeled unicast.",
+  "requirement_sha": "4117e88ffffd020d",
+  "tests": {
+    "internal/component/bgp/message/rfc8669_tlv_length_test.go::TestRFC8669SRGBAnyLengthIgnoredOffLabeledUnicast": "8e72f4119752045c",
+    "internal/component/bgp/plugins/rib/pool/rfc8669_test.go::TestRFC8669SRGBIgnoredOnNonLabeledUnicastFamily": "880d4dcf544fb926",
+    "internal/core/bgp/attribute/rfc8669_prefixsid_family_test.go::TestParsePrefixSIDAcceptsOffFamilyLabelIndexLength": "c1ece5c8f901efd5"
+  },
+  "units": {
+    "internal/component/bgp/message/rfc8669_tlv_length_test.go::TestRFC8669SRGBAnyLengthIgnoredOffLabeledUnicast": "619e6e0b19d22017",
+    "internal/component/bgp/plugins/rib/pool/rfc8669_test.go::TestRFC8669SRGBIgnoredOnNonLabeledUnicastFamily": "3377f5bbf00be1c6",
+    "internal/core/bgp/attribute/rfc8669_prefixsid_family_test.go::TestParsePrefixSIDAcceptsOffFamilyLabelIndexLength": "7ca27c75ad71e18b"
+  },
+  "verdict": "enforced"
+}

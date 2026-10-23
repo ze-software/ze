@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 3768 Section 7.2 says \"Set the IP protocol to VRRP - Send the VRRP packet to the VRRP IP multicast group\". TestTxAdvertV4OnWire and TestSendAdvertIPv4HeaderTTLProtoDst changed only by the checksum-mode plumbing (a Checksum: packet.ChecksumRFC9568 field added to the GroupSpec, AdvertParams or packet.Local literal, or the mode argument added to packet.FillChecksum); every assertion and every isolating input is byte-for-byte the same; the protocol 112 and destination 224.0.0.18 comparisons are unchanged. Single-polarity per the row annotation. Verdict unchanged.",
+  "requirement_sha": "e7f85cc87cf4f2c7",
+  "tests": {
+    "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "e6113ed83a42c0f9",
+    "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertIPv4HeaderTTLProtoDst": "3b5f911a78dbf13d"
+  },
+  "units": {
+    "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "7a4414ac139af987",
+    "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertIPv4HeaderTTLProtoDst": "0676ff22f26663d5"
+  },
+  "verdict": "enforced"
+}

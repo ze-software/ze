@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: a Request of Type 3 or 254. Every Request of a full MS-CHAPv2 flight fails on req.Type == TypeNAK or TypeExpandedEAP; a Nak Response, the input a faulty authenticator would echo, must draw a Failure (out.Code != CodeFailure fails).",
+  "requirement_sha": "cf5ebfb8755ad9b5",
+  "tests": {
+    "internal/core/eap/rfc3748_walk_test.go::TestRFC3748NoNAKInARequest": "08e46d8cbdf7058a",
+    "internal/core/eap/rfc3748_walk_test.go::TestRFC3748NoNAKInARequest#2": "08e46d8cbdf7058a"
+  },
+  "units": {
+    "internal/core/eap/rfc3748_walk_test.go::TestRFC3748NoNAKInARequest": "abe47a370e35f92a",
+    "internal/core/eap/rfc3748_walk_test.go::TestRFC3748NoNAKInARequest#2": "abe47a370e35f92a"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,17 @@
+{
+  "note": "TestRFC2348BlksizeBoundsAreInclusive asserts both inclusive bounds and one past each: 8 is acked as 8 and block 1 carries 8 octets; 65464 is acked (as the 1468 cap, which x-1 allows), red on n<65464; 7 and 65465 beside tsize are absent from the OACK, red on n>=7 or n<=65465. Every off-by-one at either bound goes red.",
+  "requirement_sha": "b42e8a8edc2a6d51",
+  "tests": {
+    "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2348BlksizeBoundsAreInclusive": "402f4bee572c1a29",
+    "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2348BlksizeBoundsAreInclusive#2": "402f4bee572c1a29",
+    "internal/plugins/tftpserver/rfc2348_blksize_test.go::TestRFC2348BlksizeRangeEnforced": "bba4d4b528cac222",
+    "internal/plugins/tftpserver/rfc2348_blksize_test.go::TestRFC2348BlksizeRangeEnforced#2": "bba4d4b528cac222"
+  },
+  "units": {
+    "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2348BlksizeBoundsAreInclusive": "28caab4674300bdf",
+    "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2348BlksizeBoundsAreInclusive#2": "28caab4674300bdf",
+    "internal/plugins/tftpserver/rfc2348_blksize_test.go::TestRFC2348BlksizeRangeEnforced": "e4fefc034d73019e",
+    "internal/plugins/tftpserver/rfc2348_blksize_test.go::TestRFC2348BlksizeRangeEnforced#2": "e4fefc034d73019e"
+  },
+  "verdict": "enforced"
+}

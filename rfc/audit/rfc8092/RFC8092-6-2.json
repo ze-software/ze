@@ -1,0 +1,17 @@
+{
+  "note": "rejudge 2026-10-02 (c33 judge): both clauses, both polarities. + TestRFC8092LargeCommunityLengthNotANonZeroMultipleOf12IsMalformed: lengths 0, 1, 11, 13, 23, 25 each draw TreatAsWithdraw with AttrCode 32 (zero and non-multiple). - TestRFC8092LargeCommunityNonZeroMultipleOf12IsNotMalformed: 12, 24, 36 (distinct values) draw ActionNone. HEAD units kept (length 10 / length 12). Judge break: validator condition replaced by length%12 > 1 (accepts 0, 1, 13, 25) turns only the new + red; every HEAD unit stays green, which was the gap.",
+  "requirement_sha": "b9ac4a13f77379cf",
+  "tests": {
+    "internal/component/bgp/message/rfc8092_error_handling_test.go::TestRFC8092LargeCommunityLengthNotANonZeroMultipleOf12IsMalformed": "8764f6eba0f93fbb",
+    "internal/component/bgp/message/rfc8092_error_handling_test.go::TestRFC8092LargeCommunityNonZeroMultipleOf12IsNotMalformed": "8764f6eba0f93fbb",
+    "internal/component/bgp/message/rfc8092_test.go::TestRFC8092LargeCommunityMalformedLength": "64840271479cd6ab",
+    "internal/component/bgp/message/rfc8092_test.go::TestRFC8092LargeCommunityValidReservedASN": "64840271479cd6ab"
+  },
+  "units": {
+    "internal/component/bgp/message/rfc8092_error_handling_test.go::TestRFC8092LargeCommunityLengthNotANonZeroMultipleOf12IsMalformed": "0d6ab0a231301261",
+    "internal/component/bgp/message/rfc8092_error_handling_test.go::TestRFC8092LargeCommunityNonZeroMultipleOf12IsNotMalformed": "7a27112ad7c539b5",
+    "internal/component/bgp/message/rfc8092_test.go::TestRFC8092LargeCommunityMalformedLength": "3bf72eb68ee49fcf",
+    "internal/component/bgp/message/rfc8092_test.go::TestRFC8092LargeCommunityValidReservedASN": "b15463f27b3fd389"
+  },
+  "verdict": "enforced"
+}

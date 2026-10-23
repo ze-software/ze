@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC7296-1.3.3-4",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_child_rekey_initiator_answer_test.go::TestChildRekeyAnswerWithoutTrafficSelectorsIsRefused",
+    "unit-sha": "9959682b47d165d4",
+    "claim-sha": "e9affe4353ecf199",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/rekey.go::applyChildRekeyResponse",
+    "producer-sha": "887047cb0f5ec1b3",
+    "break": "body of applyChildRekeyResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-1.3.3-4",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_child_rekey_initiator_answer_test.go::TestChildRekeyAnswerWithoutTrafficSelectorsIsRefused",
+    "unit-sha": "9959682b47d165d4",
+    "claim-sha": "a4b5a62f0e910026",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/rekey.go::applyChildRekeyResponse",
+    "producer-sha": "887047cb0f5ec1b3",
+    "break": "body of applyChildRekeyResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-1.3.3-4",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_rekey_payloads_test.go::TestRFC7296ChildRekeyResponseCarriesTheSelectorsAndMayNarrow",
+    "unit-sha": "5a53720ca6c70503",
+    "claim-sha": "3bb3eeebc10d9684",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/rekey.go::applyChildRekeyResponse",
+    "producer-sha": "887047cb0f5ec1b3",
+    "break": "body of applyChildRekeyResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

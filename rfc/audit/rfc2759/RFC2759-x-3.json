@@ -1,0 +1,17 @@
+{
+  "note": "The layout ze's peer emits is read field by field: Value-Size 49, octets 0-15 equal the peer's Peer-Challenge, octets 24-47 the NT-Response over the authenticator's real Start challenge, Name after the 49 octets. Negative: Value-Size 48 and 50 each refused on a fresh copy.",
+  "requirement_sha": "3fde78ac00f0df11",
+  "tests": {
+    "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerSendsTheResponseValueLayout": "56143b27bc08b27f",
+    "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerSendsTheResponseValueLayout#2": "56143b27bc08b27f",
+    "internal/core/eap/rfc2759_eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation": "f08fabdb1765636f",
+    "internal/core/eap/rfc2759_eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation#2": "f08fabdb1765636f"
+  },
+  "units": {
+    "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerSendsTheResponseValueLayout": "07ae87e11ccb7ba8",
+    "internal/core/eap/rfc2759_clause_test.go::TestRFC2759PeerSendsTheResponseValueLayout#2": "07ae87e11ccb7ba8",
+    "internal/core/eap/rfc2759_eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation": "414e01d9f5d7715b",
+    "internal/core/eap/rfc2759_eap_mschapv2_test.go::TestMSCHAPv2ResponseFieldValidation#2": "414e01d9f5d7715b"
+  },
+  "verdict": "enforced"
+}

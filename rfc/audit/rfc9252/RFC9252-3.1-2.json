@@ -1,0 +1,13 @@
+{
+  "note": "(a) forbidden: a receiver that rejects or mis-parses a Service TLV whose RESERVED octet is non-zero. (b) TestExtractSRv6SID_ServiceReservedIgnored feeds RESERVED=0xFF and asserts ExtractSRv6SID still returns the SID; TestExtractSRv6SID_ServiceReservedZero is the positive. validateSRv6ServiceTLV (rfc7606.go) never reads the octet, so the UPDATE path does not reject it either.",
+  "requirement_sha": "323a628d8d9f5a36",
+  "tests": {
+    "internal/component/bgp/plugins/rib/pool/rfc9252_srv6sid_test.go::TestExtractSRv6SID_ServiceReservedIgnored": "806b0fdadb82521d",
+    "internal/component/bgp/plugins/rib/pool/rfc9252_srv6sid_test.go::TestExtractSRv6SID_ServiceReservedZero": "806b0fdadb82521d"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rib/pool/rfc9252_srv6sid_test.go::TestExtractSRv6SID_ServiceReservedIgnored": "09fb98c8817fe122",
+    "internal/component/bgp/plugins/rib/pool/rfc9252_srv6sid_test.go::TestExtractSRv6SID_ServiceReservedZero": "a36eedd2aeef4d1b"
+  },
+  "verdict": "enforced"
+}

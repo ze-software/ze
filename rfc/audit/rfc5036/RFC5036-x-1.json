@@ -1,0 +1,13 @@
+{
+  "note": "TestRFC5036PDUVersionOneAccepted reads the PDU header SendInit emits and checks Version 1, and decodes a Version 1 header; TestRFC5036PDUVersionOtherRejected checks versions 0, 2 and 65535 are refused by decodePDUHeader and that processDiscoveryPacket forms no adjacency from a version 2 Hello.",
+  "requirement_sha": "d76130d3521c30e4",
+  "tests": {
+    "internal/plugins/ldp/rfc5036_test.go::TestRFC5036PDUVersionOneAccepted": "0c099031be03877f",
+    "internal/plugins/ldp/rfc5036_test.go::TestRFC5036PDUVersionOtherRejected": "0c099031be03877f"
+  },
+  "units": {
+    "internal/plugins/ldp/rfc5036_test.go::TestRFC5036PDUVersionOneAccepted": "c1f621207b794990",
+    "internal/plugins/ldp/rfc5036_test.go::TestRFC5036PDUVersionOtherRejected": "a85855a331b62d55"
+  },
+  "verdict": "enforced"
+}

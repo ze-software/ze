@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-21. AuType 2 tags removed from TestOSPFAuthReplay and TestOSPFAuthReplayPerType; only AuType 3 units remain. replaySlotFor keys AuType 3 by iface, neighbour and packet type, AuType 2 by neighbour only, matching RFC 7474 Section 2 ('of that type ... from the sending OSPF neighbor') and RFC 2328 D.5.3/D.3. Positive TestRFC7474ReplayMarkPerNeighborAndType: after 2.2.2.2 Hello 100, 3.3.3.3 Hello 5 and 2.2.2.2 LS Ack 5 are accepted, so a mark shared across neighbours or types reddens. Negative TestRFC7474ReplayedPacketDropped: 2.2.2.2 Hello 99 and 3.3.3.3 Hello 5 again are dropped as replay, 3.3.3.3 Hello 6 accepted. The positive record is a whole-body revert of verify; the slot discrimination was judged by reading.",
+  "requirement_sha": "c7ad3459727b7f6c",
+  "tests": {
+    "internal/plugins/ospf/rfc7474_replay_test.go::TestRFC7474ReplayMarkPerNeighborAndType": "1ec0e3d98b6b2c33",
+    "internal/plugins/ospf/rfc7474_replay_test.go::TestRFC7474ReplayedPacketDropped": "1ec0e3d98b6b2c33"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc7474_replay_test.go::TestRFC7474ReplayMarkPerNeighborAndType": "7bd95d6054f10fe9",
+    "internal/plugins/ospf/rfc7474_replay_test.go::TestRFC7474ReplayedPacketDropped": "2fdcc29b8970eb77"
+  },
+  "verdict": "enforced"
+}

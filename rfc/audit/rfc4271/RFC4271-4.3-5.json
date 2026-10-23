@@ -1,0 +1,15 @@
+{
+  "note": "single-polarity annotated; structured, pool and injection paths each process an UPDATE naming 10.0.0.0/8 in WITHDRAWN and NLRI and assert the prefix installed with no withdrawal",
+  "requirement_sha": "6070e73c0a6f7ca1",
+  "tests": {
+    "internal/component/bgp/plugins/rib/rfc4271_rib_mixed_update_test.go::TestRIBInjectSamePrefixInWithdrawnAndNLRIInstallsTheRoute": "dca611e0e7c71b9d",
+    "internal/component/bgp/plugins/rib/rfc4271_rib_mixed_update_test.go::TestRIBPoolPathSamePrefixInWithdrawnAndNLRIInstallsTheRoute": "dca611e0e7c71b9d",
+    "internal/component/bgp/plugins/rib/rfc4271_rib_mixed_update_test.go::TestRIBSamePrefixInWithdrawnAndNLRIInstallsTheRoute": "dca611e0e7c71b9d"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rib/rfc4271_rib_mixed_update_test.go::TestRIBInjectSamePrefixInWithdrawnAndNLRIInstallsTheRoute": "acbdf7e3aea7bb84",
+    "internal/component/bgp/plugins/rib/rfc4271_rib_mixed_update_test.go::TestRIBPoolPathSamePrefixInWithdrawnAndNLRIInstallsTheRoute": "d5ef9914e9ee614c",
+    "internal/component/bgp/plugins/rib/rfc4271_rib_mixed_update_test.go::TestRIBSamePrefixInWithdrawnAndNLRIInstallsTheRoute": "fb119c704faad911"
+  },
+  "verdict": "enforced"
+}

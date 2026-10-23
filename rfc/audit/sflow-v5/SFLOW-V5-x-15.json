@@ -1,0 +1,11 @@
+{
+  "note": "single-polarity (marker: interfaceCountersFrom has no differencing path): a second conversion of the same kernel stats must equal the first, so a delta implementation (which loses the traffic of a lost sample) fails 'second conversion differs'; the negligible-wrap clause rests on 64-bit octet counters, and RxBytes 5e9 > 2^32 must come through untruncated",
+  "requirement_sha": "e57f646625f4e548",
+  "tests": {
+    "internal/plugins/flowexport/sflow_v5_register_test.go::TestInterfaceCountersFromCumulative": "8989d797236e0bd2"
+  },
+  "units": {
+    "internal/plugins/flowexport/sflow_v5_register_test.go::TestInterfaceCountersFromCumulative": "9e392fe65dc89a01"
+  },
+  "verdict": "enforced"
+}

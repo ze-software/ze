@@ -500,7 +500,7 @@ func leRFCAnswersTree(ctx context.Context, parent, binary string) string {
 		"\t// RFC requirement: RFC4456-2-1 negative\n" +
 		"\tif !acceptWidget(1) || acceptWidget(0) {\n\t\tt.Fatal(\"widget boundary\")\n\t}\n}\n" +
 		"\nfunc acceptWidget(value int) bool { return value == 1 }\n"
-	files["pending.json"] = `{"rfc":"rfc4456","audited":"2000-01-02","requirements":{"RFC4456-2-1":{"verdict":"enforced","note":"The owned test exercises accepted and rejected widget input."}}}`
+	files["pending.json"] = `{"rfc":"rfc4456","requirements":{"RFC4456-2-1":{"verdict":"enforced","note":"The owned test exercises accepted and rejected widget input."}}}`
 	for relative, body := range files {
 		path := filepath.Join(root, filepath.FromSlash(relative))
 		leRFCAnswersRequireNoError(os.MkdirAll(filepath.Dir(path), 0o750), "create owned RFC directory")
@@ -774,16 +774,23 @@ func leRFCAnswersMapKeys[V any](values map[string]V) []string {
 	return keys
 }
 
+// leRFCAnswersAuditState answers every verdict file under rfc/audit, keyed
+// by "<stem>/<requirement-id>.json": one file per requirement.
 func leRFCAnswersAuditState(tree string) map[string][]byte {
 	directory := filepath.Join(tree, "rfc", "audit")
-	entries, err := os.ReadDir(directory)
+	stems, err := os.ReadDir(directory)
 	leRFCAnswersRequireNoError(err, "read "+directory)
-	state := make(map[string][]byte, len(entries))
-	for _, entry := range entries {
-		leRFCAnswersRequire(!entry.IsDir(), "unexpected directory in rfc/audit: %s", entry.Name())
-		body, err := os.ReadFile(filepath.Join(directory, entry.Name())) //nolint:gosec // the path is the fixture's own scratch file
-		leRFCAnswersRequireNoError(err, "read rfc/audit/"+entry.Name())
-		state[entry.Name()] = body
+	state := map[string][]byte{}
+	for _, stem := range stems {
+		leRFCAnswersRequire(stem.IsDir(), "unexpected file in rfc/audit: %s", stem.Name())
+		files, err := os.ReadDir(filepath.Join(directory, stem.Name()))
+		leRFCAnswersRequireNoError(err, "read rfc/audit/"+stem.Name())
+		for _, file := range files {
+			name := stem.Name() + "/" + file.Name()
+			body, err := os.ReadFile(filepath.Join(directory, stem.Name(), file.Name())) //nolint:gosec // the path is the fixture's own scratch file
+			leRFCAnswersRequireNoError(err, "read rfc/audit/"+name)
+			state[name] = body
+		}
 	}
 	return state
 }
@@ -791,19 +798,15 @@ func leRFCAnswersAuditState(tree string) map[string][]byte {
 func leRFCAnswersCitedFiles(audits map[string][]byte) []string {
 	cited := map[string]struct{}{}
 	for name, body := range audits {
-		var document struct {
-			Requirements map[string]struct {
-				Tests map[string]json.RawMessage `json:"tests"`
-			} `json:"requirements"`
+		var verdict struct {
+			Tests map[string]json.RawMessage `json:"tests"`
 		}
-		leRFCAnswersRequireNoError(json.Unmarshal(body, &document), "decode rfc/audit/"+name)
-		for _, verdict := range document.Requirements {
-			for key := range verdict.Tests {
-				path, _, _ := strings.Cut(key, "::")
-				path, _, _ = strings.Cut(path, "#")
-				leRFCAnswersRequire(path != "", "empty cited path in rfc/audit/%s", name)
-				cited[path] = struct{}{}
-			}
+		leRFCAnswersRequireNoError(json.Unmarshal(body, &verdict), "decode rfc/audit/"+name)
+		for key := range verdict.Tests {
+			path, _, _ := strings.Cut(key, "::")
+			path, _, _ = strings.Cut(path, "#")
+			leRFCAnswersRequire(path != "", "empty cited path in rfc/audit/%s", name)
+			cited[path] = struct{}{}
 		}
 	}
 	return leRFCAnswersMapKeys(cited)
@@ -1111,7 +1114,7 @@ func leRFCPartialProofRender(t leRFCPartialTree) string {
 	t.write("scratch/pending-partial.json", `{"rfc":"`+leRFCPartialStem+`","requirements":{"`+leRFCPartialRID+`":{"verdict":"enforced","note":"whole sentence supposedly proven"}}}`)
 	stamp := t.runLE("rfc", "audit-stamp", "stem", leRFCPartialStem, "from", filepath.Join(t.tree, "scratch", "pending-partial.json"))
 	leRFCAnswersRequire(stamp.code == 2 && strings.Contains(stamp.stderr+stamp.stdout, "cannot be 'enforced'"), "whole verdict accepted: %s%s", stamp.stdout, stamp.stderr)
-	_, statErr := os.Stat(filepath.Join(t.tree, "rfc/audit/"+leRFCPartialStem+".json"))
+	_, statErr := os.Stat(filepath.Join(t.tree, "rfc/audit/"+leRFCPartialStem+"/"+leRFCPartialRID+".json"))
 	leRFCAnswersRequire(os.IsNotExist(statErr), "refused stamp wrote audit")
 	return "OK: every renderer discloses the partial scope, and it stays outside whole proof"
 }

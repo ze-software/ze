@@ -1,0 +1,13 @@
+{
+  "note": "Positive: a leaked internal L2 entry is decoded with ExternalMetric false. Negative: a producer asking for ExternalMetric on an internal prefix still emits TLV 128 with bit 0x40 clear. Both would fail if the originator set I/E.",
+  "requirement_sha": "119119e4c95c31e0",
+  "tests": {
+    "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195InternalOriginatorClearsExternalMetric": "b67887a5f61b2632",
+    "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195NarrowLeakedMetricClamps": "b67887a5f61b2632"
+  },
+  "units": {
+    "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195InternalOriginatorClearsExternalMetric": "eae62ddfdf501058",
+    "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195NarrowLeakedMetricClamps": "0a89edf8ea5526b8"
+  },
+  "verdict": "enforced"
+}

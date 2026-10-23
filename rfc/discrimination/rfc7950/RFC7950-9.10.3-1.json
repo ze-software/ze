@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7950-9.10.3-1",
+    "polarity": "positive",
+    "unit": "internal/component/config/yang/rfc7950_reference_test.go::TestRFC7950IdentityrefOtherModule",
+    "unit-sha": "10b9e120831089ef",
+    "claim-sha": "a770d1917c649dd9",
+    "route": "revert",
+    "producer": "internal/component/config/yang/validator_reference.go::identityPrefixed",
+    "producer-sha": "33831a789f42ed28",
+    "break": "body of identityPrefixed replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7950-9.10.3-1",
+    "polarity": "negative",
+    "unit": "internal/component/config/yang/rfc7950_reference_test.go::TestRFC7950IdentityrefPrefixRefused",
+    "unit-sha": "9103d3ade902f04f",
+    "claim-sha": "432c4efe03b7a431",
+    "route": "revert",
+    "producer": "internal/component/config/yang/validator_reference.go::identityPrefixed",
+    "producer-sha": "33831a789f42ed28",
+    "break": "body of identityPrefixed replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

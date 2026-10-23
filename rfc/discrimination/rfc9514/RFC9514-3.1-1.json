@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9514-3.1-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/rfc9514_bgpls_export_test.go::TestRFC9514ISISSRv6CapabilitiesSingleInstance",
+    "unit-sha": "c27a0a94ee09553c",
+    "claim-sha": "7ea621d786da62ea",
+    "route": "revert",
+    "producer": "internal/plugins/isis/bgpls_export.go::capabilities",
+    "producer-sha": "e56aea44220d4b85",
+    "break": "body of capabilities replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9514-3.1-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/rfc9514_bgpls_export_test.go::TestRFC9514ISISSRv6CapabilitiesSingleInstance",
+    "unit-sha": "c27a0a94ee09553c",
+    "claim-sha": "2b5bd588a59a47f9",
+    "route": "revert",
+    "producer": "internal/plugins/isis/bgpls_export.go::capabilities",
+    "producer-sha": "e56aea44220d4b85",
+    "break": "body of capabilities replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

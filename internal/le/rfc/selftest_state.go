@@ -64,25 +64,19 @@ func runAuditSelftest() ([]leroot.SelftestResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	auditDocument := map[string]any{
-		auditFieldRFC:     selftestStem,
-		auditFieldAudited: selftestCorrectionDate,
-		auditFieldRequirements: map[string]any{
-			rid: map[string]any{
-				verdictFieldVerdict: VerdictEnforced,
-				verdictFieldNote:    "TestWidget exercises accepted and rejected widget input.",
-				"requirement_sha":   RequirementSHA(requirement.Text),
-				fingerprintTests:    tests,
-				fingerprintUnits:    units,
-				fingerprintCode:     map[string]string{},
-			},
-		},
+	verdict := map[string]any{
+		verdictFieldVerdict: VerdictEnforced,
+		verdictFieldNote:    "TestWidget exercises accepted and rejected widget input.",
+		"requirement_sha":   RequirementSHA(requirement.Text),
+		fingerprintTests:    tests,
+		fingerprintUnits:    units,
+		fingerprintCode:     map[string]string{},
 	}
-	body, err := marshalSelftestJSON(auditDocument)
+	body, err := marshalSelftestJSON(verdict)
 	if err != nil {
 		return nil, err
 	}
-	if err := writeSelftestFiles(root, map[string]string{"rfc/audit/rfc9999.json": body}); err != nil {
+	if err := writeSelftestFiles(root, map[string]string{auditRecordRel(selftestStem, rid): body}); err != nil {
 		return nil, err
 	}
 

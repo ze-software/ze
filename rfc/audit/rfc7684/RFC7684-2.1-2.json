@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-09-30 after the D-8 fix. Forbidden: an ABR dropping (or inventing) the N-Flag when Extended Prefix information crosses areas. extRecv now keys received entries by source area (extRecvKey.area; AS scope keys the zero area), and selfPrefixAdverts ORs N into the inter-area TLV when hostFlagOutside finds an area-scope entry for the prefix, in an area other than the summary's target, carrying N (non-host N already cleared on receipt). + TestRFC7684NFlagOfAnotherRouterPreservedInterArea: 2.2.2.2's N /32 received in area 0, this ABR's Type-3 into area 1 carries N (prefix not connected locally, so only the received flag can set it; red before the fix). - TestRFC7684NFlagNotInventedInterArea: no N when the area-0 advertisement lacks it, when N is advertised only in the target area 1, or on a non-host /24. Records on ext.go::hostFlagOutside (+/-) observed red. Older ext_prefix_origin_test tags (own connected host /32) stay supplementary and carry no record. The handoff's suggested 'via that router' condition is not applied: any other-area N advertisement for the same host prefix sets N, which matches 'preserved' for a prefix identifying one router.",
+  "requirement_sha": "f51856c50fab2403",
+  "tests": {
+    "internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go::TestExtPrefixNFlagNotSetNonHostInterArea": "934ac905e7263077",
+    "internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go::TestExtPrefixNFlagPreservedInterArea": "934ac905e7263077",
+    "internal/plugins/ospf/rfc7684_nflag_propagation_red_test.go::TestRFC7684NFlagNotInventedInterArea": "5baf498f903d0a61",
+    "internal/plugins/ospf/rfc7684_nflag_propagation_red_test.go::TestRFC7684NFlagOfAnotherRouterPreservedInterArea": "5baf498f903d0a61"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go::TestExtPrefixNFlagNotSetNonHostInterArea": "0557d29fbdad4080",
+    "internal/plugins/ospf/rfc7684_ext_prefix_origin_test.go::TestExtPrefixNFlagPreservedInterArea": "ec9689e392c28dd3",
+    "internal/plugins/ospf/rfc7684_nflag_propagation_red_test.go::TestRFC7684NFlagNotInventedInterArea": "4ffb7f9379f88ed1",
+    "internal/plugins/ospf/rfc7684_nflag_propagation_red_test.go::TestRFC7684NFlagOfAnotherRouterPreservedInterArea": "e601f1f212e5d022"
+  },
+  "verdict": "enforced"
+}

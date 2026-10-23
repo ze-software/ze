@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC9069-x-4",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestStartLocRIBDeliversTheInitialDumpAsRouteMonitoring",
+    "unit-sha": "20afc3030b8d47ab",
+    "claim-sha": "c0eb977e4af00588",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/bmp/bmp_locrib.go::startLocRIB",
+    "producer-sha": "9a44fd41d9c33e77",
+    "break": "body of startLocRIB replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

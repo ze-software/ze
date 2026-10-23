@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged 2026-10-21. TestPrepareRestartRetainsFIB now claims only the gate (suppressInstall after prepareRestart) and its record is on prepareRestart. Retention proof: TestRFC3623PreparedRestartKeepsRoutesSPFNoLongerComputes installs a route through SPF, prepares, withdraws it from the LSDB, reruns SPF and still finds it in the Loc-RIB; TestRFC3623PrepareInstallsPendingSPFAndKeepsIt (record grRefreshFIB) makes the table up to date first. Single-polarity positive.",
+  "requirement_sha": "755aed265a063b15",
+  "tests": {
+    "internal/plugins/ospf/rfc3623_gr_install_wiring_test.go::TestRFC3623PreparedRestartKeepsRoutesSPFNoLongerComputes": "046410a22dcca1eb",
+    "internal/plugins/ospf/rfc3623_gr_positive_test.go::TestPrepareRestartRetainsFIB": "2aac178db13e197a",
+    "internal/plugins/ospf/rfc3623_prepare_fib_test.go::TestRFC3623PrepareInstallsPendingSPFAndKeepsIt": "c09f2e816f0c2af1"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc3623_gr_install_wiring_test.go::TestRFC3623PreparedRestartKeepsRoutesSPFNoLongerComputes": "fddef2f384f04849",
+    "internal/plugins/ospf/rfc3623_gr_positive_test.go::TestPrepareRestartRetainsFIB": "617d9f92cb6d12f1",
+    "internal/plugins/ospf/rfc3623_prepare_fib_test.go::TestRFC3623PrepareInstallsPendingSPFAndKeepsIt": "2e64bc0ef8f95b35"
+  },
+  "verdict": "enforced"
+}

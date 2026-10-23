@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC7296-1.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_initial_exchanges_test.go::TestRFC7296InitialExchangesCarryWhatSection12Names",
+    "unit-sha": "f587a273938f4d6e",
+    "claim-sha": "cf4b61b68e7d1dd0",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/responder.go::handleSAInitRequest",
+    "producer-sha": "141c3183fc5fad3f",
+    "break": "body of handleSAInitRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-1.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_initial_exchanges_test.go::TestRFC7296TamperedIKESAInitFailsIKEAuth",
+    "unit-sha": "4adecf6dba254dcf",
+    "claim-sha": "54bb41900443187b",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/auth.go::verifyRemoteAuth",
+    "producer-sha": "bc69155dd02c8c3c",
+    "break": "body of verifyRemoteAuth replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-1.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_test.go::TestInitialExchangeEncryptionBoundary",
+    "unit-sha": "0f5df3d14c2f906a",
+    "claim-sha": "692634f02eb30bc3",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/responder.go::handleSAInitRequest",
+    "producer-sha": "141c3183fc5fad3f",
+    "break": "body of handleSAInitRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-1.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_test.go::TestInitialExchangeEncryptionBoundary",
+    "unit-sha": "0f5df3d14c2f906a",
+    "claim-sha": "16fe0ed3c26b5f28",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/auth.go::verifyRemoteAuth",
+    "producer-sha": "bc69155dd02c8c3c",
+    "break": "body of verifyRemoteAuth replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,19 @@
+{
+  "note": "Every clause, both producer paths. Server: TestFlagsReservedBitsIgnored sends flags 0 (positive) and 0x7fff (negative) and asserts the reply is unicast to yiaddr:68 either way, so bits 1-15 are ignored; recorded against dhcpserver responseAddr (revert, both polarities). Client acquisition: TestRFC2131ClientSetsReservedFlagsBitsToZero (guest, real client over veth) reads the DISCOVER (positive) and, after an OFFER with flags 0xffff, the REQUEST (negative, bits 1-15 zero); recorded against clearReservedFlags. Client renewal: TestRFC2131ClientRenewalSetsReservedFlagsBitsToZero binds a lease from an ACK with flags 0xffff and a 2 s lease, reads the T1 renewing REQUEST (identified by ciaddr, since NewRenewFromAck copies the ACK xid) and asserts bits 1-15 zero; re-judged 2026-10-18 after renewV4 was replaced by the lease-maintenance loop: the renewing and rebinding REQUESTs are built by v4ExtendRequest, which applies v4RequestModifiers and so clearReservedFlags after NewRenewFromAck, and the record is against v4ExtendRequest (revert). v4ExtendRequest and the acquisition Request are the only client send paths (no release/decline/inform). Records are panic reverts.",
+  "requirement_sha": "90a2137815d4181d",
+  "tests": {
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestFlagsReservedBitsIgnored": "8365c04cdfc2a046",
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestFlagsReservedBitsIgnored#2": "8365c04cdfc2a046",
+    "internal/plugins/iface/dhcp/rfc2131_dhcp_flags_integration_linux_test.go::TestRFC2131ClientRenewalSetsReservedFlagsBitsToZero": "cc21e862c2ceac04",
+    "internal/plugins/iface/dhcp/rfc2131_dhcp_flags_integration_linux_test.go::TestRFC2131ClientSetsReservedFlagsBitsToZero": "cc21e862c2ceac04",
+    "internal/plugins/iface/dhcp/rfc2131_dhcp_flags_integration_linux_test.go::TestRFC2131ClientSetsReservedFlagsBitsToZero#2": "cc21e862c2ceac04"
+  },
+  "units": {
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestFlagsReservedBitsIgnored": "6b9a84fbf7912f1b",
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestFlagsReservedBitsIgnored#2": "6b9a84fbf7912f1b",
+    "internal/plugins/iface/dhcp/rfc2131_dhcp_flags_integration_linux_test.go::TestRFC2131ClientRenewalSetsReservedFlagsBitsToZero": "4b118ccf2fc4e9c7",
+    "internal/plugins/iface/dhcp/rfc2131_dhcp_flags_integration_linux_test.go::TestRFC2131ClientSetsReservedFlagsBitsToZero": "9734b5537609a4bf",
+    "internal/plugins/iface/dhcp/rfc2131_dhcp_flags_integration_linux_test.go::TestRFC2131ClientSetsReservedFlagsBitsToZero#2": "9734b5537609a4bf"
+  },
+  "verdict": "enforced"
+}

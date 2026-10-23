@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC5880-6.8.7-1",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880TickSpacesControlPacketsByLargerInterval",
+    "unit-sha": "630d8dde59394d2b",
+    "claim-sha": "e140ef5f4046455b",
+    "route": "revert",
+    "producer": "internal/component/bfd/session/timers.go::TransmitInterval",
+    "producer-sha": "5c5ea965c6b8cc02",
+    "break": "body of TransmitInterval replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.8.7-1",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880TransmitDeadlineUsesLargerOfBothIntervals",
+    "unit-sha": "b1758a201fa3a0c8",
+    "claim-sha": "e7e271e1d4528e93",
+    "route": "mutant",
+    "producer": "internal/component/bfd/session/timers.go::TransmitInterval",
+    "producer-sha": "5c5ea965c6b8cc02",
+    "break": "line 48: \"tx == 0\" -\u003e \"true\""
+  },
+  {
+    "rid": "RFC5880-6.8.7-1",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/session/rfc5880_test.go::TestRFC5880TransmitDeadlineClampsBadJitter",
+    "unit-sha": "5d0f11ebeeea2738",
+    "claim-sha": "94231ed94ad6d388",
+    "route": "revert",
+    "producer": "internal/component/bfd/session/timers.go::AdvanceTxWithJitter",
+    "producer-sha": "56411d898ff9dcbc",
+    "break": "body of AdvanceTxWithJitter replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.8.7-1",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/session/rfc5880_test.go::TestRFC5880TransmitDeadlineUsesNegotiatedInterval",
+    "unit-sha": "196fb13e9c7b4a87",
+    "claim-sha": "1a635e50f7e04a12",
+    "route": "revert",
+    "producer": "internal/component/bfd/session/timers.go::AdvanceTxWithJitter",
+    "producer-sha": "56411d898ff9dcbc",
+    "break": "body of AdvanceTxWithJitter replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

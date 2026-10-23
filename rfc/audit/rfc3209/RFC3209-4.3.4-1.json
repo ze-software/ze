@@ -1,0 +1,15 @@
+{
+  "note": "Closure rejudge 2026-10-02: TestEngineTransitForwarding changed only in its positive claim, which named nextHopFromERO (gone) and now names the current producer, routing.go resolveExplicitPath, which skips the leading local subobjects and, when the next node is in the second abstract node, returns the ERO from that subobject on; the body still asserts the PATH is relayed to the egress with a one-hop ERO beginning at the egress. Positive re-recorded on resolveExplicitPath (observed red). Negatives TestRFC3209TransitNotAdjacentToSecondSubobject (no route to the strict second subobject: no next hop, nothing forwarded, no state, PathErr 24/2) and TestEngineTransitNoUsableERONextHop, both recorded on resolveExplicitPath.",
+  "requirement_sha": "7976a5da38c3aa56",
+  "tests": {
+    "internal/plugins/rsvpte/rfc3209_engine_test.go::TestEngineTransitForwarding": "bd58ca6db1f33b46",
+    "internal/plugins/rsvpte/rfc3209_engine_test.go::TestEngineTransitNoUsableERONextHop": "bd58ca6db1f33b46",
+    "internal/plugins/rsvpte/rfc3209_signaling_test.go::TestRFC3209TransitNotAdjacentToSecondSubobject": "0fabf3da631549e2"
+  },
+  "units": {
+    "internal/plugins/rsvpte/rfc3209_engine_test.go::TestEngineTransitForwarding": "624e2801cc93c4b0",
+    "internal/plugins/rsvpte/rfc3209_engine_test.go::TestEngineTransitNoUsableERONextHop": "f03ea0cc31a7bc4c",
+    "internal/plugins/rsvpte/rfc3209_signaling_test.go::TestRFC3209TransitNotAdjacentToSecondSubobject": "9f827990467756ac"
+  },
+  "verdict": "enforced"
+}

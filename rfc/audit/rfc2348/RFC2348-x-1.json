@@ -1,0 +1,13 @@
+{
+  "note": "(a) OACK blksize above the client's request; (b) 'above cap' subtest t.Errorf when acked > 60000, and the within-cap subtest pins 1200 == requested 1200, so an ack that ignores a smaller request also goes red.",
+  "requirement_sha": "c70ae9def504f6cb",
+  "tests": {
+    "internal/plugins/tftpserver/rfc2348_blksize_test.go::TestRFC2348BlksizeAckNotAboveRequest": "bba4d4b528cac222",
+    "internal/plugins/tftpserver/rfc2348_blksize_test.go::TestRFC2348BlksizeAckNotAboveRequest#2": "bba4d4b528cac222"
+  },
+  "units": {
+    "internal/plugins/tftpserver/rfc2348_blksize_test.go::TestRFC2348BlksizeAckNotAboveRequest": "d04f1b0826ee39b5",
+    "internal/plugins/tftpserver/rfc2348_blksize_test.go::TestRFC2348BlksizeAckNotAboveRequest#2": "d04f1b0826ee39b5"
+  },
+  "verdict": "enforced"
+}

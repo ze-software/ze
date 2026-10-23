@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC7950-7.6.5-3",
+    "polarity": "negative",
+    "unit": "internal/component/config/rfc7950_mandatory_sections_test.go::TestRFC7950MandatoryOutsideValidatedSections",
+    "unit-sha": "f9b2c3822f9e2225",
+    "claim-sha": "4c2dfe1e49d47695",
+    "route": "revert",
+    "producer": "internal/component/config/validate_sections.go::mandatoryFailures",
+    "producer-sha": "12f3d47c0cb667a7",
+    "break": "body of mandatoryFailures replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7950-7.6.5-3",
+    "polarity": "positive",
+    "unit": "internal/component/config/rfc7950_mandatory_sections_test.go::TestRFC7950MandatoryOutsideValidatedSections",
+    "unit-sha": "f9b2c3822f9e2225",
+    "claim-sha": "a3e83056325b777c",
+    "route": "revert",
+    "producer": "internal/component/config/yang/validator.go::walkTree",
+    "producer-sha": "617ed4e9d0378edb",
+    "break": "body of walkTree replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7950-7.6.5-3",
+    "polarity": "negative",
+    "unit": "internal/component/config/yang/rfc7950_mandatory_test.go::TestRFC7950MandatoryRequiredWhenAncestorExists",
+    "unit-sha": "21652f326fea9937",
+    "claim-sha": "67c3ce0d907a19ae",
+    "route": "revert",
+    "producer": "internal/component/config/yang/validator_mandatory.go::requireMandatoryUnderAbsent",
+    "producer-sha": "7710d7c24cd56aa0",
+    "break": "body of requireMandatoryUnderAbsent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7950-7.6.5-3",
+    "polarity": "positive",
+    "unit": "internal/component/config/yang/rfc7950_mandatory_test.go::TestRFC7950MandatoryRequiredWhenAncestorExists",
+    "unit-sha": "21652f326fea9937",
+    "claim-sha": "5ecba524329959a5",
+    "route": "revert",
+    "producer": "internal/component/config/yang/validator.go::walkTree",
+    "producer-sha": "617ed4e9d0378edb",
+    "break": "body of walkTree replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

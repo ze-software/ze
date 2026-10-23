@@ -1,0 +1,13 @@
+{
+  "note": "re-read after TestBuildPADS changed (only its Host-Uniq check was tightened to a byte compare): TestBuildPADS and TestPADSAlwaysCarriesServiceName both count exactly one Service-Name tag in the PADS, including for a PADR carrying none",
+  "requirement_sha": "24ec7abf78394273",
+  "tests": {
+    "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestBuildPADS": "b7c2fae4a50abe95",
+    "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestPADSAlwaysCarriesServiceName": "b7c2fae4a50abe95"
+  },
+  "units": {
+    "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestBuildPADS": "94c150e16b191a90",
+    "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestPADSAlwaysCarriesServiceName": "514690d9b77300c6"
+  },
+  "verdict": "enforced"
+}

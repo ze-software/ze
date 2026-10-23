@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC3748-4.2-8",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc3748_clause_test.go::TestRFC3748PeerDiscardsAFailureWhereNoneIsPermitted",
+    "unit-sha": "4d926d0c53ae1842",
+    "claim-sha": "fedc87e091ab37c1",
+    "route": "revert",
+    "producer": "internal/core/eap/peer.go::Process",
+    "producer-sha": "1d3fda7628c9da27",
+    "break": "body of Process replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3748-4.2-8",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc3748_clause_test.go::TestRFC3748PeerDiscardsAFailureWhereNoneIsPermitted",
+    "unit-sha": "4d926d0c53ae1842",
+    "claim-sha": "b1b9ec37d1d0f3e1",
+    "route": "revert",
+    "producer": "internal/core/eap/peer.go::Process",
+    "producer-sha": "1d3fda7628c9da27",
+    "break": "body of Process replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3748-4.2-8",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc3748_discard_test.go::TestRFC3748PeerDiscardsASuccessTheMethodDoesNotPermitYet",
+    "unit-sha": "ee88c4959b78e954",
+    "claim-sha": "4617da015c0ee495",
+    "route": "revert",
+    "producer": "internal/core/eap/peer.go::Process",
+    "producer-sha": "1d3fda7628c9da27",
+    "break": "body of Process replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3748-4.2-8",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc3748_discard_test.go::TestRFC3748PeerDiscardsASuccessTheMethodDoesNotPermitYet",
+    "unit-sha": "ee88c4959b78e954",
+    "claim-sha": "f77b57f6a99a5106",
+    "route": "revert",
+    "producer": "internal/core/eap/peer.go::Process",
+    "producer-sha": "1d3fda7628c9da27",
+    "break": "body of Process replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

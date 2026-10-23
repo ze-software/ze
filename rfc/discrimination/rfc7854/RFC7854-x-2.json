@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC7854-x-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/bmp/rfc7854_wire_header_test.go::TestRFC7854EveryTransmittedMessageCarriesVersion3AndItsTotalLength",
+    "unit-sha": "7eeb12aaa98adc59",
+    "claim-sha": "bd09a2669d8f38f1",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/bmp/header.go::WriteCommonHeader",
+    "producer-sha": "38e1fe658763c9f5",
+    "break": "body of WriteCommonHeader replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

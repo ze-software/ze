@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC9915-18.2.8-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/iface/dhcp/rfc9915_dhcp_v6_attach_linux_test.go::TestRFC9915Section182101DuplicateAddressDeclined",
+    "unit-sha": "5695a803bd776e35",
+    "claim-sha": "ed983a552f12c984",
+    "route": "revert",
+    "producer": "internal/plugins/iface/dhcp/dhcp_v6_attach_linux.go::buildDecline",
+    "producer-sha": "230ca6877612ef34",
+    "break": "body of buildDecline replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

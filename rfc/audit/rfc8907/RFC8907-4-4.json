@@ -1,0 +1,15 @@
+{
+  "note": "Rejudged 2026-09-29 after the invalid {single-polarity} marker was removed (correction recorded). Negative TestRFC8907ReplyChangingSessionIDRefused flips bit 0, bit 31 and all bits of the reply session_id (only field changed; type/version/seq/flags intact so the trySend session_id guard is the refusing check) for 3 kinds and requires error + zero status. Positive TestRFC8907ReplyKeepingSessionIDAccepted is the accepting path for all 3 kinds.",
+  "requirement_sha": "8bf61ab756a32be3",
+  "tests": {
+    "internal/component/tacacs/rfc8907_client_test.go::TestTacacsClientAuthenticatePass": "cbb58d00c914079a",
+    "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907ReplyChangingSessionIDRefused": "879b13e19509fb75",
+    "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907ReplyKeepingSessionIDAccepted": "879b13e19509fb75"
+  },
+  "units": {
+    "internal/component/tacacs/rfc8907_client_test.go::TestTacacsClientAuthenticatePass": "40c135cf6049f3c4",
+    "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907ReplyChangingSessionIDRefused": "82f1d57802fd0072",
+    "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907ReplyKeepingSessionIDAccepted": "3d9c92c431514763"
+  },
+  "verdict": "enforced"
+}

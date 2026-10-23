@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC2328-12.4.3-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/spf/rfc2328_abr_summary_test.go::TestRFC2328ABRComponentNeverEscapesRange",
+    "unit-sha": "7c50c8989d4a6fc3",
+    "claim-sha": "f4db3175d30c68a9",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/spf/summary.go::applyAreaRanges",
+    "producer-sha": "425dbcef680fd0e8",
+    "break": "body of applyAreaRanges replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-12.4.3-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/spf/rfc2328_abr_summary_test.go::TestRFC2328ABRSummarizesAndCondenses",
+    "unit-sha": "a358ba1585356669",
+    "claim-sha": "69e1996bf899e0dd",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/spf/summary.go::applyAreaRanges",
+    "producer-sha": "425dbcef680fd0e8",
+    "break": "body of applyAreaRanges replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-12.4.3-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/spf/rfc2328_summary_flush_condense_test.go::TestRFC2328NetworkOutsideRangeKeepsOwnSummary",
+    "unit-sha": "6c6e29a2c737f93d",
+    "claim-sha": "07bc2c483960ec53",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/spf/summary.go::applyAreaRanges",
+    "producer-sha": "425dbcef680fd0e8",
+    "break": "body of applyAreaRanges replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-12.4.3-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/spf/rfc2328_summary_flush_condense_test.go::TestRFC2328RangeCondensesSeveralNetworksIntoOneSummary",
+    "unit-sha": "e2726995dcadcecd",
+    "claim-sha": "56522e854813a036",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/spf/summary.go::applyAreaRanges",
+    "producer-sha": "425dbcef680fd0e8",
+    "break": "body of applyAreaRanges replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

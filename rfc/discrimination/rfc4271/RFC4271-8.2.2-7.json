@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4271-8.2.2-7",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterSurvivesDampedStart",
+    "unit-sha": "47e00095aa9b431d",
+    "claim-sha": "33b5a67ddd286066",
+    "route": "revert",
+    "producer": "internal/component/bgp/fsm/fsm.go::handleIdle",
+    "producer-sha": "60826e7f42a8269d",
+    "break": "body of handleIdle replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-8.2.2-7",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271ManualStartZeroesTheCounterAndDials",
+    "unit-sha": "990dcb3e2674d672",
+    "claim-sha": "9808de7b8699c577",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/peer.go::StartWithContext",
+    "producer-sha": "352f2f51cfdbf488",
+    "break": "body of StartWithContext replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

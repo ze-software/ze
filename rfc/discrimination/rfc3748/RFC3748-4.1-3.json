@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC3748-4.1-3",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_eap_retransmit_test.go::TestEapRtxResponderReplaysCachedResponseMidEAP",
+    "unit-sha": "5fb7ee11fe935bf8",
+    "claim-sha": "e1a2347924035825",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/responder.go::replayCachedResponse",
+    "producer-sha": "ac495c3e1e0a75c2",
+    "break": "body of replayCachedResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3748-4.1-3",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc3748_walk_test.go::TestRFC3748NewRequestChangesIdentifier",
+    "unit-sha": "86b2c39174bbc826",
+    "claim-sha": "b9521eff0d999267",
+    "route": "revert",
+    "producer": "internal/core/eap/eap.go::handleMethod",
+    "producer-sha": "fcb74148a4de64e4",
+    "break": "body of handleMethod replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3748-4.1-3",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc3748_walk_test.go::TestRFC3748NewRequestChangesIdentifier",
+    "unit-sha": "86b2c39174bbc826",
+    "claim-sha": "584bc693c2c1489b",
+    "route": "revert",
+    "producer": "internal/core/eap/eap.go::handleMethod",
+    "producer-sha": "fcb74148a4de64e4",
+    "break": "body of handleMethod replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

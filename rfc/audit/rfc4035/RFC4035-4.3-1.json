@@ -1,0 +1,6 @@
+{
+  "no_code_path": "Ze runs no validator: resolve/dns dnssecDecision reads only the upstream rcode (SERVFAIL) under the configured mode; there is no signature verification, trust anchor, DS chain or NSEC proof, so no Ze code decides whether an RRset should be signed. The stub role is RFC 4035 Section 4.9's, a different row set.",
+  "note": "Binds a validating (security-aware) resolver; Ze's resolver is a non-validating stub.",
+  "requirement_sha": "22f84a25459a1464",
+  "verdict": "not-applicable"
+}

@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC2131-3-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/dhcpserver/rfc2131_msgtype_test.go::TestMessageTypeInEveryReply",
+    "unit-sha": "70eea576bb17572d",
+    "claim-sha": "d187c71d5e6817c0",
+    "route": "revert",
+    "producer": "internal/plugins/dhcpserver/handler.go::buildReply",
+    "producer-sha": "768b422a81e3e140",
+    "break": "body of buildReply replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

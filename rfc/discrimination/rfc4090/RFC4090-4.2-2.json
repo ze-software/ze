@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4090-4.2-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090DetourOtherCTypeStillUnknownClass",
+    "unit-sha": "8706baf341f7ce46",
+    "claim-sha": "097575b8eb64d07d",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/engine.go::rejectUnknownObject",
+    "producer-sha": "03d11b2db3d6e2c3",
+    "break": "body of rejectUnknownObject replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4090-4.2-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090DetourPathErrAsUnknownClass",
+    "unit-sha": "a86c573a26b13abb",
+    "claim-sha": "c006e24b95f6bc03",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/engine.go::rejectUnknownObject",
+    "producer-sha": "03d11b2db3d6e2c3",
+    "break": "body of rejectUnknownObject replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

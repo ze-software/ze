@@ -1,0 +1,13 @@
+{
+  "note": "Judge rejudge 2026-09-30 (phase 8: row cites 6.7.2 only; the SHA1 key-id units moved to RFC5880-6.7.4-15). Negative TestRFC5880SimplePasswordWrongKeyIDDiscarded signs key 7 with the right password against a verifier for key 8 and requires ErrPasswordMismatch (only the key id differs, isolated); positive TestRFC5880SimplePasswordMatchingKeyIDAccepted accepts key 7.",
+  "requirement_sha": "68f398255373598c",
+  "tests": {
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880SimplePasswordMatchingKeyIDAccepted": "5a25c74cc2d9bd47",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880SimplePasswordWrongKeyIDDiscarded": "5a25c74cc2d9bd47"
+  },
+  "units": {
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880SimplePasswordMatchingKeyIDAccepted": "f0f3f362d2b18399",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880SimplePasswordWrongKeyIDDiscarded": "b8d25b68aa347511"
+  },
+  "verdict": "enforced"
+}

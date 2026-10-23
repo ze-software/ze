@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "SFLOW-V5-x-5",
+    "polarity": "positive",
+    "unit": "internal/plugins/flowexport/sflow/sflow_v5_datagram_test.go::TestSFlowV5ConfiguredMaxDatagramBoundsEveryDatagram",
+    "unit-sha": "43663d9ad9eed19b",
+    "claim-sha": "32779285015a2745",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/sflow/encoder.go::writeCounterDatagrams",
+    "producer-sha": "45a6bb80ad8ddd14",
+    "break": "body of writeCounterDatagrams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "SFLOW-V5-x-5",
+    "polarity": "positive",
+    "unit": "internal/plugins/flowexport/sflow/sflow_v5_encoder_test.go::TestSFlowMultiInterface",
+    "unit-sha": "bec38e1b719b6ae0",
+    "claim-sha": "dc28f224df935095",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/sflow/encoder.go::writeCounterDatagrams",
+    "producer-sha": "45a6bb80ad8ddd14",
+    "break": "body of writeCounterDatagrams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

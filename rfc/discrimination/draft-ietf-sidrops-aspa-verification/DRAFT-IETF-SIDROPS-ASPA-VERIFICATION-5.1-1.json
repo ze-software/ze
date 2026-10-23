@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_compressed_aspa_test.go::TestASPACompressedUpdatePrependsValid",
+    "unit-sha": "570f2fc3bdbcb784",
+    "claim-sha": "cad98c96f41a79b3",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rpki/aspa_verify.go::normalizeASPath",
+    "producer-sha": "1fb3b3f1fc0a37f3",
+    "break": "body of normalizeASPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_compressed_aspa_test.go::TestASPACompressedUpdatePreservesHops",
+    "unit-sha": "7eabc5ee446a0c23",
+    "claim-sha": "37d162baa35957cd",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rpki/aspa_verify.go::normalizeASPath",
+    "producer-sha": "1fb3b3f1fc0a37f3",
+    "break": "body of normalizeASPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

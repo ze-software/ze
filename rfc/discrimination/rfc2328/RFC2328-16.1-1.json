@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC2328-16.1-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/spf/rfc2328_spf_test.go::TestOSPFSPFShortestPath",
+    "unit-sha": "d7899405e128094b",
+    "claim-sha": "6ae82b92e9dc862d",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/spf/spf.go::computeWithNextHop",
+    "producer-sha": "c71166cdbab1234c",
+    "break": "body of computeWithNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-16.1-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/spf/rfc2328_spf_test.go::TestOSPFTwoWayCheck",
+    "unit-sha": "b63dcf3ceec07772",
+    "claim-sha": "98ca25d15446b10a",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/spf/spf.go::twoWayRouterLink",
+    "producer-sha": "9db21685b46ce152",
+    "break": "body of twoWayRouterLink replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-16.1-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/spf/rfc2328_spf_vertex_lookup_test.go::TestRFC2328SPFExaminesNextLinkAfterSkip",
+    "unit-sha": "f83b5336c91e191c",
+    "claim-sha": "fd205ab74349b327",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/spf/spf.go::Compute",
+    "producer-sha": "642fa7f78d1e93fb",
+    "break": "body of Compute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-16.1-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/spf/rfc2328_spf_vertex_lookup_test.go::TestRFC2328SPFSkipsMissingOrMaxAgeVertex",
+    "unit-sha": "05e539498e03ee90",
+    "claim-sha": "5272848e5e560cb6",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/spf/graph.go::BuildGraph",
+    "producer-sha": "82e39d7def7ec24e",
+    "break": "body of BuildGraph replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

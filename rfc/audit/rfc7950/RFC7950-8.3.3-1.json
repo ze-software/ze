@@ -1,0 +1,13 @@
+{
+  "note": "Row narrowed 2026-09-30 to the first sentence. The tags prove LoadConfig refuses a ze:validate violation with ErrCustomValidation and no partial tree, and accepts a valid config. \"All validation constraints\" is not met by the stack: a missing mandatory leaf is only a warning (SectionValidationError.Blocking), and when, unique and choice are evaluated nowhere, so a final datastore content violating those is accepted. Owner ruling 4: carried by spec-config-yang-when-unique-choice AC-2.",
+  "requirement_sha": "177fcc9174244517",
+  "tests": {
+    "internal/component/config/rfc7950_datastore_test.go::TestRFC7950RunningDatastoreAcceptsAValidConfig": "881ae8cd8e73bade",
+    "internal/component/config/rfc7950_datastore_test.go::TestRFC7950RunningDatastoreRefusesAViolationAfterParse": "881ae8cd8e73bade"
+  },
+  "units": {
+    "internal/component/config/rfc7950_datastore_test.go::TestRFC7950RunningDatastoreAcceptsAValidConfig": "a4dd1bf5400ad5d7",
+    "internal/component/config/rfc7950_datastore_test.go::TestRFC7950RunningDatastoreRefusesAViolationAfterParse": "cd1fa735402534b4"
+  },
+  "verdict": "weak"
+}

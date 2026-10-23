@@ -1,0 +1,68 @@
+[
+  {
+    "rid": "RFC8277-2.2-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/message/rfc8277_label_layout_test.go::TestRFC8277BuilderLabelLayout",
+    "unit-sha": "af1d7b6b1a67e0aa",
+    "claim-sha": "6ad65f5b63e4ef9a",
+    "route": "revert",
+    "producer": "internal/core/bgp/nlri/helpers.go::WriteLabelValues",
+    "producer-sha": "e7a1b2dd37fae5f3",
+    "break": "body of WriteLabelValues replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8277-2.2-3",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc8277_label_rsrv_test.go::TestRFC8277RsrvClearedOnRelay",
+    "unit-sha": "34bf8bc0ae89cb59",
+    "claim-sha": "928da10f0cbba08d",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/rfc8277_label_rsrv.go::clearLabelRsrv",
+    "producer-sha": "cebc6ef3ee418731",
+    "break": "body of clearLabelRsrv replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8277-2.2-3",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc8277_label_rsrv_test.go::TestRFC8277RsrvClearedOnTheReceivePath",
+    "unit-sha": "a635a6e36a6f289d",
+    "claim-sha": "cc18c13ab9ab2b46",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/rfc8277_label_rsrv.go::clearLabelRsrv",
+    "producer-sha": "cebc6ef3ee418731",
+    "break": "body of clearLabelRsrv replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8277-2.2-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc8277_label_rsrv_test.go::TestRFC8277ZeroRsrvRelayedZeroCopy",
+    "unit-sha": "8425a69f8427ceb1",
+    "claim-sha": "5007564fa3bca3a1",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/rfc8277_label_rsrv.go::clearLabelRsrv",
+    "producer-sha": "cebc6ef3ee418731",
+    "break": "body of clearLabelRsrv replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8277-2.2-3",
+    "polarity": "positive",
+    "unit": "internal/core/bgp/nlri/nlrisplit/rfc8277_rsrv_stack_test.go::TestRFC8277RsrvIgnoredOnReceiveLabelStack",
+    "unit-sha": "56e5e4e567a3ac34",
+    "claim-sha": "0a893b3e60ced834",
+    "route": "revert",
+    "producer": "internal/core/bgp/nlri/nlrisplit/labeled.go::ExtractLabels",
+    "producer-sha": "a1e1a97195e6868f",
+    "break": "body of ExtractLabels replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8277-2.2-3",
+    "polarity": "negative",
+    "unit": "internal/core/bgp/nlri/nlrisplit/rfc8277_rsrv_stack_test.go::TestRFC8277RsrvIgnoredOnReceiveLabelStack",
+    "unit-sha": "56e5e4e567a3ac34",
+    "claim-sha": "70a8f00b6caf0c8c",
+    "route": "revert",
+    "producer": "internal/core/bgp/nlri/nlrisplit/labeled.go::SplitLabeled",
+    "producer-sha": "6e2ffadad2eebc7c",
+    "break": "body of SplitLabeled replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

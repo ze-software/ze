@@ -1,0 +1,13 @@
+{
+  "note": "Judged 2026-09-30 (rfc/full/rfc2865.txt:1383-1385, Section 5, string data type). Forbidden: a string-typed attribute of zero octets on the wire. TestRFC2865ZeroLengthStringIsOmitted encodes State, Class, Proxy-State and CHAP-Challenge with empty values beside a User-Name through Packet.EncodeTo, decodes the wire and fails if the attribute is present or the attribute count is not 1. TestRFC2865OneOctetStringIsSent is the boundary control: the one-octet string 00 must reach the wire byte-equal, so an encoder that dropped every string, or every 0x00-valued one, goes red; it is labelled negative but is a conforming input, which is the only other polarity an emit-side MUST NOT has. Producer packet.go::EncodeTo omits any zero-length value at the wire boundary. Records observed red on both units.",
+  "requirement_sha": "7effe390a47b50e6",
+  "tests": {
+    "internal/component/radius/rfc2865_zero_length_string_test.go::TestRFC2865OneOctetStringIsSent": "903c959e05a985e6",
+    "internal/component/radius/rfc2865_zero_length_string_test.go::TestRFC2865ZeroLengthStringIsOmitted": "903c959e05a985e6"
+  },
+  "units": {
+    "internal/component/radius/rfc2865_zero_length_string_test.go::TestRFC2865OneOctetStringIsSent": "2d3fdc4d2c456f06",
+    "internal/component/radius/rfc2865_zero_length_string_test.go::TestRFC2865ZeroLengthStringIsOmitted": "bb9688abff00a503"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC4271-9.1.2.2-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/rfc4271_ibgp_aggregate_med_test.go::TestRFC4271IBGPAggregatesLedByASSetsCompareMED",
+    "unit-sha": "a82f4238aba35e46",
+    "claim-sha": "18e90ddeea9af847",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/bestpath.go::firstASInPath",
+    "producer-sha": "122dfca7b67f3091",
+    "break": "body of firstASInPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-9.1.2.2-3",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rib/rfc4271_ibgp_aggregate_med_test.go::TestRFC4271IBGPRouteLedByASSequenceKeepsItsNeighborAS",
+    "unit-sha": "febbd81ba7c82a16",
+    "claim-sha": "80451a8d5a99cfce",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/bestpath.go::firstASInPath",
+    "producer-sha": "122dfca7b67f3091",
+    "break": "body of firstASInPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-9.1.2.2-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/rfc4271_ibgp_med_test.go::TestRFC4271IBGPLocallyOriginatedRoutesCompareMED",
+    "unit-sha": "b08cc0d9f974f3a9",
+    "claim-sha": "7625a1edde3beef0",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/bestpath.go::sameNeighborAS",
+    "producer-sha": "9d08d11225463011",
+    "break": "body of sameNeighborAS replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-9.1.2.2-3",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rib/rfc4271_ibgp_med_test.go::TestRFC4271IBGPMEDIsNotSkippedWhenLaterStepsDisagree",
+    "unit-sha": "e1359e07737707f5",
+    "claim-sha": "c47ecd02db72dc35",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/bestpath.go::sameNeighborAS",
+    "producer-sha": "9d08d11225463011",
+    "break": "body of sameNeighborAS replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

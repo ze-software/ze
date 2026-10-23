@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC4760-3-4",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go::TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref",
+    "unit-sha": "b39ce6fe547e059a",
+    "claim-sha": "ac62f950f258c2ba",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/update_build.go::BuildUnicast",
+    "producer-sha": "e7dd8c913660084d",
+    "break": "body of BuildUnicast replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4760-3-4",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go::TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref",
+    "unit-sha": "b39ce6fe547e059a",
+    "claim-sha": "e75d1660c0542e3b",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/update_build.go::BuildUnicast",
+    "producer-sha": "e7dd8c913660084d",
+    "break": "body of BuildUnicast replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4760-3-4",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760IBGPMPReachCarriesLocalPref",
+    "unit-sha": "fe26dd86580ae9be",
+    "claim-sha": "57627a6dc6dc843d",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/update_build.go::BuildUnicast",
+    "producer-sha": "e7dd8c913660084d",
+    "break": "body of BuildUnicast replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4760-3-4",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/message/rfc4760_mp_reach_test.go::TestRFC4760IBGPMPReachCarriesLocalPref",
+    "unit-sha": "fe26dd86580ae9be",
+    "claim-sha": "ff8ee2e5b9ee736c",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/update_build.go::BuildUnicast",
+    "producer-sha": "e7dd8c913660084d",
+    "break": "body of BuildUnicast replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

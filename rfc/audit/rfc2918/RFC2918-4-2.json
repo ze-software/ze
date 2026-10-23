@@ -1,0 +1,17 @@
+{
+  "note": "Forbidden: acting on a ROUTE-REFRESH for an <AFI, SAFI> the speaker did not advertise. D-8 fix: Session.screenRouteRefresh now applies the family rule on the read path before onMessageReceived, for both call sites. TestRFC2918RouteRefreshForAnUnadvertisedFamilyIsIgnored drives ReadAndProcess on an Established session that advertised IPv4/unicast only: positive, an IPv6/unicast refresh reaches no onMessageReceived consumer, draws no bytes on the unbuffered pipe and leaves the session Established; negative, an IPv4/unicast refresh is delivered exactly once with its body unchanged. Observed-red revert records on routeRefreshFamilyUnadvertised for both polarities. The check keys on the negotiated set, a subset of what the speaker advertised, so every unadvertised family is ignored; it additionally ignores a family advertised but not negotiated, which RFC 4760 already forbids acting on. The older positive TestHandleRouteRefresh_NonNegotiatedFamily (NoError only) adds nothing on its own.",
+  "requirement_sha": "b5093eb70295d521",
+  "tests": {
+    "internal/component/bgp/reactor/rfc2918_unadvertised_family_test.go::TestRFC2918RouteRefreshForAnUnadvertisedFamilyIsIgnored": "2c6d8ec1cf6b2ea2",
+    "internal/component/bgp/reactor/rfc2918_unadvertised_family_test.go::TestRFC2918RouteRefreshForAnUnadvertisedFamilyIsIgnored#2": "2c6d8ec1cf6b2ea2",
+    "internal/component/bgp/reactor/session_handlers_test.go::TestHandleRouteRefresh_NonNegotiatedFamily": "c387bdc6c423bd19",
+    "internal/component/bgp/reactor/session_test.go::TestRouteRefreshValidLengthDelivered": "aeb6993b67f2a376"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc2918_unadvertised_family_test.go::TestRFC2918RouteRefreshForAnUnadvertisedFamilyIsIgnored": "0ac5a1fabe484f23",
+    "internal/component/bgp/reactor/rfc2918_unadvertised_family_test.go::TestRFC2918RouteRefreshForAnUnadvertisedFamilyIsIgnored#2": "0ac5a1fabe484f23",
+    "internal/component/bgp/reactor/session_handlers_test.go::TestHandleRouteRefresh_NonNegotiatedFamily": "014323bd9126baee",
+    "internal/component/bgp/reactor/session_test.go::TestRouteRefreshValidLengthDelivered": "0bde78dc5372e023"
+  },
+  "verdict": "enforced"
+}

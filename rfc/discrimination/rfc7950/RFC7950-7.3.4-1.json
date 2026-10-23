@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC7950-7.3.4-1",
+    "polarity": "positive",
+    "unit": "internal/component/config/rfc7950_yang_schema_defaults_clauses_test.go::TestRFC7950DerivedTypeInheritsOrReplacesTheDefault",
+    "unit-sha": "db52a77da438cc09",
+    "claim-sha": "323098f54add3a43",
+    "route": "revert",
+    "producer": "internal/component/config/yang_schema.go::yangToLeaf",
+    "producer-sha": "c3c56abf7e9ea816",
+    "break": "body of yangToLeaf replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7950-7.3.4-1",
+    "polarity": "negative",
+    "unit": "internal/component/config/rfc7950_yang_schema_defaults_clauses_test.go::TestRFC7950DerivedTypeMustReplaceAnInvalidatedDefault",
+    "unit-sha": "6cc26173ebac8fa2",
+    "claim-sha": "b300bcd5045167e6",
+    "route": "revert",
+    "producer": "internal/component/config/yang_schema.go::validateTypedefDefault",
+    "producer-sha": "2ef5699eac46fef4",
+    "break": "body of validateTypedefDefault replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7950-7.3.4-1",
+    "polarity": "negative",
+    "unit": "internal/component/config/rfc7950_yang_schema_defaults_test.go::TestRFC7950DefaultInvalidForType",
+    "unit-sha": "51fc202e2e9d76a0",
+    "claim-sha": "a9ab34263426b0f0",
+    "route": "revert",
+    "producer": "internal/component/config/yang_schema.go::validateLeafDefaults",
+    "producer-sha": "4871ae96b8967d7b",
+    "break": "body of validateLeafDefaults replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7950-7.3.4-1",
+    "polarity": "positive",
+    "unit": "internal/component/config/rfc7950_yang_schema_defaults_test.go::TestRFC7950DefaultValidForType",
+    "unit-sha": "d26912a65d559d0b",
+    "claim-sha": "2b19d5acc37ccc2c",
+    "route": "revert",
+    "producer": "internal/component/config/yang_schema.go::validateLeafDefaults",
+    "producer-sha": "4871ae96b8967d7b",
+    "break": "body of validateLeafDefaults replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

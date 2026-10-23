@@ -1,0 +1,11 @@
+{
+  "note": "single-polarity; TestInstanceIPv6VIPLivesOnVirtualMACDevice requires the Active router to install the IPv6 address on the vMAC macvlan, which makes the kernel join the Solicited-Node group",
+  "requirement_sha": "48f1c6581de4b908",
+  "tests": {
+    "internal/plugins/vrrp/instance_test.go::TestInstanceIPv6VIPLivesOnVirtualMACDevice": "90d279832a92de75"
+  },
+  "units": {
+    "internal/plugins/vrrp/instance_test.go::TestInstanceIPv6VIPLivesOnVirtualMACDevice": "bb1f308ff09eb61c"
+  },
+  "verdict": "enforced"
+}

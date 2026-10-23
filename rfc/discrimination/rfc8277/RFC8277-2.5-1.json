@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC8277-2.5-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_test.go::TestRFC8277VPNRelabelReplacesTheRoute",
+    "unit-sha": "55b0fcc3fffaf479",
+    "claim-sha": "9aea71d210935925",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/storage/familyrib_opaque.go::RouteKey",
+    "producer-sha": "f74a828a006cd4b6",
+    "break": "body of RouteKey replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

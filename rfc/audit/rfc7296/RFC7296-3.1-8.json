@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-11 by an independent judge after e855bc0689. RFC 7296 3.1: \"'X' bits MUST be cleared when sending and MUST be ignored on receipt.\" This row keeps the receive clause (the send clause is RFC7296-3.1-7, correction 2026-10-11). The earlier finding (the fresh request bypassed the dispatch site that reads the flags octet) is fixed: TestXBitsIgnoredOnReceipt now calls tryResponderSAInit, which tests pkt.Data[19] at register.go and then routes through handleInbound into handleResponderInbound (responder.go Flags&FlagResponse) and handleSAInitRequest; a protected INFORMATIONAL request with every X bit set goes through handleOwnedInbound (inbound.go isResponse) and must be answered, advance ExpectedMsgID and credit liveness; an IKE_SA_INIT response with the X bits goes through handleInbound (fsm.go StateSAInitSent arm) and must reach auth-sent. Each outcome is exact and matches the clean message, not 'no error'. Negative: the same fresh request with the R bit (not an X bit) is refused with no SA, so the positive is not passing through a flags-blind path; it is a control for the X-bit scope rather than a violation of this clause, which is the only negative an ignore obligation admits. Discrimination: mutant records at register.go tryResponderSAInit (refuse any bit but I: positive red; never refuse R: negative red). The owned and initiator sites carry no record, but by reading a break there that refuses or reclassifies on an X bit leaves the request unanswered or the initiator in sa-init-sent, both asserted. Residual, not a defect: four receive readers are not driven with X bits (fsm.go AUTH-response and EAP-response arms, the established-SA response arm, the out-of-SA guard in sendInvalidIKESPI); every one tests Flags&wire.FlagResponse alone, so the code complies, and the claim enumerates only the three messages it asserts.",
+  "requirement_sha": "91f55639da1beab4",
+  "tests": {
+    "internal/component/ike/engine/rfc7296_header_test.go::TestXBitsIgnoredOnReceipt": "3621c3a699e1b772",
+    "internal/component/ike/engine/rfc7296_header_test.go::TestXBitsIgnoredOnReceipt#2": "3621c3a699e1b772"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7296_header_test.go::TestXBitsIgnoredOnReceipt": "a4c2d355e7e9c608",
+    "internal/component/ike/engine/rfc7296_header_test.go::TestXBitsIgnoredOnReceipt#2": "a4c2d355e7e9c608"
+  },
+  "verdict": "enforced"
+}

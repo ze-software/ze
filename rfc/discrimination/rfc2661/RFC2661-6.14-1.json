@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2661-6.14-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661SLIUpdatesACCM",
+    "unit-sha": "ebcb310754aab091",
+    "claim-sha": "5743ba309cb116dc",
+    "route": "revert",
+    "producer": "internal/component/l2tp/session_fsm.go::handleSLI",
+    "producer-sha": "3c2baa49cedf5d1e",
+    "break": "body of handleSLI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2661-6.14-1",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661SLIUpdatesACCM",
+    "unit-sha": "ebcb310754aab091",
+    "claim-sha": "c35895b603b36ca8",
+    "route": "revert",
+    "producer": "internal/component/l2tp/session_fsm.go::handleSLI",
+    "producer-sha": "3c2baa49cedf5d1e",
+    "break": "body of handleSLI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

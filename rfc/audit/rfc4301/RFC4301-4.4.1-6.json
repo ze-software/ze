@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-11 by an independent judge after the fix round (2691e815b1) moved the two disposition tests off this row. RFC 4301 4.4.1, under \"The SPD MUST permit a user or administrator to specify policy entries as follows:\": \"SPD-S: For traffic that is to be protected using IPsec, the entry consists of the values of the selectors that apply to the traffic to be protected via AH or ESP, controls on how to create SAs based on these selectors, and the parameters needed to effect this protection (e.g., algorithms, modes, etc.).\" The row now carries only the SPD-S pair, both unchanged since the last read: TestRFC4301SPDSEntryCarriesSelectorsSAControlsAndProtection parses a site-to-site peer through ParseIPsecConfig and ValidateGroupRefs and reads back the selector prefixes, the SA creation controls (connection-type, remote address, esp-group) and the protection parameters (mode transport, aes256/sha256), each compared exactly; TestRFC4301SPDSEntryRefusesAMissingOrUnusablePart refuses an undefined esp-group, mode beet, an unknown connection-type and a /33 selector, each naming the part. Revert records on config.go::parseSiteToSitePeer. The earlier defect (bypass/discard tests tagged here) is resolved.",
+  "requirement_sha": "8e6e0c7efd99f448",
+  "tests": {
+    "internal/component/ike/ipsec/rfc4301_spd_s_test.go::TestRFC4301SPDSEntryCarriesSelectorsSAControlsAndProtection": "b227c917ca2c9cdf",
+    "internal/component/ike/ipsec/rfc4301_spd_s_test.go::TestRFC4301SPDSEntryRefusesAMissingOrUnusablePart": "b227c917ca2c9cdf"
+  },
+  "units": {
+    "internal/component/ike/ipsec/rfc4301_spd_s_test.go::TestRFC4301SPDSEntryCarriesSelectorsSAControlsAndProtection": "b5a58e3f4fdacf58",
+    "internal/component/ike/ipsec/rfc4301_spd_s_test.go::TestRFC4301SPDSEntryRefusesAMissingOrUnusablePart": "03e9d4d8cd61b7ed"
+  },
+  "verdict": "enforced"
+}

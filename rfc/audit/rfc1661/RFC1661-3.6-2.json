@@ -1,0 +1,11 @@
+{
+  "note": "{single-polarity} justified. Forbidden: answering or acting on an IPv4/IPv6 packet whose (enabled) NCP is not Opened. TestRFC1661NetworkLayerPacketDiscardedBeforeNCPOpened goes red on any written frame (rec.count() != 0), on session termination, or on an LCP state change.",
+  "requirement_sha": "618e28be52287bb1",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NetworkLayerPacketDiscardedBeforeNCPOpened": "9afaf002f0fd81ec"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NetworkLayerPacketDiscardedBeforeNCPOpened": "6688a0532ab5b215"
+  },
+  "verdict": "enforced"
+}

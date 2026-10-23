@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-6",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STMandatoryFieldsWithinLength",
+    "unit-sha": "c33dd7a522743775",
+    "claim-sha": "f8a0b8300ecac0d9",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/nlri/mup/types.go::parseBodyT1ST",
+    "producer-sha": "67b23c39431ab0fb",
+    "break": "body of parseBodyT1ST replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-6",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STMandatoryFieldsWithinLength",
+    "unit-sha": "c33dd7a522743775",
+    "claim-sha": "62daac9ad538d491",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/nlri/mup/types.go::parseBodyT1ST",
+    "producer-sha": "67b23c39431ab0fb",
+    "break": "body of parseBodyT1ST replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-6",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_withdraw_test.go::TestMUPMalformedT1STTreatAsWithdraw",
+    "unit-sha": "6e2e82b3c93a49ee",
+    "claim-sha": "fb58349c3e1c6c37",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/nlri/mup/types.go::ValidateNLRI",
+    "producer-sha": "18f9a2761647b90c",
+    "break": "body of ValidateNLRI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-6",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_withdraw_test.go::TestMUPMalformedT1STTreatAsWithdraw",
+    "unit-sha": "6e2e82b3c93a49ee",
+    "claim-sha": "8dd3477d8419b9c3",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/nlri/mup/types.go::ValidateNLRI",
+    "producer-sha": "18f9a2761647b90c",
+    "break": "body of ValidateNLRI replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

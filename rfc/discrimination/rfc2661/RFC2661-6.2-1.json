@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC2661-6.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661SCCRPCarriesSection62AVPs",
+    "unit-sha": "4047e6c57f1d18d1",
+    "claim-sha": "0f5f053c54864b0f",
+    "route": "revert",
+    "producer": "internal/component/l2tp/tunnel_fsm.go::writeSCCRPBody",
+    "producer-sha": "0e95e041fa000906",
+    "break": "body of writeSCCRPBody replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2661-6.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661SCCRPWithoutMessageTypeRefused",
+    "unit-sha": "3eca3eb96f876d7c",
+    "claim-sha": "69b33ee13ef54a37",
+    "route": "revert",
+    "producer": "internal/component/l2tp/tunnel_initiator.go::parseSCCRP",
+    "producer-sha": "efec7f346ebd9132",
+    "break": "body of parseSCCRP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2661-6.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/rfc2661_tunnel_initiator_sccrp_mandatory_avp_test.go::TestSCCRPMissingMandatoryAVPTearsTheTunnelDown",
+    "unit-sha": "9c2c81e602cb7721",
+    "claim-sha": "09b7b732bb76e8a7",
+    "route": "revert",
+    "producer": "internal/component/l2tp/tunnel_initiator.go::parseSCCRP",
+    "producer-sha": "efec7f346ebd9132",
+    "break": "body of parseSCCRP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2661-6.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/rfc2661_tunnel_initiator_sccrp_mandatory_avp_test.go::TestSCCRPWithEveryMandatoryAVPEstablishes",
+    "unit-sha": "5bf241473e3a10c9",
+    "claim-sha": "9f06a3026ff8f3f6",
+    "route": "revert",
+    "producer": "internal/component/l2tp/tunnel_initiator.go::handleSCCRP",
+    "producer-sha": "ebc344a3ecf6c52d",
+    "break": "body of handleSCCRP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

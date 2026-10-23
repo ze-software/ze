@@ -1,0 +1,19 @@
+{
+  "note": "vrrp judge 2026-09-29 (independent): TestV2MasterShutdown: a Version 2 owner Master receives Shutdown; the last advert carries Priority 0, state is Initialize, in.advert is nil, and after 10 s of fake clock no timer event and no further advert appear (Cancel Adver_Timer, Send Priority 0, Transition to Initialize, each asserted). Contrast: a v2 Backup shutting down sends nothing. Records: revert cancelTimers, both polarities. The FSM matrix row master/shutdown still runs v3.",
+  "requirement_sha": "7f180484ce9dc56c",
+  "tests": {
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "52489f84876bdb6f",
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "52489f84876bdb6f",
+    "internal/plugins/vrrp/instance_test.go::TestInstanceShutdownAsMasterSendsPriorityZero": "90d279832a92de75",
+    "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2MasterShutdown": "8b5d8c7a41e8e18e",
+    "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2MasterShutdown#2": "8b5d8c7a41e8e18e"
+  },
+  "units": {
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix": "c06b69f55bb239a3",
+    "internal/plugins/vrrp/fsm/fsm_test.go::TestFSMTransitionMatrix#2": "c06b69f55bb239a3",
+    "internal/plugins/vrrp/instance_test.go::TestInstanceShutdownAsMasterSendsPriorityZero": "7f46ec0e2b96d243",
+    "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2MasterShutdown": "061672695ca574c9",
+    "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2MasterShutdown#2": "061672695ca574c9"
+  },
+  "verdict": "enforced"
+}

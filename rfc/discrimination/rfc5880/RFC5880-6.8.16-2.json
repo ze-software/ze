@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC5880-6.8.16-2",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/engine/rfc5880_admindown_transmit_test.go::TestRFC5880AdminDownControlTransmittedForADetectionTime",
+    "unit-sha": "e12864f69da7b401",
+    "claim-sha": "b77948626c411f01",
+    "route": "revert",
+    "producer": "internal/component/bfd/engine/loop.go::tick",
+    "producer-sha": "4d6c5e086edd0eba",
+    "break": "body of tick replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9728-3.3-1",
+    "polarity": "negative",
+    "unit": "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728ResourceMatchesInsertedIdentifier",
+    "unit-sha": "194e37114106572e",
+    "claim-sha": "0707c54e2d2ae137",
+    "route": "revert",
+    "producer": "internal/component/mcp/oauth.go::writeResourceMetadata",
+    "producer-sha": "6290166dc0c1e0c2",
+    "break": "body of writeResourceMetadata replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9728-3.3-1",
+    "polarity": "positive",
+    "unit": "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728ResourceMatchesInsertedIdentifier",
+    "unit-sha": "194e37114106572e",
+    "claim-sha": "867985e303318e34",
+    "route": "revert",
+    "producer": "internal/component/mcp/streamable_auth.go::resourceOriginAndPath",
+    "producer-sha": "51958a183fa15af4",
+    "break": "body of resourceOriginAndPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

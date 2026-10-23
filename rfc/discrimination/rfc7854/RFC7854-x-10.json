@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC7854-x-10",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/bmp/rfc7854_peerdown_cause_test.go::TestRFC7854PeerDownTransportLossIsReason4",
+    "unit-sha": "7c398f49344c2b18",
+    "claim-sha": "646bd4a86acd9b7a",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/bmp/bmp_events.go::peerDownFor",
+    "producer-sha": "d1c0c3cd17b2bf05",
+    "break": "body of peerDownFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7854-x-10",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/peer_close_test.go::TestPeerCloseNamesTheCongestionTeardownLocal",
+    "unit-sha": "4d5cddd0dadbbfc1",
+    "claim-sha": "8bdd721f6776d47c",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/peer_close.go::sessionCloseFor",
+    "producer-sha": "6954f89b6f4bc8ec",
+    "break": "body of sessionCloseFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7854-x-10",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/peer_close_test.go::TestPeerCloseNamesTheTransportLoss",
+    "unit-sha": "7f6b3dcbfe1b1bd4",
+    "claim-sha": "6dfe6284a4d1f9b4",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/peer_close.go::sessionCloseFor",
+    "producer-sha": "6954f89b6f4bc8ec",
+    "break": "body of sessionCloseFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

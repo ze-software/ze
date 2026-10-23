@@ -1,0 +1,13 @@
+{
+  "note": "two clauses. Sent: TestRFC8665PrefixSIDReservedFlagBitsZeroOnSend encodes every defined flag and fails if mask 0x83 is set, red on an encoder leaking a reserved bit. Received: TestRFC8665PrefixSIDReservedFlagBitsIgnoredOnReceive sets 0x83 and requires no error and a decode equal to the clean one, red on a decoder that rejects or interprets them",
+  "requirement_sha": "1bf5c50a46195750",
+  "tests": {
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665PrefixSIDReservedFlagBitsIgnoredOnReceive": "dcc89abea6ba13ce",
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665PrefixSIDReservedFlagBitsZeroOnSend": "dcc89abea6ba13ce"
+  },
+  "units": {
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665PrefixSIDReservedFlagBitsIgnoredOnReceive": "333fe01d962966fa",
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665PrefixSIDReservedFlagBitsZeroOnSend": "f9ded412a5b6a3e2"
+  },
+  "verdict": "enforced"
+}

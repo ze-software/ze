@@ -1,0 +1,11 @@
+{
+  "note": "{single-polarity: positive} carried on the row. Forbidden: a BGP-LS MP_REACH_NLRI whose next hop departs from the RFC 4760 layout. TestRFC7752BGPLSNextHopFollowsRFC4760 fails unless, for AFI 16388 SAFI 71, the encoder emits AFI, SAFI, next-hop length 4 or 16, the address, a zero reserved octet and then the NLRI, and the parse round-trips; IPv4 and IPv6 next hops both asserted.",
+  "requirement_sha": "02ea53cce036e83d",
+  "tests": {
+    "internal/core/bgp/attribute/rfc7752_bgpls_test.go::TestRFC7752BGPLSNextHopFollowsRFC4760": "2ff5cf524c7273e0"
+  },
+  "units": {
+    "internal/core/bgp/attribute/rfc7752_bgpls_test.go::TestRFC7752BGPLSNextHopFollowsRFC4760": "70fced7dc6cef411"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "MP last-NLRI overrun is enforced by validateMPNLRIField in the main loop (ADD-PATH aware). Negative (TestRFC7606MPReachNLRIOverrunsAttribute) uses a valid 16-octet next hop so 7.11 passes and the only defect is a /128 NLRI with 2 octets; asserts 'overrun'. Positive fits exactly. Isolated from the 7.11 NHLen=0 path the old test passed through. TestRFC7606MPReachAddPathValidNotReset guards that a valid ADD-PATH UPDATE is not misread. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quote is the attribute overrun bullet alone. Verdict unchanged.",
+  "requirement_sha": "232b99b25c52c6c0",
+  "tests": {
+    "internal/component/bgp/message/rfc7606_withdraw_test.go::TestRFC7606MPReachNLRIOverrunsAttribute": "e59dbb7ce3b5e1e2",
+    "internal/component/bgp/message/rfc7606_withdraw_test.go::TestRFC7606MPReachWellFormedAccepted": "e59dbb7ce3b5e1e2"
+  },
+  "units": {
+    "internal/component/bgp/message/rfc7606_withdraw_test.go::TestRFC7606MPReachNLRIOverrunsAttribute": "91d1c08f38478cfe",
+    "internal/component/bgp/message/rfc7606_withdraw_test.go::TestRFC7606MPReachWellFormedAccepted": "fb9e9b779285b680"
+  },
+  "verdict": "enforced"
+}

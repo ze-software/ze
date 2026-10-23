@@ -1,0 +1,13 @@
+{
+  "note": "TestRFC1350DuplicateACKTriggersNoDATA: after ACK 1 and DATA 2, a second ACK 1 must produce no datagram for 1 s (the ACK timeout is 5 s, so a timeout retransmission cannot confound it); judge re-ran it against HEAD's handler.go by overlay and it fails 'DATA sent in answer to a duplicate ACK: got opcode 3 block 2', so it discriminates the Sorcerer's Apprentice bug. Positive: a fresh ACK 2 is answered by DATA 3, and after ACK 3 silence, so block 3 is sent once. Producer sendAndWaitACK now keeps reading to the same deadline on a non-matching packet (isACKFor).",
+  "requirement_sha": "e29bbdf8cd042d4e",
+  "tests": {
+    "internal/plugins/tftpserver/rfc1350_transfer_test.go::TestRFC1350DuplicateACKTriggersNoDATA": "60a1b8ea3f073355",
+    "internal/plugins/tftpserver/rfc1350_transfer_test.go::TestRFC1350DuplicateACKTriggersNoDATA#2": "60a1b8ea3f073355"
+  },
+  "units": {
+    "internal/plugins/tftpserver/rfc1350_transfer_test.go::TestRFC1350DuplicateACKTriggersNoDATA": "f1b18525295aa800",
+    "internal/plugins/tftpserver/rfc1350_transfer_test.go::TestRFC1350DuplicateACKTriggersNoDATA#2": "f1b18525295aa800"
+  },
+  "verdict": "enforced"
+}

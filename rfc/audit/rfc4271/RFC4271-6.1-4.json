@@ -1,0 +1,13 @@
+{
+  "note": "Previously a false {gap} (corrected 2026-10-01). Producer read: processMessage's default arm is the only caller of handleUnknownType, with no state gate before it, and it writes Message Header Error subcode 3 (NotifyHeaderBadType) with Data []byte{type}. Positive: Type 99 through a running Peer's read path in OpenSent draws exactly one NOTIFICATION 1/3 whose Data is 0x63, then EOF (handleUnknownType break observed red). Negative: recognized Types 4 (KEEPALIVE) and 2 (UPDATE) in Established draw no NOTIFICATION within 500 ms and the session stays Established (handleUpdate break observed red).",
+  "requirement_sha": "ecd0de9d10114755",
+  "tests": {
+    "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271MessageHeaderAtTheBoundsIsAccepted": "fec6a921b0bf494e",
+    "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271UnknownMessageTypeIsReported": "fec6a921b0bf494e"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271MessageHeaderAtTheBoundsIsAccepted": "164149dbbe2bb723",
+    "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271UnknownMessageTypeIsReported": "792ce391bb1cccf3"
+  },
+  "verdict": "enforced"
+}

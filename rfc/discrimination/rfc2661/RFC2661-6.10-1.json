@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2661-6.10-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661MandatoryAVPSetsEmitted",
+    "unit-sha": "ba70a70b5cdd83c1",
+    "claim-sha": "8093756023c79462",
+    "route": "revert",
+    "producer": "internal/component/l2tp/session_fsm.go::writeOCRPBody",
+    "producer-sha": "7cfabfe07289702a",
+    "break": "body of writeOCRPBody replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2661-6.10-1",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661MandatoryAVPSetsParsed",
+    "unit-sha": "0f355eb28287245a",
+    "claim-sha": "34ac0ffaf909c0af",
+    "route": "revert",
+    "producer": "internal/component/l2tp/session_initiator.go::parseOCRP",
+    "producer-sha": "959ac744626ca39d",
+    "break": "body of parseOCRP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

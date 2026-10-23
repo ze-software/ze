@@ -1,0 +1,21 @@
+{
+  "note": "Re-judged 2026-10-14 (independent auditor, D2). RFC 8092 Section 3: \"Duplicate BGP Large Community values MUST NOT be transmitted.\" Producer: normalizeTransmittedUpdate's compactLargeCommunities, run by writeUpdateBody on every UPDATE write, raw included, so the adj-rib-out replay and forward-unchanged bytes the earlier verdict named now pass the same walk. Positive TestRFC8092WriteRemovesRepeatedLargeCommunity: [X,X,Y] sent as [X,Y], 20 values with one repeat (filter path) and 22 in Extended Length form sent with the repeat removed, first occurrence kept, lengths re-checked by sentLargeCommunities, on the raw, parsed, override and relay writers, zero allocations; TestRFC8092PolicyAddOfPresentValueSentOnce: received [X,Z] plus a policy body [X,Z,X,Y,Y] leaves as exactly [X,Z,Y], 36 octets, message length consistent; the .ci asserts the full relayed hex with the policy repeats gone; TestLargeCommunitiesWriteToNoDuplicates pins the local encoder. Negatives TestRFC8092WriteKeepsDistinctLargeCommunities (3, 16, 17, 20 distinct values leave byte for byte on every writer) and TestLargeCommunities, red on over-removal or reordering. Rejudged 2026-10-16 (independent reader) after the owner-approved withdrawal-Compatibility change: normalizeTransmittedUpdate gained an EncodingContext parameter read only by setWithdrawalCompatibility on an MP_UNREACH_NLRI. The edits in TestRFC8092WriteRemovesRepeatedLargeCommunity and TestRFC8092WriteKeepsDistinctLargeCommunities pass nil; their bodies carry no MP_UNREACH_NLRI, so the context is never read and the Large Community compaction and its exact-output assertions are unchanged. RFC 8092 Section 3: \"Duplicate BGP Large Community values MUST NOT be transmitted.\" Verdict stands.",
+  "requirement_sha": "42daae0ee97b186e",
+  "tests": {
+    "internal/component/bgp/reactor/rfc8092_large_community_egress_test.go::TestRFC8092PolicyAddOfPresentValueSentOnce": "c0b0f42cc7ded9e7",
+    "internal/component/bgp/reactor/rfc8092_large_community_egress_test.go::TestRFC8092WriteKeepsDistinctLargeCommunities": "c0b0f42cc7ded9e7",
+    "internal/component/bgp/reactor/rfc8092_large_community_egress_test.go::TestRFC8092WriteRemovesRepeatedLargeCommunity": "c0b0f42cc7ded9e7",
+    "internal/core/bgp/attribute/community_test.go::TestLargeCommunities": "34fcdbe05b3de369",
+    "internal/core/bgp/attribute/community_test.go::TestLargeCommunitiesWriteToNoDuplicates": "34fcdbe05b3de369",
+    "test/plugin/rfc8092-large-community-no-repeat-egress.ci": "dcd874ced675bb11"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc8092_large_community_egress_test.go::TestRFC8092PolicyAddOfPresentValueSentOnce": "b533b5ebd7b1cd3f",
+    "internal/component/bgp/reactor/rfc8092_large_community_egress_test.go::TestRFC8092WriteKeepsDistinctLargeCommunities": "abcd2d6df0401ad3",
+    "internal/component/bgp/reactor/rfc8092_large_community_egress_test.go::TestRFC8092WriteRemovesRepeatedLargeCommunity": "816532f5e821f37a",
+    "internal/core/bgp/attribute/community_test.go::TestLargeCommunities": "d0693f4c5a17e247",
+    "internal/core/bgp/attribute/community_test.go::TestLargeCommunitiesWriteToNoDuplicates": "2b11448b2135ae5b",
+    "test/plugin/rfc8092-large-community-no-repeat-egress.ci": "dcd874ced675bb11"
+  },
+  "verdict": "enforced"
+}

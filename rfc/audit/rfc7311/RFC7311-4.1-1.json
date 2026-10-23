@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: running a Section 9.1.2.2 tie-breaker before the AIGP step. TestAIGPSelectsStoredRoutesBeforeASPath gives peer B the lower AIGP sum (20 plus 10) and the longer AS_PATH (3 versus 1); require.Equal(nhB, winner.NextHop) goes red if AS_PATH length, the first 9.1.2.2 tie-breaker, runs first. Negatives assert LOCAL_PREF (Section 9.1.1, not a tie-breaker) still wins before AIGP and that a missing AIGP is not metric zero.",
+  "requirement_sha": "291f7185220f93db",
+  "tests": {
+    "internal/component/bgp/plugins/rib/rfc7311_selection_test.go::TestAIGPSelectsStoredRoutesBeforeASPath": "a175c0306331c18a",
+    "internal/component/bgp/plugins/rib/rfc7311_selection_test.go::TestAIGPSelectsStoredRoutesBeforeASPath#2": "a175c0306331c18a"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rib/rfc7311_selection_test.go::TestAIGPSelectsStoredRoutesBeforeASPath": "df7c8dfe0285064c",
+    "internal/component/bgp/plugins/rib/rfc7311_selection_test.go::TestAIGPSelectsStoredRoutesBeforeASPath#2": "df7c8dfe0285064c"
+  },
+  "verdict": "enforced"
+}

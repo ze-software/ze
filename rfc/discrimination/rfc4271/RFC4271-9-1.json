@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4271-9-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271ReceivedWithdrawalRemovesOnlyTheNamedRoutes",
+    "unit-sha": "b2e1137107bc62e9",
+    "claim-sha": "7ebec1f05004c8ff",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/storage/peerrib.go::Remove",
+    "producer-sha": "beaee774aa5ba054",
+    "break": "body of Remove replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-9-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271ReceivedWithdrawalRemovesTheRouteFromAdjRIBIn",
+    "unit-sha": "4013bd07caafe528",
+    "claim-sha": "ba7a3f58a9b76ec0",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/storage/peerrib.go::Remove",
+    "producer-sha": "beaee774aa5ba054",
+    "break": "body of Remove replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

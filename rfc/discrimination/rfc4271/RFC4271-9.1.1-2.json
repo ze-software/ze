@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4271-9.1.1-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_local_pref_readvertise_test.go::TestRFC4271ImportPolicyLocalPrefIsReadvertisedToInternalPeers",
+    "unit-sha": "2b5a2353cd70f9d1",
+    "claim-sha": "5999be82693d79f5",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/forward_local_pref.go::applyFactsLocalPref",
+    "producer-sha": "7ff68f32e189ebc3",
+    "break": "body of applyFactsLocalPref replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-9.1.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_local_pref_readvertise_test.go::TestRFC4271ImportPolicyLocalPrefIsReadvertisedToInternalPeers",
+    "unit-sha": "2b5a2353cd70f9d1",
+    "claim-sha": "679e6067e1b473dc",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/filter_ordered.go::runIngressPolicyChain",
+    "producer-sha": "88a5a98d4b7260ad",
+    "break": "body of runIngressPolicyChain replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

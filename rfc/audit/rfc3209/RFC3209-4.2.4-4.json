@@ -1,0 +1,11 @@
+{
+  "note": "Forbidden: a relayed PATH whose LABEL_REQUEST L3PID is not the received one. TestRFC3209TransitCopiesL3PID sends L3PID 0x86DD and asserts fwd.LabelRequest.L3PID==0x86DD, red if the transit substitutes its local default 0x0800 (register.go, reroute.go). Single polarity is declared on the row.",
+  "requirement_sha": "5e5750d13b594624",
+  "tests": {
+    "internal/plugins/rsvpte/rfc3209_engine_label_test.go::TestRFC3209TransitCopiesL3PID": "7730d9f9be4d0cf0"
+  },
+  "units": {
+    "internal/plugins/rsvpte/rfc3209_engine_label_test.go::TestRFC3209TransitCopiesL3PID": "f2c7cf6258ca700e"
+  },
+  "verdict": "enforced"
+}

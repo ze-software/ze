@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "SFLOW-V5-4.3-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/flowexport/sflow/sflow_v5_agent_loopback_test.go::TestSFlowV5AgentAddressOnLoopbackWhenMultiHomed",
+    "unit-sha": "dfa0e06ec17cf416",
+    "claim-sha": "8aa68a9e462191d6",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/sflow/agent_address.go::classifyAgentAddress",
+    "producer-sha": "a648520ef84557a9",
+    "break": "body of classifyAgentAddress replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "SFLOW-V5-4.3-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/flowexport/sflow/sflow_v5_agent_loopback_test.go::TestSFlowV5AgentAddressOnLoopbackWhenMultiHomed",
+    "unit-sha": "dfa0e06ec17cf416",
+    "claim-sha": "e97b6180d440bf0f",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/sflow/agent_address.go::classifyAgentAddress",
+    "producer-sha": "a648520ef84557a9",
+    "break": "body of classifyAgentAddress replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "SFLOW-V5-4.3-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/flowexport/sflow/sflow_v5_agent_loopback_test.go::TestSFlowV5AgentAddressSingleHomedNoAdvice",
+    "unit-sha": "29e01580b0b11d05",
+    "claim-sha": "bb90583834f1f5a0",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/sflow/agent_address.go::classifyAgentAddress",
+    "producer-sha": "a648520ef84557a9",
+    "break": "body of classifyAgentAddress replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

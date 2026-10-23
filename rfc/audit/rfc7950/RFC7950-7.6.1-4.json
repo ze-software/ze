@@ -1,0 +1,8 @@
+{
+  "code": {
+    "internal/component/config/schema_defaults.go::ApplyDefaults": "fa2bd8d4621392ea"
+  },
+  "note": "Re-judged 2026-10-20 (independent judge, after 7f34543a08). Section 7.6.1: \"Note that if the leaf or any of its ancestors has a \\\"when\\\" condition or \\\"if-feature\\\" expression that evaluates to \\\"false\\\", then the default value is not in use.\" ApplyDefaults changed only to skip children whose case is not in effect (choiceMembers.skipsDefaults -> yang.CaseInEffect); it still evaluates no when and no if-feature, so a default under a false when stays in use. The {gap} annotation remains accurate. Owned by plan/pre-release/spec-config-yang-when-unique-choice.md.",
+  "requirement_sha": "89d91d68b8cf1fa8",
+  "verdict": "unimplemented"
+}

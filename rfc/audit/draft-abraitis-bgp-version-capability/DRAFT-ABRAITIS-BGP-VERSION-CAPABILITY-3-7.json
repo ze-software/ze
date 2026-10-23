@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: interpreting invalid UTF-8 received in the Version field. TestSoftverInvalidUTF8IsNotInterpreted asserts decodeSoftwareVersion returns ok false and an empty string for the value FF FE FD FC, and RunCLIDecode exits 1 with empty stdout, red if the bytes are rendered. decodeSoftwareVersion checks utf8.Valid on the legacy remainder before taking that form, and on the whole value otherwise, so neither form hands invalid bytes on. Negative: TestSoftverValidMultiByteUTF8IsInterpreted, the bare value Z\u00e9/0.1.0 decodes intact.",
+  "requirement_sha": "3f40f186f9893d72",
+  "tests": {
+    "internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go::TestSoftverInvalidUTF8IsNotInterpreted": "621a76bf24368516",
+    "internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go::TestSoftverValidMultiByteUTF8IsInterpreted": "621a76bf24368516"
+  },
+  "units": {
+    "internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go::TestSoftverInvalidUTF8IsNotInterpreted": "d2397634b47176a6",
+    "internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go::TestSoftverValidMultiByteUTF8IsInterpreted": "715cad2033701757"
+  },
+  "verdict": "enforced"
+}

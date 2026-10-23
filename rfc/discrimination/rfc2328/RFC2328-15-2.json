@@ -1,0 +1,66 @@
+[
+  {
+    "rid": "RFC2328-15-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/rfc2328_virtual_cost_config_test.go::TestRFC2328VirtualLinkCostNotConfigurable",
+    "unit-sha": "64a630df532da6df",
+    "claim-sha": "586eed23ab3fee78",
+    "route": "no-break",
+    "producer": "internal/plugins/ospf/yang/embed.go",
+    "reason": "declaration-only"
+  },
+  {
+    "rid": "RFC2328-15-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/rfc2328_virtual_cost_config_test.go::TestRFC2328VirtualLinkCostNotConfigurableV3",
+    "unit-sha": "3f47a72c919d739c",
+    "claim-sha": "d0f0d50cf7f5a4ae",
+    "route": "no-break",
+    "producer": "internal/plugins/ospf/yang/embed.go",
+    "reason": "declaration-only"
+  },
+  {
+    "rid": "RFC2328-15-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc2328_virtual_cost_test.go::TestRFC2328VirtualCostChangeOriginatesNewInstance",
+    "unit-sha": "7931a7b467481c51",
+    "claim-sha": "cfe74eadcf53b960",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/virtual_link.go::onVirtualLinksResolved",
+    "producer-sha": "f23e3538a921357d",
+    "break": "body of onVirtualLinksResolved replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-15-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc2328_virtual_route_test.go::TestRFC2328VirtualCostChangeReoriginatesBackbone",
+    "unit-sha": "28693287b048063a",
+    "claim-sha": "fb23f53cbd423fbc",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/virtual_link.go::onVirtualLinksResolved",
+    "producer-sha": "f23e3538a921357d",
+    "break": "body of onVirtualLinksResolved replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-15-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/rfc2328_virtual_route_test.go::TestRFC2328VirtualUnusablePathWithdrawsBackboneLink",
+    "unit-sha": "0180944e7e6248b3",
+    "claim-sha": "e0d1afa7449a17cd",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/virtual_link.go::onVirtualLinksResolved",
+    "producer-sha": "f23e3538a921357d",
+    "break": "body of onVirtualLinksResolved replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-15-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/spf/rfc2328_virtual_cost_test.go::TestRFC2328VirtualCostIsTransitPathCost",
+    "unit-sha": "2374900f6cd2ab39",
+    "claim-sha": "3a0e4f2f7403fa22",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/spf/transitarea.go::resolveVirtualNeighbor",
+    "producer-sha": "f631aae25ee26920",
+    "break": "body of resolveVirtualNeighbor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

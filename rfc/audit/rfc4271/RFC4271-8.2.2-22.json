@@ -1,0 +1,15 @@
+{
+  "note": "OpenConfirm ManualStop list (verbatim span). Peer level: running Peer in OpenConfirm at counter 3, shutdownNotify -> exactly one NOTIFICATION 6/2 on the wire, EOF, HoldTimer/KeepaliveTimer/ConnectRetryTimer stopped, Peer drops the session, Idle, counter 0 (every clause). Supplementary: TestShutdownNotifySendsCeaseFromEveryConnectedState pins the exact 6/2 octets from OpenConfirm. Negative: same harness at counter 3, a KEEPALIVE and no ManualStop -> no NOTIFICATION in 500 ms, connection and session kept, Established, counter 3. Records observed red: shutdownNotify (both positives), handleOpenConfirm (negative). ConnectRetryTimer clause holds by construction (no non-test caller arms it).",
+  "requirement_sha": "2fa6a90e71fd84d4",
+  "tests": {
+    "internal/component/bgp/reactor/rfc4271_manualstop_peer_test.go::TestRFC4271OpenConfirmManualStopReleasesTheConnection": "3893958fa17fe9dc",
+    "internal/component/bgp/reactor/rfc4271_manualstop_peer_test.go::TestRFC4271OpenConfirmWithoutManualStopKeepsTheConnection": "3893958fa17fe9dc",
+    "internal/component/bgp/reactor/rfc4271_shutdown_notify_test.go::TestShutdownNotifySendsCeaseFromEveryConnectedState": "370f8bb637f5b632"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc4271_manualstop_peer_test.go::TestRFC4271OpenConfirmManualStopReleasesTheConnection": "f225cfa65db52a63",
+    "internal/component/bgp/reactor/rfc4271_manualstop_peer_test.go::TestRFC4271OpenConfirmWithoutManualStopKeepsTheConnection": "59fb68bf664a9233",
+    "internal/component/bgp/reactor/rfc4271_shutdown_notify_test.go::TestShutdownNotifySendsCeaseFromEveryConnectedState": "5711d2b616487c7b"
+  },
+  "verdict": "enforced"
+}

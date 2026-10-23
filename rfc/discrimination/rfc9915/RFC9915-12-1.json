@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC9915-12-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/iface/dhcp/rfc9915_dhcp_v6_exchange_linux_test.go::TestDHCPv6PDLengthRequestsDelegatedPrefix",
+    "unit-sha": "24305395685bede3",
+    "claim-sha": "52a819e02dc74566",
+    "route": "revert",
+    "producer": "internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::emptyIAPD",
+    "producer-sha": "9724649806689b09",
+    "break": "body of emptyIAPD replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

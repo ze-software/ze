@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4271-4.4-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_keepalive_session_test.go::TestRFC4271NonZeroNegotiatedHoldSendsPeriodicKeepalives",
+    "unit-sha": "6a96829addb5c839",
+    "claim-sha": "7df8fbe9376aa8b9",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_negotiate.go::negotiateWith",
+    "producer-sha": "96d804690766eb50",
+    "break": "body of negotiateWith replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-4.4-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_keepalive_session_test.go::TestRFC4271ZeroNegotiatedHoldSendsNoPeriodicKeepalive",
+    "unit-sha": "1de6cf8a8eeac830",
+    "claim-sha": "efc4f1d4936ac393",
+    "route": "revert",
+    "producer": "internal/component/bgp/fsm/timer.go::StartKeepaliveTimer",
+    "producer-sha": "d93ae479ecda9202",
+    "break": "body of StartKeepaliveTimer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

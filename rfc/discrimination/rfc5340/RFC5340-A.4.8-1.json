@@ -1,0 +1,68 @@
+[
+  {
+    "rid": "RFC5340-A.4.8-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc5340_nssa_fa_iface_linux_test.go::TestRFC5340NSSAForwardingAddressFromKernelInterface",
+    "unit-sha": "f99b19171f3f9af8",
+    "claim-sha": "aaf2c2a8eb007916",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/interface_addr.go::interfaceIPv6ForwardingAddress",
+    "producer-sha": "988b157f164dbf8a",
+    "break": "body of interfaceIPv6ForwardingAddress replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5340-A.4.8-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/rfc5340_nssa_fa_iface_linux_test.go::TestRFC5340NSSAForwardingAddressFromKernelInterface",
+    "unit-sha": "f99b19171f3f9af8",
+    "claim-sha": "e06252095e39547c",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/interface_addr.go::v6UsableForwardingAddress",
+    "producer-sha": "eb2d5e5866cce567",
+    "break": "body of v6UsableForwardingAddress replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5340-A.4.8-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc5340_nssa_fa_select_test.go::TestRFC5340NSSAForwardingAddressSelectsGlobal",
+    "unit-sha": "2a4bfe9b55073790",
+    "claim-sha": "c5c71f2f8e75afbf",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/interface_addr.go::v6UsableForwardingAddress",
+    "producer-sha": "eb2d5e5866cce567",
+    "break": "body of v6UsableForwardingAddress replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5340-A.4.8-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/rfc5340_nssa_fa_select_test.go::TestRFC5340NSSAForwardingAddressSelectsGlobal",
+    "unit-sha": "2a4bfe9b55073790",
+    "claim-sha": "cbf072dd282e5d68",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/interface_addr.go::v6UsableForwardingAddress",
+    "producer-sha": "eb2d5e5866cce567",
+    "break": "body of v6UsableForwardingAddress replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5340-A.4.8-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/rfc5340_test.go::TestRFC5340NSSAPropagationNeedsGlobalForwardingAddress",
+    "unit-sha": "5c2c0322be771194",
+    "claim-sha": "8661064ed72e168d",
+    "route": "mutant",
+    "producer": "internal/plugins/ospf/origination_v6_nssa.go::v6OriginateNSSALSA",
+    "producer-sha": "b5f8dda8f28cab22",
+    "break": "line 131: \"!hasFA\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC5340-A.4.8-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc5340_test.go::TestRFC5340NSSAPropagationNeedsGlobalForwardingAddress",
+    "unit-sha": "5c2c0322be771194",
+    "claim-sha": "c041b8570b1f8b7b",
+    "route": "mutant",
+    "producer": "internal/plugins/ospf/origination_v6_nssa.go::v6OriginateNSSALSA",
+    "producer-sha": "b5f8dda8f28cab22",
+    "break": "line 136: \"propagate\" -\u003e \"false\""
+  }
+]

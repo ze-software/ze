@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9190-5.4-5",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc9190_postauth_test.go::TestPostAuthenticationCheckReadsAnHTTPSResponder",
+    "unit-sha": "bf8e3ae9cbd65dba",
+    "claim-sha": "d8c2935203243045",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/postauth_revocation.go::fetchCertificateStatus",
+    "producer-sha": "cad1e0b27e5c9083",
+    "break": "body of fetchCertificateStatus replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9190-5.4-5",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc9190_postauth_test.go::TestPostAuthenticationCheckRefusesAnInsecureResponderURL",
+    "unit-sha": "f5ddad593698a471",
+    "claim-sha": "bc833613306ed152",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/postauth_revocation.go::fetchCertificateStatus",
+    "producer-sha": "cad1e0b27e5c9083",
+    "break": "body of fetchCertificateStatus replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

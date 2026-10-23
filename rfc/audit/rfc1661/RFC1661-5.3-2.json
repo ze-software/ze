@@ -1,0 +1,17 @@
+{
+  "note": "TestRFC1661WellFormedBooleanDeclinedWithReject removes the length-fault confound: a well-formed Length-2 ACFC declined on PPPoE draws a Configure-Reject whose options are exactly that ACFC and no Nak; beside a Nak-earning MRU, NegotiatePeerOptions puts the ACFC in rejects not naks and the wire reply is the Reject naming only ACFC. Red on a Nak for the boolean.",
+  "requirement_sha": "60e3df5f9f5b0259",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661WellFormedBooleanDeclinedWithReject": "480d72ff3c4dac57",
+    "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661WellFormedBooleanDeclinedWithReject#2": "480d72ff3c4dac57",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661BooleanOptionsUseRejectNotNak": "9afaf002f0fd81ec",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ValuedOptionUsesNak": "9afaf002f0fd81ec"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661WellFormedBooleanDeclinedWithReject": "0cc5e611ff5a07bd",
+    "internal/component/l2tp/ppp/rfc1661_clauses_test.go::TestRFC1661WellFormedBooleanDeclinedWithReject#2": "0cc5e611ff5a07bd",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661BooleanOptionsUseRejectNotNak": "e8750e8fe3c2813b",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ValuedOptionUsesNak": "74ce163a33ca58a1"
+  },
+  "verdict": "enforced"
+}

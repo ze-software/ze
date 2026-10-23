@@ -1,0 +1,17 @@
+{
+  "note": "Forbidden: sending ROUTE-REFRESH to a peer that did not advertise the capability. TestRFC2918SendRouteRefreshSkipsPeerWithoutCapability (both subtests) and TestRFC2918SoftClearPeerSkipsPeerWithoutCapability assert require.Empty(conn.written()) and RefreshSent == 0, red if either send entry skips the gate. The positives assert the message reaches the wire for a capable peer.",
+  "requirement_sha": "b07d7ff962695c0f",
+  "tests": {
+    "internal/component/bgp/reactor/rfc2918_reactor_route_refresh_test.go::TestRFC2918SendRouteRefreshSkipsPeerWithoutCapability": "43910770b006edad",
+    "internal/component/bgp/reactor/rfc2918_reactor_route_refresh_test.go::TestRFC2918SendRouteRefreshToCapablePeer": "43910770b006edad",
+    "internal/component/bgp/reactor/rfc2918_reactor_route_refresh_test.go::TestRFC2918SoftClearPeerSendsRefreshToCapablePeer": "43910770b006edad",
+    "internal/component/bgp/reactor/rfc2918_reactor_route_refresh_test.go::TestRFC2918SoftClearPeerSkipsPeerWithoutCapability": "43910770b006edad"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc2918_reactor_route_refresh_test.go::TestRFC2918SendRouteRefreshSkipsPeerWithoutCapability": "8d43153482a40b33",
+    "internal/component/bgp/reactor/rfc2918_reactor_route_refresh_test.go::TestRFC2918SendRouteRefreshToCapablePeer": "22136ba5dd10e0f7",
+    "internal/component/bgp/reactor/rfc2918_reactor_route_refresh_test.go::TestRFC2918SoftClearPeerSendsRefreshToCapablePeer": "1e97717e206e23cf",
+    "internal/component/bgp/reactor/rfc2918_reactor_route_refresh_test.go::TestRFC2918SoftClearPeerSkipsPeerWithoutCapability": "db4d53bb8a5fe8f1"
+  },
+  "verdict": "enforced"
+}

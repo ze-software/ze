@@ -1,0 +1,15 @@
+{
+  "note": "Rejudged 2026-10-21 over the current tags, units and records. Strengthened positive: TestOSPFAuthType3SequenceTrailer and TestRFC7474SequenceIncludedInDigest compare Sign's trailer with an independent HMAC-SHA-256 over packet || 8 sequence octets || Apad, so a Sign that left the sequence out of the hash fails where a round trip would not. The negative TestRFC7474SequenceChangeBreaksDigest flips one sequence octet with packet and digest untouched, and the packet is refused while the control verifies.",
+  "requirement_sha": "ebbbd9e5f2cbef7d",
+  "tests": {
+    "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SequenceTrailer": "b1f49f5bb6bbafb8",
+    "internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go::TestRFC7474SequenceChangeBreaksDigest": "c6f8189c6e41691b",
+    "internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go::TestRFC7474SequenceIncludedInDigest": "c6f8189c6e41691b"
+  },
+  "units": {
+    "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SequenceTrailer": "c723648fe686fb2a",
+    "internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go::TestRFC7474SequenceChangeBreaksDigest": "a355f044d9f3cc1f",
+    "internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go::TestRFC7474SequenceIncludedInDigest": "ddc153af4ce09c6e"
+  },
+  "verdict": "enforced"
+}

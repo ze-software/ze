@@ -1,0 +1,23 @@
+{
+  "code": {
+    "internal/plugins/vrrp/instance.go::doSendAdvert": "bfd3bc0b7e18da21",
+    "internal/plugins/vrrp/packet/checksum.go::FillChecksum": "b0cc038e49f45b44",
+    "internal/plugins/vrrp/transport/backend_linux.go::openV6": "12a28f73c0a2cae8",
+    "internal/plugins/vrrp/transport/transport.go::encodeLocked": "f11ab57274c81c2c"
+  },
+  "note": "Re-judged 2026-10-18 (independent auditor, after d2abad70ad). RFC 9568 Section 7.2 says \"The following operations MUST be performed when transmitting a VRRP packet: ... * Compute the VRRP checksum\", in the Section 5.2.8 form: message-only for IPv4, and for IPv6 \"the checksum calculation also includes a prepended \\\"pseudo-header\\\", as defined in Section 8.1 of [RFC8200].\" IPv4: proven, and the previous finding is fixed. Overlay mutants run 2026-10-18 over the whole vrrp tree: doSendAdvert hard-coded to ChecksumRFC5798Compatible, to ChecksumRFC9568, or with Checksum dropped, each reds TestTransmittedAdvertFilledFromInstanceState, which now asserts p.Checksum == spec.Checksum; encodeLocked hard-coded to either mode, or skipping FillChecksum, reds TestSendAdvertFillsFieldsAndChecksum, whose expected sums the test computes itself. Both polarities stand: the negative is the compatible-mode subtest, a separate case from the default-mode positive, and is what reds when encodeLocked ignores the mode. IPv6: unproven by any tagged unit. The kernel computes the IPv6 checksum because openV6 (backend_linux.go) sets IPV6_CHECKSUM 6; the transport unit test runs on a fake backend and its IPv6 frame carries no checksum, and the IPv6 run of TestTransmittedAdvertFilledFromInstanceState computes FillChecksum in the test body. Removing that setsockopt would leave every tagged test green (reasoned from the test sources: only the integration-tagged QEMU units TestIntegrationOpenInstanceSocketOptions and TestIntegrationAdvertV6OnWire read it; the overlay run could not build because of another session's undefined applyVLANMTU in internal/component/iface/config_apply.go). Fix: tag one of those two units RFC9568-7.2-5 positive and take its QEMU discrimination record, which cannot be taken while the guest build fails. Claim nit: the TestTransmittedAdvertFilledFromInstanceState positive says \"a default IPv4 and IPv6 group\", but the test sets ChecksumRFC9568 on the spec; the parser default is proven only by the untagged TestLeafShapesFromTextConfig. Today no tagged unit of this row is a QEMU-guest unit.",
+  "requirement_sha": "fdb9cfe570b6775e",
+  "tests": {
+    "internal/plugins/vrrp/advert_fill_rfc5798_test.go::TestTransmittedAdvertFilledFromInstanceState": "e7d5de8bf303bc1f",
+    "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV3IPv4": "15a7697300d1b17c",
+    "internal/plugins/vrrp/transport/advert_fill_checksum_test.go::TestSendAdvertFillsFieldsAndChecksum": "4b5ce6713448d3aa",
+    "internal/plugins/vrrp/transport/advert_fill_checksum_test.go::TestSendAdvertFillsFieldsAndChecksum#2": "4b5ce6713448d3aa"
+  },
+  "units": {
+    "internal/plugins/vrrp/advert_fill_rfc5798_test.go::TestTransmittedAdvertFilledFromInstanceState": "fcb838baf697dbc9",
+    "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV3IPv4": "f665d3473b49bc02",
+    "internal/plugins/vrrp/transport/advert_fill_checksum_test.go::TestSendAdvertFillsFieldsAndChecksum": "84111e91bd9a4e83",
+    "internal/plugins/vrrp/transport/advert_fill_checksum_test.go::TestSendAdvertFillsFieldsAndChecksum#2": "84111e91bd9a4e83"
+  },
+  "verdict": "weak"
+}

@@ -1,0 +1,17 @@
+{
+  "note": "(a) forbidden: exposing the shared secret in display, diagnostics, logs or accounting records. (b) TestRFC8907SharedSecretConfigBuildAndDisplay asserts the display tree masks the key while the live key still decodes a real exchange; TestRFC8907SharedSecretDiagnosticRedaction fails on the key, its base64 or byte list in fmt, %#v, JSON and slog output; TestRFC8907SharedSecretCommandRedaction fails on secret words in DisplayCommand; TestRFC8907AccountingRedactsConfigSecretWithoutChangingExecution asserts accounting tokens carry the placeholder. Rejudged 2026-10-10 after the validated-construction spec (9cbd3485ca, eaff5d644b, 7c25971594): the changed units only retype the registered handler from []string to command.ValidatedArgs (args read back through Tokens(), a clone of the dispatched tokens) and rename a local const command to commandName; every assertion, input and expected accounting/wire value is byte-identical, so the judgement above stands.",
+  "requirement_sha": "b92e04edb42c0543",
+  "tests": {
+    "internal/component/plugin/server/rfc8907_accounting_test.go::TestRFC8907AccountingRedactsConfigSecretWithoutChangingExecution": "f62ea1085043df7d",
+    "internal/component/tacacs/rfc8907_security_config_test.go::TestRFC8907SharedSecretCommandRedaction": "2f7cb9ed0258662a",
+    "internal/component/tacacs/rfc8907_security_config_test.go::TestRFC8907SharedSecretConfigBuildAndDisplay": "2f7cb9ed0258662a",
+    "internal/component/tacacs/rfc8907_security_config_test.go::TestRFC8907SharedSecretDiagnosticRedaction": "2f7cb9ed0258662a"
+  },
+  "units": {
+    "internal/component/plugin/server/rfc8907_accounting_test.go::TestRFC8907AccountingRedactsConfigSecretWithoutChangingExecution": "4d0410b72a6a2f12",
+    "internal/component/tacacs/rfc8907_security_config_test.go::TestRFC8907SharedSecretCommandRedaction": "38b1915358f1c9f0",
+    "internal/component/tacacs/rfc8907_security_config_test.go::TestRFC8907SharedSecretConfigBuildAndDisplay": "6a2d3cc6d2858391",
+    "internal/component/tacacs/rfc8907_security_config_test.go::TestRFC8907SharedSecretDiagnosticRedaction": "319b4b82a3d2379a"
+  },
+  "verdict": "enforced"
+}

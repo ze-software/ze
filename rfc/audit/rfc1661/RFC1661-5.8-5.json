@@ -1,0 +1,13 @@
+{
+  "note": "Sentence: until the Magic-Number option has been successfully negotiated, the Magic-Number MUST be transmitted as zero. (a) Sending the chosen Magic-Number before negotiation: TestMagicNumberZeroUntilNegotiated goes red on req != 0 || rep != 0 before any Ack, and again after a Configure-Ack that carries no option 5. Positive: after an Ack with option 5 both packets carry the value. Echo-Request and Echo-Reply both covered; the identical Discard-Request sentence is Section 5.9 and ze sends no Discard-Request.",
+  "requirement_sha": "b8270377c0536f55",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestMagicNumberZeroUntilNegotiated": "034fb31a9e383e0e",
+    "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestMagicNumberZeroUntilNegotiated#2": "034fb31a9e383e0e"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestMagicNumberZeroUntilNegotiated": "674a14893314861c",
+    "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestMagicNumberZeroUntilNegotiated#2": "674a14893314861c"
+  },
+  "verdict": "enforced"
+}

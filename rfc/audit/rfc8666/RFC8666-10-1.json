@@ -1,0 +1,25 @@
+{
+  "note": "Re-judged 2026-09-30. RFC 8666 s10 read: 'if the length is invalid, the LSA in which it is advertised is considered malformed and MUST be ignored.' The three gaps of the 2026-09-27 audit are closed. Adj-SID and LAN Adj-SID at a reader: TestRFC8666AdjSIDLengthInvalidIgnoredByReader installs real E-Router-LSAs and reads the BGP-LS export (sentinel LSA proves the snapshot is current): + well-formed Adj-SID/LAN Adj-SID exported with attr 1099/1100; - each one octet long or two short exports no link from the router (records on srV3ExtendedLengthInvalid). SID/Label (s3.1 'Length: 3 or 4 octets'): D-8 defect fixed in sr_malformed.go srV3SubTLVLengthInvalid (type 7 had no case); TestRFC8666SIDLabelLengthInvalidIgnoresLSA + length 3/4 keeps the Prefix-SID, - length 2/5 yields none (red before the fix; records on srV3SubTLVLengthInvalid). Prefix-SID and Extended Prefix Range stay on rfc8666_malformed_test and sr_length_before_flags_test with records.",
+  "requirement_sha": "bf2fa94be562ee36",
+  "tests": {
+    "internal/plugins/ospf/rfc8666_malformed_test.go::TestRFC8666LengthInvalidSubTLVIgnoresExtendedLSA": "b49f5c425b220588",
+    "internal/plugins/ospf/rfc8666_malformed_test.go::TestRFC8666LengthInvalidSubTLVIgnoresExtendedLSA#2": "b49f5c425b220588",
+    "internal/plugins/ospf/rfc8666_reader_ignore_test.go::TestRFC8666AdjSIDLengthInvalidIgnoredByReader": "7f4be4877ca1d132",
+    "internal/plugins/ospf/rfc8666_reader_ignore_test.go::TestRFC8666AdjSIDLengthInvalidIgnoredByReader#2": "7f4be4877ca1d132",
+    "internal/plugins/ospf/rfc8666_reader_ignore_test.go::TestRFC8666SIDLabelLengthInvalidIgnoresLSA": "7f4be4877ca1d132",
+    "internal/plugins/ospf/rfc8666_reader_ignore_test.go::TestRFC8666SIDLabelLengthInvalidIgnoresLSA#2": "7f4be4877ca1d132",
+    "internal/plugins/ospf/sr_length_before_flags_test.go::TestRFC8666LengthBeforeFlagsIgnoresLSA": "a57eda77c987d4f1",
+    "internal/plugins/ospf/sr_length_before_flags_test.go::TestRFC8666LengthBeforeFlagsIgnoresLSA#2": "a57eda77c987d4f1"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc8666_malformed_test.go::TestRFC8666LengthInvalidSubTLVIgnoresExtendedLSA": "c24d181943c907ac",
+    "internal/plugins/ospf/rfc8666_malformed_test.go::TestRFC8666LengthInvalidSubTLVIgnoresExtendedLSA#2": "c24d181943c907ac",
+    "internal/plugins/ospf/rfc8666_reader_ignore_test.go::TestRFC8666AdjSIDLengthInvalidIgnoredByReader": "f27a5806808518ba",
+    "internal/plugins/ospf/rfc8666_reader_ignore_test.go::TestRFC8666AdjSIDLengthInvalidIgnoredByReader#2": "f27a5806808518ba",
+    "internal/plugins/ospf/rfc8666_reader_ignore_test.go::TestRFC8666SIDLabelLengthInvalidIgnoresLSA": "e75b0cf9b4a7cccd",
+    "internal/plugins/ospf/rfc8666_reader_ignore_test.go::TestRFC8666SIDLabelLengthInvalidIgnoresLSA#2": "e75b0cf9b4a7cccd",
+    "internal/plugins/ospf/sr_length_before_flags_test.go::TestRFC8666LengthBeforeFlagsIgnoresLSA": "bcc42817caef5319",
+    "internal/plugins/ospf/sr_length_before_flags_test.go::TestRFC8666LengthBeforeFlagsIgnoresLSA#2": "bcc42817caef5319"
+  },
+  "verdict": "enforced"
+}

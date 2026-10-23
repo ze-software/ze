@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC9514-4.2-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514EndXSIDReservedIgnored",
+    "unit-sha": "089e8b99cb981553",
+    "claim-sha": "5e92b99ec5b898f8",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/nlri/ls/attr_link.go::decodeSRv6EndXSID",
+    "producer-sha": "49d365b0a8adc5f9",
+    "break": "line 694: \"data[4]\" -\u003e \"data[5]\""
+  },
+  {
+    "rid": "RFC9514-4.2-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/nlri/ls/rfc9514_reserved_test.go::TestRFC9514EndXSIDReservedIgnored",
+    "unit-sha": "089e8b99cb981553",
+    "claim-sha": "1e2ec27f1c5a42fe",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/nlri/ls/attr_link.go::decodeSRv6EndXSID",
+    "producer-sha": "49d365b0a8adc5f9",
+    "break": "line 694: \"data[4]\" -\u003e \"data[5]\""
+  },
+  {
+    "rid": "RFC9514-4.2-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/rfc9514_bgpls_export_sentence_test.go::TestRFC9514ISISEndXAllOnesNeverReachReserved",
+    "unit-sha": "b97dc8a2986c0080",
+    "claim-sha": "ad92d5b33cce57e9",
+    "route": "revert",
+    "producer": "internal/plugins/isis/bgpls_export.go::adjacencySIDv6",
+    "producer-sha": "11c46ede607be86d",
+    "break": "body of adjacencySIDv6 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9514-4.2-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/rfc9514_bgpls_export_sentence_test.go::TestRFC9514ISISEndXOriginatedReservedZero",
+    "unit-sha": "e41899607193d546",
+    "claim-sha": "8c4b7fda068c8897",
+    "route": "revert",
+    "producer": "internal/plugins/isis/bgpls_export.go::adjacencySIDv6",
+    "producer-sha": "11c46ede607be86d",
+    "break": "body of adjacencySIDv6 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

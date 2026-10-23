@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-10-21 (round 4 judge). lsdb units changed only by added 16.7-1 tag lines. spf/rfc2328_unreachable_summary_test drives OriginateSummaries with a real LSDB: an unreached destination's Type 3 goes to MaxAge and is reflooded, the reachable one stays; lsdb tests pin FlushStaleSummaryLSAs at MaxAge plus a MaxAge LS Update, and no flush for a kept key.",
+  "requirement_sha": "a79d6f1c5a635fc1",
+  "tests": {
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328AdvertisedSummaryNotFlushed": "c4cd81c5b8b7e97a",
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328WithdrawnSummaryFlushedAtMaxAge": "c4cd81c5b8b7e97a",
+    "internal/plugins/ospf/spf/rfc2328_unreachable_summary_test.go::TestRFC2328SummaryFlushedWhenDestinationUnreachable": "d62414e385be7a8f",
+    "internal/plugins/ospf/spf/rfc2328_unreachable_summary_test.go::TestRFC2328SummaryKeptWhileDestinationReachable": "d62414e385be7a8f"
+  },
+  "units": {
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328AdvertisedSummaryNotFlushed": "4ed2e5c04af1428f",
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328WithdrawnSummaryFlushedAtMaxAge": "558255b279e86880",
+    "internal/plugins/ospf/spf/rfc2328_unreachable_summary_test.go::TestRFC2328SummaryFlushedWhenDestinationUnreachable": "1780620a0b8e35d4",
+    "internal/plugins/ospf/spf/rfc2328_unreachable_summary_test.go::TestRFC2328SummaryKeptWhileDestinationReachable": "3f1251cae0cc5e24"
+  },
+  "verdict": "enforced"
+}

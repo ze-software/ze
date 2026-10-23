@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: an AES CCM nonce other than 11 octets. Red: TestRFC5282CCMNonceIsElevenOctets asserts len(nonce)==11 and expectOneDelete; TestRFC5282CCMRefusesANonceThatIsNotElevenOctets refuses 10 and 12. Sender length is fixed by the shared newIKEAEAD (ccm.New with salt+IV), so a sender-only change is not reachable without reddening these.",
+  "requirement_sha": "d3bb63316a5b5d71",
+  "tests": {
+    "internal/component/ike/engine/rfc5282_ccm_sk_test.go::TestRFC5282CCMNonceIsElevenOctets": "84917bde426d454e",
+    "internal/component/ike/engine/rfc5282_ccm_sk_test.go::TestRFC5282CCMRefusesANonceThatIsNotElevenOctets": "84917bde426d454e"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc5282_ccm_sk_test.go::TestRFC5282CCMNonceIsElevenOctets": "78f09ce69771fae8",
+    "internal/component/ike/engine/rfc5282_ccm_sk_test.go::TestRFC5282CCMRefusesANonceThatIsNotElevenOctets": "a0188b3615488cf6"
+  },
+  "verdict": "enforced"
+}

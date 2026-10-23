@@ -1,0 +1,13 @@
+{
+  "note": "Judge 2026-09-30 (phase 8). Positive TestRFC5880MD5AuthKeyIDIsTheCurrentKey: both MD5 types, key ids 0/1/200/255 read back at MandatoryLen+2 and verified. Negative (R1b, forced input) TestRFC5880MD5AuthKeyIDOverwritesStaleBuffer: section pre-filled 0xFF, Sign must leave key 7. Judge break digestSigner.Sign writing buf[off+2] unchanged reds both (and the positive at ids 1..255).",
+  "requirement_sha": "55828bed23e34b50",
+  "tests": {
+    "internal/component/bfd/auth/rfc5880_md5_split_test.go::TestRFC5880MD5AuthKeyIDIsTheCurrentKey": "561a897285e69b5a",
+    "internal/component/bfd/auth/rfc5880_md5_split_test.go::TestRFC5880MD5AuthKeyIDOverwritesStaleBuffer": "561a897285e69b5a"
+  },
+  "units": {
+    "internal/component/bfd/auth/rfc5880_md5_split_test.go::TestRFC5880MD5AuthKeyIDIsTheCurrentKey": "53773b9e5175f807",
+    "internal/component/bfd/auth/rfc5880_md5_split_test.go::TestRFC5880MD5AuthKeyIDOverwritesStaleBuffer": "b7b038fc338ecc4a"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,16 @@
+{
+  "note": "Reset clause: TestSFlowV5SequenceResetOnAnyCounterGoingBack rewinds each of 13 cumulative counters and requires sequence 1; TestSFlowV5SequenceResetWithCounters requires source 3's reset on ifInOctets going back. Increment and no-spurious-reset: TestSFlowV5SequenceNeverResetWithoutDiscontinuity requires 1,2,3 while counters rise. All units now recorded.",
+  "requirement_sha": "3189d9e545a5fb5b",
+  "tests": {
+    "internal/plugins/flowexport/sflow/sflow_v5_counters_test.go::TestSFlowV5SequenceNeverResetWithoutDiscontinuity": "6a390a00daec00b1",
+    "internal/plugins/flowexport/sflow/sflow_v5_counters_test.go::TestSFlowV5SequenceResetWithCounters": "6a390a00daec00b1",
+    "internal/plugins/flowexport/sflow/sflow_v5_sequence_test.go::TestSFlowV5SequenceResetOnAnyCounterGoingBack": "6cb76dae8620dd81"
+  },
+  "units": {
+    "internal/plugins/flowexport/sflow/sflow_v5_counters_test.go::TestSFlowV5SequenceNeverResetWithoutDiscontinuity": "367ffdcecc2d0633",
+    "internal/plugins/flowexport/sflow/sflow_v5_counters_test.go::TestSFlowV5SequenceResetWithCounters": "9c8d62acdafa303a",
+    "internal/plugins/flowexport/sflow/sflow_v5_sequence_test.go::TestSFlowV5SequenceResetOnAnyCounterGoingBack": "4e4ce2533c573e88"
+  },
+  "upgrade_reason": "The earlier weak verdict rested only on TestSFlowV5SequenceNeverResetWithoutDiscontinuity and TestSFlowV5SequenceResetWithCounters lacking discrimination records; both now carry observed-red records against resetSequencesOnDiscontinuity. Re-read: they assert exact sequence values, so a never-reset or always-reset producer fails.",
+  "verdict": "enforced"
+}

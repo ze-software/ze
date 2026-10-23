@@ -1,0 +1,17 @@
+{
+  "note": "D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV->WriteTLV and field-export renames (TLV code constants verified unchanged). RFC 9552: \"The bits that are not defined MUST be set to 0 by the originator and MUST be ignored by the receiver.\" Originator: ls_export TestRFC9552NativeDefinedFlags / TestRFC9552NativeReservedFlagsCleared (unchanged). Receiver: MPLS Protocol Mask (0x3f decodes L=0 R=0, Node Name after it intact; 0xc0 decodes L/R), the walk continues to the next TLV; key constant now bgpls.JSONKeyReserved, same \"RSV\".",
+  "requirement_sha": "f5ee256da7d9345e",
+  "tests": {
+    "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeDefinedFlags": "6886dddcc0644d09",
+    "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeReservedFlagsCleared": "6886dddcc0644d09",
+    "internal/component/bgp/plugins/nlri/ls/rfc9552_attr_flags_test.go::TestRFC9552MPLSProtocolMaskDecode": "717f40f12de4b66c",
+    "internal/component/bgp/plugins/nlri/ls/rfc9552_attr_flags_test.go::TestRFC9552MPLSProtocolMaskReservedIgnored": "717f40f12de4b66c"
+  },
+  "units": {
+    "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeDefinedFlags": "42cfaacdb6bd222c",
+    "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeReservedFlagsCleared": "94d7393a20d84170",
+    "internal/component/bgp/plugins/nlri/ls/rfc9552_attr_flags_test.go::TestRFC9552MPLSProtocolMaskDecode": "2d5ba56d627e129a",
+    "internal/component/bgp/plugins/nlri/ls/rfc9552_attr_flags_test.go::TestRFC9552MPLSProtocolMaskReservedIgnored": "4a4b5deacc455a30"
+  },
+  "verdict": "enforced"
+}

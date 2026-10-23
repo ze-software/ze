@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: a Nak answering a Notification Request. wantNotificationResponse (Type 2 Response) fails on each malformed Notification Request; the same peer Naks a Type-40 Request (Response.Type != TypeNAK fails) and then answers a Notification with a Notification Response, so the Notification path is distinguished from the Nak path.",
+  "requirement_sha": "0ba7b2da28e385b2",
+  "tests": {
+    "internal/core/eap/rfc3748_notification_test.go::TestPeerNaksAnAuthenticationTypeButNotANotification": "79f5764cee2c8dd4",
+    "internal/core/eap/rfc3748_notification_test.go::TestPeerNeverNaksANotificationRequest": "79f5764cee2c8dd4"
+  },
+  "units": {
+    "internal/core/eap/rfc3748_notification_test.go::TestPeerNaksAnAuthenticationTypeButNotANotification": "6004e4636de6cb5e",
+    "internal/core/eap/rfc3748_notification_test.go::TestPeerNeverNaksANotificationRequest": "7026cbcfd0540385"
+  },
+  "verdict": "enforced"
+}

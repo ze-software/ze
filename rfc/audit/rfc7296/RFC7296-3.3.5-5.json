@@ -1,0 +1,15 @@
+{
+  "note": "Whole row proven. Sender clause (MUST be always included): new TestRFC7296OffersAlwaysCarryTheRequiredKeyLength builds the IKE offer (buildWireIKEProposals) and the ESP offer (espProposalToWire) for all 10 configurable AES ciphers (CBC, GCM, CCM 8/12/16 at 128/256) and asserts exactly one Key Length attribute equal to the configured size; an omitted, duplicated or wrong attribute is red (single-polarity by nature: a builder has no violating input). Receiver clause (proposals not containing it MUST be rejected): crypto TestPropKeyLengthRequiredTransformRejectedWithoutIt, AES-CBC/CTR offers without the attribute refused with ErrKeyLengthMissing and accepted with it. Ze builds no AES-CTR offer. Records: encAttrs revert observed red on the sender unit; the crypto receiver tags carry no record.",
+  "requirement_sha": "92c60c00c9c96b95",
+  "tests": {
+    "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropKeyLengthRequiredTransformRejectedWithoutIt": "08f2f5dac8da8a2b",
+    "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropKeyLengthRequiredTransformRejectedWithoutIt#2": "08f2f5dac8da8a2b",
+    "internal/component/ike/engine/rfc7296_keylength_sender_test.go::TestRFC7296OffersAlwaysCarryTheRequiredKeyLength": "d90ab0c96b1c2a73"
+  },
+  "units": {
+    "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropKeyLengthRequiredTransformRejectedWithoutIt": "2147dde0c243ba79",
+    "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropKeyLengthRequiredTransformRejectedWithoutIt#2": "2147dde0c243ba79",
+    "internal/component/ike/engine/rfc7296_keylength_sender_test.go::TestRFC7296OffersAlwaysCarryTheRequiredKeyLength": "375918fbbc5f6f7a"
+  },
+  "verdict": "enforced"
+}

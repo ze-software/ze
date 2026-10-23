@@ -1,0 +1,11 @@
+{
+  "note": "Forbidden behaviour: Ze emitting a Length above 128. TestRFC8203LengthCap feeds a 200-byte message to BuildShutdownData and require.Equal(byte(128), data[0]) goes red if the cap is lost. Receive-side 129-255 acceptance follows RFC 9003 and is covered by the row's {single-polarity: positive} marker.",
+  "requirement_sha": "d65abd6c287c52d3",
+  "tests": {
+    "internal/component/bgp/message/notification_test.go::TestRFC8203LengthCap": "9710bf0872e82b0b"
+  },
+  "units": {
+    "internal/component/bgp/message/notification_test.go::TestRFC8203LengthCap": "21a5369340d0297f"
+  },
+  "verdict": "enforced"
+}

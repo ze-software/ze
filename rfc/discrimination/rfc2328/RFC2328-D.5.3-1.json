@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2328-D.5.3-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplayPerNeighborAuType2",
+    "unit-sha": "a7b74a4c29810145",
+    "claim-sha": "d521fc440edf6cb2",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/auth_keystore.go::replaySlotFor",
+    "producer-sha": "3c8e65a3234446ce",
+    "break": "body of replaySlotFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-D.5.3-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthReplayPerNeighborAuType2",
+    "unit-sha": "a7b74a4c29810145",
+    "claim-sha": "06663ee4a35a797f",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/auth_keystore.go::replaySlotFor",
+    "producer-sha": "3c8e65a3234446ce",
+    "break": "body of replaySlotFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,13 @@
+{
+  "note": "Clause 1 forbidden: a Type 11 flooded out a stub interface; TestOpaqueType11StubDiscarded fatals if floodExcept sends on eth0 (stub). Clause 2 forbidden: a Type 11 received on a stub interface installed or acknowledged; the same test fatals if it is found in the store or if any packet at all is sent (len(tx.sends) != 0, which covers an LSAck).",
+  "requirement_sha": "66768c505c4a5174",
+  "tests": {
+    "internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go::TestOpaqueType11StubDiscarded": "458b73167251be99",
+    "internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go::TestOpaqueType11StubDiscarded#2": "458b73167251be99"
+  },
+  "units": {
+    "internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go::TestOpaqueType11StubDiscarded": "ff37aa2326f87d61",
+    "internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go::TestOpaqueType11StubDiscarded#2": "ff37aa2326f87d61"
+  },
+  "verdict": "enforced"
+}

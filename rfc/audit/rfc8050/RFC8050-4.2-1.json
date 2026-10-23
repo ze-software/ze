@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden behaviour: reading RIB_GENERIC_ADDPATH (subtype 12) RIB Entries as redefined (a Path Identifier in each entry), or losing the Path Identifier that belongs in the raw NLRI. TestRIBGenericAddPathRoundTrip hand-builds the bytes the RFC describes (Path ID 42 at the head of the NLRI blob, then an entry with Peer Index, Originated Time, Attribute Length, attributes and no Path ID) and requires rec.NLRI == nlri and Entries[0].Attributes == attrs; a decoder that read a 4-octet Path ID from the entry would take 0x0004 plus attribute bytes as the path id and misparse the attribute length, so the attribute comparison or the decode goes red. The negative TestRIBGenericRoundTrip requires the base subtype 6 NLRI to decode verbatim. Ze writes no subtype 12 record (internal/mrt/encode.go writes none; internal/mrt/decode.go is the only producer), so the decode path is the whole surface.",
+  "requirement_sha": "6872cc51eafebe46",
+  "tests": {
+    "internal/mrt/mrt_test.go::TestRIBGenericAddPathRoundTrip": "fb2e8a7edf55af3c",
+    "internal/mrt/mrt_test.go::TestRIBGenericRoundTrip": "fb2e8a7edf55af3c"
+  },
+  "units": {
+    "internal/mrt/mrt_test.go::TestRIBGenericAddPathRoundTrip": "9e0cd914d419a246",
+    "internal/mrt/mrt_test.go::TestRIBGenericRoundTrip": "4e9a8b80460e9682"
+  },
+  "verdict": "enforced"
+}

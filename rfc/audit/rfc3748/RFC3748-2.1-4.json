@@ -1,0 +1,17 @@
+{
+  "note": "Authenticator MUST NOTs: every Request of a completed MS-CHAPv2 flight is Type 26 and a Type-13 Response after EAP-Success draws nil (no additional method); mid-method a Type-13 Response draws nil and the MS-CHAPv2 method continues with a Type-26 Request. Peer clause: TestPeerDiscardsARequestOfAnotherType (record); TestAuthenticatorProcessesAResponseOfTheMethodType is an unproven control. Ze's authenticator holds one configured method, so the mid-method provocation is the reachable violation.",
+  "requirement_sha": "384cb39bebb7712d",
+  "tests": {
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748TheAuthenticatorSendsNoRequestOfAnotherType": "8ca42a58d78f22be",
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748TheAuthenticatorSendsNoRequestOfAnotherType#2": "8ca42a58d78f22be",
+    "internal/core/eap/rfc3748_discard_test.go::TestPeerDiscardsARequestOfAnotherType": "e0e4c426f5444d02",
+    "internal/core/eap/rfc3748_discard_test.go::TestPeerProcessesARequestOfTheMethodType": "e0e4c426f5444d02"
+  },
+  "units": {
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748TheAuthenticatorSendsNoRequestOfAnotherType": "4ace33b358366ffe",
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748TheAuthenticatorSendsNoRequestOfAnotherType#2": "4ace33b358366ffe",
+    "internal/core/eap/rfc3748_discard_test.go::TestPeerDiscardsARequestOfAnotherType": "85289987735c7f2b",
+    "internal/core/eap/rfc3748_discard_test.go::TestPeerProcessesARequestOfTheMethodType": "f51891238d09e850"
+  },
+  "verdict": "enforced"
+}

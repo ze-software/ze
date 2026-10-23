@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: an AES GCM nonce other than 12 octets. Red: TestRFC5282AEADNonceIsTwelveOctets asserts len(nonce)==12 and expectOneDelete; TestRFC5282AEADRefusesANonceThatIsNotTwelveOctets refuses 11 and 13. Sender side: the nonce size is fixed once in newIKEAEAD (salt+ikeIVOctets, checked by newAESGCM) and shared by SealIKEAEAD and OpenIKEAEAD, and Go's AEAD panics on a wrong-length nonce, so a sender-only length change is not reachable without reddening the receive units.",
+  "requirement_sha": "473cdde6936eb057",
+  "tests": {
+    "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADNonceIsTwelveOctets": "2d69d15f1cde2ecb",
+    "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADRefusesANonceThatIsNotTwelveOctets": "2d69d15f1cde2ecb"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADNonceIsTwelveOctets": "b369b23219eda929",
+    "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADRefusesANonceThatIsNotTwelveOctets": "1873a3f347a1340c"
+  },
+  "verdict": "enforced"
+}

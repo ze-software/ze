@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 3768 Section 7.1 says \"MUST verify the VRRP checksum.\" TestDecodeGoldenV2 lost only the assertion on the removed MsgOnlyChecksum flag, which carried no RFC 3768 content, and TestNegativeReferenceBugs gained the FillChecksum mode argument and an rfc5798-compatible lookup in N1 alone; verifyReceived returns before any mode is read for version 2, so the VRRPv2 decode under judgement is unchanged. TestDecodeV2ChecksumCorrupt still requires ErrChecksum on a flipped v2 checksum, and the golden G1 still verifies as a message-only sum. Verdict unchanged.",
+  "requirement_sha": "fa9f9d4122642ebf",
+  "tests": {
+    "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV2": "5bbc8ddba98cd418",
+    "internal/plugins/vrrp/packet/validate_test.go::TestDecodeV2ChecksumCorrupt": "5bbc8ddba98cd418"
+  },
+  "units": {
+    "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV2": "66859488ac05cf93",
+    "internal/plugins/vrrp/packet/validate_test.go::TestDecodeV2ChecksumCorrupt": "feaf2244ad82617c"
+  },
+  "verdict": "enforced"
+}

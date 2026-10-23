@@ -1,0 +1,68 @@
+[
+  {
+    "rid": "RFC9085-2.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/ls_export/rfc9085_export_placement_test.go::TestRFC9085NativeExportAttributePlacement",
+    "unit-sha": "4e22d402c1652505",
+    "claim-sha": "974ba59ce3075283",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/ls_export/export_encode.go::encodeTopology",
+    "producer-sha": "8cd787137d3e2d50",
+    "break": "body of encodeTopology replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9085-2.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/ls_export/rfc9085_export_placement_test.go::TestRFC9085NativeExportAttributePlacement",
+    "unit-sha": "4e22d402c1652505",
+    "claim-sha": "90bacd0f3279e2e3",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/ls_export/export_encode.go::encodeTopology",
+    "producer-sha": "8cd787137d3e2d50",
+    "break": "body of encodeTopology replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9085-2.2-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/rfc9085_bgpls_object_placement_test.go::TestRFC9085ISISLinkPlacement",
+    "unit-sha": "e0e0d17fe1df68d6",
+    "claim-sha": "9324dede8bfa3e06",
+    "route": "revert",
+    "producer": "internal/plugins/isis/bgpls_export.go::linkAttribute",
+    "producer-sha": "6829bc06b1cfd284",
+    "break": "body of linkAttribute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9085-2.2-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/rfc9085_bgpls_object_placement_test.go::TestRFC9085ISISLinkPlacement",
+    "unit-sha": "e0e0d17fe1df68d6",
+    "claim-sha": "e53894dbc907d542",
+    "route": "revert",
+    "producer": "internal/plugins/isis/bgpls_export.go::linkAttribute",
+    "producer-sha": "6829bc06b1cfd284",
+    "break": "body of linkAttribute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9085-2.2-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc9085_bgpls_object_placement_test.go::TestRFC9085OSPFLinkPlacement",
+    "unit-sha": "bd3f2482d90e0827",
+    "claim-sha": "75a6bcd9e841959b",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/bgpls_export.go::link",
+    "producer-sha": "2e2ea74e00ac99ad",
+    "break": "body of link replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9085-2.2-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/rfc9085_bgpls_object_placement_test.go::TestRFC9085OSPFLinkPlacement",
+    "unit-sha": "bd3f2482d90e0827",
+    "claim-sha": "7233ec26e1261a8f",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/bgpls_export.go::link",
+    "producer-sha": "2e2ea74e00ac99ad",
+    "break": "body of link replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

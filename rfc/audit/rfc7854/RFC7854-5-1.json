@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-09-29 (the negative unit gained the RFC7854-5-4 tag line only; assertions unchanged). rfc7854_test.go::TestRFC7854LFlagFollowsPolicy: received announce and withdraw leave with L clear, sent with L set. ::TestRFC7854LFlagNotDecidedByBody: one body streamed on both sides leaves L clear received and L set sent, so the flag follows the direction (policy stage) and not the message. Ze sends no post-policy Adj-RIB-In; its L-set stream is the RFC 8671 Adj-RIB-Out (O and L set, peerHeaderFromEvent).",
+  "requirement_sha": "8769677dcfa32e5d",
+  "tests": {
+    "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854LFlagFollowsPolicy": "94e84131af3555be",
+    "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854LFlagNotDecidedByBody": "94e84131af3555be"
+  },
+  "units": {
+    "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854LFlagFollowsPolicy": "6e49c954267a390e",
+    "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854LFlagNotDecidedByBody": "6fa2951e961f3181"
+  },
+  "verdict": "enforced"
+}

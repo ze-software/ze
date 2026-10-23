@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC792-Echo-5",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply",
+    "unit-sha": "64d39e2e6c392099",
+    "claim-sha": "83c6d63bb2edcd12",
+    "route": "revert",
+    "producer": "internal/plugins/iface/netlink/manage_linux.go::AddAddress",
+    "producer-sha": "8891a051c78a5dc7",
+    "break": "body of AddAddress replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC792-Echo-5",
+    "polarity": "negative",
+    "unit": "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReplyToTheQueriedAddress",
+    "unit-sha": "efa25999ee39b21c",
+    "claim-sha": "ee899a517029aab3",
+    "route": "revert",
+    "producer": "internal/plugins/iface/netlink/manage_linux.go::AddAddress",
+    "producer-sha": "8891a051c78a5dc7",
+    "break": "body of AddAddress replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

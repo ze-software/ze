@@ -1,0 +1,17 @@
+{
+  "note": "TestRFC4271EveryMessageSentWithSmallestLength asserts, for all five types incl. both RFC 9072 extended OPEN shapes, that the Length field and the octets written equal an independently computed minimum, and that a 0xAA spare tail past it is untouched. Judge break openExtendedFixedLen 13->14: red (the D-8 fix it proves).",
+  "requirement_sha": "92f06ef6c4ac6216",
+  "tests": {
+    "internal/component/bgp/message/rfc4271_header_send_test.go::TestRFC4271EveryMessageSentWithSmallestLength": "b57c65aae7255a53",
+    "internal/component/bgp/message/rfc4271_header_send_test.go::TestRFC4271EveryMessageSentWithSmallestLength#2": "b57c65aae7255a53",
+    "internal/component/bgp/message/rfc4271_test.go::TestRFC4271NonSmallestLengthRejected": "abbe4d642c22df9a",
+    "internal/component/bgp/message/rfc4271_test.go::TestRFC4271SmallestLengthOnSend": "abbe4d642c22df9a"
+  },
+  "units": {
+    "internal/component/bgp/message/rfc4271_header_send_test.go::TestRFC4271EveryMessageSentWithSmallestLength": "3eb327ba16f7e2b1",
+    "internal/component/bgp/message/rfc4271_header_send_test.go::TestRFC4271EveryMessageSentWithSmallestLength#2": "3eb327ba16f7e2b1",
+    "internal/component/bgp/message/rfc4271_test.go::TestRFC4271NonSmallestLengthRejected": "ca0fa47e5fb7be68",
+    "internal/component/bgp/message/rfc4271_test.go::TestRFC4271SmallestLengthOnSend": "c979e36839787789"
+  },
+  "verdict": "enforced"
+}

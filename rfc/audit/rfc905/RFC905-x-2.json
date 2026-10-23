@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-09-30 under R-C1: row text and tagged units unchanged; the Annex B steps around it now carry their own rows (B.3.1-1, B.3.2-1, B.3.5-1, B.4.2-1). B.3.3 order binds the generator: TestISISChecksumVectors round-trips Checksum through VerifyChecksum, a C1-first Checksum goes red; negative TestRFC905FaultySenderChecksumRefused/c1-before-c0 refuses a pair built with the steps swapped. The verification-side sequence is B.4.2-1's.",
+  "requirement_sha": "db20cac67c77c27b",
+  "tests": {
+    "internal/plugins/isis/packet/rfc905_arithmetic_test.go::TestRFC905FaultySenderChecksumRefused": "60d205373562b160",
+    "internal/plugins/isis/packet/rfc905_checksum_vectors_test.go::TestISISChecksumVectors": "b9f243f3624e524f"
+  },
+  "units": {
+    "internal/plugins/isis/packet/rfc905_arithmetic_test.go::TestRFC905FaultySenderChecksumRefused": "82471eafe509af0b",
+    "internal/plugins/isis/packet/rfc905_checksum_vectors_test.go::TestISISChecksumVectors": "7416218e47d3c785"
+  },
+  "verdict": "enforced"
+}

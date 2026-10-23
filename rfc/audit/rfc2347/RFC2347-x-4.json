@@ -1,0 +1,6 @@
+{
+  "no_code_path": "The sentence binds the TFTP client that consumes an OACK. Ze ships a TFTP server only (internal/plugins/tftpserver/handler.go); no Ze code sends an RRQ/WRQ or reads an OACK (grep for tftp outside tftpserver finds only config, provisioning directories and port names), and no layer acts as a TFTP client on Ze's behalf.",
+  "note": "Row now quotes the whole client sentence (x-2 merged in under R5). Binds the TFTP client role only.",
+  "requirement_sha": "c7076c780454b1e9",
+  "verdict": "not-applicable"
+}

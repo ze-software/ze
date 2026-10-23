@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged 2026-10-02 (independent judge, ospf c27). Both c26 gaps closed. Claims now name srInstaller.forwarding / installRoutes and state what the bodies assert (bodies unchanged): + TestRFC8665NextHopFlagsAppliedWhereSIDAdvertised (next hop = SID advertiser with NP clear, transit next hop listed first: no push and a pop toward the originator next hop); - TestRFC8665OriginatorFlagsNotAppliedAtTransitHop (next hop did not advertise the SID: originator NP=0 not applied, push 17009 from the transit SRGB). Revert records on forwarding for both, observed red. Judge replayed overlays on forwarding: penultimate test forced true -> only the - red ('<nil>', PHP at transit); forced false -> only the + red (push 16009 toward the originator). TestRFC8665NextHopEAndMFlagsApplied keeps the E/NP/M cases (record on srMappedSIDAction).",
+  "requirement_sha": "02d16f90eaa7e273",
+  "tests": {
+    "internal/plugins/ospf/rfc8665_nexthop_flags_test.go::TestRFC8665NextHopEAndMFlagsApplied": "fe90cd16451cc24a",
+    "internal/plugins/ospf/rfc8665_test.go::TestRFC8665NextHopFlagsAppliedWhereSIDAdvertised": "7f2eeb6dac97643c",
+    "internal/plugins/ospf/rfc8665_test.go::TestRFC8665OriginatorFlagsNotAppliedAtTransitHop": "7f2eeb6dac97643c"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc8665_nexthop_flags_test.go::TestRFC8665NextHopEAndMFlagsApplied": "809375afe11f06d7",
+    "internal/plugins/ospf/rfc8665_test.go::TestRFC8665NextHopFlagsAppliedWhereSIDAdvertised": "0a1119a7fba41e9d",
+    "internal/plugins/ospf/rfc8665_test.go::TestRFC8665OriginatorFlagsNotAppliedAtTransitHop": "6f63fe724e64c681"
+  },
+  "verdict": "enforced"
+}

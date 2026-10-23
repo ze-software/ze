@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged 2026-10-01 (owner ruling 5, ruling 2 reading). Positive TestTLSFragmenterFirstFragmentHasLength: Ze's first fragment of a multi-fragment message carries L, M and the exact 4-octet TLS Message Length (2000). Negative TestRFC5216FirstFragmentWithoutLengthIsRefused (new, D-8 fix in reassemble): the peer's handleTLSRequest refuses a first fragment with M set and L clear, isolated from a clean state, with an error naming the L bit, no fragment ACK and 0 octets buffered; the same payload with L+M is ACKed as control. Producer checked: the guard fires only when no message is in progress (inExpected 0, inBuf empty), so middle fragments of an L-opened train and unfragmented messages without L pass; shared by authenticator Process and peer. TestTLSFragmenterMiddleAndLastFragmentsHaveNoLength stays tagged negative as supplementary: its prose now states L-only-on-first is Ze's choice, not an RFC ban. All three units hold observed-red revert records.",
+  "requirement_sha": "1180bf078feee7b0",
+  "tests": {
+    "internal/core/eap/peer_test.go::TestTLSFragmenterFirstFragmentHasLength": "93404fe1a5065a94",
+    "internal/core/eap/peer_test.go::TestTLSFragmenterMiddleAndLastFragmentsHaveNoLength": "93404fe1a5065a94",
+    "internal/core/eap/rfc5216_reassembly_refusal_test.go::TestRFC5216FirstFragmentWithoutLengthIsRefused": "c8157bdfbb11bcb5"
+  },
+  "units": {
+    "internal/core/eap/peer_test.go::TestTLSFragmenterFirstFragmentHasLength": "41dd7add1d483b6b",
+    "internal/core/eap/peer_test.go::TestTLSFragmenterMiddleAndLastFragmentsHaveNoLength": "7654ab88a5dd6400",
+    "internal/core/eap/rfc5216_reassembly_refusal_test.go::TestRFC5216FirstFragmentWithoutLengthIsRefused": "706d8c7fc68a2575"
+  },
+  "verdict": "enforced"
+}

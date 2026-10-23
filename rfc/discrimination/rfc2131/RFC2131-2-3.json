@@ -1,0 +1,57 @@
+[
+  {
+    "rid": "RFC2131-2-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/dhcpserver/rfc2131_test.go::TestFlagsReservedBitsIgnored",
+    "unit-sha": "ac55766ee26ef73d",
+    "claim-sha": "0be16fb7539383bd",
+    "route": "revert",
+    "producer": "internal/plugins/dhcpserver/register.go::responseAddr",
+    "producer-sha": "ebd7b65ed5b8f243",
+    "break": "body of responseAddr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2131-2-3",
+    "polarity": "negative",
+    "unit": "internal/plugins/dhcpserver/rfc2131_test.go::TestFlagsReservedBitsIgnored",
+    "unit-sha": "ac55766ee26ef73d",
+    "claim-sha": "b7f90019da0d4af7",
+    "route": "revert",
+    "producer": "internal/plugins/dhcpserver/register.go::responseAddr",
+    "producer-sha": "ebd7b65ed5b8f243",
+    "break": "body of responseAddr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2131-2-3",
+    "polarity": "negative",
+    "unit": "internal/plugins/iface/dhcp/rfc2131_dhcp_flags_integration_linux_test.go::TestRFC2131ClientRenewalSetsReservedFlagsBitsToZero",
+    "unit-sha": "34798d2ca9de6c28",
+    "claim-sha": "50fcf281aed74a82",
+    "route": "revert",
+    "producer": "internal/plugins/iface/dhcp/dhcp_v4_linux.go::v4ExtendRequest",
+    "producer-sha": "c2ff65fb9f3cd7c1",
+    "break": "body of v4ExtendRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2131-2-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/iface/dhcp/rfc2131_dhcp_flags_integration_linux_test.go::TestRFC2131ClientSetsReservedFlagsBitsToZero",
+    "unit-sha": "811504a259137ba6",
+    "claim-sha": "90952b84ff68b20d",
+    "route": "revert",
+    "producer": "internal/plugins/iface/dhcp/dhcp_v4_linux.go::clearReservedFlags",
+    "producer-sha": "6b3372f77c271b0d",
+    "break": "body of clearReservedFlags replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2131-2-3",
+    "polarity": "negative",
+    "unit": "internal/plugins/iface/dhcp/rfc2131_dhcp_flags_integration_linux_test.go::TestRFC2131ClientSetsReservedFlagsBitsToZero",
+    "unit-sha": "811504a259137ba6",
+    "claim-sha": "d4dcb50408e1a68e",
+    "route": "revert",
+    "producer": "internal/plugins/iface/dhcp/dhcp_v4_linux.go::clearReservedFlags",
+    "producer-sha": "6b3372f77c271b0d",
+    "break": "body of clearReservedFlags replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

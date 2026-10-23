@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4760-3-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go::TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref",
+    "unit-sha": "b39ce6fe547e059a",
+    "claim-sha": "d176f585ebd4492f",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/update_build.go::BuildUnicast",
+    "producer-sha": "e7dd8c913660084d",
+    "break": "body of BuildUnicast replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4760-3-3",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/message/rfc4760_mp_reach_mandatory_send_test.go::TestRFC4760MPReachUpdateCarriesOriginASPathAndIBGPLocalPref",
+    "unit-sha": "b39ce6fe547e059a",
+    "claim-sha": "9d30f137022b2158",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/update_build.go::BuildUnicast",
+    "producer-sha": "e7dd8c913660084d",
+    "break": "body of BuildUnicast replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

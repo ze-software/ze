@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.4-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_dpd_arming_test.go::TestRFC7296LivenessCheckFollowsTheInterval",
+    "unit-sha": "126f18442f424afe",
+    "claim-sha": "d91c3748cc389f06",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/dpd.go::newDPDState",
+    "producer-sha": "17b4d6e68efcf9dc",
+    "break": "body of newDPDState replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.4-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_dpd_arming_test.go::TestRFC7296LivenessCheckWaitsForTheOutstandingProbe",
+    "unit-sha": "c6097c6f67f86ec6",
+    "claim-sha": "5b7c7bc266a148d2",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/dpd.go::shouldSend",
+    "producer-sha": "f2d65bf16930a85c",
+    "break": "line 74: \"d.awaitReply\" -\u003e \"false\""
+  }
+]

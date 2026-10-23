@@ -1,0 +1,13 @@
+{
+  "note": "OSPFv2 node opaque from RI-LSA provenance reaches TLV 1025; Extended Link LSA provenance is refused by validOpaqueSource and leaves the advertised state untouched; the OSPF node check is shared by OSPFv2 and OSPFv3, only OSPFv2 driven",
+  "requirement_sha": "0162db3a20368bfb",
+  "tests": {
+    "internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go::TestRFC9552NativeOpaqueNodeProvenance": "d43002f22020b856",
+    "internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go::TestRFC9552NativeOpaqueNodeProvenance#2": "d43002f22020b856"
+  },
+  "units": {
+    "internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go::TestRFC9552NativeOpaqueNodeProvenance": "f5e018c75c545746",
+    "internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go::TestRFC9552NativeOpaqueNodeProvenance#2": "f5e018c75c545746"
+  },
+  "verdict": "enforced"
+}

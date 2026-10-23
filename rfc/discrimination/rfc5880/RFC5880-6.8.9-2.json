@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC5880-6.8.9-2",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880EchoFollowsLastAdvertisement",
+    "unit-sha": "f688de768dae350d",
+    "claim-sha": "ae80a2277f8bf86b",
+    "route": "mutant",
+    "producer": "internal/component/bfd/session/timers.go::EchoEnabled",
+    "producer-sha": "a4608916499310d7",
+    "break": "line 268: \"!=\" -\u003e \"==\""
+  },
+  {
+    "rid": "RFC5880-6.8.9-2",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoEnabledWhenPeerAdvertisesNonZero",
+    "unit-sha": "3d029f31aa8b1f95",
+    "claim-sha": "0565ac528341dd51",
+    "route": "revert",
+    "producer": "internal/component/bfd/session/timers.go::EchoEnabled",
+    "producer-sha": "a4608916499310d7",
+    "break": "body of EchoEnabled replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.8.9-2",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoNotTransmittedWithoutPeerAdvertisement",
+    "unit-sha": "3baa1b5b7706785e",
+    "claim-sha": "683cc9ac16511657",
+    "route": "revert",
+    "producer": "internal/component/bfd/session/timers.go::EchoEnabled",
+    "producer-sha": "a4608916499310d7",
+    "break": "body of EchoEnabled replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

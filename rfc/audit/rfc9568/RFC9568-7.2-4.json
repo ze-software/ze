@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 9568 Section 7.2 says \"Set the IPvX protocol to VRRP * Send the VRRP packet to the VRRP IPvX multicast group\". TestTxAdvertV4OnWire and TestSendAdvertV3IPv4HeaderTTLProtoDst changed only by the checksum-mode plumbing (a Checksum: packet.ChecksumRFC9568 field added to the GroupSpec, AdvertParams or packet.Local literal, or the mode argument added to packet.FillChecksum); every assertion and every isolating input is byte-for-byte the same; protocol 112 and 224.0.0.18 are still compared with literals. Single-polarity. Verdict unchanged.",
+  "requirement_sha": "12f257e971ced6da",
+  "tests": {
+    "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "e6113ed83a42c0f9",
+    "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV6OnWire": "e6113ed83a42c0f9",
+    "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertV3IPv4HeaderTTLProtoDst": "3b5f911a78dbf13d"
+  },
+  "units": {
+    "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire": "7a4414ac139af987",
+    "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV6OnWire": "743f9108e7f1c010",
+    "internal/plugins/vrrp/transport/transport_test.go::TestSendAdvertV3IPv4HeaderTTLProtoDst": "f2e73285b8e772a2"
+  },
+  "verdict": "enforced"
+}

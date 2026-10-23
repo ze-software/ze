@@ -1,0 +1,13 @@
+{
+  "note": "Negative rfc7606_test.go:888 TestRFC7606LocalPrefIBGPInvalid sends iBGP LOCAL_PREF len 3 and asserts require.Equal TreatAsWithdraw + AttrCode 5 + '7.5'; buffer isolates the malformed LOCAL_PREF. Positive :868 accepts iBGP LOCAL_PREF len 4 (Action None). The exact Action equal fails on both non-detection and over-reaction. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quoted sentence states the same obligation the paraphrase did, and no clause is new. Verdict unchanged.",
+  "requirement_sha": "bdfa8a5f769fc8b9",
+  "tests": {
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606LocalPrefIBGPInvalid": "b7acaf2569904b8f",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606LocalPrefIBGPValid": "b7acaf2569904b8f"
+  },
+  "units": {
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606LocalPrefIBGPInvalid": "3273d68e3c0de569",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606LocalPrefIBGPValid": "71e48a00f5c5aa6d"
+  },
+  "verdict": "enforced"
+}

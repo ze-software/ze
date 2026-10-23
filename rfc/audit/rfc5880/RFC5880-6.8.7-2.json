@@ -1,0 +1,15 @@
+{
+  "note": "Judge 2026-09-30 (rejudge, 6-2 + rest). The audit gap (tick never driven) is closed: NEW TestRFC5880PeriodicTransmitJitteredPerPacket drives Loop.tick through a stepped clock and a stamping transport for 200 sends at DetectMult 3; every gap between transmitted packets lies in (75%,100%] of TransmitInterval, >= 50 distinct gaps, and one reduced by more than 5%, so tick passing no reduction or a reused one goes red (overlay 'reduction * 0' reds both tick tests and no old one, job-ov10a; record revert loop.go::tick observed red). applyJitter + and band - kept.",
+  "requirement_sha": "7d1278dfb842683d",
+  "tests": {
+    "internal/component/bfd/engine/rfc5880_jitter_tick_test.go::TestRFC5880PeriodicTransmitJitteredPerPacket": "dc0c5b53edb17df2",
+    "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880JitterIsAppliedPerPacket": "4b885928a870b00d",
+    "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880JitterStaysWithinBand": "4b885928a870b00d"
+  },
+  "units": {
+    "internal/component/bfd/engine/rfc5880_jitter_tick_test.go::TestRFC5880PeriodicTransmitJitteredPerPacket": "4ab9c9ac951f58bb",
+    "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880JitterIsAppliedPerPacket": "00fa13c6a35fb7e6",
+    "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880JitterStaysWithinBand": "098214bc01b07851"
+  },
+  "verdict": "enforced"
+}

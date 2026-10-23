@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: mishandling a Nak option of a different Length. TestRFC1661NakHandlesDifferentOptionLength goes red unless a 4-octet PAP Nak against ze's 5-octet CHAP option switches the method to PAP; TestRFC1661NakTooShortOptionNotDecoded goes red if a 1-octet value is decoded as a protocol.",
+  "requirement_sha": "dc26bc0f9203f8d0",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NakHandlesDifferentOptionLength": "9afaf002f0fd81ec",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NakTooShortOptionNotDecoded": "9afaf002f0fd81ec"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NakHandlesDifferentOptionLength": "df039e31bace3c5c",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NakTooShortOptionNotDecoded": "4587318777b7f39d"
+  },
+  "verdict": "enforced"
+}

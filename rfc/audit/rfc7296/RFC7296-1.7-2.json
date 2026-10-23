@@ -1,0 +1,13 @@
+{
+  "note": "HMAC PRFs accept 1..200-octet keys and consume the key",
+  "requirement_sha": "a4adab3d42e08661",
+  "tests": {
+    "internal/component/ike/crypto/rfc7296_test.go::TestPRFTakesVariableSizedKeys": "92f4c9e647e3de21",
+    "internal/component/ike/crypto/rfc7296_test.go::TestPRFTakesVariableSizedKeys#2": "92f4c9e647e3de21"
+  },
+  "units": {
+    "internal/component/ike/crypto/rfc7296_test.go::TestPRFTakesVariableSizedKeys": "9dae1dd2fe963564",
+    "internal/component/ike/crypto/rfc7296_test.go::TestPRFTakesVariableSizedKeys#2": "9dae1dd2fe963564"
+  },
+  "verdict": "enforced"
+}

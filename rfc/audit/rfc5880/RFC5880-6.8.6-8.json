@@ -1,0 +1,13 @@
+{
+  "note": "RA-BFD2 strict re-read 2026-09-27 (stale on Receive: additions sit after the discard test, which is still the first statement). Both State values the sentence names are driven: TestRFC5880ZeroYourDiscriminatorDiscardedWhenLive sends Your Discriminator 0 with State Init and Up to local Down, Init and Up, and requires ErrYourDiscriminatorReset, unchanged state and unchanged RemoteDiscr (a guard moved below the field updates goes red on RemoteDiscr). Positive TestRFC5880ZeroYourDiscriminatorAcceptedWhenDown accepts State Down and AdminDown in Down, AdminDown and Up. Local AdminDown is not in the negative loop; the sentence conditions only on the packet's State.",
+  "requirement_sha": "f97c1b0e3d385d3f",
+  "tests": {
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880ZeroYourDiscriminatorAcceptedWhenDown": "8db25cbb4534cc2d",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880ZeroYourDiscriminatorDiscardedWhenLive": "8db25cbb4534cc2d"
+  },
+  "units": {
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880ZeroYourDiscriminatorAcceptedWhenDown": "756f069fe7854031",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880ZeroYourDiscriminatorDiscardedWhenLive": "5966f19b19bc3e2d"
+  },
+  "verdict": "enforced"
+}

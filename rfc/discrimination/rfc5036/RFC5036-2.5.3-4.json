@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5036-2.5.3-4",
+    "polarity": "positive",
+    "unit": "internal/plugins/ldp/rfc5036_procedures_test.go::TestRFC5036SetupRetryBackoffGrows",
+    "unit-sha": "7fca2d26626721c5",
+    "claim-sha": "8ce06827c9b17f78",
+    "route": "revert",
+    "producer": "internal/plugins/ldp/register.go::recordSetupFailure",
+    "producer-sha": "f4f10e4cc2659efe",
+    "break": "body of recordSetupFailure replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5036-2.5.3-4",
+    "polarity": "negative",
+    "unit": "internal/plugins/ldp/rfc5036_procedures_test.go::TestRFC5036SetupRetryRefusedInsideDelay",
+    "unit-sha": "f88a02694808f830",
+    "claim-sha": "766a0c9dd1cc9c6f",
+    "route": "revert",
+    "producer": "internal/plugins/ldp/register.go::recordSetupFailure",
+    "producer-sha": "f4f10e4cc2659efe",
+    "break": "body of recordSetupFailure replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

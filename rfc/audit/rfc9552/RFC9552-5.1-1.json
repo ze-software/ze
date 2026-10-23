@@ -1,0 +1,17 @@
+{
+  "note": "D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV->WriteTLV and field-export renames (TLV code constants verified unchanged). RFC 9552 Section 5.1: \"To compare NLRIs with unknown TLVs, all TLVs within the NLRI MUST be ordered in ascending order by TLV Type.\" Native whole-Link-NLRI proof: ls_export TestRFC9552NativeLinkTLVsCanonicalOrder / ...ReorderedSource (unchanged). Core descriptor units moved verbatim (package clause only): 260 precedes 261 for mixed families, and no descriptor combination descends.",
+  "requirement_sha": "a0422bad71d21de0",
+  "tests": {
+    "internal/component/bgp/plugins/ls_export/export_rfc9552_ordering_test.go::TestRFC9552NativeLinkTLVsCanonicalOrder": "581497e4f2564ee5",
+    "internal/component/bgp/plugins/ls_export/export_rfc9552_ordering_test.go::TestRFC9552NativeLinkTLVsReorderedSource": "581497e4f2564ee5",
+    "internal/core/bgp/nlri/bgpls/rfc9552_ordering_test.go::TestLinkDescriptorOrdersMixedFamilyAddressesAscending": "f2e824f5f115a4bc",
+    "internal/core/bgp/nlri/bgpls/rfc9552_ordering_test.go::TestNoDescriptorEmitsADescendingTLVSequence": "f2e824f5f115a4bc"
+  },
+  "units": {
+    "internal/component/bgp/plugins/ls_export/export_rfc9552_ordering_test.go::TestRFC9552NativeLinkTLVsCanonicalOrder": "be0890353f240a48",
+    "internal/component/bgp/plugins/ls_export/export_rfc9552_ordering_test.go::TestRFC9552NativeLinkTLVsReorderedSource": "24cf1b731770732b",
+    "internal/core/bgp/nlri/bgpls/rfc9552_ordering_test.go::TestLinkDescriptorOrdersMixedFamilyAddressesAscending": "ff4b440ca0d46180",
+    "internal/core/bgp/nlri/bgpls/rfc9552_ordering_test.go::TestNoDescriptorEmitsADescendingTLVSequence": "a22361ffddd09437"
+  },
+  "verdict": "enforced"
+}

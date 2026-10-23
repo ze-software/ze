@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC5798-5.2.6-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/packet/packet_test.go::TestEncodeGoldenV3IPv4",
+    "unit-sha": "426437dba8db9f30",
+    "claim-sha": "26078bc03d053920",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/packet/packet.go::WriteTo",
+    "producer-sha": "a5408de5358174ba",
+    "break": "body of WriteTo replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5798-5.2.6-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/packet/rfc_rx_verdict_test.go::TestEncodeV3ReserveZeroOverDirtyBuffer",
+    "unit-sha": "9d07d1657094d132",
+    "claim-sha": "6e1b737be92fb13c",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/packet/packet.go::WriteTo",
+    "producer-sha": "a5408de5358174ba",
+    "break": "body of WriteTo replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5798-5.2.6-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/vrrp/packet/validate_test.go::TestDecodeV3ReserveIgnoredOnReceive",
+    "unit-sha": "76bcce27cbea6d0b",
+    "claim-sha": "6a01489aaad8186b",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/packet/validate.go::Decode",
+    "producer-sha": "76516cb47bf2201c",
+    "break": "body of Decode replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

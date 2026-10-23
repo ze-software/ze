@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: acting on or displaying a zero-length capability. TestSoftverZeroValueCapabilityIsIgnored asserts RunCLIDecode of an empty value exits 1 with empty stdout, red if decodeSoftwareVersion accepted it and a version were shown. Its RunDecodeMode arm feeds the empty hex field invokePluginDecode writes for a zero-length value and asserts decoded unknown with no version; that arm is refused by the request parser before the decoder, so the CLI arm carries the discrimination. Negative: TestSoftverWellFormedCapabilityIsNotIgnored, the bare value zebgp is decoded and shown on both surfaces.",
+  "requirement_sha": "1ed4f42bff26c85e",
+  "tests": {
+    "internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go::TestSoftverWellFormedCapabilityIsNotIgnored": "621a76bf24368516",
+    "internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go::TestSoftverZeroValueCapabilityIsIgnored": "621a76bf24368516"
+  },
+  "units": {
+    "internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go::TestSoftverWellFormedCapabilityIsNotIgnored": "51cce8794fb58657",
+    "internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go::TestSoftverZeroValueCapabilityIsIgnored": "221d6bd22eda9114"
+  },
+  "verdict": "enforced"
+}

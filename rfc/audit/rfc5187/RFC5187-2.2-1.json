@@ -1,0 +1,13 @@
+{
+  "note": "c22 re-judge. Forbidden: a grace-LSA without the Grace Period TLV (Type=1, Length=4). Positive TestRFC5187OriginatedGraceLSACarriesPeriodAndReasonTLVs drives the OSPFv3 origination v6OriginateGraceLSA (gr_restarter.go calls it) and compares the installed LSA body after the 20-octet v3 header with literal octets 00 01 00 04 <period> for period 120 and 0, so a wrong type, wrong length or dropped TLV goes red (author overlay GraceTLVPeriod=3 red; recorded revert of v3/packet/lsa_grace.go::tlvs). Negative under OWNER RULING 2 (generate row: the negative is how Ze handles a peer PDU lacking it; RFC 5187 prescribes no handling and the helper cannot run a window it was not given, so ignore): TestRFC5187HelperIgnoresGraceLSAMissingMandatoryTLV feeds a reason-only v3 Grace-LSA to grInspectV6Update (instance.go receive path) while helping X and asserts the helper grace end is unchanged, with a both-TLV control that moves it to now+600, isolating the hasPeriod check (author overlay: removing hasPeriod reds only that subtest; recorded revert of ::decodeGraceLSA). Tags moved off the OSPFv2 RFC 3623 codec units (D-15).",
+  "requirement_sha": "02624a9527143956",
+  "tests": {
+    "internal/plugins/ospf/rfc5187_grace_tlv_test.go::TestRFC5187HelperIgnoresGraceLSAMissingMandatoryTLV": "9b3524b8afee74d5",
+    "internal/plugins/ospf/rfc5187_grace_tlv_test.go::TestRFC5187OriginatedGraceLSACarriesPeriodAndReasonTLVs": "9b3524b8afee74d5"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc5187_grace_tlv_test.go::TestRFC5187HelperIgnoresGraceLSAMissingMandatoryTLV": "432a4746e0ebc120",
+    "internal/plugins/ospf/rfc5187_grace_tlv_test.go::TestRFC5187OriginatedGraceLSACarriesPeriodAndReasonTLVs": "be719a1509d006d9"
+  },
+  "verdict": "enforced"
+}

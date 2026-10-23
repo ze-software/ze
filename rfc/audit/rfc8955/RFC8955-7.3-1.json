@@ -1,0 +1,23 @@
+{
+  "note": "encode: config actions leave octets 2-6 zero and only 0x03 in the last octet; decode: every reserved bit set renders the same as clear for all four S/T combinations, and a pair differing only in S changes the render, so a renderer reading no bit fails; the .ci repeats it end to end to a plugin",
+  "requirement_sha": "f730f52d8678d610",
+  "tests": {
+    "internal/component/bgp/cli/rfc8955_decode_test.go::TestRFC8955TrafficActionUnusedBitsIgnoredOnDecode": "d41edf11f01f8ad7",
+    "internal/component/bgp/cli/rfc8955_decode_test.go::TestRFC8955TrafficActionUnusedBitsIgnoredOnDecode#2": "d41edf11f01f8ad7",
+    "internal/component/bgp/config/routeattr_test.go::TestRFC8955TrafficActionUnusedBitsZero": "2be9754894f7f33d",
+    "internal/core/bgp/attribute/rfc8955_extcomm_decoded_test.go::TestRFC8955TrafficActionBitsDecoded": "ccc1d8fecf4d366d",
+    "internal/core/bgp/attribute/rfc8955_extcomm_decoded_test.go::TestRFC8955TrafficActionBitsDecoded#2": "ccc1d8fecf4d366d",
+    "test/plugin/community-attributes-json.ci": "712c499f6e2ef41a",
+    "test/plugin/community-attributes-json.ci#2": "712c499f6e2ef41a"
+  },
+  "units": {
+    "internal/component/bgp/cli/rfc8955_decode_test.go::TestRFC8955TrafficActionUnusedBitsIgnoredOnDecode": "f383cf4b1f167750",
+    "internal/component/bgp/cli/rfc8955_decode_test.go::TestRFC8955TrafficActionUnusedBitsIgnoredOnDecode#2": "f383cf4b1f167750",
+    "internal/component/bgp/config/routeattr_test.go::TestRFC8955TrafficActionUnusedBitsZero": "2492773979cdeba1",
+    "internal/core/bgp/attribute/rfc8955_extcomm_decoded_test.go::TestRFC8955TrafficActionBitsDecoded": "dd8142e893fcabe3",
+    "internal/core/bgp/attribute/rfc8955_extcomm_decoded_test.go::TestRFC8955TrafficActionBitsDecoded#2": "dd8142e893fcabe3",
+    "test/plugin/community-attributes-json.ci": "712c499f6e2ef41a",
+    "test/plugin/community-attributes-json.ci#2": "712c499f6e2ef41a"
+  },
+  "verdict": "enforced"
+}

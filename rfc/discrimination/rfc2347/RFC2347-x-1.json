@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC2347-x-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2347OnlyTheClientInitiatesNegotiation",
+    "unit-sha": "af82b3051795fd42",
+    "claim-sha": "2ebd64e76612c04b",
+    "route": "revert",
+    "producer": "internal/plugins/tftpserver/handler.go::sendOACKAndWait",
+    "producer-sha": "c57ca9490619cabf",
+    "break": "body of sendOACKAndWait replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2347-x-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/tftpserver/rfc2347_2348_transfer_test.go::TestRFC2347OnlyTheClientInitiatesNegotiation",
+    "unit-sha": "af82b3051795fd42",
+    "claim-sha": "8c27ae5d8f30b1cf",
+    "route": "revert",
+    "producer": "internal/plugins/tftpserver/handler.go::handleRRQ",
+    "producer-sha": "02c7706e79bf4197",
+    "break": "body of handleRRQ replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2347-x-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerOACKOnlyRequestedOptions",
+    "unit-sha": "f9db6f3587cfa1b2",
+    "claim-sha": "837f3ae2464038a3",
+    "route": "revert",
+    "producer": "internal/plugins/tftpserver/handler.go::sendOACKAndWait",
+    "producer-sha": "c57ca9490619cabf",
+    "break": "body of sendOACKAndWait replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2347-x-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/tftpserver/rfc2347_option_negotiation_test.go::TestRFC2347ServerOACKOnlyRequestedOptions",
+    "unit-sha": "f9db6f3587cfa1b2",
+    "claim-sha": "dd4cf1f5c4ee2ac9",
+    "route": "revert",
+    "producer": "internal/plugins/tftpserver/handler.go::handleRRQ",
+    "producer-sha": "02c7706e79bf4197",
+    "break": "body of handleRRQ replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

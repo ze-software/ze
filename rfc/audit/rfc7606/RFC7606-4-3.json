@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: locating the NLRI from an overrunning attribute's own length instead of the Total Attribute Length. TestRFC7606NLRILocatedByTotalAttributeLength builds an UPDATE whose COMMUNITY declares 8 octets where 4 remain, confirms the validator returns TreatAsWithdraw at code 8, and fails unless SynthesizeWithdraw's Withdrawn Routes equal the two prefixes at the Total Attribute Length offset (assert.Equal nlri); the negative assert.NotEqual rejects the tail the overrun would have pointed at. SynthesizeWithdraw is SynthesizeWithdrawFamilies(body, nil), the same locator the receive path calls in session_read.go. Rejudged 2026-10-16 (independent reader) after the owner-approved multi-label withdrawal change (RFC 8277 Section 2.4, nlrisplit.LabeledWithdrawal): SynthesizeWithdraw gained an addPath bool and SynthesizeWithdrawFamilies/mpReachToUnreach an addPath predicate, which mpReachToUnreach reads only for a family nlrisplit.CarriesCompatibility names (labeled unicast, VPN). The one edit in TestRFC7606NLRILocatedByTotalAttributeLength passes false to SynthesizeWithdraw; the input is legacy IPv4 NLRI after a COMMUNITY that overruns, so the assertion that the NLRI at Total Attribute Length is what is withdrawn is unchanged. RFC 7606 Section 4: \"the Total Attribute Length MUST be relied upon to enable the beginning of the NLRI field to be located.\" Verdict stands.",
+  "requirement_sha": "28b6c6bea6a31eef",
+  "tests": {
+    "internal/component/bgp/message/rfc7606_nlri_locate_test.go::TestRFC7606NLRILocatedByTotalAttributeLength": "0c0dfaf61560d6a4",
+    "internal/component/bgp/message/rfc7606_nlri_locate_test.go::TestRFC7606NLRILocatedByTotalAttributeLength#2": "0c0dfaf61560d6a4"
+  },
+  "units": {
+    "internal/component/bgp/message/rfc7606_nlri_locate_test.go::TestRFC7606NLRILocatedByTotalAttributeLength": "542da437461db21f",
+    "internal/component/bgp/message/rfc7606_nlri_locate_test.go::TestRFC7606NLRILocatedByTotalAttributeLength#2": "542da437461db21f"
+  },
+  "verdict": "enforced"
+}

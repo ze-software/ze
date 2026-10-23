@@ -1,0 +1,13 @@
+{
+  "note": "positive walks each OFFER/ACK/NAK option by its length octets and requires reaching End (255); negative fills a request's options with 0x01 so it carries no End, and requires the reply to be End-terminated",
+  "requirement_sha": "73cb41d0d7b72133",
+  "tests": {
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyOptionsTerminatedByEnd": "8365c04cdfc2a046",
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyOptionsTerminatedByEnd#2": "8365c04cdfc2a046"
+  },
+  "units": {
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyOptionsTerminatedByEnd": "09e06646f41a2b88",
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestReplyOptionsTerminatedByEnd#2": "09e06646f41a2b88"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,15 @@
+{
+  "note": "Forbidden: a body other than one <AFI, SAFI> in 32 bits (AFI 16, Res 8, SAFI 8). TestRouteRefreshPack asserts Len(data) == HeaderLen+4 and each of the four body bytes, red on a wrong size or layout. TestHandleRouteRefresh_InvalidLength asserts ErrInvalidMessage for 3-, 5- and 0-byte bodies, and TestRouteRefreshUnpackShort asserts ErrShortRead for 3 bytes, red if a body of another length is accepted.",
+  "requirement_sha": "7cab3f9d98e6e783",
+  "tests": {
+    "internal/component/bgp/message/routerefresh_test.go::TestRouteRefreshPack": "30b8b3abfb09b975",
+    "internal/component/bgp/message/routerefresh_test.go::TestRouteRefreshUnpackShort": "30b8b3abfb09b975",
+    "internal/component/bgp/reactor/session_handlers_test.go::TestHandleRouteRefresh_InvalidLength": "c387bdc6c423bd19"
+  },
+  "units": {
+    "internal/component/bgp/message/routerefresh_test.go::TestRouteRefreshPack": "6b1979ee9a3bf3c5",
+    "internal/component/bgp/message/routerefresh_test.go::TestRouteRefreshUnpackShort": "67bee8ebf99b5d94",
+    "internal/component/bgp/reactor/session_handlers_test.go::TestHandleRouteRefresh_InvalidLength": "897e95aea222b076"
+  },
+  "verdict": "enforced"
+}

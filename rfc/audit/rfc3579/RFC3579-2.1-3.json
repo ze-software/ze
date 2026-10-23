@@ -1,0 +1,13 @@
+{
+  "note": "positive compares User-Name to the Type-Data of the peer's EAP-Response/Identity read off the wire; negative checks every subsequent request (method Responses, not Identity) carries the same User-Name. Both clauses covered",
+  "requirement_sha": "555d0d30082cff3c",
+  "tests": {
+    "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapUserNameIsThePeerIdentity": "2b1b1ce908f454a5",
+    "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapUserNameRidesEverySubsequentRequest": "2b1b1ce908f454a5"
+  },
+  "units": {
+    "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapUserNameIsThePeerIdentity": "6acb2f74a0370b8e",
+    "internal/component/radius/rfc3579_nas_obligations_test.go::TestRadiusAdminEapUserNameRidesEverySubsequentRequest": "0b1e77d68c87c09f"
+  },
+  "verdict": "enforced"
+}

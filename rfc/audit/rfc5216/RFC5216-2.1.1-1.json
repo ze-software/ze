@@ -1,0 +1,19 @@
+{
+  "note": "Re-judged 2026-10-12 (independent auditor) after 37dbe54095, where the authenticator with resumption on installs redeemTLS13Only (resumption.go), which refuses every TLS 1.2 ticket. This unit is byte-identical; the file around it changed. Its helpers (tls12Exchange, fullTLS12Flights) gained a tune argument passed as nil to driveTunedEAPTLSFlight, which driveEAPTLSFlight itself calls with nil, and fresh stores offer no ticket, so the producer change never runs here. Verdict stands. Re-judged 2026-09-30 after the D-8 peer certificate fix (answerCertificateRequest). D-8 fixed: tlsClientConfig answers every certificate_request through GetClientCertificate (answerCertificateRequest, peer.go), so the peer no longer drops to an empty certificate_list when the request names another CA. Positive: TestRFC5216PeerSendsItsCertificateWhateverTheRequestNames reads the TLS 1.2 peer flight off the wire after a certificate_request naming a CA other than the peer certificate's issuer: a certificate message whose first entry is the configured DER, and a certificate_verify (red before the fix, record on answerCertificateRequest); TestRFC5216PeerFlightAnswersTheCertificateRequest keeps the exact compliant flight. Negative (R1 a, non-compliant form on the wire): TestRFC5216AuthenticatorRefusesAPeerThatSendsNoCertificate configures a TRUSTED client cert, empties the peer's answer after the TLS client starts, asserts the empty certificate_list and absent certificate_verify on the wire, and the authenticator sends no EAP-Success, does not succeed or complete its handshake, and refuses with an error that is not a certificate verification failure. Privacy (Section 2.1.4) is not implemented, so the unless-clause never applies. Every tagged unit carries an observed-red record.",
+  "requirement_sha": "93cfbce29401fdaf",
+  "tests": {
+    "internal/core/eap/rfc5216_certless_peer_test.go::TestRFC5216AuthenticatorRefusesAPeerThatSendsNoCertificate": "95ff448a085f9fb0",
+    "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSAuthenticatorRequiresClientCert": "24154b07f453f130",
+    "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "24154b07f453f130",
+    "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216PeerFlightAnswersTheCertificateRequest": "07752e8e18f47c94",
+    "internal/core/eap/rfc5216_peer_certificate_test.go::TestRFC5216PeerSendsItsCertificateWhateverTheRequestNames": "0bd9dc5fe4a89761"
+  },
+  "units": {
+    "internal/core/eap/rfc5216_certless_peer_test.go::TestRFC5216AuthenticatorRefusesAPeerThatSendsNoCertificate": "c18bebd2e0f28023",
+    "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSAuthenticatorRequiresClientCert": "5c7e512a57e8ab7c",
+    "internal/core/eap/rfc5216_eap_tls_handshake_test.go::TestEAPTLSMutualAuthHandshakeSucceeds": "0b6c374cdbde2cae",
+    "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216PeerFlightAnswersTheCertificateRequest": "43e40a57c746c213",
+    "internal/core/eap/rfc5216_peer_certificate_test.go::TestRFC5216PeerSendsItsCertificateWhateverTheRequestNames": "f8a0c918ccde8362"
+  },
+  "verdict": "enforced"
+}

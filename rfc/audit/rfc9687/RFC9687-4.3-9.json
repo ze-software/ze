@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden behaviour: a SendHoldTimer armed when the negotiated HoldTime is zero, or stopped when it is not. TestRFC9687ZeroNegotiatedHoldTimeStopsTheSendHoldTimer asserts armed() false and the session still Established after 10x the SendHoldTime; TestRFC9687NonZeroNegotiatedHoldTimeArmsTheSendHoldTimer asserts armed() true and the expiry at a negotiated 90 s. The SendHoldTime-zero half has no violating input: sendHoldDuration never returns zero.",
+  "requirement_sha": "2a000ddf5a1a5f33",
+  "tests": {
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NonZeroNegotiatedHoldTimeArmsTheSendHoldTimer": "8caa1cc8f2fc140d",
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687ZeroNegotiatedHoldTimeStopsTheSendHoldTimer": "8caa1cc8f2fc140d"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687NonZeroNegotiatedHoldTimeArmsTheSendHoldTimer": "d57d3f91e97fd943",
+    "internal/component/bgp/reactor/rfc9687_test.go::TestRFC9687ZeroNegotiatedHoldTimeStopsTheSendHoldTimer": "b1405671d0b992fc"
+  },
+  "verdict": "enforced"
+}

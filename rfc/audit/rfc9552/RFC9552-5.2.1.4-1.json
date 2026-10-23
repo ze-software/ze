@@ -1,0 +1,17 @@
+{
+  "note": "D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV->WriteTLV and field-export renames (TLV code constants verified unchanged). RFC 9552 Section 5.2.1.4: \"At most, there MUST be one instance of each sub-TLV type present in any Node Descriptor.\" Sender half: core TestNodeDescriptorNeverRepeatsASubTLVType (512..517 each once, six types) and TestSRv6SIDNLRIKeepsItsSIDOutOfTheNodeDescriptor (no 518 inside the Local Node container, one at NLRI level), moved verbatim. Receive half: reactor duplicate-512 discard and distinct-types kept (unchanged).",
+  "requirement_sha": "ac5bc03a05270e4c",
+  "tests": {
+    "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated": "afc246c289705756",
+    "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNodeDescriptorDuplicateSubTLVIsDiscarded": "afc246c289705756",
+    "internal/core/bgp/nlri/bgpls/rfc9552_node_descriptor_unique_test.go::TestNodeDescriptorNeverRepeatsASubTLVType": "d19d10b40f479a7a",
+    "internal/core/bgp/nlri/bgpls/rfc9552_node_descriptor_unique_test.go::TestSRv6SIDNLRIKeepsItsSIDOutOfTheNodeDescriptor": "d19d10b40f479a7a"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated": "943698b5ca5db5c0",
+    "internal/component/bgp/reactor/rfc9552_nlri_test.go::TestRFC9552LinkStateNodeDescriptorDuplicateSubTLVIsDiscarded": "18db48dbc5cf6076",
+    "internal/core/bgp/nlri/bgpls/rfc9552_node_descriptor_unique_test.go::TestNodeDescriptorNeverRepeatsASubTLVType": "53c5d1d9d9e34288",
+    "internal/core/bgp/nlri/bgpls/rfc9552_node_descriptor_unique_test.go::TestSRv6SIDNLRIKeepsItsSIDOutOfTheNodeDescriptor": "03682e7f7aa8f444"
+  },
+  "verdict": "enforced"
+}

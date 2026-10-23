@@ -1,0 +1,17 @@
+{
+  "note": "Independent first judgment against RFC 5303 Section 3.2: \"If the option is present and contains invalid Adjacency Three-Way State, the PDU SHALL be discarded and no further action is taken.\" TestRFC5303InvalidStateWireDiscard now carries a positive tag on its existing valid-state control: Circuit.Receive decodes the valid peer PDU and must reach StateUp before the established-neighbor invalid-state probes. Its negative assertions cover TLV lengths 1, 5 and 15, invalid states 3 and 255, fresh and established neighbors, unchanged neighbor presence and whole-adjacency equality, and no SessionUp, SessionDown or ForwardingChanged flags. TestRFC5303InvalidStateLeavesAdjacencyUntouched additionally covers every unnamed state 3 through 255 against Down, Initializing and Up adjacencies with whole-object equality and rejection; TestRFC5303InvalidStateBeforeValidDuplicate prevents a later valid option from hiding an earlier invalid one. Circuit.Receive routes P2P Hellos to handleP2PHello, which rejects every invalid TLV 240 before neighbor creation; ReceiveHello independently rejects invalid raw HelloInput before identity, hold-timer or adjacency mutation. The positive input is genuinely conforming, not another error; the negative assertions would fail if invalid states were admitted or mutated adjacency state. Canonical records name these producers, including the newly recorded positive cover; their producer-body panic breaks establish execution dependence, not selective semantic mutation. The assertions and producer routing, read against the whole sentence, support this requirement only; neighbor-ID mismatch and restart-event gaps remain separate.",
+  "requirement_sha": "2366803848191473",
+  "tests": {
+    "internal/plugins/isis/adjacency/rfc5303_invalid_state_test.go::TestRFC5303InvalidStateLeavesAdjacencyUntouched": "aaeb569bec964e11",
+    "internal/plugins/isis/circuit/rfc5303_invalid_state_test.go::TestRFC5303InvalidStateBeforeValidDuplicate": "e0c2683ac623f48a",
+    "internal/plugins/isis/circuit/rfc5303_invalid_state_test.go::TestRFC5303InvalidStateWireDiscard": "e0c2683ac623f48a",
+    "internal/plugins/isis/circuit/rfc5303_invalid_state_test.go::TestRFC5303InvalidStateWireDiscard#2": "e0c2683ac623f48a"
+  },
+  "units": {
+    "internal/plugins/isis/adjacency/rfc5303_invalid_state_test.go::TestRFC5303InvalidStateLeavesAdjacencyUntouched": "fa449094666f1299",
+    "internal/plugins/isis/circuit/rfc5303_invalid_state_test.go::TestRFC5303InvalidStateBeforeValidDuplicate": "fb0fa0b28ef05893",
+    "internal/plugins/isis/circuit/rfc5303_invalid_state_test.go::TestRFC5303InvalidStateWireDiscard": "480bd21d9ab0680f",
+    "internal/plugins/isis/circuit/rfc5303_invalid_state_test.go::TestRFC5303InvalidStateWireDiscard#2": "480bd21d9ab0680f"
+  },
+  "verdict": "enforced"
+}

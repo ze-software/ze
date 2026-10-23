@@ -1,0 +1,25 @@
+{
+  "note": "Rejudged 2026-10-22 by independent route-policy auditor. RFC 4271 Section 5.1.4: \"If a BGP speaker is configured to remove the MULTI_EXIT_DISC attribute from a route, then this removal MUST be done prior to determining the degree of preference of the route and prior to performing route selection (Decision Process phases 1 and 2).\" Read every carrier: filter_modify/rfc4271_modify_test.go::TestHandleFilterUpdateMEDRemoveIsImportOnly; reactor/forward_med_test.go::TestMEDRemovalMechanismIsConfigurable; the manifest drafts test/draft/plugin/med-removal-before-decision.ci, med-removal-configured.ci and med-removal-export-refused.ci in place of their same-named live files. Unit assertions pin import-only med-remove emission, export withholding, one attribute-4 suppression, exact rebuilt payload without MED for 0/100/4294967295, and preservation without the directive. internal/test/fixture/plugin_fixture_09_bgp.go::medRemovalBeforeDecision09 requires one stored route, absence of the received MED-100 encoding, and exact ORIGIN/AS_PATH/COMMUNITIES survivors in Adj-RIB-In; this is the storage-order assertion, not a claim that its substring test parses all possible MED encodings. Configured-removal wire comparison is to an rs-client so automatic inter-AS MED stripping cannot satisfy it. Export-refused preserves the complete MED-bearing frame and requires the refusal log while rejecting delta=med-remove. Producers: filter_modify/filter_modify.go::handleFilterUpdate and appendMEDRemove; reactor/filter_delta.go::ExtractMEDRemoveOps and textDeltaToModOps; filter_ordered.go::runIngressPolicyChain; reactor_notify.go::notifyMessageReceiver replaces both raw bytes and WireUpdate before cache and receiver dispatch. The egress converter skips med-remove. Each draft differs from its live carrier only by the explicit final-accept syntax; no expectations, inputs or negotiated families changed in these three drafts. Retain enforced at the existing configured-mechanism/order scope; no execution or renewed native proof is claimed.",
+  "requirement_sha": "ccf89bedacdc9dd9",
+  "tests": {
+    "internal/component/bgp/plugins/filter_modify/rfc4271_modify_test.go::TestHandleFilterUpdateMEDRemoveIsImportOnly": "2edac2df7ff816c2",
+    "internal/component/bgp/plugins/filter_modify/rfc4271_modify_test.go::TestHandleFilterUpdateMEDRemoveIsImportOnly#2": "2edac2df7ff816c2",
+    "internal/component/bgp/reactor/forward_med_test.go::TestMEDRemovalMechanismIsConfigurable": "677aec0a7e53cb68",
+    "internal/component/bgp/reactor/forward_med_test.go::TestMEDRemovalMechanismIsConfigurable#2": "677aec0a7e53cb68",
+    "test/plugin/med-removal-before-decision.ci": "5dd1861198d63d6d",
+    "test/plugin/med-removal-before-decision.ci#2": "5dd1861198d63d6d",
+    "test/plugin/med-removal-configured.ci": "9ed79b08ab615843",
+    "test/plugin/med-removal-export-refused.ci": "74c9745d8548a582"
+  },
+  "units": {
+    "internal/component/bgp/plugins/filter_modify/rfc4271_modify_test.go::TestHandleFilterUpdateMEDRemoveIsImportOnly": "b0e76e42bcdfcce5",
+    "internal/component/bgp/plugins/filter_modify/rfc4271_modify_test.go::TestHandleFilterUpdateMEDRemoveIsImportOnly#2": "b0e76e42bcdfcce5",
+    "internal/component/bgp/reactor/forward_med_test.go::TestMEDRemovalMechanismIsConfigurable": "a9ba4d2d27c4fa5a",
+    "internal/component/bgp/reactor/forward_med_test.go::TestMEDRemovalMechanismIsConfigurable#2": "a9ba4d2d27c4fa5a",
+    "test/plugin/med-removal-before-decision.ci": "5dd1861198d63d6d",
+    "test/plugin/med-removal-before-decision.ci#2": "5dd1861198d63d6d",
+    "test/plugin/med-removal-configured.ci": "9ed79b08ab615843",
+    "test/plugin/med-removal-export-refused.ci": "74c9745d8548a582"
+  },
+  "verdict": "enforced"
+}

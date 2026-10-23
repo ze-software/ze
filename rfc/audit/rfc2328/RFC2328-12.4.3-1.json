@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-10-21 (round 4 judge). abr_summary units changed only by added 12.4.3-2 tag lines. rfc2328_newly_attached_area_test: real LSDB, area attached with no own Router-LSA gets the intra-area and inter-area summaries and none of its own routes; abr_summary pins one Type 3 per backbone intra-area route with mask and metric, and range handling. Records on summaryDesiredForArea, OriginateSummaries, applyAreaRanges.",
+  "requirement_sha": "37a8178478162c9d",
+  "tests": {
+    "internal/plugins/ospf/spf/rfc2328_abr_summary_test.go::TestRFC2328ABRComponentNeverEscapesRange": "cf9d36f27437477d",
+    "internal/plugins/ospf/spf/rfc2328_abr_summary_test.go::TestRFC2328ABRSummarizesAndCondenses": "cf9d36f27437477d",
+    "internal/plugins/ospf/spf/rfc2328_newly_attached_area_test.go::TestRFC2328NewlyAttachedAreaGetsIntraAndInterAreaSummaries": "e07b5cfdf1c5e7f2",
+    "internal/plugins/ospf/spf/rfc2328_newly_attached_area_test.go::TestRFC2328NewlyAttachedAreaGetsNoSummaryOfItsOwnRoutes": "e07b5cfdf1c5e7f2"
+  },
+  "units": {
+    "internal/plugins/ospf/spf/rfc2328_abr_summary_test.go::TestRFC2328ABRComponentNeverEscapesRange": "fd737079deb22656",
+    "internal/plugins/ospf/spf/rfc2328_abr_summary_test.go::TestRFC2328ABRSummarizesAndCondenses": "c9d139f36a5c6414",
+    "internal/plugins/ospf/spf/rfc2328_newly_attached_area_test.go::TestRFC2328NewlyAttachedAreaGetsIntraAndInterAreaSummaries": "cb560214ec9c9ef8",
+    "internal/plugins/ospf/spf/rfc2328_newly_attached_area_test.go::TestRFC2328NewlyAttachedAreaGetsNoSummaryOfItsOwnRoutes": "4891909cf1d6b6ab"
+  },
+  "verdict": "enforced"
+}

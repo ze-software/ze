@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2865-3-7",
+    "polarity": "positive",
+    "unit": "internal/component/radius/rfc2865_walk_test.go::TestDecodeAcceptsAPacketAsLongAsItsLengthField",
+    "unit-sha": "23777ccae571f243",
+    "claim-sha": "90a4b7ac08fcc673",
+    "route": "revert",
+    "producer": "internal/component/radius/packet.go::Decode",
+    "producer-sha": "1cfcbbae411360f3",
+    "break": "body of Decode replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2865-3-7",
+    "polarity": "negative",
+    "unit": "internal/component/radius/rfc2865_walk_test.go::TestDecodeRefusesAPacketShorterThanItsLengthField",
+    "unit-sha": "52e0f5ce41421ab1",
+    "claim-sha": "a49ecb1c080775f7",
+    "route": "revert",
+    "producer": "internal/component/radius/packet.go::Decode",
+    "producer-sha": "1cfcbbae411360f3",
+    "break": "body of Decode replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

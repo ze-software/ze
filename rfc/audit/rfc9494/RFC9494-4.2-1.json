@@ -1,0 +1,29 @@
+{
+  "note": "RFC 9494 Section 4.2: 'After the session goes down, and before the session is re-established, the stale routes for an AFI/SAFI MUST be retained.' Read in its bounded GR-plus-LLST, zero-period and omitted-family context. Re-read all ten tagged units: gr_state_test.go TestLLSTTimerExpiry_LastFamily and TestOnTimerExpired_WithoutLLGR; rfc9494_llgr_entry_test.go TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod, TestRFC9494BothTimesZeroRetainsNothing, TestRFC9494RestartTimeThenLongLivedStaleTime and TestRFC9494DelayedDownPreservesLLSTDeadlines; rfc9494_omitted_gr_family_test.go TestLLGROmittedGRFamilyRetainsRealRIB, TestLLGROmittedGRFamilyTimerSurvivesConventionalEntry, TestLLGROmittedGRFamilyWithoutLLSTIsRemoved and TestLLGROmittedGRFamilyReadvertisementDoesNotDelaySiblingExpiry, all under internal/component/bgp/plugins/gr/. The legacy callback-only units are not sufficient alone. The real registered-RIB units assert received-route existence before DOWN, retention at GR level 1 and LLGR level 2, both-zero deletion, and distinct before/at absolute deadlines on JSON and structured paths. Empty/mixed GR lists retain omitted exchanged LLGR families immediately; zero or unexchanged omitted families disappear. Virtual-time checks require presence one nanosecond before expiry and absence at expiry, preserve sibling retention, and prevent delayed DOWN dispatch or blocked readvertisement from extending the bound. This closes the earlier family-omission and timing evidence gaps rather than relying on timer-map presence. Producing symbols: gr.go::handleStateEvent, handleStructuredState, retainPeerFamilies, wireStateCallbacks; gr_state.go::onSessionDownDeferred, startRestartTimer, handleTimerExpired, enterLLGRLocked, handleLLSTExpired. Native panic records establish producer reachability only; semantic discrimination comes from those exact inventory/state/deadline assertions. This verdict covers this row's pre-reestablishment retention obligation, not separately recorded consecutive-restart, resynchronization or egress-community findings. No new check or interop run is claimed.",
+  "requirement_sha": "8760148f130249ac",
+  "tests": {
+    "internal/component/bgp/plugins/gr/gr_state_test.go::TestLLSTTimerExpiry_LastFamily": "7ff5f8c62f5f9ada",
+    "internal/component/bgp/plugins/gr/gr_state_test.go::TestOnTimerExpired_WithoutLLGR": "7ff5f8c62f5f9ada",
+    "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494BothTimesZeroRetainsNothing": "b9cbfb5253395aa5",
+    "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494DelayedDownPreservesLLSTDeadlines": "b9cbfb5253395aa5",
+    "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494RestartTimeThenLongLivedStaleTime": "b9cbfb5253395aa5",
+    "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod": "b9cbfb5253395aa5",
+    "internal/component/bgp/plugins/gr/rfc9494_omitted_gr_family_test.go::TestLLGROmittedGRFamilyReadvertisementDoesNotDelaySiblingExpiry": "ecb782a7382901b1",
+    "internal/component/bgp/plugins/gr/rfc9494_omitted_gr_family_test.go::TestLLGROmittedGRFamilyRetainsRealRIB": "ecb782a7382901b1",
+    "internal/component/bgp/plugins/gr/rfc9494_omitted_gr_family_test.go::TestLLGROmittedGRFamilyTimerSurvivesConventionalEntry": "ecb782a7382901b1",
+    "internal/component/bgp/plugins/gr/rfc9494_omitted_gr_family_test.go::TestLLGROmittedGRFamilyWithoutLLSTIsRemoved": "ecb782a7382901b1"
+  },
+  "units": {
+    "internal/component/bgp/plugins/gr/gr_state_test.go::TestLLSTTimerExpiry_LastFamily": "e2533bf5e08b7686",
+    "internal/component/bgp/plugins/gr/gr_state_test.go::TestOnTimerExpired_WithoutLLGR": "d2d59c18e2f649d9",
+    "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494BothTimesZeroRetainsNothing": "6e3b080b5b842c4b",
+    "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494DelayedDownPreservesLLSTDeadlines": "61a5be001e19f5b3",
+    "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494RestartTimeThenLongLivedStaleTime": "7916063e0abfe63d",
+    "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494ZeroRestartTimeRetainsThroughTheLLGRPeriod": "4d735a27f3177ed5",
+    "internal/component/bgp/plugins/gr/rfc9494_omitted_gr_family_test.go::TestLLGROmittedGRFamilyReadvertisementDoesNotDelaySiblingExpiry": "f6233758fc6ff169",
+    "internal/component/bgp/plugins/gr/rfc9494_omitted_gr_family_test.go::TestLLGROmittedGRFamilyRetainsRealRIB": "33e46420ca915b57",
+    "internal/component/bgp/plugins/gr/rfc9494_omitted_gr_family_test.go::TestLLGROmittedGRFamilyTimerSurvivesConventionalEntry": "9225906a8487181d",
+    "internal/component/bgp/plugins/gr/rfc9494_omitted_gr_family_test.go::TestLLGROmittedGRFamilyWithoutLLSTIsRemoved": "bf3f7db7129feb9a"
+  },
+  "verdict": "enforced"
+}

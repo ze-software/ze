@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-5",
+    "polarity": "positive",
+    "unit": "internal/core/bgp/capability/capability_test.go::TestParsePathsLimitSkipZero",
+    "unit-sha": "32dbd6e6ea9d1e18",
+    "claim-sha": "17a4bdbbac5d5fc1",
+    "route": "mutant",
+    "producer": "internal/core/bgp/capability/capability.go::parsePathsLimit",
+    "producer-sha": "d4672a7ae55c074a",
+    "break": "line 873: \"limit == 0\" -\u003e \"false\""
+  },
+  {
+    "rid": "DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-5",
+    "polarity": "negative",
+    "unit": "internal/core/bgp/capability/capability_test.go::TestParsePathsLimitSkipZero",
+    "unit-sha": "32dbd6e6ea9d1e18",
+    "claim-sha": "181b1667d1c1b579",
+    "route": "mutant",
+    "producer": "internal/core/bgp/capability/capability.go::parsePathsLimit",
+    "producer-sha": "d4672a7ae55c074a",
+    "break": "line 873: \"limit == 0\" -\u003e \"false\""
+  },
+  {
+    "rid": "DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-5",
+    "polarity": "negative",
+    "unit": "internal/core/bgp/capability/capability_test.go::TestParsePathsLimitZeroFirst",
+    "unit-sha": "6687bd054f9c00b0",
+    "claim-sha": "ee8f8633a2e7b043",
+    "route": "mutant",
+    "producer": "internal/core/bgp/capability/capability.go::parsePathsLimit",
+    "producer-sha": "d4672a7ae55c074a",
+    "break": "line 873: \"limit == 0\" -\u003e \"false\""
+  }
+]

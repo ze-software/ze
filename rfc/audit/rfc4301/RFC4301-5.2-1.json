@@ -1,0 +1,15 @@
+{
+  "code": {
+    "internal/component/ike/dataplane/vpp_policy.go::vppPolicyInterface": "00554018ad645f31",
+    "internal/component/ike/engine/apply.go::applyConfig": "1be52383b6228a02",
+    "internal/component/ike/engine/apply.go::releaseSPD": "37cfdc7d5aa7000d",
+    "internal/component/ike/engine/apply.go::shutdown": "5cc3dbd36e0e32bf",
+    "internal/component/ike/engine/spd_left.go::warnSPDLeft": "e6ee24d12929d61c",
+    "internal/component/ike/engine/unmatched.go::installUnmatched": "260cadeb5e35be57",
+    "internal/component/ike/engine/unmatched.go::verifyUnmatchedEnforceable": "6aec367cbfc81f98",
+    "internal/plugins/ospf/ipsec_install.go::defaultDataplaneSource": "f1afcc7c5c0fb959"
+  },
+  "note": "Re-judged 2026-10-20 (independent judge, after d6e44c3bb1). Section 4.4.1: \"Since the SPD-I is just a part of the SPD, if a packet that is looked up in the SPD-I cannot be matched to an entry there, then the packet MUST be discarded.\" The only cited producer that moved is warnSPDLeft (spd_left.go): d6e44c3bb1 changed the warning text alone (each leftover entry is now named by its full `ip xfrm policy delete` command via describe/deleteCommand, sorted, carrying proto, sport, dport and if_id). Its contract is unchanged: it returns true exactly when the ledger is non-empty, and releaseSPD (apply.go) still returns before removeUnmatched in that case, so the catch-all still outlives every Ze entry a removal left. The gap paths are unaffected: VPP runs only under `unmatched bypass` with no catch-all (vppPolicyInterface, CatchAllSupported answering ErrNoNodeWideSPD), and the OSPFv3 RFC 4552 manual-key entries installed via defaultDataplaneSource have no catch-all beneath them, so an inbound packet can still meet no SPD-I entry and be delivered. Named tests TestReleaseSPDKeepsTheCatchAllWhenARemovalFails (now asserting the command form), TestRFC4301FinalEntryIsUnderEveryZeSPDEntry, TestRunInstallsNoSPDEntryBeforeTheFirstApply, TestRFC4301InboundClearPacketMatchingNoEntryFollowsTheUnmatchedLeaf and TestUnmatched* pass at HEAD. Gap stands; {gap} annotation accurate.",
+  "requirement_sha": "627457a03bb75173",
+  "verdict": "unimplemented"
+}

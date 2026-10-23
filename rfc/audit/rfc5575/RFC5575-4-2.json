@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-10-16 after the codec moved to internal/core/bgp/nlri/flowspec; the two types_test units changed only by package qualification. RFC 5575 Section 4: \"The (AFI, SAFI) pair carried in the Multiprotocol Extension Capability MUST be the same as the one used to identify a particular application that uses this NLRI-type.\" TestFlowSpecIPv4Basic/TestFlowSpecVPNFamily pin the plugin-registered families (register.go family.MustRegister) to AFI 1/SAFI 133 and AFI 1-2/SAFI 134. The proof is the reactor unit TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily: for flow and flow-vpn it requires the configured OPEN to advertise the pair, requires the MP_REACH AFI/SAFI and NLRI to equal it exactly through AnnounceNLRIBatch, and with the crossed SAFI negotiated requires ErrNoPeersAcceptedFamily and zero bytes written. Scoped go test of core flowspec, plugin flowspec, message and flowspec-firewall packages green on this tree.",
+  "requirement_sha": "cc0ead3ebab90fe6",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecIPv4Basic": "edf3d98f88af0674",
+    "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecVPNFamily": "edf3d98f88af0674",
+    "internal/component/bgp/reactor/rfc5575_capability_wire_test.go::TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily": "44aafccadd4f630f",
+    "internal/component/bgp/reactor/rfc5575_capability_wire_test.go::TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily#2": "44aafccadd4f630f"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecIPv4Basic": "d7191433e73ee5c1",
+    "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestFlowSpecVPNFamily": "d1011c4281539ce9",
+    "internal/component/bgp/reactor/rfc5575_capability_wire_test.go::TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily": "e03305f2198350e1",
+    "internal/component/bgp/reactor/rfc5575_capability_wire_test.go::TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily#2": "e03305f2198350e1"
+  },
+  "verdict": "enforced"
+}

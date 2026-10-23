@@ -1,0 +1,15 @@
+{
+  "note": "Sender: TestRFC5282AEADSendAssociatedDataExcludesTheIVAndCiphertext opens both ends' real messages under the span stopping before the IV and refuses AAD covering the IV and IV+ciphertext. Receiver: TestRFC5282AEADAssociatedDataExcludesTheIVAndCiphertext accepts, TestRFC5282AEADRefusesAssociatedDataCoveringTheIV refuses.",
+  "requirement_sha": "98a21f9c2c7029d6",
+  "tests": {
+    "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282AEADSendAssociatedDataExcludesTheIVAndCiphertext": "d2a8fe0dab3c6a2d",
+    "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADAssociatedDataExcludesTheIVAndCiphertext": "2d69d15f1cde2ecb",
+    "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADRefusesAssociatedDataCoveringTheIV": "2d69d15f1cde2ecb"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc5282_aead_send_test.go::TestRFC5282AEADSendAssociatedDataExcludesTheIVAndCiphertext": "b1956e7d7d76f026",
+    "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADAssociatedDataExcludesTheIVAndCiphertext": "12bd50ab9f3079b3",
+    "internal/component/ike/engine/rfc5282_aead_sk_test.go::TestRFC5282AEADRefusesAssociatedDataCoveringTheIV": "1069cc8ca61b7ac5"
+  },
+  "verdict": "enforced"
+}

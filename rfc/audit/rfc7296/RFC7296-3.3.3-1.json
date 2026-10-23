@@ -1,0 +1,17 @@
+{
+  "note": "transformTypeUnderstood per protocol matches the Section 3.3.3 table; engine refuses ESN in an IKE proposal. Re-judged 2026-09-30 (leftovers): TestTftUnknownTransformTypeMakesProposalUnacceptable changed only by the two added RFC7296-3.3.2-1 tag lines; body identical to HEAD, judge ran it: PASS; verdict unchanged.",
+  "requirement_sha": "b346b35bec83b562",
+  "tests": {
+    "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropTransformTypesUnderstoodPerProtocol": "08f2f5dac8da8a2b",
+    "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropTransformTypesUnderstoodPerProtocol#2": "08f2f5dac8da8a2b",
+    "internal/component/ike/engine/rfc7296_transformtype_test.go::TestTftUnknownTransformTypeMakesProposalUnacceptable": "c6f9e1efcdc6b0c3",
+    "internal/component/ike/engine/rfc7296_transformtype_test.go::TestTftUnknownTransformTypeMakesProposalUnacceptable#2": "c6f9e1efcdc6b0c3"
+  },
+  "units": {
+    "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropTransformTypesUnderstoodPerProtocol": "282e572dfb0c83ef",
+    "internal/component/ike/crypto/rfc7296_proposal_test.go::TestPropTransformTypesUnderstoodPerProtocol#2": "282e572dfb0c83ef",
+    "internal/component/ike/engine/rfc7296_transformtype_test.go::TestTftUnknownTransformTypeMakesProposalUnacceptable": "7e5e0ddfaf77e91c",
+    "internal/component/ike/engine/rfc7296_transformtype_test.go::TestTftUnknownTransformTypeMakesProposalUnacceptable#2": "7e5e0ddfaf77e91c"
+  },
+  "verdict": "enforced"
+}

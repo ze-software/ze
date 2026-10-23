@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC7858-8-1",
+    "polarity": "positive",
+    "unit": "internal/core/dnsserver/rfc7858_bcp195_test.go::TestRFC7858DoTNegotiatesOnlyBCP195Suites",
+    "unit-sha": "e84cf0008f449d64",
+    "claim-sha": "809afac45c396655",
+    "route": "revert",
+    "producer": "internal/core/selfcert/selfcert.go::NewTLSConfig",
+    "producer-sha": "9e333cd472e00b0e",
+    "break": "body of NewTLSConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7858-8-1",
+    "polarity": "negative",
+    "unit": "internal/core/dnsserver/rfc7858_bcp195_test.go::TestRFC7858DoTNegotiatesOnlyBCP195Suites",
+    "unit-sha": "e84cf0008f449d64",
+    "claim-sha": "4ff8be4aea8f5e20",
+    "route": "revert",
+    "producer": "internal/core/selfcert/selfcert.go::NewTLSConfig",
+    "producer-sha": "9e333cd472e00b0e",
+    "break": "body of NewTLSConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7858-8-1",
+    "polarity": "positive",
+    "unit": "internal/core/dnsserver/secure_test.go::TestDoTListener",
+    "unit-sha": "f514dc01ae109f07",
+    "claim-sha": "c3cdcbe662c85d44",
+    "route": "revert",
+    "producer": "internal/core/selfcert/selfcert.go::NewTLSConfig",
+    "producer-sha": "9e333cd472e00b0e",
+    "break": "body of NewTLSConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7858-8-1",
+    "polarity": "negative",
+    "unit": "internal/core/dnsserver/secure_test.go::TestDoTRejectsBelowTLS12",
+    "unit-sha": "eeeaf010f3c0874c",
+    "claim-sha": "d62075162e681daa",
+    "route": "revert",
+    "producer": "internal/core/selfcert/selfcert.go::NewTLSConfig",
+    "producer-sha": "9e333cd472e00b0e",
+    "break": "body of NewTLSConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

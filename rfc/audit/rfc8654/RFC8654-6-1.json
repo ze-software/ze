@@ -1,0 +1,29 @@
+{
+  "note": "Both Section 6 paragraphs are retained: common header minimum, the raised maximum only after local capability advertisement, and OPEN/KEEPALIVE exceptions; header controls assert per-type limits, invalid lengths, OPEN refusal above 4096 and KEEPALIVE refusal at 20, while capability tests distinguish receive and send permission for all four advertisement combinations; ReceiveLimitFollowsLocalOPEN exchanges actual OPENs and drives both readers at 4096, 4097 and 65535, requiring exact complete dispatched payloads or NOTIFICATION 1/2 with erroneous Length and no dispatch; AnnouncementAccumulation uses individually standard-sized inputs to isolate batching capacity and asserts exact consumer batches beyond 4096 through 65535, overflow/KEEPALIVE flushing and standard-sized batching without local advertisement; current source uses the directional receive permission for buffers and header admission, and existing TestValidateLengthWithMax binding omissions are standing metadata debt rather than a new source or semantic gap",
+  "requirement_sha": "e3cfe43c3eb21f36",
+  "tests": {
+    "internal/component/bgp/message/header_test.go::TestValidateLengthWithMax": "4eb31663a97bb3a8",
+    "internal/component/bgp/message/header_test.go::TestValidateLengthWithMax#2": "4eb31663a97bb3a8",
+    "internal/component/bgp/message/rfc8654_length_bounds_test.go::TestRFC8654LengthBoundsPerTypeAndCapability": "d650224808e8093a",
+    "internal/component/bgp/message/rfc8654_length_bounds_test.go::TestRFC8654LengthBoundsPerTypeAndCapability#2": "d650224808e8093a",
+    "internal/component/bgp/reactor/rfc8654_directional_session_test.go::TestRFC8654AnnouncementAccumulation": "2dc714d2cb055c17",
+    "internal/component/bgp/reactor/rfc8654_directional_session_test.go::TestRFC8654AnnouncementAccumulation#2": "2dc714d2cb055c17",
+    "internal/component/bgp/reactor/rfc8654_directional_session_test.go::TestRFC8654ReceiveLimitFollowsLocalOPEN": "2dc714d2cb055c17",
+    "internal/component/bgp/reactor/rfc8654_directional_session_test.go::TestRFC8654ReceiveLimitFollowsLocalOPEN#2": "2dc714d2cb055c17",
+    "internal/core/bgp/capability/rfc8654_extended_message_test.go::TestRFC8654ExtendedMessageDirections": "fc329d90dcc84324",
+    "internal/core/bgp/capability/rfc8654_extended_message_test.go::TestRFC8654ExtendedMessageDirections#2": "fc329d90dcc84324"
+  },
+  "units": {
+    "internal/component/bgp/message/header_test.go::TestValidateLengthWithMax": "6d34dfe53245e5aa",
+    "internal/component/bgp/message/header_test.go::TestValidateLengthWithMax#2": "6d34dfe53245e5aa",
+    "internal/component/bgp/message/rfc8654_length_bounds_test.go::TestRFC8654LengthBoundsPerTypeAndCapability": "9488e67e26c6b5cf",
+    "internal/component/bgp/message/rfc8654_length_bounds_test.go::TestRFC8654LengthBoundsPerTypeAndCapability#2": "9488e67e26c6b5cf",
+    "internal/component/bgp/reactor/rfc8654_directional_session_test.go::TestRFC8654AnnouncementAccumulation": "0f2cc0bc870eee92",
+    "internal/component/bgp/reactor/rfc8654_directional_session_test.go::TestRFC8654AnnouncementAccumulation#2": "0f2cc0bc870eee92",
+    "internal/component/bgp/reactor/rfc8654_directional_session_test.go::TestRFC8654ReceiveLimitFollowsLocalOPEN": "67bfabb5fa86205a",
+    "internal/component/bgp/reactor/rfc8654_directional_session_test.go::TestRFC8654ReceiveLimitFollowsLocalOPEN#2": "67bfabb5fa86205a",
+    "internal/core/bgp/capability/rfc8654_extended_message_test.go::TestRFC8654ExtendedMessageDirections": "02cc9cc4d8d15a81",
+    "internal/core/bgp/capability/rfc8654_extended_message_test.go::TestRFC8654ExtendedMessageDirections#2": "02cc9cc4d8d15a81"
+  },
+  "verdict": "enforced"
+}

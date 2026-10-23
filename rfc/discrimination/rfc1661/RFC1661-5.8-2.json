@@ -1,0 +1,57 @@
+[
+  {
+    "rid": "RFC1661-5.8-2",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661KeepaliveEchoOnlyInOpened",
+    "unit-sha": "aa34714d733a838a",
+    "claim-sha": "a6864d7d0ae9e453",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/session_run.go::sendEchoRequest",
+    "producer-sha": "67e08de14e9b2399",
+    "break": "body of sendEchoRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1661-5.8-2",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestRFC1661KeepaliveEchoOnlyInOpened",
+    "unit-sha": "aa34714d733a838a",
+    "claim-sha": "bf42c255a642925a",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/session_run.go::run",
+    "producer-sha": "81d41b46bd2a232c",
+    "break": "body of run replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1661-5.8-2",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661EchoReplyInOpened",
+    "unit-sha": "ca2feca8b2be99ce",
+    "claim-sha": "3c44d9938633550e",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/session_run.go::sendEchoReply",
+    "producer-sha": "da21343f0f83931f",
+    "break": "body of sendEchoReply replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1661-5.8-2",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoEchoOutsideOpened",
+    "unit-sha": "46cbbad7d41f3340",
+    "claim-sha": "815271c6447235f2",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/ppp_fsm.go::LCPDoTransition",
+    "producer-sha": "796174bb0f8b3d29",
+    "break": "body of LCPDoTransition replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1661-5.8-2",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/pppoeclient/rfc1661_lcp_transition_test.go::TestClientLCPEchoBeforeOpenDiscarded",
+    "unit-sha": "3ebbce0bee8bf048",
+    "claim-sha": "0780a74cfcc16e8e",
+    "route": "revert",
+    "producer": "internal/component/l2tp/pppoeclient/session.go::negotiateLCP",
+    "producer-sha": "f652f1dccc36474b",
+    "break": "body of negotiateLCP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

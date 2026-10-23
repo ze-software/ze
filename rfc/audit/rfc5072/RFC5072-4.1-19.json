@@ -1,0 +1,11 @@
+{
+  "note": "Forbidden: Naking a second option-less Configure-Request after having Naked the first. TestIPv6CPMissingOptionIsNakedOnce fails when the second evalIPv6CPRequest verdict is not ncpRequestAcceptable (i.e. a second Nak). The first-call assertion bounds it. Single-polarity marker present.",
+  "requirement_sha": "8701bd9511ba0f60",
+  "tests": {
+    "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPMissingOptionIsNakedOnce": "99a68f4293234999"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPMissingOptionIsNakedOnce": "957508221554b045"
+  },
+  "verdict": "enforced"
+}

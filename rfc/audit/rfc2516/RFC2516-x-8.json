@@ -1,0 +1,11 @@
+{
+  "note": "single-polarity; TestUnknownTagIgnored parses a frame with an unknown tag without error and keeps known tags findable",
+  "requirement_sha": "13b0267cb0b88970",
+  "tests": {
+    "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestUnknownTagIgnored": "b7c2fae4a50abe95"
+  },
+  "units": {
+    "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestUnknownTagIgnored": "fe24617a55eae8f6"
+  },
+  "verdict": "enforced"
+}

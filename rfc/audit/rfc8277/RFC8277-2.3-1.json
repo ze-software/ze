@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged 2026-10-02 (BGP c28 judge). Forbidden: a non-last label entry transmitted with S=1. Positive: TestRFC8277BuilderLabelLayout pins 50 000640 000c80 0012c1 0a and 78 000640 000c81 <RD> 0a through WriteLabelValues; HEAD TestLabeledLabelStackSBitPlacement covers WriteTo built from values. Genuine negative (R1(b)): TestRFC8277RelayedStackSBitRewritten hands WriteTo entries 0x000641, 0x000c81, 0x0012c0 (S=1 mid-stack) and asserts the S bits are cleared. Judge overlay dropping 'entry &^= 1' in WriteLabelStack reds the negative only (50000641000c810012c10a) while the HEAD placement test stays green, so the new unit is what discriminates the relay path. Marker dropped, records on both polarities.",
+  "requirement_sha": "4c59029fd06aa859",
+  "tests": {
+    "internal/component/bgp/message/rfc8277_label_layout_test.go::TestRFC8277BuilderLabelLayout": "bc0d36b08721c366",
+    "internal/component/bgp/plugins/nlri/labeled/rfc8277_sbit_relay_test.go::TestRFC8277RelayedStackSBitRewritten": "06c2f61c2345346e",
+    "internal/component/bgp/plugins/nlri/labeled/rfc8277_test.go::TestLabeledLabelStackSBitPlacement": "20798a2559b785cc"
+  },
+  "units": {
+    "internal/component/bgp/message/rfc8277_label_layout_test.go::TestRFC8277BuilderLabelLayout": "3ca769542f91b6c7",
+    "internal/component/bgp/plugins/nlri/labeled/rfc8277_sbit_relay_test.go::TestRFC8277RelayedStackSBitRewritten": "e3f38f06486d5120",
+    "internal/component/bgp/plugins/nlri/labeled/rfc8277_test.go::TestLabeledLabelStackSBitPlacement": "21e8850ccf2757d1"
+  },
+  "verdict": "enforced"
+}

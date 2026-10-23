@@ -1,0 +1,57 @@
+[
+  {
+    "rid": "RFC7296-3.1-12",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_header_test.go::TestResponseBitMatchesDirection",
+    "unit-sha": "8f9daf85e361c448",
+    "claim-sha": "2caae3d0a054229a",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/responder.go::handleResponderInbound",
+    "producer-sha": "12d94c65a350be00",
+    "break": "body of handleResponderInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-3.1-12",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_noresponse_test.go::TestNrsInformationalHandlerRefusesAResponse",
+    "unit-sha": "566f904d46620b6f",
+    "claim-sha": "63f9cbb9146a2a7c",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/inbound.go::handleInformationalOwned",
+    "producer-sha": "16e89dc41a6d249a",
+    "break": "body of handleInformationalOwned replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-3.1-12",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_noresponse_test.go::TestNrsInformationalHandlerRefusesAResponse",
+    "unit-sha": "566f904d46620b6f",
+    "claim-sha": "a42b6da29ece87bd",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/inbound.go::handleInformationalOwned",
+    "producer-sha": "16e89dc41a6d249a",
+    "break": "body of handleInformationalOwned replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-3.1-12",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_noresponse_test.go::TestNrsResponseNeverDrawsAResponse",
+    "unit-sha": "4f67d0182d090c16",
+    "claim-sha": "0b52f7d9337e3592",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/inbound.go::handleCreateChildSAOwned",
+    "producer-sha": "5f2528c88290ae24",
+    "break": "body of handleCreateChildSAOwned replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-3.1-12",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_noresponse_test.go::TestNrsResponseNeverDrawsAResponse",
+    "unit-sha": "4f67d0182d090c16",
+    "claim-sha": "473a9aa73738f15d",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/inbound.go::handleCreateChildSAOwned",
+    "producer-sha": "5f2528c88290ae24",
+    "break": "body of handleCreateChildSAOwned replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

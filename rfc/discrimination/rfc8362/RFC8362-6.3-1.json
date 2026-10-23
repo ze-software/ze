@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC8362-6.3-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/rfc8362_unknown_tlv_test.go::TestRFC8362UnknownTLVIgnoredByBGPLS",
+    "unit-sha": "f1e4f332efa0fbce",
+    "claim-sha": "de49e38820b4bd47",
+    "route": "mutant",
+    "producer": "internal/plugins/ospf/bgpls_export.go::extendedV3",
+    "producer-sha": "b58e088b5ecf1a8d",
+    "break": "line 1250: \"\u0026\u0026\" -\u003e \"||\""
+  },
+  {
+    "rid": "RFC8362-6.3-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/rfc8362_unknown_tlv_test.go::TestRFC8362UnknownTLVIgnoredByPrefixSIDs",
+    "unit-sha": "3a014faebcb7b3db",
+    "claim-sha": "c78c81b6645155b4",
+    "route": "mutant",
+    "producer": "internal/plugins/ospf/sr_reception_v6.go::v6PrefixSIDsFromTLV",
+    "producer-sha": "5a93c95847b8a481",
+    "break": "line 120: \"v6TLVCarriesPrefixSIDSubTLVs(tlv.Type)\" -\u003e \"true\""
+  },
+  {
+    "rid": "RFC8362-6.3-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc8362_unknown_tlv_test.go::TestRFC8362UnknownTLVKeepsLSAForBGPLS",
+    "unit-sha": "e7e1c4eccbc49135",
+    "claim-sha": "57e7c69a6a19dab9",
+    "route": "mutant",
+    "producer": "internal/plugins/ospf/bgpls_export.go::extendedV3",
+    "producer-sha": "b58e088b5ecf1a8d",
+    "break": "line 1184: \"srV3ExtendedLengthInvalid(ext.TLVs)\" -\u003e \"true\""
+  },
+  {
+    "rid": "RFC8362-6.3-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc8362_unknown_tlv_test.go::TestRFC8362UnknownTLVKeepsLSAForPrefixSIDs",
+    "unit-sha": "d556895d196179d8",
+    "claim-sha": "01fc06ae2e8ac42e",
+    "route": "mutant",
+    "producer": "internal/plugins/ospf/sr_reception_v6.go::v6ReceivedPrefixSIDs",
+    "producer-sha": "4eaab98114965d38",
+    "break": "line 76: \"srV3ExtendedLengthInvalid(ext.TLVs)\" -\u003e \"true\""
+  }
+]

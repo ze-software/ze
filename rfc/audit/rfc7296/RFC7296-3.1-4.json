@@ -1,0 +1,15 @@
+{
+  "note": "First message: TestSPIZeroRules asserts octets 8..15 zero in Ze's IKE_SA_INIT request, non-zero in the response. Cookie repeat: TestRFC7296ResponderSPIIsZeroInTheFirstMessageAndItsCookieRepeat answers a COOKIE challenge whose Responder's SPI is 0909..09, checks the repeat carries the COOKIE notify and the same Initiator's SPI, and asserts octets 8..15 of the repeat are zero, red on a retry that copies the challenge's SPI. Rejudged 2026-10-02: TestSPIZeroRules changed only by the removal of its RFC7296-3.1-3 negative tag lines; the 3.1-4 assertions are unchanged.",
+  "requirement_sha": "aec2989709fac5ae",
+  "tests": {
+    "internal/component/ike/engine/rfc7296_header_test.go::TestSPIZeroRules": "3621c3a699e1b772",
+    "internal/component/ike/engine/rfc7296_header_test.go::TestSPIZeroRules#2": "3621c3a699e1b772",
+    "internal/component/ike/engine/rfc7296_spi_cookie_test.go::TestRFC7296ResponderSPIIsZeroInTheFirstMessageAndItsCookieRepeat": "9e3b858e56f0381a"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7296_header_test.go::TestSPIZeroRules": "8c22f393434b327c",
+    "internal/component/ike/engine/rfc7296_header_test.go::TestSPIZeroRules#2": "8c22f393434b327c",
+    "internal/component/ike/engine/rfc7296_spi_cookie_test.go::TestRFC7296ResponderSPIIsZeroInTheFirstMessageAndItsCookieRepeat": "e5feaf9700e10c59"
+  },
+  "verdict": "enforced"
+}

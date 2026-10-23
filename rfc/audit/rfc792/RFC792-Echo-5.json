@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-09-30. Positive: odd-length data returned byte-for-byte (TestGatewayICMPEchoReply). Negative: TestGatewayICMPEchoReplyToTheQueriedAddress sends 1, 333 and 1400 data octets with distinct bytes, and each reply must carry exactly its own data (bytes.Equal against its own request, no pad, truncation or cross-over), and every request must be answered. Linux forms the reply; the records break Ze's AddAddress, so they prove the units observe the stack answer Ze configures, and the data clause itself rests on the exact assertion. Counted under the whole-stack rule (ai/rules/rfc-compliance.md): Ze fills the gateway role and the stack performs the obligation on its behalf.",
+  "requirement_sha": "2638c1cf3ce02daf",
+  "tests": {
+    "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "6fa365d5d54aea79",
+    "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReplyToTheQueriedAddress": "6fa365d5d54aea79"
+  },
+  "units": {
+    "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReply": "2e14d56234529006",
+    "internal/plugins/vrrp/rfc792_gateway_icmp_integration_linux_test.go::TestGatewayICMPEchoReplyToTheQueriedAddress": "59493216366409b7"
+  },
+  "verdict": "enforced"
+}

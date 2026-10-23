@@ -1,0 +1,13 @@
+{
+  "note": "TestRFC9728ResourceMatchesInsertedIdentifier proves one identifier: resource https://mcp.example/api at .../oauth-protected-resource/api, and that the audience override is not returned. It does not cover an identifier with a trailing path slash: for https://mcp.example/mcp/ Ze forms the URL from /mcp (TrimRight in resourceOriginAndPath) and returns resource https://mcp.example/mcp/, so the returned value differs from the identifier the URL was formed from, and no tagged assertion goes red.",
+  "requirement_sha": "b317ac85ce99dd94",
+  "tests": {
+    "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728ResourceMatchesInsertedIdentifier": "70cb12fbb65e4490",
+    "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728ResourceMatchesInsertedIdentifier#2": "70cb12fbb65e4490"
+  },
+  "units": {
+    "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728ResourceMatchesInsertedIdentifier": "437b393eee652735",
+    "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728ResourceMatchesInsertedIdentifier#2": "437b393eee652735"
+  },
+  "verdict": "weak"
+}

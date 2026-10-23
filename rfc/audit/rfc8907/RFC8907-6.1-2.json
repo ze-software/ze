@@ -1,0 +1,13 @@
+{
+  "note": "(a) forbidden: an argument whose name contains = or *. (b) TestRFC8907ArgumentNamesCarryNoSeparator requires every built name to be service, cmd or cmd-arg; TestRFC8907ArgumentValueKeepsSeparatorOutOfName requires splitTacacsArgs(\"set key=a*b value=*\") to equal exactly service=shell, cmd=set, cmd-arg=key=a*b, cmd-arg=value=*, so a token carried as a name goes red.",
+  "requirement_sha": "a5e78ddcefbcbfbf",
+  "tests": {
+    "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907ArgumentNamesCarryNoSeparator": "226ab125232efc32",
+    "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907ArgumentValueKeepsSeparatorOutOfName": "226ab125232efc32"
+  },
+  "units": {
+    "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907ArgumentNamesCarryNoSeparator": "2676c45dcbf7d8f4",
+    "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907ArgumentValueKeepsSeparatorOutOfName": "8f20438dbab55a08"
+  },
+  "verdict": "enforced"
+}

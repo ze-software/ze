@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC3209-4.3.3.1-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/rfc3209_explicit_hops_test.go::TestRFC3209StrictHopReachedDirectly",
+    "unit-sha": "68e3e73029c90175",
+    "claim-sha": "68c32388950a7ab2",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/routing.go::resolveExplicitPath",
+    "producer-sha": "0deccc8d4603d01c",
+    "break": "body of resolveExplicitPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3209-4.3.3.1-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/rsvpte/rfc3209_explicit_hops_test.go::TestRFC3209StrictHopThroughOutsideNodeRefused",
+    "unit-sha": "83152ec029519c5c",
+    "claim-sha": "3c3b9c1a9fbac82e",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/routing.go::resolveExplicitPath",
+    "producer-sha": "0deccc8d4603d01c",
+    "break": "body of resolveExplicitPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

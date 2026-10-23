@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC4090-4.4-3",
+    "polarity": "negative",
+    "unit": "internal/plugins/rsvpte/frr_test.go::TestRROProtectionFlagsReflectState",
+    "unit-sha": "f5cab09b59675519",
+    "claim-sha": "e947e24eb34f3ead",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/frr.go::rroProtectionFlags",
+    "producer-sha": "f485360d9b8e2b03",
+    "break": "body of rroProtectionFlags replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4090-4.4-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/frr_test.go::TestRROProtectionFlagsReflectState",
+    "unit-sha": "f5cab09b59675519",
+    "claim-sha": "ac415919d1ceb840",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/frr.go::rroProtectionFlags",
+    "producer-sha": "f485360d9b8e2b03",
+    "break": "body of rroProtectionFlags replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4090-4.4-3",
+    "polarity": "negative",
+    "unit": "internal/plugins/rsvpte/rfc4090_plr_flags_test.go::TestRFC4090NodeBitClearWhenNodeProtectionNotProvided",
+    "unit-sha": "3f77f8353157d85f",
+    "claim-sha": "f2c23fc6f789f8b1",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/frr.go::selectBypass",
+    "producer-sha": "c78b83e2ef5ceb5b",
+    "break": "body of selectBypass replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4090-4.4-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/rfc4090_plr_flags_test.go::TestRFC4090NodeBitSetWhenNodeProtectionProvided",
+    "unit-sha": "218132caedb16f92",
+    "claim-sha": "111cbace709eb740",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/frr.go::rroProtectionFlags",
+    "producer-sha": "f485360d9b8e2b03",
+    "break": "body of rroProtectionFlags replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

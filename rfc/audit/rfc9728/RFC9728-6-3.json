@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: comparing without removing JSON escaping, or removing it more than once. Red: TestRFC9728EscapedAudienceMatchesResource fails if verifyJWT refuses an aud with \\u0026 against the & identifier; TestRFC9728EscapeTextIsNotUnescapedTwice fails unless a literal \\u0026 aud is refused with errJWTAudienceMismatch.",
+  "requirement_sha": "3c50e4ddf206f71c",
+  "tests": {
+    "internal/component/mcp/rfc9728_jwt_test.go::TestRFC9728EscapeTextIsNotUnescapedTwice": "cee1b3fa29ccc930",
+    "internal/component/mcp/rfc9728_jwt_test.go::TestRFC9728EscapedAudienceMatchesResource": "cee1b3fa29ccc930"
+  },
+  "units": {
+    "internal/component/mcp/rfc9728_jwt_test.go::TestRFC9728EscapeTextIsNotUnescapedTwice": "0742fbc0fa9704a6",
+    "internal/component/mcp/rfc9728_jwt_test.go::TestRFC9728EscapedAudienceMatchesResource": "376cecfe276c136e"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: the Designated Router for a network not originating its network-LSA. Red: TestRFC2328DROriginatesNetworkLSA fails unless OriginateFromTopology produces a network-LSA for eth1 (where 1.1.1.1 is DR) listing exactly [1.1.1.1 3.3.3.3]. Other polarity: TestRFC2328NonDROriginatesNoNetworkLSA fails if the Backup on eth0 originates one. One clause, both polarities.",
+  "requirement_sha": "5c008f2f47472d5d",
+  "tests": {
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328DROriginatesNetworkLSA": "c4cd81c5b8b7e97a",
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328NonDROriginatesNoNetworkLSA": "c4cd81c5b8b7e97a"
+  },
+  "units": {
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328DROriginatesNetworkLSA": "303170d7596ede38",
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328NonDROriginatesNoNetworkLSA": "c5f2b48b91c4cc3a"
+  },
+  "verdict": "enforced"
+}

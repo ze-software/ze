@@ -1,0 +1,17 @@
+{
+  "note": "Forbidden: an Invalid route selected, or an Invalid route dropped from the Adj-RIB-In. TestASPARetentionReceiveRecovery asserts after an i decision that the stored route is Ineligible with its full attribute, NLRI and next-hop bytes (red if dropped) and validationSelection(false): not in Loc-RIB and not in best-path replay (red if selectable), then selectable after an a decision without another UPDATE. TestASPARetentionReplacementWithdrawal asserts a rejected replacement removes the old selection and retains the new bytes. adj_rib_in TestASPARetainedPathReplayRecovery covers retention on the Adj-RIB-In plugin.",
+  "requirement_sha": "9b88e417b1a9c145",
+  "tests": {
+    "internal/component/bgp/plugins/adj_rib_in/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go::TestASPARetainedPathReplayRecovery": "ee6ca3bfa879904d",
+    "internal/component/bgp/plugins/adj_rib_in/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go::TestASPARetainedPathReplayRecovery#2": "ee6ca3bfa879904d",
+    "internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go::TestASPARetentionReceiveRecovery": "e0a9d42f8f404d05",
+    "internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go::TestASPARetentionReplacementWithdrawal": "e0a9d42f8f404d05"
+  },
+  "units": {
+    "internal/component/bgp/plugins/adj_rib_in/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go::TestASPARetainedPathReplayRecovery": "4459e09f801977f6",
+    "internal/component/bgp/plugins/adj_rib_in/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go::TestASPARetainedPathReplayRecovery#2": "4459e09f801977f6",
+    "internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go::TestASPARetentionReceiveRecovery": "4ede615b4b082ab9",
+    "internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go::TestASPARetentionReplacementWithdrawal": "be0a4ceca4ebf4a0"
+  },
+  "verdict": "enforced"
+}

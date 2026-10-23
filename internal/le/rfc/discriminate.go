@@ -18,9 +18,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"os"
 	"regexp"
-	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -111,13 +109,6 @@ type DiscriminationRecord struct {
 // wherever a count is published: a claim that no break exists is debt rather
 // than evidence.
 func (r DiscriminationRecord) Proves() bool { return r.Route != RouteNoBreak }
-
-// discriminationFile is one rfc/discrimination/<stem>.json: the RFC it proves
-// and the records that prove it.
-type discriminationFile struct {
-	RFC     string                 `json:"rfc"`
-	Records []DiscriminationRecord `json:"records"`
-}
 
 // Cover is what one record proves: one requirement, in one direction, in one
 // TAGGED UNIT.
@@ -244,26 +235,13 @@ func claimSHA(tags []Tag) string {
 // opposite and is refused, because a corrupt record must never read as a clean
 // corpus (ai/rules/principles.md).
 func loadDiscrimination(tree string) ([]DiscriminationRecord, error) {
-	entries, err := os.ReadDir(treePath(tree, discriminationRel))
+	files, err := listEvidence(tree, discriminationRel)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
-		var tb textbuf.Buffer
-		return nil, parseErr(tb.Str(discriminationRel).Str(": cannot read: ").Err(err))
+		return nil, err
 	}
-	var names []string
-	for _, entry := range entries {
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), jsonSuffix) {
-			continue
-		}
-		names = append(names, entry.Name())
-	}
-	slices.Sort(names)
-
 	var out []DiscriminationRecord
-	for _, name := range names {
-		found, loadErr := loadDiscriminationFile(tree, name)
+	for _, file := range files {
+		found, loadErr := loadDiscriminationFile(tree, file)
 		if loadErr != nil {
 			return nil, loadErr
 		}
@@ -272,42 +250,47 @@ func loadDiscrimination(tree string) ([]DiscriminationRecord, error) {
 	return out, nil
 }
 
-// loadDiscriminationFile reads and VALIDATES one artifact file.
+// loadDiscriminationFile reads and VALIDATES one requirement's records.
 //
-// Unknown keys are refused rather than ignored, at both levels: a record whose
-// route was typed as `rout` would otherwise load with an empty route, and a
-// half-read record is the shape a false proof takes.
-func loadDiscriminationFile(tree, name string) ([]DiscriminationRecord, error) {
-	var relBuf textbuf.Buffer
-	rel := relBuf.Str(discriminationRel).Byte('/').Str(name).String()
-	raw, err := readFile(treePath(tree, discriminationRel, name), rel)
+// The file is a JSON array of records, and its path names the RFC and the
+// requirement, so every record must prove the requirement its file is named
+// for: a record filed under another id would be counted against the wrong row.
+// Unknown keys are refused rather than ignored: a record whose route was typed
+// as `rout` would otherwise load with an empty route, and a half-read record is
+// the shape a false proof takes.
+func loadDiscriminationFile(tree string, file evidenceFile) ([]DiscriminationRecord, error) {
+	raw, err := readFile(treePath(tree, file.Rel), file.Rel)
 	if err != nil {
 		return nil, err
 	}
+	return decodeDiscrimination(raw, file)
+}
 
+// decodeDiscrimination decodes and VALIDATES one requirement's records.
+func decodeDiscrimination(raw string, file evidenceFile) ([]DiscriminationRecord, error) {
 	var tb textbuf.Buffer
 	decoder := json.NewDecoder(strings.NewReader(raw))
 	decoder.DisallowUnknownFields()
-	var file discriminationFile
-	if decodeErr := decoder.Decode(&file); decodeErr != nil {
-		return nil, parseErr(tb.Str(rel).Str(": cannot read: ").Err(decodeErr))
+	var records []DiscriminationRecord
+	if decodeErr := decoder.Decode(&records); decodeErr != nil {
+		return nil, parseErr(tb.Str(file.Rel).Str(": cannot read: ").Err(decodeErr))
 	}
 	if decoder.More() {
-		return nil, parseErr(tb.Str(rel).Str(": trailing content after the JSON object"))
+		return nil, parseErr(tb.Str(file.Rel).Str(": trailing content after the JSON array"))
 	}
-	stem := strings.TrimSuffix(name, jsonSuffix)
-	if file.RFC != stem {
-		return nil, parseErr(tb.Str(rel).Str(": 'rfc' is ").Quoted(file.RFC).
-			Str(" but the filename says ").Quoted(stem).
-			Str(". The record names the RFC it proves; the two can never drift apart"))
-	}
-	for index := range file.Records {
-		file.Records[index].Source = rel
-		if err := validateDiscrimination(file.Records[index], rel, index+1); err != nil {
+	for index := range records {
+		records[index].Source = file.Rel
+		if err := validateDiscrimination(records[index], file.Rel, index+1); err != nil {
 			return nil, err
 		}
+		if records[index].RID != file.RID {
+			return nil, parseErr(tb.Str(file.Rel).Str(": record ").Int(int64(index + 1)).
+				Str(" proves ").Quoted(records[index].RID).Str(" but the filename says ").
+				Quoted(file.RID).Str(". A requirement's records live in its own file, so the ").
+				Str("two can never drift apart"))
+		}
 	}
-	return file.Records, nil
+	return records, nil
 }
 
 // validateDiscrimination refuses a record that cannot mean what it says.

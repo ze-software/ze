@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-09-29 (independent judge). Explicit cost 0 stays refused (TestInterfaceCostAndTransmitDelayBoundary). The unset-cost gap is closed: TestRFC2328DefaultedInterfaceCostIsPositive resolves interfaces from config text with no cost leaf and reads interfaceCost, the one producer every consumer uses (instance.go Router-LSA and routing-table cost, ldp_sync.go, te_originate.go): 1 Gbit/s under 100 Gbit/s -> 100, and the inputs that divide to 0 (100 Gbit/s under a 1 Mbit/s reference, unknown speed) -> 1. Records: revert on interfaceCost (positive) and on DefaultMetric (negative); a mutant dropping DefaultMetric's MetricMin clamp would be sharper.",
+  "requirement_sha": "1f1ae4c769c592bc",
+  "tests": {
+    "internal/plugins/ospf/rfc2328_config_interface_validate_test.go::TestInterfaceCostAndTransmitDelayBoundary": "44965ea02e856e15",
+    "internal/plugins/ospf/rfc2328_config_interface_validate_test.go::TestInterfaceCostAndTransmitDelayBoundary#2": "44965ea02e856e15",
+    "internal/plugins/ospf/rfc2328_cost_default_test.go::TestRFC2328DefaultedInterfaceCostIsPositive": "b18e8d4232705c6c",
+    "internal/plugins/ospf/rfc2328_cost_default_test.go::TestRFC2328DefaultedInterfaceCostIsPositive#2": "b18e8d4232705c6c"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc2328_config_interface_validate_test.go::TestInterfaceCostAndTransmitDelayBoundary": "af0552b6e7e35d3a",
+    "internal/plugins/ospf/rfc2328_config_interface_validate_test.go::TestInterfaceCostAndTransmitDelayBoundary#2": "af0552b6e7e35d3a",
+    "internal/plugins/ospf/rfc2328_cost_default_test.go::TestRFC2328DefaultedInterfaceCostIsPositive": "80c3a10fa24606da",
+    "internal/plugins/ospf/rfc2328_cost_default_test.go::TestRFC2328DefaultedInterfaceCostIsPositive#2": "80c3a10fa24606da"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,17 @@
+{
+  "note": "Rejudged 2026-09-29. Positive TestRFC8907EveryRequestCarriesMajorVersion12 reads the captured request header (not an echo) and requires major nibble 0xc for authentication, authorization and accounting, so a client emitting 0xd goes red. Negative TestRFC8907ReplyWithOtherMajorVersionRefused mutates only the reply major nibble (header check runs before the body is read) for all 15 other values x 3 kinds and requires error + zero status; producer validateResponseHeader.",
+  "requirement_sha": "8401b7be0414da04",
+  "tests": {
+    "internal/component/tacacs/rfc8907_client_test.go::TestTacacsClientAuthenticatePass": "cbb58d00c914079a",
+    "internal/component/tacacs/rfc8907_client_test.go::TestTacacsClientRejectsBadResponseHeader": "cbb58d00c914079a",
+    "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907EveryRequestCarriesMajorVersion12": "879b13e19509fb75",
+    "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907ReplyWithOtherMajorVersionRefused": "879b13e19509fb75"
+  },
+  "units": {
+    "internal/component/tacacs/rfc8907_client_test.go::TestTacacsClientAuthenticatePass": "40c135cf6049f3c4",
+    "internal/component/tacacs/rfc8907_client_test.go::TestTacacsClientRejectsBadResponseHeader": "00ca9353da5902e6",
+    "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907EveryRequestCarriesMajorVersion12": "2bd864dcf94b81d1",
+    "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907ReplyWithOtherMajorVersionRefused": "c1cbadd445d5cedb"
+  },
+  "verdict": "enforced"
+}

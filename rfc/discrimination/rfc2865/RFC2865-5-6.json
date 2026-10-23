@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC2865-5-6",
+    "polarity": "negative",
+    "unit": "internal/component/radius/rfc2865_walk_test.go::TestResponseWithAnInvalidAttributeLengthIsDiscarded",
+    "unit-sha": "7497291fd2ef9a34",
+    "claim-sha": "9d6c311a979dacad",
+    "route": "revert",
+    "producer": "internal/component/radius/packet.go::Decode",
+    "producer-sha": "1cfcbbae411360f3",
+    "break": "body of Decode replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2865-5-6",
+    "polarity": "positive",
+    "unit": "internal/component/radius/rfc2865_walk_test.go::TestResponseWithValidAttributeLengthsIsDelivered",
+    "unit-sha": "4b8744e4d6e4da0b",
+    "claim-sha": "20d82d4df61189f5",
+    "route": "revert",
+    "producer": "internal/component/radius/packet.go::Decode",
+    "producer-sha": "1cfcbbae411360f3",
+    "break": "body of Decode replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2865-5-6",
+    "polarity": "positive",
+    "unit": "internal/component/radius/rfc2865_wire_rules_test.go::TestRFC2865RejectAndChallengeWithValidAttributeLengthsAreDelivered",
+    "unit-sha": "01b24655ce2ae9d8",
+    "claim-sha": "37634ce454d899cb",
+    "route": "revert",
+    "producer": "internal/component/radius/packet.go::Decode",
+    "producer-sha": "1cfcbbae411360f3",
+    "break": "body of Decode replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2865-5-6",
+    "polarity": "negative",
+    "unit": "internal/component/radius/rfc2865_wire_rules_test.go::TestRFC2865ReplyWithAnInvalidAttributeLengthIsDiscarded",
+    "unit-sha": "b26ca5aa035e6cfd",
+    "claim-sha": "f785522150fee474",
+    "route": "revert",
+    "producer": "internal/component/radius/packet.go::Decode",
+    "producer-sha": "1cfcbbae411360f3",
+    "break": "body of Decode replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

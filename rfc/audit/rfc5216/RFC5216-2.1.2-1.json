@@ -1,0 +1,16 @@
+{
+  "code": {},
+  "note": "Re-judged 2026-10-14 (independent auditor) after 56e67411be, where the authenticator's GetConfigForClient (eap_tls.go) answers every handshake negotiatesTLS13 classifies as TLS 1.2 with tls12WithoutTickets, so ze issues no TLS 1.2 ticket, while UnwrapSession redeemTLS13Only/refuseResumption (resumption.go) still refuses a TLS 1.2 session. Section 2.1.2: 'If the EAP server is resuming a previously established session, then it MUST include only a TLS change_cipher_spec message and a TLS finished handshake message after the server_hello message.' TestRFC5216AuthenticatorAnswersATLS12TicketWithAFullHandshake mints the TLS 1.2 ticket on a TEST server (issueTLS12Tickets: ze's config with GetConfigForClient removed, same Resumption store and ticket keys) because ze issues none, then offers it to ze's unmodified authenticator (tune nil); ticketedTLS12Attempt fails unless the ClientHello really offers the ticket. Ze must not resume and its flight must be the full one (certificate, server_hello_done last, no change_cipher_spec). The precondition 'is resuming' therefore never holds for TLS 1.2 in ze, and any TLS 1.2 resumption goes red. The minted ticket is a fixture input, not the subject, so the test still proves ze's own behaviour; it proves compliance by non-resumption, not the resumed flight's content (TLS 1.3 resumption is RFC 9190's). Negative: UnwrapSession refuses TLS 1.2 on and off and redeems TLS 1.3.",
+  "requirement_sha": "f0f6ae8c0ada3b5a",
+  "tests": {
+    "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216AuthenticatorAnswersATLS12TicketWithAFullHandshake": "07752e8e18f47c94",
+    "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "e5d9dd4332b9270d",
+    "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "e5d9dd4332b9270d"
+  },
+  "units": {
+    "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216AuthenticatorAnswersATLS12TicketWithAFullHandshake": "8c153765c5e9d226",
+    "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry": "f23ae9e361f1c790",
+    "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights": "ab280fde64eb689d"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2866-5.5-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go::TestRFC2866AcctSessionIDUniqueAcrossRestart",
+    "unit-sha": "6aecdefa04fa7fd7",
+    "claim-sha": "cf99b89d3d268fa6",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authradius/acct.go::mintBootTag",
+    "producer-sha": "3e26c736352d1fab",
+    "break": "body of mintBootTag replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2866-5.5-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go::TestRFC2866AcctSessionIDUniqueWhenClockRepeats",
+    "unit-sha": "03564486ba0cc858",
+    "claim-sha": "95348bf69c4fc3de",
+    "route": "revert",
+    "producer": "internal/component/l2tp/plugins/authradius/acct.go::mintBootTag",
+    "producer-sha": "3e26c736352d1fab",
+    "break": "body of mintBootTag replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

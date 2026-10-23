@@ -1,0 +1,13 @@
+{
+  "note": "Sentence (A.4.4): the Network Mask 'must be zero for Type 4 summary-LSAs'. (a) Non-compliant behaviour: originating a Type 4 summary-LSA with a non-zero Network Mask. (b) TestRFC2328Type4SummaryMaskIsZero originates a Type 4 through OriginateSummary (origination.go, the only Type 4 producer) with mask 255.255.255.0 and fails on body.NetworkMask != 0.0.0.0 after decoding the stored LSA, so a producer that copied the caller's mask goes red. Negative: TestRFC2328Type3SummaryKeepsMask proves the zeroing is confined to Type 4 (a Type 3 keeps 255.255.255.0), so a producer that zeroed every summary mask goes red there. One clause, both polarities.",
+  "requirement_sha": "1b420a4e5f388973",
+  "tests": {
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328Type3SummaryKeepsMask": "c4cd81c5b8b7e97a",
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328Type4SummaryMaskIsZero": "c4cd81c5b8b7e97a"
+  },
+  "units": {
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328Type3SummaryKeepsMask": "02d3ae98c3977f76",
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328Type4SummaryMaskIsZero": "b6588e4392be4935"
+  },
+  "verdict": "enforced"
+}

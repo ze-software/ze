@@ -1,0 +1,13 @@
+{
+  "note": "AEAD ESP proposal built with no INTEG transform, non-AEAD keeps it (TestESPWireProposalAEADIntegNone)",
+  "requirement_sha": "42c9b0dc31cef85c",
+  "tests": {
+    "internal/component/ike/engine/rfc7296_test.go::TestESPWireProposalAEADIntegNone": "e032382b6fba7977",
+    "internal/component/ike/engine/rfc7296_test.go::TestESPWireProposalAEADIntegNone#2": "e032382b6fba7977"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7296_test.go::TestESPWireProposalAEADIntegNone": "0faf220465920fd5",
+    "internal/component/ike/engine/rfc7296_test.go::TestESPWireProposalAEADIntegNone#2": "0faf220465920fd5"
+  },
+  "verdict": "enforced"
+}

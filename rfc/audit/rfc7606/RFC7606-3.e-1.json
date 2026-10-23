@@ -1,0 +1,17 @@
+{
+  "note": "Malformed ORIGIN length, unrecognized AS_PATH segment, invalid IBGP LOCAL_PREF and isolated NEXT_HOP/MED length cases assert exact treat-as-withdraw rather than accepting session reset as a severity floor; exact accepted EBGP/IBGP baselines guard against indiscriminate rejection, and receive controls exercise withdrawal dispatch rather than a producer halt",
+  "requirement_sha": "d38ac6bc2b5bc3ec",
+  "tests": {
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPathUnrecognizedSegmentType": "b7acaf2569904b8f",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606LocalPrefIBGPInvalid": "b7acaf2569904b8f",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MalformedOriginLength": "b7acaf2569904b8f",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "b7acaf2569904b8f"
+  },
+  "units": {
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPathUnrecognizedSegmentType": "9f23d5bbe528f31a",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606LocalPrefIBGPInvalid": "3273d68e3c0de569",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MalformedOriginLength": "b7f851d2585b9021",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "07b9d95ed1e789a5"
+  },
+  "verdict": "enforced"
+}

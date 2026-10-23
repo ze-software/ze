@@ -1,0 +1,21 @@
+{
+  "note": "Re-judged 2026-09-30: TestISISEngineLeakOrigination, TestRFC2966NarrowLeakUpDownBit and spf TestISISLeakOriginationL1L2 gained only RFC2966-2-4 tag comments; bodies byte-identical. Positive: TestRFC2966NarrowLeakUpDownBit requires 0x80 on the default-metric octet of the L2->L1 internal (TLV 128) and external (TLV 130) narrow leaks in the originated L1 LSP, TestISISEngineLeakOrigination the TLV 135 bit, spf leakInto sets UpDown only for IntoL1. Negative: the L1-derived prefix leaked into L2 goes out with the bit clear on both encodings.",
+  "requirement_sha": "02c0456492e68635",
+  "tests": {
+    "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination": "3a8286879ea42019",
+    "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination#2": "3a8286879ea42019",
+    "internal/plugins/isis/rfc2966_narrow_updown_test.go::TestRFC2966NarrowLeakUpDownBit": "dd48108ecb3a7768",
+    "internal/plugins/isis/rfc2966_narrow_updown_test.go::TestRFC2966NarrowLeakUpDownBit#2": "dd48108ecb3a7768",
+    "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2": "65952e292e4f6c83",
+    "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2#2": "65952e292e4f6c83"
+  },
+  "units": {
+    "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination": "b9a1a5e2daa88030",
+    "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination#2": "b9a1a5e2daa88030",
+    "internal/plugins/isis/rfc2966_narrow_updown_test.go::TestRFC2966NarrowLeakUpDownBit": "78206b8f1729be15",
+    "internal/plugins/isis/rfc2966_narrow_updown_test.go::TestRFC2966NarrowLeakUpDownBit#2": "78206b8f1729be15",
+    "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2": "682f56baeb8524c2",
+    "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2#2": "682f56baeb8524c2"
+  },
+  "verdict": "enforced"
+}

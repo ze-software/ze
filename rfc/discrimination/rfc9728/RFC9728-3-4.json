@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9728-3-4",
+    "polarity": "positive",
+    "unit": "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728RegisteredSuffix",
+    "unit-sha": "2ba82a724e3915d6",
+    "claim-sha": "ed32edf9b1ff5a86",
+    "route": "revert",
+    "producer": "internal/component/mcp/oauth.go::writeResourceMetadata",
+    "producer-sha": "6290166dc0c1e0c2",
+    "break": "body of writeResourceMetadata replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9728-3-4",
+    "polarity": "negative",
+    "unit": "internal/component/mcp/rfc9728_metadata_test.go::TestRFC9728RegisteredSuffix",
+    "unit-sha": "2ba82a724e3915d6",
+    "claim-sha": "f51db83503823264",
+    "route": "revert",
+    "producer": "internal/component/mcp/streamable.go::ServeHTTP",
+    "producer-sha": "2f88899e9007eb96",
+    "break": "body of ServeHTTP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

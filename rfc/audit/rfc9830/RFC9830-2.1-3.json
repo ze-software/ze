@@ -1,0 +1,21 @@
+{
+  "note": "Both halves now proven. MP_UNREACH_NLRI: TestRFC9830SRPolicyWithdrawalCarriesMandatoryAttributes (planBatchAttrs records, unchanged). MP_REACH_NLRI: TestRFC9830SRPolicyAnnounceCarriesMandatoryAttributes finds MP_REACH 00 01 49, ORIGIN 40/00 and the eBGP AS_PATH 40/02 01 0000FDE8 by attribute.AttrFind over the parsed path attribute section, iBGP MP_REACH and ORIGIN likewise; TestRFC9830SRPolicyIBGPAnnounceKeepsAnEmptyASPath forces the iBGP empty-path input (R1(b)) and requires AS_PATH present, flags 40, zero-length value. BuildPlugin is the producer the reactor's config send shares (peer_initial_sync.go). Judge break (overlay, update_build_plugin.go: drop every attribute appendASPath wrote on iBGP) turned the new negative red and the new positive green; the c32 author's probes cover dropped ORIGIN (positive red). Revert records on BuildPlugin for the two new units and the two HEAD tags of TestRFC9830UpdateCarriesMandatoryAttributes. Residual: the HEAD negative (LOCAL_PREF only on iBGP) proves attribute categorisation rather than presence of the mandatory set, supplementary here.",
+  "requirement_sha": "89e9de484f71fc82",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830UpdateCarriesMandatoryAttributes": "450f2364530acf19",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830UpdateCarriesMandatoryAttributes#2": "450f2364530acf19",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_update_attrs_test.go::TestRFC9830SRPolicyAnnounceCarriesMandatoryAttributes": "35c12d1922010b90",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_update_attrs_test.go::TestRFC9830SRPolicyIBGPAnnounceKeepsAnEmptyASPath": "35c12d1922010b90",
+    "internal/component/bgp/reactor/rfc9830_reactor_a_withdraw_attrs_test.go::TestRFC9830SRPolicyWithdrawalCarriesMandatoryAttributes": "38048ce0e9d32912",
+    "internal/component/bgp/reactor/rfc9830_reactor_a_withdraw_attrs_test.go::TestRFC9830SRPolicyWithdrawalCarriesMandatoryAttributes#2": "38048ce0e9d32912"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830UpdateCarriesMandatoryAttributes": "0b773d1066af9ac2",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830UpdateCarriesMandatoryAttributes#2": "0b773d1066af9ac2",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_update_attrs_test.go::TestRFC9830SRPolicyAnnounceCarriesMandatoryAttributes": "7242167016f52975",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_update_attrs_test.go::TestRFC9830SRPolicyIBGPAnnounceKeepsAnEmptyASPath": "9b3d4d582a609e8d",
+    "internal/component/bgp/reactor/rfc9830_reactor_a_withdraw_attrs_test.go::TestRFC9830SRPolicyWithdrawalCarriesMandatoryAttributes": "dd7ea18f18423fca",
+    "internal/component/bgp/reactor/rfc9830_reactor_a_withdraw_attrs_test.go::TestRFC9830SRPolicyWithdrawalCarriesMandatoryAttributes#2": "dd7ea18f18423fca"
+  },
+  "verdict": "enforced"
+}

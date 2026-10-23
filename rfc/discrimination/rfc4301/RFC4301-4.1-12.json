@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC4301-4.1-12",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc4301_multicast_sa_linux_test.go::TestRFC4301MulticastSASourceMatchingIsSetByManualConfiguration",
+    "unit-sha": "d927ede081b4f56b",
+    "claim-sha": "9d4ebabfb6bc427c",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/ipsec_install.go::buildIPsecSA",
+    "producer-sha": "6a340d64849a22e0",
+    "break": "body of buildIPsecSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

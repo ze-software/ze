@@ -1,0 +1,17 @@
+{
+  "note": "vrrp judge 2026-09-29 (independent, continuations 1-2): Re-read: the unit's body is unchanged; only the 6.4.2 and 6.4.3 Virtual Router MAC proxy tags left it for TestVRRPBackupDoesNotForwardVirtualMACFrames, so the verdict stands. Prior note: vrrp judge 2026-09-29 (independent): TestActiveV2RouterAcceptsOnlyWhenItOwnsTheAddress promotes a Version 2 group to Master and requires exactly one acceptance-filter call with accept=true for the owner (positive) and accept=false for the non-owner (negative), so an owner suppression or an acceptance granted to every Master goes red. Records: revert EffectiveAcceptMode, both polarities. The older tags on TestInstanceOwnerStartupGoesMaster/NonOwnerGoesBackup remain and add nothing.",
+  "requirement_sha": "e0ce4a74ed7e3d15",
+  "tests": {
+    "internal/plugins/vrrp/acceptfilter_test.go::TestActiveV2RouterAcceptsOnlyWhenItOwnsTheAddress": "ac94e88781e5c08d",
+    "internal/plugins/vrrp/acceptfilter_test.go::TestActiveV2RouterAcceptsOnlyWhenItOwnsTheAddress#2": "ac94e88781e5c08d",
+    "internal/plugins/vrrp/instance_test.go::TestInstanceOwnerStartupGoesMaster": "90d279832a92de75",
+    "internal/plugins/vrrp/instance_test.go::TestInstanceStartupNonOwnerGoesBackup": "90d279832a92de75"
+  },
+  "units": {
+    "internal/plugins/vrrp/acceptfilter_test.go::TestActiveV2RouterAcceptsOnlyWhenItOwnsTheAddress": "4ad715554dd0bc0d",
+    "internal/plugins/vrrp/acceptfilter_test.go::TestActiveV2RouterAcceptsOnlyWhenItOwnsTheAddress#2": "4ad715554dd0bc0d",
+    "internal/plugins/vrrp/instance_test.go::TestInstanceOwnerStartupGoesMaster": "e1a785d3aeb30340",
+    "internal/plugins/vrrp/instance_test.go::TestInstanceStartupNonOwnerGoesBackup": "7e4b071c14d787cc"
+  },
+  "verdict": "enforced"
+}

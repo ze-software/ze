@@ -1,0 +1,13 @@
+{
+  "note": "TestPADINeverExceeds1484Octets asserts exactly 16 octets are left at the largest PADI and that one octet more is refused",
+  "requirement_sha": "0fc3f1755c06cd9e",
+  "tests": {
+    "internal/component/l2tp/pppoe/rfc2516_padi_length_test.go::TestPADINeverExceeds1484Octets": "0ed032643a84a6c5",
+    "internal/component/l2tp/pppoe/rfc2516_padi_length_test.go::TestPADINeverExceeds1484Octets#2": "0ed032643a84a6c5"
+  },
+  "units": {
+    "internal/component/l2tp/pppoe/rfc2516_padi_length_test.go::TestPADINeverExceeds1484Octets": "d94ac5a431aaa810",
+    "internal/component/l2tp/pppoe/rfc2516_padi_length_test.go::TestPADINeverExceeds1484Octets#2": "d94ac5a431aaa810"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,15 @@
+{
+  "note": "Positive: ze's peer and ze's server run Type 4 to EAP-Success and peer Done (two units). Negative: a peer holding another secret draws EAP-Failure and Succeeded false, so a server that accepts any Type-4 Response (no real support of the mechanism) goes red. The configured-method Nak unit is no longer tagged.",
+  "requirement_sha": "2122c115948c2f40",
+  "tests": {
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748MD5ChallengeServerRefusesAWrongValue": "8ca42a58d78f22be",
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748MD5ChallengeServerRefusesAWrongValue#2": "8ca42a58d78f22be",
+    "internal/core/eap/rfc3748_md5challenge_test.go::TestRFC3748MD5ChallengeSupportedByBothRoles": "5a891130078b8f2b"
+  },
+  "units": {
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748MD5ChallengeServerRefusesAWrongValue": "7819a8a8ca7f98c5",
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748MD5ChallengeServerRefusesAWrongValue#2": "7819a8a8ca7f98c5",
+    "internal/core/eap/rfc3748_md5challenge_test.go::TestRFC3748MD5ChallengeSupportedByBothRoles": "012ff3cdd3bd1084"
+  },
+  "verdict": "enforced"
+}

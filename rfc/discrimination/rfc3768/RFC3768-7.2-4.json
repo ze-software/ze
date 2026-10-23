@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC3768-7.2-4",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go::TestTxAdvertV4OnWire",
+    "unit-sha": "d1defdd9ea537b29",
+    "claim-sha": "0e015911449f4bf6",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/transport/transport.go::buildIPv4Header",
+    "producer-sha": "e64c42f1d89bd574",
+    "break": "body of buildIPv4Header replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC5880-6.8.8-1",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/engine/rfc5880_echo_session_test.go::TestRFC5880EchoDemultiplexedAmongSessions",
+    "unit-sha": "13c7829a10f71ca8",
+    "claim-sha": "53b19e8a009457b4",
+    "route": "revert",
+    "producer": "internal/component/bfd/engine/echo.go::handleEchoInbound",
+    "producer-sha": "65d3a0be9cb7a099",
+    "break": "body of handleEchoInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.8.8-1",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880EchoDemultiplexedToItsSession",
+    "unit-sha": "416cc95a58e33173",
+    "claim-sha": "0f25af671128021c",
+    "route": "revert",
+    "producer": "internal/component/bfd/engine/echo.go::handleEchoInbound",
+    "producer-sha": "65d3a0be9cb7a099",
+    "break": "body of handleEchoInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.8.8-1",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880UnknownEchoDropped",
+    "unit-sha": "4980e5d040c40d79",
+    "claim-sha": "bfe586c9f61613cd",
+    "route": "revert",
+    "producer": "internal/component/bfd/engine/echo.go::handleEchoInbound",
+    "producer-sha": "65d3a0be9cb7a099",
+    "break": "body of handleEchoInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

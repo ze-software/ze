@@ -19,7 +19,7 @@ const (
 	renameDocBody = "The proof is `" + selftestTestPath + "::TestWidget`.\n" +
 		"A plain " + selftestTestPath + " mention stays.\n" +
 		"[the test](" + selftestTestPath + ")\n"
-	renameAuditRel = "rfc/audit/rfc9999.json"
+	renameAuditRel = "rfc/audit/rfc9999/" + selftestRIDSend + ".json"
 	// renameTestSource is the selftest unit test as go vet accepts it, because
 	// the check type-checks every package that holds a tag. The tag is spelled
 	// as a concatenation so the commit gate's unanchored pattern does not read
@@ -42,7 +42,7 @@ func renameFixture(t *testing.T) string {
 		RID: selftestRIDSend, Polarity: PolarityPositive, Unit: selftestDiscriminationUnit,
 		Route: RouteMutant, Producer: selftestProducerUnit, Break: selftestBreak,
 	})
-	files[selftestDiscriminationRel] = discriminationArtifact(t, record)
+	putDiscrimination(t, files, record)
 	files[renameDocRel] = renameDocBody
 	// The tag scanner type-checks every tagged Go package, which needs a module.
 	files["go.mod"] = "module example.com/widget\n\ngo 1.27.0\n"
@@ -51,7 +51,7 @@ func renameFixture(t *testing.T) string {
 	from := stampPending(t, root, selftestStem, map[string]any{selftestRIDSend: map[string]any{
 		"verdict": VerdictWeak, "note": "the widget test asserts one count only",
 	}})
-	if _, err := auditStamp(root, selftestStem, from, stampModeNew, stampNow); err != nil {
+	if _, err := auditStamp(root, selftestStem, from, stampModeNew); err != nil {
 		t.Fatalf("stamp the fixture verdict: %v", err)
 	}
 	if err := os.Remove(from); err != nil {
@@ -653,7 +653,7 @@ func setRenameRoot(t *testing.T, root string) {
 // VALIDATES: N-4 of review round 1 -- a write that fails part-way answers the
 // report of what was written, through the action, rather than dropping it: the
 // move happened, so the operator must be told.
-// METHOD: the discrimination directory is made read-only, so the plan reads it,
+// METHOD: the fixture RFC's discrimination directory is made read-only, so the plan reads it,
 // the source moves, the audit file is rewritten, and the discrimination rewrite
 // fails.
 func TestRenameReportsPartialWritesWhenItStops(t *testing.T) {
@@ -661,7 +661,7 @@ func TestRenameReportsPartialWritesWhenItStops(t *testing.T) {
 		t.Skip("running as root, so a read-only directory proves nothing")
 	}
 	root := renameFixture(t)
-	evidence := filepath.Join(root, filepath.FromSlash(discriminationRel))
+	evidence := filepath.Join(root, filepath.FromSlash(discriminationRel), selftestStem)
 	if err := os.Chmod(evidence, 0o500); err != nil {
 		t.Fatalf("fixture: %v", err)
 	}
@@ -697,14 +697,13 @@ func TestRenameReportsPartialWritesWhenItStops(t *testing.T) {
 func TestRenameEvidenceRewriteTouchesPathFieldsOnly(t *testing.T) {
 	const source, target = "internal/sample/widget_test.go", "internal/sample/rfc9999_widget_test.go"
 	pairs := []renamePair{{Source: source, Target: target}}
-	records := "{\n  \"rfc\": \"rfc9999\",\n  \"records\": [\n    {\n" +
+	records := "[\n    {\n" +
 		"      \"unit\": \"%s::TestWidget\",\n      \"producer\":   \"%s\",\n" +
 		"      \"break\": \"" + source + "\",\n      \"route\": \"" + source + "::TestWidget\",\n" +
-		"      \"claim-sha\": \"" + source + "x::T\"\n    }\n  ]\n}\n"
-	audit := "{\n  \"reaudit_note\": \"" + source + "\",\n  \"requirements\": {\n" +
-		"    \"RFC9999-2-1\": {\n      \"note\": \"" + source + "::TestWidget\",\n" +
+		"      \"claim-sha\": \"" + source + "x::T\"\n    }\n]\n"
+	audit := "{\n      \"note\": \"" + source + "::TestWidget\",\n" +
 		"      \"tests\": {\"%s::TestWidget\": \"" + source + "\"},\n" +
-		"      \"units\": {\"%s::TestWidget\": \"bb\"},\n      \"code\": {\"%s\": 1}\n    }\n  }\n}\n"
+		"      \"units\": {\"%s::TestWidget\": \"bb\"},\n      \"code\": {\"%s\": 1}\n}\n"
 	for _, c := range []struct {
 		name   string
 		layout string

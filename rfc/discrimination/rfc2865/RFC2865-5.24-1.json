@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2865-5.24-1",
+    "polarity": "negative",
+    "unit": "internal/component/radius/rfc2865_state_echo_test.go::TestRadiusAdminStateIsNotManufactured",
+    "unit-sha": "e8ee88a23ed63330",
+    "claim-sha": "3f2a5e86261349e3",
+    "route": "revert",
+    "producer": "internal/component/radius/authenticator_eap.go::eapCredential",
+    "producer-sha": "127159291cffa17d",
+    "break": "body of eapCredential replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2865-5.24-1",
+    "polarity": "positive",
+    "unit": "internal/component/radius/rfc2865_state_echo_test.go::TestRadiusAdminStateIsReturnedUnmodified",
+    "unit-sha": "3679d125b01c9311",
+    "claim-sha": "aa61e8275c3e5089",
+    "route": "revert",
+    "producer": "internal/component/radius/authenticator_eap.go::eapCredential",
+    "producer-sha": "127159291cffa17d",
+    "break": "body of eapCredential replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

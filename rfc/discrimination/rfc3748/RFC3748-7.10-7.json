@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC3748-7.10-7",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc3748_key_state_test.go::TestRFC3748AnExchangeOutlivesDiscardedKeyState",
+    "unit-sha": "5b15802e53f423e2",
+    "claim-sha": "594e12b671043423",
+    "route": "revert",
+    "producer": "internal/core/eap/resumption.go::TicketKeys",
+    "producer-sha": "c7e047f9231e686f",
+    "break": "body of TicketKeys replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3748-7.10-7",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc3748_key_state_test.go::TestRFC3748AnExchangeOutlivesDiscardedKeyState",
+    "unit-sha": "5b15802e53f423e2",
+    "claim-sha": "1c4b20221650c1f3",
+    "route": "revert",
+    "producer": "internal/core/eap/resumption.go::Get",
+    "producer-sha": "590c2c20ea10991e",
+    "break": "body of Get replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

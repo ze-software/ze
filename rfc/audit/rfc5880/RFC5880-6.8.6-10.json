@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: processing A=0 at an authenticated session. TestRFC5880AuthenticatedSessionDiscardsUnauthenticatedPacket fails unless Receive returns ErrAuthMismatch with the state unchanged; the engine skips Verify for A=0 and relies on this check. Positive TestRFC5880AuthenticatedSessionAcceptsAuthenticatedPacket: A=1 accepted.",
+  "requirement_sha": "9405b660f6bfac60",
+  "tests": {
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880AuthenticatedSessionAcceptsAuthenticatedPacket": "8db25cbb4534cc2d",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880AuthenticatedSessionDiscardsUnauthenticatedPacket": "8db25cbb4534cc2d"
+  },
+  "units": {
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880AuthenticatedSessionAcceptsAuthenticatedPacket": "5056347b3821fdbd",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880AuthenticatedSessionDiscardsUnauthenticatedPacket": "13ce06fbe6f6edc4"
+  },
+  "verdict": "enforced"
+}

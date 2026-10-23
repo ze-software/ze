@@ -1,0 +1,14 @@
+[
+  {
+    "rid": "RFC9552-5.2-8",
+    "polarity": "positive",
+    "unit": "test/plugin/rfc9552-52-rs-opaque-withdraw-peer-down.ci",
+    "unit-sha": "40f17ec4c38c6931",
+    "claim-sha": "4d4c00df1e5c94e5",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/reactor_api_relay.go::buildRelayWithdrawal",
+    "producer-sha": "817b432c02a94923",
+    "break": "body of buildRelayWithdrawal replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+    "citation": "expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0025020000000E800F0B40044700630004DEADBEEF"
+  }
+]

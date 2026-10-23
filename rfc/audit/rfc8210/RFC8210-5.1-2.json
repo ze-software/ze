@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: accepting a Prefix PDU whose Max Length is less than its Prefix Length. TestParseIPv4PrefixMaxLenLessThanPrefixLen builds a PDU with prefix length 24 and max length 16 and asserts parseIPv4Prefix returns an error containing 'invalid' (the prefix length alone is valid, so the buffer isolates the rule); positive TestParseIPv4Prefix accepts max length 24 over prefix length 8. Both buffers carry rtrVersionMin (1), the RFC 8210 version.",
+  "requirement_sha": "286219cb3c5511e2",
+  "tests": {
+    "internal/component/bgp/plugins/rpki/rtr_pdu_test.go::TestParseIPv4Prefix": "c5beca1060fa5391",
+    "internal/component/bgp/plugins/rpki/rtr_pdu_test.go::TestParseIPv4PrefixMaxLenLessThanPrefixLen": "c5beca1060fa5391"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rpki/rtr_pdu_test.go::TestParseIPv4Prefix": "0d0466e247e4adf7",
+    "internal/component/bgp/plugins/rpki/rtr_pdu_test.go::TestParseIPv4PrefixMaxLenLessThanPrefixLen": "f43777808456f294"
+  },
+  "verdict": "enforced"
+}

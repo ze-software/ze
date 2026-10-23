@@ -1,0 +1,13 @@
+{
+  "note": "(a) forbidden: a second packet on a connection before the server echoed single-connect. (b) TestRFC8907NoSecondPacketWithoutSingleConnect (no echo) requires two connections and requestsOn(0) of length 1; TestRFC8907SecondSessionReusesEstablishedConnection (echo) requires one connection carrying two requests.",
+  "requirement_sha": "56c52463e08cc11b",
+  "tests": {
+    "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907NoSecondPacketWithoutSingleConnect": "7c6845571ca0fb19",
+    "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907SecondSessionReusesEstablishedConnection": "7c6845571ca0fb19"
+  },
+  "units": {
+    "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907NoSecondPacketWithoutSingleConnect": "84f1f5833569bca9",
+    "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907SecondSessionReusesEstablishedConnection": "a44695cb78b78158"
+  },
+  "verdict": "enforced"
+}

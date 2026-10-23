@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: desired auth protocol not requested in the Link Establishment Configure-Request. TestRFC1661AuthProtocolRequestedDuringEstablishment goes red on a missing option (!found) or a wrong protocol (!= 0xC223) in the LCP Configure-Request sendConfigureRequest writes; the negative TestRFC1661NoAuthProtocolWhenNotDesired goes red if the option is sent for AuthMethodNone.",
+  "requirement_sha": "b5dc8cb97c6b5742",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661AuthProtocolRequestedDuringEstablishment": "9afaf002f0fd81ec",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoAuthProtocolWhenNotDesired": "9afaf002f0fd81ec"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661AuthProtocolRequestedDuringEstablishment": "13cca70ef7e14fbb",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoAuthProtocolWhenNotDesired": "95dfcd752146b236"
+  },
+  "verdict": "enforced"
+}

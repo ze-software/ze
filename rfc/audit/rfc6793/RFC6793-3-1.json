@@ -1,0 +1,13 @@
+{
+  "note": "TestRFC6793AS4PathWireExcludesConfed: AS4Path.WriteTo/Len skip both confed types and keep AS_SEQUENCE/AS_SET, with Len matching bytes written.",
+  "requirement_sha": "0889a0e948e3b00c",
+  "tests": {
+    "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793AS4PathWireExcludesConfed": "fdd3980327455f38",
+    "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793AS4PathWireExcludesConfed#2": "fdd3980327455f38"
+  },
+  "units": {
+    "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793AS4PathWireExcludesConfed": "7ff4acf27b7c04e4",
+    "internal/core/bgp/attribute/rfc6793_as4_test.go::TestRFC6793AS4PathWireExcludesConfed#2": "7ff4acf27b7c04e4"
+  },
+  "verdict": "enforced"
+}

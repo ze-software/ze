@@ -1,0 +1,17 @@
+{
+  "note": "TestRFC7011ConfiguredRefreshDrivesRetransmit sets template-refresh 30 s and requires counter and flow resends at 30 s and not at 29 s; TestRFC7011ConfiguredRefreshOverridesDefault sets 900 s and requires no resend at 600 or 899 s, so an exporter hard-coding 600 s goes red (both recorded). The config parse into CollectorConfig.TemplateRefresh is the existing TestRFC7011TemplateRefreshConfigurable.",
+  "requirement_sha": "d8a3941caf7e374b",
+  "tests": {
+    "internal/plugins/flowexport/rfc7011_template_refresh_test.go::TestRFC7011ConfiguredRefreshDrivesRetransmit": "30cf331c7f3ccf14",
+    "internal/plugins/flowexport/rfc7011_template_refresh_test.go::TestRFC7011ConfiguredRefreshOverridesDefault": "30cf331c7f3ccf14",
+    "internal/plugins/flowexport/rfc7011_test.go::TestRFC7011TemplateRefreshConfigurable": "9a9f62bba8b4a49a",
+    "internal/plugins/flowexport/rfc7011_test.go::TestRFC7011TemplateRefreshRangeRejected": "9a9f62bba8b4a49a"
+  },
+  "units": {
+    "internal/plugins/flowexport/rfc7011_template_refresh_test.go::TestRFC7011ConfiguredRefreshDrivesRetransmit": "d408e2b61c03cb9c",
+    "internal/plugins/flowexport/rfc7011_template_refresh_test.go::TestRFC7011ConfiguredRefreshOverridesDefault": "b77550278df04535",
+    "internal/plugins/flowexport/rfc7011_test.go::TestRFC7011TemplateRefreshConfigurable": "d81b4418df553d83",
+    "internal/plugins/flowexport/rfc7011_test.go::TestRFC7011TemplateRefreshRangeRejected": "89f1ec40f3dd15b3"
+  },
+  "verdict": "enforced"
+}

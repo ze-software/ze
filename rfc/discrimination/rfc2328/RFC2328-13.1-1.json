@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC2328-13.1-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/lsdb/rfc2328_freshness_order_test.go::TestRFC2328FreshnessStepsAppliedInOrder",
+    "unit-sha": "809d3fd201732897",
+    "claim-sha": "33ad773c5b6ef7c8",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/lsdb/entry.go::CompareHeaders",
+    "producer-sha": "030b84ea449b1037",
+    "break": "body of CompareHeaders replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-13.1-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/lsdb/rfc2328_freshness_order_test.go::TestRFC2328LessRecentByEarlierStepRefused",
+    "unit-sha": "d1a549f7e0f71edd",
+    "claim-sha": "ce5d045d188dc479",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/lsdb/entry.go::CompareHeaders",
+    "producer-sha": "030b84ea449b1037",
+    "break": "body of CompareHeaders replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-13.1-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/lsdb/rfc2328_lsdb_test.go::TestOSPFFreshnessCompareMatrix",
+    "unit-sha": "42c419374ddecb07",
+    "claim-sha": "84b544fdb770b5db",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/lsdb/entry.go::CompareHeaders",
+    "producer-sha": "030b84ea449b1037",
+    "break": "body of CompareHeaders replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-13.1-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/lsdb/rfc2328_test.go::TestRFC2328OlderInstanceGetsDatabaseCopyBack",
+    "unit-sha": "d55bc6ffc0758695",
+    "claim-sha": "c659efe6c3163937",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/lsdb/entry.go::CompareHeaders",
+    "producer-sha": "030b84ea449b1037",
+    "break": "body of CompareHeaders replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

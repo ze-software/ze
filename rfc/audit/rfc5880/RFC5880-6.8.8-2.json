@@ -1,0 +1,17 @@
+{
+  "note": "Judge rejudge 2026-09-30 (bfd engine 2). Positive: engine TestRFC5880EngineFailsSessionOnMissingEchoes (the engine consults EchoDetectionExpired on its tick; removing the EchoFail branch observed red). Negative: engine TestRFC5880EngineReturnedEchoesKeepSessionUp returns every echo through handleEchoInbound and stays Up for three echo detection times; targeted break recordEchoRTTLocked not calling MatchEchoRx observed red (Down, diag 2). Session detector units unchanged.",
+  "requirement_sha": "dd5eeb3f2b83e2dc",
+  "tests": {
+    "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880EngineFailsSessionOnMissingEchoes": "836d84530c95a8b2",
+    "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880EngineReturnedEchoesKeepSessionUp": "836d84530c95a8b2",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoMissDetectedAndReported": "8db25cbb4534cc2d",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoReturnClearsMissAndFailIsScoped": "8db25cbb4534cc2d"
+  },
+  "units": {
+    "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880EngineFailsSessionOnMissingEchoes": "5f35cc568d6e73aa",
+    "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880EngineReturnedEchoesKeepSessionUp": "215c8474d5b1da98",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoMissDetectedAndReported": "68107e0c01859bd6",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoReturnClearsMissAndFailIsScoped": "1a00d85089a7aa80"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,17 @@
+{
+  "note": "RFC 4724 \u00a74.2: \"To deal with possible consecutive restarts, a route (from the peer) previously marked as stale MUST be deleted.\" Read every tagged carrier: internal/component/bgp/plugins/gr/gr_state_test.go::TestGRConsecutiveRestartClearsPriorStale compares two-family then one-family state and a first-restart control; state-only evidence is supplemented by internal/component/bgp/plugins/gr/rfc4724_consecutive_test.go::TestRFC4724ConsecutiveRestartDeletesThePreviouslyStaleRoutes and TestRFC4724ConsecutiveRestartDeletesBeforeMarking. Their rfc4724SecondRestart helper drives two actual GR DOWN cycles with the registered RIB engine, verifies both routes stale after the first, reestablishes and refreshes only 198.51.101.0/24, then requires unrefreshed 198.51.100.0/24 gone and refreshed 198.51.101.0/24 retained at stale level 1. gr.go::handleStateEvent purges before retainPeerFamilies and mark-stale; rib_commands.go::purgeStaleCommand removes old stale storage while markStaleCommand marks the new generation. Purging after marking or omitting purge violates different exact assertions. Two positive and two negative tags, including both tags on the state test; the real-RIB functions share one scenario and duplicate the two assertions, so they are not two independent experiments, but the old-stale and refreshed routes are distinct positive/control inputs rather than one assertion with two polarities. Restricted to conventional GR: RFC9494-4.2-7/-9 consecutive LLGR gaps are unchanged. No runtime or observed-red renewal was performed by this judge. Post-lint independent source rejudgment: the tagged assertion functions are unchanged by the argument simplification; their untagged rfc4724SecondRestart and realGRRIB helpers are affected. The helper still stores two routes, drops the session, proves both stale, reestablishes, refreshes only the second, and drops again. Both tagged functions require old-stale deletion and refreshed-route retention at level 1; these are distinct input-route outcomes despite duplicated functions. handleStateEvent still purges before retain/mark. Removed arguments were testPeer constants; the same received and DOWN events reach the registered RIB. Checked mux.Close cannot weaken this result. Preserve enforced and the pre-lint planned renewals for both existing records; no LLGR consecutive-restart claim is made.",
+  "requirement_sha": "488066b292b60d55",
+  "tests": {
+    "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRConsecutiveRestartClearsPriorStale": "7ff5f8c62f5f9ada",
+    "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRConsecutiveRestartClearsPriorStale#2": "7ff5f8c62f5f9ada",
+    "internal/component/bgp/plugins/gr/rfc4724_consecutive_test.go::TestRFC4724ConsecutiveRestartDeletesBeforeMarking": "a371024279c8cfc2",
+    "internal/component/bgp/plugins/gr/rfc4724_consecutive_test.go::TestRFC4724ConsecutiveRestartDeletesThePreviouslyStaleRoutes": "a371024279c8cfc2"
+  },
+  "units": {
+    "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRConsecutiveRestartClearsPriorStale": "706a9b28958bec89",
+    "internal/component/bgp/plugins/gr/gr_state_test.go::TestGRConsecutiveRestartClearsPriorStale#2": "706a9b28958bec89",
+    "internal/component/bgp/plugins/gr/rfc4724_consecutive_test.go::TestRFC4724ConsecutiveRestartDeletesBeforeMarking": "338db5699f58e221",
+    "internal/component/bgp/plugins/gr/rfc4724_consecutive_test.go::TestRFC4724ConsecutiveRestartDeletesThePreviouslyStaleRoutes": "f69a817cfa488107"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "The client must accept a leftmost AS that is not the RS AS, and MUST allow any such check to be disabled. TestLoopIngressAcceptsNonAdjacentLeftmostAS asserts acceptance of [65002 65003] from RS peer AS 65010, so any leftmost-AS equality check goes red. TestLoopIngressRejectsLocalASFromRouteServer shows the filter reads AS_PATH and rejects a local-AS loop on the same session. ze has no such check, so the disable clause holds by absence. Note: check.log reports both discrimination records for these units as producer-changed (loop.go moved), and they need re-recording.",
+  "requirement_sha": "64b1ed3928399078",
+  "tests": {
+    "internal/component/bgp/reactor/filter/loop_test.go::TestLoopIngressAcceptsNonAdjacentLeftmostAS": "a79790000633b034",
+    "internal/component/bgp/reactor/filter/loop_test.go::TestLoopIngressRejectsLocalASFromRouteServer": "a79790000633b034"
+  },
+  "units": {
+    "internal/component/bgp/reactor/filter/loop_test.go::TestLoopIngressAcceptsNonAdjacentLeftmostAS": "4723252bedfba8fa",
+    "internal/component/bgp/reactor/filter/loop_test.go::TestLoopIngressRejectsLocalASFromRouteServer": "5ef87a26db6ddf4f"
+  },
+  "verdict": "enforced"
+}

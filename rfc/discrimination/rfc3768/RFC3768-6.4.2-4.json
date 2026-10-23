@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC3768-6.4.2-4",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/fsm/rfc_verdict_test.go::TestV2BackupShutdown",
+    "unit-sha": "1dbfe103a636003d",
+    "claim-sha": "599a4c3cfc46d4e7",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/fsm/fsm.go::handleBackup",
+    "producer-sha": "a5b4f25413866b3b",
+    "break": "body of handleBackup replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3768-6.4.2-4",
+    "polarity": "negative",
+    "unit": "internal/plugins/vrrp/fsm/rfc_verdict_test.go::TestV2BackupShutdown",
+    "unit-sha": "1dbfe103a636003d",
+    "claim-sha": "b45e23d2d85e3f07",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/fsm/fsm.go::stopAllTimers",
+    "producer-sha": "f59874f96de6090a",
+    "break": "body of stopAllTimers replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

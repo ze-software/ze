@@ -1,0 +1,11 @@
+{
+  "note": "(a) forbidden: a receiver treating a SID with an unrecognized, argument-free Endpoint Behavior as invalid. (b) TestExtractSRv6SID_UnknownEndpointBehavior feeds behavior 0xFEED with no SID Structure and asserts the SID is returned. validateSRv6ServiceTLV never reads the behavior. The argument exception is the gap row RFC9252-3.2-5. Single-polarity marker present.",
+  "requirement_sha": "60f3d0d3bcc4613b",
+  "tests": {
+    "internal/component/bgp/plugins/rib/pool/rfc9252_srv6sid_test.go::TestExtractSRv6SID_UnknownEndpointBehavior": "806b0fdadb82521d"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rib/pool/rfc9252_srv6sid_test.go::TestExtractSRv6SID_UnknownEndpointBehavior": "82f68840138d345c"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,17 @@
+{
+  "note": "undefined payload type decoded as payloadRaw and the chain continues, outer and inner chain; defined type not demoted",
+  "requirement_sha": "09e06f3991651987",
+  "tests": {
+    "internal/component/ike/wire/rfc7296_innerchain_test.go::TestInnerChainSkipsUndefinedType": "b59b31b934d5e2ea",
+    "internal/component/ike/wire/rfc7296_innerchain_test.go::TestInnerChainSkipsUndefinedType#2": "b59b31b934d5e2ea",
+    "internal/component/ike/wire/rfc7296_test.go::TestUndefinedPayloadTypeSkipped": "459954f82bfe6b71",
+    "internal/component/ike/wire/rfc7296_test.go::TestUndefinedPayloadTypeSkipped#2": "459954f82bfe6b71"
+  },
+  "units": {
+    "internal/component/ike/wire/rfc7296_innerchain_test.go::TestInnerChainSkipsUndefinedType": "3587d156c4033588",
+    "internal/component/ike/wire/rfc7296_innerchain_test.go::TestInnerChainSkipsUndefinedType#2": "3587d156c4033588",
+    "internal/component/ike/wire/rfc7296_test.go::TestUndefinedPayloadTypeSkipped": "3dd63a985288d0c7",
+    "internal/component/ike/wire/rfc7296_test.go::TestUndefinedPayloadTypeSkipped#2": "3dd63a985288d0c7"
+  },
+  "verdict": "enforced"
+}

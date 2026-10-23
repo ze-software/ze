@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: a border router unable to import Type-3 summaries into an NSSA. spf/area_type_test.go TestOSPFNSSAType3SummaryImport asserts a regular NSSA keeps the inter-area Type-3 (line 88) and a no-summary NSSA suppresses it (line 99), proving the import is optional and supported.",
+  "requirement_sha": "e7b15fa907047381",
+  "tests": {
+    "internal/plugins/ospf/spf/rfc3101_area_type_test.go::TestOSPFNSSAType3SummaryImport": "cd0b5106bcb1bcdc",
+    "internal/plugins/ospf/spf/rfc3101_area_type_test.go::TestOSPFNSSAType3SummaryImport#2": "cd0b5106bcb1bcdc"
+  },
+  "units": {
+    "internal/plugins/ospf/spf/rfc3101_area_type_test.go::TestOSPFNSSAType3SummaryImport": "b2e130ace4c20410",
+    "internal/plugins/ospf/spf/rfc3101_area_type_test.go::TestOSPFNSSAType3SummaryImport#2": "b2e130ace4c20410"
+  },
+  "verdict": "enforced"
+}

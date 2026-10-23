@@ -1,0 +1,33 @@
+{
+  "note": "Re-judged 2026-10-09 after 180df07922 (Resolve returns *yang.Resolved, one Resolve per Loader; process, checkExtensions, checkPatterns, checkStructure still all run and join, refusals unchanged): only the ModuleLoadAccepted tail changed. RFC 7.19: 'the substatements MUST be YANG statements, including extensions defined using \"extension\" statements.' The earlier finding that sources was keyed by file name no longer holds at HEAD: sourcedModules.texts is keyed by *yang.Module (Parse binds each module added by a parse to its text). Revert records on AddModuleFromText for the ModuleLoadAccepted/Refused tags are owed a re-record. Prior judgement, still true: Re-judged 2026-10-09 after 6c06cb43af/037cc25e29. Sentence 1: TestRFC7950ExtensionUsageSubstatementsAreYANGStatements refuses m:e \"x\" { bogus \"y\"; } against description and nested m:e twins. Sentence 2 (Section 14 rules) now whole: substatements are resolved against the embedded RFC ABNF (resolveProduction) and checked for argument grammar (config maybe, namespace not a URI, path a / ../a[), cardinality (two type, two description; one type + two must loads), required substatements and blocks (leaf without type, list without data-def, refine with no block) and context forms (deviate add/not-supported mixing, type-body alternatives, augment absolute vs descendant), each tagged test with a revert record on its producer. Independent probe 2026-10-09 of ~70 valid unusual forms under a usage (quoted/unquoted/single-quoted args, + concatenation, nested usages at depth, leafref require-instance, multiple leaf-list defaults, deviate add/replace/delete in full, if-feature expressions with extra whitespace, path predicates with WSP, IPv6/percent URIs, refine across comments/newlines/tabs/UTF-8/CRLF, nested module/submodule) all load; config TRUE, max-elements 0/007, fraction-digits 19, deref() path, refine x; via comment or concatenation, empty input/augment are refused. The ModuleLoadRefused/Accepted tags drive the extension DEFINITION (extension e { bogus }), governed by the Section 14 extension-stmt rule, a neighbouring rule; their claims state what the body checks but do not bear on this sentence.",
+  "requirement_sha": "ea5f245be82c092c",
+  "tests": {
+    "internal/component/config/yang/rfc7950_extension_grammar_test.go::TestRFC7950ExtensionSubstatementCardinality": "159404c0ee2abc03",
+    "internal/component/config/yang/rfc7950_extension_grammar_test.go::TestRFC7950ExtensionSubstatementCardinality#2": "159404c0ee2abc03",
+    "internal/component/config/yang/rfc7950_extension_grammar_test.go::TestRFC7950ExtensionSubstatementContextForms": "159404c0ee2abc03",
+    "internal/component/config/yang/rfc7950_extension_grammar_test.go::TestRFC7950ExtensionSubstatementContextForms#2": "159404c0ee2abc03",
+    "internal/component/config/yang/rfc7950_extension_grammar_test.go::TestRFC7950ExtensionSubstatementRequiredStatementsAndBlocks": "159404c0ee2abc03",
+    "internal/component/config/yang/rfc7950_extension_grammar_test.go::TestRFC7950ExtensionSubstatementRequiredStatementsAndBlocks#2": "159404c0ee2abc03",
+    "internal/component/config/yang/rfc7950_extension_grammar_test.go::TestRFC7950ExtensionSubstatementURIAndPathArguments": "159404c0ee2abc03",
+    "internal/component/config/yang/rfc7950_extension_grammar_test.go::TestRFC7950ExtensionSubstatementURIAndPathArguments#2": "159404c0ee2abc03",
+    "internal/component/config/yang/rfc7950_loader_structural_test.go::TestRFC7950ExtensionUsageSubstatementsAreYANGStatements": "f7f46fb0e5438f42",
+    "internal/component/config/yang/rfc7950_loader_structural_test.go::TestRFC7950ExtensionUsageSubstatementsAreYANGStatements#2": "f7f46fb0e5438f42",
+    "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadAccepted": "26cd2578c196b22d",
+    "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadRefused": "26cd2578c196b22d"
+  },
+  "units": {
+    "internal/component/config/yang/rfc7950_extension_grammar_test.go::TestRFC7950ExtensionSubstatementCardinality": "d0d9d1d9be16dad6",
+    "internal/component/config/yang/rfc7950_extension_grammar_test.go::TestRFC7950ExtensionSubstatementCardinality#2": "d0d9d1d9be16dad6",
+    "internal/component/config/yang/rfc7950_extension_grammar_test.go::TestRFC7950ExtensionSubstatementContextForms": "47150ab0ad6beb25",
+    "internal/component/config/yang/rfc7950_extension_grammar_test.go::TestRFC7950ExtensionSubstatementContextForms#2": "47150ab0ad6beb25",
+    "internal/component/config/yang/rfc7950_extension_grammar_test.go::TestRFC7950ExtensionSubstatementRequiredStatementsAndBlocks": "a50f2fc428d14255",
+    "internal/component/config/yang/rfc7950_extension_grammar_test.go::TestRFC7950ExtensionSubstatementRequiredStatementsAndBlocks#2": "a50f2fc428d14255",
+    "internal/component/config/yang/rfc7950_extension_grammar_test.go::TestRFC7950ExtensionSubstatementURIAndPathArguments": "d06fce0a6d9e4687",
+    "internal/component/config/yang/rfc7950_extension_grammar_test.go::TestRFC7950ExtensionSubstatementURIAndPathArguments#2": "d06fce0a6d9e4687",
+    "internal/component/config/yang/rfc7950_loader_structural_test.go::TestRFC7950ExtensionUsageSubstatementsAreYANGStatements": "955e027af9d6344d",
+    "internal/component/config/yang/rfc7950_loader_structural_test.go::TestRFC7950ExtensionUsageSubstatementsAreYANGStatements#2": "955e027af9d6344d",
+    "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadAccepted": "205c57baa94df187",
+    "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadRefused": "9aa285d5018c168d"
+  },
+  "verdict": "enforced"
+}

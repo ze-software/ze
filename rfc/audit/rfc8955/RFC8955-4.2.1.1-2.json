@@ -1,0 +1,16 @@
+{
+  "code": {},
+  "note": "Independent rejudge 2026-10-21 after 74626ae4b4 changed TestRFC8955TextLeadingAndEncodedUnset. RFC 8955 Section 4.2.1.1: \"In the first operator octet of a sequence, it MUST be encoded as unset and MUST be treated as always unset on decoding.\" Encode, guard: the positive now builds NewFlowTCPFlagsMatchComponent([{Value 0x02, And true}]) directly and requires FlowSpec.Bytes() == 03 09 80 02; core numericComponent.writeToAFI is the only step clearing it (`if i > 0 && m.And`), so reducing the guard to `m.And` emits 0xc0 and reddens the exact-byte assertion. Encode, real entry points: config (parseFlowBitmaskMatches) and update text (parseBitmaskComponentText) both call parseBitmaskTermsText with hasPrevious = len(matches) > 0, which refuses a leading '&'; the test asserts EncodeFlowSpecComponents refuses \"&syn\" (the operand is otherwise valid, so the refusal is isolated to the leading '&'), and the contrast \"syn\" \"&ack\" -> 05 09 00 02 c0 10 proves the encoder sets AND where allowed. No real producer can now hand writeToAFI a leading AND; the guard covers every other FlowMatch producer. Decode: TestRFC8955FirstOperatorAndBitTreatedUnsetOnDecode (unit unchanged) requires 05 05 41 50 81 16 to render identically to the clear form, [[=80],[=22]]. parseNumericComponent clears it at parse (`And: len(matches) > 0 && op&FlowOpAnd != 0`) and FormatNumericMatches guards again (`m.And && len(andGroup) > 0`); the test observes the behaviour through both, so a single-guard mutation stays green, but every other consumer (unmatchable.go expressionAdmits, unmatchable_values.go expressionWord, flowspec-firewall translate.go and numeric_ranges.go) is position-guarded or receives the parse-cleared value. Recorded break (writeToAFI panics) proves reach only; the guard-specific red is established by reading. Finding, comment only: the decode test quotes \"SHOULD be encoded as unset\", which is RFC 5575 wording; RFC 8955 says MUST.",
+  "requirement_sha": "5fc210c4350d3f91",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/flowspec/rfc8955_text_encode_reserved_test.go::TestRFC8955TextLeadingAndEncodedUnset": "43cb7c7c29398e0c",
+    "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955FirstOperatorAndBitTreatedUnsetOnDecode": "8420255902324376",
+    "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955FirstOperatorAndBitTreatedUnsetOnDecode#2": "8420255902324376"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/flowspec/rfc8955_text_encode_reserved_test.go::TestRFC8955TextLeadingAndEncodedUnset": "0f653c6f372b9c31",
+    "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955FirstOperatorAndBitTreatedUnsetOnDecode": "f8d1f85ca6b7f25b",
+    "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955FirstOperatorAndBitTreatedUnsetOnDecode#2": "f8d1f85ca6b7f25b"
+  },
+  "verdict": "enforced"
+}

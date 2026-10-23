@@ -1,0 +1,13 @@
+{
+  "note": "Clauses: present, exactly 32 octets, ASCII hex. Sender: TestRFC2759FailureCarriesFreshChallenge fails if Ze Failure has no C= (failureField !ok), len!=32, or a non-hex digit. Receiver negative: TestRFC2759PeerRefusesFailureWithoutConformantChallenge feeds absent, short (30), long (34), non-hex and empty C= and requires errors.Is(errFailureChallenge), no ack, no success; the conformant control is read as a refusal, so the cases discriminate.",
+  "requirement_sha": "b985db2132624a64",
+  "tests": {
+    "internal/core/eap/rfc2759_failure_packet_test.go::TestRFC2759FailureCarriesFreshChallenge": "12c25bc8eda93116",
+    "internal/core/eap/rfc2759_failure_packet_test.go::TestRFC2759PeerRefusesFailureWithoutConformantChallenge": "12c25bc8eda93116"
+  },
+  "units": {
+    "internal/core/eap/rfc2759_failure_packet_test.go::TestRFC2759FailureCarriesFreshChallenge": "d9b9996fc5ad7a17",
+    "internal/core/eap/rfc2759_failure_packet_test.go::TestRFC2759PeerRefusesFailureWithoutConformantChallenge": "c11665503dccaa0d"
+  },
+  "verdict": "enforced"
+}

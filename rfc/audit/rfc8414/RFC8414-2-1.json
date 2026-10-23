@@ -1,0 +1,17 @@
+{
+  "note": "Every clause of the \u00a72 issuer definition in both polarities in TestRFC8414IssuerIsHTTPSWithoutQueryOrFragment: + an https issuer with no query or fragment is fetched and its issuer returned; - an http issuer (oauthHTTPSURL scheme check), ?tenant=a and a bare ? (asMetadataURL RawQuery/ForceQuery), and #frag (oauthHTTPSURL) each give zero metadata with no request reaching the AS, each input violating one clause only; a document with no issuer gives zero metadata (fetchASMetadata missing-issuer). The as_metadata_test.go units keep their presence tags. Records are whole-function panic breaks of fetchASMetadata (+) and asMetadataURL (-).",
+  "requirement_sha": "94d05f9e2042f41a",
+  "tests": {
+    "internal/component/mcp/rfc8414_as_metadata_test.go::TestFetchASMetadata_MissingIssuer": "a6b0bf070bf83906",
+    "internal/component/mcp/rfc8414_as_metadata_test.go::TestFetchASMetadata_Success": "a6b0bf070bf83906",
+    "internal/component/mcp/rfc8414_metadata_request_test.go::TestRFC8414IssuerIsHTTPSWithoutQueryOrFragment": "2f4d742cea5bceef",
+    "internal/component/mcp/rfc8414_metadata_request_test.go::TestRFC8414IssuerIsHTTPSWithoutQueryOrFragment#2": "2f4d742cea5bceef"
+  },
+  "units": {
+    "internal/component/mcp/rfc8414_as_metadata_test.go::TestFetchASMetadata_MissingIssuer": "e4ccda5c227a0782",
+    "internal/component/mcp/rfc8414_as_metadata_test.go::TestFetchASMetadata_Success": "e9b576f93c3a099d",
+    "internal/component/mcp/rfc8414_metadata_request_test.go::TestRFC8414IssuerIsHTTPSWithoutQueryOrFragment": "a13c3ca86dab7bfa",
+    "internal/component/mcp/rfc8414_metadata_request_test.go::TestRFC8414IssuerIsHTTPSWithoutQueryOrFragment#2": "a13c3ca86dab7bfa"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC4271-8.2.2-11",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterIncrementsOnNotification",
+    "unit-sha": "e2a375eb64f297d8",
+    "claim-sha": "57bcb4c80e536d7a",
+    "route": "revert",
+    "producer": "internal/component/bgp/fsm/fsm.go::handleOpenSent",
+    "producer-sha": "11b4ebaf65ecfc01",
+    "break": "body of handleOpenSent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-8.2.2-11",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271OpenConfirmKeepaliveKeepsTheConnection",
+    "unit-sha": "9a44cdc6c397fde6",
+    "claim-sha": "7e838e18149c3395",
+    "route": "revert",
+    "producer": "internal/component/bgp/fsm/fsm.go::handleOpenConfirm",
+    "producer-sha": "4b615454cfa66bd6",
+    "break": "body of handleOpenConfirm replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-8.2.2-11",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_fsm_teardown_peer_test.go::TestRFC4271OpenConfirmNotificationOrTCPFailureReleasesTheConnection",
+    "unit-sha": "4819ea1b48ac8d92",
+    "claim-sha": "c228ea402ed101d2",
+    "route": "revert",
+    "producer": "internal/component/bgp/fsm/fsm.go::handleOpenConfirm",
+    "producer-sha": "4b615454cfa66bd6",
+    "break": "body of handleOpenConfirm replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

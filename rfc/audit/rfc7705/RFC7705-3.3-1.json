@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: a Section 3.3 mechanism settable on neither a neighbor nor a neighbor group. TestPeersFromConfigTree_LocalASOptionsPerNeighborGroup drives PeersFromConfigTree: the group's local (65010) and replace-as reach the inheriting peer (assert.Equal LocalAS, assert.True LocalASReplaceAS), and no-prepend set on a peer reaches that peer (assert.True LocalASNoPrepend); each of the three mechanisms goes red if it cannot be configured on the basis the test uses. Negative: the group options do not reach the peer outside the group or override the peer's own leaf-list.",
+  "requirement_sha": "cd404a4028a053bf",
+  "tests": {
+    "internal/component/bgp/config/rfc7705_peers_test.go::TestPeersFromConfigTree_LocalASOptionsPerNeighborGroup": "5a280f1191a041f8",
+    "internal/component/bgp/config/rfc7705_peers_test.go::TestPeersFromConfigTree_LocalASOptionsPerNeighborGroup#2": "5a280f1191a041f8"
+  },
+  "units": {
+    "internal/component/bgp/config/rfc7705_peers_test.go::TestPeersFromConfigTree_LocalASOptionsPerNeighborGroup": "a8cd2bcf109305fc",
+    "internal/component/bgp/config/rfc7705_peers_test.go::TestPeersFromConfigTree_LocalASOptionsPerNeighborGroup#2": "a8cd2bcf109305fc"
+  },
+  "verdict": "enforced"
+}

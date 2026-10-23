@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4090-6-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090EgressDoesNotActAsPLR",
+    "unit-sha": "1d8ca671348cba21",
+    "claim-sha": "4ecb7eb501588969",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/engine.go::handlePathEgress",
+    "producer-sha": "69edc65089534730",
+    "break": "body of handlePathEgress replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4090-6-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090FastRerouteAloneRequestsProtection",
+    "unit-sha": "43e36d2f201e576c",
+    "claim-sha": "b20ed197799ccf93",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/frr.go::selectBypass",
+    "producer-sha": "c78b83e2ef5ceb5b",
+    "break": "body of selectBypass replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

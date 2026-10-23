@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden behaviour: accepting an IP Internal Reachability (TLV 128) prefix whose metric-type bit says external. TestRFC2966InvalidInternalExternalMetricExcluded sets bit 0x40 on the TLV 128 entry of the cheaper route and requires metricWinner to pick the dearer valid route (id 2, 160); clearing the bit requires the cheap route back (id 3, 2), so both an accept-anyway and a drop-everything implementation go red.",
+  "requirement_sha": "edeb06a9be5ec96d",
+  "tests": {
+    "internal/plugins/isis/rfc1195_spf_test.go::TestRFC2966InvalidInternalExternalMetricExcluded": "b67887a5f61b2632",
+    "internal/plugins/isis/rfc1195_spf_test.go::TestRFC2966InvalidInternalExternalMetricExcluded#2": "b67887a5f61b2632"
+  },
+  "units": {
+    "internal/plugins/isis/rfc1195_spf_test.go::TestRFC2966InvalidInternalExternalMetricExcluded": "9daa5ed05776669a",
+    "internal/plugins/isis/rfc1195_spf_test.go::TestRFC2966InvalidInternalExternalMetricExcluded#2": "9daa5ed05776669a"
+  },
+  "verdict": "enforced"
+}

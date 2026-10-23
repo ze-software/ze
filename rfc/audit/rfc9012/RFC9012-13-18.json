@@ -1,0 +1,17 @@
+{
+  "note": "Independent FinalTunnelRejudgment retained this allocated obligation; Main read RFC9012 full text, session_tunnel_encap.go::applyTunnelEncap/tunnelTLVLayout/tunnelEndpointValid, tunnel_encap.go codec producers and the real consumer. RFC9012 \u00a713 forbids classifying a meaningless sub-TLV as malformed or removing it. Well-formed two-byte nonzero UDP Destination Port under GRE isolates meaninglessness from bad length/value; it receives ActionNone and survives exact actual downstream propagation. GRE-without-UDP and applicable-valid UDP are controls; malformed outer framing remains rejected. This classification identity does not establish encapsulation-header behavior. Actual consumer: internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong and teForwardedAttrs drive Session.processMessage, cache publication, ForwardUpdate, worker/socket output and downstream Session receipt. These are two cached export modes, not an independently exercised reactor-native RS rail; no absent attribute-driven tunnel-selection feature is credited.",
+  "requirement_sha": "469cfd0d44defe64",
+  "tests": {
+    "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "8e898ec9c074ca2b",
+    "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "8e898ec9c074ca2b",
+    "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MalformedAttributeIsRejected": "e8576a1ee12543a9",
+    "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved": "e8576a1ee12543a9"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong": "4331bc08d9c40b95",
+    "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong#2": "4331bc08d9c40b95",
+    "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MalformedAttributeIsRejected": "2de6a91cf462b5a5",
+    "internal/core/bgp/attribute/rfc9012_test.go::TestRFC9012MeaninglessSubTLVIgnoredNotRemoved": "08d7f773742e8a39"
+  },
+  "verdict": "enforced"
+}

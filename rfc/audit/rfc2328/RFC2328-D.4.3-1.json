@@ -1,0 +1,11 @@
+{
+  "note": "Non-compliant behaviour: an AuType 2 packet whose standard-header Checksum is calculated rather than set to 0. TestOSPFPacketChecksumZeroForAuType2 encodes a cryptographic-auth Hello through WriteTo and fails ('AuType2 checksum = %#04x, want 0') on any non-zero field. Single-polarity positive per the row's marker: the rule is generate-side and there is no receive path to reject.",
+  "requirement_sha": "958b6cebd787eb8a",
+  "tests": {
+    "internal/plugins/ospf/packet/checksum_test.go::TestOSPFPacketChecksumZeroForAuType2": "8ac8573c092c7f1a"
+  },
+  "units": {
+    "internal/plugins/ospf/packet/checksum_test.go::TestOSPFPacketChecksumZeroForAuType2": "f7b73aa598208d18"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "Consumer view of the response envelope. 200: 'created' (201) case must return error and zero metadata. application/json: 'HTML' and 'absent type' cases red if accepted; charset parameter accepted. JSON object: 'array' case red if accepted. Positive: 200 application/json object yields issuer and jwks_uri. The 'subset of Section 2 values' clause constrains the server; \u00a73.2 says 'Other claims MAY also be returned', so no consumer input violates it.",
+  "requirement_sha": "7f448a6aab76af3b",
+  "tests": {
+    "internal/component/mcp/rfc8414_metadata_request_test.go::TestRFC8414MetadataHTTPResponse": "2f4d742cea5bceef",
+    "internal/component/mcp/rfc8414_metadata_request_test.go::TestRFC8414MetadataHTTPResponse#2": "2f4d742cea5bceef"
+  },
+  "units": {
+    "internal/component/mcp/rfc8414_metadata_request_test.go::TestRFC8414MetadataHTTPResponse": "15029d5b2e1825cb",
+    "internal/component/mcp/rfc8414_metadata_request_test.go::TestRFC8414MetadataHTTPResponse#2": "15029d5b2e1825cb"
+  },
+  "verdict": "enforced"
+}

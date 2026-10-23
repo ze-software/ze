@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC4271-6.3-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_nexthop_semantic_test.go::TestRFC4271SemanticallyIncorrectNextHopIsLoggedAndIgnored",
+    "unit-sha": "6931d67fef07787e",
+    "claim-sha": "c73cc7e6906854e2",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_next_hop.go::invalidReceiveNextHop",
+    "producer-sha": "745716a752c5e3a5",
+    "break": "body of invalidReceiveNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-6.3-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_nexthop_semantic_test.go::TestRFC4271SemanticallyIncorrectNextHopIsLoggedAndIgnored",
+    "unit-sha": "6931d67fef07787e",
+    "claim-sha": "18d42359941b83d4",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_next_hop.go::invalidReceiveNextHop",
+    "producer-sha": "745716a752c5e3a5",
+    "break": "body of invalidReceiveNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-6.3-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_nexthop_semantic_test.go::TestRFC4271SemanticallyIncorrectNextHopIsLoggedAtTheDefaultLevel",
+    "unit-sha": "69af954a99b6cb1e",
+    "claim-sha": "1af6d84c4351b1bc",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_next_hop.go::logIgnoredNextHopRoute",
+    "producer-sha": "d8adb18448ead193",
+    "break": "body of logIgnoredNextHopRoute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-6.3-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_nexthop_semantic_test.go::TestRFC4271SemanticallyIncorrectNextHopIsLoggedAtTheDefaultLevel",
+    "unit-sha": "69af954a99b6cb1e",
+    "claim-sha": "3bb81810e1f6e5a4",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_next_hop.go::invalidReceiveNextHop",
+    "producer-sha": "745716a752c5e3a5",
+    "break": "body of invalidReceiveNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

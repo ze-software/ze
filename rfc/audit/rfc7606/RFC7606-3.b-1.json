@@ -1,0 +1,13 @@
+{
+  "note": "TestSessionRFC7606SectionLengthConflictNotification (rfc7606_session_structural_test.go:153) declares Total Attr Length=0xFF over a shorter body and reads the NOTIFICATION off the wire: require.Equal notifBody[1]==NotifyUpdateMalformedAttr (subcode 1) plus callbackCount==0. Positive TestEnforceRFC7606_SectionLengthsExactlyFitAccepted (:114) pins the exact-fit boundary with explicit arithmetic asserts so an off-by-one is caught. Exact subcode assertion fails on non-compliance. 2026-07-22 re-stamp: the verdict went stale only because commit c4038def0 prepended an rfc-test-change-approved header and swapped package qualifiers (bgptypes.RouteAction*->routeaction.*, message.Type*->msgtype.Type*, rib/events->core/bgp/ribevents) in the tagged files; tagged_unit_shas fingerprints the whole enclosing file. Normalising the 254772452..HEAD diff under that rename cancels with ZERO unmatched assertion deletions, and rfc/short/rfc7606.md is byte-identical since the audit, so the judgement above still describes exactly what it judged. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quoted sentence states the same obligation the paraphrase did, and no clause is new. Verdict unchanged.",
+  "requirement_sha": "c3d92d5de2f06a13",
+  "tests": {
+    "internal/component/bgp/reactor/rfc7606_session_structural_test.go::TestEnforceRFC7606_SectionLengthsExactlyFitAccepted": "9f97a0d56d362dc6",
+    "internal/component/bgp/reactor/rfc7606_session_structural_test.go::TestSessionRFC7606SectionLengthConflictNotification": "9f97a0d56d362dc6"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc7606_session_structural_test.go::TestEnforceRFC7606_SectionLengthsExactlyFitAccepted": "b1cc25eed310a00c",
+    "internal/component/bgp/reactor/rfc7606_session_structural_test.go::TestSessionRFC7606SectionLengthConflictNotification": "bc4ac7e6c83ed60a"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-10-09 after 180df07922 (Resolve returns *yang.Resolved, one Resolve per Loader; process, checkExtensions, checkPatterns, checkStructure still all run and join, refusals unchanged): cases unchanged. RFC 7.6.3: 'The \"type\" statement, which MUST be present, takes as an argument the name of an existing built-in or derived type.' The revert records on Resolve and AddModuleFromText for this row no longer verify (producer/unit changed) and are owed a re-record. Prior judgement, still true: Re-judged 2026-10-09; unchanged cases. MUST be present: ModuleLoadRefused case \"leaf without type\" refused / Accepted \"leaf with type\" loads. Names an existing type: TestRFC7950LeafTypeMustNameAnExistingType refuses type nosuch as unknown type against local typedef and imported ext:port twins that differ in the type name alone, with revert records on Resolve.",
+  "requirement_sha": "18cdcdc30654418d",
+  "tests": {
+    "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950LeafTypeMustNameAnExistingType": "b80383bc8bec6c5c",
+    "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950LeafTypeMustNameAnExistingType#2": "b80383bc8bec6c5c",
+    "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadAccepted": "26cd2578c196b22d",
+    "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadRefused": "26cd2578c196b22d"
+  },
+  "units": {
+    "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950LeafTypeMustNameAnExistingType": "441444fa8ea5c6d1",
+    "internal/component/config/yang/rfc7950_loader_clauses_test.go::TestRFC7950LeafTypeMustNameAnExistingType#2": "441444fa8ea5c6d1",
+    "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadAccepted": "205c57baa94df187",
+    "internal/component/config/yang/rfc7950_loader_test.go::TestRFC7950ModuleLoadRefused": "9aa285d5018c168d"
+  },
+  "verdict": "enforced"
+}

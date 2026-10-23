@@ -1,0 +1,13 @@
+{
+  "note": "RA-BFD strict re-read 2026-09-27. One clause: a received Required Min Echo RX of zero ends echo transmission. Forbidden: an echo sent after that packet. Red: TestRFC5880EchoCeasesWhenPeerAdvertisesZero Fatal when EchoEnabled stays true, when PrimeEcho leaves the already-armed deadline set, or when EchoInterval is nonzero. The engine sends only from an armed deadline after its own EchoEnabled gate (echoTickLocked, echo.go), and PrimeEcho clears the deadline when echo is off, so removing either gate alone sends nothing and removing PrimeEcho's check reddens this unit. Contrast: TestRFC5880EchoEnabledWhenPeerAdvertisesNonZero keeps echo enabled and armed on a nonzero value.",
+  "requirement_sha": "771a6b211318ba08",
+  "tests": {
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoCeasesWhenPeerAdvertisesZero": "8db25cbb4534cc2d",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoEnabledWhenPeerAdvertisesNonZero": "8db25cbb4534cc2d"
+  },
+  "units": {
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoCeasesWhenPeerAdvertisesZero": "d58be07aeade079a",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880EchoEnabledWhenPeerAdvertisesNonZero": "5a34d02f9d0c3699"
+  },
+  "verdict": "enforced"
+}

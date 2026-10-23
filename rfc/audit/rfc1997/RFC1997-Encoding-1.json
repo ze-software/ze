@@ -1,0 +1,13 @@
+{
+  "note": "(a) a COMMUNITIES value that is not a whole set of four-octet values, e.g. 6 octets, silently truncated to one community; (b) TestCommunitiesParseRejectsNonMultipleOf4 require.ErrorIs ErrInvalidLength on 6 octets goes red. Positive TestCommunitiesParse asserts the exact two four-octet communities decoded from 8 octets.",
+  "requirement_sha": "802df88dbded3638",
+  "tests": {
+    "internal/core/bgp/attribute/community_test.go::TestCommunitiesParse": "34fcdbe05b3de369",
+    "internal/core/bgp/attribute/community_test.go::TestCommunitiesParseRejectsNonMultipleOf4": "34fcdbe05b3de369"
+  },
+  "units": {
+    "internal/core/bgp/attribute/community_test.go::TestCommunitiesParse": "90045079c50235d6",
+    "internal/core/bgp/attribute/community_test.go::TestCommunitiesParseRejectsNonMultipleOf4": "a4b71ec0b0138f7a"
+  },
+  "verdict": "enforced"
+}

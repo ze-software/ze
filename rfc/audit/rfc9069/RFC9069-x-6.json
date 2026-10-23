@@ -1,0 +1,15 @@
+{
+  "note": "Forbidden: Peer AS other than the router's primary ASN (zero, a constant, AS_TRANS). internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBPeerHeader PeerAS != 4200000001 Errorf; ::TestLocRIBPeerHeaderCarriesTheIdentityItIsGiven two identities must give 65001 and 65002; internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC9069ReloadTurningLocRIBOnAnnouncesTheRouterIdentity reads Peer AS 4200000001 off the wire with the OPEN cache empty.",
+  "requirement_sha": "a3032001657ec349",
+  "tests": {
+    "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC9069ReloadTurningLocRIBOnAnnouncesTheRouterIdentity": "70e97cb3744c3532",
+    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeader": "0d66046a7112fdb8",
+    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeaderCarriesTheIdentityItIsGiven": "0d66046a7112fdb8"
+  },
+  "units": {
+    "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC9069ReloadTurningLocRIBOnAnnouncesTheRouterIdentity": "ec5d663dfbfb7e20",
+    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeader": "ae73890fff201115",
+    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBPeerHeaderCarriesTheIdentityItIsGiven": "c6fcdb52a185c1da"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "Judge 2026-09-28 (bfd/auth, independent of the author). TestRFC5880ReservedByteZeroedOnTransmit signs into a buffer pre-filled with 0xFF for all four keyed types, so the zero at off+3 is written by digestSigner.Sign (buf[off+3] = 0), covering both cited sections 4.3 and 4.4. The {single-polarity: positive} annotation holds: Sign writes a constant 0 and no path emits another value.",
+  "requirement_sha": "df4f5f7317262961",
+  "tests": {
+    "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880ReservedByteZeroedOnTransmit": "69049dc5fe6d5288",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KeyedMD5SectionHeader": "5a25c74cc2d9bd47"
+  },
+  "units": {
+    "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880ReservedByteZeroedOnTransmit": "e0284cbbfcdf9d58",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KeyedMD5SectionHeader": "da3c9f59a8ad3ed3"
+  },
+  "verdict": "enforced"
+}

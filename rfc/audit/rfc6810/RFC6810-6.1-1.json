@@ -1,0 +1,15 @@
+{
+  "note": "Single-polarity positive (row annotation). TestRTRPollsAtLeastHourly: after an End of Data with zero interval fields, pollDelay(true) and pollDelay(false) are both at most one hour; the running cacheGroup queries again when the wait ends (Reset then Serial on the wire with a 1s wait), so the loop does re-query. TestRFC6810DefaultPollCadenceIsHourly keeps the fresh-session defaults.",
+  "requirement_sha": "07837f0e5c3e77ff",
+  "tests": {
+    "internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go::TestRFC6810DefaultPollCadenceIsHourly": "8c11ef49583ba7c6",
+    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRPollsAtLeastHourly": "f4affe67e61b8df8",
+    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRPollsAtLeastHourly#2": "f4affe67e61b8df8"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rpki/rfc6810_rtr_test.go::TestRFC6810DefaultPollCadenceIsHourly": "2fbc18510004eb9d",
+    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRPollsAtLeastHourly": "205120082a6289d1",
+    "internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRPollsAtLeastHourly#2": "205120082a6289d1"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,31 @@
+{
+  "note": "Incremental M30 source audit, 2026-10-22; retain the prior full-audit verdict, not a fresh whole-carrier audit. RFC 2545 Section 3: \"In all other cases a BGP speaker shall advertise to its peer in the Network Address field only the global IPv6 address of the next hop (the value of the Length of Network Address of Next Hop field shall be set to 16).\" Reread both scoped ordinary joint-subnet tagged units and all helpers. TestOrdinaryIPv6PolicyPairJointSubnet starts with a different off-subnet global, then supplies the effective speaker-owned pair through the real export-policy seam. Exact complete-frame oracles require the unchanged NLRI and 16-octet global alone for the off-link recipient, and the complete 32-octet pair for its common-subnet control. TestOrdinaryIPv6OwnGlobalJointSubnet supplies the corresponding configured-own-address inclusion control. API batch, queued initial drain and named commit keep successful delivery, EOR, production sent accounting, hasAdvertised and exact policy-call assertions. newOrdinaryJointPeer now offers IPv4 and IPv6 to both sides of Session negotiation; this repairs family admission without bypassing exportFilterForBody, normalizeOrdinaryNextHop or the final writer. Read the PolicyModify/raw consumer chain and the final ownership family dispatch, not merely the fixture producer. Invalid original pairs remain unnormalized for final refusal, so off-link trimming cannot conceal malformed roles or a peer-owned second address. A missing third-party link-local does not establish the otherwise antecedent; that separate RFC2545-3-3 partial bound and RFC2545-3-6 unimplemented disclosure remain intact. Untouched carriers are carried forward from the existing independent audit, not claimed reread here. No new patch-introduced defect found in this scope, and no runtime check, discrimination renewal or stamp run by this auditor.",
+  "requirement_sha": "f1313c30d8980ada",
+  "tests": {
+    "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateOmitsLinkLocalWhenPeerOffLink": "59f801a924a77387",
+    "internal/component/bgp/reactor/rfc2545_forward_owned_policy_test.go::TestRFC2545ForwardPolicyOwnGlobalJointSubnet": "bd2c198d0eeccf47",
+    "internal/component/bgp/reactor/rfc2545_joint_subnet_test.go::TestRFC2545JointSubnetWriter": "437a75752d0c8b9b",
+    "internal/component/bgp/reactor/rfc2545_joint_subnet_test.go::TestRFC2545JointSubnetWriter#2": "437a75752d0c8b9b",
+    "internal/component/bgp/reactor/rfc2545_ordinary_joint_subnet_test.go::TestOrdinaryIPv6OwnGlobalJointSubnet": "e6da70cac074573b",
+    "internal/component/bgp/reactor/rfc2545_ordinary_joint_subnet_test.go::TestOrdinaryIPv6PolicyPairJointSubnet": "e6da70cac074573b",
+    "internal/component/bgp/reactor/rfc2545_peer_send_test.go::TestSendAnnounceOmitsLinkLocalWhenPeerOffLink": "aee9e1900e952b80",
+    "test/encode/new-v6.ci": "3a4574b98c1238d2",
+    "test/exabgp-compat/encoding/conf-llnh-update.ci": "7f4eea9ed22f6382",
+    "test/plugin/rfc2545-joint-subnet.ci": "ee64b297387a1e05",
+    "test/plugin/rfc2545-joint-subnet.ci#2": "ee64b297387a1e05"
+  },
+  "units": {
+    "internal/component/bgp/reactor/peer_initial_sync_test.go::TestDefaultOriginateOmitsLinkLocalWhenPeerOffLink": "40bc74f6d1e700a0",
+    "internal/component/bgp/reactor/rfc2545_forward_owned_policy_test.go::TestRFC2545ForwardPolicyOwnGlobalJointSubnet": "4f6e0f68d334a746",
+    "internal/component/bgp/reactor/rfc2545_joint_subnet_test.go::TestRFC2545JointSubnetWriter": "f611ff36d137d341",
+    "internal/component/bgp/reactor/rfc2545_joint_subnet_test.go::TestRFC2545JointSubnetWriter#2": "f611ff36d137d341",
+    "internal/component/bgp/reactor/rfc2545_ordinary_joint_subnet_test.go::TestOrdinaryIPv6OwnGlobalJointSubnet": "ce998f5fc37296a5",
+    "internal/component/bgp/reactor/rfc2545_ordinary_joint_subnet_test.go::TestOrdinaryIPv6PolicyPairJointSubnet": "c73b553d01a3cb25",
+    "internal/component/bgp/reactor/rfc2545_peer_send_test.go::TestSendAnnounceOmitsLinkLocalWhenPeerOffLink": "47b3902fd5cac516",
+    "test/encode/new-v6.ci": "3a4574b98c1238d2",
+    "test/exabgp-compat/encoding/conf-llnh-update.ci": "7f4eea9ed22f6382",
+    "test/plugin/rfc2545-joint-subnet.ci": "ee64b297387a1e05",
+    "test/plugin/rfc2545-joint-subnet.ci#2": "ee64b297387a1e05"
+  },
+  "verdict": "enforced"
+}

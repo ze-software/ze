@@ -1,0 +1,11 @@
+{
+  "note": "single-polarity: agent_address and sub_agent_id 7 both decode to the distinct values written, so the pair the header carries names the sub-agent's datagram stream",
+  "requirement_sha": "b76445c07fe1dacb",
+  "tests": {
+    "internal/plugins/flowexport/sflow/sflow_v5_encoder_test.go::TestSFlowDatagramHeaderIPv6": "3fd871610d6c96e0"
+  },
+  "units": {
+    "internal/plugins/flowexport/sflow/sflow_v5_encoder_test.go::TestSFlowDatagramHeaderIPv6": "5d7068d6e7c463e5"
+  },
+  "verdict": "enforced"
+}

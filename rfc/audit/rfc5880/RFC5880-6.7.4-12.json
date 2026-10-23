@@ -1,0 +1,19 @@
+{
+  "note": "Judge rejudge 2026-09-30 (last five). Tags added by D-15 move on three Keyed SHA1 units in auth/rfc5880_test.go: + TestRFC5880KeyedSequenceAtOrAboveFloorAccepted (100,100,101,110 accepted, floor 110), - TestRFC5880KeyedSequenceBelowFloorDiscarded (399 below floor 400 -> ErrSequenceOutsideWindow, floor unmoved), + TestRFC5880KeyedSequenceWindowWraps (circular successor accepted); each fixture is AuthTypeKeyedSHA1 only, prose matches. Earlier proof kept: keyed_test WindowFollowsReceivedDetectMult / OutsideWindowDiscarded on SHA1 (both bounds, DM 1/5/255, wrap). meticulous.go Check revert records observed red for every unit.",
+  "requirement_sha": "2a4207d116ffa400",
+  "tests": {
+    "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedOutsideWindowDiscarded": "69049dc5fe6d5288",
+    "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedWindowFollowsReceivedDetectMult": "69049dc5fe6d5288",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KeyedSequenceAtOrAboveFloorAccepted": "5a25c74cc2d9bd47",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KeyedSequenceBelowFloorDiscarded": "5a25c74cc2d9bd47",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KeyedSequenceWindowWraps": "5a25c74cc2d9bd47"
+  },
+  "units": {
+    "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedOutsideWindowDiscarded": "ee20d5bc60ab988e",
+    "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedWindowFollowsReceivedDetectMult": "9d8a9202d010f797",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KeyedSequenceAtOrAboveFloorAccepted": "96721187a4625aa7",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KeyedSequenceBelowFloorDiscarded": "68dd43ae2d52c8e9",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KeyedSequenceWindowWraps": "061244dba14ddfe3"
+  },
+  "verdict": "enforced"
+}

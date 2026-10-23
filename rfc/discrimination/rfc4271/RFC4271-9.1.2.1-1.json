@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4271-9.1.2.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/sysrib/rfc4271_nexthop_resolution_test.go::TestRFC4271BGPNextHopResolvedToTheImmediateNextHop",
+    "unit-sha": "b53c2440eb12cd48",
+    "claim-sha": "a17c5c75a234c55c",
+    "route": "revert",
+    "producer": "internal/component/sysrib/sysrib.go::resolveMember",
+    "producer-sha": "f952d0dbe8cf8f63",
+    "break": "body of resolveMember replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-9.1.2.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/sysrib/rfc4271_nexthop_resolution_test.go::TestRFC4271BGPRouteWithAnUnresolvedNextHopLeavesTheFIB",
+    "unit-sha": "af685f2a7da0229c",
+    "claim-sha": "0d4252f0532bf8ba",
+    "route": "revert",
+    "producer": "internal/component/sysrib/sysrib.go::cascadeRecompute",
+    "producer-sha": "5b424a33c53898f1",
+    "break": "body of cascadeRecompute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

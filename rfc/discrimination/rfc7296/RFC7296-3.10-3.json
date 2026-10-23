@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC7296-3.10-3",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_ikesa_notify_spi_test.go::TestRFC7296IKESANotifiesZeSendsCarryNoSPI",
+    "unit-sha": "f45cc8e6a705e6ec",
+    "claim-sha": "9f35b3618b5ee2bf",
+    "route": "revert",
+    "producer": "internal/component/ike/wire/payload_notify.go::WriteTo",
+    "producer-sha": "109cc4fdfaa4d396",
+    "break": "body of WriteTo replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-3.10-3",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_ikesa_notify_spi_test.go::TestRFC7296IKESANotifyWithAnSPISizeButNoSPIIsSentEmpty",
+    "unit-sha": "79dd1d5154585bbc",
+    "claim-sha": "38fa1275ee3c8dd0",
+    "route": "revert",
+    "producer": "internal/component/ike/wire/payload_notify.go::spiLen",
+    "producer-sha": "cd40b16194dc2db6",
+    "break": "body of spiLen replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-3.10-3",
+    "polarity": "positive",
+    "unit": "internal/component/ike/wire/rfc7296_test.go::TestNotifyIKESAHasEmptySPI",
+    "unit-sha": "2dfd6d3d8ce5dc7e",
+    "claim-sha": "9c9b069fdea87ad8",
+    "route": "revert",
+    "producer": "internal/component/ike/wire/payload_notify.go::WriteTo",
+    "producer-sha": "109cc4fdfaa4d396",
+    "break": "body of WriteTo replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-3.10-3",
+    "polarity": "negative",
+    "unit": "internal/component/ike/wire/rfc7296_test.go::TestNotifyIKESAHasEmptySPI",
+    "unit-sha": "2dfd6d3d8ce5dc7e",
+    "claim-sha": "66b5fee40c2dfe84",
+    "route": "revert",
+    "producer": "internal/component/ike/wire/payload_notify.go::spiLen",
+    "producer-sha": "cd40b16194dc2db6",
+    "break": "body of spiLen replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

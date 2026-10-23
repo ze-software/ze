@@ -1,0 +1,13 @@
+{
+  "note": "Positive: L1 path 50+40 leaked to L2 with metric 63. Negative: 10+5 preserved as 15. Both fail if the clamp is removed or applied wrongly.",
+  "requirement_sha": "2a0097ceac911f99",
+  "tests": {
+    "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195NarrowLeakedMetricBelowCeiling": "b67887a5f61b2632",
+    "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195NarrowLeakedMetricClamps": "b67887a5f61b2632"
+  },
+  "units": {
+    "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195NarrowLeakedMetricBelowCeiling": "15e5a7fdf864b92a",
+    "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195NarrowLeakedMetricClamps": "0a89edf8ea5526b8"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,15 @@
+{
+  "note": "flag-only and FAST_REROUTE-only PATHs are both protection requests that arm a bypass; flag clear and no FAST_REROUTE stores nothing Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 6 and the enforced verdict holds unchanged.",
+  "requirement_sha": "451842847d5b724d",
+  "tests": {
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090FastRerouteAloneRequestsProtection": "3fb9184431da8daf",
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090NoProtectionRequestArmsNothing": "3fb9184431da8daf",
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090TransitInsertsNoFastReroute": "3fb9184431da8daf"
+  },
+  "units": {
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090FastRerouteAloneRequestsProtection": "8ee7403145c7f6e0",
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090NoProtectionRequestArmsNothing": "a13e9f0f8fcd2d1c",
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090TransitInsertsNoFastReroute": "f6efa52232f3e5fd"
+  },
+  "verdict": "enforced"
+}

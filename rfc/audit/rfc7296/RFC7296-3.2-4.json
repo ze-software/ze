@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged 2026-10-11 by an independent judge; row widened to the Critical item head, kept clause 'MUST be set to zero for payload types defined in this document' (RFC 7296 3.2). TestDefinedPayloadTypesAreSentUncritical sweeps the outer and inner chains of every engine-built message and fails on any defined type with Critical set, with a non-vacuity floor; TestEngineSourceNeverSetsTheCriticalField walks the engine source and refuses a literal or assigned Critical, proven against fixtures. The #2 tag (encoder writes 0x80 when asked) is an expressibility control, not a violating input. No discrimination record.",
+  "requirement_sha": "68e0b474a947e070",
+  "tests": {
+    "internal/component/ike/engine/rfc7296_critical_bit_test.go::TestDefinedPayloadTypesAreSentUncritical": "9b98dffef0326303",
+    "internal/component/ike/engine/rfc7296_critical_bit_test.go::TestDefinedPayloadTypesAreSentUncritical#2": "9b98dffef0326303",
+    "internal/component/ike/engine/rfc7296_critical_bit_test.go::TestEngineSourceNeverSetsTheCriticalField": "9b98dffef0326303"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7296_critical_bit_test.go::TestDefinedPayloadTypesAreSentUncritical": "245c86afd281a724",
+    "internal/component/ike/engine/rfc7296_critical_bit_test.go::TestDefinedPayloadTypesAreSentUncritical#2": "245c86afd281a724",
+    "internal/component/ike/engine/rfc7296_critical_bit_test.go::TestEngineSourceNeverSetsTheCriticalField": "7749bea75072228b"
+  },
+  "verdict": "enforced"
+}

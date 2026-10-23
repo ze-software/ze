@@ -1,0 +1,68 @@
+[
+  {
+    "rid": "RFC3748-2.2-1",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc3748_lockstep_test.go::TestRFC3748FrameworkMessagesReachNoMethod",
+    "unit-sha": "7e13da482d7a5c51",
+    "claim-sha": "d1d465c84ffcdcc6",
+    "route": "revert",
+    "producer": "internal/core/eap/eap.go::nakRefused",
+    "producer-sha": "bcb2fc264cf44eb5",
+    "break": "body of nakRefused replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3748-2.2-1",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc3748_lockstep_test.go::TestRFC3748FrameworkMessagesReachNoMethod",
+    "unit-sha": "7e13da482d7a5c51",
+    "claim-sha": "0565ee5244775109",
+    "route": "revert",
+    "producer": "internal/core/eap/eap.go::handleMethod",
+    "producer-sha": "fcb74148a4de64e4",
+    "break": "body of handleMethod replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3748-2.2-1",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc3748_ordering_test.go::TestRFC3748NoFrameworkMessageReachesAnEAPMethod",
+    "unit-sha": "777ca0610e4943e1",
+    "claim-sha": "aa5515a23365a522",
+    "route": "revert",
+    "producer": "internal/core/eap/eap.go::nakRefused",
+    "producer-sha": "bcb2fc264cf44eb5",
+    "break": "body of nakRefused replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3748-2.2-1",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc3748_ordering_test.go::TestRFC3748NoFrameworkMessageReachesAnEAPMethod",
+    "unit-sha": "777ca0610e4943e1",
+    "claim-sha": "87dcaf6ac2536907",
+    "route": "revert",
+    "producer": "internal/core/eap/eap.go::handleMethod",
+    "producer-sha": "fcb74148a4de64e4",
+    "break": "body of handleMethod replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3748-2.2-1",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc3748_remaining_clause_test.go::TestRFC3748ANotificationRequestCarriesNothingToTheMethod",
+    "unit-sha": "66a45d9cc519e7b7",
+    "claim-sha": "e57a4a035fa7c4ca",
+    "route": "revert",
+    "producer": "internal/core/eap/peer.go::notificationResponse",
+    "producer-sha": "55a37fd1efe713de",
+    "break": "body of notificationResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3748-2.2-1",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc3748_remaining_clause_test.go::TestRFC3748TheAuthenticatorSendsNoNotificationRequest",
+    "unit-sha": "b7133bbe812a63a7",
+    "claim-sha": "2bbc80f571720bbb",
+    "route": "revert",
+    "producer": "internal/core/eap/eap_mschapv2.go::sendFailure",
+    "producer-sha": "0ac6511e843be908",
+    "break": "body of sendFailure replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

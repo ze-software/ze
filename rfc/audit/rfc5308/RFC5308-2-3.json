@@ -1,0 +1,13 @@
+{
+  "note": "(a) forbidden: a prefix distributed into IS-IS from another routing protocol originated with the X bit 0. (b) TestRFC5308RedistributedIPv6SetsExternalBit injects a bgp-sourced IPv6 route through the redistribute Consumer and t.Fatalf's on !got[0].External at Level1 and Level2 (positive); TestRFC5308ConnectedIPv6ClearsExternalBit fails if a connected prefix carries External (negative), so an always-set bit is caught too.",
+  "requirement_sha": "72a65b945a6c1d98",
+  "tests": {
+    "internal/plugins/isis/redistribute/rfc5308_ipv6_test.go::TestRFC5308ConnectedIPv6ClearsExternalBit": "b34f32624e8f9f8e",
+    "internal/plugins/isis/redistribute/rfc5308_ipv6_test.go::TestRFC5308RedistributedIPv6SetsExternalBit": "b34f32624e8f9f8e"
+  },
+  "units": {
+    "internal/plugins/isis/redistribute/rfc5308_ipv6_test.go::TestRFC5308ConnectedIPv6ClearsExternalBit": "3c66989bbd2d1c37",
+    "internal/plugins/isis/redistribute/rfc5308_ipv6_test.go::TestRFC5308RedistributedIPv6SetsExternalBit": "90daf930190fa918"
+  },
+  "verdict": "enforced"
+}

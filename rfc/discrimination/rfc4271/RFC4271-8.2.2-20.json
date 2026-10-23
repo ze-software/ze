@@ -1,0 +1,57 @@
+[
+  {
+    "rid": "RFC4271-8.2.2-20",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271AutomaticStartZeroesConnectRetryCounter",
+    "unit-sha": "3e93db6c095fcd5c",
+    "claim-sha": "682450d8dc39f87c",
+    "route": "revert",
+    "producer": "internal/component/bgp/fsm/fsm.go::handleIdle",
+    "producer-sha": "60826e7f42a8269d",
+    "break": "body of handleIdle replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-8.2.2-20",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271AutomaticStartZeroesOnlyFromIdle",
+    "unit-sha": "6d80a65f69f4e3e0",
+    "claim-sha": "ca79e8416859ea2f",
+    "route": "revert",
+    "producer": "internal/component/bgp/fsm/fsm.go::handleIdle",
+    "producer-sha": "60826e7f42a8269d",
+    "break": "body of handleIdle replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-8.2.2-20",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go::TestRFC4271AutomaticStartEvent3ZeroesCounter",
+    "unit-sha": "7ba28bcb24472dd0",
+    "claim-sha": "0410de4689e90e17",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session.go::startAutomatic",
+    "producer-sha": "74d0c3a8593b581b",
+    "break": "body of startAutomatic replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-8.2.2-20",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go::TestRFC4271FailedCycleAfterEstablishedKeepsCounter",
+    "unit-sha": "75b0275e8d9cf15d",
+    "claim-sha": "c3257e5e26e96064",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/peer_run.go::runOnce",
+    "producer-sha": "8282444b8f306734",
+    "break": "body of runOnce replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-8.2.2-20",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go::TestRFC4271FailedCycleRestartKeepsCounter",
+    "unit-sha": "c50225a6fadb189c",
+    "claim-sha": "c3b44aa4325a4730",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session.go::startDamped",
+    "producer-sha": "2aef536cf25e561d",
+    "break": "body of startDamped replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

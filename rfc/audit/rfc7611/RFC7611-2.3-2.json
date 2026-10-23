@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: accepting, because it carries ACCEPT_OWN, a route whose ORIGINATOR_ID or NEXT_HOP is this router, while ACCEPT_OWN is disabled (ze has no ACCEPT_OWN config, so always). TestACCEPTOwnDoesNotEnableAcceptanceImplicitly asserts LoopIngress returns accepted == false for ORIGINATOR_ID == RouterID with ACCEPT_OWN attached (red on any ACCEPT_OWN exemption) and accepted == true for another originator. NEXT_HOP half: LoopIngress holds no own-NEXT_HOP refusal, so ACCEPT_OWN has no refusal to bypass there; the only acceptance the community could change is the ORIGINATOR_ID one the test asserts.",
+  "requirement_sha": "9e75cf1d838a0ecc",
+  "tests": {
+    "internal/component/bgp/reactor/rfc7611_receive_test.go::TestACCEPTOwnDoesNotEnableAcceptanceImplicitly": "d5d815e033ccfd90",
+    "internal/component/bgp/reactor/rfc7611_receive_test.go::TestACCEPTOwnDoesNotEnableAcceptanceImplicitly#2": "d5d815e033ccfd90"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc7611_receive_test.go::TestACCEPTOwnDoesNotEnableAcceptanceImplicitly": "9892c615b0743783",
+    "internal/component/bgp/reactor/rfc7611_receive_test.go::TestACCEPTOwnDoesNotEnableAcceptanceImplicitly#2": "9892c615b0743783"
+  },
+  "verdict": "enforced"
+}

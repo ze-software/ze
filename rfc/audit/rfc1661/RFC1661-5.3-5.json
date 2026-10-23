@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: a Nak value the Nak sender would not accept. TestRFC1661NakValueIsAcceptable re-offers the Nak'd MRU (from 2000 and 32) and goes red unless it draws ack=1 nak=0 rej=0; TestRFC1661RejectedValueStaysUnacceptable goes red if the original 2000 is accepted. Only the MRU option is exercised.",
+  "requirement_sha": "d39e3556f61932fe",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NakValueIsAcceptable": "9afaf002f0fd81ec",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661RejectedValueStaysUnacceptable": "9afaf002f0fd81ec"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NakValueIsAcceptable": "6bc804c1b3f60c0b",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661RejectedValueStaysUnacceptable": "940306053974cdaf"
+  },
+  "verdict": "enforced"
+}

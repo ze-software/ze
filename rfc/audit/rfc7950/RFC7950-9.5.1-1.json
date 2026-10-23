@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-18 (independent auditor, after 2e4be94ae3). Read at rfc/full/rfc7950.txt Section 9.5.1: \"The lexical representation of a boolean value is a string with a value of \"true\" or \"false\". These values MUST be in lowercase.\" The units changed only from validateYangType to ValidateType, the same producer path. validateBoolean accepts exactly \"true\" and \"false\"; the negative requires ErrTypeType 'expected boolean' for True, FALSE, TRUE, yes and 1, so a case-folding comparison would turn it red. Ze's config spelling enable/disable is rewritten by NormalizeBool (case-sensitive) before the validator, and TestBooleanConfigSpellingRefused pins that the validator itself refuses them.",
+  "requirement_sha": "947a2e2f9540967c",
+  "tests": {
+    "internal/component/config/yang/rfc7950_validator_test.go::TestRFC7950BooleanLowercaseAccepted": "d15082a1edeccaad",
+    "internal/component/config/yang/rfc7950_validator_test.go::TestRFC7950BooleanNotLowercaseRefused": "d15082a1edeccaad"
+  },
+  "units": {
+    "internal/component/config/yang/rfc7950_validator_test.go::TestRFC7950BooleanLowercaseAccepted": "c062fc8b3b36915b",
+    "internal/component/config/yang/rfc7950_validator_test.go::TestRFC7950BooleanNotLowercaseRefused": "6a01be8f042076ed"
+  },
+  "verdict": "enforced"
+}

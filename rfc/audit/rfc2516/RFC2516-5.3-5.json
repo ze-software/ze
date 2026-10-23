@@ -1,0 +1,13 @@
+{
+  "note": "TestRFC2516PADRSessionIDIsZero asserts CODE 0x19 and SESSION_ID 0; handlePADR drops a non-zero SESSION_ID PADR",
+  "requirement_sha": "74c282e00d74e629",
+  "tests": {
+    "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516PADRSessionIDIsZero": "e5818bbbd45fc77f",
+    "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516PADRWithNonZeroSessionIDIsDropped": "e5818bbbd45fc77f"
+  },
+  "units": {
+    "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516PADRSessionIDIsZero": "244e8050a6a9d7ac",
+    "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516PADRWithNonZeroSessionIDIsDropped": "e3d45cfd26c8221b"
+  },
+  "verdict": "enforced"
+}

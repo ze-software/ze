@@ -1,0 +1,13 @@
+{
+  "note": "RFC5036 section 2.5.3 item 2.c: the live OpenReceivedKeepAliveEstablishesSession test first proves OPENREC after acceptable Initialization, then requires Operational on peer KeepAlive and timeout-only wire silence. OpenReceivedWaitsForPeerKeepAlive instead withholds that message, requires timeout (not EOF), and pins OPENREC. Reviewed processMessages, handleInit, keepaliveReceived, ReadLoop and runSession; acceptance is not inferred from TCP connect.",
+  "requirement_sha": "f104bdec6f8845ac",
+  "tests": {
+    "internal/plugins/ldp/rfc5036_openrec_test.go::TestRFC5036OpenReceivedKeepAliveEstablishesSession": "79faa4a67fd8bdbe",
+    "internal/plugins/ldp/rfc5036_openrec_test.go::TestRFC5036OpenReceivedWaitsForPeerKeepAlive": "79faa4a67fd8bdbe"
+  },
+  "units": {
+    "internal/plugins/ldp/rfc5036_openrec_test.go::TestRFC5036OpenReceivedKeepAliveEstablishesSession": "0c5fee492c76e017",
+    "internal/plugins/ldp/rfc5036_openrec_test.go::TestRFC5036OpenReceivedWaitsForPeerKeepAlive": "42a39c5467a7d3c6"
+  },
+  "verdict": "enforced"
+}

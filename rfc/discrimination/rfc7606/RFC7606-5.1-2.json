@@ -1,0 +1,58 @@
+[
+  {
+    "rid": "RFC7606-5.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/message/rfc7606_shape_test.go::TestNLRIBearingFieldCountEveryCombination",
+    "unit-sha": "b3367822eba486cd",
+    "claim-sha": "18412dd68147107f",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/rfc7606_shape.go::NLRIBearingFieldCount",
+    "producer-sha": "1f73af544175ef7c",
+    "break": "body of NLRIBearingFieldCount replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7606-5.1-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/message/rfc7606_shape_test.go::TestSplitCompliantPassesThroughCompliantUpdate",
+    "unit-sha": "0b4d5b30d1ca67e5",
+    "claim-sha": "060339711cb48b2b",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/update_split.go::SplitCompliant",
+    "producer-sha": "b7a3a7d53d70d461",
+    "break": "body of SplitCompliant replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7606-5.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/message/rfc7606_shape_test.go::TestSplitCompliantSplitsMixedUpdateThatFits",
+    "unit-sha": "c35a01e456a20574",
+    "claim-sha": "0ed5d43a1b046561",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/update_split.go::SplitCompliant",
+    "producer-sha": "b7a3a7d53d70d461",
+    "break": "body of SplitCompliant replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7606-5.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc7606_egress_override_shape_test.go::TestEgressOverrideSplitsMixedShape",
+    "unit-sha": "de1509ea74a0c7f7",
+    "claim-sha": "f9d68fb9b05fa013",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_write.go::writeOrdinaryUpdateBody",
+    "producer-sha": "ec218faa245a51f9",
+    "break": "line 604: \"mixed\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC7606-5.1-2",
+    "polarity": "positive",
+    "unit": "test/plugin/rfc7606-relay-one-field.ci",
+    "unit-sha": "d6fcda2a56ba426a",
+    "claim-sha": "639b8ce2b61bf9b7",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/rfc7606_shape.go::MixesNLRIFields",
+    "producer-sha": "d640d39959600009",
+    "break": "body of MixesNLRIFields replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+    "citation": "expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001B02000418AC10000000"
+  }
+]

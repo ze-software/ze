@@ -1,0 +1,23 @@
+{
+  "note": "Judge 2026-09-30 (access cont 10, independent). Both halves proven. Host: pppoeSessionMTU (dialer.go, producer read) defaults 0 -> 1492, keeps 68..1492, refuses the rest; Dial calls it before ResolveInterface. + TestRFC2516HostSessionMTUDefaultsToThePPPoECeiling (0/1492/1480, and the default drives negotiateLCP to a Configure-Request MRU 1492); - TestRFC2516HostRefusesASessionMTUAboveThePPPoECeiling (1493/1500/9000 refused; Dial with MTU 1500 refused before discovery). This closes the gap the cont 8 verdict named. Host LCP pair (TestRFC2516ClientNegotiatesMRUAtThePPPoECeiling / ...RefusesAnMRUAboveThePPPoECeiling) and AC pair (TestRFC2516AccessConcentratorNegotiatesMRUAtThePPPoECeiling / ...RefusesAnMRUAboveThePPPoECeiling) unchanged. Every unit but the older TestLCPConfigRequestMRU carries an observed-red record.",
+  "requirement_sha": "046d4d35e71ec861",
+  "tests": {
+    "internal/component/l2tp/pppoe/rfc2516_ac_mru_ceiling_linux_test.go::TestRFC2516AccessConcentratorNegotiatesMRUAtThePPPoECeiling": "8664245d25ebdc42",
+    "internal/component/l2tp/pppoe/rfc2516_ac_mru_ceiling_linux_test.go::TestRFC2516AccessConcentratorRefusesAnMRUAboveThePPPoECeiling": "8664245d25ebdc42",
+    "internal/component/l2tp/pppoeclient/rfc2516_host_session_mtu_test.go::TestRFC2516HostRefusesASessionMTUAboveThePPPoECeiling": "e5d9acdac4063865",
+    "internal/component/l2tp/pppoeclient/rfc2516_host_session_mtu_test.go::TestRFC2516HostSessionMTUDefaultsToThePPPoECeiling": "e5d9acdac4063865",
+    "internal/component/l2tp/pppoeclient/rfc2516_mru_ceiling_test.go::TestRFC2516ClientNegotiatesMRUAtThePPPoECeiling": "f841c93be1edb8aa",
+    "internal/component/l2tp/pppoeclient/rfc2516_mru_ceiling_test.go::TestRFC2516ClientRefusesAnMRUAboveThePPPoECeiling": "f841c93be1edb8aa",
+    "internal/component/l2tp/pppoeclient/session_test.go::TestLCPConfigRequestMRU": "50a2fa5b77fbaf66"
+  },
+  "units": {
+    "internal/component/l2tp/pppoe/rfc2516_ac_mru_ceiling_linux_test.go::TestRFC2516AccessConcentratorNegotiatesMRUAtThePPPoECeiling": "38d2f6162ca49fd6",
+    "internal/component/l2tp/pppoe/rfc2516_ac_mru_ceiling_linux_test.go::TestRFC2516AccessConcentratorRefusesAnMRUAboveThePPPoECeiling": "dd09b9fccc575e61",
+    "internal/component/l2tp/pppoeclient/rfc2516_host_session_mtu_test.go::TestRFC2516HostRefusesASessionMTUAboveThePPPoECeiling": "de32032ae81ac1d8",
+    "internal/component/l2tp/pppoeclient/rfc2516_host_session_mtu_test.go::TestRFC2516HostSessionMTUDefaultsToThePPPoECeiling": "b76300f5d8dc23d9",
+    "internal/component/l2tp/pppoeclient/rfc2516_mru_ceiling_test.go::TestRFC2516ClientNegotiatesMRUAtThePPPoECeiling": "248fcf02c25c044b",
+    "internal/component/l2tp/pppoeclient/rfc2516_mru_ceiling_test.go::TestRFC2516ClientRefusesAnMRUAboveThePPPoECeiling": "0e443aa624b617bf",
+    "internal/component/l2tp/pppoeclient/session_test.go::TestLCPConfigRequestMRU": "cbfae410eef77856"
+  },
+  "verdict": "enforced"
+}

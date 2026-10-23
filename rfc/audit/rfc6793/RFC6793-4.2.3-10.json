@@ -1,0 +1,17 @@
+{
+  "note": "Judge 2026-09-30. TestRFC6793ConfedSegmentAdjacentToPrependedIsPrepended drives ReconcileASPathFamily: + AS_SEQ 64500, AS_CONFED_SEQ 65001, AS_SEQ TRANS TRANS beside a two-hop AS4_PATH keeps the confed segment after the prepended 64500; - the same confed segment behind a non-prepended AS_SEQ is dropped. Leading-segment clause is TestRFC6793LeadingConfedSegmentIsPrepended. Judge breaks in appendLeadingSegments: continuing past a non-prepended segment turned the negative red; stopping before a confed segment once the budget is spent turned the positive red.",
+  "requirement_sha": "c3b7772fee212be8",
+  "tests": {
+    "internal/core/bgp/attribute/rfc6793_confed_adjacent_test.go::TestRFC6793ConfedSegmentAdjacentToPrependedIsPrepended": "657c6c5a6a3b6449",
+    "internal/core/bgp/attribute/rfc6793_confed_adjacent_test.go::TestRFC6793ConfedSegmentAdjacentToPrependedIsPrepended#2": "657c6c5a6a3b6449",
+    "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793LeadingConfedSegmentIsPrepended": "4e9759edcd069569",
+    "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793UnadjacentConfedSegmentIsNotPrepended": "4e9759edcd069569"
+  },
+  "units": {
+    "internal/core/bgp/attribute/rfc6793_confed_adjacent_test.go::TestRFC6793ConfedSegmentAdjacentToPrependedIsPrepended": "77b7de545298c421",
+    "internal/core/bgp/attribute/rfc6793_confed_adjacent_test.go::TestRFC6793ConfedSegmentAdjacentToPrependedIsPrepended#2": "77b7de545298c421",
+    "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793LeadingConfedSegmentIsPrepended": "4d46ce2a46cfd48b",
+    "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793UnadjacentConfedSegmentIsNotPrepended": "c601dd630f9633f1"
+  },
+  "verdict": "enforced"
+}

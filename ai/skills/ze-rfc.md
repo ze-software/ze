@@ -522,7 +522,7 @@ RED. `./le rfc check` refuses a tagged unit that is new against git HEAD and car
 |------|---------|--------------|
 | 1 | `./le rfc discriminate stem <stem>` | says which of that RFC's tags carry a record, which records no longer verify, and which tags carry none |
 | 2 | `./le rfc discriminate stem <stem> report <path>` | reads a gomu JSON report and proposes candidate breaks for the unit tags, best first |
-| 3 | `./le rfc discriminate-record ...` | runs that tagged unit alone and requires the GREEN first, applies one break, requires the RED, and writes `rfc/discrimination/<stem>.json` |
+| 3 | `./le rfc discriminate-record ...` | runs that tagged unit alone and requires the GREEN first, applies one break, requires the RED, and writes `rfc/discrimination/<stem>/<requirement-id>.json` |
 
 The green comes BEFORE the break: a unit already failing proves nothing about a
 break. Every carrier applies its break through a private Go overlay, including

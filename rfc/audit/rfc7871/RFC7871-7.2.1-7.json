@@ -1,0 +1,11 @@
+{
+  "note": "Re-judged 2026-09-30: the unit changed only by dropping the retired RFC7871-7.2.2-1 tag and its duplicate assertion; the 7.2.1-7 assertion is unchanged. TestRFC7871_NoECSQueryNoECSResponse sends an ECS-less query whose packet source selects a tailored A (asserted 10.0.0.5), then asserts the response carries no EDNS0_SUBNET option; adding an ECS option to any geodns response turns it red. Negative polarity is unconstructible (geodns emits no ECS), as the single-polarity marker states.",
+  "requirement_sha": "c331aee86a557250",
+  "tests": {
+    "internal/plugins/geodns/rfc7871_server_test.go::TestRFC7871_NoECSQueryNoECSResponse": "4f94a9f098243c8d"
+  },
+  "units": {
+    "internal/plugins/geodns/rfc7871_server_test.go::TestRFC7871_NoECSQueryNoECSResponse": "b05957a61bf89dcb"
+  },
+  "verdict": "enforced"
+}

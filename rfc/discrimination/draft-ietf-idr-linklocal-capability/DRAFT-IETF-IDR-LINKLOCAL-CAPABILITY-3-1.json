@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_send_test.go::TestLinkLocalNextHopWithAGlobalIsNotSentAlone",
+    "unit-sha": "2333756d678fd4a1",
+    "claim-sha": "64a7a540c8a14432",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/update_build.go::buildMPReach",
+    "producer-sha": "f8f830d92bd631c5",
+    "break": "body of buildMPReach replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_send_test.go::TestLinkLocalOnlyNextHopFieldIsSixteenOctets",
+    "unit-sha": "bef2844b062b1917",
+    "claim-sha": "4c914426e65328d4",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/peer.go::resolveNextHop",
+    "producer-sha": "1ba5ccc72018f0d0",
+    "break": "body of resolveNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

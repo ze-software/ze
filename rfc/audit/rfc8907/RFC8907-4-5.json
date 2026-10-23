@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-12 (independent auditor). SHIFTED by 6e063fb498 (tests: give ten assert-nothing tests a real assertion), whose hunks sit in untagged sibling tests and the import block. The tagged unit is byte-identical (gate-verified) and no helper it calls changed. Verdict stands. Rejudged 2026-09-29. TestRFC8907LengthsAreUnsignedNetworkOrder asserts fixed wire octets for session_id and length (an independent big-endian oracle: a little-endian codec goes red), reads length 0xFFFFFFFE as unsigned, and reads 2-octet reply lengths 0x0100 and 0x8001 big-endian and unsigned in authentication, authorization and accounting replies (request lengths are 1 octet). {single-polarity: positive} holds: byte order has no refusal path. The marker's prose still describes the old symmetric round trip and should be refreshed; the argument itself stands.",
+  "requirement_sha": "22d5d46137a82b66",
+  "tests": {
+    "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907LengthsAreUnsignedNetworkOrder": "879b13e19509fb75",
+    "internal/component/tacacs/rfc8907_packet_test.go::TestPacketHeaderMarshalRoundTrip": "540fad3fac560cd1"
+  },
+  "units": {
+    "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907LengthsAreUnsignedNetworkOrder": "0ff257e746c0100e",
+    "internal/component/tacacs/rfc8907_packet_test.go::TestPacketHeaderMarshalRoundTrip": "0a077676a43d30f6"
+  },
+  "verdict": "enforced"
+}

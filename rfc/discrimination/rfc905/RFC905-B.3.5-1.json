@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC905-B.3.5-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/packet/rfc905_annexb_steps_test.go::TestRFC905LSPPlacesXAtNAndYAtNPlus1",
+    "unit-sha": "1a454ad36168673f",
+    "claim-sha": "b99cb59189a98078",
+    "route": "revert",
+    "producer": "internal/plugins/isis/packet/lsp.go::WriteTo",
+    "producer-sha": "0a233b69c47bdb35",
+    "break": "body of WriteTo replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC905-B.3.5-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/packet/rfc905_annexb_steps_test.go::TestRFC905LSPWithSwappedXYRefused",
+    "unit-sha": "763b0551436a92df",
+    "claim-sha": "bb7f08b85643a30f",
+    "route": "revert",
+    "producer": "internal/plugins/isis/packet/checksum.go::VerifyChecksum",
+    "producer-sha": "aaa4df5f75302408",
+    "break": "body of VerifyChecksum replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

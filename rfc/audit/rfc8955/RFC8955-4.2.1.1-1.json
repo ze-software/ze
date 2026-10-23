@@ -1,0 +1,11 @@
+{
+  "note": "independent re-read: TestRFC8955FirstOperatorAndBitEncodedUnset drives config destination-port >8080&<8088 through buildFlowSpecComponents and the encoder, walks the emitted operator octets, and asserts the first carries 0x40 clear and the second 0x40 set; an encoder setting AND on the first octet fails it. The doc-comment edit in 6fac9359ff renamed the config parser only; the body is unchanged.",
+  "requirement_sha": "e315a964ba4762ce",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955FirstOperatorAndBitEncodedUnset": "edf3d98f88af0674"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/flowspec/types_test.go::TestRFC8955FirstOperatorAndBitEncodedUnset": "046bfcfca112316b"
+  },
+  "verdict": "enforced"
+}

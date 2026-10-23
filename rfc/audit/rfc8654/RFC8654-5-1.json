@@ -1,0 +1,25 @@
+{
+  "code": {
+    "internal/component/bgp/reactor/session_negotiate.go::negotiateWith": "d80642dbbc8a51c8",
+    "internal/core/bgp/capability/negotiated.go::Negotiate": "c12135995b82302a"
+  },
+  "note": "Re-judged 2026-10-18 (independent auditor) after 5252a8d5f7 changed the cited producer negotiateWith. RFC 8654 Section 5 (rfc/full/rfc8654.txt): \"A BGP speaker that has the ability to use BGP Extended Messages but has not advertised the BGP Extended Message Capability, presumably due to configuration, MUST NOT accept a BGP Extended Message.\" The only change to negotiateWith is one added call, s.retainAdvertisedLLGR(localCaps), under writeMu after the Role scan: it writes Session.localLLGR alone and reads nothing the extended-message path uses. Negotiate is still computed under mu before writeMu, s.extendedMessage is still set from negotiated.ExtendedMessageRecv, and writeBuf.Resize still follows ExtendedMessageSend, so the receive admission the tests pin is unchanged. Every tagged unit is byte-identical to the earlier judgement: TestRFC8654ReceiveLimitFollowsLocalOPEN exchanges actual OPENs for all four local/peer combinations at Length 4096, 4097 and 65535, requiring rejection with NOTIFICATION 1/2 carrying the offending Length and zero dispatch when Ze did not advertise the capability, with local-only advertisement as the accepting control; TestValidateLengthWithMax pins the header bound both ways; the FRR carriers checkExtendedNeitherRejectFRR and checkExtendedRemoteOnlyRejectFRR require a real oversized FRR UPDATE refused with the exact NOTIFICATION. Their current execution is parent-owned and not inferred here. Verdict stands.",
+  "requirement_sha": "2f0a7ba066004af5",
+  "tests": {
+    "internal/component/bgp/message/header_test.go::TestValidateLengthWithMax": "4eb31663a97bb3a8",
+    "internal/component/bgp/message/header_test.go::TestValidateLengthWithMax#2": "4eb31663a97bb3a8",
+    "internal/component/bgp/reactor/rfc8654_directional_session_test.go::TestRFC8654ReceiveLimitFollowsLocalOPEN": "2dc714d2cb055c17",
+    "internal/component/bgp/reactor/rfc8654_directional_session_test.go::TestRFC8654ReceiveLimitFollowsLocalOPEN#2": "2dc714d2cb055c17",
+    "internal/le/interoplab/bgp/check_extended_message_scenarios.go::checkExtendedNeitherRejectFRR": "e385d68f3d8d0839",
+    "internal/le/interoplab/bgp/check_extended_message_scenarios.go::checkExtendedRemoteOnlyRejectFRR": "e385d68f3d8d0839"
+  },
+  "units": {
+    "internal/component/bgp/message/header_test.go::TestValidateLengthWithMax": "6d34dfe53245e5aa",
+    "internal/component/bgp/message/header_test.go::TestValidateLengthWithMax#2": "6d34dfe53245e5aa",
+    "internal/component/bgp/reactor/rfc8654_directional_session_test.go::TestRFC8654ReceiveLimitFollowsLocalOPEN": "67bfabb5fa86205a",
+    "internal/component/bgp/reactor/rfc8654_directional_session_test.go::TestRFC8654ReceiveLimitFollowsLocalOPEN#2": "67bfabb5fa86205a",
+    "internal/le/interoplab/bgp/check_extended_message_scenarios.go::checkExtendedNeitherRejectFRR": "e1e5fe0498917f8a",
+    "internal/le/interoplab/bgp/check_extended_message_scenarios.go::checkExtendedRemoteOnlyRejectFRR": "657d68f1b6172280"
+  },
+  "verdict": "enforced"
+}

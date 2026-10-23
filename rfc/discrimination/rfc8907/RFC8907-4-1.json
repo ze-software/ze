@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC8907-4-1",
+    "polarity": "positive",
+    "unit": "internal/component/tacacs/rfc8907_client_test.go::TestTacacsClientAuthenticatePass",
+    "unit-sha": "62f24f983bdd76d8",
+    "claim-sha": "b2571c5e68d5f36c",
+    "route": "revert",
+    "producer": "internal/component/tacacs/authen.go::Version",
+    "producer-sha": "3ea82201d29a9b82",
+    "break": "body of Version replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8907-4-1",
+    "polarity": "negative",
+    "unit": "internal/component/tacacs/rfc8907_client_test.go::TestTacacsClientRejectsBadResponseHeader",
+    "unit-sha": "7852a4ba63da2b07",
+    "claim-sha": "03e33d9cc9b0ccf3",
+    "route": "revert",
+    "producer": "internal/component/tacacs/client.go::validateResponseHeader",
+    "producer-sha": "48e12afe17dae9cf",
+    "break": "body of validateResponseHeader replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8907-4-1",
+    "polarity": "positive",
+    "unit": "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907EveryRequestCarriesMajorVersion12",
+    "unit-sha": "36baaead828810e8",
+    "claim-sha": "1eb4fc8fd4cc149b",
+    "route": "revert",
+    "producer": "internal/component/tacacs/authen.go::Version",
+    "producer-sha": "3ea82201d29a9b82",
+    "break": "body of Version replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8907-4-1",
+    "polarity": "negative",
+    "unit": "internal/component/tacacs/rfc8907_header_test.go::TestRFC8907ReplyWithOtherMajorVersionRefused",
+    "unit-sha": "5749639876e948c0",
+    "claim-sha": "2314f1af4eac2b4d",
+    "route": "revert",
+    "producer": "internal/component/tacacs/client.go::validateResponseHeader",
+    "producer-sha": "48e12afe17dae9cf",
+    "break": "body of validateResponseHeader replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

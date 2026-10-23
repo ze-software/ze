@@ -1,0 +1,13 @@
+{
+  "note": "decodePayload yields a concrete type for all sixteen types 33-48; type 204 is ErrUnknownPayload",
+  "requirement_sha": "73ad99a2a73e2893",
+  "tests": {
+    "internal/component/ike/wire/rfc7296_test.go::TestAllDefinedPayloadTypesUnderstood": "459954f82bfe6b71",
+    "internal/component/ike/wire/rfc7296_test.go::TestAllDefinedPayloadTypesUnderstood#2": "459954f82bfe6b71"
+  },
+  "units": {
+    "internal/component/ike/wire/rfc7296_test.go::TestAllDefinedPayloadTypesUnderstood": "2bb83f39fd753d82",
+    "internal/component/ike/wire/rfc7296_test.go::TestAllDefinedPayloadTypesUnderstood#2": "2bb83f39fd753d82"
+  },
+  "verdict": "enforced"
+}

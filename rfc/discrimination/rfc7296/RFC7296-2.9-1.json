@@ -1,0 +1,68 @@
+[
+  {
+    "rid": "RFC7296-2.9-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_rekey_floor_scope_test.go::TestRFC7296RekeyFloorIsAnsweredOnlyInsideTheProposal",
+    "unit-sha": "c65ac062a7659e9c",
+    "claim-sha": "f6d1bd9cd8222235",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/ts_narrow.go::floorWithinProposal",
+    "producer-sha": "7aa7960682df36b1",
+    "break": "line 187: \"pairWithinAny(f, proposed)\" -\u003e \"len(proposed)\u003c0\""
+  },
+  {
+    "rid": "RFC7296-2.9-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_rekey_floor_scope_test.go::TestRFC7296RekeyFloorIsAnsweredOnlyInsideTheProposal",
+    "unit-sha": "c65ac062a7659e9c",
+    "claim-sha": "07f222b9d6477b9b",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/ts_narrow.go::floorWithinProposal",
+    "producer-sha": "7aa7960682df36b1",
+    "break": "line 187: \"pairWithinAny(f, proposed)\" -\u003e \"len(proposed)\u003e=0\""
+  },
+  {
+    "rid": "RFC7296-2.9-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_transport_test.go::TestResponderNarrowsBothSelectorsToPolicy",
+    "unit-sha": "af360a22099aee1f",
+    "claim-sha": "04c01cc2b5f4d676",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/ts_narrow.go::intersectPair",
+    "producer-sha": "8e605331c65f3f78",
+    "break": "body of intersectPair replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.9-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_transport_test.go::TestResponderNarrowsBothSelectorsToPolicy",
+    "unit-sha": "af360a22099aee1f",
+    "claim-sha": "1736776ed07f7673",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/ts_narrow.go::intersectNet",
+    "producer-sha": "13199e1d4ccf7da8",
+    "break": "body of intersectNet replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.9-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_ts_combinations_test.go::TestRFC7296ResponderAnswersOnlyCombinationsItChose",
+    "unit-sha": "2b5e6edd0bc07c6b",
+    "claim-sha": "0d96e916bcea5ee1",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/ts_narrow.go::narrowChildSelectors",
+    "producer-sha": "05ccd87e487ff66d",
+    "break": "line 628: \"closedSubset(narrowed, answerPairsMax)\" -\u003e \"narrowed\""
+  },
+  {
+    "rid": "RFC7296-2.9-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_ts_combinations_test.go::TestRFC7296ResponderAnswersOnlyCombinationsItChose",
+    "unit-sha": "2b5e6edd0bc07c6b",
+    "claim-sha": "c5efd6bca91bc894",
+    "route": "mutant",
+    "producer": "internal/component/ike/engine/ts_narrow.go::narrowChildSelectors",
+    "producer-sha": "05ccd87e487ff66d",
+    "break": "line 628: \"answerPairsMax)\" -\u003e \"1)\""
+  }
+]

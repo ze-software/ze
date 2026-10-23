@@ -1,0 +1,17 @@
+{
+  "note": "Both cases now driven. Negotiated: TestReceivedMagicNumberMustBePeers (0, peer+1, own refused; peer's accepted). Not negotiated: TestReceivedMagicNumberZeroWhenPeerNegotiatedNone acks a Configure-Request without Magic over a stale peerMagic, then zero draws an Echo-Reply and clears echoOutstanding, while the stale value and ze's own draw no reply and leave the count. Red if handleLCPPacket kept the stale peerMagic.",
+  "requirement_sha": "19ddf5d795a86265",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestReceivedMagicNumberMustBePeers": "034fb31a9e383e0e",
+    "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestReceivedMagicNumberMustBePeers#2": "034fb31a9e383e0e",
+    "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestReceivedMagicNumberZeroWhenPeerNegotiatedNone": "034fb31a9e383e0e",
+    "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestReceivedMagicNumberZeroWhenPeerNegotiatedNone#2": "034fb31a9e383e0e"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestReceivedMagicNumberMustBePeers": "e7430d1489d57887",
+    "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestReceivedMagicNumberMustBePeers#2": "e7430d1489d57887",
+    "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestReceivedMagicNumberZeroWhenPeerNegotiatedNone": "df77c8110338e5ca",
+    "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestReceivedMagicNumberZeroWhenPeerNegotiatedNone#2": "df77c8110338e5ca"
+  },
+  "verdict": "enforced"
+}

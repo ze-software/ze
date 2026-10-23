@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC7752-3.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc9552_capability_test.go::TestRFC9552LinkStateNeverSentToIncapablePeer",
+    "unit-sha": "bf51265095f0307c",
+    "claim-sha": "aff0a7ef4fbf9e13",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/reactor_api_batch.go::AnnounceNLRIBatch",
+    "producer-sha": "eb3666dadc9b3b9c",
+    "break": "body of AnnounceNLRIBatch replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7752-3.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc9552_capability_test.go::TestRFC9552LinkStateSentToCapablePeer",
+    "unit-sha": "32a924711a8a2844",
+    "claim-sha": "325bdcb6def12adb",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/reactor_api_batch.go::AnnounceNLRIBatch",
+    "producer-sha": "eb3666dadc9b3b9c",
+    "break": "body of AnnounceNLRIBatch replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7752-3.2-1",
+    "polarity": "negative",
+    "unit": "internal/core/bgp/capability/rfc7752_bgpls_test.go::TestRFC7752BGPLSCapabilityNotNegotiatedWhenPeerSilent",
+    "unit-sha": "c53e404e00f645c0",
+    "claim-sha": "63e73d3b7f4e865e",
+    "route": "revert",
+    "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
+    "producer-sha": "7d637b6d32bc44a0",
+    "break": "body of Negotiate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9552-8.2.3-5",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeInstanceIDOverflowRefused",
+    "unit-sha": "e4a60b4cd0c97220",
+    "claim-sha": "c8b967e0fe1268d8",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/ls_export/export_config.go::parseExportConfig",
+    "producer-sha": "5fe3a5c861a97da8",
+    "break": "body of parseExportConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9552-8.2.3-5",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeInstanceIDFullWidth",
+    "unit-sha": "bde620993f75da2f",
+    "claim-sha": "f7f171082f27404a",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/ls_export/export_encode.go::encodeTopology",
+    "producer-sha": "8cd787137d3e2d50",
+    "break": "body of encodeTopology replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

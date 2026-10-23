@@ -1,0 +1,23 @@
+{
+  "note": "Re-judged 2026-09-30 under R-C1: row text and tagged units unchanged. TestISISVerifyRequiresBothSumsZero and TestFletcherVerifyRequiresBothSumsZero refuse a region with C0 zero and C1 non-zero and one with C1 zero and C0 non-zero, and accept the generated region; the both-non-zero case stays covered by the single-octet flips of TestISISChecksumDetectsCorruption and TestOSPFLSAChecksumExcludesAge.",
+  "requirement_sha": "d5a155d22fc3d6ea",
+  "tests": {
+    "internal/plugins/isis/packet/rfc905_checksum_test.go::TestISISVerifyRequiresBothSumsZero": "d26e0552240a6091",
+    "internal/plugins/isis/packet/rfc905_checksum_test.go::TestISISVerifyRequiresBothSumsZero#2": "d26e0552240a6091",
+    "internal/plugins/isis/packet/rfc905_checksum_vectors_test.go::TestISISChecksumDetectsCorruption": "b9f243f3624e524f",
+    "internal/plugins/isis/packet/rfc905_checksum_vectors_test.go::TestISISChecksumVectors": "b9f243f3624e524f",
+    "internal/plugins/ospf/packet/checksum_test.go::TestOSPFLSAChecksumExcludesAge": "8ac8573c092c7f1a",
+    "internal/plugins/ospf/types/rfc_checksum_forms_test.go::TestFletcherVerifyRequiresBothSumsZero": "cc5064006e5e0814",
+    "internal/plugins/ospf/types/rfc_checksum_forms_test.go::TestFletcherVerifyRequiresBothSumsZero#2": "cc5064006e5e0814"
+  },
+  "units": {
+    "internal/plugins/isis/packet/rfc905_checksum_test.go::TestISISVerifyRequiresBothSumsZero": "0dd01c11065989bf",
+    "internal/plugins/isis/packet/rfc905_checksum_test.go::TestISISVerifyRequiresBothSumsZero#2": "0dd01c11065989bf",
+    "internal/plugins/isis/packet/rfc905_checksum_vectors_test.go::TestISISChecksumDetectsCorruption": "8e7bf5886473d042",
+    "internal/plugins/isis/packet/rfc905_checksum_vectors_test.go::TestISISChecksumVectors": "7416218e47d3c785",
+    "internal/plugins/ospf/packet/checksum_test.go::TestOSPFLSAChecksumExcludesAge": "3d7fb4e4da4a50f4",
+    "internal/plugins/ospf/types/rfc_checksum_forms_test.go::TestFletcherVerifyRequiresBothSumsZero": "82afa8e283f0ad9c",
+    "internal/plugins/ospf/types/rfc_checksum_forms_test.go::TestFletcherVerifyRequiresBothSumsZero#2": "82afa8e283f0ad9c"
+  },
+  "verdict": "enforced"
+}

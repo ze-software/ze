@@ -1,0 +1,15 @@
+{
+  "note": "Judge 2026-09-30 (rejudge, 6-2 + rest). Selection clause: NEW TestRFC5880YourDiscriminatorSelectsAmongSessions holds two sessions to one peer on eth0/eth1; a packet arriving on eth0 naming eth1's discriminator reaches eth1's session only (first RemoteDiscr stays 0) and the mirror reaches the first, so selection by arrival tuple goes red (overlay selecting by byKey when YD != 0 reds it and the discard negative, job-ov8). Discard clause: - TestRFC5880UnknownYourDiscriminatorDiscarded unchanged and sound. Old one-session + kept as supplementary. Record: revert loop.go::handleInbound observed red.",
+  "requirement_sha": "f5e34d76d0e9bf44",
+  "tests": {
+    "internal/component/bfd/engine/rfc5880_discriminator_select_test.go::TestRFC5880YourDiscriminatorSelectsAmongSessions": "86e3a3cf7ddc5819",
+    "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880UnknownYourDiscriminatorDiscarded": "4b885928a870b00d",
+    "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880YourDiscriminatorSelectsSession": "4b885928a870b00d"
+  },
+  "units": {
+    "internal/component/bfd/engine/rfc5880_discriminator_select_test.go::TestRFC5880YourDiscriminatorSelectsAmongSessions": "76ac619a7fe66df0",
+    "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880UnknownYourDiscriminatorDiscarded": "1185c46e74aa471b",
+    "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880YourDiscriminatorSelectsSession": "6619a212580a1aed"
+  },
+  "verdict": "enforced"
+}

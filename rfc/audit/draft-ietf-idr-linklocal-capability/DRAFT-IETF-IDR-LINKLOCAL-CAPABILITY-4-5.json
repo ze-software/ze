@@ -1,0 +1,13 @@
+{
+  "note": "Rejudged against draft -06 Section 4: 'A Route Reflector (RR) reflecting a route with a link-local-only next hop MUST NOT advertise that route to a client unless the client shares the same link-layer segment as the original advertiser.' llnhClient now sets negotiated.LinkLocalNextHop=true. More importantly, the tagged TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment now includes directly-attached-other-segment: both clients are on connected /64s, only one shares the advertiser's /64, and both use NextHopUnchanged. On forwardUpdateCore's reflected path the off-segment client must be dispatched the exact MP_UNREACH for 2001:db8:7::/64, with no MP_REACH attribute and no next hop; the same-segment client must receive MP_REACH with exactly fe80::1 and no MP_UNREACH. These are distinct conforming/refused outcomes despite sharing one tagged function. Reading egressNextHopWithheld, sameLinkLayerSegment and destOnLink establishes isolation: removing only the reflection segment refusal leaves both clients on-link and capability-authorized, so the off-segment announcement violates the explicit no-MP_REACH and exact-withdrawal assertions. The older outer off-segment case alone was confounded by the independent multihop refusal; the new attached-other-segment subtest closes that proof gap. No remaining 4-5 source/test fix is established by this focused review. This is semantic source evidence, not an observed mutation run or an interop-pass claim.",
+  "requirement_sha": "01dd2f11bbcb64db",
+  "tests": {
+    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go::TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment": "4c56331fbf72051e",
+    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go::TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment#2": "4c56331fbf72051e"
+  },
+  "units": {
+    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go::TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment": "24817bf78193fd59",
+    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go::TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment#2": "24817bf78193fd59"
+  },
+  "verdict": "enforced"
+}

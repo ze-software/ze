@@ -1,0 +1,57 @@
+[
+  {
+    "rid": "RFC5880-6.8.7-5",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/engine/rfc5880_engine_clauses_test.go::TestRFC5880PassiveTickSendsNothingWithoutRemoteDiscr",
+    "unit-sha": "bf885e431c2827de",
+    "claim-sha": "6ce31fe423a8b21f",
+    "route": "revert",
+    "producer": "internal/component/bfd/engine/loop.go::tick",
+    "producer-sha": "4d6c5e086edd0eba",
+    "break": "body of tick replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.8.7-5",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/session/rfc5880_test.go::TestRFC5880ActiveRoleTransmitsWithoutReception",
+    "unit-sha": "b4b268297193e572",
+    "claim-sha": "a9e8f393201369d6",
+    "route": "revert",
+    "producer": "internal/component/bfd/session/session.go::Init",
+    "producer-sha": "39bd57d2fe6e92b0",
+    "break": "body of Init replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.8.7-5",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveRoleSilentUntilReception",
+    "unit-sha": "ccace5fcdff95ddf",
+    "claim-sha": "32dfc377fab2e894",
+    "route": "revert",
+    "producer": "internal/component/bfd/session/session.go::Init",
+    "producer-sha": "39bd57d2fe6e92b0",
+    "break": "body of Init replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.8.7-5",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveSilentOnceRemoteDiscrCleared",
+    "unit-sha": "692bec2a41e0aa3f",
+    "claim-sha": "5711d4f449789214",
+    "route": "revert",
+    "producer": "internal/component/bfd/session/timers.go::transmitPermitted",
+    "producer-sha": "bdb70dcf6172683e",
+    "break": "body of transmitPermitted replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.8.7-5",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PassiveTransmitsAgainOnceRemoteDiscrLearned",
+    "unit-sha": "29d0a60dc677966d",
+    "claim-sha": "394f4845f11f0274",
+    "route": "revert",
+    "producer": "internal/component/bfd/session/timers.go::transmitPermitted",
+    "producer-sha": "bdb70dcf6172683e",
+    "break": "body of transmitPermitted replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-10-01 (BGP c12 judge). The trigger (receipt of an OPEN) now reaches the examination in a tagged unit: TestRFC4271ReceivedOpenExaminesTheOpenConfirmConnection hands a second connection to Reactor.acceptOrReject, which tracks it as pending until its OPEN, then writes a complete OPEN on it; handlePendingCollision examines the session held in OpenConfirm. Both outcomes of the examination are asserted on the wire: remote Identifier 10.0.0.3 above local 10.0.0.2 -> Cease 6/7 on the OpenConfirm connection; 10.0.0.1 below -> 6/7 on the new connection, pending cleared, OpenConfirm session kept. Negative TestRFC4271ReceivedOpenWithNoOpenConfirmConnection: with no connection in OpenConfirm (session Established) an OPEN with Identifier 255.255.255.255, which would win an OpenConfirm comparison, does not close the existing session; the new connection gets 6/7 and Established stays. Records on session.go::detectCollision observed red both polarities. HEAD units in collision_test.go (direct detectCollision calls) stay supplementary. Ze holds at most one OpenConfirm connection per peer, so 'all' is that one.",
+  "requirement_sha": "773b4d24b325a53b",
+  "tests": {
+    "internal/component/bgp/reactor/collision_test.go::TestCollisionNonCollisionStates": "5c70309331197119",
+    "internal/component/bgp/reactor/collision_test.go::TestCollisionOpenConfirmLocalWins": "5c70309331197119",
+    "internal/component/bgp/reactor/rfc4271_collision_open_receipt_test.go::TestRFC4271ReceivedOpenExaminesTheOpenConfirmConnection": "ba785114f38bbc8d",
+    "internal/component/bgp/reactor/rfc4271_collision_open_receipt_test.go::TestRFC4271ReceivedOpenWithNoOpenConfirmConnection": "ba785114f38bbc8d"
+  },
+  "units": {
+    "internal/component/bgp/reactor/collision_test.go::TestCollisionNonCollisionStates": "91506adb72012cab",
+    "internal/component/bgp/reactor/collision_test.go::TestCollisionOpenConfirmLocalWins": "df55ccd9a017c407",
+    "internal/component/bgp/reactor/rfc4271_collision_open_receipt_test.go::TestRFC4271ReceivedOpenExaminesTheOpenConfirmConnection": "0917ea85f7708312",
+    "internal/component/bgp/reactor/rfc4271_collision_open_receipt_test.go::TestRFC4271ReceivedOpenWithNoOpenConfirmConnection": "bbe5194b30a2fa24"
+  },
+  "verdict": "enforced"
+}

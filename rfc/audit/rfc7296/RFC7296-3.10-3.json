@@ -1,0 +1,17 @@
+{
+  "note": "Producer side now proven: every notify of the IKE_SA_INIT request ze builds and the UNSUPPORTED_CRITICAL_PAYLOAD error answer ze sends, decoded off the wire, carry SPI Size 0 and no SPI octets (error data exactly one octet). Negative (R1b): an IKE-SA notify struct naming Protocol ID 1 and SPI Size 8 with no SPI octets is still encoded with SPI Size 0 and an empty SPI field. Engine notify producers read: only REKEY_SA (a Child SA notify, rekey.go) sets an SPI. INITIAL_CONTACT is not driven end to end; it uses the same WriteTo. Wire TestNotifyIKESAHasEmptySPI kept.",
+  "requirement_sha": "3b619678dd934c11",
+  "tests": {
+    "internal/component/ike/engine/rfc7296_ikesa_notify_spi_test.go::TestRFC7296IKESANotifiesZeSendsCarryNoSPI": "885052359b07a71f",
+    "internal/component/ike/engine/rfc7296_ikesa_notify_spi_test.go::TestRFC7296IKESANotifyWithAnSPISizeButNoSPIIsSentEmpty": "885052359b07a71f",
+    "internal/component/ike/wire/rfc7296_test.go::TestNotifyIKESAHasEmptySPI": "459954f82bfe6b71",
+    "internal/component/ike/wire/rfc7296_test.go::TestNotifyIKESAHasEmptySPI#2": "459954f82bfe6b71"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7296_ikesa_notify_spi_test.go::TestRFC7296IKESANotifiesZeSendsCarryNoSPI": "728eaec41390b36f",
+    "internal/component/ike/engine/rfc7296_ikesa_notify_spi_test.go::TestRFC7296IKESANotifyWithAnSPISizeButNoSPIIsSentEmpty": "3bb8345792846bdd",
+    "internal/component/ike/wire/rfc7296_test.go::TestNotifyIKESAHasEmptySPI": "846cba357c0a13b6",
+    "internal/component/ike/wire/rfc7296_test.go::TestNotifyIKESAHasEmptySPI#2": "846cba357c0a13b6"
+  },
+  "verdict": "enforced"
+}

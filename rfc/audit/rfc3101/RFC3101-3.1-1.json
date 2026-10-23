@@ -1,0 +1,21 @@
+{
+  "note": "Rejudged 2026-10-21 over the current tags, units and records. Tags removed from the single-area TestOSPFASBRBitFromNSSAType7, correctly: it proves a Type-7 originator is an ASBR, not the border-router E-bit. What remains is the OSPFv2 multi-area pair, the border-router pair and the OSPFv3 pair, all with records on NSSABorderEBit. Each asserts the E-bit in every non-stub area of an NSSA border router, and clear with no NSSA attached.",
+  "requirement_sha": "0409f2f519db36f9",
+  "tests": {
+    "internal/plugins/ospf/lsdb/rfc3101_nssa_border_ebit_areas_test.go::TestRFC3101NSSABorderEBitInEveryNonStubArea": "05a1bdbad4c0a365",
+    "internal/plugins/ospf/lsdb/rfc3101_nssa_border_ebit_areas_test.go::TestRFC3101NoNSSAAttachedEBitClearEverywhere": "05a1bdbad4c0a365",
+    "internal/plugins/ospf/lsdb/rfc3101_nssa_border_ebit_test.go::TestRFC3101NSSABorderRouterSetsEBit": "fa377c02d28ef7c6",
+    "internal/plugins/ospf/lsdb/rfc3101_nssa_border_ebit_test.go::TestRFC3101NSSABorderRouterSetsEBit#2": "fa377c02d28ef7c6",
+    "internal/plugins/ospf/rfc3101_v6_nssa_border_ebit_test.go::TestRFC3101V6NSSABorderEBitInEveryNonStubArea": "c864c4021e34b9e0",
+    "internal/plugins/ospf/rfc3101_v6_nssa_border_ebit_test.go::TestRFC3101V6NoNSSAAttachedEBitClearEverywhere": "c864c4021e34b9e0"
+  },
+  "units": {
+    "internal/plugins/ospf/lsdb/rfc3101_nssa_border_ebit_areas_test.go::TestRFC3101NSSABorderEBitInEveryNonStubArea": "58b9ac30f97841e6",
+    "internal/plugins/ospf/lsdb/rfc3101_nssa_border_ebit_areas_test.go::TestRFC3101NoNSSAAttachedEBitClearEverywhere": "6336aecd21aa6836",
+    "internal/plugins/ospf/lsdb/rfc3101_nssa_border_ebit_test.go::TestRFC3101NSSABorderRouterSetsEBit": "403ab4b7dbaeffb5",
+    "internal/plugins/ospf/lsdb/rfc3101_nssa_border_ebit_test.go::TestRFC3101NSSABorderRouterSetsEBit#2": "403ab4b7dbaeffb5",
+    "internal/plugins/ospf/rfc3101_v6_nssa_border_ebit_test.go::TestRFC3101V6NSSABorderEBitInEveryNonStubArea": "74b547f31144fe8a",
+    "internal/plugins/ospf/rfc3101_v6_nssa_border_ebit_test.go::TestRFC3101V6NoNSSAAttachedEBitClearEverywhere": "0160857821b3a624"
+  },
+  "verdict": "enforced"
+}

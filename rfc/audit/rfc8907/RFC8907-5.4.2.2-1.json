@@ -1,0 +1,13 @@
+{
+  "note": "(a) forbidden: a PAP login with more than one START/REPLY, including a CONTINUE. (b) TestRFC8907PAPExchangeIsOneStartOneReply requires exactly one authentication request on the connection; TestRFC8907PAPClientSendsNoContinue replies GETPASS and requires an error, a nil reply and requestsOn(0) of length 1.",
+  "requirement_sha": "f1deb70a7310aa5f",
+  "tests": {
+    "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907PAPClientSendsNoContinue": "7c6845571ca0fb19",
+    "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907PAPExchangeIsOneStartOneReply": "7c6845571ca0fb19"
+  },
+  "units": {
+    "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907PAPClientSendsNoContinue": "60b1b9aff69b3fad",
+    "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907PAPExchangeIsOneStartOneReply": "f3d6991b72311a51"
+  },
+  "verdict": "enforced"
+}

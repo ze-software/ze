@@ -1,0 +1,17 @@
+{
+  "note": "Rejudge ppp8 2026-09-30: pppoeclient TestClientLCPRejectRemovesOnlyRejectedOptions changed only to read frameLog through the locked snapshot() (frameLog race fix); every assertion, input and comparison is unchanged, so the verdict stands. Sentence: when a new Configure-Request is sent after a valid Configure-Reject, it MUST NOT include any of the rejected options. (a) Re-including a rejected option: TestLCPRejectedOptionsStayRemoved (only MRU, and all options) and TestClientLCPRejectRemovesOnlyRejectedOptions (MRU, Magic, all; across a retransmission and a later Nak) go red on bytes.Equal(next.Data, want) / len(next.Data) != 0. Negative: un-rejected options stay byte-identical.",
+  "requirement_sha": "0f0699a656379b2d",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRejectedOptionsStayRemoved": "6e1e87cfaa4fb86b",
+    "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRejectedOptionsStayRemoved#2": "6e1e87cfaa4fb86b",
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "94dbfbde4e1ef3d7",
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions#2": "94dbfbde4e1ef3d7"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRejectedOptionsStayRemoved": "e3720a5097b1650d",
+    "internal/component/l2tp/ppp/rfc1661_lcp_test.go::TestLCPRejectedOptionsStayRemoved#2": "e3720a5097b1650d",
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions": "4414e892e55bf66d",
+    "internal/component/l2tp/pppoeclient/rfc1661_lcp_reply_test.go::TestClientLCPRejectRemovesOnlyRejectedOptions#2": "4414e892e55bf66d"
+  },
+  "verdict": "enforced"
+}

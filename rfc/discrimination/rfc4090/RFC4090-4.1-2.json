@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC4090-4.1-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/frr_test.go::TestBuildPathIncludesFastReroute",
+    "unit-sha": "c496a5ef5b176154",
+    "claim-sha": "9d8308737fce4207",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/frr.go::fastReroute",
+    "producer-sha": "28c8753c8d789a15",
+    "break": "body of fastReroute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4090-4.1-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/rsvpte/frr_test.go::TestFastRerouteOneToOneMethodFlag",
+    "unit-sha": "ce229a1000250f43",
+    "claim-sha": "ccf22d8842406795",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/frr.go::fastReroute",
+    "producer-sha": "28c8753c8d789a15",
+    "break": "body of fastReroute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4090-4.1-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/rfc4090_plr_flags_test.go::TestRFC4090OneToOneRequestInPath",
+    "unit-sha": "bdb5795d3d8b6657",
+    "claim-sha": "adc228c85c73225c",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/frr.go::fastReroute",
+    "producer-sha": "28c8753c8d789a15",
+    "break": "body of fastReroute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4090-4.1-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/rsvpte/rfc4090_plr_flags_test.go::TestRFC4090RequestNeverNamesOtherMethod",
+    "unit-sha": "27e55f6bc62a5937",
+    "claim-sha": "3b1f319d0cafc895",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/frr.go::fastReroute",
+    "producer-sha": "28c8753c8d789a15",
+    "break": "body of fastReroute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

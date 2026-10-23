@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC2865-5-5",
+    "polarity": "positive",
+    "unit": "internal/component/radius/rfc2865_walk_test.go::TestAttributeLookupDoesNotRequireContiguity",
+    "unit-sha": "ad42f1a79f0497e9",
+    "claim-sha": "476c91ffb6450871",
+    "route": "revert",
+    "producer": "internal/component/radius/packet.go::FindAllAttr",
+    "producer-sha": "b15464b1985bd185",
+    "break": "body of FindAllAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

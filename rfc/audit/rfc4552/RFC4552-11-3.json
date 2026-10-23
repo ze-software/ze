@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-09-30 (continuation 6, judge): the weak finding (source selector unasserted) is closed. TestRFC4552BarrierPoliciesProtectOSPFInEveryDirection now asserts, for every out/in/fwd policy on esp and ah interfaces, that the source selector covers fe80::/10 (selectorCovers: prefix length <= 10 containing fe80::; Ze installs ::/0, wider, as the row annotation states) and the destination is any (::/0), plus upper protocol 89 and the protect transform. Records: installLocked mutant and buildIPsecPolicies revert, observed red. Single-polarity positive per annotation (the rules are installed, never refused). Virtual-link rules 4 and 5 stay gap row RFC4552-11-4.",
+  "requirement_sha": "9868de92654cd2e0",
+  "tests": {
+    "internal/plugins/ospf/ipsec_install_test.go::TestIPsecInstallOnInterfaceUp": "976d07eeb9539b2b",
+    "internal/plugins/ospf/rfc4552_barrier_test.go::TestRFC4552BarrierPoliciesProtectOSPFInEveryDirection": "638d96a72d0e1911"
+  },
+  "units": {
+    "internal/plugins/ospf/ipsec_install_test.go::TestIPsecInstallOnInterfaceUp": "a145323c432300dc",
+    "internal/plugins/ospf/rfc4552_barrier_test.go::TestRFC4552BarrierPoliciesProtectOSPFInEveryDirection": "6a89a5d53b6bb99a"
+  },
+  "verdict": "enforced"
+}

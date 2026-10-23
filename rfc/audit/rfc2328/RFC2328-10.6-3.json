@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged 2026-10-21 (round 5 judge). The Exchange-state reply is now asserted: DD 100 accepted as next in sequence draws exactly one slave DD with sequence 100, MS and I clear (record on handleExchangeDDLocked); the ExStart reply and the duplicate repeat stay pinned; an out-of-sequence DD draws a fresh Init DD, not a reply.",
+  "requirement_sha": "d78205c0ea0877d8",
+  "tests": {
+    "internal/plugins/ospf/neighbor/rfc2328_dd_slave_next_test.go::TestRFC2328SlaveAcceptsAndAnswersNextDDInExchange": "fe08f8f39580a5ba",
+    "internal/plugins/ospf/neighbor/rfc2328_dd_slave_test.go::TestRFC2328SlaveRefusesOutOfSequenceDD": "e5e68f42c963f76a",
+    "internal/plugins/ospf/neighbor/rfc2328_dd_slave_test.go::TestRFC2328SlaveRepliesAndRepeatsOnDuplicate": "e5e68f42c963f76a"
+  },
+  "units": {
+    "internal/plugins/ospf/neighbor/rfc2328_dd_slave_next_test.go::TestRFC2328SlaveAcceptsAndAnswersNextDDInExchange": "fa4660fa8c1f59c1",
+    "internal/plugins/ospf/neighbor/rfc2328_dd_slave_test.go::TestRFC2328SlaveRefusesOutOfSequenceDD": "17da72bb29c87f94",
+    "internal/plugins/ospf/neighbor/rfc2328_dd_slave_test.go::TestRFC2328SlaveRepliesAndRepeatsOnDuplicate": "ac11cfa295d3b810"
+  },
+  "verdict": "enforced"
+}

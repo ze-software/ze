@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC2328-A.3.1-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/packet/checksum_test.go::TestOSPFPacketChecksumExcludesAuth",
+    "unit-sha": "044c662beed701f8",
+    "claim-sha": "052cc2119233a20c",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/packet/checksum.go::PacketChecksum",
+    "producer-sha": "9244c5fe39339180",
+    "break": "body of PacketChecksum replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-A.3.1-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/packet/rfc2328_checksum_coverage_test.go::TestRFC2328PacketChecksumCoversHeaderExcludesAuth",
+    "unit-sha": "e151042ec2b8db6b",
+    "claim-sha": "86c82cfaa2a3b07b",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/packet/checksum.go::PacketChecksum",
+    "producer-sha": "9244c5fe39339180",
+    "break": "body of PacketChecksum replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-A.3.1-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/packet/rfc2328_checksum_coverage_test.go::TestRFC2328PacketChecksumWrongRangeRefused",
+    "unit-sha": "333c7febbff11082",
+    "claim-sha": "e7670443a24a543b",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/packet/checksum.go::VerifyPacketChecksum",
+    "producer-sha": "6574e309c9b7d561",
+    "break": "body of VerifyPacketChecksum replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-A.3.1-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/packet/rfc2328_header_test.go::TestPacketVerifyChecksum",
+    "unit-sha": "6415322a50c907c5",
+    "claim-sha": "ea38fd73aad84223",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/packet/checksum.go::VerifyPacketChecksum",
+    "producer-sha": "6574e309c9b7d561",
+    "break": "body of VerifyPacketChecksum replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4090-7.2-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090DownstreamKeepsStateOnUpstreamLinkFailure",
+    "unit-sha": "f89d9a1ee04764f9",
+    "claim-sha": "71637b8fb5964675",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/engine.go::handleLinkDown",
+    "producer-sha": "a435d7905a0be7ed",
+    "break": "body of handleLinkDown replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4090-7.2-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090DownstreamKeepsStateOnUpstreamLinkFailure",
+    "unit-sha": "f89d9a1ee04764f9",
+    "claim-sha": "ee71347b4c3be82d",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/engine.go::handleLinkDown",
+    "producer-sha": "a435d7905a0be7ed",
+    "break": "body of handleLinkDown replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

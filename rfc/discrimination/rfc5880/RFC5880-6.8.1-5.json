@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC5880-6.8.1-5",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880RemoteDiscrClearedDespiteInvalidPackets",
+    "unit-sha": "85b1dc36ec81a566",
+    "claim-sha": "c4cd83969ff47c82",
+    "route": "mutant",
+    "producer": "internal/component/bfd/session/fsm.go::Receive",
+    "producer-sha": "358034a974de9c16",
+    "break": "line 49: \"!=\" -\u003e \"==\""
+  },
+  {
+    "rid": "RFC5880-6.8.1-5",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteDiscrClearedAfterSilenceWhileDown",
+    "unit-sha": "1f03948b1d033450",
+    "claim-sha": "8e7e5e5f2b05b221",
+    "route": "revert",
+    "producer": "internal/component/bfd/session/timers.go::CheckDetection",
+    "producer-sha": "1386b1ea81534415",
+    "break": "body of CheckDetection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.8.1-5",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteDiscrClearedOnDetectionExpiry",
+    "unit-sha": "4d925e7e24598564",
+    "claim-sha": "1075ce28dcbb77a6",
+    "route": "revert",
+    "producer": "internal/component/bfd/session/fsm.go::onStateChange",
+    "producer-sha": "4ed1ee92b4f69d5a",
+    "break": "body of onStateChange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.8.1-5",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/session/rfc5880_test.go::TestRFC5880RemoteDiscrKeptOnNeighborSignaledDown",
+    "unit-sha": "f4403b1c504c22dc",
+    "claim-sha": "7edce3c9599917c8",
+    "route": "revert",
+    "producer": "internal/component/bfd/session/fsm.go::onStateChange",
+    "producer-sha": "4ed1ee92b4f69d5a",
+    "break": "body of onStateChange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

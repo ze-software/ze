@@ -1,0 +1,13 @@
+{
+  "note": "Clause 1 (zero on transmission): TestRFC3209LabelRequestReservedZeroOnSend prefills 0xFF and asserts buf[4:6]=={0,0}. Clause 2 (ignored on receipt): TestRFC3209LabelRequestReservedIgnoredOnReceipt decodes reserved 0xFFFF and asserts NoError and L3PID 0x0800, red if the decoder refuses or misreads it.",
+  "requirement_sha": "9459b5a00034fc45",
+  "tests": {
+    "internal/plugins/rsvpte/wire_rfc3209_test.go::TestRFC3209LabelRequestReservedIgnoredOnReceipt": "f41b8974aa28db4d",
+    "internal/plugins/rsvpte/wire_rfc3209_test.go::TestRFC3209LabelRequestReservedZeroOnSend": "f41b8974aa28db4d"
+  },
+  "units": {
+    "internal/plugins/rsvpte/wire_rfc3209_test.go::TestRFC3209LabelRequestReservedIgnoredOnReceipt": "cafb444957345eeb",
+    "internal/plugins/rsvpte/wire_rfc3209_test.go::TestRFC3209LabelRequestReservedZeroOnSend": "fbb803a188138b6d"
+  },
+  "verdict": "enforced"
+}

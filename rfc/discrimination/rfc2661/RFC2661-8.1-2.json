@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC2661-8.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/rfc2661_lower_layer_linux_test.go::TestControlSocketKeepsUDPChecksums",
+    "unit-sha": "9939551b33225508",
+    "claim-sha": "118648c4825a5965",
+    "route": "revert",
+    "producer": "internal/component/l2tp/listener.go::newUDPListener",
+    "producer-sha": "0cf628af92450c25",
+    "break": "body of newUDPListener replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

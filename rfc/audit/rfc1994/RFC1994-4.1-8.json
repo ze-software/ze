@@ -1,0 +1,11 @@
+{
+  "note": "Single-polarity accepted. TestCHAPRepeatedResponseAfterSuccessKeepsSessionUp now repeats the Response that earned the Success (challenge Identifier from readCHAPChallengeAndRespond, same 0x33 Value) in the Network-Layer phase: red on EventSessionDown or any lifecycle event, and the session must still answer an LCP Echo-Request. Re-sending the prior reply Code is RFC1994-4.1-9, a recorded gap.",
+  "requirement_sha": "8e45ac1b01ccce12",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1994_chap_reauth_test.go::TestCHAPRepeatedResponseAfterSuccessKeepsSessionUp": "f77f40f6ed3b5dd0"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1994_chap_reauth_test.go::TestCHAPRepeatedResponseAfterSuccessKeepsSessionUp": "0f8832b0e34eb14d"
+  },
+  "verdict": "enforced"
+}

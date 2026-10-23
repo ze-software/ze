@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: the server concluding (EAP-Failure) on the round it sends its alert, instead of waiting for the peer's Response. alertFlight fatals if the round that records the cause carries CodeFailure, TestEAPTLSAuthenticatorSendsTheAlertBeforeItReportsTheFailure errors unless that round is an EAP-Request with a TLS alert record, and only the later Response draws the Failure. Negative: TestEAPTLSAuthenticatorReportsTheFailureWithNoAlertToSend fatals if a failure with no alert to send reports no error, so the wait is bound to an alert.",
+  "requirement_sha": "ab9e7542ea0e4170",
+  "tests": {
+    "internal/core/eap/rfc5216_eap_tls_alert_flight_test.go::TestEAPTLSAuthenticatorReportsTheFailureWithNoAlertToSend": "e222ad1f56734ddc",
+    "internal/core/eap/rfc5216_eap_tls_alert_flight_test.go::TestEAPTLSAuthenticatorSendsTheAlertBeforeItReportsTheFailure": "e222ad1f56734ddc"
+  },
+  "units": {
+    "internal/core/eap/rfc5216_eap_tls_alert_flight_test.go::TestEAPTLSAuthenticatorReportsTheFailureWithNoAlertToSend": "6b9bf0e9fc1216ed",
+    "internal/core/eap/rfc5216_eap_tls_alert_flight_test.go::TestEAPTLSAuthenticatorSendsTheAlertBeforeItReportsTheFailure": "63ae77044ade0c99"
+  },
+  "verdict": "enforced"
+}

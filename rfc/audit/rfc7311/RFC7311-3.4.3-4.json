@@ -1,0 +1,21 @@
+{
+  "note": "RFC 7311 Section 3.4.3: 'If R1's route to R2 is either (a) an IGP-learned route or (b) a static route that does not require recursive next hop resolution, then R1 MUST increase the value of the AIGP TLV by adding to A the distance from R1 to R2.' Read in its preceding next-hop-self condition and following policy-distance sentence. All three tagged units were re-read. TestAIGPForwardedMetricsReachFinalWire's interior case asserts final metric 130 from received 100 plus resolved 30 and asserts the announcement NLRI; its unchanged-next-hop case pins 100 despite policy replacement. TestAIGPRecursiveDistanceUsesReceivedMetrics proves actual resolver terminal metric 30 is counted once rather than following its gateway or importing BGP MED; TestAIGPRecursiveStaticDistance separately asserts nonrecursive static distance 25, recursive static distance 30 and unresolved refusal. Producers nhResolver.IGPMetric -> igpcost.Resolve and applyFactsAIGP -> aigpIncrement compose the resolved distance with the received metric; final forwarding writer keeps AIGP on an enabled session. The mocked distance in the socket carrier is not credited as resolver proof: the separately tagged actual-RIB tests supply it. Exact finite values, valid TLVs and transparent control isolate and discriminate both route classes and the conditional whole obligation. Re-judged 2026-10-21 (spec-bgp-rs-replacement-on-withdrawal Phase 3b, author of the change): the only edit to the tagged units TestAIGPForwardedMetricsReachFinalWire and TestRFC7311DirectLinkCostNeverWrapsOrDisappears is the nil source encoding context added to their buildWithdrawalPayload call; both pass a unicast payload, for which buildWithdrawalPayload never reads the context (a family with no nlrisplit.WithdrawalWriter is copied as before), so every assertion and every byte they check is unchanged. Verdict stands.",
+  "requirement_sha": "dd3784f728f3cfc1",
+  "tests": {
+    "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire": "11e7d83c10c1bca3",
+    "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire#2": "11e7d83c10c1bca3",
+    "internal/component/sysrib/rfc7311_metric_test.go::TestAIGPRecursiveDistanceUsesReceivedMetrics": "23e963e4106c6a6f",
+    "internal/component/sysrib/rfc7311_metric_test.go::TestAIGPRecursiveDistanceUsesReceivedMetrics#2": "23e963e4106c6a6f",
+    "internal/component/sysrib/rfc7311_metric_test.go::TestAIGPRecursiveStaticDistance": "23e963e4106c6a6f",
+    "internal/component/sysrib/rfc7311_metric_test.go::TestAIGPRecursiveStaticDistance#2": "23e963e4106c6a6f"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire": "d801386b8495e4e9",
+    "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire#2": "d801386b8495e4e9",
+    "internal/component/sysrib/rfc7311_metric_test.go::TestAIGPRecursiveDistanceUsesReceivedMetrics": "8c1b0962325795a0",
+    "internal/component/sysrib/rfc7311_metric_test.go::TestAIGPRecursiveDistanceUsesReceivedMetrics#2": "8c1b0962325795a0",
+    "internal/component/sysrib/rfc7311_metric_test.go::TestAIGPRecursiveStaticDistance": "f6a54b16e554fa50",
+    "internal/component/sysrib/rfc7311_metric_test.go::TestAIGPRecursiveStaticDistance#2": "f6a54b16e554fa50"
+  },
+  "verdict": "enforced"
+}

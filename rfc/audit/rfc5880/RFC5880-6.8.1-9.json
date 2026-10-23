@@ -1,0 +1,13 @@
+{
+  "note": "Judge rejudge 2026-09-30 (bfd engine 2). Unit re-read after TestRFC5880InitVariablesAreNotConstants lost its 6.8.1-4 tag (doc comment only, body unchanged). Judgement unchanged: Forbidden: bfd.RemoteDemandMode initialised true. TestRFC5880InitVariableDefaults fails on RemoteDemandMode true after Init. Negative TestRFC5880InitVariablesAreNotConstants shows it follows a received D=1, so false is an initial value.",
+  "requirement_sha": "af0148874e278084",
+  "tests": {
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880InitVariableDefaults": "8db25cbb4534cc2d",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880InitVariablesAreNotConstants": "8db25cbb4534cc2d"
+  },
+  "units": {
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880InitVariableDefaults": "a5a2b73d55f078ff",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880InitVariablesAreNotConstants": "0c60ed95615b8c6b"
+  },
+  "verdict": "enforced"
+}

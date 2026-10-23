@@ -1,0 +1,13 @@
+{
+  "note": "Judged 2026-09-29 (routing child, continuation judge). TestRFC4090FailureSwitchesToBackup: a failure on the protected link reprograms the protected in-label to the bypass next hop under the bypass label; a failure on an unrelated link programs no backup. Both polarities sit in one unit on separate assertions; the revert record reds through the positive half only. Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 6.4.3 and the enforced verdict holds unchanged.",
+  "requirement_sha": "665ba70dcbea2085",
+  "tests": {
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090FailureSwitchesToBackup": "3fb9184431da8daf",
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090FailureSwitchesToBackup#2": "3fb9184431da8daf"
+  },
+  "units": {
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090FailureSwitchesToBackup": "14c8b267fd5daa28",
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090FailureSwitchesToBackup#2": "14c8b267fd5daa28"
+  },
+  "verdict": "enforced"
+}

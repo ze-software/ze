@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged 2026-10-21 (round 4 judge). auth_verify_test units changed only by RFC5709-3.3-5 tag comments. Packet Length stays plen and len(signed) == plen + digest (TestOSPFAuthSignVerifyCrypto, record on Sign); the IP length carries the digest (TestRFC2328DigestCountedInIPLengthNotPacketLength, record on SendPacket); negative refuses a wire length not equal to Packet Length + L (record on Verify).",
+  "requirement_sha": "370e9cd4bc70ea72",
+  "tests": {
+    "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthCryptoRejectsExtraTrailerBytes": "b1f49f5bb6bbafb8",
+    "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto": "b1f49f5bb6bbafb8",
+    "internal/plugins/ospf/transport/rfc2328_digest_ip_length_test.go::TestRFC2328DigestCountedInIPLengthNotPacketLength": "96da2a96ea2ca7d3"
+  },
+  "units": {
+    "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthCryptoRejectsExtraTrailerBytes": "d92f63f706b0daa0",
+    "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto": "9c236b088b570005",
+    "internal/plugins/ospf/transport/rfc2328_digest_ip_length_test.go::TestRFC2328DigestCountedInIPLengthNotPacketLength": "9ec6545303efc4f3"
+  },
+  "verdict": "enforced"
+}

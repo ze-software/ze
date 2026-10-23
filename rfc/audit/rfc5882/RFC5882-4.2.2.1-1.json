@@ -1,0 +1,11 @@
+{
+  "note": "Re-judged 2026-10-12 (independent auditor). SHIFTED by 6e063fb498 (tests: give ten assert-nothing tests a real assertion), whose hunks sit in untagged sibling tests and the import block. The tagged unit is byte-identical (gate-verified) and no helper it calls changed. Verdict stands. Judge rejudge 2026-09-30 (last five). + reactor TestBFDClient_TeardownOnDown: a non-initial BFD Down StateChange (DiagControlDetectExpired) on an Established peer puts Cease / BFD Down on the wire and moves the session to Idle; asserts the wire, not the opQueue. Producer Peer.runBFDSubscriber -> Session.bfdTeardown (Established arm). MP-BGP is the multi-data-protocol client; ending the session considers the path failed for every family, which is the shared-topology action. {single-polarity: positive} accepted: the obligation is to act on Up->Down and its violation is inaction, which no input presents for refusal; the only no-action boundaries are Up->AdminDown / remote AdminDown (RFC5882-4.2-1, enforced on its own tags, a neighbour row) and the Initial snapshot (not a transition), neither violates this row; no negative existed at HEAD. Record: bfdTeardown revert observed red; author's targeted overlay (Established arm off) red.",
+  "requirement_sha": "255570c619693fb4",
+  "tests": {
+    "internal/component/bgp/reactor/rfc5882_peer_bfd_test.go::TestBFDClient_TeardownOnDown": "80ba15c556b70c16"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc5882_peer_bfd_test.go::TestBFDClient_TeardownOnDown": "f22a574b6b14fca1"
+  },
+  "verdict": "enforced"
+}

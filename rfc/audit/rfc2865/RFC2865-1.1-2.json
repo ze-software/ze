@@ -1,0 +1,33 @@
+{
+  "note": "Re-judged 2026-09-30 after D-8. The recorded weak verdict named the missing clause: an Accept authorizing an unavailable service through an attribute other than Service-Type, for example Framed-User over Framed-Protocol SLIP on the L2TP LNS. That clause is now asserted: TestRFC2865AcceptForAFramingTheLNSLacksIsRejected sends Framed-User with Framed-Protocol 2, 3, 4, 5, 6 (every RFC 2865 Section 5.7 framing but PPP) and 255, and fails if the session comes up; TestRFC2865AcceptForPPPFramingIsHonored sends Framed-User over PPP and fails if it is refused. Service-Type is Framed-User in both, so only the framing varies. Producer: doRADIUS refuses unless radius.AcceptedFramedProtocol(resp, FramedProtocolPPP); an absent Framed-Protocol is accepted (TestRFC2865SupportedServiceTypeIsHonored carries none and is honored, so no regression). The author observed the negative red at Framed-Protocol 2 before the fix; the gate records are panic breaks on AcceptedFramedProtocol (positive) and doRADIUS (negative). The Service-Type units on the admin and L2TP paths are unchanged and still cover the Service-Type route. Service and framing are the two attributes RFC 2865 uses to authorize a service (Section 1.1 names ARAP, a framing, as its example), so both routes are now enforced.",
+  "requirement_sha": "0036411a83f6e156",
+  "tests": {
+    "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberServiceTypeAuthorization": "657481ec16afb1c3",
+    "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberServiceTypeAuthorization#2": "657481ec16afb1c3",
+    "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberServiceTypeAuthorization#3": "657481ec16afb1c3",
+    "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberServiceTypeAuthorization#4": "657481ec16afb1c3",
+    "internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go::TestRFC2865AcceptForAFramingTheLNSLacksIsRejected": "5a59b4c940fb79ee",
+    "internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go::TestRFC2865AcceptForPPPFramingIsHonored": "5a59b4c940fb79ee",
+    "internal/component/radius/rfc2865_nas_obligations_test.go::TestRFC2865UnsupportedServiceTypeIsRejection": "ae06d1fa559aa47c",
+    "internal/component/radius/rfc2865_nas_obligations_test.go::TestRFC2865UnsupportedServiceTypeIsRejection#2": "ae06d1fa559aa47c",
+    "internal/component/radius/rfc2865_nas_obligations_test.go::TestRFC2865UnsupportedServiceTypeIsRejection#3": "ae06d1fa559aa47c",
+    "internal/component/radius/rfc2865_nas_obligations_test.go::TestRFC2865UnsupportedServiceTypeIsRejection#4": "ae06d1fa559aa47c",
+    "internal/component/radius/rfc2865_walk_test.go::TestAdminAccessAcceptWithOfferedServiceTypeIsAccepted": "a3f1d9fa74292a7a",
+    "internal/component/radius/rfc2865_walk_test.go::TestAdminAccessAcceptWithUnofferedServiceTypeIsRejected": "a3f1d9fa74292a7a"
+  },
+  "units": {
+    "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberServiceTypeAuthorization": "61b075ba7ce4bffe",
+    "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberServiceTypeAuthorization#2": "61b075ba7ce4bffe",
+    "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberServiceTypeAuthorization#3": "61b075ba7ce4bffe",
+    "internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go::TestRFC2865SubscriberServiceTypeAuthorization#4": "61b075ba7ce4bffe",
+    "internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go::TestRFC2865AcceptForAFramingTheLNSLacksIsRejected": "faf9b8d184ceb86c",
+    "internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go::TestRFC2865AcceptForPPPFramingIsHonored": "56fc15493ff3027e",
+    "internal/component/radius/rfc2865_nas_obligations_test.go::TestRFC2865UnsupportedServiceTypeIsRejection": "f99329e0abe38972",
+    "internal/component/radius/rfc2865_nas_obligations_test.go::TestRFC2865UnsupportedServiceTypeIsRejection#2": "f99329e0abe38972",
+    "internal/component/radius/rfc2865_nas_obligations_test.go::TestRFC2865UnsupportedServiceTypeIsRejection#3": "f99329e0abe38972",
+    "internal/component/radius/rfc2865_nas_obligations_test.go::TestRFC2865UnsupportedServiceTypeIsRejection#4": "f99329e0abe38972",
+    "internal/component/radius/rfc2865_walk_test.go::TestAdminAccessAcceptWithOfferedServiceTypeIsAccepted": "215da72a4421735b",
+    "internal/component/radius/rfc2865_walk_test.go::TestAdminAccessAcceptWithUnofferedServiceTypeIsRejected": "70631ff196ec4f0d"
+  },
+  "verdict": "enforced"
+}

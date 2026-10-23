@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: declaring code 71 without code 64. TestRFC9494_LLGRCapDeclaredWithGRCap fails unless extractGRCapabilities returns one code-64 declaration for the same peer as the code-71 one (require.Len grCaps 1, Code 64, same Peers). Negative: TestRFC9494_NoLLGRCapWithoutGRContainer places long-lived-stale-time outside the graceful-restart container and fails if either code 71 or code 64 is declared, so no config shape yields 71 alone.",
+  "requirement_sha": "2d01c5620e858194",
+  "tests": {
+    "internal/component/bgp/plugins/gr/rfc9494_test.go::TestRFC9494_LLGRCapDeclaredWithGRCap": "12d6878120b58188",
+    "internal/component/bgp/plugins/gr/rfc9494_test.go::TestRFC9494_NoLLGRCapWithoutGRContainer": "12d6878120b58188"
+  },
+  "units": {
+    "internal/component/bgp/plugins/gr/rfc9494_test.go::TestRFC9494_LLGRCapDeclaredWithGRCap": "dddf83e9bd42ed3a",
+    "internal/component/bgp/plugins/gr/rfc9494_test.go::TestRFC9494_NoLLGRCapWithoutGRContainer": "510da31eeacfd7a0"
+  },
+  "verdict": "enforced"
+}

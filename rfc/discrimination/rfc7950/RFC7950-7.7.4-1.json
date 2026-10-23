@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7950-7.7.4-1",
+    "polarity": "negative",
+    "unit": "internal/component/config/rfc7950_yang_schema_defaults_test.go::TestRFC7950DefaultInvalidForType",
+    "unit-sha": "51fc202e2e9d76a0",
+    "claim-sha": "163b1dd69717cf54",
+    "route": "revert",
+    "producer": "internal/component/config/yang_schema.go::validateLeafDefaults",
+    "producer-sha": "4871ae96b8967d7b",
+    "break": "body of validateLeafDefaults replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7950-7.7.4-1",
+    "polarity": "positive",
+    "unit": "internal/component/config/rfc7950_yang_schema_defaults_test.go::TestRFC7950DefaultValidForType",
+    "unit-sha": "d26912a65d559d0b",
+    "claim-sha": "db1792a54b334d9c",
+    "route": "revert",
+    "producer": "internal/component/config/yang_schema.go::validateLeafDefaults",
+    "producer-sha": "4871ae96b8967d7b",
+    "break": "body of validateLeafDefaults replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

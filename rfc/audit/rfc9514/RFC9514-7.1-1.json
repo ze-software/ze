@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: an SRv6 SID NLRI whose attribute lacks TLV 1250. Positive require.Equal on the 1250 values goes red if absent; TestRFC9514NativeSIDRequiresEndpointBehavior require.Error on a replacement without 1250 and Len(commands,3) go red if it is advertised.",
+  "requirement_sha": "4360b23352cee3b3",
+  "tests": {
+    "internal/component/bgp/plugins/ls_export/rfc9514_export_test.go::TestRFC9514NativeSIDRequiresEndpointBehavior": "7d3a493ffb46e118",
+    "internal/component/bgp/plugins/ls_export/rfc9514_export_test.go::TestRFC9514NativeSRv6Advertisements": "7d3a493ffb46e118"
+  },
+  "units": {
+    "internal/component/bgp/plugins/ls_export/rfc9514_export_test.go::TestRFC9514NativeSIDRequiresEndpointBehavior": "e13778e6707c4418",
+    "internal/component/bgp/plugins/ls_export/rfc9514_export_test.go::TestRFC9514NativeSRv6Advertisements": "9bca9688843c8998"
+  },
+  "verdict": "enforced"
+}

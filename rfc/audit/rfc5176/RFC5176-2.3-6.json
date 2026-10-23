@@ -1,0 +1,23 @@
+{
+  "note": "Judge 2026-09-29. CoA atomicity on both lookup paths. Subscriber path: TestRFC5176SubscriberCoAThatCannotBeCarriedOutWholeMakesNoChange (rate + CoS on a session with no access interface: CoA-NAK 506 and zero events, so the rate part is not made), TestRFC5176RequestWhoseEveryValueIsSupportedIsACKed (with an interface: CoA-ACK and all three events). L2TP-only path: TestRFC5176CoANAKMakesNoPartialChange (506, zero events) and TestRFC5176ChangeThatCannotBeCarriedOutIsNAKed pair. Disconnect: TestRFC5176DisconnectThatCannotTerminateIsNAKed (NAK after one attempt) vs TestRFC5176DisconnectThatTerminatesIsACKed. Producer read: applySubscriberCoA decides every refusal (no bus, CoS without interface) before the first Emit. The residual NAK after a successful Emit is unreachable, and that is judged sufficient: Server.Emit -> deliverEvent (plugin/server/dispatch.go) fails only for an unregistered (namespace, event-type) or a JSON marshal failure; the three events are package-level events.Register handles, and their payloads are flat structs of integers and strings that json.Marshal cannot fail on. (The coa.go comment names only the first cause; harmless.) Records observed for applySubscriberCoA, handleDisconnect and handleCoA.",
+  "requirement_sha": "1aade4585fa5416c",
+  "tests": {
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176CoANAKMakesNoPartialChange": "ff37f19e24dbd668",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176DisconnectThatCannotTerminateIsNAKed": "ff37f19e24dbd668",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176DisconnectThatTerminatesIsACKed": "ff37f19e24dbd668",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go::TestRFC5176RequestWhoseEveryValueIsSupportedIsACKed": "c7f18523e76c1699",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go::TestRFC5176SubscriberCoAThatCannotBeCarriedOutWholeMakesNoChange": "c7f18523e76c1699",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ChangeThatCannotBeCarriedOutIsNAKed": "2b3357f1f1e8ec93",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ChangeThatCannotBeCarriedOutIsNAKed#2": "2b3357f1f1e8ec93"
+  },
+  "units": {
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176CoANAKMakesNoPartialChange": "b32c057e9acbc2a5",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176DisconnectThatCannotTerminateIsNAKed": "5a82ceeb940fc217",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go::TestRFC5176DisconnectThatTerminatesIsACKed": "540126093cbd42ed",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go::TestRFC5176RequestWhoseEveryValueIsSupportedIsACKed": "cf8f0a20e2c7c708",
+    "internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go::TestRFC5176SubscriberCoAThatCannotBeCarriedOutWholeMakesNoChange": "7883cd09177c5069",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ChangeThatCannotBeCarriedOutIsNAKed": "71d553e710b2095a",
+    "internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go::TestRFC5176ChangeThatCannotBeCarriedOutIsNAKed#2": "71d553e710b2095a"
+  },
+  "verdict": "enforced"
+}

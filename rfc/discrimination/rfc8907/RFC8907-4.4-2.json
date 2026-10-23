@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8907-4.4-2",
+    "polarity": "negative",
+    "unit": "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907HealthyPooledConnectionKeepsAcceptingSessions",
+    "unit-sha": "40a566a3b277ea28",
+    "claim-sha": "cd9f5bd573cf0edf",
+    "route": "revert",
+    "producer": "internal/component/tacacs/client.go::trySend",
+    "producer-sha": "521ecbc2921e4804",
+    "break": "body of trySend replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8907-4.4-2",
+    "polarity": "positive",
+    "unit": "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907NoNewSessionOnBrokenPooledConnection",
+    "unit-sha": "2a67da2f2ffb50be",
+    "claim-sha": "9ce263c99125f019",
+    "route": "revert",
+    "producer": "internal/component/tacacs/client.go::closeAndEvict",
+    "producer-sha": "7079703ade374cf4",
+    "break": "body of closeAndEvict replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,25 @@
+{
+  "note": "Re-judged 2026-10-20 (independent auditor, authored none of the change). RFC 8669 Section 6: \"When a BGP speaker receives a BGP UPDATE message containing a malformed or invalid BGP Prefix-SID attribute attached to an IPv4/ IPv6 Labeled Unicast prefix ([RFC8277]), it MUST ignore the received BGP Prefix-SID attribute and not advertise it to other BGP peers.\" The only change to test/plugin/prefixsid-malformed-receive.ci since the last judgement is 1f662ce70b: each changed expect hex was parsed attribute by attribute and the old and new frames carry the identical set of attribute TLVs, byte for byte, with the same message and attribute lengths and NLRI; only MP_REACH_NLRI moved to the front (RFC 7606 Section 5.1). No action line, comment or other directive changed. Frames (a), (d) and (e1) on IPv4 labeled unicast still require attribute 40 absent and an ATTR_TOMBSTONE (C0FC) naming code 40 in its place; the message units are unchanged. Ran green at HEAD. Verdict stands.",
+  "requirement_sha": "66fc373820ba8477",
+  "tests": {
+    "internal/component/bgp/message/rfc8669_test.go::TestRFC8669MalformedAttributeDiscardedAndNotAdvertised": "43a22ffce691e1e9",
+    "internal/component/bgp/message/rfc8669_test.go::TestRFC8669TrailingBytesDiscarded": "43a22ffce691e1e9",
+    "internal/component/bgp/message/rfc8669_test.go::TestRFC8669WellFormedAttributeAccepted": "43a22ffce691e1e9",
+    "internal/component/bgp/message/rfc8669_tlv_length_test.go::TestRFC8669ConformingTLVLengthsAcceptedOnLabeledUnicast": "8e72f4119752045c",
+    "internal/component/bgp/message/rfc8669_tlv_length_test.go::TestRFC8669EmptyAttributeMalformed": "8e72f4119752045c",
+    "internal/component/bgp/message/rfc8669_tlv_length_test.go::TestRFC8669LabelIndexLengthMalformedOnLabeledUnicast": "8e72f4119752045c",
+    "internal/component/bgp/message/rfc8669_tlv_length_test.go::TestRFC8669SRGBLengthMalformedOnLabeledUnicast": "8e72f4119752045c",
+    "test/plugin/prefixsid-malformed-receive.ci": "25f53a520a6edebb"
+  },
+  "units": {
+    "internal/component/bgp/message/rfc8669_test.go::TestRFC8669MalformedAttributeDiscardedAndNotAdvertised": "586d04d5cd526763",
+    "internal/component/bgp/message/rfc8669_test.go::TestRFC8669TrailingBytesDiscarded": "da00864ad34bf411",
+    "internal/component/bgp/message/rfc8669_test.go::TestRFC8669WellFormedAttributeAccepted": "2e552c52d3356afa",
+    "internal/component/bgp/message/rfc8669_tlv_length_test.go::TestRFC8669ConformingTLVLengthsAcceptedOnLabeledUnicast": "d32ca24bd9d3c42a",
+    "internal/component/bgp/message/rfc8669_tlv_length_test.go::TestRFC8669EmptyAttributeMalformed": "9d5bb169d33a044f",
+    "internal/component/bgp/message/rfc8669_tlv_length_test.go::TestRFC8669LabelIndexLengthMalformedOnLabeledUnicast": "28b5137b5b05d8c1",
+    "internal/component/bgp/message/rfc8669_tlv_length_test.go::TestRFC8669SRGBLengthMalformedOnLabeledUnicast": "ed4ce60c9cd08cd5",
+    "test/plugin/prefixsid-malformed-receive.ci": "25f53a520a6edebb"
+  },
+  "verdict": "enforced"
+}

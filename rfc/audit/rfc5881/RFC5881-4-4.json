@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: demultiplexing a subsequent packet by something other than the RFC 5880 discriminator. (a) a packet with an unallocated Your Discriminator from the configured peer's source being associated: TestRFC5881DiscriminatorDemuxUnknownDropped reds (RemoteDiscriminator != 0), catching a source-address fallback; (b) a packet with the right discriminator from another source not delivered: TestRFC5881DiscriminatorDemuxDelivers reds (RemoteDiscriminator != peerMyDiscr). Producer loop.go handleInbound byDiscr.",
+  "requirement_sha": "4065c4e17308516b",
+  "tests": {
+    "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881DiscriminatorDemuxDelivers": "c8bf3135e7e74ea3",
+    "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881DiscriminatorDemuxUnknownDropped": "c8bf3135e7e74ea3"
+  },
+  "units": {
+    "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881DiscriminatorDemuxDelivers": "3880f5c58e9af09b",
+    "internal/component/bfd/engine/rfc5881_test.go::TestRFC5881DiscriminatorDemuxUnknownDropped": "4112a6d497979c4a"
+  },
+  "verdict": "enforced"
+}

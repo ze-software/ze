@@ -1,0 +1,13 @@
+{
+  "note": "every EAP-bearing Access-Request carries a 16-octet Message-Authenticator that the mock server verifies; encodeRequest refuses an EAP-Message without the placeholder and replaces it with the HMAC. Ze sends only Access-Requests, so the Challenge/Accept/Reject clauses bind the server",
+  "requirement_sha": "fb1f30d5bcff9900",
+  "tests": {
+    "internal/component/radius/authenticator_eap_test.go::TestEAPRequestWithoutMessageAuthenticatorIsRefused": "2f6a0814b0b8b9cb",
+    "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapAccessRequestIsSignedAndCarriesEAPMessage": "2f6a0814b0b8b9cb"
+  },
+  "units": {
+    "internal/component/radius/authenticator_eap_test.go::TestEAPRequestWithoutMessageAuthenticatorIsRefused": "39b71ec75cb78e50",
+    "internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapAccessRequestIsSignedAndCarriesEAPMessage": "eaa91bfcf15a7356"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC4271-5.1.2-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_aspath_empty_test.go::TestForwardPresentEmptyASPath",
+    "unit-sha": "035da59c4665bd18",
+    "claim-sha": "d15d3f244e2c22a3",
+    "route": "revert",
+    "producer": "internal/core/bgp/attribute/aspath.go::Prepend",
+    "producer-sha": "a7056e828b8927aa",
+    "break": "body of Prepend replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-5.1.2-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/wireu/rfc4271_aspath_slot_test.go::TestASPathSlotPrependsBeforeALeadingASSet",
+    "unit-sha": "c67a744713dc355e",
+    "claim-sha": "df23ad2138b496c7",
+    "route": "revert",
+    "producer": "internal/component/bgp/wireu/aspath_slot.go::recordPrepend",
+    "producer-sha": "2f371da5a96ab9b7",
+    "break": "body of recordPrepend replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-5.1.2-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/wireu/rfc4271_aspath_slot_test.go::TestASPathSlotStartsANewSegmentWhenTheLeadingOneIsFull",
+    "unit-sha": "f3b4e5a0d42285df",
+    "claim-sha": "2f8ba6d86d081716",
+    "route": "revert",
+    "producer": "internal/component/bgp/wireu/aspath_slot.go::recordPrepend",
+    "producer-sha": "2f371da5a96ab9b7",
+    "break": "body of recordPrepend replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

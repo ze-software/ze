@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged 2026-10-18 (independent auditor, after ecba2d9147). Section 4.9: \"Reason 2: The local system closed the session.  No notification message was sent.  Following the reason code is a 2-byte field containing the code corresponding to the Finite State Machine (FSM) Event that caused the system to close the session\", and the figure gives \"Data (present if Reason = 1, 2 or 3)\". The two data units now feed the close reasons the reactor sends: TestRFC7854PeerDownCarriesTheDataItsReasonRequires feeds rpc.ReasonNotification with a sent and a received NOTIFICATION and asserts reasons 1 and 3 with Data equal to the exact NOTIFICATION PDU, and rpc.ReasonLocalClose on FSMEvent 18 and asserts reason 2 with Data 0012, red if peerDownFor (bmp_events.go) writes constant zero octets or drops the event. TestRFC7854PeerDownOmitsDataWhereTheReasonHasNone asserts reason 5 for rpc.ReasonPeerRemoved and reason 4 for rpc.ReasonTCPFailure on event 18, each with no Data, so an encoder that always appends the event code goes red; its tag claim names reason 5 only and the body proves more. TestRFC7854PeerDownLocalCloseCarriesTheFSMEvent is unchanged. Residual seam as before: which event closed the session is the reactor's answer (sessionCloseFor), and the copy of CloseFSMEvent into StructuredEvent.FSMEvent (server/events.go) has no unit; these units set FSMEvent directly.",
+  "requirement_sha": "16daa710662a204f",
+  "tests": {
+    "internal/component/bgp/plugins/bmp/rfc7854_peerdown_cause_test.go::TestRFC7854PeerDownLocalCloseCarriesTheFSMEvent": "9670cb870441e913",
+    "internal/component/bgp/plugins/bmp/rfc7854_peerdown_data_test.go::TestRFC7854PeerDownCarriesTheDataItsReasonRequires": "ab9c7c72418a5e12",
+    "internal/component/bgp/plugins/bmp/rfc7854_peerdown_data_test.go::TestRFC7854PeerDownOmitsDataWhereTheReasonHasNone": "ab9c7c72418a5e12"
+  },
+  "units": {
+    "internal/component/bgp/plugins/bmp/rfc7854_peerdown_cause_test.go::TestRFC7854PeerDownLocalCloseCarriesTheFSMEvent": "5e0db2b1f05b542a",
+    "internal/component/bgp/plugins/bmp/rfc7854_peerdown_data_test.go::TestRFC7854PeerDownCarriesTheDataItsReasonRequires": "b8588db909f7c458",
+    "internal/component/bgp/plugins/bmp/rfc7854_peerdown_data_test.go::TestRFC7854PeerDownOmitsDataWhereTheReasonHasNone": "aaf91392fdc7bbde"
+  },
+  "verdict": "enforced"
+}

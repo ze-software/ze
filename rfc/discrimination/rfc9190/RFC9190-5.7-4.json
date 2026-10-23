@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9190-5.7-4",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc9190_resumption_refusal_test.go::TestEAPTLS13TicketIsNotRedeemableUnderAnotherPeeringsKey",
+    "unit-sha": "62ea00b282ce0de9",
+    "claim-sha": "af0ed47143158158",
+    "route": "revert",
+    "producer": "internal/core/eap/resumption.go::TicketKeys",
+    "producer-sha": "c7e047f9231e686f",
+    "break": "body of TicketKeys replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9190-5.7-4",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc9190_resumption_test.go::TestEAPTLS13CompletesAResumptionWithAnUnrevokedChain",
+    "unit-sha": "1da8618372822a15",
+    "claim-sha": "b6aa46077cf5da55",
+    "route": "revert",
+    "producer": "internal/core/eap/resumption.go::TicketKeys",
+    "producer-sha": "c7e047f9231e686f",
+    "break": "body of TicketKeys replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

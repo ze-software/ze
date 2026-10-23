@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC8907-10-1",
+    "polarity": "positive",
+    "unit": "internal/component/tacacs/rfc8907_unencrypted_config_test.go::TestRFC8907UnencryptedModeIsNotReachableFromConfiguration",
+    "unit-sha": "924a386311f15b1a",
+    "claim-sha": "ea72bbf27c125959",
+    "route": "revert",
+    "producer": "internal/component/tacacs/client.go::trySend",
+    "producer-sha": "521ecbc2921e4804",
+    "break": "body of trySend replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

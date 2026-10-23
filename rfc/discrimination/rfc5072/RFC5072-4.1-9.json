@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC5072-4.1-9",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc5072_ipv6cp_test.go::TestIPv6CPSuggestionHasUniversalBitClear",
+    "unit-sha": "e29e29aacbd7d946",
+    "claim-sha": "21309395caa5c181",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/ipv6cp.go::suggestIPv6CPInterfaceID",
+    "producer-sha": "cd185ab66793e8a9",
+    "break": "body of suggestIPv6CPInterfaceID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

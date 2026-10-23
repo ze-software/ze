@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: encoding a community on any stride but 20 octets (e.g. the 8-octet RFC 4360 stride). TestRFC5701IPv6ExtCommunityTwentyOctets asserts Len() == 40 and WriteTo n == 40 for two communities, and buf[20] == 0xBB with buf[8], buf[16] != 0xBB, red on any other per-community size. Both polarities.",
+  "requirement_sha": "774c9becd32abf56",
+  "tests": {
+    "internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go::TestRFC5701IPv6ExtCommunityTwentyOctets": "769334093b6b8784",
+    "internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go::TestRFC5701IPv6ExtCommunityTwentyOctets#2": "769334093b6b8784"
+  },
+  "units": {
+    "internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go::TestRFC5701IPv6ExtCommunityTwentyOctets": "9a81b2bab8b06c22",
+    "internal/core/bgp/attribute/rfc5701_ipv6_extcommunity_test.go::TestRFC5701IPv6ExtCommunityTwentyOctets#2": "9a81b2bab8b06c22"
+  },
+  "verdict": "enforced"
+}

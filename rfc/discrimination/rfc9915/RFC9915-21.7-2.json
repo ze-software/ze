@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC9915-21.7-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/iface/dhcp/rfc9915_dhcp_v6_messages_linux_test.go::TestRFC9915Section217OptionRequestEveryMessage",
+    "unit-sha": "99ebd6883e5e69ac",
+    "claim-sha": "1ed81f3556508fec",
+    "route": "revert",
+    "producer": "internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::requestOptions",
+    "producer-sha": "d7b0ca726f3b49e3",
+    "break": "body of requestOptions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

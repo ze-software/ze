@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC7950-7.6.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/config/rfc7950_leaf_default_test.go::TestRFC7950LeafDefaultNotUsedWhenSet",
+    "unit-sha": "919be8d87803c327",
+    "claim-sha": "8f79c7b41d3c0cda",
+    "route": "revert",
+    "producer": "internal/component/config/schema_defaults.go::applyChildDefault",
+    "producer-sha": "8594dcb2349828bf",
+    "break": "body of applyChildDefault replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7950-7.6.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/config/rfc7950_leaf_default_test.go::TestRFC7950LeafDefaultUsedWhenAbsent",
+    "unit-sha": "9f84e201990da820",
+    "claim-sha": "53790471658cb142",
+    "route": "revert",
+    "producer": "internal/component/config/schema_defaults.go::applyChildDefault",
+    "producer-sha": "8594dcb2349828bf",
+    "break": "body of applyChildDefault replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7950-7.6.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/config/rfc7950_schema_defaults_test.go::TestApplyDefaults_NonPresenceContainer",
+    "unit-sha": "d513498c5596ac04",
+    "claim-sha": "67f847004386ed2d",
+    "route": "revert",
+    "producer": "internal/component/config/schema_defaults.go::applyContainerDefault",
+    "producer-sha": "eb9854e6140940d2",
+    "break": "body of applyContainerDefault replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

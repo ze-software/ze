@@ -1,0 +1,11 @@
+{
+  "note": "Judge rejudge 2026-09-30 under OWNER RULING 3 (Ze sends AdminDown Control packets for 3x the Detection Time). Producer: session/fsm.go const adminDownTransmitDetectionTimes = 3, Machine.AdminDown sets adminDownTxEnd = now + 3 x max(local DetectionInterval, DetectMult x TransmitInterval read after the 1 s non-Up floor); Loop.tick sends until then; retireReleasedLocked keeps a released entry until AdminDownTransmitEnd, so the release path stays sending for the whole window. + TestRFC5880AdminDownControlTransmittedForADetectionTime (shutdown and release, peer silent, 30 s of ticks): first packet at the transition, every packet State AdminDown Diag 7, no gap over the announced interval, packets after 1x and 2x the Detection Time, last no earlier than 3x minus one interval, Detection Time computed from the packets themselves. Stopping before one Detection Time (the SHOULD's floor) reddens it. Judge overlays: factor 1 and 2 red both subtests ('none sent after N Detection Times'); window from the local Detection Time only reds both (remote half discriminated); factor 4 leaves it green (correct: sending longer satisfies the SHOULD). Record revert loop.go::tick re-recorded, observed red. {single-polarity: positive} still accepted: the obligation is to keep sending, silence after the window is 6.8.16-3's MAY.",
+  "requirement_sha": "22df7406e66f9b47",
+  "tests": {
+    "internal/component/bfd/engine/rfc5880_admindown_transmit_test.go::TestRFC5880AdminDownControlTransmittedForADetectionTime": "9346723a74f9791c"
+  },
+  "units": {
+    "internal/component/bfd/engine/rfc5880_admindown_transmit_test.go::TestRFC5880AdminDownControlTransmittedForADetectionTime": "bde643457ec5508a"
+  },
+  "verdict": "enforced"
+}

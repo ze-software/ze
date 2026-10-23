@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC5308-3-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/lsdb/rfc5308_origination_ipv6_test.go::TestISISOriginateTLV232Scope",
+    "unit-sha": "fa1ac9e4a3dacd66",
+    "claim-sha": "b4a4dc454b2b7859",
+    "route": "revert",
+    "producer": "internal/plugins/isis/lsdb/origination.go::Originate",
+    "producer-sha": "c3ebd1aa4af2c24f",
+    "break": "body of Originate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5308-3-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/lsdb/rfc5308_origination_ipv6_test.go::TestISISOriginateTLV232Scope",
+    "unit-sha": "fa1ac9e4a3dacd66",
+    "claim-sha": "cf57e021e646eff1",
+    "route": "revert",
+    "producer": "internal/plugins/isis/lsdb/origination.go::Originate",
+    "producer-sha": "c3ebd1aa4af2c24f",
+    "break": "body of Originate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5308-3-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/rfc5308_hello_link_local_test.go::TestRFC5308LSPInterfaceAddressesAreNonLinkLocal",
+    "unit-sha": "478ac8990376e3f8",
+    "claim-sha": "fc25a72ff2befff7",
+    "route": "revert",
+    "producer": "internal/plugins/isis/circuits.go::interfaceIPv6NonLinkLocal",
+    "producer-sha": "ab2b5fcc69d234ba",
+    "break": "body of interfaceIPv6NonLinkLocal replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5308-3-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/rfc5308_hello_link_local_test.go::TestRFC5308LSPInterfaceAddressesAreNonLinkLocal",
+    "unit-sha": "478ac8990376e3f8",
+    "claim-sha": "9d8cfb85f13edf4a",
+    "route": "revert",
+    "producer": "internal/plugins/isis/circuits.go::interfaceIPv6NonLinkLocal",
+    "producer-sha": "ab2b5fcc69d234ba",
+    "break": "body of interfaceIPv6NonLinkLocal replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

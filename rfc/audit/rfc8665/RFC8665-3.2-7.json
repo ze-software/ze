@@ -1,0 +1,13 @@
+{
+  "note": "forbidden: advertising overlapping SRGB ranges. TestRFC8665OverlappingRangesRejected requires SRConfig.Validate to reject 16000+100 with 16050+100, red on a missing overlap check; Validate gates the config verify (validateSRConfig, register.go) so the advertised SRGB is only a validated one. Positive TestRFC8665NonOverlappingRangesAccepted accepts disjoint ranges",
+  "requirement_sha": "3e4a86f46e89aeee",
+  "tests": {
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665NonOverlappingRangesAccepted": "dcc89abea6ba13ce",
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665OverlappingRangesRejected": "dcc89abea6ba13ce"
+  },
+  "units": {
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665NonOverlappingRangesAccepted": "078ac273313a3a2e",
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665OverlappingRangesRejected": "9c47fc57a25ab7b2"
+  },
+  "verdict": "enforced"
+}

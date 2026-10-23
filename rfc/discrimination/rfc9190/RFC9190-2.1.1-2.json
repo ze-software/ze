@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9190-2.1.1-2",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc9190_tls_layer_test.go::TestEAPTLS13PSKIsUsedToResumeATicketTheAuthenticatorIssued",
+    "unit-sha": "0afa63c36677ac4d",
+    "claim-sha": "ad6993cd311a55be",
+    "route": "revert",
+    "producer": "internal/core/eap/resumption.go::TicketKeys",
+    "producer-sha": "c7e047f9231e686f",
+    "break": "body of TicketKeys replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9190-2.1.1-2",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc9190_tls_layer_test.go::TestEAPTLS13PSKTheAuthenticatorDidNotIssueIsNotUsed",
+    "unit-sha": "11a0ac8a1cdd80dd",
+    "claim-sha": "9bde0b404f18eb8f",
+    "route": "revert",
+    "producer": "internal/core/eap/resumption.go::TicketKeys",
+    "producer-sha": "c7e047f9231e686f",
+    "break": "body of TicketKeys replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

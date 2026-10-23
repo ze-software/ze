@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-10-02 (BGP c28 judge, c27 test defect fixed). Speaker side unchanged: TestRFC9494_LLGRNotEnabledByDefault fails if GR-only config declares code 71 or the YANG leaf long-lived-stale-time gains a default; TestRFC9494_LLGREnabledByExplicitConfig shows explicit config emits it (parseLLGRCapValue revert records +/-). Helper side: the gr plugin records the families of Ze's own sent code 71 and exchangedLLGRLocked hands session-down/up only received families Ze declared. The shared fixture rfc9494Opens now lists IPv4 AND IPv6 unicast in both GR Capabilities (TLV and JSON 00000001018000020180), so IPv6 reaches the LLGR decision. Negative TestRFC9494HelperProceduresOffWithoutLocalConfig (no code 71, or IPv6 only): no ffff0007/ffff0006 for ipv4. Positive TestRFC9494HelperProceduresOnPerConfiguredFamily (Ze declares IPv4, peer IPv4+IPv6): both LLGR commands for ipv4/unicast, exactly neither delete-with-community ffff0007 nor attach-community ffff0006 for ipv6/unicast, and purge-stale ipv6/unicast. Judge overlay (exchangedLLGRLocked returning every received family) now reds the positive on BOTH event paths with all three new assertions, and all four negative subcases; before the fixture change it left the positive green. Records: exchangedLLGRLocked revert +/-, re-recorded. Residual: the per-AFI/SAFI configuration clause is RFC9494-5-2, still a {gap} (LLGR configured per peer).",
+  "requirement_sha": "958b52a20a2fc2ed",
+  "tests": {
+    "internal/component/bgp/plugins/gr/rfc9494_helper_default_red_test.go::TestRFC9494HelperProceduresOffWithoutLocalConfig": "9441ce41d77c3f99",
+    "internal/component/bgp/plugins/gr/rfc9494_helper_default_red_test.go::TestRFC9494HelperProceduresOnPerConfiguredFamily": "9441ce41d77c3f99",
+    "internal/component/bgp/plugins/gr/rfc9494_test.go::TestRFC9494_LLGREnabledByExplicitConfig": "12d6878120b58188",
+    "internal/component/bgp/plugins/gr/rfc9494_test.go::TestRFC9494_LLGRNotEnabledByDefault": "12d6878120b58188"
+  },
+  "units": {
+    "internal/component/bgp/plugins/gr/rfc9494_helper_default_red_test.go::TestRFC9494HelperProceduresOffWithoutLocalConfig": "47d02a28f58f3783",
+    "internal/component/bgp/plugins/gr/rfc9494_helper_default_red_test.go::TestRFC9494HelperProceduresOnPerConfiguredFamily": "10099b6721c97b13",
+    "internal/component/bgp/plugins/gr/rfc9494_test.go::TestRFC9494_LLGREnabledByExplicitConfig": "a9bbba00ea08d5e3",
+    "internal/component/bgp/plugins/gr/rfc9494_test.go::TestRFC9494_LLGRNotEnabledByDefault": "9e2fd4ecbe748f95"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,135 @@
+[
+  {
+    "rid": "RFC8955-4.2-3",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/nlri/flowspec/rfc8955_unmatchable_test.go::TestFlowSpecUnmatchableRefused",
+    "unit-sha": "72c52f1f250eb519",
+    "claim-sha": "2f147a88d661740c",
+    "route": "revert",
+    "producer": "internal/core/bgp/nlri/flowspec/unmatchable.go::CheckMatchable",
+    "producer-sha": "0c4011c61e729836",
+    "break": "body of CheckMatchable replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8955-4.2-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/nlri/flowspec/rfc8955_unmatchable_test.go::TestFlowSpecUnmatchableRefused",
+    "unit-sha": "72c52f1f250eb519",
+    "claim-sha": "8a92446d656d457c",
+    "route": "revert",
+    "producer": "internal/core/bgp/nlri/flowspec/unmatchable.go::CheckMatchable",
+    "producer-sha": "0c4011c61e729836",
+    "break": "body of CheckMatchable replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8955-4.2-3",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/nlri/flowspec/rfc8955_unmatchable_values_test.go::TestFlowSpecUnmatchableByValueRefused",
+    "unit-sha": "9e2a3f8f0342be9a",
+    "claim-sha": "c21a1b3f980b3be4",
+    "route": "revert",
+    "producer": "internal/core/bgp/nlri/flowspec/unmatchable.go::CheckMatchable",
+    "producer-sha": "0c4011c61e729836",
+    "break": "body of CheckMatchable replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8955-4.2-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/nlri/flowspec/rfc8955_unmatchable_values_test.go::TestFlowSpecUnmatchableByValueRefused",
+    "unit-sha": "9e2a3f8f0342be9a",
+    "claim-sha": "3e6fd910867524d6",
+    "route": "revert",
+    "producer": "internal/core/bgp/nlri/flowspec/unmatchable.go::CheckMatchable",
+    "producer-sha": "0c4011c61e729836",
+    "break": "body of CheckMatchable replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8955-4.2-3",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rib/rfc8955_rib_flowspec_unmatchable_values_test.go::TestFlowSpecUnmatchableByValueReceivedRuleIsNotPropagated",
+    "unit-sha": "d3626d0f9ae38fdc",
+    "claim-sha": "2811fc85c87897b7",
+    "route": "revert",
+    "producer": "internal/core/bgp/nlri/flowspec/unmatchable.go::CheckMatchable",
+    "producer-sha": "0c4011c61e729836",
+    "break": "body of CheckMatchable replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8955-4.2-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/rfc8955_rib_flowspec_unmatchable_values_test.go::TestFlowSpecUnmatchableByValueReceivedRuleIsNotPropagated",
+    "unit-sha": "d3626d0f9ae38fdc",
+    "claim-sha": "f43502b6c7536f49",
+    "route": "revert",
+    "producer": "internal/core/bgp/nlri/flowspec/unmatchable.go::CheckMatchable",
+    "producer-sha": "0c4011c61e729836",
+    "break": "body of CheckMatchable replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8955-4.2-3",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecUnmatchableReceivedRuleIsNotPropagated",
+    "unit-sha": "dd3886d17f7f85f0",
+    "claim-sha": "4cd88fed05cedf02",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/rib_flowspec_validation.go::flowSpecDestination",
+    "producer-sha": "198e5cc3a9cc36a6",
+    "break": "body of flowSpecDestination replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8955-4.2-3",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecUnmatchableReceivedRuleIsNotPropagated",
+    "unit-sha": "dd3886d17f7f85f0",
+    "claim-sha": "7b363e53c43de197",
+    "route": "revert",
+    "producer": "internal/core/bgp/nlri/flowspec/unmatchable.go::CheckMatchable",
+    "producer-sha": "0c4011c61e729836",
+    "break": "body of CheckMatchable replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8955-4.2-3",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecUnmatchableReceivedRuleWithdraw",
+    "unit-sha": "843ace95d69a76b2",
+    "claim-sha": "435885685f898cfa",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/rib_flowspec_validation.go::flowSpecDestination",
+    "producer-sha": "198e5cc3a9cc36a6",
+    "break": "body of flowSpecDestination replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8955-4.2-3",
+    "polarity": "negative",
+    "unit": "internal/core/bgp/nlri/flowspec/rfc8955_unmatchable_test.go::TestCheckMatchable",
+    "unit-sha": "466afaf1fa23ba1c",
+    "claim-sha": "d57e918f75177a04",
+    "route": "revert",
+    "producer": "internal/core/bgp/nlri/flowspec/unmatchable.go::CheckMatchable",
+    "producer-sha": "0c4011c61e729836",
+    "break": "body of CheckMatchable replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8955-4.2-3",
+    "polarity": "positive",
+    "unit": "internal/core/bgp/nlri/flowspec/rfc8955_unmatchable_test.go::TestCheckMatchable",
+    "unit-sha": "466afaf1fa23ba1c",
+    "claim-sha": "081df46e6cf58f2d",
+    "route": "revert",
+    "producer": "internal/core/bgp/nlri/flowspec/unmatchable.go::CheckMatchable",
+    "producer-sha": "0c4011c61e729836",
+    "break": "body of CheckMatchable replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8955-4.2-3",
+    "polarity": "negative",
+    "unit": "test/parse/flowspec-unmatchable-refused.ci",
+    "unit-sha": "4985b9f2368dfffd",
+    "claim-sha": "017dd8a93cc08dfb",
+    "route": "revert",
+    "producer": "internal/core/bgp/nlri/flowspec/unmatchable.go::CheckMatchable",
+    "producer-sha": "0c4011c61e729836",
+    "break": "body of CheckMatchable replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+    "citation": "expect=stdout:contains=ICMP has no ports"
+  }
+]

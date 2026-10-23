@@ -1,0 +1,17 @@
+{
+  "note": "Independent MRTJudge 2026-10-02. RFC6396 section 4.3.1: The View Name encoding MUST follow the UTF-8 transformation format [RFC3629]. TestRFC6396ViewNameUTF8 positively pins nonempty ASCII and multibyte UTF-8 literal octets and byte length on encode and independent decode; negative inputs isolate illegal leading byte, overlong form, surrogate, out-of-range code point and truncated sequence, requiring encoder error/zero count/untouched buffer and decoder error. Removing either utf8 validation fails the relevant negative assertions. TestRFC6396DumpProducerEmitsNoViewName reaches writeTableDumpV2/writePeerIndexTable and compares exact full PIT body, so invalid production name insertion cannot hide behind the old vacuous empty-string test. Retained empty-name tagged test is supplementary. Native records for both codec polarities and actual producer are present; their panic breaks prove reachability only, while the inspected assertions establish this verdict.",
+  "requirement_sha": "cf8b44fb065cbe2f",
+  "tests": {
+    "internal/mrt/mrt_test.go::TestPeerIndexTableEmptyViewName": "fb2e8a7edf55af3c",
+    "internal/mrt/rfc6396_wire_fields_test.go::TestRFC6396ViewNameUTF8": "6e5ac96a9c02ebe6",
+    "internal/mrt/rfc6396_wire_fields_test.go::TestRFC6396ViewNameUTF8#2": "6e5ac96a9c02ebe6",
+    "internal/plugins/mrt/rfc6396_view_name_test.go::TestRFC6396DumpProducerEmitsNoViewName": "aa0a92dcef65f518"
+  },
+  "units": {
+    "internal/mrt/mrt_test.go::TestPeerIndexTableEmptyViewName": "c68177d749e81a44",
+    "internal/mrt/rfc6396_wire_fields_test.go::TestRFC6396ViewNameUTF8": "3fb5531384c27cc0",
+    "internal/mrt/rfc6396_wire_fields_test.go::TestRFC6396ViewNameUTF8#2": "3fb5531384c27cc0",
+    "internal/plugins/mrt/rfc6396_view_name_test.go::TestRFC6396DumpProducerEmitsNoViewName": "3b4cf3a8ba36a2be"
+  },
+  "verdict": "enforced"
+}

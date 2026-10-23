@@ -1,0 +1,13 @@
+{
+  "note": "Judged 2026-10-01 (BGP c12 judge). Row is the OpenSent Event 24 list verbatim (RFC 4271 p.66, 'If a NOTIFICATION message is received with a version error (Event 24), the local system: - sets the ConnectRetryTimer to zero, - releases all BGP resources, - drops the TCP connection, and - changes its state to Idle.'). Positive TestRFC4271VersionErrorNotificationReleasesQuietly/OPENSENT: a running Peer at ConnectRetryCounter 3 receives 2/1 and writes NO NOTIFICATION (exact empty list), far end reads EOF, ConnectRetry/Hold/Keepalive timers stopped, session released, FSM Idle, counter stays 3 (the list has no counter line; the start value 3 makes an increment or a reset visible). Negative TestRFC4271OtherOpenErrorNotificationIsNotAVersionError/OPENSENT: 2/2 (same code, other subcode, so not the Event 24 trigger) takes Event 25: exactly one 5/0 and counter 3->4, so a classifier keyed on the error code alone goes red. Producer: Session.notificationEvent (Event 24 only for 2/1, the Section 6.2 Unsupported Version Number) and FSM.handleOpenSent's own EventNotifMsgVerErr arm. Records observed red on notificationEvent, both polarities; the author's failing-first run showed 5/0 and 3->4 before the fix (D-9).",
+  "requirement_sha": "13ff1e662d5737d4",
+  "tests": {
+    "internal/component/bgp/reactor/rfc4271_version_error_peer_test.go::TestRFC4271OtherOpenErrorNotificationIsNotAVersionError": "20aa7ce5c43aad4a",
+    "internal/component/bgp/reactor/rfc4271_version_error_peer_test.go::TestRFC4271VersionErrorNotificationReleasesQuietly": "20aa7ce5c43aad4a"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc4271_version_error_peer_test.go::TestRFC4271OtherOpenErrorNotificationIsNotAVersionError": "c7f8655b7f5daa9e",
+    "internal/component/bgp/reactor/rfc4271_version_error_peer_test.go::TestRFC4271VersionErrorNotificationReleasesQuietly": "5f3586a60efb68ca"
+  },
+  "verdict": "enforced"
+}

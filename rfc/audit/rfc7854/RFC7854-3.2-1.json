@@ -1,0 +1,13 @@
+{
+  "note": "nextReconnectWait doubles and caps at reconnectMax; a refused dial is not retried before the base wait even when the port reopens early",
+  "requirement_sha": "09dc7992f47e0cd1",
+  "tests": {
+    "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854RetryBackoffDoubles": "94e84131af3555be",
+    "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854RetryNotBeforeBackoff": "94e84131af3555be"
+  },
+  "units": {
+    "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854RetryBackoffDoubles": "b734bd8042f71ee4",
+    "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854RetryNotBeforeBackoff": "763c4dcd93714eba"
+  },
+  "verdict": "enforced"
+}

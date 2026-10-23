@@ -1,0 +1,17 @@
+{
+  "note": "Both halves. Success: TestRFC3748PeerDiscardsASuccessTheMethodDoesNotPermitYet. Failure: TestRFC3748PeerDiscardsAFailureWhereNoneIsPermitted: after both success indications an EAP-Failure is discarded (no Err, no Response) and the following EAP-Success still concludes; mid-method, where Failure is permitted, the same packet yields ErrEAPFailure and is not discarded (peer.go Process CodeFailure arm).",
+  "requirement_sha": "c9f000f21d0197da",
+  "tests": {
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748PeerDiscardsAFailureWhereNoneIsPermitted": "8ca42a58d78f22be",
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748PeerDiscardsAFailureWhereNoneIsPermitted#2": "8ca42a58d78f22be",
+    "internal/core/eap/rfc3748_discard_test.go::TestRFC3748PeerDiscardsASuccessTheMethodDoesNotPermitYet": "e0e4c426f5444d02",
+    "internal/core/eap/rfc3748_discard_test.go::TestRFC3748PeerDiscardsASuccessTheMethodDoesNotPermitYet#2": "e0e4c426f5444d02"
+  },
+  "units": {
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748PeerDiscardsAFailureWhereNoneIsPermitted": "fd1837a05aa14116",
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748PeerDiscardsAFailureWhereNoneIsPermitted#2": "fd1837a05aa14116",
+    "internal/core/eap/rfc3748_discard_test.go::TestRFC3748PeerDiscardsASuccessTheMethodDoesNotPermitYet": "64eec882fea22ec3",
+    "internal/core/eap/rfc3748_discard_test.go::TestRFC3748PeerDiscardsASuccessTheMethodDoesNotPermitYet#2": "64eec882fea22ec3"
+  },
+  "verdict": "enforced"
+}

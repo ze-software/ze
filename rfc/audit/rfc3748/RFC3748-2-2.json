@@ -1,0 +1,15 @@
+{
+  "note": "Re-read RFC 3748 in full, especially Section 2 [3] (no new Request before a valid Response), Sections 2.2-2.3 role routing and 4.1 Identifier/Type validity, and every tagged unit. TestRFC3748AuthenticatorRequiresValidResponse now supplies a genuine matching Identity Response and requires a non-nil CodeRequest of TypeMSCHAPv2; it does not expect a wrong-role Request to draw Failure. TestRFC3748NoNewRequestBeforeAValidResponse separately supplies a wrong-Identifier Response and a wrong-Type Response while the Challenge is outstanding and requires nil for each; the real peer then answers the retained Challenge, requires a next packet with a changed Identifier if it is a Request, and requires nil on replay. Session.Process checks CodeResponse and the outstanding Identifier before state dispatch; handleMethod checks the configured Type before calling the method. The malformed method payload in the wrong-Identifier probe cannot independently satisfy its nil assertion: mschapv2Method.handleResponse returns Err on that short payload and Session.handleMethod would emit Failure, which the assertion rejects. The wrong-Type probe likewise reaches a non-nil Failure if the framework Type discard is removed. handleIdentity, handleMethod and finalRequest emit their next Requests only while processing the admitted Response; handleResponderEAP consumes nil as no output and forwards non-nil packets through sendResponderEAP. Retain enforced for this lock-step obligation; this source rejudgment is not an executed test or named-peer result.",
+  "requirement_sha": "d8dcc0644b45f303",
+  "tests": {
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748NoNewRequestBeforeAValidResponse": "8ca42a58d78f22be",
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748NoNewRequestBeforeAValidResponse#2": "8ca42a58d78f22be",
+    "internal/core/eap/rfc3748_test.go::TestRFC3748AuthenticatorRequiresValidResponse": "c7d9cf3b0751a797"
+  },
+  "units": {
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748NoNewRequestBeforeAValidResponse": "799e0e527a57d59c",
+    "internal/core/eap/rfc3748_clause_test.go::TestRFC3748NoNewRequestBeforeAValidResponse#2": "799e0e527a57d59c",
+    "internal/core/eap/rfc3748_test.go::TestRFC3748AuthenticatorRequiresValidResponse": "24791198417775bd"
+  },
+  "verdict": "enforced"
+}

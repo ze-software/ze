@@ -1,0 +1,11 @@
+{
+  "note": "Forbidden: a RIB entry record written before the PEER_INDEX_TABLE, or another record between them. internal/plugins/mrt/dump_test.go::TestDumpV2PeerIndexBeforeFirstRIBEntry drives the real writeTableDumpV2 path and asserts order[0] is (TABLE_DUMP_V2, PEER_INDEX_TABLE) and order[1] is (TABLE_DUMP_V2, RIB_IPV4_UNICAST); a late or missing PEER_INDEX_TABLE or an interleaved record turns it red. Single-polarity positive marker on the row. It drives one route only.",
+  "requirement_sha": "a14ee59763ac83fc",
+  "tests": {
+    "internal/plugins/mrt/rfc6396_dump_test.go::TestDumpV2PeerIndexBeforeFirstRIBEntry": "1aea1dbe6eeaa629"
+  },
+  "units": {
+    "internal/plugins/mrt/rfc6396_dump_test.go::TestDumpV2PeerIndexBeforeFirstRIBEntry": "80a64893da21da06"
+  },
+  "verdict": "enforced"
+}

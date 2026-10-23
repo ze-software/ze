@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC3101-3.1-5",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc3101_translator_election_test.go::TestRFC3101TransitASBRReachabilityDecidesListing",
+    "unit-sha": "78c3a7952d3f6e03",
+    "claim-sha": "39b54ed4bbece39a",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/nssa.go::asbrReachedOverTransit",
+    "producer-sha": "0f9d192adcf401c8",
+    "break": "body of asbrReachedOverTransit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3101-3.1-5",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/rfc3101_translator_election_test.go::TestRFC3101TransitASBRReachabilityDecidesListing",
+    "unit-sha": "78c3a7952d3f6e03",
+    "claim-sha": "7e7a46c63baed2d6",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/nssa.go::asbrReachedOverTransit",
+    "producer-sha": "0f9d192adcf401c8",
+    "break": "body of asbrReachedOverTransit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

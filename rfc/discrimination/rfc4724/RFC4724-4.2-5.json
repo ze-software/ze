@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC4724-4.2-5",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rib/rfc4724_stale_forwarding_test.go::TestRFC4724GRStaleRouteIsDecidedByItsAttributesAlone",
+    "unit-sha": "d075cd2c56bbdd38",
+    "claim-sha": "60cec9dee84474d5",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rib/bestpath_selection.go::selectBestCandidates",
+    "producer-sha": "2f1d07c11c858e50",
+    "break": "body of selectBestCandidates replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

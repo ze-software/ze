@@ -1,0 +1,13 @@
+{
+  "note": "v6InterAreaPrefixSIDRule sets NP and clears E for a propagated prefix and keeps flags when directly attached; TestOSPFv3OriginateInterAreaPropagation asserts NP set/E clear on the real propagated LSA",
+  "requirement_sha": "639c04002daed3b8",
+  "tests": {
+    "internal/plugins/ospf/rfc8666_sr_interarea_v6_test.go::TestOSPFv3InterAreaPrefixSIDRule": "4d7580beb8e88dd1",
+    "internal/plugins/ospf/rfc8666_sr_interarea_v6_test.go::TestOSPFv3InterAreaPrefixSIDRule#2": "4d7580beb8e88dd1"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc8666_sr_interarea_v6_test.go::TestOSPFv3InterAreaPrefixSIDRule": "1dd747256a907a64",
+    "internal/plugins/ospf/rfc8666_sr_interarea_v6_test.go::TestOSPFv3InterAreaPrefixSIDRule#2": "1dd747256a907a64"
+  },
+  "verdict": "enforced"
+}

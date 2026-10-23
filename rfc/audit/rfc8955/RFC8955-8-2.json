@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-16: the unit moved verbatim to core, with only the family identifier renamed. RFC 8955 Section 8: \"The NLRI length field shall include both the 8 octets of the Route Distinguisher as well as the subsequent Flow Specification NLRI value.\" The positive requires Len() and the WriteTo length octet to equal 8 plus the value length; its first assertion checks the fixture against itself, and the WriteTo assertion is the real check. The negative requires ErrFlowSpecTruncated for the same RD and value under a length that counts only the value.",
+  "requirement_sha": "9d0035ea6b3b6b30",
+  "tests": {
+    "internal/core/bgp/nlri/flowspec/rfc8955_vpn_test.go::TestRFC8955VPNLengthCoversRD": "ac3a8f469b24e3f2",
+    "internal/core/bgp/nlri/flowspec/rfc8955_vpn_test.go::TestRFC8955VPNLengthCoversRD#2": "ac3a8f469b24e3f2"
+  },
+  "units": {
+    "internal/core/bgp/nlri/flowspec/rfc8955_vpn_test.go::TestRFC8955VPNLengthCoversRD": "25382a184876dbef",
+    "internal/core/bgp/nlri/flowspec/rfc8955_vpn_test.go::TestRFC8955VPNLengthCoversRD#2": "25382a184876dbef"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "Step 3b SPD-I lookup of a clear packet addressed to Ze. Positive: UDP from 10.3.0.5 to local port 7101 matches the operator in-BYPASS entry ranked ahead of a DISCARD catch-all: delivered, no XfrmInPolBlock. Negative: to port 7102 on the operator in-DISCARD entry with a BYPASS catch-all: XfrmInPolBlock +1, not delivered, so only the matched entry can have dropped it. Each unit isolates its disposition by the opposite catch-all. Judge ran both: PASS. Records: xfrmPolicyFromParams revert red both; overlays bypass->BLOCK / discard->ALLOW redden exactly the matching polarity (scratch p7-ovin-*.log). Not-addressed-to-device (forwarded) packets are not probed; the SPD-I lookup is the same fwd/in policy check.",
+  "requirement_sha": "7bcc19079e0f3e4d",
+  "tests": {
+    "internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go::TestRFC4301InboundClearPacketIsBypassedByTheSPDIEntryItMatches": "c3dd0c022a249aa6",
+    "internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go::TestRFC4301InboundClearPacketIsDiscardedByTheSPDIEntryItMatches": "c3dd0c022a249aa6"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go::TestRFC4301InboundClearPacketIsBypassedByTheSPDIEntryItMatches": "25be6287a16d5d03",
+    "internal/component/ike/engine/rfc4301_inbound_steps_linux_test.go::TestRFC4301InboundClearPacketIsDiscardedByTheSPDIEntryItMatches": "84e0cda72627104f"
+  },
+  "verdict": "enforced"
+}

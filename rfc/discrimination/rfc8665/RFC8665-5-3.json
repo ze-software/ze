@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC8665-5-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc8665_explicit_null_label_test.go::TestRFC8665ExplicitNullPushedAsLabelZero",
+    "unit-sha": "fbb71ac1904fe189",
+    "claim-sha": "dcb4c0d3e26a9782",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/sr/install.go::OutgoingLabel",
+    "producer-sha": "9fdec6d9d22d3541",
+    "break": "body of OutgoingLabel replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8665-5-3",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/rfc8665_explicit_null_label_test.go::TestRFC8665NoExplicitNullWithoutEFlag",
+    "unit-sha": "8c197684716749ae",
+    "claim-sha": "1bd8373f01540e42",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/sr/install.go::OutgoingActionFor",
+    "producer-sha": "9ca706d9d63730b0",
+    "break": "body of OutgoingActionFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8665-5-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665ExplicitNullReplacesPrefixSID",
+    "unit-sha": "0c7ce7a135e6f2a1",
+    "claim-sha": "3bd4f45fa18a08e7",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/sr/install.go::OutgoingLabel",
+    "producer-sha": "9fdec6d9d22d3541",
+    "break": "body of OutgoingLabel replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8665-5-3",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665NoPHPKeepsPrefixSIDLabel",
+    "unit-sha": "69bb57a5c71b0185",
+    "claim-sha": "5e7de3c5c980b2c2",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/sr/install.go::OutgoingActionFor",
+    "producer-sha": "9ca706d9d63730b0",
+    "break": "body of OutgoingActionFor replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

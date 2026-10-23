@@ -1,0 +1,17 @@
+{
+  "note": "Sender side: TestRFC8203ShutdownCommunicationOnlyUnderSubcode2Or4 requires BuildCeaseData to return length+message under subcodes 2 and 4 and nothing under 0,1,3,5..10. BuildCeaseData is the teardown's only Cease-data builder (session_connection.go, behaviour unchanged); other Cease senders (max-prefix, collision, policy) send their own non-shutdown data. Judge break (return the message for every subcode): red.",
+  "requirement_sha": "28025d6c946dd428",
+  "tests": {
+    "internal/component/bgp/message/notification_test.go::TestRFC8203Subcode": "9710bf0872e82b0b",
+    "internal/component/bgp/message/notification_test.go::TestRFC8203Subcode#2": "9710bf0872e82b0b",
+    "internal/component/bgp/message/rfc8203_shutdown_send_test.go::TestRFC8203ShutdownCommunicationOnlyUnderSubcode2Or4": "908f887506cc5456",
+    "internal/component/bgp/message/rfc8203_shutdown_send_test.go::TestRFC8203ShutdownCommunicationOnlyUnderSubcode2Or4#2": "908f887506cc5456"
+  },
+  "units": {
+    "internal/component/bgp/message/notification_test.go::TestRFC8203Subcode": "64cbcc669ed77e11",
+    "internal/component/bgp/message/notification_test.go::TestRFC8203Subcode#2": "64cbcc669ed77e11",
+    "internal/component/bgp/message/rfc8203_shutdown_send_test.go::TestRFC8203ShutdownCommunicationOnlyUnderSubcode2Or4": "0b83bd8018be51f3",
+    "internal/component/bgp/message/rfc8203_shutdown_send_test.go::TestRFC8203ShutdownCommunicationOnlyUnderSubcode2Or4#2": "0b83bd8018be51f3"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,29 @@
+{
+  "note": "Sentence: when an option Data is indicated by its Length to extend beyond the Information field, the entire packet is silently discarded without affecting the automaton. (a) Replying: TestRFC1661LCPTruncatedOptionSilentlyDiscarded goes red on rec.count() != 0 for three layouts. (b) Moving the automaton: the same test starts in ReqSent and AckSent and asserts currentState() == start, then that a valid request is still Acked. TestRFC1661TruncatedOptionSilentlyDiscarded (IPCP, IPv6CP), the reply-direction units and TestRFC1661ClientRequestPastEndSilentlyDiscarded extend it. Negative: a contained unacceptable option still draws a Nak.",
+  "requirement_sha": "a0457771dff06e0e",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPReplyWithOptionsPastEndDiscarded": "2325ea607f732027",
+    "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPReplyWithOptionsPastEndDiscarded#2": "2325ea607f732027",
+    "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPTruncatedOptionSilentlyDiscarded": "2325ea607f732027",
+    "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPTruncatedOptionSilentlyDiscarded#2": "2325ea607f732027",
+    "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661NCPReplyWithOptionsPastEndDiscarded": "2325ea607f732027",
+    "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661NCPReplyWithOptionsPastEndDiscarded#2": "2325ea607f732027",
+    "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661TruncatedOptionSilentlyDiscarded": "2325ea607f732027",
+    "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661TruncatedOptionSilentlyDiscarded#2": "2325ea607f732027",
+    "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientRequestPastEndSilentlyDiscarded": "0d3244b2c125eaa3",
+    "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientRequestPastEndSilentlyDiscarded#2": "0d3244b2c125eaa3"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPReplyWithOptionsPastEndDiscarded": "2a9aad41c5045293",
+    "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPReplyWithOptionsPastEndDiscarded#2": "2a9aad41c5045293",
+    "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPTruncatedOptionSilentlyDiscarded": "ca5e4e18e51f86e7",
+    "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPTruncatedOptionSilentlyDiscarded#2": "ca5e4e18e51f86e7",
+    "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661NCPReplyWithOptionsPastEndDiscarded": "e698bbd2b2648518",
+    "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661NCPReplyWithOptionsPastEndDiscarded#2": "e698bbd2b2648518",
+    "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661TruncatedOptionSilentlyDiscarded": "106dd38c4124f05a",
+    "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661TruncatedOptionSilentlyDiscarded#2": "106dd38c4124f05a",
+    "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientRequestPastEndSilentlyDiscarded": "82ee016724d111fc",
+    "internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go::TestRFC1661ClientRequestPastEndSilentlyDiscarded#2": "82ee016724d111fc"
+  },
+  "verdict": "enforced"
+}

@@ -8,7 +8,6 @@ import (
 	"slices"
 	"strings"
 	"testing"
-	"time"
 )
 
 // stampProducerKey is the producer an unimplemented verdict cites in the fixture.
@@ -17,12 +16,9 @@ const stampProducerKey = selftestProducerPath + "::SendWidget"
 // stampPendingRel is where the fixture's pending verdicts live, outside rfc/audit/.
 const stampPendingRel = "scratch/pending/rfc9999.json"
 
-// stampNow is the date the fixture stamps on.
-var stampNow = time.Date(2026, 9, 26, 12, 0, 0, 0, time.UTC)
-
 // stampTree lays a two-row enrolled summary, a carrier tagging the first row in
 // both polarities, and a producer. An audit file is written only when recorded
-// verdicts are given, in the writer's own canonical form so a byte comparison
+// verdicts are given, one file per requirement in the writer's own canonical form so a byte comparison
 // means something.
 func stampTree(t *testing.T, recorded map[string]any) string {
 	t.Helper()
@@ -38,9 +34,9 @@ func stampTree(t *testing.T, recorded map[string]any) string {
 		selftestProducerPath:   selftestProducerSource,
 	}
 	if recorded != nil {
-		files[auditRel+"/rfc9999.json"] = pyDump(map[string]any{
-			"rfc": "rfc9999", "audited": "2026-09-01", "requirements": recorded,
-		}) + "\n"
+		for rid, verdict := range recorded {
+			files[auditRecordRel("rfc9999", rid)] = string(renderAuditVerdict(verdict))
+		}
 	}
 	root := t.TempDir()
 	writeFixtureFiles(t, root, files)
@@ -58,18 +54,25 @@ func stampPending(t *testing.T, root, stem string, verdicts map[string]any) stri
 	return filepath.Join(root, filepath.FromSlash(stampPendingRel))
 }
 
-// readStampAudit answers the audit file's bytes, and nil when it is absent.
+// readStampAudit answers the bytes of every rfc9999 verdict file, each named,
+// and nil when there is none.
 func readStampAudit(t *testing.T, root string) []byte {
 	t.Helper()
 
-	raw, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(auditRel), "rfc9999.json"))
-	if os.IsNotExist(err) {
-		return nil
-	}
+	files, err := listEvidence(root, auditRel)
 	if err != nil {
-		t.Fatalf("read the audit file: %v", err)
+		t.Fatalf("list the audit files: %v", err)
 	}
-	return raw
+	var out []byte
+	for _, file := range files {
+		raw, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(file.Rel)))
+		if err != nil {
+			t.Fatalf("read %s: %v", file.Rel, err)
+		}
+		out = append(out, file.Rel...)
+		out = append(out, raw...)
+	}
+	return out
 }
 
 // stampFreshness answers the state `./le rfc check` derives for every verdict
@@ -112,7 +115,7 @@ func TestAuditStampFillsNewVerdictsAndTheyReadFresh(t *testing.T) {
 		},
 	})
 
-	report, err := auditStamp(root, "rfc9999", from, stampModeNew, stampNow)
+	report, err := auditStamp(root, "rfc9999", from, stampModeNew)
 	if err != nil {
 		t.Fatalf("stamp refused: %v", err)
 	}
@@ -123,10 +126,6 @@ func TestAuditStampFillsNewVerdictsAndTheyReadFresh(t *testing.T) {
 	audit, err := loadAudit(root, "rfc9999")
 	if err != nil {
 		t.Fatalf("the stamped file does not load: %v", err)
-	}
-	if audit.Document["rfc"] != "rfc9999" || audit.Document["audited"] != "2026-09-26" {
-		t.Errorf("the created file is headed rfc=%v audited=%v, want rfc9999 and 2026-09-26",
-			audit.Document["rfc"], audit.Document["audited"])
 	}
 	send, _ := audit.Record(selftestRIDSend)
 	wantKeys := []string{selftestCIPath, selftestCIPath + "#2"}
@@ -168,7 +167,7 @@ func TestAuditStampLeavesARecordedVerdictUntouched(t *testing.T) {
 	root := stampTree(t, map[string]any{selftestRIDSend: stale})
 	before := pyDump(stale)
 	writeFixtureFiles(t, root, map[string]string{stampPendingRel: pyDump(map[string]any{
-		"rfc": "rfc9999", "audited": "2026-09-20",
+		"rfc": "rfc9999",
 		"requirements": map[string]any{selftestRIDDrop: map[string]any{
 			"verdict": VerdictNotApplicable, "note": "binds the document's authors",
 			"no_code_path": "no code runs for an obligation on authors",
@@ -176,7 +175,7 @@ func TestAuditStampLeavesARecordedVerdictUntouched(t *testing.T) {
 	})})
 	from := filepath.Join(root, filepath.FromSlash(stampPendingRel))
 
-	report, err := auditStamp(root, "rfc9999", from, stampModeNew, stampNow)
+	report, err := auditStamp(root, "rfc9999", from, stampModeNew)
 	if err != nil {
 		t.Fatalf("stamp refused: %v", err)
 	}
@@ -186,9 +185,6 @@ func TestAuditStampLeavesARecordedVerdictUntouched(t *testing.T) {
 	audit, err := loadAudit(root, "rfc9999")
 	if err != nil {
 		t.Fatalf("the merged file does not load: %v", err)
-	}
-	if audit.Document["audited"] != "2026-09-20" {
-		t.Errorf("the merged file is dated %v, want the pending file's 2026-09-20", audit.Document["audited"])
 	}
 	after, _ := audit.Verdict(selftestRIDSend)
 	if got := pyDump(after); got != before {
@@ -262,7 +258,7 @@ func TestAuditStampRefusesAndWritesNothing(t *testing.T) {
 			before := readStampAudit(t, root)
 			from := stampPending(t, root, tc.stem, tc.verdicts)
 
-			_, err := auditStamp(root, "rfc9999", from, stampModeNew, stampNow)
+			_, err := auditStamp(root, "rfc9999", from, stampModeNew)
 			if err == nil {
 				t.Fatal("the stamp accepted the pending file")
 			}
@@ -278,7 +274,7 @@ func TestAuditStampRefusesAndWritesNothing(t *testing.T) {
 	t.Run("not-applicable over a tagged row", func(t *testing.T) {
 		root := stampTree(t, nil)
 		from := stampPending(t, root, "rfc9999", map[string]any{selftestRIDSend: valid})
-		if _, err := auditStamp(root, "rfc9999", from, stampModeNew, stampNow); err == nil ||
+		if _, err := auditStamp(root, "rfc9999", from, stampModeNew); err == nil ||
 			!strings.Contains(err.Error(), selftestRIDSend) {
 			t.Errorf("the refusal does not name %s: %v", selftestRIDSend, err)
 		}
@@ -290,7 +286,7 @@ func TestAuditStampRefusesAndWritesNothing(t *testing.T) {
 	t.Run("stem not enrolled", func(t *testing.T) {
 		root := stampTree(t, nil)
 		from := stampPending(t, root, "rfc8888", map[string]any{selftestRIDDrop: valid})
-		if _, err := auditStamp(root, "rfc8888", from, stampModeNew, stampNow); err == nil {
+		if _, err := auditStamp(root, "rfc8888", from, stampModeNew); err == nil {
 			t.Error("a stem with no summary was accepted")
 		}
 	})
@@ -303,7 +299,7 @@ func stampRecorded(t *testing.T, root string, verdicts map[string]any) {
 	t.Helper()
 
 	from := stampPending(t, root, "rfc9999", verdicts)
-	if _, err := auditStamp(root, "rfc9999", from, stampModeNew, stampNow); err != nil {
+	if _, err := auditStamp(root, "rfc9999", from, stampModeNew); err != nil {
 		t.Fatalf("stamp the recorded verdicts: %v", err)
 	}
 }
@@ -349,7 +345,7 @@ func TestAuditStampRejudgeReplacesInPlaceAndReadsFresh(t *testing.T) {
 	from := stampPending(t, root, "rfc9999", map[string]any{
 		selftestRIDSend: map[string]any{"verdict": VerdictEnforced, "note": "both polarities assert the widget"},
 	})
-	report, err := auditStamp(root, "rfc9999", from, stampModeRejudge, stampNow)
+	report, err := auditStamp(root, "rfc9999", from, stampModeRejudge)
 	if err != nil {
 		t.Fatalf("re-judge refused: %v", err)
 	}
@@ -427,7 +423,7 @@ func TestAuditStampRejudgeRefusesAndWritesNothing(t *testing.T) {
 			before := readStampAudit(t, root)
 			from := stampPending(t, root, "rfc9999", tc.verdicts)
 
-			_, err := auditStamp(root, "rfc9999", from, stampModeRejudge, stampNow)
+			_, err := auditStamp(root, "rfc9999", from, stampModeRejudge)
 			if err == nil {
 				t.Fatal("the re-judge accepted the pending file")
 			}
@@ -461,7 +457,7 @@ func TestAuditStampRejudgeUpgradeNeedsAReasonWhenUnitsAreUnchanged(t *testing.T)
 			})
 			before := readStampAudit(t, root)
 			from := stampPending(t, root, "rfc9999", map[string]any{selftestRIDSend: enforced})
-			_, err := auditStamp(root, "rfc9999", from, stampModeRejudge, stampNow)
+			_, err := auditStamp(root, "rfc9999", from, stampModeRejudge)
 			if err == nil || !strings.Contains(err.Error(), selftestRIDSend) {
 				t.Fatalf("the unchanged-units upgrade was not refused by id: %v", err)
 			}
@@ -482,7 +478,7 @@ func TestAuditStampRejudgeUpgradeNeedsAReasonWhenUnitsAreUnchanged(t *testing.T)
 				"verdict": VerdictEnforced, "note": "both polarities assert the widget",
 				verdictFieldUpgradeReason: reason,
 			}})
-			if _, err := auditStamp(root, "rfc9999", from, stampModeRejudge, stampNow); err != nil {
+			if _, err := auditStamp(root, "rfc9999", from, stampModeRejudge); err != nil {
 				t.Fatalf("the upgrade with a reason was refused: %v", err)
 			}
 			audit, err := loadAudit(root, "rfc9999")
@@ -503,7 +499,7 @@ func TestAuditStampRejudgeUpgradeNeedsAReasonWhenUnitsAreUnchanged(t *testing.T)
 			fingerprintUnits:  map[string]any{selftestCIPath: "0000000000000000"},
 		}})
 		from := stampPending(t, root, "rfc9999", map[string]any{selftestRIDSend: enforced})
-		if _, err := auditStamp(root, "rfc9999", from, stampModeRejudge, stampNow); err != nil {
+		if _, err := auditStamp(root, "rfc9999", from, stampModeRejudge); err != nil {
 			t.Fatalf("an upgrade over changed units was refused: %v", err)
 		}
 	})
@@ -532,7 +528,7 @@ func TestAuditStampRejudgeRefusesAReasonOffAnUpgrade(t *testing.T) {
 				"verdict": tc.to, "note": "the second judgement",
 				verdictFieldUpgradeReason: "no upgrade happened",
 			}})
-			_, err := auditStamp(root, "rfc9999", from, stampModeRejudge, stampNow)
+			_, err := auditStamp(root, "rfc9999", from, stampModeRejudge)
 			if err == nil || !strings.Contains(err.Error(), selftestRIDSend) {
 				t.Fatalf("a reason off an upgrade was not refused by id: %v", err)
 			}
@@ -553,7 +549,7 @@ func TestAuditStampRefusesAReasonInNewMode(t *testing.T) {
 		"verdict": VerdictEnforced, "note": "both polarities assert the widget",
 		verdictFieldUpgradeReason: "a first judgement upgrades nothing",
 	}})
-	_, err := auditStamp(root, "rfc9999", from, stampModeNew, stampNow)
+	_, err := auditStamp(root, "rfc9999", from, stampModeNew)
 	if err == nil || !strings.Contains(err.Error(), selftestRIDSend) {
 		t.Fatalf("a reason in the default mode was not refused by id: %v", err)
 	}
@@ -582,7 +578,7 @@ func partialRecords(t *testing.T, files map[string]string) []DiscriminationRecor
 func partialStampTree(t *testing.T) string {
 	t.Helper()
 	files := partialFiles()
-	files[selftestDiscriminationRel] = discriminationArtifact(t, partialRecords(t, files)...)
+	putDiscrimination(t, files, partialRecords(t, files)...)
 	root := stampTree(t, nil)
 	writeFixtureFiles(t, root, files)
 	return root
@@ -591,7 +587,7 @@ func partialStampTree(t *testing.T) string {
 func stampPartial(t *testing.T, root string) {
 	t.Helper()
 	pending := stampPending(t, root, selftestStem, map[string]any{selftestRIDSend: partialPending()})
-	if _, err := auditStamp(root, selftestStem, pending, stampModeNew, stampNow); err != nil {
+	if _, err := auditStamp(root, selftestStem, pending, stampModeNew); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -611,7 +607,7 @@ func TestPartialAuditStampRefusesWholeEnforced(t *testing.T) {
 				verdict[verdictFieldUpgradeReason] = "The unchanged units supposedly prove more."
 			}
 			from := stampPending(t, root, selftestStem, map[string]any{selftestRIDSend: verdict})
-			_, err := auditStamp(root, selftestStem, from, mode, stampNow)
+			_, err := auditStamp(root, selftestStem, from, mode)
 			if err == nil || !strings.Contains(err.Error(), "cannot be 'enforced'") {
 				t.Fatalf("whole verdict accepted or wrong refusal: %v", err)
 			}
@@ -681,11 +677,11 @@ func TestPartialAuditRequiresVerifiedClaims(t *testing.T) {
 				}
 				return
 			}
-			files[selftestDiscriminationRel] = discriminationArtifact(t, records...)
+			putDiscrimination(t, files, records...)
 			root := stampTree(t, nil)
 			writeFixtureFiles(t, root, files)
 			from := stampPending(t, root, selftestStem, map[string]any{selftestRIDSend: partialPending()})
-			if _, err := auditStamp(root, selftestStem, from, stampModeNew, stampNow); err == nil {
+			if _, err := auditStamp(root, selftestStem, from, stampModeNew); err == nil {
 				t.Fatal("invalid partial audit stamped")
 			}
 			if len(readStampAudit(t, root)) != 0 {

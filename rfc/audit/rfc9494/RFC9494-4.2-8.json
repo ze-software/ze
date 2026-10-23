@@ -1,0 +1,23 @@
+{
+  "note": "Re-judged 2026-10-18 (independent auditor, after 0b323594c4). RFC 9494 Section 4.2: \"once the LLGR Period begins, the Helper MUST immediately remove all the stale routes from the peer that it is retaining for that address family if any of the following occur\", with three bullets. All three now carry exact assertions on onSessionReestablished: F bit clear in the new LLGR capability while the new GR capability sets it (TestOnSessionReestablished_LLGRFBitClearPurges, purged == [ipv4/unicast], peer released), family omitted from the new LLGR capability with a listed sibling kept (TestOnSessionReestablished_FamilyAbsentFromLLGRPurges, purged == exactly ipv4/unicast, ipv6/unicast still retained), GR present with no LLGR capability (TestOnSessionReestablished_NoLLGRCapPurgesLLGRPeriodFamily), and neither capability (TestOnSessionReestablished_DuringLLGR_NoCaps). Each fixture sets the GR F bit, so the RFC 4724 rule cannot produce the purge and only the LLGR branch of reconnectKeepsFamily can: the former GR-seeded union would leave all three new positives empty. Negatives are conforming controls, not neighbouring errors: both F bits set keeps the family until EOR (TestOnSessionReestablished_BothFBitsSetKeepsLLGRPeriodFamily, TestOnSessionReestablished_DuringLLGR), and a family still in its GR period is not judged by the LLGR bullets (TestOnSessionReestablished_GRPeriodFamilyIgnoresLLGRBullets), matching \"once the LLGR Period begins\" per family. A purge-every-LLGR-family fix turns those red. Residual seams: the tagged units decide at the state manager; the purge-stale dispatch over the returned families in gr.go handleStateEvent is the loop RFC4724-4.2-8 dispatch tests drive, and no .ci runs an LLGR reconnect with per-family LLGR F bits (llgr-reconnect-fbit-purge.ci needs a ze-peer option). 2026-10-18 (owner-approved claim edit): the DuringLLGR and DuringLLGR_NoCaps tag claims no longer cite line numbers or the removed newForwarding map, and now state only what their bodies assert (both F bits set: no family purged; neither capability: the one LLGR-period family purged and the peer no longer active). Assertions unchanged; fresh revert discrimination records on onSessionReestablished.",
+  "requirement_sha": "2136b71bc93919d1",
+  "tests": {
+    "internal/component/bgp/plugins/gr/gr_state_test.go::TestOnSessionReestablished_DuringLLGR": "7ff5f8c62f5f9ada",
+    "internal/component/bgp/plugins/gr/gr_state_test.go::TestOnSessionReestablished_DuringLLGR_NoCaps": "7ff5f8c62f5f9ada",
+    "internal/component/bgp/plugins/gr/rfc9494_llgr_reconnect_test.go::TestOnSessionReestablished_BothFBitsSetKeepsLLGRPeriodFamily": "2baf27556af51960",
+    "internal/component/bgp/plugins/gr/rfc9494_llgr_reconnect_test.go::TestOnSessionReestablished_FamilyAbsentFromLLGRPurges": "2baf27556af51960",
+    "internal/component/bgp/plugins/gr/rfc9494_llgr_reconnect_test.go::TestOnSessionReestablished_GRPeriodFamilyIgnoresLLGRBullets": "2baf27556af51960",
+    "internal/component/bgp/plugins/gr/rfc9494_llgr_reconnect_test.go::TestOnSessionReestablished_LLGRFBitClearPurges": "2baf27556af51960",
+    "internal/component/bgp/plugins/gr/rfc9494_llgr_reconnect_test.go::TestOnSessionReestablished_NoLLGRCapPurgesLLGRPeriodFamily": "2baf27556af51960"
+  },
+  "units": {
+    "internal/component/bgp/plugins/gr/gr_state_test.go::TestOnSessionReestablished_DuringLLGR": "ffd95a26a9021644",
+    "internal/component/bgp/plugins/gr/gr_state_test.go::TestOnSessionReestablished_DuringLLGR_NoCaps": "8c5eb7f4f1bb5c64",
+    "internal/component/bgp/plugins/gr/rfc9494_llgr_reconnect_test.go::TestOnSessionReestablished_BothFBitsSetKeepsLLGRPeriodFamily": "fe808462337ebdc1",
+    "internal/component/bgp/plugins/gr/rfc9494_llgr_reconnect_test.go::TestOnSessionReestablished_FamilyAbsentFromLLGRPurges": "fe4ace32fc65ad85",
+    "internal/component/bgp/plugins/gr/rfc9494_llgr_reconnect_test.go::TestOnSessionReestablished_GRPeriodFamilyIgnoresLLGRBullets": "6afa3ae10acf39c5",
+    "internal/component/bgp/plugins/gr/rfc9494_llgr_reconnect_test.go::TestOnSessionReestablished_LLGRFBitClearPurges": "f3ceb20b022003c0",
+    "internal/component/bgp/plugins/gr/rfc9494_llgr_reconnect_test.go::TestOnSessionReestablished_NoLLGRCapPurgesLLGRPeriodFamily": "53646d74f12683f8"
+  },
+  "verdict": "enforced"
+}

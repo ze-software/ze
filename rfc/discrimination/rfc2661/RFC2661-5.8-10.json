@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2661-5.8-10",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661AckNotWithheldUnderFlowControl",
+    "unit-sha": "947c6c88e7a98823",
+    "claim-sha": "3920513830448c0e",
+    "route": "revert",
+    "producer": "internal/component/l2tp/reliable.go::OnReceive",
+    "producer-sha": "b4fa19eda71b5cef",
+    "break": "body of OnReceive replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2661-5.8-10",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661AckNotWithheldUnderFlowControl",
+    "unit-sha": "947c6c88e7a98823",
+    "claim-sha": "4d2a907105ca675f",
+    "route": "revert",
+    "producer": "internal/component/l2tp/reliable.go::BuildZLB",
+    "producer-sha": "fa3e7ee42b8a6205",
+    "break": "body of BuildZLB replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

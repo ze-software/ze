@@ -1,0 +1,15 @@
+{
+  "note": "Forbidden: a Type-5 forwarding address resolved through an NSSA, stub, or external route. nssa_scope_test.go TestExternalForwardingScopeRejectsIneligiblePaths asserts no route for the NSSA-area, external-path-type and stub cases (line 173). Positives: inter-area in the backbone (TestExternalForwardingScopeAcceptsEligiblePaths line 140) and intra-area in two Type-5 capable areas (spf/external_nssa_test.go TestExternalForwardingPreservesInternalPreferenceAndECMP lines 238-239).",
+  "requirement_sha": "e97326ba6f32085c",
+  "tests": {
+    "internal/plugins/ospf/rfc3101_nssa_scope_test.go::TestExternalForwardingScopeAcceptsEligiblePaths": "851652176e157f7d",
+    "internal/plugins/ospf/rfc3101_nssa_scope_test.go::TestExternalForwardingScopeRejectsIneligiblePaths": "851652176e157f7d",
+    "internal/plugins/ospf/spf/rfc3101_external_nssa_test.go::TestExternalForwardingPreservesInternalPreferenceAndECMP": "9e221b200c0db55d"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc3101_nssa_scope_test.go::TestExternalForwardingScopeAcceptsEligiblePaths": "19ef876d816003df",
+    "internal/plugins/ospf/rfc3101_nssa_scope_test.go::TestExternalForwardingScopeRejectsIneligiblePaths": "4bfbc3f9d8706909",
+    "internal/plugins/ospf/spf/rfc3101_external_nssa_test.go::TestExternalForwardingPreservesInternalPreferenceAndECMP": "7a0854df82c5f186"
+  },
+  "verdict": "enforced"
+}

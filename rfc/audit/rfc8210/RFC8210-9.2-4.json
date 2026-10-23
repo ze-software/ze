@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: accepting a cache certificate without verifying it against the dNSName reference. Negative TestRTRTLSRejectsUnauthenticatedCaches \"wrong DNS\" (server-name other.rtr.test) and \"CN only\" (no dNSName SAN) both go through assertRTRTLSRefused: syncOnce error, zero query bytes, nothing published, so a router that skipped name verification goes red. Positive TestRTRTLSAuthenticatedCache: a trusted certificate whose dNSName matches syncs and publishes VRP and ASPA.",
+  "requirement_sha": "ed4c2dce5b22552f",
+  "tests": {
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go::TestRTRTLSAuthenticatedCache": "cc96e0e57341d7a8",
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go::TestRTRTLSRejectsUnauthenticatedCaches": "cc96e0e57341d7a8"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go::TestRTRTLSAuthenticatedCache": "46740446577221b8",
+    "internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go::TestRTRTLSRejectsUnauthenticatedCaches": "5079e5e699076586"
+  },
+  "verdict": "enforced"
+}

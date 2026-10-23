@@ -1,0 +1,25 @@
+{
+  "note": "RFC 9494 Section 4.2: 'For each AFI/SAFI for which it has received a nonzero Long-Lived Stale Time, the helper router MUST start a timer for that Long-Lived Stale Time.' Its chapeau requires LLGR entry after the family's Restart Time, including zero. Re-read all eight tagged units: gr_state_test.go TestOnTimerExpired_WithLLGR and TestOnSessionDown_ZeroGR_ZeroLLST; rfc9494_llgr_entry_test.go TestRFC9494RestartTimeThenLongLivedStaleTime and TestRFC9494BothTimesZeroRetainsNothing; all four TestLLGROmittedGRFamily tests in rfc9494_omitted_gr_family_test.go, under internal/component/bgp/plugins/gr/. Callback occurrence and eventual deletion alone remain weak evidence, but the added real-RIB virtual-time tests pin received durations: omitted IPv4 LLST 2 expires at DOWN+2 while IPv6 GR 6 transitions at DOWN+6 and LLST 4 expires at DOWN+10; the omitted LLST 8 case survives sibling GR entry and expires at DOWN+8 rather than restarting. Each principal boundary asserts presence immediately before and absence at the boundary. A blocked immediate-family readvertisement still permits sibling GR 1 then LLST 2 to expire at DOWN+3. Both production event paths are exercised. Zero/unexchanged omitted families explicitly have no timer and no retained route; both-zero state is inactive. These assertions distinguish wrong timer duration, delayed start, shared-family deadlines, missing timer and timer replacement. Producing symbols: gr.go::handleStateEvent, handleStructuredState, retainPeerFamilies, wireStateCallbacks; gr_state.go::onSessionDownDeferred, startRestartTimer, handleTimerExpired, enterLLGRLocked, handleLLSTExpired. Native producer-panic records prove reachability, not duration correctness. No new check or interop run is claimed, and neighboring restart/resynchronization findings remain unchanged.",
+  "requirement_sha": "1f2696c1a36dff3c",
+  "tests": {
+    "internal/component/bgp/plugins/gr/gr_state_test.go::TestOnSessionDown_ZeroGR_ZeroLLST": "7ff5f8c62f5f9ada",
+    "internal/component/bgp/plugins/gr/gr_state_test.go::TestOnTimerExpired_WithLLGR": "7ff5f8c62f5f9ada",
+    "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494BothTimesZeroRetainsNothing": "b9cbfb5253395aa5",
+    "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494RestartTimeThenLongLivedStaleTime": "b9cbfb5253395aa5",
+    "internal/component/bgp/plugins/gr/rfc9494_omitted_gr_family_test.go::TestLLGROmittedGRFamilyReadvertisementDoesNotDelaySiblingExpiry": "ecb782a7382901b1",
+    "internal/component/bgp/plugins/gr/rfc9494_omitted_gr_family_test.go::TestLLGROmittedGRFamilyRetainsRealRIB": "ecb782a7382901b1",
+    "internal/component/bgp/plugins/gr/rfc9494_omitted_gr_family_test.go::TestLLGROmittedGRFamilyTimerSurvivesConventionalEntry": "ecb782a7382901b1",
+    "internal/component/bgp/plugins/gr/rfc9494_omitted_gr_family_test.go::TestLLGROmittedGRFamilyWithoutLLSTIsRemoved": "ecb782a7382901b1"
+  },
+  "units": {
+    "internal/component/bgp/plugins/gr/gr_state_test.go::TestOnSessionDown_ZeroGR_ZeroLLST": "f58c4b8954ec7213",
+    "internal/component/bgp/plugins/gr/gr_state_test.go::TestOnTimerExpired_WithLLGR": "85f0475302cd6f6e",
+    "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494BothTimesZeroRetainsNothing": "6e3b080b5b842c4b",
+    "internal/component/bgp/plugins/gr/rfc9494_llgr_entry_test.go::TestRFC9494RestartTimeThenLongLivedStaleTime": "7916063e0abfe63d",
+    "internal/component/bgp/plugins/gr/rfc9494_omitted_gr_family_test.go::TestLLGROmittedGRFamilyReadvertisementDoesNotDelaySiblingExpiry": "f6233758fc6ff169",
+    "internal/component/bgp/plugins/gr/rfc9494_omitted_gr_family_test.go::TestLLGROmittedGRFamilyRetainsRealRIB": "33e46420ca915b57",
+    "internal/component/bgp/plugins/gr/rfc9494_omitted_gr_family_test.go::TestLLGROmittedGRFamilyTimerSurvivesConventionalEntry": "9225906a8487181d",
+    "internal/component/bgp/plugins/gr/rfc9494_omitted_gr_family_test.go::TestLLGROmittedGRFamilyWithoutLLSTIsRemoved": "bf3f7db7129feb9a"
+  },
+  "verdict": "enforced"
+}

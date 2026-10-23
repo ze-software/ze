@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2205-3.1-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/literals_rfc_test.go::TestRFC2205UnusedHeaderFieldsIgnoredOnReceipt",
+    "unit-sha": "27a86381afa46e6b",
+    "claim-sha": "d23d0752ca208cd1",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/wire.go::DecodeHeader",
+    "producer-sha": "0bd91b57354f3023",
+    "break": "body of DecodeHeader replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2205-3.1-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/wire_test.go::TestRSVPReservedByteZeroOnSend",
+    "unit-sha": "cbb6bff39f22a672",
+    "claim-sha": "2087c7295ef57d61",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/wire.go::encodeHeader",
+    "producer-sha": "4bcd18c916bf0c23",
+    "break": "body of encodeHeader replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

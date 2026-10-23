@@ -1,0 +1,11 @@
+{
+  "note": "TestASCIIOptionParsingTolerantOfTrailingNull feeds option 60 and 77 values with a trailing NUL to isPXEClient/isIPXE (the only ze receivers of ASCII option data) and asserts they are still recognized; an exact-equality matcher without NUL deletion fails it",
+  "requirement_sha": "3598302baed95a6e",
+  "tests": {
+    "internal/plugins/dhcpserver/handler_test.go::TestASCIIOptionParsingTolerantOfTrailingNull": "3c71d2e2f2b59688"
+  },
+  "units": {
+    "internal/plugins/dhcpserver/handler_test.go::TestASCIIOptionParsingTolerantOfTrailingNull": "113f4af5cd40ab57"
+  },
+  "verdict": "enforced"
+}

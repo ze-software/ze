@@ -1,0 +1,6 @@
+{
+  "no_code_path": "The selected BGP control-plane role does not manage P-multicast trees or aggregate EVIs onto them. parseConfigRoute, l2vpnRouteToEVPNParams and BuildEVPN originate supplied routes, not aggregation-triggered re-advertisements. Ordinary propagation, opaque carriage and explicit replacement do not instantiate the Section 11.2 condition.",
+  "note": "RFC 7432 Section 11.2 permits aggregation of two or more EVIs onto one P-multicast tree and then requires re-advertisement of the existing routes. Its restored second sentence states: \"The re-advertised routes MUST be the same as the original ones, except for the PMSI Tunnel attribute and the label carried in that attribute.\" Both duties are conditional on that optional aggregation transition; preservation is not a universal constraint on every explicit replacement. Configured/command producers build individually supplied routes. BuildEVPN has no EVI-to-tree binding or aggregation transition, and the selected role/system-FIB boundary does not delegate one.",
+  "requirement_sha": "cce421b9c914d47b",
+  "verdict": "not-applicable"
+}

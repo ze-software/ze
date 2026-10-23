@@ -1,0 +1,13 @@
+{
+  "note": "TestRFC9256SymbolicNamesAreNotIdentifiers drives parseConfigRoute: differing policy and candidate-path names give byte-identical NLRI keys while the names still reach the Tunnel Encapsulation attribute (positive), and a shared name with a different distinguisher gives distinct keys (negative), so the name never takes part in identity.",
+  "requirement_sha": "ff857de83f7a5dbc",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9256_test.go::TestRFC9256SymbolicNamesAreNotIdentifiers": "090ce0fdc58d10da",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9256_test.go::TestRFC9256SymbolicNamesAreNotIdentifiers#2": "090ce0fdc58d10da"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9256_test.go::TestRFC9256SymbolicNamesAreNotIdentifiers": "be89953f30d19ac4",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9256_test.go::TestRFC9256SymbolicNamesAreNotIdentifiers#2": "be89953f30d19ac4"
+  },
+  "verdict": "enforced"
+}

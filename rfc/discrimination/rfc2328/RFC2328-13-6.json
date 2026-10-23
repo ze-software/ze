@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC2328-13-6",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc2328_contents_change_recalc_test.go::TestRFC2328ChangedContentsRecalculateEveryArea",
+    "unit-sha": "595b786b3997e557",
+    "claim-sha": "521d65df48fb24e2",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/spf/computer.go::TriggerArea",
+    "producer-sha": "26709a17bc7c75f1",
+    "break": "body of TriggerArea replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-13-6",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/spf/rfc2328_recalc_test.go::TestSPFRecalculatesEveryAreaOnOneAreaChange",
+    "unit-sha": "f612c8efdbc3218a",
+    "claim-sha": "9254e6c887160d6d",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/spf/computer.go::Run",
+    "producer-sha": "1ae1de8fc0ce7026",
+    "break": "body of Run replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-13-6",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/spf/rfc2328_recalc_test.go::TestSPFRecalculationBoundedToConfiguredAreas",
+    "unit-sha": "5d16e2712f74b9cd",
+    "claim-sha": "7d73c3af2a747571",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/spf/computer.go::Run",
+    "producer-sha": "1ae1de8fc0ce7026",
+    "break": "body of Run replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

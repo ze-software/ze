@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged (was weak: the IKE Child SA producer was untagged). Both producers Ze fills are now covered. OSPFv3 manual SAs: TestRFC4303ESPPacketOnTheWireCarriesProtocol50 (netns, IPv6 Next Header 50 captured on the wire), negative TestRFC4303IntegrityOnlyESPOnTheWireIsNotAH (null cipher + sha256, the AH-shaped input, still 50 on the wire), TestIPsecSAProtocolNumber; ipsecProtoNumber revert records observed red. IKE Child SA: TestRFC4301ChildSAIsInstalledAsESP (tag only, body unchanged, D-15) asserts Proto 50 on the inbound and the outbound SA createFirstChildSA installs; installChildSA is the one SAParams builder of the engine (callers: first Child SA and CREATE_CHILD_SA), revert record observed red. The IKE side is single-polarity by construction: protoESP is a constant and IKEv2 offers no input that selects another protocol, so the row's negative stays the OSPF one. The SAParams-to-kernel step (dataplane xfrmStateFromParams) is shared by both producers and proven on the wire by the OSPF probe; the VPP backend is asserted only at the SAParams boundary Ze owns.",
+  "requirement_sha": "2af799f338be795e",
+  "tests": {
+    "internal/component/ike/engine/rfc4301_esp_test.go::TestRFC4301ChildSAIsInstalledAsESP": "13fc15f78a76bf95",
+    "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAProtocolNumber": "976d07eeb9539b2b",
+    "internal/plugins/ospf/rfc4303_esp_probe_linux_test.go::TestRFC4303ESPPacketOnTheWireCarriesProtocol50": "1b959a720a9dcc8e",
+    "internal/plugins/ospf/rfc4303_esp_probe_linux_test.go::TestRFC4303IntegrityOnlyESPOnTheWireIsNotAH": "1b959a720a9dcc8e"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc4301_esp_test.go::TestRFC4301ChildSAIsInstalledAsESP": "a696d6f37369aabe",
+    "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAProtocolNumber": "48e6e7401d9679b4",
+    "internal/plugins/ospf/rfc4303_esp_probe_linux_test.go::TestRFC4303ESPPacketOnTheWireCarriesProtocol50": "33320dc1c2381ac9",
+    "internal/plugins/ospf/rfc4303_esp_probe_linux_test.go::TestRFC4303IntegrityOnlyESPOnTheWireIsNotAH": "bcc62677e870d43d"
+  },
+  "verdict": "enforced"
+}

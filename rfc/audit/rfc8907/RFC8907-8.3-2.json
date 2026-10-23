@@ -1,0 +1,13 @@
+{
+  "note": "(a) forbidden: START and STOP of one command with different task_id values. (b) TestRFC8907StartAndStopShareTaskID require.Equal(startID, stopID); TestRFC8907SecondCommandCarriesOtherTaskID require.NotEqual for a second command.",
+  "requirement_sha": "13298632b7727806",
+  "tests": {
+    "internal/component/tacacs/rfc8907_accounting_test.go::TestRFC8907SecondCommandCarriesOtherTaskID": "d6e03486f174ca78",
+    "internal/component/tacacs/rfc8907_accounting_test.go::TestRFC8907StartAndStopShareTaskID": "d6e03486f174ca78"
+  },
+  "units": {
+    "internal/component/tacacs/rfc8907_accounting_test.go::TestRFC8907SecondCommandCarriesOtherTaskID": "28fca2720b6b2a8e",
+    "internal/component/tacacs/rfc8907_accounting_test.go::TestRFC8907StartAndStopShareTaskID": "9cc438ddaa690c83"
+  },
+  "verdict": "enforced"
+}

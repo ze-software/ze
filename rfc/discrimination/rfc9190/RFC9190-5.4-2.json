@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9190-5.4-2",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc9190_ocsp_test.go::TestEAPTLS13StaplesNothingWhenTheCertificateCarriesNoResponse",
+    "unit-sha": "9fadc7b378683f76",
+    "claim-sha": "0d57fc5b594d6b53",
+    "route": "revert",
+    "producer": "internal/core/eap/eap_tls.go::newTLSMethod",
+    "producer-sha": "9d4ae49c78228895",
+    "break": "body of newTLSMethod replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9190-5.4-2",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc9190_ocsp_test.go::TestEAPTLS13StaplesTheConfiguredOCSPResponse",
+    "unit-sha": "2f7665f6cd344dfa",
+    "claim-sha": "b7c5f1f53ab94276",
+    "route": "revert",
+    "producer": "internal/core/eap/eap_tls.go::newTLSMethod",
+    "producer-sha": "9d4ae49c78228895",
+    "break": "body of newTLSMethod replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

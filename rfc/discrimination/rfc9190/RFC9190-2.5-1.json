@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC9190-2.5-1",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc9190_resumption_test.go::TestEAPTLS13ResumedExchangeStillSendsTheSuccessIndication",
+    "unit-sha": "a01fc263dcd8a128",
+    "claim-sha": "7d897bf6536ffe53",
+    "route": "revert",
+    "producer": "internal/core/eap/eap_tls.go::indicateSuccess",
+    "producer-sha": "e55eb8085c523b86",
+    "break": "body of indicateSuccess replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC2516-x-7",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516BuildersWriteTheSendersMAC",
+    "unit-sha": "ebc1ace185b72c82",
+    "claim-sha": "b3f99d433f12b426",
+    "route": "revert",
+    "producer": "internal/component/l2tp/pppoe/discovery.go::NewBuilder",
+    "producer-sha": "74354f59e3cfedea",
+    "break": "body of NewBuilder replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2516-x-7",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestParseBroadcastSource",
+    "unit-sha": "ecc3cd95ad72ccaa",
+    "claim-sha": "2133037c315b76cd",
+    "route": "revert",
+    "producer": "internal/component/l2tp/pppoe/discovery.go::ParseDiscovery",
+    "producer-sha": "4f37b570278b8732",
+    "break": "body of ParseDiscovery replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2516-x-7",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestParseMulticastSource",
+    "unit-sha": "017aa936b0adb3b1",
+    "claim-sha": "da9272e3ef9d8639",
+    "route": "revert",
+    "producer": "internal/component/l2tp/pppoe/discovery.go::ParseDiscovery",
+    "producer-sha": "4f37b570278b8732",
+    "break": "body of ParseDiscovery replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2516-x-7",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestParsePADI",
+    "unit-sha": "1f516388b77e2c4a",
+    "claim-sha": "afe900f760209d42",
+    "route": "revert",
+    "producer": "internal/component/l2tp/pppoe/discovery.go::ParseDiscovery",
+    "producer-sha": "4f37b570278b8732",
+    "break": "body of ParseDiscovery replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

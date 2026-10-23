@@ -1,0 +1,11 @@
+{
+  "note": "single-polarity positive: the ACK answering a DHCPREQUEST must carry option 51 equal to the configured lease seconds",
+  "requirement_sha": "c0412b033eedfc2d",
+  "tests": {
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestLeaseTimeInOfferAndAck": "8365c04cdfc2a046"
+  },
+  "units": {
+    "internal/plugins/dhcpserver/rfc2131_test.go::TestLeaseTimeInOfferAndAck": "5fa7dafdd97c6f2c"
+  },
+  "verdict": "enforced"
+}

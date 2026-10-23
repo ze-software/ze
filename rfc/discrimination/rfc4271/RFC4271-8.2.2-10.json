@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC4271-8.2.2-10",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterIncrementsOnHeaderAndOpenErrors",
+    "unit-sha": "807c4ead04082dff",
+    "claim-sha": "d8a1387bd508f92f",
+    "route": "revert",
+    "producer": "internal/component/bgp/fsm/fsm.go::handleEstablished",
+    "producer-sha": "168897c1f9b0382e",
+    "break": "body of handleEstablished replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-8.2.2-10",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterNotIncrementedByIdleErrors",
+    "unit-sha": "9c8f576ca60dd975",
+    "claim-sha": "8deeb566937ab5fa",
+    "route": "revert",
+    "producer": "internal/component/bgp/fsm/fsm.go::handleIdle",
+    "producer-sha": "60826e7f42a8269d",
+    "break": "body of handleIdle replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-8.2.2-10",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go::TestRFC4271OpenSentErrorReleasesTheConnection",
+    "unit-sha": "1727c565db21ca95",
+    "claim-sha": "e235554eca089e73",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_read.go::notifyHeaderErr",
+    "producer-sha": "ae809d392da3b39f",
+    "break": "body of notifyHeaderErr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-8.2.2-10",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go::TestRFC4271OpenSentWellFormedOpenKeepsTheConnection",
+    "unit-sha": "2e4357718a773a5e",
+    "claim-sha": "4c1954601c12d1d0",
+    "route": "revert",
+    "producer": "internal/component/bgp/fsm/fsm.go::handleOpenSent",
+    "producer-sha": "11b4ebaf65ecfc01",
+    "break": "body of handleOpenSent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

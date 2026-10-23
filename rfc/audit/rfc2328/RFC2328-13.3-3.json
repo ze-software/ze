@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-21 (round 5 judge). Positive: floodExcept on NBMA sends exactly one LS Update to each of 10.0.0.2 (Full) and 10.0.0.3 (Exchange). Negative: no send to AllSPFRouters, AllDRouters or the 2-Way 10.0.0.4. Both records now break flooding.go::floodExcept, the producer of this clause (the round 4 FlushDelayedAcks record on the negative is replaced).",
+  "requirement_sha": "4b817cfbc594d744",
+  "tests": {
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328NBMANeverMulticastsNorReachesTwoWay": "c4cd81c5b8b7e97a",
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328NBMAUnicastsToEachAdjacency": "c4cd81c5b8b7e97a"
+  },
+  "units": {
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328NBMANeverMulticastsNorReachesTwoWay": "c2c151cec040a5e5",
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_test.go::TestRFC2328NBMAUnicastsToEachAdjacency": "fdc75d0bc00d67f4"
+  },
+  "verdict": "enforced"
+}

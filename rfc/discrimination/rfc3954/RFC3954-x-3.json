@@ -1,0 +1,90 @@
+[
+  {
+    "rid": "RFC3954-x-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/flowexport/netflow9/rfc3954_byteorder_test.go::TestRFC3954CounterTemplateFlowSetBigEndian",
+    "unit-sha": "74ce4a6262c47571",
+    "claim-sha": "bfe4072486f3e86a",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/netflow9/template.go::BuildCounterTemplate",
+    "producer-sha": "993dc36fa7a83ed9",
+    "break": "body of BuildCounterTemplate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3954-x-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/flowexport/netflow9/rfc3954_byteorder_test.go::TestRFC3954FlowTailBigEndian",
+    "unit-sha": "f8c5a11505309b9a",
+    "claim-sha": "903f953831b3540f",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/netflow9/flow_data.go::writeFlowTail",
+    "producer-sha": "ca3c3b37087df18e",
+    "break": "body of writeFlowTail replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3954-x-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/flowexport/netflow9/rfc3954_byteorder_test.go::TestRFC3954IPv6FlowDataFlowSetBigEndian",
+    "unit-sha": "cda63430b815f8ed",
+    "claim-sha": "6292306273c09896",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/netflow9/flow_data.go::writeFlowTail",
+    "producer-sha": "ca3c3b37087df18e",
+    "break": "body of writeFlowTail replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3954-x-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/flowexport/netflow9/rfc3954_byteorder_test.go::TestRFC3954IPv6TemplateFlowSetBigEndian",
+    "unit-sha": "cdc3ae3cde4da0ea",
+    "claim-sha": "bdb26730cb1cb11a",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/netflow9/flow_template.go::BuildFlowTemplate6",
+    "producer-sha": "f9b56d32897e420a",
+    "break": "body of BuildFlowTemplate6 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3954-x-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/flowexport/netflow9/rfc3954_data_test.go::TestNetflow9DataFlowSet",
+    "unit-sha": "657460760150bdab",
+    "claim-sha": "18c217b0a58940ae",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/netflow9/data.go::writeDataFlowSet",
+    "producer-sha": "74fe3f9ad49e8af4",
+    "break": "body of writeDataFlowSet replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3954-x-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/flowexport/netflow9/rfc3954_encoder_test.go::TestNetflow9Header",
+    "unit-sha": "8051c04dff52c7c1",
+    "claim-sha": "af8c5b2187a7476c",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/netflow9/encoder.go::writePacketHeader",
+    "producer-sha": "f414997719d539e1",
+    "break": "body of writePacketHeader replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3954-x-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/flowexport/netflow9/rfc3954_test.go::TestRFC3954FlowDataFlowSetBigEndian",
+    "unit-sha": "d808d3d95538fc74",
+    "claim-sha": "e6f083b0384b0806",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/netflow9/flow_data.go::writeFlowTail",
+    "producer-sha": "ca3c3b37087df18e",
+    "break": "body of writeFlowTail replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3954-x-3",
+    "polarity": "positive",
+    "unit": "internal/plugins/flowexport/netflow9/rfc3954_test.go::TestRFC3954TemplateFlowSetBigEndian",
+    "unit-sha": "c91ff2de76fda5fb",
+    "claim-sha": "e2654bd8f9de0d03",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/netflow9/flow_template.go::BuildFlowTemplate",
+    "producer-sha": "a48fb3109fab222e",
+    "break": "body of BuildFlowTemplate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

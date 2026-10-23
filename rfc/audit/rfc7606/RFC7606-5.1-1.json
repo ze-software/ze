@@ -1,0 +1,33 @@
+{
+  "code": {
+    "internal/component/bgp/message/rfc7606_shape.go::MPAttributesTrail": "c1869dc0be5c63fa",
+    "internal/component/bgp/message/rfc7606_shape.go::WriteMPAttributesFirst": "9e27800eb1bcd2e9",
+    "internal/component/bgp/reactor/session_write.go::writeOrdinaryUpdateBody": "927f98b290b940f9",
+    "internal/component/bgp/wireu/split.go::buildUpdatePayload": "6927547bb2624fa2"
+  },
+  "note": "Re-judged 2026-10-19 (independent auditor, after 85deabdd81, 55cd171a3e, 610939d774). Section 5.1: \"The MP_REACH_NLRI or MP_UNREACH_NLRI attribute (if present) SHALL be encoded as the very first path attribute in an UPDATE message.\" 85deabdd81 closes the residual recorded last time: writeUpdateGated now marks a body the export filter replaced (overridden), and writeOrdinaryUpdateBody parses an override, and when message.MPAttributesTrail says the MP attribute trails, copies the attribute section MP-first via message.WriteMPAttributesFirst into a read-pool buffer before Split/SplitCompliant; a compliant fitting override is still written as returned. TestEgressOverrideMovesTrailingMPAttributeFirst drives Session.SendUpdate with an egressRouteFilter returning ORIGIN/AS_PATH/NEXT_HOP then MP_REACH and asserts exactly one UPDATE equal byte for byte to an independently built MP-first body (fwdMPFirstBodies builds both orders by concatenation, not via the producer), and that the filter's bytes were not edited in place; the claim states exactly that. TestEgressOverrideKeepsLeadingMPAttribute (untagged) pins a compliant override unchanged. Mutant record session_write.go:562 MPAttributesTrail -> false; ./le rfc check reports no unverified record for rfc7606. 610939d774 tags TestBuildUpdatePayloadMPAttributeFirst: its claim (MP_REACH before ORIGIN and AS_PATH, withdrawal-only body has MP_UNREACH as its only attribute) matches the exact code-list assertions [14 1 2] and [15]; mutant split.go:495 'pos += len(mpReach)' -> 'pos += 0'. The relay_payload_test.go rename is byte-pure (same unit-sha and claim-sha). 55cd171a3e changes comments only (forward_validation.go, wireu/split.go) and the stale 'deliberate divergence' prose noted last time is gone. Cost: an unreplaced body keeps the no-walk fast path (!stripAIGP && !overridden && fits -> writeRawUpdateBody); the oversize and AIGP paths parse as before and run no shape walk; MixesNLRIFields and MPAttributesTrail run only when overridden. All tagged units pass at HEAD. Residual, not reachable in product: Session.SendAnnounce (session_write.go) applies the same egress filter and writes an override raw with no shape check, but its only caller Peer.SendAnnounce (peer_send.go) has no non-test caller. Observation outside 5.1: a fitting override that ParseUpdateSections rejects now returns an error from writeUpdateGated where it was previously written raw.",
+  "requirement_sha": "a7e6cfe84f7eb85d",
+  "tests": {
+    "internal/component/bgp/message/rfc4271_update_split_attr_order_test.go::TestSplitMP_PreservesAscendingAttributeOrder": "68f36ef303cb020d",
+    "internal/component/bgp/message/rfc7606_mp_first_test.go::TestRFC7606Section51MPAttributeEncodedFirst": "641195b832137ca3",
+    "internal/component/bgp/reactor/rfc7606_egress_override_shape_test.go::TestEgressOverrideMovesTrailingMPAttributeFirst": "2f449643b23dc981",
+    "internal/component/bgp/reactor/rfc7606_forward_mp_first_test.go::TestForwardLeadingMPAttributeKeepsZeroCopy": "2c145c5e124e09e4",
+    "internal/component/bgp/reactor/rfc7606_forward_mp_first_test.go::TestForwardMovesTrailingMPAttributeFirstAcrossContexts": "2c145c5e124e09e4",
+    "internal/component/bgp/reactor/rfc7606_forward_mp_first_test.go::TestForwardMovesTrailingMPAttributeFirstSameContext": "2c145c5e124e09e4",
+    "internal/component/bgp/reactor/rfc7606_forward_mp_first_test.go::TestForwardRebuildMovesSourcedMPAttributeFirst": "2c145c5e124e09e4",
+    "internal/component/bgp/reactor/rfc7606_relay_payload_test.go::TestRelayPayloadLeadsWithMPReach": "d921ad9273a9cb41",
+    "internal/component/bgp/wireu/rfc7606_split_mp_first_test.go::TestBuildUpdatePayloadMPAttributeFirst": "d514fe1b182cd89f"
+  },
+  "units": {
+    "internal/component/bgp/message/rfc4271_update_split_attr_order_test.go::TestSplitMP_PreservesAscendingAttributeOrder": "21b5826b2f0c1034",
+    "internal/component/bgp/message/rfc7606_mp_first_test.go::TestRFC7606Section51MPAttributeEncodedFirst": "7cd99f49b50572de",
+    "internal/component/bgp/reactor/rfc7606_egress_override_shape_test.go::TestEgressOverrideMovesTrailingMPAttributeFirst": "eb26120598196aed",
+    "internal/component/bgp/reactor/rfc7606_forward_mp_first_test.go::TestForwardLeadingMPAttributeKeepsZeroCopy": "cc18b2b114ac31c3",
+    "internal/component/bgp/reactor/rfc7606_forward_mp_first_test.go::TestForwardMovesTrailingMPAttributeFirstAcrossContexts": "075d5ceba9f0a19f",
+    "internal/component/bgp/reactor/rfc7606_forward_mp_first_test.go::TestForwardMovesTrailingMPAttributeFirstSameContext": "7bb327d8f5cfc664",
+    "internal/component/bgp/reactor/rfc7606_forward_mp_first_test.go::TestForwardRebuildMovesSourcedMPAttributeFirst": "4d55be9c23400adc",
+    "internal/component/bgp/reactor/rfc7606_relay_payload_test.go::TestRelayPayloadLeadsWithMPReach": "9b5a0d904ed0842d",
+    "internal/component/bgp/wireu/rfc7606_split_mp_first_test.go::TestBuildUpdatePayloadMPAttributeFirst": "f521521c074ea25f"
+  },
+  "verdict": "enforced"
+}

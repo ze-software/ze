@@ -194,7 +194,7 @@ func recordDiscrimination(tree string, request recordRequest) (discriminationRec
 	record := DiscriminationRecord{
 		RID: request.rid, Polarity: request.polarity, Unit: unitKey, Route: request.route,
 		Producer: request.producer, Citation: request.citation, Reason: request.reason,
-		Source: discriminationSource(stem),
+		Source: discriminationRecordRel(stem, request.rid),
 	}
 	observed, err := observeFor(tree, reader, index, carrier, tag, &record, request,
 		setup.FunctionalHostPreflight)
@@ -235,12 +235,6 @@ func sealAndStore(tree, stem string, reader *sourceReader, index *scopeIndex, ta
 		return discriminationRecordReport{}, err
 	}
 	return discriminationRecordReport{Artifact: sealed.Source, Record: sealed, Observed: observed}, nil
-}
-
-// discriminationSource answers one stem's artifact path.
-func discriminationSource(stem string) string {
-	var tb textbuf.Buffer
-	return tb.Str(discriminationRel).Byte('/').Str(stem).Str(jsonSuffix).String()
 }
 
 // stemOfRID answers which RFC declares a requirement.
@@ -657,16 +651,17 @@ func disableBody(text string) (string, bool) {
 	return tb.Str(text[:open+1]).Str("\n\t").Str(revertBody).Byte('\n').Str(text[closing:]).String(), true
 }
 
-// mergeDiscrimination writes one record into its stem's artifact.
+// mergeDiscrimination writes one record into its requirement's file.
 //
-// The whole file is re-read, the record replaces any row with the same cover,
-// and the rows are sorted by requirement id then unit key, so two sessions
-// recording two proofs of one RFC produce a diff each can read (R-11).
+// Only that requirement's file is re-read and rewritten: the record replaces
+// any row with the same cover, and the rows are sorted by unit key. A session
+// proving another requirement of the same RFC writes another file, so neither
+// session's uncommitted record ever sits in a file the other must commit.
 func mergeDiscrimination(tree, stem string, record DiscriminationRecord) error {
-	rel := discriminationSource(stem)
+	file := evidenceFile{Stem: stem, RID: record.RID, Rel: discriminationRecordRel(stem, record.RID)}
 	kept := []DiscriminationRecord{}
-	if _, err := os.Stat(treePath(tree, rel)); err == nil {
-		existing, loadErr := loadDiscriminationFile(tree, stem+jsonSuffix)
+	if _, err := os.Stat(treePath(tree, file.Rel)); err == nil {
+		existing, loadErr := loadDiscriminationFile(tree, file)
 		if loadErr != nil {
 			return loadErr
 		}
@@ -678,15 +673,23 @@ func mergeDiscrimination(tree, stem string, record DiscriminationRecord) error {
 	}
 	kept = append(kept, record)
 	sort.SliceStable(kept, func(left, right int) bool {
-		if kept[left].RID != kept[right].RID {
-			return kept[left].RID < kept[right].RID
-		}
 		return kept[left].Unit < kept[right].Unit
 	})
-	raw, err := json.MarshalIndent(discriminationFile{RFC: stem, Records: kept}, "", "  ")
+	body, err := renderDiscriminationRecords(kept)
 	if err != nil {
 		var tb textbuf.Buffer
-		return parseErr(tb.Str(rel).Str(": cannot render: ").Err(err))
+		return parseErr(tb.Str(file.Rel).Str(": cannot render: ").Err(err))
 	}
-	return writePage(tree, rel, string(raw))
+	return writePage(tree, file.Rel, body)
+}
+
+// renderDiscriminationRecords is one requirement's records as the file holds them,
+// without the closing newline writePage adds. The writer and the conversion
+// from the retired layout share it, so both produce the same bytes.
+func renderDiscriminationRecords(records []DiscriminationRecord) (string, error) {
+	raw, err := json.MarshalIndent(records, "", "  ")
+	if err != nil {
+		return "", err
+	}
+	return string(raw), nil
 }

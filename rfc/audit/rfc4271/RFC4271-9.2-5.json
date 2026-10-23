@@ -1,0 +1,13 @@
+{
+  "note": "Positive: a less and a more specific route with the same NEXT_HOP are both installed in the Loc-RIB (bestNextHop for /8 and /24). Negative: installing the second overlapping route, in either order, never uninstalls the first (no withdraw, first still in Loc-RIB, Adj-RIB-In holds 2), which a most-specific-wins or covering-wins process fails. Ze takes the 'install both' branch; aggregation is not used. Old storage NLRI-keying tags removed (D-15).",
+  "requirement_sha": "88e289aad8d82fbb",
+  "tests": {
+    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271OverlappingReceivedRoutesAreBothInstalled": "e914a6452ddec559",
+    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271OverlappingRouteArrivalDisplacesNeither": "e914a6452ddec559"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271OverlappingReceivedRoutesAreBothInstalled": "eb45d769d02cad24",
+    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271OverlappingRouteArrivalDisplacesNeither": "369ff347b6413c88"
+  },
+  "verdict": "enforced"
+}

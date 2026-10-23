@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7950-9.6.4-2",
+    "polarity": "negative",
+    "unit": "internal/component/config/yang/rfc7950_loader_structural_test.go::TestRFC7950EnumRestrictionKeepsTheBaseValue",
+    "unit-sha": "25f4d02cbd4f492d",
+    "claim-sha": "70eb9ae8776cba7b",
+    "route": "revert",
+    "producer": "internal/component/config/yang/loader_structure.go::enumRestrictionErrors",
+    "producer-sha": "baa21cf979965708",
+    "break": "body of enumRestrictionErrors replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7950-9.6.4-2",
+    "polarity": "positive",
+    "unit": "internal/component/config/yang/rfc7950_loader_structural_test.go::TestRFC7950EnumRestrictionKeepsTheBaseValue",
+    "unit-sha": "25f4d02cbd4f492d",
+    "claim-sha": "aa9554c1b1f5c66b",
+    "route": "revert",
+    "producer": "internal/component/config/yang/loader_structure.go::enumRestrictionErrors",
+    "producer-sha": "baa21cf979965708",
+    "break": "body of enumRestrictionErrors replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

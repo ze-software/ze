@@ -1,0 +1,17 @@
+{
+  "note": "All four orderings asserted: intra over external (route_test), inter-area at 100 over E1 and E2 at 1 (selectBestRoutes, both input orders), E1 over E2 regardless of metric (external_test), and among E2 the smallest advertised metric (7 via an ASBR 50 away) over 9 via an ASBR 1 away through ComputeExternal. Ranking inter-area below externals, or letting distance decide E2, turns the new units red.",
+  "requirement_sha": "fedd680a38ace253",
+  "tests": {
+    "internal/plugins/ospf/spf/rfc2328_external_test.go::TestOSPFExternalE1PreferredOverE2": "001e1343c94a70fb",
+    "internal/plugins/ospf/spf/rfc2328_path_preference_test.go::TestRFC2328LowerPreferencePathRefused": "05726bfdcca78ba0",
+    "internal/plugins/ospf/spf/rfc2328_path_preference_test.go::TestRFC2328PreferredPathTypeSelected": "05726bfdcca78ba0",
+    "internal/plugins/ospf/spf/rfc2328_route_test.go::TestOSPFRouteTablePreference": "93cbca41ae0bce52"
+  },
+  "units": {
+    "internal/plugins/ospf/spf/rfc2328_external_test.go::TestOSPFExternalE1PreferredOverE2": "1994156734c401a6",
+    "internal/plugins/ospf/spf/rfc2328_path_preference_test.go::TestRFC2328LowerPreferencePathRefused": "4160346543960073",
+    "internal/plugins/ospf/spf/rfc2328_path_preference_test.go::TestRFC2328PreferredPathTypeSelected": "d19b92c3b8b47492",
+    "internal/plugins/ospf/spf/rfc2328_route_test.go::TestOSPFRouteTablePreference": "7af1ad6871867409"
+  },
+  "verdict": "enforced"
+}

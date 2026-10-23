@@ -1,0 +1,11 @@
+{
+  "note": "Forbidden behaviour (a): a grace-LSA whose LS age has the DoNotAge bit set. (b) TestGraceLSANeverSetsDoNotAge drives OriginateOpaque with the restarter's body and asserts grace.Header.Age.DoNotAge() is false and RawBytes[0]&0x80 == 0, so an origination that set the bit goes red. The demand-circuit clause has no path in ze: no production code sets DoNotAgeBit (only types/lsage.go declares and reads it) and flooding copies the installed RawBytes, so the asserted bytes are the flooded bytes. Single-polarity marker holds.",
+  "requirement_sha": "cd7692470c33dd96",
+  "tests": {
+    "internal/plugins/ospf/rfc3623_gr_positive_test.go::TestGraceLSANeverSetsDoNotAge": "2aac178db13e197a"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc3623_gr_positive_test.go::TestGraceLSANeverSetsDoNotAge": "072a7c8c2a660f6a"
+  },
+  "verdict": "enforced"
+}

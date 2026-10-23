@@ -1,0 +1,8 @@
+{
+  "code": {
+    "internal/component/config/yang/validator.go::walkTree": "a1127b4c14f9746a"
+  },
+  "note": "Re-judged 2026-10-20 (independent judge, after 4bf9935e38). Section 8.1: \"If the constraint is defined on configuration data, it MUST be true in a valid configuration data tree.\" walkTree now resolves data keys through schemaChild (case data is type-checked and walked) and moves the mandatory scan into requireMandatoryChildren, which also checks cases holding data. It still evaluates no unique (ListNode.Unique is read only by the web UI for display), no choice exclusivity and no when. Judge probe via -overlay: ValidateTree over a choice with data in two cases (alpha and gamma, mandatory leaves supplied) returns zero errors, so a configuration violating Section 8.1's choice constraint is accepted. {gap} stands. Owned by spec-config-yang-when-unique-choice.",
+  "requirement_sha": "1ae9176c1fd50674",
+  "verdict": "unimplemented"
+}

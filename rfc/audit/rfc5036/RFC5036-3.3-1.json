@@ -1,0 +1,13 @@
+{
+  "note": "TestRFC5036UnknownTLVWithUBitSetIsSkipped checks an unknown TLV with U=1 is skipped, the mapping is applied and nothing is written; TestRFC5036UnknownTLVWithUBitClearIsRefused checks U=0 draws the Unknown TLV Notification referring to the Label Mapping, the mapping is not applied and the session stays up.",
+  "requirement_sha": "726151364760073b",
+  "tests": {
+    "internal/plugins/ldp/rfc5036_procedures_test.go::TestRFC5036UnknownTLVWithUBitClearIsRefused": "1229c7e2acc6a715",
+    "internal/plugins/ldp/rfc5036_procedures_test.go::TestRFC5036UnknownTLVWithUBitSetIsSkipped": "1229c7e2acc6a715"
+  },
+  "units": {
+    "internal/plugins/ldp/rfc5036_procedures_test.go::TestRFC5036UnknownTLVWithUBitClearIsRefused": "e25215107eea4618",
+    "internal/plugins/ldp/rfc5036_procedures_test.go::TestRFC5036UnknownTLVWithUBitSetIsSkipped": "736b05c3dd598a51"
+  },
+  "verdict": "enforced"
+}

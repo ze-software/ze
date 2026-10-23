@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC8907-5.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907AuthenStartAbsentUserWritesZeroLength",
+    "unit-sha": "d00cd49107a27d3e",
+    "claim-sha": "e5cae53347f6cee0",
+    "route": "revert",
+    "producer": "internal/component/tacacs/authen.go::MarshalBinaryInto",
+    "producer-sha": "8fa98677a3b14d93",
+    "break": "body of MarshalBinaryInto replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8907-5.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907AuthenStartPresentUserWritesItsLength",
+    "unit-sha": "d2ab747de682b53c",
+    "claim-sha": "c08c761a2f230d86",
+    "route": "revert",
+    "producer": "internal/component/tacacs/authen.go::MarshalBinaryInto",
+    "producer-sha": "8fa98677a3b14d93",
+    "break": "body of MarshalBinaryInto replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

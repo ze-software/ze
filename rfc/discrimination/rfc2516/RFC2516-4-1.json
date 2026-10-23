@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2516-4-1",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516AllocSIDReturnsUsableValue",
+    "unit-sha": "a6b2ea03ad592ed1",
+    "claim-sha": "aa2ae75bba9c380f",
+    "route": "revert",
+    "producer": "internal/component/l2tp/pppoe/session.go::AllocSID",
+    "producer-sha": "a6a5ef24241f425e",
+    "break": "body of AllocSID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2516-4-1",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516SessionID0xffffIsNeverAllocated",
+    "unit-sha": "79b26c8884bce0df",
+    "claim-sha": "5de6f80dc53fbf51",
+    "route": "revert",
+    "producer": "internal/component/l2tp/pppoe/session.go::newSessionTable",
+    "producer-sha": "a4b8ceaaf65b459c",
+    "break": "body of newSessionTable replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,13 @@
+{
+  "note": "TestRFC2865RetransmitRepeatsIdentifierAuthenticatorAndSourcePort drives a real retransmit through Client.Exchange (first datagram unanswered), asserts the attribute octets unchanged first, then byte-compares the Identifier, all 16 Request Authenticator octets and the source addr:port of every retransmit against the first. A client that re-encoded with a new ID or authenticator, or opened a new socket, goes red. The {single-polarity: positive} annotation holds: a same-ID MUST has no inbound input to refuse. TestClientRetransmit remains a floor assertion.",
+  "requirement_sha": "5c737904eded8aeb",
+  "tests": {
+    "internal/component/radius/rfc2865_client_test.go::TestClientRetransmit": "adb68f6dd9fd6bc5",
+    "internal/component/radius/rfc2865_wire_rules_test.go::TestRFC2865RetransmitRepeatsIdentifierAuthenticatorAndSourcePort": "4d524a15dfa67b83"
+  },
+  "units": {
+    "internal/component/radius/rfc2865_client_test.go::TestClientRetransmit": "d4a339688c942372",
+    "internal/component/radius/rfc2865_wire_rules_test.go::TestRFC2865RetransmitRepeatsIdentifierAuthenticatorAndSourcePort": "b289415e37c4c5ad"
+  },
+  "verdict": "enforced"
+}

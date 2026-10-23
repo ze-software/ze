@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden (a): a family configured by the wrong NCP -- TestRFC1661NCPConfiguresEachFamilySeparately goes red on frames[0].Proto != 0x8021 or frames[1].Proto != 0x8057; (b) NCPs not separate -- TestRFC1661NCPStatesAreIndependent goes red when opening IPCP moves IPv6CP off Initial.",
+  "requirement_sha": "cf0651438d85ca4a",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NCPConfiguresEachFamilySeparately": "9afaf002f0fd81ec",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NCPStatesAreIndependent": "9afaf002f0fd81ec"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NCPConfiguresEachFamilySeparately": "be28e3131f6726bf",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NCPStatesAreIndependent": "ee652f35914335b6"
+  },
+  "verdict": "enforced"
+}

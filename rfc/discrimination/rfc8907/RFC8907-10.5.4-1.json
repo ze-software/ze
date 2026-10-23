@@ -1,0 +1,57 @@
+[
+  {
+    "rid": "RFC8907-10.5.4-1",
+    "polarity": "positive",
+    "unit": "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907SharedArgumentsKeepDefinedMeaning",
+    "unit-sha": "43e683cc3c0fb6b9",
+    "claim-sha": "576f6522e2e05b79",
+    "route": "revert",
+    "producer": "internal/component/tacacs/authenticator.go::handlePass",
+    "producer-sha": "0247cf0da95085bf",
+    "break": "body of handlePass replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8907-10.5.4-1",
+    "polarity": "negative",
+    "unit": "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907SharedArgumentsNeverReinterpreted",
+    "unit-sha": "8904b0c0e6af2806",
+    "claim-sha": "f493973339d32d32",
+    "route": "revert",
+    "producer": "internal/component/tacacs/authenticator.go::handlePass",
+    "producer-sha": "0247cf0da95085bf",
+    "break": "body of handlePass replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8907-10.5.4-1",
+    "polarity": "positive",
+    "unit": "internal/component/tacacs/rfc8907_authorization_test.go::TestRFC8907MandatoryCommandPolicyAccepted",
+    "unit-sha": "d3a0e558d34f8bf7",
+    "claim-sha": "7eaa73c170dc57d2",
+    "route": "revert",
+    "producer": "internal/component/tacacs/authorizer.go::AuthorizeCommandArgs",
+    "producer-sha": "89cdacf9cc21f170",
+    "break": "body of AuthorizeCommandArgs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8907-10.5.4-1",
+    "polarity": "negative",
+    "unit": "internal/component/tacacs/rfc8907_authorization_test.go::TestRFC8907MandatoryCommandPolicyDenied",
+    "unit-sha": "5b80c4792c5ef390",
+    "claim-sha": "b846454cf9685435",
+    "route": "revert",
+    "producer": "internal/component/tacacs/authorizer.go::Authorize",
+    "producer-sha": "3a8a5237f5ae7eeb",
+    "break": "body of Authorize replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8907-10.5.4-1",
+    "polarity": "negative",
+    "unit": "internal/component/tacacs/rfc8907_authorization_test.go::TestRFC8907MandatorySessionPolicyDenied",
+    "unit-sha": "8d2e0b987443bd11",
+    "claim-sha": "9fe44566475577ee",
+    "route": "revert",
+    "producer": "internal/component/tacacs/authenticator.go::Authenticate",
+    "producer-sha": "4f32ab33835cd7c4",
+    "break": "body of Authenticate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: 2-byte ASN encoding in Loc-RIB Route Monitoring. internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBRouteMonitoringUsesFourByteASNs: AS_PATH length must be 2+4n (Fatal) and ASN 4200000001 must round-trip (Errorf). Both polarity tags on one unit, each clause asserted.",
+  "requirement_sha": "a496e9aab9d9bca7",
+  "tests": {
+    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBRouteMonitoringUsesFourByteASNs": "0d66046a7112fdb8",
+    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBRouteMonitoringUsesFourByteASNs#2": "0d66046a7112fdb8"
+  },
+  "units": {
+    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBRouteMonitoringUsesFourByteASNs": "e8233f0f8d9fecb8",
+    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBRouteMonitoringUsesFourByteASNs#2": "e8233f0f8d9fecb8"
+  },
+  "verdict": "enforced"
+}

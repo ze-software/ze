@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC7296-3.1-4",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_header_test.go::TestSPIZeroRules",
+    "unit-sha": "794c0685d3667d56",
+    "claim-sha": "e6326ac1ec45d377",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/initiator.go::newInitiatorSA",
+    "producer-sha": "6c2c36bb14a3895e",
+    "break": "body of newInitiatorSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-3.1-4",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_header_test.go::TestSPIZeroRules",
+    "unit-sha": "794c0685d3667d56",
+    "claim-sha": "d4cb0ce66c40896d",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/responder.go::buildSAInitResponse",
+    "producer-sha": "723ba633beb6bacb",
+    "break": "body of buildSAInitResponse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-3.1-4",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_spi_cookie_test.go::TestRFC7296ResponderSPIIsZeroInTheFirstMessageAndItsCookieRepeat",
+    "unit-sha": "967b5a03932dfdef",
+    "claim-sha": "70757e7d9c11a9c1",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/sa_init_retry.go::retrySAInit",
+    "producer-sha": "7ee950b373201a43",
+    "break": "body of retrySAInit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

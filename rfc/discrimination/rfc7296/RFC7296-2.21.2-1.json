@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC7296-2.21.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_inner_error_answers_test.go::TestRFC7296UnsupportedCriticalPayloadDrawsOnlyThatNotify",
+    "unit-sha": "afb89a2747ac2804",
+    "claim-sha": "a14eb22adc7b6a45",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/inbound.go::respondInnerParseError",
+    "producer-sha": "85f45866bb5510fa",
+    "break": "body of respondInnerParseError replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.21.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrInnerParseFailureDrawsInvalidSyntaxAndOuterDrawsNothing",
+    "unit-sha": "b515e30c703f328c",
+    "claim-sha": "e534c955241301b3",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/inbound.go::respondInnerParseError",
+    "producer-sha": "85f45866bb5510fa",
+    "break": "body of respondInnerParseError replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.21.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/wire/rfc7296_critpayload_test.go::TestCritChainReportsTruncationButNotBadContents",
+    "unit-sha": "999bf4ab08cbbdd6",
+    "claim-sha": "69f418303ca99987",
+    "route": "revert",
+    "producer": "internal/component/ike/wire/chain.go::ParsePayloadChain",
+    "producer-sha": "7c2c409ea595c65c",
+    "break": "body of ParsePayloadChain replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.21.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/wire/rfc7296_critpayload_test.go::TestCritChainReportsTruncationButNotBadContents",
+    "unit-sha": "999bf4ab08cbbdd6",
+    "claim-sha": "f81d373b572c18af",
+    "route": "revert",
+    "producer": "internal/component/ike/wire/chain.go::ParsePayloadChain",
+    "producer-sha": "7c2c409ea595c65c",
+    "break": "body of ParsePayloadChain replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

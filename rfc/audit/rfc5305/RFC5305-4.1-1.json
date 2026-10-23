@@ -1,0 +1,19 @@
+{
+  "note": "Re-judged 2026-09-30: TestISISEngineLeakOrigination and spf TestISISLeakOriginationL1L2 gained only RFC2966-2-4 tag comments; bodies byte-identical. Clause 1: l2Derived enters L2 with UpDown false and hasLeak(IntoL1, l2Derived, true) is required; the engine L1 LSP decodes it with the bit set. Clause 2: alreadyDown (UpDown true in L1) must be absent from IntoL2, isolated by l1Only from the same node leaking up. Recorded red on spf/leak.go leakInto.",
+  "requirement_sha": "fcae79a8fa946731",
+  "tests": {
+    "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination": "3a8286879ea42019",
+    "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination#2": "3a8286879ea42019",
+    "internal/plugins/isis/redistribute/rfc5305_consumer_test.go::TestISISRedistConsumerConnected": "be1395cfe8a7bf96",
+    "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2": "65952e292e4f6c83",
+    "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2#2": "65952e292e4f6c83"
+  },
+  "units": {
+    "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination": "b9a1a5e2daa88030",
+    "internal/plugins/isis/lsdb_wiring_test.go::TestISISEngineLeakOrigination#2": "b9a1a5e2daa88030",
+    "internal/plugins/isis/redistribute/rfc5305_consumer_test.go::TestISISRedistConsumerConnected": "75ae0e892f463ba6",
+    "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2": "682f56baeb8524c2",
+    "internal/plugins/isis/spf/leak_test.go::TestISISLeakOriginationL1L2#2": "682f56baeb8524c2"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC9568-6.4.3-11",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/tiebreak_test.go::TestInstanceTieBreakComparesTheAdvertisementSource",
+    "unit-sha": "7914f084376ad1c2",
+    "claim-sha": "01242d139027db2e",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/instance.go::syncSourceLocked",
+    "producer-sha": "3798133d8e503d40",
+    "break": "body of syncSourceLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9568-6.4.3-11",
+    "polarity": "negative",
+    "unit": "internal/plugins/vrrp/tiebreak_test.go::TestInstanceTieBreakComparesTheAdvertisementSource",
+    "unit-sha": "7914f084376ad1c2",
+    "claim-sha": "a87915308afdae99",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/fsm/fsm.go::senderWinsTieBreak",
+    "producer-sha": "b8f7123cc5b53541",
+    "break": "body of senderWinsTieBreak replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9568-6.4.3-11",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/tiebreak_v6_test.go::TestInstanceIPv6ElectionUsesUnsignedOrder",
+    "unit-sha": "1150ee9f8162a31e",
+    "claim-sha": "928deba53df4434e",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/fsm/fsm.go::senderWinsTieBreak",
+    "producer-sha": "b8f7123cc5b53541",
+    "break": "body of senderWinsTieBreak replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9568-6.4.3-11",
+    "polarity": "negative",
+    "unit": "internal/plugins/vrrp/tiebreak_v6_test.go::TestInstanceIPv6ElectionUsesUnsignedOrder",
+    "unit-sha": "1150ee9f8162a31e",
+    "claim-sha": "f8b3b2b2e1da5d75",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/fsm/fsm.go::senderWinsTieBreak",
+    "producer-sha": "b8f7123cc5b53541",
+    "break": "body of senderWinsTieBreak replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

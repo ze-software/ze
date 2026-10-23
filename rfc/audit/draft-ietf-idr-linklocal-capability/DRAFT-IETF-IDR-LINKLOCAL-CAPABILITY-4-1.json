@@ -1,0 +1,18 @@
+{
+  "note": "Rejudged against draft -06 Sections 2 and 4. Section 4 says: 'If, after completing these procedures, there are no IPv6 next hop addresses included in the next hop, the BGP route MUST not be advertised to its peer. Instead, treat-as-withdraw (Section 2 of [RFC7606]) is used.' TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer exercises forwardUpdateCore with received fe80::1, NextHopUnchanged, internal and external destinations outside the connected subnet; it requires dispatch to each distant destination, no announced next hop, and exact MP_UNREACH for 2001:db8:7::/64. The same fan-out requires an attached destination to receive exactly fe80::1. llnhExternalPeer now sets negotiated.LinkLocalNextHop=true, making that control conforming and preventing the capability refusal from masking the off-link gate. egressNextHopWithheld calls egressNextHopLinkLocalOnlyOffLink, and forwardUpdateCore turns the refusal into SetWithdraw. The two tagged buildRIBRouteUpdate tests additionally distinguish absent next hop (nil UPDATE for internal/external) from a Global address (exact 16-octet next hop), but alone are not the treat-as-withdraw proof. This is source-level judgment of semantic assertions, not a new execution or interop-pass claim.",
+  "requirement_sha": "b4a8a2902cdd2961",
+  "tests": {
+    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithANextHopIsAdvertised": "fbbc388ab95f6372",
+    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithNoNextHopIsNotAdvertised": "fbbc388ab95f6372",
+    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go::TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer": "1f41fe0d3b72271c",
+    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go::TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer#2": "1f41fe0d3b72271c"
+  },
+  "units": {
+    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithANextHopIsAdvertised": "92c01210a50eb8f0",
+    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithNoNextHopIsNotAdvertised": "6be599755e049d98",
+    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go::TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer": "6099070f7ecdcb79",
+    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go::TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer#2": "6099070f7ecdcb79"
+  },
+  "upgrade_reason": "The tagged top-level units are unchanged, but their shared fixture was repaired: llnhExternalPeer in draft_ietf_idr_linklocal_capability_multihop_test.go now stores LinkLocalNextHop:true. Re-read that helper, both tagged tests and forwarding producers. The old note's sole remaining objection was the unnegotiated attached-peer control; that premise no longer holds. This upgrade relies on the changed helper and the existing exact withdrawal/control assertions, not on panic-based reachability records.",
+  "verdict": "enforced"
+}

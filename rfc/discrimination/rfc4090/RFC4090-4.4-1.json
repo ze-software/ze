@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC4090-4.4-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/frr_test.go::TestPLRArmsBypass",
+    "unit-sha": "74c0671b2af1935c",
+    "claim-sha": "5b3d5311ed6ca992",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/frr.go::rroProtectionFlags",
+    "producer-sha": "f485360d9b8e2b03",
+    "break": "body of rroProtectionFlags replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

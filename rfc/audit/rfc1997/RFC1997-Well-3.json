@@ -1,0 +1,19 @@
+{
+  "note": "Independent source rejudgment. RFC 1997, Well-known Communities, NO_EXPORT_SUBCONFED: 'All routes received carrying a communities attribute containing this value MUST NOT be advertised to external BGP peers (this includes peers in other members autonomous systems inside a BGP confederation).' All 3 positive and 2 negative tagged covers were read. Q1: the restriction covers external announcements, with withdrawal delivery still permitted. Q2: internal/component/bgp/wireu/rfc1997_wellknown_test.go TestWellKnownNoExportSubconfedRefusesExternalPeer and TestWellKnownNoExportSubconfedAllowsInternalPeer check opposite predicate outcomes for the same community. internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go TestForwardNoExportSubconfedSkipsExternalPeerOnly requires the internal announced destination and excludes the external one. test/plugin/wellknown-no-advertise-egress.ci requires 180A0200 announced internally (48), requires that prefix withdrawn externally (61), and rejects external announcement (67); the ordinary-community fence must reach both destinations. Missing gate, blanket suppression and withdrawal loss therefore produce different failing assertions rather than interchangeable greens. Q3: the internal allowed-peer control uses the very same received route; separate 180A0100 NO_ADVERTISE input cannot satisfy the 180A0200 assertions. Q4: the parenthesis is retained: a confederation member-AS peer would also be external, but Ze's historical scope has no configurable confederation/member-AS role. No confederation implementation or expanded support is inferred from these tests. Producers: internal/component/bgp/wireu/wellknown.go ScanWellKnown/AllowsEgressTo, internal/component/bgp/reactor/reactor_api_forward.go and forward_build.go buildWithdrawalPayload. The updated peer matcher and its inbound/linger negative-consumer regressions distinguish announcement from withdrawal instead of banning every UPDATE containing the prefix. Source judgment only; parent must supply its actual runtime evidence before stamping.",
+  "requirement_sha": "2e97581e9ff97478",
+  "tests": {
+    "internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go::TestForwardNoExportSubconfedSkipsExternalPeerOnly": "db61d16266a532f8",
+    "internal/component/bgp/wireu/rfc1997_wellknown_test.go::TestWellKnownNoExportSubconfedAllowsInternalPeer": "dec76563936c7c9c",
+    "internal/component/bgp/wireu/rfc1997_wellknown_test.go::TestWellKnownNoExportSubconfedRefusesExternalPeer": "dec76563936c7c9c",
+    "test/plugin/wellknown-no-advertise-egress.ci": "f0212c0de9dfd046",
+    "test/plugin/wellknown-no-advertise-egress.ci#2": "f0212c0de9dfd046"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc1997_forward_wellknown_test.go::TestForwardNoExportSubconfedSkipsExternalPeerOnly": "a241dcab4770c262",
+    "internal/component/bgp/wireu/rfc1997_wellknown_test.go::TestWellKnownNoExportSubconfedAllowsInternalPeer": "9a5811345372fbe9",
+    "internal/component/bgp/wireu/rfc1997_wellknown_test.go::TestWellKnownNoExportSubconfedRefusesExternalPeer": "8fd1df316654acf4",
+    "test/plugin/wellknown-no-advertise-egress.ci": "f0212c0de9dfd046",
+    "test/plugin/wellknown-no-advertise-egress.ci#2": "f0212c0de9dfd046"
+  },
+  "verdict": "enforced"
+}

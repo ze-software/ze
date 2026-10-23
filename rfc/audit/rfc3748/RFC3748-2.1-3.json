@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: a peer answering a Request with a legacy or expanded Nak after its first non-Nak Response. TestRFC3748PeerNaksBeforeItCommitsToAMethod negative: after commitment a Type-40 Request must be Discarded and fails on res.Response != nil (any Response, so both Nak forms) or res.Err. Positive: before commitment the same Type-40 Request draws a legacy Nak naming MS-CHAPv2 (wantLegacyNak), so the discard is tied to commitment.",
+  "requirement_sha": "7bfebf1f513d3f74",
+  "tests": {
+    "internal/core/eap/rfc3748_nak_test.go::TestRFC3748PeerNaksBeforeItCommitsToAMethod": "43001f82c7e1b4d0",
+    "internal/core/eap/rfc3748_nak_test.go::TestRFC3748PeerNaksBeforeItCommitsToAMethod#2": "43001f82c7e1b4d0"
+  },
+  "units": {
+    "internal/core/eap/rfc3748_nak_test.go::TestRFC3748PeerNaksBeforeItCommitsToAMethod": "7219f17ec02f4cfb",
+    "internal/core/eap/rfc3748_nak_test.go::TestRFC3748PeerNaksBeforeItCommitsToAMethod#2": "7219f17ec02f4cfb"
+  },
+  "verdict": "enforced"
+}

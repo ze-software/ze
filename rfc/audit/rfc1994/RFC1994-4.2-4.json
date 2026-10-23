@@ -1,0 +1,13 @@
+{
+  "note": "Judge ppp5 2026-09-30. The Message binds the receiver of Success/Failure, the pppoeclient peer (runClientAuth); the reasoning holds. TestRFC1994FailureMessageDoesNotAffectOutcome holds the Message fixed ('', 'authentication succeeded', non-ASCII) and varies only the Code: Failure returns the 'CHAP auth failed' error (not the closed-channel error an ignored Failure would give), Success returns nil, so a Message that turned a Failure into success, or a Success into failure, is red (recorded runClientAuth revert). TestCHAPSuccessMessageDoesNotAffectOutcome kept. Single-polarity positive per the row marker, whose line citation now names runClientAuth.",
+  "requirement_sha": "091f184f86280047",
+  "tests": {
+    "internal/component/l2tp/pppoeclient/rfc1994_chap_message_test.go::TestCHAPSuccessMessageDoesNotAffectOutcome": "d2d8e4764a8e3615",
+    "internal/component/l2tp/pppoeclient/rfc1994_peer_rfc_test.go::TestRFC1994FailureMessageDoesNotAffectOutcome": "0c2e76e5e04df64d"
+  },
+  "units": {
+    "internal/component/l2tp/pppoeclient/rfc1994_chap_message_test.go::TestCHAPSuccessMessageDoesNotAffectOutcome": "93ac6a9695d6ffe2",
+    "internal/component/l2tp/pppoeclient/rfc1994_peer_rfc_test.go::TestRFC1994FailureMessageDoesNotAffectOutcome": "ef25c518f51bc510"
+  },
+  "verdict": "enforced"
+}

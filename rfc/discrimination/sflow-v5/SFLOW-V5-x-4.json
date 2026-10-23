@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "SFLOW-V5-x-4",
+    "polarity": "positive",
+    "unit": "internal/plugins/flowexport/sflow/sflow_v5_encoder_test.go::TestSFlowMultiInterface",
+    "unit-sha": "bec38e1b719b6ae0",
+    "claim-sha": "1b252ce6617f7309",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/sflow/encoder.go::writeCounterDatagrams",
+    "producer-sha": "45a6bb80ad8ddd14",
+    "break": "body of writeCounterDatagrams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

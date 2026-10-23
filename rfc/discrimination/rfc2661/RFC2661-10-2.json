@@ -1,0 +1,114 @@
+[
+  {
+    "rid": "RFC2661-10-2",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661LocalIDsNeverZero",
+    "unit-sha": "4ae50e5e8291819d",
+    "claim-sha": "1dd4d28cdf7b9568",
+    "route": "revert",
+    "producer": "internal/component/l2tp/session.go::allocateSessionID",
+    "producer-sha": "6d3238cc318db0f5",
+    "break": "body of allocateSessionID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2661-10-2",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/rfc2661_obligations_test.go::TestRFC2661PeerZeroTunnelIDRefused",
+    "unit-sha": "823f98d405f1272a",
+    "claim-sha": "0ad32933517ba269",
+    "route": "revert",
+    "producer": "internal/component/l2tp/tunnel_fsm.go::parseSCCRQ",
+    "producer-sha": "a2d762d78b7d2c53",
+    "break": "body of parseSCCRQ replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2661-10-2",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/rfc2661_reactor_sccrq_zero_tid_test.go::TestSCCRQWithNonZeroAssignedTunnelIDEstablishes",
+    "unit-sha": "7f168c9721a9d587",
+    "claim-sha": "852734c48ffeeaea",
+    "route": "revert",
+    "producer": "internal/component/l2tp/tunnel_fsm.go::parseSCCRQ",
+    "producer-sha": "a2d762d78b7d2c53",
+    "break": "body of parseSCCRQ replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2661-10-2",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/rfc2661_reactor_sccrq_zero_tid_test.go::TestSCCRQWithZeroAssignedTunnelIDIsAnswered",
+    "unit-sha": "2cb6a32a7d2eeb75",
+    "claim-sha": "43173f41796bae09",
+    "route": "revert",
+    "producer": "internal/component/l2tp/tunnel_fsm.go::parseSCCRQ",
+    "producer-sha": "a2d762d78b7d2c53",
+    "break": "body of parseSCCRQ replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2661-10-2",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/rfc2661_session_fsm_test.go::TestSession_SIDBoundary_MaxUint16",
+    "unit-sha": "249eaf7fb690007a",
+    "claim-sha": "d81b915155068edd",
+    "route": "revert",
+    "producer": "internal/component/l2tp/session_fsm.go::parseICRQ",
+    "producer-sha": "4af56fac1cad4104",
+    "break": "body of parseICRQ replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2661-10-2",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/rfc2661_session_fsm_test.go::TestSession_SIDBoundary_Zero",
+    "unit-sha": "181c18223072e3fa",
+    "claim-sha": "84acfe8d63f8594d",
+    "route": "revert",
+    "producer": "internal/component/l2tp/session_fsm.go::parseICRQ",
+    "producer-sha": "4af56fac1cad4104",
+    "break": "body of parseICRQ replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2661-10-2",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/rfc2661_tunnel_initiator_test.go::TestParseSCCRP_Rejects",
+    "unit-sha": "ebfc42396d5dd0f2",
+    "claim-sha": "f30dee94c03814bd",
+    "route": "revert",
+    "producer": "internal/component/l2tp/tunnel_initiator.go::parseSCCRP",
+    "producer-sha": "efec7f346ebd9132",
+    "break": "body of parseSCCRP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2661-10-2",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/rfc2661_tunnel_initiator_test.go::TestTunnelInitiatorHandshake",
+    "unit-sha": "8df82bd88e34018a",
+    "claim-sha": "d61e54459791c0b3",
+    "route": "revert",
+    "producer": "internal/component/l2tp/tunnel_initiator.go::parseSCCRP",
+    "producer-sha": "efec7f346ebd9132",
+    "break": "body of parseSCCRP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2661-10-2",
+    "polarity": "negative",
+    "unit": "test/l2tp/rfc2661-sccrq-tunnel-id-zero.ci",
+    "unit-sha": "92334e02e109c77c",
+    "claim-sha": "0d3856a9628c7f9c",
+    "route": "revert",
+    "producer": "internal/component/l2tp/tunnel_fsm.go::parseSCCRQ",
+    "producer-sha": "a2d762d78b7d2c53",
+    "break": "body of parseSCCRQ replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+    "citation": "expect=stderr:contains=zero Assigned Tunnel ID SCCRQ answered with StopCCN"
+  },
+  {
+    "rid": "RFC2661-10-2",
+    "polarity": "positive",
+    "unit": "test/l2tp/rfc2661-sccrq-tunnel-id-zero.ci",
+    "unit-sha": "92334e02e109c77c",
+    "claim-sha": "9cc00cde6f7895c5",
+    "route": "revert",
+    "producer": "internal/component/l2tp/tunnel_fsm.go::parseSCCRQ",
+    "producer-sha": "a2d762d78b7d2c53",
+    "break": "body of parseSCCRQ replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+    "citation": "expect=stderr:contains=new tunnel created from SCCRQ"
+  }
+]

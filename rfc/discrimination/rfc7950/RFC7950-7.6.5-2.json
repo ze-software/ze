@@ -1,0 +1,36 @@
+[
+  {
+    "rid": "RFC7950-7.6.5-2",
+    "polarity": "positive",
+    "unit": "internal/component/config/yang/rfc7950_mandatory_case_test.go::TestRFC7950MandatoryNotRequiredForAbsentCase",
+    "unit-sha": "458b10744cc4490d",
+    "claim-sha": "39d5bcadf82ede88",
+    "route": "revert",
+    "producer": "internal/component/config/yang/validator_mandatory.go::requireMandatoryInPresentCases",
+    "producer-sha": "76ac33e7ea07f0be",
+    "break": "body of requireMandatoryInPresentCases replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7950-7.6.5-2",
+    "polarity": "negative",
+    "unit": "internal/component/config/yang/rfc7950_mandatory_case_test.go::TestRFC7950MandatoryRequiredWhenCaseExists",
+    "unit-sha": "4a6e207340b6c840",
+    "claim-sha": "aee3c33f01d2a24b",
+    "route": "revert",
+    "producer": "internal/component/config/yang/validator_mandatory.go::requireMandatoryInPresentCases",
+    "producer-sha": "76ac33e7ea07f0be",
+    "break": "body of requireMandatoryInPresentCases replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7950-7.6.5-2",
+    "polarity": "negative",
+    "unit": "test/parse/iface-tunnel-invalid-gre-no-remote.ci",
+    "unit-sha": "a13f27b6d5f46847",
+    "claim-sha": "4ba659300c9ef01d",
+    "route": "mutant",
+    "producer": "internal/component/config/yang/validator.go::walkTree",
+    "producer-sha": "617ed4e9d0378edb",
+    "break": "line 687: \"schemaChild(entry, key)\" -\u003e \"entry.Dir[key]\"",
+    "citation": "expect=stdout:contains=mandatory field \"ip\" is missing"
+  }
+]

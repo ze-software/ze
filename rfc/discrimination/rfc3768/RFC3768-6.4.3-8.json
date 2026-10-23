@@ -1,0 +1,57 @@
+[
+  {
+    "rid": "RFC3768-6.4.3-8",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2MasterYieldsToAHigherPriority",
+    "unit-sha": "a994a81545c0ab2b",
+    "claim-sha": "6d19d9e7a861e36b",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/fsm/fsm.go::demoteToBackup",
+    "producer-sha": "98f7e85238be0829",
+    "break": "body of demoteToBackup replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3768-6.4.3-8",
+    "polarity": "negative",
+    "unit": "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2MasterYieldsToAHigherPriority",
+    "unit-sha": "a994a81545c0ab2b",
+    "claim-sha": "432fee2e6babdc3c",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/fsm/fsm.go::demoteToBackup",
+    "producer-sha": "98f7e85238be0829",
+    "break": "body of demoteToBackup replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3768-6.4.3-8",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/tiebreak_test.go::TestInstanceTieBreakComparesTheAdvertisementSource",
+    "unit-sha": "7914f084376ad1c2",
+    "claim-sha": "42994f7c126a48cd",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/instance.go::syncSourceLocked",
+    "producer-sha": "3798133d8e503d40",
+    "break": "body of syncSourceLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3768-6.4.3-8",
+    "polarity": "negative",
+    "unit": "internal/plugins/vrrp/tiebreak_test.go::TestInstanceTieBreakComparesTheAdvertisementSource",
+    "unit-sha": "7914f084376ad1c2",
+    "claim-sha": "044d57227521af64",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/fsm/fsm.go::senderWinsTieBreak",
+    "producer-sha": "b8f7123cc5b53541",
+    "break": "body of senderWinsTieBreak replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3768-6.4.3-8",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/tiebreak_test.go::TestInstanceV2TieBreakDemotionRestartsTheTimers",
+    "unit-sha": "d50f5c5d87972d60",
+    "claim-sha": "68e50ecb2f8aeaaa",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/fsm/fsm.go::demoteToBackup",
+    "producer-sha": "98f7e85238be0829",
+    "break": "body of demoteToBackup replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

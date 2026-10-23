@@ -1,0 +1,13 @@
+{
+  "note": "DeriveChildSAKeys slices recomputed prf+ KEYMAT with both initiator keys before responder keys",
+  "requirement_sha": "5420d232f664a6b1",
+  "tests": {
+    "internal/component/ike/crypto/rfc7296_test.go::TestChildSAKeymatOrder": "92f4c9e647e3de21",
+    "internal/component/ike/crypto/rfc7296_test.go::TestChildSAKeymatOrder#2": "92f4c9e647e3de21"
+  },
+  "units": {
+    "internal/component/ike/crypto/rfc7296_test.go::TestChildSAKeymatOrder": "275a850ead3da96a",
+    "internal/component/ike/crypto/rfc7296_test.go::TestChildSAKeymatOrder#2": "275a850ead3da96a"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,17 @@
+{
+  "note": "Judge 2026-09-29. Both clauses. Positive TestRFC5880KeyedMD5SectionHeader asserts Auth Type 2/3 and Auth Len 24 on the signed wire (observed red with digestSigner.Sign broken). Negative TestRFC5880KeyedMD5OtherAlgorithmFieldsDiscarded, types 2 and 3, hand-builds packets with Auth Type 4/5 or Auth Len 28 and computes the MD5 digest AFTER the alteration, so the digest compare would accept them and only the field checks in digestVerifier.Verify refuse (read at the producer: Control Length is left correct, so the Length check cannot fire first); exact ErrDigestMismatch, fresh SeqState per packet, the unaltered packet accepted. The Auth Type half has an observed-red mutant record; the Auth Len half is isolated by construction but its mutants timed out, so it has no record. The older confounded tags (RejectsForeignSectionShape, OversizedKeyNotSigned) are not relied on.",
+  "requirement_sha": "e3ed1566378fa96b",
+  "tests": {
+    "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedMD5OversizedKeyNotSigned": "69049dc5fe6d5288",
+    "internal/component/bfd/auth/rfc5880_section_fields_test.go::TestRFC5880KeyedMD5OtherAlgorithmFieldsDiscarded": "7078094d8d649608",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KeyedMD5RejectsForeignSectionShape": "5a25c74cc2d9bd47",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KeyedMD5SectionHeader": "5a25c74cc2d9bd47"
+  },
+  "units": {
+    "internal/component/bfd/auth/rfc5880_keyed_test.go::TestRFC5880KeyedMD5OversizedKeyNotSigned": "20ca82d28e9cd052",
+    "internal/component/bfd/auth/rfc5880_section_fields_test.go::TestRFC5880KeyedMD5OtherAlgorithmFieldsDiscarded": "0eb0be93f21102b1",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KeyedMD5RejectsForeignSectionShape": "00d6b4a1d701adf1",
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880KeyedMD5SectionHeader": "da3c9f59a8ad3ed3"
+  },
+  "verdict": "enforced"
+}

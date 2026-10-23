@@ -1,0 +1,15 @@
+{
+  "note": "(a) forbidden: the client using the FOLLOW redirection, by contacting the named server or treating FOLLOW as success or fallback. (b) TestRFC8907FollowTargetIsNeverContacted fails if the FOLLOW target receives a connection; TestRFC8907FollowIsNotAuthenticated asserts ErrAuthRejected and not authenticated; TestRFC8907AuthorizationFollowDeniesWithoutFallback asserts denial with zero local fallback calls.",
+  "requirement_sha": "93e3f8c83aa78453",
+  "tests": {
+    "internal/component/tacacs/rfc8907_status_test.go::TestRFC8907AuthorizationFollowDeniesWithoutFallback": "689cf5032c29eb6d",
+    "internal/component/tacacs/rfc8907_status_test.go::TestRFC8907FollowIsNotAuthenticated": "689cf5032c29eb6d",
+    "internal/component/tacacs/rfc8907_status_test.go::TestRFC8907FollowTargetIsNeverContacted": "689cf5032c29eb6d"
+  },
+  "units": {
+    "internal/component/tacacs/rfc8907_status_test.go::TestRFC8907AuthorizationFollowDeniesWithoutFallback": "7281087410ea246e",
+    "internal/component/tacacs/rfc8907_status_test.go::TestRFC8907FollowIsNotAuthenticated": "3647fe248b590991",
+    "internal/component/tacacs/rfc8907_status_test.go::TestRFC8907FollowTargetIsNeverContacted": "55abf04d04a08ebc"
+  },
+  "verdict": "enforced"
+}

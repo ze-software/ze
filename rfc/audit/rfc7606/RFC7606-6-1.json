@@ -1,0 +1,21 @@
+{
+  "note": "Re-judged 2026-10-12 (independent auditor) after owner-approved lint-only edits in 96ec49327b and 4e731b2d96; the row text is unchanged and each changed unit was re-read diff by diff. TestRFC7606DiagnosticWireAndMPNLRI joins consecutive appends of the same attribute bytes, iterates log lines with strings.SplitSeq (same lines as strings.Split), and calls registerTypeLenRecognizer without the constant lo of 1. No input byte or assertion changed. Verdict stands. Diagnostic assertions compare the complete original wire UPDATE and affected NLRI rather than merely checking that logging occurred; controls cover ordinary/coalesced readers, extended/nonextended frames, legacy/MP IPv4/MP IPv6/typed NLRI, NEW/OLD first-AS handling, in-place discard, late empty-MP reset and typed-NLRI early return; next-hop policy diagnostics explicitly identify their processed representation, and disabled-debug allocation controls remain intact",
+  "requirement_sha": "c8ea3856dba88232",
+  "tests": {
+    "internal/component/bgp/reactor/rfc7606_receive_boundary_test.go::TestRFC7606DiagnosticWireAndMPNLRI": "72daee8a89edb6c5",
+    "internal/component/bgp/reactor/rfc7606_receive_boundary_test.go::TestRFC7606DiagnosticWireAndMPNLRI#2": "72daee8a89edb6c5",
+    "internal/component/bgp/reactor/rfc7606_session_diag_cost_test.go::TestRFC7606DiagnosticsCostsNothingWhenDisabled": "cf28baddb4c03fa0",
+    "internal/component/bgp/reactor/rfc7606_session_diagnostics_test.go::TestRFC7606DiagnosticsCoverSessionReset": "913a03481690f01e",
+    "internal/component/bgp/reactor/rfc7606_session_diagnostics_test.go::TestRFC7606DiagnosticsListNLRIAndUpdate": "913a03481690f01e",
+    "internal/component/bgp/reactor/rfc7606_session_diagnostics_test.go::TestRFC7606DiagnosticsSilentWhenDebugDisabled": "913a03481690f01e"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc7606_receive_boundary_test.go::TestRFC7606DiagnosticWireAndMPNLRI": "104e3d5a5cc0a132",
+    "internal/component/bgp/reactor/rfc7606_receive_boundary_test.go::TestRFC7606DiagnosticWireAndMPNLRI#2": "104e3d5a5cc0a132",
+    "internal/component/bgp/reactor/rfc7606_session_diag_cost_test.go::TestRFC7606DiagnosticsCostsNothingWhenDisabled": "f2537f84e2894288",
+    "internal/component/bgp/reactor/rfc7606_session_diagnostics_test.go::TestRFC7606DiagnosticsCoverSessionReset": "60ade385ef485179",
+    "internal/component/bgp/reactor/rfc7606_session_diagnostics_test.go::TestRFC7606DiagnosticsListNLRIAndUpdate": "e84b2584c5c1535a",
+    "internal/component/bgp/reactor/rfc7606_session_diagnostics_test.go::TestRFC7606DiagnosticsSilentWhenDebugDisabled": "77dbad0bed129534"
+  },
+  "verdict": "enforced"
+}

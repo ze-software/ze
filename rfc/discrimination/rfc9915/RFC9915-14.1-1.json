@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC9915-14.1-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/iface/dhcp/rfc9915_dhcp_v6_exchange_linux_test.go::TestRFC9915Section141PerInterfaceRateLimit",
+    "unit-sha": "20a80265e0072482",
+    "claim-sha": "50ad7487b08a7606",
+    "route": "revert",
+    "producer": "internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::admitTransmission",
+    "producer-sha": "e8ad11b95a1b3bb5",
+    "break": "body of admitTransmission replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

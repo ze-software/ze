@@ -1,0 +1,13 @@
+{
+  "note": "Judge 2026-09-30 (rejudge, netns+pinning). Units now run in a rootless user+net namespace (userns.Enter), which removes the prior weak reason (fixed host ports colliding with a running ze or a parallel run); the judge ran them: each child ran and passed, none skipped. \u00a75 \"...except that the UDP destination port MUST have a value of 4784.\" + TestRFC5883MultiHopControlSentToPort4784OnTheWire (IPv4 and IPv6), - TestRFC5883SingleHopControlNeverAddressesPort4784 (3784 seen, silence at 4784). Records on destination (+) and newUDPTransport (-) re-recorded and observed red.",
+  "requirement_sha": "0bcd1b4e35b7a0e2",
+  "tests": {
+    "internal/component/bfd/rfc5881_wire_port_linux_test.go::TestRFC5883MultiHopControlSentToPort4784OnTheWire": "ec3f2024a41e142b",
+    "internal/component/bfd/rfc5881_wire_port_linux_test.go::TestRFC5883SingleHopControlNeverAddressesPort4784": "ec3f2024a41e142b"
+  },
+  "units": {
+    "internal/component/bfd/rfc5881_wire_port_linux_test.go::TestRFC5883MultiHopControlSentToPort4784OnTheWire": "8a2aeb3b4496183a",
+    "internal/component/bfd/rfc5881_wire_port_linux_test.go::TestRFC5883SingleHopControlNeverAddressesPort4784": "471e4209743a8096"
+  },
+  "verdict": "enforced"
+}

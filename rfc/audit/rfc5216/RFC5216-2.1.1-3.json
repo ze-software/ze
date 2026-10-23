@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: after the Identity the server sends anything but a Request of Type 13 with only the S flag, or sends a Start before an Identity. TestRFC5216StartAnswersTheIdentityResponse fatals on Code != CodeRequest, Type != TypeTLS, or TypeData != {S}; TestRFC5216NoStartBeforeTheIdentityIsReceived fatals if Begin opens with an EAP-TLS packet or a stale Identity Response draws any packet.",
+  "requirement_sha": "eafe21097edf8741",
+  "tests": {
+    "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216NoStartBeforeTheIdentityIsReceived": "50ee52d235cf2a36",
+    "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216StartAnswersTheIdentityResponse": "50ee52d235cf2a36"
+  },
+  "units": {
+    "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216NoStartBeforeTheIdentityIsReceived": "20e0078d782de99a",
+    "internal/core/eap/rfc5216_flight_rules_test.go::TestRFC5216StartAnswersTheIdentityResponse": "d0b319610ea4af33"
+  },
+  "verdict": "enforced"
+}

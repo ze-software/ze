@@ -1,0 +1,11 @@
+{
+  "note": "TestReactorForwardRRInjects pins AS_PATH, NEXT_HOP, MED and LOCAL_PREF byte-identical after reflection, so any modification fails it; single-polarity annotated",
+  "requirement_sha": "b3766d6eba594726",
+  "tests": {
+    "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRInjects": "b6fdc78829b3f890"
+  },
+  "units": {
+    "internal/component/bgp/reactor/forward_rr_test.go::TestReactorForwardRRInjects": "12fecf3624468e58"
+  },
+  "verdict": "enforced"
+}

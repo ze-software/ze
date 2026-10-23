@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden behaviour: accepting a datagram shorter than its Length field. TestRFC2866ShortPacketSilentlyDiscarded overstates the Length by 8 and fails if the exchange completes; TestRFC2866HonestLengthIsAccepted shows the same server with an honest Length completes, isolating the length claim.",
+  "requirement_sha": "aa727fbc9d9838ec",
+  "tests": {
+    "internal/component/radius/rfc2866_packet_test.go::TestRFC2866HonestLengthIsAccepted": "d31ec983abea25ed",
+    "internal/component/radius/rfc2866_packet_test.go::TestRFC2866ShortPacketSilentlyDiscarded": "d31ec983abea25ed"
+  },
+  "units": {
+    "internal/component/radius/rfc2866_packet_test.go::TestRFC2866HonestLengthIsAccepted": "9f6a40f7c02c2fa7",
+    "internal/component/radius/rfc2866_packet_test.go::TestRFC2866ShortPacketSilentlyDiscarded": "1581a436c0b9f239"
+  },
+  "verdict": "enforced"
+}

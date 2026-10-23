@@ -1,0 +1,13 @@
+{
+  "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NameSubTLVs. Forbidden: a non-zero Candidate Path Name RESERVED octet on transmission. Red: assert.Equal(byte(0), value[0]) in the loop case for 'primary'. Negative: require.Len(value, 1+len(want)) and assert.Equal(want, string(value[1:])), so the zero is a separate written octet ahead of the whole name.",
+  "requirement_sha": "f67b19e56b55dfc1",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NameSubTLVs": "450f2364530acf19",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NameSubTLVs#2": "450f2364530acf19"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NameSubTLVs": "4d7575ed7e5b51b7",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NameSubTLVs#2": "4d7575ed7e5b51b7"
+  },
+  "verdict": "enforced"
+}

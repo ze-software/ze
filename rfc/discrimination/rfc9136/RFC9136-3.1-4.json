@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9136-3.1-4",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/nlri/evpn/rfc9136_overlay_index_test.go::TestRFC9136OverlayIndexESINonZeroOnlyAsIndex",
+    "unit-sha": "2c1723d3afbbfefe",
+    "claim-sha": "7928866aa49db7e3",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/nlri/evpn/overlay_index.go::parseOverlayIndex",
+    "producer-sha": "31eef9458565244c",
+    "break": "body of parseOverlayIndex replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9136-3.1-4",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/nlri/evpn/rfc9136_overlay_index_test.go::TestRFC9136OverlayIndexESIRefusedOtherwise",
+    "unit-sha": "c9d7292fe5d39176",
+    "claim-sha": "0d268f3f35f0d5a5",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/nlri/evpn/overlay_index.go::checkOverlayIndex",
+    "producer-sha": "1bd041e38dcaf7d7",
+    "break": "body of checkOverlayIndex replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

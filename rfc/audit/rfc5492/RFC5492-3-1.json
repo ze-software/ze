@@ -1,0 +1,17 @@
+{
+  "note": "Forbidden: an Unsupported Capability NOTIFICATION that omits a causing capability or lists one that did not cause it. TestRFC5492UnsupportedCapabilityDataListsTheCausingSet drives handleOpen on a session requiring Route Refresh and Extended Message and reads the wire: none sent -> one 2/7 NOTIFICATION with Data exactly 02 00 06 00; Route Refresh plus unknown 254 sent -> Data exactly 06 00 (sent and unknown capabilities excluded); both sent -> no NOTIFICATION, OpenConfirm.",
+  "requirement_sha": "701c0995c59ceebb",
+  "tests": {
+    "internal/component/bgp/reactor/rfc5492_reactor_b_test.go::TestRFC5492UnsupportedCapabilityDataListsTheCausingSet": "3ff184a23c494343",
+    "internal/component/bgp/reactor/rfc5492_reactor_b_test.go::TestRFC5492UnsupportedCapabilityDataListsTheCausingSet#2": "3ff184a23c494343",
+    "internal/component/bgp/reactor/session_test.go::TestSessionAcceptsRequiredCapability": "aeb6993b67f2a376",
+    "internal/component/bgp/reactor/session_validate_test.go::TestBuildUnsupportedCapabilityData": "00ea84393819df2b"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc5492_reactor_b_test.go::TestRFC5492UnsupportedCapabilityDataListsTheCausingSet": "c77bf0fcbe60e220",
+    "internal/component/bgp/reactor/rfc5492_reactor_b_test.go::TestRFC5492UnsupportedCapabilityDataListsTheCausingSet#2": "c77bf0fcbe60e220",
+    "internal/component/bgp/reactor/session_test.go::TestSessionAcceptsRequiredCapability": "24f0040111395614",
+    "internal/component/bgp/reactor/session_validate_test.go::TestBuildUnsupportedCapabilityData": "bbd9fec0afd6bd13"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-02 (BGP c22 judge). First clause now driven: TestRFC9552NativeUnnumberedLinkCarriesLinkIdentifiers exports an IS-IS link with no interface or neighbor address and link ids 7/9 and asserts TLV 258 == 00000007 00000009 and none of 259-262. Second clause (link-local-only addressing) stays on TestRFC9552NativeLinkIdentitySelection. Row carries {single-polarity: positive}, read against encodeNativeLink: no refusal input exists. Revert records on encodeNativeLink observed red for both units.",
+  "requirement_sha": "a04f6f915788b3a4",
+  "tests": {
+    "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeUnnumberedLinkCarriesLinkIdentifiers": "de280b1c094e08d4",
+    "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeLinkIdentitySelection": "6886dddcc0644d09"
+  },
+  "units": {
+    "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeUnnumberedLinkCarriesLinkIdentifiers": "97ef5987ccec2d51",
+    "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeLinkIdentitySelection": "89eb839fce655230"
+  },
+  "verdict": "enforced"
+}

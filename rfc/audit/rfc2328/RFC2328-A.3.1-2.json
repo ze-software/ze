@@ -1,0 +1,17 @@
+{
+  "note": "c20 judge: independent arithmetic (test-side RFC 1071 fold) for both sides. TestRFC2328PacketChecksumCoversHeaderExcludesAuth: with a simple password the generated field equals the reference over header+body excluding Auth, differs from the whole-packet sum, is unchanged by another password and moves with the Router ID. TestRFC2328PacketChecksumWrongRangeRefused: VerifyPacketChecksum refuses an Auth-included and a body-excluded checksum, accepts the correct one. Revert records PacketChecksum (+), VerifyPacketChecksum (-).",
+  "requirement_sha": "ceb1df038e294974",
+  "tests": {
+    "internal/plugins/ospf/packet/checksum_test.go::TestOSPFPacketChecksumExcludesAuth": "8ac8573c092c7f1a",
+    "internal/plugins/ospf/packet/rfc2328_checksum_coverage_test.go::TestRFC2328PacketChecksumCoversHeaderExcludesAuth": "d8d026ab65bff2b1",
+    "internal/plugins/ospf/packet/rfc2328_checksum_coverage_test.go::TestRFC2328PacketChecksumWrongRangeRefused": "d8d026ab65bff2b1",
+    "internal/plugins/ospf/packet/rfc2328_header_test.go::TestPacketVerifyChecksum": "3690176478e839f0"
+  },
+  "units": {
+    "internal/plugins/ospf/packet/checksum_test.go::TestOSPFPacketChecksumExcludesAuth": "7578318cd652e22d",
+    "internal/plugins/ospf/packet/rfc2328_checksum_coverage_test.go::TestRFC2328PacketChecksumCoversHeaderExcludesAuth": "05356c529611eaee",
+    "internal/plugins/ospf/packet/rfc2328_checksum_coverage_test.go::TestRFC2328PacketChecksumWrongRangeRefused": "a102206c6e365966",
+    "internal/plugins/ospf/packet/rfc2328_header_test.go::TestPacketVerifyChecksum": "d97dae373086ba92"
+  },
+  "verdict": "enforced"
+}

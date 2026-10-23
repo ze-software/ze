@@ -1,0 +1,17 @@
+{
+  "note": "the refusing PADS (BuildPADSError via handlePADR) and the admitting PADS now echo the Relay-Session-Id byte-for-byte, and a refusing PADS for a PADR without one invents none; PADO, PADR and PADS builder echo and no-echo units unchanged. Records red on BuildPADSError",
+  "requirement_sha": "b25075ae6dd2bd85",
+  "tests": {
+    "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516RefusingPADSEchoesRelaySessionID": "3ea2cf3cd3f3abda",
+    "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516RefusingPADSEchoesRelaySessionID#2": "3ea2cf3cd3f3abda",
+    "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestRelaySessionIDEcho": "b7c2fae4a50abe95",
+    "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestRelaySessionIDNoEcho": "b7c2fae4a50abe95"
+  },
+  "units": {
+    "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516RefusingPADSEchoesRelaySessionID": "cb09ae2d9bb78079",
+    "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516RefusingPADSEchoesRelaySessionID#2": "cb09ae2d9bb78079",
+    "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestRelaySessionIDEcho": "60fa04af7eb695a1",
+    "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestRelaySessionIDNoEcho": "740af325c0148666"
+  },
+  "verdict": "enforced"
+}

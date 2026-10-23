@@ -1,0 +1,13 @@
+{
+  "note": "(a) forbidden: an AH SA carrying SPI 0 installed and so sent on the wire. (b) TestAHSPIReservedRangeRefused: validateConfig on spi 0 must return ErrIPsecSPIReserved, else red; spi 256 must validate (positive bound). SPI 255 refusal is IANA-range, beyond this row.",
+  "requirement_sha": "11d3ac6441efc504",
+  "tests": {
+    "internal/plugins/ospf/rfc4302_ipsec_test.go::TestAHSPIReservedRangeRefused": "4eb7d1753c913cce",
+    "internal/plugins/ospf/rfc4302_ipsec_test.go::TestAHSPIReservedRangeRefused#2": "4eb7d1753c913cce"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc4302_ipsec_test.go::TestAHSPIReservedRangeRefused": "5fda7c062965f660",
+    "internal/plugins/ospf/rfc4302_ipsec_test.go::TestAHSPIReservedRangeRefused#2": "5fda7c062965f660"
+  },
+  "verdict": "enforced"
+}

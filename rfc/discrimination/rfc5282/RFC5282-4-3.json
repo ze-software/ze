@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5282-4-3",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc5282_ccm_sk_test.go::TestRFC5282CCMNonceIsSaltThenIV",
+    "unit-sha": "ec59efb4c9f6b439",
+    "claim-sha": "4322c74826ea184d",
+    "route": "revert",
+    "producer": "internal/component/ike/crypto/aead.go::ikeAEADNonce",
+    "producer-sha": "6536163049ce3b0b",
+    "break": "body of ikeAEADNonce replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5282-4-3",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc5282_ccm_sk_test.go::TestRFC5282CCMRefusesAReversedNonce",
+    "unit-sha": "68cb9e694bb030ba",
+    "claim-sha": "c7fd0f940be2ff75",
+    "route": "revert",
+    "producer": "internal/component/ike/crypto/aead.go::ikeAEADNonce",
+    "producer-sha": "6536163049ce3b0b",
+    "break": "body of ikeAEADNonce replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

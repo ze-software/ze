@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC5216-2.1.1-5",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc5216_flight_content_test.go::TestRFC5216ResumedFlightsCarryOnlyChangeCipherSpecAndFinished",
+    "unit-sha": "0f59f20c0fbf7542",
+    "claim-sha": "3cc0ab2def200b19",
+    "route": "revert",
+    "producer": "internal/core/eap/eap_tls.go::tls12WithoutTickets",
+    "producer-sha": "6595e24aae25ed7a",
+    "break": "body of tls12WithoutTickets replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5216-2.1.1-5",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigBothRolesInstallWhatTheFlightsCarry",
+    "unit-sha": "5a6b45d845517dc3",
+    "claim-sha": "38ba0f34bf2d9fa7",
+    "route": "revert",
+    "producer": "internal/core/eap/eap_tls.go::newTLSMethod",
+    "producer-sha": "9d4ae49c78228895",
+    "break": "body of newTLSMethod replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5216-2.1.1-5",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc5216_tls_config_test.go::TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights",
+    "unit-sha": "09358a5abd2a85cc",
+    "claim-sha": "28b720b33f5adb5c",
+    "route": "revert",
+    "producer": "internal/core/eap/resumption.go::refuseResumption",
+    "producer-sha": "73e1e7af48601352",
+    "break": "body of refuseResumption replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged 2026-10-12 (independent auditor). SHIFTED by 6e063fb498 (tests: give ten assert-nothing tests a real assertion), whose hunks sit in untagged sibling tests and the import block. The tagged unit is byte-identical (gate-verified) and no helper it calls changed. Verdict stands. {single-polarity} on the row: no configuration enables the flag. (a) forbidden: any configuration state, including a keyless server, under which the client sends with TAC_PLUS_UNENCRYPTED_FLAG. (b) TestRFC8907UnencryptedModeIsNotReachableFromConfiguration reads the socket: a keyed config puts wire[3]&0x01 == 0 (assert.Zero), a keyless config writes no bytes (assert.Empty); TestRFC8907ClientNeverSendsUnobfuscatedBody requires the wire body to be the pseudo-pad XOR of the plaintext.",
+  "requirement_sha": "a1989d6d776c9620",
+  "tests": {
+    "internal/component/tacacs/rfc8907_obfuscation_test.go::TestRFC8907ClientNeverSendsUnobfuscatedBody": "f08ee3a6ab81099d",
+    "internal/component/tacacs/rfc8907_packet_test.go::TestPacketMarshalRoundTrip": "540fad3fac560cd1",
+    "internal/component/tacacs/rfc8907_unencrypted_config_test.go::TestRFC8907UnencryptedModeIsNotReachableFromConfiguration": "9d3a3aa45fa01a1f"
+  },
+  "units": {
+    "internal/component/tacacs/rfc8907_obfuscation_test.go::TestRFC8907ClientNeverSendsUnobfuscatedBody": "0c92650dfaa20700",
+    "internal/component/tacacs/rfc8907_packet_test.go::TestPacketMarshalRoundTrip": "1bfea1c89f5e6b14",
+    "internal/component/tacacs/rfc8907_unencrypted_config_test.go::TestRFC8907UnencryptedModeIsNotReachableFromConfiguration": "c8157a23028f7c47"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC5216-2.1.3-3",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc5216_eap_tls_alert_flight_test.go::TestEAPTLSAuthenticatorSendsTheAlertBeforeItReportsTheFailure",
+    "unit-sha": "898feadd52d22165",
+    "claim-sha": "e1f1c7e27f288c45",
+    "route": "revert",
+    "producer": "internal/core/eap/eap.go::finalRequest",
+    "producer-sha": "17ee4bd0f18fdd54",
+    "break": "body of finalRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

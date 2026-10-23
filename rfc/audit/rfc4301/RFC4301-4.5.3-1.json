@@ -1,0 +1,13 @@
+{
+  "note": "gateway address and destination ranges parsed as written; malformed range refused naming peer and range",
+  "requirement_sha": "0ff06963fa14f100",
+  "tests": {
+    "internal/component/ike/ipsec/rfc4301_gateway_test.go::TestRFC4301GatewayIsConfiguredForDestinationRanges": "24ee85ad8606107a",
+    "internal/component/ike/ipsec/rfc4301_gateway_test.go::TestRFC4301GatewayRefusesAMalformedDestinationRange": "24ee85ad8606107a"
+  },
+  "units": {
+    "internal/component/ike/ipsec/rfc4301_gateway_test.go::TestRFC4301GatewayIsConfiguredForDestinationRanges": "6e672317daab9d8c",
+    "internal/component/ike/ipsec/rfc4301_gateway_test.go::TestRFC4301GatewayRefusesAMalformedDestinationRange": "5b15f9a59e8fd179"
+  },
+  "verdict": "enforced"
+}

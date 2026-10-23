@@ -1,0 +1,11 @@
+{
+  "note": "Forbidden: a Response whose Identifier is not the Challenge's. TestBuildCHAPResponse passes a Challenge with Identifier 0x42 and asserts resp[1] == 0x42, red on any other value; buildCHAPResponse is what session.go calls with the received Challenge. Single-polarity marker.",
+  "requirement_sha": "28ad3f26cbd467da",
+  "tests": {
+    "internal/component/l2tp/pppoeclient/session_test.go::TestBuildCHAPResponse": "50a2fa5b77fbaf66"
+  },
+  "units": {
+    "internal/component/l2tp/pppoeclient/session_test.go::TestBuildCHAPResponse": "7077d6244b1437d3"
+  },
+  "verdict": "enforced"
+}

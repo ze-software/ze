@@ -1,0 +1,11 @@
+{
+  "note": "TestRFC5880SecretKeyNotCarriedInPacket asserts neither the padded nor the raw secret appears in the emitted SHA1 packet (single-polarity).",
+  "requirement_sha": "0f9e1b9af5de2b50",
+  "tests": {
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880SecretKeyNotCarriedInPacket": "5a25c74cc2d9bd47"
+  },
+  "units": {
+    "internal/component/bfd/auth/rfc5880_test.go::TestRFC5880SecretKeyNotCarriedInPacket": "fada90398032f917"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-16: the unit moved to core rfc8956_fragment_test.go. It changed only by the family identifiers and the now-exported NewFlowFragmentMatchComponent. RFC 8956 Section 3.6: \"The Type 12 component bitmask MUST be encoded as a single octet bitmask (bitmask_op len=00).\" A value of ^uint64(0) through the IPv6 FlowSpec and IPv6 VPN producers must encode exactly {12, 0x81, 0x0e} (len=00, one octet) via WriteTo and Bytes(), so core writeToAFI applies fragmentMask before choosing the width. The negative requires ParseFlowSpec/ParseFlowSpecVPN to refuse a 0x91 (len=01) two-octet operand.",
+  "requirement_sha": "c12cea270f72f879",
+  "tests": {
+    "internal/core/bgp/nlri/flowspec/rfc8956_fragment_test.go::TestRFC8956FragmentSingleOctet": "332e2bbed23c624e",
+    "internal/core/bgp/nlri/flowspec/rfc8956_fragment_test.go::TestRFC8956FragmentSingleOctet#2": "332e2bbed23c624e"
+  },
+  "units": {
+    "internal/core/bgp/nlri/flowspec/rfc8956_fragment_test.go::TestRFC8956FragmentSingleOctet": "39a7d418bd585e20",
+    "internal/core/bgp/nlri/flowspec/rfc8956_fragment_test.go::TestRFC8956FragmentSingleOctet#2": "39a7d418bd585e20"
+  },
+  "verdict": "enforced"
+}

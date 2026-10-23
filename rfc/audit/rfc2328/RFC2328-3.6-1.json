@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: an ABR attached to a stub area not advertising a default route into it via a summary-LSA. Red: TestRFC2328StubAreaGetsDefaultSummary fails unless the stub area holds a Type 3 summary with Link State ID 0.0.0.0, mask 0.0.0.0 and the configured cost 5. Other polarity: TestRFC2328NormalAreaGetsNoDefaultSummary fails if a normal area receives one, and still checks the ordinary summary is originated. One clause, both polarities.",
+  "requirement_sha": "e1aa387ccbcea0aa",
+  "tests": {
+    "internal/plugins/ospf/spf/rfc2328_abr_summary_test.go::TestRFC2328NormalAreaGetsNoDefaultSummary": "cf9d36f27437477d",
+    "internal/plugins/ospf/spf/rfc2328_abr_summary_test.go::TestRFC2328StubAreaGetsDefaultSummary": "cf9d36f27437477d"
+  },
+  "units": {
+    "internal/plugins/ospf/spf/rfc2328_abr_summary_test.go::TestRFC2328NormalAreaGetsNoDefaultSummary": "ceb90a2449723cd0",
+    "internal/plugins/ospf/spf/rfc2328_abr_summary_test.go::TestRFC2328StubAreaGetsDefaultSummary": "4ad7a8ebd418f3a5"
+  },
+  "verdict": "enforced"
+}

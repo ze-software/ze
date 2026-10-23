@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC4724-4.2-11",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go::TestRFC4724EndOfRIBLeavesOtherFamiliesStale",
+    "unit-sha": "b837b57d99d9227b",
+    "claim-sha": "e311953135ffa5fa",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/gr/gr.go::handleEOREvent",
+    "producer-sha": "927d0e3bb8ee86bc",
+    "break": "body of handleEOREvent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4724-4.2-11",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/gr/rfc4724_dispatch_test.go::TestRFC4724EndOfRIBRemovesThatFamilysStaleRoutes",
+    "unit-sha": "c615fccb72547600",
+    "claim-sha": "b07b1ddc920bda7e",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/gr/gr.go::handleEOREvent",
+    "producer-sha": "927d0e3bb8ee86bc",
+    "break": "body of handleEOREvent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

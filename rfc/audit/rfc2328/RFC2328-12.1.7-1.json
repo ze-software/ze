@@ -1,0 +1,25 @@
+{
+  "note": "Forbidden: (a) checksum covering LS age: TestOSPFLSAChecksumExcludesAge fails when the LS age octets are mutated and the LSA stops verifying, and TestOSPFLSAChecksum checks independent Fletcher sums over lsa[2:length] (not VerifyLSAChecksum's shared code); (b) an unchecked covered region: mutating Options must fail VerifyLSAChecksum; (c) accepting LS Checksum 0: TestRFC2328ZeroLSChecksumRejected solves the Fletcher sums to zero with the field zero, so only the zero rule can reject, and fails if VerifyLSAChecksum accepts it. Positive: the encoded LSA verifies with a non-zero backfilled checksum. Every clause has its assertion. Re-judged 2026-09-27 after the RFC905-x-6 tags moved here (J102). TestOSPFLSAChecksumExcludesAge now also carries the negative tag for the covered-octet mutation, clause (b). TestFletcherRFC905Vectors and TestFletcherIgnoresLSAge (ospf/types) add positives: the first pins 0x15ff over the window from Options, and the second shows LS Age mutation leaves the checksum unchanged. The verdict is unchanged.",
+  "requirement_sha": "9e3446f637ec1a94",
+  "tests": {
+    "internal/plugins/ospf/packet/checksum_test.go::TestOSPFLSAChecksum": "8ac8573c092c7f1a",
+    "internal/plugins/ospf/packet/checksum_test.go::TestOSPFLSAChecksum#2": "8ac8573c092c7f1a",
+    "internal/plugins/ospf/packet/checksum_test.go::TestOSPFLSAChecksumExcludesAge": "8ac8573c092c7f1a",
+    "internal/plugins/ospf/packet/checksum_test.go::TestOSPFLSAChecksumExcludesAge#2": "8ac8573c092c7f1a",
+    "internal/plugins/ospf/packet/rfc2328_test.go::TestRFC2328ZeroLSChecksumRejected": "0f482ae74458549a",
+    "internal/plugins/ospf/packet/rfc2328_test.go::TestRFC2328ZeroLSChecksumRejected#2": "0f482ae74458549a",
+    "internal/plugins/ospf/types/checksum_test.go::TestFletcherIgnoresLSAge": "66165fee03c7d467",
+    "internal/plugins/ospf/types/checksum_test.go::TestFletcherRFC905Vectors": "66165fee03c7d467"
+  },
+  "units": {
+    "internal/plugins/ospf/packet/checksum_test.go::TestOSPFLSAChecksum": "5771613ca67997af",
+    "internal/plugins/ospf/packet/checksum_test.go::TestOSPFLSAChecksum#2": "5771613ca67997af",
+    "internal/plugins/ospf/packet/checksum_test.go::TestOSPFLSAChecksumExcludesAge": "3d7fb4e4da4a50f4",
+    "internal/plugins/ospf/packet/checksum_test.go::TestOSPFLSAChecksumExcludesAge#2": "3d7fb4e4da4a50f4",
+    "internal/plugins/ospf/packet/rfc2328_test.go::TestRFC2328ZeroLSChecksumRejected": "58ba192cd9a98d1a",
+    "internal/plugins/ospf/packet/rfc2328_test.go::TestRFC2328ZeroLSChecksumRejected#2": "58ba192cd9a98d1a",
+    "internal/plugins/ospf/types/checksum_test.go::TestFletcherIgnoresLSAge": "a6e55036a6a88fa4",
+    "internal/plugins/ospf/types/checksum_test.go::TestFletcherRFC905Vectors": "d58c3ac8f36eac05"
+  },
+  "verdict": "enforced"
+}

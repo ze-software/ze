@@ -1,0 +1,6 @@
+{
+  "no_code_path": "The check and the rejection bind the cache authenticating a connecting router's certificate. Ze's RTR client only dials out (rtr_session.go connectAndSync) and runs no RTR TLS server, so no ze code path accepts or rejects a router's TLS connection.",
+  "note": "cache-side TLS obligation",
+  "requirement_sha": "002f49d51572adc5",
+  "verdict": "not-applicable"
+}

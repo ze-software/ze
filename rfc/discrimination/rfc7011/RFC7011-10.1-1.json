@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7011-10.1-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/flowexport/rfc7011_config_test.go::TestRFC7011CollectorPortConfigurable",
+    "unit-sha": "b0718cb9cb26472f",
+    "claim-sha": "8231ddac2149e073",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/config.go::parseCollectorMap",
+    "producer-sha": "1d76c614d09d1b8f",
+    "break": "body of parseCollectorMap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7011-10.1-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/flowexport/rfc7011_config_test.go::TestRFC7011CollectorPortOutOfRangeRefused",
+    "unit-sha": "9a9ab8b3ecfa318c",
+    "claim-sha": "14efbf9311a74d27",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/config.go::Validate",
+    "producer-sha": "5681502e5edf38f7",
+    "break": "body of Validate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

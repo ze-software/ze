@@ -1,0 +1,13 @@
+{
+  "note": "TestRFC2516SessionID0xffffIsNeverAllocated exhausts the table and shows 0xffff is never handed out, even after freeSID",
+  "requirement_sha": "bed95309ad49cebc",
+  "tests": {
+    "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516AllocSIDReturnsUsableValue": "e5818bbbd45fc77f",
+    "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516SessionID0xffffIsNeverAllocated": "e5818bbbd45fc77f"
+  },
+  "units": {
+    "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516AllocSIDReturnsUsableValue": "8b342bcb5f0177a9",
+    "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516SessionID0xffffIsNeverAllocated": "a9c5373f70fffa81"
+  },
+  "verdict": "enforced"
+}

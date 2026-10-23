@@ -1,0 +1,19 @@
+{
+  "note": "Re-judged 2026-10-01 (BGP c11 judge) after the negative's NOTIFICATION subtest moved from OpenSent to OpenConfirm (OpenSent now answers Event 25 with 5/0 per Section 8.2.2, so 'no NOTIFICATION at all' is only true in OpenConfirm); the 21-octet bound under test is unchanged. Positives prove every Section 6.1 Length condition with exactly one NOTIFICATION 1/2 whose Data is the received Length octets, then EOF: Length 18 and 0, 4097, OPEN 28, UPDATE 22, KEEPALIVE 20, NOTIFICATION 20. Negatives: KEEPALIVE 19 and UPDATE 23 and UPDATE 4096 in Established draw no NOTIFICATION; OPEN 29 in OpenSent draws none; a 21-octet Cease in OpenConfirm draws none and closes. Records observed red: ValidateLengthWithMax (re-recorded for the moved subtest), notifyHeaderErr, handleUpdate, handleOpen.",
+  "requirement_sha": "8222155ddc1cdd7d",
+  "tests": {
+    "internal/component/bgp/reactor/rfc4271_header_bounds_peer_test.go::TestRFC4271MessageHeaderAtTheUpperBoundsIsAccepted": "2a107da8815851e4",
+    "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271MessageHeaderAtTheBoundsIsAccepted": "fec6a921b0bf494e",
+    "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271MessageHeaderBadLengthIsReported": "fec6a921b0bf494e",
+    "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271MessageHeaderErrorIsReported": "fec6a921b0bf494e",
+    "internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go::TestRFC4271OpenSentWellFormedOpenKeepsTheConnection": "56ab87e3b9f2067a"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc4271_header_bounds_peer_test.go::TestRFC4271MessageHeaderAtTheUpperBoundsIsAccepted": "2af3035c52293def",
+    "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271MessageHeaderAtTheBoundsIsAccepted": "164149dbbe2bb723",
+    "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271MessageHeaderBadLengthIsReported": "b40715daad43f7f2",
+    "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271MessageHeaderErrorIsReported": "9bc76112384a3dc9",
+    "internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go::TestRFC4271OpenSentWellFormedOpenKeepsTheConnection": "401634b530ec6eaa"
+  },
+  "verdict": "enforced"
+}

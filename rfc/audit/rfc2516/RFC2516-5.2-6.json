@@ -1,0 +1,13 @@
+{
+  "note": "TestRFC2516PADOSessionIDIsZero asserts CODE 0x07 and SESSION_ID 0; the client refuses a PADO with a non-zero SESSION_ID",
+  "requirement_sha": "73be9809ffd9a7ec",
+  "tests": {
+    "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516PADOSessionIDIsZero": "e5818bbbd45fc77f",
+    "internal/component/l2tp/pppoeclient/rfc2516_discovery_test.go::TestRFC2516PADOWithNonZeroSessionIDIsNotAnOffer": "038fbf24238f4209"
+  },
+  "units": {
+    "internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516PADOSessionIDIsZero": "86c8c63263fb4c64",
+    "internal/component/l2tp/pppoeclient/rfc2516_discovery_test.go::TestRFC2516PADOWithNonZeroSessionIDIsNotAnOffer": "3616317f0dd2df6e"
+  },
+  "verdict": "enforced"
+}

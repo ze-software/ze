@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC1661-5-2",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/frame_test.go::TestIPCPFrameRejectsNonSinglePacket",
+    "unit-sha": "fa8671db9fe4bd07",
+    "claim-sha": "982a47320e624a5c",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/lcp.go::ParseLCPPacket",
+    "producer-sha": "a8c7d6e2abbd3bf8",
+    "break": "body of ParseLCPPacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1661-5-2",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1661_packet_length_test.go::TestRFC1661InvalidLengthPacketSilentlyDiscarded",
+    "unit-sha": "90c29cc126e92e78",
+    "claim-sha": "88c533bc0c8c906e",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/lcp.go::ParseLCPPacket",
+    "producer-sha": "a8c7d6e2abbd3bf8",
+    "break": "body of ParseLCPPacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1661-5-2",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/ppp/rfc1661_packet_length_test.go::TestRFC1661ValidLengthWithPaddingIsAnswered",
+    "unit-sha": "1164fc8335880506",
+    "claim-sha": "25d243833ada718b",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/lcp.go::ParseLCPPacket",
+    "producer-sha": "a8c7d6e2abbd3bf8",
+    "break": "body of ParseLCPPacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

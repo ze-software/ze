@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC5798-5.2.8-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/packet/checksum_test.go::TestFillChecksumFamilies",
+    "unit-sha": "7473c03bce501af8",
+    "claim-sha": "7166fdd5a7803dc0",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/packet/checksum.go::pseudoSumV4",
+    "producer-sha": "c3f517a214e7166b",
+    "break": "body of pseudoSumV4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5798-5.2.8-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/vrrp/packet/rfc_rx_verdict_test.go::TestFillChecksumZeroesFieldAndCoversPseudoHeader",
+    "unit-sha": "4a3062f58faef2fe",
+    "claim-sha": "d97ff9d987d1fbdf",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/packet/checksum.go::FillChecksum",
+    "producer-sha": "1f3fa5dca498b30c",
+    "break": "body of FillChecksum replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5798-5.2.8-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/vrrp/packet/rfc_rx_verdict_test.go::TestFillChecksumZeroesFieldAndCoversPseudoHeader",
+    "unit-sha": "4a3062f58faef2fe",
+    "claim-sha": "60bb76c599c082c2",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/packet/checksum.go::verifyReceived",
+    "producer-sha": "618856748a37e535",
+    "break": "body of verifyReceived replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5798-5.2.8-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/vrrp/packet/validate_test.go::TestDecodeV3IPv6ChecksumAndHopLimit",
+    "unit-sha": "7459a12c9b1d7376",
+    "claim-sha": "e7812d18927f5797",
+    "route": "revert",
+    "producer": "internal/plugins/vrrp/packet/checksum.go::verifyReceived",
+    "producer-sha": "618856748a37e535",
+    "break": "body of verifyReceived replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

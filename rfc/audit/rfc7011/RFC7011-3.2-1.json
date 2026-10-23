@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: an Enterprise Number following a field specifier whose E bit is 0. TestRFC7011NoEnterpriseNumberWhenEClear asserts each of the counter, flow4 and flow6 templates is exactly 8 + 4 x fieldCount octets (red if any specifier carries 4 more octets) and that bit 15 is clear in every specifier; TestIPFIXTemplateSet pins the counter Template Set. Single-polarity marker: no code path sets E.",
+  "requirement_sha": "93e531e7d3c32257",
+  "tests": {
+    "internal/plugins/flowexport/ipfix/rfc7011_template_test.go::TestIPFIXTemplateSet": "f7d94a4b8bb76e78",
+    "internal/plugins/flowexport/ipfix/rfc7011_test.go::TestRFC7011NoEnterpriseNumberWhenEClear": "1e121054ccd5ea2a"
+  },
+  "units": {
+    "internal/plugins/flowexport/ipfix/rfc7011_template_test.go::TestIPFIXTemplateSet": "a7641091aa45010e",
+    "internal/plugins/flowexport/ipfix/rfc7011_test.go::TestRFC7011NoEnterpriseNumberWhenEClear": "7546da9e02a094f3"
+  },
+  "verdict": "enforced"
+}

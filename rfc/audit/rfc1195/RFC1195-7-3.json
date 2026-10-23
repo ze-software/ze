@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-09-27 by TOOL-4 after the row's citation moved from \u00a78 to \u00a7C.1.1, the annex subsection the heading reader now reads; the text and the tagged units are unchanged since QF-2 judged them the same day, so QF-2's reading stands. Forbidden: an IP reachability entry whose identifier collides with a router's system identifier. TestRFC1195ReachabilityEntryIsALeafKeyedByPrefix gives router B a System ID spelling 10.4.0.0/24 and asserts 3 settled router vertices, B at metric 10, C at 15 through B, and one prefix route at 11: a merged identifier space changes the vertex count. TestRFC1195PrefixCannotBridgeDisconnectedRouters asserts a lookalike prefix does not make a disconnected router's 198.51.100.0/24 reachable. Enforced.",
+  "requirement_sha": "70f05761245dc150",
+  "tests": {
+    "internal/plugins/isis/spf/rfc1195_route_test.go::TestRFC1195PrefixCannotBridgeDisconnectedRouters": "21a45be2072f321b",
+    "internal/plugins/isis/spf/rfc1195_route_test.go::TestRFC1195ReachabilityEntryIsALeafKeyedByPrefix": "21a45be2072f321b"
+  },
+  "units": {
+    "internal/plugins/isis/spf/rfc1195_route_test.go::TestRFC1195PrefixCannotBridgeDisconnectedRouters": "14ea034202638334",
+    "internal/plugins/isis/spf/rfc1195_route_test.go::TestRFC1195ReachabilityEntryIsALeafKeyedByPrefix": "e312d1427f1ce7c2"
+  },
+  "verdict": "enforced"
+}

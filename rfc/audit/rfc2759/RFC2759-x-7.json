@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: the peer continuing after a missing or incorrect authenticator response. Negative walks wrong S= (one digit flipped, same length and charset), absent Message, no S= prefix, short and non-hex S=; each fails on res.Err==nil or an acknowledgement, and the session end is asserted (later EAP-Success Discarded, not Done, not Succeeded). Positive: the correct S= is acknowledged with OpCode Success.",
+  "requirement_sha": "7d233d716cc87b8e",
+  "tests": {
+    "internal/core/eap/rfc2759_authenticator_response_test.go::TestRFC2759PeerAcceptsCorrectAuthenticatorResponse": "c25f4c0cb67cb0f4",
+    "internal/core/eap/rfc2759_authenticator_response_test.go::TestRFC2759PeerEndsSessionOnBadAuthenticatorResponse": "c25f4c0cb67cb0f4"
+  },
+  "units": {
+    "internal/core/eap/rfc2759_authenticator_response_test.go::TestRFC2759PeerAcceptsCorrectAuthenticatorResponse": "e734cd1dc66014e8",
+    "internal/core/eap/rfc2759_authenticator_response_test.go::TestRFC2759PeerEndsSessionOnBadAuthenticatorResponse": "21eb38582dc766a6"
+  },
+  "verdict": "enforced"
+}

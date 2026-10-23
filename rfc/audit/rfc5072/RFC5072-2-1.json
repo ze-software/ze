@@ -1,0 +1,13 @@
+{
+  "note": "Judge ppp5 2026-09-30. TestRFC5072NoIPv6ServiceWhileIPv6CPShortOfOpened: both NCPs enabled, IPCP Opened, IPV6CP held in Ack-Rcvd; fails on EventSessionUp and now on either attempt log, 'IPv6 service start failed' or 'refusing to start the IPv6 service', the second being what afterLCPOpenIPv6Service logs in this scenario because the peer interface id is never negotiated. So an up gate keyed on any non-Initial IPV6CP state and an early service start both turn it red (recorded ncpsComplete revert). Single-polarity positive per the row marker; ncp_test.go TestIPv6ServiceStartsOnlyAfterIPv6CPOpened proves the service does start once IPV6CP Opens.",
+  "requirement_sha": "39050f2ad3f56b75",
+  "tests": {
+    "internal/component/l2tp/ppp/ncp_test.go::TestIPv6ServiceStartsOnlyAfterIPv6CPOpened": "99a68f4293234999",
+    "internal/component/l2tp/ppp/rfc5072_ipv6cp_opened_test.go::TestRFC5072NoIPv6ServiceWhileIPv6CPShortOfOpened": "4eae0d47d0d5b1c1"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/ncp_test.go::TestIPv6ServiceStartsOnlyAfterIPv6CPOpened": "9825a762c5a78560",
+    "internal/component/l2tp/ppp/rfc5072_ipv6cp_opened_test.go::TestRFC5072NoIPv6ServiceWhileIPv6CPShortOfOpened": "13665f5f871b6dd4"
+  },
+  "verdict": "enforced"
+}

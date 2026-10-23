@@ -1,0 +1,15 @@
+{
+  "note": "Revised by RFC 7606 Section 3(g): a duplicate MP_REACH_NLRI or MP_UNREACH_NLRI draws NOTIFICATION Malformed Attribute List; any other duplicate is discarded after the first. TestRFC4271UpdateMalformedAttributeList: duplicate MP_REACH_NLRI -> NOTIFICATION 3/1 read off the socket; duplicate COMMUNITY -> no NOTIFICATION, exactly one COMMUNITY left (negative). 2026-10-01 re-judge (BGP c9 judge, wrote none of these units): the MP_UNREACH clause is now tagged: TestSessionRFC7606DuplicateMPUnreachNotificationOnTheWire reads 3/1 off the wire for a duplicate MP_UNREACH_NLRI, and its fixture (ORIGIN, empty AS_PATH, two well-formed MP_UNREACH, no NLRI) records no other error, so only the duplicate check produces the reset (RFC7606-3.g-1 mutant B evidence). Dropping the mpUnreachCount operand now turns a tagged unit red. ValidateUpdateRFC7606AddPath breaks observed red for all three units.",
+  "requirement_sha": "3539db1d6a53507b",
+  "tests": {
+    "internal/component/bgp/reactor/rfc4271_session_update_error_test.go::TestRFC4271UpdateMalformedAttributeList": "94d61a2a18724b8b",
+    "internal/component/bgp/reactor/rfc4271_session_update_error_test.go::TestRFC4271UpdateMalformedAttributeList#2": "94d61a2a18724b8b",
+    "internal/component/bgp/reactor/session_dupmp_unreach_wire_test.go::TestSessionRFC7606DuplicateMPUnreachNotificationOnTheWire": "052daf09fdcc69d4"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc4271_session_update_error_test.go::TestRFC4271UpdateMalformedAttributeList": "9a1a00bcefb97b8d",
+    "internal/component/bgp/reactor/rfc4271_session_update_error_test.go::TestRFC4271UpdateMalformedAttributeList#2": "9a1a00bcefb97b8d",
+    "internal/component/bgp/reactor/session_dupmp_unreach_wire_test.go::TestSessionRFC7606DuplicateMPUnreachNotificationOnTheWire": "93d2242114ff07aa"
+  },
+  "verdict": "enforced"
+}

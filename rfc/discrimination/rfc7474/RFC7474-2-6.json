@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7474-2-6",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc7474_replay_test.go::TestRFC7474ReplayMarkPerNeighborAndType",
+    "unit-sha": "512f6eb8ec58c02d",
+    "claim-sha": "c6267d1af6418f9f",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/auth_keystore.go::verify",
+    "producer-sha": "bcff38bb08de4782",
+    "break": "body of verify replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7474-2-6",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/rfc7474_replay_test.go::TestRFC7474ReplayedPacketDropped",
+    "unit-sha": "a2b8d38175f5fd04",
+    "claim-sha": "17758daeae6261a0",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/auth_keystore.go::replayedSequence",
+    "producer-sha": "72fc611d0163d903",
+    "break": "body of replayedSequence replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

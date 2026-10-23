@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 3768 Section 7.1 says \"MUST verify that the Adver Interval in the packet is the same as the locally configured for this virtual router\". TestDecodeGoldenV2 lost only the assertion on the removed MsgOnlyChecksum flag, which carried no RFC 3768 content, and TestNegativeReferenceBugs gained the FillChecksum mode argument and an rfc5798-compatible lookup in N1 alone; verifyReceived returns before any mode is read for version 2, so the VRRPv2 decode under judgement is unchanged. The interval-mismatch cases still require ErrV2IntervalMismatch; the golden with the equal interval decodes. Verdict unchanged.",
+  "requirement_sha": "4bab7c6e2b8e5fca",
+  "tests": {
+    "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV2": "5bbc8ddba98cd418",
+    "internal/plugins/vrrp/packet/validate_test.go::TestDecodeV2IntervalMismatchDiscard": "5bbc8ddba98cd418",
+    "internal/plugins/vrrp/packet/validate_test.go::TestValidationOrder": "5bbc8ddba98cd418"
+  },
+  "units": {
+    "internal/plugins/vrrp/packet/validate_test.go::TestDecodeGoldenV2": "66859488ac05cf93",
+    "internal/plugins/vrrp/packet/validate_test.go::TestDecodeV2IntervalMismatchDiscard": "28338ba407008433",
+    "internal/plugins/vrrp/packet/validate_test.go::TestValidationOrder": "e9e509cbd07a9bdc"
+  },
+  "verdict": "enforced"
+}

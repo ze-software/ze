@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC2328-10.1-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/neighbor/rfc2328_dd_outstanding_test.go::TestRFC2328MasterHoldsOneOutstandingDD",
+    "unit-sha": "9cf66943ab310910",
+    "claim-sha": "0ff3937f588ae520",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/neighbor/dd.go::resendLastDDLocked",
+    "producer-sha": "1133b40076ec631e",
+    "break": "body of resendLastDDLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-10.1-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/neighbor/rfc2328_dd_outstanding_test.go::TestRFC2328MasterSendsNoSecondDDWithoutAck",
+    "unit-sha": "16c4fd132c01b0cb",
+    "claim-sha": "6feaa77033c229b1",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/neighbor/dd.go::handleExchangeDDLocked",
+    "producer-sha": "f5d98b4e63dbb9d2",
+    "break": "body of handleExchangeDDLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-10.1-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/neighbor/rfc2328_nsm_test.go::TestOSPFDDRetransmit",
+    "unit-sha": "8331efb8546145e0",
+    "claim-sha": "8fa2d918c514ab23",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/neighbor/dd.go::resendLastDDLocked",
+    "producer-sha": "1133b40076ec631e",
+    "break": "body of resendLastDDLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-10.1-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/neighbor/rfc2328_nsm_test.go::TestOSPFDuplicateDD",
+    "unit-sha": "b98cba726fbe8d9c",
+    "claim-sha": "13840515c0df6aac",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/neighbor/dd.go::resendLastDDLocked",
+    "producer-sha": "1133b40076ec631e",
+    "break": "body of resendLastDDLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: acknowledging, or sending the database copy back for, an LSA received while the database copy is MaxAge at MaxSequenceNumber. Red: TestOSPFMaxSeqMaxAgeSilentDiscard installs a MaxSequenceNumber copy aged to MaxAge, receives an older instance, flushes delayed acks, and fails on any send. Other polarity: TestRFC2328OlderInstanceGetsDatabaseCopyBack fails if an ordinary more-recent copy is not sent back to the sender (so a blanket silent discard goes red). One clause, both polarities.",
+  "requirement_sha": "81117094d2c8ebbc",
+  "tests": {
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_edges_test.go::TestOSPFMaxSeqMaxAgeSilentDiscard": "6896ce74509062b9",
+    "internal/plugins/ospf/lsdb/rfc2328_test.go::TestRFC2328OlderInstanceGetsDatabaseCopyBack": "6242f112e5a452b3"
+  },
+  "units": {
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_edges_test.go::TestOSPFMaxSeqMaxAgeSilentDiscard": "d30def248d201f20",
+    "internal/plugins/ospf/lsdb/rfc2328_test.go::TestRFC2328OlderInstanceGetsDatabaseCopyBack": "846d82d2765e89f7"
+  },
+  "verdict": "enforced"
+}

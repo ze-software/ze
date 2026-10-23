@@ -1,0 +1,13 @@
+{
+  "note": "TestRFC4035_CDCopiedADIgnored drives the real dnsserver.Authoritative harness: a CD=1 query must draw CD=1 and a CD=0 query CD=0, so both an always-clear and an always-set implementation go red",
+  "requirement_sha": "d947500f23fcd56a",
+  "tests": {
+    "internal/core/dnsserver/rfc4035_test.go::TestRFC4035_CDCopiedADIgnored": "e0aef88c57572c95",
+    "internal/core/dnsserver/rfc4035_test.go::TestRFC4035_CDCopiedADIgnored#2": "e0aef88c57572c95"
+  },
+  "units": {
+    "internal/core/dnsserver/rfc4035_test.go::TestRFC4035_CDCopiedADIgnored": "f3e7e9b65d506bb7",
+    "internal/core/dnsserver/rfc4035_test.go::TestRFC4035_CDCopiedADIgnored#2": "f3e7e9b65d506bb7"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: a virtual link using anything but one of this router's own global IPv6 addresses as its IP interface address. TestV6VirtualEndpointResolvesGlobalAddress asserts v6ResolveVirtualEndpointLocked returns this router's global 2001:db8:1::1 as source (red on another address); TestRFC5340VirtualLinkRefusesLocalLinkLocalInterfaceAddress asserts that with only fe80::1 advertised the endpoint does not resolve (red if a link-local is adopted). The 'almost always a link-local' sentence is descriptive and states no obligation.",
+  "requirement_sha": "33ccc5dc8f9017e6",
+  "tests": {
+    "internal/plugins/ospf/rfc5340_vlink_test.go::TestRFC5340VirtualLinkRefusesLocalLinkLocalInterfaceAddress": "a73f6782c488d1ff",
+    "internal/plugins/ospf/virtual_link_test.go::TestV6VirtualEndpointResolvesGlobalAddress": "571c66c643c8a516"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc5340_vlink_test.go::TestRFC5340VirtualLinkRefusesLocalLinkLocalInterfaceAddress": "553aad12b7800b77",
+    "internal/plugins/ospf/virtual_link_test.go::TestV6VirtualEndpointResolvesGlobalAddress": "8b9d91c00b1ded66"
+  },
+  "verdict": "enforced"
+}

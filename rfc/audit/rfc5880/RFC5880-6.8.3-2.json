@@ -1,0 +1,18 @@
+{
+  "code": {},
+  "note": "Judge rejudge 2026-09-30 (bfd session+engine continuation). Each clause alone: TestRFC5880PollInitiatedForEachIntervalAlone (TX alone on the move to Up, RX alone by the echo slow-down) and the Down-entry case now fixed in onStateChange: TestRFC5880PollInitiatedWhenDownEntryRaisesDesiredMinTx sets PollOutstanding when leaving Up raises bfd.DesiredMinTxInterval to 1 s. The Poll is set after the Down-entry reset, so it survives; it rides periodic packets only (6.5-2), a Passive session with no RemoteDiscr sends none, and Build/BuildFinal never set P and F together. Negative NoPollWhenIntervalsUnchanged. Mutants || -> && and the new != -> == observed red. AdminEnable leaves the floor unchanged, so no Poll is owed there.",
+  "requirement_sha": "ea90417e5c24bf04",
+  "tests": {
+    "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880PollInitiatedForEachIntervalAlone": "73ca576e23cbd659",
+    "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880PollInitiatedWhenDownEntryRaisesDesiredMinTx": "73ca576e23cbd659",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880NoPollWhenIntervalsUnchanged": "8db25cbb4534cc2d",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PollInitiatedOnIntervalChange": "8db25cbb4534cc2d"
+  },
+  "units": {
+    "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880PollInitiatedForEachIntervalAlone": "26a54d966b13b4a6",
+    "internal/component/bfd/session/rfc5880_session_clauses_test.go::TestRFC5880PollInitiatedWhenDownEntryRaisesDesiredMinTx": "efeb27d0b9ebe31a",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880NoPollWhenIntervalsUnchanged": "521e648cbe70d5d8",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880PollInitiatedOnIntervalChange": "ad84cf1942f9600c"
+  },
+  "verdict": "enforced"
+}

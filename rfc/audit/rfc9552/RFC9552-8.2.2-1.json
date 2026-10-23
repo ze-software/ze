@@ -1,0 +1,17 @@
+{
+  "note": "D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV->WriteTLV and field-export renames (TLV code constants verified unchanged). RFC 9552 Section 8.2.2: \"A Link-State NLRI MUST NOT be considered malformed or invalid based on the inclusion/exclusion of TLVs or contents of the TLV fields (i.e., semantic errors), as described in Sections 5.1 and 5.2.\" Session-path proof: reactor rfc9552_semantic_test units (unchanged). Core decoder units moved verbatim (identical bodies, local copies of buildAttrTLV and unknownAttrTLVType 0x7FFF): Private-Use Protocol-ID 200 with no IGP Router-ID and an unknown sub-TLV parses and re-emits byte-identically; Total-Length overrun, short body and sub-TLV overrun return ErrBGPLSTruncated.",
+  "requirement_sha": "96ed01c19d6a354d",
+  "tests": {
+    "internal/component/bgp/reactor/rfc9552_semantic_test.go::TestRFC9552LinkStateNLRIFramingTwinsAreDiscarded": "6f2a8b2f884bcadc",
+    "internal/component/bgp/reactor/rfc9552_semantic_test.go::TestRFC9552LinkStateNLRISemanticErrorsAreNotMalformed": "6f2a8b2f884bcadc",
+    "internal/core/bgp/nlri/bgpls/rfc9552_test.go::TestRFC9552NLRIContentsNeverMakeItMalformed": "4cefb336b005cdaf",
+    "internal/core/bgp/nlri/bgpls/rfc9552_test.go::TestRFC9552NLRIFramingErrorsRejected": "4cefb336b005cdaf"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc9552_semantic_test.go::TestRFC9552LinkStateNLRIFramingTwinsAreDiscarded": "6a24ff75de55e526",
+    "internal/component/bgp/reactor/rfc9552_semantic_test.go::TestRFC9552LinkStateNLRISemanticErrorsAreNotMalformed": "7b63f6a5431ada7e",
+    "internal/core/bgp/nlri/bgpls/rfc9552_test.go::TestRFC9552NLRIContentsNeverMakeItMalformed": "2c5bdd2c21ad18f5",
+    "internal/core/bgp/nlri/bgpls/rfc9552_test.go::TestRFC9552NLRIFramingErrorsRejected": "a22a1f8f9435e7a7"
+  },
+  "verdict": "enforced"
+}

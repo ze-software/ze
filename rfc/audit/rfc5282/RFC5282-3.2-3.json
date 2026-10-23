@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: not supporting AES CCM ICVs of 8 and 16. Red: TestRFC5282CCMSupportsTheEightAndSixteenOctetICV establishes under CCM8 and CCM16, measures the ICV (t.Errorf on mismatch) and expectOneDelete; TestRFC5282CCMVerifiesTheEightAndSixteenOctetICV refuses a flipped ICV bit and a flipped ciphertext bit at each size.",
+  "requirement_sha": "e0684f005d92b996",
+  "tests": {
+    "internal/component/ike/engine/rfc5282_ccm_sk_test.go::TestRFC5282CCMSupportsTheEightAndSixteenOctetICV": "84917bde426d454e",
+    "internal/component/ike/engine/rfc5282_ccm_sk_test.go::TestRFC5282CCMVerifiesTheEightAndSixteenOctetICV": "84917bde426d454e"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc5282_ccm_sk_test.go::TestRFC5282CCMSupportsTheEightAndSixteenOctetICV": "9f746d2d1eeb8836",
+    "internal/component/ike/engine/rfc5282_ccm_sk_test.go::TestRFC5282CCMVerifiesTheEightAndSixteenOctetICV": "d4e5f24e2b69761e"
+  },
+  "verdict": "enforced"
+}

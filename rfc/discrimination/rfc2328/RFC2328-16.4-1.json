@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC2328-16.4-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/spf/rfc2328_external_test.go::TestOSPFExternalE1PreferredOverE2",
+    "unit-sha": "6f63f5de41e575b1",
+    "claim-sha": "3b03d3d95c4102eb",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/spf/external.go::betterExternal",
+    "producer-sha": "a128608cd14ba2dd",
+    "break": "body of betterExternal replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-16.4-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/spf/rfc2328_path_preference_test.go::TestRFC2328LowerPreferencePathRefused",
+    "unit-sha": "43ab6f160a2bd33a",
+    "claim-sha": "f492cdcd42383fcd",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/spf/external.go::betterExternal",
+    "producer-sha": "a128608cd14ba2dd",
+    "break": "body of betterExternal replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-16.4-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/spf/rfc2328_path_preference_test.go::TestRFC2328PreferredPathTypeSelected",
+    "unit-sha": "b82b21d968bd6a1b",
+    "claim-sha": "068a3fad0af31ba5",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/spf/route.go::routeTypeRank",
+    "producer-sha": "e0ac255bef6fe242",
+    "break": "body of routeTypeRank replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2328-16.4-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/spf/rfc2328_route_test.go::TestOSPFRouteTablePreference",
+    "unit-sha": "e5bc9dce07c0512d",
+    "claim-sha": "6868f9b9937f03cd",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/spf/route.go::routeTypeRank",
+    "producer-sha": "e0ac255bef6fe242",
+    "break": "body of routeTypeRank replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

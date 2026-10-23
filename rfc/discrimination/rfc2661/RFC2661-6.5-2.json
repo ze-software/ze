@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC2661-6.5-2",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/rfc2661_message_test.go::TestRFC2661HelloShape",
+    "unit-sha": "f33cddd348948804",
+    "claim-sha": "47da7b135a1827d5",
+    "route": "revert",
+    "producer": "internal/component/l2tp/tunnel_fsm.go::handleHelloTimer",
+    "producer-sha": "0b3fcce0b237fa19",
+    "break": "body of handleHelloTimer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,11 @@
+{
+  "note": "Forbidden: SRv6 SID Descriptors with zero or several SID Information TLVs. TestRFC9514NativeSRv6Advertisements require.Equal(t, [][]byte{sid[:]}, exportTLVValues(..., 518)) goes red on none or two; the row carries a {single-polarity} marker because the encoder writes one field.",
+  "requirement_sha": "b6b4ea2ecd2e864c",
+  "tests": {
+    "internal/component/bgp/plugins/ls_export/rfc9514_export_test.go::TestRFC9514NativeSRv6Advertisements": "7d3a493ffb46e118"
+  },
+  "units": {
+    "internal/component/bgp/plugins/ls_export/rfc9514_export_test.go::TestRFC9514NativeSRv6Advertisements": "9bca9688843c8998"
+  },
+  "verdict": "enforced"
+}

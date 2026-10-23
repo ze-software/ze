@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged 2026-10-21 (round 5 judge). New TestRFC2328SlaveAcceptsAndAnswersNextDDInExchange: in Exchange the master's DD 100 after 99 is accepted (reason empty), the slave stores sequence 100 and stays in Exchange; negative DD 101 after 99 is SeqNumberMismatch to ExStart. Records on handleExchangeDDLocked for both.",
+  "requirement_sha": "d56b266b26c7f03c",
+  "tests": {
+    "internal/plugins/ospf/neighbor/rfc2328_dd_slave_next_test.go::TestRFC2328SlaveAcceptsAndAnswersNextDDInExchange": "fe08f8f39580a5ba",
+    "internal/plugins/ospf/neighbor/rfc2328_dd_slave_test.go::TestRFC2328SlaveRefusesOutOfSequenceDD": "e5e68f42c963f76a",
+    "internal/plugins/ospf/neighbor/rfc2328_dd_slave_test.go::TestRFC2328SlaveRepliesAndRepeatsOnDuplicate": "e5e68f42c963f76a"
+  },
+  "units": {
+    "internal/plugins/ospf/neighbor/rfc2328_dd_slave_next_test.go::TestRFC2328SlaveAcceptsAndAnswersNextDDInExchange": "fa4660fa8c1f59c1",
+    "internal/plugins/ospf/neighbor/rfc2328_dd_slave_test.go::TestRFC2328SlaveRefusesOutOfSequenceDD": "17da72bb29c87f94",
+    "internal/plugins/ospf/neighbor/rfc2328_dd_slave_test.go::TestRFC2328SlaveRepliesAndRepeatsOnDuplicate": "ac11cfa295d3b810"
+  },
+  "verdict": "enforced"
+}

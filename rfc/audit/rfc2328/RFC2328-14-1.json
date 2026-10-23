@@ -1,0 +1,15 @@
+{
+  "note": "Forbidden: (a) LS age incremented past MaxAge: TestLSAgeAddSaturates fails unless MaxAge-10 plus 20 equals MaxAge exactly, and TestOSPFLSDBAgeToPurge fails unless the aged LSA sits at MaxAge; (b) a MaxAge LSA used in the routing calculation: TestOSPFGraphSkipsMaxAge fails if BuildGraph makes a router vertex of a MaxAge router-LSA. The fixture is isolated: BuildGraph (graph.go) turns a decodable non-MaxAge router-LSA into a vertex with no other filter, so only the age check can exclude it. Positive: age advances and saturation leaves DoNotAge untouched.",
+  "requirement_sha": "0dbf6790df1d44a1",
+  "tests": {
+    "internal/plugins/ospf/lsdb/rfc2328_aging_test.go::TestOSPFLSDBAgeToPurge": "1049c439d6042101",
+    "internal/plugins/ospf/spf/rfc2328_graph_test.go::TestOSPFGraphSkipsMaxAge": "5ca0737a9ae07b03",
+    "internal/plugins/ospf/types/rfc2328_lsage_test.go::TestLSAgeAddSaturates": "47132f4a0db74409"
+  },
+  "units": {
+    "internal/plugins/ospf/lsdb/rfc2328_aging_test.go::TestOSPFLSDBAgeToPurge": "595f33e6995b88bf",
+    "internal/plugins/ospf/spf/rfc2328_graph_test.go::TestOSPFGraphSkipsMaxAge": "22b6b9170e8c63a9",
+    "internal/plugins/ospf/types/rfc2328_lsage_test.go::TestLSAgeAddSaturates": "dee829dad96802ab"
+  },
+  "verdict": "enforced"
+}

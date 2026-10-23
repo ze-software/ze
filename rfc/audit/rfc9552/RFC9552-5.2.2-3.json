@@ -1,0 +1,13 @@
+{
+  "note": "negative asserts link-local 169.254/fe80 addresses absent from 259-262 (exact single global values), and a link-local-only link carries none of 259-262; positive pins the global addresses once each",
+  "requirement_sha": "6ce3d136fd1b6463",
+  "tests": {
+    "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeLinkDescriptorComplements": "de280b1c094e08d4",
+    "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeLinkIdentitySelection": "6886dddcc0644d09"
+  },
+  "units": {
+    "internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go::TestRFC9552NativeLinkDescriptorComplements": "bf450ecfa02bf986",
+    "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeLinkIdentitySelection": "89eb839fce655230"
+  },
+  "verdict": "enforced"
+}

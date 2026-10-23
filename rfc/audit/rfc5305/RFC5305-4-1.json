@@ -1,0 +1,17 @@
+{
+  "note": "\u00a74 excludes a prefix 'advertised with a metric larger then MAX_PATH_METRIC'. spf TestRFC5305PrefixAboveMaxPathMetricNotConsidered drives BuildRoutes: node 3 (distance 10) advertises 10.9.0.0/24 at 50 (positive, installed at 60 via node 3 alone); node 2 (distance 10) advertises the same prefix at 0xFE000001 and 10.8.0.0/24 only at 0xFFFFFFFF (negative, strictly larger than MAX_PATH_METRIC): one next hop at 60 and the lone prefix absent. The path ceiling in route.go (total >= MaxPathMetric after clampMetric) is the guard; recorded +/- on BuildRoutes. Closure rejudge 2026-10-02: TestISISMetricWidth's positive claim was narrowed to what its body asserts (node B at edge 10 stays in the Compute result while its over-ceiling prefix drops; 'installable' dropped) and re-recorded on spf.go::Compute; its negative (prefix at exactly MAX_PATH_METRIC absent from BuildRoutes) keeps its record on BuildRoutes.",
+  "requirement_sha": "b981ef464b036da5",
+  "tests": {
+    "internal/plugins/isis/spf/rfc5305_max_metric_order_test.go::TestRFC5305PrefixAboveMaxPathMetricNotConsidered": "f8fc7ede978a8548",
+    "internal/plugins/isis/spf/rfc5305_max_metric_order_test.go::TestRFC5305PrefixAboveMaxPathMetricNotConsidered#2": "f8fc7ede978a8548",
+    "internal/plugins/isis/spf/spf_test.go::TestISISMetricWidth": "8ac1834d7b1eafca",
+    "internal/plugins/isis/spf/spf_test.go::TestISISMetricWidth#2": "8ac1834d7b1eafca"
+  },
+  "units": {
+    "internal/plugins/isis/spf/rfc5305_max_metric_order_test.go::TestRFC5305PrefixAboveMaxPathMetricNotConsidered": "0d40e6d1b6ee1eca",
+    "internal/plugins/isis/spf/rfc5305_max_metric_order_test.go::TestRFC5305PrefixAboveMaxPathMetricNotConsidered#2": "0d40e6d1b6ee1eca",
+    "internal/plugins/isis/spf/spf_test.go::TestISISMetricWidth": "fb0db267776a29fe",
+    "internal/plugins/isis/spf/spf_test.go::TestISISMetricWidth#2": "fb0db267776a29fe"
+  },
+  "verdict": "enforced"
+}

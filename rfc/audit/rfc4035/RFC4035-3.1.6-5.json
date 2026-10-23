@@ -1,0 +1,11 @@
+{
+  "note": "single polarity: no configuration marks local data authentic, and the unit asserts AD clear on the geodns replies whatever the query's DO bit",
+  "requirement_sha": "a0d7174c32f4dbbf",
+  "tests": {
+    "internal/plugins/geodns/rfc4035_server_test.go::TestRFC4035_NoDNSSECAdditionalProcessing": "0d5a4b0eaf3ac272"
+  },
+  "units": {
+    "internal/plugins/geodns/rfc4035_server_test.go::TestRFC4035_NoDNSSECAdditionalProcessing": "999305cf4ef4fff2"
+  },
+  "verdict": "enforced"
+}

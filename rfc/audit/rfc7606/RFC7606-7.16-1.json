@@ -1,0 +1,27 @@
+{
+  "note": "Re-judged 2026-10-19 (independent auditor). Section 7.16: \"An UPDATE message with a malformed ATTR_SET attribute SHALL be handled using the approach of \"treat as withdraw\".\" TestRFC7606AttrSetMalformedInnerAttributes: The only change to this unit since the last judgement (ca4eae70a0) is the new sixth argument of ValidateUpdateRFC7606AddPath, passed as false (no capability 77), which skips the draft-ietf-idr-linklocal-capability Section 6 branch; no input byte or assertion changed, and the unit passes at HEAD. Its cases still assert exact TreatAsWithdraw with AttrCode 128 for a 2-octet inner AGGREGATOR, an inner ORIGIN flag conflict and an inner NEXT_HOP framing overrun, and exact None for the 4-octet AGGREGATOR, correct ORIGIN, 4-octet AS_PATH (an AS_SEQUENCE, so the new RFC 9774 scan does not fire), unknown optional and framed NEXT_HOP, under both outer ASN widths. Other carriers unchanged. Observation outside this row: inner attributes are judged through validateAttribute, so an AS_SET inside an ATTR_SET's inner AS_PATH now makes the ATTR_SET malformed by way of RFC 9774; no test pins that reading either way. The negative's revert record is unit-changed and owes re-recording.",
+  "requirement_sha": "c180e7caa79c8016",
+  "tests": {
+    "internal/component/bgp/message/rfc7606_attribute_envelope_test.go::TestRFC7606AttrSetMalformedInnerAttributes": "98c95aaab9c010a7",
+    "internal/component/bgp/message/rfc7606_attrset_context_test.go::TestRFC7606AttrSetInnerASPathAlwaysFourOctet": "053cce249609d233",
+    "internal/component/bgp/message/rfc7606_attrset_context_test.go::TestRFC7606AttrSetInnerIBGPAttributesOnEBGPSession": "053cce249609d233",
+    "internal/component/bgp/message/rfc7606_attrset_context_test.go::TestRFC7606AttrSetInnerMalformedStillWithdraws": "053cce249609d233",
+    "internal/component/bgp/message/rfc7606_attrset_context_test.go::TestRFC7606AttrSetNestingCapBoundary": "053cce249609d233",
+    "internal/component/bgp/message/rfc7606_attrset_discard_test.go::TestRFC7606AttrSetInnerDiscardWithdraws": "8b59a4562fb19501",
+    "internal/component/bgp/message/rfc7606_optional_attrs_test.go::TestRFC7606AttrSetMalformed": "abce9f66859f2e88",
+    "internal/component/bgp/message/rfc7606_optional_attrs_test.go::TestRFC7606AttrSetValid": "abce9f66859f2e88",
+    "internal/component/bgp/reactor/rfc7606_attribute_envelope_test.go::TestRFC7606AttributeEnvelopeSession": "7f12ec998cbec524"
+  },
+  "units": {
+    "internal/component/bgp/message/rfc7606_attribute_envelope_test.go::TestRFC7606AttrSetMalformedInnerAttributes": "1cf965177d3d291f",
+    "internal/component/bgp/message/rfc7606_attrset_context_test.go::TestRFC7606AttrSetInnerASPathAlwaysFourOctet": "01f1fa6935946336",
+    "internal/component/bgp/message/rfc7606_attrset_context_test.go::TestRFC7606AttrSetInnerIBGPAttributesOnEBGPSession": "44cec5f69a520c4e",
+    "internal/component/bgp/message/rfc7606_attrset_context_test.go::TestRFC7606AttrSetInnerMalformedStillWithdraws": "3c5c13980e9b5a47",
+    "internal/component/bgp/message/rfc7606_attrset_context_test.go::TestRFC7606AttrSetNestingCapBoundary": "63482db5b5d6c56b",
+    "internal/component/bgp/message/rfc7606_attrset_discard_test.go::TestRFC7606AttrSetInnerDiscardWithdraws": "1c246011fae7eaf8",
+    "internal/component/bgp/message/rfc7606_optional_attrs_test.go::TestRFC7606AttrSetMalformed": "95483890906ca283",
+    "internal/component/bgp/message/rfc7606_optional_attrs_test.go::TestRFC7606AttrSetValid": "4a302f229df88e89",
+    "internal/component/bgp/reactor/rfc7606_attribute_envelope_test.go::TestRFC7606AttributeEnvelopeSession": "008145acee126508"
+  },
+  "verdict": "enforced"
+}

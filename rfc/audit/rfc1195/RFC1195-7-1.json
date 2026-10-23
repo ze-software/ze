@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-09-27 by TOOL-4 after the row's citation moved from \u00a78 to \u00a7B.1, the annex subsection the heading reader now reads; the text and the tagged units are unchanged since QF-2 judged them the same day, so QF-2's reading stands. Forbidden: SNP entries in any order but ascending LSPID with the LSP number least significant. TestRFC1195CSNPEntriesAscending asserts the exact order [20.0, 20.1, 30.0, 40.0] from reverse inserts; TestRFC1195PSNPEntriesAscendingAcrossLists asserts [request, ack-only, ack] where list order would be (30, 10, 20). Enforced.",
+  "requirement_sha": "6ca8364421f0d147",
+  "tests": {
+    "internal/plugins/isis/lsdb/rfc1195_snp_test.go::TestRFC1195CSNPEntriesAscending": "08a14861e0215f6f",
+    "internal/plugins/isis/lsdb/rfc1195_snp_test.go::TestRFC1195PSNPEntriesAscendingAcrossLists": "08a14861e0215f6f"
+  },
+  "units": {
+    "internal/plugins/isis/lsdb/rfc1195_snp_test.go::TestRFC1195CSNPEntriesAscending": "60323d5913370fbc",
+    "internal/plugins/isis/lsdb/rfc1195_snp_test.go::TestRFC1195PSNPEntriesAscendingAcrossLists": "ad899479ec69540d"
+  },
+  "verdict": "enforced"
+}

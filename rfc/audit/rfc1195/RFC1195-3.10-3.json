@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: a reachability entry used with no default metric. The default metric octet has no S (unsupported) bit in the 12-octet TLV 128/130 layout, so an entry lacking it can only arrive as a short entry, and the length refusal is this rule's own refusal. TestRFC1195InternalEntryWithoutDefaultMetricRefused asserts DecodeNarrowIPReachTLV returns ErrLength for the entry with its first octet removed while the complete entry decodes with metric 9, and the full LSDB/SPF path keeps the competing route (3 then 2,160); a floor(len/12) decoder goes red. Positive TestRFC1195RouteForEachReachabilityEntry: SPF uses each entry's own default metric. Both units carry observed-red revert records.",
+  "requirement_sha": "740c15f229932bfa",
+  "tests": {
+    "internal/plugins/isis/rfc1195_selection_test.go::TestRFC1195InternalEntryWithoutDefaultMetricRefused": "1ef6f2102a068439",
+    "internal/plugins/isis/spf/rfc1195_route_test.go::TestRFC1195RouteForEachReachabilityEntry": "21a45be2072f321b"
+  },
+  "units": {
+    "internal/plugins/isis/rfc1195_selection_test.go::TestRFC1195InternalEntryWithoutDefaultMetricRefused": "b840ecf0988c9b99",
+    "internal/plugins/isis/spf/rfc1195_route_test.go::TestRFC1195RouteForEachReachabilityEntry": "f7decd0ad0b73b2b"
+  },
+  "verdict": "enforced"
+}

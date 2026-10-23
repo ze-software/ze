@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-10-12 (independent auditor). SHIFTED by 6e063fb498 (tests: give ten assert-nothing tests a real assertion), whose hunks sit in untagged sibling tests and the import block. The tagged unit is byte-identical (gate-verified) and no helper it calls changed. Verdict stands. Both steps proven on the real wire path: TestRFC2328DiscardedLSAThenNextLSAProcessed encodes one LS Update (bad-checksum LSA, or LS type 6 with a valid Fletcher, then a good router-LSA) and dispatches it through the engine from an Exchange neighbor; the bad LSA is neither stored nor acknowledged and the next is installed and acknowledged. Red against the pre-fix producers (ReceiveUpdate returned on the first bad checksum; DecodeLSUpdate failed the whole packet on an unknown type). D-8 fix read at the producer: LSAIterator.Next advances at least 20 octets per pass and a truncated or short Length still ends the packet with an error (fuzzed 20 s each, iterator and DecodePacket); skipped LSAs count against # LSAs. The DecodeLSReq unit lost its 13-1 tag (LS Request decoder, D-15).",
+  "requirement_sha": "777287c8db2b74df",
+  "tests": {
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFFloodOutOtherInterfaces": "818da1eec578ea28",
+    "internal/plugins/ospf/lsdb/rfc2328_test.go::TestRFC2328BadLSChecksumDiscarded": "6242f112e5a452b3",
+    "internal/plugins/ospf/rfc2328_lsupdate_discard_next_test.go::TestRFC2328DiscardedLSAThenNextLSAProcessed": "26f4f0cd9038b198",
+    "internal/plugins/ospf/rfc2328_lsupdate_discard_next_test.go::TestRFC2328DiscardedLSAThenNextLSAProcessed#2": "26f4f0cd9038b198"
+  },
+  "units": {
+    "internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go::TestOSPFFloodOutOtherInterfaces": "b4dc922a664c2c10",
+    "internal/plugins/ospf/lsdb/rfc2328_test.go::TestRFC2328BadLSChecksumDiscarded": "4590a0976cf127c3",
+    "internal/plugins/ospf/rfc2328_lsupdate_discard_next_test.go::TestRFC2328DiscardedLSAThenNextLSAProcessed": "fa74463d58b67307",
+    "internal/plugins/ospf/rfc2328_lsupdate_discard_next_test.go::TestRFC2328DiscardedLSAThenNextLSAProcessed#2": "fa74463d58b67307"
+  },
+  "verdict": "enforced"
+}

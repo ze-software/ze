@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC4555-3.6-3",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/mobike_test.go::TestMobikeUpdateCarriesItsAddressList",
+    "unit-sha": "b86d4c06197429c9",
+    "claim-sha": "09cb9d2f8a9734d5",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/mobike.go::startMobikeRequest",
+    "producer-sha": "9666527bf71c7036",
+    "break": "body of startMobikeRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

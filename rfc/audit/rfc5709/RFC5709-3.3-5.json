@@ -1,0 +1,13 @@
+{
+  "note": "Judged 2026-10-21 over current tags, units and records. Quote verified in RFC 5709 Section 3.3 ('Apad is the hexadecimal value 0x878FE1F3 repeated (L/4) times'), split from the Apad fill obligation of 3.3-1. The positive requires the signed trailer to equal a digest built independently with that literal Apad for every L. The negative refuses a digest made over a zero-filled trailer. Both records are on apad.",
+  "requirement_sha": "88b6ceca348b1f96",
+  "tests": {
+    "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto": "b1f49f5bb6bbafb8",
+    "internal/plugins/ospf/packet/auth_verify_test.go::TestRFC5709ReceiveRejectsWrongHashConstruction": "b1f49f5bb6bbafb8"
+  },
+  "units": {
+    "internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthSignVerifyCrypto": "9c236b088b570005",
+    "internal/plugins/ospf/packet/auth_verify_test.go::TestRFC5709ReceiveRejectsWrongHashConstruction": "688889f7f51aee26"
+  },
+  "verdict": "enforced"
+}

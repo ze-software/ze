@@ -1,0 +1,13 @@
+{
+  "note": "Judged 2026-10-21 over current tags, units and records. Stale only from the added 3.2-15/3.3-10 tags; type 8 is registered at area scope and absent from AS and link scope.",
+  "requirement_sha": "4214c177e8017624",
+  "tests": {
+    "internal/plugins/ospf/rfc8665_test.go::TestRFC8665SRCapabilityTLVsAbsentFromOtherScopes": "7f2eeb6dac97643c",
+    "internal/plugins/ospf/rfc8665_test.go::TestRFC8665SRCapabilityTLVsAreAreaScoped": "7f2eeb6dac97643c"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc8665_test.go::TestRFC8665SRCapabilityTLVsAbsentFromOtherScopes": "4b5864b34ec78fa4",
+    "internal/plugins/ospf/rfc8665_test.go::TestRFC8665SRCapabilityTLVsAreAreaScoped": "ec7fab55d9818e23"
+  },
+  "verdict": "enforced"
+}

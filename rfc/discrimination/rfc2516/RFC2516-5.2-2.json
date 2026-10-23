@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC2516-5.2-2",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516PADOCarriesACNameAndServiceNames",
+    "unit-sha": "71cde4293e431219",
+    "claim-sha": "7b20f5675c162e17",
+    "route": "revert",
+    "producer": "internal/component/l2tp/pppoe/discovery.go::BuildPADO",
+    "producer-sha": "7a22cb254e8c485f",
+    "break": "body of BuildPADO replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2516-5.2-2",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestPADOAlwaysCarriesServiceName",
+    "unit-sha": "c1701d3beda7b6b1",
+    "claim-sha": "d8ba136cc57c6128",
+    "route": "revert",
+    "producer": "internal/component/l2tp/pppoe/discovery.go::BuildPADO",
+    "producer-sha": "7a22cb254e8c485f",
+    "break": "body of BuildPADO replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2516-5.2-2",
+    "polarity": "negative",
+    "unit": "internal/component/l2tp/pppoe/rfc2516_discovery_test.go::TestPADOAlwaysCarriesServiceName",
+    "unit-sha": "c1701d3beda7b6b1",
+    "claim-sha": "f7963283299f32e8",
+    "route": "revert",
+    "producer": "internal/component/l2tp/pppoe/discovery.go::BuildPADO",
+    "producer-sha": "7a22cb254e8c485f",
+    "break": "body of BuildPADO replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

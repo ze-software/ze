@@ -1,0 +1,15 @@
+{
+  "code": {
+    "internal/component/ike/dataplane/vpp_policy.go::vppPolicyInterface": "00554018ad645f31",
+    "internal/component/ike/engine/apply.go::applyConfig": "1be52383b6228a02",
+    "internal/component/ike/engine/apply.go::releaseSPD": "37cfdc7d5aa7000d",
+    "internal/component/ike/engine/apply.go::shutdown": "5cc3dbd36e0e32bf",
+    "internal/component/ike/engine/spd_left.go::warnSPDLeft": "e6ee24d12929d61c",
+    "internal/component/ike/engine/unmatched.go::installUnmatched": "260cadeb5e35be57",
+    "internal/component/ike/engine/unmatched.go::verifyUnmatchedEnforceable": "6aec367cbfc81f98",
+    "internal/plugins/ospf/ipsec_install.go::defaultDataplaneSource": "f1afcc7c5c0fb959"
+  },
+  "note": "Re-judged 2026-10-20 (independent judge, after d6e44c3bb1). Section 5.2 step 3b: \"(No SAs are created in response to receipt of a packet that requires IPsec protection; only BYPASS or DISCARD cache entries can be created this way.) If there is no match, discard the traffic.\" Same producer walk as RFC4301-5.2-1. The only cited producer that moved is warnSPDLeft: d6e44c3bb1 changed its warning text alone (exact `ip xfrm policy delete` command per leftover entry); it still returns true iff the ledger is non-empty and releaseSPD still keeps the catch-all then. The unmatched-traffic paths are unchanged: VPP runs only under `unmatched bypass` with no catch-all (vppPolicyInterface, ErrNoNodeWideSPD), and the OSPFv3 RFC 4552 manual-key entries (defaultDataplaneSource) have no catch-all, so traffic matching no entry there is delivered, not discarded. Named tests pass at HEAD (TestReleaseSPDKeepsTheCatchAllWhenARemovalFails, TestRFC4301FinalEntryIsUnderEveryZeSPDEntry, TestRunInstallsNoSPDEntryBeforeTheFirstApply, TestUnmatched*). Gap stands; {gap} annotation accurate.",
+  "requirement_sha": "85de5f441399996b",
+  "verdict": "unimplemented"
+}

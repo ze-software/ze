@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-10-01 (c10 judge). The operator entry point is now exercised: TestRFC4271HoldTimeConfiguredPerPeerFromConfig parses two peer trees through parsePeerFromTree with `timer { receive-hold-time }` 30 and 240 and each NewSession's HoldTimer holds its own value; negative TestRFC4271HoldTimeUnconfiguredPeerKeepsTheDefault: a third peer with no timer container keeps DefaultReceiveHoldTime (guarded against equalling a configured value) and `receive-hold-time 2` is refused. Both records observed red on parsePeerFromTree. HEAD PeerSettings-level units stay supplementary (timers + negotiation).",
+  "requirement_sha": "8424ebc5318e0c09",
+  "tests": {
+    "internal/component/bgp/reactor/rfc4271_hold_time_config_test.go::TestRFC4271HoldTimeConfiguredPerPeerFromConfig": "38282f2e0ee2bbfa",
+    "internal/component/bgp/reactor/rfc4271_hold_time_config_test.go::TestRFC4271HoldTimeUnconfiguredPeerKeepsTheDefault": "38282f2e0ee2bbfa",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldTimeConfigurablePerPeer": "94aa07ebd53dcc5b",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271PerPeerHoldTimeSurvivesNegotiation": "94aa07ebd53dcc5b"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc4271_hold_time_config_test.go::TestRFC4271HoldTimeConfiguredPerPeerFromConfig": "d4263f469fe08add",
+    "internal/component/bgp/reactor/rfc4271_hold_time_config_test.go::TestRFC4271HoldTimeUnconfiguredPeerKeepsTheDefault": "c7b210df52cf8f62",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271HoldTimeConfigurablePerPeer": "033dcddf0f0a69da",
+    "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271PerPeerHoldTimeSurvivesNegotiation": "3c48e89ba3d21a34"
+  },
+  "verdict": "enforced"
+}

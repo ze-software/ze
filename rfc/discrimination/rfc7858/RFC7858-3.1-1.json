@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7858-3.1-1",
+    "polarity": "positive",
+    "unit": "internal/core/dnsserver/secure_test.go::TestDefaultSecureConfig",
+    "unit-sha": "df1ec88a1cc07aea",
+    "claim-sha": "7f98052a80a6caf7",
+    "route": "revert",
+    "producer": "internal/core/dnsserver/secure.go::DefaultSecureConfig",
+    "producer-sha": "d10ddaa94a49aa53",
+    "break": "body of DefaultSecureConfig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7858-3.1-1",
+    "polarity": "positive",
+    "unit": "internal/core/dnsserver/secure_test.go::TestDoTListener",
+    "unit-sha": "f514dc01ae109f07",
+    "claim-sha": "e0791f4e4b976237",
+    "route": "revert",
+    "producer": "internal/core/dnsserver/secure.go::bindDoT",
+    "producer-sha": "df33770e0ff6c65a",
+    "break": "body of bindDoT replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,79 @@
+[
+  {
+    "rid": "RFC9552-5.3.2.1-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/rfc9552_router_id_test.go::TestRFC9552ISISLinkCarriesAllRouterIDs",
+    "unit-sha": "145137f25d2a448e",
+    "claim-sha": "503b37ca28905d47",
+    "route": "revert",
+    "producer": "internal/plugins/isis/bgpls_export.go::linkRouterIDs",
+    "producer-sha": "f7de0741a71e5379",
+    "break": "body of linkRouterIDs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9552-5.3.2.1-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/rfc9552_router_id_test.go::TestRFC9552ISISLinkCarriesAllRouterIDs",
+    "unit-sha": "145137f25d2a448e",
+    "claim-sha": "4991efcf3dd6f284",
+    "route": "revert",
+    "producer": "internal/plugins/isis/bgpls_export.go::linkRouterIDs",
+    "producer-sha": "f7de0741a71e5379",
+    "break": "body of linkRouterIDs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9552-5.3.2.1-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/rfc9552_router_id_test.go::TestRFC9552ISISLinkRouterIDs",
+    "unit-sha": "60583b168c0f0ea9",
+    "claim-sha": "dd76c5fa547f5799",
+    "route": "revert",
+    "producer": "internal/plugins/isis/bgpls_export.go::linkRouterIDs",
+    "producer-sha": "f7de0741a71e5379",
+    "break": "body of linkRouterIDs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9552-5.3.2.1-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/rfc9552_router_id_test.go::TestRFC9552ISISLinkRouterIDs",
+    "unit-sha": "60583b168c0f0ea9",
+    "claim-sha": "78c3ce1ea4092ffe",
+    "route": "revert",
+    "producer": "internal/plugins/isis/bgpls_export.go::linkRouterIDs",
+    "producer-sha": "f7de0741a71e5379",
+    "break": "body of linkRouterIDs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9552-5.3.2.1-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc9552_router_id_test.go::TestRFC9552OSPFInterASRouterIDsReachExporter",
+    "unit-sha": "c411739e3a270a46",
+    "claim-sha": "d93330b95f302f3d",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/bgpls_export.go::trafficEngineering",
+    "producer-sha": "29ee38e5d8c438a9",
+    "break": "body of trafficEngineering replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9552-5.3.2.1-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/rfc9552_router_id_test.go::TestRFC9552OSPFRouterIDAbsenceReachExporter",
+    "unit-sha": "b17249d44edbafc7",
+    "claim-sha": "dfbeccc181a7f509",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/bgpls_export.go::linkAttributes",
+    "producer-sha": "f28ac6f4ccee0cc0",
+    "break": "body of linkAttributes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9552-5.3.2.1-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc9552_router_id_test.go::TestRFC9552OSPFRouterIDsReachExporter",
+    "unit-sha": "15d5e38086929d1e",
+    "claim-sha": "7f7d07a339c14dab",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/bgpls_export.go::linkAttributes",
+    "producer-sha": "f28ac6f4ccee0cc0",
+    "break": "body of linkAttributes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

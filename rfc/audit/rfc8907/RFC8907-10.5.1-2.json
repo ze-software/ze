@@ -1,0 +1,15 @@
+{
+  "note": "(a) forbidden: rejecting or truncating a shared key of 32 characters or more. (b) TestRFC8907LongSharedKeysAuthenticate completes a PASS exchange with 32- and 300-character keys; TestRFC8907SharedKeyIsNotTruncated asserts the pad for 32 characters differs from the pad for the first 31; TestRFC8907SharedSecretConfigBuildAndDisplay drives a 32-character key through Build into a real accounting exchange.",
+  "requirement_sha": "2a470d0bf3c37d00",
+  "tests": {
+    "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907SharedKeyIsNotTruncated": "226ab125232efc32",
+    "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907LongSharedKeysAuthenticate": "7c6845571ca0fb19",
+    "internal/component/tacacs/rfc8907_security_config_test.go::TestRFC8907SharedSecretConfigBuildAndDisplay": "2f7cb9ed0258662a"
+  },
+  "units": {
+    "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907SharedKeyIsNotTruncated": "5f38f7de9b8d44a7",
+    "internal/component/tacacs/rfc8907_connection_test.go::TestRFC8907LongSharedKeysAuthenticate": "428ae3637adf679c",
+    "internal/component/tacacs/rfc8907_security_config_test.go::TestRFC8907SharedSecretConfigBuildAndDisplay": "6a2d3cc6d2858391"
+  },
+  "verdict": "enforced"
+}

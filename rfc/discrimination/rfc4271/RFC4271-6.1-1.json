@@ -1,0 +1,57 @@
+[
+  {
+    "rid": "RFC4271-6.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271MessageHeaderAtTheBoundsIsAccepted",
+    "unit-sha": "4ccc996a2a1c8aea",
+    "claim-sha": "3835d509acc9ce45",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_read.go::processMessage",
+    "producer-sha": "a12e35a861ca54ca",
+    "break": "body of processMessage replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-6.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271MessageHeaderBadLengthIsReported",
+    "unit-sha": "74f6647c9c5acb89",
+    "claim-sha": "310cdb70099e8cc5",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/header.go::ValidateLengthWithMax",
+    "producer-sha": "74b3bd33b6da2c9e",
+    "break": "body of ValidateLengthWithMax replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-6.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271MessageHeaderErrorIsReported",
+    "unit-sha": "aa6e7555421f1cb2",
+    "claim-sha": "df52900dc89045ec",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_read.go::notifyHeaderErr",
+    "producer-sha": "ae809d392da3b39f",
+    "break": "body of notifyHeaderErr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-6.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_header_error_peer_test.go::TestRFC4271UnknownMessageTypeIsReported",
+    "unit-sha": "131c88c2093621b6",
+    "claim-sha": "c140ea48e635b058",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_handlers.go::handleUnknownType",
+    "producer-sha": "1a416f01efc6aa10",
+    "break": "body of handleUnknownType replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-6.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_opensent_error_peer_test.go::TestRFC4271OpenSentWellFormedOpenKeepsTheConnection",
+    "unit-sha": "2e4357718a773a5e",
+    "claim-sha": "841796498a2609c3",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_handlers.go::handleOpen",
+    "producer-sha": "f4f23c1e31de5efd",
+    "break": "body of handleOpen replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

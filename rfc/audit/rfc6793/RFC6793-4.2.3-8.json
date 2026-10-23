@@ -1,0 +1,13 @@
+{
+  "note": "TestRFC6793LongerAS4PathIsIgnored: AS_PATH 2 ASNs vs AS4_PATH 3 yields the widened AS_PATH only; negative shows AS4_PATH used when AS_PATH is longer.",
+  "requirement_sha": "668e3688ff314697",
+  "tests": {
+    "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793LongerAS4PathIsIgnored": "4e9759edcd069569",
+    "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793LongerASPathPrependsLeadingHops": "4e9759edcd069569"
+  },
+  "units": {
+    "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793LongerAS4PathIsIgnored": "8685310c7b1a2bf6",
+    "internal/core/bgp/attribute/rfc6793_reconcile_test.go::TestRFC6793LongerASPathPrependsLeadingHops": "c4be8c46d32a5fc8"
+  },
+  "verdict": "enforced"
+}

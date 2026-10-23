@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-09-30 (OSPF judge, continuations 3+4): TestOSPFv3NSSADefaultPBitFollowsForwardingAddress now carries a 2.4-2 negative (was a misplaced 2.4-4 tag): a P-set default keeps its non-zero forwarding address beside P and is flushed, not originated P-set without one, once the address is lost. The lsdb TestOSPFNSSAPBitBoundaryPolicy pair and TestOSPFv3NSSAInternalRouterDefaultNeedsForwardingAddress are unchanged. Prior judgement: Forbidden: a P-set Type-7 with a zero forwarding address. lsdb/nssa_pbit_test.go TestOSPFNSSAPBitBoundaryPolicy asserts the P-set, zero-FA request is not originated (LookupLSA exists -> Fatal, line 27) and a P-set, non-zero-FA request keeps P (line 37); origination_v6_nssa_default_test.go TestOSPFv3NSSAInternalRouterDefaultNeedsForwardingAddress asserts no v3 P-set default without a usable address (line 175). The 'may be 0.0.0.0' clause is a permission and has no forbidden behaviour.",
+  "requirement_sha": "42d84fa39e6de394",
+  "tests": {
+    "internal/plugins/ospf/lsdb/rfc3101_nssa_pbit_test.go::TestOSPFNSSAPBitBoundaryPolicy": "8d222a236fcd72a2",
+    "internal/plugins/ospf/lsdb/rfc3101_nssa_pbit_test.go::TestOSPFNSSAPBitBoundaryPolicy#2": "8d222a236fcd72a2",
+    "internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go::TestOSPFv3NSSADefaultPBitFollowsForwardingAddress": "6e7d1420848b435e",
+    "internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go::TestOSPFv3NSSAInternalRouterDefaultNeedsForwardingAddress": "6e7d1420848b435e"
+  },
+  "units": {
+    "internal/plugins/ospf/lsdb/rfc3101_nssa_pbit_test.go::TestOSPFNSSAPBitBoundaryPolicy": "6e5aeb67d7c8c758",
+    "internal/plugins/ospf/lsdb/rfc3101_nssa_pbit_test.go::TestOSPFNSSAPBitBoundaryPolicy#2": "6e5aeb67d7c8c758",
+    "internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go::TestOSPFv3NSSADefaultPBitFollowsForwardingAddress": "ced5bacc36accdcc",
+    "internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go::TestOSPFv3NSSAInternalRouterDefaultNeedsForwardingAddress": "71efafdc760b612f"
+  },
+  "verdict": "enforced"
+}

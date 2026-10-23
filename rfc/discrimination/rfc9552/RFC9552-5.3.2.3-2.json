@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9552-5.3.2.3-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/rfc9552_bgpls_export_metric_test.go::TestRFC9552ISISSmallMetricFlagBitsNeverReachIGPMetric",
+    "unit-sha": "06efca2b29012fd5",
+    "claim-sha": "395df58a4585a2f9",
+    "route": "revert",
+    "producer": "internal/plugins/isis/packet/tlv_neighbours.go::DecodeNarrowISReachTLV",
+    "producer-sha": "58f953af53885668",
+    "break": "body of DecodeNarrowISReachTLV replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9552-5.3.2.3-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/rfc9552_bgpls_export_metric_test.go::TestRFC9552ISISSmallMetricOriginatedWithTopBitsZero",
+    "unit-sha": "8bebde128b3b7c88",
+    "claim-sha": "bf137673ec9aa019",
+    "route": "revert",
+    "producer": "internal/plugins/isis/packet/tlv_neighbours.go::DecodeNarrowISReachTLV",
+    "producer-sha": "58f953af53885668",
+    "break": "body of DecodeNarrowISReachTLV replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

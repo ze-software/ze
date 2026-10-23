@@ -1,0 +1,15 @@
+{
+  "note": "MalformedAtomicAggregate and DiscardEntryReasonCodes require exact attribute-discard for nonzero lengths, including the named invalid-length discard entry; the systematic EBGP baseline requires exact acceptance of length zero, and session discard controls distinguish continued announcement processing from withdrawal or reset",
+  "requirement_sha": "30af924767938614",
+  "tests": {
+    "internal/component/bgp/message/rfc7606_attr_discard_test.go::TestRFC7606DiscardEntryReasonCodes": "c6ef70edfa51afe7",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MalformedAtomicAggregate": "b7acaf2569904b8f",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "b7acaf2569904b8f"
+  },
+  "units": {
+    "internal/component/bgp/message/rfc7606_attr_discard_test.go::TestRFC7606DiscardEntryReasonCodes": "37b93f552b985f8b",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MalformedAtomicAggregate": "b035dba2219e6d42",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "07b9d95ed1e789a5"
+  },
+  "verdict": "enforced"
+}

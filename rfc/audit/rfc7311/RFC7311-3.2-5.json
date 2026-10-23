@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: acting on, or passing along, a malformed AIGP, or escalating beyond ignoring it. TestAIGPReceiveValidatesEveryTLV (IBGP, AIGP enabled) appends a truncated trailing TLV and asserts require.Equal(!malformed, present) on the payload leaving enforceRFC7606 (the bytes passed along), require.NoError (quietly, no session reset) and the NLRI kept (route not withdrawn). The well-formed half (unknown TLV plus duplicate metric) keeps the metric, so a blanket AIGP strip goes red.",
+  "requirement_sha": "4b6ba95ea04b6437",
+  "tests": {
+    "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPReceiveValidatesEveryTLV": "11e7d83c10c1bca3",
+    "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPReceiveValidatesEveryTLV#2": "11e7d83c10c1bca3"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPReceiveValidatesEveryTLV": "3b4825f95627f2c2",
+    "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPReceiveValidatesEveryTLV#2": "3b4825f95627f2c2"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,17 @@
+{
+  "note": "(a) accepting an OPEN whose BGP Identifier is zero; (b) TestOpenValidateBGPIdentifier: zero from internal and from external wantErr with NotifyOpenMessage / NotifyOpenBadBGPID; negative: 1 and 0xFFFFFFFF accepted. The same unit also proves the sentence's second clause (local id from internal rejected, from external accepted). handleOpen and processOpen rails tagged positive too.",
+  "requirement_sha": "096d9b6b65628ff0",
+  "tests": {
+    "internal/component/bgp/message/open_test.go::TestOpenValidateBGPIdentifier": "9a2a4c8f9ca41e49",
+    "internal/component/bgp/message/open_test.go::TestOpenValidateBGPIdentifier#2": "9a2a4c8f9ca41e49",
+    "internal/component/bgp/reactor/rfc6286_session_open_validation_test.go::TestHandleOpenRejectsBadBGPIdentifier": "5792605e48ba6d19",
+    "internal/component/bgp/reactor/rfc6286_session_open_validation_test.go::TestProcessOpenRejectsBadBGPIdentifier": "5792605e48ba6d19"
+  },
+  "units": {
+    "internal/component/bgp/message/open_test.go::TestOpenValidateBGPIdentifier": "8b0aae630fe94931",
+    "internal/component/bgp/message/open_test.go::TestOpenValidateBGPIdentifier#2": "8b0aae630fe94931",
+    "internal/component/bgp/reactor/rfc6286_session_open_validation_test.go::TestHandleOpenRejectsBadBGPIdentifier": "d591fe02f97c155a",
+    "internal/component/bgp/reactor/rfc6286_session_open_validation_test.go::TestProcessOpenRejectsBadBGPIdentifier": "7f9fc7a89465a4eb"
+  },
+  "verdict": "enforced"
+}

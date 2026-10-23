@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: a new transport on which the router sends nothing first, or something other than a Reset/Serial Query. TestFirstPDUOnConnectionIsAQuery requires io.ReadFull of the first PDU to succeed and asserts buf[1] == pduResetQuery (fresh) and == pduSerialQuery (resuming). Row carries {single-polarity: positive}.",
+  "requirement_sha": "b87d62e0795b6161",
+  "tests": {
+    "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestFirstPDUOnConnectionIsAQuery": "9de8363060757013",
+    "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestFirstPDUOnConnectionIsAQuery#2": "9de8363060757013"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestFirstPDUOnConnectionIsAQuery": "cd7fc1c865e783f3",
+    "internal/component/bgp/plugins/rpki/rtr_session_test.go::TestFirstPDUOnConnectionIsAQuery#2": "cd7fc1c865e783f3"
+  },
+  "verdict": "enforced"
+}

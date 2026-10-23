@@ -1,0 +1,52 @@
+{
+  "code": {
+    "internal/component/config/yang/module_default.go::canonicalUnionDefault": "6cfa917e5b389c32",
+    "internal/component/config/yang/module_default.go::parseModuleInteger": "49846f62995b2104",
+    "internal/component/config/yang/validator.go::validateDecimal64": "b651924246aed6a1",
+    "internal/component/config/yang/validator.go::validateUnsigned": "182b1d095f9756b3",
+    "internal/component/config/yang/validator_instance.go::canonicalKey": "e4adea85bea6c13d",
+    "internal/component/config/yang/validator_instance.go::canonicalValue": "faf0388ce1d592e4",
+    "internal/component/config/yang/validator_instance.go::instanceExists": "3b4c3560fbe2c76e",
+    "internal/component/config/yang/validator_instance.go::sameValue": "90d7d7a65961842a",
+    "internal/component/config/yang/validator_lexical.go::validateBinary": "52ec8f679dbcc137",
+    "internal/component/config/yang/validator_lexical.go::validateBits": "0e5b7fe719af3155",
+    "internal/component/config/yang/validator_reference.go::readEqualsQuoted": "046ab1a5a8feb585",
+    "internal/component/config/yang/validator_reference.go::readInstancePredicates": "a1b8f6f072ade947",
+    "internal/component/config/yang/validator_reference.go::validateLeafref": "b1028ac7134c905f"
+  },
+  "note": "Re-judged 2026-10-19 (independent auditor, after 40a03eb762 and db457cb3c2). Section 9.1: \"Implementations MUST support all lexical representations specified in this document.\" Tagged units are unchanged; the cited producers changed. db457cb3c2 splits compound guards in readInstancePredicates and readEqualsQuoted into one guard per operand with identical bodies, no behavior change. 40a03eb762 makes instanceExists a referenceWalk method that compares a leaf-list predicate value with sameValue (canonicalValue of both sides under the leaf-list's type) and selects a list entry through the canonical keyIndex (canonicalKey) instead of the raw map-key address, so a configured value and a default in use now answer the same lexical forms. This resolves the prior judgement's observation that [.='+17'] matched a default 17 but not a configured 17 (Section 9.1: \"In particular, any XPath expression evaluations are done using the canonical form if the data type has a canonical form.\"). The '.' leaf-list-predicate parse, *WSP handling and absent-value refusal that TestRFC7950InstanceIdentifierLeafListPredicate and ...Absent assert are unaffected (string leaf-list: canonicalValue is identity), and the integer, decimal64, binary, bits, leafref and union-default units of the prior judgement stand. All tagged units and TestReferenceCanonicalValueRefusesOther pass at HEAD (go test -tags 'ze_core ze_bgp' over config/yang and config). The canonical comparison is proven by TestRFC7950InstanceIdentifierCanonicalValue under RFC7950-9.13-1, not by a 9.1-1 tag.",
+  "requirement_sha": "75762b5ffc3b2a55",
+  "tests": {
+    "internal/component/config/rfc7950_yang_schema_integer_default_test.go::TestRFC7950IntegerModuleDefaultHexAndOctal": "cf3e89ed71ea75d8",
+    "internal/component/config/rfc7950_yang_schema_integer_default_test.go::TestRFC7950IntegerModuleDefaultMalformedNotation": "cf3e89ed71ea75d8",
+    "internal/component/config/yang/rfc7950_reference_test.go::TestRFC7950LeafrefLexical": "7a99f94316d0bbbd",
+    "internal/component/config/yang/rfc7950_reference_test.go::TestRFC7950ReferenceTypesLoad": "7a99f94316d0bbbd",
+    "internal/component/config/yang/rfc7950_reference_walk_test.go::TestRFC7950InstanceIdentifierLeafListPredicate": "3f6eac60c1ecbc0c",
+    "internal/component/config/yang/rfc7950_reference_walk_test.go::TestRFC7950InstanceIdentifierLeafListPredicateAbsent": "3f6eac60c1ecbc0c",
+    "internal/component/config/yang/rfc7950_reference_walk_test.go::TestRFC7950UnionDefaultLeafrefMember": "3f6eac60c1ecbc0c",
+    "internal/component/config/yang/rfc7950_validator_decimal64_test.go::TestRFC7950Decimal64Accepted": "3642eefa967e28a1",
+    "internal/component/config/yang/rfc7950_validator_decimal64_test.go::TestRFC7950Decimal64Refused": "3642eefa967e28a1",
+    "internal/component/config/yang/rfc7950_validator_integer_test.go::TestRFC7950IntegerSignedLexicalForms": "0c343a46c2157a6b",
+    "internal/component/config/yang/rfc7950_validator_lexical_test.go::TestRFC7950BinaryAccepted": "2678a37fa8952fac",
+    "internal/component/config/yang/rfc7950_validator_lexical_test.go::TestRFC7950BinaryRefused": "2678a37fa8952fac",
+    "internal/component/config/yang/rfc7950_validator_lexical_test.go::TestRFC7950BitsAccepted": "2678a37fa8952fac",
+    "internal/component/config/yang/rfc7950_validator_lexical_test.go::TestRFC7950BitsRefused": "2678a37fa8952fac"
+  },
+  "units": {
+    "internal/component/config/rfc7950_yang_schema_integer_default_test.go::TestRFC7950IntegerModuleDefaultHexAndOctal": "9eb41aa1dc3baec1",
+    "internal/component/config/rfc7950_yang_schema_integer_default_test.go::TestRFC7950IntegerModuleDefaultMalformedNotation": "141712d043060a49",
+    "internal/component/config/yang/rfc7950_reference_test.go::TestRFC7950LeafrefLexical": "5f38dab6aeaa1f46",
+    "internal/component/config/yang/rfc7950_reference_test.go::TestRFC7950ReferenceTypesLoad": "bfc9c664887fc7ad",
+    "internal/component/config/yang/rfc7950_reference_walk_test.go::TestRFC7950InstanceIdentifierLeafListPredicate": "8b7613627b9c8501",
+    "internal/component/config/yang/rfc7950_reference_walk_test.go::TestRFC7950InstanceIdentifierLeafListPredicateAbsent": "93d4b0118fd1a752",
+    "internal/component/config/yang/rfc7950_reference_walk_test.go::TestRFC7950UnionDefaultLeafrefMember": "6af05ef9f484efa9",
+    "internal/component/config/yang/rfc7950_validator_decimal64_test.go::TestRFC7950Decimal64Accepted": "5ad825c9eb6695a9",
+    "internal/component/config/yang/rfc7950_validator_decimal64_test.go::TestRFC7950Decimal64Refused": "feca642954e7f5f0",
+    "internal/component/config/yang/rfc7950_validator_integer_test.go::TestRFC7950IntegerSignedLexicalForms": "ee5408867a188795",
+    "internal/component/config/yang/rfc7950_validator_lexical_test.go::TestRFC7950BinaryAccepted": "25d09f6688936ce9",
+    "internal/component/config/yang/rfc7950_validator_lexical_test.go::TestRFC7950BinaryRefused": "4376db34a91461d7",
+    "internal/component/config/yang/rfc7950_validator_lexical_test.go::TestRFC7950BitsAccepted": "457cb8b030ff29aa",
+    "internal/component/config/yang/rfc7950_validator_lexical_test.go::TestRFC7950BitsRefused": "afb283aeba1e4ac5"
+  },
+  "verdict": "enforced"
+}

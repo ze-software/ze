@@ -1,0 +1,13 @@
+{
+  "note": "forbidden: a Range Size of 0 sent or accepted. Receive: TestRFC8665RangeSizeZeroRejected zeroes only the size of a valid value and requires DecodeRangeValue to error, and srDecodeRemoteCapabilities appends a range only on rerr == nil. Send: the same test requires SRConfig.Validate to reject a configured SRGB of size 0, and Validate gates the config verify (validateSRConfig, register.go) before any SRGB reaches srWire. Positive TestRFC8665RangeTLVRoundTrip decodes size 100",
+  "requirement_sha": "f597e1db8fe44071",
+  "tests": {
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665RangeSizeZeroRejected": "dcc89abea6ba13ce",
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665RangeTLVRoundTrip": "dcc89abea6ba13ce"
+  },
+  "units": {
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665RangeSizeZeroRejected": "5264dbe3161fbb4d",
+    "internal/plugins/ospf/sr/rfc8665_test.go::TestRFC8665RangeTLVRoundTrip": "8a1b750313ffdde0"
+  },
+  "verdict": "enforced"
+}

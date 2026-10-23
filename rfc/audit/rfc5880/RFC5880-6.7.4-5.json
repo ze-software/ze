@@ -1,0 +1,15 @@
+{
+  "note": "Judge 2026-09-30. Same units as 6.7.3-7 over keyed-sha1 and meticulous-keyed-sha1 (keys up to 20 bytes, the sweep chunked at 20); judge's trailing-space-strip break reds both SHA1 negative subtests. Revert records observed red. Incomplete-block negative untagged (D-15).",
+  "requirement_sha": "b3794c8fae5a9e84",
+  "tests": {
+    "internal/component/bfd/rfc5880_key_management_config_test.go::TestRFC5880KeyManagementConfigEntryAcceptsASCIIStrings": "ba2adf6f782f3d31",
+    "internal/component/bfd/rfc5880_key_management_config_test.go::TestRFC5880KeyManagementConfigEntryKeepsEveryASCIICharacter": "ba2adf6f782f3d31",
+    "internal/component/bfd/rfc5880_test.go::TestRFC5880KeyManagementAcceptsASCIIStrings": "79f92760f00616a6"
+  },
+  "units": {
+    "internal/component/bfd/rfc5880_key_management_config_test.go::TestRFC5880KeyManagementConfigEntryAcceptsASCIIStrings": "38e7efe8ff8bbddd",
+    "internal/component/bfd/rfc5880_key_management_config_test.go::TestRFC5880KeyManagementConfigEntryKeepsEveryASCIICharacter": "479e38e5a0b6abaa",
+    "internal/component/bfd/rfc5880_test.go::TestRFC5880KeyManagementAcceptsASCIIStrings": "596cf0494871ab9c"
+  },
+  "verdict": "enforced"
+}

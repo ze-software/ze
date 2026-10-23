@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC1195-4.1-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/transport/rfc1195_frame_test.go::TestRFC1195ParseFrameOSIEncapsulation",
+    "unit-sha": "dacf8ab83a9be53b",
+    "claim-sha": "f6f648d74cf83df8",
+    "route": "revert",
+    "producer": "internal/plugins/isis/transport/frame.go::ParseFrame",
+    "producer-sha": "91754efc69c9830c",
+    "break": "body of ParseFrame replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1195-4.1-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/transport/rfc1195_frame_test.go::TestRFC1195ParseFrameRefusesNonOSIEncapsulation",
+    "unit-sha": "6f2cdc30cba9f30b",
+    "claim-sha": "85485357ca34fadf",
+    "route": "revert",
+    "producer": "internal/plugins/isis/transport/frame.go::ParseFrame",
+    "producer-sha": "91754efc69c9830c",
+    "break": "body of ParseFrame replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,9 @@
+{
+  "code": {
+    "internal/component/bgp/reactor/link_scope.go::classify": "47509c161b37778c",
+    "internal/component/bgp/reactor/link_scope.go::linkLocalNextHop": "823cff0faf0abb0c"
+  },
+  "note": "Re-judged 2026-10-19 (independent auditor, after 990744517c). Section 3: \"The link-local address shall be included in the Next Hop field if and only if the BGP speaker shares a common subnet with the entity identified by the global IPv6 address carried in the Network Address of Next Hop field and the peer the route is being advertised to.\" The only change to linkLocalNextHop is the per-family linkLocalCondition argument (RFC 4659 peer-only condition for VPN-IPv6, RFC 2545 joint condition otherwise); the switch on nextHopRouter still returns the zero address for nextHopRouterThirdParty and nextHopRouterUnspecified, and classify still names Speaker only for the connected endpoint, configured local address and held addresses. So a configured/static/API route or explicit rewrite naming another on-link router by its global still has no source for that router's link-local, and the speaker's own is correctly not substituted. Gap stands; {gap} annotation and Partial public support remain accurate.",
+  "requirement_sha": "2b40069283106c59",
+  "verdict": "unimplemented"
+}

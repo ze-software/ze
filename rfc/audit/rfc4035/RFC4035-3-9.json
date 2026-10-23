@@ -1,0 +1,13 @@
+{
+  "note": "the negative asserts an AD=1 query draws a reply with AD clear through the real harness; the positive's answer-equality half runs over the answerOne test stub, which cannot vary, so the AD-echo assertion is the discriminating one",
+  "requirement_sha": "ece156dc4276161a",
+  "tests": {
+    "internal/core/dnsserver/rfc4035_test.go::TestRFC4035_CDCopiedADIgnored": "e0aef88c57572c95",
+    "internal/core/dnsserver/rfc4035_test.go::TestRFC4035_CDCopiedADIgnored#2": "e0aef88c57572c95"
+  },
+  "units": {
+    "internal/core/dnsserver/rfc4035_test.go::TestRFC4035_CDCopiedADIgnored": "f3e7e9b65d506bb7",
+    "internal/core/dnsserver/rfc4035_test.go::TestRFC4035_CDCopiedADIgnored#2": "f3e7e9b65d506bb7"
+  },
+  "verdict": "enforced"
+}

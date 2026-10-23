@@ -1,0 +1,13 @@
+{
+  "note": "downstream LSR keeps PSB and RSB on upstream link failure and sends no PathTear/PathErr/ResvErr; as PLR with no bypass it tears down Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 7.2 and the enforced verdict holds unchanged.",
+  "requirement_sha": "08b84e3ff70e3df2",
+  "tests": {
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090DownstreamKeepsStateOnUpstreamLinkFailure": "3fb9184431da8daf",
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090DownstreamKeepsStateOnUpstreamLinkFailure#2": "3fb9184431da8daf"
+  },
+  "units": {
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090DownstreamKeepsStateOnUpstreamLinkFailure": "046b8d88625d7bb6",
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090DownstreamKeepsStateOnUpstreamLinkFailure#2": "046b8d88625d7bb6"
+  },
+  "verdict": "enforced"
+}

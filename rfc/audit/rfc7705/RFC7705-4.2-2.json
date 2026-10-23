@@ -1,0 +1,17 @@
+{
+  "note": "Forbidden: refusing the OPEN of a configured iBGP peer presenting the global or the locally configured ASN, or not establishing an iBGP session from it. TestRFC7705MigratingPeerEstablishesAsIBGP drives handleOpen then handleKeepalive for both ASNs and asserts Established, no NOTIFICATION and isIBGPWith(advertised) true; negative: a third ASN draws OPEN Message Error / Bad Peer AS and never reaches Established even after a KEEPALIVE. TestMigrationAcceptsEitherASN remains as OpenConfirm-level support.",
+  "requirement_sha": "b3425945803177f4",
+  "tests": {
+    "internal/component/bgp/reactor/rfc7705_reactor_b_test.go::TestRFC7705MigratingPeerEstablishesAsIBGP": "d715a5b49c437051",
+    "internal/component/bgp/reactor/rfc7705_reactor_b_test.go::TestRFC7705MigratingPeerEstablishesAsIBGP#2": "d715a5b49c437051",
+    "internal/component/bgp/reactor/rfc7705_session_as_migration_test.go::TestMigrationAcceptsEitherASN": "ed9d1eb5d2dbf8a3",
+    "internal/component/bgp/reactor/rfc7705_session_as_migration_test.go::TestMigrationAcceptsEitherASN#2": "ed9d1eb5d2dbf8a3"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc7705_reactor_b_test.go::TestRFC7705MigratingPeerEstablishesAsIBGP": "003a1f67dbd4d0ea",
+    "internal/component/bgp/reactor/rfc7705_reactor_b_test.go::TestRFC7705MigratingPeerEstablishesAsIBGP#2": "003a1f67dbd4d0ea",
+    "internal/component/bgp/reactor/rfc7705_session_as_migration_test.go::TestMigrationAcceptsEitherASN": "cdae0c923c9c77ff",
+    "internal/component/bgp/reactor/rfc7705_session_as_migration_test.go::TestMigrationAcceptsEitherASN#2": "cdae0c923c9c77ff"
+  },
+  "verdict": "enforced"
+}

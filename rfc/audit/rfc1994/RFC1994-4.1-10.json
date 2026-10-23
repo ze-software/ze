@@ -1,0 +1,11 @@
+{
+  "note": "Single-polarity accepted. TestCHAPResponseOutsideAuthPhaseSilentlyDiscarded hands handleFrame a well-formed CHAP Response in Req-Sent, Ack-Sent (Link Establishment) and Closing (Termination): red on any frame written, any auth or session event, an end, or a state change. The auth-phase unit TestCHAPIdentifierMismatchSilentDiscard no longer claims this row. The annotation still cites the auth-wait mismatch path (auth.go) as a second example; that clause is not this row's.",
+  "requirement_sha": "010ca8cb4c6fb229",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1994_chap_reauth_test.go::TestCHAPResponseOutsideAuthPhaseSilentlyDiscarded": "f77f40f6ed3b5dd0"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1994_chap_reauth_test.go::TestCHAPResponseOutsideAuthPhaseSilentlyDiscarded": "2a6f5ead9d5823ae"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC1195-3.1-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/lsdb/unknown_tlv_flood_rfc1195_test.go::TestRFC1195UnknownTLVsFloodedUnchanged",
+    "unit-sha": "d5ddc963aced7fb6",
+    "claim-sha": "0f3bf4822882f30e",
+    "route": "revert",
+    "producer": "internal/plugins/isis/lsdb/flooding.go::ReceiveLSP",
+    "producer-sha": "71ade1972f991393",
+    "break": "body of ReceiveLSP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC1195-3.1-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/packet/tlv_opaque_test.go::TestISISUnknownTLVPassthrough",
+    "unit-sha": "e96096aee12d0c3a",
+    "claim-sha": "1e585dc02d38367f",
+    "route": "revert",
+    "producer": "internal/plugins/isis/packet/tlv_opaque.go::DecodeTLVs",
+    "producer-sha": "28f97de83c0d82b9",
+    "break": "body of DecodeTLVs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

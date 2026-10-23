@@ -1,0 +1,6 @@
+{
+  "no_code_path": "Ze configures no Type-7 address range: the only ranges list in ze-ospf-conf.yang is the RFC 2328 Appendix C.2 inter-area summary range, and internal/plugins/ospf/nssa.go::translateNSSA builds one Type-5 per translatable P-bit Type-7 copying its non-zero forwarding address (Section 3.2 step (2)), so no aggregate Type-5 is ever originated and no path reaches the range forwarding address.",
+  "note": "feature-declined judged against RFC 3101 text: Section 3.2 step (3) sets the 0.0.0.0 forwarding address only on a Type-5 LSA generated from a Type-7 address range, and Section 2.2 makes ranges optional ('NSSA border routers may be configured with Type-7 address ranges', 'may aggregate Type-7 routes by advertising a single Type-5 LSA for each Type-7 address range'). The obligation is conditional, the quote is the RFC's own, and the absent feature is disclosed in Support remaining.",
+  "requirement_sha": "a101e4ea59f628b5",
+  "verdict": "not-applicable"
+}

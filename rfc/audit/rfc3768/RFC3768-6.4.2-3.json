@@ -1,0 +1,17 @@
+{
+  "note": "vrrp judge 2026-09-29 (independent, continuations 1-2): Re-read: the unit's body is unchanged; only the 6.4.2 and 6.4.3 Virtual Router MAC proxy tags left it for TestVRRPBackupDoesNotForwardVirtualMACFrames, so the verdict stands. Prior note: vrrp judge 2026-09-29 (independent): Forbidden: a v2 Backup accepting packets addressed to the virtual address. Same unit as 6.4.2-1: a Version 2 Backup installs no address (so the kernel has no local route for it) and hands no acceptance filter; the v2 Master contrast installs it. Records: revert doInstallVIPs, both polarities. Forwarding of virtual-MAC frames by a Backup is the separate RFC3768-6.4.2-2 defect (D-8), not this row.",
+  "requirement_sha": "7c11c855f4f5522d",
+  "tests": {
+    "internal/plugins/vrrp/instance_test.go::TestInstanceOwnerStartupGoesMaster": "90d279832a92de75",
+    "internal/plugins/vrrp/instance_test.go::TestInstanceStartupNonOwnerGoesBackup": "90d279832a92de75",
+    "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2BackupHoldsNoVirtualAddress": "8b5d8c7a41e8e18e",
+    "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2BackupHoldsNoVirtualAddress#2": "8b5d8c7a41e8e18e"
+  },
+  "units": {
+    "internal/plugins/vrrp/instance_test.go::TestInstanceOwnerStartupGoesMaster": "e1a785d3aeb30340",
+    "internal/plugins/vrrp/instance_test.go::TestInstanceStartupNonOwnerGoesBackup": "7e4b071c14d787cc",
+    "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2BackupHoldsNoVirtualAddress": "5acb5d55e3b770ee",
+    "internal/plugins/vrrp/rfc3768_v2_group_test.go::TestV2BackupHoldsNoVirtualAddress#2": "5acb5d55e3b770ee"
+  },
+  "verdict": "enforced"
+}

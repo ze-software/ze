@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC5036-3.3-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ldp/rfc5036_procedures_test.go::TestRFC5036UnknownTLVWithUBitClearIsRefused",
+    "unit-sha": "47cc399621aa9a73",
+    "claim-sha": "c30ac696e7d516f5",
+    "route": "revert",
+    "producer": "internal/plugins/ldp/session.go::ignoreUnknownTLV",
+    "producer-sha": "6e486c1cbef2bc32",
+    "break": "body of ignoreUnknownTLV replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5036-3.3-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ldp/rfc5036_procedures_test.go::TestRFC5036UnknownTLVWithUBitSetIsSkipped",
+    "unit-sha": "64f8c0d9a9d0014c",
+    "claim-sha": "88c9c4cb17286f21",
+    "route": "revert",
+    "producer": "internal/plugins/ldp/wire.go::skipTLV",
+    "producer-sha": "d8388e975536c9a7",
+    "break": "body of skipTLV replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

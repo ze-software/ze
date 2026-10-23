@@ -1,0 +1,15 @@
+{
+  "note": "Row narrowed to the Original-set sentences. Missing fragment 0: TestRFC1195StandardFragmentsRequireFragmentZero requires the fragment-1 route while fragment 0 lives (2, 15) and no route after fragment 0 is deleted. RemainingLifetime zero: TestRFC3786ExpiredFragmentZeroExcludesSet stores a zero-lifetime fragment 0, asserts it is still held by the LSDB, and requires no route although fragment 1 still carries the link back and the prefix. Whole-stack: RawSnapshot drops zero-lifetime entries and Records admits no fragment of a source without a live fragment 0. The extended-set clause is RFC3786-5-2.",
+  "requirement_sha": "9458f1ac64010ed2",
+  "tests": {
+    "internal/plugins/isis/rfc1195_selection_test.go::TestRFC3786ExpiredFragmentZeroExcludesSet": "1ef6f2102a068439",
+    "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195StandardFragmentsRequireFragmentZero": "b67887a5f61b2632",
+    "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195StandardFragmentsRequireFragmentZero#2": "b67887a5f61b2632"
+  },
+  "units": {
+    "internal/plugins/isis/rfc1195_selection_test.go::TestRFC3786ExpiredFragmentZeroExcludesSet": "1605bcf97c31dd62",
+    "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195StandardFragmentsRequireFragmentZero": "562e30faad45e5ef",
+    "internal/plugins/isis/rfc1195_spf_test.go::TestRFC1195StandardFragmentsRequireFragmentZero#2": "562e30faad45e5ef"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC9552-5.3.1.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeDefinedFlags",
+    "unit-sha": "a76420f780fa1f71",
+    "claim-sha": "2138512864ef01c5",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/ls_export/export_encode.go::clearOriginatedReserved",
+    "producer-sha": "52e68cb09ad57c46",
+    "break": "body of clearOriginatedReserved replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9552-5.3.1.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeReservedFlagsCleared",
+    "unit-sha": "32f57a2d5693123e",
+    "claim-sha": "e546759eaed9084f",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/ls_export/export_encode.go::clearOriginatedReserved",
+    "producer-sha": "52e68cb09ad57c46",
+    "break": "body of clearOriginatedReserved replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9552-5.3.1.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/nlri/ls/rfc9552_attr_flags_test.go::TestRFC9552NodeFlagBitsUndefinedBitsIgnored",
+    "unit-sha": "ea18954f3bb1b908",
+    "claim-sha": "38c11acda771fc99",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/nlri/ls/attr_node.go::decodeNodeFlagBits",
+    "producer-sha": "36f34abae66a48d9",
+    "break": "body of decodeNodeFlagBits replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9552-5.3.1.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/nlri/ls/rfc9552_attr_flags_test.go::TestRFC9552UndefinedNodeBitsDoNotSetDefinedFlags",
+    "unit-sha": "1ce99b21103b131b",
+    "claim-sha": "5d80676647d03535",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/nlri/ls/attr_node.go::decodeNodeFlagBits",
+    "producer-sha": "36f34abae66a48d9",
+    "break": "body of decodeNodeFlagBits replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

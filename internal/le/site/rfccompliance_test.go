@@ -314,7 +314,7 @@ func TestTheGateInputRowsReadAsThePublishedRows(t *testing.T) {
 		"Enrolment rfc/short/*.md, the | Enrolment | Meta row 171 enrolled RFCs",
 		"Test tags internal/, pkg/, test/ 3,595 resolved tags",
 		"Public ledger rfc/short/*.md, the | Support | Meta row 80 RFCs with gaps, 4 Supported with Remaining",
-		"Semantic audits rfc/audit/*.json 52 fresh, 0 shifted, 0 stale, 2,914 missing",
+		"Semantic audits rfc/audit/*/*.json 52 fresh, 0 shifted, 0 stale, 2,914 missing",
 	} {
 		if !strings.Contains(text, row) {
 			t.Errorf("the mechanism table does not read %q", row)
@@ -476,7 +476,7 @@ func TestTheRFCComplianceMirrorReadsAsThePublishedMirror(t *testing.T) {
 		"| Partial | 59 |",
 		"- **RFC 1350:** RFC1350-2-3 unmet",
 		"| `DRAFT-IETF-BESS-MUP-SAFI` | 37 | Partial |",
-		"| Semantic audits | `rfc/audit/*.json` | 52 fresh, 0 shifted, 0 stale, 2,914 missing |",
+		"| Semantic audits | `rfc/audit/*/*.json` | 52 fresh, 0 shifted, 0 stale, 2,914 missing |",
 	} {
 		if !strings.Contains(mirror, line) {
 			t.Errorf("the mirror does not carry %q", line)

@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7854-x-16",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go::TestRFC7854SessionPeerUpOnlyForEstablishedPeers",
+    "unit-sha": "bad01cf65999d34b",
+    "claim-sha": "4ecf359bf42fc933",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/bmp/bmp_events.go::primeSender",
+    "producer-sha": "b22371a2367b3591",
+    "break": "body of primeSender replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7854-x-16",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go::TestRFC7854SessionPeerUpOnlyForEstablishedPeers",
+    "unit-sha": "bad01cf65999d34b",
+    "claim-sha": "9d23897f7abba0fc",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/bmp/bmp_events.go::recordPeerUp",
+    "producer-sha": "311eb8d01db31c6e",
+    "break": "body of recordPeerUp replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

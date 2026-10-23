@@ -1,0 +1,13 @@
+{
+  "note": "Re-judged 2026-10-11 by an independent judge after the fix round (2691e815b1). RFC 7296 3.5: \"implementations MUST be configurable to send at least one of ID_IPV4_ADDR, ID_FQDN, ID_RFC822_ADDR, or ID_KEY_ID, and MUST be configurable to accept all of these four types.\" The send clause is proven under RFC7296-3.5-2 (buildIDPayload tests); this row's tests carry the accept clause. Positive TestRemoteIDAcceptsEveryMandatoryType (unchanged) requires checkRemoteIdentity to accept all four types under a configured remote-id, each with an anti-vacuity refusal of a wrong value, so refusing any of the four or short-circuiting on an empty remote-id fails. Negative TestRemoteIDRefusesTypesItCannotCompare: its claim now names ID_DER_ASN1_GN only, which is exactly what the body sends, and requires the not-comparable branch (\"cannot compare\") rather than a value mismatch, so a checker that accepts every type turns red; the earlier defect (claim naming ID_DER_ASN1_DN, which RFC7296-4-4 requires accepted) is resolved. Revert record on remote_id.go::assertedIdentity.",
+  "requirement_sha": "6683d5ad08d09c46",
+  "tests": {
+    "internal/component/ike/engine/rfc7296_identity_test.go::TestRemoteIDAcceptsEveryMandatoryType": "c4bea9bcd545e1b6",
+    "internal/component/ike/engine/rfc7296_identity_test.go::TestRemoteIDRefusesTypesItCannotCompare": "c4bea9bcd545e1b6"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7296_identity_test.go::TestRemoteIDAcceptsEveryMandatoryType": "12232de186188625",
+    "internal/component/ike/engine/rfc7296_identity_test.go::TestRemoteIDRefusesTypesItCannotCompare": "f901a09951b2bfb5"
+  },
+  "verdict": "enforced"
+}

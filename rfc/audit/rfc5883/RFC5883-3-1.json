@@ -1,0 +1,17 @@
+{
+  "note": "RA-BFD strict re-read 2026-09-27 (stale after DF-BFD-4). The row quotes RFC 5883 Section 3 verbatim: \"Finally, the Echo function MUST NOT be used over multiple hops.\" (rfc5883.txt line 132). Forbidden: a multi-hop session that runs Echo. A session's DesiredMinEchoTxInterval, and the Required Min Echo RX it advertises (session.go Init), come only from a profile through profileConfig.applyTo, and every entry passes profileConfig.permitsMode. Red: TestRFC5883MultiHopEchoRejected Fatalf when pluginConfig.validate accepts an echo profile on a multi-hop pinned session; TestRFC5883ClientMultiHopEchoProfileRefused Fatal when EnsureSession returns a handle for a multi-hop client request naming an echo profile, or lacks the `enables echo` refusal. Positive, same profile on single hop: TestRFC5883SingleHopEchoAccepted (validate) and TestRFC5883ClientSingleHopEchoProfileAccepted (EnsureSession), so a blanket echo refusal fails. The engine holds no second guard (engine.go NewLoopWithEcho comment).",
+  "requirement_sha": "03fdcefb3e140eb7",
+  "tests": {
+    "internal/component/bfd/enabled_test.go::TestRFC5883ClientMultiHopEchoProfileRefused": "96acedef6aab9ce8",
+    "internal/component/bfd/enabled_test.go::TestRFC5883ClientSingleHopEchoProfileAccepted": "96acedef6aab9ce8",
+    "internal/component/bfd/rfc5883_test.go::TestRFC5883MultiHopEchoRejected": "ba279384b03d7bf9",
+    "internal/component/bfd/rfc5883_test.go::TestRFC5883SingleHopEchoAccepted": "ba279384b03d7bf9"
+  },
+  "units": {
+    "internal/component/bfd/enabled_test.go::TestRFC5883ClientMultiHopEchoProfileRefused": "2010d122e6a995ab",
+    "internal/component/bfd/enabled_test.go::TestRFC5883ClientSingleHopEchoProfileAccepted": "ce00acf5f42a7933",
+    "internal/component/bfd/rfc5883_test.go::TestRFC5883MultiHopEchoRejected": "b8c712631580734b",
+    "internal/component/bfd/rfc5883_test.go::TestRFC5883SingleHopEchoAccepted": "dd78e4a3f8c7f343"
+  },
+  "verdict": "enforced"
+}

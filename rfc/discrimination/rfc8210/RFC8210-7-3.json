@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC8210-7-3",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rpki/rfc8210_rtr_version_test.go::TestRFC8210V1CacheResponseIsNotTerminated",
+    "unit-sha": "19d027737b61520f",
+    "claim-sha": "683991496b537a51",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rpki/rtr_session.go::handlePDU",
+    "producer-sha": "fcaaae8230f48b20",
+    "break": "body of handlePDU replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

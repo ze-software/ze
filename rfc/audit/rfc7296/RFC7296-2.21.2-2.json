@@ -1,0 +1,17 @@
+{
+  "note": "Re-judged 2026-10-10 against RFC 7296 S2.21.2 \"a responder may include all the payloads associated with authentication (IDr, CERT, and AUTH) while sending error notifications for the piggybacked exchanges (FAILED_CP_REQUIRED, NO_PROPOSAL_CHOSEN, and so on), and the initiator MUST NOT fail the authentication because of this.\" New unit TestInitiatorKeepsChildlessIKESA takes a real PSK IKE_AUTH response, removes SAr2/TSi/TSr and adds NO_PROPOSAL_CHOSEN with IDr and AUTH untouched: handleAuthResponse must reach StateEstablished, mark the SA childless, log the refusal and send nothing (no Delete). Its negative control flips one AUTH octet in the same response and requires StateDead, so the outcome is decided by AUTH, not by the notify. TestErrInitiatorSurvivesPiggybackedErrorNotify (unchanged) drives NO_PROPOSAL_CHOSEN, FAILED_CP_REQUIRED and TS_UNACCEPTABLE to established and AUTHENTICATION_FAILED to dead. An initiator that failed on the notify or on the missing SAr2 goes red in both. The negatives are controls, since a MUST NOT on the receiver has no violating input. Re-judged 2026-10-10 (independent judge, mode rejudge): every tagged unit is byte-identical to the judged one (git diff 2d57003d45..HEAD touches only other functions, a const block, and new functions appended to the file), so the verdict stands unchanged.",
+  "requirement_sha": "5e30f24d597070ad",
+  "tests": {
+    "internal/component/ike/engine/rfc7296_auth_child_refusal_test.go::TestInitiatorKeepsChildlessIKESA": "a16c20f9a2980de5",
+    "internal/component/ike/engine/rfc7296_auth_child_refusal_test.go::TestInitiatorKeepsChildlessIKESA#2": "a16c20f9a2980de5",
+    "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrInitiatorSurvivesPiggybackedErrorNotify": "f788331a490d2a61",
+    "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrInitiatorSurvivesPiggybackedErrorNotify#2": "f788331a490d2a61"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7296_auth_child_refusal_test.go::TestInitiatorKeepsChildlessIKESA": "771a973e044281fa",
+    "internal/component/ike/engine/rfc7296_auth_child_refusal_test.go::TestInitiatorKeepsChildlessIKESA#2": "771a973e044281fa",
+    "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrInitiatorSurvivesPiggybackedErrorNotify": "653c8bc742fd22c7",
+    "internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrInitiatorSurvivesPiggybackedErrorNotify#2": "653c8bc742fd22c7"
+  },
+  "verdict": "enforced"
+}

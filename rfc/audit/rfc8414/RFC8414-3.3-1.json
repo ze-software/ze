@@ -1,0 +1,13 @@
+{
+  "note": "Quote is the \u00a73 sentence 'This path MUST use the https scheme.' Forbidden: fetching the metadata path over http. TestRFC8414MetadataRequiresHTTPS asserts fetchASMetadata errs and returns zero metadata for an http issuer and for an https-to-http redirect, and plainHits==0; positive decodes metadata from a trusted https server. The \u00a76.1 confidentiality clause the old row text also named is not in this quote (reported as split needed).",
+  "requirement_sha": "b520f47eb54e1c10",
+  "tests": {
+    "internal/component/mcp/rfc8414_metadata_request_test.go::TestRFC8414MetadataRequiresHTTPS": "2f4d742cea5bceef",
+    "internal/component/mcp/rfc8414_metadata_request_test.go::TestRFC8414MetadataRequiresHTTPS#2": "2f4d742cea5bceef"
+  },
+  "units": {
+    "internal/component/mcp/rfc8414_metadata_request_test.go::TestRFC8414MetadataRequiresHTTPS": "0093ccb644d32b03",
+    "internal/component/mcp/rfc8414_metadata_request_test.go::TestRFC8414MetadataRequiresHTTPS#2": "0093ccb644d32b03"
+  },
+  "verdict": "enforced"
+}

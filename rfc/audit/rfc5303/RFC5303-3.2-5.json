@@ -1,0 +1,17 @@
+{
+  "note": "Forbidden: omitting the neighbor's System ID from the transmitted IIH when the neighbor is known (Initializing or Up). circuit TestRFC5303SentIIHEchoesKnownNeighbor decodes the sent TLV 240: no Neighbor System ID before any neighbor is heard (negative), and the peer's System ID present in Initializing and again in Up (positive). The adjacency is driven by received Hellos through Circuit.Receive, closing the earlier gap (p2pThreeWayState's haveNeighbor result was unasserted). Recorded + on p2pThreeWayState and - on hello.go threeWayTLV. The row's clause is the System ID only; the Extended Local Circuit ID half of the sentence's condition is not asserted here.",
+  "requirement_sha": "58d5e8f2c0638def",
+  "tests": {
+    "internal/plugins/isis/circuit/rfc5303_sent_iih_test.go::TestRFC5303SentIIHEchoesKnownNeighbor": "103ec73a1dc2a973",
+    "internal/plugins/isis/circuit/rfc5303_sent_iih_test.go::TestRFC5303SentIIHEchoesKnownNeighbor#2": "103ec73a1dc2a973",
+    "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayReportsNeighborSystemID": "d32edc6561822cd6",
+    "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayReportsNeighborSystemID#2": "d32edc6561822cd6"
+  },
+  "units": {
+    "internal/plugins/isis/circuit/rfc5303_sent_iih_test.go::TestRFC5303SentIIHEchoesKnownNeighbor": "9411982f0edd93c9",
+    "internal/plugins/isis/circuit/rfc5303_sent_iih_test.go::TestRFC5303SentIIHEchoesKnownNeighbor#2": "9411982f0edd93c9",
+    "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayReportsNeighborSystemID": "a4822569450cc072",
+    "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayReportsNeighborSystemID#2": "a4822569450cc072"
+  },
+  "verdict": "enforced"
+}

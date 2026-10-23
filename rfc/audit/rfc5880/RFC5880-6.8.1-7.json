@@ -1,0 +1,13 @@
+{
+  "note": "RA-BFD strict re-read 2026-09-27. One clause: bfd.DesiredMinTxInterval initialised to at least 1,000,000 us. Forbidden: Init storing a value below 1 s (here the configured 300 ms). Red: TestRFC5880SlowStartFloorWhileNotUp Fatalf when DesiredMinTxIntervalUs() < 1000000 straight after Init (Init, session.go, assigns SlowStartIntervalUs), and when TransmitInterval is below 1 s while Down. Contrast: TestRFC5880SlowStartFloorLiftedWhenUp fails unless the same accessor reads the configured 300000 at Up, so the positive cannot pass on a constant.",
+  "requirement_sha": "24cc2b965bbb1988",
+  "tests": {
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880SlowStartFloorLiftedWhenUp": "8db25cbb4534cc2d",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880SlowStartFloorWhileNotUp": "8db25cbb4534cc2d"
+  },
+  "units": {
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880SlowStartFloorLiftedWhenUp": "b6c65bc1a7a3e4b0",
+    "internal/component/bfd/session/rfc5880_test.go::TestRFC5880SlowStartFloorWhileNotUp": "1321a760756f4711"
+  },
+  "verdict": "enforced"
+}

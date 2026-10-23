@@ -1,0 +1,13 @@
+{
+  "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeASubTLV. Forbidden: S bit set in the transmitted Type A label stack entry. Red: assert.Equal(byte(0), value[4]&0x01). Negative: assert.Equal(uint32(0xFFFFF), label), so every label bit is set beside the clear S bit and the zero is not a blank low octet.",
+  "requirement_sha": "2a3a20e1a4808d39",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeASubTLV": "450f2364530acf19",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeASubTLV#2": "450f2364530acf19"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeASubTLV": "33514a40260fa5b4",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeASubTLV#2": "33514a40260fa5b4"
+  },
+  "verdict": "enforced"
+}

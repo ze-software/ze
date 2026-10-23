@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "SFLOW-V5-x-33",
+    "polarity": "positive",
+    "unit": "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5FlowSampleCarriesPacketHeader",
+    "unit-sha": "e3d4d9b0dc2849c9",
+    "claim-sha": "6c3709439d766945",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/sflow/flow.go::writeSampledHeader",
+    "producer-sha": "190d5e203df18a09",
+    "break": "body of writeSampledHeader replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "SFLOW-V5-x-33",
+    "polarity": "negative",
+    "unit": "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5FlowSampleNeverWithoutHeader",
+    "unit-sha": "02bc01f5c0039145",
+    "claim-sha": "40a13dc921b14463",
+    "route": "revert",
+    "producer": "internal/plugins/flowexport/sflow/flow_adapter.go::EncodeFlowSample",
+    "producer-sha": "867f774adfa95509",
+    "break": "body of EncodeFlowSample replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

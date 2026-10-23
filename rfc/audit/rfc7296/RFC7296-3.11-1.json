@@ -1,0 +1,13 @@
+{
+  "note": "PayloadDelete holds one ProtocolID by construction; two protocols need two payloads",
+  "requirement_sha": "cf09aab1718f8b98",
+  "tests": {
+    "internal/component/ike/wire/rfc7296_test.go::TestDeletePayloadSingleProtocol": "459954f82bfe6b71",
+    "internal/component/ike/wire/rfc7296_test.go::TestDeletePayloadSingleProtocol#2": "459954f82bfe6b71"
+  },
+  "units": {
+    "internal/component/ike/wire/rfc7296_test.go::TestDeletePayloadSingleProtocol": "22331fe941bd9ace",
+    "internal/component/ike/wire/rfc7296_test.go::TestDeletePayloadSingleProtocol#2": "22331fe941bd9ace"
+  },
+  "verdict": "enforced"
+}

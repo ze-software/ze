@@ -1,0 +1,15 @@
+{
+  "note": "Row is verbatim \u00a72.23. Positive TestRFC7296ValidatedPacketFromANewEndpointMovesTheSA: responder not behind a NAT and without MOBIKE; a second validated request from a new port moves peerEndpoint and remoteUDPAddr (what every send and retransmission reads), and the response is read on the new socket. Negatives each violate one bound of the sentence against adoptAuthenticatedEndpoint: behind a NAT (\u00a72.23 'A host behind a NAT SHOULD NOT do this type of dynamic address update') and MOBIKE keep the stored endpoint (TestRFC7296ValidatedPacketDoesNotMoveTheSAOutsideTheRow); a packet with an in-window Message ID whose integrity check fails, from a new endpoint, moves nothing (TestNattUnauthenticatedPacketDoesNotMoveTheEndpoint). Each guard in the producer has a case that reddens without it. The 'new packet' replay bound is a separate lowercase-should sentence, not this row.",
+  "requirement_sha": "30832c57d544ba5c",
+  "tests": {
+    "internal/component/ike/engine/rfc7296_dynamic_update_test.go::TestRFC7296ValidatedPacketDoesNotMoveTheSAOutsideTheRow": "999bc4e0b6651e29",
+    "internal/component/ike/engine/rfc7296_dynamic_update_test.go::TestRFC7296ValidatedPacketFromANewEndpointMovesTheSA": "999bc4e0b6651e29",
+    "internal/component/ike/engine/rfc7296_natt_test.go::TestNattUnauthenticatedPacketDoesNotMoveTheEndpoint": "c80ce9c50f9d983a"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7296_dynamic_update_test.go::TestRFC7296ValidatedPacketDoesNotMoveTheSAOutsideTheRow": "a38d66c259de5d5f",
+    "internal/component/ike/engine/rfc7296_dynamic_update_test.go::TestRFC7296ValidatedPacketFromANewEndpointMovesTheSA": "28c201ae027cddf5",
+    "internal/component/ike/engine/rfc7296_natt_test.go::TestNattUnauthenticatedPacketDoesNotMoveTheEndpoint": "c6524cfc25ea269a"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: an Extended Local Circuit ID field that is not the circuit's assigned value (absent, a shared constant). internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayExtendedLocalCircuitID: the IIH buildP2PHello emits carries HasCircuitID and LocalCircuitID == 7 (Fatalf otherwise); negative: a circuit assigned 42 emits a different value. The uint8(ifindex) uniqueness defect is RFC5303-3.2-4's {gap}.",
+  "requirement_sha": "b9c8f3382266872a",
+  "tests": {
+    "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayExtendedLocalCircuitID": "d32edc6561822cd6",
+    "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayExtendedLocalCircuitID#2": "d32edc6561822cd6"
+  },
+  "units": {
+    "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayExtendedLocalCircuitID": "3446635310718ccc",
+    "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayExtendedLocalCircuitID#2": "3446635310718ccc"
+  },
+  "verdict": "enforced"
+}

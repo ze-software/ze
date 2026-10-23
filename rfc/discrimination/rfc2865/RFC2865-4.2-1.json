@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC2865-4.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/radius/rfc2865_client_test.go::TestClientAuthenticatorVerify",
+    "unit-sha": "50cc8dd965fedcfb",
+    "claim-sha": "c2b67845c2f97046",
+    "route": "revert",
+    "producer": "internal/component/radius/packet.go::VerifyResponseAuth",
+    "producer-sha": "d3ec3b01205d9529",
+    "break": "body of VerifyResponseAuth replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC2865-4.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/radius/rfc2865_client_test.go::TestClientAuthenticatorVerify",
+    "unit-sha": "50cc8dd965fedcfb",
+    "claim-sha": "032161a3dbd75058",
+    "route": "revert",
+    "producer": "internal/component/radius/packet.go::VerifyResponseAuth",
+    "producer-sha": "d3ec3b01205d9529",
+    "break": "body of VerifyResponseAuth replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

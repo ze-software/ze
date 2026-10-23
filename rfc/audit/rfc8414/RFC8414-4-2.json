@@ -1,0 +1,17 @@
+{
+  "note": "Forbidden: applying Unicode normalization to either string. TestRFC8414IssuerCompareNoNormalizationRejects asserts errJWTIssuerMismatch for NFC iss vs NFD expected and the reverse; TestRFC8414MetadataIssuerIdentity asserts an NFC metadata issuer against the NFD configured one returns error and zero metadata. Positives: identical NFD strings accepted on both the JWT and metadata paths.",
+  "requirement_sha": "df6fb39f1bb1b6fe",
+  "tests": {
+    "internal/component/mcp/rfc8414_jwt_test.go::TestRFC8414IssuerCompareNoNormalizationAccepts": "18e93e5bd1969dca",
+    "internal/component/mcp/rfc8414_jwt_test.go::TestRFC8414IssuerCompareNoNormalizationRejects": "18e93e5bd1969dca",
+    "internal/component/mcp/rfc8414_metadata_request_test.go::TestRFC8414MetadataIssuerIdentity": "2f4d742cea5bceef",
+    "internal/component/mcp/rfc8414_metadata_request_test.go::TestRFC8414MetadataIssuerIdentity#2": "2f4d742cea5bceef"
+  },
+  "units": {
+    "internal/component/mcp/rfc8414_jwt_test.go::TestRFC8414IssuerCompareNoNormalizationAccepts": "4a62d5cfff044f1c",
+    "internal/component/mcp/rfc8414_jwt_test.go::TestRFC8414IssuerCompareNoNormalizationRejects": "a3db3e51029160d8",
+    "internal/component/mcp/rfc8414_metadata_request_test.go::TestRFC8414MetadataIssuerIdentity": "93bb9c8813eeb775",
+    "internal/component/mcp/rfc8414_metadata_request_test.go::TestRFC8414MetadataIssuerIdentity#2": "93bb9c8813eeb775"
+  },
+  "verdict": "enforced"
+}

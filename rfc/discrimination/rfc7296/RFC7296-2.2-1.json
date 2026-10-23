@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7296-2.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_retransmit_test.go::TestRtxRetransmissionIsBitwiseIdenticalAndReusesMessageID",
+    "unit-sha": "f4d5c7a97d4eb9c8",
+    "claim-sha": "d1f7c5cbf0b87c6b",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/established.go::serviceRekeyRetransmit",
+    "producer-sha": "bdd84380a7db6ee7",
+    "break": "body of serviceRekeyRetransmit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_retransmit_test.go::TestRtxRetransmissionIsBitwiseIdenticalAndReusesMessageID",
+    "unit-sha": "f4d5c7a97d4eb9c8",
+    "claim-sha": "1a7104f3f96fcae8",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/established.go::serviceRekeyRetransmit",
+    "producer-sha": "bdd84380a7db6ee7",
+    "break": "body of serviceRekeyRetransmit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

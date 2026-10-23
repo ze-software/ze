@@ -1,0 +1,21 @@
+{
+  "note": "Re-judged 2026-09-30 (independent judge, ospf c13). Appendix A.4.8: 'A global IPv6 address MUST be selected as forwarding address for NSSA-LSAs that are to be propagated by NSSA area border routers.' The c12 gap is closed: NEW TestRFC5340NSSAForwardingAddressFromKernelInterface (linux, own user+net namespace) calls the production interfaceIPv6ForwardingAddress over a real dummy link: - a link with only fe80::1 and lo with only ::1 yield no address; + after adding 2001:db8:9::1 the lookup returns exactly that address. Judge overlay removing the v6UsableForwardingAddress filter from interfaceIPv6ForwardingAddress reds the negative ('ospffa0 with only fe80::1 yielded forwarding address fe80::1'); base green. The unit also caught a defect the author fixed: the lookup never loaded the iface backend (siblings at interface_addr.go:29/46 do), so it answered no address everywhere and a negative would have passed vacuously; EnsureBackend added. Selection across interfaces stays proven by the seam unit TestRFC5340NSSAForwardingAddressSelectsGlobal; propagation gating by TestRFC5340NSSAPropagationNeedsGlobalForwardingAddress (mutant records on v6OriginateNSSALSA). Residual: the kernel unit Skips where a dummy link cannot be created.",
+  "requirement_sha": "0b6d1e6b5460a40c",
+  "tests": {
+    "internal/plugins/ospf/rfc5340_nssa_fa_iface_linux_test.go::TestRFC5340NSSAForwardingAddressFromKernelInterface": "3c59631f6bad7ed2",
+    "internal/plugins/ospf/rfc5340_nssa_fa_iface_linux_test.go::TestRFC5340NSSAForwardingAddressFromKernelInterface#2": "3c59631f6bad7ed2",
+    "internal/plugins/ospf/rfc5340_nssa_fa_select_test.go::TestRFC5340NSSAForwardingAddressSelectsGlobal": "0bd98dc3b818c09b",
+    "internal/plugins/ospf/rfc5340_nssa_fa_select_test.go::TestRFC5340NSSAForwardingAddressSelectsGlobal#2": "0bd98dc3b818c09b",
+    "internal/plugins/ospf/rfc5340_test.go::TestRFC5340NSSAPropagationNeedsGlobalForwardingAddress": "cdf4f5c0d8a37340",
+    "internal/plugins/ospf/rfc5340_test.go::TestRFC5340NSSAPropagationNeedsGlobalForwardingAddress#2": "cdf4f5c0d8a37340"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc5340_nssa_fa_iface_linux_test.go::TestRFC5340NSSAForwardingAddressFromKernelInterface": "1a683acc97b73cb5",
+    "internal/plugins/ospf/rfc5340_nssa_fa_iface_linux_test.go::TestRFC5340NSSAForwardingAddressFromKernelInterface#2": "1a683acc97b73cb5",
+    "internal/plugins/ospf/rfc5340_nssa_fa_select_test.go::TestRFC5340NSSAForwardingAddressSelectsGlobal": "903333f83312f280",
+    "internal/plugins/ospf/rfc5340_nssa_fa_select_test.go::TestRFC5340NSSAForwardingAddressSelectsGlobal#2": "903333f83312f280",
+    "internal/plugins/ospf/rfc5340_test.go::TestRFC5340NSSAPropagationNeedsGlobalForwardingAddress": "5096eee2588a1248",
+    "internal/plugins/ospf/rfc5340_test.go::TestRFC5340NSSAPropagationNeedsGlobalForwardingAddress#2": "5096eee2588a1248"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,19 @@
+{
+  "note": "Re-judged 2026-10-14 (independent reader, after 8c1c4013f2 and 7d37dcd562). RFC 9252 Section 3.2.1 with erratum 7817: the sum LBL+LNL+FL+AL 'MUST be less than or equal to 128 and greater than or equal to the sum of Transposition Offset and Transposition Length'. The earlier weakness (both negatives asserted the SID stayed valid) is gone: TestExtractSRv6SIDFull_InvalidSIDStructure (sum 192, AL 0 so only the sum bound fires) and TestExtractSRv6SIDFull_SumBelowTransposition (64 < 76) now assert no SID is answered, Section 7 making such a SID invalid; TestExtractSRv6SIDFull_Sum128IsValid asserts sum 128 and sum equal to offset plus length keep the SID with its transposition, and sum 129 answers none; TestExtractSRv6SIDFull_WithTransposition stays the positive. The consequence for best path is asserted under RFC9252-5-1. TestExtractSRv6SIDFull_SIDStructureLengthNotSix carries this tag but tests the neighbouring 6-octet length rule of Section 3.2.1, not the sum bound: it adds nothing here.",
+  "requirement_sha": "1fe45198489c7a4e",
+  "tests": {
+    "internal/component/bgp/plugins/rib/pool/rfc9252_sid_structure_validity_test.go::TestExtractSRv6SIDFull_SIDStructureLengthNotSix": "9f347a67c3f1362e",
+    "internal/component/bgp/plugins/rib/pool/rfc9252_sid_structure_validity_test.go::TestExtractSRv6SIDFull_Sum128IsValid": "9f347a67c3f1362e",
+    "internal/component/bgp/plugins/rib/pool/rfc9252_srv6sid_test.go::TestExtractSRv6SIDFull_InvalidSIDStructure": "806b0fdadb82521d",
+    "internal/component/bgp/plugins/rib/pool/rfc9252_srv6sid_test.go::TestExtractSRv6SIDFull_SumBelowTransposition": "806b0fdadb82521d",
+    "internal/component/bgp/plugins/rib/pool/rfc9252_srv6sid_test.go::TestExtractSRv6SIDFull_WithTransposition": "806b0fdadb82521d"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rib/pool/rfc9252_sid_structure_validity_test.go::TestExtractSRv6SIDFull_SIDStructureLengthNotSix": "cb399d400d7fb2fd",
+    "internal/component/bgp/plugins/rib/pool/rfc9252_sid_structure_validity_test.go::TestExtractSRv6SIDFull_Sum128IsValid": "5cd070c7d100dcde",
+    "internal/component/bgp/plugins/rib/pool/rfc9252_srv6sid_test.go::TestExtractSRv6SIDFull_InvalidSIDStructure": "a7e923f06d42ba4d",
+    "internal/component/bgp/plugins/rib/pool/rfc9252_srv6sid_test.go::TestExtractSRv6SIDFull_SumBelowTransposition": "8b48a22c3712cd8f",
+    "internal/component/bgp/plugins/rib/pool/rfc9252_srv6sid_test.go::TestExtractSRv6SIDFull_WithTransposition": "da8419bdc2b2159a"
+  },
+  "verdict": "enforced"
+}

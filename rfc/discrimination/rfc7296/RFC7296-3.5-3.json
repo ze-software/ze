@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC7296-3.5-3",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_identity_test.go::TestRemoteIDRefusesTypesItCannotCompare",
+    "unit-sha": "c0558967d8d4efa0",
+    "claim-sha": "14e12ce6850fee1f",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/remote_id.go::assertedIdentity",
+    "producer-sha": "f62a4906f27fa517",
+    "break": "body of assertedIdentity replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC1661-5.4-2",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/ppp/rfc1661_dns_options_test.go::TestRFC1877ConfigureRejectEchoesUnsupportedOnly",
+    "unit-sha": "4119340d64a6de8c",
+    "claim-sha": "61dd98a992f415c2",
+    "route": "revert",
+    "producer": "internal/component/l2tp/ppp/ncp.go::copyUnknownOptions",
+    "producer-sha": "05fd231a9eff0b8e",
+    "break": "body of copyUnknownOptions replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

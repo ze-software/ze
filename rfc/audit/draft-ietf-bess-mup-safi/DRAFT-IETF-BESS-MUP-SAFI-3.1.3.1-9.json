@@ -1,0 +1,19 @@
+{
+  "note": "Re-judged 2026-10-21 (independent auditor, authored none of 32ff59085b). Section 3.1.3.1: \"unknown TLV types MUST be ignored for local processing and MUST be propagated unchanged when re- advertising the route to other BGP peers\". Changed unit TestMUPUnknownTLVNotStrippedAtIngress builds the same octets as before (t1stBody now includes the zero source length the old code appended): the relayed route is five octets longer than the TLV-less one, its Length counts the TLV, its last five octets are TLV 0xF0. TestMUPUnknownTLVPropagatedUnchangedAtIngress and TestMUPT1STUnknownTLVIgnoredAndPropagated are likewise byte-identical in their wire. Retain, validateTLVs and ParseMUP records re-taken and observed red. ",
+  "requirement_sha": "c620e18c21726490",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_ingress_test.go::TestMUPUnknownTLVNotStrippedAtIngress": "979695ac9f064e0d",
+    "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_ingress_test.go::TestMUPUnknownTLVPropagatedUnchangedAtIngress": "979695ac9f064e0d",
+    "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STUnknownTLVIgnoredAndPropagated": "b8681e31e994fbcc",
+    "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STUnknownTLVIgnoredAndPropagated#2": "b8681e31e994fbcc",
+    "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STUnknownTLVIgnoredAndPropagated#3": "b8681e31e994fbcc"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_ingress_test.go::TestMUPUnknownTLVNotStrippedAtIngress": "2f4a99aaf046da2e",
+    "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_ingress_test.go::TestMUPUnknownTLVPropagatedUnchangedAtIngress": "64c664013892e9fe",
+    "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STUnknownTLVIgnoredAndPropagated": "906d874e25e0d72b",
+    "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STUnknownTLVIgnoredAndPropagated#2": "906d874e25e0d72b",
+    "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STUnknownTLVIgnoredAndPropagated#3": "906d874e25e0d72b"
+  },
+  "verdict": "enforced"
+}

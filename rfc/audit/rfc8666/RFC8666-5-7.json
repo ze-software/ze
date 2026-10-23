@@ -1,0 +1,13 @@
+{
+  "note": "0xFFFFFF in Reserved decodes identically to zero (and encoder sends zero); negative bounds the ignore by showing the adjacent AF octet is honoured",
+  "requirement_sha": "aa4465919943ca6c",
+  "tests": {
+    "internal/plugins/ospf/sr/rfc8666_codec_v6_test.go::TestRFC8666V6ExtPrefixRangeAFOctetNotIgnored": "b898637e07666ee9",
+    "internal/plugins/ospf/sr/rfc8666_codec_v6_test.go::TestRFC8666V6ExtPrefixRangeReservedIgnoredOnReceive": "b898637e07666ee9"
+  },
+  "units": {
+    "internal/plugins/ospf/sr/rfc8666_codec_v6_test.go::TestRFC8666V6ExtPrefixRangeAFOctetNotIgnored": "8df0184123137542",
+    "internal/plugins/ospf/sr/rfc8666_codec_v6_test.go::TestRFC8666V6ExtPrefixRangeReservedIgnoredOnReceive": "1816868428900699"
+  },
+  "verdict": "enforced"
+}

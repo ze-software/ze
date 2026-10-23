@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC7296-3.1-13",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_initiator_bit_sites_test.go::TestRFC7296InitiatorBitAtEveryRemainingCallSite",
+    "unit-sha": "31da1dbb12fff611",
+    "claim-sha": "4b511dbee8934b70",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/rekey.go::initiatorFlag",
+    "producer-sha": "197be878d20383ae",
+    "break": "body of initiatorFlag replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-3.1-13",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_initiator_bit_test.go::TestRFC7296InitiatorBitFollowsTheOriginalRole",
+    "unit-sha": "cc15315fa0c4f710",
+    "claim-sha": "9311cddfec5eb192",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/rekey.go::initiatorFlag",
+    "producer-sha": "197be878d20383ae",
+    "break": "body of initiatorFlag replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-3.1-13",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_wp2_test.go::TestWp2DPDProbeIBitDiffersByRole",
+    "unit-sha": "ddd9076ea3d99730",
+    "claim-sha": "fa19978e0d863c78",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/rekey.go::initiatorFlag",
+    "producer-sha": "197be878d20383ae",
+    "break": "body of initiatorFlag replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-3.1-13",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_wp2_test.go::TestWp2DPDProbeIBitFollowsRole",
+    "unit-sha": "be90851c54cee9b7",
+    "claim-sha": "356f4a1241558116",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/rekey.go::initiatorFlag",
+    "producer-sha": "197be878d20383ae",
+    "break": "body of initiatorFlag replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

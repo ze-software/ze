@@ -69,19 +69,17 @@ Then the polarity pair:
 
 ## Verdicts
 
+Each verdict is its own file, `rfc/audit/<stem>/<requirement-id>.json`, holding the
+verdict object alone: the path names the RFC and the requirement, so two sessions judging
+different requirements never edit the same file. `rfc/audit/rfc7606/RFC7606-7.1-1.json`:
+
 ```json
 {
-  "rfc": "rfc7606",
-  "audited": "2026-07-17",
-  "requirements": {
-    "RFC7606-7.1-1": {
-      "verdict": "enforced",
-      "note": "negative asserts the exact TreatAsWithdraw + AttrCode 1; positive pins all three valid ORIGIN values",
-      "requirement_sha": "<from ./le rfc audit-stamp>",
-      "tests": {"<path>::<TestFunc>": "<whole-file sha>"},
-      "units": {"<path>::<TestFunc>": "<enclosing-func sha>"}
-    }
-  }
+  "verdict": "enforced",
+  "note": "negative asserts the exact TreatAsWithdraw + AttrCode 1; positive pins all three valid ORIGIN values",
+  "requirement_sha": "<from ./le rfc audit-stamp>",
+  "tests": {"<path>::<TestFunc>": "<whole-file sha>"},
+  "units": {"<path>::<TestFunc>": "<enclosing-func sha>"}
 }
 ```
 
@@ -121,12 +119,12 @@ ordinal: `<path>::<FuncName>#2`, `#3`, in tag order. The retired `<path>:<line>`
 because no generator kept that line current and it rotted at the next edit above it.
 
 **Never compute a key or a sha by hand: `./le rfc audit-stamp` computes them.** Write the
-judgement in a pending file OUTSIDE `rfc/audit/`, shaped like the audit file: `rfc`, an
-optional `audited` date, and `requirements` whose entries carry only `verdict`, `note`,
+judgement in a pending file OUTSIDE `rfc/audit/`: one object holding `rfc` and
+`requirements`, keyed by requirement id, whose entries carry only `verdict`, `note`,
 `no_code_path`, and a `code` map whose keys you name with their values left `""`. Then run
 `./le rfc audit-stamp stem <stem> from <path>`. It fills `requirement_sha` from the row's text,
-`tests` and `units` from the row's tags, and each `code` sha, and merges the verdicts into
-`rfc/audit/<stem>.json`, creating the file when absent.
+`tests` and `units` from the row's tags, and each `code` sha, and writes each verdict into its
+own file, `rfc/audit/<stem>/<requirement-id>.json`. A verdict's history is that file's git log.
 
 Never write an unstamped verdict into `rfc/audit/` itself. The load refuses a verdict with no
 `requirement_sha`, and that load feeds `./le rfc check` and the shell hook of every session in

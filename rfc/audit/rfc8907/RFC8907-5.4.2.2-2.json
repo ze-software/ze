@@ -1,0 +1,17 @@
+{
+  "note": "Rejudged 2026-09-29. Positive TestRFC8907PAPStartOnWireCarriesUserAndPassword decodes the START from the wire and requires user=alice and data=the password. Negative TestRFC8907PAPStartWithoutUsernameNeverSent requires errRequestInvalid and that the server is never contacted, the tagged red assertion for 'MUST contain a username' the old verdict lacked.",
+  "requirement_sha": "f14c5cd02fa6c83c",
+  "tests": {
+    "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907PAPStartOnWireCarriesUserAndPassword": "fb302ebfa0d9b135",
+    "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907PAPStartWithoutUsernameNeverSent": "fb302ebfa0d9b135",
+    "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907PAPStartCarriesUserAndPassword": "226ab125232efc32",
+    "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907PAPStartRefusesPasswordItCannotCarry": "226ab125232efc32"
+  },
+  "units": {
+    "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907PAPStartOnWireCarriesUserAndPassword": "c68eab0768cfd384",
+    "internal/component/tacacs/rfc8907_arguments_test.go::TestRFC8907PAPStartWithoutUsernameNeverSent": "60451a065203bb93",
+    "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907PAPStartCarriesUserAndPassword": "70d2f3b0cc48094e",
+    "internal/component/tacacs/rfc8907_body_test.go::TestRFC8907PAPStartRefusesPasswordItCannotCarry": "b76421e1633c0862"
+  },
+  "verdict": "enforced"
+}

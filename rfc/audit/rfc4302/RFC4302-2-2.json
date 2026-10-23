@@ -1,0 +1,13 @@
+{
+  "note": "(a) forbidden: AH parameters settled without a signalling or out-of-band mechanism both peers hold, e.g. a defaulted integrity algorithm. (b) TestAHParametersComeFromConfiguration: protocol, SPI, algorithm and key length are asserted from the parsed RFC 4552 block (positive), and an AH block with no algorithm must fail with ErrIPsecAuthAlgo (negative). Ze uses the out-of-band configuration mechanism the sentence names; it runs no AH signalling.",
+  "requirement_sha": "83e60a3e408a06ef",
+  "tests": {
+    "internal/plugins/ospf/rfc4302_ipsec_test.go::TestAHParametersComeFromConfiguration": "4eb7d1753c913cce",
+    "internal/plugins/ospf/rfc4302_ipsec_test.go::TestAHParametersComeFromConfiguration#2": "4eb7d1753c913cce"
+  },
+  "units": {
+    "internal/plugins/ospf/rfc4302_ipsec_test.go::TestAHParametersComeFromConfiguration": "4677f4b45791218a",
+    "internal/plugins/ospf/rfc4302_ipsec_test.go::TestAHParametersComeFromConfiguration#2": "4677f4b45791218a"
+  },
+  "verdict": "enforced"
+}

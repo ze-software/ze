@@ -1,0 +1,13 @@
+{
+  "note": "Re-read 2026-09-27 against \u00a75.1 'The L flag MUST be set to 1 to indicate post-policy'. Ze's Adj-RIB-Out is post-policy only. Forbidden: a post-policy Adj-RIB-Out header with L=0; TestPeerHeaderFromEventAdjRIBOut fails when the sent direction lacks PeerFlagL. TestPeerHeaderFromEventAdjRIBIn shows L is not set unconditionally.",
+  "requirement_sha": "78b531802e313954",
+  "tests": {
+    "internal/component/bgp/plugins/bmp/event_test.go::TestPeerHeaderFromEventAdjRIBIn": "1600925b71fa0ce5",
+    "internal/component/bgp/plugins/bmp/event_test.go::TestPeerHeaderFromEventAdjRIBOut": "1600925b71fa0ce5"
+  },
+  "units": {
+    "internal/component/bgp/plugins/bmp/event_test.go::TestPeerHeaderFromEventAdjRIBIn": "f9b8d61bde3447de",
+    "internal/component/bgp/plugins/bmp/event_test.go::TestPeerHeaderFromEventAdjRIBOut": "8c364bd38b11688f"
+  },
+  "verdict": "enforced"
+}

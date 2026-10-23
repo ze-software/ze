@@ -1,0 +1,17 @@
+{
+  "note": "Forbidden: AS 0 beside other providers changing the verification outcome. TestASPAZeroDoesNotAuthorizeOrInvalidate: {0,200} Valid, {0} alone Invalid. TestASPAZeroBesideProvidersIsNoWildcard: {0,200} = {200} = Valid (AS 0 does not invalidate) and {0,999} = {999} = Invalid for a path whose provider 200 is unlisted (AS 0 is no wildcard).",
+  "requirement_sha": "d55f8f05bafd195c",
+  "tests": {
+    "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_test.go::TestASPAZeroDoesNotAuthorizeOrInvalidate": "5ab96eda55fb7b07",
+    "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_test.go::TestASPAZeroDoesNotAuthorizeOrInvalidate#2": "5ab96eda55fb7b07",
+    "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_zero_test.go::TestASPAZeroBesideProvidersIsNoWildcard": "9e3164ba99cd9f6a",
+    "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_zero_test.go::TestASPAZeroBesideProvidersIsNoWildcard#2": "9e3164ba99cd9f6a"
+  },
+  "units": {
+    "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_test.go::TestASPAZeroDoesNotAuthorizeOrInvalidate": "ff102393b4854d9e",
+    "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_test.go::TestASPAZeroDoesNotAuthorizeOrInvalidate#2": "ff102393b4854d9e",
+    "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_zero_test.go::TestASPAZeroBesideProvidersIsNoWildcard": "7b6676da86907295",
+    "internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_zero_test.go::TestASPAZeroBesideProvidersIsNoWildcard#2": "7b6676da86907295"
+  },
+  "verdict": "enforced"
+}

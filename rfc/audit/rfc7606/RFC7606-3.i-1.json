@@ -1,0 +1,13 @@
+{
+  "note": "Negative TestEnforceRFC7606_InvalidWithdrawnNLRI (session_validate_test.go:87) puts prefix-length 33 in the Withdrawn Routes field (withdrawn-only body, isolated) and asserts require.Equal(SessionReset)+err \u2014 proving the withdrawn field IS syntax-checked like NLRI (mirror of TestEnforceRFC7606_InvalidTrailingNLRI for the NLRI field). Positive TestEnforceRFC7606_ValidWithdrawnNLRIAccepted (rfc7606_session_structural_test.go:72) drives a deliberately non-empty valid withdrawn field through enforceRFC7606 => ActionNone, unrewritten. 2026-07-22 re-stamp: the verdict went stale only because commit c4038def0 prepended an rfc-test-change-approved header and swapped package qualifiers (bgptypes.RouteAction*->routeaction.*, message.Type*->msgtype.Type*, rib/events->core/bgp/ribevents) in the tagged files; tagged_unit_shas fingerprints the whole enclosing file. Normalising the 254772452..HEAD diff under that rename cancels with ZERO unmatched assertion deletions, and rfc/short/rfc7606.md is byte-identical since the audit, so the judgement above still describes exactly what it judged.",
+  "requirement_sha": "55678935f22b8a58",
+  "tests": {
+    "internal/component/bgp/reactor/rfc7606_session_structural_test.go::TestEnforceRFC7606_ValidWithdrawnNLRIAccepted": "9f97a0d56d362dc6",
+    "internal/component/bgp/reactor/session_validate_test.go::TestEnforceRFC7606_InvalidWithdrawnNLRI": "00ea84393819df2b"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc7606_session_structural_test.go::TestEnforceRFC7606_ValidWithdrawnNLRIAccepted": "36303b7929270759",
+    "internal/component/bgp/reactor/session_validate_test.go::TestEnforceRFC7606_InvalidWithdrawnNLRI": "907b59fb8b6e0f2a"
+  },
+  "verdict": "enforced"
+}

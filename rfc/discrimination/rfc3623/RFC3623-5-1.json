@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC3623-5-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/rfc3623_gr_unplanned_test.go::TestUnplannedDisabledByDefault",
+    "unit-sha": "e6efddda9bd5527e",
+    "claim-sha": "77e8777accbcc851",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/config.go::unplannedEnabled",
+    "producer-sha": "67542e2a0c455bb8",
+    "break": "body of unplannedEnabled replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3623-5-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc3623_gr_unplanned_test.go::TestUnplannedGraceBeforeHello",
+    "unit-sha": "b8971fcee54ebe2f",
+    "claim-sha": "cd09af7751e87556",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/config.go::unplannedEnabled",
+    "producer-sha": "67542e2a0c455bb8",
+    "break": "body of unplannedEnabled replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3623-5-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc3623_grace_origination_test.go::TestRFC3623OperatorTurnsUnplannedRecoveryOff",
+    "unit-sha": "9113ff9c76efeec4",
+    "claim-sha": "68e1482cce820617",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/config.go::parseGRSupport",
+    "producer-sha": "c914fff64c5e5ed6",
+    "break": "body of parseGRSupport replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3623-5-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/rfc3623_grace_origination_test.go::TestRFC3623OperatorTurnsUnplannedRecoveryOff",
+    "unit-sha": "9113ff9c76efeec4",
+    "claim-sha": "d6a09ead8a15ea8d",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/config.go::parseGRSupport",
+    "producer-sha": "c914fff64c5e5ed6",
+    "break": "body of parseGRSupport replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

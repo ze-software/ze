@@ -1,0 +1,13 @@
+{
+  "note": "Judged 2026-09-29 (routing child, continuation judge). Positive: relayed and ingress-originated PathTear both carry IP dst = session endpoint and IP src = sender address. Negative TestRFC2205PathTearSourceNotTakenFromCarrier: a PathTear arriving from another source is still relayed from the sender address, not the carrier or the router ID.",
+  "requirement_sha": "7c04ce0cc83b6997",
+  "tests": {
+    "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205PathTearAddressedFromSenderToSession": "7bc063943de30e7b",
+    "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205PathTearSourceNotTakenFromCarrier": "7bc063943de30e7b"
+  },
+  "units": {
+    "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205PathTearAddressedFromSenderToSession": "ec522cff91b5b0fe",
+    "internal/plugins/rsvpte/rfc2205_softstate_timeout_test.go::TestRFC2205PathTearSourceNotTakenFromCarrier": "99cf45305f2b058f"
+  },
+  "verdict": "enforced"
+}

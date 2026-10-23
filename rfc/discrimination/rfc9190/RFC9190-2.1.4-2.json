@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9190-2.1.4-2",
+    "polarity": "negative",
+    "unit": "internal/core/eap/rfc9190_handshake_rules_test.go::TestEAPTLS12EachEndAnswersWithRecordsOfTheNegotiatedVersion",
+    "unit-sha": "1f54650251cf3350",
+    "claim-sha": "3fb2cb016ff6f412",
+    "route": "revert",
+    "producer": "internal/core/eap/peer.go::readAndSendTLS",
+    "producer-sha": "1ae79fc6880755e3",
+    "break": "body of readAndSendTLS replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9190-2.1.4-2",
+    "polarity": "positive",
+    "unit": "internal/core/eap/rfc9190_handshake_rules_test.go::TestEAPTLS13EachEndAnswersWithRecordsOfTheNegotiatedVersion",
+    "unit-sha": "f29857a61b2cb153",
+    "claim-sha": "ffa54e0dcfc0d6f6",
+    "route": "revert",
+    "producer": "internal/core/eap/peer.go::readAndSendTLS",
+    "producer-sha": "1ae79fc6880755e3",
+    "break": "body of readAndSendTLS replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

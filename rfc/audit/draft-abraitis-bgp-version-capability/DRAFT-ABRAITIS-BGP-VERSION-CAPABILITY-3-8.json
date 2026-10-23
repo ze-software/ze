@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: advertising or other nonessential information in the product identifier ze sends. TestSoftverProductIdentifierCarriesNothingNonessential asserts the whole Capability Value encodeValue writes for the default draft encoding matches the product[/product-version] grammar with no spaces or prose (productIdentifierIsEssential), red if ZeVersion carried any. Negative: six identifiers carrying such information are refused by the same check.",
+  "requirement_sha": "ad1f3b9c96d88256",
+  "tests": {
+    "internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go::TestSoftverNonessentialProductIdentifiersAreRefused": "621a76bf24368516",
+    "internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go::TestSoftverProductIdentifierCarriesNothingNonessential": "621a76bf24368516"
+  },
+  "units": {
+    "internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go::TestSoftverNonessentialProductIdentifiersAreRefused": "22dbdc9c5bb81830",
+    "internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go::TestSoftverProductIdentifierCarriesNothingNonessential": "04701c17064fc5ec"
+  },
+  "verdict": "enforced"
+}

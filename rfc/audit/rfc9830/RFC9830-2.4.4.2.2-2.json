@@ -1,0 +1,13 @@
+{
+  "note": "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV. Forbidden: a non-zero Type B RESERVED octet on transmission. Red: assert.Equal(byte(0), value[1]) and assert.Equal(byte(0), bare[0][1]), with and without the structure. Negative: assert.NotEqual(make([]byte, 26), value) and value[2] pinned to 0xFC.",
+  "requirement_sha": "c71bbfda5907beb0",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV": "450f2364530acf19",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV#2": "450f2364530acf19"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV": "bcfcf99bdcd49711",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV#2": "bcfcf99bdcd49711"
+  },
+  "verdict": "enforced"
+}

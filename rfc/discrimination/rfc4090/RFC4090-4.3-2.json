@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC4090-4.3-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/frr_test.go::TestBuildPathIncludesFastReroute",
+    "unit-sha": "c496a5ef5b176154",
+    "claim-sha": "408375de4a204a1b",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/frr.go::sessionAttr",
+    "producer-sha": "4b6d2a4ab23205bb",
+    "break": "body of sessionAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4090-4.3-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/rsvpte/frr_test.go::TestSessionAttributeEmptyName",
+    "unit-sha": "281e8559cd4d39b1",
+    "claim-sha": "4b44c161e3017b08",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/frr.go::decodeSessionAttr",
+    "producer-sha": "5ad69377a4aa78d4",
+    "break": "body of decodeSessionAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4090-4.3-2",
+    "polarity": "positive",
+    "unit": "internal/plugins/rsvpte/frr_test.go::TestSessionAttributeProtectionFlags",
+    "unit-sha": "cfcdb267e2c91dbb",
+    "claim-sha": "494133789faa19dc",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/frr.go::sessionAttr",
+    "producer-sha": "4b6d2a4ab23205bb",
+    "break": "body of sessionAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4090-4.3-2",
+    "polarity": "negative",
+    "unit": "internal/plugins/rsvpte/rfc4090_plr_flags_test.go::TestRFC4090NodeDesiredClearedWhenNotDesired",
+    "unit-sha": "cbe1c3f3a0246445",
+    "claim-sha": "c7607e9a5d2d6780",
+    "route": "revert",
+    "producer": "internal/plugins/rsvpte/frr.go::sessionAttr",
+    "producer-sha": "4b6d2a4ab23205bb",
+    "break": "body of sessionAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,13 @@
+{
+  "note": "vrrp closure judge 2026-09-30 (independent): TestDecodeV3IPv6ChecksumCoversPseudoHeader recomputes the IPv6 golden's checksum with refChecksum (independent of checksum.go): the RFC 8200 pseudo-header plus message sum is accepted, the message-only sum is refused with ErrChecksum, so a v6 verifier that dropped the pseudo-header or fell back to message-only (as the v4 path does) goes red. Producer verifyReceived family==V6 uses pseudoSumV6 only. Both polarities recorded observed red (pseudoSumV6, verifyReceived).",
+  "requirement_sha": "df39781f4680cb1b",
+  "tests": {
+    "internal/plugins/vrrp/packet/rfc9568_ipv6_pseudo_header_test.go::TestDecodeV3IPv6ChecksumCoversPseudoHeader": "0e285dc8c00bb295",
+    "internal/plugins/vrrp/packet/rfc9568_ipv6_pseudo_header_test.go::TestDecodeV3IPv6ChecksumCoversPseudoHeader#2": "0e285dc8c00bb295"
+  },
+  "units": {
+    "internal/plugins/vrrp/packet/rfc9568_ipv6_pseudo_header_test.go::TestDecodeV3IPv6ChecksumCoversPseudoHeader": "4003ccb187f116d3",
+    "internal/plugins/vrrp/packet/rfc9568_ipv6_pseudo_header_test.go::TestDecodeV3IPv6ChecksumCoversPseudoHeader#2": "4003ccb187f116d3"
+  },
+  "verdict": "enforced"
+}

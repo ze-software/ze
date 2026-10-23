@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: refusing a 1500-octet Information field. TestFullInformationFieldReceived goes red if ParseFrame refuses 1502 octets, returns fewer than 1500, if getFrameBuf (the readFrames buffer, MRU-independent) is shorter than the frame, or ParseLCPPacket refuses Length 1500.",
+  "requirement_sha": "bf8de5e1aac53efe",
+  "tests": {
+    "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestFullInformationFieldReceived": "034fb31a9e383e0e",
+    "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestFullInformationFieldReceived#2": "034fb31a9e383e0e"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestFullInformationFieldReceived": "7891357135ea0ffe",
+    "internal/component/l2tp/ppp/rfc1661_magic_echo_test.go::TestFullInformationFieldReceived#2": "7891357135ea0ffe"
+  },
+  "verdict": "enforced"
+}

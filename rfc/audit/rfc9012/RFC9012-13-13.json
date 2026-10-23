@@ -1,0 +1,21 @@
+{
+  "note": "Structural endpoint cases, original-input registry propagation and real native-route storage jointly prove that malformed endpoint TLVs are ignored wholesale. Valid marked siblings survive; all-invalid replacements remove the installed target on all seven Section 6 carriers. Registry Destination/Forwardable restrictions and allowed exceptions are covered. The optional origin-AS determination is not implemented or inferred, so no unproved determination is claimed.",
+  "requirement_sha": "399c596dffcec7c3",
+  "tests": {
+    "internal/component/bgp/reactor/rfc9012_receive_storage_test.go::TestRFC9012EndpointAddressRegistryStorage": "db256d42d0cdc6ff",
+    "internal/component/bgp/reactor/rfc9012_receive_storage_test.go::TestRFC9012EndpointAddressRegistryStorage#2": "db256d42d0cdc6ff",
+    "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012EndpointAddressRegistryPropagation": "8e898ec9c074ca2b",
+    "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012EndpointAddressRegistryPropagation#2": "8e898ec9c074ca2b",
+    "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9012EndpointInvalidTLVsRemovedOnUnicast": "cd227ea5764f94be",
+    "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9012EndpointInvalidTLVsRemovedOnUnicast#2": "cd227ea5764f94be"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc9012_receive_storage_test.go::TestRFC9012EndpointAddressRegistryStorage": "45ab3b1c39f5d7c7",
+    "internal/component/bgp/reactor/rfc9012_receive_storage_test.go::TestRFC9012EndpointAddressRegistryStorage#2": "45ab3b1c39f5d7c7",
+    "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012EndpointAddressRegistryPropagation": "61d7016fcba8872e",
+    "internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012EndpointAddressRegistryPropagation#2": "61d7016fcba8872e",
+    "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9012EndpointInvalidTLVsRemovedOnUnicast": "3c4a5ad1a9f5bfb6",
+    "internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go::TestRFC9012EndpointInvalidTLVsRemovedOnUnicast#2": "3c4a5ad1a9f5bfb6"
+  },
+  "verdict": "enforced"
+}

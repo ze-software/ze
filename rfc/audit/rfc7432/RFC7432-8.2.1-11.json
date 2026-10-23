@@ -1,0 +1,6 @@
+{
+  "no_code_path": "Neither Ze nor its delegated system-FIB boundary fills this conditional ingress-replicating EVPN PE role. parseConfigRoute and l2vpnRouteToEVPNParams construct supplied advertisements; rib_bestchange excludes non-CIDR routes from Loc-RIB mirroring and sysrib.processEvent skips NLRI-only events rather than installing an EVPN forwarding service. Byte carriage proves no downstream label assignment.",
+  "note": "RFC 7432 Section 8.2.1 states: \"This label MUST be a downstream assigned MPLS label if the advertising PE is using ingress replication for receiving multicast, broadcast, or unknown unicast traffic from other PEs.\" Its antecedent is the ESI label, not the NLRI label. The condition binds a PE receiving BUM using ingress replication, not every speaker carrying an explicitly configured ESI Label. The selected role in docs/architecture/wire/nlri-evpn.md is BGP origination/propagation without Ethernet/BUM forwarding or service-label allocation. Route producers carry supplied bytes without instantiating that PE procedure.",
+  "requirement_sha": "f76801defb87be3b",
+  "verdict": "not-applicable"
+}

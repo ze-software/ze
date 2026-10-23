@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC7854-4.5-5",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/bmp/rfc7854_sender_queue_test.go::TestSenderStopSendsTerminationToCollector",
+    "unit-sha": "bff09ec8d6df5597",
+    "claim-sha": "c7519dec429b5228",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/bmp/sender.go::writeTerminationLocked",
+    "producer-sha": "1c09a16edf286183",
+    "break": "body of writeTerminationLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7854-4.5-5",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/bmp/rfc7854_termination_absent_test.go::TestBMPReceiverEndsTheSessionWhenTheRouterLeavesWithoutTermination",
+    "unit-sha": "9658b7d6293bb3d1",
+    "claim-sha": "d1948e8ff2b2e895",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/bmp/state.go::removeRouter",
+    "producer-sha": "36cbf299c95a3e96",
+    "break": "body of removeRouter replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

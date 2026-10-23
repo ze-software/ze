@@ -1,0 +1,13 @@
+{
+  "note": "all defined flags set encode as 0x7C with bits 0/6/7 clear; reserved bits 0x83 set on receive decode identically",
+  "requirement_sha": "ab9415529acedac2",
+  "tests": {
+    "internal/plugins/ospf/sr/rfc8666_test.go::TestRFC8666PrefixSIDReservedFlagBitsIgnoredOnReceive": "fc78f1bb66bf1d61",
+    "internal/plugins/ospf/sr/rfc8666_test.go::TestRFC8666PrefixSIDReservedFlagBitsZeroOnSend": "fc78f1bb66bf1d61"
+  },
+  "units": {
+    "internal/plugins/ospf/sr/rfc8666_test.go::TestRFC8666PrefixSIDReservedFlagBitsIgnoredOnReceive": "dc69d6ffc23cea94",
+    "internal/plugins/ospf/sr/rfc8666_test.go::TestRFC8666PrefixSIDReservedFlagBitsZeroOnSend": "c6e9ec3100478fb6"
+  },
+  "verdict": "enforced"
+}

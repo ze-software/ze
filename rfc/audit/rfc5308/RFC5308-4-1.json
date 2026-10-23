@@ -1,0 +1,19 @@
+{
+  "note": "(a) forbidden: an IPv6-capable IS omitting the IPv6 NLPID from TLV 129, or advertising a value other than 142 (0x8E). (b) circuit TestRFC5308HelloNLPIDIs142 checks the transmitted dual-stack IIH's TLV 129 wire octets equal exactly cc 8e, against the literal rather than packet.NLPIDIPv6, closing the constant gap; TestISISProtocolsSupportedDualStack and TestISISIIHTLV232LinkLocal cover the advertise clause and the IPv4-only cases (TestISISProtocolsSupportedDualStack ipv4-only, TestISISIIHNoTLV232WhenIPv4Only) the absence when IPv6 is not supported. Recorded + on hello.go protocolsSupportedTLV.",
+  "requirement_sha": "b51183531fcb703d",
+  "tests": {
+    "internal/plugins/isis/circuit/rfc5303_sent_iih_test.go::TestRFC5308HelloNLPIDIs142": "103ec73a1dc2a973",
+    "internal/plugins/isis/circuit/rfc5308_hello_ipv6_test.go::TestISISIIHNoTLV232WhenIPv4Only": "7485069b2f049b28",
+    "internal/plugins/isis/circuit/rfc5308_hello_ipv6_test.go::TestISISIIHTLV232LinkLocal": "7485069b2f049b28",
+    "internal/plugins/isis/lsdb/rfc5308_origination_ipv6_test.go::TestISISProtocolsSupportedDualStack": "6f31da93ea46f1e7",
+    "internal/plugins/isis/lsdb/rfc5308_origination_ipv6_test.go::TestISISProtocolsSupportedDualStack#2": "6f31da93ea46f1e7"
+  },
+  "units": {
+    "internal/plugins/isis/circuit/rfc5303_sent_iih_test.go::TestRFC5308HelloNLPIDIs142": "8e2bafeeea39fdb0",
+    "internal/plugins/isis/circuit/rfc5308_hello_ipv6_test.go::TestISISIIHNoTLV232WhenIPv4Only": "08f9f1b4bf60a0b3",
+    "internal/plugins/isis/circuit/rfc5308_hello_ipv6_test.go::TestISISIIHTLV232LinkLocal": "2a9073bd68ff9da0",
+    "internal/plugins/isis/lsdb/rfc5308_origination_ipv6_test.go::TestISISProtocolsSupportedDualStack": "9200237b3220c591",
+    "internal/plugins/isis/lsdb/rfc5308_origination_ipv6_test.go::TestISISProtocolsSupportedDualStack#2": "9200237b3220c591"
+  },
+  "verdict": "enforced"
+}

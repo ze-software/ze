@@ -1,0 +1,48 @@
+[
+  {
+    "rid": "RFC8654-4-6",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc8654_directional_session_test.go::TestRFC8654SendLimitFollowsPeerOPEN",
+    "unit-sha": "32fae9a8d6689625",
+    "claim-sha": "918a869b4705de8f",
+    "route": "revert",
+    "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
+    "producer-sha": "7d637b6d32bc44a0",
+    "break": "body of Negotiate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8654-4-6",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc8654_directional_session_test.go::TestRFC8654SendLimitFollowsPeerOPEN",
+    "unit-sha": "32fae9a8d6689625",
+    "claim-sha": "e77ea6253f5b3fc1",
+    "route": "revert",
+    "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
+    "producer-sha": "7d637b6d32bc44a0",
+    "break": "body of Negotiate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8654-4-6",
+    "polarity": "positive",
+    "unit": "internal/le/interoplab/bgp/check_extended_message_scenarios.go::checkExtendedAsymmetricFRR",
+    "unit-sha": "b78159859a9bc445",
+    "claim-sha": "33d0ad743503d8cf",
+    "route": "revert",
+    "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
+    "producer-sha": "7d637b6d32bc44a0",
+    "break": "body of Negotiate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+    "citation": "1"
+  },
+  {
+    "rid": "RFC8654-4-6",
+    "polarity": "negative",
+    "unit": "internal/le/interoplab/bgp/check_extended_message_scenarios.go::checkExtendedSendDeniedFRR",
+    "unit-sha": "e8984d17536c954d",
+    "claim-sha": "dac325e32d34acd0",
+    "route": "revert",
+    "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
+    "producer-sha": "7d637b6d32bc44a0",
+    "break": "body of Negotiate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+    "citation": "1"
+  }
+]

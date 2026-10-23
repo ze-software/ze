@@ -1,0 +1,58 @@
+[
+  {
+    "rid": "RFC7296-3.6-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_cert_chain_test.go::TestChuBothHashAndURLFormatsAreConfigurable",
+    "unit-sha": "5a0174cf7c36bd6c",
+    "claim-sha": "dfd6fde5c5267556",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/cert_payload.go::buildCertPayloads",
+    "producer-sha": "4b56ac243a3808dd",
+    "break": "body of buildCertPayloads replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-3.6-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_cert_chain_test.go::TestChuBothHashAndURLFormatsAreConfigurable",
+    "unit-sha": "5a0174cf7c36bd6c",
+    "claim-sha": "c75c90553eb18495",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/cert_payload.go::buildCertPayloads",
+    "producer-sha": "4b56ac243a3808dd",
+    "break": "body of buildCertPayloads replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-3.6-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_cert_chain_test.go::TestChuHashAndURLIsOffByDefault",
+    "unit-sha": "95b1d38e1188f81e",
+    "claim-sha": "e0a9fa43efa1e830",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/cert_payload.go::acceptedCertEncoding",
+    "producer-sha": "0cffd81c857102ae",
+    "break": "body of acceptedCertEncoding replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-3.6-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_hash_url_accept_test.go::TestRFC7296ReceivedHashAndURLFormatsAreAcceptedWhenConfigured",
+    "unit-sha": "68e011888c9f983d",
+    "claim-sha": "eeb43bd0b3397760",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/cert_payload.go::acceptedCertEncoding",
+    "producer-sha": "0cffd81c857102ae",
+    "break": "body of acceptedCertEncoding replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-3.6-2",
+    "polarity": "positive",
+    "unit": "test/parse/ipsec-hash-and-url-accepted.ci",
+    "unit-sha": "a540561472452fc4",
+    "claim-sha": "a9a6db830b21b429",
+    "route": "revert",
+    "producer": "internal/component/ike/ipsec/config_auth_policy.go::parseCertificatePolicy",
+    "producer-sha": "b896807cbc2a1a07",
+    "break": "body of parseCertificatePolicy replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+    "citation": "expect=stdout:contains=configuration valid"
+  }
+]

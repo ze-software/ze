@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC5303-3.2-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/circuit/rfc5303_sent_iih_test.go::TestRFC5303SentIIHReportsCurrentThreeWayState",
+    "unit-sha": "236ce68af0ab10c7",
+    "claim-sha": "a84d7bdcf9f5e542",
+    "route": "revert",
+    "producer": "internal/plugins/isis/circuit/runtime.go::p2pThreeWayState",
+    "producer-sha": "ff7005409d43b373",
+    "break": "body of p2pThreeWayState replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5303-3.2-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/circuit/rfc5303_sent_iih_test.go::TestRFC5303SentIIHReportsCurrentThreeWayState",
+    "unit-sha": "236ce68af0ab10c7",
+    "claim-sha": "aa70a6e481828210",
+    "route": "revert",
+    "producer": "internal/plugins/isis/circuit/runtime.go::p2pThreeWayState",
+    "producer-sha": "ff7005409d43b373",
+    "break": "body of p2pThreeWayState replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5303-3.2-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayReportsCurrentState",
+    "unit-sha": "20364876eb6382be",
+    "claim-sha": "ff17b977f97aeb9a",
+    "route": "revert",
+    "producer": "internal/plugins/isis/circuit/runtime.go::p2pThreeWayState",
+    "producer-sha": "ff7005409d43b373",
+    "break": "body of p2pThreeWayState replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5303-3.2-1",
+    "polarity": "positive",
+    "unit": "internal/plugins/isis/circuit/rfc5303_threeway_test.go::TestISISThreeWayReportsCurrentState",
+    "unit-sha": "20364876eb6382be",
+    "claim-sha": "07f5c514167c430d",
+    "route": "revert",
+    "producer": "internal/plugins/isis/circuit/runtime.go::p2pThreeWayState",
+    "producer-sha": "ff7005409d43b373",
+    "break": "body of p2pThreeWayState replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

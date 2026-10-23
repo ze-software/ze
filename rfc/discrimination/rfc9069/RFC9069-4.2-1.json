@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC9069-4.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestLocRIBFeedConveysRoutesWithTheLocRIBPeerType",
+    "unit-sha": "6727a93c5b941fbe",
+    "claim-sha": "737a1564fe37bfcf",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/bmp/bmp_locrib.go::locRIBPeerHeader",
+    "producer-sha": "f1f8764823bbacf9",
+    "break": "body of locRIBPeerHeader replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9069-4.2-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestLocallySourcedRouteIsConveyedWithTheLocRIBPeerType",
+    "unit-sha": "953707cc1d302f94",
+    "claim-sha": "7c05a126bd428ed3",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/bmp/bmp_locrib.go::locRIBPeerHeader",
+    "producer-sha": "f1f8764823bbacf9",
+    "break": "body of locRIBPeerHeader replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9069-4.2-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestLocallySourcedRouteIsNotConveyedUnderTheMonitoredPeer",
+    "unit-sha": "c7e4c6e12bd8c29b",
+    "claim-sha": "8c9241cb057e2acb",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/bmp/bmp_locrib.go::locRIBPeerHeader",
+    "producer-sha": "f1f8764823bbacf9",
+    "break": "body of locRIBPeerHeader replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC5880-6.8.9-1",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/engine/rfc5880_echo_session_test.go::TestRFC5880NoEchoTransmittedInInitOrDown",
+    "unit-sha": "ce1b6a4e804d0ae9",
+    "claim-sha": "08551f361e6cd83e",
+    "route": "revert",
+    "producer": "internal/component/bfd/engine/echo.go::echoTickLocked",
+    "producer-sha": "5057ffa7987b508f",
+    "break": "body of echoTickLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.8.9-1",
+    "polarity": "positive",
+    "unit": "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880EchoTransmittedWhileUp",
+    "unit-sha": "fc6ad83389d0ab5f",
+    "claim-sha": "207b125e2aca04e4",
+    "route": "revert",
+    "producer": "internal/component/bfd/engine/echo.go::echoTickLocked",
+    "producer-sha": "5057ffa7987b508f",
+    "break": "body of echoTickLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5880-6.8.9-1",
+    "polarity": "negative",
+    "unit": "internal/component/bfd/engine/rfc5880_test.go::TestRFC5880NoEchoTransmittedWhenNotUp",
+    "unit-sha": "0cf9ea98b88b1357",
+    "claim-sha": "f1fbe884ac4caa2f",
+    "route": "revert",
+    "producer": "internal/component/bfd/engine/echo.go::echoTickLocked",
+    "producer-sha": "5057ffa7987b508f",
+    "break": "body of echoTickLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

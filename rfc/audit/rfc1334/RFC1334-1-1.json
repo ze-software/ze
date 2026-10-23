@@ -1,0 +1,13 @@
+{
+  "note": "Re-read after both units gained AuthFallbackOrder pinned to the configured method (the RFC 1334 Section 2 fix would otherwise put CHAP first); the asserted behaviour is unchanged. TestLocalCONFREQAdvertisesAuthMethod asserts the Auth-Protocol option and its value in the first driver CONFREQ; TestAuthProtoRejectClearsMethod asserts it is absent once the peer Rejects it and authentication is no longer desired. Both observed red under recorded breaks (authMethodToLCPOptions, adjustAuthOnNakOrReject).",
+  "requirement_sha": "093f9a2e6c9c7f8d",
+  "tests": {
+    "internal/component/l2tp/ppp/auth_dispatch_test.go::TestAuthProtoRejectClearsMethod": "8417fafaa5a334df",
+    "internal/component/l2tp/ppp/auth_dispatch_test.go::TestLocalCONFREQAdvertisesAuthMethod": "8417fafaa5a334df"
+  },
+  "units": {
+    "internal/component/l2tp/ppp/auth_dispatch_test.go::TestAuthProtoRejectClearsMethod": "fd7d02df859049d4",
+    "internal/component/l2tp/ppp/auth_dispatch_test.go::TestLocalCONFREQAdvertisesAuthMethod": "986db7580b77147a"
+  },
+  "verdict": "enforced"
+}

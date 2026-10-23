@@ -1,0 +1,13 @@
+{
+  "note": "Forbidden: honouring an LLGR capability that arrives without GR. TestHandleEventOpenLLGR_NoGR sends an OPEN with code 71 and no code 64 and fails if peerLLGRCaps holds the peer (assert.False llgrOK). Negative: the same OPEN with code 64 keeps the decoded LLGR capability (Families, F bit, LLST 3600 asserted), so the removal is conditional on GR being absent.",
+  "requirement_sha": "cbb5de307607c9dd",
+  "tests": {
+    "internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go::TestHandleEventOpenLLGR": "e921a209356a7dad",
+    "internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go::TestHandleEventOpenLLGR_NoGR": "e921a209356a7dad"
+  },
+  "units": {
+    "internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go::TestHandleEventOpenLLGR": "be6469aa934cdde6",
+    "internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go::TestHandleEventOpenLLGR_NoGR": "a3dd810ebc2a1db9"
+  },
+  "verdict": "enforced"
+}

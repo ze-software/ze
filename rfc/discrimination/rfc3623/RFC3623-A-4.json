@@ -1,0 +1,79 @@
+[
+  {
+    "rid": "RFC3623-A-4",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc3623_gr_lsa_test.go::TestGraceLSAv4BodyBuild",
+    "unit-sha": "de653d3eefa52f5d",
+    "claim-sha": "21a2e0aa85ff8c67",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/gr_lsa.go::grV4Body",
+    "producer-sha": "87aff5e113e45c28",
+    "break": "body of grV4Body replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3623-A-4",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/rfc3623_gr_lsa_test.go::TestRFC3623GraceLSANeverOmitsAddressOnSharedMedia",
+    "unit-sha": "1677af53fd0cb335",
+    "claim-sha": "b29fa93736fbbdbf",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/gr_lsa.go::grSharedMedia",
+    "producer-sha": "4406c2e06de3b091",
+    "break": "body of grSharedMedia replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3623-A-4",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc3623_grace_helper_identity_test.go::TestRFC3623HelperFlushExitsNamedRestarter",
+    "unit-sha": "179ec7a32737a4ae",
+    "claim-sha": "fb2578c973c533f4",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/gr_helper.go::graceRestarterV4",
+    "producer-sha": "f8bca3637fe8fa4a",
+    "break": "body of graceRestarterV4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3623-A-4",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc3623_grace_helper_identity_test.go::TestRFC3623HelperIdentifiesRestarterByInterfaceAddress",
+    "unit-sha": "dcb4517e37cf8b21",
+    "claim-sha": "575fac073547d309",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/gr_helper.go::graceRestarterV4",
+    "producer-sha": "f8bca3637fe8fa4a",
+    "break": "body of graceRestarterV4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3623-A-4",
+    "polarity": "negative",
+    "unit": "internal/plugins/ospf/rfc3623_grace_helper_identity_test.go::TestRFC3623HelperRefusesUnmatchedInterfaceAddress",
+    "unit-sha": "ef60ede0a698afa8",
+    "claim-sha": "ae3fdef02ba915f3",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/gr_helper.go::graceRestarterV4",
+    "producer-sha": "f8bca3637fe8fa4a",
+    "break": "body of graceRestarterV4 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3623-A-4",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc3623_grace_origination_test.go::TestRFC3623SharedMediaGraceLSACarriesInterfaceAddress",
+    "unit-sha": "2d8f211fdc7d3667",
+    "claim-sha": "d912e6e6ecbfb6e0",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/gr_lsa.go::grSharedMedia",
+    "producer-sha": "4406c2e06de3b091",
+    "break": "body of grSharedMedia replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3623-A-4",
+    "polarity": "positive",
+    "unit": "internal/plugins/ospf/rfc3623_grace_tlv_octets_test.go::TestRFC3623OriginatedGraceLSATLVOctets",
+    "unit-sha": "1f4215610c14c97d",
+    "claim-sha": "25f114bcc175f5b0",
+    "route": "revert",
+    "producer": "internal/plugins/ospf/gr_lsa.go::grSharedMedia",
+    "producer-sha": "4406c2e06de3b091",
+    "break": "body of grSharedMedia replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

@@ -1,0 +1,13 @@
+{
+  "note": "no lifetime transform or attribute reaches the wire (TestLifetimesNotNegotiatedOnWire); lifetime state derives from the local value (TestSALifetimeTime)",
+  "requirement_sha": "a8e4d60828a97692",
+  "tests": {
+    "internal/component/ike/engine/rfc7296_rekey_collision_test.go::TestSALifetimeTime": "8b6f1465d0257d95",
+    "internal/component/ike/engine/rfc7296_test.go::TestLifetimesNotNegotiatedOnWire": "e032382b6fba7977"
+  },
+  "units": {
+    "internal/component/ike/engine/rfc7296_rekey_collision_test.go::TestSALifetimeTime": "7a4b514516a21d66",
+    "internal/component/ike/engine/rfc7296_test.go::TestLifetimesNotNegotiatedOnWire": "615b681d343b1fc5"
+  },
+  "verdict": "enforced"
+}

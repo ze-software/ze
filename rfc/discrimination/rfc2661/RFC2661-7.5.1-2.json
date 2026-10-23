@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC2661-7.5.1-2",
+    "polarity": "positive",
+    "unit": "internal/component/l2tp/rfc2661_tunnel_test.go::TestRFC2661LACSendsCDNOnDisconnect",
+    "unit-sha": "2041a2bd46da5415",
+    "claim-sha": "6bb93746cfccddb8",
+    "route": "revert",
+    "producer": "internal/component/l2tp/session_fsm.go::teardownSession",
+    "producer-sha": "264ac3132cd395d0",
+    "break": "body of teardownSession replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

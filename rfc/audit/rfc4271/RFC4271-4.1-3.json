@@ -1,0 +1,17 @@
+{
+  "note": "RFC 4271 Section 4.1: \u201cThe value of the Length field MUST always be at least 19 and no greater than 4096, and MAY be further constrained, depending on the message type.\u201d The changed sender test supplies an equivalent all-false per-family ADD-PATH selector. It establishes that 1500 prefixes exceed one 4096-byte UPDATE, encodes every emitted chunk, requires declared Length equal to written octets within 19..4096, and requires every prefix in original order. Receive controls accept 19, 1000 and 4096 and reject 18, 4097 and 65535 without Extended Message, with exact header-error classification. Producer tracing confirms size budgets include the BGP header; the final ordinary writer sizes effective post-policy bytes, consumes split chunks synchronously and refuses unencodable output instead of emitting a truncated frame. Negotiated RFC 8654 extension remains a separate qualification. This judgment is based on assertions and current source, not producer-halt proof alone.",
+  "requirement_sha": "063b29b32af07441",
+  "tests": {
+    "internal/component/bgp/message/rfc4271_header_send_test.go::TestRFC4271UpdatesSentWithinLengthBounds": "b57c65aae7255a53",
+    "internal/component/bgp/message/rfc4271_header_send_test.go::TestRFC4271UpdatesSentWithinLengthBounds#2": "b57c65aae7255a53",
+    "internal/component/bgp/message/rfc4271_test.go::TestRFC4271MessageLengthOutOfBounds": "abbe4d642c22df9a",
+    "internal/component/bgp/message/rfc4271_test.go::TestRFC4271MessageLengthWithinBounds": "abbe4d642c22df9a"
+  },
+  "units": {
+    "internal/component/bgp/message/rfc4271_header_send_test.go::TestRFC4271UpdatesSentWithinLengthBounds": "b9c8395b4fc7f99a",
+    "internal/component/bgp/message/rfc4271_header_send_test.go::TestRFC4271UpdatesSentWithinLengthBounds#2": "b9c8395b4fc7f99a",
+    "internal/component/bgp/message/rfc4271_test.go::TestRFC4271MessageLengthOutOfBounds": "1ca02d5222a7f2eb",
+    "internal/component/bgp/message/rfc4271_test.go::TestRFC4271MessageLengthWithinBounds": "7b7f7116880300cf"
+  },
+  "verdict": "enforced"
+}

@@ -1,0 +1,15 @@
+{
+  "note": "Forbidden: an LS Request for an LSA absent from the database not generating BadLSReq. Red: TestOSPFBadLSReqRestart fails on HandleLSReq != reasonBadLSReq, on state != exstart, and on the resent DD not being the initial I|M|MS DD. Other polarity: TestOSPFValidLSReqSendsLSUpdate and TestRFC2328KnownLSRequestDoesNotRestartExchange go red if a satisfiable request restarts the exchange (state change, exstart) or is not answered with one LS Update carrying that LSA. One clause, both polarities.",
+  "requirement_sha": "ca04ff37ce67ff10",
+  "tests": {
+    "internal/plugins/ospf/neighbor/rfc2328_nsm_test.go::TestOSPFBadLSReqRestart": "e39921501ea6fed3",
+    "internal/plugins/ospf/neighbor/rfc2328_nsm_test.go::TestOSPFValidLSReqSendsLSUpdate": "e39921501ea6fed3",
+    "internal/plugins/ospf/neighbor/rfc2328_test.go::TestRFC2328KnownLSRequestDoesNotRestartExchange": "42818b298d1598fb"
+  },
+  "units": {
+    "internal/plugins/ospf/neighbor/rfc2328_nsm_test.go::TestOSPFBadLSReqRestart": "7b6a35c0a78c9ef9",
+    "internal/plugins/ospf/neighbor/rfc2328_nsm_test.go::TestOSPFValidLSReqSendsLSUpdate": "d2b1d2495f207b62",
+    "internal/plugins/ospf/neighbor/rfc2328_test.go::TestRFC2328KnownLSRequestDoesNotRestartExchange": "78452075523e8ff6"
+  },
+  "verdict": "enforced"
+}

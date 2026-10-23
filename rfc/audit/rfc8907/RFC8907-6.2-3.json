@@ -1,0 +1,13 @@
+{
+  "note": "(a) forbidden: allowing a request the server answered with FAIL. (b) TestRFC8907AuthorizationFailDenies requires Authorize false and zero calls to a permissive local policy; TestRFC8907AuthorizationPassAddIsNotDenied requires PASS_ADD to allow.",
+  "requirement_sha": "b111650253e8911d",
+  "tests": {
+    "internal/component/tacacs/rfc8907_status_test.go::TestRFC8907AuthorizationFailDenies": "689cf5032c29eb6d",
+    "internal/component/tacacs/rfc8907_status_test.go::TestRFC8907AuthorizationPassAddIsNotDenied": "689cf5032c29eb6d"
+  },
+  "units": {
+    "internal/component/tacacs/rfc8907_status_test.go::TestRFC8907AuthorizationFailDenies": "0aef69c3727e09dc",
+    "internal/component/tacacs/rfc8907_status_test.go::TestRFC8907AuthorizationPassAddIsNotDenied": "cfdfd0b4775a08e6"
+  },
+  "verdict": "enforced"
+}

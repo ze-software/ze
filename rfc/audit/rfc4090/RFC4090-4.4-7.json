@@ -1,0 +1,13 @@
+{
+  "note": "Judged 2026-09-29 (routing child, continuation judge). Positive TestRFC4090NodeBitSetWhenNodeProtected; negative TestRFC4090LinkProtectionLeavesNodeBitClear (link request, NHOP bypass up: 0x01 set, 0x08 clear), which is the row's link-only case. The vacuous tag on TestRFC4090NodeBitClearWithoutNodeBypass is removed. A node request never falls back to a link bypass in Ze (spec-rsvpte-frr-link-protection-fallback). Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 4.4 and the enforced verdict holds unchanged.",
+  "requirement_sha": "228f32dd78733703",
+  "tests": {
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090NodeBitSetWhenNodeProtected": "3fb9184431da8daf",
+    "internal/plugins/rsvpte/rfc4090_plr_flags_test.go::TestRFC4090LinkProtectionLeavesNodeBitClear": "8d4223b7e1a9680f"
+  },
+  "units": {
+    "internal/plugins/rsvpte/rfc4090_frr_test.go::TestRFC4090NodeBitSetWhenNodeProtected": "2079573c25e36f52",
+    "internal/plugins/rsvpte/rfc4090_plr_flags_test.go::TestRFC4090LinkProtectionLeavesNodeBitClear": "4c97fb08b3e6ce01"
+  },
+  "verdict": "enforced"
+}

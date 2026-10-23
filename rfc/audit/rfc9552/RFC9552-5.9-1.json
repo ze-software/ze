@@ -1,0 +1,27 @@
+{
+  "note": "ls_export unit withdraws the unreachable origin and re-announces the identical commands once Unreachable clears, and emits nothing while it stays unreachable; IS-IS and OSPF units prove the source restores eligibility only after completed SPF; assertions are engine commands, not wire",
+  "requirement_sha": "51bcfe14ec1bef3b",
+  "tests": {
+    "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeReachabilityWithdrawalAndRestoration": "6886dddcc0644d09",
+    "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeReachabilityWithdrawalAndRestoration#2": "6886dddcc0644d09",
+    "internal/plugins/isis/rfc9552_bgpls_export_test.go::TestISISBGPLSNativeSPFReachability": "070276052fe9c6ff",
+    "internal/plugins/isis/rfc9552_bgpls_export_test.go::TestISISBGPLSNativeSPFReachability#2": "070276052fe9c6ff",
+    "internal/plugins/ospf/rfc9552_bgpls_export_test.go::TestBGPLSNativeSPFInterAreaASBROrigin": "42da0474de6f1b9c",
+    "internal/plugins/ospf/rfc9552_bgpls_export_test.go::TestBGPLSNativeSPFPartitionRestoresStaleOrigins": "42da0474de6f1b9c",
+    "internal/plugins/ospf/rfc9552_bgpls_export_test.go::TestBGPLSNativeSPFPartitionRestoresStaleOrigins#2": "42da0474de6f1b9c",
+    "internal/plugins/ospf/rfc9552_bgpls_export_test.go::TestBGPLSNativeSPFUnknownOriginsWaitForComputation": "42da0474de6f1b9c",
+    "internal/plugins/ospf/rfc9552_bgpls_export_test.go::TestBGPLSNativeV3SPFPseudonodeRestoration": "42da0474de6f1b9c"
+  },
+  "units": {
+    "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeReachabilityWithdrawalAndRestoration": "2a3ef904d0143c41",
+    "internal/component/bgp/plugins/ls_export/rfc9552_export_test.go::TestRFC9552NativeReachabilityWithdrawalAndRestoration#2": "2a3ef904d0143c41",
+    "internal/plugins/isis/rfc9552_bgpls_export_test.go::TestISISBGPLSNativeSPFReachability": "61cea5e6fdd1c236",
+    "internal/plugins/isis/rfc9552_bgpls_export_test.go::TestISISBGPLSNativeSPFReachability#2": "61cea5e6fdd1c236",
+    "internal/plugins/ospf/rfc9552_bgpls_export_test.go::TestBGPLSNativeSPFInterAreaASBROrigin": "bec52f36129e6a2d",
+    "internal/plugins/ospf/rfc9552_bgpls_export_test.go::TestBGPLSNativeSPFPartitionRestoresStaleOrigins": "2b55e2f4dd16ecf4",
+    "internal/plugins/ospf/rfc9552_bgpls_export_test.go::TestBGPLSNativeSPFPartitionRestoresStaleOrigins#2": "2b55e2f4dd16ecf4",
+    "internal/plugins/ospf/rfc9552_bgpls_export_test.go::TestBGPLSNativeSPFUnknownOriginsWaitForComputation": "198ff91247cd80bd",
+    "internal/plugins/ospf/rfc9552_bgpls_export_test.go::TestBGPLSNativeV3SPFPseudonodeRestoration": "7c0bd011a84e2a15"
+  },
+  "verdict": "enforced"
+}

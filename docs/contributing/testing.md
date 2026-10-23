@@ -594,7 +594,7 @@ For an RFC-tagged carrier that walk now has a runner and a record.
 `./le rfc discriminate-record ... route revert producer <path>::<Func>` disables
 the named function, runs ONE `.ci` or ONE interop scenario, requires the red, and
 puts the producer back byte for byte. What it writes is a
-`rfc/discrimination/<stem>.json` record that `./le rfc check` re-verifies on every
+`rfc/discrimination/<stem>/<requirement-id>.json` record that `./le rfc check` re-verifies on every
 run, so the red is remembered rather than done once and forgotten. An untagged
 `.ci` still owes the walk by hand.
 

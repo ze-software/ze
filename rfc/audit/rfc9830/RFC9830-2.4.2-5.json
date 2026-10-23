@@ -1,0 +1,17 @@
+{
+  "code": {
+    "internal/component/bgp/plugins/nlri/srpolicy/config.go::buildBindingSIDNullSubTLV": "d781b2653f726e07",
+    "internal/component/bgp/plugins/nlri/srpolicy/config.go::buildBindingSIDSubTLV": "1cb5430ddbbdc76b"
+  },
+  "note": "Independent TX-only judgment of RFC9830-2.4.2-5 after removing its obsolete gap annotation. RFC9830 Section 2.4.2 states the whole sentence: \"The unassigned bits in the Flags field MUST be set to zero upon transmission and MUST be ignored upon receipt.\" This row extracts the transmission conjunct only; the receive conjunct remains the separately judged RFC9830-2.4.2-6. Figure 5 assigns S/I to 0x80/0x40, leaving 0x3F unassigned. buildBindingSIDSubTLV now leaves Flags zero instead of writing 0x10, and buildBindingSIDNullSubTLV already leaves Flags zero. Current TestRFC9830FieldsToIgnoreAreZeroOnTransmission carries both -5 polarities: bsid[0]&0x3F must be zero beside the exact configured 0xFFFFF label, so an empty/all-zero payload cannot satisfy the pair. The actual pre-fix log job-enum-bsid-unassigned-before-4d050848.log fails precisely the Flags assertion. The repaired tagged test passes in job-enum-acl-bsid-repaired-race-f0d445d5.log, whose separate old-golden package failures are not erased. In semantic-observations-9r9vkava, clean selected baseline passes and rfc9830-tx-22-binding-sid-unassigned-flags restores only buf[2]=0x10; the observed sole tagged-unit failure is Binding SID unassigned Flags = 0x10 on transmission, want 0, with the single-TLV control passing. These executions precede only the new -5 tag comments; the assertion and producer behavior are unchanged, but fresh canonical tagged-unit/claim records remain parent-owned. This proves implemented TX zeroing, not exhaustive per-bit fault enumeration, S/I behavior, SRPM, dataplane, live FRR or full RFC conformance.",
+  "requirement_sha": "cee98a6ce0e841de",
+  "tests": {
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission": "e8c93af9c3519a1c",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission#2": "e8c93af9c3519a1c"
+  },
+  "units": {
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission": "9deb30b51012888d",
+    "internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go::TestRFC9830FieldsToIgnoreAreZeroOnTransmission#2": "9deb30b51012888d"
+  },
+  "verdict": "enforced"
+}

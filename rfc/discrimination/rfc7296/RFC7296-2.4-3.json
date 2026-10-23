@@ -1,0 +1,68 @@
+[
+  {
+    "rid": "RFC7296-2.4-3",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_icmp_linux_test.go::TestRFC7296ICMPFromThePeerWhileWaitingFailsNothing",
+    "unit-sha": "d9c4092481dfbf07",
+    "claim-sha": "89fab7b8c3432c33",
+    "route": "revert",
+    "producer": "internal/component/ike/transport/udp.go::deliverQueuedError",
+    "producer-sha": "aa3c1ac999992aa0",
+    "break": "body of deliverQueuedError replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.4-3",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_icmp_linux_test.go::TestRFC7296ICMPUnreachableDoesNotFailTheSA",
+    "unit-sha": "088d30f7da23547e",
+    "claim-sha": "9c58f3b163ddb101",
+    "route": "revert",
+    "producer": "internal/component/ike/transport/udp_linux.go::drainErrorQueue",
+    "producer-sha": "f8b119b7c28432ed",
+    "break": "body of drainErrorQueue replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.4-3",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_responder_test.go::TestResponderAcceptsReinitAfterStaleSA",
+    "unit-sha": "680f1a5f86d7462e",
+    "claim-sha": "bfee1b5e5f2205d1",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/register.go::tryResponderSAInit",
+    "producer-sha": "20be1f2568547369",
+    "break": "body of tryResponderSAInit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.4-3",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_responder_test.go::TestResponderKeepsOldSAOnUnauthenticatedInit",
+    "unit-sha": "45a7a6b75a6bd4ac",
+    "claim-sha": "717d3e9b2946791e",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/register.go::tryResponderSAInit",
+    "producer-sha": "20be1f2568547369",
+    "break": "body of tryResponderSAInit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.4-3",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc7296_routing_test.go::TestRteUnownedEstablishedSATrustsNothing",
+    "unit-sha": "3bb3adfe3559cc34",
+    "claim-sha": "da9a7f739bc49fa2",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/inbound.go::handleInformationalOwned",
+    "producer-sha": "16e89dc41a6d249a",
+    "break": "body of handleInformationalOwned replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7296-2.4-3",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc7296_routing_test.go::TestRteUnownedEstablishedSATrustsNothing",
+    "unit-sha": "3bb3adfe3559cc34",
+    "claim-sha": "b6a86d982c6396e1",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/fsm.go::handleInbound",
+    "producer-sha": "d62214a5808eed73",
+    "break": "body of handleInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

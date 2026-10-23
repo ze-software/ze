@@ -1,0 +1,15 @@
+{
+  "note": "Re-judged 2026-09-30 (continuation 8, judge): row narrowed per R35 to the MUST NOT (no revert to an unauthenticated condition); the 'not advisable to disrupt routing' clause moved to RFC5709-3.2-5. Positive TestRFC5709LastKeyExpiredStillSigns: only key's send and accept lifetimes over, a Hello through eng.signPacket leaves AuType 2 Key ID 1; positive TestSignKeyNoRevertWhenAllExpired (store level). Negative TestRFC5709LastKeyExpiredRefusesUnauthenticated: AuType 0 Hello refused by verify with autype-mismatch after expiry. All three revert records (selectSendKey, verify) re-recorded by the judge after continuation 8 changed those producers, observed red.",
+  "requirement_sha": "5be58a230e3ee4f6",
+  "tests": {
+    "internal/plugins/ospf/auth_keystore_test.go::TestSignKeyNoRevertWhenAllExpired": "daf32645cbe50ccd",
+    "internal/plugins/ospf/rfc5709_last_key_expiry_test.go::TestRFC5709LastKeyExpiredRefusesUnauthenticated": "8881307d09dd1a4e",
+    "internal/plugins/ospf/rfc5709_last_key_expiry_test.go::TestRFC5709LastKeyExpiredStillSigns": "8881307d09dd1a4e"
+  },
+  "units": {
+    "internal/plugins/ospf/auth_keystore_test.go::TestSignKeyNoRevertWhenAllExpired": "f04c8b1a61e8a3cd",
+    "internal/plugins/ospf/rfc5709_last_key_expiry_test.go::TestRFC5709LastKeyExpiredRefusesUnauthenticated": "a8686cbec831576a",
+    "internal/plugins/ospf/rfc5709_last_key_expiry_test.go::TestRFC5709LastKeyExpiredStillSigns": "73371cab4cd0e5f0"
+  },
+  "verdict": "enforced"
+}

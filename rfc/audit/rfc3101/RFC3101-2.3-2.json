@@ -1,0 +1,17 @@
+{
+  "note": "Rejudged 2026-10-21 over the current tags, units and records. TestOSPFType7FloodScope negative now also refuses an interface of ANOTHER NSSA, where only the area check can refuse it, beside the backbone case. With the ReceiveUpdate-driven flood-scope pair (flooded within NSSA 0.0.0.1, never into 0.0.0.2 or the backbone), 'only flooded within the originating NSSA' is enforced.",
+  "requirement_sha": "1ae6cfbb93a1b34d",
+  "tests": {
+    "internal/plugins/ospf/lsdb/rfc3101_nssa_test.go::TestOSPFType7FloodScope": "c20c5e21de837ab8",
+    "internal/plugins/ospf/lsdb/rfc3101_nssa_test.go::TestOSPFType7FloodScope#2": "c20c5e21de837ab8",
+    "internal/plugins/ospf/lsdb/rfc3101_type7_flood_scope_test.go::TestRFC3101Type7FloodedWithinItsNSSA": "ccba28623b8750db",
+    "internal/plugins/ospf/lsdb/rfc3101_type7_flood_scope_test.go::TestRFC3101Type7NotFloodedIntoAnotherNSSA": "ccba28623b8750db"
+  },
+  "units": {
+    "internal/plugins/ospf/lsdb/rfc3101_nssa_test.go::TestOSPFType7FloodScope": "50964a47cf1f6d32",
+    "internal/plugins/ospf/lsdb/rfc3101_nssa_test.go::TestOSPFType7FloodScope#2": "50964a47cf1f6d32",
+    "internal/plugins/ospf/lsdb/rfc3101_type7_flood_scope_test.go::TestRFC3101Type7FloodedWithinItsNSSA": "2ff94ee40bff2bee",
+    "internal/plugins/ospf/lsdb/rfc3101_type7_flood_scope_test.go::TestRFC3101Type7NotFloodedIntoAnotherNSSA": "5a0f675d4734c86e"
+  },
+  "verdict": "enforced"
+}
