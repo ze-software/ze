@@ -9,7 +9,9 @@ import "time"
 // ... preference 300 segment-list ...`; the bridge translates it to `update
 // text ... mp ipv4/sr-policy add ...`, whose section is parsed by the
 // registered sr-policy config-route parser. GoBGP must hold the policy with
-// its NLRI, its Preference sub-TLV and both segment lists' Type A labels.
+// its NLRI, its Preference sub-TLV, both segment lists' Type A labels and the
+// Route Target the script names (srPolicyRouteTargetGoBGP, RFC 9830 Section
+// 4.2.1).
 //
 // Before af18a709d8 the update text encoder refused `preference`, so the
 // policy never left ze and the first wait below times out.
@@ -30,7 +32,7 @@ func init() {
 	scenarioOperations[scenarioExaBGPBridgeSRPolicyGoBGP] = []operation{
 		{kind: opGoBGPSession, argument: zeLabAddress},
 		{kind: opWaitContains, peer: peerGoBGP, command: []string{cmdGoBGPPaths, gobgpAFIIPv4, gobgpSAFISRPolicy},
-			contains: []string{exabgpBridgeSRPolicyNLRI, exabgpBridgeSRPolicyPreference, exabgpBridgeSRPolicyLabelFirst, exabgpBridgeSRPolicyLabelOther},
+			contains: []string{exabgpBridgeSRPolicyNLRI, exabgpBridgeSRPolicyPreference, exabgpBridgeSRPolicyLabelFirst, exabgpBridgeSRPolicyLabelOther, srPolicyRouteTargetGoBGP},
 			timeout:  60 * time.Second},
 		{kind: opGoBGPSession, argument: zeLabAddress},
 	}

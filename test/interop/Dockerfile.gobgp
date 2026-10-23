@@ -24,6 +24,12 @@ RUN go install github.com/osrg/gobgp/v4/cmd/gobgpd@v4.10.0 && \
 # pkg/packet/bgp/sr_policy.go, NewSRPolicy). The Binding SID shift that v3
 # also suffered is fixed in v4.10.0: MarshalSRBSID shifts a 4-octet SID back
 # 12 bits before NewBSID shifts it forward (pkg/apiutil/attribute.go).
+# An Extended Communities attribute is also printed through GoBGP's own
+# MarshalJSON, after its String(): String() writes an IPv4-address-specific
+# community as "172.30.0.5:0" whatever its sub-type, so a Route Target and a
+# Route Origin read the same. The JSON form carries the type and sub-type
+# (pkg/packet/bgp/bgp.go, IPv4AddressSpecificExtended.MarshalJSON), which is
+# what an assertion that GoBGP received a Route Target needs.
 # Usage: gobgp-paths <afi> <safi>, e.g. gobgp-paths 1 73 for ipv4/sr-policy.
 WORKDIR /src/gobgp-paths
 COPY <<'EOF' main.go
@@ -31,6 +37,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -106,6 +113,14 @@ func run(args []string) error {
 				}
 				line.WriteByte(' ')
 				line.WriteString(attribute.String())
+				if _, ok := attribute.(*bgp.PathAttributeExtendedCommunities); ok {
+					typed, err := json.Marshal(attribute)
+					if err != nil {
+						return fmt.Errorf("render attribute %x of %s as JSON: %w", wire, nlri, err)
+					}
+					line.WriteString(" ExtcommsJSON: ")
+					line.Write(typed)
+				}
 			}
 			fmt.Println(line.String())
 		}

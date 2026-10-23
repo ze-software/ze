@@ -25,6 +25,18 @@ const (
 	gobgpEVPNOverlayNLRI = `"esi":"ESI_ARBITRARY | 01:02:03:04:05:06:07:08:09","etag":0,"prefix":"` + evpnOverlayPrefix + `","gateway":"0.0.0.0"`
 )
 
+// srPolicyRouteTargetGoBGP is the Route Target every SR Policy scenario
+// configures, target:172.30.0.5:0, as gobgp-paths prints it through GoBGP's
+// IPv4AddressSpecificExtended.MarshalJSON (test/interop/Dockerfile.gobgp,
+// GoBGP v4.10.0 pkg/packet/bgp/bgp.go): type 1 is transitive
+// IPv4-address-specific and sub-type 2 is Route Target (RFC 4360 Sections 3.2
+// and 4). GoBGP's String() prints a Route Origin with the same value the same
+// way, so only this typed form tells the two apart.
+//
+// RFC 9830 Section 1: "This is done by attaching one or more Route Target
+// extended communities to the advertisement [RFC4360]."
+const srPolicyRouteTargetGoBGP = `{"type":1,"subtype":2,"value":"172.30.0.5:0"}`
+
 // The ospf-gr-helper-broadcast-frr facts. FRR's router-id in frr.conf, which is
 // deliberately not its eth0 address, and the Ze counter whose "flushed" series
 // exists only after a helper session was entered and ended by the flush.
@@ -90,11 +102,14 @@ var scenarioExtras = map[string][]operation{
 		{kind: opWaitContains, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", "evpn", "-j"}, contains: []string{gobgpEVPNOverlayNLRI}, timeout: 30 * time.Second},
 	},
 	// RFC 9830 origination: both policies arrive with their NLRI fields, the
-	// Binding SID label at the top of the 20-bit range and both Type A segment
-	// labels exactly as configured.
+	// Binding SID label at the top of the 20-bit range, both Type A segment
+	// labels exactly as configured, and the configured Route Target (RFC 9830
+	// Section 4.2.1). Before a4fe1b70f3 Ze dropped the Route Target, and from
+	// then until 79fa5db993 it refused the route; neither showed here until
+	// the Route Target was asserted.
 	scenarioSRPolicyGoBGP: {
-		{kind: opWaitContains, peer: peerGoBGP, command: []string{cmdGoBGPPaths, gobgpAFIIPv4, gobgpSAFISRPolicy}, contains: []string{srPolicyOriginatedIPv4, srPolicyBindingSIDTop, srPolicySegmentLabel16, srPolicySegmentLabelTop, srPolicyOriginatedBSIDSRv6, srPolicyBindingSIDSRv6}, timeout: 60 * time.Second},
-		{kind: opWaitContains, peer: peerGoBGP, command: []string{cmdGoBGPPaths, gobgpAFIIPv6, gobgpSAFISRPolicy}, contains: []string{srPolicyOriginatedIPv6, srPolicyBindingSIDTop, srPolicySegmentLabel16, srPolicySegmentLabelTop}, timeout: 60 * time.Second},
+		{kind: opWaitContains, peer: peerGoBGP, command: []string{cmdGoBGPPaths, gobgpAFIIPv4, gobgpSAFISRPolicy}, contains: []string{srPolicyOriginatedIPv4, srPolicyBindingSIDTop, srPolicySegmentLabel16, srPolicySegmentLabelTop, srPolicyOriginatedBSIDSRv6, srPolicyBindingSIDSRv6, srPolicyRouteTargetGoBGP}, timeout: 60 * time.Second},
+		{kind: opWaitContains, peer: peerGoBGP, command: []string{cmdGoBGPPaths, gobgpAFIIPv6, gobgpSAFISRPolicy}, contains: []string{srPolicyOriginatedIPv6, srPolicyBindingSIDTop, srPolicySegmentLabel16, srPolicySegmentLabelTop, srPolicyRouteTargetGoBGP}, timeout: 60 * time.Second},
 		{kind: opGoBGPSession, argument: zeLabAddress},
 	},
 	// RFC 9830 Section 5: A, B and the control C arrive well-formed; A beside
