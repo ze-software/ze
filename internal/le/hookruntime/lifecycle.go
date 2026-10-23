@@ -17,7 +17,6 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 	airules "github.com/ze-software/ze/internal/le/ai/rules"
 	aisync "github.com/ze-software/ze/internal/le/ai/sync"
-	"github.com/ze-software/ze/internal/le/commit"
 	"github.com/ze-software/ze/internal/le/derived"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 	"github.com/ze-software/ze/internal/le/session"
@@ -95,8 +94,8 @@ func writeMarkerFile(path, body string) int {
 // harness kills at that timeout loses everything it printed. The 1.5 s between the two is the margin for starting the
 // binary on a loaded machine. Measured 2026-09-26 on this checkout, the whole
 // hook took 3.4 to 4.9 s at a load average near 28, and the ledger read was 2.7
-// to 3.0 s of it. Once commit.ListDebt stopped forking git four times for each
-// discharged commit, the hook took 0.6 to 0.8 s. Tests shorten the budget to
+// to 3.0 s of it. Once that read stopped forking git four times for each
+// commit it named, the hook took 0.6 to 0.8 s. Tests shorten the budget to
 // prove the cut.
 var sessionStartBudget = 3500 * time.Millisecond
 
@@ -107,7 +106,6 @@ var sessionStartSteps = []sessionStartStep{
 	{name: "tree", run: reportTree},
 	{name: "specs", run: reportSpecs},
 	{name: "session state", run: reportSessionState},
-	{name: "verification debt", run: reportDebt},
 	{name: "journal", run: reportDueJournal},
 	{name: "derived artifacts", run: buildDerivedArtifacts},
 	{name: "agent files", run: reportAgentFiles},
@@ -292,30 +290,6 @@ func reportSessionState(_ stdcontext.Context, state *sessionStart, report *sessi
 	}
 	if _, err := os.Stat(found); err == nil {
 		fmt.Fprintf(&report.out, "Session state: %s\n", found) //nolint:errcheck // hook protocol
-	}
-}
-
-// reportDebt warns about the open verification-debt rows. commit.ListDebt is
-// the one producer of "is this row open", so this step holds no rule of its
-// own. A ledger it cannot read is said on stderr, never read as no debt.
-func reportDebt(_ stdcontext.Context, state *sessionStart, report *sessionStartReport) {
-	debts, err := commit.ListDebt(state.ctx.root)
-	if err != nil {
-		fmt.Fprintf(&report.note, "session-start: verification debt not read: %v\n", err) //nolint:errcheck // hook protocol
-		return
-	}
-	open := make([]commit.Debt, 0)
-	for index := range debts {
-		if strings.EqualFold(debts[index].Status, "open") {
-			open = append(open, debts[index])
-		}
-	}
-	if len(open) == 0 {
-		return
-	}
-	fmt.Fprintf(&report.out, "Warning: verification debt: %d gate(s) owed, --push is refused until cleared\n", len(open)) //nolint:errcheck // hook protocol
-	for index := range open[:min(5, len(open))] {
-		fmt.Fprintf(&report.out, "   - %s  (%s)\n", open[index].Gate, open[index].Subject) //nolint:errcheck // hook protocol
 	}
 }
 
@@ -772,8 +746,15 @@ func validateSpecText(root, text string) ([]string, []string) {
 			errors = append(errors, "Missing checklist item: "+item)
 		}
 	}
-	if !strings.Contains(text, "./le verify worktree") {
-		errors = append(errors, "Missing verification checklist item: './le verify worktree'")
+	// A spec names how its work is tested, not the full gate: agents run
+	// targeted tests while developing and the full gate runs once over the
+	// final commit (ai/META-DECISIONS.md, "Ze is pre-release"). Any `./le test`
+	// or `./le verify` command answers, so the specs that name
+	// `./le verify worktree` still validate.
+	if !strings.Contains(text, "./le test ") && !strings.Contains(text, "./le verify ") {
+		errors = append(errors, "Missing verification checklist item: the spec names no `./le test` or `./le verify` command, "+
+			"so nothing says how the work is proven. Name the targeted tests in the Checklist, for example "+
+			"`./le test unit <group>`, `./le test functional <suite>` or `./le verify current fast`")
 	}
 	if regexp.MustCompile("```(go|rust|java|c|cpp|javascript|typescript)").MatchString(text) {
 		errors = append(errors, "Specs MUST NOT contain code blocks. Use tables/prose instead")

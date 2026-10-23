@@ -211,6 +211,57 @@ func TestValidateSpecPlaceholderScopedToDesignOnward(t *testing.T) {
 	}
 }
 
+// TestValidateSpecNeedsATestCommandNotTheFullGate drives validateSpecText with
+// the smallest accepted spec, its checklist line swapped for each spelling.
+//
+// VALIDATES: a spec naming only a targeted command (`./le verify current fast`,
+// `./le test unit <group>`) is accepted, the legacy `./le verify worktree` line
+// still is, and a spec naming no `./le test` or `./le verify` command is refused
+// with a message that says what to write.
+// PREVENTS: the validator keeping the full gate as a mandatory spec item. The
+// owner rule runs targeted tests while developing and the full gate once over
+// the final commit, so a spec names how it is tested, not the full gate.
+func TestValidateSpecNeedsATestCommandNotTheFullGate(t *testing.T) {
+	const legacy = "- [ ] `./le verify worktree` passes\n"
+	base := specFixture("internal/probe/probe.go")
+	if !strings.Contains(base, legacy) {
+		t.Fatalf("specFixture no longer carries the line this test swaps: %q", legacy)
+	}
+	refused := func(body string) string {
+		errors, _ := validateSpecText(t.TempDir(), body)
+		for _, got := range errors {
+			if strings.Contains(got, "verification checklist item") {
+				return got
+			}
+		}
+		return ""
+	}
+	accepted := []struct {
+		name string
+		line string
+	}{
+		{"legacy-full-gate", legacy},
+		{"verify-current-fast", "- [ ] `./le verify current fast` passes\n"},
+		{"unit-group", "- [ ] `./le test unit hookruntime` passes\n"},
+		{"functional-suite", "- [ ] `./le test functional runner` passes\n"},
+	}
+	for _, tc := range accepted {
+		body := strings.Replace(base, legacy, tc.line, 1)
+		if got := refused(body); got != "" {
+			t.Errorf("%s: a spec naming %q was refused: %s", tc.name, strings.TrimSpace(tc.line), got)
+		}
+	}
+	got := refused(strings.Replace(base, legacy, "- [ ] Checked by hand\n", 1))
+	if got == "" {
+		t.Fatalf("a spec naming no ./le test or ./le verify command was accepted")
+	}
+	for _, want := range []string{"./le test unit", "./le verify current fast"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("the refusal does not tell the author what to write (%q): %s", want, got)
+		}
+	}
+}
+
 func TestValidateSpecFailsSpeakWithoutToolName(t *testing.T) {
 	code, _, message := runHook(t, t.TempDir(), "validate-spec", map[string]any{"tool_input": map[string]any{}})
 	if code != 2 || !strings.Contains(message, "NOTHING WAS CHECKED") {

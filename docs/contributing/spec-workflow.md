@@ -364,8 +364,13 @@ Placeholders belong to `skeleton` alone. From `design` onward the placeholder
 guards in `internal/le/hookruntime/lifecycle.go` block the write, because the
 status is a claim that those sections are written.
 
-The Goal Gates name `./le verify worktree` and nothing else. Fast targets are for
-the inner iteration loop, never for the gate.
+The Goal Gates name the targeted tests for what changed: the scoped package
+tests, the component groups and functional suites the change reaches, and
+`./le verify current fast`. The full gate (`./le verify current`) runs once,
+over the closing commits, never while the work is in progress. The spec
+validator asks only that a spec name how its work is tested: it refuses a spec
+that holds no `./le test` or `./le verify` command, and any one of them answers.
+<!-- source: internal/le/hookruntime/lifecycle.go -- validateSpecText -->
 
 ### Risks and assumptions
 
@@ -402,8 +407,9 @@ updates, the env-var registration check for any new YANG leaf under
 the implementation audit, the Pre-Commit Verification section re-derived from the
 spec, the critical review, the spec's own Implementation Summary and Deviations,
 any lesson routed to its governing surface and any journal rows owed by the
-work, `./le verify worktree`, and the executive summary. Closure alone requires
-no lesson artifact.
+work, the targeted tests named in the Goal Gates, and the executive summary.
+The full gate (`./le verify current`) runs once after the closing commit and
+judges it. Closure alone requires no lesson artifact.
 
 Pre-Commit Verification does not trust the audit. Re-read the spec from scratch,
 list every file in "Files to Create", give every acceptance criterion fresh

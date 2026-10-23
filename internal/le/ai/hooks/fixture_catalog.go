@@ -90,6 +90,7 @@ var fixtureSites = [...]fixtureSite{
 	{category: categoryValidateSpec, name: "validate-spec-daemon-py-surface-still-rejected", expectedExit: 2, messages: []fixtureMessage{{match: matchContains, text: "must reference a functional test file"}}},
 	{category: categoryValidateSpec, name: "validate-spec-empty-basename-citation-rejected", expectedExit: 2, messages: []fixtureMessage{{match: matchContains, text: "list source files read"}}},
 	{category: categoryValidateSpec, name: "validate-spec-verify-command-accepted", expectedExit: 0},
+	{category: categoryValidateSpec, name: "validate-spec-verify-current-fast-accepted", expectedExit: 0},
 	{category: categoryValidateSpec, name: "validate-spec-legacy-test-command-warns", expectedExit: 0},
 	{category: categoryValidateSpec, name: "validate-spec-no-verification-command-rejected", expectedExit: 2, messages: []fixtureMessage{{match: matchContains, text: "verification checklist item"}}},
 	{category: categoryValidateSpec, name: "validate-spec-skeleton-placeholder-warns", expectedExit: 0, messages: []fixtureMessage{{match: matchContains, text: "warning"}}},
