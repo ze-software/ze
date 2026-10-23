@@ -8,7 +8,7 @@
 # that commit, `le commit push` is refused naming the trailer and the
 # attestation that answers it (AC-13).
 #
-# Spec: plan/post-release/engineering/spec-verification-debt-derived.md.
+# Spec: spec-verification-debt-derived (closed; design in docs/architecture/testing/verify-freshness-scope.md).
 # Drop the Review-owed trailer from Message (internal/le/commit/input.go) and
 # seq=1 fails at review-owed-trailer-written.
 

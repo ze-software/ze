@@ -8,7 +8,7 @@
 # non-zero and the upstream did not move (AC-6): the script's
 # `debt-status commit <P>` line is what stops it.
 #
-# Spec: plan/post-release/engineering/spec-verification-debt-derived.md.
+# Spec: spec-verification-debt-derived (closed; design in docs/architecture/testing/verify-freshness-scope.md).
 # Delete the re-check line from the push-only script (internal/le/commit/script.go)
 # and seq=1 fails at script-refused-without-green.
 

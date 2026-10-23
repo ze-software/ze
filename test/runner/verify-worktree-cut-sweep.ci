@@ -10,7 +10,7 @@
 # `all of <m>` sweep proves every piece and a second sweep skips the proven
 # ones.
 #
-# Spec: plan/post-release/engineering/spec-verification-debt-derived.md (AC-8, AC-9, AC-32).
+# Spec: spec-verification-debt-derived (closed; design in docs/architecture/testing/verify-freshness-scope.md) (AC-8, AC-9, AC-32).
 # Make one piece write the green record and seq=1 fails at
 # one-piece-writes-no-green-record.
 

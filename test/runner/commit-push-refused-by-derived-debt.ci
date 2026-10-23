@@ -8,7 +8,7 @@
 # It asserts the script makes no commit, re-derives with
 # `debt-status commit <P>`, and pushes `<P>:refs/heads/main`.
 #
-# Spec: plan/post-release/engineering/spec-verification-debt-derived.md (AC-3).
+# Spec: spec-verification-debt-derived (closed; design in docs/architecture/testing/verify-freshness-scope.md) (AC-3).
 # Make deriveDebt (internal/le/commit/owed.go) answer pushTargetHead with no
 # green record and seq=1 fails at push-refused-without-green.
 

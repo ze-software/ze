@@ -283,17 +283,17 @@ The reviewed answer reads a machine-local artifact keyed by blob content, so it 
 ### Assumptions
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|-----------|-------|----------|--------------|--------|
-| A-1 | Equal git tree ids mean the verified bytes are the bytes pushed | a tree id is the hash of the content | none for content; intermediate commits are not each verified (Known Limitations), as today | read git object model | unvalidated |
-| A-2 | The push publishes exactly the prepared SHA to `@{u}` | the push-only script pushes `<prepared SHA>:<upstream branch>` to the upstream's remote, not a bare `git push` | another ref escapes the gate | `TestPushScriptPushesPreparedSHAToUpstream` | unvalidated |
+| A-1 | Equal git tree ids mean the verified bytes are the bytes pushed | a tree id is the hash of the content | none for content; intermediate commits are not each verified (Known Limitations), as today | read git object model | confirmed |
+| A-2 | The push publishes exactly the prepared SHA to `@{u}` | the push-only script pushes `<prepared SHA>:<upstream branch>` to the upstream's remote, not a bare `git push` | another ref escapes the gate | `TestPushScriptPushesPreparedSHAToUpstream` | confirmed |
 | A-3 | Dropping the open verify rows loses no obligation anyone acts on | D-4; push is the enforcement point and those commits are published | none: owner decision | owner answer D-4 | confirmed |
 | A-4 | Unpushed commits only exist on the machine that made them | D-2; commits move between Linux and Mac through `origin` | a commit moved by bundle/rsync arrives with no green record and reads owed (safe direction) | owner answer D-2 | confirmed |
-| A-5 | One `rev-list`, one `log`, and a patch-id only when an attestation is in range fit the session-start budget | range is tens of commits; the old hook read 369 shards in 0.6 to 0.8 s | hook cut at deadline, says so on stderr | timing in `TestSessionStartReportsDerivedDebt` | unvalidated |
-| A-6 | `git patch-id --stable` of a commit is unchanged by a conflict-free rebase | patch-id hashes the diff, not the parent | an attestation stops answering after a clean rebase (safe direction: owed again) | `TestOwnerAttestationSurvivesRebase` | unvalidated |
+| A-5 | One `rev-list`, one `log`, and a patch-id only when an attestation is in range fit the session-start budget | range is tens of commits; the old hook read 369 shards in 0.6 to 0.8 s | hook cut at deadline, says so on stderr | timing in `TestSessionStartReportsDerivedDebt` | confirmed |
+| A-6 | `git patch-id --stable` of a commit is unchanged by a conflict-free rebase | patch-id hashes the diff, not the parent | an attestation stops answering after a clean rebase (safe direction: owed again) | `TestOwnerAttestationSurvivesRebase` | confirmed |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | Red run overwrites the green record | green record changes on a red run | written only by the lifecycle on exit 0, mode full, empty skipped, unmoved tree; `TestGreenRecordSurvivesRedRun` |
+| R-1 | Red run overwrites the green record | green record changes on a red run | written only through `writeGreen`, which applies no guard of its own: by `recordGreen` after a finished run that passed its guards (listed in `docs/architecture/testing/verify-freshness-scope.md`, "The green record and the cut"), and by `Sweep` from a parts record whose pieces each passed those guards in `recordGreen`; `TestGreenRecordSurvivesRedRun` |
 | R-2 | No upstream makes the range unbounded or silently empty | `@{u}` fails | derivation errors; `./le commit push` refuses naming `git branch --set-upstream-to`; hook says "not derived" on stderr. In a linked worktree session (git-dir differs from git-common-dir) with no upstream the hook prints nothing, because a worktree agent never pushes; the push still refuses |
 | R-3 | Green record from another branch or worktree sharing `tmp/` admits a push | record names a tree HEAD does not have | only tree equality admits; another branch's tree never equals HEAD's unless the bytes are the same, which is the property the gate wants |
 | R-4 | Cut-piece aggregation lost in the move | no green record after every green piece | move `debtpart.go` logic and its tests into `internal/le/verify` before deleting `debt-clear`; call it from the lifecycle at root |
@@ -355,7 +355,7 @@ N/A: Scope tooling (N2). The developer paths are covered by the Wiring Test tabl
 | AC-35 | `git diff --name-only` fails during the walk | the commit is treated as NOT covered; the refusal names the git error; never read as an empty diff |
 | AC-20 | `structural-red-ok` / `broken-head-fix` given | admission unchanged; reason recorded as a trailer; no obligation beyond the tree rule |
 | AC-21 | `unverified`, `missing-full-verify-ok`, or `push` on `create` | unknown keyword error naming the replacement (`./le verify worktree` for the first two, `./le commit push "<owner authorisation>"` for the third) |
-| AC-22 | session start with HEAD's tree not the green tree | one line `verification debt: N commit(s) owe a full verify since <G>, push refused until cleared` plus up to five items; nothing when the trees match and no person act is open |
+| AC-22 | session start while the derivation's `owed()` is true (no push target, a refusal, a left-behind commit, or an open person act) | one line `verification debt: <headline>, push refused until cleared` plus up to five items. The headline is the first that holds: `N commit(s) owe a full verify since <G>`; `HEAD's tree is not covered by a green verify (<reason>): run ./le verify worktree`; `the push of HEAD is refused`; `N person act(s) owed`. Never a zero count. Nothing when the green tree covers HEAD, the push of HEAD is not refused, and no person act is open (round 2 review, NOTE 6) |
 | AC-23 | `ZE_REPO_ROOT` at a non-Ze tree | `verify=NOT-APPLICABLE`, no derivation; `./le commit push` prepares the push-only script with no re-check line |
 | AC-24 | `./le commit debt-list`, `debt-clear`, `debt-discharge` | unknown verb error naming the replacement (`./le commit debt-status`, `./le verify worktree`, `create ... attest`) |
 | AC-25 | `./le commit debt-status` | exit 0 when P is HEAD and nothing is owed, 1 when anything is owed (listing it, P included), 2 when the derivation cannot answer. `debt-status commit <rev>`: exit 0 when `<rev>` is an admissible push target with no open item in `<rev> ^@{u}`, whatever follows it on the branch; 1 otherwise, naming why; 2 when it cannot answer |
@@ -571,6 +571,7 @@ N/A: Scope tooling; no protocol code (N2).
 | `Ledger-carried:` trailers are audit only for rows on commits in `@{u}`, and gate (keyed by patch-id, answered over the owing commit) for rows on commits in `HEAD ^@{u}` (D-4, D-8) | all audit only; all gating | a row on a published commit can be changed by no push; a row on an unpublished commit dropped silently is review blocker B1. Owner accepted 2026-10-19 |
 | Runnable gates collapse to one question | keep per-gate rows | one green full verify clears all four today |
 | Range for display is `HEAD ^@{u}` | whole history since G | D-2: pulled commits are never owed twice |
+| A `Review-owed:` obligation is answered when the spec that fixes the problem closes with its Review Gate recorded: the existing `closed` answer (`answerClosed`, `internal/le/commit/owed_answers.go`), with no new mechanism (owner answer 2026-10-23 to review round 1 NOTE 2, "once the spec fixing the problem closes") | a separate answer that also demands a fresh review of the owing commit's own blobs | `answerClosed` reads the commit that carries the trailer: it answers when that commit removes a spec whose text at its parent records a Review Gate (`reviewGateRecorded`), or whose parent Status is `skeleton` or `design` (no implementation, so no review owed). A commit that removes no spec, or whose spec records no gate, stays owed until `Owner-attested:` or another answer holds |
 
 ## Known Limitations
 - Intermediate commits are not each verified: only the pushed tree is. A bisect can land on a red intermediate, as it can today after `debt-clear` at HEAD.
@@ -625,3 +626,206 @@ None open. Q1 to Q4 and the push rule were answered on 2026-10-18; the push targ
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`
 - [ ] **Commit A:** code + tests + docs + edited spec
 - [ ] **Commit B:** `remove plan/post-release/engineering/spec-verification-debt-derived.md` only
+
+## Implementation Summary
+
+### What Was Implemented
+- Derivation `deriveDebt` (`internal/le/commit/owed.go`): push target P (HEAD when the green tree covers it, else the green commit G when it is HEAD's ancestor), coverage by `git diff --no-renames --name-only <green tree> <rev>` read through `repochanged.IsProse` (D-9), a diff failure read as NOT covered (AC-35), owed and left-behind lists over `HEAD ^@{u}`, and the `owed()` predicate every consumer reads.
+- Person acts as trailers (`internal/le/commit/owed_trailers.go`, `owed_answers.go`): `Review-owed:`, `RFC-approval-owed:`, `Owner-attested:` keyed by stable patch-id, `Ledger-carried:`; answers not-applicable, closed, reviewed, approved, attested. Keys declared once in `declaredTrailers` (`actions.go`); `refuseHandWrittenTrailer` (`input.go`) refuses each in a body.
+- Consumers (`internal/le/commit/push.go`): `./le commit push` and its push-only script (`renderPushScript`: `debt-status commit <P>` re-check, then `git push <remote> <P>:<branch>`), `debt-status [commit <rev>]` exit 0/1/2, the `create` report `debtReport`, the hook line `DebtWarning` read by `reportDerivedDebt` (`internal/le/hookruntime/lifecycle.go`).
+- Empty attestation commit: `create ... attest <c> "<words>"` (`prepare.go`, `attest.go`), rendered by `renderEmptyPublish` (`script.go`).
+- Green record and cut (`internal/le/verify/green.go`, `sweep.go`): `recordGreen` from the run's own `Report`, parts record under a lock, `./le verify worktree part <i> of <m>` and `all of <m>`.
+- Ledger deleted: `debt.go`, `debtpart.go`, `discharge.go`, `dischargerecord.go`, their tests, two `.ci`, and 720 tracked files under `plan/verification-debt/` (629dc011ff, 45 `Ledger-carried:` trailers).
+- Commits: 2688449b1b (phases 1-5), a70d810e75, 629dc011ff, a206708736, 83989a9794, e0341d7073.
+
+### Bugs Found/Fixed
+- The `create` report and the hook said nothing was owed when no push target existed (review round 1 BLOCKER): `owed()` predicate, `TestDebtConsumersNeverSayZeroWithoutTarget` (a70d810e75).
+- `verify worktree all of <m>` answered 0 with no green record written: `TestWorktreeSweepWithoutGreenRecordExitsNonZero` (a70d810e75).
+- A sweep whose parts proved every piece but whose green write failed could never converge (round 2 ISSUE): `TestWorktreeSweepWritesGreenFromCompleteParts` (a206708736).
+- `refuseUndeclaredWithAttest` let a live keyword with no Given reader ride an attestation: `TestRefuseUndeclaredWithAttestRefusesLiveKeywordWithoutGiven` (83989a9794).
+- `forgetParts` dropped another cut's parts record over the same commit: `TestForgetPartsKeepsAnotherCutsRecord`, `TestForgetPartsWaitsForThePartsLock` (e0341d7073).
+
+### Documentation Updates
+- Made in the implementation commits: `docs/contributing/committing.md`, `running-commands.md`, `spec-workflow.md`, `rfc-implementation-guide.md`, `docs/guide/developer-setup.md`, `docs/functional-tests.md`, `docs/architecture/testing/test-health.md`, `verify-freshness-scope.md`, `ai/INDEX.md`, `.claude/hooks/README.md`, `ai/INSTRUCTIONS.md`, the four rule points and the regenerated `ai/rules/*.md`.
+- Round 5 NOTEs (the second green writer, `Sweep` through `writeGreen`) are applied to `docs/architecture/testing/verify-freshness-scope.md`, "The green record and the cut", as an uncommitted edit. That file also holds two other sessions' hunks, one describing the uncommitted `internal/le/arch/refusebydefault/`, so it lands with that shared commit and is not in this closure's commit A. The R-1 row above carries the same correction.
+- `./le doc check verify` passed at phase 4b and phase 5 (session state). At closure it is red only on the `request bgp watchdog announce|forget|give|withdraw` command-reference rows (missing wire method, arguments, usage), which belong to the watchdog YANG work of dcc0ab9dc5, not to a page this spec touched.
+
+### Deviations from Plan
+- TDD test locations moved: `TestAttestPreparesEmptyCommit`, `TestAttestWithFileRefused`, `TestAppendOntoPushOnlyScriptRefused`, `TestPushOntoCommitScriptRefused`, `TestRemovedKeywordsNameReplacement` live in `push_test.go`, not `commit_test.go`; `TestCreateStagesNoDebtFile` became `TestCreateReportsDerivedDebt` (`push_test.go`), which also asserts AC-1's staged paths.
+- `TestDerivedDebtDocsOnlyCommitOwes` replaced by `TestDerivedDebtProseOnlyCommitIsCovered` (D-9 replaced D-5).
+- AC-22 widened to the `owed()` headlines (round 2 NOTE 6, owner-approved).
+
+### Security Review (closure)
+| Check | Finding |
+|-------|---------|
+| Trailer forgery | `refuseHandWrittenTrailer` (`input.go`) refuses every `declaredTrailers` key in a subject or body; `TestMessageRefusesDeclaredTrailerInBody` |
+| Attestation scope | `attest` refuses a commit on the upstream, off the branch, or owing nothing (`attest.go`); mutation "attest of a commit owing nothing" went red at phase 4b |
+| Push target | `renderPushScript` (`push.go`) pushes `<P>:<branch>` to the upstream remote, both `shellQuote`d; P is a `git rev-parse --verify --end-of-options` result (`commitOf`) or a green-record id checked by `isObjectID` (`green.go`), so the unquoted re-check argument is hex only |
+| Empty attestation | `renderEmptyPublish` (`script.go`) refuses when `git diff-tree` names any path; `TestEmptyAttestationBlockRefusesAnyPath`, `TestAttestWithFileRefused` |
+| Generic (injection, races, DoS) | the parts record is read and forgotten under its lock (`forgetParts`, e0341d7073); the hook derivation runs under the session-start deadline; no finding |
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The consumers judged only the owed list and the person acts, so no green record printed "0 owed" | the push target and the refusals decide too | review round 1 BLOCKER | one `owed()` predicate; the no-silent-zero principle already governs it, no new rule |
+| approach | `forgetParts` keyed on the commit only | a parts record is pinned by commit and cut, as `provenParts` reads it | review round 4 | fixed in e0341d7073 |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Delete the ledger and its write path | Done | 629dc011ff; 2688449b1b deletes `debt.go`, `discharge*.go` | `git ls-files plan/verification-debt` empty |
+| Derive debt from git plus the last green full verify | Done | `internal/le/commit/owed.go` `deriveDebt`; `internal/le/verify/green.go` `recordGreen` | |
+| Push gate, create report and hook read the derivation | Done | `push.go` `preparePush`, `debtReport`, `DebtWarning`; `hookruntime/lifecycle.go` `reportDerivedDebt` | |
+| Person-act obligations move into commit trailers | Done | `owed_trailers.go` `readPersonActs`; `prepare.go` `admissionTrailer` | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestCreateReportsDerivedDebt`, `TestCreateDebtNeverReadsZeroWithoutGreenRecord` | |
+| AC-2 | Done | `git grep plan/verification-debt -- internal/le` names only `retired.go` | |
+| AC-3 | Done | `TestDerivedDebtEmptyWhenTreesMatch`, `TestPushScriptPushesPreparedSHAToUpstream`, `commit-push-refused-by-derived-debt.ci` | |
+| AC-4 | Done | `TestPushTargetIsGreenCommitWhenHeadMovedOn`, `TestDerivedDebtListsCommitsAfterGreen` | |
+| AC-5 | Done | `TestPushScriptPushesPreparedCommitAfterHeadMoved`, `commit-push-script-rechecks.ci` | |
+| AC-6 | Done | `TestDebtStatusCommitRefusesCommitOffBranch`, `commit-push-script-rechecks.ci` | |
+| AC-7 | Done | `TestGreenRecordSurvivesRedRun` | |
+| AC-8 | Done | `TestGreenRecordOnlyForFullUnskippedUncutOrCompletedCut`, `TestGreenRecordWrittenAtAskingRoot`, `verify-worktree-cut-sweep.ci` | |
+| AC-9 | Done | `TestGreenRecordOnlyForFullUnskippedUncutOrCompletedCut` | |
+| AC-10 | Done | `TestStatusWriteNeverWritesGreenRecord` | guard: green before and after |
+| AC-11 | Done | `TestDerivedDebtRefusesWithoutUpstream`, `TestSessionStartReportsDerivedDebt` | |
+| AC-12 | Done | `TestSessionStartReportsDerivedDebt`, `TestPushRefusedInLinkedWorktreeWithoutUpstream` | |
+| AC-13 | Done | `TestDerivedDebtReadsPersonActTrailers`, `TestMessageWritesOwedTrailers`, `commit-review-owed-trailer.ci` | |
+| AC-14 | Done | `TestDerivedDebtReadsPersonActTrailers`, `TestMessageWritesOwedTrailers` | |
+| AC-15 | Done | `TestAttestPreparesEmptyCommit`, `TestOwnerAttestationSurvivesRebase`, `commit-attest-empty-commit.ci` | |
+| AC-16 | Done | `TestOwnerAttestationSurvivesRebase` | |
+| AC-17 | Done | `TestDerivedDebtRebaseReowesEveryLocalCommit` | |
+| AC-18 | Done | `TestDerivedDebtSkipsPulledCommits` | |
+| AC-19 | Done | `TestDerivedDebtProseOnlyCommitIsCovered` | |
+| AC-20 | Done | `TestMessageWritesOwedTrailers` (`Structural-red-ok:`, `Broken-head-fix:`) | |
+| AC-21 | Done | `TestRemovedKeywordsNameReplacement` | |
+| AC-22 | Done | `TestSessionStartReportsDerivedDebt`, `TestDebtWarningListsAtMostFiveItems`, `TestDebtConsumersNeverSayZeroWithoutTarget` | |
+| AC-23 | Done | `TestDerivedDebtNotApplicableOutsideCheckout`, `TestPushOutsideTheZeCheckoutCarriesNoRecheck` | |
+| AC-24 | Done | `TestRemovedKeywordsNameReplacement` (retired verbs) | |
+| AC-25 | Done | `TestDebtStatusExitCodes`, `TestDebtStatusCommitRefusesCommitOffBranch` | |
+| AC-26 | Done | `TestCarriedRowOnUnpushedCommitGatesPush`, `TestLedgerCarriedTrailersKeyUnpushedRows`; 629dc011ff carries 45 trailers | |
+| AC-27 | Done | `TestAttestWithFileRefused` | |
+| AC-28 | Done | `TestEmptyAttestationBlockRefusesAnyPath` | |
+| AC-29 | Done | `TestAppendOntoPushOnlyScriptRefused`, `TestPushOntoCommitScriptRefused` | |
+| AC-30 | Done | `TestGreenRecordIgnoresConcurrentCertificate` | |
+| AC-31 | Done | `TestAttachedRunWritesNoGreenRecord` | |
+| AC-32 | Done | `TestWorktreeCutKeywordsTakeBothOrNeither`, the `TestWorktreeSweep*` tests | |
+| AC-33 | Done | `TestPushRefusedWhenUpstreamMovedOrNothingAhead` | |
+| AC-34 | Done | `TestProsePathIsDeclaredOnTheRules` | |
+| AC-35 | Done | `TestDerivedDebtDiffFailureIsNotCovered` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `owed_test.go` derivation tests named in the plan | Done | `internal/le/commit/owed_test.go` | `ProseOnlyCommitIsCovered` replaces `DocsOnlyCommitOwes` |
+| push, attest, script, report tests | Changed | `internal/le/commit/push_test.go` | location, see Deviations |
+| `TestMessageWritesOwedTrailers` / `TestMessageRefusesDeclaredTrailerInBody` | Done | `internal/le/commit/input_test.go` | |
+| green record tests (4) | Done | `internal/le/verify/green_test.go` | |
+| `TestGreenRecordWrittenAtAskingRoot` | Done | `internal/le/verify/lifecycle_test.go` | |
+| `TestWorktreeCutKeywordsTakeBothOrNeither` | Done | `internal/le/verify/actions_test.go` | |
+| `TestWorktreeSweep*` (4 planned, 7 present) | Done | `internal/le/verify/sweep_test.go` | |
+| `TestStatusWriteNeverWritesGreenRecord` | Done | `internal/le/verify/status/answer_test.go` | |
+| `TestSessionStartReportsDerivedDebt` | Done | `internal/le/hookruntime/lifecycle_test.go` | |
+| six `.ci` | Done | `test/runner/` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Files to Modify (all rows) | Done | in 2688449b1b |
+| `owed.go`, `owed_test.go`, `green.go`, `green_test.go`, `sweep.go`, `sweep_test.go`, six `.ci` | Done | also `push.go`, `push_test.go`, `owed_trailers.go`, `owed_answers.go`, `attest.go`, `owed_consumers_test.go`, `prose_test.go` |
+| Files to Delete | Done | absent from the tree (ls below) |
+
+### Audit Summary
+- **Total items:** 4 requirements, 35 ACs, 10 test groups, 3 file groups
+- **Done:** all
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** test locations (Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Delete the ledger and its write path | tree state | `git ls-files plan/verification-debt` prints nothing; `debt.go`, `discharge.go`, `dischargerecord.go`, `debtpart.go` absent; `git grep plan/verification-debt -- internal/le` names only `internal/le/doc/check/retired.go` |
+| Debt derived from git plus the last green verify | functional | `verify-green-record-clears-derived-debt.ci` (green verify over HEAD empties the derived set) and `commit-push-refused-by-derived-debt.ci`, each run green through `le test fixture runner/<name>` at phase 4b; mutation runs (scratch `mutate4b.log`) 14 of 14 red |
+| Push, create report and hook read the derivation | functional + unit | `commit-push-script-rechecks.ci` (script re-derives against P and pushes P only); `TestSessionStartReportsDerivedDebt`; `TestCreateReportsDerivedDebt` |
+| Person acts move into trailers | functional | `commit-review-owed-trailer.ci` and `commit-attest-empty-commit.ci` (refused, attested by an empty commit, admitted with P = HEAD) |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | every AC is done | - |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/verification-debt-derived-a10aef63-a370-4e34-81b4-5c46d651efd8.md` |
+| `./le spec review check` | clean |
+| Rounds | 5: rounds 1 to 4 each found product defects, fixed in a70d810e75, a206708736, 83989a9794, e0341d7073; round 5 found 0 BLOCKER, 0 ISSUE and 4 doc NOTEs |
+| Reviewer lenses used | logic and wiring, no silent zero (`ai/rules/principles.md`), concurrency on the parts record, simplicity, go style; each round in an independent context over the commits |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | create report and hook said nothing owed with no push target | `push.go` `DebtWarning`, `debtReport` | a70d810e75: `owed()` |
+| 2 | ISSUE | sweep with complete parts and a failed green write never converged | `verify/sweep.go` `Sweep` | a206708736 |
+| 3 | ISSUE | `sweepPieces` a one-caller layer | `verify/sweep.go` | a206708736: Run and Sweep share `defaultDependencies` |
+| 4 | ISSUE | `refuseUndeclaredWithAttest` skipped a live keyword with no Given reader | `commit/prepare.go` | 83989a9794 |
+| 5 | ISSUE | `forgetParts` dropped another cut's record and unlinked outside the lock | `verify/green.go` `forgetParts` | a206708736 (lock), e0341d7073 (cut pin) |
+
+Round 5 NOTEs (record only): the page and the R-1 row named `recordGreen` as the only green writer; both now name `Sweep` through `writeGreen` too.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/le/commit/owed.go`, `owed_test.go` | yes | ls: 18K, 29K |
+| `internal/le/verify/green.go`, `green_test.go`, `sweep.go`, `sweep_test.go` | yes | ls: 20K, 19K, 9.4K, 12K |
+| six `test/runner/*.ci` of the Wiring Test | yes | ls lists all six |
+| deleted files (`debt.go`, `debtpart.go`, `discharge.go`, `dischargerecord.go`, two debt `.ci`) | absent | ls: No such file or directory, each |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-35 | every AC test above passes | closure run 2026-10-23 under `./le job run`, `-count=1`: `ok internal/le/commit 171.587s`, `ok internal/le/verify 52.684s`, `ok internal/le/verify/status 1.041s`, `ok internal/le/hookruntime 11.836s`, `ok internal/le/repo/changed 471.546s`, `ok internal/le/ai/hooks 8.904s`, `ok internal/le/doc/check 21.586s`, `ok internal/le/doc/citation 0.457s`; exit 0 |
+| AC-2 | no reader of the ledger | `git grep -ln plan/verification-debt -- internal/le` prints `internal/le/doc/check/retired.go` only |
+| Deliverable: push re-checks | script holds the re-check before the push | `renderPushScript` (`push.go`) writes `if ! ./le commit debt-status commit <P>` then `git push <remote> <P>:<branch>` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `./le commit push` | `commit-push-refused-by-derived-debt.ci` | exit 0 with every marker through `le test fixture runner/<name>` at phase 4b (session state); not rerun at closure, which runs no functional suite |
+| push-only script | `commit-push-script-rechecks.ci` | same |
+| `./le verify worktree` green | `verify-green-record-clears-derived-debt.ci` | same |
+| `part <i> of <m>` / `all of <m>` | `verify-worktree-cut-sweep.ci` | same |
+| `create ... attest` | `commit-attest-empty-commit.ci` | same |
+| `review-override` | `commit-review-owed-trailer.ci` | same |
+| session-start hook | `TestSessionStartReportsDerivedDebt` | `ok internal/le/hookruntime 11.836s` in the closure run |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | a git tree id is the hash of the tree's content; equal ids, equal bytes |
+| A-2 | confirmed | `TestPushScriptPushesPreparedSHAToUpstream` |
+| A-3 | confirmed | owner answer D-4 |
+| A-4 | confirmed | owner answer D-2 |
+| A-5 | confirmed | `TestSessionStartReportsDerivedDebt` fails past `sessionStartBudget`, and passes |
+| A-6 | confirmed | `TestOwnerAttestationSurvivesRebase` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| No page names the removed verbs or keywords as live | `git grep -E 'debt-clear|debt-discharge|debt-list|missing-full-verify-ok|plan/verification-debt'` over `docs`, `ai/rules`, `ai/INSTRUCTIONS.md`, `ai/INDEX.md`, `.claude/hooks/README.md`, `ai/skills` hits only the `committing.md` paragraph saying they were removed | yes |
+| `rfc-implementation-guide.md` names `RFC-approval-owed:` and `Owner-attested:` | grep hits in the `rfc-change-ok` paragraph | yes |
+| `functional-tests.md` runner row names the six fixtures | grep hit in the Runner row | yes |
+| `verify-freshness-scope.md` round 5 NOTEs | uncommitted edit, lands with the shared commit of that page (two other sessions' hunks) | made, not in commit A |
+| Citers of this spec | `spec-snapshot-builds-and-built-commits.md` Depends and reading row repointed to `verify-freshness-scope.md`; six `.ci` `# Spec:` headers restated as the bare stem | yes |

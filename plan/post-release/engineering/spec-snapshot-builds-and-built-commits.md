@@ -6,7 +6,7 @@
 | Scope | tooling |
 | Priority | P3 |
 | Release reason | Build and gate tooling: a commit that does not compile, or a verdict on another session's half-written file, costs release evidence, but no shipped behaviour changes |
-| Depends | `plan/post-release/engineering/spec-verification-debt-derived.md` (in progress in `internal/le/commit/prepare.go` and the verify certificate; land after it or coordinate) |
+| Depends | - (`spec-verification-debt-derived` closed on 2026-10-23: the derived debt is `internal/le/commit/owed.go`, the green record `internal/le/verify/green.go`, both described in `docs/architecture/testing/verify-freshness-scope.md`) |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-10-23 |
@@ -53,7 +53,7 @@ gave it.
   -> Decision: that spec deduplicates `--name` builds by output hash and leaves `bin/le` alone. This spec decides when `bin/le` is stale (by source digest) and which binary a gate runs. They compose; neither replaces the other.
 - [ ] `plan/post-release/engineering/spec-le-build-cache-cap.md` - one Go build cache, capped
   -> Constraint: snapshots share that cache; a snapshot never gets its own.
-- [ ] `plan/post-release/engineering/spec-verification-debt-derived.md` - debt and certificate model
+- [ ] `docs/architecture/testing/verify-freshness-scope.md`, "The green record and the cut" and "Verification debt, derived" - debt and certificate model (landed by the closed `spec-verification-debt-derived`)
 
 ## Current Behavior (MANDATORY)
 

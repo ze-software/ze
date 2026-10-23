@@ -8,7 +8,7 @@
 # parent's and its message carries `Owner-attested:` with the owner's words.
 # Last, `le commit push` prepares a script that pushes HEAD (D-7, AC-15).
 #
-# Spec: plan/post-release/engineering/spec-verification-debt-derived.md.
+# Spec: spec-verification-debt-derived (closed; design in docs/architecture/testing/verify-freshness-scope.md).
 # Let the attestation block stage a path and seq=1 fails at
 # empty-attestation-commit-landed.
 

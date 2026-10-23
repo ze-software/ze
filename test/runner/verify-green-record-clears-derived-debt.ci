@@ -8,7 +8,7 @@
 # asserts the green record sits at the asking root naming HEAD, uncut, and that
 # `le commit debt-status` then exits 0.
 #
-# Spec: plan/post-release/engineering/spec-verification-debt-derived.md (AC-8, AC-25).
+# Spec: spec-verification-debt-derived (closed; design in docs/architecture/testing/verify-freshness-scope.md) (AC-8, AC-25).
 # Delete the green-record write from the lifecycle (internal/le/verify/lifecycle.go)
 # and seq=1 fails at green-record-at-asking-root.
 
