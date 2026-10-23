@@ -141,6 +141,13 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   turn it is written, never only in a session directory.
 - While known reds are open, fix them with targeted reruns of the failing tests
   only; verify the whole tree once, after they all pass.
+- Show the observed failure, trace its cause to the producing code, fix that
+  code, and rerun the existing failing test without weakening its assertions.
+  If the test itself is wrong, explain its exact defect and why its expectation
+  is incorrect before changing or replacing it; required owner approval still
+  applies. Report test and verification maintenance separately from product
+  fixes: moving or replacing tests and refreshing snapshots do not fix the
+  product.
 - Plans live only in subfolders under `plan/`, never at its root, in a structure
   a human finds easy to understand.
 - Split a spec that mixes fixes with new features when release planning needs
