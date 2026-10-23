@@ -302,18 +302,6 @@ const homeTemplate = `        <div class="site-home">
                         </ul>
                         <span class="proof-check">Local test, fuzz, and mutation evidence.</span>
                     </a>
-                    <a class="proof" href="quality/rfc-compliance/">
-                        <strong
-                            >{rfc_implemented}
-                            <span class="label">RFCs supported</span></strong
-                        >
-                        <ul>
-                            <li>{rfc_gated_implemented} MUSTs to test</li>
-                            <li>{rfc_proven} checked with a test</li>
-                            <li>{rfc_proven_percent}% done</li>
-                        </ul>
-                        <span class="proof-check">RFC requirement ledger.</span>
-                    </a>
                     <a class="proof" href="quality/functional-ci/">
                         <strong
                             >{e2e_tests}
@@ -325,6 +313,18 @@ const homeTemplate = `        <div class="site-home">
                             <li>Commands checked as operators run them</li>
                         </ul>
                         <span class="proof-check">Functional transcript format and rerun path.</span>
+                    </a>
+                    <a class="proof" href="quality/rfc-compliance/">
+                        <strong
+                            >{rfc_implemented}
+                            <span class="label">RFCs supported</span></strong
+                        >
+                        <ul>
+                            <li>{rfc_gated_implemented} MUSTs to test</li>
+                            <li>{rfc_proven} checked with a test</li>
+                            <li>{rfc_proven_percent}% done</li>
+                        </ul>
+                        <span class="proof-check">RFC requirement ledger.</span>
                     </a>
                     <a class="proof" href="quality/unit-fuzz-mutation/#fuzz-targets-are-still-tests">
                         <strong>{fuzz_targets} <span class="label">fuzz targets</span></strong>
