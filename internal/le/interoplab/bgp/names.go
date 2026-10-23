@@ -117,6 +117,18 @@ const (
 	gobgpOrigin   = "origin"
 )
 
+// gobgpRoleCapabilityReceived is the line `gobgp neighbor <addr>` prints for
+// the RFC 9234 Role capability (code 9) when only the peer sent it. GoBGP
+// implements no Role capability (v3.31.0 and v4.10.0 alike), so it names the
+// code through BGPCapabilityCode.String and marks it received, not advertised.
+const gobgpRoleCapabilityReceived = "UnknownCapability(9):\treceived"
+
+// gobgpDetailEstablished is the state line `gobgp neighbor <addr>` prints for
+// an established session. v4.10.0 prints the API enum name
+// (cmd/gobgp/neighbor.go: `BGP state = %s` of p.State.SessionState), so the
+// detail view no longer carries the word "Established" that v3.31.0 printed.
+const gobgpDetailEstablished = "BGP state = SESSION_STATE_ESTABLISHED"
+
 // ip(8) words. The scenarios break and restore a link, read an address, and
 // read the IPsec state with them.
 const (
@@ -467,9 +479,10 @@ const (
 // JSON and log field names the assertions read, and the values they expect.
 const (
 	fieldError = "error"
-	// stateEstablished is how FRR, BIRD and GoBGP all spell the BGP session
-	// state their CLIs print, which is not how ze spells it in JSON
-	// (peerStateEstablishedJSON).
+	// stateEstablished is how FRR and BIRD spell the BGP session state their
+	// CLIs print, which is not how ze spells it in JSON
+	// (peerStateEstablishedJSON). GoBGP v4's neighbor detail spells it
+	// gobgpDetailEstablished.
 	stateEstablished = "Established"
 
 	fieldEstablished = "established"

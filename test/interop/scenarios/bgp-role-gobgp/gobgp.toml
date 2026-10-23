@@ -1,3 +1,7 @@
+# GoBGP implements no RFC 9234 Role capability (neither v3.31.0 nor v4.10.0
+# has a role key in pkg/config/oc or capability code 9 in pkg/packet/bgp), so
+# this peer sends none, and v4.10.0's UnmarshalExact refuses the `local-role`
+# table this file once carried. The scenario proves Ze's non-strict side.
 [global.config]
   as = 65002
   router-id = "172.30.0.5"
@@ -7,8 +11,6 @@
   [neighbors.config]
     neighbor-address = "172.30.0.2"
     peer-as = 65001
-  [neighbors.config.local-role]
-    role = "customer"
   [[neighbors.afi-safis]]
     [neighbors.afi-safis.config]
       afi-safi-name = "ipv4-unicast"

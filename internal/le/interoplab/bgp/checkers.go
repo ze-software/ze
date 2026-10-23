@@ -757,7 +757,10 @@ var scenarioOperations = map[string][]operation{
 	},
 	"bgp-role-gobgp": {
 		{kind: opGoBGPSession, argument: zeLabAddress},
-		{kind: opDelayRequireContains, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpNeighbor, zeLabAddress}, contains: []string{stateEstablished}, delay: 5 * time.Second},
+		// GoBGP has no RFC 9234 support, so the scenario proves the non-strict
+		// case (RFC 9234 Section 4.2): Ze, with a role, advertises the Role
+		// capability, and the session to a peer that sends none stays up.
+		{kind: opDelayRequireContains, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpNeighbor, zeLabAddress}, contains: []string{gobgpDetailEstablished, gobgpRoleCapabilityReceived}, delay: 5 * time.Second},
 	},
 	"bgp-route-reflection-frr": {
 		{kind: opFRRSession, argument: zeLabAddress},
