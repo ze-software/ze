@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -292,6 +293,46 @@ func TestFleetStartNamesTheScriptItCannotFork(t *testing.T) {
 
 	cancel()
 	fleet.Stop()
+}
+
+// TestFleetLogsTheScriptItCannotStart proves that a script whose program is
+// not on PATH is reported at ERROR, with the run command, the exec error, why
+// it matters and what to do. Method: start a fleet whose one script names a
+// program no PATH holds, and read the line the fleet's logger received.
+// PREVENTS: a `run` command naming a program the daemon cannot find failing in
+// silence. Start answers the error to the engine's startup callback, which no
+// operator reads, so conf-watchdog's helper never ran and nothing said why.
+func TestFleetLogsTheScriptItCannotStart(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+	var logged bytes.Buffer
+	log := slog.New(slog.NewTextHandler(&logged, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	fleet := New(log, testFamilies, []Script{
+		{Name: "watchdog", Argv: []string{"ze-no-such-helper", "watchdog"}, Encoder: bridge.EncoderJSON},
+	})
+	if err := fleet.Start(ctx, &recorder{}); err == nil {
+		t.Fatalf("Start answered no error for a program that is not on PATH")
+	}
+	cancel()
+	fleet.Stop()
+
+	line := logged.String()
+	for _, want := range []string{
+		"level=ERROR",
+		"exabgp-bridge script could not start",
+		"no route it announces or withdraws reaches any peer",
+		"script=watchdog",
+		`run="ze-no-such-helper watchdog"`,
+		"executable file not found",
+		"put the directory that holds ze-no-such-helper on ze's PATH",
+	} {
+		if !strings.Contains(line, want) {
+			t.Errorf("log does not carry %q:\n%s", want, line)
+		}
+	}
 }
 
 // TestFleetSendsABareEORForIPv4UnicastOnly proves a bare `announce eor`

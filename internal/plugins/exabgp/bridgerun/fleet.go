@@ -133,8 +133,10 @@ func New(log *slog.Logger, families []string, scripts []Script) *Fleet {
 func (f *Fleet) Count() int { return len(f.scripts) }
 
 // Start forks every script and starts the goroutines that serve it. It answers
-// the first fork error and names the script that produced it, so an operator
-// meets a bad `run` command at startup rather than as a missing script.
+// the first fork error and names the script that produced it, and logs that
+// error at ERROR with the run command and the fix (script.logStartFailure), so
+// an operator meets a bad `run` command at startup rather than as a missing
+// script.
 //
 // A script that started before the failing one keeps running, and Stop ends it.
 func (f *Fleet) Start(ctx context.Context, d Dispatcher) error {
@@ -153,6 +155,7 @@ func (f *Fleet) Start(ctx context.Context, d Dispatcher) error {
 			return fmt.Errorf("exabgp-bridge: script %s: no encoder was set for it", s.name)
 		}
 		if err := s.start(ctx); err != nil {
+			s.logStartFailure(err)
 			return fmt.Errorf("exabgp-bridge: script %s: %w", s.name, err)
 		}
 		drained := make(chan struct{})

@@ -115,7 +115,7 @@ func TestExaBGPClientEnvExportsResolvedZeBin(t *testing.T) {
 	t.Setenv("ZE_BIN", "/inherited/ze")
 	test := &exabgpTestEntry{record: &runner.Record{Nick: "1"}, tcpConnections: 1}
 
-	got := exaBGPClientEnv(test, 17900, "/resolved/ze", "/work/ze-exabgp-native-7/ze.conf")
+	got := exaBGPClientEnv(test, 17900, "/resolved/ze", "/resolved/le-x/le", "/work/ze-exabgp-native-7/ze.conf")
 
 	last := ""
 	for _, entry := range got {
@@ -133,6 +133,39 @@ func TestExaBGPClientEnvExportsResolvedZeBin(t *testing.T) {
 	want := "ze.config.dir=/work/ze-exabgp-native-7"
 	if !slices.Contains(got, want) {
 		t.Fatalf("environment does not carry %q: %v", want, got)
+	}
+}
+
+// VALIDATES: a helper a config runs as `le` reaches the le running the suite,
+// and that le accepts the call. Method: build the client environment for a
+// named build whose le is not beside the ze under test, and read PATH and the
+// build-name variable the daemon's children inherit.
+// PREVENTS: conf-watchdog's `le test interop-bgp exabgp-api watchdog` finding
+// no le (buildZe puts ze alone in the session bin/), or finding the named
+// build and being refused by it because ZE_LE_BUILD_NAME named a build a bare
+// `le` invocation cannot match (cmd/ze/le_build_name.go, refuseWrongBuildName).
+func TestExaBGPClientEnvReachesTheRunningLe(t *testing.T) {
+	t.Setenv("ZE_LE_BUILD_NAME", "x")
+	t.Setenv("ze.le.build.name", "x")
+	t.Setenv("PATH", "/usr/bin")
+	test := &exabgpTestEntry{record: &runner.Record{Nick: "1"}, tcpConnections: 1}
+
+	got := exaBGPClientEnv(test, 17900, "/session/bin/ze", "/repo/bin/le-x/le", "/work/ze.conf")
+
+	path := ""
+	for _, entry := range got {
+		name, value, _ := strings.Cut(entry, "=")
+		if strings.EqualFold(strings.ReplaceAll(name, ".", "_"), "ZE_LE_BUILD_NAME") {
+			t.Errorf("the client environment carries %q, which makes the child le refuse", entry)
+		}
+		if name == "PATH" {
+			path = value
+		}
+	}
+	sep := string(os.PathListSeparator)
+	want := "/repo/bin/le-x" + sep + "/session/bin" + sep + "/usr/bin"
+	if path != want {
+		t.Fatalf("effective PATH = %q, want %q: the running le first, then the ze under test", path, want)
 	}
 }
 
@@ -256,7 +289,7 @@ func TestParseExaBGPCIEnvOption(t *testing.T) {
 	if !slices.Equal(entry.env, want) {
 		t.Fatalf("env = %v, want %v", entry.env, want)
 	}
-	environ := exaBGPClientEnv(entry, 1790, filepath.Join(dir, "ze"), filepath.Join(dir, "a.conf"))
+	environ := exaBGPClientEnv(entry, 1790, filepath.Join(dir, "ze"), filepath.Join(dir, "le"), filepath.Join(dir, "a.conf"))
 	if got := environ[len(environ)-2:]; !slices.Equal(got, want) {
 		t.Errorf("client env ends %v, want the case's %v last", got, want)
 	}

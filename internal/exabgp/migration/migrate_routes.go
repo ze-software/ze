@@ -475,14 +475,19 @@ func convertRouteToUpdate(prefix string, attrTree, dst *config.Tree) error {
 	update.AddListEntry("nlri", fam, nlriEntry)
 
 	// Handle watchdog attribute.
-	// ExaBGP: "route PREFIX ... watchdog NAME withdraw;" stores watchdog=NAME, withdraw=true.
-	// Ze: "update { watchdog { name NAME; } ... }"
-	// Note: we omit "withdraw true" because in ExaBGP the watchdog process announces
-	// before session establishment, so the route is effectively announced at session start.
-	// The exabgp wrapper handles the process lifecycle via the API socket.
+	// ExaBGP: "route PREFIX ... watchdog NAME [withdraw];".
+	// Ze: "update { watchdog { name NAME; [withdraw true;] } ... }"
+	// A watchdog route marked withdraw starts withdrawn in ExaBGP: its RIB holds
+	// the route back until the process sends `announce watchdog NAME`
+	// (rib/outgoing.py, OutgoingRIB.add_to_rib_watchdog). Dropping the flag made
+	// ze announce it at session start, where ExaBGP sends nothing. The flag alone,
+	// with no watchdog, changes nothing in ExaBGP, so it is not carried then.
 	if wdName, ok := attrTree.Get("watchdog"); ok {
 		wdBlock := config.NewTree()
 		wdBlock.Set("name", wdName)
+		if _, held := attrTree.Get("withdraw"); held {
+			wdBlock.Set("withdraw", configTrue)
+		}
 		update.SetContainer("watchdog", wdBlock)
 	}
 

@@ -21,6 +21,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/paths"
 	"github.com/ze-software/ze/internal/core/textbuf"
 
@@ -867,7 +868,11 @@ func runExaBGPClientForeground(test *exabgpTestEntry, port int, zeBinary string)
 		return err
 	}
 	cmd := exec.CommandContext(context.Background(), zeBinary, "start", config.path) //nolint:gosec // zeBinary is the ze under test, named on this runner's own command line
-	cmd.Env = exaBGPClientEnv(test, port, zeBinary, config.path)
+	leBinary, err := runningLE()
+	if err != nil {
+		return err
+	}
+	cmd.Env = exaBGPClientEnv(test, port, zeBinary, leBinary, config.path)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
@@ -902,7 +907,11 @@ func startExaBGPClient(
 	if err != nil {
 		return nil, exabgpClientConfigs{}, err
 	}
-	client, err := startExaProcess(ctx, "client", zeBinary, []string{"start", config.path}, exaBGPClientEnv(test, port, zeBinary, config.path), nil)
+	leBinary, err := runningLE()
+	if err != nil {
+		return nil, exabgpClientConfigs{}, err
+	}
+	client, err := startExaProcess(ctx, "client", zeBinary, []string{"start", config.path}, exaBGPClientEnv(test, port, zeBinary, leBinary, config.path), nil)
 	if err != nil {
 		return nil, exabgpClientConfigs{}, err
 	}
@@ -931,10 +940,14 @@ func startExaBGPDaemon(
 		return nil, exabgpClientConfigs{}, fmt.Errorf(
 			"--dut exabgp runs the exabgp on PATH and found none (%w): run the suite under uv run --with <exabgp pin>", err)
 	}
+	leBinary, err := runningLE()
+	if err != nil {
+		return nil, exabgpClientConfigs{}, err
+	}
 	config := test.configs[0]
 	args := append([]string{"server"}, test.configs...)
 	client, err := startExaProcess(ctx, "client", program, args,
-		exaBGPClientEnv(test, port, zeBinary, config), nil)
+		exaBGPClientEnv(test, port, zeBinary, leBinary, config), nil)
 	if err != nil {
 		return nil, exabgpClientConfigs{}, err
 	}
@@ -959,11 +972,28 @@ func exaBGPServerEnv(test *exabgpTestEntry, port int) []string {
 	return env
 }
 
-func exaBGPClientEnv(test *exabgpTestEntry, port int, zeBinary, configPath string) []string {
-	env := os.Environ()
+// runningLE answers the le that runs this suite, which is the le a config's
+// process block reaches when it runs `le ...` (exaBGPClientEnv). It never falls
+// back to a PATH lookup, because the le on PATH can be another build.
+func runningLE() (string, error) {
+	path, err := os.Executable()
+	if err != nil {
+		return "", fmt.Errorf("the exabgp runner cannot name its own le, so a helper a config runs as `le` would not be found; rerun through ./le test exabgp: %w", err)
+	}
+	return path, nil
+}
+
+// exaBGPClientEnv is the environment of the daemon under test. leBinary is the
+// le running this suite (runningLE), zeBinary the ze under test.
+func exaBGPClientEnv(test *exabgpTestEntry, port int, zeBinary, leBinary, configPath string) []string {
+	// The le a helper reaches through PATH is not the file a `./le --name x`
+	// launcher named when it is invoked as a bare `le`, so refuseWrongBuildName
+	// (cmd/ze/le_build_name.go) would refuse it. Every spelling is dropped; PATH
+	// below already selects the build.
+	environ := env.Without(os.Environ(), "ze.le.build.name")
 	portText := strconv.Itoa(port)
 	var tb textbuf.Buffer
-	env = append(env,
+	environ = append(environ,
 		"ze_test_bgp_port="+portText,
 		"exabgp_tcp_port="+portText,
 		"exabgp_tcp_connections="+strconv.Itoa(test.tcpConnections),
@@ -975,17 +1005,19 @@ func exaBGPClientEnv(test *exabgpTestEntry, port int, zeBinary, configPath strin
 		// from the binary's location and corrupt each other's zefs and CA.
 		tb.Reset().Str("ze.config.dir=").Str(filepath.Dir(configPath)).String(),
 		// The daemon FORKS the helper a config's process block names, and
-		// conf-watchdog names `le test fixture ...`, which sits beside the ze
-		// under test. It was reachable from nowhere until the migration started
-		// emitting the bridge, because the process was being dropped and nothing
-		// ever forked it.
-		tb.Reset().Str("PATH=").Str(filepath.Dir(zeBinary)).Byte(os.PathListSeparator).Str(os.Getenv("PATH")).String(),
+		// conf-watchdog names `le test interop-bgp exabgp-api watchdog`. That le
+		// is the one running this suite, and it does not always sit beside the
+		// ze under test: buildZe puts ze alone in the session bin/, and a named
+		// build's le is bin/le-<name>/le. So the running le's directory comes
+		// first, then ze's, then the inherited PATH.
+		tb.Reset().Str("PATH=").Str(filepath.Dir(leBinary)).Byte(os.PathListSeparator).
+			Str(filepath.Dir(zeBinary)).Byte(os.PathListSeparator).Str(os.Getenv("PATH")).String(),
 		// Appended AFTER os.Environ() so the verified binary wins over any
 		// inherited ZE_BIN value.
 		tb.Str("ZE_BIN=").Str(zeBinary).String(),
 	)
 	// The case's own settings come last, so one can override a value above.
-	return append(env, test.env...)
+	return append(environ, test.env...)
 }
 
 // exabgpClientConfigs is what a case's `option=file:` configs become: the path

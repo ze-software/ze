@@ -14,6 +14,7 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -240,6 +241,23 @@ func (s *script) start(ctx context.Context) error {
 	return nil
 }
 
+// logStartFailure tells the operator that the script could not be forked. The
+// error Fleet.Start answers goes back to the engine as the answer to a startup
+// callback, which no operator reads, so this ERROR line is where a `run`
+// command naming a program the daemon cannot find or execute is reported.
+func (s *script) logStartFailure(err error) {
+	program := "the program"
+	if len(s.argv) > 0 {
+		program = s.argv[0]
+	}
+	s.log.Error("exabgp-bridge script could not start, so no route it announces or withdraws reaches any peer",
+		"script", s.name,
+		"run", strings.Join(s.argv, " "),
+		"error", err,
+		"path", os.Getenv("PATH"),
+		"action", "give the full path of "+program+" in the process run command, or put the directory that holds "+program+" on ze's PATH, and make "+program+" executable")
+}
+
 // supervise is the script's own goroutine. It reads the child's stdout until
 // the pipe closes, reaps the child, and starts it again when the config asks
 // for a respawn and the rate limit allows one. It closes reaped when it
@@ -274,7 +292,7 @@ func (s *script) supervise(ctx context.Context, f *Fleet, d Dispatcher, reaped c
 					"script", s.name, "starts", respawnMax, "window", respawnWindow)
 				return
 			}
-			s.log.Error("exabgp-bridge script restart failed", "script", s.name, "error", err)
+			s.logStartFailure(err)
 			return
 		}
 		s.log.Info("exabgp-bridge script restarted", "script", s.name)

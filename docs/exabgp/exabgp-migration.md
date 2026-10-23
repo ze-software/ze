@@ -199,6 +199,15 @@ is present, or 32 if a link-local address is also included in the Next Hop
 field".
 <!-- source: internal/exabgp/migration/migrate_routes.go -- mapIPv6RouteIPv4NextHop -->
 
+#### A watchdog route that starts withdrawn
+
+A static route with both `watchdog <name>` and `withdraw` migrates to
+`watchdog { name <name>; withdraw true; }`, so it starts withdrawn and the
+script's first `announce watchdog <name>` sends it, as ExaBGP holds it out of
+its RIB until then. `withdraw` on a route with no watchdog changes nothing in
+ExaBGP and is not carried.
+<!-- source: internal/exabgp/migration/migrate_routes.go -- convertRouteToUpdate -->
+
 ### Running ExaBGP Plugins
 
 Use `ze exabgp plugin` to run existing ExaBGP plugins with Ze:

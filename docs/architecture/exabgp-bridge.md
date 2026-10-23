@@ -717,6 +717,16 @@ stdout. It fans each event out to the children the event's peer FEEDS. The ack i
 per child: each script writes a line and blocks for its own `done`, and
 `disable-ack` from one script silences that script alone.
 
+A `run` command the daemon cannot fork, because its program is not on the
+daemon's PATH or is not executable, stops the bridge's startup and logs one
+ERROR line: `exabgp-bridge script could not start`, with the script name, the
+`run` command, the exec error, the daemon's PATH and the fix. A restart that
+fails the same way logs the same line. The error Fleet.Start answers goes to the
+engine as the answer to a startup callback, which no operator reads, so this
+line is where the operator learns why the script's routes never reach a peer.
+
+<!-- source: internal/plugins/exabgp/bridgerun/script.go -- script.logStartFailure -->
+
 Until 2026-09-06 the config carried one `run` leaf and the bridge forked one
 child, so a config declaring two processes ran one of them and said nothing.
 That is the silently-wrong answer `ai/rules/principles.md` exists to prevent,

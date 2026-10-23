@@ -3,6 +3,7 @@ package migration
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -578,6 +579,42 @@ neighbor 10.0.0.1 {
 
 	// Next-hop should appear in attribute block.
 	assert.Contains(t, output, "next-hop 10.0.0.1", "expected next-hop in attribute")
+}
+
+// TestMigrateWatchdogWithdrawStartsWithdrawn verifies a watchdog route ExaBGP
+// starts withdrawn is migrated to a ze watchdog route that starts withdrawn.
+//
+// VALIDATES: `watchdog NAME withdraw` becomes `watchdog { name NAME; withdraw
+// true; }`, and `watchdog NAME` alone carries no withdraw leaf. Method: migrate
+// one route of each kind and read the serialized watchdog blocks.
+// PREVENTS: ze announcing at session start a route ExaBGP holds back until its
+// process sends `announce watchdog NAME`. ExaBGP's RIB keeps such a route out
+// of the RIB (rib/outgoing.py, OutgoingRIB.add_to_rib_watchdog: "if withdraw:
+// ... return True" before add_to_rib), so the remote router never sees it
+// before the script asks.
+func TestMigrateWatchdogWithdrawStartsWithdrawn(t *testing.T) {
+	input := `
+neighbor 10.0.0.1 {
+	local-as 65001
+	peer-as 65002
+	static {
+		route 77.77.77.77 next-hop 1.2.3.4 watchdog held withdraw
+		route 88.88.88.88 next-hop 1.2.3.4 watchdog live
+	}
+}
+`
+	tree, err := ParseExaBGPConfig(input)
+	require.NoError(t, err, "parse")
+
+	result, err := MigrateFromExaBGP(tree)
+	require.NoError(t, err, "migrate")
+
+	output := SerializeTree(result.Tree)
+
+	held := regexp.MustCompile(`watchdog \{\s*name held\s+withdraw true\s*\}`)
+	assert.Regexp(t, held, output, "the held route must start withdrawn")
+	live := regexp.MustCompile(`watchdog \{\s*name live\s*\}`)
+	assert.Regexp(t, live, output, "the live route must carry no withdraw leaf")
 }
 
 // TestMigrateStaticPathInformation verifies path-information is preserved.
