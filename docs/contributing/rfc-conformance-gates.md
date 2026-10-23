@@ -46,7 +46,8 @@ Native unit observations remove the launching tool's checkout-root and
 build-name environment aliases before starting the child. The child discovers
 its own checkout from its working directory; the toolchain still supplies its
 cache and process limit. The child-process regression in
-`internal/le/rfc/native_fixture_test.go` exercises that boundary. Neither these
+`internal/le/rfc/native_fixture_test.go` checks the cache directory's identity,
+including when the checkout reaches it through a symlink. Neither these
 engine fixtures nor a green `rfc check` mean a protocol proof was executed:
 the gate reads stored evidence, while `rfc discriminate-record` runs the
 claimed test with and without its break.

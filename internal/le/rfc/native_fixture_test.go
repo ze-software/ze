@@ -36,8 +36,16 @@ func TestNativeImplementationFixture(t *testing.T) {
 				t.Errorf("child inherited launcher identity %s=%q", key, value)
 			}
 		}
-		if got := os.Getenv("GOCACHE"); got != gotoolchain.GoCache(root) {
-			t.Errorf("child cache = %q, want %q", got, gotoolchain.GoCache(root))
+		cache, err := os.Stat(os.Getenv("GOCACHE"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		wantCache, err := os.Stat(gotoolchain.GoCache(root))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !os.SameFile(cache, wantCache) {
+			t.Errorf("child cache %q does not name %q", os.Getenv("GOCACHE"), gotoolchain.GoCache(root))
 		}
 		if got := os.Getenv("GOMAXPROCS"); got != "2" {
 			t.Errorf("child process limit = %q, want 2", got)
