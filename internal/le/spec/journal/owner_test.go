@@ -13,8 +13,11 @@ import (
 const (
 	ownerClassPath = "plan/journal/silent-default.md"
 	ownerSpecPath  = "plan/release/fixes/spec-refuse-defaults.md"
-	ownerOpenRow   = "| 2026-10-23 | - | cli | answered zero | open: owed |\n"
-	ownerFixedRow  = "| 2026-10-23 | - | cli | answered zero | fixed: refused now |\n"
+	// ownerOtherSpecPath is a second spec, the one an earlier block of an
+	// appended script moves an entry to or deletes.
+	ownerOtherSpecPath = "plan/release/fixes/spec-other-owner.md"
+	ownerOpenRow       = "| 2026-10-23 | - | cli | answered zero | open: owed |\n"
+	ownerFixedRow      = "| 2026-10-23 | - | cli | answered zero | fixed: refused now |\n"
 )
 
 // ownerSpec renders a spec whose owned journal rows table lists one entry per
@@ -46,6 +49,7 @@ func TestUnownedOpenRows(t *testing.T) {
 		tree    map[string]string
 		paths   []string
 		removed []string
+		base    Base
 		unowned int
 	}{
 		{
@@ -175,6 +179,52 @@ func TestUnownedOpenRows(t *testing.T) {
 			paths: []string{ownerClassPath},
 		},
 		{
+			name: "heading inside a tilde fence keeps the table open",
+			head: map[string]string{ownerSpecPath: "# Spec\n\n## Owned journal rows\n\n~~~\n# not a heading\n```\n~~~\n\n" +
+				"| `silent-default.md` | 2026-10-23 | cli |\n"},
+			tree:  map[string]string{ownerClassPath: journalTableHead + ownerOpenRow},
+			paths: []string{ownerClassPath},
+		},
+		{
+			name: "closure after an earlier block fixed the row",
+			head: map[string]string{
+				ownerClassPath: journalTableHead + ownerOpenRow,
+				ownerSpecPath:  ownerSpec("2026-10-23"),
+			},
+			base:    Base{Files: map[string]string{ownerClassPath: journalTableHead + ownerFixedRow}},
+			removed: []string{ownerSpecPath},
+		},
+		{
+			name: "closure after an earlier block moved the entry",
+			head: map[string]string{
+				ownerClassPath: journalTableHead + ownerOpenRow,
+				ownerSpecPath:  ownerSpec("2026-10-23"),
+			},
+			base:    Base{Files: map[string]string{ownerOtherSpecPath: ownerSpec("2026-10-23")}},
+			removed: []string{ownerSpecPath},
+		},
+		{
+			name: "closure after an earlier block deleted the other owner",
+			head: map[string]string{
+				ownerClassPath:     journalTableHead + ownerOpenRow,
+				ownerSpecPath:      ownerSpec("2026-10-23"),
+				ownerOtherSpecPath: ownerSpec("2026-10-23"),
+			},
+			base:    Base{Removed: map[string]bool{ownerOtherSpecPath: true}},
+			removed: []string{ownerSpecPath},
+			unowned: 1,
+		},
+		{
+			name: "closure after an earlier block left the row open",
+			head: map[string]string{
+				ownerClassPath: journalTableHead + ownerOpenRow,
+				ownerSpecPath:  ownerSpec("2026-10-23"),
+			},
+			base:    Base{Files: map[string]string{ownerSpecPath: "Status: done\n\n" + ownerSpec("2026-10-23")}},
+			removed: []string{ownerSpecPath},
+			unowned: 1,
+		},
+		{
 			name: "two open rows of one date, one entry",
 			head: map[string]string{ownerSpecPath: ownerSpec("2026-10-23")},
 			tree: map[string]string{ownerClassPath: journalTableHead + ownerOpenRow +
@@ -192,7 +242,7 @@ func TestUnownedOpenRows(t *testing.T) {
 			for path, body := range test.tree {
 				writeJournalFile(t, root, path, body)
 			}
-			unowned, err := UnownedOpenRows(root, test.paths, test.removed)
+			unowned, err := UnownedOpenRows(root, test.paths, test.removed, test.base)
 			if err != nil {
 				t.Fatalf("UnownedOpenRows: %v", err)
 			}

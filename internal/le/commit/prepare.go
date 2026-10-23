@@ -4,6 +4,7 @@ package commit
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -402,7 +403,11 @@ func checkVerificationGates(root string, options *Options, result *Prepared, pat
 		}
 	}
 
-	stem, err := closureStem(root, paths, removed)
+	base, err := appendBase(root, result.Session, options)
+	if err != nil {
+		return "", err
+	}
+	stem, err := closureStem(root, paths, removed, base)
 	if err != nil {
 		return "", err
 	}
@@ -574,25 +579,37 @@ func refuseForeignReplace(script string, paths []string) error {
 	return errors.New("replace refused: script was prepared for a different commit and shares none of these files")
 }
 
-// refuseAttestAdmission refuses an attestation that also names an admission
-// keyword. Each of those records why a commit that CHANGES files was let past
-// a gate; an attestation changes no file and runs no gate, so the keyword would
-// be dropped in silence and the reason the author gave would be recorded
-// nowhere.
+// refuseAttestAdmission refuses an attestation that also carries a create
+// keyword the keyword table does not declare WithAttest. The admission
+// keywords record why a commit that CHANGES files was let past a gate, and
+// no-test and ledger-carried act on a commit's files too; an attestation
+// changes no file and runs no gate, so the keyword would be dropped in silence
+// and the reason the author gave recorded nowhere. The refusal is derived from
+// createKeywords, so a keyword added there is refused until it is declared
+// WithAttest. The keywords are judged in sorted order, so two given at once
+// always refuse naming the same one.
 func refuseAttestAdmission(options *Options) error {
-	admissions := []struct{ keyword, value string }{
-		{keywordReviewOverride, options.ReviewOverride},
-		{keywordRFCChangeOK, options.RFCChangeOK},
-		{keywordStructuralRedOK, options.StructuralRedOK},
-		{keywordBrokenHeadFix, options.BrokenHeadFix},
-	}
-	for _, admission := range admissions {
-		if strings.TrimSpace(admission.value) == "" {
+	return refuseUndeclaredWithAttest(options, createKeywords)
+}
+
+// refuseUndeclaredWithAttest is refuseAttestAdmission over a given table, so a
+// test can add a keyword nobody decided without mutating createKeywords.
+func refuseUndeclaredWithAttest(options *Options, rules map[string]keywordRule) error {
+	for _, keyword := range slices.Sorted(maps.Keys(rules)) {
+		rule := rules[keyword]
+		if rule.WithAttest {
 			continue
 		}
-		return errors.New("attest refused with " + admission.keyword + ": an attestation changes no file and runs no gate, " +
-			"so there is nothing for " + admission.keyword + " to admit and its reason would be recorded nowhere; " +
-			"give " + admission.keyword + " on the commit whose gate it answers, and prepare the attestation alone with " +
+		// A removed keyword never reaches Options: parsing refuses it.
+		if rule.Given == nil {
+			continue
+		}
+		if !rule.Given(options) {
+			continue
+		}
+		return errors.New("attest refused with " + keyword + ": an attestation changes no file and runs no gate, " +
+			"so there is nothing for " + keyword + " to act on and its value would be recorded nowhere; " +
+			"give " + keyword + " on a commit of its own, and prepare the attestation alone with " +
 			`./le commit create subject "<subject>" attest <commit> "<owner words>"`)
 	}
 	return nil

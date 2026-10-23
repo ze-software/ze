@@ -31,7 +31,7 @@ func TestRelocatingManySpecsIsNotAClosure(t *testing.T) {
 		"plan/spec-fleet-1-device-registry.md",
 	}
 
-	stem, err := closureStem(root, added, removed)
+	stem, err := closureStemOnHead(root, added, removed)
 	if err != nil {
 		t.Fatalf("three relocations were read as closures: %v", err)
 	}
@@ -55,7 +55,7 @@ func TestRelocationRunsInEveryDirection(t *testing.T) {
 		"plan/immediate/spec-promoted.md",
 	}
 
-	stem, err := closureStem(root, added, removed)
+	stem, err := closureStemOnHead(root, added, removed)
 	if err != nil {
 		t.Fatalf("relocations out of a bucket were read as closures: %v", err)
 	}
@@ -70,7 +70,7 @@ func TestRelocationRunsInEveryDirection(t *testing.T) {
 func TestARealClosureStillCounts(t *testing.T) {
 	root := newCommitRepository(t)
 
-	stem, err := closureStem(root, []string{"plan/immediate/spec-elsewhere.md"},
+	stem, err := closureStemOnHead(root, []string{"plan/immediate/spec-elsewhere.md"},
 		[]string{"plan/spec-finished.md"})
 	if err != nil {
 		t.Fatalf("closureStem: %v", err)
@@ -86,7 +86,7 @@ func TestARealClosureStillCounts(t *testing.T) {
 // pre-release and immediate closure past with no review artifact.
 func TestAClosureFromAnyBucketCounts(t *testing.T) {
 	for _, removed := range []string{"plan/immediate/spec-finished.md", "plan/pre-release/spec-finished.md"} {
-		stem, err := closureStem(newCommitRepository(t), []string{removed}, []string{removed})
+		stem, err := closureStemOnHead(newCommitRepository(t), []string{removed}, []string{removed})
 		if err != nil {
 			t.Fatalf("closureStem over %s: %v", removed, err)
 		}
@@ -110,7 +110,7 @@ func TestAClosureBesideRelocationsIsStillRefused(t *testing.T) {
 		"plan/spec-closed-two.md",
 	}
 
-	if _, err := closureStem(root, added, removed); err == nil {
+	if _, err := closureStemOnHead(root, added, removed); err == nil {
 		t.Fatal("two genuine closures rode a relocation batch through the gate")
 	}
 }
@@ -136,7 +136,7 @@ func TestAJournalCarryingSeveralSessionsRowsClosesNothing(t *testing.T) {
 		"| 2026-08-30 | spec-two | web | theirs | fixed: done |\n"+
 		"| 2026-08-30 | - | doc | mine | fixed: done |\n")
 
-	stem, err := closureStem(root, []string{path}, nil)
+	stem, err := closureStemOnHead(root, []string{path}, nil)
 	if err != nil {
 		t.Fatalf("a shared journal refused the commit: %v", err)
 	}
@@ -159,7 +159,7 @@ func TestARemovedSpecOutranksForeignJournalRows(t *testing.T) {
 
 	writeCommitFixture(t, root, path, header+"| 2026-08-30 | spec-theirs | cli | theirs | fixed: done |\n")
 
-	stem, err := closureStem(root, []string{path}, []string{"plan/spec-mine.md"})
+	stem, err := closureStemOnHead(root, []string{path}, []string{"plan/spec-mine.md"})
 	if err != nil {
 		t.Fatalf("closureStem: %v", err)
 	}
@@ -173,7 +173,7 @@ func TestARemovedSpecOutranksForeignJournalRows(t *testing.T) {
 func TestOneClosureBesideRelocationsIsAllowed(t *testing.T) {
 	root := newCommitRepository(t)
 
-	stem, err := closureStem(root,
+	stem, err := closureStemOnHead(root,
 		[]string{"plan/immediate/spec-moved-a.md"},
 		[]string{"plan/spec-moved-a.md", "plan/spec-closed-one.md"})
 	if err != nil {
@@ -190,7 +190,7 @@ func TestOneClosureBesideRelocationsIsAllowed(t *testing.T) {
 func TestANameThatOnlyMatchesInAnotherBucketDoesNotExcuseAClosure(t *testing.T) {
 	root := newCommitRepository(t)
 
-	stem, err := closureStem(root,
+	stem, err := closureStemOnHead(root,
 		[]string{"plan/immediate/spec-ntp-server-phase-2.md"},
 		[]string{"plan/spec-ntp-server.md"})
 	if err != nil {
@@ -209,7 +209,7 @@ func TestANameThatOnlyMatchesInAnotherBucketDoesNotExcuseAClosure(t *testing.T) 
 func TestARemovalListedInBothPathsAndRemovedIsStillAClosure(t *testing.T) {
 	root := newCommitRepository(t)
 
-	stem, err := closureStem(root, []string{"plan/spec-finished.md"}, []string{"plan/spec-finished.md"})
+	stem, err := closureStemOnHead(root, []string{"plan/spec-finished.md"}, []string{"plan/spec-finished.md"})
 	if err != nil {
 		t.Fatalf("closureStem: %v", err)
 	}
@@ -234,12 +234,12 @@ func TestLayoutMigrationNeverClosesWork(t *testing.T) {
 		"plan/to-review/spec-proposal.md",
 	}
 	root := newCommitRepository(t)
-	stem, err := closureStem(root, added, removed)
+	stem, err := closureStemOnHead(root, added, removed)
 	if err != nil || stem != "" {
 		t.Fatalf("migration closes %q: %v", stem, err)
 	}
 	removed = append(removed, "plan/post-release/features/spec-finished.md")
-	stem, err = closureStem(root, added, removed)
+	stem, err = closureStemOnHead(root, added, removed)
 	if err != nil || stem != "finished" {
 		t.Fatalf("real closure beside migration = %q, %v", stem, err)
 	}
@@ -250,7 +250,7 @@ func TestLayoutMigrationNeverClosesWork(t *testing.T) {
 func TestCurrentCategoryRelocationsNeverCloseWork(t *testing.T) {
 	for _, source := range specpath.Dirs() {
 		for _, target := range specpath.Dirs() {
-			stem, err := closureStem(newCommitRepository(t), []string{target + "/spec-work.md"}, []string{source + "/spec-work.md"})
+			stem, err := closureStemOnHead(newCommitRepository(t), []string{target + "/spec-work.md"}, []string{source + "/spec-work.md"})
 			want := ""
 			if source == target {
 				want = "work"

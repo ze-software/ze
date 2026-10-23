@@ -635,21 +635,21 @@ func TestClosureStemReadsRemovalsAndNotJournalRows(t *testing.T) {
 	writeCommitFixture(t, root, journalPath, header+"| 2026-08-01 | old-spec | cli | old | fixed: done |\n")
 	runCommitGit(t, root, "add", "--", journalPath)
 	runCommitGit(t, root, "-c", "user.email=t@t", "-c", "user.name=t", "-c", "commit.gpgsign=false", "commit", "-q", "-m", "journal baseline")
-	if stem, err := closureStem(root, []string{journalPath}, nil); err != nil || stem != "" {
+	if stem, err := closureStemOnHead(root, []string{journalPath}, nil); err != nil || stem != "" {
 		t.Fatalf("unchanged journal closure = %q, %v", stem, err)
 	}
 	writeCommitFixture(t, root, journalPath, header+
 		"| 2026-08-01 | old-spec | cli | old | fixed: done |\n"+
 		"| 2026-08-27 | new-spec | cli | new | fixed: done |\n")
-	if stem, err := closureStem(root, []string{journalPath}, nil); err != nil || stem != "" {
+	if stem, err := closureStemOnHead(root, []string{journalPath}, nil); err != nil || stem != "" {
 		t.Fatalf("added journal row closure = %q, %v: a row is evidence about a spec, never its closure", stem, err)
 	}
-	if stem, err := closureStem(root, nil, []string{"plan/spec-removed.md"}); err != nil || stem != "removed" {
+	if stem, err := closureStemOnHead(root, nil, []string{"plan/spec-removed.md"}); err != nil || stem != "removed" {
 		t.Fatalf("removed spec closure = %q, %v", stem, err)
 	}
 	// The removal still wins when both are present, and it names the removed
 	// spec rather than the one the row happens to mention.
-	if stem, err := closureStem(root, []string{journalPath}, []string{"plan/spec-removed.md"}); err != nil || stem != "removed" {
+	if stem, err := closureStemOnHead(root, []string{journalPath}, []string{"plan/spec-removed.md"}); err != nil || stem != "removed" {
 		t.Fatalf("removal beside a journal row = %q, %v", stem, err)
 	}
 }
@@ -663,7 +663,7 @@ func TestClosureStemStillRefusesAMalformedJournalRow(t *testing.T) {
 	writeCommitFixture(t, root, journalPath,
 		"| Date | Spec | Surface | Symptom | Fix |\n|------|------|---------|---------|-----|\n"+
 			"| 2026-08-27 | some-spec | cli | missing two cells |\n")
-	if _, err := closureStem(root, []string{journalPath}, nil); err == nil {
+	if _, err := closureStemOnHead(root, []string{journalPath}, nil); err == nil {
 		t.Fatal("closureStem accepted a malformed journal row; the shape check must outlive the closure inference")
 	}
 }
@@ -724,17 +724,23 @@ func TestCreateRefusesAnUnmarkedJournalRow(t *testing.T) {
 	writeCommitFixture(t, root, journalPath, header+"| 2026-08-02 | - | cli | symptom | open: not fixed |\n")
 	// An open row needs its owning spec in the same commit (TestCreateRefusesAnOpenJournalRowNoSpecOwns).
 	specPath := "plan/release/fixes/spec-native.md"
-	writeCommitFixture(t, root, specPath, ownedRowsSpec("native.md", "2026-08-02"))
+	writeCommitFixture(t, root, specPath, ownedRowsSpec("2026-08-02"))
 	if _, err := Create(root, &Options{Subject: "journal: a marked row", Files: []string{journalPath, specPath}, Replace: true}); err != nil {
 		t.Fatalf("Create refused a marked row: %v", err)
 	}
 }
 
-// ownedRowsSpec renders a spec whose owned journal rows table lists one class
-// and date.
-func ownedRowsSpec(class, date string) string {
+// closureStemOnHead judges a commit of its own, which lands on HEAD: the zero
+// specjournal.Base. An appended block's base is TestCreateJudgesAnAppendedClosure.
+func closureStemOnHead(root string, paths, removed []string) (string, error) {
+	return closureStem(root, paths, removed, specjournal.Base{})
+}
+
+// ownedRowsSpec renders a spec whose owned journal rows table lists one date of
+// the native.md class.
+func ownedRowsSpec(date string) string {
 	return "# Spec: native\n\n## Owned journal rows\n\n| Class file | Date | Surface (short) |\n" +
-		"|------------|------|-----------------|\n| `" + class + "` | " + date + " | cli |\n"
+		"|------------|------|-----------------|\n| `native.md` | " + date + " | cli |\n"
 }
 
 // TestCreateRefusesAnOpenJournalRowNoSpecOwns drives row ownership through the
@@ -771,9 +777,82 @@ func TestCreateRefusesAnOpenJournalRowNoSpecOwns(t *testing.T) {
 	}
 
 	specPath := "plan/release/fixes/spec-native.md"
-	writeCommitFixture(t, root, specPath, ownedRowsSpec("native.md", "2026-08-03"))
+	writeCommitFixture(t, root, specPath, ownedRowsSpec("2026-08-03"))
 	if _, err := Create(root, &Options{Subject: "journal: an owned row", Files: []string{journalPath, specPath}, Replace: true}); err != nil {
 		t.Fatalf("Create refused an open row its spec owns: %v", err)
+	}
+}
+
+// TestCreateJudgesAnAppendedClosureAgainstItsEarlierBlocks drives the two-commit
+// spec closure through the commit entry point. Commit A is prepared, then
+// commit B is appended to A's script before A lands, so HEAD is still the
+// commit before A. VALIDATES: B's journal ownership check reads the class files
+// and specs A's block carries, so a closure whose A fixes the row, or moves its
+// entry to another spec, is accepted; a closure whose A leaves the row open and
+// unowned is still refused, naming the row. PREVENTS: every standard spec
+// closure refused because B was judged against bare HEAD.
+func TestCreateJudgesAnAppendedClosureAgainstItsEarlierBlocks(t *testing.T) {
+	journalPath := "plan/journal/native.md"
+	specPath := "plan/release/fixes/spec-native.md"
+	otherPath := "plan/release/fixes/spec-other.md"
+	header := "| Date | Spec | Surface | Symptom | Fix |\n|------|------|---------|---------|-----|\n"
+	openRow := header + "| 2026-08-04 | - | cli | symptom | open: owed |\n"
+	fixedRow := header + "| 2026-08-04 | - | cli | symptom | fixed: repaired |\n"
+	noTable := "# Spec: native\n\nStatus: in-progress\n"
+	tests := []struct {
+		name    string
+		blockA  map[string]string
+		refused bool
+	}{
+		{name: "commit A fixes the row", blockA: map[string]string{journalPath: fixedRow, specPath: noTable}},
+		{name: "commit A moves the entry to another spec", blockA: map[string]string{
+			specPath: noTable, otherPath: ownedRowsSpec("2026-08-04"),
+		}},
+		// Commit A keeps the entry, so A itself is owned; B then removes the
+		// only spec that lists the row.
+		{name: "commit A leaves the row open and not re-homed", blockA: map[string]string{
+			specPath: "Status: done\n\n" + ownedRowsSpec("2026-08-04"),
+		}, refused: true},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Setenv("CLAUDE_CODE_SESSION_ID", "commit-journal-closure-fixture")
+			root := newCommitRepository(t)
+			writeCommitFixture(t, root, "ai/.keep", "")
+			writeCommitFixture(t, root, journalPath, openRow)
+			writeCommitFixture(t, root, specPath, ownedRowsSpec("2026-08-04"))
+			runCommitGit(t, root, "add", "--", journalPath, specPath)
+			runCommitGit(t, root, "-c", "user.email=t@t", "-c", "user.name=t", "-c", "commit.gpgsign=false",
+				"commit", "-q", "-m", "spec owns an open row")
+
+			var files []string
+			for path, content := range test.blockA {
+				writeCommitFixture(t, root, path, content)
+				files = append(files, path)
+			}
+			slices.Sort(files)
+			if _, err := Create(root, &Options{Subject: "plan: close native, commit A", Files: files}); err != nil {
+				t.Fatalf("Create refused commit A: %v", err)
+			}
+			_, err := Create(root, &Options{
+				Subject: "plan: close native, commit B", Remove: []string{specPath}, Append: true,
+				ReviewOverride: "fixture repository carries no review",
+			})
+			if !test.refused {
+				if err != nil {
+					t.Fatalf("Create refused commit B, appended after commit A: %v", err)
+				}
+				return
+			}
+			if err == nil {
+				t.Fatal("Create accepted commit B although commit A leaves the row open with no owner")
+			}
+			for _, want := range []string{"plan/journal/native.md line 3", "no spec owns it"} {
+				if !strings.Contains(err.Error(), want) {
+					t.Fatalf("Create refusal = %q, want it to contain %q", err, want)
+				}
+			}
+		})
 	}
 }
 

@@ -28,8 +28,11 @@ class files and 2736 rows, 1334 of them `open:`; `./le spec journal report` mark
 56 classes DUE, and only 2 classes at HEAD carry a capture line, both `rule`.
 `plan/journal/README.md` already declares how a class becomes DUE and what one fix
 pass on a DUE class delivers. Nothing declares which class goes next, how two
-sessions avoid running the same pass, what closes a row whose code is gone, when a
-row is promoted to a spec, or what evidence a closed row carries.
+sessions avoid running the same pass, what closes a row whose code is gone, which
+spec a row's entry moves to when its owner closes, or what evidence a closed row
+carries. Every open row is listed in the owned journal rows table of the spec that
+will fix it (`plan/journal/README.md`, "Owned rows"), and the commit gate refuses an
+open row no spec lists.
 
 This spec owns that process. It is LONG-LIVED: it is never closed. Its design and
 its tooling phases run once; after that each fix pass is one dated row in the Pass
@@ -43,7 +46,7 @@ banner prints goes down rather than up.
 
 ### Architecture Docs
 - [ ] `plan/journal/README.md` - row format, Fix marker, capture line, DUE, fix-pass and check-repair procedures
-  → Constraint: the Fix marker has exactly two values, `fixed: ` and `open: `; "there is no third value". A stale or promoted row MUST use one of the two, so this spec adds no marker.
+  → Constraint: the Fix marker has exactly two values, `fixed: ` and `open: `; "there is no third value". A stale or re-homed row MUST use one of the two, so this spec adds no marker.
   → Constraint: DUE thresholds are declared once in `captureKinds` (`internal/le/spec/journal/report.go`: check 1 row, rule 10, uncaptured 10). This spec MUST NOT restate the numbers; it reads the report.
   → Constraint: the five deliverables of a check-capture pass and the five steps of a check repair are declared in the README. This spec references them and MUST NOT copy them.
   → Decision: a pass that cannot build a check sets a `rule` capture and says why in the commit body (README); a pass MUST NOT replace a check capture with a rule capture.
@@ -53,19 +56,19 @@ banner prints goes down rather than up.
 - [ ] `ai/rules/completion.md` - recording versus fixing
   → Constraint: a row is a record, never a fix; a row stays `open:` until code changes (`principles.md`, "Recording a defect MUST NOT be presented as fixing the product").
 - [ ] `ai/rules/planning.md` - spec lifecycle, journal row format, closure repoint
-  → Constraint: closure commit A MUST repoint every citation of the closing spec; a journal row naming a promoted spec is such a citation.
+  → Constraint: closure commit A MUST repoint every citation of the closing spec; a journal row naming its owning spec is such a citation, and so is the closing spec's owned journal rows table, whose open entries move to the spec that will fix them.
   → Constraint: a phase runs through its own skill; review runs in a context that did not produce the work.
 - [ ] `docs/contributing/spec-workflow.md` - status vocabulary
   → Constraint: Status values are declared once in `Vocabulary` (`internal/le/spec/status/specstatus.go`): skeleton, design, ready, in-progress, verification, blocked, deferred, done. None means "never closes".
 - [ ] `plan/README.md` - buckets and lifecycle
-  → Decision: this spec sits at `plan/` level: the release ships without the resolution process. A spec promoted from a row is bucketed by its own defect, independently.
+  → Decision: this spec sits at `plan/` level: the release ships without the resolution process. A spec written to own rows no existing spec fits is bucketed by its own defect, independently.
 - [ ] `ai/META-DECISIONS.md` - goal and scope, the journal rule
   → Constraint: a logic bug or misbehavior is fixed without asking, so running a fix pass needs no owner go-ahead per pass.
 - [ ] `docs/architecture/core-design.md` - declared by the `// Design:` header of every file this spec changes (le's spec inventory, the native edit hook policy)
   → Constraint: the page describes le's tooling at the level of commands and hooks; a new status or report line is checked against it at implementation, and it is named in Documentation row 16 as affected or unaffected with the reason.
 
 **Key insights:**
-- The README declares DUE and the content of a pass; the report's sort is the pass order; this spec adds ordering for check gaps, pass claiming, stale closure, promotion, closure evidence, and the never-closing status.
+- The README declares DUE and the content of a pass; the report's sort is the pass order; this spec adds ordering for check gaps, pass claiming, stale closure, re-homing an owned row, closure evidence, and the never-closing status.
 - `writeSpecStatus` (`internal/le/hookruntime/writeedit.go`) matches the literal strings `| Status | in-progress |` and `| Status | verification |`, a second declaration of which statuses permit a source edit.
 
 ## Current Behavior (MANDATORY)
@@ -177,12 +180,13 @@ and that carries no capture is still unresolved: it will collect rows again.
 ### Recording the pass
 
 The pass's last commit rewrites its Pass Log row: result `check`, `rule`,
-`split` or `abandoned`, the rows fixed, the rows promoted with their spec paths,
-and the commit SHAs. The Pass Log is append-only otherwise.
+`split` or `abandoned`, the rows fixed, the open rows whose owned-table entry moved
+to another spec with that spec's path, and the commit SHAs. The Pass Log is
+append-only otherwise.
 
 ## Pass Log
 
-| Date | Session | Class | Result | Rows fixed / promoted | Commits |
+| Date | Session | Class | Result | Rows fixed / re-homed | Commits |
 |------|---------|-------|--------|-----------------------|---------|
 
 ## Risks & Assumptions
@@ -200,7 +204,7 @@ and the commit SHAs. The Pass Log is append-only otherwise.
 |----|------|--------------|----------------------|
 | R-1 | Passes run per-row patches without a check, so DUE never drops | Pass Log rows with result `rule` dominate | README forbids a capture without steps 2 and 3; review checks the commit body states why no check exists |
 | R-2 | Stale closure hides a live defect that moved | a `fixed:` stale row whose shape reappears in a later row | the stale rule demands a HEAD search for the same shape, and a moved producer is followed |
-| R-3 | Promotion becomes the default, recreating the 2026-08-08 spec-per-defect route the journal rule supersedes | promoted rows outnumber fixed rows in a pass | the one-row test is ANY-of four concrete conditions; a row passing none stays a row |
+| R-3 | Ownership becomes a spec per row, recreating the 2026-08-08 spec-per-defect route the journal rule supersedes | new specs outnumber fixed rows in a pass | every open row is listed in the owned journal rows table of an existing spec whose mechanism fits, and a new spec is written only when none fits; the commit gate (`specjournal.UnownedOpenRows`) refuses an open row no spec lists |
 | R-4 | A never-closing status weakens `writeSpecStatus`, letting any session edit source under this claim | source edits under the claim outside a running pass | the claim is taken only by a session holding a `running` Pass Log row (Claiming a pass, step 3) |
 | R-5 | Ordering check gaps first starves the largest classes | the same uncaptured class leads the non-gap DUE list for many passes | check gaps are few (0 at HEAD today); each repair is small |
 
@@ -231,7 +235,7 @@ and the commit SHAs. The Pass Log is append-only otherwise.
 | AC-3 | A row added in the working tree is `open:` and cites a `plan/` spec path that does not exist on disk | `./le spec journal validate` names the line with a problem kind for the unresolved pointer and exits non-zero; a `fixed:` row citing a closed spec is not refused |
 | AC-4 | A spec declares `| Status | standing |` (if the owner approves the status) | the spec validation hook accepts it, `./le spec status` reports it, and the roadmap counts it as Backlog |
 | AC-5 | The session's claimed spec is `standing` and the session edits a `.go` file | `writeSpecStatus` allows the edit; the permitted set is read from `internal/le/spec/status`, and the hook holds no status literal |
-| AC-6 | A pass is run on a DUE class per this process | its Pass Log row names class, result, rows fixed and promoted, and SHAs; the class is no longer DUE in the report at the pass's last commit |
+| AC-6 | A pass is run on a DUE class per this process | its Pass Log row names class, result, rows fixed, rows re-homed with the owning spec, and SHAs; every row of the class still open is listed in a spec's owned journal rows table; the class is no longer DUE in the report at the pass's last commit |
 
 ## 🧪 TDD Test Plan
 

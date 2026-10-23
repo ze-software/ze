@@ -119,8 +119,10 @@ func relocatedSpecs(paths, removed []string) map[string]bool {
 // rewritten against HEAD over specjournal.RowCharsMax. An open row the commit
 // adds or changes against HEAD that no spec's owned journal rows table lists is
 // refused too (specjournal.UnownedOpenRows), so every recorded defect has the
-// spec that will fix it.
-func closureStem(root string, paths, removed []string) (string, error) {
+// spec that will fix it. That check judges against base: HEAD for a commit of
+// its own, and HEAD under the earlier blocks for a block appended to a script
+// (scriptBase), because the appended block lands after them.
+func closureStem(root string, paths, removed []string, base specjournal.Base) (string, error) {
 	for _, path := range paths {
 		if !strings.HasPrefix(path, "plan/journal/") {
 			continue
@@ -139,7 +141,7 @@ func closureStem(root string, paths, removed []string) (string, error) {
 			return "", fmt.Errorf("journal is not commit-readable:\n%s", strings.TrimSuffix(report.Text(), "\n"))
 		}
 	}
-	unowned, err := specjournal.UnownedOpenRows(root, paths, removed)
+	unowned, err := specjournal.UnownedOpenRows(root, paths, removed, base)
 	if err != nil {
 		return "", fmt.Errorf("read journal row owners: %w", err)
 	}
@@ -148,6 +150,85 @@ func closureStem(root string, paths, removed []string) (string, error) {
 	}
 
 	return closedSpecStem(paths, removed, workingTreeSides(root))
+}
+
+// appendBase answers the tree a prepared commit lands on, for the journal
+// ownership check. A commit of its own lands on HEAD, the zero Base. An
+// appended block lands after the script's earlier blocks, which have not run:
+// commit B of a two-commit spec closure removes the spec while commit A, still
+// unrun, carries the row's `fixed: ` marker or moves its entry to another spec.
+func appendBase(root, session string, options *Options) (specjournal.Base, error) {
+	if !options.Append {
+		return specjournal.Base{}, nil
+	}
+	_, existing, err := targetScript(root, session, "", options)
+	if err != nil {
+		return specjournal.Base{}, err
+	}
+	return scriptBase(root, existing)
+}
+
+// scriptBase reads back what the blocks of a prepared script commit under
+// plan/: each snapshot entry's content, from the blob it names, and each path a
+// block removes. A later block's entry for a path replaces an earlier one's, as
+// the script's commits do.
+func scriptBase(root, script string) (specjournal.Base, error) {
+	base := specjournal.Base{Files: map[string]string{}, Removed: map[string]bool{}}
+	snapshot := false
+	for line := range strings.SplitSeq(script, "\n") {
+		if snapshot {
+			if line == indexInfoDelimiter {
+				snapshot = false
+				continue
+			}
+			if err := laySnapshotEntry(root, line, &base); err != nil {
+				return specjournal.Base{}, err
+			}
+			continue
+		}
+		if line == indexInfoOpen {
+			snapshot = true
+			continue
+		}
+		raw, found := strings.CutPrefix(line, privateRemovalPrefix)
+		if !found {
+			continue
+		}
+		for _, path := range parseShellWords(raw) {
+			delete(base.Files, path)
+			base.Removed[path] = true
+		}
+	}
+	return base, nil
+}
+
+// laySnapshotEntry lays one `git ls-files -s` line of an earlier block over the
+// base, `<mode> <object> <stage>\t<path>`, when it names a plan/ markdown file:
+// the only files that hold journal rows or owned tables.
+func laySnapshotEntry(root, entry string, base *specjournal.Base) error {
+	fields, path, found := strings.Cut(entry, "\t")
+	if !found {
+		return fmt.Errorf("the prepared script holds a snapshot line with no path, %q: "+
+			"prepare it again with ./le commit create replace", entry)
+	}
+	if !strings.HasPrefix(path, "plan/") {
+		return nil
+	}
+	if !strings.HasSuffix(path, ".md") {
+		return nil
+	}
+	parts := strings.Fields(fields)
+	if len(parts) != 3 {
+		return fmt.Errorf("the prepared script holds a snapshot line for %s that is not mode, object and stage, %q: "+
+			"prepare it again with ./le commit create replace", path, entry)
+	}
+	content, err := gitOutput(root, "cat-file", "blob", parts[1])
+	if err != nil {
+		return fmt.Errorf("read %s as an earlier block of the prepared script commits it: %w", path, err)
+	}
+	base.Files[path] = content
+	delete(base.Removed, path)
+	return nil
 }
 
 // closedSpecStem answers the one spec a file population closes, from the

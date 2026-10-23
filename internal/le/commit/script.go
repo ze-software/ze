@@ -67,6 +67,15 @@ var indexLockWaitSeconds = indexLockWaitSecondsMax
 // `git ls-files -s` line starts with a six-digit mode, so no entry can spell it.
 const indexInfoDelimiter = "ZE_INDEX_INFO"
 
+// indexInfoOpen opens a block's snapshot heredoc and privateRemovalPrefix
+// starts its removal line. renderPrivateIndex writes both and scriptBase reads
+// them back, so an appended block is judged against what the earlier blocks
+// commit; one spelling serves both sides.
+const (
+	indexInfoOpen        = `GIT_INDEX_FILE="$_ze_index" git update-index --index-info <<'` + indexInfoDelimiter + `'`
+	privateRemovalPrefix = `GIT_INDEX_FILE="$_ze_index" git update-index --force-remove -- `
+)
+
 func renderBlock(block commitBlock, scriptPath string) string {
 	all := append(append([]string{}, block.Paths...), block.Removed...)
 	lines := []string{
@@ -394,8 +403,7 @@ func renderRefusal(test, notPublished string, said ...string) string {
 func renderPrivateIndex(block commitBlock) string {
 	lines := make([]string, 0, len(block.IndexEntries)+4)
 	if len(block.IndexEntries) != 0 {
-		lines = append(lines,
-			`GIT_INDEX_FILE="$_ze_index" git update-index --index-info <<'`+indexInfoDelimiter+`'`)
+		lines = append(lines, indexInfoOpen)
 		lines = append(lines, block.IndexEntries...)
 		lines = append(lines, indexInfoDelimiter)
 		lines = append(lines, renderLostBlobs(block)...)
@@ -406,7 +414,7 @@ func renderPrivateIndex(block commitBlock) string {
 		// the working-tree copies against exactly these lines.
 		lines = append(lines,
 			`_ze_removed=$(GIT_INDEX_FILE="$_ze_index" git --literal-pathspecs -c core.quotePath=false ls-files -s -- `+quotePaths(block.Removed)+`)`,
-			`GIT_INDEX_FILE="$_ze_index" git update-index --force-remove -- `+quotePaths(block.Removed))
+			privateRemovalPrefix+quotePaths(block.Removed))
 	}
 	return strings.Join(lines, "\n")
 }

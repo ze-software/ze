@@ -241,7 +241,55 @@ type keywordRule struct {
 	// named when a value is missing.
 	Pair  bool
 	Usage string
+	// Given reports whether Options carries the keyword, for a refusal that
+	// judges Options rather than argv: Create is callable as Go. Every create
+	// keyword but a removed one carries it (TestEveryCreateKeywordReadsOptions).
+	Given func(*Options) bool
+	// WithAttest declares that an attestation may carry the keyword. Its zero
+	// value refuses it, so a keyword added without a decision is refused by
+	// refuseAttestAdmission rather than dropped in silence.
+	WithAttest bool
 }
+
+// createKeywords is the closed keyword table of `le commit create`: what each
+// keyword takes, how Options holds it, and whether an attestation admits it.
+var createKeywords = map[string]keywordRule{
+	keywordSession:         {Value: true, Given: givenText(func(o *Options) string { return o.Session }), WithAttest: true},
+	"tag":                  {Value: true, Given: givenText(func(o *Options) string { return o.Tag }), WithAttest: true},
+	"subject":              {Value: true, Given: givenText(func(o *Options) string { return o.Subject }), WithAttest: true},
+	"body":                 {Value: true, Repeat: true, Given: func(o *Options) bool { return len(o.Body) != 0 }, WithAttest: true},
+	"file":                 {Value: true, Repeat: true, Given: givenFiles},
+	"file-list":            {Value: true, Repeat: true, Given: givenFiles},
+	"remove":               {Value: true, Repeat: true, Given: givenRemove},
+	"remove-list":          {Value: true, Repeat: true, Given: givenRemove},
+	"script":               {Value: true, Given: givenText(func(o *Options) string { return o.Script }), WithAttest: true},
+	"append":               {Given: func(o *Options) bool { return o.Append }, WithAttest: true},
+	"replace":              {Given: func(o *Options) bool { return o.Replace }, WithAttest: true},
+	"no-test":              {Value: true, Given: givenText(func(o *Options) string { return o.NoTest })},
+	keywordStructuralRedOK: {Value: true, Given: givenText(func(o *Options) string { return o.StructuralRedOK })},
+	keywordReviewOverride:  {Value: true, Given: givenText(func(o *Options) string { return o.ReviewOverride })},
+	keywordBrokenHeadFix:   {Value: true, Given: givenText(func(o *Options) string { return o.BrokenHeadFix })},
+	keywordRFCChangeOK:     {Value: true, Given: givenText(func(o *Options) string { return o.RFCChangeOK })},
+	"dry-run":              {Given: func(o *Options) bool { return o.DryRun }, WithAttest: true},
+	keywordAttest: {Pair: true, Usage: keywordAttest + ` <commit> "<owner words>"`,
+		Given: givenText(func(o *Options) string { return o.Attest }), WithAttest: true},
+	keywordLedgerCarried: {Value: true, Repeat: true,
+		Given: func(o *Options) bool { return len(o.LedgerCarried) != 0 }},
+	keywordPush:              {Replacement: `./le commit push "<owner authorisation>"`},
+	"unverified":             {Replacement: "./le verify worktree"},
+	"missing-full-verify-ok": {Replacement: "./le verify worktree"},
+}
+
+// givenText answers a Given for a keyword whose value is one string: blank is
+// not given, the reading Create applies to a reason.
+func givenText(value func(*Options) string) func(*Options) bool {
+	return func(o *Options) bool { return strings.TrimSpace(value(o)) != "" }
+}
+
+// givenFiles and givenRemove read the two path keywords; a list expands into
+// the same field as the keyword it lists.
+func givenFiles(o *Options) bool  { return len(o.Files) != 0 }
+func givenRemove(o *Options) bool { return len(o.Remove) != 0 }
 
 type keywordValues map[string][]string
 
@@ -293,21 +341,7 @@ func parseKeywords(args []string, rules map[string]keywordRule) (keywordValues, 
 }
 
 func parseCreate(args []string) (Options, error) {
-	rules := map[string]keywordRule{
-		keywordSession: {Value: true}, "tag": {Value: true}, "subject": {Value: true},
-		"body": {Value: true, Repeat: true}, "file": {Value: true, Repeat: true},
-		"file-list": {Value: true, Repeat: true}, "remove-list": {Value: true, Repeat: true},
-		"remove": {Value: true, Repeat: true}, "script": {Value: true},
-		"append": {}, "replace": {}, "no-test": {Value: true},
-		keywordStructuralRedOK: {Value: true}, keywordReviewOverride: {Value: true},
-		keywordBrokenHeadFix: {Value: true}, keywordRFCChangeOK: {Value: true}, "dry-run": {},
-		keywordAttest:            {Pair: true, Usage: keywordAttest + ` <commit> "<owner words>"`},
-		keywordLedgerCarried:     {Value: true, Repeat: true},
-		keywordPush:              {Replacement: `./le commit push "<owner authorisation>"`},
-		"unverified":             {Replacement: "./le verify worktree"},
-		"missing-full-verify-ok": {Replacement: "./le verify worktree"},
-	}
-	values, err := parseKeywords(args, rules)
+	values, err := parseKeywords(args, createKeywords)
 	if err != nil {
 		return Options{}, err
 	}

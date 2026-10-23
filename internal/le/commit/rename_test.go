@@ -53,7 +53,7 @@ func TestAStemRenameWithCarriedContentIsNotAClosure(t *testing.T) {
 	root := commitRenameBaseline(t, "old-name")
 	writeCommitFixture(t, root, "plan/post-release/engineering/spec-new-name.md", renameFixtureSpec("new-name"))
 
-	stem, err := closureStem(root,
+	stem, err := closureStemOnHead(root,
 		[]string{"plan/post-release/engineering/spec-new-name.md", "plan/post-release/engineering/spec-old-name.md"},
 		[]string{"plan/post-release/engineering/spec-old-name.md"})
 	if err != nil {
@@ -72,7 +72,7 @@ func TestARenameThatAlsoChangesContentIsAClosure(t *testing.T) {
 	writeCommitFixture(t, root, "plan/post-release/engineering/spec-new-name.md",
 		renameFixtureSpec("new-name")+"\nOne more acceptance criterion.\n")
 
-	stem, err := closureStem(root,
+	stem, err := closureStemOnHead(root,
 		[]string{"plan/post-release/engineering/spec-new-name.md", "plan/post-release/engineering/spec-old-name.md"},
 		[]string{"plan/post-release/engineering/spec-old-name.md"})
 	if err != nil {
@@ -113,7 +113,7 @@ func TestOneRenameBesideARemovalLeavesTheRemovalAClosure(t *testing.T) {
 	root := commitRenameBaseline(t, "old-name", "finished")
 	writeCommitFixture(t, root, "plan/post-release/engineering/spec-new-name.md", renameFixtureSpec("new-name"))
 
-	stem, err := closureStem(root,
+	stem, err := closureStemOnHead(root,
 		[]string{"plan/post-release/engineering/spec-new-name.md", "plan/post-release/engineering/spec-old-name.md", "plan/post-release/engineering/spec-finished.md"},
 		[]string{"plan/post-release/engineering/spec-old-name.md", "plan/post-release/engineering/spec-finished.md"})
 	if err != nil {
@@ -137,7 +137,7 @@ func TestOneAddedSpecCannotExcuseTwoRemovals(t *testing.T) {
 		"-c", "commit.gpgsign=false", "commit", "-q", "-m", "spec baseline")
 	writeCommitFixture(t, root, "plan/post-release/engineering/spec-three.md", body)
 
-	if _, err := closureStem(root,
+	if _, err := closureStemOnHead(root,
 		[]string{"plan/post-release/engineering/spec-three.md"},
 		[]string{"plan/post-release/engineering/spec-one.md", "plan/post-release/engineering/spec-two.md"}); err == nil {
 		t.Fatal("one added spec excused two removals")
@@ -151,7 +151,7 @@ func TestAnExistingSpecIsNoRenameTarget(t *testing.T) {
 	root := commitRenameBaseline(t, "old-name", "new-name")
 	writeCommitFixture(t, root, "plan/post-release/engineering/spec-new-name.md", renameFixtureSpec("new-name"))
 
-	stem, err := closureStem(root,
+	stem, err := closureStemOnHead(root,
 		[]string{"plan/post-release/engineering/spec-new-name.md", "plan/post-release/engineering/spec-old-name.md"},
 		[]string{"plan/post-release/engineering/spec-old-name.md"})
 	if err != nil {
@@ -168,7 +168,7 @@ func TestABucketMoveIsStillARelocation(t *testing.T) {
 	root := commitRenameBaseline(t, "moving")
 	writeCommitFixture(t, root, "plan/release/fixes/spec-moving.md", renameFixtureSpec("moving")+"edited\n")
 
-	stem, err := closureStem(root,
+	stem, err := closureStemOnHead(root,
 		[]string{"plan/release/fixes/spec-moving.md", "plan/post-release/engineering/spec-moving.md"},
 		[]string{"plan/post-release/engineering/spec-moving.md"})
 	if err != nil {

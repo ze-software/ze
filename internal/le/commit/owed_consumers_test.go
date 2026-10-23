@@ -8,6 +8,10 @@
 package commit
 
 import (
+	"maps"
+	"os"
+	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -114,6 +118,10 @@ func TestAttestRefusesAdmissionKeywords(t *testing.T) {
 		keywordRFCChangeOK:     func(o *Options) { o.RFCChangeOK = "a reason" },
 		keywordStructuralRedOK: func(o *Options) { o.StructuralRedOK = "a reason" },
 		keywordBrokenHeadFix:   func(o *Options) { o.BrokenHeadFix = "a reason" },
+		"no-test":              func(o *Options) { o.NoTest = "a reason" },
+		keywordLedgerCarried: func(o *Options) {
+			o.LedgerCarried = []string{"0123456789abcdef0123456789abcdef01234567 review: a reason"}
+		},
 	} {
 		t.Run(keyword, func(t *testing.T) {
 			root := newOwedRepository(t)
@@ -130,5 +138,103 @@ func TestAttestRefusesAdmissionKeywords(t *testing.T) {
 				t.Fatalf("attest with %s refused as %v, want the refusal naming it and why", keyword, err)
 			}
 		})
+	}
+}
+
+// TestAttestRefusalDerivesFromKeywordTable validates that the attestation's
+// refusal is derived from the create keyword table, not from a hand list: every
+// keyword the table does not declare WithAttest is refused when an attestation
+// carries it, through argv exactly as an operator types it, and a keyword added
+// to the table without a decision is refused too.
+//
+// MUTATION: list the refused keywords by hand again and the added keyword below
+// is prepared in silence.
+func TestAttestRefusalDerivesFromKeywordTable(t *testing.T) {
+	root := newOwedRepository(t)
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "attest-derivation-fixture")
+	owed := commitOwed(t, root, "a change that owes a review", map[string]string{"a.txt": "a\n"}, nil,
+		"Review-owed: demo: no reviewer")
+	list := filepath.Join(t.TempDir(), "paths")
+	if err := os.WriteFile(list, []byte("a.txt\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	values := map[string]string{"file": "a.txt", "remove": "a.txt", "file-list": list, "remove-list": list,
+		keywordLedgerCarried: "0123456789abcdef0123456789abcdef01234567 review: a reason"}
+	refused := 0
+	for _, keyword := range slices.Sorted(maps.Keys(createKeywords)) {
+		rule := createKeywords[keyword]
+		if rule.WithAttest || rule.Replacement != "" {
+			continue
+		}
+		refused++
+		args := []string{"subject", "the owner attests", keywordAttest, owed, "the owner said yes", "dry-run", keyword}
+		if rule.Value {
+			value, named := values[keyword]
+			if !named {
+				value = "a reason"
+			}
+			args = append(args, value)
+		}
+		options, err := parseCreate(args)
+		if err != nil {
+			t.Fatalf("%s: parse %q: %v", keyword, args, err)
+		}
+		if _, err := Create(root, &options); err == nil || !strings.Contains(err.Error(), "attest refused with") {
+			t.Errorf("attest with %s answered %v, want it refused", keyword, err)
+		}
+	}
+	if refused == 0 {
+		t.Fatal("the create keyword table declares every keyword WithAttest: nothing was judged")
+	}
+
+	extended := maps.Clone(createKeywords)
+	extended["a-keyword-nobody-decided"] = keywordRule{Value: true, Given: func(*Options) bool { return true }}
+	err := refuseUndeclaredWithAttest(&Options{Subject: "the owner attests", Attest: owed, AttestWords: "yes"}, extended)
+	if err == nil || !strings.Contains(err.Error(), "attest refused with a-keyword-nobody-decided") {
+		t.Fatalf("an undecided keyword answered %v, want it refused by default", err)
+	}
+}
+
+// TestEveryCreateKeywordReadsOptions pins the table's other half: a keyword
+// Create can receive carries the reader that says whether Options holds it, so
+// the derived refusal cannot pass one over for want of a reader. Only a removed
+// keyword, which parsing refuses before Options exists, has none.
+//
+// MUTATION: drop the Given of any live keyword and this fails.
+func TestEveryCreateKeywordReadsOptions(t *testing.T) {
+	for keyword, rule := range createKeywords {
+		if rule.Replacement != "" {
+			continue
+		}
+		if rule.Given == nil {
+			t.Errorf("create keyword %q has no Given reader: an attestation could not tell whether it was given", keyword)
+		}
+	}
+}
+
+// TestCreateDebtNeverReadsZeroWithoutGreenRecord validates Data Flow step 6 at
+// the surface the operator sees, Create's own result.Debt, rather than at
+// debtReport: with no green record and only prose commits ahead of the
+// upstream, the prepared commit says HEAD's tree is not covered and names the
+// command, never a count of zero and never nothing.
+//
+// MUTATION: drop result.Debt = debtReport(root) from Create and this fails.
+func TestCreateDebtNeverReadsZeroWithoutGreenRecord(t *testing.T) {
+	root := newOwedRepository(t)
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "create-debt-fixture")
+	owed := commitOwed(t, root, "a page that owes a review", map[string]string{"docs/a.md": "a\n"}, nil,
+		"Review-owed: demo: no reviewer")
+	options := Options{Subject: "the owner attests", Attest: owed, AttestWords: "the owner said yes", DryRun: true}
+	prepared, err := Create(root, &options)
+	if err != nil {
+		t.Fatalf("the attestation was refused: %v", err)
+	}
+	for _, want := range []string{"HEAD's tree is not covered by a green verify", "no green record", verifyWorktreeCommand} {
+		if !strings.Contains(prepared.Debt, want) {
+			t.Errorf("Create's debt is %q, want it to say %q", prepared.Debt, want)
+		}
+	}
+	if strings.Contains(prepared.Debt, "0 commit(s)") || strings.HasPrefix(prepared.Debt, "nothing owed") {
+		t.Errorf("Create's debt is %q with no green record: it reads as nothing owed", prepared.Debt)
 	}
 }
