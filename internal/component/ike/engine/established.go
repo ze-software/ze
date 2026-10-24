@@ -363,8 +363,23 @@ func (ps *PeerSession) maintainSA(
 				// associated Child SAs. In this case, an IKE endpoint SHOULD send a
 				// Delete payload indicating that it has closed the IKE SA unless the
 				// other endpoint is no longer responding." sayGoodbye sends nothing when
-				// the peer never answered our last request.
-				ps.sayGoodbye(sa, tr, dp, log)
+				// the peer never answered our last request, or already deleted the SA.
+				//
+				// A request that deleted the old IKE SA to confirm a rekey also carried
+				// out.newSA. The peer holds only the new SA then, so the goodbye goes out
+				// under it. RFC 7296 Section 2.8: "the new IKE SA is used for all control
+				// messages needed to maintain those Child SAs" and the old SA's Delete
+				// "MUST be the last request sent over the old IKE SA". Nothing adopts the
+				// new SA, so it forgets its keys here (Section 2.12); the deferred
+				// forgetKeys above reaches only the loop's own SA.
+				peerHeld := sa
+				if out.newSA != nil {
+					peerHeld = out.newSA
+				}
+				ps.sayGoodbye(peerHeld, tr, dp, log)
+				if out.newSA != nil {
+					out.newSA.forgetKeys()
+				}
 				ps.cleanupChild(dp, bus, log)
 				return errTimeout
 			}
@@ -743,8 +758,11 @@ func (ps *PeerSession) serviceRequestWindow(sa *SA, dpd *dpdState, now time.Time
 	sa.State = StateDead
 }
 
-// goodbyeWindowWait bounds how long an operator `clear` waits for the answer to a
-// request that is already outstanding, before it gives up on saying goodbye.
+// goodbyeWindowWait bounds how long sayGoodbye waits for the answer to a request that
+// is already outstanding, before it gives up on saying goodbye. Two exits of the owner
+// loop wait on it: an operator `clear` (graceful stop), and the reestablish exit, which
+// closes the IKE SA after a refused rekey, a peer Delete of the live Child SA, a
+// failed MOBIKE update or a rebind that cannot follow the peer.
 //
 // A wait is needed at all because RFC 7296 Section 2.3 MUST: "An IKE endpoint MUST wait
 // for a response to each of its messages before sending a subsequent message". Ze
@@ -753,7 +771,8 @@ func (ps *PeerSession) serviceRequestWindow(sa *SA, dpd *dpdState, now time.Time
 // received, so it does not make the second request legal.
 //
 // It is SHORT because StopGraceful (reconcile.go) blocks the operator's command on this
-// loop's return. An answer to a probe on a live peer arrives in one round trip. A peer
+// loop's return, and the reestablish exit holds the reconnect back for as long. An
+// answer to a probe on a live peer arrives in one round trip. A peer
 // that has not answered in two seconds is the case dead-peer detection exists for, and
 // a Delete it cannot answer is worth nothing.
 const goodbyeWindowWait = 2 * time.Second
@@ -764,11 +783,25 @@ const goodbyeWindowWait = 2 * time.Second
 // This is the only Delete sender that can meet a held window. The two others run on the
 // rekey response that freed it (inbound.go). A queue does not serve this one. The owner
 // loop returns on the statement after this call, so no later tick can drain a queue.
+//
+// An SA the peer deleted gets no goodbye, checked again after the wait, which reads
+// inbound datagrams and can process that Delete. The peer closed it at both ends, so a
+// Delete names nothing the peer holds, and its keys are the ones the peer discarded. A
+// datagram queued behind the peer's IKE SA Delete can still raise the reestablish exit
+// before the next tick ends the loop.
 func (ps *PeerSession) sayGoodbye(sa *SA, tr *transport.UDPTransport, dp dataplane.Dataplane, log *slog.Logger) {
+	if sa.peerDeletedIKE {
+		log.Debug("ike: goodbye not sent, the peer already deleted the IKE SA", "peer", ps.peerName)
+		return
+	}
 	if sa.requestOutstanding {
 		log.Debug("ike: waiting for the outstanding request before saying goodbye",
 			"peer", ps.peerName, "msgid", sa.requestMsgID, "bound", goodbyeWindowWait)
 		ps.waitForRequestWindow(sa, tr, dp, log)
+	}
+	if sa.peerDeletedIKE {
+		log.Debug("ike: goodbye not sent, the peer deleted the IKE SA while it was awaited", "peer", ps.peerName)
+		return
 	}
 	if sa.requestOutstanding {
 		log.Info("ike: goodbye not sent, the peer never answered our last request",

@@ -642,20 +642,35 @@ sent, so the peer is responding. Before the exit drops the IKE SA it sends a
 Delete for it through `sayGoodbye`, because the peer still holds that IKE SA: RFC
 7296 Section 2.4 says an endpoint closing an IKE SA "SHOULD send a Delete payload
 indicating that it has closed the IKE SA unless the other endpoint is no longer
-responding". `sayGoodbye` first waits up to `goodbyeWindowWait` (2 s) for an
-outstanding request of ours, and sends nothing if it stays unanswered. Without
-the Delete, strongSwan 6.x, which re-creates a reloaded Child SA in place with
-CREATE_CHILD_SA, drew an unprotected INVALID_IKE_SPI on an IKE SA it still
-believed in.
+responding". When the message that raised the exit is itself the answer to our
+outstanding request (a rekey response that arrived from a new endpoint and drew
+the rebind exit), that answer frees the request window before the rebind runs,
+so the Delete leaves at once and the closing SA applies nothing else from the
+response. Otherwise `sayGoodbye` first waits up to `goodbyeWindowWait` (2 s) for
+an outstanding request of ours, and sends nothing if no authenticated answer
+arrives in that time. Without the Delete, strongSwan 6.x, which re-creates a
+reloaded Child SA in place with CREATE_CHILD_SA, drew an unprotected
+INVALID_IKE_SPI on an IKE SA it still believed in.
 
 A request that deletes the IKE SA itself never takes this exit, even when it
 also names the live Child SA: the peer has closed the IKE SA at both ends, so no
 Delete is owed. `handleInformationalOwned` (`inbound.go`) clears the reestablish
 outcome, and the `StateDead` arm ends the session with `errSADeletedByPeer`,
-which reconnects without a goodbye.
+which reconnects without a goodbye. The SA remembers that the peer deleted it
+(`peerDeletedIKE`), and `sayGoodbye` sends nothing for such an SA, so a datagram
+queued behind the peer's Delete, or read while `sayGoodbye` waits, cannot raise
+a goodbye for it either.
+
+The one IKE SA Delete that does take the exit is the peer's Delete of the OLD
+IKE SA after it rekeyed the IKE SA, when the same request also deletes the live
+Child SA. The response is empty, as for every request that deletes an IKE SA
+(RFC 7296 Section 1.4.1). The peer now holds only the new IKE SA (Section 2.8:
+the old SA's Delete "MUST be the last request sent over the old IKE SA"), so the
+goodbye goes out under the new SA, which then forgets its keys, because nothing
+adopts it.
 
 <!-- source: internal/component/ike/engine/established.go -- maintainSA, sayGoodbye -->
-<!-- source: internal/component/ike/engine/inbound.go -- handleInformationalOwned -->
+<!-- source: internal/component/ike/engine/inbound.go -- handleOwnedInbound, handleInformationalOwned -->
 
 `rekeyRefusalRecord` (`rekey.go`), one per rekey kind on the SA, records what the
 peer refused, and no refused group is offered again on that SA, so no answer can

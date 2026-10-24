@@ -208,6 +208,22 @@ func (ps *PeerSession) handleOwnedInbound(sa *SA, pkt transport.Packet, tr *tran
 			return ownedOutcome{}
 		}
 	}
+	// Release site two of two, after authentication. This one carries the rekey
+	// response. A peer REQUEST also reaches here, and it must never free the window
+	// our own outstanding request holds (RFC 7296 §2.3).
+	//
+	// It runs BEFORE the rebind below, because a rebind that cannot follow the peer
+	// returns the reestablish exit early, and that exit says goodbye. RFC 7296 Section
+	// 2.3: "An IKE endpoint MUST wait for a response to each of its messages before
+	// sending a subsequent message unless it has received a Window Size Notify". This
+	// response IS that answer, so the goodbye may go out at once. Freed after the
+	// rebind, the window stayed held: sayGoodbye waited out goodbyeWindowWait for an
+	// answer it had already read, then sent no Delete. The exchange's own handler below
+	// still runs only when the rebind keeps the SA, so the response is applied once.
+	if isResponse {
+		sa.answerAuthenticatedResponse(msg.Header.MessageID)
+	}
+
 	// The message decrypted and its integrity check passed. classifyInbound already
 	// applied the Message ID window. Both preconditions of adoptAuthenticatedEndpoint
 	// therefore hold HERE and nowhere earlier in this function.
@@ -231,13 +247,6 @@ func (ps *PeerSession) handleOwnedInbound(sa *SA, pkt transport.Packet, tr *tran
 	// RFC 7296 Section 3.10.1: an unrecognized notify that is neither an error in a
 	// response nor acted on elsewhere is ignored, and it is logged.
 	logIgnoredNotifies(inner, ps.peerName, isResponse, log)
-
-	// Release site two of two, after authentication. This one carries the rekey
-	// response. A peer REQUEST also reaches here, and it must never free the window
-	// our own outstanding request holds (RFC 7296 §2.3).
-	if isResponse {
-		sa.answerAuthenticatedResponse(msg.Header.MessageID)
-	}
 
 	// An authenticated inbound message from the peer proves it is alive (RFC 7296
 	// §2.4 liveness): reset the DPD wait regardless of the exchange.
@@ -738,7 +747,12 @@ func hasKEPayload(inner []wire.PayloadEntry) bool {
 func (ps *PeerSession) handleInformationalOwned(sa *SA, msg *wire.Message, inner []wire.PayloadEntry, isResponse bool, tr *transport.UDPTransport, dp dataplane.Dataplane, log *slog.Logger) ownedOutcome {
 	var out ownedOutcome
 	var paired []uint32
+	// ikeDeleted: the request deletes an IKE SA, so its response is empty. RFC 7296
+	// Section 1.4.1: "The response to a request that deletes the IKE SA is an empty
+	// INFORMATIONAL response." ikeClosed: the IKE SA it deletes is the session's own,
+	// with no rekeyed SA to take over, so the session holds no IKE SA the peer knows.
 	ikeDeleted := false
+	ikeClosed := false
 	// RFC 7296 Section 2.21.3: "After the IKE SA is authenticated, all requests having
 	// errors MUST result in a response notifying the other end of the error." A Delete
 	// payload whose SPI Size breaks Section 3.11 is such an error, and it is checked over
@@ -779,10 +793,16 @@ func (ps *PeerSession) handleInformationalOwned(sa *SA, msg *wire.Message, inner
 			out.newSA.inheritSendPath(sa)
 			ps.pendingIKESwap = nil
 			log.Info("ike: peer deleted old IKE SA after rekey, swapping to new SA", "peer", ps.peerName)
+			// The request still deletes an IKE SA, so its response is empty. The
+			// session is NOT closed: the peer holds the new SA, so a reestablish
+			// raised by a Child SA Delete in the same request stands, and the owner
+			// loop says goodbye under the new SA (maintainSA).
+			ikeDeleted = true
 			continue
 		}
 		if del.ProtocolID == wire.ProtocolIKE {
 			ikeDeleted = true
+			ikeClosed = true
 		}
 		closed, downed := ps.handleDeletePayload(sa, del, dp, log)
 		paired = append(paired, closed...)
@@ -795,8 +815,9 @@ func (ps *PeerSession) handleInformationalOwned(sa *SA, msg *wire.Message, inner
 	// Delete of the live Child SA riding in this same request would send that goodbye
 	// for an IKE SA the peer no longer holds. The StateDead arm of the owner loop ends
 	// this session instead, with no goodbye, and the reconnect still follows
-	// (errSADeletedByPeer).
-	if ikeDeleted {
+	// (errSADeletedByPeer). A Delete of the OLD SA after a rekey is not that case: the
+	// peer still holds the new SA.
+	if ikeClosed {
 		out.reestablish = false
 	}
 	if isResponse {

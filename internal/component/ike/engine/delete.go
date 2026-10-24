@@ -367,6 +367,7 @@ func (ps *PeerSession) handleDeletePayload(sa *SA, del *wire.PayloadDelete, dp d
 	case wire.ProtocolIKE:
 		log.Info("ike: peer deleted IKE SA", "peer", ps.peerName)
 		sa.State = StateDead
+		sa.peerDeletedIKE = true
 	case wire.ProtocolESP:
 		return ps.closeDesignatedChildSAs(del, dp, log)
 	}

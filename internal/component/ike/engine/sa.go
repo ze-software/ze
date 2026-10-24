@@ -73,6 +73,12 @@ type SA struct {
 	ResponderSPI [8]byte
 	IsInitiator  bool
 	State        SAState
+	// peerDeletedIKE records that the peer deleted this IKE SA (handleDeletePayload,
+	// delete.go), so it is closed at both ends. It guards sayGoodbye: StateDead alone
+	// cannot, because a rebind or a MOBIKE failure also sets StateDead on an SA the
+	// peer still holds, and those exits owe the peer a Delete. Owned by the maintainSA
+	// loop.
+	peerDeletedIKE bool
 
 	// IKE_SA_INIT exchange data
 	LocalNonce  []byte

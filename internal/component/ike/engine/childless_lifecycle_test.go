@@ -356,3 +356,165 @@ func TestPeerDeleteOfTheIKESAWithItsChildSendsNoGoodbye(t *testing.T) {
 		}
 	}
 }
+
+// TestPeerDeleteOfTheOldIKESAWithTheLiveChildSaysGoodbyeUnderTheNewSA checks the request
+// that confirms Ze's answer to a peer IKE SA rekey by deleting the old IKE SA, and also
+// deletes the live Child SA.
+//
+// Goal: RFC 7296 Section 2.8: the rekeyed IKE SA "inherits all of the original IKE SA's
+// Child SAs, and the new IKE SA is used for all control messages needed to maintain those
+// Child SAs", and the old SA's Delete "MUST be the last request sent over the old IKE
+// SA". The Child SA Delete still ends the session (owner decision Q-5), so the peer is
+// owed a Delete for the IKE SA it still holds, which is the NEW one (Section 2.4). The
+// request deletes an IKE SA, so its answer is empty (Section 1.4.1: "The response to a
+// request that deletes the IKE SA is an empty INFORMATIONAL response."). Nothing adopts
+// the new SA, so it forgets its keys (Section 2.12).
+//
+// Method: a second established pair stands in for the rekeyed IKE SA in pendingIKESwap.
+// The peer sends one request on the old SA deleting the old IKE SA and the live Child
+// SA. The loop MUST end with errTimeout, the response MUST carry no Delete payload, the
+// only request the peer reads MUST be an IKE SA Delete under the new SA, and the new SA
+// MUST have forgotten its nonce.
+//
+// MUTATION: say goodbye under the loop's own SA in maintainSA's reestablish exit
+// (established.go) and the Delete goes out under the old SA's keys, which the peer
+// deleted.
+func TestPeerDeleteOfTheOldIKESAWithTheLiveChildSaysGoodbyeUnderTheNewSA(t *testing.T) {
+	local, peer, ps, peerTr, myTr := lcyLoopback(t)
+	newPeer, newSA, _ := establishPSK(t)
+	if newSA.LocalNonce == nil {
+		t.Fatal("setup: the new IKE SA holds no nonce to forget")
+	}
+	// A rekeyed IKE SA talks to the same peer, from the same address, as the old one.
+	newSA.PeerCfg.LocalAddress = local.PeerCfg.LocalAddress
+	newSA.PeerCfg.RemoteAddress = local.PeerCfg.RemoteAddress
+	ps.pendingIKESwap = newSA
+	child := ps.getChildSA()
+	if child == nil {
+		t.Fatal("the session holds no Child SA")
+	}
+	msgID := local.ExpectedMsgID
+	done := clfRunLoop(t, local, ps, nil, newLifetimeState(3600), newLifetimeState(3600), myTr, &sepBus{})
+
+	chain := append([]wire.PayloadEntry{{Payload: &wire.PayloadDelete{ProtocolID: wire.ProtocolIKE}}},
+		lcyESPDeleteChain(child.OutboundSPI)...)
+	ps.inbound <- transport.Packet{Data: lcyRequest(t, peer, msgID, chain)}
+	if err := clfLoopEnd(t, done, "a peer Delete of the old IKE SA and the live Child SA"); !errors.Is(err, errTimeout) {
+		t.Fatalf("the loop ended with %v, want errTimeout", err)
+	}
+	if newSA.LocalNonce != nil {
+		t.Error("the new IKE SA nobody adopted kept its keying material")
+	}
+
+	goodbye := false
+	for raw := rtxRecv(t, peerTr); raw != nil; raw = rtxRecv(t, peerTr) {
+		m := parseMsg(t, raw)
+		if m.Header.Flags&wire.FlagResponse != 0 {
+			if dels := lcyDeletes(lcyDecrypt(t, peer, raw)); len(dels) != 0 {
+				t.Errorf("the answer to a request deleting the IKE SA carries %d Delete payloads, want none", len(dels))
+			}
+			continue
+		}
+		if m.Header.InitiatorSPI != newSA.InitiatorSPI {
+			t.Fatal("a request went out under the old IKE SA, which the peer deleted")
+		}
+		for _, del := range lcyDeletes(lcyDecrypt(t, newPeer, raw)) {
+			if del.ProtocolID == wire.ProtocolIKE {
+				goodbye = true
+			}
+		}
+	}
+	if !goodbye {
+		t.Fatal("the session sent no Delete for the new IKE SA the peer still holds")
+	}
+}
+
+// TestDatagramQueuedBehindThePeerIKESADeleteSendsNoGoodbye checks that a request queued
+// behind the peer's IKE SA Delete, which raises the reestablish exit before the next tick
+// ends the loop, sends no goodbye for the IKE SA the peer already deleted.
+//
+// Goal: RFC 7296 Section 2.4 asks the endpoint CLOSING an IKE SA to "send a Delete
+// payload indicating that it has closed the IKE SA". The peer closed this one at both
+// ends, so a Delete names nothing it holds.
+//
+// Method: Ze holds the request window for an INFORMATIONAL request the peer will never
+// answer, having deleted the SA. Two requests are queued at once: an IKE SA Delete, then
+// a Delete of the live Child SA. The loop MUST end with errTimeout (the reestablish exit)
+// inside goodbyeWindowWait, and no datagram the peer reads is a request.
+//
+// MUTATION: drop the first peerDeletedIKE guard in sayGoodbye (established.go) and the
+// loop waits goodbyeWindowWait for an answer a peer that deleted the SA never sends.
+func TestDatagramQueuedBehindThePeerIKESADeleteSendsNoGoodbye(t *testing.T) {
+	local, peer, ps, peerTr, myTr := lcyLoopback(t)
+	child := ps.getChildSA()
+	if child == nil {
+		t.Fatal("the session holds no Child SA")
+	}
+	if !local.reserveRequestWindow() {
+		t.Fatal("setup: the request window is not free")
+	}
+	local.NextMsgID++
+	msgID := local.ExpectedMsgID
+	ikeDelete := lcyRequest(t, peer, msgID, []wire.PayloadEntry{{Payload: &wire.PayloadDelete{ProtocolID: wire.ProtocolIKE}}})
+	childDelete := lcyRequest(t, peer, msgID+1, lcyESPDeleteChain(child.OutboundSPI))
+	done := clfRunLoop(t, local, ps, nil, newLifetimeState(3600), newLifetimeState(3600), myTr, &sepBus{})
+	start := time.Now()
+	ps.inbound <- transport.Packet{Data: ikeDelete}
+	ps.inbound <- transport.Packet{Data: childDelete}
+	if err := clfLoopEnd(t, done, "a Child SA Delete behind an IKE SA Delete"); !errors.Is(err, errTimeout) {
+		t.Fatalf("the loop ended with %v, want errTimeout from the queued Child SA Delete", err)
+	}
+	if waited := time.Since(start); waited >= goodbyeWindowWait {
+		t.Errorf("the loop waited %s to say goodbye to an IKE SA the peer deleted", waited)
+	}
+	for raw := rtxRecv(t, peerTr); raw != nil; raw = rtxRecv(t, peerTr) {
+		if parseMsg(t, raw).Header.Flags&wire.FlagResponse == 0 {
+			t.Fatal("the session sent a request after the peer deleted its IKE SA")
+		}
+	}
+}
+
+// TestPeerIKESADeleteDuringTheGoodbyeWaitSendsNoGoodbye checks the same fact for an IKE
+// SA Delete that sayGoodbye itself reads while it waits for our outstanding request.
+//
+// Goal: as TestDatagramQueuedBehindThePeerIKESADeleteSendsNoGoodbye. The wait reads
+// inbound datagrams (waitForRequestWindow), so it can process the peer's Delete and then
+// the answer that frees the window.
+//
+// Method: Ze holds the request window for an INFORMATIONAL request. Three datagrams are
+// queued: a Delete of the live Child SA (the reestablish exit), an IKE SA Delete, and the
+// peer's answer to our request. No datagram the peer reads is a request.
+//
+// MUTATION: drop the second peerDeletedIKE guard in sayGoodbye (established.go), after
+// the wait, and an IKE SA Delete goes out under the deleted SA.
+func TestPeerIKESADeleteDuringTheGoodbyeWaitSendsNoGoodbye(t *testing.T) {
+	local, peer, ps, peerTr, myTr := lcyLoopback(t)
+	child := ps.getChildSA()
+	if child == nil {
+		t.Fatal("the session holds no Child SA")
+	}
+	if !local.reserveRequestWindow() {
+		t.Fatal("setup: the request window is not free")
+	}
+	ours := local.requestMsgID
+	local.NextMsgID++
+	msgID := local.ExpectedMsgID
+	childDelete := lcyRequest(t, peer, msgID, lcyESPDeleteChain(child.OutboundSPI))
+	ikeDelete := lcyRequest(t, peer, msgID+1, []wire.PayloadEntry{{Payload: &wire.PayloadDelete{ProtocolID: wire.ProtocolIKE}}})
+	answer, err := buildEncryptedMessageEx(peer, nil, ours, wire.ExchangeInformational, initiatorFlag(peer)|wire.FlagResponse)
+	if err != nil {
+		t.Fatalf("build the peer's answer: %v", err)
+	}
+	done := clfRunLoop(t, local, ps, nil, newLifetimeState(3600), newLifetimeState(3600), myTr, &sepBus{})
+	ps.inbound <- transport.Packet{Data: childDelete}
+	ps.inbound <- transport.Packet{Data: ikeDelete}
+	ps.inbound <- transport.Packet{Data: answer}
+	if err := clfLoopEnd(t, done, "an IKE SA Delete during the goodbye wait"); !errors.Is(err, errTimeout) {
+		t.Fatalf("the loop ended with %v, want errTimeout", err)
+	}
+	for raw := rtxRecv(t, peerTr); raw != nil; raw = rtxRecv(t, peerTr) {
+		if parseMsg(t, raw).Header.Flags&wire.FlagResponse == 0 {
+			t.Fatal("the session sent a request after the peer deleted its IKE SA")
+		}
+	}
+}

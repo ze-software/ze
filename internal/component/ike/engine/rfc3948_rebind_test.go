@@ -497,3 +497,70 @@ func TestRFC3948RebindOwedRekeyClearsOnPromotion(t *testing.T) {
 		f.wantReplacementOnMovedPort(t)
 	})
 }
+
+// TestRebindOnARekeyResponseSaysGoodbyeAtOnce checks that a rebind raised by the answer
+// to Ze's own Child SA rekey frees the request window before it closes the IKE SA, so
+// the goodbye Delete leaves at once.
+//
+// Goal: RFC 7296 Section 2.3: "An IKE endpoint MUST wait for a response to each of its
+// messages before sending a subsequent message unless it has received a Window Size
+// Notify". The rekey response is that answer. A window still held after it made
+// sayGoodbye wait goodbyeWindowWait for an answer already read, then send no Delete,
+// against Section 2.4: the endpoint closing an IKE SA "SHOULD send a Delete payload
+// indicating that it has closed the IKE SA unless the other endpoint is no longer
+// responding".
+//
+// Method: a transport-mode Child SA. Ze sends its rekey request, then the peer answers
+// it from another address (the old endpoint is moved to an address that is gone, so the
+// real socket reads as the new one), which takes the transport-mode exit of
+// rebindChildSAs. The answer MUST leave the window free and install nothing, and
+// sayGoodbye MUST then deliver an IKE SA Delete well inside goodbyeWindowWait.
+//
+// MUTATION: move the response's answerAuthenticatedResponse back after the rebind block
+// in handleOwnedInbound (inbound.go): the window stays held, sayGoodbye waits 2 s, and
+// no Delete arrives.
+func TestRebindOnARekeyResponseSaysGoodbyeAtOnce(t *testing.T) {
+	f := rbOwner(t, rbOptions{migrator: true, transport: true})
+	f.ps.rebindRekeyOwed = true
+	f.tick()
+	req := mbReceive(t, f.peerTr)
+	msg := parseMsg(t, req.Data)
+	if msg.Header.ExchangeType != wire.ExchangeCreateChildSA {
+		t.Fatalf("the owed rekey sent exchange %d, want CREATE_CHILD_SA", msg.Header.ExchangeType)
+	}
+	if !f.local.requestOutstanding {
+		t.Fatal("setup: the rekey request holds no request window")
+	}
+	answer, _, err := respondChildRekey(f.peer, mbDecrypt(t, f.peer, req.Data),
+		f.peerChild, msg.Header.MessageID, nil, slogutil.DiscardLogger())
+	if err != nil {
+		t.Fatalf("peer answers the Child SA rekey: %v", err)
+	}
+
+	f.local.peerEndpoint = &net.UDPAddr{IP: rbAddressGone, Port: int(f.oldPort)}
+	out := f.ps.handleOwnedInbound(f.local, transport.Packet{
+		Data: answer, RemoteAddr: nttPeerAddr(t, f.peerTr), LocalAddr: nttPeerAddr(t, f.myTr), NATT: true,
+	}, f.myTr, f.dp, f.log)
+	if !out.reestablish {
+		t.Fatal("a rekey answer from a new address did not close the transport-mode IKE SA")
+	}
+	if f.local.requestOutstanding {
+		t.Fatal("the rekey answer that closed the IKE SA left its request window held")
+	}
+	if len(f.mock.sas) != 2 {
+		t.Fatalf("the rekey answer of a closing IKE SA installed states: %d, want the first pair only", len(f.mock.sas))
+	}
+
+	start := time.Now()
+	f.ps.sayGoodbye(f.local, f.myTr, f.dp, f.log)
+	if waited := time.Since(start); waited >= goodbyeWindowWait/2 {
+		t.Fatalf("sayGoodbye waited %s for a request already answered", waited)
+	}
+	goodbye := mbReceive(t, f.peerTr)
+	for _, del := range lcyDeletes(mbDecrypt(t, f.peer, goodbye.Data)) {
+		if del.ProtocolID == wire.ProtocolIKE {
+			return
+		}
+	}
+	t.Fatal("the closing IKE SA sent the peer no Delete for it")
+}
