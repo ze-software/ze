@@ -17,12 +17,14 @@ package feature
 import (
 	"context"
 	"errors"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/le/gitenv"
 	"github.com/ze-software/ze/internal/le/interoplab"
 )
 
@@ -79,6 +81,9 @@ func gitOutput(tree string, args ...string) (string, error) {
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, "git", append([]string{"-C", tree}, args...)...) //nolint:gosec // args are fixed git verbs and paths a declaration lists
+	// The deadline SIGKILLs git, and a status killed while it refreshes the index
+	// leaves an orphaned .git/index.lock that blocks every session's git writes.
+	cmd.Env = gitenv.ReadOnly(os.Environ())
 	out, err := cmd.Output()
 	if err != nil {
 		return "", errors.New("git " + args[0] + ": " + err.Error())

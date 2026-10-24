@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/gitenv"
 )
 
 // The build arguments a source-built peer's Dockerfile declares. They are
@@ -230,7 +231,9 @@ func (d *Docker) freshenCheckout(ctx context.Context, pin SourcePin, path string
 // Docker endpoint selection that run applies does not bind it.
 func (d *Docker) git(ctx context.Context, path string, arguments ...string) (string, error) {
 	argv := append([]string{"git", "-C", path}, arguments...)
-	result, err := d.runner.Run(ctx, ProcessCommand{Arguments: argv, Timeout: sourceGitTimeout})
+	// The timeout SIGKILLs git, and a status killed while it refreshes the index
+	// leaves an orphaned .git/index.lock that blocks every session's git writes.
+	result, err := d.runner.Run(ctx, ProcessCommand{Arguments: argv, Timeout: sourceGitTimeout, Environment: gitenv.ReadOnly(os.Environ())})
 	if err != nil {
 		return result.Stdout, errors.New(strings.Join(argv, " ") + ": " + err.Error() + " " + strings.TrimSpace(result.Stderr))
 	}

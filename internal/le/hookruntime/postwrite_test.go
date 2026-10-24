@@ -14,6 +14,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -270,5 +272,27 @@ func TestAWriteRemovesADerivedDirectoryWhole(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(root, "rfc", "requirements")); !os.IsNotExist(err) {
 		t.Errorf("rfc/requirements survived a write to a tag carrier: %v (%s)", err, message)
+	}
+}
+
+// VALIDATES: the post-edit golangci-lint run carries GIT_OPTIONAL_LOCKS=0 and
+// diff.autoRefreshIndex=false, so the git status and git diff its revgrep runs
+// take no index lock, and it keeps --new-from-rev and the edited package.
+// PREVENTS: the orphaned .git/index.lock. Lint's 30s timeout SIGKILLed a
+// revgrep `git status` while it held the lock, and the empty lock blocked
+// every session's git writes until someone removed it.
+func TestPostLintCommandTakesNoIndexLock(t *testing.T) {
+	command := postLintCommand(t.Context(), "/bin/golangci-lint", "/repo", "internal/le/x/y.go")
+	if !slices.Contains(command.Env, "GIT_OPTIONAL_LOCKS=0") {
+		t.Errorf("lint environment lacks GIT_OPTIONAL_LOCKS=0")
+	}
+	if !slices.ContainsFunc(command.Env, func(entry string) bool { return strings.HasSuffix(entry, "=diff.autoRefreshIndex") }) {
+		t.Errorf("lint environment does not turn diff.autoRefreshIndex off")
+	}
+	if !slices.Contains(command.Args, "--new-from-rev=HEAD") || !slices.Contains(command.Args, "./internal/le/x/...") {
+		t.Errorf("lint argv lost its revision or package: %v", command.Args)
+	}
+	if command.Dir != "/repo" {
+		t.Errorf("lint runs in %q, want the module root", command.Dir)
 	}
 }

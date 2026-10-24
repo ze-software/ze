@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/gitenv"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
@@ -284,6 +285,9 @@ func gitText(root string, args ...string) string {
 	//nolint:gosec // every invocation is a fixed read-only Git query in endSummary
 	cmd := exec.CommandContext(ctx, "git", args...)
 	cmd.Dir = root
+	// The deadline SIGKILLs git, and a status killed while it refreshes the index
+	// leaves an orphaned .git/index.lock that blocks every session's git writes.
+	cmd.Env = gitenv.ReadOnly(os.Environ())
 	out, err := cmd.Output()
 	if err != nil {
 		return ""

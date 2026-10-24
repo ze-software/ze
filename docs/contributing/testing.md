@@ -356,6 +356,22 @@ A pass that waits prints nothing while it waits. A whole-tree pass holds the
 lock for about ten minutes on this workstation, so a pass behind one can stay
 silent for that long. That is the linter in a queue, not a hang.
 
+### The post-edit lint takes no index lock
+
+<!-- source: internal/le/hookruntime/postwrite.go -- postLintCommand -->
+<!-- source: internal/le/gitenv/gitenv.go -- ReadOnly, ReadOnlyPatch -->
+
+After each Go edit the post-write hook lints the edited package with
+`--new-from-rev=HEAD --timeout=30s`. For `--new-from-rev`, golangci-lint runs
+`git status` and `git diff` itself, and its timeout SIGKILLs them. A git killed
+while it refreshed the index left an empty `.git/index.lock` that no process
+held, and every session's next git write failed until someone removed it. The
+hook therefore runs the linter with `GIT_OPTIONAL_LOCKS=0`, which stops
+`git status` refreshing the index, and `diff.autoRefreshIndex=false`, which
+stops `git diff` writing the refresh back. The patch the linter reads is the
+same either way. le's other `git status` queries under a deadline carry the
+first setting through `gitenv.ReadOnly`.
+
 ### The slot a lint holds
 
 <!-- source: internal/le/go/lint/actions.go -- runHere, jobArgv -->

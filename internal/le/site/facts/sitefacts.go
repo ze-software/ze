@@ -33,6 +33,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/ze-software/ze/internal/le/gitenv"
 )
 
 // factsFile is the committed file, relative to the checkout root. It sits
@@ -513,6 +515,10 @@ func output(root string, limit time.Duration, name string, args ...string) ([]by
 	cmd := exec.CommandContext(ctx, name, args...) //nolint:gosec // the command is a literal of this package; root is the checkout, resolved by lepath.Root
 	cmd.Dir = root
 	cmd.Stderr = os.Stderr
+	// The deadline SIGKILLs the child, and a git status killed while it refreshes
+	// the index leaves an orphaned .git/index.lock that blocks every session's
+	// git writes. Programs other than git ignore the variable.
+	cmd.Env = gitenv.ReadOnly(os.Environ())
 
 	pipe, err := cmd.StdoutPipe()
 	if err != nil {

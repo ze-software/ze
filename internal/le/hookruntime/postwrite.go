@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/le/derived"
+	"github.com/ze-software/ze/internal/le/gitenv"
 	specjournal "github.com/ze-software/ze/internal/le/spec/journal"
 )
 
@@ -36,6 +37,25 @@ func readEdited(ctx context) string {
 // generatedMarkerRE is the line Go defines for generated source. One line, at
 // the start of a line, exactly as `go generate` specifies it.
 var generatedMarkerRE = regexp.MustCompile(`(?m)^// Code generated .* DO NOT EDIT\.$`)
+
+// postLintCommand builds the golangci-lint run over the edited file's package.
+//
+// --allow-serial-runners waits for golangci-lint's machine-wide lock inside the
+// caller's 60s budget. The default gives up after five seconds and prints
+// "parallel golangci-lint is running", which the issue count then reported to
+// the author as a lint failure in the file they just edited.
+//
+// --new-from-rev makes golangci-lint's revgrep run `git status` and `git diff`
+// on lint's own context, and its 30s timeout SIGKILLs them. Killed while
+// refreshing the index, they left an empty .git/index.lock that blocked every
+// session's git writes (three times on 2026-10-23/24), so the environment tells
+// git to skip that optional refresh.
+func postLintCommand(timeout stdcontext.Context, binary, module, relative string) *exec.Cmd {
+	command := exec.CommandContext(timeout, binary, "run", "--allow-serial-runners", "--new-from-rev=HEAD", "--timeout=30s", "./"+filepath.ToSlash(filepath.Dir(relative))+"/...") //nolint:gosec // golangci-lint from PATH, run on the package the developer just edited
+	command.Dir = module
+	command.Env = gitenv.ReadOnlyPatch(os.Environ())
+	return command
+}
 
 // ze point: quality/linting/fix-lint-issues-never-disable-a-linter
 // postFormatGo formats the edited Go file, then refuses it while the linter
@@ -75,12 +95,7 @@ func postFormatGo(ctx context) *verdict {
 	if binary, err := exec.LookPath("golangci-lint"); err == nil {
 		relative, _ := filepath.Rel(module, absolutePath(ctx))
 		timeout, cancel := stdcontext.WithTimeout(stdcontext.Background(), 60*time.Second)
-		// --allow-serial-runners waits for golangci-lint's machine-wide lock inside
-		// the 60s budget above. The default gives up after five seconds and prints
-		// "parallel golangci-lint is running", which the issue count below then
-		// reported to the author as a lint failure in the file they just edited.
-		command := exec.CommandContext(timeout, binary, "run", "--allow-serial-runners", "--new-from-rev=HEAD", "--timeout=30s", "./"+filepath.ToSlash(filepath.Dir(relative))+"/...") //nolint:gosec // golangci-lint from PATH, run on the package the developer just edited
-		command.Dir = module
+		command := postLintCommand(timeout, binary, module, relative)
 		output, _ := command.CombinedOutput()
 		cancel()
 		text := string(output)

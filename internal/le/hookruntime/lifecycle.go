@@ -19,6 +19,7 @@ import (
 	aisync "github.com/ze-software/ze/internal/le/ai/sync"
 	lecommit "github.com/ze-software/ze/internal/le/commit"
 	"github.com/ze-software/ze/internal/le/derived"
+	"github.com/ze-software/ze/internal/le/gitenv"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 	"github.com/ze-software/ze/internal/le/session"
 	"github.com/ze-software/ze/internal/le/spec"
@@ -228,6 +229,9 @@ func nextSessionStartReport(deadline stdcontext.Context, reports <-chan *session
 func reportTree(deadline stdcontext.Context, state *sessionStart, report *sessionStartReport) {
 	command := exec.CommandContext(deadline, "git", "status", "--porcelain")
 	command.Dir = state.ctx.root
+	// The deadline SIGKILLs git, and a status killed while it refreshes the index
+	// leaves an orphaned .git/index.lock that blocks every session's git writes.
+	command.Env = gitenv.ReadOnly(os.Environ())
 	status, err := command.Output()
 	if err != nil {
 		fmt.Fprintf(&report.note, "session-start: git status failed, so the tree was not counted: %v\n", err) //nolint:errcheck // hook protocol
