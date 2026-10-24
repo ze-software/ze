@@ -1337,9 +1337,11 @@ pre.code-copy-wrap, .md-content pre.code-copy-wrap { position: relative; padding
 .site-home .hero-outcome-links { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); margin: 0; padding: 1rem 0 1.3rem; border: 0; border-top: 1px solid #2c4564; border-radius: 0; background: none; box-shadow: none; gap: 0.6rem 1.25rem; }
 .site-home .hero-outcome-links a { min-width: 0; justify-content: center; text-align: center; white-space: normal; padding: 0; border: 0; background: none; box-shadow: none; color: #d0e6f5; font: 400 0.78rem/1.6 Lato, sans-serif; }
 .site-home .hero-outcome-links a::before { flex-shrink: 0; background: var(--acc, var(--brand-bright)); box-shadow: none; width: 0.25rem; height: 0.25rem; }
-.site-home .home-section-panel { margin: 0; padding: 3.25rem 0; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; box-shadow: none; }
+.site-home .home-section-panel { margin: 0; padding: 2rem 0; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; box-shadow: none; }
+#top .site-home .home-section-panel { margin-top: 0; }
 .site-home .home-section-panel::before, .site-home .home-section-panel::after { content: none; }
 .site-home .section-head { gap: 2.5rem; margin-bottom: 1.5rem; }
+.site-home :is(.home-section-panel-map, .home-section-panel-usecases) .section-head { row-gap: 0.5rem; }
 .site-home .section-head h2 { font-size: 2rem; line-height: 1.25; color: var(--text); }
 .site-home .section-head p { font-size: 0.94rem; font-weight: 400; }
 .site-home .why-lead { margin-bottom: 1.25rem; padding: 1.8rem; border: 1px solid var(--line); border-radius: var(--radius-xl); background: linear-gradient(130deg, var(--sky-tint), var(--panel)); }
