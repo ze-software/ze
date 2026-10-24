@@ -78,15 +78,22 @@ keeps"). Five differences remain.
   `next-hop` on a mup or mcast-vpn route, as on 5.0 and 6.0. ExaBGP 4.2 merged no
   list and 5.0 merged only the extended communities; the bridge follows 6.0, so
   a 4.2 or 5.0 script meets on Ze what it would meet on upgrading ExaBGP.
-- **An AS_PATH holding an AS_SET is not sent.** `as-path [ 65001 ] ( 65002
-  65003 )` is sent by ExaBGP 4.2, 5.0 and 6.0 and refused by Ze, whose
-  `update text` has no spelling for a set. RFC 9774 Section 3: BGP speakers
-  "MUST NOT advertise BGP UPDATE messages containing AS_SETs or
-  AS_CONFED_SETs". On receive both treat such a route as withdrawn, but ExaBGP
-  offers the neighbor leaf `as-set accept` to keep it (`as_set`,
-  `src/exabgp/bgp/neighbor/settings.py`) and Ze has no such override. Where ze is
-  stricter than ExaBGP without an RFC MUST behind it, ExaBGP's behavior wins, so this difference is
-  owed work, not a settled design.
+- **A script cannot send an AS_PATH holding an AS_SET.** `as-path [ 65001 ] (
+  65002 65003 )` is sent by ExaBGP 4.2, 5.0 and 6.0 and refused by Ze: the
+  bridge refuses `as-path ( 3 4 )` and passes the `(` of `[ 1 ( 2 3 ) ]` to
+  `update text`, which has no spelling for a set and refuses it. RFC 9774
+  Section 3 lets an operator configure otherwise than "MUST NOT advertise BGP
+  UPDATE messages containing AS_SETs or AS_CONFED_SETs", and the owner decided
+  that only a route an ExaBGP script sends through the bridge may carry one.
+  Until that lands, this is the remaining AS_SET difference, owned by
+  `plan/release/fixes/spec-exabgp-bridge-refuses-untranslated.md`.
+- **A received AS_SET is kept where ExaBGP keeps it.** Both treat a route whose
+  AS_PATH or AS4_PATH holds a set as withdrawn by default (RFC 9774 Section 3).
+  ExaBGP's neighbor leaf `as-set accept` keeps it (`as_set`,
+  `src/exabgp/bgp/neighbor/settings.py`), and so does Ze's peer leaf
+  `session as-set accept`, which `ze exabgp migrate` writes for that leaf. An
+  AS_SET inside an ATTR_SET (RFC 6368) is not in the UPDATE's own paths, so Ze
+  keeps that route on every peer, as FRR and BIRD do.
 - **A generic attribute must carry flags RFC 4271 allows.** `attribute [ 0x99
   0x60 0x... ]` sends an attribute Ze knows no type for as a well-known one,
   and flags 0x60 or 0x70 on a well-known or optional non-transitive code set

@@ -9,7 +9,7 @@
 | Depends | `plan/release/fixes/spec-exabgp-6-api-compatibility.md` (in progress; its item 2 defines the error answer a script receives, which this spec uses for every refusal, and it edits the same files) |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-23 |
+| Updated | 2026-10-24 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -43,6 +43,27 @@ migration tracks consumed nodes and refuses the unconsumed at runtime, the bridg
 over ExaBGP's own API corpus with a test that fails on any line that yields neither a
 translation nor an error answer, and the runner refuses an unknown directive as the mock
 already does.
+
+**The AS_SET send half (AC-11), moved here from `spec-exabgp-6-api-compatibility.md`.**
+Owner, Thomas, 2026-10-24: "Move to bridge-refuses-untranslated". The decision it carries
+is the owner's of 2026-10-22: "as_set allow it via the bridge but not directly from the
+plugin, so only exabgp compat can make it". ExaBGP 4.2, 5.0 and 6.0 send an AS_PATH with a
+set when the script writes one (`as-path [ 65001 ] ( 65002 65003 )`; ExaBGP's `as_path` in
+`static/parser.py` reads `(` as an AS_SET). Ze refuses it at two layers today:
+
+| Layer | Today | Owed |
+|-------|-------|------|
+| Bridge `as-path` (`bridge_attribute.go`, `arityList` reads `[ ]` only) | `as-path ( 3 4 )` refused (`3` an unknown attribute); the `(` of `[ 1 ( 2 3 ) ]` passed through | both forms translated to the set spelling below |
+| `update text` `as-path` (`plugins/cmd/update/update_text.go`, `case "as-path"`, a flat `[]uint32`; `attribute.ParseASPathText` reads one sequence) | no spelling for a set: `invalid ASN in as-path: (` | a set spelling that only update text the bridge originates may use; any other sender refused, naming RFC 9774 Section 3 |
+| Send guard (`Session.writeUpdateBody`, `reactor/session_write.go`, `!raw && s.transmittedPathHoldsSet(body)`) | withdraws every non-raw UPDATE whose path holds a set, whoever built it | exempts an UPDATE whose route the bridge originated, and only that one |
+| Origin grant | none | a Go-only field of `registry.Registration` the bridge plugin sets: not on the SDK wire, so no external plugin can claim it; the dispatcher reads it from the sender (`CommandContext.Sender`, the bridge's process) and the flag rides the built route down to `writeUpdateBody`. Blocked until another session's uncommitted `internal/component/plugin/registry` work (`registry.go`, `config_need.go`, `gated_plugins*.go`) lands, because both edit `Registration` |
+
+RFC 9774 Section 3: "Unless explicitly configured by a network operator to do otherwise
+(e.g., during a transition phase), BGP speakers: MUST NOT advertise BGP UPDATE messages
+containing AS_SETs or AS_CONFED_SETs". The ExaBGP script an operator migrated and runs is
+that configuration; Ze's own API, other plugins and config stay refused, and deleting the
+guard is ruled out. The receive half is done in the exabgp-6 spec (`session as-set accept`,
+5ac5c3fc0d, 3c4106d89a).
 
 ## Required Reading
 
@@ -146,6 +167,8 @@ already does.
 | `.ci` case with an unknown `option=` line | → | `parseExaBGPCI` | `TestParseExaBGPCIRefusesUnknownOption` |
 | bridge config with no `family` | → | `parseConfig` | `TestBridgeConfigWithoutFamilyRefused` |
 | script `announce eor` after initial sync | → | `AnnounceEOR` | `test/exabgp-compat/api/api-eor.ci` |
+| script `announce route ... as-path [ 65001 ] ( 65002 65003 )` | → | bridge `as-path` set translation, update text set spelling under the bridge grant, `writeUpdateBody` exemption | `test/exabgp-compat/api/api-as-set.ci`, interop `bgp-exabgp-bridge-as-set-frr` |
+| `send bgp ... update text` with the set spelling from Ze's API | → | update text refusal without the grant | `test/plugin/update-text-as-set-refused.ci` |
 
 ## Acceptance Criteria
 | AC ID | Input / Condition | Expected Behavior |
@@ -160,6 +183,7 @@ already does.
 | AC-8 | Bridge over ExaBGP's API command corpus (the `qa/api` lines and the 4.2 and 5.0 corpora the exabgp-6 spec adopts) | every line yields a Ze command or the error answer; the test fails on a line that yields neither |
 | AC-9 | A `.ci` case with `option=update:send-default-route` or any unread `option=` | the runner refuses the case, naming the line and the fix |
 | AC-10 | An event of a type a script subscribed to that the bridge cannot encode | a Warn once per type names the event type; an envelope that is routine (no message by design) stays at Debug |
+| AC-11 | A script writes `announce route 10.0.0.0/24 next-hop 1.2.3.4 as-path [ 65001 ] ( 65002 65003 )`, and another `as-path ( 3 4 )` | each reaches the peer with the AS_SET segment as written (RFC 9774 Section 3 operator exemption, owner 2026-10-22 and 2026-10-24); the same set sent through `send bgp ... update text` from Ze's API, another plugin or config is refused naming RFC 9774 Section 3; a set on a route the bridge did not originate is still withdrawn by the send guard; the AS_SET row of `oldAllowed` (`old_allowed_test.go`) is deleted and `docs/exabgp/exabgp-differences.md` drops the send paragraph; `rfc/short/rfc9774.md` records the send-half deviation and RFC9774-3-1 gains the exempt polarity with a fresh discrimination record |
 
 ## End-to-End User Stories
 | # | User does | Path through system | Test proving it works |
@@ -182,6 +206,9 @@ already does.
 | `TestBridgeCorpusEveryLineTranslatedOrAnswered` | `internal/exabgp/bridge/bridge_corpus_test.go` | AC-8 | |
 | `TestParseExaBGPCIRefusesUnknownOption` | `internal/test/cli/cmd_exabgp_test.go` | AC-9 | |
 | `TestFleetWarnsOnUnencodableSubscribedEvent` | `internal/plugins/exabgp/bridgerun/fleet_test.go` | AC-10 | |
+| `TestBridgeASPathSetForms` | `internal/exabgp/bridge/bridge_attribute_test.go` | AC-11: `( 3 4 )` and `[ 1 ( 2 3 ) ]` translate to the set spelling | |
+| `TestUpdateTextASSetNeedsBridgeGrant` | `internal/component/bgp/plugins/cmd/update/update_text_test.go` | AC-11: set spelling accepted with the grant, refused without, reason names RFC 9774 Section 3 | |
+| `TestWriteUpdateBodySendsBridgeOriginatedSet`, `TestWriteUpdateBodyWithdrawsOtherSet` | `internal/component/bgp/reactor/session_write_test.go` | AC-11: exemption by origin only; red with the exemption off | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -195,11 +222,14 @@ already does.
 | `api-auto-flush` | `test/exabgp-compat/api/` | with `auto-flush false`, announcements leave at once (ExaBGP since 4.0.4) | |
 | `api-check` | `test/exabgp-compat/api/` | runs once the mock reads `send-default-route`, or is refused by the runner until it does | |
 | `cli-exabgp-migrate-untranslated-refused` | `test/parse/` | migrate refuses an untranslated node with its fix | |
+| `api-as-set` | `test/exabgp-compat/api/` | AC-11: a script's AS_SET reaches the mock peer as written; green under `--dut exabgp` at the main pin first | |
+| `update-text-as-set-refused` | `test/plugin/` | AC-11: the set spelling from Ze's API is refused with the reason | |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
 | exabgp-compat suites against the pinned ExaBGP | `test/exabgp-compat/` | ExaBGP 5.0.13 and ExaBGP main (pins of the exabgp-6 spec) | Ze answers each line as ExaBGP does, the EOR and flush included | |
+| `bgp-exabgp-bridge-as-set-frr` | `test/interop/scenarios/` | FRR (`no bgp reject-as-sets`) | AC-11: a bridge script's AS_SET is in FRR's table as written; red with the `writeUpdateBody` exemption off, image rebuilt | |
 
 ## Files to Modify
 - `internal/exabgp/migration/migrate.go`, `migrate_serialize.go` - consumption ledger, bridge families, refusals
@@ -209,6 +239,7 @@ already does.
 - `internal/component/config/cli/cmd_migrate.go` - warnings from the input tree
 - `internal/test/cli/cmd_exabgp.go` - refuse unknown `option=`
 - `internal/plugins/exabgp/bridgerun/fleet.go` - Warn on unencodable subscribed events
+- AC-11: `internal/exabgp/bridge/bridge_attribute.go` (set forms), `internal/component/bgp/plugins/cmd/update/update_text.go` and `internal/core/bgp/attribute/text.go` (set spelling, segments carried to the encoder), `internal/component/plugin/registry/registry.go` (the Go-only grant; blocked, see Task), the bridge plugin's registration, `internal/component/bgp/reactor/session_write.go` (exemption), `internal/exabgp/bridge/old_allowed_test.go` (AS_SET row deleted), `internal/component/bgp/yang/ze-bgp-conf.yang` (the as-set leaf sentence on sending), `rfc/short/rfc9774.md`, `docs/exabgp/exabgp-differences.md`, `docs/architecture/exabgp-bridge.md`
 - `docs/architecture/exabgp-bridge.md`, `docs/exabgp/exabgp-migration.md`, `docs/exabgp/exabgp-differences.md`
 
 ## Files to Create
@@ -261,6 +292,7 @@ already does.
 4. **Phase: EOR and flush** - read ExaBGP at the pin (A-1, A-3), then AC-5 to AC-7
 5. **Phase: consumption ledger** - AC-1, AC-2
 6. **Phase: bridge corpus and events** - AC-8, AC-10
+7. **Phase: AS_SET send half** - AC-11, after the registry work named in Task lands: `api-as-set` green under `--dut exabgp` first; then the grant, the set spelling, the exemption, each test red before; interop red with the exemption off; RFC 9774 records
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -299,9 +331,11 @@ already does.
 | Explicit `announce eor` bypasses the initial-sync claim | refuse it with an error answer | RFC 4724 Section 2 sets no limit and ExaBGP sends it; owner rule: ExaBGP's behaviour wins where Ze is stricter without an RFC MUST |
 | Runtime consumption ledger in the migration | a static list of translated keywords | a list is a second declaration that drifts |
 | Bridge family list from the config, refused when empty | keep the `ipv4/unicast` default | the default is the defect |
+| AS_SET send half lives here (AC-11), moved from `spec-exabgp-6-api-compatibility.md` (owner, Thomas, 2026-10-24: "Move to bridge-refuses-untranslated") | keep it in the exabgp-6 spec | it is a bridge line Ze does not translate today, the mechanism this spec owns; the exabgp-6 spec closes with the receive half done |
+| Only bridge-originated routes may carry an AS_SET (owner, 2026-10-22: "as_set allow it via the bridge but not directly from the plugin, so only exabgp compat can make it"), granted by a Go-only `registry.Registration` field | delete the send guard; an operator config leaf; a grant on the SDK wire | deleting the guard is ruled out by the owner; a grant on the wire can be claimed by any external plugin |
 
 ## Known Limitations
-- Mistranslations that Ze refuses (`clear adj-rib out` without selector, `announce route-refresh` read as a route, AS_SET in `as-path`, `interface-set`) and absent vocabulary (`vpls`, `ping`) are owned by `spec-exabgp-6-api-compatibility.md` and its journal rows, not here
+- AS_SET in `as-path` is AC-11 here (moved 2026-10-24). Other mistranslations that Ze refuses (`clear adj-rib out` without selector, `announce route-refresh` read as a route, `interface-set`) and absent vocabulary (`vpls`, `ping`) are owned by `spec-exabgp-6-api-compatibility.md` and its journal rows, not here
 
 ## RFC Documentation (Scope: protocol)
 
@@ -321,15 +355,14 @@ Correct the comment above `claimInitialSyncEOR` and quote RFC 4724 Section 2 abo
 | `declared-format-contradicts-payload.md` | 2026-09-06 | `update` event to an API process: empty peer address, zero ASN, no `message` |
 | `delegation-hands-the-callee-a-different-argv.md` | 2026-10-17 | bridge `clear adj-rib out` dispatches `clear bgp rib out` with no selector |
 | `delegation-hands-the-callee-a-different-argv.md` | 2026-10-17 | bridge reads `announce route-refresh` as a route, sends `-refresh` |
-| `parser-refuses-a-form-its-producer-emits.md` | 2026-10-14 | bridge `convertAnnounceSRPolicy` leftover tokens refused by `parseSRPolicySection` |
 | `parser-refuses-a-form-its-producer-emits.md` | 2026-10-17 | `update text` refuses the bridge's interface-set and rate-limit extended communities |
-| `parser-refuses-a-form-its-producer-emits.md` | 2026-10-21 | bridge `as-path` refuses ExaBGP's `( )` AS_SET segment |
+| `parser-refuses-a-form-its-producer-emits.md` | 2026-10-21 | bridge `as-path` refuses ExaBGP's `( )` AS_SET segment (AC-11) |
 | `unwired-feature.md` | 2026-09-05 | `conf-watchdog` against `migrateProcesses` dropping the watchdog |
 | `unwired-feature.md` | 2026-10-17 | bridge refuses `announce vpls`, `withdraw vpls` and `ping` |
 | `unwired-feature.md` | 2026-10-17 | API-created peer does not attach the creating process |
 | `zero-value-as-valid-answer.md` | 2026-10-20 | `convertEOR` expands a bare `announce eor` over every family |
 
-14 rows.
+16 rows.
 
 ## Rows found already fixed
 
@@ -337,6 +370,7 @@ Correct the comment above `claimInitialSyncEOR` and quote RFC 4724 Section 2 abo
 |------------|------|-----------------|-----------------------|
 | `zero-value-as-valid-answer.md` | 2026-10-20 | `convertEOR` expands a bare eor over declared families | `convertEOR` (`bridge_route_forms.go`) answers `ipv4/unicast` for a bare `announce eor`, quoting ExaBGP's `api_eor` |
 | `gate-excludes-part-of-its-population.md` | 2026-09-19 | `readExaBGPCase` drops `:json:` expectations | `readExaBGPCase` (`internal/le/interoplab/bgp/exabgp_case.go`) attaches each `json:` line to the frame above it and refuses an unknown step kind and an unread option |
+| `parser-refuses-a-form-its-producer-emits.md` | 2026-10-14 | bridge `convertAnnounceSRPolicy` leftover tokens refused by `parseSRPolicySection` | 2026-10-24: fixed by the exabgp-6 spec's AC-28, af18a709d8 and 9dea34f1b9; the row is marked fixed |
 
 ## Rows examined, not owned
 
@@ -360,7 +394,7 @@ Correct the comment above `claimInitialSyncEOR` and quote RFC 4724 Section 2 abo
 - [ ] Required Reading carries `→ Decision:` / `→ Constraint:` checkpoints
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-10 all demonstrated
+- [ ] AC-1..AC-11 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete
 - [ ] Targeted tests pass: the scoped package tests of each changed package under `./le job run`, `./le test functional exabgp-test` for the api and encoding cases named above, and `./le verify current fast`; the full gate (`./le verify current`) once over the closing commits

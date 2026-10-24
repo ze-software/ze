@@ -755,6 +755,14 @@ send bgp !upstream1 cached 12345
 > **Note:** Filter selectors (`[local-as ...]`, `[peer-as ...]`) from ExaBGP multi-session
 > draft are not supported — the draft never became an RFC.
 
+Not every command takes every selector. `teardown`, `notify`, `disable`, `enable`,
+`pause`, `resume`, `clear soft` and `delete bgp peer` act on one peer: the selector
+must resolve to exactly one, and `*`, an exclusion or a selector matching several
+peers is refused. The YANG `selector` leaf of `ze-peer-cmd.yang` says which
+commands act on every peer it matches.
+<!-- source: internal/component/plugin/server/command.go -- ResolveSinglePeer -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang -- selector -->
+
 ### Route Commands (update text)
 
 All route operations use unified `update text` syntax with flat attribute declarations

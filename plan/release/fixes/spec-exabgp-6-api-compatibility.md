@@ -264,10 +264,10 @@ CHANGELOG sentence of that producer.
 | A-4 | Ze's reactor returns an error to the bridge when no selected peer carries the family, rather than dropping silently | `ErrFamilyNotNegotiated` in `session_validation.go` | the bridge must compute "carrying" itself from the peers' negotiated families | `TestFamilyNoSelectedPeerCarriesAnswersError` against the real engine | WRONG, fixed 2026-10-20: the engine answers status `warning`, which the record wire drops to `done`; the bridge reads the answer document (`RefuseUnsentRoute`); `api-refusals-v4` red on ze with that refusal overlaid away |
 | A-5 | ze's update-text parser takes the LAST of a repeated `nhop`, so forwarding both tokens sends the second | not read | keep-first must still be done in the bridge either way; only the red test's expected failure changes | Phase 6 red run | validated 2026-10-20: with keep-first overlaid away, `api-keep-first-v4` (renamed `api-repeated-attributes-v4` on 2026-10-21, which adds a merged community list, an escaped route line and an SRv6 group with no behavior) on ze put NEXT_HOP 2.2.2.2 on the wire |
 | A-6 | `takeAttrValue` already refuses `path-information` with no value | `errMissingAttrValue` in `bridge_attribute.go` | Phase 6 adds the refusal | `TestPathInformationWithoutValueRefused` red run | validated 2026-10-20: the refusal predates Phase 6; the test is red only with the reason's wording overlaid away |
-| A-7 | `parseConfigRoute` can be called from the API with the section's run as `Content` and the text's next hop, and the returned `Attrs` merge into the UPDATE the text parser builds | `registry.ConfigRouteRequest`, `PluginRoute.Attrs` | the API needs a section-level parser entry in the registry instead (Key Design Decisions alternative) | `TestAPISRPolicyAttributesReachParseConfigRoute` | unvalidated |
+| A-7 | `parseConfigRoute` can be called from the API with the section's run as `Content` and the text's next hop, and the returned `Attrs` merge into the UPDATE the text parser builds | `registry.ConfigRouteRequest`, `PluginRoute.Attrs` | the API needs a section-level parser entry in the registry instead (Key Design Decisions alternative) | `TestAPISRPolicyAttributesReachParseConfigRoute` | confirmed (2026-10-24): `TestAPISRPolicyAttributesReachParseConfigRoute` (`update_text_exabgp_test.go`) passes; `parseRegistryNLRISection` calls the family's registered config-route parser and merges its attributes (af18a709d8), and `test/plugin/update-text-sr-policy-attributes.ci` reaches the wire with them (9dea34f1b9) |
 | A-8 | A route a script announces and the same prefix in Ze's static config are distinct entries, so withdrawing the script's route cannot remove the configured one | ExaBGP "gives back a configured route one of them had replaced" | the exit withdrawal must re-announce the configured route | `TestExitWithdrawRestoresConfiguredRoute` | broken (2026-10-20): an API withdrawal took the configured route off the wire (`api-on-exit-configured` red on ze, green on the pin); fixed by `restore-configured` (Phase 4 third package for prefix routes, fourth package for routes with an RD or a label stack) |
-| A-9 | The untracked `api-sr-policy` case belongs to a session that has stopped writing it | files dated 2026-10-17 20:33, no session state names it | Phase 5 coordinates instead of adopting | `ls -dt tmp/session/*/` at Phase 5 start | unvalidated |
-| A-10 | The 4.2/5.0 corpora (`commands-*.json`, `responses-*.json.gz`) may be vendored into Ze (licence) | ExaBGP is 3-clause BSD; the files are generated data | they are fetched at test time instead | read `COPYRIGHT` in the ExaBGP checkout before vendoring and quote the clause in the commit | unvalidated |
+| A-9 | The untracked `api-sr-policy` case belongs to a session that has stopped writing it | files dated 2026-10-17 20:33, no session state names it | Phase 5 coordinates instead of adopting | `ls -dt tmp/session/*/` at Phase 5 start | confirmed (2026-10-24): no session wrote the case after 2026-10-17; this spec adopted it, and `test/exabgp-compat/api/api-sr-policy.ci` is tracked (last changed in eda7420752) and run by the stage |
+| A-10 | The 4.2/5.0 corpora (`commands-*.json`, `responses-*.json.gz`) may be vendored into Ze (licence) | ExaBGP is 3-clause BSD; the files are generated data | they are fetched at test time instead | read `COPYRIGHT` in the ExaBGP checkout before vendoring and quote the clause in the commit | confirmed (2026-10-24): the corpora are vendored with ExaBGP's 3-clause BSD notice beside them, `internal/exabgp/bridge/testdata/exabgp-old/LICENCE-ExaBGP.txt`, in 9e538f581f |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -301,14 +301,14 @@ CHANGELOG sentence of that producer.
 | Script writes `peer * announce route ...` first | → | version v6, encoder v6 JSON | `test/exabgp-compat/api/api-version-detect-v6.ci` |
 | Script writes `api version` / `system api version 4` | → | bridge-local answer | `test/exabgp-compat/api/api-version-command.ci` |
 | `environment { exabgp { api { version 6 } } }` | → | forced version | `test/exabgp-compat/api/api-version-env.ci` |
-| A refused line from a v4 / v6 script | → | version-aware `WriteError` | `test/exabgp-compat/api/api-error-v4.ci`, `api-error-v6.ci` |
+| A refused line from a v4 / v6 script | → | version-aware `WriteError` | `test/exabgp-compat/api/api-error-answer-v4.ci`, `api-error-answer-v6.ci` |
 | `daemon shutdown`, `session ack disable`, `rib flush out`, `peer create`, `peer delete` | → | v6 translations | `test/exabgp-compat/api/api-v6-vocabulary.ci` |
 | `group start` ... `group end`, `group a ; b` | → | script group buffer | `test/exabgp-compat/api/api-group.ci`, `api-group-inline.ci` |
 | Script exits | → | owner ledger + `on-exit` | `test/exabgp-compat/api/api-on-exit.ci` (ported), `api-on-exit-v4-keep.ci` |
 | `announce ipv4 rtc ...` | → | `bridgeSAFI` rtc → `mp ipv4/rtc add` → rtc `EncodeNLRIHex` | `test/exabgp-compat/api/api-rtc.ci` |
 | `announce ipv4 mpls-vpn ...` | → | `bridgeSAFI` mpls-vpn → `mp ipv4/mpls-vpn add` | `test/exabgp-compat/api/api-mpls-vpn.ci` |
 | `announce ipv4 sr-policy ... preference ... segment-list ...` | → | `parseRegistryNLRISection` → `parseConfigRoute` | `test/exabgp-compat/api/api-sr-policy.ci`, `test/plugin/update-text-sr-policy-attributes.ci` |
-| Refusal lines (item 5) | → | bridge refusals | `test/exabgp-compat/api/api-refusals-6.ci` |
+| Refusal lines (item 5) | → | bridge refusals | `test/exabgp-compat/api/api-refusals-v4.ci` |
 | 4.2 / 5.0 recorded commands | → | `Translator.Line` + update text + encoder | `TestOldCommands50`, `TestOldCommands42` |
 | 4.2 / 5.0 recorded events | → | v4 text / v4 JSON encoders | `TestOldResponses50`, `TestOldResponses42` |
 
@@ -357,6 +357,7 @@ CHANGELOG sentence of that producer.
 | AC-39 | an ExaBGP 4.2/5.0 config with an IPv4 route and an IPv6 next hop and no `nexthop` block | `ze exabgp migrate` adds the extended next hop entry and capability, with a warning naming the route |
 | AC-40 | `bridge_batch.go` `Net` comment | states that `announce X` then `withdraw X` dispatches the withdrawal alone, matching the page table |
 | AC-41 | `test/exabgp-compat/api/api-disable.conf` (neighbor `shutdown true`) and its script's `neighbor <ip> enable` / `disable "<msg>"` lines | `ze exabgp migrate` accepts `shutdown true` (today it refuses: "unknown field in neighbor: shutdown") and carries it to a peer that starts administratively down; the enable and disable lines bring the session up and send the Cease with the message; `api-disable.ci` green against ze |
+| AC-42 | a received UPDATE whose AS_PATH holds an AS_SET, on a peer with `session as-set accept` (what `ze exabgp migrate` writes for an ExaBGP neighbor's `as-set accept`), on a peer without it, and inside an ATTR_SET | kept with its set on the first; treated as withdrawn on the second (RFC 9774 Section 3); kept on every peer when the set is only inside an ATTR_SET (RFC 6368), as FRR and BIRD do. Moved receive half of the f9bfb853b AS_SET item; the send half is AC-11 of `spec-exabgp-bridge-refuses-untranslated.md` (moved, owner 2026-10-24) |
 
 ### AC status (2026-10-24)
 
@@ -377,19 +378,20 @@ Evidence is the phase state under Implementation Steps that names the AC, unless
 | AC-29 | met | Routes: Phase 6 (`TestFamilyNoSelectedPeerCarriesAnswersError` is no longer in the tree; `TestHandleUpdateText_FamilyNoSelectedPeerConfiguredIsRefused` pins the engine refusal). EOR, 2026-10-24: no carrying peer answers error, `TestAnnounceEORRefusesAFamilyNoPeerNegotiated` and the `announce eor ipv6 unicast` line of `api-refusals-v4` (green on ze and under `--dut exabgp` at f9bfb853b; red on ze with `eorNoPeerError` replaced by `return nil`); one carrying peer among several is sent the marker alone and answered done, `TestAnnounceEORSentOnlyToThePeerCarryingTheFamily` (red with the negotiated-family skip removed) |
 | AC-30 to AC-36 | met | Phase 6: fa2effd108 and its six unit tests; cases `api-refusals-v4`, `api-repeated-attributes-v4` |
 | AC-37 | met | Phase 7 watchdog state: `TestOldCommands50` 4250/4250, `TestOldCommands42` 2541/2541 |
-| AC-38 | met | `TestOldResponses50` 23392/23392, `TestOldResponses42` 20930/20930 (handover 17, "Agent extra members and flow announce"). At risk from the open `overlayWire` defect (Owned journal rows) on a live `parsed`-only script; the corpus test renders from bytes |
+| AC-38 | met | `TestOldResponses50` 23392/23392, `TestOldResponses42` 20930/20930 (handover 17, "Agent extra members and flow announce"). The `overlayWire` defect that put a live `parsed`-only script at risk is fixed: 6c8aeb3d75 asks for `full` events whenever a script reads UPDATEs (`TestParsedScriptIsWrittenTheWireASPath`, red under the old rule) |
 | AC-39 | met | Phase 7: e45aa726 (`migrate_extended_nexthop.go`) |
 | AC-40 | met | `bridge_batch.go` comment states it (lines 288 to 289 at 2026-10-24) |
 | AC-41 | met | Phase 7 exa11 state |
+| AC-42 | met | 5ac5c3fc0d (`session as-set accept`, `TestRFC9774ReceiveASSetAcceptedByOperator`, `TestValidateUpdateAcceptASSetKeepsSetsOnly`), 3c4106d89a (migration writes the leaf: `TestMigrateASSetAcceptKeepsTheSet`, red before as the refusal; `test/plugin/rfc9774-as-set-accept-migrated.ci`, red with the leaf forced off), f9a295a7cf (ATTR_SET-included set kept), interop `bgp-attr-set-included-as-set-frr-bird` (375613b8a4) and `bgp-as-set-accept-frr` (the leaf against a set FRR built; Goal Validation) |
 
-Not in an AC row but owed by Key Design Decisions (f9bfb853b alignment): the AS_SET item. Not built: the ze `as-set accept` receive leaf for migrated peers, the bridge-only send exemption, the RFC 9774 record changes. Until then the migration refuses `as-set accept` (Phase 8 state).
+The f9bfb853b AS_SET item (Key Design Decisions): the receive half is AC-42, met. The send half moved to AC-11 of `plan/release/fixes/spec-exabgp-bridge-refuses-untranslated.md` (owner, Thomas, 2026-10-24: "Move to bridge-refuses-untranslated"); Work Not Done.
 
 ## End-to-End User Stories
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
 | 1 | runs a 5.0 helper written with `announce route` and `encoder text` | script → v4 detection → translation → wire; events as v4 text | `api-version-detect-v4.ci`, the whole 5.0.13 population, `old-5.0` |
-| 2 | runs a 6.0 helper written with `peer *` | v6 detection → v6 JSON events, JSON error detail | `api-version-detect-v6.ci`, `api-error-v6.ci` |
+| 2 | runs a 6.0 helper written with `peer *` | v6 detection → v6 JSON events, JSON error detail | `api-version-detect-v6.ci`, `api-error-answer-v6.ci` |
 | 3 | a DDoS detector crashes | exit → ledger → withdrawals on the wire | `api-on-exit.ci` |
 | 4 | announces RTC / VPN / SR Policy from a helper | bridge family → update text → registry encoder → MP_REACH | `api-rtc.ci`, `api-mpls-vpn.ci`, `api-sr-policy.ci`, interop scenarios |
 | 5 | an operator's maintainer bumps the ExaBGP pin | stage runs both pins | `TestExaBGPMainPinCommands` |
@@ -416,10 +418,11 @@ Not in an AC row but owed by Key Design Decisions (f9bfb853b alignment): the AS_
 | `TestExitWithdrawsOwnedRoutes` | `internal/plugins/exabgp/bridgerun/owner_test.go` | X-21, X-22 | |
 | `TestExitWithdrawRestoresConfiguredRoute`, `TestExitWithdrawRestoresConfiguredVPNAndLabeledRoutes`, `TestRestoreConfiguredWithoutConfigWithdrawsEverything` | `internal/component/bgp/reactor/peer_static_restore_test.go` | A-8 | |
 | `TestRestoreConfiguredBeforeSectionMarksEveryGroup`, `TestRestoreConfiguredAfterSectionRefused` | `internal/component/bgp/plugins/cmd/update/update_text_restore_configured_test.go` | A-8 | |
-| `TestBridgeFamilyRTC`, `TestBridgeFamilyMPLSVPN` | `internal/exabgp/bridge/bridge_test.go` | `bridgeSAFI` rows, translated text | |
+| `TestTranslateRTC`, `TestTranslateMPLSVPNFamily` | `internal/exabgp/bridge/bridge_family_rtc_vpn_test.go` | `bridgeSAFI` rows, translated text | |
 | `TestRTCEncodeNLRIHex` | `internal/component/bgp/plugins/nlri/rtc/encode_test.go` | RFC 4684 Section 4 encoding and lengths | |
 | `TestAPISRPolicyAttributesReachParseConfigRoute` | `internal/component/bgp/plugins/cmd/update/update_text_exabgp_test.go` | A-7, byte equality with config | |
-| `TestFamilyNoSelectedPeerCarriesAnswersError` | `internal/exabgp/bridge/bridge_integration_test.go` | X-23, A-4 | |
+| `TestHandleUpdateText_FamilyNoSelectedPeerConfiguredIsRefused` | `internal/component/bgp/plugins/cmd/update/update_text_test.go` | X-23, A-4: the engine refusal for routes | |
+| `TestAnnounceEORRefusesAFamilyNoPeerNegotiated`, `TestAnnounceEORSentOnlyToThePeerCarryingTheFamily` | `internal/component/bgp/reactor/reactor_api_eor_test.go` | X-23 for EOR | |
 | `TestSelectorMatchingNoPeerRefused` | `bridge_batch_test.go` | X-24 (replaces the `Unmatched` → done expectation) | |
 | `TestRepeatedAttributeKeepsFirstAndWarns`, `TestSplitShorterThanPrefixSendsPrefix`, `TestPathInformationWithoutValueRefused`, `TestPrefixMaskNotNumberRefused`, `TestOperationalRefusedByKind` | `internal/exabgp/bridge/bridge_attribute_test.go` | X-26 to X-30 | |
 | `TestOldCommands50`, `TestOldCommands42` | `internal/exabgp/bridge/old_commands_test.go` | X-35 commands | |
@@ -439,10 +442,10 @@ Not in an AC row but owed by Key Design Decisions (f9bfb853b alignment): the AS_
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | `api-version-detect-v4`, `api-version-detect-v6`, `api-version-command`, `api-version-env` | `test/exabgp-compat/api/` | item 1 | |
-| `api-error-v4`, `api-error-v6` | same | item 2 | |
+| `api-error-answer-v4`, `api-error-answer-v6` | same | item 2 | |
 | `api-v6-vocabulary`, `api-group`, `api-group-inline`, `api-on-exit`, `api-on-exit-v4-keep`, `api-disable` | same | item 3 | |
 | `api-rtc`, `api-mpls-vpn`, `api-sr-policy` | same | item 4 | |
-| `api-refusals-6` | same | item 5 | |
+| `api-refusals-v4`, `api-repeated-attributes-v4` | same | item 5 | |
 | `old-4.2/*`, `old-5.0/*` | `test/exabgp-compat/old-4.2/`, `old-5.0/` | BC | |
 | `update-text-sr-policy-attributes` | `test/plugin/` | SR Policy attributes through ze's own API | |
 
@@ -456,6 +459,8 @@ closure section.
 | `bgp-exabgp-bridge-rtc-gobgp` | `test/interop/scenarios/` | GoBGP | an RTC route a helper announces is installed by GoBGP with its origin AS and route target, and the default RT | |
 | `bgp-exabgp-bridge-vpnv4-frr` | `test/interop/scenarios/` | FRR | `announce ipv4 mpls-vpn` reaches FRR's VPN table with RD and label | |
 | `bgp-exabgp-bridge-sr-policy-gobgp` | `test/interop/scenarios/` | GoBGP | an SR Policy with preference and segment lists from a helper is accepted by GoBGP (extends the shape of `bgp-sr-policy-gobgp`) | |
+| `bgp-attr-set-included-as-set-frr-bird` | `test/interop/scenarios/` | FRR, BIRD | an AS_SET only inside an ATTR_SET is kept by Ze and relayed to both (AC-42) | |
+| `bgp-as-set-accept-frr` | `test/interop/scenarios/` | FRR | a set FRR built is kept on a peer with `session as-set accept` and treated as withdrawn on its twin without it (AC-42) | |
 
 ## Files to Modify
 - `internal/le/test/functional/exabgp.go` - second pin, cleared `PYTHONPATH`, `--python`, populations `old-4.2`/`old-5.0`, proof mode
@@ -567,6 +572,7 @@ Each phase is one commit, TDD (red pasted, then green), its page edits in the sa
 8. **Phase 8: Docs consolidation check** - every page named above re-read against the code; `docs/exabgp/exabgp-differences.md` lists only differences that remain
    - Phase 8 state (2026-10-22): 344a793863, c4cced74be, 1be330a222 (pages corrected; details in handover 17, "Phase 8 docs consolidation" and "FlowSpec row and MUP relay").
    - Phase 8 state (2026-10-24, Mac): (1) Migration of ExaBGP 6.0's two receive-policy neighbor leaves (f9bfb853b `configuration/grammar/tree/neighbor.py`: `choice('as-set', ['withdraw', 'accept'])`, `choice('tunnel-encapsulation', ['auto', 'filter', 'accept'])`; neither leaf exists at tags 4.2.25 or 5.0.1): `migrate_receive_policy.go` `checkReceivePolicy`, leaves added to `exabgp.yang` and to the template merge. `as-set withdraw`, `tunnel-encapsulation accept` and `auto` migrate writing nothing (ze already treat-as-withdraws every AS_SET, RFC 9774 Section 3, and keeps attribute 23 on every session); `as-set accept` and `tunnel-encapsulation filter` are refused naming the leaf, because ze has no equivalent: the owner-decided `as-set accept` receive leaf for migrated peers (Key Design Decisions, f9bfb853b row; handover 17 "Agent f9bfb853b AS_SET") is not built, and ze has no per-peer attribute 23 filter (`rfc/short/rfc9012.md` RFC9012-11-2, -11-5 gaps). `TestMigrateReceivePolicySameAsZe`, `TestMigrateReceivePolicyRefusedWithoutZeEquivalent`, `TestMigrateReceivePolicyFromTemplate`: red before (unknown field), green after, refusal cases red with `checkReceivePolicy` overlaid to return nil. Page: `exabgp-migration.md`, "ExaBGP 6.0 receive policy". (2) `./le site build` regenerated `../gh-pages` (not committed or pushed there); `./le doc check verify` PASSED. (3) Pages re-read for 51c44d4094 (auto-flush), 6c8fa1103b/4c84130baa (multi-word run), 9242dcd57b/a59427f8c0/5d4afb0c4e (3/9), 1dbfd1d7b7 (family order), 481c411f38 (full format only when granted), a01bc8716e (Prefix-SID repeat), dcc0ab9dc5 (selectors), c5edaea8f3/4ce0f460a5 (forked gr/rr/rs), 4f3442ac27 (clear bgp rib advertised): the commits carried their page edits except as listed here. 481c411f38 is a code defect, not a page one: `overlayWire` needs `raw.update` for every UPDATE a script reads, so a `parsed` subscription loses the AS_PATH segments, community values and `attribute-0xCC-0xFF` that `exabgp-differences.md` "Three UPDATE members come from the wire bytes" promises (journal `guard-keyed-on-a-field-its-consumer-ignores.md`, 2026-10-24, owned here). Pages still owed, each holding another session's uncommitted hunks: `exabgp-bridge.md` (the `full` paragraph follows the fix above; family-order hunk already in the working tree), `api/json-format.md` ("The ExaBGP bridge subscribes `full`", same; family-order hunk in the working tree), `wire/nlri.md` (nothing found owed by these commits), `api/commands.md` ("Peer Selectors" does not say teardown, notify, disable, enable, pause, resume, clear soft and delete bgp peer take one peer, as the YANG leaf now does since dcc0ab9dc5).
+   - Phase 8 state (2026-10-24, later; corrects the entry above): `as-set accept` is no longer refused. 5ac5c3fc0d builds the receive leaf `session as-set accept`, 3c4106d89a makes `ze exabgp migrate` write it for an ExaBGP neighbor's `as-set accept` (`TestMigrateASSetAcceptKeepsTheSet`, `test/plugin/rfc9774-as-set-accept-migrated.ci`), and 9c3697d0d1, 5155557163 carry the review fixes (one registered validator per attribute; the `.ci` asserts the kept segment bytes). `tunnel-encapsulation filter` is still refused, with `why:` and `fix:` lines (no per-peer attribute 23 filter in ze). The 481c411f38 defect is fixed by 6c8aeb3d75 (the bridge asks for `full` events whenever a script reads UPDATEs; `TestParsedScriptIsWrittenTheWireASPath`), which also carried the `exabgp-bridge.md` and `api/json-format.md` paragraphs. The `api/commands.md` "Peer Selectors" paragraph is written in the review round 1 commit (single-peer verbs, anchored on `ResolveSinglePeer` and the `ze-peer-cmd.yang` selector). `wire/nlri.md` owes nothing. Interop `bgp-as-set-accept-frr` added for AC-42: green, and red at the ze RIB wait with the accept path forced off (Goal Validation).
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -626,6 +632,7 @@ Each phase is one commit, TDD (red pasted, then green), its page edits in the sa
 | `encoder` YANG default becomes text | keep json | ExaBGP's default is text (`configuration.get('encoder', 'text')`); the order names it |
 | The API keeps 5.0's leniency (keep first and warn for an attribute that is not a list; a community list given twice is merged and a repeated label, rd or path-information replaces the first, as 6.0 does; short split sends whole) | refuse like a config | ExaBGP's own choice for the API (X-27, owner Thomas in 0f4da74a7) |
 | Follow ExaBGP at f9bfb853b, which replaces the 685f772e pin (owner decision, 2026-10-22: "make sure we match exabgp", after the ExaBGP side's f9bfb853b behaviour list), item by item: the negotiated block gated on the `negotiated` grant for every API version; an API route with a watchdog owned by that watchdog (held under `withdraw`, removed when its helper exits); the next-hop family rules; UTF-8 helper output with U+FFFD; a -02 MUP Type 1 ST route without Source Address Length read as length 0; AS_SET sent when the operator writes one in a route (RFC 9774 Section 3 operator exemption) and received AS_SET treat-as-withdraw unless the neighbor has `as-set accept` | keep ze's stricter readings (MUP -02, AS_SET) | Where ze was stricter than ExaBGP on purpose, ExaBGP's behaviour wins. The AS_SET item's state is in `plan/handover/04-rfc9774-as-set-deprecation.md` |
+| The f9bfb853b AS_SET item is split: the receive half (`session as-set accept`, its migration, the ATTR_SET-included set) is AC-42 here; the send half (a route the operator writes with an AS_SET is sent, RFC 9774 Section 3 operator exemption) moves to AC-11 of `plan/release/fixes/spec-exabgp-bridge-refuses-untranslated.md` (owner, Thomas, 2026-10-24: "Move to bridge-refuses-untranslated") | build the send half here before closing | the send half is a bridge translation the untranslated-refusal spec already owns: today the bridge refuses the line, and that spec decides every refused form, so one spec answers for it. The receive half is complete and proven here, so this spec closes on what it built |
 
 ## Open Owner Decisions
 
@@ -642,8 +649,8 @@ Each phase is one commit, TDD (red pasted, then green), its page edits in the sa
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
 | `multi-valued-leaf-read-as-single-valued.md` | 2026-10-23 | `ze exabgp migrate` refused a multi-word ExaBGP `run` line (fixed) |
-| `output-lost-to-an-exit-past-the-flush.md` | 2026-10-23 | `exabgp-bridge-shutdown-external`: script's shutdown line not observed before the external runner stops (open) |
-| `guard-keyed-on-a-field-its-consumer-ignores.md` | 2026-10-24 | the bridge subscribes `parsed` unless packets are granted, so `overlayWire` loses AS_PATH segments, community values and unknown-attribute flags (open) |
+| `output-lost-to-an-exit-past-the-flush.md` | 2026-10-23 | `exabgp-bridge-shutdown-external`: script's shutdown line not observed before the external runner stops (fixed: the test carries `option=needs-linux`, 10/10 in the arm64 QEMU guest; journal row 20) |
+| `guard-keyed-on-a-field-its-consumer-ignores.md` | 2026-10-24 | the bridge subscribes `parsed` unless packets are granted, so `overlayWire` loses AS_PATH segments, community values and unknown-attribute flags (fixed: 6c8aeb3d75; journal row 16) |
 
 ## RFC Documentation (Scope: protocol)
 
@@ -668,7 +675,7 @@ refusal names RFC 7911 Section 3.
 - [ ] Integration Checklist marks "CLI grammar" when a command is added, "Doctor check" when a runtime dependency is
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-40 all demonstrated
+- [ ] AC-1..AC-42 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
 - [ ] `./le verify worktree` passes
@@ -693,3 +700,156 @@ refusal names RFC 7911 Section 3.
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/release/fixes/spec-exabgp-6-api-compatibility.md` only, in the same `./le commit create` script
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+- Phase 1: the ExaBGP stage runs two pins, 5.0.15 and ExaBGP main f9bfb853b, with `PYTHONPATH` cleared and the Python named; proof mode runs a case against the pinned ExaBGP daemon (`--dut exabgp`).
+- Phase 2: API version per helper (auto, 4, 6), the `api version` command, `exabgp.api.version`, v4 and v6 encoders (`bridge_version.go`, `bridge_encoder.go`, `bridge_event.go`).
+- Phase 3: the versioned error answer (`bridge_ack.go`).
+- Phase 4: the v6 vocabulary, `group start/end` and inline groups (`bridge_group.go`), `on-exit` and the owner ledger (`bridge_owner.go`), configured routes restored after an exit withdrawal.
+- Phase 5: `announce ipv4 rtc`, `announce ipv4 mpls-vpn`, SR Policy attributes through the registered config-route parser.
+- Phase 6: ExaBGP's refusals and keep-first rules.
+- Phase 7: the 4.2 and 5.0 command and response corpora (`old_commands_test.go`, `old_responses_test.go`, vendored under `internal/exabgp/bridge/testdata/exabgp-old/`), extended next hop migration, `shutdown true` migration.
+- Phase 8: follow f9bfb853b item by item; the AS_SET receive half (AC-42: `session as-set accept`, its migration, the ATTR_SET-included set kept).
+
+### Bugs Found/Fixed
+- A-4 wrong: the engine answered `warning` for a family no selected peer carries, which the wire turned into `done`; the bridge now reads the answer document (`api-refusals-v4`).
+- A-8 broken: an API withdrawal removed a configured route; fixed by `restore-configured` (`TestExitWithdrawRestoresConfiguredRoute`).
+- 481c411f38 subscribed `parsed` while `overlayWire` reads the wire bytes; fixed by 6c8aeb3d75 (`TestParsedScriptIsWrittenTheWireASPath`).
+- `exabgp-bridge-shutdown-external.ci` asserted Linux exit grace on darwin; now `option=needs-linux` (journal `output-lost-to-an-exit-past-the-flush.md` row 20).
+
+### Documentation Updates
+- `docs/architecture/exabgp-bridge.md`, `docs/exabgp/exabgp-differences.md`, `docs/exabgp/exabgp-migration.md`, `docs/architecture/api/json-format.md`, `docs/architecture/api/commands.md` (Peer Selectors, review round 1), `docs/architecture/wire/attributes.md`, `rfc/short/rfc9774.md`, `docs/architecture/testing/interop.md` (`bgp-as-set-accept-frr`).
+- `./le doc check verify`: PASSED at Phase 8 (2026-10-24); rerun for the review round 1 commits is recorded in the commit body.
+
+### Deviations from Plan
+- The main pin is a git commit installed by uv, not the nightly zipapp (A-1).
+- The group buffer and owner ledger live in `internal/exabgp/bridge/` (`bridge_group.go`, `bridge_owner.go`), shared by every runner, not in `bridgerun/group.go`, `owner.go`.
+- The vendored corpora are under `internal/exabgp/bridge/testdata/exabgp-old/`, not `testdata/old/`.
+- The AS_SET send half moved to `spec-exabgp-bridge-refuses-untranslated.md` AC-11 (owner, 2026-10-24).
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-1: the nightly zipapp would give a stable pin | its asset and tag move each night main changes | `gh release view nightly` | pin a git commit through uv |
+| assumption | A-4: the engine returns an error when no selected peer carries the family | it answered `warning`, read as `done` | `api-refusals-v4` red on ze | the bridge reads the answer document |
+| assumption | A-8: script and configured routes are distinct entries | an API withdrawal removed the configured route | `api-on-exit-configured` red on ze, green on the pin | `restore-configured` |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Item 6: second pin, cleared `PYTHONPATH`, `qa/api` and `qa/old` ported | Done | `internal/le/test/functional/exabgp.go` | AC-1 to AC-4 |
+| Item 1: API version per helper | Done | `internal/exabgp/bridge/bridge_version.go` | AC-5 to AC-10 |
+| Item 2: the error answer | Done | `internal/exabgp/bridge/bridge_ack.go` | AC-14 to AC-16 |
+| Item 3: v6 vocabulary, groups, `on-exit` | Done | `bridge_command.go`, `bridge_group.go`, `bridge_owner.go` | AC-17 to AC-25 |
+| Item 4: RTC, MPLS VPN, SR Policy attributes | Done | `bridge_family.go`, `nlri/rtc/encode.go`, `update_text_nlri.go` | AC-26 to AC-28 |
+| Item 5: refusals and keep-first | Done | `bridge_attribute.go`, `bridge_route_forms.go`, `bridge_flow.go` | AC-29 to AC-36 |
+| BC: 4.2 and 5.0 corpora | Done | `old_commands_test.go`, `old_responses_test.go` | AC-37, AC-38 |
+| J: journaled bridge defects | Done | `exabgp.go`, `bridge_batch.go` | AC-1, AC-40 |
+| f9bfb853b follow-up, AS_SET receive half | Done | `reactor/session_validation_receive.go`, `migration/migrate_receive_policy.go` | AC-42 |
+| f9bfb853b follow-up, AS_SET send half | Changed | moved | `spec-exabgp-bridge-refuses-untranslated.md` AC-11, owner 2026-10-24 |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 to AC-42 | Done | the AC status table above, one row per AC or range, each naming its commit and test | AC-42 adds interop `bgp-as-set-accept-frr` |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Unit Tests table | Done | the files named in its rows | names corrected in review round 1 (I9) |
+| Functional Tests table | Done | `test/exabgp-compat/api/`, `old-4.2/`, `old-5.0/`, `test/plugin/` | exabgp-test green on both pins |
+| Interop Tests table | Done | `test/interop/scenarios/` | five scenarios, Goal Validation |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Files to Modify | Done | each named file carries its phase's change |
+| `bridgerun/group.go`, `owner.go` | Changed | `internal/exabgp/bridge/bridge_group.go`, `bridge_owner.go` |
+| `testdata/old/` | Changed | `testdata/exabgp-old/` |
+| Other Files to Create | Done | Pre-Commit Verification, Files Exist |
+
+### Audit Summary
+- **Total items:** 10 task requirements, 42 ACs
+- **Done:** 9 requirements, 42 ACs
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 requirement (AS_SET send half, moved by the owner), 2 file locations (Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| The bridge answers every helper the way ExaBGP main answers it, proven against ExaBGP main | functional, both pins | `./le test functional exabgp-test` at 375613b8a4: "pin 5.0.15 ran ExaBGP 5.0.15", "pin main ran ExaBGP 6.0.0-20261023+uncontrolled", "10 children passed", exit 0 (`tmp/session/2026-10-23-ae4c40fd-e741-4fa0-80b1-99402ba524e3/scratch/exa-final.log`); each added case run `--dut exabgp` (AC-2) |
+| 4.2 and 5.0 helpers keep working (the corpora ExaBGP checks itself against) | functional and corpus | `TestOldCommands50` 4250/4250, `TestOldCommands42` 2541/2541, `TestOldResponses50` 23392/23392, `TestOldResponses42` 20930/20930; `old-4.2` and `old-5.0` populations in the same exabgp-test run |
+| RTC and MPLS VPN routes a helper announces reach another implementation | interop | `bgp-exabgp-bridge-rtc-gobgp` (GoBGP holds `65001:65001:100`), `bgp-exabgp-bridge-vpnv4-frr` (FRR holds RD 65001:100, label 100), each red at assertion 2 with its `bridgeSAFI` row overlaid away (7cec4fa82c) |
+| SR Policy with attributes from a helper reaches another implementation | interop and functional | `bgp-exabgp-bridge-sr-policy-gobgp` (65651c27e0, 440ee43f73), `test/plugin/update-text-sr-policy-attributes.ci` (9dea34f1b9) |
+| AS_SET receive half: a set kept on an operator-configured peer, withdrawn elsewhere, kept inside ATTR_SET | interop and functional | `bgp-as-set-accept-frr`: green (1 passed), red with the accept path forced off at `session_validation_receive.go` and the image rebuilt, failing at assertion 5, the ze RIB wait, both controls present and 10.98.0.0/16 absent; `bgp-attr-set-included-as-set-frr-bird` (375613b8a4); `test/plugin/rfc9774-as-set-accept-migrated.ci` asserts the kept segment bytes (5155557163) |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| The f9bfb853b AS_SET send half: a route the operator writes with an AS_SET is sent (RFC 9774 Section 3 operator exemption) | moved, owner 2026-10-24: "Move to bridge-refuses-untranslated"; it is a bridge translation that spec owns, and it needs the Go-only grant in `registry.Registration` | `plan/release/fixes/spec-exabgp-bridge-refuses-untranslated.md` (AC-11) |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | not yet recorded: round 2 is owed over the round 1 fixes |
+| `./le spec review check` | not run |
+| Rounds | 1 so far |
+| Reviewer lenses used | spec against code, docs, journal ownership, interop proof |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| B1 | BLOCKER | The agreed AS_SET send half was neither built nor homed | this spec, `spec-exabgp-bridge-refuses-untranslated.md` | moved to that spec as AC-11 with its plan (owner, 2026-10-24); journal `parser-refuses-a-form-its-producer-emits.md` row 21 plan corrected; Key Design Decisions row and Work Not Done here |
+| B2 | BLOCKER | Closure sections missing, A-7, A-9, A-10 unconfirmed, Goal Gate text stale | this spec | closure sections appended; A-7, A-9, A-10 confirmed; Goal Gates read AC-1..AC-42 |
+| I3 | ISSUE | `exabgp-differences.md` said Ze has no AS_SET override | `docs/exabgp/exabgp-differences.md` | rewritten: receive half met, send half remaining and owned |
+| I4 | ISSUE | Stale spec lines: migration refusing `as-set accept`, AC-38 at risk, two owned journal rows open | this spec | AS_SET note rewritten; Phase 8 corrected entry; AC-38 row cites 6c8aeb3d75; both owned rows marked fixed |
+| I5 | ISSUE | No AC for the AS_SET receive half | this spec | AC-42 added with its commits and tests |
+| I6 | ISSUE | No interop for `session as-set accept` | `test/interop/scenarios/bgp-as-set-accept-frr/`, `internal/le/interoplab/bgp/` | new scenario, green and red-proven (Goal Validation) |
+| I7 | ISSUE | Journal SR Policy row still open | `plan/journal/parser-refuses-a-form-its-producer-emits.md` | marked fixed (af18a709d8, 9dea34f1b9) |
+| I8 | ISSUE | `commands.md` Peer Selectors silent on single-peer verbs | `docs/architecture/api/commands.md` | paragraph added, anchored on `ResolveSinglePeer` and the `ze-peer-cmd.yang` selector |
+| I9 | ISSUE | Drifted test names in TDD, Wiring and Functional tables | this spec | `TestTranslateRTC`, `TestTranslateMPLSVPNFamily`, `api-error-answer-v4`/`-v6`, `api-refusals-v4`, `api-repeated-attributes-v4`; the removed test replaced by its successors |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/exabgp/bridge/bridge_version.go`, `bridge_group.go`, `bridge_owner.go`, `old_commands_test.go`, `old_responses_test.go` | yes | `ls` 2026-10-24 |
+| `internal/component/bgp/plugins/nlri/rtc/encode.go` | yes | `ls` 2026-10-24 |
+| `internal/exabgp/bridge/testdata/exabgp-old/`, `test/exabgp-compat/old-4.2/`, `old-5.0/` | yes | `ls -d` 2026-10-24 |
+| the thirteen Functional Tests `.ci` cases under `test/exabgp-compat/api/`, plus `api-error-answer-v4`, `-v6`, `api-refusals-v4`, `api-repeated-attributes-v4` | yes | `ls` 2026-10-24 |
+| `test/plugin/update-text-sr-policy-attributes.ci`, `test/plugin/rfc9774-as-set-accept-migrated.ci` | yes | `ls` 2026-10-24 |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 to AC-41 | each met as the AC status table records; the functional cases among them run in the exabgp-test stage | `exa-final.log` at 375613b8a4: both pins, 10 children passed, exit 0; the Go tests each AC row names are not rerun in this round |
+| AC-42 | the accept leaf keeps a set FRR built | `bgp-as-set-accept-frr` green 2026-10-24 (`asacc-iop-green.log`), red at assertion 5 with the accept path forced off (`asacc-iop-red.log`) |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| refused line from a v4 / v6 script | `api-error-answer-v4.ci`, `api-error-answer-v6.ci` | names corrected in Wiring Test; files present |
+| refusal lines (item 5) | `api-refusals-v4.ci` | present; A-4 red proof |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 to A-10 | each confirmed, validated, broken with its fix, or wrong with its fix | Assumptions table, Status column; none `unvalidated` |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `commands.md` single-peer verbs | `ResolveSinglePeer`, `ze-peer-cmd.yang` selector leaf | yes, review round 1 |
+| `interop.md` `bgp-as-set-accept-frr` sentence | `internal/le/interoplab/bgp/checkers.go` scenario entry | yes |
