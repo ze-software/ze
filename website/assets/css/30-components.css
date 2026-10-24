@@ -744,6 +744,7 @@
     .terminal-demo__eyebrow {
         display: block;
         margin-bottom: var(--space-2);
+        background: var(--panel);
         color: var(--acc-deep);
         font-size: var(--type-kicker);
         font-weight: 900;
@@ -926,6 +927,7 @@
 
     .terminal-demo__transcript summary {
         padding: var(--space-3) var(--space-5);
+        background: var(--panel);
         color: var(--acc-deep);
         font-size: var(--type-small);
         font-weight: 850;

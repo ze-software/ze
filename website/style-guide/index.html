@@ -99,6 +99,14 @@
                         <p>keep the color for the time being.<br />
 can you change "Deploy and Configure" to "Setup"</p>
                     </blockquote>
+                    <p>Thomas requested neutral gray for Observe on 24 October 2026:</p>
+                    <blockquote>
+                        <p>Still not nice for Observe, a Grey would be better</p>
+                    </blockquote>
+                    <p>Thomas approved the resulting palette on 24 October 2026:</p>
+                    <blockquote>
+                        <p>good change</p>
+                    </blockquote>
                     <ol>
                         <li>
                             <h3>Preserve useful information</h3>
@@ -277,21 +285,45 @@ can you change "Deploy and Configure" to "Setup"</p>
                     </p>
                     <p>
                         The category identities are fixed: Operate is blue,
-                        Routing indigo, Services rust, Automate plum,
-                        Observe moss, Secure rose and Setup teal.
+                        Routing indigo, Services violet, Automate magenta,
+                        Observe gray, Secure pink and Setup teal.
                         Broad project updates and cross-topic evidence are neutral. Keep these identities
                         in explicit and automatic dark mode. Status colors
                         remain independent of this subject palette.
                     </p>
                     <p>
-                        Plum separates Automate from Routing's indigo; yellow-green
-                        moss separates Observe from Setup's teal.
-                        Rust and rose give Services and Secure distinct warm hues.
-                        Keep accent saturation restrained and text shades similar
-                        in visual weight. Selected controls use subtle fills from
-                        the same family. Review the complete palette together in
-                        light and dark themes before changing a category color.
+                        Services uses violet and Automate uses magenta. Observe
+                        uses neutral gray so it stays distinct from Setup's teal.
+                        Keep the approved text colors on neutral panel surfaces;
+                        selected controls use subtle fills from the same family.
+                        Review the complete palette together in light and dark
+                        themes before changing a category color.
                     </p>
+                    <p>
+                        Small category labels use <code>--panel</code>, including
+                        hover and focus states. The approved gray and pink do not
+                        reach 4.5:1 on the light <code>--bg-soft</code> surface.
+                        Use a panel backing instead of darkening the approved
+                        text. Check each selected-control fill against its text;
+                        the light gray and pink fills stay close to white.
+                        Plugin totals and status labels keep their independent
+                        neutral and status roles.
+                    </p>
+                </div>
+                <div class="md-content">
+                    <table data-column-controls="off">
+                        <caption>Approved category text colors, 24 October 2026</caption>
+                        <thead><tr><th scope="col">Category</th><th scope="col">Light</th><th scope="col">Dark</th></tr></thead>
+                        <tbody>
+                            <tr><th scope="row">Operate</th><td><code>#0069b4</code></td><td><code>#66bfff</code></td></tr>
+                            <tr><th scope="row">Routing</th><td><code>#4f46e5</code></td><td><code>#a5b4fc</code></td></tr>
+                            <tr><th scope="row">Services</th><td><code>#9333ea</code></td><td><code>#d8b4fe</code></td></tr>
+                            <tr><th scope="row">Automate</th><td><code>#b322a0</code></td><td><code>#f5a1e6</code></td></tr>
+                            <tr><th scope="row">Observe</th><td><code>#737373</code></td><td><code>#c4c4c4</code></td></tr>
+                            <tr><th scope="row">Secure</th><td><code>#db2777</code></td><td><code>#f9a8d4</code></td></tr>
+                            <tr><th scope="row">Setup</th><td><code>#0f766e</code></td><td><code>#5eead4</code></td></tr>
+                        </tbody>
+                    </table>
                 </div>
                 <nav class="legend" aria-label="Subject palette">
                     <a class="cat-operate" href="#sg-palette-operate">Operate</a>
@@ -318,25 +350,25 @@ can you change "Deploy and Configure" to "Setup"</p>
                     </article>
                     <article class="card cat-services" id="sg-palette-services">
                         <span class="cat">Services</span>
-                        <h3>Rust</h3>
+                        <h3>Violet</h3>
                         <div class="chips"><span class="chip">--gold-*</span></div>
                         <p>Network services and dataplane: IPsec, BNG, firewall, interfaces, VPP, DNS.</p>
                     </article>
                     <article class="card cat-automate" id="sg-palette-automate">
                         <span class="cat">Automate</span>
-                        <h3>Plum</h3>
+                        <h3>Magenta</h3>
                         <div class="chips"><span class="chip">--grape-*</span></div>
                         <p>Programmability: plugins, APIs, MCP, ExaBGP migration, fleet management.</p>
                     </article>
                     <article class="card cat-observe" id="sg-palette-observe">
                         <span class="cat">Observe</span>
-                        <h3>Moss</h3>
+                        <h3>Gray</h3>
                         <div class="chips"><span class="chip">--mint-*</span></div>
                         <p>Visibility: telemetry, health and diagnostics.</p>
                     </article>
                     <article class="card cat-secure" id="sg-palette-secure">
                         <span class="cat">Secure</span>
-                        <h3>Rose</h3>
+                        <h3>Pink</h3>
                         <div class="chips"><span class="chip">--pink-*</span></div>
                         <p>Security: SSH authentication, access control, TACACS+, audit trail and PKI store.</p>
                     </article>
@@ -392,8 +424,8 @@ can you change "Deploy and Configure" to "Setup"</p>
                         Hover borders use <code>--line-strong</code>.
                         Keep shadows neutral and restrained. Do not add colored
                         top bars, edge stripes, tinted washes, rings or glows.</li>
-                    <li>Category labels use neutral <code>--panel</code> or
-                        <code>--bg-soft</code> backgrounds. Keep technology and
+                    <li>Category labels use neutral <code>--panel</code>
+                        backgrounds. Keep technology and
                         mode chips neutral; reserve stronger control color for
                         selected filters and visible keyboard focus.</li>
                     <li>Keep status independent. Success, warning and failure

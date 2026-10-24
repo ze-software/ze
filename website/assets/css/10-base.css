@@ -1186,12 +1186,7 @@ a.hl:hover {
 }
 
 .button.primary:hover {
-    background: linear-gradient(
-        105deg,
-        var(--grape-deep),
-        var(--pink-deep) 55%,
-        var(--tangerine-deep)
-    );
+    background: var(--hero-cta-gradient);
     box-shadow: var(--clay), 0 0.6rem 1.4rem -0.4rem var(--grape-glow);
 }
 
@@ -1840,7 +1835,7 @@ section[aria-labelledby="blog-teaser-title"] {
     padding: 0.14rem 0.5rem;
     border: 1px solid var(--line);
     border-radius: 999px;
-    background: var(--bg-soft);
+    background: var(--panel);
     color: var(--acc-deep, var(--muted));
     font-size: 0.68rem;
     font-weight: 700;
@@ -1924,7 +1919,7 @@ section[aria-labelledby="blog-teaser-title"] {
     padding: 0.3rem 0.65rem;
     border-radius: 0.6rem;
     border: 1px solid var(--line);
-    background: var(--bg-soft);
+    background: var(--panel);
     color: var(--acc-deep);
     font-family: Poppins, ui-sans-serif, system-ui, sans-serif;
     font-size: 0.66rem;
@@ -2070,7 +2065,7 @@ section[aria-labelledby="blog-teaser-title"] {
 
 .card-label {
     color: var(--acc-deep);
-    background: var(--bg-soft);
+    background: var(--panel);
     display: inline-flex;
     width: fit-content;
     margin-bottom: 0.6rem;
@@ -2179,7 +2174,7 @@ section[aria-labelledby="blog-teaser-title"] {
     min-width: 1.35rem;
     padding: 0.08rem 0.32rem;
     border-radius: var(--radius-pill);
-    background: var(--glass-surface);
+    background: var(--panel);
     color: var(--acc-deep);
     font-size: var(--type-micro);
     line-height: 1.2;
@@ -2566,7 +2561,7 @@ footer {
 }
 
 .footer-bottom a:hover {
-    color: var(--pink-deep);
+    color: var(--blue);
 }
 
 @media (max-width: 960px) {
@@ -3938,7 +3933,7 @@ footer {
     margin-bottom: 0.7rem;
     padding: 0.28rem 0.55rem;
     border-radius: 999px;
-    background: var(--bg-soft);
+    background: var(--panel);
     color: var(--acc-deep, var(--neutral-deep));
     font-family: Poppins, ui-sans-serif, system-ui, sans-serif;
     font-size: 0.68rem;
@@ -3977,7 +3972,7 @@ footer {
     padding: 1rem;
     border: 1px solid var(--glass-border);
     border-radius: 0.85rem;
-    background: var(--glass-surface);
+    background: var(--panel);
 }
 
 .contribute-contract aside strong {
@@ -4111,7 +4106,7 @@ footer {
     height: 2.75rem;
     border: 1px solid var(--line);
     border-radius: var(--radius-pill);
-    background: var(--bg-soft);
+    background: var(--panel);
     color: var(--acc-deep);
     font-family:
         ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
@@ -4176,7 +4171,8 @@ footer {
 .faq-card summary:hover,
 .faq-card summary:focus-visible {
     color: var(--acc-deep);
-    background: var(--bg-soft);
+    background: var(--panel);
+    text-decoration: underline;
 }
 
 .faq-card summary::-webkit-details-marker {
@@ -5084,8 +5080,8 @@ footer {
 }
 
 .cli-mode-read-only {
-    background: var(--mint-tint);
-    color: var(--mint-deep);
+    background: var(--panel);
+    color: var(--green);
 }
 
 .cli-mode-offline {
@@ -5919,7 +5915,7 @@ body.search-open {
 }
 
 .plugin-group-head span {
-    color: var(--acc-deep);
+    color: var(--muted);
     font-family: Poppins, ui-sans-serif, system-ui, sans-serif;
     font-size: 0.78rem;
     font-weight: 800;
