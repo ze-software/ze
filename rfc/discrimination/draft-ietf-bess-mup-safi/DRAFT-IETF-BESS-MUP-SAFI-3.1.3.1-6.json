@@ -68,7 +68,7 @@
   {
     "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-6",
     "polarity": "positive",
-    "unit": "internal/component/bgp/reactor/t1st_02_relay_test.go::TestMUPT1ST02TreatAsWithdraw",
+    "unit": "internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_02_relay_test.go::TestMUPT1ST02TreatAsWithdraw",
     "unit-sha": "f39e50c465c3d13d",
     "claim-sha": "b52966e2beb49528",
     "route": "revert",
