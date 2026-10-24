@@ -502,9 +502,12 @@ graph LR
     Tree --> Plugins["ExtractPluginsFromTree()"] --> PI["Plugin Infrastructure"]
 ```
 
-`LoadConfig` runs three whole-tree passes between the parse and
+`LoadConfig` runs four whole-tree passes between the parse and
 `ExtractPluginsFromTree`, in this order. The registered value validators judge the
-tree the operator wrote. Then `RejectMaskedSecretLeaves` refuses a secret leaf
+tree the operator wrote. Then `refuseAbsentOptionalProviders` refuses a config
+that holds a setting needing a plugin this build lacks, naming the leaf to turn
+off or the build tag to add; `ze config validate` and the commit path run the same
+check through `VerifyPluginConfig` and `VerifyPluginConfigTransition`. Then `RejectMaskedSecretLeaves` refuses a secret leaf
 holding the display placeholder. Then `ApplyPasswordHashing` bcrypt-hashes the
 `plaintext-<name>` sibling of every such leaf, so a credential is canonical before
 any consumer reads it.
@@ -513,11 +516,13 @@ The last two are one pair, and the editor commit path makes the same two calls i
 the same order, so one implementation guards and hashes a credential on either
 route. The validation pass belongs to the loader alone. `refuseInvalidCustomSections`
 calls `ValidateCustomSections`, and the one other caller of that function is
-`ze config validate`. The editor commit path makes no validation call.
+`ze config validate`. The editor commit path makes no custom-section validation call.
 
 <!-- source: internal/component/bgp/config/resolve.go -- ResolveBGPTree() -->
 <!-- source: internal/component/bgp/reactor/config.go -- PeersFromTree() -->
 <!-- source: internal/component/config/loader.go -- LoadConfig, refuseInvalidCustomSections, RejectMaskedSecretLeaves, ApplyPasswordHashing, ExtractPluginsFromTree -->
+<!-- source: internal/component/config/optional_provider.go -- refuseAbsentOptionalProviders -->
+<!-- source: internal/component/config/plugin_verify.go -- VerifyPluginConfig, VerifyPluginConfigTransition, VerifyPluginConfigMapTransition -->
 <!-- source: internal/component/config/mask.go -- RejectMaskedSecretLeaves -->
 <!-- source: internal/component/config/password_hash.go -- ApplyPasswordHashing -->
 <!-- source: internal/component/config/validate_sections.go -- refuseInvalidCustomSections, ValidateCustomSections -->
