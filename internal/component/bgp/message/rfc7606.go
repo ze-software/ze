@@ -248,9 +248,25 @@ func ValidateUpdateRFC7606(pathAttrs []byte, hasNLRI, isIBGP, asn4 bool) *RFC760
 // MP_REACH_NLRI Next Hop that is not a Global followed by a Link-Local treat-as-withdraw
 // (validateLinkLocalNextHopPair). False is the answer for a session that did not
 // negotiate it, which is also the plain ValidateUpdateRFC7606 wrapper's.
+//
+// It applies RFC 9774 Section 3 to every AS_SET and AS_CONFED_SET: it is
+// ValidateUpdateRFC7606Peer for a peer without `session as-set accept`.
 func ValidateUpdateRFC7606AddPath(
 	pathAttrs []byte, hasNLRI, isIBGP, asn4 bool, addPathFor func(afi uint16, safi uint8) bool,
 	linkLocalNextHop bool,
+) *RFC7606ValidationResult {
+	return ValidateUpdateRFC7606Peer(pathAttrs, hasNLRI, isIBGP, asn4, addPathFor, linkLocalNextHop, false)
+}
+
+// ValidateUpdateRFC7606Peer is ValidateUpdateRFC7606AddPath with the peer's AS_SET policy.
+// acceptASSet is the peer's `session as-set accept`: an AS_SET or AS_CONFED_SET in
+// AS_PATH or AS4_PATH is then kept instead of treated as withdrawn. RFC 9774 Section 3
+// binds BGP speakers "Unless explicitly configured by a network operator to do otherwise
+// (e.g., during a transition phase)", and only `ze exabgp migrate` writes the leaf, for
+// a neighbor ExaBGP configured with `as-set accept`. False is RFC 9774's own behavior.
+func ValidateUpdateRFC7606Peer(
+	pathAttrs []byte, hasNLRI, isIBGP, asn4 bool, addPathFor func(afi uint16, safi uint8) bool,
+	linkLocalNextHop, acceptASSet bool,
 ) *RFC7606ValidationResult {
 	if len(pathAttrs) == 0 {
 		// Empty path attributes with NLRI = missing mandatory attributes
@@ -501,7 +517,7 @@ func ValidateUpdateRFC7606AddPath(
 		}
 
 		// Validate specific attributes per RFC 7606 Section 7
-		result := validateAttribute(attrCode, attrLen, attrData, isIBGP, asn4)
+		result := validateReceivedAttribute(attrCode, attrLen, attrData, isIBGP, asn4, acceptASSet)
 		if result != nil && result.Action != RFC7606ActionNone {
 			// RFC 7606 Section 3.h: session-reset is immediate — no point collecting more
 			if result.Action == RFC7606ActionSessionReset {
@@ -1182,6 +1198,12 @@ const (
 //
 // Returns nil if valid, or RFC7606ValidationResult with treat-as-withdraw action.
 func validateASPath(data []byte, asn4 bool) *RFC7606ValidationResult {
+	return validateASPathPolicy(data, asn4, false)
+}
+
+// validateASPathPolicy is validateASPath with the peer's RFC 9774 Section 3 operator
+// configuration: acceptASSet true keeps a set segment, and every other check still runs.
+func validateASPathPolicy(data []byte, asn4, acceptASSet bool) *RFC7606ValidationResult {
 	// Empty AS_PATH is valid per RFC 7606 Section 5 (AS_PATH may have length zero)
 	if len(data) == 0 {
 		return nil
@@ -1263,6 +1285,9 @@ func validateASPath(data []byte, asn4 bool) *RFC7606ValidationResult {
 
 	// RFC 9774 Section 3. Like the AS 0 scan, it runs after the structure walk, so a
 	// structural fault keeps its RFC 7606 Section 7.2 description.
+	if acceptASSet {
+		return nil
+	}
 	if segType, found := ASPathSetSegment(data, asSize); found {
 		return asPathSetVerdict(attrCodeASPath, "AS_PATH", segType)
 	}

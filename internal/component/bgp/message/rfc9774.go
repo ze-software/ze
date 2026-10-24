@@ -10,6 +10,26 @@ package message
 
 import "github.com/ze-software/ze/internal/core/textbuf"
 
+// validateReceivedAttribute is validateAttribute with the peer's RFC 9774 Section 3
+// operator configuration. RFC 9774 Section 3: "Unless explicitly configured by a network
+// operator to do otherwise (e.g., during a transition phase), BGP speakers:" ... "MUST
+// use the "treat-as-withdraw" error handling behavior per [RFC7606] upon reception of
+// BGP UPDATE messages containing AS_SETs or AS_CONFED_SETs in the AS_PATH or AS4_PATH
+// [RFC6793]." acceptASSet is that configuration (the peer leaf `session as-set accept`,
+// written only by `ze exabgp migrate`), so the two set-bearing attributes skip their set
+// scan and keep every other check; every other attribute is judged as before.
+func validateReceivedAttribute(code uint8, length int, data []byte, isIBGP, asn4, acceptASSet bool) *RFC7606ValidationResult {
+	if acceptASSet {
+		if code == attrCodeASPath {
+			return validateASPathPolicy(data, asn4, true)
+		}
+		if code == attrCodeAS4Path {
+			return validateAS4PathPolicy(code, data, true)
+		}
+	}
+	return validateAttribute(code, length, data, isIBGP, asn4)
+}
+
 // asPathSetVerdict builds the treat-as-withdraw verdict for a set segment found in the
 // AS_PATH-shaped attribute code. attrName is the attribute name the operator reads in the
 // log line ("AS_PATH" or "AS4_PATH").

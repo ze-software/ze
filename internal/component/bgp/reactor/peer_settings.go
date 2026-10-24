@@ -568,6 +568,14 @@ type PeerSettings struct {
 	// Nil selects enabled for iBGP and disabled for eBGP.
 	AIGPSession *bool
 
+	// AcceptASSet is the peer's `session as-set accept`: a received AS_SET or
+	// AS_CONFED_SET in AS_PATH or AS4_PATH is kept instead of treated as
+	// withdrawn. RFC 9774 Section 3 binds speakers "Unless explicitly configured
+	// by a network operator to do otherwise (e.g., during a transition phase)";
+	// only `ze exabgp migrate` writes the leaf, for an ExaBGP neighbor configured
+	// with `as-set accept`. False is RFC 9774's own behavior.
+	AcceptASSet bool
+
 	// AIGPOriginate permits explicitly configured metrics on domain-local
 	// routes for which this speaker is the next hop (RFC 7311 Section 3.4.1).
 	AIGPOriginate bool

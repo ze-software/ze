@@ -744,6 +744,20 @@ module ze-bgp-conf {
                 }
             }
 
+            leaf as-set {
+                type enumeration {
+                    enum withdraw { ze:help "Treat a received AS_SET or AS_CONFED_SET as withdrawn (RFC 9774)"; }
+                    enum accept { ze:help "Keep a received AS_SET or AS_CONFED_SET, as ExaBGP as-set accept did"; }
+                }
+                default withdraw;
+                description "RFC 9774 Section 3 treats an UPDATE whose AS_PATH or AS4_PATH holds an AS_SET or
+                    AS_CONFED_SET as withdrawn, unless the operator configures otherwise during a transition.
+                    accept is that transition for a peer migrated from ExaBGP: ze exabgp migrate writes it for a
+                    neighbor whose ExaBGP config said as-set accept, and nothing else writes it. Every other
+                    check of the path still runs, and Ze still never advertises a set to this peer.";
+                ze:help "Received AS_SET handling; accept is written only by ze exabgp migrate.";
+            }
+
             container asn {
                 description "local overrides the global ASN for this session. remote names the peer ASN. Ze compares
                     the two to decide whether the session is eBGP or iBGP. migration names a second local ASN this

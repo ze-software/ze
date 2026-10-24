@@ -172,8 +172,10 @@ func (s *Session) validateRFC7606Attrs(pathAttrs []byte, hasNLRI bool) *message.
 		asn4 = neg.ASN4
 		linkLocalNextHop = neg.LinkLocalNextHop
 	}
-	// RFC 7606 Section 3.
-	result := message.ValidateUpdateRFC7606AddPath(pathAttrs, hasNLRI, isIBGP, asn4, addPathFor, linkLocalNextHop)
+	// RFC 7606 Section 3. RFC 9774 Section 3: the operator configuration that keeps a
+	// received AS_SET is the peer's `session as-set accept` (config_as_set.go).
+	result := message.ValidateUpdateRFC7606Peer(pathAttrs, hasNLRI, isIBGP, asn4, addPathFor,
+		linkLocalNextHop, s.settings.AcceptASSet)
 
 	// RFC 7311 Section 3.3: "If an AIGP attribute is received on a BGP
 	// session for which AIGP_SESSION is disabled, the attribute MUST be

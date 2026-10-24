@@ -49,9 +49,18 @@ func init() {
 // this validator to report it would close that gap silently, under an RFC that does not
 // ask for it.
 func validateAS4PathAttr(code uint8, _ int, attrData []byte, _, _ bool) *RFC7606ValidationResult {
+	return validateAS4PathPolicy(code, attrData, false)
+}
+
+// validateAS4PathPolicy is validateAS4PathAttr with the peer's RFC 9774 Section 3
+// operator configuration: acceptASSet true keeps a set segment, and the AS 0 check
+// still runs.
+func validateAS4PathPolicy(code uint8, attrData []byte, acceptASSet bool) *RFC7606ValidationResult {
 	// RFC 9774 Section 3
-	if segType, found := ASPathSetSegment(attrData, as4AggregatorASOctets); found {
-		return asPathSetVerdict(code, "AS4_PATH", segType)
+	if !acceptASSet {
+		if segType, found := ASPathSetSegment(attrData, as4AggregatorASOctets); found {
+			return asPathSetVerdict(code, "AS4_PATH", segType)
+		}
 	}
 	if !asPathHoldsASZero(attrData, as4AggregatorASOctets) {
 		return nil

@@ -164,3 +164,61 @@ func TestValidateAS4PathRejectsSetSegments(t *testing.T) {
 		}
 	}
 }
+
+// TestValidateUpdateAcceptASSetKeepsSetsOnly proves the operator exception of RFC 9774
+// Section 3 at the validator: with acceptASSet true an AS_SET in AS_PATH or AS4_PATH
+// draws no verdict, while with false it is treat-as-withdraw; AS 0 and a structural
+// fault still draw their own verdicts with the exception on. Method: one UPDATE
+// attribute block per case through ValidateUpdateRFC7606AddPath, both policies.
+func TestValidateUpdateAcceptASSetKeepsSetsOnly(t *testing.T) {
+	wantAction := func(want, got RFC7606Action, format string, args ...any) {
+		t.Helper()
+		if want != got {
+			t.Fatalf("action = %v, want %v: "+format, append([]any{got, want}, args...)...)
+		}
+	}
+	origin := []byte{0x40, 0x01, 0x01, 0x00}
+	nextHop := []byte{0x40, 0x03, 0x04, 192, 0, 2, 1}
+	attrs := func(code byte, value []byte) []byte {
+		out := append(append([]byte(nil), origin...), 0x40, code, byte(len(value)))
+		out = append(out, value...)
+		return append(out, nextHop...)
+	}
+	set4 := []byte{2, 1, 0, 0, 0xfd, 0xea, 1, 2, 0, 0, 0xfd, 0xf2, 0, 0, 0xfd, 0xf3}
+	confed4 := []byte{2, 1, 0, 0, 0xfd, 0xea, 4, 1, 0, 0, 0xfd, 0xf2}
+	zeroInSet := []byte{2, 1, 0, 0, 0xfd, 0xea, 1, 1, 0, 0, 0, 0}
+	overrun := []byte{2, 3, 0, 0, 0xfd, 0xea}
+	for _, tc := range []struct {
+		name       string
+		block      []byte
+		withdraw   RFC7606Action
+		acceptWant RFC7606Action
+	}{
+		{"AS_SET in AS_PATH", attrs(2, set4), RFC7606ActionTreatAsWithdraw, RFC7606ActionNone},
+		{"AS_CONFED_SET in AS_PATH", attrs(2, confed4), RFC7606ActionTreatAsWithdraw, RFC7606ActionNone},
+		{"AS 0 inside a set", attrs(2, zeroInSet), RFC7606ActionTreatAsWithdraw, RFC7606ActionTreatAsWithdraw},
+		{"segment overrun", attrs(2, overrun), RFC7606ActionTreatAsWithdraw, RFC7606ActionTreatAsWithdraw},
+	} {
+		got := ValidateUpdateRFC7606Peer(tc.block, true, false, true, nil, false, false)
+		wantAction(tc.withdraw, got.Action, "%s, withdraw: %s", tc.name, got.Description)
+		got = ValidateUpdateRFC7606Peer(tc.block, true, false, true, nil, false, true)
+		wantAction(tc.acceptWant, got.Action, "%s, accept: %s", tc.name, got.Description)
+	}
+
+	// AS4_PATH on a 2-octet session: the set verdict outranks nothing once accepted,
+	// and AS 0 still earns its attribute discard (RFC 7607 Section 2, RFC 6793 Section 6).
+	asPath2 := []byte{2, 2, 0xfd, 0xea, 0x5b, 0xa0}
+	as4 := func(value []byte) []byte {
+		block := attrs(2, asPath2)
+		block = append(block, 0xc0, 17, byte(len(value)))
+		return append(block, value...)
+	}
+	as4Set := []byte{2, 1, 0, 0, 0xfd, 0xea, 1, 1, 0xfa, 0x56, 0xea, 0x01}
+	as4Zero := []byte{2, 1, 0, 0, 0, 0}
+	got := ValidateUpdateRFC7606Peer(as4(as4Set), true, false, false, nil, false, false)
+	wantAction(RFC7606ActionTreatAsWithdraw, got.Action, got.Description)
+	got = ValidateUpdateRFC7606Peer(as4(as4Set), true, false, false, nil, false, true)
+	wantAction(RFC7606ActionNone, got.Action, got.Description)
+	got = ValidateUpdateRFC7606Peer(as4(as4Zero), true, false, false, nil, false, true)
+	wantAction(RFC7606ActionAttributeDiscard, got.Action, got.Description)
+}
