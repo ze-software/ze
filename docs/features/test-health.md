@@ -10,12 +10,10 @@ This page answers **is our testing correct**, not *is our testing large*. Those 
 
 | Metric | Question | Value | What to do |
 |---|---|---|---|
-| Enrolled RFCs with zero test-proven requirements | Q2 | **14 / 171** (attention) | Pick the largest and complete a pair, or accept it is a single-polarity claim. |
-| Tests with no reachable failure call | Q1 | **115 / 36850 (floor 114)** (attention) | Add a real assertion, or annotate with `// test-asserts-nothing: <why>` when the oracle is genuinely implicit (a must-not-panic smoke test). |
-| Test files that expect a specific error | Q2 | **2219 / 6082** (attention) | Take the lowest-ranked subsystem and add malformed-input or fault-injection cases. |
+| Enrolled RFCs with zero test-proven requirements | Q2 | **14 / 173** (attention) | Pick the largest and complete a pair, or accept it is a single-polarity claim. |
 | Logged known-failing tests | Q3 | **3** (attention) | Fix or delete the oldest entry; a permanently logged failure is a deleted test with extra steps. |
 
-5 further metric(s) are within threshold and are listed in full below.
+7 further metric(s) are within threshold and are listed in full below.
 
 ## Sensitivity
 
@@ -23,7 +21,7 @@ This page answers **is our testing correct**, not *is our testing large*. Those 
 
 ### Tests with no reachable failure call
 
-**115 / 36850 (floor 114)** (attention)
+**113 / 38323 (floor 113)** (ok)
 
 These execute code and pass unconditionally. Breaking the code under test would not turn them red.
 
@@ -38,9 +36,9 @@ These execute code and pass unconditionally. Breaking the code under test would 
 | internal/component/bfd/metrics_test.go | TestRefreshSessionsGauge |
 | internal/component/bgp/plugins/bmp/route_action_test.go | TestProcessRouteMonitoring_MonitorMode_StoresInBMPRIB |
 | internal/component/bgp/plugins/bmp/route_action_test.go | TestProcessRouteMonitoring_ShortUpdate_Skipped |
-| internal/component/bgp/plugins/filter_irr/filter_irr_test.go | TestRefreshSwapsAtomically |
 | internal/component/bgp/plugins/filter_irr/filter_irr_test.go | TestRefreshASNStoreFieldRace |
 | internal/component/bgp/plugins/healthcheck/hooks_test.go | TestHookFailureNoEffect |
+| internal/component/bgp/plugins/nlri/evpn/plugin_test.go | TestSetEVPNLogger |
 
 ### time.sleep() calls in .ci tests
 
@@ -56,38 +54,17 @@ A sleep is a guess about timing that hides the race it was added to mask. The ra
 
 ### Enrolled RFCs with zero test-proven requirements
 
-**14 / 171** (attention)
+**14 / 173** (attention)
 
 Enrolled and gate-green, but no requirement is proven by BOTH polarities. Some of these do carry positive-only tests; none carries a pair.
 
 *Action if this degrades:* Pick the largest and complete a pair, or accept it is a single-polarity claim.
 
-### Test files that expect a specific error
-
-**2219 / 6082** (attention)
-
-Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, ...), with comments stripped. Setup guards of the form `if err != nil { t.Fatal(err) }` are deliberately NOT counted: those assert the happy path. Blind spot: expecting *an* error is weaker than pinning the right one.
-
-*Action if this degrades:* Take the lowest-ranked subsystem and add malformed-input or fault-injection cases.
-
-| area | negative | files | percent |
-|---|---|---|---|
-| internal/chaos/report | 0 | 6 | 0.0 |
-| internal/chaos/web | 0 | 10 | 0.0 |
-| internal/core/rib | 0 | 14 | 0.0 |
-| internal/core/stats | 0 | 5 | 0.0 |
-| internal/le/hookruntime | 0 | 10 | 0.0 |
-| internal/plugins/completion | 0 | 7 | 0.0 |
-| internal/component/sysrib | 2 | 28 | 7.1 |
-| internal/component/lg | 2 | 27 | 7.4 |
-| internal/component/doctor | 2 | 23 | 8.7 |
-| internal/chaos/peer | 1 | 11 | 9.1 |
-
 ### RFC MUST requirements proven by test, over the RFCs ze implements
 
-**2626 / 4011** (ok)
+**2757 / 4163** (ok)
 
-65.5% of the 4011 gated MUSTs the 152 RFCs ze implements carry are proven by a tagged test: both polarities, or one polarity whose annotation records that no input drives the other side. The gate holds a wider set -- 4140 gated MUSTs across 171 enrolled RFCs -- and of the 1827 of those not proven in both polarities: 742 not-applicable (recorded as not binding ze; the owner ruling of 2026-08-31 presumes most of these need re-homing, so they stay inside the denominator above rather than being subtracted from it), 644 known gap (unimplemented, genuinely untested), 12 partial (scoped evidence with a remaining gap; subset of annotated, zero whole-requirement credit), 351 single-polarity -- those DO have a passing tagged test, just one side of the pair, and the RFC gate fails if that test is missing -- 41 met by a layer under ze on state ze installs, which the annotation names with the producer that installs it: those are MET and are not proven by ze, so they count in the denominator above and never in the share, 37 conditional on an optional feature ze does not offer, each quoting the RFC sentence that makes it optional: the condition is false, so nothing is owed, and 0 with no test and no annotation at all, which is what `./le rfc check` is red about. Only the gap column and that last one are untested work. Apart from every figure above, 8 rows carry {rollup}: each derives its state from rows already counted here, and none is in the denominator.
+66.2% of the 4163 gated MUSTs the 154 RFCs ze implements carry are proven by a tagged test: both polarities, or one polarity whose annotation records that no input drives the other side. The gate holds a wider set -- 4292 gated MUSTs across 173 enrolled RFCs -- and of the 1927 of those not proven in both polarities: 739 not-applicable (recorded as not binding ze; the owner ruling of 2026-08-31 presumes most of these need re-homing, so they stay inside the denominator above rather than being subtracted from it), 644 known gap (unimplemented, genuinely untested), 15 partial (scoped evidence with a remaining gap; subset of annotated, zero whole-requirement credit), 430 single-polarity -- those DO have a passing tagged test, just one side of the pair, and the RFC gate fails if that test is missing -- 44 met by a layer under ze on state ze installs, which the annotation names with the producer that installs it: those are MET and are not proven by ze, so they count in the denominator above and never in the share, 55 conditional on an optional feature ze does not offer, each quoting the RFC sentence that makes it optional: the condition is false, so nothing is owed, and 0 with no test and no annotation at all, which is what `./le rfc check` is red about. Only the gap column and that last one are untested work. Apart from every figure above, 8 rows carry {rollup}: each derives its state from rows already counted here, and none is in the denominator.
 
 *Action if this degrades:* Write a test for a {gap} requirement, or for one carrying no test and no annotation. A single-polarity requirement is already counted as proven, and not-applicable needs no test.
 
@@ -106,11 +83,32 @@ Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, .
 
 ### In-repo test inventory
 
-**36890 test functions** (ok)
+**38363 test functions** (ok)
 
-6082 Go test files, 90 fuzz targets, 142 benchmarks, 2460 .ci scenarios, 179 .et editor tests. Counts cover internal, cmd, pkg, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.
+6513 Go test files, 91 fuzz targets, 153 benchmarks, 2556 .ci scenarios, 179 .et editor tests. Counts cover internal, cmd, pkg, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.
 
 *Action if this degrades:* This is volume, not health. It is here to state the counting boundary, because a count that silently includes vendored tests inflates by ~6x.
+
+### Test files that expect a specific error
+
+**2414 / 6513** (ok)
+
+Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, ...), with comments stripped. Setup guards of the form `if err != nil { t.Fatal(err) }` are deliberately NOT counted: those assert the happy path. Blind spot: expecting *an* error is weaker than pinning the right one.
+
+*Action if this degrades:* Take the lowest-ranked subsystem and add malformed-input or fault-injection cases.
+
+| area | negative | files | percent |
+|---|---|---|---|
+| internal/chaos/report | 0 | 6 | 0.0 |
+| internal/chaos/web | 0 | 10 | 0.0 |
+| internal/core/rib | 0 | 14 | 0.0 |
+| internal/core/stats | 0 | 5 | 0.0 |
+| internal/le/hookruntime | 0 | 11 | 0.0 |
+| internal/plugins/completion | 0 | 7 | 0.0 |
+| internal/component/sysrib | 2 | 28 | 7.1 |
+| internal/component/lg | 2 | 27 | 7.4 |
+| internal/chaos/peer | 1 | 11 | 9.1 |
+| internal/component/cmd | 2 | 20 | 10.0 |
 
 ### Technique adoption by package age
 
@@ -123,7 +121,7 @@ A technique adopted only forward from its introduction shows here as a step: rec
 | package first commit | packages with tests | with a fuzz target | with an RFC-tagged test | with a .ci scenario |
 |---|---|---|---|---|
 | 2025 | 1 | 0 | 0 | 0 |
-| 2026 | 663 | 36 | 131 | 37 |
+| 2026 | 671 | 36 | 131 | 37 |
 
 ## Integrity
 
