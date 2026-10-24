@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | blocked |
 | Priority | P1 |
 | Release reason | Preserve the bridge API compatibility and response contracts approved for shipped helpers. |
 | Scope | protocol |
@@ -12,6 +12,28 @@
 | Updated | 2026-10-24 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Blocker
+
+`/ze-close` step 6 (2026-10-24): `./le rfc check` exits 2, and three of its
+refusals trace to this spec's own commit 1dbfd1d7b7 ("negotiated families keep
+the peer's OPEN order", 2026-10-23 19:50), which changed
+`internal/core/bgp/capability/negotiated.go::Negotiate` after the
+DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1 proofs were stored (dcc219072a,
+2026-10-23 13:51):
+
+| Record | Refusal | What clears it |
+|--------|---------|----------------|
+| audit verdict of DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1 in `rfc/short/draft-abraitis-bgp-version-capability.md` | STALE: "what it judged changed: internal/core/bgp/capability/negotiated.go::Negotiate (func-scoped)"; `./le rfc reseal` refuses it | re-judge with the `ze-rfc-audit` skill |
+| `rfc/discrimination/draft-abraitis-bgp-version-capability/DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1.json`, negative, `TestSoftwareVersionCapabilityDecidesNothing` (`internal/core/bgp/capability/draft_abraitis_bgp_version_capability_softver_test.go`) | no longer verifies (producer-changed) | re-record with `./le rfc discriminate` and `./le rfc discriminate-record` |
+| same record, positive, `TestSoftwareVersionCapabilityIsRecordedForDisplay` | no longer verifies (producer-changed) | same |
+
+The closure skill forbids the closing agent from writing proof records: this is
+implementation work (`/ze-implement` step 5). The other 48 refusals in the same
+run trace to other specs (238bdb62e9 for RFC2545 and RFC9384, and the IKE and
+YANG stems) and do not block this spec. Once the three records verify,
+`/ze-close` resumes at step 6: the Review Gate artifact is recorded and clean,
+and the full gate stays owed by owner decision (Implementation Summary).
 
 ## Task
 
@@ -731,6 +753,8 @@ refusal names RFC 7911 Section 3.
 ### Documentation Updates
 - `docs/architecture/exabgp-bridge.md`, `docs/exabgp/exabgp-differences.md`, `docs/exabgp/exabgp-migration.md`, `docs/architecture/api/json-format.md`, `docs/architecture/api/commands.md` (Peer Selectors, review round 1), `docs/architecture/wire/attributes.md`, `rfc/short/rfc9774.md`, `docs/architecture/testing/interop.md` (`bgp-as-set-accept-frr`).
 - `./le doc check verify`: PASSED at Phase 8 (2026-10-24); rerun for the review round 1 commits is recorded in the commit body.
+- Closure citers: `internal/exabgp/bridge/testdata/exabgp-old/README.md` repointed from this spec to the stage pin in `internal/le/test/functional/exabgp.go`. Still owed when closure resumes: the sentence in `docs/functional-tests.md` ("The spec ... carries what remains", end of the old-4.2/old-5.0 section) cites this spec by path, and that file carries session d3d51937's uncommitted `ze-stripped-flow` hunk whose `strippedFlowTags` is not in HEAD, so the citer edit can only land with or after that session's commit. `internal/test/fixture/plugin_fixture_15_rpki.go` and the journal rows cite the bare stem and stay.
+- Full verification (`./le verify current`) has NOT run over this work, by owner decision (2026-10-24): another session is changing when verify may run, and it must never run while others develop. It is owed as verification debt over the closing commits, and `./le commit push` stays refused until it is green.
 
 ### Deviations from Plan
 - The main pin is a git commit installed by uv, not the nightly zipapp (A-1).
@@ -745,6 +769,7 @@ refusal names RFC 7911 Section 3.
 | assumption | A-1: the nightly zipapp would give a stable pin | its asset and tag move each night main changes | `gh release view nightly` | pin a git commit through uv |
 | assumption | A-4: the engine returns an error when no selected peer carries the family | it answered `warning`, read as `done` | `api-refusals-v4` red on ze | the bridge reads the answer document |
 | assumption | A-8: script and configured routes are distinct entries | an API withdrawal removed the configured route | `api-on-exit-configured` red on ze, green on the pin | `restore-configured` |
+| process | 1dbfd1d7b7 changed `capability.Negotiate`, the producer of an RFC-tagged unit's proof, and recorded no fresh proof | the DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1 audit verdict and both discrimination records went stale | `./le rfc check` at `/ze-close` step 6 | spec handed back (Blocker); a commit touching a tagged unit's producer re-records its proof in the same change |
 
 ## Implementation Audit
 
@@ -805,14 +830,15 @@ refusal names RFC 7911 Section 3.
 | What was not done | Why | The spec that now owns it |
 |-------------------|-----|---------------------------|
 | The f9bfb853b AS_SET send half: a route the operator writes with an AS_SET is sent (RFC 9774 Section 3 operator exemption) | moved, owner 2026-10-24: "Move to bridge-refuses-untranslated"; it is a bridge translation that spec owns, and it needs the Go-only grant in `registry.Registration` | `plan/release/fixes/spec-exabgp-bridge-refuses-untranslated.md` (AC-11) |
+| Commit the R2-I2 / R3-N3 paragraph in `docs/architecture/api/commands.md` (single-peer commands are those whose handler calls `ResolveSinglePeer`, `raw` included) | written, in the working tree only: the file also carries session d3d51937's uncommitted `show config running` hunk, whose `running_rpc.go` is not in HEAD, so carrying the file would publish a claim HEAD does not support; it lands with or after that session's commit | `plan/release/fixes/spec-plugin-optional-dependency-refusal.md` (session d3d51937's spec, whose commit carries `commands.md`) |
 
 ## Review Gate
 
 | Field | Value |
 |-------|-------|
-| Artifact | not yet recorded: round 3 is owed over the round 2 fixes |
-| `./le spec review check` | not run |
-| Rounds | 2 so far |
+| Artifact | `tmp/review/exabgp-6-api-compatibility-ae4c40fd-e741-4fa0-80b1-99402ba524e3.md` (verdict clean, recorded at closure over commit A's files) |
+| `./le spec review check` | clean (see Pre-Commit Verification) |
+| Rounds | 3; the last (fresh reviewer at 70684a122f) reported 0 BLOCKER, 0 ISSUE |
 | Reviewer lenses used | spec against code, docs, journal ownership, interop proof |
 
 ### Findings fixed
@@ -847,7 +873,7 @@ Fresh reviewer, scoped to 29545c31ad and the R2-N5 text in e9a4c54e17: 0 BLOCKER
 |---|----------|---------|----------|----------|
 | R3-N1 | NOTE | Goal Validation AS_SET row: "failing at assertion 5" followed the green-run clause and read as the green run failing | this spec | reordered: failure clause after "the image rebuilt", green-run clause last |
 | R3-N2 | NOTE | R2-N3 said four cells corrected; one was a row added and one a row split | this spec | R2-N3 reworded |
-| R3-N3 | NOTE | R2-I2 paragraph is correct and covers all 8 `ResolveSinglePeer` call sites, but is uncommitted; HEAD's commands.md still omits `raw` | `docs/architecture/api/commands.md` | lands with or after session d3d51937's `show config running` commit, whose code is not in HEAD; closure waits on it and on the full verify |
+| R3-N3 | NOTE | R2-I2 paragraph is correct and covers all 8 `ResolveSinglePeer` call sites, but is uncommitted; HEAD's commands.md still omits `raw` | `docs/architecture/api/commands.md` | lands with or after session d3d51937's `show config running` commit, whose code is not in HEAD; recorded under Work Not Done, closure does not wait on it |
 
 ## Pre-Commit Verification
 
@@ -882,3 +908,9 @@ Fresh reviewer, scoped to 29545c31ad and the R2-N5 text in e9a4c54e17: 0 BLOCKER
 |---------------------------------|-----------------|----------|
 | `commands.md` single-peer verbs | `ResolveSinglePeer`, `ze-peer-cmd.yang` selector leaf | yes, review round 1 |
 | `interop.md` `bgp-as-set-accept-frr` sentence | `internal/le/interoplab/bgp/checkers.go` scenario entry | yes |
+| `exabgp-old/README.md` pin sentence | `internal/le/test/functional/exabgp.go` line 84, `Requirement` names f9bfb853b924e97deba646b0bd50693ab07c4f3e | yes, closure |
+
+### Full Verification
+| Gate | State | Evidence |
+|------|-------|----------|
+| `./le verify current` over commit B | owed, not run by owner decision (2026-10-24) | verification debt; `./le commit push` refuses until it is green |
