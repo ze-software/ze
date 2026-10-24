@@ -240,8 +240,8 @@ obtain a plan. These are observation checks, not an atomic filesystem snapshot.
 
 ## The changed-set selector
 
-`./le repo changed scope` is the one selector, and `./le verify current fast`
-reuses its answer. It reports the changed packages plus two levels of their
+`./le repo changed scope` is the one selector, and `./le verify changed` and
+`./le verify current fast` reuse its answer. It reports the changed packages plus two levels of their
 importers (`defaultDepth`, `internal/le/repo/changed/selector.go`), and the feature
 tags the change can reach.
 
@@ -1037,6 +1037,9 @@ opt-in: without it a red stage never hides a later red.
 ./le verify worktree first-red          # the same, naming a commit with commit <rev>
 ```
 
+All three are release checks that start only at a terminal ("A full
+verification is Thomas's to start", below).
+
 A stopped run is never a pass. Its exit is the stopping stage's (1, or 3 when
 that stage could not judge), its certificate is STALE for every path list, the
 failure index names the stage under `stopped-at` and lists every stage of its
@@ -1044,7 +1047,9 @@ population it did not start with `reached: false`, and the commit gate charges
 each such structural stage as not reached until a run reaches it. The run
 prints `stopped at <stage>, <n> stages not run` and the command that reruns
 them: `le verify current fast` for the fast population, whose stop leaves the
-full-only stages to `le verify worktree`.
+full-only stages to `le verify worktree`; a stopped worktree run names
+`le verify worktree commit <sha>` as a release check Thomas starts, so an agent
+gives him that command.
 
 Every run's index names the whole full population, and a stage the run did not
 hold (a piece of a cut run, a fast run, a run that broke) carries the verdict
@@ -1053,10 +1058,12 @@ the checkout's earlier index recorded for it, marked `outside-run` with
 red until a run reaches that stage, and the commit refusal says
 `<stage>: red at <sha> in <run>` with two commands. `diagnose with:` names the
 stage's own rerun, which shows the red but publishes no index, so a stage fixed
-and rerun green that way stays charged. `clears when a verify run reaches it:`
-names the runs whose index rewrites the entry: `le verify worktree`, the
-`le verify worktree part <i> of <n>` piece that holds the stage, and
-`le verify current fast` when the fast population holds it. A stage no
+and rerun green that way stays charged. The clearing line names the run whose
+index rewrites the entry: `clears when ./le verify changed reaches it, which
+you run` when the changed population holds the stage, else `clears only when
+the release check reaches it, which you never run`, followed by the command to
+give Thomas, `./le verify worktree` or the `./le verify worktree part <i> of
+<n>` piece that holds the stage (`clearingRuns`). A stage no
 run has judged is listed as never judged and is not charged: not running a
 stage is the derived verification debt's business, not a red. A stage an
 interrupt cut short is the same: its exit is what its process died with, not a

@@ -373,8 +373,10 @@ status is a claim that those sections are written.
 
 The Goal Gates name the targeted tests for what changed: the scoped package
 tests, the component groups and functional suites the change reaches, and
-`./le verify current fast`. The full gate (`./le verify current`) runs once,
-over the closing commits, never while the work is in progress. The spec
+`./le verify changed` once the work is committed. The full verification
+(`./le verify current`) is Thomas's release check: an agent never starts it,
+and the terminal gate refuses it from one, so a spec names it only as a
+command to give him. The spec
 validator asks only that a spec name how its work is tested: it refuses a spec
 that holds no `./le test` or `./le verify` command, and any one of them answers.
 <!-- source: internal/le/hookruntime/lifecycle.go -- validateSpecText -->
@@ -415,8 +417,9 @@ the implementation audit, the Pre-Commit Verification section re-derived from th
 spec, the critical review, the spec's own Implementation Summary and Deviations,
 any lesson routed to its governing surface and any journal rows owed by the
 work, the targeted tests named in the Goal Gates, and the executive summary.
-The full gate (`./le verify current`) runs once after the closing commit and
-judges it. Closure alone requires no lesson artifact.
+`./le verify changed` runs once after the closing commit and judges the
+spec's change set; the full verification is Thomas's release check, not a
+closing step. Closure alone requires no lesson artifact.
 
 Pre-Commit Verification does not trust the audit. Re-read the spec from scratch,
 list every file in "Files to Create", give every acceptance criterion fresh

@@ -11,6 +11,10 @@ directives, fuzz target list), see `docs/functional-tests.md`.
 ./le verify current
 ```
 
+`./le verify current` is the full verification. It runs only when stdin and
+stdout are both terminals, so it is yours to start; an agent is refused and
+runs `./le verify changed` instead.
+
 `./le` is the compiled repository development entry point. Each area exposes
 its own verbs, for example `./le test functional plugin`,
 `./le test qemu install-iso-test`, and `./le test unit bgp`. Legacy command names
@@ -29,22 +33,27 @@ Use the narrowest test that covers your change. Escalate only when needed.
 | 1 | `./le job run label one-test command go test ./pkg/... -run TestName` | Iterating on one test | seconds |
 | 2 | `./le test unit bgp` | Checking one component group | 10s to 1:30 |
 | 3 | `./le test functional plugin` | Checking the user-visible path | varies |
-| 4 | `./le verify current fast` | Checking the working tree before a commit | about 2 minutes |
-| 5 | `./le verify current` | The full gate, once per piece of work, over its final commit | minutes |
+| 4 | `./le verify changed` | Judging a commit's change set: the evidence a push owes | minutes |
+| 5 | `./le verify current` | The release check, which only Thomas starts, at a terminal | the longest |
 
-Steps 1 to 4 are development: run the ones that cover what you changed, and
+Steps 1 to 3 are development: run the ones that cover what you changed, and
 `./le repo changed scope print both` names them
-(`running-commands.md`, "The changed-set selector"). Step 5 never runs between
-phases, review rounds or fixes, because it judges HEAD and the work is not in
-HEAD until its final commit. A red it finds gets a fix commit; it does not hold
+(`running-commands.md`, "The changed-set selector"). Step 4 runs once the work
+is committed: it judges the change set from the merge base with the upstream to
+the commit, in a throwaway worktree, and its green scoped record is what
+`./le commit push` asks for. A red it finds gets a fix commit; it does not hold
 the commit it judged.
 
-`./le verify current` is the full gate. It runs every stage in a fresh
-detached worktree at HEAD, through the same lifecycle as `./le verify worktree`,
-so it judges the last commit and never the working tree: an edit made while it
-runs cannot move the tree it judges. `./le verify current fast` runs the
-changed-files stages in place, over the working tree, and is how uncommitted
-work gets checked. `./le verify current full` is the bare form spelled out.
+Step 5 is the full verification, and it is not an agent's to run. `./le verify
+current`, `./le verify current fast` and every form of `./le verify worktree`
+are refused unless stdin and stdout are both terminals, because a full run
+loads the whole shared machine and only Thomas knows when that is safe. The
+refusal prints the exact command line to hand to Thomas, and `./le verify
+changed` for the agent's own evidence. No keyword or environment variable
+skips it. `./le verify current` runs every stage in a fresh detached worktree
+at HEAD, through the same lifecycle as `./le verify worktree`, so an edit made
+while it runs cannot move the tree it judges; `./le verify current fast` runs
+the changed-files stages in place, over the working tree.
 The narrower commands are development tools. `./le job run` admits an individual heavy command
 through `internal/le/job`, so concurrent sessions do not oversubscribe the
 machine.
@@ -82,7 +91,7 @@ round-trip.
 ```sh
 ./le job run label bgp-message command go test ./internal/component/bgp/message/...
 ./le job run label parse-origin command go test ./internal/... -run TestParseOrigin
-./le verify current
+./le verify changed
 ```
 
 Dynamic-group coverage exercises each plugin's real configuration boundary:
@@ -319,6 +328,8 @@ Git history is where past approvals are read: `git log --grep
 
 `./le verify current` runs the full population in a fresh detached worktree at
 HEAD; `./le verify current fast` runs the changed-files population in place.
+Both are release checks that start only at a terminal (see the ladder above).
+`./le verify changed` runs the changed population in a throwaway worktree.
 `./le verify list full` and `./le verify list fast` print each population. The
 unit stages use a two-pass strategy to stay fast:
 
@@ -674,12 +685,12 @@ Reproducing a load-dependent flake is
 
 | I want to... | Run |
 |--------------|-----|
-| Check my setup | `./le verify current` |
+| Check my setup (at a terminal) | `./le verify current` |
 | Run one Go test | `./le job run label one-test command go test ./pkg/... -run TestName` |
 | Run one functional test | `./le job run label plugin-42 command bin/le test bgp plugin 42` |
 | Run a component group | `./le test unit bgp` |
-| Check the working tree before a commit | `./le verify current fast` |
-| Run the full gate, once, after the final commit of a piece of work | `./le verify current` |
+| Judge my committed change set before a push | `./le verify changed` |
+| Run the release check (Thomas, at a terminal; an agent gives him the command) | `./le verify current` |
 | Type-check every supported feature combination | `./le go staticcheck check` |
 | List native test actions | `./le help` |
 | List functional tests | `./le job run label encode-list command bin/le test bgp encode --list` |

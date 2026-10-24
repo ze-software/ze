@@ -130,7 +130,7 @@ web, install, appliance, l2tp-wire, isis-wire, ospf-wire, runner, bfd, dhcp, vrr
 
 `./le repo check` is a fast (~0.2s) post-verify check that catches recurring
 implementation mistakes: stale source anchors, line-number anchors, unwired
-exported symbols, and incomplete spec AC tables. Run it after `./le verify current` passes,
+exported symbols, and incomplete spec AC tables. Run it after `./le verify changed` passes,
 before presenting work as complete.
 <!-- source: internal/le/verify/engine/stages.go -- StagesForMode -->
 <!-- source: internal/le/verify/deps/actions.go -- Actions -->
@@ -697,7 +697,7 @@ component-group targets to test only the area you changed:
 | `./le test unit config` | `./internal/component/config/...` | about 20 seconds |
 | `./le test unit cli` | `./internal/component/cli/...` | about 10 seconds |
 | `./le test unit installer` | `./internal/install/...` behind the `ze_installer` tag | about 10 seconds |
-| `./le verify current` | Every unit group plus repository gates | about 5 minutes |
+| `./le verify current` (release check, at a terminal) | Every unit group plus repository gates | about 5 minutes |
 
 The first five groups run with the test-only `CGO_ENABLED=1 go test -race` path
 on Linux and Darwin. These race-built test executables never ship or serve as
@@ -1329,17 +1329,21 @@ synthetic observations. The anomaly facts→judgment→response chain
 
 ### Development Workflow
 
-Use the narrowest test scope that covers your change, then widen before committing:
+Use the narrowest test scope that covers your change, then widen to the change set once it is committed:
 
 ```
-single test  →  single package  →  component group  →  ./le verify current
+single test  →  single package  →  component group  →  ./le verify changed
 ```
 
 ```bash
 ./le job run label one-config-test command go test ./internal/component/config/system/... -run TestMyThing
 ./le test unit config
-./le verify current
+./le verify changed
 ```
+
+`./le verify current`, the full verification, is Thomas's release check: it
+runs only when stdin and stdout are both terminals, and an agent gives him the
+exact command instead of running it.
 
 #### Test binaries are isolated from the development binary
 
@@ -1373,7 +1377,8 @@ the canonical bare names.
 <!-- source: internal/test/runner/runner.go -- prebuilt binary environment -->
 <!-- source: internal/test/runner/runner_exec.go -- bare-name resolution -->
 
-`./le verify current` is the full gate. It runs in a fresh detached worktree at
+`./le verify current` is the full verification, a release check that starts
+only at a terminal. It runs in a fresh detached worktree at
 HEAD, as `./le verify worktree` does, so it judges the last commit; `./le verify
 current fast` judges the working tree in place. Its unit stages run a two-pass
 strategy:
