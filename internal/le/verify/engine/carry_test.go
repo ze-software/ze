@@ -412,3 +412,53 @@ func TestAnEarlierIndexWithNoCommitIsNamedAsSuch(t *testing.T) {
 		t.Fatalf("the text index does not name the unrecorded commit:\n%s", text)
 	}
 }
+
+// TestAChangedGreenKeepsAFullRedOnASharedStage proves a changed run, which
+// judges a Staticcheck part only over the rows of its scope's tags, neither
+// clears nor overwrites the red a full run recorded for that part, while a red
+// a changed run recorded is cleared by the next green changed run.
+//
+// Method: publish a full index with `go staticcheck/check/part/1/of/N` red at
+// aaa, then a changed index holding that part green at bbb, and require the
+// entry to be the red carried from aaa with the full population as its
+// judge. Then publish a changed red at ccc and a changed green at ddd over a
+// fresh checkout, and require the part green and not carried.
+// VALIDATES: a full-population verdict survives a partial judgement.
+// PREVENTS: a scoped green erasing a red in the rows it never ran.
+func TestAChangedGreenKeepsAFullRedOnASharedStage(t *testing.T) {
+	part := staticcheckStages()[0].Identity.Name
+	index := func(commit, mode string, exit int) artifactIndex {
+		return artifactIndex{Format: FailureIndexFormat, Mode: mode, Commit: commit, RunDir: "run-" + commit,
+			Stages: []artifactStage{{Stage: part, Reached: true, ExitCode: exit}}}
+	}
+	root := t.TempDir()
+	if err := writeFailureIndex(root, index("aaa", Mode, 1)); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeFailureIndex(root, index("bbb", ChangedMode, 0)); err != nil {
+		t.Fatal(err)
+	}
+	entry := carriedEntry(t, readCarried(t, root), part)
+	if entry.ExitCode != 1 || !entry.OutsideRun || entry.CarriedFrom == nil || entry.CarriedFrom.Commit != "aaa" {
+		t.Fatalf("%s after a green changed run = %#v, want the full run's red carried from aaa", part, entry)
+	}
+	data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(FailuresJSONPath)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), `"mode": "`+Mode+`"`) {
+		t.Fatalf("the carried red does not name the full population as its judge:\n%s", data)
+	}
+
+	scoped := t.TempDir()
+	if err := writeFailureIndex(scoped, index("ccc", ChangedMode, 1)); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeFailureIndex(scoped, index("ddd", ChangedMode, 0)); err != nil {
+		t.Fatal(err)
+	}
+	entry = carriedEntry(t, readCarried(t, scoped), part)
+	if entry.ExitCode != 0 || entry.OutsideRun || entry.CarriedFrom != nil {
+		t.Fatalf("%s after a changed red then a changed green = %#v, want green, not carried", part, entry)
+	}
+}

@@ -91,18 +91,25 @@ func resolveUpstream(root string, query func(string, ...string) (string, error))
 }
 
 // noUpstreamError wraps ErrNoUpstream with why it matters and the command that
-// gives the branch an upstream, on its own line.
+// fixes the case at hand, on its own line. On a branch that is the command
+// giving the branch an upstream. With HEAD detached, as in the worktree a
+// verify run judges, no branch exists and only refs/remotes/origin/HEAD can
+// name the upstream, so the command is the one that sets that ref; a linked
+// worktree shares the refs, so running it in the checkout fixes the run.
 func noUpstreamError(root string, query func(string, ...string) (string, error)) error {
-	branch := "<branch>"
-	if out, err := query(root, "symbolic-ref", "--short", "-q", "HEAD"); err == nil {
-		if name := strings.TrimSpace(out); name != "" {
-			branch = name
-		}
-	}
 	var message textbuf.Buffer
 	message.Str(ErrNoUpstream.Error()).
-		Str(", so the change set cannot tell which commits are not yet pushed\n").
-		Str("  set the branch's upstream, then run the command again:\n").
+		Str(", so the change set cannot tell which commits are not yet pushed\n")
+	out, err := query(root, "symbolic-ref", "--short", "-q", "HEAD")
+	if branch := strings.TrimSpace(out); err != nil || branch == "" {
+		message.Str("  HEAD is detached, so only ").Str(anchorOriginHeadRef).
+			Str(" can name the upstream, and it names no commit;\n").
+			Str("  set it from the remote, then run the command again:\n").
+			Str("    git remote set-head origin --auto")
+		return &anchorError{message: message.String()}
+	}
+	branch := strings.TrimSpace(out)
+	message.Str("  set the branch's upstream, then run the command again:\n").
 		Str("    git branch --set-upstream-to=origin/").Str(branch)
 	return &anchorError{message: message.String()}
 }

@@ -14,7 +14,6 @@ import (
 	"slices"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/ze-software/ze/internal/le/verify"
 )
@@ -29,26 +28,26 @@ import (
 //
 // MUTATION: let DebtWarning or debtReport judge only the listed commits and the
 // open items, as they did, and both cases fail: the warning is empty and the
-// report reads "0 commit(s) owe a full verify".
+// report reads "0 commit(s) owe a scoped verify".
 func TestDebtConsumersNeverSayZeroWithoutTarget(t *testing.T) {
 	cases := []struct {
 		name  string
 		build func(t *testing.T, root string)
 		says  string
 	}{
-		{name: "tree mismatch with an empty list", says: "the green record names", build: func(t *testing.T, root string) {
+		{name: "tree mismatch with an empty list", says: "the scoped record names", build: func(t *testing.T, root string) {
 			t.Helper()
 			other := newOwedRepository(t)
 			foreign := commitOwed(t, other, "a commit this checkout never saw", map[string]string{"x.txt": "x\n"}, nil)
-			record, err := verify.NewGreenRecord(foreign, revParse(t, other, foreign+"^{tree}"), 1, time.Now())
+			record, err := scopedRecordFor(t, root, foreign, revParse(t, other, foreign+"^{tree}"))
 			if err != nil {
 				t.Fatal(err)
 			}
-			if err := verify.WriteGreenRecord(root, record); err != nil {
+			if err := verify.WriteScopedRecord(root, record); err != nil {
 				t.Fatal(err)
 			}
 		}},
-		{name: "no green record with prose-only commits", says: "no green record", build: func(t *testing.T, root string) {
+		{name: "no green record with prose-only commits", says: "no scoped record", build: func(t *testing.T, root string) {
 			t.Helper()
 			commitOwed(t, root, "a page", map[string]string{"docs/a.md": "a\n"}, nil)
 			commitOwed(t, root, "a spec", map[string]string{"plan/b.md": "b\n"}, nil)
@@ -70,7 +69,7 @@ func TestDebtConsumersNeverSayZeroWithoutTarget(t *testing.T) {
 			}
 			report := debtReport(root)
 			for surface, text := range map[string]string{"session-start warning": warning, "create report": report} {
-				for _, want := range []string{"HEAD's tree is not covered by a green verify", tc.says, verifyWorktreeCommand} {
+				for _, want := range []string{"HEAD's tree is not covered by a scoped verify", tc.says, scopedCommand} {
 					if !strings.Contains(text, want) {
 						t.Errorf("the %s is %q, want it to say %q", surface, text, want)
 					}
@@ -98,7 +97,7 @@ func TestDebtReportSaysNothingOwedOnlyWhenCovered(t *testing.T) {
 	root := newOwedRepository(t)
 	green := commitOwed(t, root, "the verified change", map[string]string{"a.txt": "a\n"}, nil)
 	writeOwedGreen(t, root, green)
-	want := "nothing owed: HEAD's tree is covered by the green verify of " + shortSHA(green)
+	want := "nothing owed: HEAD's tree is covered by the scoped verify of " + shortSHA(green)
 	if report := debtReport(root); report != want {
 		t.Fatalf("the create report over a verified HEAD is %q, want %q", report, want)
 	}
@@ -259,7 +258,7 @@ func TestCreateDebtNeverReadsZeroWithoutGreenRecord(t *testing.T) {
 	if err != nil {
 		t.Fatalf("the attestation was refused: %v", err)
 	}
-	for _, want := range []string{"HEAD's tree is not covered by a green verify", "no green record", verifyWorktreeCommand} {
+	for _, want := range []string{"HEAD's tree is not covered by a scoped verify", "no scoped record", scopedCommand} {
 		if !strings.Contains(prepared.Debt, want) {
 			t.Errorf("Create's debt is %q, want it to say %q", prepared.Debt, want)
 		}

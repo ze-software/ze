@@ -116,7 +116,7 @@ func TestPushScriptPushesPreparedCommitAfterHeadMoved(t *testing.T) {
 		t.Fatalf("the script does not push exactly the green commit %s:\n%s", green, script)
 	}
 	text := prepared.Text()
-	if !strings.Contains(text, shortSHA(later)+" a change after the verify") || !strings.Contains(text, verifyWorktreeCommand) {
+	if !strings.Contains(text, shortSHA(later)+" a change after the verify") || !strings.Contains(text, scopedCommand) {
 		t.Fatalf("the answer does not name the commit left behind and its verify:\n%s", text)
 	}
 }
@@ -278,7 +278,7 @@ func TestCreateReportsDerivedDebt(t *testing.T) {
 	if len(prepared.Added) != 1 || prepared.Added[0] != "g.txt" || len(prepared.Removed) != 0 {
 		t.Fatalf("create staged %v and removed %v, want g.txt alone", prepared.Added, prepared.Removed)
 	}
-	want := "debt=1 commit(s) owe a full verify since " + shortSHA(green)
+	want := "debt=1 commit(s) owe a scoped verify since " + shortSHA(green) + ": run ./le verify changed"
 	if !strings.Contains(prepared.Text(), want) {
 		t.Fatalf("the create report is\n%s\nwant %q", prepared.Text(), want)
 	}
@@ -331,7 +331,7 @@ func TestDebtWarningListsAtMostFiveItems(t *testing.T) {
 		t.Fatal(err)
 	}
 	lines := strings.Split(strings.TrimSuffix(warning, "\n"), "\n")
-	if lines[0] != "verification debt: 7 commit(s) owe a full verify since "+shortSHA(green)+", push refused until cleared" {
+	if lines[0] != "verification debt: 7 commit(s) owe a scoped verify since "+shortSHA(green)+": run ./le verify changed, push refused until cleared" {
 		t.Fatalf("first line %q", lines[0])
 	}
 	if len(lines) != 7 || !strings.Contains(lines[6], "and 2 more") {
@@ -343,7 +343,7 @@ func TestDebtWarningListsAtMostFiveItems(t *testing.T) {
 // derived debt removed from create is refused naming its replacement.
 func TestRemovedKeywordsNameReplacement(t *testing.T) {
 	for keyword, replacement := range map[string]string{
-		"unverified": "./le verify worktree", "missing-full-verify-ok": "./le verify worktree",
+		"unverified": "./le verify changed", "missing-full-verify-ok": "./le verify changed",
 		"push": `./le commit push "<owner authorisation>"`,
 	} {
 		_, err := parseCreate([]string{"subject", "s", keyword})

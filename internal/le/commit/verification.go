@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ze-software/ze/internal/le/verify"
 	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
 	"github.com/ze-software/ze/internal/le/verify/failuregroup"
 )
@@ -74,6 +75,7 @@ type failureIndex struct {
 	// Format is absent from an index the writer before
 	// verifyengine.FailureIndexFormat produced.
 	Format    int               `json:"format"`
+	Mode      string            `json:"mode"`
 	StoppedAt string            `json:"stopped-at"`
 	Stages    []json.RawMessage `json:"stages"`
 }
@@ -82,6 +84,9 @@ type failureIndex struct {
 type failureOrigin struct {
 	Commit string `json:"commit"`
 	RunDir string `json:"run-dir"`
+	// Mode is the population of the run that judged the verdict; empty in an
+	// entry an earlier writer carried.
+	Mode string `json:"mode"`
 }
 
 type failureStage struct {
@@ -109,10 +114,14 @@ type failureGroup struct {
 	Rerun   any `json:"rerun"`
 }
 
-// rerunAllStages is the full verify run: it reaches every stage, so its index
-// clears any charge, and it is the diagnosing command for a stage no recorded
-// group names a narrower rerun for.
-const rerunAllStages = "le verify worktree"
+// stageCommand is the focused command that runs one stage alone: the stage's
+// identity is its le action, so `doc check/verify` is `./le doc check verify`.
+// It is the diagnosing command for a stage no recorded group names a narrower
+// rerun for, and an agent may run it, which the release check it is part of
+// an agent never does.
+func stageCommand(name string) string {
+	return "./le " + strings.ReplaceAll(name, "/", " ")
+}
 
 // failureIndexPath is the checkout's failure index, relative to its root.
 const failureIndexPath = "tmp/ze-verify-failures.json"
@@ -121,7 +130,7 @@ const failureIndexPath = "tmp/ze-verify-failures.json"
 // could not be read: what, why, and the command that rewrites it.
 func unreadableIndex(what string, err error) string {
 	return failureIndexPath + ": " + what + " could not be read (" + err.Error() +
-		"), so it holds no verdict and nothing in it is charged; rewrite it with: le verify current"
+		"), so it holds no verdict and nothing in it is charged; rewrite it with: " + verify.ChangedCommand
 }
 
 func structuralGateReds(root string, paths []string) structuralReds {
@@ -165,7 +174,7 @@ func structuralGateReds(root string, paths []string) structuralReds {
 			stage.ExitCode == verifyengine.Interrupted
 		if stage.Interrupted || legacy130 {
 			result.Unjudged = append(result.Unjudged, stage.Stage)
-			result.UnjudgedCauses = append(result.UnjudgedCauses, unjudgedCause(stage, groups))
+			result.UnjudgedCauses = append(result.UnjudgedCauses, unjudgedCause(stage, groups, stage.judgedBy(index)))
 			continue
 		}
 		if stage.Reached != nil && !*stage.Reached {
@@ -176,7 +185,7 @@ func structuralGateReds(root string, paths []string) structuralReds {
 			result.Unreached = append(result.Unreached, stage.Stage)
 			result.Causes = append(result.Causes, stage.Stage+
 				": not reached, because the run stopped at its first red ("+index.StoppedAt+
-				"); "+clearingRuns(stage.Stage))
+				"); "+clearingRuns(stage.Stage, stage.judgedBy(index)))
 			continue
 		}
 		if stage.ExitCode == 0 {
@@ -211,7 +220,7 @@ func structuralGateReds(root string, paths []string) structuralReds {
 			continue
 		}
 		result.Charged = append(result.Charged, stage.Stage)
-		result.Causes = append(result.Causes, redCause(stage, groups))
+		result.Causes = append(result.Causes, redCause(stage, groups, stage.judgedBy(index)))
 		if !owned {
 			result.Unattributed = append(result.Unattributed,
 				stage.Stage+" ("+strings.Join(blind, ", ")+")")
@@ -227,15 +236,15 @@ func structuralGateReds(root string, paths []string) structuralReds {
 // first one its groups name) runs the stage directly and publishes no failure
 // index, so a stage fixed and rerun green that way is still charged: only a
 // verify run that reaches the stage rewrites its entry (clearingRuns).
-func redCause(stage failureStage, groups []failureGroup) string {
-	diagnose := rerunAllStages
+func redCause(stage failureStage, groups []failureGroup, judgedBy string) string {
+	diagnose := stageCommand(stage.Stage)
 	for _, group := range groups {
 		if named, ok := group.Rerun.(string); ok && named != "" {
 			diagnose = named
 			break
 		}
 	}
-	tail := "; diagnose with: " + diagnose + "; " + clearingRuns(stage.Stage)
+	tail := "; diagnose with: " + diagnose + "; " + clearingRuns(stage.Stage, judgedBy)
 	if stage.CarriedFrom == nil {
 		return stage.Stage + ": red in the latest verify run" + tail
 	}
@@ -252,7 +261,7 @@ func redCause(stage failureStage, groups []failureGroup) string {
 // why, and the command that judges it: the stage's own Rerun, else the first
 // rerun its groups name (an index written before Rerun existed), else the full
 // verify run.
-func unjudgedCause(stage failureStage, groups []failureGroup) string {
+func unjudgedCause(stage failureStage, groups []failureGroup, judgedBy string) string {
 	judge := stage.Rerun
 	for _, group := range groups {
 		if judge != "" {
@@ -263,28 +272,50 @@ func unjudgedCause(stage failureStage, groups []failureGroup) string {
 		}
 	}
 	if judge == "" {
-		judge = rerunAllStages
+		judge = stageCommand(stage.Stage)
 	}
 	return stage.Stage + ": never judged, because the verify run was interrupted while it ran" +
 		" (it holds no verdict and is not charged); judge it with: " + judge + "; " +
-		clearingRuns(stage.Stage)
+		clearingRuns(stage.Stage, judgedBy)
 }
 
-// clearingRuns names the verify runs whose index rewrites the named stage's
-// entry: the full run, the piece of a cut run that holds it, and the fast run
-// when the fast population holds the stage. The fast membership is read from
-// the population, so a stage moved in or out of it needs no edit here. No
-// default piece count exists (the caller picks `part <i> of <n>`), so the
-// piece is named by what it holds rather than by its number.
-func clearingRuns(name string) string {
-	runs := "clears when a verify run reaches it: " + rerunAllStages +
-		", or the le verify worktree part <i> of <n> piece that holds it"
-	for _, fast := range verifyengine.StagesForMode(verifyengine.FastMode) {
-		if fast.Identity.Name == name {
-			return runs + ", or le verify current fast"
+// clearingRuns names the verify run whose index rewrites the named stage's
+// entry, judged by the population judgedBy (failureStage.judgedBy). A stage
+// only the changed population holds is cleared by `./le verify changed`,
+// which an agent runs. A stage it shares with the full population, it judges
+// only over its scope (verifyengine carryForward), so a changed run clears
+// only a verdict a changed run gave. Otherwise only the release check reaches
+// it, and an agent never runs that: the text gives the exact command to hand
+// Thomas, the whole run or the piece of a cut that holds the stage. Both
+// memberships are read from the populations, so a stage moved in or out of
+// either needs no edit here. No default piece count exists, so the piece is
+// named by what it holds rather than by its number.
+func clearingRuns(name, judgedBy string) string {
+	if inPopulation(verifyengine.ChangedMode, name) &&
+		(judgedBy == verifyengine.ChangedMode || !inPopulation(verifyengine.Mode, name)) {
+		return "clears when " + verify.ChangedCommand + " reaches it, which you run"
+	}
+	return "clears only when the release check reaches it, which you never run: give Thomas the command " +
+		"./le verify worktree, or the ./le verify worktree part <i> of <n> piece that holds it"
+}
+
+// inPopulation reports whether the population mode holds the stage name.
+func inPopulation(mode, name string) bool {
+	for _, stage := range verifyengine.StagesForMode(mode) {
+		if stage.Identity.Name == name {
+			return true
 		}
 	}
-	return runs
+	return false
+}
+
+// judgedBy answers the population of the run that judged this entry: the run
+// it was carried from, else the run that wrote index.
+func (s *failureStage) judgedBy(index failureIndex) string {
+	if s.CarriedFrom != nil {
+		return s.CarriedFrom.Mode
+	}
+	return index.Mode
 }
 
 // groupRelatedPaths answers the checkout paths one recorded group named. Which

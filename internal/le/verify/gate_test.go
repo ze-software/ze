@@ -118,6 +118,21 @@ var wholeTreeGrammar = map[string][]string{
 func TestEveryWholeTreeVerbIsGated(t *testing.T) {
 	rows := Actions().Actions
 	for _, row := range rows {
+		if !row.WholeTree && row.Verb == verbChanged {
+			// The scoped verb starts a run, so it is neither read-only nor
+			// gated. A revision that names no commit stops it before any work,
+			// after the gate would have asked, so the gate MUST NOT be asked.
+			asked := refuseAsAToolCall(t)
+			var code int
+			captureStderr(t, func() { _, code = Answer([]string{verbChanged, commitKeyword, "no-such-revision-for-the-gate-test"}) })
+			if len(*asked) != 0 {
+				t.Errorf("the scoped verify %s asked the whole-tree gate %q", row.Verb, *asked)
+			}
+			if code == 0 {
+				t.Errorf("verify %s of a missing revision exited 0", row.Verb)
+			}
+			continue
+		}
 		if !row.WholeTree {
 			line, known := readOnlyVerbs[row.Verb]
 			if !known {

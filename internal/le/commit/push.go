@@ -145,7 +145,7 @@ func pushScriptPath(root, session string) (string, error) {
 		if pending := pendingBlocks(root, text); len(pending) != 0 {
 			return "", fmt.Errorf("push refused: %s holds commit block(s) %s not yet run, and an unrun commit is "+
 				"neither verified nor published; run it with: bash %s, then %s, then ./le commit push",
-				relative, strings.Join(pending, ", "), relative, verifyWorktreeCommand)
+				relative, strings.Join(pending, ", "), relative, scopedCommand)
 		}
 	}
 	if reuse != "" {
@@ -201,7 +201,7 @@ func renderPushScript(root, session, reason string, prepared *pushPrepared) stri
 	page.Str(commentLine("Push " + prepared.Target + " to " + prepared.Remote + " " + prepared.Branch +
 		". This script makes no commit.")).Byte('\n')
 	if prepared.Applicable {
-		page.Str("# The derivation again, against the prepared commit: a lost green record, a moved\n")
+		page.Str("# The derivation again, against the prepared commit: a lost scoped record, a moved\n")
 		page.Str("# upstream or a rebase that took the commit off the branch stops the push here.\n")
 		page.Str("if ! ").Str(debtStatusCommand).Str(prepared.Target).Str("; then\n")
 		page.Str("  echo ").Str(shellQuote("ERROR: the push of " + shortSHA(prepared.Target) +
@@ -223,7 +223,7 @@ func (p *pushPrepared) Text() string {
 		text.Str("verify=NOT-APPLICABLE (").Str(notCheckoutDetail).Str(")\n")
 	}
 	for _, left := range p.LeftBehind {
-		text.Str("not in this push, owes ").Str(verifyWorktreeCommand).Str(": ").
+		text.Str("not in this push, owes ").Str(scopedCommand).Str(": ").
 			Str(shortSHA(left.SHA)).Byte(' ').Str(left.Subject).Byte('\n')
 	}
 	return text.String()
@@ -234,7 +234,7 @@ type debtStatus struct {
 	Applicable bool         `json:"applicable"`
 	Owed       bool         `json:"owed"`
 	Target     string       `json:"target,omitempty"`
-	Green      string       `json:"green,omitempty"`
+	Scoped     string       `json:"scoped,omitempty"`
 	LeftBehind []owedCommit `json:"left-behind,omitempty"`
 	Items      []string     `json:"items,omitempty"`
 	Refusals   []string     `json:"refusals,omitempty"`
@@ -251,7 +251,7 @@ func answerDebtStatus(root, candidate string) (debtStatus, int, error) {
 	}
 	status := debtStatus{
 		Applicable: derived.Target != pushTargetNotApplicable,
-		Target:     derived.TargetSHA, Green: derived.Green,
+		Target:     derived.TargetSHA, Scoped: derived.Scoped,
 		LeftBehind: derived.LeftBehind, Refusals: derived.Refusals,
 	}
 	for _, item := range derived.Items {
@@ -274,12 +274,12 @@ func (s *debtStatus) Text() string {
 	}
 	var text textbuf.Buffer
 	text.Str("verification debt: owed\n  push target: ").Str(orNone(shortSHA(s.Target))).
-		Str("\n  green record: ").Str(orNone(shortSHA(s.Green))).Byte('\n')
+		Str("\n  scoped record: ").Str(orNone(shortSHA(s.Scoped))).Byte('\n')
 	for _, refusal := range s.Refusals {
 		text.Str("  refused: ").Str(refusal).Byte('\n')
 	}
 	for _, left := range s.LeftBehind {
-		text.Str("  not in the push target, owes ").Str(verifyWorktreeCommand).Str(": ").
+		text.Str("  not in the push target, owes ").Str(scopedCommand).Str(": ").
 			Str(shortSHA(left.SHA)).Byte(' ').Str(left.Subject).Byte('\n')
 	}
 	for _, item := range s.Items {
@@ -342,7 +342,7 @@ func debtReport(root string) string {
 		return "cannot answer: " + commentSafe(err.Error())
 	}
 	if !derived.owed() {
-		return "nothing owed: HEAD's tree is covered by the green verify of " + derived.since()
+		return "nothing owed: HEAD's tree is covered by the scoped verify of " + derived.since()
 	}
 	report := derived.headline()
 	if len(derived.Refusals) != 0 {
@@ -352,16 +352,17 @@ func debtReport(root string) string {
 }
 
 // headline names what a derivation that owes something owes, most decisive
-// first: the commits a full verify must still cover; else that HEAD's own tree
+// first: the commits a scoped verify must still cover, with the command that
+// covers them; else that HEAD's own tree
 // is not covered, with the command that covers it; else the refusal or the
 // person acts. It is never a count of zero: a derivation with no push target
 // at HEAD and nothing to list says the tree is not covered.
 func (d *derivedDebt) headline() string {
 	if len(d.LeftBehind) != 0 {
-		return strconv.Itoa(len(d.LeftBehind)) + " commit(s) owe a full verify since " + d.since()
+		return strconv.Itoa(len(d.LeftBehind)) + " commit(s) owe a scoped verify since " + d.since() + ": run " + scopedCommand
 	}
 	if d.Target != pushTargetHead {
-		return "HEAD's tree is not covered by a green verify (" + d.coverage() + "): run " + verifyWorktreeCommand
+		return "HEAD's tree is not covered by a scoped verify (" + d.coverage() + "): run " + scopedCommand
 	}
 	if len(d.Refusals) != 0 {
 		return "the push of HEAD is refused"
@@ -369,19 +370,19 @@ func (d *derivedDebt) headline() string {
 	return strconv.Itoa(len(d.Items)) + " person act(s) owed"
 }
 
-// coverage names what the green record is for a headline: absent, or the
+// coverage names what the scoped record is for a headline: absent, or the
 // commit it names.
 func (d *derivedDebt) coverage() string {
-	if d.Green == "" {
-		return "no green record"
+	if d.Scoped == "" {
+		return "no scoped record"
 	}
-	return "the green record names " + shortSHA(d.Green)
+	return "the scoped record names " + shortSHA(d.Scoped)
 }
 
-// since names the green record a debt is counted from.
+// since names the scoped record a debt is counted from.
 func (d *derivedDebt) since() string {
-	if d.Green == "" {
-		return "no green record"
+	if d.Scoped == "" {
+		return "no scoped record"
 	}
-	return shortSHA(d.Green)
+	return shortSHA(d.Scoped)
 }

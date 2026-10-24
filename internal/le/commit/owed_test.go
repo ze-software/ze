@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	repochanged "github.com/ze-software/ze/internal/le/repo/changed"
 	"github.com/ze-software/ze/internal/le/verify"
 )
 
@@ -65,7 +66,7 @@ func TestDerivedDebtListsCommitsAfterGreen(t *testing.T) {
 	later := commitOwed(t, root, "a change after the verify", map[string]string{"b.txt": "b\n"}, nil)
 
 	derived := deriveOwed(t, root, "")
-	if derived.Target != pushTargetGreen || derived.TargetSHA != green {
+	if derived.Target != pushTargetRecord || derived.TargetSHA != green {
 		t.Fatalf("target %d %q, want the green commit %q", derived.Target, derived.TargetSHA, green)
 	}
 	if len(derived.LeftBehind) != 1 || derived.LeftBehind[0].SHA != later ||
@@ -86,7 +87,7 @@ func TestPushTargetIsGreenCommitWhenHeadMovedOn(t *testing.T) {
 	commitOwed(t, root, "fourth", map[string]string{"d.txt": "d\n"}, nil)
 
 	derived := deriveOwed(t, root, "")
-	if derived.Target != pushTargetGreen || derived.TargetSHA != green {
+	if derived.Target != pushTargetRecord || derived.TargetSHA != green {
 		t.Fatalf("target %d %q, want G %q", derived.Target, derived.TargetSHA, green)
 	}
 	if shas := owedSHAs(derived.Published); !slices.Equal(shas, []string{green, first}) &&
@@ -111,11 +112,11 @@ func TestDerivedDebtReportsTreeMismatchWithEmptyList(t *testing.T) {
 	root := newOwedRepository(t)
 	other := newOwedRepository(t)
 	foreign := commitOwed(t, other, "a commit this checkout never saw", map[string]string{"x.txt": "x\n"}, nil)
-	record, err := verify.NewGreenRecord(foreign, revParse(t, other, foreign+"^{tree}"), 1, time.Now())
+	record, err := scopedRecordFor(t, root, foreign, revParse(t, other, foreign+"^{tree}"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := verify.WriteGreenRecord(root, record); err != nil {
+	if err := verify.WriteScopedRecord(root, record); err != nil {
 		t.Fatal(err)
 	}
 
@@ -126,8 +127,8 @@ func TestDerivedDebtReportsTreeMismatchWithEmptyList(t *testing.T) {
 	if len(derived.LeftBehind) != 0 {
 		t.Fatalf("left behind %+v, want none: HEAD is the upstream", derived.LeftBehind)
 	}
-	if !owedSaid(derived.Refusals, "./le verify worktree") {
-		t.Fatalf("refusals %q do not name ./le verify worktree", derived.Refusals)
+	if !owedSaid(derived.Refusals, "./le verify changed") {
+		t.Fatalf("refusals %q do not name ./le verify changed", derived.Refusals)
 	}
 	if derived.pushRefusal() == nil {
 		t.Fatal("a push was admitted with no verified target")
@@ -241,7 +242,7 @@ func TestDerivedDebtProseOnlyCommitIsCovered(t *testing.T) {
 			commitOwed(t, root, "prose after", map[string]string{"plan/after.md": "# a\n"}, nil)
 
 			derived := deriveOwed(t, root, "")
-			if derived.Target != pushTargetGreen || derived.TargetSHA != prose {
+			if derived.Target != pushTargetRecord || derived.TargetSHA != prose {
 				t.Fatalf("target %d %q, want the prose commit %q before the owed one", derived.Target, derived.TargetSHA, prose)
 			}
 			if shas := owedSHAs(derived.LeftBehind); !slices.Equal(shas, []string{mixed}) {
@@ -259,11 +260,11 @@ func TestDerivedDebtProseOnlyCommitIsCovered(t *testing.T) {
 func TestDerivedDebtDiffFailureIsNotCovered(t *testing.T) {
 	root := newOwedRepository(t)
 	head := commitOwed(t, root, "a change", map[string]string{"a.go": "package a\n"}, nil)
-	record, err := verify.NewGreenRecord(head, "0123456789abcdef0123456789abcdef01234567", 1, time.Now())
+	record, err := scopedRecordFor(t, root, head, "0123456789abcdef0123456789abcdef01234567")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := verify.WriteGreenRecord(root, record); err != nil {
+	if err := verify.WriteScopedRecord(root, record); err != nil {
 		t.Fatal(err)
 	}
 
@@ -474,7 +475,7 @@ func TestPushRefusedWhenUpstreamMovedOrNothingAhead(t *testing.T) {
 
 	derived := deriveOwed(t, root, "")
 	if !owedSaid(derived.Refusals, "git pull --rebase --no-autostash") ||
-		!owedSaid(derived.Refusals, "./le verify worktree") {
+		!owedSaid(derived.Refusals, "./le verify changed") {
 		t.Fatalf("refusals %q do not name the pull and the verify", derived.Refusals)
 	}
 	if derived.pushRefusal() == nil {
@@ -568,14 +569,35 @@ func pushFromOtherMachine(t *testing.T, root, subject, path string) {
 	runCommitGit(t, clone, "push", "-q", "origin", "main")
 }
 
-// writeOwedGreen records a green, uncut verification over commit at root.
+// scopedRecordFor is a green scoped record over commit, whose tree is tree,
+// anchored where a run at root would anchor it: merge-base(commit, @{u}). A
+// commit the checkout cannot reach is anchored at @{u} itself.
+func scopedRecordFor(t *testing.T, root, commit, tree string) (verify.ScopedRecord, error) {
+	t.Helper()
+	upstream := strings.TrimSpace(runCommitGitOutputOr(root, "rev-parse", "@{u}"))
+	if upstream == "" {
+		// A checkout with no upstream: the record still needs an anchor, and
+		// the derivation refuses on the missing upstream before reading it.
+		upstream = commit
+	}
+	anchor := upstream
+	command := exec.CommandContext(t.Context(), "git", "merge-base", commit, upstream) //nolint:gosec // test fixture revisions
+	command.Dir = root
+	if out, err := command.Output(); err == nil {
+		anchor = strings.TrimSpace(string(out))
+	}
+	return verify.NewScopedRecord(commit, tree,
+		repochanged.Anchor{Commit: anchor, Upstream: "@{u}", UpstreamCommit: upstream}, time.Now())
+}
+
+// writeOwedGreen records a green scoped verification over commit at root.
 func writeOwedGreen(t *testing.T, root, commit string) {
 	t.Helper()
-	record, err := verify.NewGreenRecord(commit, revParse(t, root, commit+"^{tree}"), 1, time.Now())
+	record, err := scopedRecordFor(t, root, commit, revParse(t, root, commit+"^{tree}"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := verify.WriteGreenRecord(root, record); err != nil {
+	if err := verify.WriteScopedRecord(root, record); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -649,4 +671,112 @@ func owedSubjects(commits []owedCommit) []string {
 
 func owedSaid(lines []string, want string) bool {
 	return slices.ContainsFunc(lines, func(line string) bool { return strings.Contains(line, want) })
+}
+
+// TestPushAdmitsScopedRecordCoveringHead proves a scoped record over HEAD,
+// anchored at the upstream, admits the push with no full verify asked (AC-15).
+func TestPushAdmitsScopedRecordCoveringHead(t *testing.T) {
+	root := newOwedRepository(t)
+	head := commitOwed(t, root, "a scoped change", map[string]string{"a.go": "package a\n"}, nil)
+	writeOwedGreen(t, root, head)
+	derived := deriveOwed(t, root, "")
+	if derived.Target != pushTargetHead || derived.TargetSHA != head || len(derived.Refusals) != 0 {
+		t.Fatalf("a scoped record over HEAD: target %d %q refusals %q", derived.Target, derived.TargetSHA, derived.Refusals)
+	}
+	if err := derived.pushRefusal(); err != nil {
+		t.Fatalf("a scoped record over HEAD refused its push: %v", err)
+	}
+}
+
+// TestPushCarriesProseAfterScopedRecord proves prose-only commits after the
+// recorded commit ride the push, as the walk always carried them (AC-16).
+func TestPushCarriesProseAfterScopedRecord(t *testing.T) {
+	root := newOwedRepository(t)
+	verified := commitOwed(t, root, "a scoped change", map[string]string{"a.go": "package a\n"}, nil)
+	writeOwedGreen(t, root, verified)
+	prose := commitOwed(t, root, "a page", map[string]string{"docs/a.md": "# a\n"}, nil)
+	derived := deriveOwed(t, root, "")
+	if derived.TargetSHA != prose || len(derived.Refusals) != 0 {
+		t.Fatalf("prose after the record: target %q refusals %q, want %s", derived.TargetSHA, derived.Refusals, prose)
+	}
+}
+
+// TestPushRefusesWhenUpstreamMovedPastAnchor proves a record whose anchor is
+// not an ancestor of the current @{u} proves no push (AC-17). The upstream is
+// rewritten, not advanced: an advanced @{u} still holds the anchor, so only a
+// rewrite reaches the anchor check, with HEAD rebuilt on the new tip so the
+// fast-forward check passes and the anchor refusal stands alone.
+func TestPushRefusesWhenUpstreamMovedPastAnchor(t *testing.T) {
+	root := newOwedRepository(t)
+	anchor := revParse(t, root, "@{u}")
+	// The upstream is rewritten under the run: its new tip shares no history
+	// with the anchor, and the branch is rebuilt on that tip, so the push still
+	// fast-forwards @{u} and only the anchor fails.
+	rewritten := strings.TrimSpace(runCommitGitOutputOr(root, "-c", "user.email=t@t", "-c", "user.name=t",
+		"commit-tree", anchor+"^{tree}", "-m", "the rewritten upstream"))
+	if rewritten == "" {
+		t.Fatal("git commit-tree made no commit")
+	}
+	runCommitGit(t, root, "update-ref", "refs/remotes/origin/main", rewritten)
+	runCommitGit(t, root, "checkout", "-q", "-B", "main", rewritten)
+	head := commitOwed(t, root, "a scoped change", map[string]string{"a.go": "package a\n"}, nil)
+	upstream := revParse(t, root, "@{u}")
+	if upstream != rewritten || upstream == anchor {
+		t.Fatalf("@{u} is %s, want the rewritten tip %s, not the anchor %s", upstream, rewritten, anchor)
+	}
+	if exec.CommandContext(t.Context(), "git", "-C", root, "merge-base", "--is-ancestor", anchor, upstream).Run() == nil { //nolint:gosec // test fixture revisions
+		t.Fatalf("the anchor %s is an ancestor of @{u} %s: the fixture tests an advanced upstream", anchor, upstream)
+	}
+	record, err := verify.NewScopedRecord(head, revParse(t, root, head+"^{tree}"),
+		repochanged.Anchor{Commit: anchor, Upstream: "@{u}", UpstreamCommit: anchor}, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := verify.WriteScopedRecord(root, record); err != nil {
+		t.Fatal(err)
+	}
+	derived := deriveOwed(t, root, "")
+	refusals := strings.Join(derived.Refusals, "\n")
+	for _, want := range []string{"moved past the scoped run's anchor " + shortSHA(anchor) + " without holding it",
+		"is not an ancestor of " + shortSHA(upstream), pullCommand, "./le verify changed"} {
+		if !strings.Contains(refusals, want) {
+			t.Errorf("refusals %q do not name %q", refusals, want)
+		}
+	}
+	if len(derived.Refusals) != 1 {
+		t.Errorf("refusals %q, want the anchor refusal alone: the push fast-forwards @{u}", refusals)
+	}
+	if derived.pushRefusal() == nil {
+		t.Error("a record whose anchor the upstream does not hold admitted the push")
+	}
+}
+
+// TestPushRefusalNamesVerifyChanged proves a checkout with no scoped record is
+// refused naming the scoped run, never a full verify (AC-18).
+func TestPushRefusalNamesVerifyChanged(t *testing.T) {
+	root := newOwedRepository(t)
+	commitOwed(t, root, "an unverified change", map[string]string{"a.go": "package a\n"}, nil)
+	derived := deriveOwed(t, root, "")
+	err := derived.pushRefusal()
+	if err == nil {
+		t.Fatal("no scoped record admitted the push")
+	}
+	text := err.Error() + strings.Join(derived.Refusals, "\n")
+	if !strings.Contains(text, "./le verify changed") {
+		t.Errorf("the refusal %q does not name ./le verify changed", text)
+	}
+	if strings.Contains(text, "verify worktree") || strings.Contains(text, "verify current") {
+		t.Errorf("the refusal %q names a full verify", text)
+	}
+}
+
+// runCommitGitOutputOr answers git's output at root, or empty when git fails.
+func runCommitGitOutputOr(root string, args ...string) string {
+	command := exec.Command("git", args...) //nolint:gosec,noctx // test fixture revisions
+	command.Dir = root
+	out, err := command.Output()
+	if err != nil {
+		return ""
+	}
+	return string(out)
 }

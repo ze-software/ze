@@ -21,7 +21,7 @@ func (o Options) HostPreflight() error {
 	if err != nil {
 		return err
 	}
-	return hostPreflight(verifyengine.Mode, part, setup.FunctionalHostPreflight)
+	return hostPreflight(o.population(), part, setup.FunctionalHostPreflight)
 }
 
 // hostPreflight runs functionalHost only when the piece holds a functional

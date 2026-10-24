@@ -117,28 +117,34 @@ func WriteGreenRecord(root string, record GreenRecord) error {
 	if err := record.valid(); err != nil {
 		return err
 	}
-	path := filepath.Join(root, filepath.FromSlash(GreenPath))
-	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
-		return fmt.Errorf("write green record: %w", err)
-	}
-	file, err := os.CreateTemp(filepath.Dir(path), ".le-green-*")
-	if err != nil {
-		return fmt.Errorf("write green record: %w", err)
-	}
-	temporary := file.Name()
-	defer func() { _ = os.Remove(temporary) }()
-
-	if _, err := file.WriteString(record.Text()); err != nil {
-		_ = file.Close()
-		return fmt.Errorf("write green record: %w", err)
-	}
-	if err := file.Close(); err != nil {
-		return fmt.Errorf("write green record: %w", err)
-	}
-	if err := os.Rename(temporary, path); err != nil {
+	if err := writeRecordAtomically(root, GreenPath, ".le-green-*", record.Text()); err != nil {
 		return fmt.Errorf("write green record: %w", err)
 	}
 	return nil
+}
+
+// writeRecordAtomically replaces the file at relative under root through a
+// temporary file in the same directory and a rename, so a reader sees the old
+// content or the whole new one. Every verification record is written by it.
+func writeRecordAtomically(root, relative, pattern, content string) error {
+	path := filepath.Join(root, filepath.FromSlash(relative))
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+		return err
+	}
+	file, err := os.CreateTemp(filepath.Dir(path), pattern)
+	if err != nil {
+		return err
+	}
+	temporary := file.Name()
+	defer func() { _ = os.Remove(temporary) }()
+	if _, err := file.WriteString(content); err != nil {
+		_ = file.Close()
+		return err
+	}
+	if err := file.Close(); err != nil {
+		return err
+	}
+	return os.Rename(temporary, path)
 }
 
 // ReadGreenRecord reads the record at root. An absent record is an error

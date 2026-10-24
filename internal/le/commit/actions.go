@@ -11,6 +11,7 @@ import (
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 	"github.com/ze-software/ze/internal/le/rfc"
 	testweakened "github.com/ze-software/ze/internal/le/test/weakened"
+	"github.com/ze-software/ze/internal/le/verify"
 )
 
 const area = "commit"
@@ -95,7 +96,7 @@ var commandVerbs = []struct {
 // replaced it. It feeds only the refusal: none of these verbs dispatches.
 var retiredVerbs = map[string]string{
 	"debt-list":      "./le commit " + keywordDebtStatus,
-	"debt-clear":     verifyWorktreeCommand,
+	"debt-clear":     scopedCommand,
 	"debt-discharge": `./le commit create ... attest <commit> "<owner words>"`,
 }
 
@@ -281,8 +282,8 @@ var createKeywords = map[string]keywordRule{
 	keywordLedgerCarried: {Value: true, Repeat: true,
 		Given: func(o *Options) bool { return len(o.LedgerCarried) != 0 }},
 	keywordPush:              {Replacement: `./le commit push "<owner authorisation>"`},
-	"unverified":             {Replacement: "./le verify worktree"},
-	"missing-full-verify-ok": {Replacement: "./le verify worktree"},
+	"unverified":             {Replacement: verify.ChangedCommand},
+	"missing-full-verify-ok": {Replacement: verify.ChangedCommand},
 }
 
 // givenText answers a Given for a keyword whose value is one string: blank is

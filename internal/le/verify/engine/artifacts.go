@@ -85,6 +85,9 @@ type carriedOrigin struct {
 	Commit      string `json:"commit"`
 	RunDir      string `json:"run-dir"`
 	GeneratedAt string `json:"generated-at"`
+	// Mode is the population of the run that judged the verdict. It is empty
+	// in an entry an earlier writer carried, and empty reads as not changed.
+	Mode string `json:"mode,omitempty"`
 }
 
 // FailureIndexFormat is the failure index format this writer produces. Format
@@ -187,7 +190,7 @@ func writeFailureIndex(root string, index artifactIndex) error {
 
 	prior, note := readEarlierIndex(root)
 	index.CarryNote = note
-	index.Stages = carryForward(index.Stages, prior)
+	index.Stages = carryForward(index.Stages, prior, index.Mode)
 	data, err := json.MarshalIndent(index, "", "  ")
 	if err != nil {
 		return unpublished(fmt.Errorf("marshal verify failure index: %w", err))
@@ -292,10 +295,30 @@ func earlierRun(commit, runDir string) string {
 // the last run that repeated it. An earlier entry with a red exit and no
 // reached key comes from an index written before first-red existed, where
 // every stage ran, so it carries too.
-func carryForward(stages []artifactStage, prior artifactIndex) []artifactStage {
+//
+// A changed run (mode ChangedMode) judges a stage it shares with the full
+// population only over its scope: the Staticcheck rows of the scope's tags,
+// the race of its groups, the suites its map selects. Its green, or its stage
+// left unreached, therefore says nothing about the rest of that stage, so it
+// MUST NOT replace a red that another population judged: that red is carried
+// as if the changed run had not held the stage. Only a red the changed
+// population itself judged is cleared by a later changed run.
+func carryForward(stages []artifactStage, prior artifactIndex, mode string) []artifactStage {
 	result := make([]artifactStage, 0, len(stages))
 	held := make(map[string]bool, len(stages))
 	interrupted := make(map[string]artifactStage)
+	earlier := make(map[string]artifactStage, len(prior.Stages))
+	for index := range prior.Stages {
+		earlier[prior.Stages[index].Stage] = prior.Stages[index]
+	}
+	origin := carriedOrigin{Commit: prior.Commit, RunDir: prior.RunDir, GeneratedAt: prior.GeneratedAt, Mode: prior.Mode}
+	legacy := prior.Format < FailureIndexFormat
+	shared := make(map[string]bool)
+	if mode == ChangedMode {
+		for _, stage := range StagesForMode(Mode) {
+			shared[stage.Identity.Name] = true
+		}
+	}
 	for index := range stages {
 		if stages[index].Interrupted {
 			interrupted[stages[index].Stage] = stages[index]
@@ -304,15 +327,16 @@ func carryForward(stages []artifactStage, prior artifactIndex) []artifactStage {
 		if stages[index].OutsideRun {
 			continue
 		}
+		if shared[stages[index].Stage] && !redVerdict(stages[index]) {
+			// A full-population red stays charged: the loop below carries it.
+			if was, found := earlier[stages[index].Stage]; found && judged(was, legacy) &&
+				was.ExitCode != 0 && judgedBy(was, prior) != ChangedMode {
+				continue
+			}
+		}
 		held[stages[index].Stage] = true
 		result = append(result, stages[index])
 	}
-	earlier := make(map[string]artifactStage, len(prior.Stages))
-	for index := range prior.Stages {
-		earlier[prior.Stages[index].Stage] = prior.Stages[index]
-	}
-	origin := carriedOrigin{Commit: prior.Commit, RunDir: prior.RunDir, GeneratedAt: prior.GeneratedAt}
-	legacy := prior.Format < FailureIndexFormat
 	for _, stage := range StagesForMode(Mode) {
 		name := stage.Identity.Name
 		if held[name] {
@@ -353,6 +377,20 @@ func carryForward(stages []artifactStage, prior artifactIndex) []artifactStage {
 		}
 	}
 	return result
+}
+
+// redVerdict reports whether a stage this run held judged it red.
+func redVerdict(stage artifactStage) bool {
+	return stage.Reached && stage.ExitCode != 0
+}
+
+// judgedBy answers the population of the run that judged an earlier index
+// entry: the run it was carried from, else the run that wrote that index.
+func judgedBy(stage artifactStage, prior artifactIndex) string {
+	if stage.CarriedFrom != nil {
+		return stage.CarriedFrom.Mode
+	}
+	return prior.Mode
 }
 
 // judged reports whether an earlier index entry holds a verdict to carry. A

@@ -333,10 +333,9 @@ func TestACarriedRedNamesTheRunThatClearsIt(t *testing.T) {
 	for _, tc := range []struct {
 		stage string
 		rerun string
-		fast  bool
 	}{
-		{stage: "go lint/run", rerun: "le go lint run", fast: true},
-		{stage: "verify deps/evidence-vet", rerun: "le verify deps evidence-vet", fast: false},
+		{stage: "go lint/run", rerun: "le go lint run"},
+		{stage: "verify deps/evidence-vet", rerun: "le verify deps evidence-vet"},
 	} {
 		t.Run(tc.stage, func(t *testing.T) {
 			root := newCommitRepository(t)
@@ -356,7 +355,9 @@ func TestACarriedRedNamesTheRunThatClearsIt(t *testing.T) {
 			}
 			for _, want := range []string{
 				"; diagnose with: " + tc.rerun + "; ",
-				"clears when a verify run reaches it: le verify worktree, or the le verify worktree part <i> of <n> piece that holds it",
+				// Neither stage is in the changed population, so only the release
+				// check clears it, and the text hands that command to Thomas.
+				"clears only when the release check reaches it, which you never run: give Thomas the command ./le verify worktree",
 			} {
 				if !strings.Contains(cause, want) {
 					t.Fatalf("cause = %q, want it to contain %q", cause, want)
@@ -365,8 +366,8 @@ func TestACarriedRedNamesTheRunThatClearsIt(t *testing.T) {
 			if strings.Contains(cause, "rerun it with") {
 				t.Fatalf("cause = %q still offers a rerun as the clearing command", cause)
 			}
-			if got := strings.Contains(cause, "or le verify current fast"); got != tc.fast {
-				t.Fatalf("cause = %q, names le verify current fast = %v, want %v", cause, got, tc.fast)
+			if strings.Contains(cause, "verify current") {
+				t.Fatalf("cause = %q tells the agent to run a full verify", cause)
 			}
 		})
 	}

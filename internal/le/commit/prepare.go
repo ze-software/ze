@@ -78,7 +78,7 @@ type Prepared struct {
 	// `Broken-head-fix:`.
 	Trailers []string `json:"trailers,omitempty"`
 	// Debt is the derived verification debt as this commit is prepared: how
-	// many commits owe a full verify, and since which green record. It is
+	// many commits owe a scoped verify, and since which scoped record. It is
 	// empty outside the Ze checkout.
 	Debt string `json:"debt,omitempty"`
 	// Stats is how much of each staged path this commit carries, measured

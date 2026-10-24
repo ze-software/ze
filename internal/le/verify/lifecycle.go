@@ -20,6 +20,7 @@ import (
 	"github.com/ze-software/ze/internal/le/gaterun"
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
 	"github.com/ze-software/ze/internal/le/job"
+	repochanged "github.com/ze-software/ze/internal/le/repo/changed"
 	"github.com/ze-software/ze/internal/le/scratch"
 	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
 )
@@ -64,6 +65,18 @@ type Options struct {
 	// FirstRed stops the run after the first stage that exits non-zero, with
 	// the uncut population in recorded-cost order. It is refused with a cut.
 	FirstRed bool `json:"first-red,omitempty"`
+	// Mode is the population the run judges: empty is the full population,
+	// the release check; verifyengine.ChangedMode is the scoped run
+	// `le verify changed` starts.
+	Mode string `json:"mode,omitempty"`
+}
+
+// population answers the stage population the options name.
+func (o Options) population() string {
+	if o.Mode == "" {
+		return verifyengine.Mode
+	}
+	return o.Mode
 }
 
 // part answers the piece of the stage population this run judges.
@@ -185,7 +198,8 @@ func run(ctx context.Context, root string, options Options, actions verifyengine
 	// The population this run judges, named in every line it prints. A cut run
 	// that reported the whole mode's name would read as a verification of the
 	// tree in the one artifact an operator scrolls to.
-	population := verifyengine.Mode
+	mode := options.population()
+	population := mode
 
 	// The verdict line is written by the FIRST defer registered, so it is the
 	// LAST one to run: every branch that can still move report.Code, the
@@ -205,7 +219,7 @@ func run(ctx context.Context, root string, options Options, actions verifyengine
 			text.Str("verify-worktree: ").Err(partErr).String())
 		return report
 	}
-	population = part.Name(verifyengine.Mode)
+	population = part.Name(mode)
 
 	revision := strings.TrimSpace(options.Commit)
 	if revision == "" {
@@ -225,7 +239,7 @@ func run(ctx context.Context, root string, options Options, actions verifyengine
 	// three use the whole machine. A second worktree verification of this commit
 	// takes this one's verdict rather than materializing a second checkout of
 	// 22,439 files and judging it again.
-	ticket, err := admitWorktree(root, sha, part, options.FirstRed)
+	ticket, err := admitWorktree(root, sha, mode, part, options.FirstRed)
 	if err != nil {
 		report.Failure = &verifyengine.Failure{Kind: failureAdmission, Message: err.Error()}
 		report.Diagnostics = append(report.Diagnostics,
@@ -355,7 +369,22 @@ func run(ctx context.Context, root string, options Options, actions verifyengine
 	)
 	// The engine runs in the worktree and keeps its stage-time history at the
 	// checkout, which outlives the worktree and orders the next run.
-	verification := verifyengine.RunPart(ctx, path, sha, verifyengine.Mode, part,
+	// A scoped run's change set starts at the anchor, and the record a push
+	// reads names it. It is computed here, from the refs the run's selector
+	// reads, and a worktree with no anchor is refused: its selector would
+	// refuse too, and a run with no published scope judges the whole tree,
+	// which a scoped run must never do.
+	var anchor repochanged.Anchor
+	if mode == verifyengine.ChangedMode {
+		anchor, err = runAnchor(ctx, path, deps)
+		if err != nil {
+			report.Code = 2
+			report.Failure = &verifyengine.Failure{Kind: "anchor", Message: err.Error()}
+			report.Diagnostics = append(report.Diagnostics, text.Reset().Str("verify-changed: ").Err(err).String())
+			return report
+		}
+	}
+	verification := verifyengine.RunPart(ctx, path, sha, mode, part,
 		verifyengine.Plan{History: root, FirstRed: options.FirstRed}, actions, slot)
 	report.Verify = &verification
 	report.Code = verification.Code
@@ -413,6 +442,11 @@ func run(ctx context.Context, root string, options Options, actions verifyengine
 		// written in the worktree, so CopyCertificate copies neither.
 		if line := recordGreen(ctx, root, part, &report, deps); line != "" {
 			report.Diagnostics = append(report.Diagnostics, line)
+		}
+		if mode == verifyengine.ChangedMode {
+			if line := recordChanged(ctx, root, anchor, &report, deps); line != "" {
+				report.Diagnostics = append(report.Diagnostics, line)
+			}
 		}
 	case errors.Is(publishErr, os.ErrNotExist):
 		report.Diagnostics = append(report.Diagnostics, text.Reset().
@@ -486,12 +520,18 @@ func relativeLogs(root, logs string) string {
 }
 
 // admitWorktree claims this lifecycle's slot in the shared job registry.
-func admitWorktree(root, sha string, part verifyengine.Part, firstRed bool) (*job.Ticket, error) {
+func admitWorktree(root, sha, mode string, part verifyengine.Part, firstRed bool) (*job.Ticket, error) {
 	admission, err := job.NewIn(root)
 	if err != nil {
 		return nil, err
 	}
-	return admission.Admit(jobLabel, worktreeArgv(sha, part, firstRed))
+	argv := worktreeArgv(sha, part, firstRed)
+	if mode == verifyengine.ChangedMode {
+		// The scoped run judges a different population from the release check
+		// over the same commit, so the two MUST NOT share one verdict.
+		argv = []string{"le", area, verbChanged, commitKeyword, sha}
+	}
+	return admission.Admit(jobLabel, argv)
 }
 
 // worktreeArgv is what the registry fingerprints as this run's work. The commit

@@ -254,9 +254,15 @@ A non-Go path seeds the Go packages whose tests read it, so a `.ci` file or a
 rule point selects the native tooling packages rather than nothing.
 
 Every route that fails to narrow WIDENS to `./...` and names its reason on stderr
-(`widen`, `internal/le/repo/changed/scope.go`). One reason is routine:
-`tmp/ze-verify.status` holding no green commit. With nothing proven, every scoped
-target judges the whole tree until a full run passes. The contract is
+(`widen`, `internal/le/repo/changed/scope.go`). The committed half of the change
+set starts at the anchor, the merge base of HEAD and its upstream, or of HEAD
+and `refs/remotes/origin/HEAD` when the branch tracks none (`ResolveAnchor`,
+`internal/le/repo/changed/anchor.go`). No verify run can move it, so a red or
+interrupted run never widens the next scoped answer. A checkout with neither
+ref is refused with exit 2 and the command that fixes it, never widened:
+`git branch --set-upstream-to=origin/<branch>` on a branch, and
+`git remote set-head origin --auto` with HEAD detached, as in a verify worktree
+(`noUpstreamError`). The contract is
 `../architecture/testing/verify-freshness-scope.md`.
 
 One directory answers with the whole tree by design. Every file in
@@ -288,9 +294,14 @@ A piece dealt no row says so and passes: its rows are judged by a sibling piece
 of the same run. One run is bounded at 90 seconds for each row it judges, so the
 bound follows the size of the piece.
 
-Suite selection is not scoped: every functional suite runs on every verify,
-whatever the change set says. `go list -deps ./cmd/ze` links most of the module,
-so no static signal attributes a `.ci` file to a Go package.
+Suite selection narrows only where the recorded suite map answers.
+`selectSuites` (`internal/le/test/functional/suitemap.go`) runs every suite
+while the map is being recorded, when the map cannot be read, and when the
+change-set selector refused or widened; otherwise it keeps the suites the map
+records as reaching a changed package. `go list -deps ./cmd/ze` links most of
+the module, so the map is measured, not derived from imports. The contract is
+`../architecture/testing/verify-freshness-scope.md`, "What a suite REACHED".
+<!-- source: internal/le/test/functional/suitemap.go -- selectSuites -->
 
 ## Scratch files
 
@@ -1086,6 +1097,37 @@ when that write fails too it prints the reason on the line before its verdict.
 with exit 2, because a piece counts towards the green record only when every
 stage of it runs.
 <!-- source: internal/le/verify/sweep.go -- Sweep -->
+
+## A full verification is Thomas's to start
+
+`./le verify worktree` (with any of `commit`, `keep`, `first-red`,
+`part <i> of <m>`, `all of <m>`), `./le verify current`, `current fast`, and the
+host side of `./le verify evidence release-candidate` are release checks. Each
+declares `WholeTree` where it registers (`leaction.Action.WholeTree`), and the
+dispatcher refuses the line with exit 2 unless stdin and stdout are both
+terminals (`Area.admit`, `internal/le/le/action/leaction.go`, calling
+`human.RequireTerminal`, `internal/le/le/human/human.go`). The refusal comes
+after the keyword grammar, so a mistyped keyword still gets its usage text, and
+before the body, so no admission, job slot, worktree or container exists yet. A
+tool call reaches le through pipes; Thomas's shell reaches it with his terminal.
+
+The refusal names which stream is not a terminal, says why (a full run loads
+the whole shared machine, and only Thomas knows when that is safe), then gives
+two lines: the exact command this invocation was given, to hand to Thomas, and
+`./le verify changed`, the scoped run that is the agent's own evidence. A
+terminal question that errors is refused the same way, naming the error.
+
+No keyword, flag or environment variable skips the gate.
+`TestEveryWholeTreeVerbIsGated` (`internal/le/verify/gate_test.go`) walks the
+registered verbs and fails on one that starts a run without the declaration, or
+on a gated verb that gains a keyword nobody reviewed. A Go test that drives a
+gated verb installs `leaction.SetWholeTreeAdmission`; a functional fixture that
+drives one runs it under a pseudo-terminal (`terminalCommand`,
+`internal/test/fixture/misc_fixture_runner.go`), standing where Thomas stands.
+The release-candidate container gets `docker run -t` for its inner
+`./le verify current` (`docs/architecture/testing/interop.md`). The gate stops a
+tool call, not a program that fakes a terminal; the rule that an agent never
+runs a full verification covers that case.
 
 ## One verify at a time
 

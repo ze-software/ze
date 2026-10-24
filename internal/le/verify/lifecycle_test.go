@@ -360,7 +360,7 @@ func TestInterruptionStillRemovesAndPrunesTheWorktree(t *testing.T) {
 
 func TestActionsDeclareWorktreeCurrentRedsAndList(t *testing.T) {
 	listing := Actions()
-	want := []string{"worktree", "current", "reds", "list"}
+	want := []string{"worktree", "current", verbChanged, "reds", "list"}
 	if len(listing.Actions) != len(want) {
 		t.Fatalf("actions = %#v", listing)
 	}

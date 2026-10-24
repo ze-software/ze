@@ -1,4 +1,4 @@
-// Design: docs/architecture/testing/verify-freshness-scope.md -- verification debt derived from git and the green record
+// Design: docs/architecture/testing/verify-freshness-scope.md -- verification debt derived from git and the scoped record
 // Related: actions.go -- the push and debt-status verbs that read the derivation, and the declared trailers
 // Related: owed_answers.go -- the producers that answer a person-act obligation
 // Related: owed_trailers.go -- reading the trailers and the stable patch-ids over one range
@@ -16,9 +16,9 @@ import (
 	"github.com/ze-software/ze/internal/le/verify"
 )
 
-// verifyWorktreeCommand is the command every "a full verify is owed" answer
+// scopedCommand is the command every "a scoped verify is owed" answer
 // names.
-const verifyWorktreeCommand = "./le verify worktree"
+const scopedCommand = verify.ChangedCommand
 
 // pullCommand is the command an upstream that moved past P is answered with.
 const pullCommand = "git pull --rebase --no-autostash"
@@ -32,12 +32,12 @@ const (
 	// pushTargetNotApplicable is the answer outside the Ze checkout: no
 	// derivation runs and the push is not gated.
 	pushTargetNotApplicable
-	// pushTargetHead says the green tree covers HEAD^{tree}, so P is HEAD.
+	// pushTargetHead says the scoped tree covers HEAD^{tree}, so P is HEAD.
 	pushTargetHead
-	// pushTargetGreen says the green record's commit G is an ancestor of HEAD
+	// pushTargetRecord says the scoped record's commit G is an ancestor of HEAD
 	// whose tree does not cover HEAD's, so P is the last commit of the walk
 	// from G and the commits after it wait.
-	pushTargetGreen
+	pushTargetRecord
 	// pushTargetNamed is `debt-status commit <rev>` naming an admissible P.
 	pushTargetNamed
 	// pushTargetNone says no commit on HEAD's branch is covered by the green
@@ -87,15 +87,15 @@ type derivedDebt struct {
 	// TargetSHA is P. It is empty exactly when Target is pushTargetNone or
 	// pushTargetNotApplicable.
 	TargetSHA string
-	// Green is the green record's commit, empty when there is no record.
-	Green string
+	// Green is the scoped record's commit, empty when there is no record.
+	Scoped string
 	// Upstream is the SHA `@{u}` resolves to.
 	Upstream string
 	// Published is `P ^@{u}`, the commits a push of P puts on the upstream.
 	Published []owedCommit
 	// LeftBehind is the commits in `HEAD ^P` when P exists, else in
 	// `HEAD ^@{u} ^G`, that change a non-prose path: the commits that owe a
-	// full verify before a push can carry them. A prose-only commit is never
+	// scoped verify before a push can carry them. A prose-only commit is never
 	// listed (repochanged.IsProse).
 	LeftBehind []owedCommit
 	// Items are the person acts still open over `P ^@{u}`, or over
@@ -110,7 +110,7 @@ type derivedDebt struct {
 // deriveDebt derives the verification debt at root for candidate, the commit
 // `debt-status commit <rev>` names, or for HEAD's own choice of P when
 // candidate is empty. An error is "cannot derive" (no upstream, git failed,
-// an unreadable green record), and a caller MUST NOT read it as zero owed.
+// an unreadable scoped record), and a caller MUST NOT read it as zero owed.
 func deriveDebt(root, candidate string) (derivedDebt, error) {
 	if !lepath.IsCheckout(root) {
 		return derivedDebt{Target: pushTargetNotApplicable}, nil
@@ -125,13 +125,13 @@ func deriveDebt(root, candidate string) (derivedDebt, error) {
 		return derivedDebt{}, fmt.Errorf("cannot derive the verification debt: %w", err)
 	}
 	derived := derivedDebt{Upstream: upstream}
-	record, present, err := readGreen(root, &derived)
+	record, present, err := readScoped(root, &derived)
 	if err != nil {
 		return derivedDebt{}, err
 	}
 	greenKnown := false
 	if present {
-		derived.Green = record.Commit()
+		derived.Scoped = record.Commit()
 		shas, err := resolveCommits(root, []string{record.Commit()})
 		if err != nil {
 			return derivedDebt{}, fmt.Errorf("cannot derive the verification debt: %w", err)
@@ -157,42 +157,42 @@ func deriveDebt(root, candidate string) (derivedDebt, error) {
 	return derived, nil
 }
 
-// readGreen reads the green record. An absent record and one that does not
+// readGreen reads the scoped record. An absent record and one that does not
 // prove a push are answers, each recorded as a refusal naming the verify; any
 // other failure to read it is "cannot derive".
-func readGreen(root string, derived *derivedDebt) (verify.GreenRecord, bool, error) {
-	record, err := verify.ReadGreenRecord(root)
+func readScoped(root string, derived *derivedDebt) (verify.ScopedRecord, bool, error) {
+	record, err := verify.ReadScopedRecord(root)
 	if err == nil {
 		return record, true, nil
 	}
 	if errors.Is(err, os.ErrNotExist) {
-		derived.Refusals = append(derived.Refusals, "no green record: no full verification passed in this checkout")
-		return verify.GreenRecord{}, false, nil
+		derived.Refusals = append(derived.Refusals, "no scoped record: "+scopedCommand+" has not passed in this checkout")
+		return verify.ScopedRecord{}, false, nil
 	}
-	if errors.Is(err, verify.ErrNotGreen) {
-		derived.Refusals = append(derived.Refusals, "the green record proves no push: "+err.Error())
-		return verify.GreenRecord{}, false, nil
+	if errors.Is(err, verify.ErrNotScoped) {
+		derived.Refusals = append(derived.Refusals, "the scoped record proves no push: "+err.Error())
+		return verify.ScopedRecord{}, false, nil
 	}
-	return verify.GreenRecord{}, false, fmt.Errorf("cannot derive the verification debt: read %s: %w", verify.GreenPath, err)
+	return verify.ScopedRecord{}, false, fmt.Errorf("cannot derive the verification debt: read %s: %w", verify.ChangedPath, err)
 }
 
 // noTargetRefusal is the refusal for a derivation that found no commit the
-// green record covers.
+// scoped record covers.
 func noTargetRefusal(candidate string) string {
 	if candidate != "" {
-		return "commit " + candidate + " is not a verified push target: run " + verifyWorktreeCommand +
+		return "commit " + candidate + " is not a verified push target: run " + scopedCommand +
 			", then ./le commit push"
 	}
-	return "no commit on this branch is covered by the green record: run " + verifyWorktreeCommand +
+	return "no commit on this branch is covered by the scoped record: run " + scopedCommand +
 		", then ./le commit push"
 }
 
-// chooseTarget sets P by the push target rules: HEAD when the green tree
+// chooseTarget sets P by the push target rules: HEAD when the scoped tree
 // covers its tree, else the last commit of the walk from G along HEAD's first
-// parents, else none. A named candidate is admissible only when the green tree
+// parents, else none. A named candidate is admissible only when the scoped tree
 // covers it and it is on HEAD's branch. Whatever P is, the upstream must
 // fast-forward to it.
-func (d *derivedDebt) chooseTarget(root, head, candidate string, record verify.GreenRecord, greenKnown bool) error {
+func (d *derivedDebt) chooseTarget(root, head, candidate string, record verify.ScopedRecord, greenKnown bool) error {
 	switch {
 	case candidate != "":
 		if err := d.chooseNamed(root, head, candidate, record.Tree()); err != nil {
@@ -201,7 +201,7 @@ func (d *derivedDebt) chooseTarget(root, head, candidate string, record verify.G
 	case d.covered(root, record.Tree(), head):
 		d.Target, d.TargetSHA = pushTargetHead, head
 	case greenKnown:
-		if err := d.walkFromGreen(root, head, record); err != nil {
+		if err := d.walkFromRecord(root, head, record); err != nil {
 			return err
 		}
 	default:
@@ -215,7 +215,24 @@ func (d *derivedDebt) chooseTarget(root, head, candidate string, record verify.G
 		return fmt.Errorf("cannot derive the verification debt: %w", err)
 	}
 	if !forward {
-		d.Refusals = append(d.Refusals, "the upstream moved: "+pullCommand+", then "+verifyWorktreeCommand)
+		d.Refusals = append(d.Refusals, "the upstream moved: "+pullCommand+", then "+scopedCommand)
+	}
+	// The record proves P only when its change set held every commit the push
+	// publishes: A..C holds @{u}..P exactly when the anchor A is an ancestor of,
+	// or equal to, the current @{u}. An @{u} that only advanced still holds A,
+	// and the forward check above answers it. A fails here when the upstream no
+	// longer holds it: the upstream was rewritten under the run, or the run
+	// anchored on another ref, so commits this push publishes were never in the
+	// run's scope.
+	anchored, err := isAncestor(root, record.Anchor(), d.Upstream)
+	if err != nil {
+		return fmt.Errorf("cannot derive the verification debt: %w", err)
+	}
+	if !anchored {
+		d.Refusals = append(d.Refusals, "the upstream moved past the scoped run's anchor "+shortSHA(record.Anchor())+
+			" without holding it ("+shortSHA(record.Anchor())+" is not an ancestor of "+shortSHA(d.Upstream)+
+			": the upstream was rewritten, or the run anchored on another ref), so the run did not judge every "+
+			"commit this push publishes: "+pullCommand+", then "+scopedCommand)
 	}
 	return nil
 }
@@ -243,11 +260,11 @@ func (d *derivedDebt) chooseNamed(root, head, candidate, greenTree string) error
 	return nil
 }
 
-// walkFromGreen advances X from G along `--first-parent G..HEAD` while the
-// green tree covers each commit, and stops at the first it does not cover. G
+// walkFromRecord advances X from G along `--first-parent G..HEAD` while the
+// scoped tree covers each commit, and stops at the first it does not cover. G
 // itself is judged too: a record whose tree does not cover its own commit
 // proves nothing about it.
-func (d *derivedDebt) walkFromGreen(root, head string, record verify.GreenRecord) error {
+func (d *derivedDebt) walkFromRecord(root, head string, record verify.ScopedRecord) error {
 	d.Target = pushTargetNone
 	onBranch, err := isAncestor(root, record.Commit(), head)
 	if err != nil {
@@ -265,12 +282,12 @@ func (d *derivedDebt) walkFromGreen(root, head string, record verify.GreenRecord
 		if !d.covered(root, record.Tree(), commit) {
 			break
 		}
-		d.Target, d.TargetSHA = pushTargetGreen, commit
+		d.Target, d.TargetSHA = pushTargetRecord, commit
 	}
 	return nil
 }
 
-// covered answers whether the green tree covers revision's tree: every path
+// covered answers whether the scoped tree covers revision's tree: every path
 // `git diff --name-only` names between them is prose. An empty diff is
 // covered. A diff git could not compute is NOT covered, and the refusal names
 // git's error: it is never read as an empty diff. Renames are off, so a file
@@ -279,8 +296,8 @@ func (d *derivedDebt) covered(root, greenTree, revision string) bool {
 	names, err := gitOutput(root, "-c", "core.quotePath=false", "diff", "--no-renames", gitNoExtDiff,
 		"--name-only", greenTree, revision, "--")
 	if err != nil {
-		d.Refusals = append(d.Refusals, "cannot compare "+revision+" with the green tree, so it is not covered: "+
-			err.Error()+"; run "+verifyWorktreeCommand)
+		d.Refusals = append(d.Refusals, "cannot compare "+revision+" with the scoped tree, so it is not covered: "+
+			err.Error()+"; run "+scopedCommand)
 		return false
 	}
 	return proseOnly(strings.Split(names, "\n"))
@@ -318,7 +335,7 @@ func (d *derivedDebt) listCommits(root, head string, greenKnown bool) error {
 	case d.TargetSHA != "":
 		behind = append(behind, head, "^"+d.TargetSHA)
 	case greenKnown:
-		behind = append(behind, head, "^"+d.Upstream, "^"+d.Green)
+		behind = append(behind, head, "^"+d.Upstream, "^"+d.Scoped)
 	default:
 		behind = append(behind, head, "^"+d.Upstream)
 	}
@@ -375,8 +392,8 @@ func logCommits(root string, revisions ...string) ([]loggedCommit, error) {
 //
 // Outside the Ze checkout nothing is derived, so nothing is owed. Any refusal
 // or open person act is owed. With no push target, HEAD's tree is not covered
-// by a green verify, and that is owed even when no commit is listed. A target
-// the derivation found itself (HEAD's choice) owes a full verify when it is not
+// by a scoped verify, and that is owed even when no commit is listed. A target
+// the derivation found itself (HEAD's choice) owes a scoped verify when it is not
 // HEAD, or when it leaves a commit behind. A target `debt-status commit <rev>`
 // named is judged alone: what follows it on the branch does not count (AC-25).
 func (d *derivedDebt) owed() bool {
@@ -385,7 +402,7 @@ func (d *derivedDebt) owed() bool {
 		return false
 	case pushTargetUnspecified, pushTargetNone:
 		return true
-	case pushTargetHead, pushTargetGreen, pushTargetNamed:
+	case pushTargetHead, pushTargetRecord, pushTargetNamed:
 	}
 	if len(d.Refusals) != 0 {
 		return true
@@ -411,14 +428,14 @@ func (d *derivedDebt) pushRefusal() error {
 		return nil
 	case pushTargetUnspecified:
 		return errors.New("BUG: a verification debt derivation chose no push target")
-	case pushTargetNone, pushTargetHead, pushTargetGreen, pushTargetNamed:
+	case pushTargetNone, pushTargetHead, pushTargetRecord, pushTargetNamed:
 	}
 	if len(d.Refusals) != 0 {
 		return errors.New("push refused: " + strings.Join(d.Refusals, "\n  "))
 	}
 	if len(d.Published) == 0 {
 		return errors.New("push refused: nothing verified is ahead of the upstream " + shortSHA(d.Upstream) +
-			"; commit the work, run " + verifyWorktreeCommand + ", then ./le commit push")
+			"; commit the work, run " + scopedCommand + ", then ./le commit push")
 	}
 	if len(d.Items) == 0 {
 		return nil

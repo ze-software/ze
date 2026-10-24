@@ -15,6 +15,7 @@ import (
 
 	"github.com/ze-software/ze/internal/le/derived"
 	"github.com/ze-software/ze/internal/le/rfc"
+	repochanged "github.com/ze-software/ze/internal/le/repo/changed"
 	specpath "github.com/ze-software/ze/internal/le/spec/path"
 	"github.com/ze-software/ze/internal/le/verify"
 )
@@ -490,7 +491,7 @@ func TestSessionStartPrintsAReadyReportPastTheDeadline(t *testing.T) {
 // budget, which is what A-5 claims for one rev-list and one log.
 // VALIDATES: AC-22, AC-11, AC-12, A-5.
 func TestSessionStartReportsDerivedDebt(t *testing.T) {
-	const warning = "verification debt: 1 commit(s) owe a full verify since "
+	const warning = "verification debt: 1 commit(s) owe a scoped verify since "
 	t.Run("a commit after the green record", func(t *testing.T) {
 		root := derivedDebtCheckout(t, true)
 		green := derivedDebtCommit(t, root, "the verified change")
@@ -586,15 +587,55 @@ func derivedDebtCommit(t *testing.T, root, subject string) string {
 }
 
 // derivedDebtGreen records a green, uncut verification over commit at root.
+// derivedDebtGreen records a green scoped verify (`./le verify changed`) over
+// commit at root, anchored where the run would anchor it: the merge-base of
+// commit and @{u}, or commit itself in a checkout with no upstream, where the
+// derivation refuses on the missing upstream before it reads the record.
 func derivedDebtGreen(t *testing.T, root, commit string) {
 	t.Helper()
 	tree := strings.TrimSpace(derivedDebtGit(t, root, "rev-parse", commit+"^{tree}"))
-	record, err := verify.NewGreenRecord(commit, tree, 1, time.Now())
+	upstream, anchor := commit, commit
+	resolve := exec.CommandContext(t.Context(), "git", "rev-parse", "@{u}")
+	resolve.Dir = root
+	if out, err := resolve.Output(); err == nil {
+		upstream = strings.TrimSpace(string(out))
+		anchor = strings.TrimSpace(derivedDebtGit(t, root, "merge-base", commit, upstream))
+	}
+	record, err := verify.NewScopedRecord(commit, tree,
+		repochanged.Anchor{Commit: anchor, Upstream: "@{u}", UpstreamCommit: upstream}, time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := verify.WriteGreenRecord(root, record); err != nil {
+	if err := verify.WriteScopedRecord(root, record); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// TestSessionStartDebtLineNamesVerifyChanged drives the session-start hook
+// over a checkout with an unpushed non-prose commit after the scoped record:
+// the debt line says the commits owe a scoped verify and names
+// `./le verify changed`, and it never names a full verify.
+// VALIDATES: AC-19.
+// PREVENTS: an agent told at session start to run the full gate it may not run.
+func TestSessionStartDebtLineNamesVerifyChanged(t *testing.T) {
+	root := derivedDebtCheckout(t, true)
+	scoped := derivedDebtCommit(t, root, "the verified change")
+	derivedDebtGreen(t, root, scoped)
+	derivedDebtCommit(t, root, "a change after the verify")
+	printed, _ := runSessionStartStreams(t, root)
+	at := strings.Index(printed, "verification debt: ")
+	if at < 0 {
+		t.Fatalf("the hook printed %q, want a debt line", printed)
+	}
+	line, _, _ := strings.Cut(printed[at:], "\n")
+	want := "1 commit(s) owe a scoped verify since " + scoped[:7] + ": run ./le verify changed"
+	if !strings.Contains(line, want) {
+		t.Fatalf("the debt line is %q, want %q", line, want)
+	}
+	for _, full := range []string{"full verify", "verify worktree", "verify current"} {
+		if strings.Contains(line, full) {
+			t.Fatalf("the debt line %q names a full verify (%q)", line, full)
+		}
 	}
 }
 

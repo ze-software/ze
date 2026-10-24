@@ -19,6 +19,9 @@ import (
 
 const area = "verify"
 
+// verbChanged is the scoped verification an agent may start.
+const verbChanged = "changed"
+
 // commitKeyword is the parameter keyword that names the revision a worktree
 // verification judges. The action declares it, the action reads it, and
 // worktreeArgv writes it into the work identity a second session attaches to,
@@ -55,6 +58,15 @@ var actions = leaction.New(area,
 		WholeTree:  true,
 		Parameters: []leaction.Parameter{{Keyword: keywordFull}, {Keyword: keywordFast}, {Keyword: keywordFirstRed}},
 		AnswerArgs: currentHere,
+	},
+	leaction.Action{
+		Verb: verbChanged,
+		Why: "run the scoped population (the tests, vet, lint, Staticcheck rows, race groups and functional suites " +
+			"of what the change set reaches) against a fixed commit in a fresh detached worktree; commit defaults to HEAD; " +
+			"a green run writes the scoped record a push reads; an agent runs this for its own evidence",
+		Writes:     false,
+		Parameters: []leaction.Parameter{{Keyword: commitKeyword, Value: "revision", Requirement: leaction.Optional}},
+		AnswerArgs: changedHere,
 	},
 	leaction.Action{
 		Verb:       "reds",
