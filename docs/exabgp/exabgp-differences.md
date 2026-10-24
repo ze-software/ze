@@ -242,7 +242,8 @@ numbers, each extended community as its text alone, and an attribute Ze has no
 parser for as `attr-<code>`. ExaBGP writes the AS_PATH's segments and their
 types, the numeric value beside each extended community, and the flag octet in
 the unknown attribute's `attribute-0xCC-0xFF` name. The bridge subscribes at
-`FormatFull`, so every UPDATE event carries `raw.update` beside its parsed body,
+`FormatFull` whenever a script receives UPDATEs, in any form, `parsed`
+included, so every UPDATE event carries `raw.update` beside its parsed body,
 and the one UPDATE renderer, `Event.exabgpJSON`, reads those three members off
 the UPDATE's own path attributes. `WireUpdateToExabgpJSON`, which the ExaBGP
 compatibility fixtures go through, hands its bytes to the same renderer, so a

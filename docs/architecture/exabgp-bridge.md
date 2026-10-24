@@ -835,16 +835,23 @@ the packet JSON, which writes `0x`, as ExaBGP does.
 
 The bytes come from the engine: a runner subscribes with the `full` format,
 which carries each message's body beside its parsed form (`raw.update`,
-`raw.message`, `docs/architecture/api/json-format.md`), only when some script
-is granted a form that writes them: `packets` in either direction, or a received
-`consolidate`. Otherwise it subscribes `parsed`, so the engine does not
-hex-encode every UPDATE for nothing. The internal runner decides at
-`OnConfigure`, which a reload cannot change; the external runner's one script
-has no feed, so it always subscribes `parsed`. The bridge derives the
-header from the body length and the type. An OPERATIONAL message has no
-producer, so neither form is written for one.
+`raw.message`, `docs/architecture/api/json-format.md`), whenever some script is
+written something read off them. That is every UPDATE a script receives, in
+any form, the decoded line included, because its AS_PATH segments, extended
+community values and unknown attribute flags come from the bytes (see "Three
+UPDATE members come from the wire bytes" in `docs/exabgp/exabgp-differences.md`),
+and any message a script is granted `packets` for in either direction, or
+`consolidate` for when received. A script with no feed list receives every
+UPDATE, so it needs them too. Only when no script receives an UPDATE or a
+packet form, such as a bridge whose scripts are granted session changes
+alone, does the runner subscribe `parsed`, so the engine does not hex-encode
+every UPDATE for nothing. The internal runner decides at `OnConfigure`, which a
+reload cannot change; the external runner's one script has no feed, so it
+always subscribes `full`. The bridge derives the header from the body length
+and the type. An OPERATIONAL message has no producer, so neither form is
+written for one.
 <!-- source: internal/plugins/exabgp/bridgerun/fleet.go -- EventFormat -->
-<!-- source: internal/exabgp/bridge/bridge_event_packets.go -- GrantsPacket, FormsFor -->
+<!-- source: internal/exabgp/bridge/bridge_event_packets.go -- NeedsBytes, FormsFor -->
 
 Two differences from ExaBGP remain. ExaBGP reads `consolidate` and `parsed` for
 the neighbor, from any process that asked, and ze reads them per script, which

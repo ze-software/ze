@@ -168,9 +168,10 @@ func runInternalBridge(conn net.Conn) int {
 				return err
 			}
 			// The `full` format carries each message's bytes beside its
-			// parsed form, which only the `packets` and `consolidate` forms
-			// write, so the bridge asks for it only when a script is
-			// granted one (bridgerun.EventFormat). A reload cannot change
+			// parsed form. The `packets` and `consolidate` forms write them
+			// and every UPDATE line reads its AS_PATH and communities off
+			// them, so the bridge asks for it when a script receives an
+			// UPDATE or a packet form (bridgerun.EventFormat). A reload cannot change
 			// the grants (verifyReload), so the Stage 2 answer holds for the
 			// life of the plugin.
 			p.SetStartupSubscriptions([]string{"*"}, nil, bridgerun.EventFormat(cfg.Scripts))

@@ -310,8 +310,11 @@ subscriber of any other format is written no `raw` member. An End-of-RIB marker
 of a `full` subscriber is the `eor` object, as for a `parsed` one, with
 `"raw": {"update": "<hex>"}` beside it. The header is not delivered: RFC 4271
 Section 4.1 fixes it as the Marker, the Length and the Type, which the body and
-the event state. The ExaBGP bridge subscribes `full` and writes ExaBGP's
-`packets` and `consolidate` lines from these members.
+the event state. The ExaBGP bridge subscribes `full` whenever a script
+receives an UPDATE or a packet form: it writes ExaBGP's `packets` and
+`consolidate` lines from these members, and reads every UPDATE's AS_PATH,
+extended community values and unknown attribute flags from `raw.update`
+(`docs/architecture/exabgp-bridge.md`).
 
 <!-- source: internal/component/bgp/format/json_message.go -- JSONEncoder.Message -->
 <!-- source: internal/component/bgp/format/text_update.go -- appendEORUpdateJSON -->

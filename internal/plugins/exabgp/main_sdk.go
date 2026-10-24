@@ -87,9 +87,9 @@ func runSDKMode(ctx context.Context, pluginCmd, families []string, routeRefresh 
 	}}
 
 	// Subscribe to all events, in the format the scripts' forms read
-	// (bridgerun.EventFormat): a script with no feed list is granted no
-	// `packets` or `consolidate`, so this runner subscribes `parsed`, and the
-	// engine writes no message's bytes it would only throw away.
+	// (bridgerun.EventFormat): a script with no feed list receives every
+	// UPDATE, whose decoded line reads its AS_PATH and communities off the
+	// message's bytes (bridge.NeedsBytes), so this runner subscribes `full`.
 	p.SetStartupSubscriptions([]string{"*"}, nil, bridgerun.EventFormat(scripts))
 
 	// The script is NOT started here: the OnAllPluginsReady registration below

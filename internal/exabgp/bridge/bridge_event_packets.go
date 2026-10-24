@@ -198,14 +198,24 @@ func FormsFor(direction string, granted func(apiKey string) bool) Forms {
 	return forms
 }
 
-// GrantsPacket answers whether an api block's words write some message as its
-// bytes, in either direction: FormsFor answers FormPackets or FormConsolidated
-// for it. Only then does a runner need the engine's `full` events, which carry
-// each message's bytes as hex beside its parsed form (readPacket); every other
-// grant is written from the parsed form alone, so the engine is spared the hex
-// of every UPDATE (ai/rules/performance.md).
-func GrantsPacket(granted func(apiKey string) bool) bool {
+// NeedsBytes answers whether an api block's words reach a message's bytes, in
+// either direction, so the runner must subscribe to the engine's `full` events,
+// which carry each message's bytes as hex beside its parsed form (readPacket).
+//
+// Two consumers read the bytes. The `packets` and `consolidate` forms write
+// them (FormsFor), for any message kind. And every UPDATE a script is written,
+// in any form, the decoded line included, takes its AS_PATH segments, its
+// extended community values and its unknown attributes' flags from them
+// (Event.overlayWire, Event.textWire), because ze's parsed document states
+// those lossily. So a grant of the UPDATE itself needs the bytes whatever form
+// it asks for. Only a grant that reaches neither, such as the session changes
+// alone, is written from the parsed form, and the engine is spared the hex of
+// every UPDATE (ai/rules/performance.md).
+func NeedsBytes(granted func(apiKey string) bool) bool {
 	for _, direction := range []string{modeReceive, modeSend} {
+		if granted(direction + "-" + msgTypeUpdate) {
+			return true
+		}
 		if FormsFor(direction, granted)&(FormPackets|FormConsolidated) != 0 {
 			return true
 		}

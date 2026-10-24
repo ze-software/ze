@@ -1,0 +1,3 @@
+| Test | Reason |
+|---|---|
+| TestEventFormatAsksForBytesOnlyWhenAFormWritesThem | Renamed TestEventFormatAsksForBytesWheneverAScriptReadsThem. The old test was wrong about what it asserts: it expected the `parsed` format for feeds granting `receive-update` and for a script with no feed list, though each such script is written UPDATE lines that Event.overlayWire reads off the bytes only `full` carries. Every case is kept, those three now expect `full`, and four `parsed` cases were added for grants that reach no UPDATE. TestParsedScriptIsWrittenTheWireASPath proves the corrected rule end to end. |

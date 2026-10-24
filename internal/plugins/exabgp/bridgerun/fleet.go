@@ -114,16 +114,21 @@ type Fleet struct {
 }
 
 // EventFormat answers the format a runner subscribes to the engine's events in
-// for these scripts: `full` when some feed grants a script a message's bytes
-// (bridge.GrantsPacket), the only form that reads them, and `parsed`
-// otherwise, so the engine does not hex-encode every UPDATE for a bridge whose
-// scripts never see the bytes. A script with no feed list is written the
-// decoded line alone (script.forms), so it asks for nothing more.
+// for these scripts: `full` when some script is written something read off a
+// message's bytes (bridge.NeedsBytes), which every UPDATE it receives is, in
+// any form, and `parsed` otherwise, so the engine does not hex-encode every
+// UPDATE for a bridge whose scripts receive no UPDATE and no packet form.
+//
+// A script with no feed list receives every event of every peer (script.
+// receives), UPDATEs included, so it needs the bytes.
 func EventFormat(scripts []Script) string {
 	for _, s := range scripts {
+		if len(s.Feeds) == 0 {
+			return plugin.FormatFull
+		}
 		for _, feed := range s.Feeds {
 			granted := func(apiKey string) bool { return slices.Contains(feed.Events, apiKey) }
-			if bridge.GrantsPacket(granted) {
+			if bridge.NeedsBytes(granted) {
 				return plugin.FormatFull
 			}
 		}

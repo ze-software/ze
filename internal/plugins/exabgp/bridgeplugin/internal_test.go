@@ -359,13 +359,14 @@ func TestBridgeQueuesEventsFromConfigureNotFromStart(t *testing.T) {
 
 // TestConfiguredGrantsChooseTheEventFormat proves the format the internal
 // runner subscribes in at OnConfigure follows the committed config: `full`
-// once a neighbor grants a script `receive-packets`, `parsed` for the same
-// config without it.
+// once a neighbor grants a script UPDATEs, whose decoded line reads the
+// AS_PATH and communities off the bytes, or `receive-packets`, and `parsed`
+// for a config that grants the session changes alone.
 //
-// VALIDATES: parseConfig carries the form words into the scripts that
-// bridgerun.EventFormat reads.
+// VALIDATES: parseConfig carries the message and form words into the scripts
+// that bridgerun.EventFormat reads.
 // PREVENTS: a bridge that subscribes to every message's bytes whatever its
-// scripts were granted, or a packets script fed no bytes.
+// scripts were granted, or an UPDATE or packets script fed no bytes.
 func TestConfiguredGrantsChooseTheEventFormat(t *testing.T) {
 	const config = `{"exabgp":{"bridge":{"process":{
 		"public":{"run":"./public.run","encoder":"json","feed":{
@@ -374,8 +375,10 @@ func TestConfiguredGrantsChooseTheEventFormat(t *testing.T) {
 		events string
 		want   string
 	}{
-		{`"receive-update"`, plugin.FormatParsed},
-		{`"receive-update","receive-packets"`, plugin.FormatFull},
+		{`"neighbor-changes"`, plugin.FormatParsed},
+		{`"receive-update"`, plugin.FormatFull},
+		{`"receive-update","receive-parsed"`, plugin.FormatFull},
+		{`"receive-open","receive-packets"`, plugin.FormatFull},
 	} {
 		cfg, err := parseConfig(strings.Replace(config, "%s", tc.events, 1))
 		if err != nil {
