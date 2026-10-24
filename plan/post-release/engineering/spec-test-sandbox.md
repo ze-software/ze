@@ -217,6 +217,7 @@ Runner to child process (environment, cwd); runner to host kernel (addresses, po
 | registry-contamination.md | 2026-09-12 | RegisterOperationDecomposer (internal/component/config/transaction/operatio |
 | registry-contamination.md | 2026-10-18 | internal/component/iface tests under go test -count=2 |
 | registry-contamination.md | 2026-10-21 | reactor tests sharing bufMuxStd / bufMuxExt and one byte budget |
+| registry-contamination.md | 2026-10-24 | internal/test/fixture tests under go test -count=2 |
 | suite-shares-one-persistent-store.md | 2026-08-24 | cmd/ze/ze_core_start.go startConfigPath branch, with resolveKey (internal/c |
 | suite-shares-one-persistent-store.md | 2026-10-03 | plugin/clamped-path far daemons (startFarDaemons, internal/test/fixture/plu |
 | test-shares-a-process-global.md | 2026-10-21 | TestRFC7311ExtendedNextHopCostRecovery (internal/component/bgp/reactor/rfc7 |
