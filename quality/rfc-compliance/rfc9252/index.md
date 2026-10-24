@@ -35,7 +35,7 @@ what Ze owes
 |---|---:|---|---|
 | Partial proof; remaining gap | 12.0% | 3 of 25 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 12.0% | 3 of 25 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Audit verdicts | 18 | of 25 gated MUSTs judged | 3 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+| Audit verdicts | 18 | of 25 gated MUSTs judged | 3 weak, wrong or unimplemented, 1 no longer current. Each is named below under its own requirement id |
 
 The 8 shares marked as a part above are the whole of the 25 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -381,7 +381,7 @@ Audit verdict: partial (the tests enforce only the declared tested scope; the wh
 
 The treat-as-withdraw action [RFC7606] MUST be performed when at least one malformed SRv6 Service TLV is present in the BGP Prefix-SID attribute. (§7)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-20 (independent auditor, authored none of the change). RFC 9252 Section 7: "The treat-as-withdraw action [RFC7606] MUST be performed when at least one malformed SRv6 Service TLV is present in the BGP Prefix-SID attribute." The only change to test/plugin/prefixsid-malformed-receive.ci since the last judgement is 1f662ce70b: each changed expect hex was parsed attribute by attribute and the old and new frames carry the identical set of attribute TLVs, byte for byte, with the same message and attribute lengths and NLRI; only MP_REACH_NLRI moved to the front (RFC 7606 Section 5.1). No action line, comment or other directive changed. Frame (b2), this row's functional negative, is the MP_UNREACH_NLRI withdrawal and is byte-identical; (b1), which installs the route it withdraws, only reordered. The Go units are unchanged. Ran green at HEAD (./le test bgp plugin prefixsid-malformed-receive). Verdict stands.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/message/rfc7606_test.go::TestValidatePrefixSIDAttr_Valid, internal/component/bgp/message/rfc7606_test.go::TestValidateSRv6ServiceTLV_SIDInfoTooShort, internal/component/bgp/message/rfc7606_test.go::TestValidateSRv6ServiceTLV_TrailingBytes moved. Re-judged 2026-10-20 (independent auditor, authored none of the change). RFC 9252 Section 7: "The treat-as-withdraw action [RFC7606] MUST be performed when at least one malformed SRv6 Service TLV is present in the BGP Prefix-SID attribute." The only change to test/plugin/prefixsid-malformed-receive.ci since the last judgement is 1f662ce70b: each changed expect hex was parsed attribute by attribute and the old and new frames carry the identical set of attribute TLVs, byte for byte, with the same message and attribute lengths and NLRI; only MP_REACH_NLRI moved to the front (RFC 7606 Section 5.1). No action line, comment or other directive changed. Frame (b2), this row's functional negative, is the MP_UNREACH_NLRI withdrawal and is byte-identical; (b1), which installs the route it withdraws, only reordered. The Go units are unchanged. Ran green at HEAD (./le test bgp plugin prefixsid-malformed-receive). Verdict stands.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

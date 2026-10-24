@@ -663,6 +663,10 @@ A peer inherits from its group defaults. A group inherits from this global level
           Permit explicitly supplied AIGP metrics only on domain-local routes advertised with this speaker as next hop.
       - **as-override** `boolean`: Replace the ASN of the peer with the local ASN in the outbound AS_PATH.
         Use the leaf in a VPN design, or in a multi-site design, where the same customer ASN appears at more than one site.
+      - **as-set** `enumeration`: Received AS_SET handling; accept is written only by ze exabgp migrate.
+        RFC 9774 Section 3 treats an UPDATE whose AS_PATH or AS4_PATH holds an AS_SET or AS_CONFED_SET as withdrawn, unless the operator configures otherwise during a transition. accept is that transition for a peer migrated from ExaBGP: ze exabgp migrate writes it for a neighbor whose ExaBGP config said as-set accept, and nothing else writes it. Every other check of the path still runs, and Ze still never advertises a set to this peer.
+        - `accept`: Keep a received AS_SET or AS_CONFED_SET, as ExaBGP as-set accept did
+        - `withdraw`: Treat a received AS_SET or AS_CONFED_SET as withdrawn (RFC 9774)
       - **asn** `container`: AS number configuration
         local overrides the global ASN for this session. remote names the peer ASN. Ze compares the two to decide whether the session is eBGP or iBGP. migration names a second local ASN this iBGP session also accepts while the router moves from one ASN to another.
         - **local** `asn`: Local AS (overrides global)
@@ -990,6 +994,10 @@ A peer inherits from its group defaults. A group inherits from this global level
         Permit explicitly supplied AIGP metrics only on domain-local routes advertised with this speaker as next hop.
     - **as-override** `boolean`: Replace the ASN of the peer with the local ASN in the outbound AS_PATH.
       Use the leaf in a VPN design, or in a multi-site design, where the same customer ASN appears at more than one site.
+    - **as-set** `enumeration`: Received AS_SET handling; accept is written only by ze exabgp migrate.
+      RFC 9774 Section 3 treats an UPDATE whose AS_PATH or AS4_PATH holds an AS_SET or AS_CONFED_SET as withdrawn, unless the operator configures otherwise during a transition. accept is that transition for a peer migrated from ExaBGP: ze exabgp migrate writes it for a neighbor whose ExaBGP config said as-set accept, and nothing else writes it. Every other check of the path still runs, and Ze still never advertises a set to this peer.
+      - `accept`: Keep a received AS_SET or AS_CONFED_SET, as ExaBGP as-set accept did
+      - `withdraw`: Treat a received AS_SET or AS_CONFED_SET as withdrawn (RFC 9774)
     - **asn** `container`: AS number configuration
       local overrides the global ASN for this session. remote names the peer ASN. Ze compares the two to decide whether the session is eBGP or iBGP. migration names a second local ASN this iBGP session also accepts while the router moves from one ASN to another.
       - **local** `asn`: Local AS (overrides global)
@@ -1530,6 +1538,10 @@ A peer inherits from its group defaults. A group inherits from this global level
         Permit explicitly supplied AIGP metrics only on domain-local routes advertised with this speaker as next hop.
     - **as-override** `boolean`: Replace the ASN of the peer with the local ASN in the outbound AS_PATH.
       Use the leaf in a VPN design, or in a multi-site design, where the same customer ASN appears at more than one site.
+    - **as-set** `enumeration`: Received AS_SET handling; accept is written only by ze exabgp migrate.
+      RFC 9774 Section 3 treats an UPDATE whose AS_PATH or AS4_PATH holds an AS_SET or AS_CONFED_SET as withdrawn, unless the operator configures otherwise during a transition. accept is that transition for a peer migrated from ExaBGP: ze exabgp migrate writes it for a neighbor whose ExaBGP config said as-set accept, and nothing else writes it. Every other check of the path still runs, and Ze still never advertises a set to this peer.
+      - `accept`: Keep a received AS_SET or AS_CONFED_SET, as ExaBGP as-set accept did
+      - `withdraw`: Treat a received AS_SET or AS_CONFED_SET as withdrawn (RFC 9774)
     - **asn** `container`: AS number configuration
       local overrides the global ASN for this session. remote names the peer ASN. Ze compares the two to decide whether the session is eBGP or iBGP. migration names a second local ASN this iBGP session also accepts while the router moves from one ASN to another.
       - **local** `asn`: Local AS (overrides global)

@@ -198,6 +198,8 @@ The homepage's four starting actions fill the space beside the release callout i
 
 Standard homepage sections use 2rem of top and bottom padding, reduced to 1.5rem at widths of 560px or less, with no added top margin. Stacked section titles and introductions have a 0.5rem gap. Keep the hero and proof panels' separate spacing.
 
+Keep homepage section containers, including Latest news, shadowless. Cards within them retain their component shadows.
+
 ### Dispatch cards
 
 Use one accent palette per choice and a light circle-line ornament. Do not use filled decorative balls.

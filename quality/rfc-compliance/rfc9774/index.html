@@ -260,7 +260,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
 <p>Both Section 3 MUST-level requirements implemented, each with a positive and a negative test tag.</p>
-<p class="rfc-prose"><strong>No operator override:</strong> the RFC permits one and does not require it. The <code>send bgp &lt;peer&gt; raw</code> test instrument writes operator bytes as given. Route aggregation (Sections 5, 5.2, 6.1, 6.2) is not implemented, so its obligations are an implementation gap outside the conformance count.</p>
+<p class="rfc-prose"><strong>One operator override, on receive only:</strong> the peer leaf <code>session as-set accept</code>, written only by <code>ze exabgp migrate</code>, keeps a received set (see &#34;Owner-approved deviation&#34;; not counted as conformant). The <code>send bgp &lt;peer&gt; raw</code> test instrument writes operator bytes as given. Route aggregation (Sections 5, 5.2, 6.1, 6.2) is not implemented, so its obligations are an implementation gap outside the conformance count.</p>
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -628,7 +628,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 07:41 UTC</span>
                 </div>
             </div>
         </footer>

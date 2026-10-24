@@ -2676,6 +2676,24 @@
                     "type": "boolean"
                   },
                   {
+                    "description": "RFC 9774 Section 3 treats an UPDATE whose AS_PATH or AS4_PATH holds an AS_SET or\nAS_CONFED_SET as withdrawn, unless the operator configures otherwise during a transition.\naccept is that transition for a peer migrated from ExaBGP: ze exabgp migrate writes it for a\nneighbor whose ExaBGP config said as-set accept, and nothing else writes it. Every other\ncheck of the path still runs, and Ze still never advertises a set to this peer.",
+                    "kind": "leaf",
+                    "name": "as-set",
+                    "short-help": "Received AS_SET handling; accept is written only by ze exabgp migrate.",
+                    "source": "config",
+                    "type": "enumeration",
+                    "values": [
+                      {
+                        "name": "accept",
+                        "short-help": "Keep a received AS_SET or AS_CONFED_SET, as ExaBGP as-set accept did"
+                      },
+                      {
+                        "name": "withdraw",
+                        "short-help": "Treat a received AS_SET or AS_CONFED_SET as withdrawn (RFC 9774)"
+                      }
+                    ]
+                  },
+                  {
                     "children": [
                       {
                         "description": "Ze sends this value in OPEN in place of the global ASN. Ze keeps the global ASN too,\nand local-options decides how the two appear in AS_PATH.",
@@ -4068,6 +4086,24 @@
                 "short-help": "Replace the ASN of the peer with the local ASN in the outbound AS_PATH.",
                 "source": "config",
                 "type": "boolean"
+              },
+              {
+                "description": "RFC 9774 Section 3 treats an UPDATE whose AS_PATH or AS4_PATH holds an AS_SET or\nAS_CONFED_SET as withdrawn, unless the operator configures otherwise during a transition.\naccept is that transition for a peer migrated from ExaBGP: ze exabgp migrate writes it for a\nneighbor whose ExaBGP config said as-set accept, and nothing else writes it. Every other\ncheck of the path still runs, and Ze still never advertises a set to this peer.",
+                "kind": "leaf",
+                "name": "as-set",
+                "short-help": "Received AS_SET handling; accept is written only by ze exabgp migrate.",
+                "source": "config",
+                "type": "enumeration",
+                "values": [
+                  {
+                    "name": "accept",
+                    "short-help": "Keep a received AS_SET or AS_CONFED_SET, as ExaBGP as-set accept did"
+                  },
+                  {
+                    "name": "withdraw",
+                    "short-help": "Treat a received AS_SET or AS_CONFED_SET as withdrawn (RFC 9774)"
+                  }
+                ]
               },
               {
                 "children": [
@@ -6345,6 +6381,24 @@
                 "short-help": "Replace the ASN of the peer with the local ASN in the outbound AS_PATH.",
                 "source": "config",
                 "type": "boolean"
+              },
+              {
+                "description": "RFC 9774 Section 3 treats an UPDATE whose AS_PATH or AS4_PATH holds an AS_SET or\nAS_CONFED_SET as withdrawn, unless the operator configures otherwise during a transition.\naccept is that transition for a peer migrated from ExaBGP: ze exabgp migrate writes it for a\nneighbor whose ExaBGP config said as-set accept, and nothing else writes it. Every other\ncheck of the path still runs, and Ze still never advertises a set to this peer.",
+                "kind": "leaf",
+                "name": "as-set",
+                "short-help": "Received AS_SET handling; accept is written only by ze exabgp migrate.",
+                "source": "config",
+                "type": "enumeration",
+                "values": [
+                  {
+                    "name": "accept",
+                    "short-help": "Keep a received AS_SET or AS_CONFED_SET, as ExaBGP as-set accept did"
+                  },
+                  {
+                    "name": "withdraw",
+                    "short-help": "Treat a received AS_SET or AS_CONFED_SET as withdrawn (RFC 9774)"
+                  }
+                ]
               },
               {
                 "children": [

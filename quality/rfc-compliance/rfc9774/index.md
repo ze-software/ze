@@ -85,7 +85,7 @@ Enrolled: Owner decision 2026-10-18, "Implement RFC 9774", lifting the 2026-10-0
 
 Both Section 3 MUST-level requirements implemented, each with a positive and a negative test tag.
 
-- **No operator override:** the RFC permits one and does not require it. The `send bgp <peer> raw` test instrument writes operator bytes as given. Route aggregation (Sections 5, 5.2, 6.1, 6.2) is not implemented, so its obligations are an implementation gap outside the conformance count.
+- **One operator override, on receive only:** the peer leaf `session as-set accept`, written only by `ze exabgp migrate`, keeps a received set (see "Owner-approved deviation"; not counted as conformant). The `send bgp <peer> raw` test instrument writes operator bytes as given. Route aggregation (Sections 5, 5.2, 6.1, 6.2) is not implemented, so its obligations are an implementation gap outside the conformance count.
 
 ## Coverage
 
