@@ -126,7 +126,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>56.0%</strong><b>2,331 of 4,163 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>10.2%</strong><b>426 of 4,163 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 4,163 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>66.7%</strong><b>5,906 of 8,849 tagged units in enrolled RFCs, 4 escaped and 35 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>66.8%</strong><b>5,908 of 8,849 tagged units in enrolled RFCs, 4 escaped and 33 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -141,7 +141,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>Partial proof; remaining gap</span><strong>0.4%</strong><b>15 of 4,163 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>15.1%</strong><b>627 of 4,163 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Gate verdict</span><strong>RED</strong><b>48 open gate issues</b><p>whether ./le rfc check passes over this tree</p></article>
+<article class="rfc-card rfc-bad"><span>Gate verdict</span><strong>RED</strong><b>45 open gate issues</b><p>whether ./le rfc check passes over this tree</p></article>
 </div>
 <p>The 8 shares marked as a part above are the whole of the 4,163 gated MUSTs: they add to 100%. Proven by test is the first two of them added together, so it is not a part of its own. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -212,8 +212,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </details>
 <div class="rfc-verdict rfc-bad">
 <p><span>Gate verdict</span><strong>RED</strong></p>
-<p>48 open gate issues. Check results below names them, up to the 25 this page inlines.</p>
-<p>Reproduce it with <code>./le rfc check</code>. The gate's own line reads <code>rfc-requirements: 48 violation(s)</code>.</p>
+<p>45 open gate issues. Check results below names them, up to the 25 this page inlines.</p>
+<p>Reproduce it with <code>./le rfc check</code>. The gate's own line reads <code>rfc-requirements: 45 violation(s)</code>.</p>
 </div>
 <section><h2>Who implements each document</h2>
 <p>The ledger counts what Ze implements in its own Go. A document another layer performs leaves the gated population and names what performs it, and where Ze can observe the behavior the requirement still carries a test over the state Ze installs.</p>
@@ -586,12 +586,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>-</td>
 <td><code>-</code></td>
 <td>-</td>
-<td>DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-6 is annotated {partial: tested &#34;mandatory fields exceed the declared Lengt} but its public row says draft-ietf-bess-mup-safi is &#39;Partial&#39; with &#39;&#39;. A known unmet MUST cannot be advertised as clean support -- correct `Support status` or `Support remaining` in the summary&#39;s own Meta table, then run ./le rfc index-update. A hand edit to docs/features/rfc-status.md is destroyed by the next run</td>
-<td>-</td>
-</tr>
-<tr><td>-</td>
-<td><code>-</code></td>
-<td>-</td>
 <td>RFC2545-3-3 partial scope needs a current verified mutant/revert for negative internal/component/bgp/reactor/rfc2545_peer_send_test.go::TestSendAnnounceOmitsLinkLocalWhenPeerOffLink</td>
 <td>-</td>
 </tr>
@@ -640,12 +634,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>-</td>
 <td><code>-</code></td>
 <td>-</td>
-<td>rfc/discrimination/rfc2545/RFC2545-3-1.json: the revert record for RFC2545-3-1 positive at internal/component/bgp/plugins/nlri/srpolicy/rfc2545_next_hop_wire_test.go::TestSRPolicyConfigNextHopWire no longer verifies (producer-changed): the producer&#39;s behavior changed since the break was applied to it. The break &#34;body of parseConfigRoute replaced by panic(\&#34;BUG: ./le rfc discriminate-record disabled this producer to observe the red\&#34;)&#34; was observed to redden that unit when applied to internal/component/bgp/plugins/nlri/srpolicy/config.go::parseConfigRoute. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved</td>
-<td>-</td>
-</tr>
-<tr><td>-</td>
-<td><code>-</code></td>
-<td>-</td>
 <td>rfc/discrimination/rfc2545/RFC2545-3-1.json: the revert record for RFC2545-3-1 positive at internal/component/bgp/reactor/rfc2545_announce_nexthop_guard_test.go::TestSessionSendAnnounceAcceptsLinkLocalSecondAddress no longer verifies (producer-changed): the producer&#39;s behavior changed since the break was applied to it. The break &#34;body of writeAnnounceUpdate replaced by panic(\&#34;BUG: ./le rfc discriminate-record disabled this producer to observe the red\&#34;)&#34; was observed to redden that unit when applied to internal/component/bgp/reactor/reactor_wire.go::writeAnnounceUpdate. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved</td>
 <td>-</td>
 </tr>
@@ -653,12 +641,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><code>-</code></td>
 <td>-</td>
 <td>rfc/discrimination/rfc2545/RFC2545-3-1.json: the revert record for RFC2545-3-1 positive at internal/component/bgp/reactor/rfc2545_peer_send_test.go::TestSendAnnounceAppendsLinkLocalWhenSection3Holds no longer verifies (producer-changed): the producer&#39;s behavior changed since the break was applied to it. The break &#34;body of writeAnnounceUpdate replaced by panic(\&#34;BUG: ./le rfc discriminate-record disabled this producer to observe the red\&#34;)&#34; was observed to redden that unit when applied to internal/component/bgp/reactor/reactor_wire.go::writeAnnounceUpdate. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved</td>
-<td>-</td>
-</tr>
-<tr><td>-</td>
-<td><code>-</code></td>
-<td>-</td>
-<td>rfc/discrimination/rfc2545/RFC2545-3-2.json: the revert record for RFC2545-3-2 positive at internal/component/bgp/plugins/nlri/srpolicy/rfc2545_next_hop_wire_test.go::TestSRPolicyConfigNextHopWire no longer verifies (producer-changed): the producer&#39;s behavior changed since the break was applied to it. The break &#34;body of parseConfigRoute replaced by panic(\&#34;BUG: ./le rfc discriminate-record disabled this producer to observe the red\&#34;)&#34; was observed to redden that unit when applied to internal/component/bgp/plugins/nlri/srpolicy/config.go::parseConfigRoute. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved</td>
 <td>-</td>
 </tr>
 <tr><td>-</td>
@@ -733,10 +715,28 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>rfc/discrimination/rfc3579/RFC3579-3.1-4.json: the revert record for RFC3579-3.1-4 negative at internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapDiscardsUnauthenticatedChallenge no longer verifies (producer-changed): the producer&#39;s behavior changed since the break was applied to it. The break &#34;body of verifyResponseMessageAuthenticator replaced by panic(\&#34;BUG: ./le rfc discriminate-record disabled this producer to observe the red\&#34;)&#34; was observed to redden that unit when applied to internal/component/radius/packet.go::verifyResponseMessageAuthenticator. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved</td>
 <td>-</td>
 </tr>
+<tr><td>-</td>
+<td><code>-</code></td>
+<td>-</td>
+<td>rfc/discrimination/rfc3579/RFC3579-3.1-4.json: the revert record for RFC3579-3.1-4 positive at internal/component/radius/authenticator_eap_test.go::TestRadiusAdminEapVerifiedChallengeIsAccepted no longer verifies (producer-changed): the producer&#39;s behavior changed since the break was applied to it. The break &#34;body of verifyResponseMessageAuthenticator replaced by panic(\&#34;BUG: ./le rfc discriminate-record disabled this producer to observe the red\&#34;)&#34; was observed to redden that unit when applied to internal/component/radius/packet.go::verifyResponseMessageAuthenticator. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved</td>
+<td>-</td>
+</tr>
+<tr><td>-</td>
+<td><code>-</code></td>
+<td>-</td>
+<td>rfc/discrimination/rfc4301/RFC4301-4.4.2.1-11.json: the revert record for RFC4301-4.4.2.1-11 negative at internal/component/ike/engine/rfc4301_sad_lifetime_action_test.go::TestRFC4301SADLifetimeHardTimeTerminatesTheSA no longer verifies (producer-changed): the producer&#39;s behavior changed since the break was applied to it. The break &#34;body of maintainSA replaced by panic(\&#34;BUG: ./le rfc discriminate-record disabled this producer to observe the red\&#34;)&#34; was observed to redden that unit when applied to internal/component/ike/engine/established.go::maintainSA. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved</td>
+<td>-</td>
+</tr>
+<tr><td>-</td>
+<td><code>-</code></td>
+<td>-</td>
+<td>rfc/discrimination/rfc4301/RFC4301-4.4.2.1-11.json: the revert record for RFC4301-4.4.2.1-11 positive at internal/component/ike/engine/rfc4301_sad_lifetime_action_test.go::TestRFC4301SADLifetimeSoftTimeReplacesTheSA no longer verifies (producer-changed): the producer&#39;s behavior changed since the break was applied to it. The break &#34;body of maintainSA replaced by panic(\&#34;BUG: ./le rfc discriminate-record disabled this producer to observe the red\&#34;)&#34; was observed to redden that unit when applied to internal/component/ike/engine/established.go::maintainSA. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved</td>
+<td>-</td>
+</tr>
 </tbody>
 </table>
 </div>
-<p>23 further findings not shown here. The whole list is in data/rfc-compliance.json, and each one is on its own RFC&#39;s page under the requirement it names.</p>
+<p>20 further findings not shown here. The whole list is in data/rfc-compliance.json, and each one is on its own RFC&#39;s page under the requirement it names.</p>
 </section>
 <section><h2>Enrolled RFCs</h2>
 <div class="rfc-table-wrap">
@@ -2113,7 +2113,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
-                <p class="page-sidebar-eyebrow">Quality</p>
+                <p class="page-sidebar-eyebrow concept-evidence">Quality</p>
                 <nav class="page-sidebar-nav" aria-label="Related links">
                 <section class="page-sidebar-group">
                     <h2>Read with it</h2>
@@ -2122,7 +2122,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                         <small>The wider verification map.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../quality/health/">
-                        <span class="page-sidebar-link-label">Testing health</span>
+                        <span class="page-sidebar-link-label concept-evidence">Testing health</span>
                         <small>Proof-density and sensitivity metrics.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../reference/rfcs/">
@@ -2144,7 +2144,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 13:11 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 14:26 UTC</span>
                 </div>
             </div>
         </footer>

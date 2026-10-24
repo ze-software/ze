@@ -73,6 +73,22 @@ Thomas clarified the exact element on 24 October 2026:
 >
 > You can work on styling the card tho
 
+Thomas requested consistent concept colors on 24 October 2026:
+
+> Can you come out with a color coding for some concept in pages? So things which are always same concept, have the same color so we can have a bit of colors, but make it uniform and clear for example the name of third party or third party application have a color for example all the tested against have a color Feel like that
+
+Thomas approved the two concept accents and requested more blue across the site on 24 October 2026:
+
+> Yes, apply this across the site, add the colour rules to the design guide, and regenerate in ../gh-pages so I can review it.
+>
+>
+>
+> Also we have a blue theme for the hero and try to use it more so there is more of it across the page. The page is a bit dark and dull and unattractive.
+
+Thomas approved dark mode and requested more color in light mode on 24 October 2026:
+
+> The dark mode is now nice, the white mode need a bit more colours
+
 1. ### Preserve useful information
 
  Start with an inventory of existing capabilities, differentiators, demonstrations, evidence, deployment options, use cases, updates and release status. Give every item an explicit place in the proposal. Explain each move or reduction in detail. Removing useful information requires the owner's agreement.
@@ -120,11 +136,11 @@ Logo blue identifies Ze. Soft category colors sit behind the small badges, such 
 
 The `cat-*` classes select a shared color family. Use its soft tint only behind the card's category badge, with neutral `--text` lettering. Keep the colored area compact. The `.cat` label "Decision" gets the tint; the heading "Reasons to consider Ze" stays plain. Do not fill the heading or card body, or color its border. Selection controls use the matching soft background with neutral text and a visible selected state. Normal text needs at least 4.5:1 in both themes.
 
-Operate uses blue, Routing indigo, Services violet, Automate magenta, Observe gray, Secure pink and Setup teal. Visible names identify each subject as well as its color. Broad project updates and cross-topic evidence remain neutral. Status colors stay independent of category colors.
+Operate uses blue, Routing indigo, Services violet, Automate magenta, Observe gray, Secure pink and Setup teal. Visible names identify each subject as well as its color. Broad project updates and cross-topic cards keep a neutral category badge. Explicit software and evidence labels follow the two concept roles. Status colors stay independent of category and concept colors.
 
 The homepage's "Run reproducible labs", "Run as a daemon" and "Run as an appliance" cards share the existing daemon blue from `--sky-*`. This approved section exception keeps their category names, metadata and links. It does not change the general category mapping.
 
-Headings, technology chips, card bodies and borders stay neutral. Do not repeat the badge tint across several parts of the same card. Check each badge and selected-control fill against its text in light and dark themes; normal text needs at least 4.5:1. Plugin totals and status labels keep their independent neutral and status roles.
+Headings, protocol and mode chips, card bodies and borders stay neutral. Explicit software labels may use the violet concept badge. Do not repeat the category tint across several parts of the same card. Check each badge and selected-control fill against its text in light and dark themes; normal text needs at least 4.5:1. Plugin totals and status labels keep their independent neutral and status roles.
 
 | Use | Color family | Shared tokens |
 | --- | --- | --- |
@@ -203,18 +219,38 @@ Runtime and lifecycle: performance engineering, appliance and daemon targets, in
 
 A pale blue-gray page with white surfaces and navy text in the light theme; deep navy surfaces and pale text in the dark theme. Blue links and primary actions identify a destination. Uncategorized cards use the shared neutral surface.
 
+## Two recurring concepts
+
+Violet identifies named software; teal identifies evidence and test layers. The text stays neutral.
+
+Apply `concept-software` to an explicit small software or application name: FRR, BIRD, GoBGP, Docker, QEMU or VPP. Apply `concept-evidence` to a benchmark, evidence label or test layer such as Local, Process, Linux or Release. Teal does not mean that a test passed; success, warning and failure retain their separate status words and colors.
+
+The semantic tokens `--concept-software` and `--concept-evidence` reuse the existing violet and teal bases. Category and concept backgrounds use `--badge-accent-share`: 24% accent in light mode and 18% in dark mode, mixed into `--panel`, under neutral `--text`. Put the class on the chip, badge or short inline name, including `.hl` names. Never put it on a heading, a card or a prose container. Names can wrap on narrow screens; do not force an entire phrase onto one line.
+
+BGP, OSPF and other protocols, deployment modes and command syntax remain neutral. Assign concept classes explicitly from the content's meaning; never recolor every occurrence of a word. Subject-category badges retain their seven families, including the homepage run labels' shared blue.
+
+`FRR` `Docker` `BGP benchmark` `Release evidence` `BGP` `Daemon only`
+
+## Carry the blue identity through the page
+
+Blue surfaces connect decisions and evidence to the hero without adding more subject colors.
+
+Light pages use a blue-washed foundation, stronger blue section surfaces and white reading cards. Their compact badges carry a stronger tint while keeping the same color meanings. Dark pages retain their approved richer navy foundations and lighter navy panels. The management explanation, evidence section and run choices use `--brand-section-gradient`, a gentle blue-to-cyan surface. Supporting notes, reading takeaways and selected navigation use `--brand-surface`. Key action and reading links use the accessible `--blue` token.
+
+Pick a blue surface for a named reader purpose, not a section's position. Preserve the existing hero gradient, terminal imagery, plain headings and restrained neutral card borders. Test text, muted labels, links, statuses and concept badges against their actual surfaces in both themes; ordinary text must retain at least 4.5:1 contrast. Keep section padding when the layout stacks on mobile.
+
 ## Color the badge, keep the heading plain
 
 Give each category a soft background behind its small badge. Keep the lettering neutral, the heading plain and the body unfilled.
 
-A `cat-*` class selects the tint behind a card's small `.cat` or `.card-label` badge. Headings, borders, body surfaces, technology chips, body text and bullet markers stay neutral. The same rules cover homepage, feature, documentation, article, plugin, comparison, FAQ and evidence cards.
+A `cat-*` class selects the tint behind a card's small `.cat` badge. Generic `.card-label` pills stay neutral, including Daemon, Appliance, AF_PACKET and Browsable labels. Only an explicit `concept-software` or `concept-evidence` class gives those compact labels a concept tint. Headings, borders, body surfaces, protocol and mode chips, body text and bullet markers stay neutral. Explicit software and evidence labels use the compact concept treatment. The same rules cover homepage, feature, documentation, article, plugin, comparison, FAQ and evidence cards.
 
 1. Choose the existing category that describes the card's primary subject. Keep it in the source record or an explicit semantic classification, not in a styling loop.
 2. Use `cat-meta` for cross-topic content with no primary subject. Unclassified cards use the same neutral roles. Do not invent a category to create variety.
 3. Pass authored categories through the shared generator vocabulary. Unknown values are errors, not permission to choose an arbitrary color.
 4. Use neutral `--text` on the compact colored badge background so it stays readable in both themes. Keep the shared mapping across pages and themes, with only the approved homepage run-path exception above. Do not assign hues by position, hash or presentation tone.
 5. Every subject card uses the shared `--panel` surface and a thin `--line` border on all sides. Hover borders use `--line-strong`. Keep shadows neutral and restrained. Do not add colored edge stripes, body washes, rings or glows.
-6. Category badges use a soft tint mixed with `--panel`. Keep technology and mode chips neutral. Match filter backgrounds to their category and show selection and keyboard focus clearly.
+6. Category badges use a soft tint mixed with `--panel`. Keep protocols, commands and mode chips neutral; explicitly classified software and evidence chips use their respective concept tints. Match filter backgrounds to their category and show selection and keyboard focus clearly.
 7. Keep status independent. Success, warning and failure use `--green`, `--amber` and `--danger-deep`, with words explaining the result. Neutral evidence measures make no verdict. Maturity keeps its explicit labels and border treatment.
 
 **Routing**
@@ -223,7 +259,7 @@ A `cat-*` class selects the tint behind a card's small `.cat` or `.card-label` b
 
 `RFC 0000` `Tech`
 
-- Subject color in **titles and labels**
+- Category tint behind the **small badge**
 - Chips name **technologies**
 - Bullets state **facts**
 

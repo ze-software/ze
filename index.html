@@ -447,12 +447,12 @@
                             The netlab integration brings up a three-node Ze topology under containerlab. The BGP interop lab also runs Ze beside FRR, BIRD, and GoBGP and checks routes through each peer&#39;s own CLI.
                         </p>
                         <div class="chips">
-                            <span class="chip">netlab</span>
-                            <span class="chip">containerlab</span>
-                            <span class="chip">Docker</span>
-                            <span class="chip">FRR</span>
-                            <span class="chip">BIRD</span>
-                            <span class="chip">GoBGP</span>
+                            <span class="chip concept-software">netlab</span>
+                            <span class="chip concept-software">containerlab</span>
+                            <span class="chip concept-software">Docker</span>
+                            <span class="chip concept-software">FRR</span>
+                            <span class="chip concept-software">BIRD</span>
+                            <span class="chip concept-software">GoBGP</span>
                         </div>
                         <span class="audience-card-cta">Run BGP lab <small>BGP interop</small></span>
                     </article>
@@ -475,7 +475,7 @@
                             A bootable gokrazy image for appliance hardware: read-only root filesystem, no shell, no package manager, and automatic process supervision. The current amd64 installation ISO is under 150 MB.
                         </p>
                         <div class="chips">
-                            <span class="chip">gokrazy image</span>
+                            <span class="chip concept-software">gokrazy image</span>
                             <span class="chip">Read-only root filesystem</span>
                         </div>
                         <span class="audience-card-cta">Install guide <small>PXE, ISO, or Ventoy</small></span>
@@ -508,7 +508,7 @@
                             <li>Config, FSM, plugins</li>
                             <li>gomu mutates code to check assertions</li>
                         </ul>
-                        <span class="proof-check">Local test, fuzz, and mutation evidence.</span>
+                        <span class="proof-check concept-evidence">Local test, fuzz, and mutation evidence.</span>
                     </a>
                     <a class="proof" href="quality/functional-ci/">
                         <strong
@@ -520,7 +520,7 @@
                             <li>Editor, commits, reloads</li>
                             <li>Commands checked as operators run them</li>
                         </ul>
-                        <span class="proof-check">Functional transcript format and rerun path.</span>
+                        <span class="proof-check concept-evidence">Functional transcript format and rerun path.</span>
                     </a>
                     <a class="proof" href="quality/rfc-compliance/">
                         <strong
@@ -532,7 +532,7 @@
                             <li><span data-ze-stat="rfc.proven_display">2,757</span> checked with a test</li>
                             <li><span data-ze-stat="rfc.proven_percent">66.2</span>% done</li>
                         </ul>
-                        <span class="proof-check">RFC requirement ledger.</span>
+                        <span class="proof-check concept-evidence">RFC requirement ledger.</span>
                     </a>
                     <a class="proof" href="quality/unit-fuzz-mutation/#fuzz-targets-are-still-tests">
                         <strong><span data-ze-stat="tests.fuzz_display">91</span> <span class="label">fuzz targets</span></strong>
@@ -541,7 +541,7 @@
                             <li>Wire formats, config files</li>
                             <li>Saved crashes become regression cases</li>
                         </ul>
-                        <span class="proof-check">Fuzz crashes kept as regression cases.</span>
+                        <span class="proof-check concept-evidence">Fuzz crashes kept as regression cases.</span>
                     </a>
                     <a class="proof" href="quality/qemu-interop-release/#docker-interop">
                         <strong
@@ -552,17 +552,17 @@
                             <li>IPsec, L2TP, PPPoE, RADIUS</li>
                             <li>Real daemons in Docker, checked by peer CLIs</li>
                         </ul>
-                        <span class="proof-check">Docker interop peer list.</span>
+                        <span class="proof-check concept-evidence">Docker interop peer list.</span>
                     </a>
                 </div>
                 <div class="interop-strip" aria-label="Implementations Ze is tested against">
-                    <span class="interop-strip-label">Tested against</span>
+                    <span class="interop-strip-label concept-evidence">Tested against</span>
                     <div class="interop-groups">
-                        <span class="interop-group"><b>BGP</b><a href="quality/qemu-interop-release/#docker-interop">FRR</a><a href="quality/qemu-interop-release/#docker-interop">BIRD</a><a href="quality/qemu-interop-release/#docker-interop">GoBGP</a><a href="quality/qemu-interop-release/#docker-interop">OpenBGPd</a><a href="quality/qemu-interop-release/#docker-interop">FreeRtr</a><a href="quality/qemu-interop-release/#docker-interop">RustyBGP</a><a href="quality/qemu-interop-release/#docker-interop">rustbgpd</a><a href="features/exabgp-compatibility/">ExaBGP</a></span>
-                        <span class="interop-group"><b>BGP support</b><a href="quality/qemu-interop-release/#docker-interop">StayRTR</a><a href="quality/qemu-interop-release/#docker-interop">pmacct</a></span>
-                        <span class="interop-group"><b>VPN</b><a href="quality/qemu-interop-release/#docker-interop">strongSwan</a></span>
-                        <span class="interop-group"><b>Access</b><a href="quality/qemu-interop-release/#docker-interop">accel-ppp</a><a href="quality/qemu-interop-release/#docker-interop">xl2tpd</a><a href="quality/qemu-interop-release/#docker-interop">FreeRADIUS</a></span>
-                        <span class="interop-group"><b>Redundancy</b><a href="quality/qemu-interop-release/#docker-interop">keepalived</a></span>
+                        <span class="interop-group"><b>BGP</b><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">FRR</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">BIRD</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">GoBGP</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">OpenBGPd</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">FreeRtr</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">RustyBGP</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">rustbgpd</a><a class="concept-software" href="features/exabgp-compatibility/">ExaBGP</a></span>
+                        <span class="interop-group"><b>BGP support</b><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">StayRTR</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">pmacct</a></span>
+                        <span class="interop-group"><b>VPN</b><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">strongSwan</a></span>
+                        <span class="interop-group"><b>Access</b><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">accel-ppp</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">xl2tpd</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">FreeRADIUS</a></span>
+                        <span class="interop-group"><b>Redundancy</b><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">keepalived</a></span>
                     </div>
                 </div>
             </section>
@@ -645,7 +645,7 @@
                         <div class="chips">
                             <span class="chip">ISO</span>
                             <span class="chip">PXE</span>
-                            <span class="chip">gokrazy</span>
+                            <span class="chip concept-software">gokrazy</span>
                         </div>
                         <span class="audience-card-cta">Appliance guide <small>spare hardware</small></span>
                     </article>
@@ -668,8 +668,8 @@
                             Protocol implementers can run Docker interop scenarios against FRR, BIRD, and GoBGP, then turn a failure into a test case.
                         </p>
                         <div class="chips">
-                            <span class="chip">Interop</span>
-                            <span class="chip">Docker</span>
+                            <span class="chip concept-evidence">Interop</span>
+                            <span class="chip concept-software">Docker</span>
                         </div>
                         <span class="audience-card-cta">Interop lab <small>real peer daemons</small></span>
                     </article>
@@ -867,7 +867,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 12:15 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 14:26 UTC</span>
                 </div>
             </div>
         </footer>

@@ -13,7 +13,7 @@ what Ze has
 | Tested both ways | 60.0% | 3 of 5 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 0.0% | 0 of 5 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 5 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 87.9% | 87 of 99 tagged units, 0 escaped and 9 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 89.9% | 89 of 99 tagged units, 0 escaped and 7 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -164,7 +164,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 | negative | [`TestStaticOriginateIPv6NextHopAdmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_static_origination_test.go#L21) | unit/verify | revert, verified |
 | negative | [`TestRFC4659LinkLocalPeeringPreservesUnspecifiedGlobalPair`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_link_local_peering_test.go#L41) | unit/verify | revert, verified |
 | negative | [`new-v6.ci`](https://github.com/ze-software/ze/blob/main/test/encode/new-v6.ci#L1) | functional/verify | unproven |
-| positive | [`TestSRPolicyConfigNextHopWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc2545_next_hop_wire_test.go#L20) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestSRPolicyConfigNextHopWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc2545_next_hop_wire_test.go#L20) | unit/verify | revert, verified |
 | positive | [`TestSRPolicyEncodeNextHopWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc2545_next_hop_wire_test.go#L62) | unit/verify | revert, verified |
 | positive | [`TestFamilyConfiguredBuilderAdmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/next_hop_family_admission_test.go#L182) | unit/verify | revert, verified |
 | positive | [`TestFamilyNextHopForwardAdmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/next_hop_family_admission_test.go#L217) | unit/verify | revert, verified |
@@ -205,7 +205,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Incr
 | negative | [`TestQueuedOriginateRefusesUnusableIPv6NextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_api_origination_test.go#L46) | unit/verify | revert, verified |
 | negative | [`TestRFC2545EffectivePairPolicyAndMixedSibling`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2545_forward_subnet_test.go#L696) | unit/verify | revert, verified |
 | negative | [`new-v6.ci`](https://github.com/ze-software/ze/blob/main/test/encode/new-v6.ci#L8) | functional/verify | unproven |
-| positive | [`TestSRPolicyConfigNextHopWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc2545_next_hop_wire_test.go#L22) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestSRPolicyConfigNextHopWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc2545_next_hop_wire_test.go#L22) | unit/verify | revert, verified |
 | positive | [`TestSRPolicyEncodeNextHopWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc2545_next_hop_wire_test.go#L64) | unit/verify | revert, verified |
 | positive | [`TestFamilyNextHopForwardAdmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/next_hop_family_admission_test.go#L222) | unit/verify | revert, verified |
 | positive | [`TestFamilyNextHopOriginationAdmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/next_hop_family_admission_test.go#L32) | unit/verify | revert, verified |

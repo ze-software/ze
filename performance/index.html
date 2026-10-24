@@ -61,7 +61,7 @@
                 </div>
                 <div class="status-panel reveal">
                     <div class="status-copy">
-                        <span class="tag">BGP benchmark</span>
+                        <span class="tag concept-evidence">BGP benchmark</span>
                         <p>
                             <code>le perf</code> establishes two BGP sessions
                             with a device under test: a sender injects
@@ -147,35 +147,35 @@
                 <div class="cards reveal">
                     <article class="card cat-routing" data-cat="routing">
                         <h3><a href="../labs/bgp-interop/">BGP Protocol Interop</a></h3>
-                        <span class="card-label blue">Daemon</span>
-                        <span class="card-label green">Docker</span>
+                        <span class="card-label">Daemon</span>
+                        <span class="card-label concept-software">Docker</span>
                         <ul>
-                            <li>Same DUTs as the benchmark: <strong class="hl blue">FRR, BIRD, GoBGP</strong></li>
+                            <li>Same DUTs as the benchmark: <strong><span class="concept-software">FRR</span>, <span class="concept-software">BIRD</span>, <span class="concept-software">GoBGP</span></strong></li>
                             <li>Correctness first; the perf numbers above measure the same sessions</li>
                         </ul>
                     </article>
                     <article class="card cat-services" data-cat="services">
                         <h3><a href="../labs/vpp-dataplane/">VPP Dataplane Evidence</a></h3>
-                        <span class="card-label blue">Daemon</span>
-                        <span class="card-label purple">Docker</span>
+                        <span class="card-label">Daemon</span>
+                        <span class="card-label concept-software">Docker</span>
                         <ul>
-                            <li>Ze programs <strong class="hl green">FIB, traffic, and firewall</strong> into a real VPP daemon</li>
+                            <li>Ze programs <strong>FIB, traffic, and firewall</strong> into a real <span class="concept-software">VPP</span> daemon</li>
                             <li>Dataplane throughput backs the numbers in the VPP guide</li>
                         </ul>
                     </article>
                     <article class="card cat-services" data-cat="services">
                         <h3><a href="../labs/vlan-qos/">VLAN QoS Wire-Level Proof</a></h3>
-                        <span class="card-label blue">Daemon</span>
-                        <span class="card-label coral">AF_PACKET</span>
+                        <span class="card-label">Daemon</span>
+                        <span class="card-label">AF_PACKET</span>
                         <ul>
-                            <li>802.1p <strong class="hl purple">PCP tagging</strong> verified on the wire</li>
+                            <li>802.1p <strong>PCP tagging</strong> verified on the wire</li>
                             <li>Not just kernel-state acceptance -- captured packets</li>
                         </ul>
                     </article>
                 </div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
-                <p class="page-sidebar-eyebrow">Evidence</p>
+                <p class="page-sidebar-eyebrow concept-evidence">Evidence</p>
                 <nav class="page-sidebar-nav" aria-label="Related links">
                 <section class="page-sidebar-group">
                     <h2>Related evidence</h2>
@@ -184,7 +184,7 @@
                         <small>Feature context for the measured daemon.</small>
                     </a>
                     <a class="page-sidebar-link" href="../guides/benchmarking/">
-                        <span class="page-sidebar-link-label">Benchmarking guide</span>
+                        <span class="page-sidebar-link-label concept-evidence">Benchmarking guide</span>
                         <small>How to run le perf and read JSON output.</small>
                     </a>
                     <a class="page-sidebar-link" href="../performance/bgp/">
@@ -196,7 +196,7 @@
                         <small>Use le perf to recreate route-server performance tests with sender, DUT, receiver, and JSON.</small>
                     </a>
                     <a class="page-sidebar-link" href="../quality/qemu-interop-release/">
-                        <span class="page-sidebar-link-label">Release evidence</span>
+                        <span class="page-sidebar-link-label concept-evidence">Release evidence</span>
                         <small>Where performance fits in verification.</small>
                     </a>
                 </section>
@@ -210,7 +210,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 07:04 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 14:26 UTC</span>
                 </div>
             </div>
         </footer>
