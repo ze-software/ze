@@ -1315,7 +1315,7 @@
       "implementation": "ze",
       "implementation-reason": "Ze's own Go implements this document; each requirement row cites its producer.",
       "public-status": "Partial",
-      "public-coverage": "The BGP-MUP NLRI codec only: ipv4/mup and ipv6/mup family registration, ISD/DSD/T1ST/T2ST encoding from config and route commands, full route type body decoding, the RFC 7606 Section 5.4 ruling that discards a route whose Architecture Type is not 1 or whose Route Type is outside 1..4 at ingress (internal/component/bgp/plugins/nlri/mup/rfc7606.go, RecognizeNLRI), MUP extended-community config syntax, and family-generic MP_REACH announcement (internal/component/bgp/plugins/nlri/mup). Thirty-one MUST rows stay open, each annotated per line in `rfc/short/draft-ietf-bess-mup-safi.md`: thirty {gap} rows and DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-6, which is {partial} by a deliberate deviation. A received Type 1 ST route that ends exactly at its Endpoint Address, the draft-mpmz-bess-mup-safi-02 encoding with no Source Address Length octet, lacks a mandatory field, and Section 3.1.3.1 says such an NLRI \"is malformed; MUST be treated as Treat-as-withdraw\". Ze accepts it instead and reads it as Source Address Length 0 (parseBodyT1ST, internal/component/bgp/plugins/nlri/mup/types.go), because ExaBGP reads it so and ExaBGP 5.0 still sends it: the owner decided on 2026-10-22 that ExaBGP's lenient read wins. Ze never sends the -02 form: the route is held and relayed with the octet added, 0 (canonicalT1STGrow and writeCanonicalT1ST, internal/component/bgp/plugins/nlri/mup/canonical.go). Every other Type 1 ST route whose Length ends short of a mandatory field is still treated as withdrawn. Withdrawal: no MUP NLRI reaches the family-generic MP_UNREACH encoder (internal/component/bgp/reactor/peer_rib_routes.go) -- its callers read the PeerOpWithdraw queue, and neither withdrawal entry point parses SAFI 85 (internal/component/bgp/plugins/cmd/update/update_text_nlri.go, internal/component/bgp/plugins/cmd/announce/announce.go) -- so a Type 1 ST or Type 2 ST withdrawal cannot be emitted (3.3.8-1, 3.3.11-1). Receive side: nlrisplit registers SplitMUP for SAFI 85 since 2026-08-04 (internal/core/bgp/nlri/nlrisplit/register.go), so a received MUP route is stored as an opaque Adj-RIB-In entry (insertPoolNLRIs) and a withdrawal deletes exactly the NLRI it names (removePoolNLRIs, internal/component/bgp/plugins/rib/rib.go). Four routing-instance obligations stay open because ze models no MUP routing instance and no route-type-aware wildcard delete exists (DRAFT-IETF-BESS-MUP-SAFI-3.3.3-2, 3.3.6-2, 3.3.9-1, 3.3.9-2). ParseMUP validates the route type body and refuses an NLRI that does not add up (internal/component/bgp/plugins/nlri/mup/types.go), and the same checks run at ingress (ValidateNLRI, called by the registered recognizer, rfc7606.go recognizerFor): a malformed route is treated as withdrawn, or discarded when its route key cannot form (3.1.1-1, 3.1.1-2, 3.1.2-1, 3.1.3-1, 3.1.3.1-1, 3.1.3.1-2, 3.1.3.1-3, 3.1.3.1-6, 3.1.3.1-7, 3.1.3.1-10, 3.1.4-1, 3.1.4.1-1). A non-3gpp-5g architecture type is discarded as an unimplemented type rather than treated as withdrawn (3.1.3.1-4, 3.1.4.1-2), and no treat-as-withdraw fires on an ISD route missing its Prefix-SID, a nexthop/locator mismatch, or a Type 2 ST route without the BGP MUP Extended Community (3.3.3-1, 3.3.3-3, 3.3.3-4, 3.3.6-1, 3.3.6-4). A DSD route announced in an UPDATE with no Prefix-SID attribute, counting one that RFC 7606 attribute-discard removes, is treated as withdrawn by the UPDATE-level check the plugin registers (internal/component/bgp/plugins/nlri/mup/rfc7606.go, CheckDSDPrefixSID; 3.3.6-5). Send side: ze runs no MUP PE or MUP Controller function, so route targets, the BGP MUP Extended Community, the Prefix-SID, the GTP4.E/GTP6.E function, the required T1ST TEID and Endpoint Address, and the PE or controller IPv6 nexthop are whatever the operator configures rather than derived (3.3.1-1, 3.3.1-2, 3.3.1-3, 3.3.1-4, 3.3.2-1, 3.3.4-1, 3.3.4-2, 3.3.4-3, 3.3.4-4, 3.3.5-2, 3.3.7-1, 3.3.10-1, 3.3.10-2).",
+      "public-coverage": "The BGP-MUP NLRI codec only: ipv4/mup and ipv6/mup family registration, ISD/DSD/T1ST/T2ST encoding from config and route commands, full route type body decoding, the RFC 7606 Section 5.4 ruling that discards a route whose Architecture Type is not 1 or whose Route Type is outside 1..4 at ingress (internal/component/bgp/plugins/nlri/mup/rfc7606.go, RecognizeNLRI), MUP extended-community config syntax, and family-generic MP_REACH announcement (internal/component/bgp/plugins/nlri/mup). Thirty MUST rows stay open, each a {gap} annotated per line in `rfc/short/draft-ietf-bess-mup-safi.md`. A received Type 1 ST route whose Length ends short of a mandatory field is treated as withdrawn, including one that ends exactly at its Endpoint Address, the draft-mpmz-bess-mup-safi-02 encoding with no Source Address Length octet: Section 3.1.3.1 says such an NLRI \"is malformed; MUST be treated as Treat-as-withdraw\" (parseBodyT1ST, internal/component/bgp/plugins/nlri/mup/types.go; owner ruling 2026-10-24, which reverses the 2026-10-22 decision to read it as Source Address Length 0). ExaBGP 5.0 sends that form for a route with no source address, so such a route from it reaches Ze as a withdrawal (docs/exabgp/exabgp-differences.md). Withdrawal: no MUP NLRI reaches the family-generic MP_UNREACH encoder (internal/component/bgp/reactor/peer_rib_routes.go) -- its callers read the PeerOpWithdraw queue, and neither withdrawal entry point parses SAFI 85 (internal/component/bgp/plugins/cmd/update/update_text_nlri.go, internal/component/bgp/plugins/cmd/announce/announce.go) -- so a Type 1 ST or Type 2 ST withdrawal cannot be emitted (3.3.8-1, 3.3.11-1). Receive side: nlrisplit registers SplitMUP for SAFI 85 since 2026-08-04 (internal/core/bgp/nlri/nlrisplit/register.go), so a received MUP route is stored as an opaque Adj-RIB-In entry (insertPoolNLRIs) and a withdrawal deletes exactly the NLRI it names (removePoolNLRIs, internal/component/bgp/plugins/rib/rib.go). Four routing-instance obligations stay open because ze models no MUP routing instance and no route-type-aware wildcard delete exists (DRAFT-IETF-BESS-MUP-SAFI-3.3.3-2, 3.3.6-2, 3.3.9-1, 3.3.9-2). ParseMUP validates the route type body and refuses an NLRI that does not add up (internal/component/bgp/plugins/nlri/mup/types.go), and the same checks run at ingress (ValidateNLRI, called by the registered recognizer, rfc7606.go recognizerFor): a malformed route is treated as withdrawn, or discarded when its route key cannot form (3.1.1-1, 3.1.1-2, 3.1.2-1, 3.1.3-1, 3.1.3.1-1, 3.1.3.1-2, 3.1.3.1-3, 3.1.3.1-6, 3.1.3.1-7, 3.1.3.1-10, 3.1.4-1, 3.1.4.1-1). A non-3gpp-5g architecture type is discarded as an unimplemented type rather than treated as withdrawn (3.1.3.1-4, 3.1.4.1-2), and no treat-as-withdraw fires on an ISD route missing its Prefix-SID, a nexthop/locator mismatch, or a Type 2 ST route without the BGP MUP Extended Community (3.3.3-1, 3.3.3-3, 3.3.3-4, 3.3.6-1, 3.3.6-4). A DSD route announced in an UPDATE with no Prefix-SID attribute, counting one that RFC 7606 attribute-discard removes, is treated as withdrawn by the UPDATE-level check the plugin registers (internal/component/bgp/plugins/nlri/mup/rfc7606.go, CheckDSDPrefixSID; 3.3.6-5). Send side: ze runs no MUP PE or MUP Controller function, so route targets, the BGP MUP Extended Community, the Prefix-SID, the GTP4.E/GTP6.E function, the required T1ST TEID and Endpoint Address, and the PE or controller IPv6 nexthop are whatever the operator configures rather than derived (3.3.1-1, 3.3.1-2, 3.3.1-3, 3.3.1-4, 3.3.2-1, 3.3.4-1, 3.3.4-2, 3.3.4-3, 3.3.4-4, 3.3.5-2, 3.3.7-1, 3.3.10-1, 3.3.10-2).",
       "public-remaining": "-",
       "summary-path": "rfc/short/draft-ietf-bess-mup-safi.md",
       "shard-path": "rfc/requirements/draft-ietf-bess-mup-safi.md",
@@ -1323,11 +1323,11 @@
       "coverage": {
         "requirements": 67,
         "gated": 47,
-        "both": 16,
+        "both": 17,
         "one": 0,
-        "annotated": 31,
-        "partial": 1,
-        "partial-rows": 1,
+        "annotated": 30,
+        "partial": 0,
+        "partial-rows": 0,
         "missing": 0,
         "nightly-only": 0,
         "gaps": 30,
@@ -1338,12 +1338,12 @@
         "met-below": 0,
         "optional-not-offered": 0,
         "derived-from-other-rows": 0,
-        "tags": 46,
+        "tags": 47,
         "units": 45,
         "audited": 17,
         "discrimination-records": 45,
         "escapes": 0,
-        "stale-records": 0
+        "stale-records": 9
       },
       "requirements": [
         {
@@ -1836,10 +1836,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/plugins/nlri/mup/types.go::parseBodyT1ST",
                 "break": "body of parseBodyT1ST replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -1853,10 +1854,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/plugins/nlri/mup/types.go::parseBodyT1ST",
                 "break": "body of parseBodyT1ST replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             }
@@ -1889,10 +1891,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/plugins/nlri/mup/types.go::parseBodyT1ST",
                 "break": "body of parseBodyT1ST replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -1906,10 +1909,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/plugins/nlri/mup/types.go::parseBodyT1ST",
                 "break": "body of parseBodyT1ST replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             }
@@ -1942,10 +1946,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/plugins/nlri/mup/types.go::parseBodyT1ST",
                 "break": "body of parseBodyT1ST replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -1959,10 +1964,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/plugins/nlri/mup/types.go::parseBodyT1ST",
                 "break": "body of parseBodyT1ST replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -2012,10 +2018,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/plugins/nlri/mup/types.go::parseBodyT1ST",
                 "break": "body of parseBodyT1ST replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -2029,10 +2036,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/plugins/nlri/mup/types.go::parseBodyT1ST",
                 "break": "body of parseBodyT1ST replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -2046,10 +2054,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/plugins/nlri/mup/types.go::parseBodyT1ST",
                 "break": "body of parseBodyT1ST replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             }
@@ -2067,17 +2076,10 @@
           "section": "3.1.3.1",
           "text": "- \u003c 0: the mandatory fields exceed the declared Length; the NLRI is malformed; MUST be treated as Treat-as-withdraw. (§3.1.3.1)",
           "gated": true,
-          "positive-test": "scoped evidence: `internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go` `TestMUPT1STMandatoryFieldsWithinLength` (unit/verify), `internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_withdraw_test.go` `TestMUPMalformedT1STTreatAsWithdraw` (unit/verify)",
-          "negative-test": "scoped evidence: `internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go` `TestMUPT1STMandatoryFieldsWithinLength` (unit/verify), `internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_withdraw_test.go` `TestMUPMalformedT1STTreatAsWithdraw` (unit/verify)",
-          "note": "**audit: partial** {partial} tested \"mandatory fields exceed the declared Length\"; gap \"MUST be treated as Treat-as-withdraw\"; internal/component/bgp/plugins/nlri/mup/types.go::parseBodyT1ST is the boundary: Tested covers a declared Length ending inside the Endpoint Address, which the tagged parser and receive tests reject and convert to a withdrawal of the held generation; complete mandatory fields are the accepted control. The gap is a legacy draft-mpmz-bess-mup-safi-02 T1ST ending exactly at the Endpoint Address without the mandatory Source Address Length octet: parseBodyT1ST accepts it as length 0, and the receive path holds and relays it with the octet added (canonical.go, writeCanonicalT1ST), so Ze never sends the -02 form. This is the owner-approved 2026-10-22 compatibility decision in plan/release/fixes/spec-exabgp-6-api-compatibility.md, deliberately preserved but nonconformant to enrolled draft-ietf-bess-mup-safi-01 Section 3.1.3.1 and never counted as whole-requirement conformance. Parent quote: - \u003c 0: the mandatory fields exceed the declared Length; the NLRI is malformed; MUST be treated as Treat-as-withdraw. (§3.1.3.1) Scoped evidence only; all obligations outside tested remain unmet or unproven; zero whole-requirement credit. scope audit: fresh",
+          "positive-test": "`internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go` `TestMUPT1STMandatoryFieldsWithinLength` (unit/verify), `internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_withdraw_test.go` `TestMUPMalformedT1STTreatAsWithdraw` (unit/verify)",
+          "negative-test": "`internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go` `TestMUPT1STMandatoryFieldsWithinLength` (unit/verify), `internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_withdraw_test.go` `TestMUPMalformedT1STTreatAsWithdraw` (unit/verify)",
+          "note": "**audit: partial, stale-requirement**",
           "nightly-only": false,
-          "annotation": {
-            "kind": "partial",
-            "reason": "tested \"mandatory fields exceed the declared Length\"; gap \"MUST be treated as Treat-as-withdraw\"; internal/component/bgp/plugins/nlri/mup/types.go::parseBodyT1ST is the boundary: Tested covers a declared Length ending inside the Endpoint Address, which the tagged parser and receive tests reject and convert to a withdrawal of the held generation; complete mandatory fields are the accepted control. The gap is a legacy draft-mpmz-bess-mup-safi-02 T1ST ending exactly at the Endpoint Address without the mandatory Source Address Length octet: parseBodyT1ST accepts it as length 0, and the receive path holds and relays it with the octet added (canonical.go, writeCanonicalT1ST), so Ze never sends the -02 form. This is the owner-approved 2026-10-22 compatibility decision in plan/release/fixes/spec-exabgp-6-api-compatibility.md, deliberately preserved but nonconformant to enrolled draft-ietf-bess-mup-safi-01 Section 3.1.3.1 and never counted as whole-requirement conformance.",
-            "tested": "mandatory fields exceed the declared Length",
-            "gap": "MUST be treated as Treat-as-withdraw",
-            "producer": "internal/component/bgp/plugins/nlri/mup/types.go::parseBodyT1ST"
-          },
           "covers": [
             {
               "polarity": "negative",
@@ -2086,7 +2088,7 @@
               "line": 46,
               "carrier": "unit/verify",
               "claim": "-- a T1ST route whose declared Length ends inside the endpoint address (mandatory fields exceed the Length, remaining \u003c 0) is refused rather than read short.",
-              "tags": 1,
+              "tags": 2,
               "proof": {
                 "route": "revert",
                 "state": "verified",
@@ -2152,7 +2154,7 @@
             "verdict": "partial",
             "meaning": "the tests enforce only the declared tested scope; the whole requirement remains unmet",
             "note": "Independent rejudgment at HEAD 6f076fc22d of the {partial} row d7673ff783 recorded. draft-ietf-bess-mup-safi-01 Section 3.1.3.1 (rfc/drafts/draft-ietf-bess-mup-safi.txt): \"- \u003c 0:   the mandatory fields exceed the declared Length; the NLRI is malformed; MUST be treated as Treat-as-withdraw.\" The same section: \"The Source Address Length has a fixed length of 1 octet.\" Tested: \"mandatory fields exceed the declared Length\", scoped by the Reason to a declared Length ending inside the Endpoint Address, complete mandatory fields the accepted control. Gap: \"MUST be treated as Treat-as-withdraw\", for a draft-mpmz-bess-mup-safi-02 Type 1 ST route ending exactly at its Endpoint Address, which lacks the mandatory Source Address Length octet. Producer: internal/component/bgp/plugins/nlri/mup/types.go::parseBodyT1ST, whose len(rest)==0 branch after the endpoint sets sourceBits=0 and sourceOctetAbsent=true and returns nil instead of ErrMUPTruncated; the route is then held and relayed with the octet added (canonical.go canonicalT1STGrow/writeCanonicalT1ST, observed by reactor/t1st_02_relay_test.go TestMUPT1ST02RelayedWithSourceLength). The gap is therefore real, not a disclosure of untested code. It is the owner decision of 2026-10-22 recorded in plan/release/fixes/spec-exabgp-6-api-compatibility.md (follow ExaBGP f9bfb853b: 'a -02 MUP Type 1 ST route without Source Address Length read as length 0'), a deliberate deviation never counted as conformant. Letter: violated for the -02 shape. Spirit: the rule exists so a parser never reads mandatory fields out of the octets past the Length; the -02 read consumes nothing past the Length, so framing stays sound, but a missing mandatory field is supplied by assumption, which the draft forbids. Tested scope, four questions: (1) TestMUPT1STMandatoryFieldsWithinLength (nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go) asserts ErrorIs ErrMUPTruncated for t1stBody cut by 3 octets (Source Address Length plus 2 endpoint octets), positive asserts NoError, empty remainder, exact TEID 0x3039 and endpoint 10.0.0.1; TestMUPMalformedT1STTreatAsWithdraw (reactor/draft_ietf_bess_mup_safi_t1st_withdraw_test.go) holds well-formed K0, receives the same key with its endpoint cut by 2 octets between siblings L and L2 (L2 with unknown TLV 0xF0), and asserts ActionNone, MP_REACH equal to exactly L||L2, MP_UNREACH equal to exactly K0 and decodable by the registered recognizer; its negative asserts a well-formed UPDATE returns byte-identical. That is treat-as-withdraw per RFC 7606 Section 2, what the draft says, not merely what the code does. (2) Exact ErrorIs and byte-exact section assertions fail on a mutant that returns nil, reads the endpoint short, or widens the -02 tolerance to a mid-endpoint stop; the recorded discrimination is only a revert (panic) break of parseBodyT1ST and ValidateNLRI, which proves the units exercise the producers, not this branch, so question 2 rests on this reading. (3) Isolated: TEID 1/0x3039 nonzero, Endpoint Address Length 32 valid, only the truncation fires; siblings well formed. (4) Whole requirement: no. Besides the -02 gap, truncation inside the prefix, inside TEID/QFI/Endpoint Address Length, and inside a non-zero Source Address all reach ErrMUPTruncated in parseBodyT1ST/parsePrefixField but are tagged by neither unit: implemented, unverified under this row, and given no credit. Polarity labels differ between the two units (parser: negative = truncated; reactor: positive = truncated withdrawn), each pair is a distinct conforming/violating input, not one assertion in two hats. Partial stands, zero whole-requirement credit.",
-            "freshness": "fresh"
+            "freshness": "stale-requirement"
           }
         },
         {
@@ -2170,7 +2172,7 @@
               "polarity": "negative",
               "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STTLVFraming",
               "file": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go",
-              "line": 71,
+              "line": 77,
               "carrier": "unit/verify",
               "claim": "-- exactly one octet remaining after the mandatory fields cannot hold a Type and a Length and is refused.",
               "tags": 1,
@@ -2187,7 +2189,7 @@
               "polarity": "positive",
               "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STTLVFraming",
               "file": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go",
-              "line": 63,
+              "line": 69,
               "carrier": "unit/verify",
               "claim": "-- two or more remaining octets that frame a whole TLV (Type, Length, Length octets of Value) parse.",
               "tags": 1,
@@ -2257,7 +2259,7 @@
               "polarity": "negative",
               "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STUnknownTLVIgnoredAndPropagated",
               "file": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go",
-              "line": 117,
+              "line": 123,
               "carrier": "unit/verify",
               "claim": "-- the re-encoded route is never the TLV-less form: the unknown TLV is not stripped on re-advertisement.",
               "tags": 1,
@@ -2291,7 +2293,7 @@
               "polarity": "positive",
               "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STUnknownTLVIgnoredAndPropagated",
               "file": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go",
-              "line": 97,
+              "line": 103,
               "carrier": "unit/verify",
               "claim": "-- a route carrying an unknown TLV type parses, and its prefix, TEID, QFI and endpoint are those of the same route without the TLV, so the unknown TLV is ignored for local processing.",
               "tags": 2,
@@ -2327,7 +2329,7 @@
               "polarity": "negative",
               "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STTLVFraming",
               "file": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go",
-              "line": 77,
+              "line": 83,
               "carrier": "unit/verify",
               "claim": "-- a TLV whose Length (5) runs past the end of the route is a TLV parsing error and the route is refused.",
               "tags": 1,
@@ -2344,7 +2346,7 @@
               "polarity": "positive",
               "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STTLVFraming",
               "file": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go",
-              "line": 65,
+              "line": 71,
               "carrier": "unit/verify",
               "claim": "-- a TLV walk with no framing error accepts the route.",
               "tags": 1,
@@ -2520,7 +2522,7 @@
               "polarity": "negative",
               "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT2STEndpointLengthBoundedByTEID",
               "file": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go",
-              "line": 139,
+              "line": 145,
               "carrier": "unit/verify",
               "claim": "-- Endpoint Length 72 (32 address bits plus 40) extends beyond the 32-bit TEID field and is refused.",
               "tags": 1,
@@ -2554,7 +2556,7 @@
               "polarity": "positive",
               "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT2STEndpointLengthBoundedByTEID",
               "file": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go",
-              "line": 129,
+              "line": 135,
               "carrier": "unit/verify",
               "claim": "-- an IPv4 T2ST route with Endpoint Length 64 (32 address bits plus a whole 32-bit TEID) parses with TEID 0x3039.",
               "tags": 1,
@@ -76316,7 +76318,7 @@
           "gated": true,
           "positive-test": "`internal/component/ike/engine/child_test.go` `TestChildSANATTEncapPorts` (unit/verify), `internal/component/ike/engine/rfc3948_encap_port_test.go` `TestRFC3948ChildSAFollowsANATMappedPeerPort500` (unit/verify), `internal/component/ike/engine/rfc3948_encap_port_test.go` `TestRFC3948ResponderChildSAEncapsulatesToTheIKEPeerPort` (unit/verify), `internal/component/ike/engine/rfc3948_encap_port_test.go` `TestRFC3948EAPResponderChildSAEncapsulatesToTheIKEPeerPort` (unit/verify), `internal/component/ike/engine/rfc3948_rebind_test.go` `TestRFC3948RebindMigratesTunnelChildSAs` (unit/verify), `internal/component/ike/engine/rfc3948_rebind_test.go` `TestRFC3948RebindRekeysWithoutAMigrator` (unit/verify), `internal/component/ike/engine/rfc3948_rebind_test.go` `TestRFC3948RebindRekeysTransportChildSA` (unit/verify)",
           "negative-test": "`internal/component/ike/engine/rfc3948_encap_port_test.go` `TestRFC3948ChildSARefusesEncapWithoutAnIKEPort` (unit/verify), `internal/component/ike/engine/rfc3948_rebind_test.go` `TestRFC3948RebindNotRunWithoutAnAdoptedMove` (unit/verify)",
-          "note": "**audit: enforced, shifted**",
+          "note": "",
           "nightly-only": false,
           "covers": [
             {
@@ -76477,13 +76479,7 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "Re-judged 2026-10-15 after b457ba88cf (Child SA encap ports come from the IKE SA) rewrote TestChildSANATTEncapPorts, the test this verdict found wrong, and, with 8233b4e305 and 4fecbbd82a, added eight tagged units: TestRFC3948ChildSAFollowsANATMappedPeerPort500 and TestRFC3948ChildSARefusesEncapWithoutAnIKEPort (b457ba88cf), TestRFC3948ResponderChildSAEncapsulatesToTheIKEPeerPort and TestRFC3948EAPResponderChildSAEncapsulatesToTheIKEPeerPort (8233b4e305), and the four TestRFC3948Rebind units (4fecbbd82a). RFC 3948 Section 2.1: \"the Source Port and Destination Port MUST be the same as that used by IKE traffic,\". Producer: childEncapPorts (create_child.go) answers remote = the peer's authenticated IKE endpoint port and local = the bound NAT-T socket port (MOBIKE: its local path), refuses with errChildEncapPort when no endpoint exists, and installChildSA no longer defaults to 4500. Positive: TestChildSANATTEncapPorts and TestRFC3948ChildSAFollowsANATMappedPeerPort500 assert exact (sport, dport) on both installed states with the peer on 14500 (or a NAT-mapped 500) and the local socket on a kernel-picked port, so the 4500 constant cannot pass; TestRFC3948ResponderChildSAEncapsulatesToTheIKEPeerPort calls handleAuthRequest directly with the PSK IKE_AUTH from source port 14500, and TestRFC3948EAPResponderChildSAEncapsulatesToTheIKEPeerPort drives the EAP exchange through handleInbound from the same port; both assert the installed pair; TestRFC3948RebindMigratesTunnelChildSAs, TestRFC3948RebindRekeysWithoutAMigrator and TestRFC3948RebindRekeysTransportChildSA assert the migrated or rekeyed states carry the moved IKE port. Negative: TestRFC3948ChildSARefusesEncapWithoutAnIKEPort asserts errChildEncapPort naming the peer and zero installed states (with and without MOBIKE, and a rekey that leaves only the old pair); TestRFC3948RebindNotRunWithoutAnAdoptedMove asserts the ports do not change without an adopted move. Both source and destination port are asserted in both directions, so the whole sentence is covered. Proven at the dataplane.SAParams boundary through mockDP; the kernel read-back (rfc3948_encap_port_integration_linux_test.go) is untagged and has not run. The engine tests ran green 2026-10-15 (./le job run, -run 'TestRFC3948|TestChildSANATTEncapPorts'). rfc/discrimination/rfc3948.json holds a RFC3948-2.1-2 record for each of the nine tagged units: three written by b7b658f27d (TestChildSANATTEncapPorts, TestRFC3948ChildSAFollowsANATMappedPeerPort500, TestRFC3948ChildSARefusesEncapWithoutAnIKEPort), two by 8233b4e305 and four by 4fecbbd82a, each with the commit that added its unit.",
-            "freshness": "shifted",
-            "moved": [
-              "internal/component/ike/engine/rfc3948_rebind_test.go::TestRFC3948RebindMigratesTunnelChildSAs",
-              "internal/component/ike/engine/rfc3948_rebind_test.go::TestRFC3948RebindNotRunWithoutAnAdoptedMove",
-              "internal/component/ike/engine/rfc3948_rebind_test.go::TestRFC3948RebindRekeysTransportChildSA",
-              "internal/component/ike/engine/rfc3948_rebind_test.go::TestRFC3948RebindRekeysWithoutAMigrator"
-            ]
+            "freshness": "fresh"
           }
         },
         {
@@ -76494,7 +76490,7 @@
           "gated": true,
           "positive-test": "`internal/le/interoplab/ipsec/checkers.go` `checkNATTTransportInnerChecksum` (interop/nightly)",
           "negative-test": "`internal/le/interoplab/ipsec/checkers.go` `checkNATTTunnelInnerChecksum` (interop/nightly)",
-          "note": "**nightly-only** **audit: enforced, shifted**",
+          "note": "**nightly-only**",
           "nightly-only": true,
           "covers": [
             {
@@ -76520,11 +76516,7 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "Independently re-judged against committed a617f53893dab242be088ea985b9baae7e66c430. RFC 3948 Section 3.1.2 states: \"When a transport mode has been used to transmit packets, contained TCP or UDP headers will have incorrect checksums due to the change of parts of the IP header during transit.\" The section requires one local-policy checksum-handling alternative. checkNATTTransportInnerChecksum requires inbound transport-mode ESP-in-UDP state, successful TCP and UDP delivery, and acceptance of correct and deliberately corrupt inner-checksum probes without checksum-error increments. checkNATTTunnelInnerChecksum requires correct probes to succeed and corrupt probes to increment checksum-error counters without acceptance. craftedProbe uses rawprobe -b through a raw IP socket, not nping. createFirstChildSA/installChildSA and xfrmStateFromParams select and install the mode and encapsulation consumed by Linux XFRM. This covers the selected transport receive outcome and tunnel boundary, not NAT-OA or a real address-translating middlebox. Both scenario names dispatch to the examined checkers. Verdict retained from source review; no new execution result is claimed by this rejudgment.",
-            "freshness": "shifted",
-            "moved": [
-              "internal/le/interoplab/ipsec/checkers.go::checkNATTTransportInnerChecksum",
-              "internal/le/interoplab/ipsec/checkers.go::checkNATTTunnelInnerChecksum"
-            ]
+            "freshness": "fresh"
           }
         },
         {
@@ -171390,7 +171382,7 @@
           "gated": true,
           "positive-test": "`internal/component/ike/crypto/rfc7296_proposal_negotiation_test.go` `TestProposalNegotiationFirstMatch` (unit/verify), `internal/component/ike/engine/rfc7296_esn_test.go` `TestEsnResponderAnswersOnlyAValueTheOfferCarried` (unit/verify), `internal/le/interoplab/ipsec/checkers.go` `checkESNBothOffered` (interop/nightly)",
           "negative-test": "`internal/component/ike/crypto/rfc7296_proposal_negotiation_test.go` `TestProposalNegotiationNoMatch` (unit/verify), `internal/component/ike/engine/rfc7296_esn_test.go` `TestEsnResponderAnswersOnlyAValueTheOfferCarried` (unit/verify), `internal/le/interoplab/ipsec/checkers.go` `checkESNExtendedOnlyRefused` (interop/nightly)",
-          "note": "**audit: enforced, shifted**",
+          "note": "",
           "nightly-only": false,
           "covers": [
             {
@@ -171452,11 +171444,7 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "RFC 7296 Section 2.7 (rfc/full/rfc7296.txt): \"The responder MUST accept a single proposal or reject them all and return an error. The error is given in a notification of type NO_PROPOSAL_CHOSEN.\" and \"The accepted cryptographic suite MUST contain exactly one transform of each type included in the proposal.\" NegotiateIKE picks one proposal or returns ErrNoProposalChosen (TestProposalNegotiationFirstMatch/NoMatch); TestEsnResponderAnswersOnlyAValueTheOfferCarried asserts SAr2 carries one proposal with exactly one ESN transform of a value the offer carried and maps refusal to NO_PROPOSAL_CHOSEN. Interop: checkESNExtendedOnlyRefused isolates the ESN type (aes256gcm16-esn alone) and asserts ze reached NO_PROPOSAL_CHOSEN (logged by buildChildlessAuthResponse as it builds the refusal notify) with no CHILD_SA on strongSwan and zero XFRM states on both ends, recorded red with the espProposalMatches ESN comparison reverted; checkESNBothOffered asserts both ends keyed, strongSwan's state carries no esn, and traffic crosses, so both ends selected the same single ESN value. Limitation, not a defect: the interop negative reads ze's log, not strongSwan's receipt of the notify; the wire mapping is held by the engine unit test. Re-judged 2026-10-10 (independent judge, mode rejudge): every tagged unit, and the helpers they call (waitLog, listSAs, checkXFRMCount, establish, waitXFRM, xfrmState, verifyTunnelTraffic), is byte-identical between 35c3b0b699 and HEAD; the diff touches the scenarioCheckers registry shape (both ESN scenarios still map to these checkers) and the childless-IKE-SA checkers, and the producer change adds only a fix field to the refusal log line, so the verdict stands.",
-            "freshness": "shifted",
-            "moved": [
-              "internal/le/interoplab/ipsec/checkers.go::checkESNBothOffered",
-              "internal/le/interoplab/ipsec/checkers.go::checkESNExtendedOnlyRefused"
-            ]
+            "freshness": "fresh"
           }
         },
         {
@@ -178454,7 +178442,7 @@
           "gated": false,
           "positive-test": "`internal/component/ike/engine/rfc7296_suspicious_test.go` `TestSusOutOfSARequestFromSAPeerDrawsProtectedNotify` (unit/verify), `internal/component/ike/engine/rfc7296_suspicious_test.go` `TestSusMovedSAEndpointDrawsTheNotify` (unit/verify), `internal/component/ike/engine/rfc7296_suspicious_test.go` `TestSusOwnerLoopPublishesMovedEndpoint` (unit/verify)",
           "negative-test": "`internal/component/ike/engine/rfc7296_suspicious_test.go` `TestSusOnlyTheSAEndpointDrawsTheNotify` (unit/verify), `internal/component/ike/engine/rfc7296_suspicious_test.go` `TestSusRateLimitCapsTheNotify` (unit/verify)",
-          "note": "**audit: enforced, stale-unit**",
+          "note": "",
           "nightly-only": false,
           "covers": [
             {
@@ -178547,11 +178535,8 @@
           "audit": {
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
-            "note": "Independently re-judged against committed a617f53893dab242be088ea985b9baae7e66c430. RFC 7296 Section 2.21.4 states: \"A node receiving a suspicious message from an IP address (and port, if NAT traversal is used) with which it has an IKE SA SHOULD send an IKE Notify payload in an IKE INFORMATIONAL exchange over that SA.\" Both unknown-SA dispatch paths reach noteSuspicious. maintainSA publishes the current endpoint, consumes the suspicious queue through informSuspicious and withdraws the endpoint on exit. The five tagged TestSus units assert protected INFORMATIONAL notification over the existing SA, endpoint and NAT-T-port discrimination, response/SA_INIT exclusion, bounded nonzero rate-limited output and notification from a moved endpoint through the actual owner loop. That loop test also asserts endpoint withdrawal and no subsequent enqueue to its registered session. The separate uncommitted reestablishment-goodbye change was not used as evidence. Verdict retained from source review; no new execution result is claimed by this rejudgment.",
-            "freshness": "stale-unit",
-            "moved": [
-              "internal/component/ike/engine/established.go::maintainSA"
-            ]
+            "note": "Re-judged 2026-10-24 against HEAD dfd640aede after 038795338e changed maintainSA. RFC 7296 Section 2.21.4: \"A node receiving a suspicious message from an IP address (and port, if NAT traversal is used) with which it has an IKE SA SHOULD send an IKE Notify payload in an IKE INFORMATIONAL exchange over that SA.\" The only maintainSA change is in the reestablish exit: the goodbye goes out under out.newSA when a peer request deleted the old IKE SA to confirm a rekey, and the new SA then forgets its keys. The Section 2.21.4 path is untouched: maintainSA still defers ps.saEndpoint.Store(nil) on every exit, publishes the SA endpoint at the top of every pass (publishSAEndpoint), and answers ps.suspicious through informSuspicious on the owner goroutine. rfc7296_suspicious_test.go and notify_suspicious.go are byte-identical between a617f53893 and HEAD. The five TestSus units still assert a protected INFORMATIONAL INVALID_IKE_SPI notify over the existing SA, endpoint and NAT-T port discrimination, response and IKE_SA_INIT exclusion, the rate limit, and notification from a moved endpoint through the real owner loop including endpoint withdrawal on exit. Verdict retained from source review; no new execution result is claimed by this rejudgment.",
+            "freshness": "fresh"
           }
         },
         {

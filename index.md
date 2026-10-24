@@ -70,19 +70,49 @@ A week on configuration safety, the public API and the appliance kernel, with fi
 
 One page per RFC, naming each requirement, the test evidence behind it, and the ones that have none.
 
-## [Why Ze?](https://ze-software.net/project/why-ze/)
+## Release claims stay checkable.
 
-Ze is a network operating system, and more: a routing daemon, appliance runtime, lab router, and protocol engine that brings policy data, generated references, APIs, MCP tools, and product evidence into one operator workflow.
+Every homepage number links to the page where you can inspect the test layer, transcript, peer list, RFC gate, or generated source evidence behind it.
 
- Self-contained management
+ [Read the evidence map](https://ze-software.net/quality/) [Watch product demos](https://ze-software.net/demos/terminal/) [**38,300+ unit tests**
 
-### Manage Ze directly.
+- Wire encoding, parsing
+- Config, FSM, plugins
+- gomu mutates code to check assertions
 
-Ze runs its own SSH server, CLI and configuration editor. Connect directly to Ze to configure and operate it, without a host SSH service or shell. Its web interface, REST, gRPC, gNMI and MCP expose the same YANG-modeled configuration.
+ Local test, fuzz, and mutation evidence.](https://ze-software.net/quality/unit-fuzz-mutation/) [**2,500+ end to end tests**
+
+- Peering, sessions, updates
+- Editor, commits, reloads
+- Commands checked as operators run them
+
+ Functional transcript format and rerun path.](https://ze-software.net/quality/functional-ci/) [**154 RFCs supported**
+
+- 4,163 MUSTs to test
+- 2,758 checked with a test
+- 66.3% done
+
+ RFC requirement ledger.](https://ze-software.net/quality/rfc-compliance/) [**91 fuzz targets**
+
+- Parsers, external inputs
+- Wire formats, config files
+- Saved crashes become regression cases
+
+ Fuzz crashes kept as regression cases.](https://ze-software.net/quality/unit-fuzz-mutation/#fuzz-targets-are-still-tests) [**11 interop targets**
+
+- BGP, OSPF, IS-IS, BFD, BMP, RPKI, VRRP
+- IPsec, L2TP, PPPoE, RADIUS
+- Real daemons in Docker, checked by peer CLIs
+
+ Docker interop peer list.](https://ze-software.net/quality/qemu-interop-release/#docker-interop) Tested against **BGP**[FRR](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[BIRD](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[GoBGP](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[OpenBGPd](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[FreeRtr](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[RustyBGP](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[rustbgpd](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[ExaBGP](https://ze-software.net/features/exabgp-compatibility/) **BGP support**[StayRTR](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[pmacct](https://ze-software.net/quality/qemu-interop-release/#docker-interop) **VPN**[strongSwan](https://ze-software.net/quality/qemu-interop-release/#docker-interop) **Access**[accel-ppp](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[xl2tpd](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[FreeRADIUS](https://ze-software.net/quality/qemu-interop-release/#docker-interop) **Redundancy**[keepalived](https://ze-software.net/quality/qemu-interop-release/#docker-interop)
+
+## Manage Ze directly.
+
+Ze combines its routing daemon, appliance runtime and lab workflows with policy data, generated references and product evidence. Its own SSH server connects you directly to the CLI and configuration editor, without a host SSH service or shell. The web interface, REST, gRPC, gNMI and MCP expose the same YANG-modeled configuration.
 
  Ze SSH + CLIWebAPIs + MCP **YANG-modeled configuration** Routing · Interfaces · Network services [See the browser workflow →](https://ze-software.net/features/web-interface/) [Explore CLI interaction →](https://ze-software.net/features/cli-commands/)
 
-#### From connection to configuration
+### From connection to configuration
 
 Change a setting through Ze’s SSH editor, review the diff, commit it and check the result.
 
@@ -185,42 +215,6 @@ Ze runs on any existing Linux distro, managed by systemd or your chosen process 
 A bootable gokrazy image for appliance hardware: read-only root filesystem, no shell, no package manager, and automatic process supervision. The current amd64 installation ISO is under 150 MB.
 
 `gokrazy image` `Read-only root filesystem` Install guide PXE, ISO, or Ventoy
-
-## Release claims stay checkable.
-
-Every homepage number links to the page where you can inspect the test layer, transcript, peer list, RFC gate, or generated source evidence behind it.
-
- [Read the evidence map](https://ze-software.net/quality/) [Watch product demos](https://ze-software.net/demos/terminal/) [**38,300+ unit tests**
-
-- Wire encoding, parsing
-- Config, FSM, plugins
-- gomu mutates code to check assertions
-
- Local test, fuzz, and mutation evidence.](https://ze-software.net/quality/unit-fuzz-mutation/) [**2,500+ end to end tests**
-
-- Peering, sessions, updates
-- Editor, commits, reloads
-- Commands checked as operators run them
-
- Functional transcript format and rerun path.](https://ze-software.net/quality/functional-ci/) [**154 RFCs supported**
-
-- 4,163 MUSTs to test
-- 2,757 checked with a test
-- 66.2% done
-
- RFC requirement ledger.](https://ze-software.net/quality/rfc-compliance/) [**91 fuzz targets**
-
-- Parsers, external inputs
-- Wire formats, config files
-- Saved crashes become regression cases
-
- Fuzz crashes kept as regression cases.](https://ze-software.net/quality/unit-fuzz-mutation/#fuzz-targets-are-still-tests) [**11 interop targets**
-
-- BGP, OSPF, IS-IS, BFD, BMP, RPKI, VRRP
-- IPsec, L2TP, PPPoE, RADIUS
-- Real daemons in Docker, checked by peer CLIs
-
- Docker interop peer list.](https://ze-software.net/quality/qemu-interop-release/#docker-interop) Tested against **BGP**[FRR](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[BIRD](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[GoBGP](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[OpenBGPd](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[FreeRtr](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[RustyBGP](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[rustbgpd](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[ExaBGP](https://ze-software.net/features/exabgp-compatibility/) **BGP support**[StayRTR](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[pmacct](https://ze-software.net/quality/qemu-interop-release/#docker-interop) **VPN**[strongSwan](https://ze-software.net/quality/qemu-interop-release/#docker-interop) **Access**[accel-ppp](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[xl2tpd](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[FreeRADIUS](https://ze-software.net/quality/qemu-interop-release/#docker-interop) **Redundancy**[keepalived](https://ze-software.net/quality/qemu-interop-release/#docker-interop)
 
 ## Watch Ze at work.
 

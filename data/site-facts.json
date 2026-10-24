@@ -34,7 +34,7 @@
     "target_display": "11",
     "targets": 11
   },
-  "published_at": "2026-10-24T14:25:30Z",
+  "published_at": "2026-10-24T14:53:43Z",
   "repo": {
     "design_comments": 7128,
     "design_comments_display": "7,100+",
@@ -56,9 +56,9 @@
     "inspected_display": "173",
     "must": 4677,
     "must_display": "4,677",
-    "proven": 2757,
-    "proven_display": "2,757",
-    "proven_percent": "66.2",
+    "proven": 2758,
+    "proven_display": "2,758",
+    "proven_percent": "66.3",
     "requirements": 6611,
     "requirements_display": "6,611",
     "summaries": 196,

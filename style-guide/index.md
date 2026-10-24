@@ -309,7 +309,9 @@ Keep homepage section containers, including Latest news, shadowless. Cards withi
 
 Proof cards share heading, detail and evidence rows. Align every evidence divider and the first line of its text to the same row boundary, even when another card's evidence wraps. Preserve the complete evidence wording.
 
-The management section uses two equal columns: compact explanation, interface map and documentation links on the left; a real SSH recording on the right. Keep readable step labels beside the player, show its SSH introduction as the preview, start there on demand, and retain full-screen controls, the full session and the transcript. Stack the columns at widths of 960px or less.
+Place release evidence directly after Latest news. Combine the useful Why Ze introduction with the explanation of Ze's own SSH service under Manage Ze directly, without a separate Why Ze heading or Self-contained management badge. Keep the architectural argument cards below that explanation.
+
+The management section uses two equal columns: compact explanation, interface map and documentation links on the left; a real SSH recording on the right. Keep readable step labels beside the player, show its SSH introduction as the preview, start there on demand, and retain full-screen controls, the full session and the transcript. Stack the columns at widths of 960px or less. Leave 1.5rem below the filled lab/daemon/appliance section so it does not touch the following section.
 
 ### Dispatch cards
 
