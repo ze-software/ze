@@ -401,6 +401,18 @@ func TestPairedObservationRunsEachBreakAlone(t *testing.T) {
 		}
 	})
 
+	// The first break stays green alone here, so a loop that stopped after the first
+	// solo run would record the pair; only the second solo run can refuse it.
+	t.Run("a second break that reddens alone", func(t *testing.T) {
+		_, solo, err := runner(t, "second").observeBreaks(both, [][]overlayFile{first, second})
+		if err == nil {
+			t.Fatalf("a pair whose second break reddens alone was recorded with solo %+v", solo)
+		}
+		if !strings.Contains(err.Error(), pairedProducerUnit) || !strings.Contains(err.Error(), "ALONE") {
+			t.Errorf("the refusal does not name the second break that reddens alone: %v", err)
+		}
+	})
+
 	t.Run("a pair both breaks are needed for", func(t *testing.T) {
 		red, solo, err := runner(t, "both").observeBreaks(both, [][]overlayFile{first, second})
 		if err != nil {
@@ -439,6 +451,9 @@ func pairedSoloChild(t *testing.T, mode, scenario string) {
 		}
 	}
 	red := replaced["first.go"]
+	if mode == "second" {
+		red = replaced["second.go"]
+	}
 	if mode == "both" {
 		red = replaced["first.go"] && replaced["second.go"]
 	}
