@@ -3,12 +3,12 @@
     "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1",
     "polarity": "negative",
     "unit": "internal/core/bgp/capability/draft_abraitis_bgp_version_capability_softver_test.go::TestSoftwareVersionCapabilityDecidesNothing",
-    "unit-sha": "ebb200c0193d8fb9",
-    "claim-sha": "fa981fe39ba4c1f7",
+    "unit-sha": "37a7854b848aa842",
+    "claim-sha": "7f36b687b6bdf862",
     "route": "mutant",
     "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
     "producer-sha": "f5de8d610f57837f",
-    "break": "line 210: \"remoteOrder = append(remoteOrder, f)\" -\u003e \"if neg.peerCodes[codeSoftwareVersion] { remoteOrder = append([]Family{f}, remoteOrder...) } else { remoteOrder = append(remoteOrder, f) }\""
+    "break": "line 205: \"neg.peerCodes[c.Code()] = true\" -\u003e \"neg.peerCodes[c.Code()] = true; if c.Code() == codeSoftwareVersion { neg.peerCodes[70] = true }\""
   },
   {
     "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1",

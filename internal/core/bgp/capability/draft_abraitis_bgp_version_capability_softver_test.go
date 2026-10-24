@@ -8,6 +8,7 @@
 package capability
 
 import (
+	"maps"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -36,11 +37,13 @@ func softverSessionCaps(withVersion bool) []Capability {
 // Version Capability is used for no session decision: an OPEN carrying code 75 between its
 // two Multiprotocol capabilities negotiates the same families in the same order, the same
 // Identity, Encoding and Session, and every other negotiated field equal to the same OPEN
-// without it; the only difference is that the peer is recorded as having advertised code 75.
+// without it; the only difference is that the record of advertised codes gains code 75 and
+// no other code.
 //
 // Method: negotiate both OPENs against one local list, compare Families with its order,
-// Identity, Encoding and Session, then compare the whole Negotiated with the record of
-// advertised codes cleared on both sides.
+// Identity, Encoding and Session, check that the record of advertised codes with code 75
+// equals the record without it plus code 75 alone, then compare the whole Negotiated with
+// that record cleared on both sides.
 func TestSoftwareVersionCapabilityDecidesNothing(t *testing.T) {
 	t.Parallel()
 	local := softverSessionCaps(false)
@@ -65,8 +68,14 @@ func TestSoftwareVersionCapabilityDecidesNothing(t *testing.T) {
 	assert.Equal(t, without.GracefulRestart, with.GracefulRestart)
 	assert.Empty(t, with.Mismatches, "an unrecognized capability is no mismatch")
 
-	// The record of advertised codes is the one field code 75 may change: the positive
-	// test below reads it. Every other field must be equal.
+	// The record of advertised codes is the one field code 75 may change, and it may
+	// change only by gaining code 75 itself: the positive test below reads it.
+	expectedCodes := make(map[Code]bool, len(without.peerCodes)+1)
+	maps.Copy(expectedCodes, without.peerCodes)
+	expectedCodes[codeSoftwareVersion] = true
+	assert.Equal(t, expectedCodes, with.peerCodes, "code 75 must add only itself to the advertised codes")
+
+	// Every other field must be equal.
 	withoutCleared, withCleared := *without, *with
 	withoutCleared.peerCodes, withCleared.peerCodes = nil, nil
 	assert.Equal(t, withoutCleared, withCleared, "code 75 must change nothing negotiated")
