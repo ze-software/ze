@@ -3,7 +3,7 @@
     "rid": "RFC4760-3-2",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/rfc4760_peer_rib_routes_nexthop_test.go::TestBuildRIBRouteUpdate_RefusesANextHopWithNoWireForm",
-    "unit-sha": "acb0b85d8d63e425",
+    "unit-sha": "e89f1fc5a20830cf",
     "claim-sha": "96d493b633a228d8",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/peer_rib_routes.go::buildRIBRouteUpdate",

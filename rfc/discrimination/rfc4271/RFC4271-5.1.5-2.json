@@ -3,7 +3,7 @@
     "rid": "RFC4271-5.1.5-2",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc4271_reactor_api_origin_test.go::TestAnnounceStripsLocalPrefTowardExternalPeer",
-    "unit-sha": "98b46360b675fbd6",
+    "unit-sha": "078adddd186c6b36",
     "claim-sha": "60e4ca966739aef2",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/peer_rib_routes.go::buildRIBRouteUpdate",
