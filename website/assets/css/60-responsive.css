@@ -124,10 +124,10 @@
     .blog-article-shell, .blog-article-shell.has-visual { grid-template-columns: minmax(0, 1fr); gap: 1.5rem; padding: 2rem 0; }
     .blog-article-shell .blog-article-visual { grid-column: 1; grid-row: auto; max-width: 40rem; }
     .blog-article-shell .blog-article-heading .journey-hero.blog-article-hero :is(h1, h2) { font-size: clamp(2rem, 5vw, 2.6rem); }
-    .site-home .usp-grid, .site-home .capability-grid, .site-home .run-path-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .site-home .usp-grid, .site-home .capability-grid, .site-home .run-path-grid, .site-home .reference-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .site-home .terminal-panel { grid-template-columns: minmax(0, 1fr); }
     .site-home .hero-primary-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .site-home .section-head { grid-template-columns: minmax(0, 1fr); gap: 0.5rem; }
+    .site-home .section-head, .site-home .home-section-panel-map .section-head { grid-template-columns: minmax(0, 1fr); gap: 0.5rem; }
     .site-home .home-proof-head { flex-direction: column; gap: 1rem; }
     .site-home .home-proof-actions { max-width: none; }
     .site-home .interop-strip { flex-wrap: wrap; }
@@ -157,7 +157,7 @@
     .site-home .home-section-panel-run { padding-inline: 1rem; }
     .site-home .home-proof-block { padding-block: 2.25rem; }
     .site-home :is(.section-head, .home-proof-head, .status-copy, .why-lead) h2 { font-size: 1.65rem; }
-    .site-home .usp-grid, .site-home .capability-grid, .site-home .run-path-grid, .site-home .home-usecase-grid, .site-home .proof-strip, .site-home .blog-list { grid-template-columns: minmax(0, 1fr); }
+    .site-home .usp-grid, .site-home .capability-grid, .site-home .run-path-grid, .site-home .reference-grid, .site-home .home-usecase-grid, .site-home .proof-strip, .site-home .blog-list { grid-template-columns: minmax(0, 1fr); }
     .site-home .proof { border-right: 0; }
     .site-home .proof:last-child { border-bottom: 0; }
     .site-home .why-lead { padding: 1.25rem; }

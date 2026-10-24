@@ -396,11 +396,12 @@ Use `categoryLabel` for category display names: `platform` reads as
 `platform`. Escape the label when rendering HTML.
 <!-- source: internal/le/site/docpage.go -- categoryLabel -->
 
-The homepage preserves its useful content and data slots. Release evidence
-follows Latest news. The useful Why Ze introduction is folded into the
-management explanation, with no separate Why Ze heading or self-contained
-management badge. The architectural argument cards remain below it. Its primary
-actions reach the demo gallery and BGP quickstart directly. Product screenshots
+The homepage preserves its useful content and data slots. Code quality evidence
+follows Latest news. The management panel's left column starts with Why Ze,
+then explains how to manage Ze directly through its own SSH service. It has no
+self-contained management badge. The architectural argument cards remain below
+the panel. Its primary actions reach the demo gallery and BGP quickstart
+directly. Product screenshots
 are individually linked to their full-size files and captioned with their
 capture provenance; every panel remains available without JavaScript. The
 selector reserves one shared media frame and the tallest caption, so switching
@@ -412,6 +413,12 @@ dashboard remain genuine static captures with no player controls burned in.
 The selector never replaces the full manifest-derived replay or transcript.
 The category overview derives every
 feature link from `features.json`, alongside the existing category counts.
+The documentation section explains how YANG and command definitions keep the
+reference aligned with the documented build. Its introduction sits to the right
+of its heading on desktop. Direct configuration, command and plugin reference
+cards precede the feature directory. Both groups share the run cards' neutral
+surfaces and spacing, with a category-coloured background behind the compact
+name only. Feature links appear one per line, without removing any destinations.
 Its management explanation states that Ze runs its own SSH service and CLI,
 without relying on a host SSH service or shell.
 The management section keeps that explanation, its compact interface map and
@@ -507,10 +514,9 @@ from the live CLI catalogue, while vendor mappings remain curated in
 
 ### Plugin catalog
 
-`reference/plugins/` is generated from registry data and optional local
-`PLUGIN.md` metadata. Plugin cards, dependencies and detail pages remain
-generated outputs. Changes to registry facts or plugin metadata are published
-with `./le site build`.
+`reference/plugins/` is generated from plugin registrations. Plugin cards,
+dependencies and detail pages remain generated outputs. Changes to registry
+facts are published with `./le site build`.
 
 The catalog renderer creates `reference/plugins/index.html`, its `index.md`
 mirror, and one local `reference/plugins/<plugin>/` detail page
