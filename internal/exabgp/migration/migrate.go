@@ -1380,8 +1380,8 @@ func migrateSingleNeighbor(neighborTree *config.Tree, peerName string, result *M
 		return nil, err
 	}
 
-	// ExaBGP 6.0 receive policy: refuse a value ze cannot reproduce.
-	if err := checkReceivePolicy(neighborTree); err != nil {
+	// ExaBGP 6.0 receive policy: write ze's leaf, or refuse a value ze cannot reproduce.
+	if err := applyReceivePolicy(neighborTree, peer); err != nil {
 		return nil, err
 	}
 

@@ -227,21 +227,21 @@ ExaBGP and is not carried.
 #### ExaBGP 6.0 receive policy: as-set and tunnel-encapsulation
 
 ExaBGP 6.0 added two neighbor leaves that decide what happens to a received
-route; ExaBGP 4.2 and 5.0 know neither. Ze has no leaf for either, so the
-migration writes nothing for a value whose effect Ze already gives, and refuses
-the config, naming the leaf, for a value it cannot reproduce.
+route; ExaBGP 4.2 and 5.0 know neither. The migration writes nothing for a value
+whose effect is Ze's default, writes Ze's own leaf where one gives the same
+effect, and refuses the config, naming the leaf, for a value it cannot reproduce.
 
 | ExaBGP line | Migration | Why |
 |-------------|-----------|-----|
 | `as-set withdraw` (ExaBGP's default) | accepted, nothing written | Ze treats every received route whose AS_PATH or AS4_PATH holds an AS_SET or AS_CONFED_SET as withdrawn (RFC 9774 Section 3) |
-| `as-set accept` | refused | Ze has no setting that keeps such a route yet |
+| `as-set accept` | written as `session { as-set accept; }` on the peer | The peer keeps such a route, as the ExaBGP neighbor did. RFC 9774 Section 3 allows it when "explicitly configured by a network operator", and only the migration writes this leaf: Ze's own configs keep the RFC's behavior. Structure and AS 0 checks still apply |
 | `tunnel-encapsulation accept` | accepted, nothing written | Ze keeps a received Tunnel Encapsulation attribute on every session |
 | `tunnel-encapsulation auto` (ExaBGP's default) | accepted, nothing written | Same as an ExaBGP config without the line. On an external neighbor ExaBGP drops the attribute and Ze does not yet: that is Ze's RFC 9012 Section 11 gap (`rfc/short/rfc9012.md`, RFC9012-11-5), with or without the line |
 | `tunnel-encapsulation filter` | refused | Ze cannot yet drop the attribute from one peer |
 
 Removing a refused line migrates the peer with Ze's behavior, which the refusal
 names.
-<!-- source: internal/exabgp/migration/migrate_receive_policy.go -- checkASSetPolicy, checkTunnelEncapsulationPolicy -->
+<!-- source: internal/exabgp/migration/migrate_receive_policy.go -- applyASSetPolicy, checkTunnelEncapsulationPolicy -->
 
 ### Running ExaBGP Plugins
 

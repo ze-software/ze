@@ -106,11 +106,7 @@ func requireExtendedNextHop(src, peer *config.Tree, family, exabgpFamily string,
 // peerCapability answers the peer's session capability container, creating the
 // session and capability containers when the migration wrote neither.
 func peerCapability(peer *config.Tree) *config.Tree {
-	session := peer.GetContainer("session")
-	if session == nil {
-		session = config.NewTree()
-		peer.SetContainer("session", session)
-	}
+	session := peerSession(peer)
 	capability := session.GetContainer("capability")
 	if capability == nil {
 		capability = config.NewTree()

@@ -1,6 +1,7 @@
 package migration
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -41,14 +42,12 @@ func TestMigrateReceivePolicySameAsZe(t *testing.T) {
 // reproduce stops the migration with an error naming the leaf and the value,
 // rather than writing a peer that treats received routes differently.
 //
-// VALIDATES: `as-set accept` (ze withdraws every route with an AS_SET),
-// `tunnel-encapsulation filter` (ze has no attribute 23 filter) and a value
-// ExaBGP does not know are each refused.
+// VALIDATES: `tunnel-encapsulation filter` (ze has no attribute 23 filter) and
+// a value ExaBGP does not know are each refused.
 // PREVENTS: A migrated peer silently withdrawing routes ExaBGP accepted, or
 // passing on an attribute ExaBGP dropped.
 func TestMigrateReceivePolicyRefusedWithoutZeEquivalent(t *testing.T) {
 	cases := []struct{ leaf, value string }{
-		{"as-set", "accept"},
 		{"tunnel-encapsulation", "filter"},
 		{"as-set", "keep"},
 		{"tunnel-encapsulation", "drop"},
@@ -72,20 +71,41 @@ func TestMigrateReceivePolicyRefusedWithoutZeEquivalent(t *testing.T) {
 	}
 }
 
-// TestMigrateReceivePolicyFromTemplate proves a receive-policy leaf set in a
-// template reaches the neighbor that inherits it, so a refused value is not
-// lost on the way.
+// TestMigrateASSetAcceptKeepsTheSet proves ExaBGP's `as-set accept` becomes
+// the ze peer leaf `session { as-set accept; }`, so the migrated peer keeps a
+// received route whose AS_PATH holds an AS_SET, as the ExaBGP neighbor did.
 //
-// VALIDATES: expandInheritance carries as-set.
-// PREVENTS: `as-set accept` in a template migrating silently.
+// VALIDATES: RFC 9774 Section 3's operator configuration, "Unless explicitly
+// configured by a network operator to do otherwise", is written by the
+// migration for the neighbor that asked for it, and ze parses the result.
+// PREVENTS: A migrated peer withdrawing routes its ExaBGP neighbor accepted,
+// or the migration refusing a config ze can now reproduce.
+func TestMigrateASSetAcceptKeepsTheSet(t *testing.T) {
+	output := migrateNeighborOutput(t, receivePolicyNeighbor("as-set", "accept"))
+	if !sessionASSetAccept.MatchString(output) {
+		t.Fatalf("migrated config has no session { as-set accept; }:\n%s", output)
+	}
+	if err := parseZeConfig(t, output); err != nil {
+		t.Fatalf("ze refuses the migrated config: %v\n%s", err, output)
+	}
+}
+
+// sessionASSetAccept matches the migrated peer's `as-set accept` inside its
+// session block.
+var sessionASSetAccept = regexp.MustCompile(`session \{[^}]*as-set accept`)
+
+// TestMigrateReceivePolicyFromTemplate proves a receive-policy leaf set in a
+// template reaches the neighbor that inherits it.
+//
+// VALIDATES: expandInheritance carries as-set, and `as-set accept` from a
+// template lands in the inheriting peer's session block.
+// PREVENTS: `as-set accept` in a template migrating silently to a peer that
+// withdraws the routes.
 func TestMigrateReceivePolicyFromTemplate(t *testing.T) {
 	input := "template {\n\tneighbor base {\n\t\tas-set accept;\n\t}\n}\n" +
 		"neighbor 10.0.0.1 {\n\tinherit base;\n\tlocal-as 65001\n\tpeer-as 65002\n}\n"
-	tree, err := ParseExaBGPConfig(input)
-	if err != nil {
-		t.Fatalf("parse: %v", err)
-	}
-	if _, err := MigrateFromExaBGP(tree); err == nil {
-		t.Fatal("as-set accept from a template migrated, want a refusal")
+	output := migrateNeighborOutput(t, input)
+	if !sessionASSetAccept.MatchString(output) {
+		t.Fatalf("as-set accept from a template did not reach the peer:\n%s", output)
 	}
 }

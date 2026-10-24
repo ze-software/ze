@@ -1,5 +1,5 @@
 // Design: docs/exabgp/exabgp-migration.md -- ExaBGP 6.0 receive policy
-// Related: migrate.go -- migrateSingleNeighbor calls checkReceivePolicy
+// Related: migrate.go -- migrateSingleNeighbor calls applyReceivePolicy
 // RFC: rfc/short/rfc9774.md
 // RFC: rfc/short/rfc9012.md
 
@@ -11,48 +11,57 @@ import (
 	"github.com/ze-software/ze/internal/component/config"
 )
 
-// checkReceivePolicy judges the two receive-policy leaves ExaBGP 6.0 added to
-// a neighbor (f9bfb853b, configuration/grammar/tree/neighbor.py):
+// applyReceivePolicy judges the two receive-policy leaves ExaBGP 6.0 added to
+// a neighbor (f9bfb853b, configuration/grammar/tree/neighbor.py) and writes
+// what each needs on the migrated ze peer:
 //
 //	as-set               withdraw | accept         (RFC 9774)
 //	tunnel-encapsulation auto | filter | accept    (RFC 9012 Section 11)
 //
-// Neither has a ze leaf, so a value is accepted only where ze already gives
-// the received routes the same treatment, and nothing is written for it. Any
-// other value stops the migration: a peer that withdraws routes ExaBGP kept,
-// or passes on an attribute ExaBGP dropped, is not a migration.
-func checkReceivePolicy(neighbor *config.Tree) error {
-	if err := checkASSetPolicy(neighbor); err != nil {
+// A value is accepted where ze gives the received routes the same treatment,
+// with ze's own leaf when one is needed. Any other value stops the migration:
+// a peer that withdraws routes ExaBGP kept, or passes on an attribute ExaBGP
+// dropped, is not a migration.
+func applyReceivePolicy(neighbor, peer *config.Tree) error {
+	if err := applyASSetPolicy(neighbor, peer); err != nil {
 		return err
 	}
 	return checkTunnelEncapsulationPolicy(neighbor)
 }
 
-// checkASSetPolicy accepts `as-set withdraw`, ExaBGP's default, because ze
-// applies the same verdict to every peer (message/rfc7606.go validateASPath,
+// applyASSetPolicy writes nothing for `as-set withdraw`, ExaBGP's default,
+// because it is ze's default too (message/rfc7606.go validateASPath,
 // message/rfc7607.go validateAS4PathAttr).
 //
-// RFC 9774 Section 3: "MUST use the "treat-as-withdraw" error handling behavior per
-// [RFC7606] upon reception of BGP UPDATE messages containing AS_SETs
-// or AS_CONFED_SETs in the AS_PATH or AS4_PATH [RFC6793]."
-//
 // `as-set accept` keeps such a route in ExaBGP (bgp/message/update/
-// collection.py, UpdateCollection._withdrawn_in_context). Ze has no peer leaf
-// that does so yet, so it is refused.
-func checkASSetPolicy(neighbor *config.Tree) error {
+// collection.py, UpdateCollection._withdrawn_in_context), and becomes the ze
+// peer leaf `session { as-set accept; }`, which only this migration writes.
+// RFC 9774 Section 3: "Unless explicitly configured by a network operator to
+// do otherwise (e.g., during a transition phase), BGP speakers:" ... "MUST use
+// the "treat-as-withdraw" error handling behavior per [RFC7606] upon reception
+// of BGP UPDATE messages containing AS_SETs or AS_CONFED_SETs in the AS_PATH or
+// AS4_PATH [RFC6793]." The ExaBGP line is that operator configuration.
+func applyASSetPolicy(neighbor, peer *config.Tree) error {
 	value, ok := neighbor.Get("as-set")
-	if !ok {
-		return nil
-	}
-	if value == "withdraw" {
+	if !ok || value == "withdraw" {
 		return nil
 	}
 	if value == "accept" {
-		return fmt.Errorf("as-set accept: ze withdraws every received route whose AS_PATH "+
-			"or AS4_PATH holds an AS_SET (RFC 9774 Section 3) and has no setting to keep it; "+
-			"remove the line to migrate with ze's behavior, which is ExaBGP's default %q", "as-set withdraw")
+		peerSession(peer).Set("as-set", "accept")
+		return nil
 	}
-	return fmt.Errorf("as-set %s: ExaBGP knows withdraw and accept; use as-set withdraw", value)
+	return fmt.Errorf("as-set %s: ExaBGP knows withdraw and accept; use as-set withdraw or as-set accept", value)
+}
+
+// peerSession answers the peer's session container, creating it when the
+// migration wrote none.
+func peerSession(peer *config.Tree) *config.Tree {
+	session := peer.GetContainer("session")
+	if session == nil {
+		session = config.NewTree()
+		peer.SetContainer("session", session)
+	}
+	return session
 }
 
 // checkTunnelEncapsulationPolicy accepts `accept` and `auto`. Ze keeps a
