@@ -58,7 +58,7 @@
     "rid": "RFC2918-4-3",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc2918_replay_feedback_test.go::TestRefreshSentFeedbackRetainsReplayOrigin",
-    "unit-sha": "38326072ce5d6a61",
+    "unit-sha": "1aeb718a7a8fb2a6",
     "claim-sha": "c89ca1a7c20cd43b",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/session_write.go::sendUpdateCounted",

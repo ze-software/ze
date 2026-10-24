@@ -7,7 +7,7 @@
     "claim-sha": "64a7a540c8a14432",
     "route": "revert",
     "producer": "internal/component/bgp/message/update_build.go::buildMPReach",
-    "producer-sha": "f8f830d92bd631c5",
+    "producer-sha": "4d39aed49a7780ef",
     "break": "body of buildMPReach replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   },
   {

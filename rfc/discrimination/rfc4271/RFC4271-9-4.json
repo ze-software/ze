@@ -7,7 +7,7 @@
     "claim-sha": "629a73936b139249",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/adj_rib_in/rib.go::installStructuredNLRIs",
-    "producer-sha": "70ad8368ab11c74c",
+    "producer-sha": "e817cbed2c6df608",
     "break": "body of installStructuredNLRIs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   },
   {
@@ -18,7 +18,7 @@
     "claim-sha": "090a89390aee22f7",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/adj_rib_in/rib.go::installStructuredNLRIs",
-    "producer-sha": "70ad8368ab11c74c",
+    "producer-sha": "e817cbed2c6df608",
     "break": "body of installStructuredNLRIs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   }
 ]
