@@ -566,7 +566,7 @@ func pageSidebar(root, pageKey string, links pageLinks) string {
 	var sidebar textbuf.Buffer
 	sidebar.Reset().Str("            <aside class=\"page-sidebar\" aria-label=\"Related page links\">\n")
 	if spec.Eyebrow != "" {
-		sidebar.Str(`                <p class="page-sidebar-eyebrow">`).
+		sidebar.Str(`                <p class="`).Str(compactLabelClass("page-sidebar-eyebrow", spec.Eyebrow)).Str(`">`).
 			Str(html.EscapeString(spec.Eyebrow)).Str("</p>\n")
 	}
 	sidebar.Str("                <nav class=\"page-sidebar-nav\" aria-label=\"Related links\">\n")
@@ -600,7 +600,7 @@ func sidebarLink(root string, link pageLink, external map[string]pageLinkTarget)
 	}
 	entry := `                    <a class="page-sidebar-link" href="` +
 		html.EscapeString(href) + `"` + attributes + ">\n" +
-		`                        <span class="page-sidebar-link-label">` +
+		`                        <span class="` + compactLabelClass("page-sidebar-link-label", label) + `">` +
 		html.EscapeString(label) + "</span>\n"
 	if description != "" {
 		entry += "                        <small>" + html.EscapeString(description) + "</small>\n"

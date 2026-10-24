@@ -66,7 +66,7 @@ func TestTheDependencyPageKeepsTheCuratedOrder(t *testing.T) {
 		previous = at
 		for _, module := range category.Modules {
 			modules++
-			at := strings.Index(page, "<td><code>"+module.Module+"</code></td>")
+			at := strings.Index(page, `<td><code class="concept-software">`+module.Module+"</code></td>")
 			if at < 0 {
 				t.Fatalf("the page carries no row for %s", module.Module)
 			}
@@ -97,7 +97,7 @@ func TestGoModSuppliesTheVersionAndNeverTheOrder(t *testing.T) {
 	}
 	page := readArtifact(t, paths.Output, dependenciesDest)
 
-	if !strings.Contains(page, "<td><code>example.com/beta</code></td><td><code>v9.9.9</code></td>") {
+	if !strings.Contains(page, `<td><code class="concept-software">example.com/beta</code></td><td><code>v9.9.9</code></td>`) {
 		t.Error("the page does not carry the version go.mod pins for example.com/beta")
 	}
 	second := strings.Index(page, "<summary>Second Group")

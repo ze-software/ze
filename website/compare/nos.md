@@ -41,7 +41,7 @@ comparison. The detailed source evidence remains in the appendices below.
 
 ## Routing and control plane matrix
 
-| Feature | Ze | VyOS | freeRtr | Notes |
+| Feature | Ze | <span class="concept-software">VyOS</span> | <span class="concept-software">freeRtr</span> | Notes |
 |---|---|---|---|---|
 | IPv4/IPv6 static routing | Yes | Yes | Yes | Ze and VyOS include ECMP style static route surfaces; freeRtr has static route objects. |
 | BGP core | Yes | Yes | Yes | Ze and freeRtr implement BGP in source; VyOS exposes BGP through FRR config. |
@@ -80,7 +80,7 @@ comparison. The detailed source evidence remains in the appendices below.
 
 ## Interfaces, L2, L3, and dataplane matrix
 
-| Feature | Ze | VyOS | freeRtr | Notes |
+| Feature | Ze | <span class="concept-software">VyOS</span> | <span class="concept-software">freeRtr</span> | Notes |
 |---|---|---|---|---|
 | Interface management model | Yes | Yes | Yes | Ze uses typed Go config and backend selection; VyOS uses XML plus Python owners; freeRtr uses central Java interface config. |
 | Linux netdev backend | Yes | Yes | Partial | Ze has a netlink backend; VyOS manages Linux interfaces; freeRtr abstracts interfaces through Java and helpers rather than a Ze-like netlink backend. |
@@ -114,7 +114,7 @@ comparison. The detailed source evidence remains in the appendices below.
 
 ## Firewall, security, VPN, and AAA matrix
 
-| Feature | Ze | VyOS | freeRtr | Notes |
+| Feature | Ze | <span class="concept-software">VyOS</span> | <span class="concept-software">freeRtr</span> | Notes |
 |---|---|---|---|---|
 | Firewall tables, chains, hooks, policies | Yes | Yes | Yes | Ze uses nftables; VyOS has firewall/zone model; freeRtr has ACL/filter surfaces. |
 | Rich match/action rules | Yes | Yes | Yes | Exact action vocabulary differs. |
@@ -142,7 +142,7 @@ comparison. The detailed source evidence remains in the appendices below.
 
 ## Network services and operations matrix
 
-| Feature | Ze | VyOS | freeRtr | Notes |
+| Feature | Ze | <span class="concept-software">VyOS</span> | <span class="concept-software">freeRtr</span> | Notes |
 |---|---|---|---|---|
 | DHCPv4 server | Yes | Yes | Yes | Evidence exists for all three. |
 | DHCPv4 client | Yes | Yes | Yes | Evidence exists for all three. |
@@ -175,7 +175,7 @@ comparison. The detailed source evidence remains in the appendices below.
 
 ## Management, automation, UI, and API matrix
 
-| Feature | Ze | VyOS | freeRtr | Notes |
+| Feature | Ze | <span class="concept-software">VyOS</span> | <span class="concept-software">freeRtr</span> | Notes |
 |---|---|---|---|---|
 | Operational and configuration modes | Yes | Yes | Yes | Evidence exists for all three. |
 | Submode/context editing | Yes | Yes | Yes | Evidence exists for all three. |
@@ -207,7 +207,7 @@ comparison. The detailed source evidence remains in the appendices below.
 
 ## Platform, packaging, and appliance matrix
 
-| Feature | Ze | VyOS | freeRtr | Notes |
+| Feature | Ze | <span class="concept-software">VyOS</span> | <span class="concept-software">freeRtr</span> | Notes |
 |---|---|---|---|---|
 | Primary build automation | Yes | Yes | Partial | freeRtr README says no formal build system, but shell scripts exist. |
 | Compile-time feature selection | Yes | No | No | Ze build tags and feature gates are explicit. |
@@ -237,7 +237,7 @@ comparison. The detailed source evidence remains in the appendices below.
 
 ## Observability, diagnostics, and testing matrix
 
-| Feature | Ze | VyOS | freeRtr | Notes |
+| Feature | Ze | <span class="concept-software">VyOS</span> | <span class="concept-software">freeRtr</span> | Notes |
 |---|---|---|---|---|
 | Native metrics / Prometheus endpoint | Yes | Yes | Yes | VyOS uses exporters; Ze and freeRtr have in-source service evidence. |
 | OS metrics | Yes | Yes | Yes | Evidence exists for all three. |
@@ -262,7 +262,7 @@ comparison. The detailed source evidence remains in the appendices below.
 
 ## Architecture and extensibility matrix
 
-| Feature | Ze | VyOS | freeRtr | Notes |
+| Feature | Ze | <span class="concept-software">VyOS</span> | <span class="concept-software">freeRtr</span> | Notes |
 |---|---|---|---|---|
 | Explicit module/dependency manifest | Yes | Yes | No | Ze has `go.mod`; VyOS has Debian/Python package metadata; freeRtr has shell scripts and JDK assumptions. |
 | Component/plugin modularity | Yes | Partial | Partial | Ze has registries and generated imports; VyOS has XML owner scripts; freeRtr has Java registries. |
@@ -301,7 +301,7 @@ about non-BGP router OS breadth.
 
 ## Product model snapshot
 
-| Area | Ze | VyOS | freeRtr | Evidence notes |
+| Area | Ze | <span class="concept-software">VyOS</span> | <span class="concept-software">freeRtr</span> | <span class="concept-evidence">Evidence notes</span> |
 |---|---|---|---|---|
 | Product identity | Present. Go module `github.com/ze-software/ze`, own Network OS architecture, Go 1.26, OpenConfig/YANG, netlink, govpp, gNMI, gokrazy dependencies. | Present. `vyos-1x` is the command definitions, configuration scripts, data, Python libraries, validators, templates, and tests package. Image build lives in `vyos-build`. | Present. Free/open router process, speaks routing protocols, re-encapsulates packets, can export FIBs to external dataplanes. | Ze: `go.mod:1-40`, `docs/architecture/core-design.md:1-40`. VyOS: `README.md:1-45`. freeRtr: `readme.md:1-15`. |
 | Implementation style | Small Go core plus registration/plugin pattern, generated plugin import root, YANG schemas, typed components. | XML schema plus Python conf/op scripts, Jinja2 templates, external daemons, generated old-backend `node.def` and op caches. | Java router process with large config/runtime registries, protocol classes, built-in services, native/P4/XDP helpers. | Detailed evidence: Architecture and Extensibility appendix. |
@@ -338,17 +338,17 @@ about non-BGP router OS breadth.
 
 ## Source roots inspected
 
-| Product | Inspected root | Primary evidence surface |
+| Product | Inspected root | <span class="concept-evidence">Primary evidence surface</span> |
 |---|---|---|
 | Ze | `ze/` checkout | Go components, plugins, YANG modules, command/RPC declarations, docs, tests, appliance tooling. |
-| VyOS | `vyos-1x/` checkout | XML config/op definitions, Python `conf_mode` and `op_mode`, API services, tests, Debian metadata. |
-| freeRtr | `freeRtr/` checkout | Java router, config, routing, service, interface, auth, packet and user packages, plus `cfg/` tests and `misc/` platform files. |
+| <span class="concept-software">VyOS</span> | `vyos-1x/` checkout | XML config/op definitions, Python `conf_mode` and `op_mode`, API services, tests, Debian metadata. |
+| <span class="concept-software">freeRtr</span> | `freeRtr/` checkout | Java router, config, routing, service, interface, auth, packet and user packages, plus `cfg/` tests and `misc/` platform files. |
 
 ## Evidence appendix: routing and control plane
 
 ### Feature inventory
 
-| Area | Feature | Ze evidence | VyOS evidence | freeRtr evidence | Notes |
+| Area | Feature | Ze evidence | <span class="concept-software">VyOS</span> evidence | <span class="concept-software">freeRtr</span> evidence | Notes |
 |---|---|---|---|---|---|
 | Static routing | IPv4/IPv6 static routes | Present. Static schema says prefixes validate `ipv4-prefix\|ipv6-prefix`, grouped under named tables, with metric/tag, ECMP gateway/interface next-hops, blackhole/reject: `internal/plugins/static/yang/ze-static-conf.yang:1-15`, `:24-43`, `:59-132`. User guide says static routes support ECMP, weighted load balancing, BFD failover, blackhole/reject, kernel/VPP programming: `docs/guide/static-routes.md:1-8`. | Present. CLI node `protocols static` includes `static-route.xml.i` and `static-route6.xml.i`, plus non-main kernel `table`: `interface-definitions/protocols_static.xml.in:7-13`, `:55-76`. Also static multicast route `mroute`: `:13-23`. | Present. Static route object has prefix, next-hop, interface, distance, metric, tag, route-map, route-policy, MPLS mode: `src/org/freertr/ip/ipFwdRoute.java:29-88`. | All three have IPv4/IPv6 static route support. Ze and VyOS expose schema-level named/non-main tables. freeRtr object model is direct forwarding core evidence. |
 | BGP core | BGP daemon, peers, ASN, router ID | Present. BGP config root with mandatory router-id and local ASN, peer groups and standalone peers: `internal/component/bgp/yang/ze-bgp-conf.yang:10-31`, `:75-82`, `:107-182`. Plugin registry imports BGP plugin: `internal/component/plugin/all/all.go:146-147`. | Present. `protocols bgp` node owned by `protocols_bgp.py`: `interface-definitions/protocols_bgp.xml.in:3-13`. | Present. `rtrBgp extends ipRtr implements prtServS` on TCP port 179, with local AS, address families and router ID fields: `src/org/freertr/rtr/rtrBgp.java:70-103`. | All three implement BGP. VyOS is schema/template wrapper around FRR. |
@@ -410,7 +410,7 @@ Architecture notes for the final comparison:
 
 ### Feature inventory
 
-| Area | Feature | Ze evidence | VyOS evidence | freeRtr evidence | Notes |
+| Area | Feature | Ze evidence | <span class="concept-software">VyOS</span> evidence | <span class="concept-software">freeRtr</span> evidence | Notes |
 |---|---|---|---|---|---|
 | Firewall primitives | Tables, chains, hooks, policies | Ze firewall guide says Ze manages nftables packet filter and NAT from one `firewall {}` YANG section, with tables, base chains, type, hook, priority, policy: `docs/guide/firewall.md:1-24`. YANG enumerates families `inet`, `ip`, `ip6`, `arp`, `bridge`, `netdev`, chain types `filter`, `nat`, `route`, hooks `input`, `output`, `forward`, `prerouting`, `postrouting`, `ingress`, `egress`, policies `accept/drop`: `internal/component/firewall/yang/ze-firewall-conf.yang:16-51`. | VyOS firewall root and flowtable present: `interface-definitions/firewall.xml.in:1-30`; IPv4, IPv6, bridge hook includes: `interface-definitions/firewall.xml.in:361-394`. | freeRtr ACL object is `access-list`: `src/org/freertr/cfg/cfgAceslst.java:63-73`; ACL help covers permit/deny, protocol, source/target address and ports, flags, TOS, DSCP, TTL, SGT, length, log: `src/org/freertr/cfg/cfgAceslst.java:81-146`. Interface attaches access groups: `src/org/freertr/cfg/cfgIfc.java:1697-1700`. | Ze and VyOS expose nft/netfilter concepts. freeRtr exposes router-style ACLs and interface attachments rather than nft-style tables. |
 | Firewall primitives | Match/action richness | Ze match table includes source/destination address, ports, protocol, interfaces, ICMP/ICMPv6, conntrack state, marks, DSCP, TCP flags, named sets: `docs/guide/firewall.md:59-83`; actions include accept, drop, reject, jump, goto, return, SNAT, DNAT, masquerade, redirect, notrack, flow-offload, marks, DSCP set, TCP MSS, counter, log, limit-rate, exclude: `docs/guide/firewall.md:104-129`. | VyOS firewall group/match model includes address, domain, remote, interface, IPv4/IPv6 network, MAC and port groups: `interface-definitions/firewall.xml.in:30-334`; group and zone roots are present (rule-include files not expanded here). | freeRtr ACL help covers object groups for source and target address and ports: `src/org/freertr/cfg/cfgAceslst.java:105-126`; packet fields include flags, TOS, flow, DSCP, precedence, length, TTL, SGT and log: `src/org/freertr/cfg/cfgAceslst.java:127-146`. | freeRtr has broad packet match support but not inspected as a stateful nft-style ruleset language. |
@@ -456,7 +456,7 @@ Explicitly unclear or not found in inspected sources:
 
 ### Feature inventory
 
-| Area | Feature | Ze evidence | VyOS evidence | freeRtr evidence | Notes |
+| Area | Feature | Ze evidence | <span class="concept-software">VyOS</span> evidence | <span class="concept-software">freeRtr</span> evidence | Notes |
 |---|---|---|---|---|---|
 | Address services | DHCPv4 server | Present. `service dhcp-server` YANG has `enabled`, `listen-interface`, shared-network, subnet ranges, lease time, default router, DNS servers, domain name, static MAC mappings: `ze/internal/plugins/dhcpserver/yang/ze-dhcp-server-conf.yang:11-118`. PXE boot option injection supports TFTP server, BIOS/UEFI bootfiles, iPXE HTTP boot-script URL: same file `:21-45`. | Present. CLI node `service dhcp-server` owned by `service_dhcp-server.py`, help says DHCP server: `vyos-1x/interface-definitions/service_dhcp-server.xml.in:1-15`. | Present. `servDhcp4` comment says "dynamic host config protocol (rfc2131) server and relay"; mode enum includes `server` and `relay`: `freeRtr/src/org/freertr/serv/servDhcp4.java:29-55`. Registered as DHCP4 daemon: `freeRtr/src/org/freertr/cfg/cfgAll.java:502-510`. | All three have DHCPv4 server support in inspected sources. |
 | Address services | DHCPv4 client | Present per interface. `interface ... ipv4 dhcp enabled`, client-id, hostname: `ze/internal/component/iface/yang/ze-iface-conf.yang:319-343`. Runtime uses `nclient4.New`, DORA Request, installs lease, renews at T1/T2: `ze/internal/plugins/iface/dhcp/dhcp_v4_linux.go:16-84`. | Present via interface DHCP options include. `include/interface/dhcp-options.xml.i` defines DHCP client settings/options: `vyos-1x/interface-definitions/include/interface/dhcp-options.xml.i:2-4`. DNS forwarding can use DHCP client nameservers: `vyos-1x/interface-definitions/service_dns_forwarding.xml.in:29-36`. | Present. `cfgIfc` imports `clntDhcp4` and has `public clntDhcp4 dhcp4c`: `freeRtr/src/org/freertr/cfg/cfgIfc.java:13-14`, `freeRtr/src/org/freertr/cfg/cfgIfc.java:1224-1232`. | Ze and freeRtr runtime client code inspected. VyOS evidence is CLI/schema level from interface include and dependent DNS forwarding. |
@@ -504,7 +504,7 @@ Explicitly unclear or not found in inspected sources:
 
 ### Feature inventory
 
-| Area | Feature | Ze evidence | VyOS evidence | freeRtr evidence | Notes |
+| Area | Feature | Ze evidence | <span class="concept-software">VyOS</span> evidence | <span class="concept-software">freeRtr</span> evidence | Notes |
 |---|---|---|---|---|---|
 | CLI modes | Operational and configuration mode split | `ze config edit` help lists config editor commands and mode switching: `command` switches to operational mode and `edit` switches back, `ze/internal/component/config/cli/cmd_edit.go:343-380`. `ze config` dispatcher separates storage-aware config commands from plain validation/migration/completion handlers, `ze/internal/component/config/cli/main.go:31-61`. | Repo layout explicitly separates configuration interface definitions, operational command definitions, `src/conf_mode`, and `src/op_mode`, `vyos-1x/README.md:15-26`. Config session API wraps CLI shell config mode, `vyos-1x/python/vyos/configsession.py:34-82`. | `userExec.getHelping()` defines exec commands including `show`, `watch`, `netconf`, `xml`, `terminal`, `freeRtr/src/org/freertr/user/userExec.java:2108-2185`. `userConfig` has config mode prompt `(cfg)` or `(cfg-<submode>)` via `getPrompt()`, `freeRtr/src/org/freertr/user/userConfig.java:179-185`. | All three have CLI modes. Ze and freeRtr evidence shows mode switching in source. VyOS source root has definitions and APIs, while full shell implementation is outside this repo. |
 | CLI modes | Submode/context editing | Ze editor help lists `edit <path>`, `edit <list> *`, `top`, `up`, `ze/internal/component/config/cli/cmd_edit.go:356-361`. | XML interface definitions model hierarchical configuration commands, and README says conf-mode definitions are generated from unified XML format, `vyos-1x/README.md:34-43`. | `userConfig` routes commands to `submode.doCfgStr(cmd)` when submode is set, `freeRtr/src/org/freertr/user/userConfig.java:286-294`, and `getPrompt()` reflects submode, `freeRtr/src/org/freertr/user/userConfig.java:179-185`. | All support hierarchical config context. |
@@ -550,7 +550,7 @@ Explicitly unclear or not found in inspected sources:
 
 ### Feature inventory
 
-| Area | Feature | Ze evidence | VyOS evidence | freeRtr evidence | Notes |
+| Area | Feature | Ze evidence | <span class="concept-software">VyOS</span> evidence | <span class="concept-software">freeRtr</span> evidence | Notes |
 |---|---|---|---|---|---|
 | Build system | Primary build tool | Go toolchain plus the compiled `./le` development command. Native actions register under `internal/le/`, product binaries build directly from `cmd/`, and each generated artifact has one Go owner. | Debian-oriented Makefile generates config/op XML templates and runs tests: XML source patterns and `BUILD_ARCH` in `Makefile:1-14`; `interface_definitions` pipeline in `Makefile:29-54`; `op_mode_definitions` in `Makefile:56-76`; `all` target in `Makefile:86-88`; `deb` target runs `dpkg-buildpackage -uc -us -tc -b` in `Makefile:129-130`. | No formal build system, shell scripts. `readme.md:95-99` says no build system and lists `d.sh`, `c.sh`, `r.sh`, `t.sh`; `src/c.sh:1-5` chains clean, Java compile, package, service/native scripts; `src/cj.sh:1-3` runs `javac @compiler.txt`. | Ze uses native Go commands. VyOS uses Make for Debian packaging and its generated CLI layer, while freeRtr is script-driven. |
 | Build system | Compile-time feature selection | Ze build tags differentiate distro and appliance builds. `internal/le/repo/featuretags.DaemonTags` parses `feature-gates.txt`; `internal/le/go/toolchain` derives complete tag sets for native builds; `internal/test/runner.TestBuildTags` adds the functional-test personality. | not found in inspected sources for equivalent compile-time product variants. VyOS uses package/dependency selection and XML generation, not source-level build tags in inspected files. | not found in inspected sources for equivalent compile-time feature gates. | Ze is the only inspected tree with explicit compile-out tags in the main build. |
@@ -604,7 +604,7 @@ Explicitly unclear or not found in inspected sources:
 
 ### Feature inventory
 
-| Area | Feature | Ze evidence | VyOS evidence | freeRtr evidence | Notes |
+| Area | Feature | Ze evidence | <span class="concept-software">VyOS</span> evidence | <span class="concept-software">freeRtr</span> evidence | Notes |
 |---|---|---|---|---|---|
 | Metrics | Native metrics registry and Prometheus endpoint | Prometheus metrics exposed by `telemetry { prometheus { ... } }`, default `127.0.0.1:9273`, path `/metrics`, BGP refreshed every 10s, docs `docs/guide/monitoring.md:117-163`; HTTP exporter handles configured path via `registry.Handler()` and health endpoint via `health.DefaultRegistry.Handler()`, `internal/component/telemetry/exporter/server.go:87-106`. | Prometheus integration is via external exporters: `node_exporter`, `frr_exporter`, `blackbox_exporter`, built from config paths and rendered as systemd services, `src/conf_mode/service_monitoring_prometheus.py:47-82`, `:119-151`, `:153-199`. | Built-in Prometheus server default port 9001, configured metric sensors and `all-metrics`, `src/org/freertr/serv/servPrometheus.java:35-71`, `:98-127`; global Prometheus daemon list in `cfgAll`, `src/org/freertr/cfg/cfgAll.java:647-650`. | Ze and freeRtr have in-process exporters. VyOS delegates to common exporter daemons. |
 | Metrics | OS metrics | OS collector metrics named after Netdata's Prometheus exporter, `/proc` and `/sys` sources, `docs/guide/monitoring.md:183-220`; exporter config distinguishes Netdata-compatible OS metrics from Ze-native `ze_*`, `internal/component/telemetry/exporter/server.go:45-63`. | node_exporter configured by `service monitoring prometheus node-exporter`, service render/restart in `src/conf_mode/service_monitoring_prometheus.py:53-61`, `:119-139`, `:189-195`. | Sensor framework can execute commands and define metric columns, local memory/file collection, `src/org/freertr/cfg/cfgSensor.java:155-180`, `:216-263`; shipped `misc/sensor/` and `misc/prometheus/` directories. | Ze docs explicitly call out Netdata compatibility. freeRtr is highly generic sensor-driven. |
@@ -644,7 +644,7 @@ Explicitly unclear or not found in inspected sources:
 
 ### Feature inventory
 
-| Area | Feature | Ze evidence | VyOS evidence | freeRtr evidence | Notes |
+| Area | Feature | Ze evidence | <span class="concept-software">VyOS</span> evidence | <span class="concept-software">freeRtr</span> evidence | Notes |
 |---|---|---|---|---|---|
 | Implementation language and runtime | Primary implementation language/runtime | Go module declares `module github.com/ze-software/ze` and `go 1.26` in `go.mod:1-3`. | Python is first-class: `debian/control:11` requires `python3 (>= 3.10)`, and conf mode scripts are Python, for example `src/conf_mode/protocols_bgp.py:1` shebang. OCaml helper package exists in `src/ocaml/vyos-1x.opam:1-18`, and C/lib build dependencies are listed in `debian/control:7-15`. | Java entry point: `src/org/freertr/router.java:1-19`, plus source package tree under `src/org/freertr`. Build scripts call Java/JAR paths, for example `misc/docker/scripts/freertr.sh:51` runs `java -jar ... rtr.jar`. | [analysis] Ze is a compiled Go daemon with internal Go packages and external Go SDK. VyOS is a Debian/Linux integration layer built around Python scripts, XML schemas, C/OCaml helpers, and system packages. freeRtr is an in-process Java router with optional native-image packaging.
 | Dependency model | Language and system dependencies | `go.mod:5-28` lists direct Go dependencies including Bubble Tea, goyang, nftables, DHCP, DNS, Prometheus, netlink, govpp, WireGuard control, gRPC/protobuf. | `debian/control:5-38` lists build deps, including gcc, libzmq3-dev, Python libs, protobuf compiler, lxml, xmltodict. Runtime depends on system packages and Python libraries in `debian/control:45-87`. | No non-JDK, non-`org.freertr` package imports exist under `src/org/freertr`; only `java.*`/`javax.*` JDK imports appear. Build scan found `javac`/`java -jar` scripts, not Maven/Gradle manifests, for example `misc/applet/c.sh:3` and `misc/docker/scripts/freertr.sh:51`. | [analysis] Ze has explicit module-managed dependencies. VyOS depends heavily on distribution packages and external daemons/libraries. freeRtr appears self-contained in inspected Java sources, with fewer package-manager dependency boundaries.

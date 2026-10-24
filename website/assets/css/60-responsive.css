@@ -154,6 +154,7 @@
     .site-home .hero-primary-actions { flex-basis: 100%; }
     .site-home .hero-outcome-links { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.65rem 1rem; }
     .site-home .home-section-panel { padding: 1.5rem 0; }
+    .site-home .home-section-panel-run { padding-inline: 1rem; }
     .site-home .home-proof-block { padding-block: 2.25rem; }
     .site-home :is(.section-head, .home-proof-head, .status-copy) h2 { font-size: 1.65rem; }
     .site-home .usp-grid, .site-home .capability-grid, .site-home .run-path-grid, .site-home .home-usecase-grid, .site-home .proof-strip, .site-home .blog-list { grid-template-columns: minmax(0, 1fr); }

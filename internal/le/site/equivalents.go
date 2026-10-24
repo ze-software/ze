@@ -627,7 +627,7 @@ func equivalentTable(
 	out.Str(`<div class="cmd-eq-table-wrap">`).Byte('\n')
 	out.Str(`<table class="cmd-eq-table cmd-eq-compact"><thead><tr><th>Ze</th>`)
 	for _, vendor := range vendors {
-		out.Str("<th>").Str(html.EscapeString(mapping.vendorLabel(vendor))).Str("</th>")
+		out.Str(`<th><span class="concept-software">`).Str(html.EscapeString(mapping.vendorLabel(vendor))).Str("</span></th>")
 	}
 	out.Str("<th>Details</th></tr></thead><tbody>\n")
 	for _, row := range rows {
@@ -700,7 +700,7 @@ func equivalentVendorOnly(mapping *equivalentMapping, entries []*equivalentEntry
 	out.Str(`<div class="cmd-eq-table-wrap">`).Byte('\n')
 	out.Str(`<table class="cmd-eq-table cmd-eq-compact"><thead><tr><th>Intent</th>`)
 	for _, vendor := range vendors {
-		out.Str("<th>").Str(html.EscapeString(mapping.vendorLabel(vendor))).Str("</th>")
+		out.Str(`<th><span class="concept-software">`).Str(html.EscapeString(mapping.vendorLabel(vendor))).Str("</span></th>")
 	}
 	out.Str("<th>Notes</th></tr></thead><tbody>\n")
 	for _, entry := range entries {

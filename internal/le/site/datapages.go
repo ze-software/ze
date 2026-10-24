@@ -464,7 +464,7 @@ func featureCardHTML(card *featureCard) string {
 		Str(html.EscapeString(card.Title)).Str("</a></h3>\n")
 	out.Str("                    <div class=\"chips\">\n")
 	for _, chip := range card.Chips {
-		class := "chip"
+		class := compactLabelClass("chip", chip.Text)
 		if chip.Mode {
 			class = "chip mode"
 		}

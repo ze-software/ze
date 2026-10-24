@@ -1163,7 +1163,7 @@ main.has-page-sidebar > .page-sidebar { margin-top: 2rem; }
 .nav-dropdown-panel { max-width: min(46rem, calc(100vw - 2rem)); }
 .nav-dropdown-label { color: var(--dim); }
 .nav-dropdown-item { border-radius: var(--radius-md); }
-.nav-dropdown-feature { background: var(--bg-soft); }
+.nav-dropdown-feature { background: var(--brand-surface); }
 .theme-toggle { background: var(--panel); color: var(--blue); box-shadow: none; }
 .theme-toggle:hover { color: var(--blue); transform: none; }
 .page-sidebar-group h2 { line-height: 1.45; }
@@ -1192,7 +1192,7 @@ main.has-page-sidebar > .page-sidebar { margin-top: 2rem; }
 }
 .doc-toc a:hover, .blog-reading-rail .blog-article-toc a:hover, .cli-group-nav nav a:hover,
 .doc-toc a[aria-current], .blog-reading-rail .blog-article-toc a[aria-current], .cli-group-nav nav a[aria-current] {
-    border-left-color: var(--blue); background: var(--bg-soft); color: var(--blue);
+    border-left-color: var(--blue); background: var(--brand-surface); color: var(--blue);
 }
 .doc-body > :is(h2, h3) { scroll-margin-top: 6rem; }
 .doc-body > h2:first-child { margin-top: 0; }
@@ -1243,7 +1243,7 @@ pre.code-copy-wrap, .md-content pre.code-copy-wrap { position: relative; padding
 .blog-reading-body .blog-article-content > .blog-section-reveal { padding: 0; border: 0; background: transparent; font-size: 1.2rem; font-weight: 400; }
 .blog-reading-body .blog-article-content h2 { display: block; font-size: 1.8rem; line-height: 1.35; margin: 2.75rem 0 1.2rem; }
 .blog-reading-body .blog-article-content h2::before { content: none; }
-.blog-reading-body .blog-key-points { display: block; padding: 1.3rem; border: 1px solid var(--line); border-left: 3px solid var(--brand); background: var(--bg-soft); box-shadow: none; }
+.blog-reading-body .blog-key-points { display: block; padding: 1.3rem; border: 1px solid var(--line); border-left: 3px solid var(--blue); background: var(--brand-surface); box-shadow: none; }
 .blog-reading-body .blog-key-points-label { margin-bottom: 0.8rem; color: var(--blue); }
 .blog-reading-body .blog-key-points-label::after { content: none; }
 .blog-reading-body .blog-key-points ul { display: block; padding-left: 1.1rem; list-style: disc; }
@@ -1347,7 +1347,7 @@ body:has(.site-home) .footer-bottom { border-top: 0; }
 .site-home :is(.home-section-panel-map, .home-section-panel-usecases) .section-head { row-gap: 0.5rem; }
 .site-home :is(.section-head, .home-proof-head, .status-copy) h2 { margin-bottom: 0.5rem; font-size: 2rem; font-weight: 700; line-height: 1.25; color: var(--text); }
 .site-home .section-head p { font-size: 0.94rem; font-weight: 400; }
-.site-home .why-lead { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2rem; align-items: start; margin-bottom: 1.25rem; padding: 1.8rem; border: 1px solid var(--line); border-radius: var(--radius-xl); background: linear-gradient(130deg, var(--sky-tint), var(--panel)); }
+.site-home .why-lead { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2rem; align-items: start; margin-bottom: 1.25rem; padding: 1.8rem; border: 1px solid var(--line); border-radius: var(--radius-xl); background: var(--brand-section-gradient); }
 .site-home .why-lead-copy, .site-home .why-demo { min-width: 0; }
 .site-home .why-lead .eyebrow { color: #fff; background: var(--brand); border-color: var(--brand-bright); box-shadow: none; }
 .site-home .why-lead .eyebrow::before { background: var(--brand-bright); box-shadow: none; animation: none; }
@@ -1377,7 +1377,7 @@ body:has(.site-home) .footer-bottom { border-top: 0; }
 .site-home .capability-links a { color: var(--muted); text-decoration: none; border-bottom: 1px solid var(--line); font-size: 0.8rem; line-height: 1.65; }
 .site-home .capability-footer { color: var(--text); font-size: 0.8rem; font-weight: 700; margin-top: 1.2rem; }
 .site-home .capability-note { color: var(--muted); font-size: 0.88rem; }
-.site-home .home-proof-block { margin: 0; padding: 3rem clamp(1rem, 3vw, 2.5rem); background: var(--bg-soft); border: 1px solid var(--line); border-radius: var(--radius-xl); box-shadow: none; clip-path: none; }
+.site-home .home-proof-block { margin: 0; padding: 3rem clamp(1rem, 3vw, 2.5rem); background: var(--brand-section-gradient); border: 1px solid var(--line); border-radius: var(--radius-xl); box-shadow: none; clip-path: none; }
 .site-home .home-proof-head { display: flex; justify-content: space-between; align-items: start; gap: 2.5rem; margin-bottom: 1.5rem; }
 .site-home .home-proof-head > div:first-child { display: block; flex: 1; }
 .site-home .home-proof-head h2 { white-space: normal; }
@@ -1420,8 +1420,54 @@ body:has(.site-home) .footer-bottom { border-top: 0; }
 .card .cat,
 .card[class*="cat-"] .cat,
 .card.audience-card .cat,
-.card-label,
 .contribute-route-kicker {
     background: color-mix(in srgb, var(--acc, var(--neutral-base)) 18%, var(--panel));
     color: var(--text);
+}
+
+/* These two concepts are explicit badges, never a heading or card treatment. */
+.concept-software { --concept-accent: var(--concept-software); }
+.concept-evidence { --concept-accent: var(--concept-evidence); }
+
+:is(.chip, .card-label, .cat, .hl, .tag, .quality-hero-kicker, .page-sidebar-eyebrow, strong, span, a, code):is(.concept-software, .concept-evidence),
+.card .cat:is(.concept-software, .concept-evidence),
+.interop-strip a:is(.concept-software, .concept-evidence),
+.journey-hero :is(strong, span, .tag, .hl):is(.concept-software, .concept-evidence) {
+    width: fit-content;
+    max-width: 100%;
+    padding: 0.12em 0.35em;
+    border-radius: var(--radius-sm);
+    border-color: var(--line);
+    background: color-mix(in srgb, var(--concept-accent) 18%, var(--panel));
+    color: var(--text);
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+}
+
+/* Repeat the hero's blue identity at reader decisions and evidence, not by
+   alternating arbitrary sections or recoloring subject cards. */
+.site-home .home-section-panel-run {
+    padding: 2rem clamp(1rem, 3vw, 2.5rem);
+    border-radius: var(--radius-xl);
+    background: var(--brand-section-gradient);
+}
+
+.section-note {
+    padding: 0.85rem 1rem;
+    border-radius: var(--radius-md);
+    background: var(--brand-surface);
+}
+
+.site-home .home-section-panel .section-note {
+    background: var(--brand-surface);
+}
+
+.site-home .why-lead-links a,
+.site-home .capability-footer,
+.audience-card-cta,
+.card-post .post-more,
+.docs-path-card .link-list a,
+.doc-body :is(p, li) > a:not(.hl, .concept-software, .concept-evidence),
+.blog-reading-body :is(p, li) > a:not(.hl, .concept-software, .concept-evidence) {
+    color: var(--blue);
 }

@@ -68,8 +68,8 @@
     --pink: #ff64ab;
     --gold: #e2a01a;
     --danger-deep: #c1121f;
-    --bg: #f7f9fc;
-    --bg-soft: #edf3f8;
+    --bg: #f3f9fe;
+    --bg-soft: #e7f4fc;
     --panel: #fff;
     --panel-strong: #fff;
     --line: #d8e3ec;
@@ -95,8 +95,8 @@
     --link-bg: var(--panel);
     --audience-bg: var(--panel);
     --btn-bg: var(--panel);
-    --body-bg-1: #f7f9fc;
-    --body-bg-2: #edf3f8;
+    --body-bg-1: #f3f9fe;
+    --body-bg-2: #e7f4fc;
     --page-title-descender-room: 0.16em;
     --page-title-max-width: min(100%, 32ch);
     --page-title-copy-max-width: min(100%, 92ch);
@@ -146,6 +146,11 @@
     --accent-solid-foreground: #fff;
     --brand: #0069b4;
     --brand-bright: #009ee2;
+    --brand-surface: #e5f3ff;
+    --brand-surface-end: #edfafe;
+    --brand-section-gradient: linear-gradient(120deg, var(--brand-surface), var(--brand-surface-end));
+    --concept-software: var(--gold-base);
+    --concept-evidence: var(--teal-base);
     --brand-indigo: #312782;
     --hero-bg: #071c38;
     --hero-end: #123c62;
@@ -228,10 +233,10 @@
     --pink: #ff9fca;
     --gold: #ffe087;
     --danger-deep: #ff9da8;
-    --bg: #091b2e;
-    --bg-soft: #183650;
-    --panel: #10253b;
-    --panel-strong: #132d46;
+    --bg: #0d2740;
+    --bg-soft: #204662;
+    --panel: #16334d;
+    --panel-strong: #1b3e59;
     --line: #2b435b;
     --line-strong: #4c6982;
     --text: #dcebf6;
@@ -244,7 +249,7 @@
     --term-cmd: #78c5f1;
     --term-comment: #9bb7cc;
     --grid-color: transparent;
-    --header-bg: rgba(9, 27, 46, 0.96);
+    --header-bg: rgba(13, 39, 64, 0.96);
     --header-border: var(--line);
     --card-hover-border: #6285a2;
     --card-hover-shadow: rgba(0, 0, 0, 0.25);
@@ -254,8 +259,8 @@
     --link-bg: var(--panel);
     --audience-bg: var(--panel);
     --btn-bg: var(--panel);
-    --body-bg-1: #091b2e;
-    --body-bg-2: #10253b;
+    --body-bg-1: #0d2740;
+    --body-bg-2: #16334d;
     --body-background: var(--bg);
     --clay: 0 4px 18px rgba(0, 0, 0, 0.12);
     --shadow-lifted: 0 12px 28px rgba(0, 0, 0, 0.24);
@@ -277,6 +282,8 @@
     --soft-panel-surface: linear-gradient(135deg, var(--panel), var(--bg-soft));
     --page-title-gradient: linear-gradient(var(--text), var(--text));
     --journey-title-gradient: linear-gradient(#fff, #fff);
+    --brand-surface: #123d60;
+    --brand-surface-end: #164858;
     --accent-solid-foreground: #091b2e;
 }
 
@@ -350,10 +357,10 @@
         --pink: #ff9fca;
         --gold: #ffe087;
         --danger-deep: #ff9da8;
-        --bg: #091b2e;
-        --bg-soft: #183650;
-        --panel: #10253b;
-        --panel-strong: #132d46;
+        --bg: #0d2740;
+        --bg-soft: #204662;
+        --panel: #16334d;
+        --panel-strong: #1b3e59;
         --line: #2b435b;
         --line-strong: #4c6982;
         --text: #dcebf6;
@@ -366,7 +373,7 @@
         --term-cmd: #78c5f1;
         --term-comment: #9bb7cc;
         --grid-color: transparent;
-        --header-bg: rgba(9, 27, 46, 0.96);
+        --header-bg: rgba(13, 39, 64, 0.96);
         --header-border: var(--line);
         --card-hover-border: #6285a2;
         --card-hover-shadow: rgba(0, 0, 0, 0.25);
@@ -376,8 +383,8 @@
         --link-bg: var(--panel);
         --audience-bg: var(--panel);
         --btn-bg: var(--panel);
-        --body-bg-1: #091b2e;
-        --body-bg-2: #10253b;
+        --body-bg-1: #0d2740;
+        --body-bg-2: #16334d;
         --body-background: var(--bg);
         --clay: 0 4px 18px rgba(0, 0, 0, 0.12);
         --shadow-lifted: 0 12px 28px rgba(0, 0, 0, 0.24);
@@ -399,6 +406,8 @@
         --soft-panel-surface: linear-gradient(135deg, var(--panel), var(--bg-soft));
         --page-title-gradient: linear-gradient(var(--text), var(--text));
         --journey-title-gradient: linear-gradient(#fff, #fff);
+        --brand-surface: #123d60;
+        --brand-surface-end: #164858;
         --accent-solid-foreground: #091b2e;
     }
 }

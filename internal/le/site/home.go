@@ -426,7 +426,8 @@ func audienceCardHTML(card *audienceCard) (string, error) {
 	if len(card.Chips) != 0 {
 		out.Str("                        <div class=\"chips\">\n")
 		for _, chip := range card.Chips {
-			out.Str("                            <span class=\"chip\">").Str(html.EscapeString(chip)).Str("</span>\n")
+			out.Str("                            <span class=\"").Str(compactLabelClass("chip", chip)).
+				Str("\">").Str(html.EscapeString(chip)).Str("</span>\n")
 		}
 		out.Str("                        </div>\n")
 	}

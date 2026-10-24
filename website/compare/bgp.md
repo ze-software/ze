@@ -19,7 +19,7 @@ A feature comparison of open source BGP daemon implementations. This page keeps 
 
 ## Overview
 
-|  | Ze | BIRD 3 | BIRD 2 | FRR | OpenBGPd | GoBGP | bio-rd | ExaBGP | RustyBGP | rustbgpd | freeRtr |
+|  | Ze | <span class="concept-software">BIRD 3</span> | <span class="concept-software">BIRD 2</span> | <span class="concept-software">FRR</span> | <span class="concept-software">OpenBGPd</span> | <span class="concept-software">GoBGP</span> | <span class="concept-software">bio-rd</span> | <span class="concept-software">ExaBGP</span> | <span class="concept-software">RustyBGP</span> | <span class="concept-software">rustbgpd</span> | <span class="concept-software">freeRtr</span> |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Language | Go | C | C | C | C | Go | Go | Python | Rust | Rust | Java |
 | License | AGPL 3.0 | GPL 2.0+ | GPL 2.0+ | GPL 2.0 | ISC | Apache 2.0 | Apache 2.0 | BSD 3-Clause | Apache 2.0 | MIT | Free |
@@ -32,7 +32,7 @@ A feature comparison of open source BGP daemon implementations. This page keeps 
 
 ## Address Families
 
-| AFI/SAFI | Ze | BIRD 3 | BIRD 2 | FRR | OpenBGPd | GoBGP | bio-rd | ExaBGP | RustyBGP | rustbgpd | freeRtr |
+| AFI/SAFI | Ze | <span class="concept-software">BIRD 3</span> | <span class="concept-software">BIRD 2</span> | <span class="concept-software">FRR</span> | <span class="concept-software">OpenBGPd</span> | <span class="concept-software">GoBGP</span> | <span class="concept-software">bio-rd</span> | <span class="concept-software">ExaBGP</span> | <span class="concept-software">RustyBGP</span> | <span class="concept-software">rustbgpd</span> | <span class="concept-software">freeRtr</span> |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | IPv4 Unicast | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
 | IPv6 Unicast | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
@@ -55,7 +55,7 @@ A feature comparison of open source BGP daemon implementations. This page keeps 
 
 ## Core Protocol
 
-| Feature | Ze | BIRD 3 | BIRD 2 | FRR | OpenBGPd | GoBGP | bio-rd | ExaBGP | RustyBGP | rustbgpd | freeRtr |
+| Feature | Ze | <span class="concept-software">BIRD 3</span> | <span class="concept-software">BIRD 2</span> | <span class="concept-software">FRR</span> | <span class="concept-software">OpenBGPd</span> | <span class="concept-software">GoBGP</span> | <span class="concept-software">bio-rd</span> | <span class="concept-software">ExaBGP</span> | <span class="concept-software">RustyBGP</span> | <span class="concept-software">rustbgpd</span> | <span class="concept-software">freeRtr</span> |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | RFC 4271 FSM | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
 | 4-byte ASN (RFC 6793) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
@@ -150,7 +150,7 @@ enforcement.
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter-policy -->
 <!-- source: internal/component/bgp/reactor/filter_chain.go -- PolicyFilterChain -->
 
-| Feature | Ze | BIRD 3 | BIRD 2 | FRR | OpenBGPd | GoBGP | bio-rd | ExaBGP | RustyBGP | rustbgpd | freeRtr |
+| Feature | Ze | <span class="concept-software">BIRD 3</span> | <span class="concept-software">BIRD 2</span> | <span class="concept-software">FRR</span> | <span class="concept-software">OpenBGPd</span> | <span class="concept-software">GoBGP</span> | <span class="concept-software">bio-rd</span> | <span class="concept-software">ExaBGP</span> | <span class="concept-software">RustyBGP</span> | <span class="concept-software">rustbgpd</span> | <span class="concept-software">freeRtr</span> |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Prefix matching (ge/le) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | No | Partial | Yes | Yes |
 | AS-path regex | Yes | Yes | Yes | Yes | Yes | Yes | No | No | No | Yes | Yes |
@@ -173,7 +173,7 @@ enforcement.
 
 ## Security
 
-| Feature | Ze | BIRD 3 | BIRD 2 | FRR | OpenBGPd | GoBGP | bio-rd | ExaBGP | RustyBGP | rustbgpd | freeRtr |
+| Feature | Ze | <span class="concept-software">BIRD 3</span> | <span class="concept-software">BIRD 2</span> | <span class="concept-software">FRR</span> | <span class="concept-software">OpenBGPd</span> | <span class="concept-software">GoBGP</span> | <span class="concept-software">bio-rd</span> | <span class="concept-software">ExaBGP</span> | <span class="concept-software">RustyBGP</span> | <span class="concept-software">rustbgpd</span> | <span class="concept-software">freeRtr</span> |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | TCP MD5 (RFC 2385) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | No | Yes | Yes |
 | TCP-AO (RFC 5925) | No | No | No | No | No | No | No | No | No | No | No |
@@ -187,7 +187,7 @@ enforcement.
 
 ## Monitoring & Observability
 
-| Feature | Ze | BIRD 3 | BIRD 2 | FRR | OpenBGPd | GoBGP | bio-rd | ExaBGP | RustyBGP | rustbgpd | freeRtr |
+| Feature | Ze | <span class="concept-software">BIRD 3</span> | <span class="concept-software">BIRD 2</span> | <span class="concept-software">FRR</span> | <span class="concept-software">OpenBGPd</span> | <span class="concept-software">GoBGP</span> | <span class="concept-software">bio-rd</span> | <span class="concept-software">ExaBGP</span> | <span class="concept-software">RustyBGP</span> | <span class="concept-software">rustbgpd</span> | <span class="concept-software">freeRtr</span> |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Prometheus metrics | Yes | No | No | Yes | No | Yes | Yes | No | No | Yes | No |
 | Structured logging (JSON) | Yes | No | No | No | No | No | Yes | No | No | Yes | No |
@@ -227,7 +227,7 @@ without maintaining a second protocol stack to do it.
 
 ## API & Programmability
 
-| Feature | Ze | BIRD 3 | BIRD 2 | FRR | OpenBGPd | GoBGP | bio-rd | ExaBGP | RustyBGP | rustbgpd | freeRtr |
+| Feature | Ze | <span class="concept-software">BIRD 3</span> | <span class="concept-software">BIRD 2</span> | <span class="concept-software">FRR</span> | <span class="concept-software">OpenBGPd</span> | <span class="concept-software">GoBGP</span> | <span class="concept-software">bio-rd</span> | <span class="concept-software">ExaBGP</span> | <span class="concept-software">RustyBGP</span> | <span class="concept-software">rustbgpd</span> | <span class="concept-software">freeRtr</span> |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | gNMI | Yes | No | No | Partial | No | No | No | No | No | No | No |
 | gRPC API | Yes | No | No | Partial | No | Yes | Yes | No | Yes | Yes | No |
@@ -248,7 +248,7 @@ Ze's register-once row means a command, config node, plugin, RPC, or event can f
 
 ## Operations
 
-| Feature | Ze | BIRD 3 | BIRD 2 | FRR | OpenBGPd | GoBGP | bio-rd | ExaBGP | RustyBGP | rustbgpd | freeRtr |
+| Feature | Ze | <span class="concept-software">BIRD 3</span> | <span class="concept-software">BIRD 2</span> | <span class="concept-software">FRR</span> | <span class="concept-software">OpenBGPd</span> | <span class="concept-software">GoBGP</span> | <span class="concept-software">bio-rd</span> | <span class="concept-software">ExaBGP</span> | <span class="concept-software">RustyBGP</span> | <span class="concept-software">rustbgpd</span> | <span class="concept-software">freeRtr</span> |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Crash capture (syslog + file) | Yes | No | No | No | No | No | No | No | No | No | No |
 | Config error diagnostics | Yes | No | No | No | No | No | Partial | No | No | Yes | Partial |
@@ -280,7 +280,7 @@ ExaBGP does not perform best-path selection -- it forwards all received
 routes to external processes and injects routes from them. It is a route
 injector/receiver, not a router.
 
-| Step | Ze | BIRD 3 | BIRD 2 | FRR | OpenBGPd | GoBGP | bio-rd | ExaBGP | RustyBGP | rustbgpd | freeRtr |
+| Step | Ze | <span class="concept-software">BIRD 3</span> | <span class="concept-software">BIRD 2</span> | <span class="concept-software">FRR</span> | <span class="concept-software">OpenBGPd</span> | <span class="concept-software">GoBGP</span> | <span class="concept-software">bio-rd</span> | <span class="concept-software">ExaBGP</span> | <span class="concept-software">RustyBGP</span> | <span class="concept-software">rustbgpd</span> | <span class="concept-software">freeRtr</span> |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | LOCAL_PREF | Yes | Yes | Yes | Yes | Yes | Yes | Yes | N/A | Yes | Yes | Yes |
 | AS-path length | Yes | Yes | Yes | Yes | Yes | Yes | Yes | N/A | Yes | Yes | Yes |
@@ -318,7 +318,7 @@ An FRR or BIRD cell names the evidence: the configuration command, or the source
 file that implements it, at the version above. That is what was checked. Neither
 daemon was run, and no cell here claims interop.
 
-| RFC | Ze | FRR 10.7.1 | BIRD 2.19.2 / 3.3.2 |
+| RFC | Ze | <span class="concept-software">FRR 10.7.1</span> | <span class="concept-software">BIRD 2.19.2 / 3.3.2</span> |
 | --- | --- | --- | --- |
 | 8362 OSPFv3 Extended LSAs | Originates 3 of the 7 LSA types, and only under segment routing. Decoded on receipt only to read Prefix-SIDs. No consumer in SPF. Non-conformant on the wire, see the note below | No. The OSPFv3 LS-type list in `ospf6d/ospf6_lsa.h` ends at `GRACE_LSA 0x000b` and bounds the handler table there | No. Absent from the maintainers' own standards list in `proto/ospf/ospf.c` |
 | 8666 OSPFv3 Segment Routing | Originates and consumes: installs labels to the MPLS FIB. 3 MUST-level gaps declared | No. `ospf6d/` holds no `ospf6_sr.*`, and OSPFv3 SR is defined over the Extended LSAs above | No. Same standards list |

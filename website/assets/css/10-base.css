@@ -2378,7 +2378,7 @@ pre {
 }
 
 .link-list a:hover {
-    border-color: var(--pink-chip);
+    border-color: var(--line-strong);
     padding-right: 0.7rem;
     transform: translateY(-1px);
 }
@@ -2386,11 +2386,11 @@ pre {
 .link-list a:hover::after {
     opacity: 1;
     transform: translateX(0);
-    color: var(--pink-deep);
+    color: var(--blue);
 }
 
 .link-list a:hover span {
-    color: var(--pink-deep);
+    color: var(--blue);
 }
 
 .audience {
@@ -3014,7 +3014,7 @@ footer {
     color: var(--purple);
     font-weight: 700;
     text-decoration: underline;
-    text-decoration-color: var(--grape-chip);
+    text-decoration-color: currentColor;
 }
 
 .md-content strong {
@@ -3048,7 +3048,7 @@ footer {
 .md-content a.source-link code {
     color: inherit;
     text-decoration: underline;
-    text-decoration-color: var(--grape-chip);
+    text-decoration-color: currentColor;
 }
 
 .md-content a.source-link::after {

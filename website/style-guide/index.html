@@ -127,6 +127,15 @@ Not: reason to consider Ze<br />
 But: Decision</p>
                         <p>You can work on styling the card tho</p>
                     </blockquote>
+                    <p>Thomas requested consistent concept colors on 24 October 2026:</p>
+                    <blockquote>
+                        <p>Can you come out with a color coding for some concept in pages? So things which are always same concept, have the same color so we can have a bit of colors, but make it uniform and clear for example the name of third party or third party application have a color for example all the tested against have a color Feel like that</p>
+                    </blockquote>
+                    <p>Thomas approved the two concept accents and requested more blue across the site on 24 October 2026:</p>
+                    <blockquote>
+                        <p>Yes, apply this across the site, add the colour rules to the design guide, and regenerate in ../gh-pages so I can review it.</p>
+                        <p>Also we have a blue theme for the hero and try to use it more so there is more of it across the page. The page is a bit dark and dull and unattractive.</p>
+                    </blockquote>
                     <ol>
                         <li>
                             <h3>Preserve useful information</h3>
@@ -307,8 +316,10 @@ But: Decision</p>
                         Operate uses blue, Routing indigo, Services violet,
                         Automate magenta, Observe gray, Secure pink and Setup teal.
                         Visible names identify each subject as well as its color.
-                        Broad project updates and cross-topic evidence remain
-                        neutral. Status colors stay independent of category colors.
+                        Broad project updates and cross-topic cards keep a
+                        neutral category badge. Explicit software and evidence
+                        labels follow the <a href="#sg-concepts">two concept roles</a>. Status colors
+                        stay independent of category and concept colors.
                     </p>
                     <p>
                         The homepage's "Run reproducible labs", "Run as a daemon"
@@ -318,8 +329,9 @@ But: Decision</p>
                         It does not change the general category mapping.
                     </p>
                     <p>
-                        Headings, technology chips, card bodies and borders stay
-                        neutral. Do not repeat the badge tint across several
+                        Headings, protocol and mode chips, card bodies and borders
+                        stay neutral. Explicit software labels may use the violet
+                        concept badge. Do not repeat the category tint across several
                         parts of the same card.
                         Check each badge and selected-control fill against its text
                         in light and dark themes; normal text needs at least 4.5:1.
@@ -405,6 +417,77 @@ But: Decision</p>
                 </div>
             </section>
 
+            <section aria-labelledby="sg-concepts">
+                <div class="section-head reveal">
+                    <h2 id="sg-concepts">Two recurring concepts</h2>
+                    <p>Violet identifies named software; teal identifies evidence and test layers. The text stays neutral.</p>
+                </div>
+                <div class="section-note reveal">
+                    <p>
+                        Apply <code>concept-software</code> to an explicit small
+                        software or application name: FRR, BIRD, GoBGP, Docker,
+                        QEMU or VPP. Apply <code>concept-evidence</code> to a
+                        benchmark, evidence label or test layer such as Local,
+                        Process, Linux or Release. Teal does not mean that a test
+                        passed; success, warning and failure retain their separate
+                        status words and colors.
+                    </p>
+                    <p>
+                        The semantic tokens <code>--concept-software</code> and
+                        <code>--concept-evidence</code> reuse the existing violet
+                        and teal bases. Both backgrounds mix 18% accent with 82%
+                        <code>--panel</code>, under neutral <code>--text</code>.
+                        Put the class on the chip, badge or short inline name,
+                        including <code>.hl</code> names. Never put it on a heading,
+                        a card or a prose container. Names can wrap on narrow
+                        screens; do not force an entire phrase onto one line.
+                    </p>
+                    <p>
+                        BGP, OSPF and other protocols, deployment modes and command
+                        syntax remain neutral. Assign concept classes explicitly
+                        from the content's meaning; never recolor every occurrence
+                        of a word. Subject-category badges retain their seven
+                        families, including the homepage run labels' shared blue.
+                    </p>
+                    <div class="chips" aria-label="Concept color examples">
+                        <span class="chip concept-software">FRR</span>
+                        <span class="chip concept-software">Docker</span>
+                        <span class="chip concept-evidence">BGP benchmark</span>
+                        <span class="chip concept-evidence">Release evidence</span>
+                        <span class="chip">BGP</span>
+                        <span class="chip mode">Daemon only</span>
+                    </div>
+                </div>
+            </section>
+
+            <section aria-labelledby="sg-brand-surfaces">
+                <div class="section-head reveal">
+                    <h2 id="sg-brand-surfaces">Carry the blue identity through the page</h2>
+                    <p>Blue surfaces connect decisions and evidence to the hero without adding more subject colors.</p>
+                </div>
+                <div class="section-note reveal">
+                    <p>
+                        Light pages use pale-blue foundations with white cards;
+                        dark pages use richer navy foundations and lighter navy
+                        panels. The management explanation, evidence section and
+                        run choices use <code>--brand-section-gradient</code>, a
+                        gentle blue-to-cyan surface. Supporting notes, reading
+                        takeaways and selected navigation use
+                        <code>--brand-surface</code>. Key action and reading links
+                        use the accessible <code>--blue</code> token.
+                    </p>
+                    <p>
+                        Pick a blue surface for a named reader purpose, not a
+                        section's position. Preserve the existing hero gradient,
+                        terminal imagery, plain headings and restrained neutral
+                        card borders. Test text, muted labels, links, statuses and
+                        concept badges against their actual surfaces in both themes;
+                        ordinary text must retain at least 4.5:1 contrast. Keep
+                        section padding when the layout stacks on mobile.
+                    </p>
+                </div>
+            </section>
+
             <section aria-labelledby="sg-category">
                 <div class="section-head reveal">
                     <h2 id="sg-category">Color the badge, keep the heading plain</h2>
@@ -416,9 +499,15 @@ But: Decision</p>
                 <div class="section-note reveal">
                     <p>
                         A <code>cat-*</code> class selects the tint behind a card's
-                        small <code>.cat</code> or <code>.card-label</code> badge.
-                        Headings, borders, body surfaces,
-                        technology chips, body text and bullet markers stay neutral.
+                        small <code>.cat</code> badge. Generic
+                        <code>.card-label</code> pills stay neutral, including
+                        Daemon, Appliance, AF_PACKET and Browsable labels.
+                        Only an explicit <code>concept-software</code> or
+                        <code>concept-evidence</code> class gives those compact
+                        labels a concept tint. Headings, borders, body surfaces,
+                        protocol and mode chips, body text and bullet markers stay
+                        neutral. Explicit software and evidence labels use the
+                        <a href="#sg-concepts">compact concept treatment</a>.
                         The same rules cover homepage, feature, documentation,
                         article, plugin, comparison, FAQ and evidence cards.
                     </p>
@@ -444,8 +533,9 @@ But: Decision</p>
                         Keep shadows neutral and restrained. Do not add colored
                         edge stripes, body washes, rings or glows.</li>
                     <li>Category badges use a soft tint mixed with
-                        <code>--panel</code>. Keep technology and
-                        mode chips neutral. Match filter backgrounds to their
+                        <code>--panel</code>. Keep protocols, commands and mode
+                        chips neutral; explicitly classified software and evidence
+                        chips use their respective concept tints. Match filter backgrounds to their
                         category and show selection and keyboard focus clearly.</li>
                     <li>Keep status independent. Success, warning and failure
                         use <code>--green</code>, <code>--amber</code> and
@@ -462,7 +552,7 @@ But: Decision</p>
                             <span class="chip">Tech</span>
                         </div>
                         <ul>
-                            <li>Subject color in <strong>titles and labels</strong></li>
+                            <li>Category tint behind the <strong>small badge</strong></li>
                             <li>Chips name <strong>technologies</strong></li>
                             <li>Bullets state <strong>facts</strong></li>
                         </ul>

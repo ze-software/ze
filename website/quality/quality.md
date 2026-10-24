@@ -17,15 +17,15 @@ Ze's quality work has one rule: when something fails, the output should show wha
 <!-- source: ../main/internal/le/hookruntime/writeedit.go -- RFC-tagged test edit guard -->
 <div class="quality-hero">
   <div class="quality-hero-card">
-    <span class="quality-hero-kicker">Quality model</span>
+    <span class="quality-hero-kicker concept-evidence">Quality model</span>
     <p>Ze uses several test layers because bugs show up in different places. Local Go tests check package behavior. Fuzz tests are Go tests that try many generated inputs. gomu changes the code and runs the same tests, which shows whether the assertions are strong. Functional transcripts check what an operator, peer, browser, or editor can see. QEMU and interop check the cases that need Linux or real peer daemons.</p>
     <p>The layers can overlap, but each one has a job. A parser bug should leave behind a Go test or fuzz corpus entry. A survived gomu mutation means either the changed code was equivalent or the test did not check the behavior tightly enough. A CLI or daemon bug should become a functional transcript. A kernel bug should run in QEMU.</p>
   </div>
   <div class="quality-meter" aria-label="Quality layers">
-    <div class="quality-meter-row"><strong>Local</strong><span>Go tests, race runs, coverage, fuzz targets, and gomu run before the expensive gates.</span></div>
-    <div class="quality-meter-row"><strong>Process</strong><span><code>.ci</code>, <code>.wb</code>, and <code>.et</code> files run Ze the way an operator, peer, browser, or editor would use it.</span></div>
-    <div class="quality-meter-row"><strong>Linux</strong><span>QEMU runs the same tests where netlink, nftables, eBPF, PPP, and namespaces exist.</span></div>
-    <div class="quality-meter-row"><strong>Release</strong><span>Interop, deployment, performance, chaos, and release evidence compose the slow proof.</span></div>
+    <div class="quality-meter-row"><strong class="concept-evidence">Local</strong><span>Go tests, race runs, coverage, fuzz targets, and gomu run before the expensive gates.</span></div>
+    <div class="quality-meter-row"><strong class="concept-evidence">Process</strong><span><code>.ci</code>, <code>.wb</code>, and <code>.et</code> files run Ze the way an operator, peer, browser, or editor would use it.</span></div>
+    <div class="quality-meter-row"><strong class="concept-evidence">Linux</strong><span>QEMU runs the same tests where netlink, nftables, eBPF, PPP, and namespaces exist.</span></div>
+    <div class="quality-meter-row"><strong class="concept-evidence">Release</strong><span>Interop, deployment, performance, chaos, and release evidence compose the slow proof.</span></div>
   </div>
 </div>
 

@@ -353,10 +353,30 @@ Do not put a colored background behind the heading. Category selection controls
 use the matching tint and neutral text across both themes. The homepage's
 "Run reproducible labs", "Run as a daemon" and "Run as an appliance" cards
 share the existing daemon blue as an approved section exception; their category
-metadata stays unchanged. Card borders,
-body surfaces, technology chips and body text stay neutral. Do not assign hues by position,
-hash or presentation tone. White or light reading surfaces and dark navy heroes
-and terminal panels retain the approved layout. Poppins headings
+metadata stays unchanged. Card borders, body surfaces and body text stay neutral.
+Explicit compact software labels use `concept-software` (violet); evidence,
+benchmark and test-layer labels use `concept-evidence` (teal). Both mix 18% of
+that concept's semantic accent into `--panel`, with neutral `--text` lettering.
+Apply these classes to the small chip, badge or inline name itself, never to a
+heading or card. Software examples include FRR, BIRD, GoBGP, Docker and QEMU;
+protocols, deployment modes and commands remain neutral. Evidence color identifies
+the type of information, not a successful result. Do not recolor prose by word
+matching or assign hues by position, hash or presentation tone.
+
+Generated compact chips and sidebar labels use the complete-name vocabulary in
+`internal/le/site/concepts.go` (`compactConcepts` and `compactLabelClass`),
+matched without case. This assigns presentation roles only, not support or
+evidence claims. Typed dependency and vendor labels emit their roles directly;
+authored HTML uses explicit concept classes.
+
+The shared blue page surfaces carry Ze's identity beyond the hero. Light pages
+use pale blue and white; dark pages use richer navy panels. The management,
+evidence and run sections use `--brand-section-gradient`, and supporting notes,
+reading takeaways and navigation selection use `--brand-surface`. Key reading
+and action links use accessible `--blue`. Choose these surfaces by their reader
+purpose, never alternating arbitrary sections. Preserve the hero gradient,
+neutral card borders, plain headings and terminal imagery. These colors retain
+the approved layout. Poppins headings
 and Lato body text share the same hierarchy across the homepage, guides,
 catalogs and articles. The root element's `data-theme` attribute and `ze-theme`
 storage key remain the theme contract; the prepaint bootstrap and the shared

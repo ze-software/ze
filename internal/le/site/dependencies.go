@@ -216,7 +216,7 @@ func dependencyGroupHTML(category dependencyCategory, versions map[string]string
 		Str(" <span class=\"dep-group-count\">").Int(int64(len(category.Modules))).Str("</span></summary>\n")
 	out.Str("<table><thead><tr><th>Module</th><th>Version</th><th>Why we use it</th></tr></thead><tbody>\n")
 	for _, module := range category.Modules {
-		out.Str("<tr><td><code>").Str(html.EscapeString(module.Module)).Str("</code></td><td><code>").
+		out.Str(`<tr><td><code class="concept-software">`).Str(html.EscapeString(module.Module)).Str("</code></td><td><code>").
 			Str(html.EscapeString(versions[module.Module])).Str("</code></td><td>").
 			Str(inlineMarkup(module.Why)).Str("</td></tr>\n")
 	}
