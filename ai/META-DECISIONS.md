@@ -89,7 +89,9 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   and a push owe that scoped evidence and nothing wider.
 - The full verification (`./le verify current`, `./le verify worktree`) is a
   release check that proves no regression across the tree. It is not run day
-  to day, and never by an agent on its own initiative.
+  to day, and an agent never runs it: when one is owed, the agent gives Thomas
+  the exact command and he runs it himself, so it runs once. The tooling
+  refuses a full verification started without an interactive terminal.
 - A full verification runs only on an idle machine: no other agent session
   live and no development job running. The tooling refuses to start one
   otherwise, naming what is running, rather than leaving it to an agent's
