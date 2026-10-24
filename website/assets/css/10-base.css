@@ -1846,57 +1846,15 @@ section[aria-labelledby="blog-teaser-title"] {
 
 
 /*
- * Subject categories share one palette across cards, labels and controls.
+ * Subject categories share Setup's teal across cards, labels and controls.
  * Use cat-meta for cross-topic content. Never choose a hue by position.
  */
-.cat-operate {
-    --acc: var(--sky-base);
-    --acc-mid: var(--sky-mid);
-    --acc-deep: var(--sky-deep);
-    --acc-chip: var(--sky-chip);
-    --acc-tint: var(--sky-tint);
-    --acc-glow: var(--sky-glow);
-}
-.cat-routing {
-    --acc: var(--lemon-base);
-    --acc-mid: var(--lemon-mid);
-    --acc-deep: var(--lemon-deep);
-    --acc-chip: var(--lemon-chip);
-    --acc-tint: var(--lemon-tint);
-    --acc-glow: var(--lemon-glow);
-}
-.cat-automate {
-    --acc: var(--grape-base);
-    --acc-mid: var(--grape-mid);
-    --acc-deep: var(--grape-deep);
-    --acc-chip: var(--grape-chip);
-    --acc-tint: var(--grape-tint);
-    --acc-glow: var(--grape-glow);
-}
-.cat-observe {
-    --acc: var(--mint-base);
-    --acc-mid: var(--mint-mid);
-    --acc-deep: var(--mint-deep);
-    --acc-chip: var(--mint-chip);
-    --acc-tint: var(--mint-tint);
-    --acc-glow: var(--mint-glow);
-}
-.cat-secure {
-    --acc: var(--pink-base);
-    --acc-mid: var(--pink-mid);
-    --acc-deep: var(--pink-deep);
-    --acc-chip: var(--pink-chip);
-    --acc-tint: var(--pink-tint);
-    --acc-glow: var(--pink-glow);
-}
-.cat-services {
-    --acc: var(--gold-base);
-    --acc-mid: var(--gold-mid);
-    --acc-deep: var(--gold-deep);
-    --acc-chip: var(--gold-chip);
-    --acc-tint: var(--gold-tint);
-    --acc-glow: var(--gold-glow);
-}
+.cat-operate,
+.cat-routing,
+.cat-automate,
+.cat-observe,
+.cat-secure,
+.cat-services,
 .cat-platform {
     --acc: var(--teal-base);
     --acc-mid: var(--teal-mid);

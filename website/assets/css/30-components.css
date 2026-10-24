@@ -1393,6 +1393,14 @@ body:has(.site-home) .footer-bottom { border-top: 0; }
 .site-home .hero-product-demo { width: 100%; max-width: 60rem; margin: 0 auto; }
 .site-home .run-path-grid, .site-home .home-usecase-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.25rem; }
 .site-home .audience-card { border: 1px solid var(--line); padding: 1.6rem; border-radius: var(--radius-lg); background: var(--panel); box-shadow: var(--clay); }
+.site-home .run-path-grid .audience-card {
+    --acc: var(--sky-base);
+    --acc-mid: var(--sky-mid);
+    --acc-deep: var(--sky-deep);
+    --acc-chip: var(--sky-chip);
+    --acc-tint: var(--sky-tint);
+    --acc-glow: var(--sky-glow);
+}
 .site-home .audience-card h3 { font-size: 1.25rem; line-height: 1.4; }
 .site-home .audience-card p { font-size: 0.9rem; font-weight: 400; line-height: 1.75; }
 .site-home .audience-card-cta { border-top: 1px solid var(--line); padding-top: 1rem; font-size: 0.82rem; }
