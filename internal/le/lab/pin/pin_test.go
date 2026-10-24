@@ -208,3 +208,25 @@ func TestScanTheRepository(t *testing.T) {
 		}
 	}
 }
+
+// TestLiteralPinsReadsNoComment proves a Go comment pins nothing. Goal: a doc
+// comment that names an image and quotes an official-image-shaped literal, as
+// officialContext's own did, is not read as a pin, while a real image constant
+// beside it still is. Method: literalPins over testdata/comments.go.txt, which
+// carries both in a line comment, a block comment and a trailing comment, and
+// one real constant. The source lives in testdata, which Scan skips, so this
+// test's own fixture is not read as the repository's pins.
+func TestLiteralPinsReadsNoComment(t *testing.T) {
+	source, err := os.ReadFile(filepath.Join("testdata", "comments.go.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	pins := literalPins("comments.go", string(source))
+	if len(pins) != 1 {
+		t.Fatalf("pins = %+v, want only alpine 3.24.3 on line 5", pins)
+	}
+	want := Pin{File: "comments.go", Line: 5, Kind: KindImage, Name: "alpine", Version: "3.24.3"}
+	if pins[0] != want {
+		t.Fatalf("pin = %+v, want %+v", pins[0], want)
+	}
+}

@@ -8,6 +8,9 @@
 package pin
 
 import (
+	"bytes"
+	"go/scanner"
+	"go/token"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -186,11 +189,13 @@ func fromImage(words []string) string {
 
 // literalPins reads image references out of Go string literals: one with a
 // repository path (a slash), and an official image with a dotted version tag
-// on a line that names an image.
+// on a line that names an image. It reads the code only: a comment is blanked
+// first (withoutComments), because a comment that quotes an image, or an
+// example of what is not one, pins nothing.
 // A local `ze-*:test` tag is neither, so it is not read.
 func literalPins(file, body string) []Pin {
 	var pins []Pin
-	for index, line := range strings.Split(body, "\n") {
+	for index, line := range strings.Split(withoutComments(body), "\n") {
 		for _, match := range imageLiteral.FindAllStringSubmatch(line, -1) {
 			if !plausibleImage(match[1], match[2]) {
 				continue
@@ -208,10 +213,53 @@ func literalPins(file, body string) []Pin {
 }
 
 // officialContext reports whether a Go line names an image, as a field, a
-// variable or a constant whose name says Image. Without that, "router1:10.0.0.1"
-// (a peer and its address) has the shape of an official image and is not one.
+// variable or a constant whose name says Image. Without that, a peer and its
+// address in one literal has the shape of an official image and is not one.
+// The line it is given carries no comment (withoutComments), so a comment that
+// mentions an image is no context.
 func officialContext(line string) bool {
 	return strings.Contains(strings.ToLower(line), "image")
+}
+
+// withoutComments answers a Go source with every comment replaced by spaces,
+// its newlines kept, so each line keeps its number and only code remains. The
+// Go scanner finds the comments, so a "//" inside a string literal, such as a
+// URL, is not one. A source the scanner cannot read keeps what it could not
+// tokenize: it is still scanned, as before, rather than dropped.
+func withoutComments(body string) string {
+	source := []byte(body)
+	files := token.NewFileSet()
+	file := files.AddFile("", files.Base(), len(source))
+	var reader scanner.Scanner
+	reader.Init(file, source, nil, scanner.ScanComments)
+	for {
+		position, kind, _ := reader.Scan()
+		if kind == token.EOF {
+			return string(source)
+		}
+		if kind == token.COMMENT {
+			blankComment(source, file.Offset(position))
+		}
+	}
+}
+
+// blankComment overwrites the comment that starts at start with spaces, up to
+// the end of a line comment or past the "*/" of a block comment, and keeps
+// every newline a block comment spans.
+func blankComment(source []byte, start int) {
+	end := len(source)
+	if source[start+1] == '/' {
+		if newline := bytes.IndexByte(source[start:], '\n'); newline >= 0 {
+			end = start + newline
+		}
+	} else if closing := bytes.Index(source[start:], []byte("*/")); closing >= 0 {
+		end = start + closing + len("*/")
+	}
+	for index := start; index < end; index++ {
+		if source[index] != '\n' {
+			source[index] = ' '
+		}
+	}
 }
 
 // literalTag is the tag of an image a Go literal names: a version or latest.
