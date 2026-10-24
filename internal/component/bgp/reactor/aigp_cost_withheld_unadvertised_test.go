@@ -310,6 +310,45 @@ func TestAIGPWithheldWithdrawalKeepsAnotherSourcesRecord(t *testing.T) {
 	lastAnnounces(t, bodies, prefix, 111)
 }
 
+// TestAIGPReplayEmittingNothingIsQueuedAgain pins the release of a replay
+// whose write emits nothing. The dedupe of an outcome already queued once
+// stayed set when the write emitted nothing, so every later pass with the
+// same outcome stopped at it and the route was never recovered. Method:
+// withhold the route from its first receipt, make the final export policy
+// reject so the replay becomes a withdrawal of a key the recipient was never
+// advertised (dropped), install distance 11 and replay, assert a silent
+// socket, accept again, replay at the same outcome, and assert one
+// announcement with AIGP 111.
+func TestAIGPReplayEmittingNothingIsQueuedAgain(t *testing.T) {
+	prefix := []byte{24, 10, 20, 0}
+	f := newAIGPReplayFixture(t, nil)
+	f.forward(t, f.receive(t, f.body(t, 100)))
+	forwardSocketBarrier(t, f.r)
+	if bodies := aigpSocketBodies(t, f.conn); len(bodies) != 0 {
+		t.Fatalf("withheld route reached the socket: %x", bodies)
+	}
+	session := f.destination.session
+	session.writeMu.Lock()
+	session.egressFinalAccepts = func() bool { return false }
+	session.writeMu.Unlock()
+	f.metric(11)
+	f.r.readvertiseAIGP()
+	forwardSocketBarrier(t, f.r)
+	if bodies := aigpSocketBodies(t, f.conn); len(bodies) != 0 {
+		t.Fatalf("rejected replay reached the socket: %x", bodies)
+	}
+	session.writeMu.Lock()
+	session.egressFinalAccepts = nil
+	session.writeMu.Unlock()
+	f.r.readvertiseAIGP()
+	forwardSocketBarrier(t, f.r)
+	bodies := aigpSocketBodies(t, f.conn)
+	if len(bodies) != 1 {
+		t.Fatalf("UPDATE count=%d, want the recovery; the replay that emitted nothing stayed queued", len(bodies))
+	}
+	lastAnnounces(t, bodies, prefix, 111)
+}
+
 // TestAIGPRecoveryWithdrawalRemovesDecidedRecords pins the other side of
 // TestAIGPRecoveryWithdrawalKeepsCostWithheldRecord: the skip for a
 // withdrawal with no AIGP origin covers only a live cost-withheld record. An

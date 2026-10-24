@@ -272,6 +272,13 @@ with the route's own next hop. A negotiated 16- or 32-octet IPv6 next hop remain
 in MP_REACH during reconstruction, including recovery after a cost withdrawal.
 Withdrawals, replacements and disconnects invalidate retained generations; queued
 replays check the generation and destination session again before writing.
+A replay already queued for a record with the same outcome is not queued again,
+so one batch never writes the same UPDATE twice. The forward worker releases
+that claim when its batch ends, whether the write emitted the UPDATE or nothing
+(PATHS-LIMIT, the adj-out filter, a rejected final policy), so a later pass with
+the same outcome queues it again.
+<!-- source: internal/component/bgp/reactor/aigp_readvertise.go -- replayAIGP, releaseAIGPReplays -->
+<!-- source: internal/component/bgp/reactor/forward_pool.go -- fwdBatchHandler -->
 
 Live AIGP announcements and their later attribute-free withdrawals use the same
 source FIFO. A source that has entered this path stays on it across settings

@@ -72,7 +72,7 @@ type ReceivedUpdate struct {
 	// validation gate. Zero is explicitly unversioned for a removed route.
 	validationReplay bool
 	validationMsgID  uint64
-	aigpReplay       *aigpAdvertisement
+	aigpReplay       *aigpReplayTicket
 
 	// fwdHandleMu is a leaf mutex guarding fwdHandles. The forward path may
 	// hold the source's validationForwardMu; eviction holds cache.mu. Neither

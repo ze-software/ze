@@ -61,9 +61,9 @@ type aigpAdvertisement struct {
 	// A cost-withheld withdrawal retains this recipient for recovery, whether
 	// or not the adj-out filter let it reach the wire (writeUpdateBody).
 	costWithheld bool
-	// queued is the outcome of the replay already handed to the forward queue
-	// for this record, guarded by aigpState.mu. Commit replaces the record, so
-	// it lives until the replay is written or the session ends.
+	// queued is the outcome of the replay a forward worker still holds for
+	// this record, guarded by aigpState.mu. The worker clears it when its
+	// batch ends, written or not (releaseAIGPReplays).
 	queued aigpOutcome
 	// undecided marks a pending withdrawal written with no AIGP origin, such
 	// as a relay recovery's withdrawal of an obsolete owner. It decides
@@ -79,6 +79,15 @@ type aigpOutcome struct {
 	hasMetric    bool
 	costWithheld bool
 	set          bool
+}
+
+// aigpReplayTicket is the forward queue's claim on a replay: the record it
+// re-advertises and the outcome it was queued for. The worker that holds it
+// MUST release it when its batch ends (releaseAIGPReplays).
+type aigpReplayTicket struct {
+	state   *aigpState
+	record  *aigpAdvertisement
+	outcome aigpOutcome
 }
 
 // dispatch serializes receive invalidation and replay enqueueing. mu protects
@@ -446,15 +455,32 @@ func (r *Reactor) replayAIGP(ad *aigpAdvertisement, revision uint64) {
 	}
 	// Every committed write signals a new pass, so a pass for another
 	// recipient can run before this recipient's replay is written. The same
-	// outcome already queued is not queued again: it would put the same UPDATE
-	// on the wire twice.
+	// outcome a worker still holds is not queued again: two replays of one
+	// record in one batch would both pass currentAIGPAdvertisement before the
+	// flush commits, and put the same UPDATE on the wire twice. The claim is
+	// taken before dispatch, so the worker cannot release it first.
 	outcome := aigpOutcome{metric: metric, hasMetric: present, costWithheld: costWithheld, set: true}
 	r.aigp.mu.Lock()
-	inFlight := ad.queued == outcome
+	previous := ad.queued
+	inFlight := previous == outcome
+	if !inFlight {
+		ad.queued = outcome
+	}
 	r.aigp.mu.Unlock()
 	if inFlight {
 		return
 	}
+	queued := false
+	defer func() {
+		if queued {
+			return
+		}
+		r.aigp.mu.Lock()
+		if ad.queued == outcome {
+			ad.queued = previous
+		}
+		r.aigp.mu.Unlock()
+	}()
 	wu := ad.route.wire
 	withdrawn, err := wu.Withdrawn()
 	if err != nil {
@@ -475,13 +501,32 @@ func (r *Reactor) replayAIGP(ad *aigpAdvertisement, revision uint64) {
 	// relayRebuiltMeta: the ingress steps DID run on this route, so its
 	// meta["stale"] is the RFC 9494 Section 4.3 answer and needs no recovery.
 	update.Meta = ad.route.meta
-	update.aigpReplay = ad
+	update.aigpReplay = &aigpReplayTicket{state: &r.aigp, record: ad, outcome: outcome}
 	src.info.sender = ad.sender
 	if err := adapter.forwardUpdateValidated(update, id, peers, src.info); err != nil {
 		fwdLogger().Debug("AIGP metric re-advertisement withheld", "source", src.addr, "error", err)
 		return
 	}
-	r.aigp.mu.Lock()
-	ad.queued = outcome
-	r.aigp.mu.Unlock()
+	queued = true
+}
+
+// releaseAIGPReplays ends the forward queue's claim on every replay of a
+// finished batch, whether its write emitted the UPDATE, emitted nothing
+// (PATHS-LIMIT, the adj-out filter, a dropped policy withdrawal) or was
+// skipped. A written replay's commit has already replaced its record by then;
+// one that emitted nothing leaves the record as it was, so a later pass with
+// the same outcome queues it again. fwdBatchHandler MUST call it after its
+// flush, on every exit. A requeued item was zeroed and keeps its claim.
+func releaseAIGPReplays(items []fwdItem) {
+	for i := range items {
+		ticket := items[i].aigpReplay
+		if ticket == nil {
+			continue
+		}
+		ticket.state.mu.Lock()
+		if ticket.record.queued == ticket.outcome {
+			ticket.record.queued = aigpOutcome{}
+		}
+		ticket.state.mu.Unlock()
+	}
 }

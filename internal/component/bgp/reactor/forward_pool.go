@@ -79,7 +79,7 @@ type fwdItem struct {
 	recovery             *recoveryAdmission
 	aigpOrigin           sendOrigin
 	aigpRevision         uint64
-	aigpReplay           *aigpAdvertisement
+	aigpReplay           *aigpReplayTicket
 	// The writer MUST retain a recomputation candidate only for this refusal.
 	aigpCostWithheld bool
 	supersedeKey     uint64 // FNV-1a hash of raw body for route superseding (AC-23); 0 = no superseding
@@ -186,6 +186,9 @@ func fwdBatchHandler(key fwdKey, items []fwdItem) {
 	if len(items) == 0 {
 		return
 	}
+	// Deferred first, so it runs last: after the flush has committed the
+	// batch's AIGP write receipts, on every exit.
+	defer releaseAIGPReplays(items)
 
 	// Select the destination from the first REAL item: sentinel items (barrier
 	// done-callbacks, overflow wake-ups) carry a nil peer and no data, and a
@@ -313,7 +316,7 @@ func fwdBatchHandler(key fwdKey, items []fwdItem) {
 				continue
 			}
 			if replay := item.aigpReplay; replay != nil &&
-				(replay.session != session || session.aigpReactor == nil || !session.aigpReactor.currentAIGPAdvertisement(replay)) {
+				(replay.record.session != session || session.aigpReactor == nil || !session.aigpReactor.currentAIGPAdvertisement(replay.record)) {
 				continue
 			}
 			session.sentAIGPOrigin = item.aigpOrigin
