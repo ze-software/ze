@@ -396,7 +396,10 @@ Use `categoryLabel` for category display names: `platform` reads as
 `platform`. Escape the label when rendering HTML.
 <!-- source: internal/le/site/docpage.go -- categoryLabel -->
 
-The homepage keeps all of its authored sections and data slots. Its primary
+The homepage preserves its useful content and data slots. Release evidence
+follows Latest news. The useful Why Ze introduction is folded into the
+management explanation, with no separate Why Ze heading or self-contained
+management badge. The architectural argument cards remain below it. Its primary
 actions reach the demo gallery and BGP quickstart directly. Product screenshots
 are individually linked to their full-size files and captioned with their
 capture provenance; every panel remains available without JavaScript. The

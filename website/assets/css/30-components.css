@@ -1345,13 +1345,11 @@ body:has(.site-home) .footer-bottom { border-top: 0; }
 .site-home .home-section-panel::before, .site-home .home-section-panel::after { content: none; }
 .site-home .section-head { gap: 2.5rem; margin-bottom: 1.5rem; }
 .site-home :is(.home-section-panel-map, .home-section-panel-usecases) .section-head { row-gap: 0.5rem; }
-.site-home :is(.section-head, .home-proof-head, .status-copy) h2 { margin-bottom: 0.5rem; font-size: 2rem; font-weight: 700; line-height: 1.25; color: var(--text); }
+.site-home :is(.section-head, .home-proof-head, .status-copy, .why-lead) h2 { margin-bottom: 0.5rem; font-size: 2rem; font-weight: 700; line-height: 1.25; color: var(--text); }
 .site-home .section-head p { font-size: 0.94rem; font-weight: 400; }
 .site-home .why-lead { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2rem; align-items: start; margin-bottom: 1.25rem; padding: 1.8rem; border: 1px solid var(--line); border-radius: var(--radius-xl); background: var(--brand-section-gradient); }
 .site-home .why-lead-copy, .site-home .why-demo { min-width: 0; }
-.site-home .why-lead .eyebrow { color: #fff; background: var(--brand); border-color: var(--brand-bright); box-shadow: none; }
-.site-home .why-lead .eyebrow::before { background: var(--brand-bright); box-shadow: none; animation: none; }
-.site-home .why-lead h3 { margin: 0.8rem 0; font-size: 1.6rem; }
+.site-home .why-lead h2 { margin-top: 0; }
 .site-home .why-lead p { margin: 0; color: var(--muted); font-size: 0.9rem; line-height: 1.65; }
 .site-home .why-lead-links { display: flex; flex-wrap: wrap; gap: 0.5rem 1.2rem; font-size: 0.82rem; }
 .site-home .interface-map { margin: 1rem 0; text-align: center; font-size: 0.76rem; color: var(--blue); }
@@ -1361,7 +1359,7 @@ body:has(.site-home) .footer-bottom { border-top: 0; }
 .site-home .interface-map strong { display: block; padding: 0.55rem; background: var(--brand); color: #fff; border-radius: var(--radius-md); }
 .site-home .interface-map small { display: block; margin-top: 0.5rem; color: var(--muted); }
 .site-home .why-demo { margin: 0; }
-.site-home .why-demo h4 { margin: 0 0 0.45rem; color: var(--text); font-size: 1.1rem; line-height: 1.4; }
+.site-home .why-demo h3 { margin: 0 0 0.45rem; color: var(--text); font-size: 1.1rem; line-height: 1.4; }
 .site-home .why-demo figcaption p { font-size: 0.86rem; }
 .site-home .why-demo-steps { display: flex; flex-wrap: wrap; gap: 0.4rem 0.7rem; margin: 0.8rem 0; padding: 0; list-style: none; color: var(--blue); font-size: 0.76rem; font-weight: 700; }
 .site-home .why-demo-steps li + li::before { content: "→"; margin-right: 0.7rem; color: var(--muted); }

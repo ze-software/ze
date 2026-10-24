@@ -186,26 +186,103 @@ const homeTemplate = `        <div class="site-home">
 
 {whats_new}
 
-
-
-
-            <section id="why-ze" class="home-section-panel home-section-panel-why" aria-labelledby="why-title">
-                <div class="section-head reveal cat-meta">
-                    <h2 id="why-title"><a href="project/why-ze/">Why Ze?</a></h2>
-                    <p>
-                        Ze is a network operating system, and more: a routing
-                        daemon, appliance runtime, lab router, and protocol
-                        engine that brings policy data, generated references,
-                        APIs, MCP tools, and product evidence into one operator
-                        workflow.
-                    </p>
+            <section id="proof" class="home-proof-block reveal" aria-labelledby="proof-title">
+                <div class="home-proof-head">
+                    <div>
+                        <h2 id="proof-title">Release claims stay checkable.</h2>
+                        <p>
+                            Every homepage number links to the page where you can
+                            inspect the test layer, transcript, peer list, RFC
+                            gate, or generated source evidence behind it.
+                        </p>
+                    </div>
+                    <div class="home-proof-actions">
+                        <a class="button" href="quality/">Read the evidence map</a>
+                        <a class="button" href="demos/terminal/">Watch product demos</a>
+                    </div>
                 </div>
+                <div class="proof-strip" aria-label="Project evidence">
+                    <a class="proof" href="quality/unit-fuzz-mutation/">
+                        <strong
+                            >{unit_tests} <span class="label">unit tests</span></strong
+                        >
+                        <ul>
+                            <li>Wire encoding, parsing</li>
+                            <li>Config, FSM, plugins</li>
+                            <li>gomu mutates code to check assertions</li>
+                        </ul>
+                        <span class="proof-check concept-evidence">Local test, fuzz, and mutation evidence.</span>
+                    </a>
+                    <a class="proof" href="quality/functional-ci/">
+                        <strong
+                            >{e2e_tests}
+                            <span class="label">end to end tests</span></strong
+                        >
+                        <ul>
+                            <li>Peering, sessions, updates</li>
+                            <li>Editor, commits, reloads</li>
+                            <li>Commands checked as operators run them</li>
+                        </ul>
+                        <span class="proof-check concept-evidence">Functional transcript format and rerun path.</span>
+                    </a>
+                    <a class="proof" href="quality/rfc-compliance/">
+                        <strong
+                            >{rfc_implemented}
+                            <span class="label">RFCs supported</span></strong
+                        >
+                        <ul>
+                            <li>{rfc_gated_implemented} MUSTs to test</li>
+                            <li>{rfc_proven} checked with a test</li>
+                            <li>{rfc_proven_percent}% done</li>
+                        </ul>
+                        <span class="proof-check concept-evidence">RFC requirement ledger.</span>
+                    </a>
+                    <a class="proof" href="quality/unit-fuzz-mutation/#fuzz-targets-are-still-tests">
+                        <strong>{fuzz_targets} <span class="label">fuzz targets</span></strong>
+                        <ul>
+                            <li>Parsers, external inputs</li>
+                            <li>Wire formats, config files</li>
+                            <li>Saved crashes become regression cases</li>
+                        </ul>
+                        <span class="proof-check concept-evidence">Fuzz crashes kept as regression cases.</span>
+                    </a>
+                    <a class="proof" href="quality/qemu-interop-release/#docker-interop">
+                        <strong
+                            >{interop_targets} <span class="label">interop targets</span></strong
+                        >
+                        <ul>
+                            <li>BGP, OSPF, IS-IS, BFD, BMP, RPKI, VRRP</li>
+                            <li>IPsec, L2TP, PPPoE, RADIUS</li>
+                            <li>Real daemons in Docker, checked by peer CLIs</li>
+                        </ul>
+                        <span class="proof-check concept-evidence">Docker interop peer list.</span>
+                    </a>
+                </div>
+                <div class="interop-strip" aria-label="Implementations Ze is tested against">
+                    <span class="interop-strip-label concept-evidence">Tested against</span>
+                    <div class="interop-groups">
+                        <span class="interop-group"><b>BGP</b><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">FRR</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">BIRD</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">GoBGP</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">OpenBGPd</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">FreeRtr</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">RustyBGP</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">rustbgpd</a><a class="concept-software" href="features/exabgp-compatibility/">ExaBGP</a></span>
+                        <span class="interop-group"><b>BGP support</b><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">StayRTR</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">pmacct</a></span>
+                        <span class="interop-group"><b>VPN</b><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">strongSwan</a></span>
+                        <span class="interop-group"><b>Access</b><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">accel-ppp</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">xl2tpd</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">FreeRADIUS</a></span>
+                        <span class="interop-group"><b>Redundancy</b><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">keepalived</a></span>
+                    </div>
+                </div>
+            </section>
 
+            <section id="why-ze" class="home-section-panel home-section-panel-management" aria-labelledby="why-title">
                 <article class="why-lead">
                     <div class="why-lead-copy">
-                        <span class="eyebrow">Self-contained management</span>
-                        <h3>Manage Ze directly.</h3>
-                        <p>Ze runs its own SSH server, CLI and configuration editor. Connect directly to Ze to configure and operate it, without a host SSH service or shell. Its web interface, REST, gRPC, gNMI and MCP expose the same YANG-modeled configuration.</p>
+                        <h2 id="why-title">Manage Ze directly.</h2>
+                        <p>
+                            Ze combines its routing daemon, appliance runtime and
+                            lab workflows with policy data, generated references
+                            and product evidence. Its own SSH server connects you
+                            directly to the CLI and configuration editor,
+                            without a host SSH service or shell.
+                            The web interface, REST, gRPC, gNMI and MCP expose the
+                            same YANG-modeled configuration.
+                        </p>
                         <div class="interface-map" aria-label="Ze’s own SSH server, CLI, web interface, APIs and MCP connect to its YANG-modeled configuration">
                             <div><span>Ze SSH + CLI</span><span>Web</span><span>APIs + MCP</span></div>
                             <div class="map-stem" aria-hidden="true">↓</div>
@@ -219,7 +296,7 @@ const homeTemplate = `        <div class="site-home">
                     </div>
                     <figure class="why-demo">
                         <figcaption>
-                            <h4>From connection to configuration</h4>
+                            <h3>From connection to configuration</h3>
                             <p>Change a setting through Ze’s SSH editor, review the diff, commit it and check the result.</p>
                         </figcaption>
                         <ol class="why-demo-steps" aria-label="SSH walkthrough steps">
@@ -315,91 +392,6 @@ const homeTemplate = `        <div class="site-home">
 {run_cards}
                 </div>
             </section>
-
-            <section id="proof" class="home-proof-block reveal" aria-labelledby="proof-title">
-                <div class="home-proof-head">
-                    <div>
-                        <h2 id="proof-title">Release claims stay checkable.</h2>
-                        <p>
-                            Every homepage number links to the page where you can
-                            inspect the test layer, transcript, peer list, RFC
-                            gate, or generated source evidence behind it.
-                        </p>
-                    </div>
-                    <div class="home-proof-actions">
-                        <a class="button" href="quality/">Read the evidence map</a>
-                        <a class="button" href="demos/terminal/">Watch product demos</a>
-                    </div>
-                </div>
-                <div class="proof-strip" aria-label="Project evidence">
-                    <a class="proof" href="quality/unit-fuzz-mutation/">
-                        <strong
-                            >{unit_tests} <span class="label">unit tests</span></strong
-                        >
-                        <ul>
-                            <li>Wire encoding, parsing</li>
-                            <li>Config, FSM, plugins</li>
-                            <li>gomu mutates code to check assertions</li>
-                        </ul>
-                        <span class="proof-check concept-evidence">Local test, fuzz, and mutation evidence.</span>
-                    </a>
-                    <a class="proof" href="quality/functional-ci/">
-                        <strong
-                            >{e2e_tests}
-                            <span class="label">end to end tests</span></strong
-                        >
-                        <ul>
-                            <li>Peering, sessions, updates</li>
-                            <li>Editor, commits, reloads</li>
-                            <li>Commands checked as operators run them</li>
-                        </ul>
-                        <span class="proof-check concept-evidence">Functional transcript format and rerun path.</span>
-                    </a>
-                    <a class="proof" href="quality/rfc-compliance/">
-                        <strong
-                            >{rfc_implemented}
-                            <span class="label">RFCs supported</span></strong
-                        >
-                        <ul>
-                            <li>{rfc_gated_implemented} MUSTs to test</li>
-                            <li>{rfc_proven} checked with a test</li>
-                            <li>{rfc_proven_percent}% done</li>
-                        </ul>
-                        <span class="proof-check concept-evidence">RFC requirement ledger.</span>
-                    </a>
-                    <a class="proof" href="quality/unit-fuzz-mutation/#fuzz-targets-are-still-tests">
-                        <strong>{fuzz_targets} <span class="label">fuzz targets</span></strong>
-                        <ul>
-                            <li>Parsers, external inputs</li>
-                            <li>Wire formats, config files</li>
-                            <li>Saved crashes become regression cases</li>
-                        </ul>
-                        <span class="proof-check concept-evidence">Fuzz crashes kept as regression cases.</span>
-                    </a>
-                    <a class="proof" href="quality/qemu-interop-release/#docker-interop">
-                        <strong
-                            >{interop_targets} <span class="label">interop targets</span></strong
-                        >
-                        <ul>
-                            <li>BGP, OSPF, IS-IS, BFD, BMP, RPKI, VRRP</li>
-                            <li>IPsec, L2TP, PPPoE, RADIUS</li>
-                            <li>Real daemons in Docker, checked by peer CLIs</li>
-                        </ul>
-                        <span class="proof-check concept-evidence">Docker interop peer list.</span>
-                    </a>
-                </div>
-                <div class="interop-strip" aria-label="Implementations Ze is tested against">
-                    <span class="interop-strip-label concept-evidence">Tested against</span>
-                    <div class="interop-groups">
-                        <span class="interop-group"><b>BGP</b><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">FRR</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">BIRD</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">GoBGP</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">OpenBGPd</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">FreeRtr</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">RustyBGP</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">rustbgpd</a><a class="concept-software" href="features/exabgp-compatibility/">ExaBGP</a></span>
-                        <span class="interop-group"><b>BGP support</b><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">StayRTR</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">pmacct</a></span>
-                        <span class="interop-group"><b>VPN</b><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">strongSwan</a></span>
-                        <span class="interop-group"><b>Access</b><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">accel-ppp</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">xl2tpd</a><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">FreeRADIUS</a></span>
-                        <span class="interop-group"><b>Redundancy</b><a class="concept-software" href="quality/qemu-interop-release/#docker-interop">keepalived</a></span>
-                    </div>
-                </div>
-            </section>
-
 
             <section class="home-section-panel home-section-panel-demo" aria-labelledby="recording-title">
                 <div class="section-head">
