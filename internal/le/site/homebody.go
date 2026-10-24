@@ -189,12 +189,13 @@ const homeTemplate = `        <div class="site-home">
             <section id="proof" class="home-proof-block reveal" aria-labelledby="proof-title">
                 <div class="home-proof-head">
                     <div>
-                        <h2 id="proof-title">Code quality, in numbers</h2>
+                        <h2 id="proof-title">Regression prevention</h2>
                         <p>
-                            Explore the tests behind Ze: unit tests, end-to-end
-                            scenarios, protocol checks, fuzzing and interoperability
-                            with other implementations. Each figure links to the
-                            evidence and its current coverage.
+                            Tests help catch changes that break existing behavior.
+                            Unit tests, end-to-end scenarios, protocol checks,
+                            fuzzing and interoperability tests cover different
+                            failure modes. Each figure links to the evidence and
+                            current coverage.
                         </p>
                     </div>
                     <div class="home-proof-actions">
@@ -228,13 +229,13 @@ const homeTemplate = `        <div class="site-home">
                     </a>
                     <a class="proof" href="quality/rfc-compliance/">
                         <strong
-                            >{rfc_implemented}
-                            <span class="label">RFCs supported</span></strong
+                            >{rfc_proven_percent}%
+                            <span class="label">RFC MUSTs tested</span></strong
                         >
                         <ul>
-                            <li>{rfc_gated_implemented} MUSTs to test</li>
-                            <li>{rfc_proven} checked with a test</li>
-                            <li>{rfc_proven_percent}% done</li>
+                            <li>{rfc_proven} of {rfc_gated_implemented} tracked MUSTs</li>
+                            <li>Across {rfc_implemented} RFCs</li>
+                            <li>Tests tied to requirements</li>
                         </ul>
                         <span class="proof-check concept-evidence">RFC requirement ledger.</span>
                     </a>

@@ -396,7 +396,7 @@ Use `categoryLabel` for category display names: `platform` reads as
 `platform`. Escape the label when rendering HTML.
 <!-- source: internal/le/site/docpage.go -- categoryLabel -->
 
-The homepage preserves its useful content and data slots. Code quality evidence
+The homepage preserves its useful content and data slots. Regression prevention
 follows Latest news. The management panel's left column starts with Why Ze,
 then explains how to manage Ze directly through its own SSH service. It has no
 self-contained management badge. The architectural argument cards remain below
