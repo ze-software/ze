@@ -267,6 +267,73 @@ var scenarioOperations = map[string][]operation{
 		{kind: opWaitLogContains, peer: "ze", contains: []string{attrSetIncludedASZeroVerdict}, timeout: 30 * time.Second},
 		{kind: opFRRSession, argument: zeLabAddress},
 	},
+	// RFC 9774 Section 3 lets "a network operator" configure otherwise than
+	// treat-as-withdraw, and `session as-set accept` is that configuration.
+	// FRR and frr-sink each build a real AS_SET (a summary-only as-set
+	// aggregate over contributors the other router sends with its own extra
+	// AS) and send it to ze: FRR to the peer that has the leaf, frr-sink to
+	// the twin peer that has none.
+	//
+	// Each router's own table proves the route it sends holds a set, so ze
+	// is judged on a set FRR built, not on bytes a test wrote. The kept
+	// aggregate in ze's RIB is the discriminating presence: with the accept
+	// path disabled, ze treats it as withdrawn like the twin's and never holds
+	// it. The set member in ze's RIB shows the path ze kept is the one with
+	// the set. The verdict log line then proves the twin's set route reached
+	// ze and was treated as withdrawn, so its absence is ze's judgement and
+	// not a route that never arrived; the twin's control route on the same
+	// session proves that session delivered.
+	//
+	// Red walk (2026-10-24): with the accept peer's policy forced off in
+	// session_validation_receive.go and the image rebuilt, the scenario fails
+	// at assertion 5, the ze RIB wait: both control prefixes are present and
+	// 10.98.0.0/16 never arrives. With the accept path restored it passes.
+	"bgp-as-set-accept-frr": {
+		{kind: opFRRSession, argument: zeLabAddress},
+		{
+			kind:     opWaitContains,
+			peer:     peerFRRSink,
+			command:  frrNeighborCommand(zeLabAddress),
+			contains: []string{frrSessionEstablished},
+			timeout:  90 * time.Second,
+		},
+		{
+			kind:     opWaitContains,
+			peer:     peerFRR,
+			command:  []string{cmdVtysh, "-c", frrShowASSetAcceptKeptJSON},
+			contains: []string{asSetAcceptKeptSet},
+			timeout:  90 * time.Second,
+		},
+		{
+			kind:     opWaitContains,
+			peer:     peerFRRSink,
+			command:  []string{cmdVtysh, "-c", frrShowASSetAcceptWithdrawnJSON},
+			contains: []string{asSetAcceptWithdrawnSet},
+			timeout:  90 * time.Second,
+		},
+		{
+			kind:     opWaitContains,
+			peer:     "ze",
+			command:  zeCommand(zeShowBGPRIB),
+			contains: []string{asSetAcceptKeptControlPrefix, asSetAcceptTwinControlPrefix, asSetAcceptKeptPrefix},
+			timeout:  90 * time.Second,
+		},
+		{
+			kind:     opRequireContains,
+			peer:     "ze",
+			command:  zeCommand(zeShowBGPRIB),
+			contains: []string{asSetAcceptKeptMember},
+		},
+		{kind: opWaitLogContains, peer: "ze", contains: []string{rfc9774ReceiveVerdict}, timeout: 30 * time.Second},
+		{
+			kind:    opRequireAbsent,
+			peer:    "ze",
+			command: zeCommand(zeShowBGPRIB),
+			absent:  []string{asSetAcceptWithdrawnPrefix},
+			proof:   []string{asSetAcceptTwinControlPrefix, asSetAcceptKeptPrefix},
+		},
+		{kind: opFRRSession, argument: zeLabAddress},
+	},
 	"bgp-prefix-sid-duplicate-tlv-frr": {
 		{kind: opFRRSession, argument: zeLabAddress},
 		{kind: opFRRRoute, argument: prefixSIDDuplicatePrefix, family: frrFamilyIPv4VPN, timeout: 90 * time.Second},

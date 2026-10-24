@@ -2360,6 +2360,12 @@ included AS_PATH holds AS 0, then a clean control; RFC 9774 binds only the UPDAT
 FRR's `bgp_attr_unknown` and BIRD's `bgp_decode_unknown` keep code 128 opaque, so FRR and BIRD
 must both hold the set route, FRR's MRT capture of what Ze sent must hold the included AS_SET
 segment, and neither peer nor Ze's RIB may hold the AS 0 route, which Ze treats as withdrawn), the
+RFC 9774 Section 3 operator override (`bgp-as-set-accept-frr` has FRR and frr-sink each build a
+summary-only as-set aggregate and send it to Ze, FRR to a peer with `session as-set accept` and
+frr-sink to a twin peer without it; each router's own table must show the set, Ze's RIB must hold
+both control routes and the accepted aggregate with its set member, and must not hold the twin's
+aggregate, which the receive verdict line shows Ze treated as withdrawn; with the accept path forced
+off the run fails at the RIB wait, the accepted aggregate never arriving), the
 RFC 8669 Section 6 repeated Prefix-SID TLV (`bgp-prefix-sid-duplicate-tlv-frr` gives ze an SRv6
 L3VPN route whose Prefix-SID carries the SRv6 L3 Service TLV twice, and requires FRR, whose own
 parser refuses a repeated type-5 TLV, to hold the route with the first SID only), the

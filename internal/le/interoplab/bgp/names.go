@@ -715,6 +715,34 @@ const (
 	attrSetIncludedUpdateDumpHex = "od -An -v -tx1 " + attrSetIncludedUpdateDump + " | tr -d ' \\n'"
 )
 
+// The bgp-as-set-accept-frr scenario, where FRR and frr-sink each build a
+// summary-only as-set aggregate from contributors the other sends with its own
+// extra AS, and send it to ze. Ze's peer for FRR has `session as-set accept`
+// and keeps asSetAcceptKeptPrefix; its peer for frr-sink has no leaf and
+// treats asSetAcceptWithdrawnPrefix as withdrawn. Each router also sends a
+// control route on the same session.
+//
+// asSetAcceptKeptSet and asSetAcceptWithdrawnSet are the AS_SET segments as
+// FRR prints them in each aggregate's path string, the proof that the route
+// each router sent ze holds a set. asSetAcceptKeptMember is an AS only the
+// kept aggregate's set carries: ze's RIB flattens AS_PATH segments into one
+// list, so the member's presence there is the set ze kept.
+const (
+	asSetAcceptKeptPrefix           = "10.98.0.0/16"
+	asSetAcceptWithdrawnPrefix      = "10.99.0.0/16"
+	asSetAcceptKeptControlPrefix    = "10.95.1.0/24"
+	asSetAcceptTwinControlPrefix    = "10.95.2.0/24"
+	asSetAcceptKeptSet              = "{65101,65102}"
+	asSetAcceptWithdrawnSet         = "{65201,65202}"
+	asSetAcceptKeptMember           = "65101"
+	frrShowASSetAcceptKeptJSON      = "show bgp ipv4 unicast " + asSetAcceptKeptPrefix + " json"
+	frrShowASSetAcceptWithdrawnJSON = "show bgp ipv4 unicast " + asSetAcceptWithdrawnPrefix + " json"
+)
+
+// frrSessionEstablished is the line `show bgp neighbor` prints for a session in
+// Established.
+const frrSessionEstablished = "BGP state = Established"
+
 // The bgp-prefix-sid-duplicate-tlv-frr scenario, where a raw injector announces
 // prefixSIDDuplicatePrefix as an SRv6 L3VPN route whose Prefix-SID repeats the
 // SRv6 L3 Service TLV, and ze relays it to FRR over iBGP.
