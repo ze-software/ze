@@ -92,10 +92,11 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   to day, and an agent never runs it: when one is owed, the agent gives Thomas
   the exact command and he runs it himself, so it runs once. The tooling
   refuses a full verification started without an interactive terminal.
-- A full verification runs only on an idle machine: no other agent session
-  live and no development job running. The tooling refuses to start one
-  otherwise, naming what is running, rather than leaving it to an agent's
-  judgement.
+- Only Thomas knows when the machine will stay quiet long enough for a full
+  verification: several agent sessions run at once nearly all the time, and
+  he starts new sessions, agents start agents, and he tests features by hand.
+  A check of what is running at start answers nothing about the next hour, so
+  the tooling holds no idle check; the human-only gate above is the control.
 - A commit that changes only documentation or prose owes no test run, before
   a commit or before a push: the targeted checks for the files it touched are
   its evidence.
