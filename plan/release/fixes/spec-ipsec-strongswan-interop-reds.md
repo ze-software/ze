@@ -104,7 +104,7 @@ on the Mac, with the commit, the kernel and the strongSwan version recorded.
 |--------|---------------|
 | `plan/journal/conflicting-feature-contracts.md`, row 2026-10-20 (AC-5 run) | the `ike-padded-probe-strongswan` red and the discard-default fixture gap |
 | `plan/journal/gate-verdict-depends-on-the-machine.md`, row 2026-10-09 | the `mobike-initiator` CLI readback hang on kernel 7.2.9-ze |
-| `plan/handover/20-gobgp-v4.md`, "IPsec on strongSwan 6.1.0" row | `esp-integrity-only-null` and `mtu-negotiated-transform` red on the Linux host on 6.1.0 |
+| `plan/handover/25-lab-peers-latest-stable.md`, item 4 (handover 20's "IPsec on strongSwan 6.1.0" row: `git show 2ec0e15be3:plan/handover/20-gobgp-v4.md`) | `esp-integrity-only-null` and `mtu-negotiated-transform` red on the Linux host on 6.1.0 |
 | `plan/journal/constant-reported-as-measured-state.md`, row 2026-09-11 | `show vpn ipsec sa` reports the configured ESP proposal, not the negotiated one; read it before changing what AC-3 and AC-4's checkers compare |
 | `plan/release/fixes/spec-ipsec-11-mobike.md` AC-12, `plan/release/delivery/spec-docker-hosts-run-the-ze-kernel.md` AC-12 | consumers of the AC-2 run |
 

@@ -208,6 +208,7 @@ le to git (private index, object store, never the shared index or HEAD); le to t
 
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
+| concurrent-session-corruption.md | 2026-10-24 | `git diff` callers under a timeout outside `gitenv.ReadOnly` |
 | concurrent-session-corruption.md | 2026-10-23 | Generated post-commit shared-index sync, handover 20 |
 | concurrent-session-corruption.md | 2026-10-23 | ./le test qemu docker-lab, building the docker-host image over the live che |
 | concurrent-session-corruption.md | 2026-10-21 | stageBinaries (internal/le/interoplab/zebuild.go) in the docker-lab guest, |

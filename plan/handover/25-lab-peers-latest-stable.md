@@ -2,15 +2,16 @@
 
 Owner decision M14 (`ai/META-DECISIONS.md`, 2026-10-22): every third-party
 peer the interop and integration labs run is on its latest stable upstream
-release. Handover 20 (`plan/handover/20-gobgp-v4.md`) did the version bumps
-and the GoBGP v4 work. This file carries what is left: proving the bumped
-peers in the lab and fixing what the runs show. The owner split it out on
-2026-10-24 so that it can run elsewhere.
+release. Handover 20 did the version bumps and the GoBGP v4 work, and is
+closed and deleted. Its text, with every commit and proof, is read with
+`git show 2ec0e15be3:plan/handover/20-gobgp-v4.md`. This file carries what is
+left: proving the bumped peers in the lab and fixing what the runs show. The
+owner split it out on 2026-10-24 so that it can run elsewhere.
 
 ## Already done (do not redo)
 
-The bumps are committed. Handover 20's "Progress" sections hold the commits
-and their proofs.
+The bumps are committed. Handover 20's "Progress" sections (read with the
+`git show` above) hold the commits and their proofs.
 
 | Peer | Version |
 |---|---|
@@ -45,7 +46,8 @@ Proven green, so these need no rerun:
   bgp-policy-import-export-frr, bgp-route-server-frr,
   local-as-replace-as-partition and rtr-stayrtr. Each ran with the full BIRD 3
   conversion; see item 1 for what is not yet at HEAD.
-- **Access, VPN and DHCP:** the passes listed in handover 20.
+- **Access, VPN and DHCP:** the passes listed in handover 20's "Progress
+  (access, VPN, DHCP peers)" section.
 
 ## How to run on the Mac
 
@@ -87,8 +89,18 @@ Out of scope: the QEMU guests' strongSwan 6.0.7 and keepalived 2.3.4 trail
 upstream because they are Alpine packages. M1 moves those guests to Ze's own
 system, which closes that gap.
 
-## Gates owed over handover 20's code
+## How handover 20 closed
 
-Handover 20 closes with these, not this file: the full verify (started
-2026-10-24), the weakened-test check, and an independent review of the AIGP
-fixes (690c96d6bf, d4373233df) and the IKE fix (34ad745067).
+- **Review:** the AIGP fixes (690c96d6bf, d4373233df) and the IKE fix
+  (34ad745067) were reviewed independently. The review fixes are 071a80c5e5,
+  88a86751c6, 038795338e and ef1a1a3960.
+- **RFC records:** 2ec0e15be3 re-took them. `./le rfc check` reports no
+  violation in rfc7296, rfc4301, rfc3948, rfc7311, rfc7911 or rfc4456.
+- **Weakened tests:** `./le test weakened check` passes.
+- **Full verify:** one ran on 2026-10-24 over 61e01bb12a.
+  - Its only red in this work was the BIRD checker unit test. That is fixed at
+    HEAD.
+  - Its functional stage ran no test: every suite attached to its own runner.
+    dfd640aede fixed that harness defect.
+  - Every other red stage traced to another session's commits.
+  - Owner decision: the full verify is a release check, so none is owed here.
