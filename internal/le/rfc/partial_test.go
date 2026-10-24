@@ -340,3 +340,34 @@ func TestMalformedPartialCannotPublishWholeCredit(t *testing.T) {
 		})
 	}
 }
+
+// TestPartialDisclosedInFourColumnNote pins where a four-column row discloses.
+//
+// VALIDATES: a {partial} on a summary whose section renders no Remaining cell
+// (the drafts section) is read against the row's Note, the Coverage cell the
+// page prints, while a six-column row with `Support remaining` `-` is still
+// refused.
+// PREVENTS: a {partial} on a draft that no summary edit can disclose, because
+// checkRowCells holds a four-column `Support remaining` at `-`.
+func TestPartialDisclosedInFourColumnNote(t *testing.T) {
+	req := partialRow(t)
+	enrolled := map[string]bool{selftestStem: true}
+	note := "One MUST row is partial: the -02 form is read, never sent"
+	brief := Meta{Support: "drafts", Rank: 1, Area: "a", Status: "Partial", Coverage: note, Remaining: supportNone}
+	rows := rowsFrom(map[string]Meta{selftestStem: brief})
+	if rows[selftestStem].Remaining != note {
+		t.Fatalf("four-column Remaining = %q, want the Note %q", rows[selftestStem].Remaining, note)
+	}
+	if errs := checkStatusAgreement([]Requirement{req}, rows, enrolled); len(errs) != 0 {
+		t.Fatal(errs)
+	}
+	full := brief
+	full.Support = "bgp-base"
+	rows = rowsFrom(map[string]Meta{selftestStem: full})
+	if rows[selftestStem].Remaining != "" {
+		t.Fatalf("six-column `-` Remaining = %q, want empty", rows[selftestStem].Remaining)
+	}
+	if len(checkStatusAgreement([]Requirement{req}, rows, enrolled)) == 0 {
+		t.Fatal("six-column row with Remaining `-` accepted a {partial}")
+	}
+}

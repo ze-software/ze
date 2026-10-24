@@ -282,6 +282,16 @@ the only free simplification, and the one refusal that was not a copy stayed.
 reaches for a row only when a `{gap}` exists. Five classes of defect sit outside
 it, so each is a hard requirement rather than a HEAD comparison.
 
+A row in a four-column section (the drafts section, `Brief` in
+`statusSections`) renders no Remaining cell, and its `Support remaining` must
+be `-`. Its Note, the `Support coverage` cell, is the cell the public page
+prints there, so `rowsFrom` reads the Note as that row's Remaining: a `{gap}`
+or `{partial}` on a draft is disclosed in the Note, and `checkGapCountAgreement`
+counts a number spelled there.
+<!-- source: internal/le/rfc/meta.go -- rowsFrom -->
+<!-- source: internal/le/rfc/render_ledger.go -- statusSections -->
+
+
 | Guard | Refuses |
 |-------|---------|
 | `checkSummaryDisposition` | a `non-normative` reason that judges what ZE owes rather than what the DOCUMENT states, or that cites nothing a reviewer can check. `non-normative` is the one disposition that claims anything about conformance. Its reason rests on the document: the IETF category, an RFC 2119 / RFC 8174 / BCP 14 key-words paragraph, or a capitalized MUST/SHALL/REQUIRED scan of the source |

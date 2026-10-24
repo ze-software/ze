@@ -777,6 +777,12 @@ func dispositionsFrom(metas map[string]Meta) map[string]Disposition {
 
 // rowsFrom answers the public page row each summary declares, by the three
 // cells the checks read.
+//
+// A four-column section (statusSectionSpec.Brief) renders no Remaining cell,
+// and checkRowCells holds its `Support remaining` at `-`: the row's Note, its
+// Coverage, is the only cell that can say what is not complete. Remaining is
+// therefore the Note for such a row, so a {gap} or {partial} disclosed there
+// is read where the public page prints it.
 func rowsFrom(metas map[string]Meta) map[string]LedgerRow {
 	out := map[string]LedgerRow{}
 	for stem := range metas {
@@ -786,6 +792,9 @@ func rowsFrom(metas map[string]Meta) map[string]LedgerRow {
 		remaining := metas[stem].Remaining
 		if remaining == supportNone {
 			remaining = ""
+		}
+		if section := statusSection(metas[stem].Support); section != nil && section.Brief {
+			remaining = metas[stem].Coverage
 		}
 		out[stem] = LedgerRow{
 			Status: metas[stem].Status, Coverage: metas[stem].Coverage, Remaining: remaining,
