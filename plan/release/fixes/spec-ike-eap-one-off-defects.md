@@ -144,6 +144,7 @@ Wire to engine; engine to dataplane backend (XFRM or VPP); engine to EAP method.
 
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
+| `recovery-wider-than-the-error-names.md` | 2026-10-24 | IKE Child SA rekey, `handleCreateChildSAOwned` |
 | `counter-counts-the-wrong-packets` | 2026-10-05 | `eap/peer.go::Process` |
 | `error-answered-with-another-errors-code` | 2026-10-09 | `applyChildRekeyResponse` |
 | `fixture-encodes-an-impossible-state` | 2026-10-20 | `real-nat-port-translated-transport-ze-responder` |
