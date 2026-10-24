@@ -63,6 +63,11 @@ func TestRaceChangedRefusesWithNoAnchor(t *testing.T) {
 		if plan.Command[0] != "git" {
 			executed = append(executed, plan.Command)
 		}
+		// The checkout is on a branch: with HEAD detached the refusal names
+		// git remote set-head instead (repochanged.noUpstreamError).
+		if strings.Join(plan.Command, " ") == "git symbolic-ref --short -q HEAD" {
+			return "main\n", childFrom(plan, 0)
+		}
 		return "", childFrom(plan, 0)
 	}
 	report, code := run(context.Background(), root, VerbUnitRaceChanged, verifyengine.Uncut(), deps)
