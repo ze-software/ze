@@ -6,7 +6,7 @@
 | Priority | P3 |
 | Release reason | Release-independent le build cache cap work; historical findings do not establish a current product defect. |
 | Scope | tooling |
-| Depends | - |
+| Depends | spec-le-one-go-cache-per-host |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-10-22 |
@@ -28,6 +28,11 @@ kept to meta decisions only):
 
 O-3 and O-4 rework G-3, A-1, A-5, AC-10, AC-11 and AC-14 before implementation:
 the ambient budget is dropped because the ambient cache stops existing.
+
+O-3 and O-4 are implemented by `spec-le-one-go-cache-per-host`, which this spec
+depends on. There the owner replaced O-3's shell variables with `le exec` and
+shims in `~/bin` (its O-2, O-3), and narrowed O-4 so le prints, never writes,
+shell lines. Those rows, not O-3 and O-4 here, are current.
 
 O-1: the Go build cache gets a size cap that every `./le` run enforces. Background, handover 17
 (`plan/handover/17-exabgp-6-linux-continue.md`, "Owner decisions" row 1): the
