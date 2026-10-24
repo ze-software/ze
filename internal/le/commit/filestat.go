@@ -52,8 +52,8 @@ const statUnavailable = -1
 func fileStats(root string, paths []string, selection hunks.Selection) []FileStat {
 	stats := make([]FileStat, 0, len(paths))
 	for _, path := range paths {
-		if blob, selected := selection.Blob(path); selected {
-			stats = append(stats, selectedFileStat(root, path, blob))
+		if selection.Selected(path) {
+			stats = append(stats, selectedFileStat(root, path, selection))
 			continue
 		}
 		stats = append(stats, fileStat(root, path))
@@ -63,8 +63,15 @@ func fileStats(root string, paths []string, selection hunks.Selection) []FileSta
 
 // selectedFileStat is fileStat for a hunks path: the selected blob against
 // HEAD's, since the working-tree file holds hunks the commit leaves behind. A
-// path HEAD does not hold has no blob to compare, so its counts are unavailable.
-func selectedFileStat(root, path, blob string) FileStat {
+// path HEAD does not hold has no blob to compare, and an entry that names no
+// blob has nothing to measure, so the counts of each are unavailable; the
+// review and coverage gates refuse that entry by name, reading it through
+// Selection.Read.
+func selectedFileStat(root, path string, selection hunks.Selection) FileStat {
+	blob, err := selection.Blob(path)
+	if err != nil {
+		return FileStat{Path: path, Added: statUnavailable, Deleted: statUnavailable}
+	}
 	command := exec.CommandContext(context.Background(), "git", "diff", "--numstat", "HEAD:"+path, blob) // #nosec G204 -- fixed Git query; path and blob are argv operands.
 	command.Dir = root
 	out, err := command.Output()

@@ -65,7 +65,7 @@ func TestApplyRefusesAnotherPath(t *testing.T) {
 	if !strings.HasSuffix(entry, "\ta.txt") {
 		t.Fatalf("entry %q does not name a.txt", entry)
 	}
-	content, err := Selection{"a.txt": entry}.Read(root, "a.txt")
+	content, err := Selection{"a.txt": {Entry: entry, Patch: one}}.Read(root, "a.txt")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -143,4 +143,71 @@ func TestApplyRefusals(t *testing.T) {
 			t.Fatalf("a path git quotes: %v, want the quoted-path refusal with its fix", err)
 		}
 	})
+}
+
+// TestApplyAdmitsPathWithSpace proves a path holding a space is selected as
+// one path: git lists the names the patch changed NUL-terminated, and a split
+// on whitespace would read "a b.txt" as the two names "a" and "b.txt" and
+// refuse the patch for changing a path it never touched.
+//
+// VALIDATES: Apply answers the entry of "a b.txt" and Read answers its blob;
+// changedProblem reads one NUL-terminated name as one path.
+// PREVENTS: a false "also changes" refusal for a path with a space.
+func TestApplyAdmitsPathWithSpace(t *testing.T) {
+	root := t.TempDir()
+	gitIn(t, root, "init", "-q")
+	const path = "dir one/a b.txt"
+	writeFile(t, root, path, "a\n")
+	gitIn(t, root, "add", "--", path)
+	gitIn(t, root, "commit", "-q", "-m", "base")
+	head := strings.TrimSpace(gitIn(t, root, "rev-parse", "HEAD"))
+	writeFile(t, root, path, "a\nmore\n")
+	patch := filepath.Join(t.TempDir(), "space.patch")
+	writeFile(t, filepath.Dir(patch), "space.patch", gitIn(t, root, "diff", "--", path))
+
+	entry, err := Apply(root, head, path, patch)
+	if err != nil {
+		t.Fatalf("a patch over %q: %v, want its entry", path, err)
+	}
+	content, err := Selection{path: {Entry: entry, Patch: patch}}.Read(root, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(content) != "a\nmore\n" {
+		t.Fatalf("selected content %q, want the patched blob", content)
+	}
+	if problem := changedProblem(path, patch, path+"\x00"); problem != "" {
+		t.Fatalf("one NUL-terminated name read as more than one path: %s", problem)
+	}
+	if problem := changedProblem(path, patch, path+"\x00b.txt\x00"); !strings.Contains(problem, "also changes b.txt") {
+		t.Fatalf("a second NUL-terminated name: %q, want the refusal naming b.txt", problem)
+	}
+}
+
+// TestSelectionRefusesMalformedEntry proves a selected path whose entry is not
+// a `git ls-files -s` line is an error, never the working-tree file: the
+// working tree holds hunks the commit does not carry, so answering it would
+// judge content the commit never lands.
+//
+// VALIDATES: Selected reports the path, Blob and Read both answer an error
+// naming the path, while the working-tree file is present and readable.
+// PREVENTS: a gate silently judging the working tree for a selected path.
+func TestSelectionRefusesMalformedEntry(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "a.txt", "working tree\n")
+	for _, entry := range []string{"", "100644\ta.txt", "100644 abc 0\tb.txt", "garbage"} {
+		selection := Selection{"a.txt": {Entry: entry, Patch: "a.patch"}}
+		if !selection.Selected("a.txt") {
+			t.Fatalf("entry %q: a.txt is not reported selected", entry)
+		}
+		if blob, err := selection.Blob("a.txt"); err == nil || !strings.Contains(err.Error(), "hunks a.txt") {
+			t.Fatalf("entry %q: Blob answered %q, %v, want an error naming a.txt", entry, blob, err)
+		}
+		if content, err := selection.Read(root, "a.txt"); err == nil {
+			t.Fatalf("entry %q: Read answered %q, want an error, never the working-tree file", entry, content)
+		}
+	}
+	if _, err := (Selection{}).Blob("a.txt"); err == nil {
+		t.Fatal("Blob of a path that is not selected answered a blob")
+	}
 }

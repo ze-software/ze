@@ -234,10 +234,10 @@ None: `./le commit create` is driven by its package tests over a real repository
 
 | Field | Value |
 |-------|-------|
-| Artifact | not yet recorded: the round 2 re-review is owed |
+| Artifact | not yet recorded: the round 3 re-review is owed |
 | `./le spec review check` | not run |
-| Rounds | 1 run over 322391f9eb (findings below); round 2 owed over the fix commit |
-| Reviewer lenses used | round 1: independent reviewer in the parent session |
+| Rounds | round 1 over 322391f9eb; round 2 over 322391f9eb and f442e95663 (findings below); round 3 owed over the round 2 fix commit |
+| Reviewer lenses used | rounds 1 and 2: independent reviewer in the parent session |
 
 The agent that wrote the round 1 fixes holds no Agent tool and authored them, so
 it cannot review them. The parent session runs the independent round 2 re-review
@@ -258,6 +258,22 @@ record` (a code file committed through `hunks` is recorded with `hunks <path>
 Each new test was forced red by breaking its producer (the journal reader, the
 review hash, the RFC read, the sides' selection, the record hash, each Apply
 refusal, the script's moved-path list, `Selection.Read`), then restored green.
+
+### Round 2
+
+Round 2 ran in the parent session over 322391f9eb and f442e95663: 0 BLOCKER,
+1 ISSUE, 2 NOTE. The fixes below are in the round 2 fix commit; round 3 is owed
+over it, run by the parent session.
+
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | `changedProblem` split `git diff --name-only` on whitespace, so a path with a space read as two names and the patch was refused for changing a path it never touched | `internal/le/commit/hunks/hunks.go` Apply, changedProblem | `diff --name-only -z`, split on NUL; the script already names each path in a single-quoted shell word and reads git's names NUL-terminated, proven end to end; `TestApplyAdmitsPathWithSpace`, `TestCreateHunksPathWithSpace`; committing.md says a space is not a quoted path |
+| 2 | NOTE | `Selection.Blob` answered "not selected" for a malformed entry, so `Read` fell back to the working tree | `internal/le/commit/hunks/hunks.go` Selection | `Selected` answers membership; `Blob` answers an error for an entry that is not a `git ls-files -s` line of that path; `Read` and the review pin surface it, `fileStats` reports the counts unavailable; `TestSelectionRefusesMalformedEntry` |
+| 3 | NOTE | The stale-pin hint held `...`, so it could not be pasted | `internal/le/commit/review.go` checkReviewSelected | `Selection` carries each path's patch; `hunksReviewRecord` prints the whole shell-quoted record from the artifact's rounds and reviewers, each hunks path with its patch and every other code file; `TestReviewHunksStaleNamesExactRecord`, `TestReviewHunksComparesLikeWithLike` |
+
+Each round 2 test was forced red by breaking its producer (a whitespace split
+of the changed names, a `Read` that falls back when `Blob` fails, the old `...`
+hint), then restored green.
 
 ## Pre-Commit Verification
 

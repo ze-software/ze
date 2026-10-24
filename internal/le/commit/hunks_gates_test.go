@@ -33,7 +33,7 @@ func selectFixture(t *testing.T, root, path, head, mine, both string) hunks.Sele
 	if err != nil {
 		t.Fatal(err)
 	}
-	return hunks.Selection{path: entry}
+	return hunks.Selection{path: {Entry: entry, Patch: patch}}
 }
 
 // TestClosureStemHunksJudgesSelectedOwner proves the owned-row guard reads a
@@ -171,7 +171,7 @@ func TestReviewHunksComparesLikeWithLike(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	selection := hunks.Selection{path: entry}
+	selection := hunks.Selection{path: {Entry: entry, Patch: patch}}
 	content, err := hunks.Content(root, path, patch)
 	if err != nil {
 		t.Fatal(err)
@@ -195,7 +195,7 @@ func TestReviewHunksComparesLikeWithLike(t *testing.T) {
 	if result.Clean {
 		t.Fatal("a pin over the working-tree file vouched for the selected content")
 	}
-	if !strings.Contains(strings.Join(result.Problems, "\n"), "hunks "+path) {
+	if !strings.Contains(strings.Join(result.Problems, "\n"), "hunks "+shellQuote(path)+" "+shellQuote(patch)) {
 		t.Fatalf("the stale refusal names no hunks record: %v", result.Problems)
 	}
 }
@@ -228,5 +228,56 @@ func TestScriptHunksRefusesPeerCommitOnPath(t *testing.T) {
 	}
 	if committed := runCommitGitOutput(t, root, "show", "HEAD:shared.txt"); committed != peer {
 		t.Fatalf("HEAD holds %q, want the peer's commit untouched", committed)
+	}
+}
+
+// TestReviewHunksStaleNamesExactRecord proves the stale-pin refusal of a hunks
+// path carries the exact command that re-pins the review: the spec stem, the
+// rounds and reviewers the artifact holds, each hunks path with the patch the
+// commit names, and every other code file whole, each value shell-quoted.
+//
+// VALIDATES: the refusal holds the whole command, and its words parse back to
+// the record keywords and values.
+// PREVENTS: a hint with a placeholder the author must fill in by hand.
+func TestReviewHunksStaleNamesExactRecord(t *testing.T) {
+	root := newCommitRepository(t)
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "hunks-review-record-fixture")
+	configureCommitAuthor(t, root)
+	const path = "pkg/shared one.go"
+	const other = "pkg/other.go"
+	commitFixture(t, root, "base", map[string]string{path: hunkBase, other: "package pkg\n"}, nil)
+	writeCommitFixture(t, root, other, "package pkg\n\n// Changed.\n")
+	patch := writeHunkPatch(t, root, path, hunkMine, hunkBoth)
+	entry, err := hunks.Apply(root, headOf(t, root), path, patch)
+	if err != nil {
+		t.Fatal(err)
+	}
+	selection := hunks.Selection{path: {Entry: entry, Patch: patch}}
+	relative, err := spec.ReviewArtifactPath(root, "demo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeCommitFixture(t, root, relative, "<!-- ze-review spec=demo verdict=clean rounds=2 reviewers=alice model=m ts=t -->\nfiles:\n"+
+		"  "+reviewHash(filepath.Join(root, filepath.FromSlash(path)))+"  "+path+"\n"+
+		"  "+reviewHash(filepath.Join(root, other))+"  "+other+"\n")
+
+	result := checkReviewSelected(root, "demo", []string{path, other}, selection)
+	if result.Clean {
+		t.Fatal("a pin over the working-tree file vouched for the selected content")
+	}
+	want := "./le spec review record spec 'demo' verdict clean rounds 2 reviewers 'alice' file 'pkg/other.go' hunks 'pkg/shared one.go' " +
+		shellQuote(patch)
+	problems := strings.Join(result.Problems, "\n")
+	if !strings.Contains(problems, "\n  "+want) {
+		t.Fatalf("the stale refusal does not carry the exact record command\n got: %s\nwant: %s", problems, want)
+	}
+	words := parseShellWords(strings.TrimPrefix(want, "./le spec review record "))
+	wantWords := []string{"spec", "demo", "verdict", "clean", "rounds", "2", "reviewers", "alice",
+		"file", other, "hunks", path, patch}
+	if strings.Join(words, "|") != strings.Join(wantWords, "|") {
+		t.Fatalf("the command parses to %q, want %q", words, wantWords)
+	}
+	if strings.Contains(problems, "...") {
+		t.Fatalf("the refusal still carries a placeholder: %s", problems)
 	}
 }

@@ -480,20 +480,77 @@ func checkReviewSelected(root, stem string, paths []string, selection hunks.Sele
 		result.Problems = []string{"no independent-review artifact at " + artifact}
 		return result
 	}
+	var unreadable []string
 	judgeReviewCoverage(&result, string(content), paths, func(path string) string {
-		if _, selected := selection.Blob(path); selected {
-			return selectedReviewHash(root, path, selection)
+		if !selection.Selected(path) {
+			return reviewHash(filepath.Join(root, filepath.FromSlash(path)))
 		}
-		return reviewHash(filepath.Join(root, filepath.FromSlash(path)))
+		carried, err := selection.Read(root, path)
+		if err != nil {
+			unreadable = append(unreadable, err.Error())
+		}
+		return reviewDigest(carried, err)
 	})
+	result.Problems = append(result.Problems, unreadable...)
+	var repin []string
 	for _, path := range append(slices.Clone(result.Stale), result.Unreviewed...) {
-		if _, selected := selection.Blob(path); selected {
-			result.Problems = append(result.Problems, path+" is committed by hunks, so the review pins the content this "+
-				"commit carries, not the working-tree file: record it with ./le spec review record spec "+stem+
-				" ... hunks "+path+" <the patch this commit names>")
+		if selection.Selected(path) {
+			repin = append(repin, path)
 		}
 	}
+	if len(repin) != 0 {
+		result.Problems = append(result.Problems, countedPaths(len(repin), " path(s) committed by hunks: ", repin)+
+			"; the review pins the content this commit carries, not the working-tree file, so record it again with:\n  "+
+			hunksReviewRecord(stem, string(content), result.CodeFiles, selection))
+		result.Clean = false
+	}
 	return result
+}
+
+// reviewHeaderValues read the record keywords a review artifact holds, so the
+// command that re-records it carries the same reviewers, rounds and reasons.
+var (
+	reviewRoundsPattern    = regexp.MustCompile(`<!-- ze-review\s+[^>]*rounds=(\d+)`)
+	reviewReviewersPattern = regexp.MustCompile(`<!-- ze-review\s+[^>]*reviewers=([^\s>]+)`)
+	reviewReasonPattern    = regexp.MustCompile(`(?m)^rounds-reason: (.+)$`)
+	reviewOwnerPattern     = regexp.MustCompile(`(?m)^owner-authorised: (.+)$`) //nolint:misspell // owner-authorised is the artifact line spec.reviewArtifact.Document writes
+)
+
+// hunksReviewRecord answers the exact `./le spec review record` command that
+// re-pins the review over every code file of this commit: each hunks path with
+// the patch the commit names, every other code file whole, and the verdict,
+// rounds, reviewers and reasons the artifact already holds. A record replaces
+// the artifact, so the command names the whole population, never only the
+// stale path. Every value is shell-quoted, so a path with a space pastes as one
+// word.
+func hunksReviewRecord(stem, artifactText string, codeFiles []string, selection hunks.Selection) string {
+	var command textbuf.Buffer
+	command.Str("./le spec review record spec ").Str(shellQuote(stem)).Str(" verdict clean rounds ")
+	// An artifact `record` wrote always holds its rounds. One that does not
+	// was written by hand, and no value here would be its truth, so the
+	// command names the hole rather than inventing a count.
+	if match := reviewRoundsPattern.FindStringSubmatch(artifactText); len(match) == 2 {
+		command.Str(match[1])
+	} else {
+		command.Str("<the rounds the review ran: the artifact names none>")
+	}
+	if match := reviewReviewersPattern.FindStringSubmatch(artifactText); len(match) == 2 {
+		command.Str(" reviewers ").Str(shellQuote(match[1]))
+	}
+	if match := reviewReasonPattern.FindStringSubmatch(artifactText); len(match) == 2 {
+		command.Str(" rounds-reason ").Str(shellQuote(match[1]))
+	}
+	if match := reviewOwnerPattern.FindStringSubmatch(artifactText); len(match) == 2 {
+		command.Str(" owner-authorised ").Str(shellQuote(match[1])) //nolint:misspell // owner-authorised is the review record keyword spec.parseReviewRecord reads
+	}
+	for _, path := range codeFiles {
+		if selection.Selected(path) {
+			command.Str(" hunks ").Str(shellQuote(path)).Byte(' ').Str(shellQuote(selection[path].Patch))
+			continue
+		}
+		command.Str(" file ").Str(shellQuote(path))
+	}
+	return command.String()
 }
 
 // judgeReviewCoverage fills the verdict, the coverage and the problems of one
@@ -556,12 +613,6 @@ func countedPaths(count int, what string, paths []string) string {
 		text.Str(path)
 	}
 	return text.String()
-}
-
-// selectedReviewHash is reviewHash over the selected blob of a hunks path.
-func selectedReviewHash(root, path string, selection hunks.Selection) string {
-	content, err := selection.Read(root, path)
-	return reviewDigest(content, err)
 }
 
 func reviewHash(path string) string {

@@ -82,7 +82,7 @@ func selectHunks(root, head string, files []string, raw []HunkSelection) ([]stri
 		if err != nil {
 			return nil, nil, err
 		}
-		selection[path] = entry
+		selection[path] = hunks.Selected{Entry: entry, Patch: patch}
 		paths = append(paths, path)
 	}
 	return paths, selection, nil

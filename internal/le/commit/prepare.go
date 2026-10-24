@@ -255,7 +255,7 @@ func Create(root string, options *Options) (Prepared, error) {
 		return result, err
 	}
 	for _, path := range hunkPaths {
-		entries = append(entries, selection[path])
+		entries = append(entries, selection[path].Entry)
 	}
 	block := commitBlock{
 		Tag: tag, Subject: strings.TrimSpace(options.Subject), Paths: paths, Removed: removed,

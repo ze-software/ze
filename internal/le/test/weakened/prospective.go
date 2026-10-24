@@ -335,7 +335,7 @@ func groupAtDepth(paths []string, depth int) map[string][]string {
 func selectedEntries(selection hunks.Selection) string {
 	var text textbuf.Buffer
 	for _, path := range selection.Paths() {
-		text.Str(selection[path]).Byte('\n')
+		text.Str(selection[path].Entry).Byte('\n')
 	}
 	return text.String()
 }
@@ -345,7 +345,7 @@ func selectedEntries(selection hunks.Selection) string {
 func worktreePaths(paths []string, selection hunks.Selection) []string {
 	kept := make([]string, 0, len(paths))
 	for _, path := range paths {
-		if _, selected := selection.Blob(path); !selected {
+		if !selection.Selected(path) {
 			kept = append(kept, path)
 		}
 	}

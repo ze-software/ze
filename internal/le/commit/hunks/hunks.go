@@ -17,16 +17,25 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 )
 
 // Selection is the content a prepared commit carries for each path whose hunks
-// were selected: the path's `git ls-files -s` line, which names the blob.
+// were selected, keyed by path.
 //
 // A gate that reads a selected path MUST read it through Read: the working-tree
 // file holds hunks the commit does not carry. A nil Selection selects nothing,
 // so Read then answers the working tree for every path.
-type Selection map[string]string
+type Selection map[string]Selected
+
+// Selected is one selected path: the `git ls-files -s` line that names the
+// blob the commit carries, and the patch file the commit named, which a gate
+// quotes back when it tells the author which command to run again.
+type Selected struct {
+	Entry string
+	Patch string
+}
 
 // Paths answers the selected paths in sorted order.
 func (s Selection) Paths() []string {
@@ -38,25 +47,50 @@ func (s Selection) Paths() []string {
 	return paths
 }
 
-// Blob answers the object name the commit carries for path, and false when the
-// path is not selected.
-func (s Selection) Blob(path string) (string, bool) {
-	entry, selected := s[path]
-	if !selected {
-		return "", false
+// Selected reports whether the commit carries path from a selected blob
+// rather than from the working tree.
+func (s Selection) Selected(path string) bool {
+	_, selected := s[path]
+	return selected
+}
+
+// Blob answers the object name the commit carries for a selected path. It
+// MUST be called only for a path Selected reports. A path that is not
+// selected, or whose entry is not a `git ls-files -s` line, is an error:
+// answering the working tree there would judge content the commit does not
+// carry.
+func (s Selection) Blob(path string) (string, error) {
+	selected, found := s[path]
+	if !found {
+		return "", errors.New("hunks " + path + ": the path is not selected, so it has no selected blob")
 	}
-	fields := strings.Fields(entry)
-	if len(fields) < 2 {
-		return "", false
+	metadata, name, found := strings.Cut(selected.Entry, "\t")
+	if !found {
+		return "", errors.New("hunks " + path + ": the selected entry " + strconv.Quote(selected.Entry) +
+			" is not a `git ls-files -s` line; this is a defect in ./le commit create, report it with this command line")
 	}
-	return fields[1], true
+	fields := strings.Fields(metadata)
+	if len(fields) != 3 {
+		return "", errors.New("hunks " + path + ": the selected entry " + strconv.Quote(selected.Entry) +
+			" is not a `git ls-files -s` line; this is a defect in ./le commit create, report it with this command line")
+	}
+	if name != path {
+		return "", errors.New("hunks " + path + ": the selected entry " + strconv.Quote(selected.Entry) +
+			" names another path; this is a defect in ./le commit create, report it with this command line")
+	}
+	return fields[1], nil
 }
 
 // Read answers the bytes the commit carries for path: the selected blob when
 // path is selected, otherwise the working-tree file under root. An absent
-// working-tree file answers an error that wraps os.ErrNotExist.
+// working-tree file answers an error that wraps os.ErrNotExist, and a selected
+// path whose entry names no blob answers Blob's error.
 func (s Selection) Read(root, path string) ([]byte, error) {
-	if blob, selected := s.Blob(path); selected {
+	if s.Selected(path) {
+		blob, err := s.Blob(path)
+		if err != nil {
+			return nil, err
+		}
 		out, err := git(root, nil, "cat-file", "blob", blob)
 		if err != nil {
 			return nil, errors.New("read the selected content of " + path + ": " + err.Error())
@@ -91,7 +125,7 @@ func Content(root, path, patchFile string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return Selection{path: entry}.Read(root, path)
+	return Selection{path: {Entry: entry, Patch: patchFile}}.Read(root, path)
 }
 
 // Apply answers the `git ls-files -s` line for path once the patch in
@@ -146,7 +180,7 @@ func Apply(root, head, path, patchFile string) (string, error) {
 			"  save it again from the current file with `git diff -- " + path + " > " + patchFile +
 			"`, delete the hunks this commit must not carry, and run ./le commit create again")
 	}
-	changed, err := git(root, index, "-c", "core.quotePath=false", "diff", "--cached", "--name-only", head)
+	changed, err := git(root, index, "diff", "--cached", "--name-only", "-z", head)
 	if err != nil {
 		return "", errors.New("hunks " + path + ": list what the patch changed: " + err.Error())
 	}
@@ -214,11 +248,18 @@ func binaryProblem(path, stats string) string {
 	return ""
 }
 
-// changedProblem judges the paths the patch changed against the one path it
-// was named for, and answers the refusal, or "" when the patch changed exactly
-// that path.
+// changedProblem judges the paths the patch changed, as `git diff --name-only
+// -z` lists them, against the one path it was named for, and answers the
+// refusal, or "" when the patch changed exactly that path. The names are read
+// NUL-terminated because a path may hold a space or a newline, and -z prints
+// each name verbatim, never quoted.
 func changedProblem(path, patchFile, changed string) string {
-	paths := strings.Fields(strings.TrimSpace(changed))
+	paths := make([]string, 0, 1)
+	for name := range strings.SplitSeq(changed, "\x00") {
+		if name != "" {
+			paths = append(paths, name)
+		}
+	}
 	if len(paths) == 0 {
 		return "hunks " + path + ": the patch " + patchFile + " changes nothing against HEAD; " +
 			"it is empty or every hunk is already committed, so there is nothing to commit for " + path

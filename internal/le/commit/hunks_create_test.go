@@ -166,3 +166,51 @@ func TestCreateHunksGatesJudgeSelectedBlob(t *testing.T) {
 		t.Fatal("a hunks commit was reported FRESH from the working-tree manifest")
 	}
 }
+
+// TestCreateHunksPathWithSpace proves a hunks path holding a space goes
+// through create and the generated script as one path: Apply admits it, the
+// block marker declares it as one shell word, and the script commits HEAD's
+// blob plus only the selected hunk while the working tree keeps both.
+//
+// VALIDATES: the declared paths of the rendered script, the committed blob,
+// the working-tree file and the shared index after the script runs.
+// PREVENTS: a space path refused at create, or split into two shell words by
+// the script.
+func TestCreateHunksPathWithSpace(t *testing.T) {
+	root := newCommitRepository(t)
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "hunks-space-fixture")
+	configureCommitAuthor(t, root)
+	const path = "notes dir/shared file.txt"
+	writeCommitFixture(t, root, path, hunkBase)
+	runCommitGit(t, root, "add", "--", path)
+	runCommitGit(t, root, "commit", "-q", "--no-gpg-sign", "-m", "shared")
+	patch := writeHunkPatch(t, root, path, hunkMine, hunkBoth)
+
+	prepared, err := Create(root, &Options{Subject: "my hunk", Hunks: []HunkSelection{{Path: path, Patch: patch}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	script, err := os.ReadFile(filepath.Join(root, prepared.Script))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if declared := declaredPaths(string(script)); !declared[path] || len(declared) != 1 {
+		t.Fatalf("the script declares %v, want the one path %q", declared, path)
+	}
+	if output, err := runScript(t, root, prepared.Script); err != nil {
+		t.Fatalf("the script failed: %v\n%s", err, output)
+	}
+	if committed := runCommitGitOutput(t, root, "show", "HEAD:"+path); committed != hunkMine {
+		t.Fatalf("HEAD holds %q, want HEAD's blob plus only the selected hunk %q", committed, hunkMine)
+	}
+	disk, err := os.ReadFile(filepath.Join(root, path))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(disk) != hunkBoth {
+		t.Fatalf("working tree holds %q, want both sessions' hunks %q", disk, hunkBoth)
+	}
+	if staged := runCommitGitOutput(t, root, "diff", "--cached", "--name-only"); staged != "" {
+		t.Fatalf("the shared index differs from HEAD for %q, want it pointed at the commit", staged)
+	}
+}

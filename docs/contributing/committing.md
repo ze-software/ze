@@ -116,7 +116,14 @@ apply to HEAD's blob, changes binary content (a binary file has no hunks to
 choose, so commit it whole with `file`), changes nothing, changes another path
 as well, or deletes the path (a deletion is `remove`). A path git quotes in its
 output (a control character, a double quote or a backslash) is refused too:
-rename it first, because the script cannot name it.
+rename it first, because the script cannot name it. A space is not one of
+those: git lists the paths a patch changed NUL-terminated, and the script
+names every path in a single-quoted shell word, so a path with a space is
+selected and committed as one path.
+
+A selected path whose entry is not a `git ls-files -s` line for that path is an
+error at every gate that reads it, never a fall back to the working-tree file,
+which holds hunks the commit does not carry.
 
 These gates judge the selected blob, never the working-tree file, because each
 reads a hunks path through `hunks.Selection.Read`: the weakening gate and the
@@ -126,9 +133,13 @@ entry or an open row that only the working tree holds counts as absent), the
 spec-closure sides, and the review pin.
 
 The review pin compares like with like. Record the review of a hunks code file
-with the same pair, `./le spec review record spec <stem> ... hunks <path>
-<patch-file>`, which pins HEAD's blob with the patch applied; a pin taken over
-the working-tree file is stale, and the refusal names that record.
+with the same pair, `./le spec review record spec <stem> verdict clean rounds
+<n> hunks <path> <patch-file>`, which pins HEAD's blob with the patch applied.
+A pin taken over the working-tree file is stale, and the refusal prints the
+whole record command to paste: the rounds and reviewers the artifact holds,
+each hunks path with the patch the commit names, and every other code file of
+the commit as `file`, each value shell-quoted. A record replaces the artifact,
+so the command names every code file, never only the stale one.
 
 Three judgements do not read the selected blob, and each says so:
 
@@ -149,6 +160,7 @@ unstaged changes against the new commit. `./le repo compiles check` after the
 script judges what the commit holds, as for any commit.
 <!-- source: internal/le/commit/hunks/hunks.go -- Apply, Selection -->
 <!-- source: internal/le/commit/hunks_select.go -- selectHunks -->
+<!-- source: internal/le/commit/review.go -- hunksReviewRecord -->
 <!-- source: internal/le/commit/prepare.go -- Create, checkVerificationGates -->
 <!-- source: internal/le/commit/review.go -- closureStemSelected, checkReviewSelected -->
 <!-- source: internal/le/spec/review.go -- recordedHash -->
