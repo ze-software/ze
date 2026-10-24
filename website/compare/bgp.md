@@ -451,10 +451,10 @@ has no programmatic API, YANG model, or structured logging.
 
 **Ze is pre-release. Why trust it yet?**
 
-Do not take that on faith: it is backed by {{ze:unit-tests}} unit tests,
+Do not take that on faith: it is backed by {{ze:unit-tests}} Go test functions,
 {{ze:e2e-tests}} end-to-end tests, {{ze:fuzz-targets}} fuzz targets, and
-interop testing against {{ze:interop-targets}} independent BGP
-implementations. That evidence can be checked. It is not a promise. Ze
+{{ze:interop-targets}} interoperability test images covering routing and
+network services. That evidence can be checked. It is not a promise. Ze
 does not have operational mileage yet: real deployments over real time,
 on real networks. Use it in labs first.
 
