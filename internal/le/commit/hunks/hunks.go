@@ -78,16 +78,35 @@ func (s Selection) Read(root, path string) ([]byte, error) {
 	return content, nil
 }
 
+// Content answers the bytes a commit naming `hunks path patchFile` would carry
+// now: HEAD's blob of path with the patch applied, built the way Apply builds
+// it. The review record pins these bytes, so the commit gate compares the
+// selected blob with a pin taken over the same content.
+func Content(root, path, patchFile string) ([]byte, error) {
+	head, err := git(root, nil, "rev-parse", "--verify", "HEAD^{commit}")
+	if err != nil {
+		return nil, errors.New("hunks " + path + ": read HEAD: " + err.Error())
+	}
+	entry, err := Apply(root, strings.TrimSpace(string(head)), path, patchFile)
+	if err != nil {
+		return nil, err
+	}
+	return Selection{path: entry}.Read(root, path)
+}
+
 // Apply answers the `git ls-files -s` line for path once the patch in
 // patchFile is applied to the content commit head holds for path.
 //
 // The patch applies to a private index read from head, never to the shared
 // index or the working tree. It MUST change path and nothing else: a patch that
-// does not apply, changes nothing, touches another path, or deletes path is
-// refused, each with the step that fixes it. The caller MUST record head as the
+// does not apply, changes binary content, changes nothing, touches another
+// path, or deletes path is refused, each with the step that fixes it. The caller MUST record head as the
 // commit's prepared parent, so the script refuses when a peer changed path
 // after the blob was built.
 func Apply(root, head, path, patchFile string) (string, error) {
+	if mustQuote(path) {
+		return "", errors.New(quotedProblem(path))
+	}
 	if err := os.MkdirAll(filepath.Join(root, "tmp"), 0o750); err != nil {
 		return "", err
 	}
@@ -104,6 +123,22 @@ func Apply(root, head, path, patchFile string) (string, error) {
 	short := head
 	if len(short) > 10 {
 		short = short[:10]
+	}
+	body, err := os.ReadFile(patchFile) //nolint:gosec // the patch is the file the caller named for this commit
+	if err != nil {
+		return "", errors.New("hunks " + path + ": read the patch " + patchFile + ": " + err.Error())
+	}
+	if len(bytes.TrimSpace(body)) == 0 {
+		return "", errors.New("hunks " + path + ": the patch " + patchFile + " is empty, so there is nothing to commit for " + path +
+			"\n  save it with `git diff -- " + path + " > " + patchFile + "` and delete only the hunks this commit must not carry")
+	}
+	stats, err := git(root, nil, "apply", "--numstat", "--", patchFile)
+	if err != nil {
+		return "", errors.New("hunks " + path + ": the patch " + patchFile + " is not a patch git can read: " + err.Error() +
+			"\n  save it with `git diff -- " + path + " > " + patchFile + "` and delete the hunks this commit must not carry")
+	}
+	if problem := binaryProblem(path, string(stats)); problem != "" {
+		return "", errors.New(problem)
 	}
 	if _, err := git(root, index, "apply", "--cached", "--whitespace=nowarn", "--", patchFile); err != nil {
 		return "", errors.New("hunks " + path + ": the patch " + patchFile + " does not apply to " + path +
@@ -127,11 +162,56 @@ func Apply(root, head, path, patchFile string) (string, error) {
 		return "", errors.New("hunks " + path + ": the patch " + patchFile + " deletes " + path +
 			"; a deletion is committed with remove " + path + ", not hunks")
 	}
-	if strings.Contains(entry, "\n") || !strings.HasSuffix(entry, "\t"+path) {
-		return "", errors.New("hunks " + path + ": git staged an entry this commit cannot name: " + entry +
-			"; a path git must quote cannot be committed by a script")
+	if strings.Contains(entry, "\n") {
+		return "", errors.New(quotedProblem(path) + "\n  git staged: " + entry)
+	}
+	if !strings.HasSuffix(entry, "\t"+path) {
+		return "", errors.New(quotedProblem(path) + "\n  git staged: " + entry)
 	}
 	return entry, nil
+}
+
+// mustQuote reports whether git quotes path in its output even with
+// core.quotePath=false: a control character, a double quote or a backslash.
+// The script names each path in a shell word and an index line git reads
+// back, and a quoted name matches neither.
+func mustQuote(path string) bool {
+	for _, character := range []byte(path) {
+		if character < 0x20 {
+			return true
+		}
+		if character == 0x7f {
+			return true
+		}
+		if character == '"' {
+			return true
+		}
+		if character == '\\' {
+			return true
+		}
+	}
+	return false
+}
+
+// quotedProblem is the refusal for a path git must quote, with the fix.
+func quotedProblem(path string) string {
+	return "hunks " + path + ": git quotes this path in its output, so the commit script cannot name it. " +
+		"Rename the file to a name with no control character, double quote or backslash, " +
+		"commit the rename through ./le commit create (remove the old name, file the new one), then select its hunks again"
+}
+
+// binaryProblem answers the refusal for a patch that changes binary content,
+// which `git apply --numstat` reports as "-" counts, or "" when every change
+// is text. A binary change has no hunks to choose between, so the commit names
+// the whole file instead.
+func binaryProblem(path, stats string) string {
+	for line := range strings.SplitSeq(strings.TrimSpace(stats), "\n") {
+		if strings.HasPrefix(line, "-\t-\t") {
+			return "hunks " + path + ": the patch changes binary content, which has no hunks to select; " +
+				"commit the whole file with file " + path + " instead"
+		}
+	}
+	return ""
 }
 
 // changedProblem judges the paths the patch changed against the one path it

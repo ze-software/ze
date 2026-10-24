@@ -69,7 +69,10 @@ func selectedFileStat(root, path, blob string) FileStat {
 	command.Dir = root
 	out, err := command.Output()
 	fields := strings.Fields(string(out))
-	if err != nil || len(fields) < 2 {
+	if err != nil {
+		return FileStat{Path: path, Added: statUnavailable, Deleted: statUnavailable}
+	}
+	if len(fields) < 2 {
 		return FileStat{Path: path, Added: statUnavailable, Deleted: statUnavailable}
 	}
 	return FileStat{Path: path, Added: countOrUnavailable(fields[0]), Deleted: countOrUnavailable(fields[1])}

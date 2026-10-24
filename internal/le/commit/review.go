@@ -129,8 +129,11 @@ func closureStem(root string, paths, removed []string, base specjournal.Base) (s
 }
 
 // closureStemSelected is closureStem over a commit whose hunks paths carry
-// the selected blob: the spec sides read a selected path through selection.
+// the selected blob: the journal shape check, the owned-row check and the spec
+// sides all read a selected path through selection, so a row or an owner entry
+// that only the working tree holds is judged absent.
 func closureStemSelected(root string, paths, removed []string, base specjournal.Base, selection hunks.Selection) (string, error) {
+	carried := func(path string) ([]byte, error) { return selection.Read(root, path) }
 	for _, path := range paths {
 		if !strings.HasPrefix(path, "plan/journal/") {
 			continue
@@ -141,7 +144,7 @@ func closureStemSelected(root string, paths, removed []string, base specjournal.
 		if filepath.Base(path) == "README.md" {
 			continue
 		}
-		report, err := specjournal.ValidateFile(root, path)
+		report, err := specjournal.ValidateCarried(root, path, carried)
 		if err != nil {
 			return "", fmt.Errorf("validate journal %s: %w", path, err)
 		}
@@ -149,7 +152,7 @@ func closureStemSelected(root string, paths, removed []string, base specjournal.
 			return "", fmt.Errorf("journal is not commit-readable:\n%s", strings.TrimSuffix(report.Text(), "\n"))
 		}
 	}
-	unowned, err := specjournal.UnownedOpenRows(root, paths, removed, base)
+	unowned, err := specjournal.UnownedOpenRows(root, paths, removed, base, carried)
 	if err != nil {
 		return "", fmt.Errorf("read journal row owners: %w", err)
 	}
@@ -462,8 +465,10 @@ func CheckReview(root, stem string, paths []string) ReviewResult {
 }
 
 // checkReviewSelected is CheckReview over a commit whose hunks paths carry the
-// selected blob: the review must have pinned that content, not the
-// working-tree file, which holds hunks the commit leaves behind.
+// selected blob: the review must have pinned that content, which
+// `le spec review record ... hunks <path> <patch>` does, not the working-tree
+// file, which holds hunks the commit leaves behind. Like is compared with like:
+// the pin and the gate both hash HEAD's blob with the patch applied.
 func checkReviewSelected(root, stem string, paths []string, selection hunks.Selection) ReviewResult {
 	artifact, err := spec.ReviewArtifactPath(root, stem)
 	if err != nil {
@@ -481,6 +486,13 @@ func checkReviewSelected(root, stem string, paths []string, selection hunks.Sele
 		}
 		return reviewHash(filepath.Join(root, filepath.FromSlash(path)))
 	})
+	for _, path := range append(slices.Clone(result.Stale), result.Unreviewed...) {
+		if _, selected := selection.Blob(path); selected {
+			result.Problems = append(result.Problems, path+" is committed by hunks, so the review pins the content this "+
+				"commit carries, not the working-tree file: record it with ./le spec review record spec "+stem+
+				" ... hunks "+path+" <the patch this commit names>")
+		}
+	}
 	return result
 }
 

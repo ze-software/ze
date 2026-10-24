@@ -104,8 +104,10 @@ func (base Base) read(root string, paths []string) (map[string]string, error) {
 // the base otherwise. The tables come from the specs the commit carries, read
 // in the working tree, and from every other spec in the base, so an owner
 // neither committed, nor carried by an earlier block, nor part of this commit
-// owns nothing, and a removed spec owns nothing.
-func UnownedOpenRows(root string, paths, removed []string, base Base) ([]UnownedRow, error) {
+// owns nothing, and a removed spec owns nothing. "The working tree" is what
+// carried answers: the content the commit carries for each path it names, which
+// for a path committed by `hunks` is the selected blob, not the file on disk.
+func UnownedOpenRows(root string, paths, removed []string, base Base, carried Reader) ([]UnownedRow, error) {
 	classes, specs := carriedOwnerFiles(paths, removed)
 	if len(classes) == 0 && len(specs) == 0 {
 		return nil, nil
@@ -114,11 +116,11 @@ func UnownedOpenRows(root string, paths, removed []string, base Base) ([]Unowned
 	if err != nil {
 		return nil, err
 	}
-	judged, rows, err := carriedOpenRows(root, classes, prior)
+	judged, rows, err := carriedOpenRows(carried, classes, prior)
 	if err != nil {
 		return nil, err
 	}
-	listed, err := listedKeys(root, specs, removed, prior)
+	listed, err := listedKeys(carried, specs, removed, prior)
 	if err != nil {
 		return nil, err
 	}
@@ -131,7 +133,7 @@ func UnownedOpenRows(root string, paths, removed []string, base Base) ([]Unowned
 	if len(judged) == 0 {
 		return nil, nil
 	}
-	owned, err := ownedRows(root, paths, removed, base)
+	owned, err := ownedRows(root, paths, removed, base, carried)
 	if err != nil {
 		return nil, err
 	}
@@ -159,11 +161,11 @@ func carriedOwnerFiles(paths, removed []string) (classes, specs []string) {
 
 // carriedOpenRows answers the open rows of the class files the commit carries,
 // by key, and the keys whose rows the commit adds or changes against prior.
-func carriedOpenRows(root string, classes []string, prior map[string]string) (map[classDate]bool, map[classDate][]UnownedRow, error) {
+func carriedOpenRows(carried Reader, classes []string, prior map[string]string) (map[classDate]bool, map[classDate][]UnownedRow, error) {
 	judged := map[classDate]bool{}
 	rows := map[classDate][]UnownedRow{}
 	for _, path := range classes {
-		content, err := readTreeFile(root, path)
+		content, err := carried.text(path)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -185,14 +187,14 @@ func carriedOpenRows(root string, classes []string, prior map[string]string) (ma
 
 // listedKeys counts the keys the specs the commit carries or removes list, on
 // either side: their prior content and, unless removed, their working tree.
-func listedKeys(root string, specs, removed []string, prior map[string]string) (map[classDate]int, error) {
+func listedKeys(carried Reader, specs, removed []string, prior map[string]string) (map[classDate]int, error) {
 	listed := map[classDate]int{}
 	for _, path := range specs {
 		countOwnedRows(prior[path], listed)
 		if slices.Contains(removed, path) {
 			continue
 		}
-		content, err := readSpecTable(root, path)
+		content, err := readSpecTable(carried, path)
 		if err != nil {
 			return nil, err
 		}
@@ -309,28 +311,29 @@ func UnownedText(rows []UnownedRow) string {
 }
 
 // ownedRows counts the owned-table entries of every spec by class and date:
-// the specs in paths from the working tree, every other spec from the base.
-func ownedRows(root string, paths, removed []string, base Base) (map[classDate]int, error) {
+// the specs in paths from what the commit carries, every other spec from the
+// base.
+func ownedRows(root string, paths, removed []string, base Base, carried Reader) (map[classDate]int, error) {
 	owned := map[classDate]int{}
-	carried := map[string]bool{}
+	named := map[string]bool{}
 	for _, path := range paths {
 		if !isSpecFile(path) {
 			continue
 		}
-		carried[path] = true
+		named[path] = true
 		if slices.Contains(removed, path) {
 			continue
 		}
-		content, err := readSpecTable(root, path)
+		content, err := readSpecTable(carried, path)
 		if err != nil {
 			return nil, err
 		}
 		countOwnedRows(content, owned)
 	}
 	for _, path := range removed {
-		carried[path] = true
+		named[path] = true
 	}
-	specs, err := uncarriedOwners(root, carried, base)
+	specs, err := uncarriedOwners(root, named, base)
 	if err != nil {
 		return nil, err
 	}
@@ -497,27 +500,47 @@ func isSpecFile(path string) bool {
 	return strings.HasPrefix(filepath.Base(path), "spec-") && strings.HasSuffix(path, markdownExt)
 }
 
-func readTreeFile(root, path string) (string, error) {
-	repository, err := os.OpenRoot(root)
+// Reader answers the bytes a commit carries for a repository-relative path.
+// An absent path answers an error wrapping fs.ErrNotExist. A commit that names
+// whole files carries the working tree (WorkingTree); one that commits some
+// hunks of a path carries a blob the working tree does not hold, so the commit
+// gate passes a Reader that answers it.
+type Reader func(path string) ([]byte, error)
+
+// WorkingTree answers the Reader of the files under root.
+func WorkingTree(root string) Reader {
+	return func(path string) ([]byte, error) {
+		repository, err := os.OpenRoot(root)
+		if err != nil {
+			return nil, err
+		}
+		content, readErr := repository.ReadFile(filepath.FromSlash(path))
+		closeErr := repository.Close()
+		if readErr != nil {
+			return nil, readErr
+		}
+		if closeErr != nil {
+			return nil, closeErr
+		}
+		return content, nil
+	}
+}
+
+// text answers the content read carries for path as a string, naming the path
+// in a read failure.
+func (read Reader) text(path string) (string, error) {
+	content, err := read(path)
 	if err != nil {
-		return "", err
-	}
-	content, readErr := repository.ReadFile(filepath.FromSlash(path))
-	closeErr := repository.Close()
-	if readErr != nil {
-		return "", fmt.Errorf("read %s: %w", path, readErr)
-	}
-	if closeErr != nil {
-		return "", closeErr
+		return "", fmt.Errorf("read %s: %w", path, err)
 	}
 	return string(content), nil
 }
 
-// readSpecTable reads a spec the commit carries. A spec absent from the working
-// tree holds no table, so it owns nothing: the answer can only refuse a commit,
+// readSpecTable reads a spec the commit carries. A spec the commit does not
+// hold holds no table, so it owns nothing: the answer can only refuse a commit,
 // never admit one.
-func readSpecTable(root, path string) (string, error) {
-	content, err := readTreeFile(root, path)
+func readSpecTable(carried Reader, path string) (string, error) {
+	content, err := carried.text(path)
 	if errors.Is(err, fs.ErrNotExist) {
 		return "", nil
 	}

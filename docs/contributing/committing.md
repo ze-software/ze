@@ -111,23 +111,49 @@ changed the path after the blob was built. The blob is in the object database
 from then on, and the script commits its `git ls-files -s` line as it commits a
 `file` snapshot.
 
-The patch is refused, naming the path and the fix, when it does not apply to
-HEAD's blob, changes nothing, changes another path as well, or deletes the
-path (a deletion is `remove`).
+The patch is refused, naming the path and the fix, when it is empty, does not
+apply to HEAD's blob, changes binary content (a binary file has no hunks to
+choose, so commit it whole with `file`), changes nothing, changes another path
+as well, or deletes the path (a deletion is `remove`). A path git quotes in its
+output (a control character, a double quote or a backslash) is refused too:
+rename it first, because the script cannot name it.
 
-Every gate judges the selected blob, never the working-tree file:
-`hunks.Selection.Read` answers a hunks path's content to the weakening gate
-and the prospective index it renames from, the RFC-tagged change gate, the
-test-coverage gate, the spec-closure sides and the review pin. The
-verification state is reported stale, because the certificate's manifest hashes
-the working-tree file, which holds hunks the commit does not carry. The drift
-note and the script's review re-check leave a hunks path out: its working tree
-differs from the commit by design, and its content was judged at create time.
-`./le repo compiles check` after the script judges what the commit holds, as
-for any commit.
+These gates judge the selected blob, never the working-tree file, because each
+reads a hunks path through `hunks.Selection.Read`: the weakening gate and the
+prospective index it renames from, the RFC-tagged change gate, the
+test-coverage gate, the journal shape check and the owned-row guard (an owner
+entry or an open row that only the working tree holds counts as absent), the
+spec-closure sides, and the review pin.
+
+The review pin compares like with like. Record the review of a hunks code file
+with the same pair, `./le spec review record spec <stem> ... hunks <path>
+<patch-file>`, which pins HEAD's blob with the patch applied; a pin taken over
+the working-tree file is stale, and the refusal names that record.
+
+Three judgements do not read the selected blob, and each says so:
+
+- The verification state is reported stale, because the certificate's manifest
+  hashes the working-tree file, which holds hunks the commit does not carry.
+- The structural gate (`structuralGateReds`) charges reds by path from the
+  failure index the last verify run wrote over the working tree, so a hunks
+  path is charged with whatever that run found in the whole file, the other
+  session's hunks included.
+- The drift note and the script's review re-check leave a hunks path out: its
+  working tree differs from the commit by design, and its content was judged
+  at create time.
+
+After the commit lands, the script's shared-index repair
+(`renderSharedIndexRepair`) writes HEAD's entry for every named path, hunks
+paths included, into the shared index, so the other session's hunks show as
+unstaged changes against the new commit. `./le repo compiles check` after the
+script judges what the commit holds, as for any commit.
 <!-- source: internal/le/commit/hunks/hunks.go -- Apply, Selection -->
 <!-- source: internal/le/commit/hunks_select.go -- selectHunks -->
 <!-- source: internal/le/commit/prepare.go -- Create, checkVerificationGates -->
+<!-- source: internal/le/commit/review.go -- closureStemSelected, checkReviewSelected -->
+<!-- source: internal/le/spec/review.go -- recordedHash -->
+<!-- source: internal/le/commit/verification.go -- structuralGateReds -->
+<!-- source: internal/le/commit/script.go -- renderSharedIndexRepair -->
 
 ## What the command refuses
 

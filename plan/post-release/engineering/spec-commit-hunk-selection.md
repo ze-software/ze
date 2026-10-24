@@ -146,10 +146,15 @@ None: `./le commit create` is driven by its package tests over a real repository
 - One keyword with two values, `hunks <path> <patch-file>`, rather than an interactive selection: an agent writes a patch file, and the patch is the reviewable record of what it chose.
 - The blob is computed at create time, against the same HEAD recorded as `PreparedHead`, so the existing guarantee holds unchanged: the script commits the blob create read and refuses when a peer changed the path since.
 - Gates read through one `Selection.Read`, so a hunk path has exactly one content source at create time.
+- The journal readers take the content the commit carries: `specjournal.Reader`, passed to `ValidateCarried` and `UnownedOpenRows` by `closureStemSelected` as `selection.Read`, so an owner entry or an open row only the working tree holds counts as absent. `ValidateFile` and the post-write hook keep the working tree (`specjournal.WorkingTree`).
+- The review pin compares like with like. The reviewer vouches for the bytes that land, so `./le spec review record ... hunks <path> <patch-file>` pins HEAD's blob with the patch applied (`spec.recordedHash` through `hunks.Content`), and `checkReviewSelected` hashes the selected blob. Pinning the working-tree file and comparing it with the working tree was rejected: a patch can carry lines the working tree never held, which no reviewer read. A pin over the working-tree file is stale, and the refusal names the `hunks` record that clears it.
+- A binary patch, an empty patch and a path git quotes are refused in `hunks.Apply` before any blob is built, each with its fix (`file <path>`; save the patch again; rename the path).
 
 ## Known Limitations
 
 - A patch may not delete the file: a deletion is `remove`.
+- The structural gate (`structuralGateReds`) charges reds by path from a failure index written over the working tree, and the verification state is reported stale, so neither judges the selected blob; `docs/contributing/committing.md` names both.
+- `./le spec review check` (standalone, and the script's re-check) hashes the working tree, so the script's re-check leaves a hunks path out; the create-time pin judged it.
 
 ## Checklist
 
@@ -166,3 +171,112 @@ None: `./le commit create` is driven by its package tests over a real repository
 - [ ] `/ze-review` gate clean, recorded via `internal/le/spec/review.go`
 - [ ] **Commit A:** code + tests + docs + edited spec
 - [ ] **Commit B:** `remove plan/post-release/engineering/spec-commit-hunk-selection.md` only
+
+## Implementation Summary
+
+### What Was Implemented
+- [filled at closure, after the round 2 review]
+
+### Bugs Found/Fixed
+- Round 1 review findings, each with its test: see Review Gate, "Findings fixed".
+
+### Documentation Updates
+- `docs/contributing/committing.md`, "Committing some hunks of a shared file"; `ai/rules/points/git-safety/directives/never-defer-a-shared-file-to-an-absent-session.md` (rendered, condensed, linted); `ai/skills/ze-close.md` step 5 names the `hunks` review record. `./le doc check verify`: exit 0.
+
+### Deviations from Plan
+- The review pin is taken over the selected content through a new `hunks` keyword of `./le spec review record` (Key Design Decisions).
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | Commit 322391f9eb threaded the selection into the closure sides but not into the journal readers it calls first | `specjournal.ValidateFile` and `UnownedOpenRows` read the working tree themselves | Independent review, round 1 | Reader parameter; tests forced red |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+
+### Audit Summary
+- **Total items:**
+- **Done:**
+- **Partial:** (each needs user approval)
+- **Skipped:** (each needs user approval)
+- **Changed:** (recorded in Deviations)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Commit HEAD's blob plus only the named hunks, working tree untouched | functional (package test over a real repository and the generated script) | `TestCreateHunksCommitsOnlySelectedHunks` |
+| Every create-time content gate judges the blob that will be committed | package tests, each forced red | `TestCreateHunksGatesJudgeSelectedBlob`, `TestRFCChangeHunksJudgesSelectedBlob`, `TestCoverageHunksJudgesSelectedBlob`, `TestClosureStemHunksJudgesSelectedOwner`, `TestClosureStemHunksIgnoresForeignRow`, `TestClosureSidesHunksReadSelectedBlob`, `TestReviewHunksComparesLikeWithLike` |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| none | | |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | not yet recorded: the round 2 re-review is owed |
+| `./le spec review check` | not run |
+| Rounds | 1 run over 322391f9eb (findings below); round 2 owed over the fix commit |
+| Reviewer lenses used | round 1: independent reviewer in the parent session |
+
+The agent that wrote the round 1 fixes holds no Agent tool and authored them, so
+it cannot review them. The parent session runs the independent round 2 re-review
+over 322391f9eb plus the fix commit and records it with `./le spec review
+record` (a code file committed through `hunks` is recorded with `hunks <path>
+<patch-file>`). Commits A and B are prepared only after a clean run.
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | The owned-row guard and the journal shape check read the working tree for a hunks path | `internal/le/commit/review.go` closureStemSelected; `internal/le/spec/journal/owner.go` UnownedOpenRows | `specjournal.Reader`; `TestClosureStemHunksJudgesSelectedOwner`, `TestClosureStemHunksIgnoresForeignRow` |
+| 2 | ISSUE | The review pin compared the selected blob with a pin over the working-tree file, so a hunks code file was always stale | `internal/le/spec/review.go` reviewFileHash; `internal/le/commit/review.go` checkReviewSelected | `review record ... hunks` pins `hunks.Content`, the refusal names it; `TestReviewHunksComparesLikeWithLike`, `TestRecordReviewHunksPinsSelectedContent` |
+| 3 | ISSUE | No test drove a gate with a hunks path | `internal/le/commit` | `TestRFCChangeHunksJudgesSelectedBlob`, `TestCoverageHunksJudgesSelectedBlob`, `TestClosureSidesHunksReadSelectedBlob`, `TestScriptHunksRefusesPeerCommitOnPath`, `TestApplyRefusals` (empty, deletion, binary, quoted) |
+| 4 | ISSUE | committing.md and the git-safety point claimed every gate judges the selected blob | `docs/contributing/committing.md`; the git-safety point | Both name the gates that do, the structural gate and verification state that do not, and the shared-index repair |
+| 5 | NOTE | Binary paths were not refused | `internal/le/commit/hunks/hunks.go` Apply | `binaryProblem` |
+| 6 | NOTE | The quoted-path refusal gave no fix | `internal/le/commit/hunks/hunks.go` Apply | `mustQuote`, `quotedProblem` |
+
+Each new test was forced red by breaking its producer (the journal reader, the
+review hash, the RFC read, the sides' selection, the record hash, each Apply
+refusal, the script's moved-path list, `Selection.Read`), then restored green.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|

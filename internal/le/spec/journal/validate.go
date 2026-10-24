@@ -81,21 +81,20 @@ func (r ValidationReport) Text() string {
 // marker is checked, held or not, and the Captured: line is resolved against
 // the working tree.
 func ValidateFile(root, rawPath string) (ValidationReport, error) {
+	return ValidateCarried(root, rawPath, WorkingTree(root))
+}
+
+// ValidateCarried is ValidateFile over the content carried answers for the
+// file, which the commit gate passes so a path committed by `hunks` is judged
+// on the selected blob rather than the working-tree file.
+func ValidateCarried(root, rawPath string, carried Reader) (ValidationReport, error) {
 	relative, err := journalRelativePath(root, rawPath)
 	if err != nil {
 		return ValidationReport{}, err
 	}
-	repository, err := os.OpenRoot(root)
+	content, err := carried(relative)
 	if err != nil {
-		return ValidationReport{}, fmt.Errorf("open journal checkout: %w", err)
-	}
-	content, readErr := repository.ReadFile(filepath.FromSlash(relative))
-	closeErr := repository.Close()
-	if readErr != nil {
-		return ValidationReport{}, fmt.Errorf("read journal file %s: %w", relative, readErr)
-	}
-	if closeErr != nil {
-		return ValidationReport{}, fmt.Errorf("close journal checkout: %w", closeErr)
+		return ValidationReport{}, fmt.Errorf("read journal file %s: %w", relative, err)
 	}
 	// A row whose five cells match a HEAD row is unchanged, however it is
 	// spaced and whatever its Fix marker, and is exempt from the length cap.

@@ -242,7 +242,7 @@ func TestUnownedOpenRows(t *testing.T) {
 			for path, body := range test.tree {
 				writeJournalFile(t, root, path, body)
 			}
-			unowned, err := UnownedOpenRows(root, test.paths, test.removed, test.base)
+			unowned, err := UnownedOpenRows(root, test.paths, test.removed, test.base, WorkingTree(root))
 			if err != nil {
 				t.Fatalf("UnownedOpenRows: %v", err)
 			}

@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/le/commit/hunks"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
@@ -34,9 +35,13 @@ var reviewCodeSuffixes = [...]string{".go", ".ci", ".et", ".py", ".sh", ".yang",
 
 // reviewRecord selects the evidence recorded for one independent review.
 type reviewRecord struct {
-	Spec            string
-	Verdict         string
-	Files           []string
+	Spec    string
+	Verdict string
+	Files   []string
+	// Hunks pins a file a commit will carry through `hunks <path> <patch>`:
+	// the review covers HEAD's blob with that patch applied, which is what the
+	// commit lands, not the working-tree file, which holds hunks it leaves out.
+	Hunks           []ReviewHunk
 	Reviewers       string
 	FindingsFile    string
 	Rounds          int
@@ -47,9 +52,24 @@ type reviewRecord struct {
 	SessionID       string
 }
 
+// ReviewHunk is one `hunks <path> <patch>` pair of a review record.
+type ReviewHunk struct {
+	Path  string
+	Patch string
+}
+
 // recordReview validates and atomically records one review artifact.
 func recordReview(root string, request reviewRecord) (reviewArtifact, error) {
-	files := uniqueSorted(request.Files)
+	selected := make(map[string]string, len(request.Hunks))
+	named := slices.Clone(request.Files)
+	for _, pair := range request.Hunks {
+		if _, twice := selected[pair.Path]; twice {
+			return reviewArtifact{}, fmt.Errorf("review_gate: hunks %s is named twice; put every hunk the commit carries for it in one patch", pair.Path)
+		}
+		selected[pair.Path] = pair.Patch
+		named = append(named, pair.Path)
+	}
+	files := uniqueSorted(named)
 	if len(files) == 0 {
 		return reviewArtifact{}, errors.New("review_gate: record needs files")
 	}
@@ -131,7 +151,7 @@ func recordReview(root string, request reviewRecord) (reviewArtifact, error) {
 		artifact.Reviewers = "unspecified"
 	}
 	for _, file := range files {
-		hash, err := reviewFileHash(root, file)
+		hash, err := recordedHash(root, file, selected)
 		if err != nil {
 			return reviewArtifact{}, err
 		}
@@ -205,6 +225,22 @@ func CheckReview(root, spec, sessionID string, files []string) (ReviewCheck, err
 		check.Reason = "stale"
 	}
 	return check, nil
+}
+
+// recordedHash answers the pin a review records for path: the digest of the
+// content a `hunks` commit carries when selected names a patch for it, else
+// the working-tree file's.
+func recordedHash(root, path string, selected map[string]string) (string, error) {
+	patch, isSelected := selected[path]
+	if !isSelected {
+		return reviewFileHash(root, path)
+	}
+	body, err := hunks.Content(root, path, reviewInputPath(root, patch))
+	if err != nil {
+		return "", fmt.Errorf("review_gate: %w", err)
+	}
+	sum := sha256.Sum256(body)
+	return hex.EncodeToString(sum[:]), nil
 }
 
 func reviewFileHash(root, path string) (string, error) {

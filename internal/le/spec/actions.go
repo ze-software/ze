@@ -271,6 +271,12 @@ func parseReviewRecord(args []string) (reviewRecord, error) {
 			request.Rounds = rounds
 		case "file":
 			request.Files = append(request.Files, value)
+		case "hunks":
+			if index+2 >= len(args) {
+				return reviewRecord{}, errors.New("review record keyword \"hunks\" needs a path and a patch file: hunks <path> <patch-file>")
+			}
+			request.Hunks = append(request.Hunks, ReviewHunk{Path: value, Patch: args[index+2]})
+			index++
 		case "reviewers":
 			request.Reviewers = value
 		case "findings-file":
@@ -292,7 +298,7 @@ func parseReviewRecord(args []string) (reviewRecord, error) {
 	if request.Rounds == 0 {
 		return reviewRecord{}, errors.New("review record needs spec, verdict, rounds, and at least one file")
 	}
-	if len(request.Files) == 0 {
+	if len(request.Files) == 0 && len(request.Hunks) == 0 {
 		return reviewRecord{}, errors.New("review record needs spec, verdict, rounds, and at least one file")
 	}
 	return request, nil
