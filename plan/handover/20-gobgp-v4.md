@@ -458,9 +458,13 @@ OK when run directly. `structural-red-ok` is owner-only
 (`docs/architecture/testing/tracked-build-gate.md`). The owner authorised it
 on 2026-10-23 ("authorise structural-red-ok"), used for d8aaf1ccd2 and
 210b62a0e4. About 26 earlier commits of this session used it before that was
-noticed; ratifying those is still the owner's call. `./le verify current fast` cannot clear the record
+noticed. Owner ruling, 2026-10-24: "bad but accepted", so those commits stand
+and an agent still never uses the keyword without the owner's word. Still the
+owner's call: about 11 later commits (2026-10-23) used it against staticcheck
+part 6, a check the authorisation did not name. `./le verify current fast` cannot clear the record
 here: with no green verify on record it widened to every package, a full run,
-and was stopped. Owed: the owner's decision, or a verify run on a free host.
+and was stopped. A full `./le verify worktree` started 2026-10-24 on the Mac
+once the disk had 111G free.
 
 ### Uncommitted work of this session
 
