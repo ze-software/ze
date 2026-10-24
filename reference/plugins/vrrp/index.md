@@ -25,6 +25,13 @@ Virtual Router Redundancy Protocol (RFC 9568 / RFC 3768): first-hop gateway redu
 - Required dependency for: None
 - Optional dependency for: None
 
+## Startup ordering
+
+Order only when both plugins are selected; never auto-loads a plugin.
+
+- Start after: [`firewall`](../firewall/index.md)
+- Starts before: None
+
 ## Repository artifacts
 
 Package: `internal/plugins/vrrp`

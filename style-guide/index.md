@@ -30,6 +30,10 @@ Thomas requested a different Routing color on 24 October 2026:
 
 > The color for routing is ugly.
 
+Thomas requested a review of the complete category palette on 24 October 2026:
+
+> Can you review all the category colours together so they are clearly different, but still subdued and consistent across the site?
+
 1. ### Preserve useful information
 
  Start with an inventory of existing capabilities, differentiators, demonstrations, evidence, deployment options, use cases, updates and release status. Give every item an explicit place in the proposal. Explain each move or reduction in detail. Removing useful information requires the owner's agreement.
@@ -77,7 +81,9 @@ Logo blue identifies Ze. Seven distinct subject colors connect related content a
 
 Category tokens retain their existing names for authored pages. Cards use `-deep` for readable titles and compact category labels on neutral surfaces. Selection controls can use `-base`, `-chip` and `-tint` to express their category and active state. Despite its name, `-deep` becomes lighter in the dark theme. Do not put white text on a bright accent without checking contrast. Normal text needs at least 4.5:1 in both themes.
 
-The category identities are fixed: Operate is blue, Routing indigo, Services orange, Automate violet, Observe green, Secure magenta and Deploy & configure teal. Broad project updates and cross-topic evidence are neutral. Keep these identities in explicit and automatic dark mode. Status colors remain independent of this subject palette.
+The category identities are fixed: Operate is blue, Routing indigo, Services rust, Automate plum, Observe moss, Secure rose and Deploy & configure teal. Broad project updates and cross-topic evidence are neutral. Keep these identities in explicit and automatic dark mode. Status colors remain independent of this subject palette.
+
+Plum separates Automate from Routing's indigo; yellow-green moss separates Observe from Deploy & configure's teal. Rust and rose give Services and Secure distinct warm hues. Keep accent saturation restrained and text shades similar in visual weight. Selected controls use subtle fills from the same family. Review the complete palette together in light and dark themes before changing a category color.
 
  Operate Routing Services Automate Observe Secure Deploy & configure Neutral
 
@@ -99,7 +105,7 @@ Control plane: BGP engine, static routes, BFD, MRT, RPKI, MPLS signaling.
 
 **Services**
 
-### Orange
+### Rust
 
 `--gold-*`
 
@@ -107,7 +113,7 @@ Network services and dataplane: IPsec, BNG, firewall, interfaces, VPP, DNS.
 
 **Automate**
 
-### Violet
+### Plum
 
 `--grape-*`
 
@@ -115,7 +121,7 @@ Programmability: plugins, APIs, MCP, ExaBGP migration, fleet management.
 
 **Observe**
 
-### Green
+### Moss
 
 `--mint-*`
 
@@ -123,7 +129,7 @@ Visibility: telemetry, health and diagnostics.
 
 **Secure**
 
-### Magenta
+### Rose
 
 `--pink-*`
 
@@ -147,7 +153,7 @@ A pale blue-gray page with white surfaces and navy text in the light theme; deep
 
 ## Color means category
 
-A subject keeps the same color wherever it appears.
+A subject keeps the same color wherever it appears. Color supplements visible category labels; readers do not need color alone to identify a subject.
 
 A `cat-*` class sets the subject color for titles and compact category labels. Borders, surfaces, technology chips, body text and bullet markers stay neutral. The same rules cover homepage, feature, documentation, article, plugin, comparison, FAQ and evidence cards.
 

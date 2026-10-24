@@ -122,7 +122,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 2 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 2 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 2 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>66.7%</strong><b>4 of 6 tagged units, 0 escaped and 2 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>100.0%</strong><b>10 of 10 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -132,6 +132,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 2 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 2 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 2 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+</div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>1</strong><b>of 2 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 1 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 8 shares marked as a part above are the whole of the 2 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -185,7 +190,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -226,16 +231,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>6</td>
+<td>10</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>6</td>
+<td>10</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>1</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>6</td>
+<td>10</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc9774.md</code></td>
@@ -321,8 +326,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9774-3-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9774_receive_test.go#L131" title="internal/component/bgp/reactor/rfc9774_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9774ReceiveAS4PathSetTreatAsWithdraw</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9774_accept_test.go#L45" title="internal/component/bgp/reactor/rfc9774_accept_test.go" target="_blank" rel="noopener"><code>TestRFC9774ReceiveASSetAcceptedByOperator</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9774_receive_test.go#L64" title="internal/component/bgp/reactor/rfc9774_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9774ReceiveASSetTreatAsWithdraw</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc9774_test.go#L121" title="internal/component/bgp/message/rfc9774_test.go" target="_blank" rel="noopener"><code>TestValidateAS4PathRejectsSetSegments</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc9774_test.go#L35" title="internal/component/bgp/message/rfc9774_test.go" target="_blank" rel="noopener"><code>TestValidateASPathRejectsSetSegments</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9774_receive_test.go#L134" title="internal/component/bgp/reactor/rfc9774_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9774ReceiveAS4PathSetTreatAsWithdraw</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9774_receive_test.go#L67" title="internal/component/bgp/reactor/rfc9774_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9774ReceiveASSetTreatAsWithdraw</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc9774_test.go#L38" title="internal/component/bgp/message/rfc9774_test.go" target="_blank" rel="noopener"><code>TestValidateASPathRejectsSetSegments</code></a></span></div>
 </div></td>
@@ -358,7 +367,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc9774-3-2"><code>RFC9774-3-2</code></a></h3>
 <p>MUST use the &#34;treat-as-withdraw&#34; error handling behavior per [RFC7606] upon reception of BGP UPDATE messages containing AS_SETs or AS_CONFED_SETs in the AS_PATH or AS4_PATH [RFC6793] (§3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), stale-unit: internal/component/bgp/message/rfc9774_test.go::TestValidateAS4PathRejectsSetSegments, internal/component/bgp/reactor/rfc9774_accept_test.go::TestRFC9774ReceiveASSetAcceptedByOperator, internal/component/bgp/reactor/rfc9774_receive_test.go::TestRFC9774ReceiveAS4PathSetTreatAsWithdraw, internal/component/bgp/reactor/rfc9774_receive_test.go::TestRFC9774ReceiveAS4PathSetTreatAsWithdraw#2 moved. First judgement, 2026-10-24, by an independent auditor who authored none of these units. RFC 9774 Section 3: &#34;Unless explicitly configured by a network operator to do otherwise (e.g., during a transition phase), BGP speakers:&#34; ... &#34;MUST use the &#34;treat-as-withdraw&#34; error handling behavior per [RFC7606] upon reception of BGP UPDATE messages containing AS_SETs or AS_CONFED_SETs in the AS_PATH or AS4_PATH [RFC6793].&#34; The AS_PATH clause is enforced: TestValidateASPathRejectsSetSegments asserts exact TreatAsWithdraw, AttrCode 2 and the exact RFC 9774 Section 3 description for an AS_SET or AS_CONFED_SET first, middle, last or alone, at 2- and 4-octet width, and exact nil for seven set-free paths (sequence and confed-sequence mixes, empty); TestRFC9774ReceiveASSetTreatAsWithdraw drives Session.enforceRFC7606 on 2-octet eBGP, 4-octet eBGP and iBGP sessions, asserts no session error and exact TreatAsWithdraw for each set type, and exact None for a twin path with the matching sequence type in the set&#39;s place, so the verdict is bound to the segment type alone. TestRFC9774ReceiveASSetAcceptedByOperator (new positive tag, 745db0775d) proves the default through the real config entry: a peer parsed by parsePeerFromTree with no as-set leaf or with withdraw has AcceptASSet false and draws exact TreatAsWithdraw for AS_SET and AS_CONFED_SET in AS_PATH and for an AS_SET in AS4_PATH; its claim states only that and the body checks exactly that. Its accept rows are the operator exception the sentence itself allows, recorded as an uncounted deviation in rfc/short/rfc9774.md. WEAK on question 4, the AS4_PATH clause: among the tagged units it is proven only at positive polarity, for AS_SET only, and on a 2-octet session only. No tagged unit would go red if validateAS4PathAttr stopped being reached on a 4-octet session (validateAS4PathAttr&#39;s own doc says it rejects a set &#34;on every session whatever the negotiated AS width&#34;), if an AS_CONFED_SET in AS4_PATH were kept, or if a set-free AS4_PATH were over-withdrawn under the default policy. Those cases ARE asserted, exactly, by the untagged TestRFC9774ReceiveAS4PathSetTreatAsWithdraw (both set types, 2- and 4-octet sessions, sequence-only AS4_PATH draws None) and TestValidateAS4PathRejectsSetSegments, so the behavior is implemented and tested but the ledger&#39;s evidence omits it. Fix: tag TestRFC9774ReceiveAS4PathSetTreatAsWithdraw RFC9774-3-2 positive and negative (and TestValidateAS4PathRejectsSetSegments positive) with claims stating exactly what each body checks, record their discrimination with ./le rfc discriminate-record, then re-judge. Second finding: the comment in TestRFC9774ReceiveASSetAcceptedByOperator, &#34;AS4_PATH reaches its validator only on a 2-octet session&#34;, is false at HEAD: the validator runs on every session and TestRFC9774ReceiveAS4PathSetTreatAsWithdraw asserts treat-as-withdraw on a 4-octet session; fix the comment, or add the 4-octet AS4_PATH row it implies is impossible. Discrimination: every recorded break is a panic in the producer (ASPathSetSegment, validateASPathPolicy), which proves the unit reaches the producer; the negatives discriminate by reading, since they assert exact nil or None. Units ran green at HEAD.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -366,7 +375,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc9774_test.go#L38" title="internal/component/bgp/message/rfc9774_test.go" target="_blank" rel="noopener"><code>TestValidateASPathRejectsSetSegments</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9774_receive_test.go#L134" title="internal/component/bgp/reactor/rfc9774_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9774ReceiveAS4PathSetTreatAsWithdraw</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9774_receive_test.go#L67" title="internal/component/bgp/reactor/rfc9774_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9774ReceiveASSetTreatAsWithdraw</code></a></td>
@@ -374,9 +388,24 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc9774_test.go#L121" title="internal/component/bgp/message/rfc9774_test.go" target="_blank" rel="noopener"><code>TestValidateAS4PathRejectsSetSegments</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc9774_test.go#L35" title="internal/component/bgp/message/rfc9774_test.go" target="_blank" rel="noopener"><code>TestValidateASPathRejectsSetSegments</code></a></td>
 <td>unit/verify</td>
-<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9774_accept_test.go#L45" title="internal/component/bgp/reactor/rfc9774_accept_test.go" target="_blank" rel="noopener"><code>TestRFC9774ReceiveASSetAcceptedByOperator</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9774_receive_test.go#L131" title="internal/component/bgp/reactor/rfc9774_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9774ReceiveAS4PathSetTreatAsWithdraw</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9774_receive_test.go#L64" title="internal/component/bgp/reactor/rfc9774_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9774ReceiveASSetTreatAsWithdraw</code></a></td>
@@ -628,7 +657,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 09:38 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 11:16 UTC</span>
                 </div>
             </div>
         </footer>

@@ -121,7 +121,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>10.2%</strong><b>6 of 59 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 59 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 59 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>68.1%</strong><b>111 of 163 tagged units, 0 escaped and 4 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>70.6%</strong><b>115 of 163 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -2023,7 +2023,7 @@ MUST and advisory gaps remain annotated in the requirement rows. <a href="#rfc95
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_semantic_test.go#L213" title="internal/component/bgp/reactor/rfc9552_semantic_test.go" target="_blank" rel="noopener"><code>TestRFC9552BGPLSAttributeFramingTwinsAreDiscarded</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L56" title="internal/component/bgp/plugins/nlri/ls/rfc9552_test.go" target="_blank" rel="noopener"><code>TestRFC9552UnorderedUnexpectedAttributeTLVs</code></a></td>
@@ -2033,7 +2033,7 @@ MUST and advisory gaps remain annotated in the requirement rows. <a href="#rfc95
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_semantic_test.go#L186" title="internal/component/bgp/reactor/rfc9552_semantic_test.go" target="_blank" rel="noopener"><code>TestRFC9552BGPLSAttributeSemanticErrorsAreNotMalformed</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -2053,7 +2053,7 @@ MUST and advisory gaps remain annotated in the requirement rows. <a href="#rfc95
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_semantic_test.go#L214" title="internal/component/bgp/reactor/rfc9552_semantic_test.go" target="_blank" rel="noopener"><code>TestRFC9552BGPLSAttributeFramingTwinsAreDiscarded</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_semantic_test.go#L115" title="internal/component/bgp/reactor/rfc9552_semantic_test.go" target="_blank" rel="noopener"><code>TestRFC9552LinkStateNLRIFramingTwinsAreDiscarded</code></a></td>
@@ -2073,7 +2073,7 @@ MUST and advisory gaps remain annotated in the requirement rows. <a href="#rfc95
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_semantic_test.go#L187" title="internal/component/bgp/reactor/rfc9552_semantic_test.go" target="_blank" rel="noopener"><code>TestRFC9552BGPLSAttributeSemanticErrorsAreNotMalformed</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_semantic_test.go#L95" title="internal/component/bgp/reactor/rfc9552_semantic_test.go" target="_blank" rel="noopener"><code>TestRFC9552LinkStateNLRISemanticErrorsAreNotMalformed</code></a></td>
@@ -3273,7 +3273,7 @@ MUST and advisory gaps remain annotated in the requirement rows. <a href="#rfc95
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 08:58 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 11:16 UTC</span>
                 </div>
             </div>
         </footer>

@@ -25,6 +25,13 @@ Connected routes: redistribute directly connected interface prefixes
 - Required dependency for: None
 - Optional dependency for: None
 
+## Startup ordering
+
+Order only when both plugins are selected; never auto-loads a plugin.
+
+- Start after: [`redistribute-orchestrator`](../redistribute-orchestrator/index.md)
+- Starts before: None
+
 ## Repository artifacts
 
 Package: `internal/plugins/connected`

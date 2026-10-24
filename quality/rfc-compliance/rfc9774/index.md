@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0.0% | 0 of 2 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 2 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 2 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 66.7% | 4 of 6 tagged units, 0 escaped and 2 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 100.0% | 10 of 10 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -28,6 +28,14 @@ measures that are neither good news nor bad
 | Not applicable | 0.0% | 0 of 2 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 0.0% | 0 of 2 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 2 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+
+### Negative
+
+what Ze owes
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Audit verdicts | 1 | of 2 gated MUSTs judged | 1 weak, wrong or unimplemented, 1 no longer current. Each is named below under its own requirement id |
 
 The 8 shares marked as a part above are the whole of the 2 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -46,7 +54,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -61,10 +69,10 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 6 |
-| Tagged units | 6 |
-| Recorded audit verdicts | 0 |
-| Discrimination records | 6 |
+| Test tags | 10 |
+| Tagged units | 10 |
+| Recorded audit verdicts | 1 |
+| Discrimination records | 10 |
 | Summary | `rfc/short/rfc9774.md` |
 | Requirement shard | `rfc/requirements/rfc9774.md` |
 | RFC text | `rfc/full/rfc9774.txt` |
@@ -107,7 +115,7 @@ Both Section 3 MUST-level requirements implemented, each with a positive and a n
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
 | `RFC9774-3-1` | MUST NOT advertise BGP UPDATE messages containing AS_SETs or AS_CONFED_SETs (§3) | MUST NOT | 3 | **positive:** `unit/verify` [`TestRFC9774SendASSetWrittenAsWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9774_send_test.go#L49). **negative:** `unit/verify` [`TestRFC9774SendASSetWrittenAsWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9774_send_test.go#L52) |
-| `RFC9774-3-2` | MUST use the "treat-as-withdraw" error handling behavior per [RFC7606] upon reception of BGP UPDATE messages containing AS_SETs or AS_CONFED_SETs in the AS_PATH or AS4_PATH [RFC6793] (§3) | MUST | 3 | **positive:** `unit/verify` [`TestRFC9774ReceiveASSetTreatAsWithdraw`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9774_receive_test.go#L64). **positive:** `unit/verify` [`TestValidateASPathRejectsSetSegments`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc9774_test.go#L35). **negative:** `unit/verify` [`TestRFC9774ReceiveASSetTreatAsWithdraw`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9774_receive_test.go#L67). **negative:** `unit/verify` [`TestValidateASPathRejectsSetSegments`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc9774_test.go#L38) |
+| `RFC9774-3-2` | MUST use the "treat-as-withdraw" error handling behavior per [RFC7606] upon reception of BGP UPDATE messages containing AS_SETs or AS_CONFED_SETs in the AS_PATH or AS4_PATH [RFC6793] (§3) | MUST | 3 | **positive:** `unit/verify` [`TestRFC9774ReceiveAS4PathSetTreatAsWithdraw`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9774_receive_test.go#L131). **positive:** `unit/verify` [`TestRFC9774ReceiveASSetAcceptedByOperator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9774_accept_test.go#L45). **positive:** `unit/verify` [`TestRFC9774ReceiveASSetTreatAsWithdraw`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9774_receive_test.go#L64). **positive:** `unit/verify` [`TestValidateAS4PathRejectsSetSegments`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc9774_test.go#L121). **positive:** `unit/verify` [`TestValidateASPathRejectsSetSegments`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc9774_test.go#L35). **negative:** `unit/verify` [`TestRFC9774ReceiveAS4PathSetTreatAsWithdraw`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9774_receive_test.go#L134). **negative:** `unit/verify` [`TestRFC9774ReceiveASSetTreatAsWithdraw`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9774_receive_test.go#L67). **negative:** `unit/verify` [`TestValidateASPathRejectsSetSegments`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc9774_test.go#L38) |
 
 ## Gaps and untested MUSTs
 
@@ -132,13 +140,17 @@ Audit verdict: not audited: no reader has judged these tests
 
 MUST use the "treat-as-withdraw" error handling behavior per [RFC7606] upon reception of BGP UPDATE messages containing AS_SETs or AS_CONFED_SETs in the AS_PATH or AS4_PATH [RFC6793] (§3)
 
-Audit verdict: not audited: no reader has judged these tests
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), stale-unit: internal/component/bgp/message/rfc9774_test.go::TestValidateAS4PathRejectsSetSegments, internal/component/bgp/reactor/rfc9774_accept_test.go::TestRFC9774ReceiveASSetAcceptedByOperator, internal/component/bgp/reactor/rfc9774_receive_test.go::TestRFC9774ReceiveAS4PathSetTreatAsWithdraw, internal/component/bgp/reactor/rfc9774_receive_test.go::TestRFC9774ReceiveAS4PathSetTreatAsWithdraw#2 moved. First judgement, 2026-10-24, by an independent auditor who authored none of these units. RFC 9774 Section 3: "Unless explicitly configured by a network operator to do otherwise (e.g., during a transition phase), BGP speakers:" ... "MUST use the "treat-as-withdraw" error handling behavior per [RFC7606] upon reception of BGP UPDATE messages containing AS_SETs or AS_CONFED_SETs in the AS_PATH or AS4_PATH [RFC6793]." The AS_PATH clause is enforced: TestValidateASPathRejectsSetSegments asserts exact TreatAsWithdraw, AttrCode 2 and the exact RFC 9774 Section 3 description for an AS_SET or AS_CONFED_SET first, middle, last or alone, at 2- and 4-octet width, and exact nil for seven set-free paths (sequence and confed-sequence mixes, empty); TestRFC9774ReceiveASSetTreatAsWithdraw drives Session.enforceRFC7606 on 2-octet eBGP, 4-octet eBGP and iBGP sessions, asserts no session error and exact TreatAsWithdraw for each set type, and exact None for a twin path with the matching sequence type in the set's place, so the verdict is bound to the segment type alone. TestRFC9774ReceiveASSetAcceptedByOperator (new positive tag, 745db0775d) proves the default through the real config entry: a peer parsed by parsePeerFromTree with no as-set leaf or with withdraw has AcceptASSet false and draws exact TreatAsWithdraw for AS_SET and AS_CONFED_SET in AS_PATH and for an AS_SET in AS4_PATH; its claim states only that and the body checks exactly that. Its accept rows are the operator exception the sentence itself allows, recorded as an uncounted deviation in rfc/short/rfc9774.md. WEAK on question 4, the AS4_PATH clause: among the tagged units it is proven only at positive polarity, for AS_SET only, and on a 2-octet session only. No tagged unit would go red if validateAS4PathAttr stopped being reached on a 4-octet session (validateAS4PathAttr's own doc says it rejects a set "on every session whatever the negotiated AS width"), if an AS_CONFED_SET in AS4_PATH were kept, or if a set-free AS4_PATH were over-withdrawn under the default policy. Those cases ARE asserted, exactly, by the untagged TestRFC9774ReceiveAS4PathSetTreatAsWithdraw (both set types, 2- and 4-octet sessions, sequence-only AS4_PATH draws None) and TestValidateAS4PathRejectsSetSegments, so the behavior is implemented and tested but the ledger's evidence omits it. Fix: tag TestRFC9774ReceiveAS4PathSetTreatAsWithdraw RFC9774-3-2 positive and negative (and TestValidateAS4PathRejectsSetSegments positive) with claims stating exactly what each body checks, record their discrimination with ./le rfc discriminate-record, then re-judge. Second finding: the comment in TestRFC9774ReceiveASSetAcceptedByOperator, "AS4_PATH reaches its validator only on a 2-octet session", is false at HEAD: the validator runs on every session and TestRFC9774ReceiveAS4PathSetTreatAsWithdraw asserts treat-as-withdraw on a 4-octet session; fix the comment, or add the 4-octet AS4_PATH row it implies is impossible. Discrimination: every recorded break is a panic in the producer (ASPathSetSegment, validateASPathPolicy), which proves the unit reaches the producer; the negatives discriminate by reading, since they assert exact nil or None. Units ran green at HEAD.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestValidateASPathRejectsSetSegments`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc9774_test.go#L38) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestValidateASPathRejectsSetSegments`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc9774_test.go#L38) | unit/verify | revert, verified |
+| negative | [`TestRFC9774ReceiveAS4PathSetTreatAsWithdraw`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9774_receive_test.go#L134) | unit/verify | mutant, verified |
 | negative | [`TestRFC9774ReceiveASSetTreatAsWithdraw`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9774_receive_test.go#L67) | unit/verify | revert, verified |
-| positive | [`TestValidateASPathRejectsSetSegments`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc9774_test.go#L35) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestValidateAS4PathRejectsSetSegments`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc9774_test.go#L121) | unit/verify | mutant, verified |
+| positive | [`TestValidateASPathRejectsSetSegments`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc9774_test.go#L35) | unit/verify | revert, verified |
+| positive | [`TestRFC9774ReceiveASSetAcceptedByOperator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9774_accept_test.go#L45) | unit/verify | revert, verified |
+| positive | [`TestRFC9774ReceiveAS4PathSetTreatAsWithdraw`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9774_receive_test.go#L131) | unit/verify | mutant, verified |
 | positive | [`TestRFC9774ReceiveASSetTreatAsWithdraw`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9774_receive_test.go#L64) | unit/verify | revert, verified |
 
 ## Extraction sign-off

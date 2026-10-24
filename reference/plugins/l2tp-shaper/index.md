@@ -25,6 +25,13 @@ Traffic shaping for L2TP subscriber sessions
 - Required dependency for: None
 - Optional dependency for: None
 
+## Startup ordering
+
+Order only when both plugins are selected; never auto-loads a plugin.
+
+- Start after: [`l2tp-auth-radius`](../l2tp-auth-radius/index.md)
+- Starts before: None
+
 ## Repository artifacts
 
 Package: `internal/component/l2tp/plugins/shaper`

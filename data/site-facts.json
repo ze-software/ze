@@ -28,20 +28,20 @@
   "generated_at": "2026-10-24",
   "github_stars": 57,
   "interop": {
-    "scenario_dirs_raw": 207,
-    "scenarios": 207,
+    "scenario_dirs_raw": 209,
+    "scenarios": 209,
     "scenarios_display": "200+",
     "target_display": "11",
     "targets": 11
   },
-  "published_at": "2026-10-24T09:37:17Z",
+  "published_at": "2026-10-24T11:14:20Z",
   "repo": {
-    "design_comments": 7084,
-    "design_comments_display": "7,000+",
-    "detail_comments": 7112,
+    "design_comments": 7127,
+    "design_comments_display": "7,100+",
+    "detail_comments": 7171,
     "detail_comments_display": "7,100+",
-    "go_packages": 897,
-    "go_packages_display": "890+"
+    "go_packages": 900,
+    "go_packages_display": "900"
   },
   "rfc": {
     "enrolled": 177,
@@ -71,7 +71,7 @@
     "editor_display": "170+",
     "fuzz": 91,
     "fuzz_display": "91",
-    "unit": 38348,
+    "unit": 38351,
     "unit_display": "38,300+"
   }
 }

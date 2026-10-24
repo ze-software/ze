@@ -29,7 +29,7 @@ Static routes: config-driven kernel/VPP route programming with ECMP
 
 Order only when both plugins are selected; never auto-loads a plugin.
 
-- Start after: [`bfd`](../bfd/index.md)
+- Start after: [`bfd`](../bfd/index.md), [`redistribute-orchestrator`](../redistribute-orchestrator/index.md)
 - Starts before: None
 
 ## Repository artifacts

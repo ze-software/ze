@@ -102,6 +102,7 @@ Generated group for registry entries mapped to the Class of Service area. Config
 |--------|----------|--------|------------|-------------|
 | [`cos`](cos/index.md) | 802.1p class-of-service profile definitions | `class-of-service` | None | `internal/plugins/cos` |
 
+- [`cos`](cos/index.md): Start after `l2tp-auth-radius` (order only).
 ## Connected
 
 Generated group for registry entries mapped to the Connected area. Config roots: `connected`. Source area: `internal/plugins/connected`.
@@ -110,6 +111,7 @@ Generated group for registry entries mapped to the Connected area. Config roots:
 |--------|----------|--------|------------|-------------|
 | [`connected`](connected/index.md) | Connected routes: redistribute directly connected interface prefixes | `connected` | None | `internal/plugins/connected` |
 
+- [`connected`](connected/index.md): Start after `redistribute-orchestrator` (order only).
 ## Control Plane Protection
 
 Generated group for registry entries mapped to the Control Plane Protection area. Config roots: `control-plane-protection`. Source area: `internal/plugins/copp`.
@@ -207,6 +209,7 @@ Generated group for registry entries mapped to the Interface area. Config roots:
 | [`interface`](interface/index.md) | OS network interface monitoring and management | `interface` | `sysctl` | `internal/component/iface` |
 | [`vrrp`](vrrp/index.md) | Virtual Router Redundancy Protocol (RFC 9568 / RFC 3768): first-hop gateway redundancy | `interface` | `interface` | `internal/plugins/vrrp` |
 
+- [`vrrp`](vrrp/index.md): Start after `firewall` (order only).
 ## Kernel
 
 Generated group for registry entries mapped to the Kernel area. Config roots: `kernel`. Source area: `internal/plugins/kernel`.
@@ -226,6 +229,7 @@ Generated group for registry entries mapped to the L2TP area. Config roots: `l2t
 | [`l2tp-pool`](l2tp-pool/index.md) | IPv4 address and IPv6 prefix pool for L2TP PPP sessions | `l2tp` | None | `internal/component/l2tp/plugins/pool` |
 | [`l2tp-shaper`](l2tp-shaper/index.md) | Traffic shaping for L2TP subscriber sessions | `l2tp` | None | `internal/component/l2tp/plugins/shaper` |
 
+- [`l2tp-shaper`](l2tp-shaper/index.md): Start after `l2tp-auth-radius` (order only).
 ## LDP
 
 Generated group for registry entries mapped to the LDP area. Config roots: `ldp`. Source area: `internal/plugins/ldp`.
@@ -266,6 +270,7 @@ Generated group for registry entries mapped to the RIB area. Config roots: `rib`
 |--------|----------|--------|------------|-------------|
 | [`rib`](rib/index.md) | System RIB: selects best route across protocols by admin distance | `rib` | None | `internal/component/sysrib` |
 
+- [`rib`](rib/index.md): Start after `bgp-rib` (order only).
 ## RSVP TE
 
 Generated group for registry entries mapped to the RSVP TE area. Config roots: `rsvp-te`. Source area: `internal/plugins/rsvpte`.
@@ -294,6 +299,7 @@ Generated group for registry entries mapped to the Service area. Config roots: `
 | [`imageserver`](imageserver/index.md) | Image server: HTTP provisioning for disk images and boot files | `service` | None | `internal/plugins/imageserver` |
 | [`tftpserver`](tftpserver/index.md) | TFTP server: read-only file serving for PXE boot (RFC 1350, RFC 2347 option negotiation) | `service` | None | `internal/plugins/tftpserver` |
 
+- [`as112`](as112/index.md): Start after `redistribute-orchestrator` (order only).
 - [`dhcpserver`](dhcpserver/index.md): Start after `interface` (order only).
 - [`imageserver`](imageserver/index.md): Start after `interface` (order only).
 - [`tftpserver`](tftpserver/index.md): Start after `interface` (order only).
@@ -305,7 +311,7 @@ Generated group for registry entries mapped to the Static area. Config roots: `s
 |--------|----------|--------|------------|-------------|
 | [`static`](static/index.md) | Static routes: config-driven kernel/VPP route programming with ECMP | `static` | `routing-table`, `rib` | `internal/plugins/static` |
 
-- [`static`](static/index.md): Start after `bfd` (order only).
+- [`static`](static/index.md): Start after `bfd`, `redistribute-orchestrator` (order only).
 ## Sysctl
 
 Generated group for registry entries mapped to the Sysctl area. Config roots: `sysctl`. Source area: `internal/component/sysctl`.

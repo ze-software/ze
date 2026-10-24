@@ -23,7 +23,7 @@ Open Shortest Path First v2 (RFC 2328): native link-state IPv4 IGP
 ## Used by
 
 - Required dependency for: None
-- Optional dependency for: None
+- Optional dependency for: [`bgp-ls-export`](../bgp-ls-export/index.md)
 
 ## Repository artifacts
 

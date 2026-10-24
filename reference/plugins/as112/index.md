@@ -25,6 +25,13 @@ AS112 anycast DNS node: authoritative sink for misdirected RFC 1918 / link-local
 - Required dependency for: None
 - Optional dependency for: None
 
+## Startup ordering
+
+Order only when both plugins are selected; never auto-loads a plugin.
+
+- Start after: [`redistribute-orchestrator`](../redistribute-orchestrator/index.md)
+- Starts before: None
+
 ## Repository artifacts
 
 Package: `internal/plugins/as112`

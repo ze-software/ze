@@ -18,7 +18,7 @@ Export native routing databases through BGP-LS
 ## Dependencies
 
 - Required: [`bgp-nlri-ls`](../bgp-nlri-ls/index.md)
-- Optional: None
+- Optional: [`isis`](../isis/index.md), [`ospf`](../ospf/index.md)
 
 ## Used by
 

@@ -121,7 +121,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>1.5%</strong><b>2 of 133 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 133 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 133 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>49.1%</strong><b>224 of 456 tagged units, 0 escaped and 8 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>50.9%</strong><b>232 of 456 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -136,7 +136,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>9.0%</strong><b>12 of 133 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>94</strong><b>of 133 gated MUSTs judged</b><p>2 weak, wrong or unimplemented, 1 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>94</strong><b>of 133 gated MUSTs judged</b><p>2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 8 shares marked as a part above are the whole of the 133 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -3116,7 +3116,7 @@ Full conformance is not established. The checklist below retains recorded OPEN e
 </div>
 <h3><a href="#rfc4271-5.1.5-3"><code>RFC4271-5.1.5-3</code></a></h3>
 <p>If it is contained in an UPDATE message that is received from an external peer, then this attribute MUST be ignored by the receiving speaker, except in the case of BGP Confederations [RFC3065]. (§5.1.5)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC4271LocalPrefFromExternalPeerNeverReachesTheRIB, internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC4271LocalPrefFromExternalPeerNeverReachesTheRIB#2 moved. Re-judged 2026-10-12 (independent auditor). SHIFTED by 4e731b2d96 (owner-approved lint-only reactor test edits). The tagged unit is byte-identical (gate-verified); the file-level changes are comment punctuation, slices.Concat over the same bytes, joined appends, strings.SplitSeq, newDefaultOriginatePeer taking its fixed addresses from constants with the same values, and registerTypeLenRecognizer losing a lo every caller passed as 1, none of which changes what a helper this unit calls produces. Verdict stands. RFC 4271 §5.1.5, rfc/full/rfc4271.txt:1599-1604: &#39;If it is contained in an UPDATE message that is received from an external peer, then this attribute MUST be ignored by the receiving speaker, except in the case of BGP Confederations [RFC3065].&#39; The current full short row has this same receive-side sentence and no partial annotation. Read all four covers: internal/component/bgp/message/rfc4271_test.go::TestRFC4271LocalPrefKeptOnInternalSession requires ActionNone and empty DiscardEntries; ::TestRFC4271LocalPrefIgnoredOnExternalSession requires exactly AttributeDiscard, one entry, code 5; both polarities of internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC4271LocalPrefFromExternalPeerNeverReachesTheRIB drive an actual Established session. The internal case requires byte-identical attributes including preference 200 and unchanged NLRI. The external case uses the matching four-octet peer AS, requires one dispatched UPDATE, exact attribute codes [1,2,3,252], absence of code 5, byte-identical retained ORIGIN/AS_PATH/NEXT_HOP, unchanged NLRI, Established state and no NOTIFICATION. The 252 marker is not mistaken for a surviving LOCAL_PREF.
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-12 (independent auditor). SHIFTED by 4e731b2d96 (owner-approved lint-only reactor test edits). The tagged unit is byte-identical (gate-verified); the file-level changes are comment punctuation, slices.Concat over the same bytes, joined appends, strings.SplitSeq, newDefaultOriginatePeer taking its fixed addresses from constants with the same values, and registerTypeLenRecognizer losing a lo every caller passed as 1, none of which changes what a helper this unit calls produces. Verdict stands. RFC 4271 §5.1.5, rfc/full/rfc4271.txt:1599-1604: &#39;If it is contained in an UPDATE message that is received from an external peer, then this attribute MUST be ignored by the receiving speaker, except in the case of BGP Confederations [RFC3065].&#39; The current full short row has this same receive-side sentence and no partial annotation. Read all four covers: internal/component/bgp/message/rfc4271_test.go::TestRFC4271LocalPrefKeptOnInternalSession requires ActionNone and empty DiscardEntries; ::TestRFC4271LocalPrefIgnoredOnExternalSession requires exactly AttributeDiscard, one entry, code 5; both polarities of internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC4271LocalPrefFromExternalPeerNeverReachesTheRIB drive an actual Established session. The internal case requires byte-identical attributes including preference 200 and unchanged NLRI. The external case uses the matching four-octet peer AS, requires one dispatched UPDATE, exact attribute codes [1,2,3,252], absence of code 5, byte-identical retained ORIGIN/AS_PATH/NEXT_HOP, unchanged NLRI, Established state and no NOTIFICATION. The 252 marker is not mistaken for a surviving LOCAL_PREF.
 Producing/consuming path read: message/rfc7606.go::validateLocalPrefAttr → reactor/session_validation.go::enforceRFC7606 → ApplyAttrDiscard/rebuild → session_read.go::processMessage → reactor_notify.go::notifyMessageReceiver. The latter derives RawBytes and AttrsWire from the rewritten WireUpdate, not the original raw body. rib_structured.go::handleReceivedStructured consumes that WireUpdate and packed attributes. Q1 yes: exact ignore-versus-retain behavior; Q2 yes by inspection: preserving external preference, dropping the UPDATE or stripping the internal control breaks explicit assertions; Q3 yes: valid established peers and matching external AS isolate preference handling; Q4 yes for the implemented non-confederation receive boundary, not send-side omission or entire RFC support. No confederation feature support or fresh semantic execution is inferred.
 Pending note: use the preceding RFC quote, population, assertions and producer chain; retain enforced and state explicitly that this audit ran no tests and independent peer acceptance remains pending.</p>
 <div class="rfc-table-wrap">
@@ -5322,32 +5322,32 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_reactor_a_local_pref_length_test.go#L32" title="internal/component/bgp/reactor/rfc4271_reactor_a_local_pref_length_test.go" target="_blank" rel="noopener"><code>TestRFC4271LocalPrefLengthFromInternalPeer</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go#L55" title="internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go" target="_blank" rel="noopener"><code>TestRFC4271RecognizedAttributeErrorsBeyondTheFirst</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_session_core4271_test.go#L105" title="internal/component/bgp/reactor/rfc4271_session_core4271_test.go" target="_blank" rel="noopener"><code>TestSessionRFC4271RevisedAttributeErrors</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_reactor_a_local_pref_length_test.go#L31" title="internal/component/bgp/reactor/rfc4271_reactor_a_local_pref_length_test.go" target="_blank" rel="noopener"><code>TestRFC4271LocalPrefLengthFromInternalPeer</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go#L54" title="internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go" target="_blank" rel="noopener"><code>TestRFC4271RecognizedAttributeErrorsBeyondTheFirst</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_session_core4271_test.go#L104" title="internal/component/bgp/reactor/rfc4271_session_core4271_test.go" target="_blank" rel="noopener"><code>TestSessionRFC4271RevisedAttributeErrors</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -5532,7 +5532,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go#L57" title="internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go" target="_blank" rel="noopener"><code>TestRFC4271RecognizedAttributeErrorsBeyondTheFirst</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_session_core4271_test.go#L115" title="internal/component/bgp/reactor/rfc4271_session_core4271_test.go" target="_blank" rel="noopener"><code>TestSessionRFC4271RevisedAttributeErrors</code></a></td>
@@ -5542,7 +5542,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go#L56" title="internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go" target="_blank" rel="noopener"><code>TestRFC4271RecognizedAttributeErrorsBeyondTheFirst</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_session_core4271_test.go#L114" title="internal/component/bgp/reactor/rfc4271_session_core4271_test.go" target="_blank" rel="noopener"><code>TestSessionRFC4271RevisedAttributeErrors</code></a></td>
@@ -6348,7 +6348,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 09:38 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 11:16 UTC</span>
                 </div>
             </div>
         </footer>

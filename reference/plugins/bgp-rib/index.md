@@ -25,6 +25,13 @@ Route Information Base storage
 - Required dependency for: [`bgp-gr`](../bgp-gr/index.md), [`bgp-rr`](../bgp-rr/index.md), [`bgp-rs`](../bgp-rs/index.md), [`flowspec-firewall`](../flowspec-firewall/index.md)
 - Optional dependency for: [`flow-export`](../flow-export/index.md)
 
+## Startup ordering
+
+Order only when both plugins are selected; never auto-loads a plugin.
+
+- Start after: None
+- Starts before: [`rib`](../rib/index.md)
+
 ## Repository artifacts
 
 Package: `internal/component/bgp/plugins/rib`

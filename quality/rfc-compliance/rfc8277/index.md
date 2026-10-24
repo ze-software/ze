@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 5.7% | 2 of 35 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 35 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 35 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 79.4% | 54 of 68 tagged units, 0 escaped and 3 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 83.8% | 57 of 68 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -404,7 +404,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestVPNWithdrawalJSONConsumersIgnoreCompatibility`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/format/rfc8277_vpn_consumer_test.go#L34) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestVPNWithdrawalJSONConsumersIgnoreCompatibility`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/format/rfc8277_vpn_consumer_test.go#L34) | unit/verify | revert, verified |
 | negative | [`TestLabeledWithdrawalEventIgnoresOtherCompatibilityValues`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/format/rfc8277_withdraw_event_test.go#L96) | unit/verify | revert, verified |
 | negative | [`TestRFC8277LabeledWithdrawAddPathIgnoresCompatibility`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go#L102) | unit/verify | revert, verified |
 | negative | [`TestRFC8277LabeledWithdrawIgnoresCompatibility`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go#L55) | unit/verify | revert, verified |
@@ -417,9 +417,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | negative | [`TestLabeledWithdrawalCodecConsumersIgnoreCompatibility`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/server/rfc8277_labeled_consumer_test.go#L28) | unit/verify | revert, verified |
 | negative | [`TestVPNWithdrawalCodecConsumersIgnoreCompatibility`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/server/rfc8277_vpn_consumer_test.go#L27) | unit/verify | revert, verified |
 | negative | [`TestRPCDecodeNLRIRealSDKConsumers`](https://github.com/ze-software/ze/blob/main/internal/component/plugin/ipc/rfc8277_rpc_decode_nlri_context_test.go#L27) | unit/verify | revert, verified |
-| positive | [`TestVPNWithdrawalJSONConsumersIgnoreCompatibility`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/format/rfc8277_vpn_consumer_test.go#L33) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestVPNWithdrawalJSONConsumersIgnoreCompatibility`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/format/rfc8277_vpn_consumer_test.go#L33) | unit/verify | revert, verified |
 | positive | [`TestLabeledWithdrawalEventNamesThePrefix`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/format/rfc8277_withdraw_event_test.go#L71) | unit/verify | revert, verified |
-| positive | [`TestLabeledWithdrawalEventNeverReachesTheLabelDecoder`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/format/rfc8277_withdraw_event_test.go#L151) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestLabeledWithdrawalEventNeverReachesTheLabelDecoder`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/format/rfc8277_withdraw_event_test.go#L151) | unit/verify | revert, verified |
 | positive | [`TestRFC8277LabeledWithdrawAddPathIgnoresCompatibility`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go#L101) | unit/verify | revert, verified |
 | positive | [`TestRFC8277LabeledWithdrawIgnoresCompatibility`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_labeled_withdraw_test.go#L54) | unit/verify | revert, verified |
 | positive | [`TestVPNWithdrawIgnoresCompatibilityValue`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_test.go#L118) | unit/verify | revert, verified |

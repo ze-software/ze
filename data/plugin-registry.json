@@ -54,7 +54,9 @@
     ],
     "dependencies": [],
     "optional_dependencies": [],
-    "start_after": [],
+    "start_after": [
+      "redistribute-orchestrator"
+    ],
     "source_dir": "internal/plugins/as112",
     "yang_files": [
       "internal/plugins/as112/yang/ze-as112-cmd.yang",
@@ -397,7 +399,10 @@
     "dependencies": [
       "bgp-nlri-ls"
     ],
-    "optional_dependencies": [],
+    "optional_dependencies": [
+      "isis",
+      "ospf"
+    ],
     "start_after": [],
     "source_dir": "internal/component/bgp/plugins/ls_export",
     "yang_files": [
@@ -660,7 +665,9 @@
     ],
     "dependencies": [],
     "optional_dependencies": [],
-    "start_after": [],
+    "start_after": [
+      "redistribute-orchestrator"
+    ],
     "source_dir": "internal/plugins/connected",
     "yang_files": [
       "internal/plugins/connected/yang/ze-connected-conf.yang"
@@ -690,7 +697,9 @@
     ],
     "dependencies": [],
     "optional_dependencies": [],
-    "start_after": [],
+    "start_after": [
+      "l2tp-auth-radius"
+    ],
     "source_dir": "internal/plugins/cos",
     "yang_files": [
       "internal/plugins/cos/yang/ze-cos-conf.yang"
@@ -1098,7 +1107,9 @@
     ],
     "dependencies": [],
     "optional_dependencies": [],
-    "start_after": [],
+    "start_after": [
+      "l2tp-auth-radius"
+    ],
     "source_dir": "internal/component/l2tp/plugins/shaper",
     "yang_files": [
       "internal/component/l2tp/plugins/shaper/yang/ze-l2tp-shaper-conf.yang"
@@ -1221,7 +1232,9 @@
     ],
     "dependencies": [],
     "optional_dependencies": [],
-    "start_after": [],
+    "start_after": [
+      "bgp-rib"
+    ],
     "source_dir": "internal/component/sysrib",
     "yang_files": [
       "internal/component/sysrib/yang/ze-rib-conf.yang"
@@ -1274,7 +1287,8 @@
       "interface"
     ],
     "start_after": [
-      "bfd"
+      "bfd",
+      "redistribute-orchestrator"
     ],
     "source_dir": "internal/plugins/static",
     "yang_files": [
@@ -1369,7 +1383,9 @@
       "interface"
     ],
     "optional_dependencies": [],
-    "start_after": [],
+    "start_after": [
+      "firewall"
+    ],
     "source_dir": "internal/plugins/vrrp",
     "yang_files": [
       "internal/plugins/vrrp/yang/ze-vrrp-cmd.yang",

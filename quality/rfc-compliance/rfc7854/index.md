@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0.0% | 0 of 39 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 39 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 39 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 46.5% | 46 of 99 tagged units, 0 escaped and 7 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 53.5% | 53 of 99 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 | Audit verdicts | 43 | of 39 gated MUSTs judged | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
@@ -347,7 +347,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC7854SessionPeerUpOnlyForEstablishedPeers`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go#L98) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC7854SessionPeerUpOnlyForEstablishedPeers`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go#L98) | unit/verify | revert, verified |
 | positive | [`TestRFC7854SessionPeerUpOnlyForEstablishedPeers`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go#L96) | unit/verify | revert, verified |
 
 ### [`RFC7854-x-17`](#rfc7854-x-17)
@@ -429,7 +429,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. tran
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC7854ReservedFlagsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L357) | unit/verify | revert, verified |
-| positive | [`TestRFC7854ReservedFlagsTransmittedAsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L337) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC7854ReservedFlagsTransmittedAsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L337) | unit/verify | revert, verified |
 
 ### [`RFC7854-4.3-2`](#rfc7854-4.3-2)
 
@@ -607,8 +607,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC7854LFlagNotDecidedByBody`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L503) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC7854LFlagFollowsPolicy`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L478) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC7854LFlagNotDecidedByBody`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L503) | unit/verify | revert, verified |
+| positive | [`TestRFC7854LFlagFollowsPolicy`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L478) | unit/verify | revert, verified |
 
 ### [`RFC7854-5-2`](#rfc7854-5-2)
 
@@ -629,8 +629,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Firs
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC7854LFlagNotDecidedByBody`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L504) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC7854LFlagFollowsPolicy`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L479) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC7854LFlagNotDecidedByBody`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L504) | unit/verify | revert, verified |
+| positive | [`TestRFC7854LFlagFollowsPolicy`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L479) | unit/verify | revert, verified |
 
 ### [`RFC7854-5-6`](#rfc7854-5-6)
 
@@ -640,7 +640,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. rfc7
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC7854ChangedAttributesCanReturnToEarlierValue`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_replay_test.go#L247) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC7854ChangedAttributesCanReturnToEarlierValue`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_replay_test.go#L247) | unit/verify | revert, verified |
 
 ### [`RFC7854-8.2-1`](#rfc7854-8.2-1)
 

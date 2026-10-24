@@ -335,9 +335,13 @@ carries. Turning <code>bgp true</code> on starts it when the build has it, even 
 <code>bgp {}</code> block; with enrichment off, flow export never starts it. A build
 without <code>ze_bgp</code> still runs flow export, and refuses <code>bgp true</code> at
 <code>ze config validate</code>, at commit, at daemon start and at SIGHUP reload, before
-any plugin starts. The refusal names the setting and gives the fix on its own
-line:</p>
-<pre><code>config: "flow-export enrichment bgp true" needs plugin bgp-rib, and this build does not include it
+any plugin starts. The refusal names the setting, says why, and gives the fix
+on its own line. <code>ze config validate</code> prints:</p>
+<pre><code>configuration invalid: flow.conf
+
+Errors:
+  config: "flow-export enrichment bgp true" needs plugin bgp-rib, and this build does not include it
+  flow-export cannot act on this setting without it, so ze refuses the config rather than run a setting that does nothing
   fix: rebuild ze with build tag ze_bgp added to its -tags list, or remove "flow-export enrichment bgp true" from the config
 </code></pre>
 <p>Set <code>bgp false</code> (or leave the leaf out) to run flow export on that build.
@@ -566,7 +570,7 @@ the collector endpoints off any untrusted path.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 09:38 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 11:16 UTC</span>
                 </div>
             </div>
         </footer>

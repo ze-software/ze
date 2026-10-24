@@ -180,11 +180,15 @@ carries. Turning `bgp true` on starts it when the build has it, even with no
 `bgp {}` block; with enrichment off, flow export never starts it. A build
 without `ze_bgp` still runs flow export, and refuses `bgp true` at
 `ze config validate`, at commit, at daemon start and at SIGHUP reload, before
-any plugin starts. The refusal names the setting and gives the fix on its own
-line:
+any plugin starts. The refusal names the setting, says why, and gives the fix
+on its own line. `ze config validate` prints:
 
 ```
-config: "flow-export enrichment bgp true" needs plugin bgp-rib, and this build does not include it
+configuration invalid: flow.conf
+
+Errors:
+  config: "flow-export enrichment bgp true" needs plugin bgp-rib, and this build does not include it
+  flow-export cannot act on this setting without it, so ze refuses the config rather than run a setting that does nothing
   fix: rebuild ze with build tag ze_bgp added to its -tags list, or remove "flow-export enrichment bgp true" from the config
 ```
 

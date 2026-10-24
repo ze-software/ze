@@ -23,7 +23,7 @@ Intermediate System to Intermediate System (ISO/IEC 10589, RFC 1195): native lin
 ## Used by
 
 - Required dependency for: None
-- Optional dependency for: None
+- Optional dependency for: [`bgp-ls-export`](../bgp-ls-export/index.md)
 
 ## Repository artifacts
 

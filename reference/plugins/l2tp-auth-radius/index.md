@@ -25,6 +25,13 @@ RADIUS authentication and accounting for L2TP PPP sessions
 - Required dependency for: None
 - Optional dependency for: None
 
+## Startup ordering
+
+Order only when both plugins are selected; never auto-loads a plugin.
+
+- Start after: None
+- Starts before: [`cos`](../cos/index.md), [`l2tp-shaper`](../l2tp-shaper/index.md)
+
 ## Repository artifacts
 
 Package: `internal/component/l2tp/plugins/authradius`

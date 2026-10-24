@@ -25,6 +25,13 @@ System RIB: selects best route across protocols by admin distance
 - Required dependency for: [`fib-kernel`](../fib-kernel/index.md), [`fib-p4`](../fib-p4/index.md), [`fib-vpp`](../fib-vpp/index.md), [`static`](../static/index.md)
 - Optional dependency for: None
 
+## Startup ordering
+
+Order only when both plugins are selected; never auto-loads a plugin.
+
+- Start after: [`bgp-rib`](../bgp-rib/index.md)
+- Starts before: None
+
 ## Repository artifacts
 
 Package: `internal/component/sysrib`

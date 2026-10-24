@@ -315,16 +315,17 @@
                         <dl class="plugin-meta"><div><dt>Config</dt><dd><code>bgp</code></dd></div><div><dt>Needs</dt><dd><code>bgp</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
                     </article>
 
-                    <article class="card plugin-card cat-routing" id="plugin-bgp-ls-export" data-plugin-card data-family="bgp" data-category="routing" data-search="bgp-ls-export Export native routing databases through BGP-LS Export native routing databases through BGP-LS internal/component/bgp/plugins/ls_export BGP   bgp-ls-export bgp-nlri-ls   internal/component/bgp/plugins/ls_export/yang/ze-bgp-ls-export-conf.yang">
+                    <article class="card plugin-card cat-routing" id="plugin-bgp-ls-export" data-plugin-card data-family="bgp" data-category="routing" data-search="bgp-ls-export Export native routing databases through BGP-LS Export native routing databases through BGP-LS internal/component/bgp/plugins/ls_export BGP   bgp-ls-export bgp-nlri-ls isis ospf  internal/component/bgp/plugins/ls_export/yang/ze-bgp-ls-export-conf.yang">
                         <span class="cat">BGP</span>
                         <h3><a href="bgp-ls-export/"><code>bgp-ls-export</code></a></h3>
                         <p class="plugin-desc">Export native routing databases through BGP-LS</p>
                         <div class="chips">
                             <span class="chip mode">config:bgp-ls-export</span>
                             <span class="chip">needs:bgp-nlri-ls</span>
+                            <span class="chip">optional:isis</span>
                             <span class="chip">YANG:1</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>bgp-ls-export</code></dd></div><div><dt>Needs</dt><dd><code>bgp-nlri-ls</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>bgp-ls-export</code></dd></div><div><dt>Needs</dt><dd><code>bgp-nlri-ls</code></dd></div><div><dt>Optional</dt><dd><code>isis</code>, <code>ospf</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
                     </article>
 
                     <article class="card plugin-card cat-routing" id="plugin-bgp-rib" data-plugin-card data-family="bgp" data-category="routing" data-search="bgp-rib Route Information Base storage Route Information Base storage internal/component/bgp/plugins/rib BGP   bgp    internal/component/bgp/plugins/rib/yang/ze-rib-api.yang internal/component/bgp/plugins/rib/yang/ze-rib.yang">
@@ -713,15 +714,16 @@
                     <p>Generated group for registry entries mapped to the Class of Service area. Config roots: <code>class-of-service</code>. Source area: <code>internal/plugins/cos</code>.</p>
                     <div class="cards plugin-grid">
 
-                    <article class="card plugin-card cat-services" id="plugin-cos" data-plugin-card data-family="class-of-service" data-category="services" data-search="cos 802.1p class-of-service profile definitions 802.1p class-of-service profile definitions internal/plugins/cos Class of Service   class-of-service    internal/plugins/cos/yang/ze-cos-conf.yang">
+                    <article class="card plugin-card cat-services" id="plugin-cos" data-plugin-card data-family="class-of-service" data-category="services" data-search="cos 802.1p class-of-service profile definitions 802.1p class-of-service profile definitions internal/plugins/cos Class of Service   class-of-service   l2tp-auth-radius internal/plugins/cos/yang/ze-cos-conf.yang">
                         <span class="cat">Class of Service</span>
                         <h3><a href="cos/"><code>cos</code></a></h3>
                         <p class="plugin-desc">802.1p class-of-service profile definitions</p>
                         <div class="chips">
                             <span class="chip mode">config:class-of-service</span>
+                            <span class="chip">Start after:l2tp-auth-radius</span>
                             <span class="chip">YANG:1</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>class-of-service</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>class-of-service</code></dd></div><div><dt>Start after</dt><dd><code>l2tp-auth-radius</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
                     </article>
                     </div>
                 </section>
@@ -733,15 +735,16 @@
                     <p>Generated group for registry entries mapped to the Connected area. Config roots: <code>connected</code>. Source area: <code>internal/plugins/connected</code>.</p>
                     <div class="cards plugin-grid">
 
-                    <article class="card plugin-card cat-routing" id="plugin-connected" data-plugin-card data-family="connected" data-category="routing" data-search="connected Connected routes: redistribute directly connected interface prefixes Connected routes: redistribute directly connected interface prefixes internal/plugins/connected Connected   connected    internal/plugins/connected/yang/ze-connected-conf.yang">
+                    <article class="card plugin-card cat-routing" id="plugin-connected" data-plugin-card data-family="connected" data-category="routing" data-search="connected Connected routes: redistribute directly connected interface prefixes Connected routes: redistribute directly connected interface prefixes internal/plugins/connected Connected   connected   redistribute-orchestrator internal/plugins/connected/yang/ze-connected-conf.yang">
                         <span class="cat">Connected</span>
                         <h3><a href="connected/"><code>connected</code></a></h3>
                         <p class="plugin-desc">Connected routes: redistribute directly connected interface prefixes</p>
                         <div class="chips">
                             <span class="chip mode">config:connected</span>
+                            <span class="chip">Start after:redistribute-orchestrator</span>
                             <span class="chip">YANG:1</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>connected</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>connected</code></dd></div><div><dt>Start after</dt><dd><code>redistribute-orchestrator</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
                     </article>
                     </div>
                 </section>
@@ -1070,16 +1073,17 @@
                         <dl class="plugin-meta"><div><dt>Config</dt><dd><code>interface</code></dd></div><div><dt>Needs</dt><dd><code>sysctl</code></dd></div><div><dt>Optional</dt><dd><code>vpp</code></dd></div><div><dt>YANG</dt><dd>6 modules</dd></div></dl>
                     </article>
 
-                    <article class="card plugin-card cat-services" id="plugin-vrrp" data-plugin-card data-family="interface" data-category="dataplane" data-search="vrrp Virtual Router Redundancy Protocol (RFC 9568 / RFC 3768): first-hop gateway redundancy Virtual Router Redundancy Protocol (RFC 9568 / RFC 3768): first-hop gateway redundancy internal/plugins/vrrp Interface   interface interface   internal/plugins/vrrp/yang/ze-vrrp-cmd.yang internal/plugins/vrrp/yang/ze-vrrp-conf.yang">
+                    <article class="card plugin-card cat-services" id="plugin-vrrp" data-plugin-card data-family="interface" data-category="dataplane" data-search="vrrp Virtual Router Redundancy Protocol (RFC 9568 / RFC 3768): first-hop gateway redundancy Virtual Router Redundancy Protocol (RFC 9568 / RFC 3768): first-hop gateway redundancy internal/plugins/vrrp Interface   interface interface  firewall internal/plugins/vrrp/yang/ze-vrrp-cmd.yang internal/plugins/vrrp/yang/ze-vrrp-conf.yang">
                         <span class="cat">Interface</span>
                         <h3><a href="vrrp/"><code>vrrp</code></a></h3>
                         <p class="plugin-desc">Virtual Router Redundancy Protocol (RFC 9568 / RFC 3768): first-hop gateway redundancy</p>
                         <div class="chips">
                             <span class="chip mode">config:interface</span>
                             <span class="chip">needs:interface</span>
+                            <span class="chip">Start after:firewall</span>
                             <span class="chip">YANG:2</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>interface</code></dd></div><div><dt>Needs</dt><dd><code>interface</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>interface</code></dd></div><div><dt>Needs</dt><dd><code>interface</code></dd></div><div><dt>Start after</dt><dd><code>firewall</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
                     </article>
                     </div>
                 </section>
@@ -1144,15 +1148,16 @@
                         <dl class="plugin-meta"><div><dt>Config</dt><dd><code>l2tp</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
                     </article>
 
-                    <article class="card plugin-card cat-services" id="plugin-l2tp-shaper" data-plugin-card data-family="l2tp" data-category="tunneling" data-search="l2tp-shaper Traffic shaping for L2TP subscriber sessions Traffic shaping for L2TP subscriber sessions internal/component/l2tp/plugins/shaper L2TP   l2tp    internal/component/l2tp/plugins/shaper/yang/ze-l2tp-shaper-conf.yang">
+                    <article class="card plugin-card cat-services" id="plugin-l2tp-shaper" data-plugin-card data-family="l2tp" data-category="tunneling" data-search="l2tp-shaper Traffic shaping for L2TP subscriber sessions Traffic shaping for L2TP subscriber sessions internal/component/l2tp/plugins/shaper L2TP   l2tp   l2tp-auth-radius internal/component/l2tp/plugins/shaper/yang/ze-l2tp-shaper-conf.yang">
                         <span class="cat">L2TP</span>
                         <h3><a href="l2tp-shaper/"><code>l2tp-shaper</code></a></h3>
                         <p class="plugin-desc">Traffic shaping for L2TP subscriber sessions</p>
                         <div class="chips">
                             <span class="chip mode">config:l2tp</span>
+                            <span class="chip">Start after:l2tp-auth-radius</span>
                             <span class="chip">YANG:1</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>l2tp</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>l2tp</code></dd></div><div><dt>Start after</dt><dd><code>l2tp-auth-radius</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
                     </article>
                     </div>
                 </section>
@@ -1250,15 +1255,16 @@
                     <p>Generated group for registry entries mapped to the RIB area. Config roots: <code>rib</code>. Source area: <code>internal/component/sysrib</code>.</p>
                     <div class="cards plugin-grid">
 
-                    <article class="card plugin-card cat-routing" id="plugin-rib" data-plugin-card data-family="rib" data-category="routing" data-search="rib System RIB: selects best route across protocols by admin distance System RIB: selects best route across protocols by admin distance internal/component/sysrib RIB   rib    internal/component/sysrib/yang/ze-rib-conf.yang">
+                    <article class="card plugin-card cat-routing" id="plugin-rib" data-plugin-card data-family="rib" data-category="routing" data-search="rib System RIB: selects best route across protocols by admin distance System RIB: selects best route across protocols by admin distance internal/component/sysrib RIB   rib   bgp-rib internal/component/sysrib/yang/ze-rib-conf.yang">
                         <span class="cat">RIB</span>
                         <h3><a href="rib/"><code>rib</code></a></h3>
                         <p class="plugin-desc">System RIB: selects best route across protocols by admin distance</p>
                         <div class="chips">
                             <span class="chip mode">config:rib</span>
+                            <span class="chip">Start after:bgp-rib</span>
                             <span class="chip">YANG:1</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>rib</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>rib</code></dd></div><div><dt>Start after</dt><dd><code>bgp-rib</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
                     </article>
                     </div>
                 </section>
@@ -1313,15 +1319,16 @@
                     <p>Generated group for registry entries mapped to the Service area. Config roots: <code>service</code>. Source area: <code>internal/plugins/as112</code>, <code>internal/plugins/dhcpserver</code>, <code>internal/plugins/geodns</code>.</p>
                     <div class="cards plugin-grid">
 
-                    <article class="card plugin-card cat-services" id="plugin-as112" data-plugin-card data-family="service" data-category="services" data-search="as112 AS112 anycast DNS node: authoritative sink for misdirected RFC 1918 / link-local reverse-DNS queries (RFC 7534, RFC 7535) AS112 anycast DNS node: authoritative sink for misdirected RFC 1918 / link-local reverse-DNS queries (RFC 7534, RFC 7535) internal/plugins/as112 Service   service    internal/plugins/as112/yang/ze-as112-cmd.yang internal/plugins/as112/yang/ze-as112-conf.yang">
+                    <article class="card plugin-card cat-services" id="plugin-as112" data-plugin-card data-family="service" data-category="services" data-search="as112 AS112 anycast DNS node: authoritative sink for misdirected RFC 1918 / link-local reverse-DNS queries (RFC 7534, RFC 7535) AS112 anycast DNS node: authoritative sink for misdirected RFC 1918 / link-local reverse-DNS queries (RFC 7534, RFC 7535) internal/plugins/as112 Service   service   redistribute-orchestrator internal/plugins/as112/yang/ze-as112-cmd.yang internal/plugins/as112/yang/ze-as112-conf.yang">
                         <span class="cat">Service</span>
                         <h3><a href="as112/"><code>as112</code></a></h3>
                         <p class="plugin-desc">AS112 anycast DNS node: authoritative sink for misdirected RFC 1918 / link-local reverse-DNS queries (RFC 7534, RFC 7535)</p>
                         <div class="chips">
                             <span class="chip mode">config:service</span>
+                            <span class="chip">Start after:redistribute-orchestrator</span>
                             <span class="chip">YANG:2</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>service</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>service</code></dd></div><div><dt>Start after</dt><dd><code>redistribute-orchestrator</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
                     </article>
 
                     <article class="card plugin-card cat-services" id="plugin-dhcpserver" data-plugin-card data-family="service" data-category="services" data-search="dhcpserver DHCP server: address assignment for LAN clients (RFC 2131) DHCP server: address assignment for LAN clients (RFC 2131) internal/plugins/dhcpserver Service   service   interface internal/plugins/dhcpserver/yang/ze-dhcp-server-conf.yang">
@@ -1380,7 +1387,7 @@
                     <p>Generated group for registry entries mapped to the Static area. Config roots: <code>static</code>. Source area: <code>internal/plugins/static</code>.</p>
                     <div class="cards plugin-grid">
 
-                    <article class="card plugin-card cat-routing" id="plugin-static" data-plugin-card data-family="static" data-category="routing" data-search="static Static routes: config-driven kernel/VPP route programming with ECMP Static routes: config-driven kernel/VPP route programming with ECMP internal/plugins/static Static   static routing-table rib interface bfd internal/plugins/static/yang/ze-static-cmd.yang internal/plugins/static/yang/ze-static-conf.yang">
+                    <article class="card plugin-card cat-routing" id="plugin-static" data-plugin-card data-family="static" data-category="routing" data-search="static Static routes: config-driven kernel/VPP route programming with ECMP Static routes: config-driven kernel/VPP route programming with ECMP internal/plugins/static Static   static routing-table rib interface bfd redistribute-orchestrator internal/plugins/static/yang/ze-static-cmd.yang internal/plugins/static/yang/ze-static-conf.yang">
                         <span class="cat">Static</span>
                         <h3><a href="static/"><code>static</code></a></h3>
                         <p class="plugin-desc">Static routes: config-driven kernel/VPP route programming with ECMP</p>
@@ -1392,7 +1399,7 @@
                             <span class="chip">Start after:bfd</span>
                             <span class="chip">YANG:2</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>static</code></dd></div><div><dt>Needs</dt><dd><code>routing-table</code>, <code>rib</code></dd></div><div><dt>Optional</dt><dd><code>interface</code></dd></div><div><dt>Start after</dt><dd><code>bfd</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>static</code></dd></div><div><dt>Needs</dt><dd><code>routing-table</code>, <code>rib</code></dd></div><div><dt>Optional</dt><dd><code>interface</code></dd></div><div><dt>Start after</dt><dd><code>bfd</code>, <code>redistribute-orchestrator</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
                     </article>
                     </div>
                 </section>
@@ -1631,7 +1638,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 09:38 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 11:16 UTC</span>
                 </div>
             </div>
         </footer>

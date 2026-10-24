@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0.0% | 0 of 7 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 7 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 7 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 34.8% | 8 of 23 tagged units, 0 escaped and 4 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 52.2% | 12 of 23 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 | Audit verdicts | 7 | of 7 gated MUSTs judged | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
@@ -173,7 +173,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. reju
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC8092LargeCommunityAnyGlobalAdministratorIsWellFormed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8092_error_handling_test.go#L30) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC8092LargeCommunityAnyGlobalAdministratorIsWellFormed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8092_error_handling_test.go#L30) | unit/verify | revert, verified |
 | positive | [`TestRFC8092LargeCommunityValidReservedASN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8092_test.go#L41) | unit/verify | unproven |
 
 ### [`RFC8092-6-2`](#rfc8092-6-2)
@@ -184,9 +184,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. reju
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC8092LargeCommunityNonZeroMultipleOf12IsNotMalformed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8092_error_handling_test.go#L77) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC8092LargeCommunityNonZeroMultipleOf12IsNotMalformed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8092_error_handling_test.go#L77) | unit/verify | revert, verified |
 | negative | [`TestRFC8092LargeCommunityValidReservedASN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8092_test.go#L37) | unit/verify | unproven |
-| positive | [`TestRFC8092LargeCommunityLengthNotANonZeroMultipleOf12IsMalformed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8092_error_handling_test.go#L62) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC8092LargeCommunityLengthNotANonZeroMultipleOf12IsMalformed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8092_error_handling_test.go#L62) | unit/verify | revert, verified |
 | positive | [`TestRFC8092LargeCommunityMalformedLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8092_test.go#L17) | unit/verify | unproven |
 
 ### [`RFC8092-6-3`](#rfc8092-6-3)
@@ -209,7 +209,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC8092LargeCommunityValidReservedASN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8092_test.go#L39) | unit/verify | unproven |
-| negative | [`TestRFC8092WellFormedLargeCommunityKeepsTheRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8092_treat_as_withdraw_test.go#L65) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC8092WellFormedLargeCommunityKeepsTheRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8092_treat_as_withdraw_test.go#L65) | unit/verify | revert, verified |
 | positive | [`TestRFC8092LargeCommunityMalformedLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8092_test.go#L19) | unit/verify | unproven |
 | positive | [`TestRFC8092MalformedLargeCommunityWithdrawsTheRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8092_treat_as_withdraw_test.go#L34) | unit/verify | revert, verified |
 

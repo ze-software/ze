@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0.0% | 0 of 6 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 6 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 6 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 63.9% | 23 of 36 tagged units, 0 escaped and 5 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 77.8% | 28 of 36 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 | Audit verdicts | 6 | of 6 gated MUSTs judged | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
@@ -133,9 +133,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestMRTWinningCollisionPreservesOPEN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8050_collision_epoch_test.go#L32) | unit/verify | revert, verified |
-| negative | [`TestRFC8050MessageCallbackPreservesEncodingAndFraming`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8050_mrt_observer_test.go#L24) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestRFC8050MessageCallbackPreservesEncodingAndFraming`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8050_mrt_observer_test.go#L24) | unit/verify | revert, verified |
 | positive | [`TestMRTWinningCollisionPreservesOPEN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8050_collision_epoch_test.go#L31) | unit/verify | revert, verified |
-| positive | [`TestRFC8050MessageCallbackPreservesEncodingAndFraming`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8050_mrt_observer_test.go#L23) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestRFC8050MessageCallbackPreservesEncodingAndFraming`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8050_mrt_observer_test.go#L23) | unit/verify | revert, verified |
 
 ### [`RFC8050-4.1-1`](#rfc8050-4.1-1)
 
@@ -194,7 +194,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 |---|---|---|---|
 | negative | [`TestMRTEmptyMPFamilyRequiresContext`](https://github.com/ze-software/ze/blob/main/internal/analyze/rfc8050_boundary_test.go#L28) | unit/verify | revert, verified |
 | negative | [`TestRFC8050CommandsRequireMixedContext`](https://github.com/ze-software/ze/blob/main/internal/analyze/rfc8050_session_commands_test.go#L88) | unit/verify | revert, verified |
-| negative | [`TestRFC8050MessageCallbackPreservesEncodingAndFraming`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8050_mrt_observer_test.go#L25) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestRFC8050MessageCallbackPreservesEncodingAndFraming`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8050_mrt_observer_test.go#L25) | unit/verify | revert, verified |
 | negative | [`TestIsAddPathHelpers`](https://github.com/ze-software/ze/blob/main/internal/mrt/mrt_test.go#L674) | unit/verify | unproven |
 | negative | [`TestRFC8050SubtypeControlsEveryNLRILocation`](https://github.com/ze-software/ze/blob/main/internal/mrt/rfc8050_context_test.go#L17) | unit/verify | revert, verified |
 | negative | [`TestRFC8050NoOPENSubtypeDecodesExactNLRI`](https://github.com/ze-software/ze/blob/main/internal/mrt/rfc8050_no_open_test.go#L22) | unit/verify | revert, verified |
@@ -205,8 +205,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | positive | [`TestRFC8050CommandsRequireMixedContext`](https://github.com/ze-software/ze/blob/main/internal/analyze/rfc8050_session_commands_test.go#L87) | unit/verify | revert, verified |
 | positive | [`TestMRTCollisionWinnerReservation`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8050_collision_epoch_test.go#L42) | unit/verify | revert, verified |
 | positive | [`TestMRTWinningCollisionPreservesOPEN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8050_collision_epoch_test.go#L33) | unit/verify | revert, verified |
-| positive | [`TestMRTMigrationEpochUsesActualLocalOPEN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8050_migration_epoch_test.go#L27) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestRFC8050MessageCallbackPreservesEncodingAndFraming`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8050_mrt_observer_test.go#L22) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestMRTMigrationEpochUsesActualLocalOPEN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8050_migration_epoch_test.go#L27) | unit/verify | revert, verified |
+| positive | [`TestRFC8050MessageCallbackPreservesEncodingAndFraming`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8050_mrt_observer_test.go#L22) | unit/verify | revert, verified |
 | positive | [`TestIsAddPathHelpers`](https://github.com/ze-software/ze/blob/main/internal/mrt/mrt_test.go#L665) | unit/verify | unproven |
 | positive | [`TestRFC8050AddPathBGP4MPUpdateNLRIReadBySubtype`](https://github.com/ze-software/ze/blob/main/internal/mrt/rfc8050_addpath_nlri_test.go#L22) | unit/verify | revert, verified |
 | positive | [`TestRFC8050SubtypeControlsEveryNLRILocation`](https://github.com/ze-software/ze/blob/main/internal/mrt/rfc8050_context_test.go#L16) | unit/verify | revert, verified |
