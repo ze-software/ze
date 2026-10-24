@@ -2362,7 +2362,7 @@ pre {
 
 .docs-path-card h2 {
     margin: 0 0 var(--space-2);
-    color: var(--text);
+    color: var(--acc-deep, var(--neutral-deep));
     font-size: clamp(1.3rem, 2.4vw, 1.9rem);
     line-height: 1.08;
 }

@@ -18,7 +18,7 @@ job you are trying to do, then follow the links inside that path.
             <a href="../guides/lifecycle/">Lifecycle and rollback <span>reload, restart, archive, update, and recover</span></a>
         </div>
     </article>
-    <article class="card docs-path-card cat-routing">
+    <article class="card docs-path-card cat-meta">
         <span class="cat">Operate</span>
         <h2>Do a specific job</h2>
         <p>Task-oriented guides for protocol setup, access services, migration, and diagnostics.</p>
@@ -59,7 +59,7 @@ job you are trying to do, then follow the links inside that path.
             <a href="../developers/plugins/">Plugin development <span>SDK, protocol, YANG, handlers, commands, and testing</span></a>
         </div>
     </article>
-    <article class="card docs-path-card cat-platform">
+    <article class="card docs-path-card cat-meta">
         <span class="cat">Reference</span>
         <h2>Look up generated facts</h2>
         <p>Information-oriented pages generated from live data where possible.</p>
@@ -75,7 +75,7 @@ job you are trying to do, then follow the links inside that path.
             <a href="../reference/dependencies/">Dependencies <span>direct Go packages and why they exist</span></a>
         </div>
     </article>
-    <article class="card docs-path-card cat-automate">
+    <article class="card docs-path-card cat-meta">
         <span class="cat">Design</span>
         <h2>Understand the system</h2>
         <p>Explanation pages for architecture, comparisons, performance, labs, and deployment shapes.</p>
@@ -92,7 +92,7 @@ job you are trying to do, then follow the links inside that path.
             <a href="../use-cases/flowspec-injection/">FlowSpec injection <span>authorised, atomic, and reversible route control</span></a>
         </div>
     </article>
-    <article class="card docs-path-card cat-secure">
+    <article class="card docs-path-card cat-meta">
         <span class="cat">Community</span>
         <h2>Keep up and contribute</h2>
         <p>Project context for people deciding whether to try Ze or help shape it.</p>

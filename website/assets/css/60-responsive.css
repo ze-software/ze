@@ -59,8 +59,8 @@
 .feature-catalog[data-enhanced="true"] .feature-filters { position: sticky; top: 5.6rem; }
 .feature-catalog[data-enhanced="true"] .feature-filters .legend { display: grid; grid-template-columns: 1fr; gap: 0.35rem; margin: 1rem 0; }
 .feature-catalog[data-enhanced="true"] .feature-filters .legend button { display: flex; justify-content: space-between; width: 100%; padding: 0.65rem 0.75rem; border: 1px solid transparent; border-radius: var(--radius-md); background: transparent; box-shadow: none; color: var(--muted); font-size: 0.8rem; }
-.feature-catalog[data-enhanced="true"] .feature-filters .legend button[aria-pressed="true"] { background: var(--brand); border-color: var(--brand); color: #fff; }
-.feature-catalog[data-enhanced="true"] .feature-filters .legend button[aria-pressed="true"] .legend-count { color: #fff; background: transparent; }
+.feature-catalog[data-enhanced="true"] .feature-filters .legend button[aria-pressed="true"] { background: var(--acc-chip); border-color: var(--acc-deep); color: var(--acc-deep); }
+.feature-catalog[data-enhanced="true"] .feature-filters .legend button[aria-pressed="true"] .legend-count { color: var(--acc-deep); background: transparent; }
 .feature-catalog[data-enhanced="true"] .feature-filters .legend button::before { box-shadow: none; }
 
 @media (min-width: 1081px) {
