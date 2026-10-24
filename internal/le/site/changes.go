@@ -485,7 +485,7 @@ func changesIndexBody(weeks []changeWeek) string {
 			continue
 		}
 		page.Str(`                    <button class="cat-`).Str(category).Str(`" data-cat="`).Str(category).
-			Str(`" aria-pressed="false">`).Str(capitalizeWord(category)).Str("</button>\n")
+			Str(`" aria-pressed="false">`).Str(html.EscapeString(categoryLabel(category))).Str("</button>\n")
 	}
 	page.Str("                </div>\n")
 	page.Str(`                <div class="ch-list reveal">`).Byte('\n')
@@ -526,15 +526,6 @@ func changesIndexRow(week changeWeek) string {
 	}
 	row.Str("                    </a>\n")
 	return row.String()
-}
-
-// capitalizeWord answers one lower-case word with its first letter raised,
-// which is how a category reads on a filter button.
-func capitalizeWord(word string) string {
-	if word == "" {
-		return ""
-	}
-	return strings.ToUpper(word[:1]) + word[1:]
 }
 
 // changesIndexMirror renders the Markdown sibling of the index: one section for

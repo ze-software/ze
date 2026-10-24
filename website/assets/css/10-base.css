@@ -1653,10 +1653,10 @@ section[aria-labelledby="blog-teaser-title"] {
     position: relative;
     min-height: 12rem;
     padding: 1.4rem;
-    border: 1px solid var(--line);
+    border: 1px solid var(--acc);
     border-top: 3px solid var(--acc);
     border-radius: 0.75rem;
-    background: linear-gradient(135deg, var(--acc-tint), var(--panel) 60%);
+    background: linear-gradient(180deg, var(--acc-tint), var(--panel) 60%);
     box-shadow: var(--clay);
     transition: border-color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
 }
@@ -1664,9 +1664,9 @@ section[aria-labelledby="blog-teaser-title"] {
 .card[class*="cat-"] {
     overflow: visible;
     padding-top: 1.4rem;
-    border-color: var(--line);
+    border-color: var(--acc);
     border-top-color: var(--acc);
-    background: linear-gradient(135deg, var(--acc-tint), var(--panel) 60%);
+    background: linear-gradient(180deg, var(--acc-tint), var(--panel) 60%);
 }
 
 .card[class*="cat-"]::before {

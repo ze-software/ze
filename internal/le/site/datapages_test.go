@@ -148,7 +148,7 @@ func TestTheFeatureLegendFollowsItsOwnCategoryOrder(t *testing.T) {
 	for _, count := range []string{
 		`aria-label="Filter features by Operate, 6 features"`,
 		`aria-label="Filter features by Routing, 9 features"`,
-		`aria-label="Filter features by Platform, 6 features"`,
+		`aria-label="Filter features by Deploy &amp; configure, 6 features"`,
 	} {
 		if !strings.Contains(page, count) {
 			t.Errorf("the legend is missing %s", count)
@@ -161,6 +161,11 @@ func TestTheFeatureLegendFollowsItsOwnCategoryOrder(t *testing.T) {
 	for node := range document.Descendants() {
 		if node.Data != "button" {
 			continue
+		}
+		if featureNodeAttribute(node, "data-cat") == categoryPlatform {
+			if got := featureNodeAttribute(node, "aria-label"); got != "Filter features by Deploy & configure, 6 features" {
+				t.Errorf("the accessible category label is %q", got)
+			}
 		}
 		for _, attribute := range node.Attr {
 			if attribute.Key != "data-cat" {
@@ -214,16 +219,24 @@ func TestTheFeaturesPageReadsAsThePublishedPage(t *testing.T) {
 	}
 
 	got := featureOriginalText(t, mainContent(t, page))
-	want := visibleText(readFixture(t, "published-features-body.html"))
+	// The category label changed; the historical fixture and all other text stay intact.
+	wantBody := strings.ReplaceAll(readFixture(t, "published-features-body.html"),
+		">Platform<", ">Deploy &amp; configure<")
+	wantBody = strings.ReplaceAll(wantBody, `>Platform <span class="legend-count"`,
+		`>Deploy &amp; configure <span class="legend-count"`)
+	want := visibleText(wantBody)
 	if got != want {
 		t.Errorf("the features page reads as\n  %q\nthe published page reads as\n  %q", got, want)
 	}
 
 	mirror := readArtifact(t, paths.Output, "features/"+pageMirrorFile)
 	mirror = strings.ReplaceAll(mirror, " / Shipped in current code*", "*")
-	if mirror != readFixture(t, "published-features.md") {
+	wantMirror := strings.ReplaceAll(readFixture(t, "published-features.md"),
+		"\n*platform / ", "\n*deploy & configure / ")
+	wantMirror = strings.ReplaceAll(wantMirror, "or platform.", "or deploy & configure.")
+	if mirror != wantMirror {
 		t.Errorf("the mirror is\n%q\nthe published mirror is\n%q",
-			mirror, readFixture(t, "published-features.md"))
+			mirror, wantMirror)
 	}
 }
 
@@ -518,15 +531,20 @@ func TestTheTimelineReadsAsThePublishedPage(t *testing.T) {
 	}
 
 	got := visibleText(mainContent(t, page))
-	want := visibleText(readFixture(t, "published-milestones-body.html"))
+	// The category label changed; the historical fixture and all other text stay intact.
+	wantBody := strings.ReplaceAll(readFixture(t, "published-milestones-body.html"),
+		">Platform<", ">Deploy &amp; configure<")
+	wantBody = strings.ReplaceAll(wantBody, `class="tl-cat">platform<`, `class="tl-cat">deploy &amp; configure<`)
+	want := visibleText(wantBody)
 	if got != want {
 		t.Errorf("the timeline reads as\n  %q\nthe published page reads as\n  %q", got, want)
 	}
 
 	mirror := readArtifact(t, paths.Output, "project/milestones/"+pageMirrorFile)
-	if mirror != readFixture(t, "published-milestones.md") {
+	wantMirror := strings.ReplaceAll(readFixture(t, "published-milestones.md"), "\n*platform*\n", "\n*deploy & configure*\n")
+	if mirror != wantMirror {
 		t.Errorf("the mirror is\n%q\nthe published mirror is\n%q",
-			mirror, readFixture(t, "published-milestones.md"))
+			mirror, wantMirror)
 	}
 }
 

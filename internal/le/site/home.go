@@ -369,7 +369,7 @@ func audienceCardHTML(card *audienceCard) (string, error) {
 	}
 	label := card.Label
 	if label == "" {
-		label = capitalizeWord(category)
+		label = categoryLabel(category)
 	}
 	title := html.EscapeString(card.Title)
 	action := ""
@@ -418,7 +418,7 @@ func featureCategoryLinks(features featureData) string {
 	links := make([]string, 0, len(legendCategories))
 	for _, category := range legendCategories {
 		links = append(links, "                    <a class=\"cat-"+category+"\" href=\""+
-			sectionFeatures+"#"+category+"\">"+capitalizeWord(category)+" ("+
+			sectionFeatures+"#"+category+"\">"+html.EscapeString(categoryLabel(category))+" ("+
 			strconv.Itoa(counts[category])+")</a>")
 	}
 	return strings.Join(links, "\n")
@@ -432,7 +432,7 @@ func homeFeatureOverview(features featureData) string {
 	for _, category := range legendCategories {
 		overview.Str(`<article class="capability cat-`).Str(html.EscapeString(category)).Str(`">`)
 		overview.Str(`<div class="capability-title"><h3>`).
-			Str(html.EscapeString(capitalizeWord(category))).Str("</h3></div>\n")
+			Str(html.EscapeString(categoryLabel(category))).Str("</h3></div>\n")
 		overview.Str(`<div class="capability-links">`).Byte('\n')
 		for index := range features.Cards {
 			card := &features.Cards[index]
@@ -446,7 +446,8 @@ func homeFeatureOverview(features featureData) string {
 			overview.Byte('>').Str(html.EscapeString(card.Title)).Str("</a>\n")
 		}
 		overview.Str(`</div><a class="capability-footer" href="features/#`).Str(html.EscapeString(category)).
-			Str(`">View `).Str(html.EscapeString(category)).Str(" features →</a></article>\n")
+			Str(`">View `).Str(html.EscapeString(strings.ToLower(categoryLabel(category)))).
+			Str(" features →</a></article>\n")
 	}
 	return overview.String()
 }

@@ -1262,7 +1262,7 @@ pre.code-copy-wrap, .md-content pre.code-copy-wrap { position: relative; padding
 .feature-results { min-width: 0; }
 .feature-results section[data-cards] { margin-top: 0; }
 .feature-results .cards { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
-.feature-results .card.feature-card { padding: 1.35rem; background: linear-gradient(135deg, var(--acc-tint), var(--panel) 60%); border: 1px solid var(--line); border-top: 3px solid var(--acc); box-shadow: var(--clay); }
+.feature-results .card.feature-card { padding: 1.35rem; background: linear-gradient(180deg, var(--acc-tint), var(--panel) 60%); border: 1px solid var(--acc); border-top: 3px solid var(--acc); box-shadow: var(--clay); }
 .feature-results .card.feature-card.experimental { border-style: dashed; border-top-style: solid; }
 .feature-results .card.feature-card h3 { font-size: 1.18rem; line-height: 1.35; color: var(--text); }
 .feature-results .card.feature-card ul { font-size: 0.84rem; line-height: 1.75; }
@@ -1357,7 +1357,7 @@ pre.code-copy-wrap, .md-content pre.code-copy-wrap { position: relative; padding
 .site-home .usp-card h3 { font-size: 1.15rem; line-height: 1.4; }
 .site-home .usp-card p { font-size: 0.88rem; line-height: 1.75; }
 .site-home .capability-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; }
-.site-home .capability { display: flex; flex-direction: column; min-width: 0; padding: 1.4rem; border: 1px solid var(--line); border-top: 3px solid var(--acc); border-radius: var(--radius-lg); background: linear-gradient(135deg, var(--acc-tint), var(--panel) 60%); box-shadow: var(--clay); }
+.site-home .capability { display: flex; flex-direction: column; min-width: 0; padding: 1.4rem; border: 1px solid var(--acc); border-top: 3px solid var(--acc); border-radius: var(--radius-lg); background: linear-gradient(180deg, var(--acc-tint), var(--panel) 60%); box-shadow: var(--clay); }
 .site-home .capability-title h3 { font-size: 1.15rem; color: var(--text); margin: 0 0 0.8rem; }
 .site-home .capability-links { display: flex; flex-wrap: wrap; gap: 0.35rem 0.75rem; flex: 1; }
 .site-home .capability-links a { color: var(--muted); text-decoration: none; border-bottom: 1px solid var(--line); font-size: 0.8rem; line-height: 1.65; }
@@ -1378,7 +1378,7 @@ pre.code-copy-wrap, .md-content pre.code-copy-wrap { position: relative; padding
 .site-home .interop-strip { margin-top: 1.5rem; padding: 0; border: 0; background: none; box-shadow: none; }
 .site-home .hero-product-demo { width: 100%; max-width: 60rem; margin: 0 auto; }
 .site-home .run-path-grid, .site-home .home-usecase-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.25rem; }
-.site-home .audience-card { border: 1px solid var(--line); border-top: 3px solid var(--acc, var(--brand)); padding: 1.6rem; border-radius: var(--radius-lg); background: linear-gradient(135deg, var(--acc-tint), var(--panel) 60%); box-shadow: var(--clay); }
+.site-home .audience-card { border: 1px solid var(--acc); border-top: 3px solid var(--acc); padding: 1.6rem; border-radius: var(--radius-lg); background: linear-gradient(180deg, var(--acc-tint), var(--panel) 60%); box-shadow: var(--clay); }
 .site-home .audience-card h3 { font-size: 1.25rem; line-height: 1.4; }
 .site-home .audience-card p { font-size: 0.9rem; font-weight: 400; line-height: 1.75; }
 .site-home .audience-card-cta { border-top: 1px solid var(--line); padding-top: 1rem; font-size: 0.82rem; }

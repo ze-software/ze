@@ -377,7 +377,7 @@ func featuresBody(data featureData, shipped []featureCard) string {
 	body.Str("</div>\n")
 	body.Str("                <div class=\"legend reveal\" role=\"group\" aria-label=\"Filter features by category\">\n")
 	for _, category := range legendCategories {
-		label := capitalizeWord(category)
+		label := html.EscapeString(categoryLabel(category))
 		count := strconv.Itoa(counts[category])
 		body.Str("                    <button class=\"cat-").Str(category).Str("\" data-cat=\"").Str(category).
 			Str("\" aria-pressed=\"false\" aria-label=\"Filter features by ").Str(label).Str(", ").Str(count).
@@ -452,7 +452,7 @@ func featureCardHTML(card *featureCard) string {
 		out.Str(feature.CardClass())
 	}
 	out.Str("\">\n")
-	out.Str("                    <span class=\"cat\">").Str(html.EscapeString(capitalizeWord(card.Category))).
+	out.Str("                    <span class=\"cat\">").Str(html.EscapeString(categoryLabel(card.Category))).
 		Str("</span>\n")
 	out.Str(`                    <span class="status">`).
 		Str(html.EscapeString(card.maturityLabel())).Str("</span>\n")
@@ -488,7 +488,8 @@ func featuresMirror(data featureData, shipped int) string {
 	mirror.Str("# Every feature Ze ships.\n\n")
 	mirror.Int(int64(shipped)).Str(" shipped or experimental feature cards. ").
 		Str("Each card's category shows where the feature fits: operate, routing, services, automate, ").
-		Str("observe, secure, or platform. Everything shipped runs in both daemon and appliance modes ").
+		Str("observe, secure, or ").Str(strings.ToLower(categoryLabel(categoryPlatform))).
+		Str(". Everything shipped runs in both daemon and appliance modes ").
 		Str("unless a card says otherwise.\n\n")
 	for _, section := range data.Sections {
 		if len(section.Cards) == 0 {
@@ -502,7 +503,7 @@ func featuresMirror(data featureData, shipped int) string {
 		for index := range section.Cards {
 			card := &section.Cards[index]
 			mirror.Str("### ").Str(card.Title).Str("\n\n")
-			meta := card.Category
+			meta := strings.ToLower(categoryLabel(card.Category))
 			meta += " / " + card.maturityLabel()
 			line := "*" + meta + "*"
 			if len(card.Chips) != 0 {
@@ -772,7 +773,7 @@ func milestonesBody(data milestoneData, quarters []milestoneQuarter) (string, er
 	body.Str("                <div class=\"legend reveal\" role=\"group\" aria-label=\"Filter milestones by category\">\n")
 	for _, category := range legendCategories {
 		body.Str("                    <button class=\"cat-").Str(category).Str("\" data-cat=\"").Str(category).
-			Str("\" aria-pressed=\"false\">").Str(capitalizeWord(category)).Str("</button>\n")
+			Str("\" aria-pressed=\"false\">").Str(html.EscapeString(categoryLabel(category))).Str("</button>\n")
 	}
 	body.Str("                </div>\n")
 	body.Str("            </section>\n\n")
@@ -814,7 +815,8 @@ func milestoneItemHTML(item milestone) (string, error) {
 	out.Str("                            <div class=\"tl-head\">\n")
 	out.Str("                                <h3 class=\"tl-title\">").Str(html.EscapeString(item.Title)).
 		Str("</h3>\n")
-	out.Str("                                <span class=\"tl-cat\">").Str(html.EscapeString(item.Category)).
+	out.Str("                                <span class=\"tl-cat\">").
+		Str(html.EscapeString(strings.ToLower(categoryLabel(item.Category)))).
 		Str("</span>\n")
 	out.Str("                            </div>\n")
 	out.Str("                            <p>").Str(inlineMarkup(item.Blurb)).Str("</p>\n")
@@ -841,7 +843,7 @@ func milestonesMirror(data milestoneData, quarters []milestoneQuarter) (string, 
 				return "", err
 			}
 			mirror.Str("### ").Str(item.Title).Str(" (").Str(month).Str(")\n\n")
-			mirror.Byte('*').Str(item.Category).Str("*\n\n")
+			mirror.Byte('*').Str(strings.ToLower(categoryLabel(item.Category))).Str("*\n\n")
 			mirror.Str(item.Blurb).Byte('\n')
 			if item.Blog != "" {
 				mirror.Str("\n[Read the week](../changes/").Str(item.Blog).Str("/)\n")

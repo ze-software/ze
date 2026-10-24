@@ -40,6 +40,17 @@ var pageCategories = map[string]bool{
 	categoryServices: true, categoryMeta: true,
 }
 
+// categoryLabel gives a category its display name without changing its identifier.
+func categoryLabel(category string) string {
+	if category == categoryPlatform {
+		return "Deploy & configure"
+	}
+	if category == "" {
+		return ""
+	}
+	return strings.ToUpper(category[:1]) + category[1:]
+}
+
 // firstHeading matches the first level 1 heading of a Markdown source, which
 // is the page title when the front matter states none.
 var firstHeading = regexp.MustCompile(`(?m)^#\s+(.+)$`)

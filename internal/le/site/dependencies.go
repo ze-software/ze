@@ -197,7 +197,7 @@ func dependenciesBody(data dependencyData, versions map[string]string) string {
 	var body textbuf.Buffer
 	body.Reset().Str("            <section aria-labelledby=\"dependencies-title\" class=\"md-content reveal cat-platform\">\n")
 	body.Str(pageHero("Dependencies", dependenciesLead("<code>go.mod</code>", data.total()),
-		capitalizeWord(categoryPlatform), ` id="dependencies-title"`, heroClasses)).Byte('\n')
+		categoryLabel(categoryPlatform), ` id="dependencies-title"`, heroClasses)).Byte('\n')
 	body.Str("                <input id=\"dep-search\" type=\"search\" ").
 		Str("placeholder=\"Filter dependencies (e.g. netlink, ssh, prometheus)...\" ").
 		Str("aria-label=\"Filter dependencies\" />\n")

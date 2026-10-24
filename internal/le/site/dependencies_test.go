@@ -197,7 +197,9 @@ func TestTheDependencyPageReadsAsThePublishedPage(t *testing.T) {
 	}
 
 	got := visibleText(mainContent(t, page))
-	want := visibleText(readFixture(t, "published-dependencies-body.html"))
+	// The category label changed; the historical fixture and all other text stay intact.
+	want := visibleText(strings.ReplaceAll(readFixture(t, "published-dependencies-body.html"),
+		">Platform<", ">Deploy &amp; configure<"))
 	if got != want {
 		t.Errorf("the dependency page reads as\n  %q\nthe published page reads as\n  %q", got, want)
 	}
