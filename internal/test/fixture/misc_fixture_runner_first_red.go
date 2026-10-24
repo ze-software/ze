@@ -13,7 +13,8 @@ import (
 
 // verifyFirstRedRefusesACutDriver types `le verify worktree part 1 of 2
 // first-red` against a throwaway checkout and asserts the refusal: exit 2,
-// the reason (a piece is dealt for debt clearing), the two spellings that
+// the reason (a piece counts towards the green record only when every stage
+// of it runs), the two spellings that
 // work, and no worktree created.
 func verifyFirstRedRefusesACutDriver(ctx context.Context, args []string) error {
 	if len(args) != 0 {
@@ -40,9 +41,9 @@ func verifyFirstRedRefusesACutDriver(ctx context.Context, args []string) error {
 	}
 	for _, want := range []string{
 		"first-red cannot be combined with part",
-		"debt clearing",
+		"counts towards the green record only when every stage of it runs",
 		"le verify worktree first-red",
-		"le verify worktree part <i> of <n>",
+		"le verify worktree part <i> of <m>",
 	} {
 		if !strings.Contains(out, want) {
 			return fmt.Errorf("refusal does not say %q: %s", want, out)
