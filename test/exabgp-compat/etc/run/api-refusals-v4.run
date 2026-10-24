@@ -50,6 +50,8 @@ def main() -> None:
         'neighbor 192.0.2.99 announce route 10.0.0.0/24 next-hop 11.11.11.11',
         # X-23: no selected peer carries ipv6 unicast.
         'announce route 2001:db8::/32 next-hop 2001:db8::1',
+        # X-23, End-of-RIB: no selected peer carries ipv6 unicast either.
+        'announce eor ipv6 unicast',
         # X-25: a flow route with no match.
         'announce flow route discard',
         # X-28: path-information with no value.

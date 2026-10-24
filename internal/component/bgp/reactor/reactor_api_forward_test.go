@@ -67,18 +67,32 @@ func (testConnAddr) String() string  { return "10.0.0.2:179" }
 // than inferring intent from an error.
 func newEORGuardPeer(t *testing.T) (*reactorAPIAdapter, *Peer, *recordingConn) {
 	t.Helper()
+	peer, conn := newEstablishedRecordingPeer(t, "10.0.0.2", family.IPv4Unicast)
+	adapter := &reactorAPIAdapter{r: &Reactor{
+		config: &Config{LocalAS: 65000},
+		peers:  map[netip.AddrPort]*Peer{peer.settings.PeerKey(): peer},
+	}}
+	return adapter, peer, conn
+}
+
+// newEstablishedRecordingPeer builds an Established peer at address that
+// negotiated exactly families, its session writing into a recording conn.
+func newEstablishedRecordingPeer(t *testing.T, address string, families ...family.Family) (*Peer, *recordingConn) {
+	t.Helper()
 	settings := &PeerSettings{
 		Connection: ConnectionBoth,
-		Address:    netip.MustParseAddr("10.0.0.2"),
+		Address:    netip.MustParseAddr(address),
 		LocalAS:    65000,
 		PeerAS:     65001,
 		RouterID:   0x01020301,
 	}
 	peer := NewPeer(settings)
 	peer.state.Store(int32(PeerStateEstablished))
-	peer.negotiated.Store(&NegotiatedCapabilities{
-		families: map[family.Family]bool{{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}: true},
-	})
+	negotiated := make(map[family.Family]bool, len(families))
+	for _, fam := range families {
+		negotiated[fam] = true
+	}
+	peer.negotiated.Store(&NegotiatedCapabilities{families: negotiated})
 
 	// Drive a Session to Established, then back it with the recording conn.
 	session := NewSession(settings)
@@ -97,12 +111,7 @@ func newEORGuardPeer(t *testing.T) (*reactorAPIAdapter, *Peer, *recordingConn) {
 	peer.mu.Lock()
 	peer.session = session
 	peer.mu.Unlock()
-
-	adapter := &reactorAPIAdapter{r: &Reactor{
-		config: &Config{LocalAS: 65000},
-		peers:  map[netip.AddrPort]*Peer{settings.PeerKey(): peer},
-	}}
-	return adapter, peer, conn
+	return peer, conn
 }
 
 // eorWire returns the on-wire encoding of the End-of-RIB for a family.

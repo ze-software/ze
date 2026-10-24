@@ -316,7 +316,7 @@ CHANGELOG sentence of that producer.
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | `./le` exabgp stage | runs the `encoding` and `api` populations under the 5.0.13 pin AND the ExaBGP-main pin (a recorded ExaBGP main git commit, installed by uv; A-1 change accepted by the main thread 2026-10-18); each `uv run` child has `PYTHONPATH` set empty and `--python` naming the interpreter; the report names both pins and the resolved ExaBGP version |
+| AC-1 | `./le` exabgp stage | runs the `encoding` and `api` populations under the 5.0.15 pin AND the ExaBGP-main pin (ExaBGP main commit f9bfb853b, installed by uv; both recorded in `exaBGPPins`, `internal/le/test/functional/exabgp.go`; A-1 change accepted by the main thread 2026-10-18; the pins moved from 5.0.13 and 685f772e4 by later decisions); each `uv run` child has `PYTHONPATH` set empty and `--python` naming the interpreter; the report names both pins and the resolved ExaBGP version |
 | AC-2 | the main-pin proof mode | each case under `test/exabgp-compat/api/` that this spec adds or changes passes with the ExaBGP-main pin as the daemon, so its expectation is 6.0's, before it is run against ze |
 | AC-3 | `qa/api/api-on-exit.ci`, `qa/api/api-disable.ci` | ported to `test/exabgp-compat/api/` with their `.conf` and `.run` |
 | AC-4 | `qa/old/4.2` and `qa/old/5.0` encoding tests | ported as populations `old-4.2` and `old-5.0` run by `le test exabgp`, with ExaBGP's ALLOWED reasons carried and Ze's own differences each named with a reason; green |
@@ -364,7 +364,7 @@ Evidence is the phase state under Implementation Steps that names the AC, unless
 
 | AC | Status | Evidence |
 |----|--------|----------|
-| AC-1 | met, pin moved | Phase 1; the main pin is now f9bfb853b (Key Design Decisions); stage green against 5.0.15 and main (handover 17, START HERE eaf85631). AC text still says 5.0.13 |
+| AC-1 | met | Phase 1; the main pin is now f9bfb853b (Key Design Decisions); stage green against 5.0.15 and main (handover 17, START HERE eaf85631). AC text corrected to 5.0.15 and f9bfb853b, read from `exaBGPPins` (2026-10-24) |
 | AC-2 | met | Phase 1 proof mode; each added case run `--dut exabgp` in its phase state |
 | AC-3 | met | `api-on-exit`, `api-disable` ported (Phase 1); `api-disable` green after AC-41 |
 | AC-4 | met | AC-4 states, closed 2026-10-23 (2e32def1a9, d27dcdbdf7); allowances each observed SKIP with a quoted reason |
@@ -374,7 +374,7 @@ Evidence is the phase state under Implementation Steps that names the AC, unless
 | AC-17 to AC-25 | met | Phase 4 states: e9ac5ea736, `api-group`, `api-group-inline`, `api-on-exit`, `api-on-exit-v4-keep`, `api-on-exit-configured`, d54ccff4ad, 159d3765a2, 8f3048d439 |
 | AC-26, AC-27 | met | Phase 5: 4d52d72875, 7cec4fa82c (interop `bgp-exabgp-bridge-rtc-gobgp`, `bgp-exabgp-bridge-vpnv4-frr`) |
 | AC-28 | met | Phase 5: af18a709d8, 76b51c8946, 65651c27e0; SR Policy Route Target 79fa5db993 |
-| AC-29 | partly checked | routes met (Phase 6, `TestFamilyNoSelectedPeerCarriesAnswersError`); the EOR half was NOT checked in this spec |
+| AC-29 | met | Routes: Phase 6 (`TestFamilyNoSelectedPeerCarriesAnswersError` is no longer in the tree; `TestHandleUpdateText_FamilyNoSelectedPeerConfiguredIsRefused` pins the engine refusal). EOR, 2026-10-24: no carrying peer answers error, `TestAnnounceEORRefusesAFamilyNoPeerNegotiated` and the `announce eor ipv6 unicast` line of `api-refusals-v4` (green on ze and under `--dut exabgp` at f9bfb853b; red on ze with `eorNoPeerError` replaced by `return nil`); one carrying peer among several is sent the marker alone and answered done, `TestAnnounceEORSentOnlyToThePeerCarryingTheFamily` (red with the negotiated-family skip removed) |
 | AC-30 to AC-36 | met | Phase 6: fa2effd108 and its six unit tests; cases `api-refusals-v4`, `api-repeated-attributes-v4` |
 | AC-37 | met | Phase 7 watchdog state: `TestOldCommands50` 4250/4250, `TestOldCommands42` 2541/2541 |
 | AC-38 | met | `TestOldResponses50` 23392/23392, `TestOldResponses42` 20930/20930 (handover 17, "Agent extra members and flow announce"). At risk from the open `overlayWire` defect (Owned journal rows) on a live `parsed`-only script; the corpus test renders from bytes |
