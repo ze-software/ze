@@ -226685,7 +226685,7 @@
         "audited": 8,
         "discrimination-records": 40,
         "escapes": 0,
-        "stale-records": 11
+        "stale-records": 10
       },
       "requirements": [
         {
@@ -227493,11 +227493,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
                 "break": "body of Negotiate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             },

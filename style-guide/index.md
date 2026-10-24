@@ -196,7 +196,7 @@ The homepage hero uses the shared `--hero-panel-surface` navy gradient in both t
 
 The homepage's four starting actions fill the space beside the release callout in equal columns. Center each title and its supporting text within its column. Align the actions and release notice at the top, with the notice text at the mascot's top edge. At widths of 850px or less, use two equal columns and keep the text centered.
 
-Standard homepage sections use 2rem of top and bottom padding, reduced to 1.5rem at widths of 560px or less, with no added top margin. Stacked section titles and introductions have a 0.5rem gap. Keep the hero and proof panels' separate spacing.
+Separate standard homepage sections with spacing and no horizontal rules, and omit the final footer separator on the homepage. Use 2rem of top and bottom padding, reduced to 1.5rem at widths of 560px or less, with no added top margin. Section titles, including the proof and Try safely titles, share a 2rem font size, 700 weight, 1.25 line height and 0.5rem bottom margin. Reduce their font size to 1.65rem at widths of 560px or less. Stacked section titles and introductions have a 0.5rem gap. Keep the compact Latest news title and the hero and proof panels' separate spacing.
 
 Keep homepage section containers, including Latest news, shadowless. Cards within them retain their component shadows.
 
