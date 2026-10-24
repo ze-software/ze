@@ -5,7 +5,7 @@
     "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestBMPInitiationMissingSysNameEndsSession": "4c8de7d703105fd1",
     "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestRFC7854InitiationEmptyIdentityValuesAccepted": "4c8de7d703105fd1",
     "internal/component/bgp/plugins/bmp/rfc7854_codec_test.go::TestRFC7854InitiationMissingSysDescrEndsSession": "4c8de7d703105fd1",
-    "internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go::TestRFC7854InitiationCarriesSysName": "524ea12738fd2dfc",
+    "internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go::TestRFC7854InitiationCarriesSysName": "8e6f8d24ba62ba53",
     "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854InitiationCarriesSysDescr": "94e84131af3555be"
   },
   "units": {

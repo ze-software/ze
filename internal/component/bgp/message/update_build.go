@@ -323,7 +323,7 @@ func (ub *UpdateBuilder) BuildUnicast(p *UnicastParams) (*Update, error) {
 		attrs = append(attrs, mpReach)
 	case p.Prefix.Addr().Is4():
 		// IPv4 unicast: inline NLRI written into scratch via alloc.
-		inet := nlri.NewINET(family.IPv4Unicast, p.Prefix, p.PathID)
+		inet := nlri.NewINET(family.IPv4Unicast, p.Prefix, p.PathID, ub.AddPath)
 		inlineNLRI = ub.alloc(nlri.LenWithContext(inet, ub.AddPath))
 		nlri.WriteNLRI(inet, inlineNLRI, 0, ub.AddPath)
 	}
@@ -678,7 +678,7 @@ func (ub *UpdateBuilder) buildMPReach(p *UnicastParams) *attribute.MPReachNLRI {
 	}
 	nlriSAFI := family.SAFI(safi)
 
-	inet := nlri.NewINET(family.Family{AFI: nlriAFI, SAFI: nlriSAFI}, p.Prefix, p.PathID)
+	inet := nlri.NewINET(family.Family{AFI: nlriAFI, SAFI: nlriSAFI}, p.Prefix, p.PathID, ub.AddPath)
 	nlriBytes := ub.alloc(nlri.LenWithContext(inet, ub.AddPath))
 	nlri.WriteNLRI(inet, nlriBytes, 0, ub.AddPath)
 

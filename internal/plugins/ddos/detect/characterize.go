@@ -148,7 +148,7 @@ func (d *detector) characterizeAndEmit(gen uint64, ifaceName string, peakPps, pe
 func (d *detector) emitDetected(gen uint64, ifaceName string, target ddosevent.VectorTuple, severity ddosevent.Severity, direction ddosevent.Direction, suppressMitigation bool, peakPps, peakBps float64) bool {
 	d.emitMu.Lock()
 	defer d.emitMu.Unlock()
-	if !d.genCurrent(gen) {
+	if !d.recordAttackTarget(gen, target) {
 		return false
 	}
 	if _, err := ddosevent.Detected.Emit(d.bus, &ddosevent.AttackDetected{
@@ -338,6 +338,21 @@ func (d *detector) genCurrent(gen uint64) bool {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	return d.attackGen == gen
+}
+
+// recordAttackTarget is genCurrent for emitDetected: while the generation is
+// still gen it also records target as the attack's victim, in the same d.mu
+// section, and reports true. A clear staged after this call therefore carries
+// target; a clear staged before it advanced the generation, so the Detected is
+// dropped and no incident exists to close. Callers hold emitMu, never d.mu.
+func (d *detector) recordAttackTarget(gen uint64, target ddosevent.VectorTuple) bool {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if d.attackGen != gen {
+		return false
+	}
+	d.attackTarget = target
+	return true
 }
 
 // filterByWindow drops flows last seen before now-window. A flow with no

@@ -29,7 +29,7 @@ func TestVPNv4WireRoundTrip(t *testing.T) {
 	require.NotEmpty(t, wireBytes)
 
 	// Decode from wire
-	parsed, remaining, err := ParseVPN(AFIIPv4, SAFIVPN, wireBytes, false)
+	parsed, remaining, err := parseVPNAnnounce(AFIIPv4, SAFIVPN, wireBytes, false)
 	require.NoError(t, err)
 	assert.Empty(t, remaining)
 
@@ -58,7 +58,7 @@ func TestVPNv6WireRoundTrip(t *testing.T) {
 	require.NotEmpty(t, wireBytes)
 
 	// Decode from wire
-	parsed, remaining, err := ParseVPN(AFIIPv6, SAFIVPN, wireBytes, false)
+	parsed, remaining, err := parseVPNAnnounce(AFIIPv6, SAFIVPN, wireBytes, false)
 	require.NoError(t, err)
 	assert.Empty(t, remaining)
 
@@ -120,7 +120,7 @@ func TestVPNAllRDTypes(t *testing.T) {
 			original := NewVPN(IPv4VPN, rd, []uint32{100}, netip.MustParsePrefix(tt.prefix), 0, false)
 			wireBytes := original.Bytes()
 
-			parsed, _, err := ParseVPN(AFIIPv4, SAFIVPN, wireBytes, false)
+			parsed, _, err := parseVPNAnnounce(AFIIPv4, SAFIVPN, wireBytes, false)
 			require.NoError(t, err)
 
 			assert.Equal(t, tt.rdStr, parsed.rd.String())
@@ -143,7 +143,7 @@ func TestVPNLabelStack(t *testing.T) {
 	original := NewVPN(IPv4VPN, rd, labels, netip.MustParsePrefix("10.0.0.0/24"), 0, false)
 
 	wireBytes := original.Bytes()
-	parsed, _, err := ParseVPN(AFIIPv4, SAFIVPN, wireBytes, false)
+	parsed, _, err := parseVPNAnnounce(AFIIPv4, SAFIVPN, wireBytes, false)
 	require.NoError(t, err)
 
 	assert.Equal(t, labels, parsed.Labels())
@@ -239,7 +239,7 @@ func TestVPNBoundaryPrefixLen(t *testing.T) {
 			original := NewVPN(fam, rd, []uint32{100}, netip.MustParsePrefix(tt.prefix), 0, false)
 			wireBytes := original.Bytes()
 
-			parsed, _, err := ParseVPN(tt.afi, SAFIVPN, wireBytes, false)
+			parsed, _, err := parseVPNAnnounce(tt.afi, SAFIVPN, wireBytes, false)
 			require.NoError(t, err)
 			assert.Equal(t, tt.prefix, parsed.prefix.String())
 		})
@@ -271,7 +271,7 @@ func TestVPNBoundaryLabel(t *testing.T) {
 			original := NewVPN(IPv4VPN, rd, []uint32{tt.label}, netip.MustParsePrefix("10.0.0.0/24"), 0, false)
 			wireBytes := original.Bytes()
 
-			parsed, _, err := ParseVPN(AFIIPv4, SAFIVPN, wireBytes, false)
+			parsed, _, err := parseVPNAnnounce(AFIIPv4, SAFIVPN, wireBytes, false)
 			require.NoError(t, err)
 			require.Len(t, parsed.labels, 1)
 			assert.Equal(t, tt.label, parsed.Labels()[0])
@@ -356,7 +356,7 @@ func TestVPNWithPathID(t *testing.T) {
 
 	v := NewVPN(IPv4VPN, rd, []uint32{100}, netip.MustParsePrefix("10.0.0.0/24"), 42, true)
 	assert.Equal(t, uint32(42), v.PathID())
-	assert.True(t, v.HasPathID())
+	assert.True(t, v.HasAddPath())
 	assert.True(t, v.SupportsAddPath())
 	assert.Contains(t, v.String(), "path-id 42")
 }
@@ -379,7 +379,7 @@ func TestParseVPNShortData(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			_, _, err := ParseVPN(AFIIPv4, SAFIVPN, tt.data, false)
+			_, _, err := parseVPNAnnounce(AFIIPv4, SAFIVPN, tt.data, false)
 			assert.Error(t, err)
 		})
 	}

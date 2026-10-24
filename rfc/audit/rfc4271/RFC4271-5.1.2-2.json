@@ -8,7 +8,7 @@
     "internal/component/bgp/reactor/rfc4271_ibgp_aspath_export_test.go::TestRFC4271PolicyDryRunAgreesNoASPathEditTowardAnInternalPeer": "7be8956d77d2d1ad",
     "internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go::TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer": "ffc03f8e67362cde",
     "internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go::TestRFC4271ForwardASPathUnmodifiedTowardInternalPeer#2": "ffc03f8e67362cde",
-    "internal/component/bgp/reactor/rfc4271_reactor_batch_test.go::TestEstablishedAnnounce_ExplicitASPath_IBGPVerbatim": "35bb93fe81f0bf3d",
+    "internal/component/bgp/reactor/rfc4271_reactor_batch_test.go::TestEstablishedAnnounce_ExplicitASPath_IBGPVerbatim": "bdfb0904a5ee4763",
     "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ASPathPrependedTowardExternalPeer": "94aa07ebd53dcc5b",
     "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271ASPathUnmodifiedTowardInternalPeer": "94aa07ebd53dcc5b"
   },

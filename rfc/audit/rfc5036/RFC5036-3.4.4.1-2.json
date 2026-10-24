@@ -2,8 +2,8 @@
   "note": "Prior enforcement overstated full RFC5036 section 3.4.4.1. The two tagged tests correctly prove Label Mapping count 5 above maximum 4 yields advisory Loop Detected with exact offending reference, no callback and Operational state, while count 4 is applied with timeout-only wire silence. But the RFC also covers Label Request containing Hop Count; Session.processMessages treats MsgTypeLabelRequest as unhandled and never checks its hop count or sends Loop Detected. Both tests send Mapping, leaving that receive case untested. Renewed producer-halt records do not close the semantic gap.",
   "requirement_sha": "8808099b55d76524",
   "tests": {
-    "internal/plugins/ldp/rfc5036_procedures_test.go::TestRFC5036HopCountAboveMaximumDrawsLoopDetected": "1229c7e2acc6a715",
-    "internal/plugins/ldp/rfc5036_procedures_test.go::TestRFC5036HopCountWithinMaximumIsApplied": "1229c7e2acc6a715"
+    "internal/plugins/ldp/rfc5036_procedures_test.go::TestRFC5036HopCountAboveMaximumDrawsLoopDetected": "e02b8145e25cce65",
+    "internal/plugins/ldp/rfc5036_procedures_test.go::TestRFC5036HopCountWithinMaximumIsApplied": "e02b8145e25cce65"
   },
   "units": {
     "internal/plugins/ldp/rfc5036_procedures_test.go::TestRFC5036HopCountAboveMaximumDrawsLoopDetected": "df8a68a89ce160da",

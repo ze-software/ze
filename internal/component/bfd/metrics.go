@@ -54,7 +54,7 @@ var bfdMetricsPtr atomic.Pointer[bfdMetrics]
 
 // bindMetricsRegistry creates the BFD Prometheus metrics from reg.
 // Called via registry.Registration.ConfigureMetrics before
-// RunBFDPlugin. Safe to call multiple times (last writer wins); Stage
+// runBFDPlugin. Safe to call multiple times (last writer wins); Stage
 // 4 registers once per daemon lifetime.
 //
 // The name deliberately avoids the project-wide SetMetricsRegistry

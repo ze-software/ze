@@ -120,7 +120,7 @@ func rsApplyVPN(t *testing.T, rs *routeServer, fam family.Family, addPath bool, 
 	if err != nil {
 		t.Fatal(err)
 	}
-	records := extractWireNLRIRecords(&bgptypes.RawMessage{RawBytes: body, AttrsWire: attrsWire, WireUpdate: wu})
+	records := wireNLRIRecords(t, &bgptypes.RawMessage{RawBytes: body, AttrsWire: attrsWire, WireUpdate: wu})
 	if records == nil {
 		t.Fatal("VPN extraction returned no records")
 	}

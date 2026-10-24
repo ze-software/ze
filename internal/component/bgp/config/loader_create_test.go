@@ -39,7 +39,7 @@ bgp {
 // file, so one mistyped word silently stopped redistribution the operator had
 // configured correctly elsewhere.
 func TestUnknownRedistributeSourceRefusesLoad(t *testing.T) {
-	_, err := LoadReactor(redistConfig(`
+	_, err := loadReactor(redistConfig(`
 redistribute {
     destination bgp {
         import rip
@@ -58,7 +58,7 @@ redistribute {
 // VALIDATES: A-5 -- making the error fatal has to be judged on both error
 // paths, not on the one the YANG validator already guards.
 func TestUnknownRedistributeFamilyRefusesLoad(t *testing.T) {
-	_, err := LoadReactor(redistConfig(`
+	_, err := loadReactor(redistConfig(`
 redistribute {
     destination bgp {
         import connected {
@@ -77,7 +77,7 @@ redistribute {
 // VALIDATES: R-4 -- the fatal error refuses a config that is wrong, not a
 // config that works.
 func TestValidRedistributeLoads(t *testing.T) {
-	_, err := LoadReactor(redistConfig(`
+	_, err := loadReactor(redistConfig(`
 ospf {
     router-id 10.0.0.1
 }
@@ -109,7 +109,7 @@ func TestNoRedistributeInstallsAnEmptyEvaluator(t *testing.T) {
 	}))
 	require.True(t, redistribute.Global().HasDestination("ospf"), "the stale evaluator is installed")
 
-	_, err := LoadReactor(redistConfig(""))
+	_, err := loadReactor(redistConfig(""))
 	require.NoError(t, err)
 
 	ev := redistribute.Global()

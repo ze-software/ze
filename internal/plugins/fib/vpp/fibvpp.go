@@ -29,6 +29,12 @@ import (
 var (
 	errFibVppConfigSectionMissingFib  = errors.New("fib-vpp: config section missing 'fib' root")
 	errFibVppConfigSectionMissingFib2 = errors.New("fib-vpp: config section missing 'fib/vpp' subtree")
+	errFibVPPNotStarted               = errors.New("show fib vpp: the fib-vpp plugin has not finished " +
+		"starting, so it has no FIB writer to read installed routes from; retry 'show fib vpp' " +
+		"once startup completes")
+	errFibVPPNoConnector = errors.New("fib-vpp: the vpp component is not running, so there is no " +
+		"GoVPP connection to program routes through; configure 'vpp { }' and run 'ze doctor' " +
+		"to see why VPP is not ready")
 )
 
 // loggerPtr is the package-level logger, disabled by default.

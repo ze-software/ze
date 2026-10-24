@@ -424,7 +424,7 @@ func TestPathsLimitAPIReattemptAfterWithdrawal(t *testing.T) {
 		b := adjOutBatch("198.51.100.0/24", "192.0.2.1")
 		b.NLRIs = nil
 		for _, id := range ids {
-			b.NLRIs = append(b.NLRIs, nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("198.51.100.0/24"), id))
+			b.NLRIs = append(b.NLRIs, nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("198.51.100.0/24"), id, true))
 		}
 		return b
 	}
@@ -451,7 +451,7 @@ func TestPathsLimitCommitsAndResultCounts(t *testing.T) {
 	peer, conn := pathsLimitAPIPeer(t)
 	adapter := groupUpdatesReactor([]*Peer{peer}, false)
 	route := func(id uint32) *rib.Route {
-		n := nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("198.51.100.0/24"), id)
+		n := nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("198.51.100.0/24"), id, true)
 		return rib.NewRouteWithASPath(n, netip.MustParseAddr("192.0.2.1"), nil, nil)
 	}
 	first := adapter.commitToPeer(peer, []*rib.Route{route(1), route(2)}, nil, []family.Family{family.IPv4Unicast}, false)

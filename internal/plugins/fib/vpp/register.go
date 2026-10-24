@@ -85,6 +85,7 @@ func runFibVPPPlugin(conn net.Conn) int {
 	var fibMu sync.Mutex
 	var tableID uint32
 	var fib *fibVPP
+	var unreachable error // why fib is nil after OnStarted; nil before it
 	var runCancel context.CancelFunc
 
 	var vppUnsub func() // VPP reconnect subscription cleanup
@@ -145,30 +146,6 @@ func runFibVPPPlugin(conn net.Conn) int {
 	})
 
 	p.OnStarted(func(ctx context.Context) error {
-		// newBackend returns a COMPLETE fibVPP. The MPLS and SRv6 backends are
-		// attached before the value is published, so a reader can never see a
-		// fibVPP whose backends are still nil.
-		newBackend := func(table uint32) *fibVPP {
-			connector := vppcomp.GetActiveConnector()
-			if connector == nil {
-				lg.Warn("fib-vpp: VPP connector not available, using noop backend")
-				return newFibVPP(&mockBackend{})
-			}
-			ch, err := connector.NewChannel()
-			if err != nil {
-				lg.Warn("fib-vpp: GoVPP channel failed, using noop backend", "error", err)
-				return newFibVPP(&mockBackend{})
-			}
-			f := newFibVPP(newGovppBackend(ch, table))
-			f.mplsBackend = newGovppMPLSBackend(ch, table)
-			f.srv6TableID = table
-			f.srv6Backend = newGovppSRv6Backend(ch, table, p.StateKeys(ctx))
-			if err := f.restoreSRv6(); err != nil {
-				lg.Error("fib-vpp: SRv6 ownership restore failed", "error", err)
-			}
-			return f
-		}
-
 		// The plugin-lifetime subscription MUST precede restore and survive
 		// replacement. Its callback shares fibMu so an event arriving during
 		// restore reaches the replacement, never a retired writer.
@@ -192,7 +169,19 @@ func runFibVPPPlugin(conn net.Conn) int {
 			if runCancel != nil {
 				runCancel()
 			}
-			next := newBackend(tableID)
+			next, err := openFibVPPWriter(vppcomp.GetActiveConnector(), tableID, p.StateKeys(ctx))
+			if err != nil {
+				// No writer until VPP answers: the Connected and Reconnected
+				// events call restart again, and its replay then installs
+				// every route. A best-change arriving meanwhile reaches no
+				// writer, and `show fib vpp` answers the cause.
+				fib = nil
+				runCancel = nil
+				unreachable = err
+				lg.Error("fib-vpp: no route is programmed into VPP", "error", err)
+				return
+			}
+			unreachable = nil
 			var runCtx context.Context
 			runCtx, runCancel = context.WithCancel(ctx)
 			fib = next
@@ -217,12 +206,13 @@ func runFibVPPPlugin(conn net.Conn) int {
 	p.OnExecuteCommand(func(_, command string, _ []string, _ string) (string, any, error) {
 		if command == "show fib vpp" {
 			fibMu.Lock()
-			f := fib
+			f, cause := fib, unreachable
 			fibMu.Unlock()
-			if f == nil {
-				return "done", "[]", nil
+			installed, err := answerShowFibVPP(f, cause)
+			if err != nil {
+				return "error", "", err
 			}
-			return "done", f.showInstalled(), nil
+			return "done", installed, nil
 		}
 		return "error", "", fmt.Errorf("unknown command: %s", command)
 	})
@@ -245,6 +235,46 @@ func runFibVPPPlugin(conn net.Conn) int {
 	}
 
 	return 0
+}
+
+// openFibVPPWriter returns a COMPLETE fibVPP programming VPP through
+// connector, or the reason none can exist. The MPLS and SRv6 backends are
+// attached before the value is returned, so a reader can never see a fibVPP
+// whose backends are still nil. A nil connector (the vpp component is not
+// running) and a channel that will not open are refused, never answered with a
+// writer that programs nothing: such a writer would report every route as
+// installed while VPP holds none.
+func openFibVPPWriter(connector *vppcomp.Connector, table uint32, store srv6StateStore) (*fibVPP, error) {
+	if connector == nil {
+		return nil, errFibVPPNoConnector
+	}
+	ch, err := connector.NewChannel()
+	if err != nil {
+		return nil, fmt.Errorf("fib-vpp: open a GoVPP channel: %w; run 'ze doctor' to see "+
+			"why VPP is not answering", err)
+	}
+	f := newFibVPP(newGovppBackend(ch, table))
+	f.mplsBackend = newGovppMPLSBackend(ch, table)
+	f.srv6TableID = table
+	f.srv6Backend = newGovppSRv6Backend(ch, table, store)
+	if err := f.restoreSRv6(); err != nil {
+		logger().Error("fib-vpp: SRv6 ownership restore failed", "error", err)
+	}
+	return f, nil
+}
+
+// answerShowFibVPP answers `show fib vpp` from the current writer. With no
+// writer it refuses: before OnStarted with errFibVPPNotStarted, after it with
+// unreachable, the reason openFibVPPWriter gave. An empty list would read as
+// "VPP holds no Ze route" in both cases.
+func answerShowFibVPP(f *fibVPP, unreachable error) (any, error) {
+	if f != nil {
+		return f.showInstalled(), nil
+	}
+	if unreachable != nil {
+		return nil, fmt.Errorf("show fib vpp: no Ze route is programmed into VPP: %w", unreachable)
+	}
+	return nil, errFibVPPNotStarted
 }
 
 // subscribeFibVPP routes each change to the current writer under the lifecycle

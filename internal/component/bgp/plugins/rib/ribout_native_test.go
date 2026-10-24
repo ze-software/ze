@@ -426,3 +426,37 @@ func feedNativeSent(t *testing.T, r *RIBManager, peer netip.Addr, fam family.Fam
 	})
 	return attrs
 }
+
+// TestAddPathIdentifierZeroIsAnIdentifier verifies the Adj-RIB-Out surfaces
+// carry the RFC 7911 Path Identifier exactly when the route carries one.
+//
+// VALIDATES: AC-10, RFC 7911 Sections 2 and 3: an ADD-PATH route with
+// identifier 0 is published with "path-id" 0 (serializeRouteItem) and replayed
+// with "path-information 0" (formatCursorCommands); a value the route does not
+// carry appears on neither surface.
+// PREVENTS: Presence decided by comparing the identifier with zero, which
+// re-advertised path 0 as a different route with no identifier.
+func TestAddPathIdentifierZeroIsAnIdentifier(t *testing.T) {
+	carried := &Route{Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", NextHop: "192.0.2.10", AddPath: true}
+	notCarried := &Route{Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", NextHop: "192.0.2.10", PathID: 42}
+
+	row := serializeRouteItem(RouteItem{Family: carried.Family, Prefix: carried.Prefix, OutRoute: carried})
+	if got, ok := row["path-id"]; !ok || got != uint32(0) {
+		t.Fatalf("carried identifier 0: path-id = %v (present %v), want 0", got, ok)
+	}
+	row = serializeRouteItem(RouteItem{Family: notCarried.Family, Prefix: notCarried.Prefix, OutRoute: notCarried})
+	if got, ok := row["path-id"]; ok {
+		t.Fatalf("identifier not carried: path-id = %v, want no member", got)
+	}
+
+	group := replayGroup{Route: carried, Family: carried.Family, Prefixes: []string{carried.Prefix}}
+	commands := formatCursorCommands(&group, nil)
+	if len(commands) != 1 || !strings.Contains(commands[0], "nlri path-information 0 add 10.0.0.0/24") {
+		t.Fatalf("carried identifier 0: commands = %q", commands)
+	}
+	group = replayGroup{Route: notCarried, Family: notCarried.Family, PathID: 42, Prefixes: []string{notCarried.Prefix}}
+	commands = formatCursorCommands(&group, nil)
+	if len(commands) != 1 || strings.Contains(commands[0], "path-information") {
+		t.Fatalf("identifier not carried: commands = %q", commands)
+	}
+}

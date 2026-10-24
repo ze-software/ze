@@ -182,6 +182,7 @@ var doctorOwnedChecks = []diagnostic.DoctorCheck{{
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
 	Codes: []string{
 		diagnostic.CodeDoctorListenUnavailable,
+		diagnostic.CodeDoctorListenerSetUnknown,
 		diagnostic.CodeDoctorBGPListen,
 		diagnostic.CodeDoctorBFDPort,
 		diagnostic.CodeDoctorIPsecListen,

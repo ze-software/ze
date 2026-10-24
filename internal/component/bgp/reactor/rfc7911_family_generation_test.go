@@ -50,7 +50,7 @@ func TestRFC7911GeneratedPathsAreScopedToTheNegotiatedFamily(t *testing.T) {
 			var routes []nlri.NLRI
 			var want []byte
 			for _, id := range ids {
-				routes = append(routes, nlri.NewINET(fam, prefix, id))
+				routes = append(routes, nlri.NewINET(fam, prefix, id, true))
 				if fam == apFamily {
 					want = binary.BigEndian.AppendUint32(want, id)
 				}

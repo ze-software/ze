@@ -37,7 +37,7 @@ func init() {
 		StartAfter:              []string{"interface"},
 		YANG:                    bfdyang.ZeBFDConfYANG,
 		InProcessConfigVerifier: verifyBFDConfig,
-		RunEngine:               RunBFDPlugin,
+		RunEngine:               runBFDPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			useLogger(slogutil.Logger(loggerName))
 		},

@@ -21,6 +21,7 @@ import (
 	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // pathsLimitReactor answers one established peer whose negotiation completed
@@ -31,7 +32,7 @@ func pathsLimitReactor(addPath map[string]string, send, receive map[string]uint1
 	return &mockReactor{
 		peers: []plugin.PeerInfo{{
 			Address:                     netip.MustParseAddr("192.0.2.1"),
-			PeerAS:                      65001,
+			PeerAS:                      rpc.RemoteASOf(65001),
 			LocalAS:                     65000,
 			State:                       plugin.PeerStateEstablished,
 			NegotiationComplete:         true,

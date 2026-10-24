@@ -104,7 +104,8 @@ func appendReplacingByte(buf []byte, s string, from, to byte) []byte {
 
 // appendPeerJSON appends the peer JSON object (no leading comma) to buf.
 // Key order is alphabetical (matching json.Marshal output from peerMap).
-// Both local and remote blocks are always present with address + as.
+// Both local and remote blocks are always present with an address. Each carries
+// its as, except remote while a dynamic peer's AS is not yet negotiated.
 func appendPeerJSON(buf []byte, peer *plugin.PeerInfo) []byte {
 	buf = append(buf, `"peer":{`...)
 	if peer.GroupName != "" {
@@ -132,8 +133,13 @@ func appendPeerJSON(buf []byte, peer *plugin.PeerInfo) []byte {
 	}
 	buf = append(buf, `,"remote":{"address":"`...)
 	buf = peer.Address.AppendTo(buf)
-	buf = append(buf, `","as":`...)
-	buf = strconv.AppendUint(buf, uint64(peer.PeerAS), 10)
+	buf = append(buf, '"')
+	// A dynamic peer's AS is not known before its OPEN is negotiated, and
+	// the member is then absent rather than 0 (rpc.RemoteAS).
+	if asn, known := peer.PeerAS.ASN(); known {
+		buf = append(buf, `,"as":`...)
+		buf = strconv.AppendUint(buf, uint64(asn), 10)
+	}
 	// RFC 4271 Section 9.1.2.2 step f) compares the PEER's BGP Identifier, and
 	// this key is the only way it crosses to a plugin that reads JSON events
 	// (bgp.PeerRemoteInfo.RouterID, rib.updatePeerMetadata). Omitted before the
@@ -149,16 +155,22 @@ func appendPeerJSON(buf []byte, peer *plugin.PeerInfo) []byte {
 }
 
 // AppendOpen appends an OPEN message text line to buf, terminated by '\n'.
-// Format: peer <ip> remote as <asn> <direction> open <msg-id> router-id <id> hold-time <t> [cap <code> <name> <value>]* .
+// Format: peer <ip> remote as <asn> <direction> open <msg-id> asn <open-asn> router-id <id> hold-time <t> [cap <code> <name> <value>]* .
+//
+// `remote as` is the peer's AS, as in every other text event, and `unknown`
+// before a dynamic peer's AS is negotiated. `asn` is the OPEN's own My
+// Autonomous System: the sender's, so Ze's own AS on a sent OPEN.
 func AppendOpen(buf []byte, peer *plugin.PeerInfo, open DecodedOpen, direction rpc.MessageDirection, msgID uint64) []byte {
 	buf = append(buf, "peer "...)
 	buf = peer.Address.AppendTo(buf)
 	buf = append(buf, " remote as "...)
-	buf = strconv.AppendUint(buf, uint64(open.ASN), 10)
+	buf = appendRemoteASText(buf, peer.PeerAS)
 	buf = append(buf, ' ')
 	buf = direction.AppendTo(buf)
 	buf = append(buf, " open "...)
 	buf = strconv.AppendUint(buf, msgID, 10)
+	buf = append(buf, " asn "...)
+	buf = strconv.AppendUint(buf, uint64(open.ASN), 10)
 	buf = append(buf, " router-id "...)
 	buf = append(buf, open.RouterID...)
 	buf = append(buf, " hold-time "...)
@@ -184,7 +196,7 @@ func AppendNotification(buf []byte, peer *plugin.PeerInfo, notify DecodedNotific
 	buf = append(buf, "peer "...)
 	buf = peer.Address.AppendTo(buf)
 	buf = append(buf, " remote as "...)
-	buf = strconv.AppendUint(buf, uint64(peer.PeerAS), 10)
+	buf = appendRemoteASText(buf, peer.PeerAS)
 	buf = append(buf, ' ')
 	buf = direction.AppendTo(buf)
 	buf = append(buf, " notification "...)
@@ -211,7 +223,7 @@ func AppendKeepalive(buf []byte, peer *plugin.PeerInfo, direction rpc.MessageDir
 	buf = append(buf, "peer "...)
 	buf = peer.Address.AppendTo(buf)
 	buf = append(buf, " remote as "...)
-	buf = strconv.AppendUint(buf, uint64(peer.PeerAS), 10)
+	buf = appendRemoteASText(buf, peer.PeerAS)
 	buf = append(buf, ' ')
 	buf = direction.AppendTo(buf)
 	buf = append(buf, " keepalive "...)
@@ -227,7 +239,7 @@ func AppendRouteRefresh(buf []byte, peer *plugin.PeerInfo, decoded DecodedRouteR
 	buf = append(buf, "peer "...)
 	buf = peer.Address.AppendTo(buf)
 	buf = append(buf, " remote as "...)
-	buf = strconv.AppendUint(buf, uint64(peer.PeerAS), 10)
+	buf = appendRemoteASText(buf, peer.PeerAS)
 	buf = append(buf, ' ')
 	buf = direction.AppendTo(buf)
 	buf = append(buf, ' ')
@@ -273,7 +285,7 @@ func AppendEOR(buf []byte, peer *plugin.PeerInfo, family, encoding string) []byt
 	buf = append(buf, "peer "...)
 	buf = peer.Address.AppendTo(buf)
 	buf = append(buf, " remote as "...)
-	buf = strconv.AppendUint(buf, uint64(peer.PeerAS), 10)
+	buf = appendRemoteASText(buf, peer.PeerAS)
 	buf = append(buf, " eor "...)
 	buf = append(buf, family...)
 	buf = append(buf, '\n')
@@ -295,7 +307,7 @@ func AppendCongestion(buf []byte, peer *plugin.PeerInfo, eventType, encoding str
 	buf = append(buf, "peer "...)
 	buf = peer.Address.AppendTo(buf)
 	buf = append(buf, " remote as "...)
-	buf = strconv.AppendUint(buf, uint64(peer.PeerAS), 10)
+	buf = appendRemoteASText(buf, peer.PeerAS)
 	buf = append(buf, ' ')
 	buf = append(buf, eventType...)
 	buf = append(buf, '\n')

@@ -13,6 +13,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // showBgpDispatcher answers `show bgp` the way the daemon does: the dispatcher
@@ -24,7 +25,7 @@ func showBgpDispatcher(t *testing.T) (*pluginserver.Dispatcher, *pluginserver.Co
 	reactor := &mockReactor{
 		peers: []plugin.PeerInfo{{
 			Address:            netip.MustParseAddr("192.0.2.1"),
-			PeerAS:             65001,
+			PeerAS:             rpc.RemoteASOf(65001),
 			State:              plugin.PeerStateEstablished,
 			NegotiatedFamilies: []family.Family{family.IPv4Unicast},
 		}},

@@ -290,7 +290,7 @@ func TestMPLSIntegration_EgressPopNoNextHop(t *testing.T) {
 		bed := newMPLSTestbed(t, h)
 
 		f := newFIBKernel(newTestBackend(h))
-		// Exactly what ldpFIB.ProgramPop / rsvpte busFIB.ProgramPop emit: pop, no
+		// Exactly what ldpFIB.programPop / rsvpte busFIB.ProgramPop emit: pop, no
 		// out-labels, no via.
 		f.handleMPLSEntry(&mplsfibevents.EntryBatch{Entries: []mplsfibevents.Entry{{
 			Action:  mplsfibevents.ActionAdd,

@@ -124,7 +124,7 @@ func deliverNormalizedGRTestOpen(t *testing.T, gp *grPlugin, body []byte, direct
 		})
 		return
 	}
-	peer := plugin.PeerInfo{Address: netip.MustParseAddr(testPeer), PeerAS: 1, LocalAS: 1}
+	peer := plugin.PeerInfo{Address: netip.MustParseAddr(testPeer), PeerAS: rpc.RemoteASOf(1), LocalAS: 1}
 	encoder := format.NewJSONEncoder("test")
 	if err := gp.handleEvent(encoder.Open(&peer, format.DecodeOpen(body), direction, 1)); err != nil {
 		t.Fatal(err)

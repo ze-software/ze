@@ -15,6 +15,7 @@ import (
 	_ "github.com/ze-software/ze/internal/le/arch/enumeration"
 	_ "github.com/ze-software/ze/internal/le/arch/fspersistence"
 	_ "github.com/ze-software/ze/internal/le/arch/ifaceresolution"
+	_ "github.com/ze-software/ze/internal/le/arch/refusebydefault"
 	_ "github.com/ze-software/ze/internal/le/arch/tier"
 	_ "github.com/ze-software/ze/internal/le/build/gokrazy"
 	_ "github.com/ze-software/ze/internal/le/build/gosum"

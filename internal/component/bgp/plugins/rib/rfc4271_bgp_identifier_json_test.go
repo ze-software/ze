@@ -19,6 +19,7 @@ import (
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // feedReceivedJSONWithIdentifier drives the JSON rail from end to end: it asks
@@ -38,7 +39,7 @@ func feedReceivedJSONWithIdentifier(t *testing.T, r *RIBManager, peer netip.Addr
 	peerInfo := pluginapi.PeerInfo{
 		Address:    peer,
 		AddressStr: peer.String(),
-		PeerAS:     65001,
+		PeerAS:     rpc.RemoteASOf(65001),
 		LocalAS:    65000,
 		RouterID:   identifierFor(t, "192.0.2.254"), // this speaker's own, shared by every peer
 		// The peer's own, which the JSON contract carries as remote.router-id.

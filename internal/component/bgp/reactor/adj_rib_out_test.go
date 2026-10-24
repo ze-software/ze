@@ -37,7 +37,7 @@ import (
 func adjOutBatch(prefix, nextHop string) bgptypes.NLRIBatch {
 	return bgptypes.NLRIBatch{
 		Family:  family.IPv4Unicast,
-		NLRIs:   []nlri.NLRI{nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix(prefix), 0)},
+		NLRIs:   []nlri.NLRI{nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix(prefix), 0, false)},
 		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr(nextHop)),
 	}
 }
@@ -220,7 +220,7 @@ func adjOutIPv6Signature(t *testing.T, prefixes []string) []byte {
 
 	nlris := make([]nlri.NLRI, 0, len(prefixes))
 	for _, prefix := range prefixes {
-		nlris = append(nlris, nlri.NewINET(family.IPv6Unicast, netip.MustParsePrefix(prefix), 0))
+		nlris = append(nlris, nlri.NewINET(family.IPv6Unicast, netip.MustParsePrefix(prefix), 0, false))
 	}
 	batch := bgptypes.NLRIBatch{
 		Family:  family.IPv6Unicast,

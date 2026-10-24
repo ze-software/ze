@@ -10,6 +10,8 @@
 //
 // The codes a probe failure carries are a closed set spelled in this file: one
 // for every schema-discovered service, and one per protocol extractor below.
+// A listener set the schema cannot derive is reported under its own code,
+// doctor-listener-set-unknown, by listenerSetUnknown.
 // The listener registry (config.DiscoverListenerServices and the registered
 // defaults) carries no code of its own, which is why the registration in
 // doctor_checks.go names these constants rather than deriving them.
@@ -19,6 +21,7 @@ package doctor
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net"
 	"strings"
 	"sync"
@@ -52,15 +55,24 @@ type serviceListener struct {
 
 var listenerProbe = probeListener
 
+// listenerSchema loads the schema the listener set is derived from. It is a
+// variable so a test can make the schema fail to load, or declare no service,
+// which a compiled-in schema does not do on its own.
+var listenerSchema = config.YANGSchema
+
 var registerListenerDefaultsOnce sync.Once
 
-func collectSchemaListeners(tree *config.Tree) []serviceListener {
-	schema, err := config.YANGSchema()
+// collectSchemaListeners returns one probe per endpoint the schema-declared
+// ze:listener services bind for this config. When the schema cannot be loaded
+// it returns an error and no listeners: there is no other source of the
+// listener set, and a guessed list would report the services it misses as
+// checked. A schema that loaded and declares no ze:listener service is an
+// answer, not a failure: a build whose linked modules carry none has no
+// schema-derived listener to probe.
+func collectSchemaListeners(tree *config.Tree) ([]serviceListener, error) {
+	schema, err := listenerSchema()
 	if err != nil {
-		return collectHardcodedListeners(tree)
-	}
-	if len(config.DiscoverListenerServices(schema)) == 0 {
-		return collectHardcodedListeners(tree)
+		return nil, fmt.Errorf("cannot load the YANG schema: %w", err)
 	}
 	registerListenerDefaultsOnce.Do(config.RegisterBuiltinListenerDefaults)
 	endpoints := config.CollectListenersWithDefaults(tree, schema)
@@ -77,128 +89,40 @@ func collectSchemaListeners(tree *config.Tree) []serviceListener {
 		}
 		listeners = append(listeners, l)
 	}
-	return listeners
-}
-
-func collectHardcodedListeners(tree *config.Tree) []serviceListener {
-	var listeners []serviceListener
-
-	if webCfg, ok := config.ExtractWebConfig(tree); ok {
-		for _, s := range webCfg.Servers {
-			listeners = append(listeners, tcpListener("web", s.Host, s.Port, diagnostic.CodeDoctorListenUnavailable))
-		}
-	}
-	if mcpCfg, ok := config.ExtractMCPConfig(tree); ok {
-		for _, s := range mcpCfg.Servers {
-			listeners = append(listeners, tcpListener("mcp", s.Host, s.Port, diagnostic.CodeDoctorListenUnavailable))
-		}
-	}
-	if gnmiCfg, ok := config.ExtractGNMIConfig(tree); ok {
-		for _, s := range gnmiCfg.Servers {
-			listeners = append(listeners, tcpListener("gnmi", s.Host, s.Port, diagnostic.CodeDoctorListenUnavailable))
-		}
-	}
-	if lgCfg, ok := config.ExtractLGConfig(tree); ok {
-		for _, s := range lgCfg.Servers {
-			listeners = append(listeners, tcpListener("looking-glass", s.Host, s.Port, diagnostic.CodeDoctorListenUnavailable))
-		}
-	}
-	if apiCfg, ok := config.ExtractAPIConfig(tree); ok {
-		if apiCfg.RESTOn {
-			for _, s := range apiCfg.REST {
-				listeners = append(listeners, tcpListener("api-server-rest", s.Host, s.Port, diagnostic.CodeDoctorListenUnavailable))
-			}
-		}
-		if apiCfg.GRPCOn {
-			for _, s := range apiCfg.GRPC {
-				listeners = append(listeners, tcpListener("api-server-grpc", s.Host, s.Port, diagnostic.CodeDoctorListenUnavailable))
-			}
-		}
-	}
-	listeners = append(listeners, extractSSHListeners(tree)...)
-	listeners = append(listeners, extractTelemetryListeners(tree)...)
-	return listeners
-}
-
-func extractSSHListeners(tree *config.Tree) []serviceListener {
-	envBlock := tree.GetContainer("environment")
-	if envBlock == nil {
-		return nil
-	}
-	sshBlock := envBlock.GetContainer("ssh")
-	if sshBlock == nil {
-		return nil
-	}
-	enabled, _ := sshBlock.Get("enabled")
-	if enabled != configTrueValue {
-		return nil
-	}
-
-	var listeners []serviceListener
-	if servers := sshBlock.GetListOrdered("server"); len(servers) > 0 {
-		for _, s := range servers {
-			host := "0.0.0.0"
-			port := "2222"
-			if v, ok := s.Value.Get("ip"); ok && v != "" {
-				host = v
-			}
-			if v, ok := s.Value.Get("port"); ok && v != "" {
-				port = v
-			}
-			listeners = append(listeners, tcpListener("ssh", host, port, diagnostic.CodeDoctorListenUnavailable))
-		}
-	}
-
-	if len(listeners) == 0 {
-		listeners = append(listeners, tcpListener("ssh", "127.0.0.1", "2222", diagnostic.CodeDoctorListenUnavailable))
-	}
-
-	return listeners
-}
-
-func extractTelemetryListeners(tree *config.Tree) []serviceListener {
-	prom := getContainerPath(tree, "telemetry", "prometheus")
-	if !configEnabled(prom, false) {
-		return nil
-	}
-
-	servers := prom.GetListOrdered("server")
-	if len(servers) == 0 {
-		return []serviceListener{tcpListener("telemetry", "127.0.0.1", "9273", diagnostic.CodeDoctorListenUnavailable)}
-	}
-
-	listeners := make([]serviceListener, 0, len(servers))
-	for _, s := range servers {
-		host := valueOrDefault(s.Value, "ip", "127.0.0.1")
-		port := valueOrDefault(s.Value, "port", "9273")
-		listeners = append(listeners, tcpListener("telemetry", host, port, diagnostic.CodeDoctorListenUnavailable))
-	}
-	return listeners
+	return listeners, nil
 }
 
 // collectAllListeners returns every endpoint ze doctor probes for a config: the
 // schema-discovered ze:listener services, plus the protocol listeners that have
 // no schema entry and come from the extractors below.
 //
+// The error reports that the schema-discovered half could not be derived (see
+// collectSchemaListeners). The extractor half does not depend on the schema, so
+// it is returned either way and the caller still probes it.
+//
 // Separated from checkListeners so the set can be inspected without binding
 // sockets. The dependency inventory (doctor_test.go) reads it to prove each row
 // it claims is produced by live code.
-func collectAllListeners(tree *config.Tree) []serviceListener {
-	listeners := collectSchemaListeners(tree)
+func collectAllListeners(tree *config.Tree) ([]serviceListener, error) {
+	listeners, schemaErr := collectSchemaListeners(tree)
 	listeners = append(listeners, extractBGPListeners(tree)...)
 	listeners = append(listeners, extractBFDListeners(tree)...)
 	listeners = append(listeners, extractIPsecListeners(tree)...)
 	listeners = append(listeners, extractTFTPListeners(tree)...)
 	listeners = append(listeners, extractImageListeners(tree)...)
 	listeners = append(listeners, extractNTPListeners(tree)...)
-	return dedupeListeners(listeners)
+	return dedupeListeners(listeners), schemaErr
 }
 
 func checkListeners(tree *config.Tree) []diagnostic.Diagnostic {
 	var tb textbuf.Buffer
 	var diags []diagnostic.Diagnostic
 
-	for _, l := range collectAllListeners(tree) {
+	listeners, schemaErr := collectAllListeners(tree)
+	if schemaErr != nil {
+		diags = append(diags, listenerSetUnknown(schemaErr))
+	}
+	for _, l := range listeners {
 		if err := listenerProbe(l); err != nil {
 			diags = append(diags, diagnostic.Diagnostic{
 				Code:     l.code,
@@ -209,6 +133,21 @@ func checkListeners(tree *config.Tree) []diagnostic.Diagnostic {
 	}
 
 	return diags
+}
+
+// listenerSetUnknown is the finding for a listener set doctor cannot derive. It
+// says which listeners went unchecked, why, and what fixes it, because the
+// operator reading it did not choose the build that caused it.
+func listenerSetUnknown(cause error) diagnostic.Diagnostic {
+	var tb textbuf.Buffer
+	return diagnostic.Diagnostic{
+		Code:     diagnostic.CodeDoctorListenerSetUnknown,
+		Severity: diagnostic.SeverityError,
+		Message: tb.Str("listeners: cannot work out which listen addresses to check: ").Err(cause).
+			Str(". No web, SSH, gNMI, API or other schema-declared listener was checked. ").
+			Str("The YANG schema is built into ze, so this ze binary is incomplete. ").
+			Str("Install a complete ze build, then run: ze doctor").String(),
+	}
 }
 
 func tcpListener(service, host, port, code string) serviceListener {

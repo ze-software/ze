@@ -33,3 +33,10 @@ templ ifaceDetailCounters(v ifaceCountersData) {
 templ ifaceDetailMissing() {
 	<div class="wb-detail-panel"><p>Interface not found.</p></div>
 }
+
+// ifaceDetailUnread is what an interface page renders, the detail page or the
+// list, when live state could not be read. The message names the failure and
+// the command to run.
+templ ifaceDetailUnread(message string) {
+	<div class="wb-detail-panel"><p class="error">{ message }</p></div>
+}

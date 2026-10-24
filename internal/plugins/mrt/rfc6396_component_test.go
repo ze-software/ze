@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 
 	"github.com/ze-software/ze/internal/component/plugin"
 	mrtfmt "github.com/ze-software/ze/internal/mrt"
@@ -92,7 +93,7 @@ func TestOneBGPMessagePerBGP4MPRecord(t *testing.T) {
 	peer := &plugin.PeerInfo{
 		Address:      netip.MustParseAddr("192.0.2.1"),
 		LocalAddress: netip.MustParseAddr("192.0.2.2"),
-		PeerAS:       65001,
+		PeerAS:       rpc.RemoteASOf(65001),
 		LocalAS:      65002,
 	}
 	// A single well-formed 19-byte BGP KEEPALIVE: 16-byte marker + length 19 + type 4.

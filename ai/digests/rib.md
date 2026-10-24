@@ -32,7 +32,8 @@ Received UPDATE → best-path change (all `file:line` in `internal/component/bgp
    entry for the prefix (`rib_commands.go`/`extractCandidate:967`) → `SelectBest` runs the
    RFC 4271 pairwise decision (`bestpath.go`, steps in `comparePair` `bestpath.go`).
 6. Winner compared to the previous best in the sharded `bestPrev` store (packed
-   `bestPathRecord` uint64, `rib_bestchange.go`+`779` same-best short-circuit). On change:
+   `bestPathRecord` uint64 plus the winner's attribute fingerprint in `bestPrevRecord`,
+   `rib_bestchange.go` same-best short-circuit, `sameAttributeSet`). On change:
    store the new record, mirror into Loc-RIB via `r.locRIB.InsertForward` carrying the
    zero-copy `ForwardHandle` (`rib_bestchange.go`), and return a `bestChangeEntry`.
 7. After the shard lock is released, `publishBestChanges` (`rib_structured.go/304` →

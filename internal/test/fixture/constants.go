@@ -64,8 +64,6 @@ const (
 	addrTestNet1Second         = "192.0.2.2"
 	addrTestNet2Nexthop        = "198.51.100.162"
 	addrTestNet3Nine           = "203.0.113.9"
-	asnLabel64501              = "AS64501"
-	asnLabel64502              = "AS64502"
 	configPathRouterID         = "bgp.router-id"
 	hostnamePyPeer             = "py-peer"
 	metricPeerStateTransitions = "ze_peer_state_transitions_total"

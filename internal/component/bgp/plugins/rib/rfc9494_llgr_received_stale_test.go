@@ -68,7 +68,7 @@ func feedReceivedIBGPMeta(r *RIBManager, peer netip.Addr, ctxID bgpctx.ContextID
 	r.handleReceivedStructured(&rpc.StructuredEvent{
 		EventType:   rpc.EventKindUpdate,
 		PeerAddress: peer.String(),
-		PeerAS:      65000,
+		PeerAS:      rpc.RemoteASOf(65000),
 		LocalAS:     65000,
 		Meta:        meta,
 		RawMessage: &bgptypes.RawMessage{

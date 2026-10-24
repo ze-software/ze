@@ -2,8 +2,8 @@
   "note": "Re-judged 2026-09-29. rfc7854_session_opening_test.go::TestRFC7854SessionDumpsAdjRIBInAfterThePeerUp reads the same two-peer session in order: no Route Monitoring before the Peer Up, the Established peer's received route (exact UPDATE body announceBody(1)) arrives as a pre-policy Route Monitoring (L clear, the default pre-policy selection), and nothing is dumped for the peer that never reached Established. Order, content and scope of the Adj-RIB-In dump are each asserted.",
   "requirement_sha": "80e43f66d7f245b7",
   "tests": {
-    "internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go::TestRFC7854SessionDumpsAdjRIBInAfterThePeerUp": "524ea12738fd2dfc",
-    "internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go::TestRFC7854SessionDumpsAdjRIBInAfterThePeerUp#2": "524ea12738fd2dfc"
+    "internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go::TestRFC7854SessionDumpsAdjRIBInAfterThePeerUp": "8e6f8d24ba62ba53",
+    "internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go::TestRFC7854SessionDumpsAdjRIBInAfterThePeerUp#2": "8e6f8d24ba62ba53"
   },
   "units": {
     "internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go::TestRFC7854SessionDumpsAdjRIBInAfterThePeerUp": "664fe9fd6cc44840",

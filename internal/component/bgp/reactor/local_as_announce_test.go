@@ -88,7 +88,7 @@ func announceLocalASRun(t *testing.T, groups bool, dests []announceLocalASPeer) 
 
 	batch := bgptypes.NLRIBatch{
 		Family:  family.IPv4Unicast,
-		NLRIs:   []nlri.NLRI{nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0)},
+		NLRIs:   []nlri.NLRI{nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0, false)},
 		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("1.1.1.1")),
 	}
 	require.NoError(t, adapter.AnnounceNLRIBatch(t.Context(), selector.All(), batch, plugin.OperatorSender()))

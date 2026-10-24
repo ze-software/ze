@@ -111,7 +111,7 @@ func groupUpdatesReactor(peers []*Peer, groups bool) *reactorAPIAdapter {
 func groupUpdatesBatch() bgptypes.NLRIBatch {
 	nlris := make([]nlri.NLRI, 0, len(groupUpdatesPrefixes))
 	for _, prefix := range groupUpdatesPrefixes {
-		nlris = append(nlris, nlri.NewINET(family.IPv4Unicast, prefix, 0))
+		nlris = append(nlris, nlri.NewINET(family.IPv4Unicast, prefix, 0, false))
 	}
 	return bgptypes.NLRIBatch{
 		Family:  family.IPv4Unicast,

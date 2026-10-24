@@ -10,6 +10,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // TestBgpSummaryLastErrorSeparatesToldFromCouldNotTell drives the real
@@ -41,7 +42,7 @@ func TestBgpSummaryLastErrorSeparatesToldFromCouldNotTell(t *testing.T) {
 		peers: []plugin.PeerInfo{
 			{
 				Address:            netip.MustParseAddr("192.0.2.1"),
-				PeerAS:             65001,
+				PeerAS:             rpc.RemoteASOf(65001),
 				State:              plugin.PeerStateStopped,
 				LastNotifCode:      6,
 				LastNotifSubcode:   10,
@@ -50,7 +51,7 @@ func TestBgpSummaryLastErrorSeparatesToldFromCouldNotTell(t *testing.T) {
 			},
 			{
 				Address:            netip.MustParseAddr("192.0.2.2"),
-				PeerAS:             65002,
+				PeerAS:             rpc.RemoteASOf(65002),
 				State:              plugin.PeerStateStopped,
 				LastNotifCode:      6,
 				LastNotifSubcode:   10,
@@ -59,7 +60,7 @@ func TestBgpSummaryLastErrorSeparatesToldFromCouldNotTell(t *testing.T) {
 			},
 			{
 				Address: netip.MustParseAddr("192.0.2.3"),
-				PeerAS:  65003,
+				PeerAS:  rpc.RemoteASOf(65003),
 				State:   plugin.PeerStateEstablished,
 			},
 		},

@@ -37,6 +37,7 @@ var specialCheckers = map[string]interoplab.Checker{
 	"bfd-frr":                                  checkBFDFailover,
 	bfdLinkLocalScenario:                       checkBFDLinkLocal,
 	ldpKeepaliveExpiryScenario:                 checkLDPKeepaliveExpiry,
+	ldpInitUnknownTLVScenario:                  checkLDPInitUnknownTLV,
 	bfdProfileEditScenario:                     checkBFDProfileEditLive,
 	attachReceiveOnlyLiveScenario:              checkAttachReceiveOnlyLive,
 	bfdEnableLiveScenario:                      checkBFDEnableLive,
@@ -451,16 +452,16 @@ func checkBIRDAPICommunities(ctx context.Context, lab interoplab.CheckerLab, pre
 	if !strings.Contains(output, prefix) {
 		return interoplab.WithSearchedOutput(fmt.Errorf("BIRD has no route dump for %s", prefix), output)
 	}
-	standard, standardOK := birdAttributeLine(output, "BGP.community:")
+	standard, standardOK := birdAttributeLine(output, "bgp_community:")
 	if !standardOK {
-		return fmt.Errorf("BIRD route %s has no BGP.community line", prefix)
+		return fmt.Errorf("BIRD route %s has no bgp_community line", prefix)
 	}
 	if err := requireContains(standard, "(65001,100)", "(65001,200)"); err != nil {
 		return fmt.Errorf("BIRD route %s standard communities: %w", prefix, err)
 	}
-	large, largeOK := birdAttributeLine(output, "BGP.large_community:")
+	large, largeOK := birdAttributeLine(output, "bgp_large_community:")
 	if !largeOK {
-		return fmt.Errorf("BIRD route %s has no BGP.large_community line", prefix)
+		return fmt.Errorf("BIRD route %s has no bgp_large_community line", prefix)
 	}
 	if err := requireContains(large, "(65001, 0, 1)"); err != nil {
 		return fmt.Errorf("BIRD route %s large community: %w", prefix, err)

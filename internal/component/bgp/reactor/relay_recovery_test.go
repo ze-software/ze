@@ -73,7 +73,7 @@ func recoveryOwnerStart(t *testing.T, r *Reactor, destination *Peer) {
 func recoveryDepartureBatch(source netip.Addr, prefixes ...string) bgptypes.NLRIBatch {
 	batch := bgptypes.NLRIBatch{Family: family.IPv4Unicast, RecoverySource: source}
 	for _, prefix := range prefixes {
-		batch.NLRIs = append(batch.NLRIs, nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix(prefix), 0))
+		batch.NLRIs = append(batch.NLRIs, nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix(prefix), 0, false))
 	}
 	return batch
 }

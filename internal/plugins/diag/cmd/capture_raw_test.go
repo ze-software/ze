@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"strings"
 	"testing"
 
 	bfdapi "github.com/ze-software/ze/internal/component/bfd/api"
@@ -52,5 +53,28 @@ func TestCaptureRawBFDReadsProviderFromBFDAPI(t *testing.T) {
 	}
 	if fake.enabled {
 		t.Fatal("stop did not disable the provider published in bfd/api")
+	}
+}
+
+// TestCaptureRawStartRefusesAProtocolThatDidNotStart proves an explicitly
+// named protocol whose capture cannot start answers an error naming why and
+// the command to check, never done with an empty started list. Method: start
+// bgp with no reactor and bfd with no published provider, then read the
+// response status and error text.
+func TestCaptureRawStartRefusesAProtocolThatDidNotStart(t *testing.T) {
+	t.Cleanup(func() { bfdapi.SetRawCaptureProvider(nil) })
+	bfdapi.SetRawCaptureProvider(nil)
+
+	for protocol, command := range map[string]string{capBGP: "ze show bgp peer", capBFD: "ze show bfd session"} {
+		resp, err := captureRawStart(nil, protocol)
+		if err != nil {
+			t.Fatalf("%s: %v", protocol, err)
+		}
+		if resp.Status != plugin.StatusError {
+			t.Fatalf("%s: status %q with data %v, want an error: nothing started", protocol, resp.Status, resp.Data)
+		}
+		if !strings.Contains(resp.Error, command) {
+			t.Fatalf("%s: error %q does not name %q", protocol, resp.Error, command)
+		}
 	}
 }

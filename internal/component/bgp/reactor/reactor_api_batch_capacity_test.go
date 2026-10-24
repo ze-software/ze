@@ -229,7 +229,7 @@ func TestBuildBatchAnnounce_InvalidNextHopWithOversizeAttrs(t *testing.T) {
 
 	batch := bgptypes.NLRIBatch{
 		Family:  family.IPv4Unicast,
-		NLRIs:   []nlri.NLRI{nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0)},
+		NLRIs:   []nlri.NLRI{nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0, false)},
 		NextHop: bgptypes.NewNextHopExplicit(netip.Addr{}),
 		Wire:    attribute.NewAttributesWire(b.Build(), bgpctx.APIContextID),
 	}
@@ -269,7 +269,7 @@ func TestBuildBatchAnnounce_InvalidNextHopWithOversizeAttrs(t *testing.T) {
 func TestAnnounceAttrRegion_RejectsBlockLargerThanBuffer(t *testing.T) {
 	adapter := &reactorAPIAdapter{r: &Reactor{config: &Config{LocalAS: 65000}}}
 
-	nlris := []nlri.NLRI{nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0)}
+	nlris := []nlri.NLRI{nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0, false)}
 	build := func(t *testing.T, wire *attribute.AttributesWire, attrBufLen int) *message.Update {
 		t.Helper()
 		update, _ := adapter.buildBatchAnnounceUpdate(make([]byte, attrBufLen), make([]byte, message.MaxMsgLen),
@@ -354,10 +354,10 @@ func TestNLRILenMatchesWriteNLRI(t *testing.T) {
 		name string
 		n    nlri.NLRI
 	}{
-		{"inet-ipv4-24", nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0)},
-		{"inet-ipv4-32", nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.1/32"), 7)},
-		{"inet-ipv4-default", nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("0.0.0.0/0"), 0)},
-		{"inet-ipv6-128", nlri.NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8::1/128"), 0)},
+		{"inet-ipv4-24", nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0, false)},
+		{"inet-ipv4-32", nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.1/32"), 7, true)},
+		{"inet-ipv4-default", nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("0.0.0.0/0"), 0, false)},
+		{"inet-ipv6-128", nlri.NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8::1/128"), 0, false)},
 		{"wire-passthrough", wireV6},
 		{"wire-passthrough-addpath", wireAddPath},
 	}
@@ -471,7 +471,7 @@ func manyIPv6Host(n int) []nlri.NLRI {
 			0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0,
 			0, 0, 0, 0, 0, 0, byte(i >> 8), byte(i), //nolint:gosec // G115: bounded by n
 		})
-		out = append(out, nlri.NewINET(family.IPv6Unicast, netip.PrefixFrom(addr, 128), 0))
+		out = append(out, nlri.NewINET(family.IPv6Unicast, netip.PrefixFrom(addr, 128), 0, false))
 	}
 	return out
 }

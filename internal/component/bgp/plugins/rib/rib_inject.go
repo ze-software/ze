@@ -256,6 +256,9 @@ func (r *RIBManager) showProtocolPipeline(protocol string, args []string) (strin
 	}
 
 	meta := current.Meta()
+	if meta.Refusal != nil {
+		return statusError, "", meta.Refusal
+	}
 	if meta.JSON != "" {
 		return statusDone, json.RawMessage(meta.JSON), nil
 	}

@@ -136,7 +136,7 @@ func TestQueuedSelfResolvesReplacementConnection(t *testing.T) {
 			}}
 			batch := bgptypes.NLRIBatch{
 				Family:  family.IPv4Unicast,
-				NLRIs:   []nlri.NLRI{nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.20.0.0/24"), 0)},
+				NLRIs:   []nlri.NLRI{nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.20.0.0/24"), 0, false)},
 				NextHop: bgptypes.NewNextHopSelf(),
 			}
 			require.NoError(t, api.AnnounceNLRIBatch(t.Context(), selector.All(), batch, plugin.OperatorSender()))
@@ -212,7 +212,7 @@ func TestBatchSelfDoesNotCrossReplacementSession(t *testing.T) {
 			}}
 			replaced := false
 			route := &replacingSessionNLRI{
-				NLRI: nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.21.0.0/24"), 0),
+				NLRI: nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.21.0.0/24"), 0, false),
 				replace: func() {
 					peer.mu.Lock()
 					peer.session = replacement
@@ -228,7 +228,7 @@ func TestBatchSelfDoesNotCrossReplacementSession(t *testing.T) {
 			}
 			if tc.partial {
 				seed := batch
-				seed.NLRIs = []nlri.NLRI{nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.20.0.0/24"), 0)}
+				seed.NLRIs = []nlri.NLRI{nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.20.0.0/24"), 0, false)}
 				require.NoError(t, api.AnnounceNLRIBatch(t.Context(), selector.All(), seed, plugin.OperatorSender()))
 				packet, err := core4271ReadMessage(oldClient)
 				require.NoError(t, err)

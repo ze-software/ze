@@ -263,7 +263,7 @@ func wholeSetMEDReceive(t *testing.T, r *RIBManager, c *Candidate, withdraw bool
 	// RFC 4271 Section 9.1.2.2: selection follows the received UPDATE.
 	r.handleReceivedStructured(&rpc.StructuredEvent{
 		EventType: rpc.EventKindUpdate, PeerAddress: c.PeerAddr,
-		PeerAS: c.PeerASN, LocalAS: c.LocalASN,
+		PeerAS: rpc.RemoteASOf(c.PeerASN), LocalAS: c.LocalASN,
 		RemoteRouterID: identifierFor(t, c.OriginatorIP.String()),
 		RawMessage: &types.RawMessage{
 			Type: msgtype.TypeUPDATE, RawBytes: body, WireUpdate: wu, AttrsWire: attrs,

@@ -862,6 +862,7 @@ func (e *attrEmitter) run(buf []byte, off int) (int, modifyFailure) {
 // too small.
 func buildWithdrawalPayload(payload, buf []byte, source *bgpctx.EncodingContext) int {
 	withdrawn, announced, mp, ok := withdrawalLayout(payload)
+	// refuse-by-default: guards fwdWithdrawal -- 0 octets is no UPDATE payload (one holds at least 4), so fwdWithdrawal.of refuses on it and the rail suppresses the route
 	if !ok {
 		return 0
 	}

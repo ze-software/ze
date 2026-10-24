@@ -4,8 +4,8 @@
   "tests": {
     "internal/component/bgp/message/rfc7606_withdraw_test.go::TestSynthesizeWithdrawConvertsMPReachToMPUnreach": "e59dbb7ce3b5e1e2",
     "internal/component/bgp/message/rfc7606_withdraw_test.go::TestSynthesizeWithdrawMovesNLRIToWithdrawn": "e59dbb7ce3b5e1e2",
-    "internal/component/bgp/plugins/rib/rfc7606_rib_structured_test.go::TestRIBTreatAsWithdrawAddPathPreservesPathID": "d0086c9e46ea7947",
-    "internal/component/bgp/plugins/rib/rfc7606_rib_structured_test.go::TestRIBTreatAsWithdrawRemovesInstalledRoute": "d0086c9e46ea7947",
+    "internal/component/bgp/plugins/rib/rfc7606_rib_structured_test.go::TestRIBTreatAsWithdrawAddPathPreservesPathID": "cb41cdd1f9129363",
+    "internal/component/bgp/plugins/rib/rfc7606_rib_structured_test.go::TestRIBTreatAsWithdrawRemovesInstalledRoute": "cb41cdd1f9129363",
     "internal/component/bgp/reactor/rfc7606_session_structural_test.go::TestSessionRFC7606ValidUpdateDispatchesAnnouncement": "9f97a0d56d362dc6",
     "internal/component/bgp/reactor/session_test.go::TestSessionRFC7606TreatAsWithdrawDispatchesWithdrawal": "aeb6993b67f2a376"
   },

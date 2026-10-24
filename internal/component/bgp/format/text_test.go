@@ -31,7 +31,7 @@ var testEncCtx = bgpctx.EncodingContextForASN4(true)
 func TestFormatStateChange(t *testing.T) {
 	peer := plugin.PeerInfo{
 		Address: netip.MustParseAddr("10.0.0.1"),
-		PeerAS:  65001,
+		PeerAS:  rpc.RemoteASOf(65001),
 	}
 
 	tests := []struct {
@@ -96,7 +96,7 @@ func TestFormatStateChange(t *testing.T) {
 func TestTextStateCarriesExactInitialReplay(t *testing.T) {
 	peer := plugin.PeerInfo{
 		Address:       netip.MustParseAddr("10.0.0.1"),
-		PeerAS:        65001,
+		PeerAS:        rpc.RemoteASOf(65001),
 		InitialReplay: 18446744073709551615,
 	}
 	got := string(AppendStateChange(nil, &peer, rpc.SessionStateUp, "", nil, plugin.EncodingText))
@@ -120,7 +120,7 @@ func TestPeerJSONNameGroup(t *testing.T) {
 			name: "name only",
 			peer: plugin.PeerInfo{
 				Address: netip.MustParseAddr("10.0.0.1"),
-				PeerAS:  65001,
+				PeerAS:  rpc.RemoteASOf(65001),
 				Name:    "upstream1",
 			},
 			want: `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"local":{"address":"","as":0},"name":"upstream1","remote":{"address":"10.0.0.1","as":65001}},"state":"up"}}` + "\n",
@@ -129,7 +129,7 @@ func TestPeerJSONNameGroup(t *testing.T) {
 			name: "name and group",
 			peer: plugin.PeerInfo{
 				Address:   netip.MustParseAddr("10.0.0.2"),
-				PeerAS:    65002,
+				PeerAS:    rpc.RemoteASOf(65002),
 				Name:      "peer_east",
 				GroupName: "transit",
 			},
@@ -139,7 +139,7 @@ func TestPeerJSONNameGroup(t *testing.T) {
 			name: "group only",
 			peer: plugin.PeerInfo{
 				Address:   netip.MustParseAddr("10.0.0.3"),
-				PeerAS:    65003,
+				PeerAS:    rpc.RemoteASOf(65003),
 				GroupName: "edge",
 			},
 			want: `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"group":"edge","local":{"address":"","as":0},"name":"","remote":{"address":"10.0.0.3","as":65003}},"state":"up"}}` + "\n",
@@ -148,7 +148,7 @@ func TestPeerJSONNameGroup(t *testing.T) {
 			name: "no name no group",
 			peer: plugin.PeerInfo{
 				Address: netip.MustParseAddr("10.0.0.4"),
-				PeerAS:  65004,
+				PeerAS:  rpc.RemoteASOf(65004),
 			},
 			want: `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"local":{"address":"","as":0},"name":"","remote":{"address":"10.0.0.4","as":65004}},"state":"up"}}` + "\n",
 		},
@@ -171,7 +171,7 @@ func TestPeerJSONNameGroup(t *testing.T) {
 func TestFormatEOR(t *testing.T) {
 	peer := plugin.PeerInfo{
 		Address: netip.MustParseAddr("10.0.0.1"),
-		PeerAS:  65001,
+		PeerAS:  rpc.RemoteASOf(65001),
 	}
 
 	tests := []struct {
@@ -223,7 +223,7 @@ func TestFormatEOR(t *testing.T) {
 func TestFormatCongestion(t *testing.T) {
 	peer := plugin.PeerInfo{
 		Address: netip.MustParseAddr("10.0.0.1"),
-		PeerAS:  65001,
+		PeerAS:  rpc.RemoteASOf(65001),
 	}
 
 	tests := []struct {
@@ -278,7 +278,7 @@ func TestFormatMessageText(t *testing.T) {
 
 	peer := plugin.PeerInfo{
 		Address: netip.MustParseAddr("10.0.0.1"),
-		PeerAS:  65001,
+		PeerAS:  rpc.RemoteASOf(65001),
 	}
 
 	// Build UPDATE body with NLRI: 192.168.1.0/24, next-hop 10.0.0.1, origin igp, local-pref 100, as-path [65001 65002]
@@ -341,7 +341,7 @@ func TestFormatMessageJSON(t *testing.T) {
 
 	peer := plugin.PeerInfo{
 		Address: netip.MustParseAddr("10.0.0.1"),
-		PeerAS:  65001,
+		PeerAS:  rpc.RemoteASOf(65001),
 	}
 
 	// Build UPDATE body with NLRI
@@ -479,7 +479,7 @@ func buildTestUpdateBodyWithAttrs(prefix netip.Prefix, nextHop netip.Addr, origi
 func TestFormatNonUpdateRoutesToDedicatedFormatters(t *testing.T) {
 	peer := plugin.PeerInfo{
 		Address: netip.MustParseAddr("10.0.0.1"),
-		PeerAS:  65001,
+		PeerAS:  rpc.RemoteASOf(65001),
 	}
 
 	// Build OPEN message body: version(1) + AS(2) + hold(2) + router-id(4) + opt-len(1)
@@ -504,9 +504,10 @@ func TestFormatNonUpdateRoutesToDedicatedFormatters(t *testing.T) {
 
 	got := string(AppendMessage(nil, &peer, msg, content))
 
-	// Should use FormatOpen with uniform header: peer X remote as Y received open <msg-id> router-id R hold-time T cap ...
-	if !strings.Contains(got, "peer 10.0.0.1 remote as 42 received open") {
-		t.Errorf("string(AppendMessage(nil, )) for OPEN =\n%q\nshould contain 'peer 10.0.0.1 remote as 42 received open'", got)
+	// Should use FormatOpen with uniform header: peer X remote as Y received open <msg-id> asn A router-id R hold-time T cap ...
+	// The header names the peer's AS (PeerInfo.PeerAS), and asn the OPEN's own.
+	if !strings.Contains(got, "peer 10.0.0.1 remote as 65001 received open 0 asn 42 ") {
+		t.Errorf("string(AppendMessage(nil, )) for OPEN =\n%q\nshould contain 'peer 10.0.0.1 remote as 65001 received open 0 asn 42 '", got)
 	}
 	if !strings.Contains(got, "router-id 10.0.0.1") {
 		t.Errorf("string(AppendMessage(nil, )) for OPEN =\n%q\nshould contain 'router-id 10.0.0.1'", got)
@@ -523,7 +524,7 @@ func TestFormatNonUpdateRoutesToDedicatedFormatters(t *testing.T) {
 func TestFormatNonUpdateKeepalive(t *testing.T) {
 	peer := plugin.PeerInfo{
 		Address: netip.MustParseAddr("10.0.0.1"),
-		PeerAS:  65001,
+		PeerAS:  rpc.RemoteASOf(65001),
 	}
 
 	msg := bgptypes.RawMessage{
@@ -798,7 +799,7 @@ func buildTestUpdateBodyWithBothFamilies(ipv4Prefix netip.Prefix, ipv4NextHop ne
 func TestFormatOpenWithDirection(t *testing.T) {
 	peer := plugin.PeerInfo{
 		Address: netip.MustParseAddr("10.0.0.1"),
-		PeerAS:  65001,
+		PeerAS:  rpc.RemoteASOf(65001),
 	}
 
 	open := DecodedOpen{
@@ -815,12 +816,12 @@ func TestFormatOpenWithDirection(t *testing.T) {
 		{
 			name:      "sent",
 			direction: rpc.DirectionSent,
-			want:      "peer 10.0.0.1 remote as 65001 sent open 42 router-id 1.1.1.1 hold-time 90\n",
+			want:      "peer 10.0.0.1 remote as 65001 sent open 42 asn 65001 router-id 1.1.1.1 hold-time 90\n",
 		},
 		{
 			name:      "received",
 			direction: rpc.DirectionReceived,
-			want:      "peer 10.0.0.1 remote as 65001 received open 42 router-id 1.1.1.1 hold-time 90\n",
+			want:      "peer 10.0.0.1 remote as 65001 received open 42 asn 65001 router-id 1.1.1.1 hold-time 90\n",
 		},
 	}
 
@@ -841,7 +842,7 @@ func TestFormatOpenWithDirection(t *testing.T) {
 func TestFormatKeepaliveWithDirection(t *testing.T) {
 	peer := plugin.PeerInfo{
 		Address: netip.MustParseAddr("10.0.0.1"),
-		PeerAS:  65001,
+		PeerAS:  rpc.RemoteASOf(65001),
 	}
 
 	tests := []struct {
@@ -878,7 +879,7 @@ func TestFormatKeepaliveWithDirection(t *testing.T) {
 func TestFormatNotificationWithDirection(t *testing.T) {
 	peer := plugin.PeerInfo{
 		Address: netip.MustParseAddr("10.0.0.1"),
-		PeerAS:  65001,
+		PeerAS:  rpc.RemoteASOf(65001),
 	}
 
 	notify := DecodedNotification{
@@ -921,7 +922,7 @@ func TestFormatNotificationWithDirection(t *testing.T) {
 // VALIDATES: RFC 7911 path-id is included in structured JSON.
 // PREVENTS: Path-id being lost in JSON output.
 func TestFormatNLRIJSONWithPathID(t *testing.T) {
-	n := NewTestNLRI(netip.MustParsePrefix("10.0.0.0/24"), 42)
+	n := NewTestNLRI(netip.MustParsePrefix("10.0.0.0/24"), 42, true)
 
 	var sb strings.Builder
 	sb.Write(appendNLRIJSON(nil, n))
@@ -932,12 +933,13 @@ func TestFormatNLRIJSONWithPathID(t *testing.T) {
 	}
 }
 
-// TestFormatNLRIJSONNoPathID verifies JSON omits path-id when zero.
+// TestFormatNLRIJSONNoPathID verifies JSON omits path-id when the NLRI carries
+// no identifier.
 //
-// VALIDATES: path-id field omitted when 0 (no ADD-PATH).
-// PREVENTS: Unnecessary path-id:0 in output.
+// VALIDATES: path-id field omitted when no ADD-PATH identifier is carried.
+// PREVENTS: A path-id member for a route sent without ADD-PATH.
 func TestFormatNLRIJSONNoPathID(t *testing.T) {
-	n := NewTestNLRI(netip.MustParsePrefix("10.0.0.0/24"), 0)
+	n := NewTestNLRI(netip.MustParsePrefix("10.0.0.0/24"), 0, false)
 
 	var sb strings.Builder
 	sb.Write(appendNLRIJSON(nil, n))
@@ -953,7 +955,7 @@ func TestFormatNLRIJSONNoPathID(t *testing.T) {
 // VALIDATES: Max path-id value (0xFFFFFFFF) handled correctly.
 // PREVENTS: Integer overflow issues.
 func TestFormatNLRIJSONPathIDMax(t *testing.T) {
-	n := NewTestNLRI(netip.MustParsePrefix("192.168.1.0/24"), 4294967295)
+	n := NewTestNLRI(netip.MustParsePrefix("192.168.1.0/24"), 4294967295, true)
 
 	var sb strings.Builder
 	sb.Write(appendNLRIJSON(nil, n))
@@ -1050,7 +1052,7 @@ func TestFormatHexMatchesRaw(t *testing.T) {
 
 	peer := plugin.PeerInfo{
 		Address: netip.MustParseAddr("10.0.0.1"),
-		PeerAS:  65001,
+		PeerAS:  rpc.RemoteASOf(65001),
 	}
 
 	body := buildTestUpdateBodyWithAttrs(
@@ -1108,7 +1110,7 @@ func TestFormatHexMatchesRaw(t *testing.T) {
 func TestFormatFilterResultTextEmptyUpdate(t *testing.T) {
 	peer := plugin.PeerInfo{
 		Address: netip.MustParseAddr("10.0.0.1"),
-		PeerAS:  65001,
+		PeerAS:  rpc.RemoteASOf(65001),
 	}
 	// Empty FilterResult: no announced, no withdrawn NLRIs
 	result := bgpfilter.FilterResult{}
@@ -1134,7 +1136,7 @@ func TestFormatMessageTextEncoding(t *testing.T) {
 
 	peer := plugin.PeerInfo{
 		Address: netip.MustParseAddr("10.0.0.1"),
-		PeerAS:  65001,
+		PeerAS:  rpc.RemoteASOf(65001),
 	}
 
 	body := buildTestUpdateBodyWithAttrs(
@@ -1273,13 +1275,48 @@ func TestFormatTextUpdate_ShortAliases(t *testing.T) {
 	}
 }
 
-// NewTestNLRI creates a test NLRI with prefix and optional path-id.
-func NewTestNLRI(prefix netip.Prefix, pathID uint32) nlri.NLRI {
+// NewTestNLRI creates a test NLRI with prefix; hasPathID states whether it
+// carries pathID as its RFC 7911 Path Identifier.
+func NewTestNLRI(prefix netip.Prefix, pathID uint32, hasPathID bool) nlri.NLRI {
 	fam := family.IPv4Unicast
 	if prefix.Addr().Is6() {
 		fam = family.IPv6Unicast
 	}
-	return nlri.NewINET(fam, prefix, pathID)
+	return nlri.NewINET(fam, prefix, pathID, hasPathID)
+}
+
+// TestAddPathIdentifierZeroIsAnIdentifier verifies the JSON formatter shows a
+// path-id member exactly when the NLRI carries an identifier, whatever its value.
+//
+// VALIDATES: AC-10, RFC 7911 Sections 2 and 3: identifier 0 under ADD-PATH is
+// written as "path-id":0, and a non-zero value without ADD-PATH is not shown.
+// PREVENTS: Presence decided by comparing the identifier with zero.
+func TestAddPathIdentifierZeroIsAnIdentifier(t *testing.T) {
+	prefix := netip.MustParsePrefix("10.0.0.0/24")
+	tests := []struct {
+		name      string
+		pathID    uint32
+		hasPathID bool
+		want      string
+	}{
+		{"zero carried", 0, true, `{"prefix":"10.0.0.0/24","path-id":0}`},
+		{"max carried", 4294967295, true, `{"prefix":"10.0.0.0/24","path-id":4294967295}`},
+		{"non-zero not carried", 42, false, `{"prefix":"10.0.0.0/24"}`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := string(appendNLRIJSON(nil, NewTestNLRI(prefix, tt.pathID, tt.hasPathID)))
+			if got != tt.want {
+				t.Errorf("appendNLRIJSON() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+	// The value form: a carried identifier 0 is an object, never the bare string.
+	fam := family.IPv4Unicast
+	got := string(appendNLRIJSONValue(nil, nlri.NewINET(fam, prefix, 0, true), fam, false))
+	if want := `{"prefix":"10.0.0.0/24","path-id":0}`; got != want {
+		t.Errorf("appendNLRIJSONValue() = %q, want %q", got, want)
+	}
 }
 
 // TestAppendStateChangeCarriesUnheldRoles pins the wire form of the engine's
@@ -1293,7 +1330,7 @@ func NewTestNLRI(prefix netip.Prefix, pathID uint32) nlri.NLRI {
 // plugin's own Stage-1 declaration, so an unescaped one would break the framing
 // of every state event on the socket.
 func TestAppendStateChangeCarriesUnheldRoles(t *testing.T) {
-	peer := plugin.PeerInfo{Address: netip.MustParseAddr("10.0.0.1"), PeerAS: 65001}
+	peer := plugin.PeerInfo{Address: netip.MustParseAddr("10.0.0.1"), PeerAS: rpc.RemoteASOf(65001)}
 
 	tests := []struct {
 		name     string

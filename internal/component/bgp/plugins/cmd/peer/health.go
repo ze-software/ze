@@ -68,8 +68,12 @@ func handleShowBGPHealth(ctx *pluginserver.CommandContext, _ command.ValidatedAr
 		row := map[string]any{
 			fieldPeer:   p.Address.String(),
 			fieldState:  state,
-			"as":        p.PeerAS,
 			fieldUptime: p.Uptime.Truncate(time.Second).String(),
+		}
+		// A dynamic peer whose OPEN has not arrived has no AS yet, so its row
+		// names none rather than AS 0.
+		if peerAS, known := p.PeerAS.ASN(); known {
+			row["as"] = peerAS
 		}
 		rows = append(rows, row)
 	}

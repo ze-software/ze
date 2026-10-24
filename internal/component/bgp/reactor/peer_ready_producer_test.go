@@ -238,7 +238,7 @@ func TestPeerReadyRIBReplayCompletion(t *testing.T) {
 			sent := make(chan error, 2)
 			f.r.messageReceiver = &testMessageReceiver{onSent: func(peer plugin.PeerInfo, msg bgptypes.RawMessage) {
 				sent <- proc.Bridge().DeliverStructured([]any{&rpc.StructuredEvent{
-					PeerAddress: peer.Address.String(), EventType: rpc.EventKindUpdate,
+					PeerAddress: peer.Address.String(), PeerAS: peer.PeerAS, EventType: rpc.EventKindUpdate,
 					Direction: rpc.DirectionSent, MessageID: msg.MessageID, RawMessage: &msg,
 					SourcePeerStr: msg.SourcePeerStr, SourceID: msg.SourceID, Meta: msg.Meta,
 				}})
@@ -250,7 +250,7 @@ func TestPeerReadyRIBReplayCompletion(t *testing.T) {
 				attrs, err := update.WireUpdate.Attrs()
 				require.NoError(t, err)
 				require.NoError(t, proc.Bridge().DeliverStructured([]any{&rpc.StructuredEvent{
-					PeerAddress: source.Settings().Address.String(), EventType: rpc.EventKindUpdate,
+					PeerAddress: source.Settings().Address.String(), PeerAS: rpc.RemoteASOf(source.PeerAS()), EventType: rpc.EventKindUpdate,
 					Direction: rpc.DirectionReceived, MessageID: f.id,
 					RawMessage: &bgptypes.RawMessage{WireUpdate: update.WireUpdate, AttrsWire: attrs, MessageID: f.id},
 				}}))
@@ -359,7 +359,7 @@ func TestPeerReadyRIBReconnectBeforeRelease(t *testing.T) {
 	sent := make(chan error, 1)
 	f.r.messageReceiver = &testMessageReceiver{onSent: func(peer plugin.PeerInfo, msg bgptypes.RawMessage) {
 		sent <- proc.Bridge().DeliverStructured([]any{&rpc.StructuredEvent{
-			PeerAddress: peer.Address.String(), EventType: rpc.EventKindUpdate,
+			PeerAddress: peer.Address.String(), PeerAS: peer.PeerAS, EventType: rpc.EventKindUpdate,
 			Direction: rpc.DirectionSent, MessageID: msg.MessageID, RawMessage: &msg,
 			SourcePeerStr: msg.SourcePeerStr, SourceID: msg.SourceID, Meta: msg.Meta,
 		}})
@@ -369,7 +369,7 @@ func TestPeerReadyRIBReconnectBeforeRelease(t *testing.T) {
 	attrs, err := update.WireUpdate.Attrs()
 	require.NoError(t, err)
 	require.NoError(t, proc.Bridge().DeliverStructured([]any{&rpc.StructuredEvent{
-		PeerAddress: f.source.Settings().Address.String(), EventType: rpc.EventKindUpdate,
+		PeerAddress: f.source.Settings().Address.String(), PeerAS: rpc.RemoteASOf(f.source.PeerAS()), EventType: rpc.EventKindUpdate,
 		Direction: rpc.DirectionReceived, MessageID: f.id,
 		RawMessage: &bgptypes.RawMessage{WireUpdate: update.WireUpdate, AttrsWire: attrs, MessageID: f.id},
 	}}))
@@ -446,7 +446,7 @@ func TestPeerReadyRIBNativeReconnect(t *testing.T) {
 				sent := make(chan error, 1)
 				f.r.messageReceiver = &testMessageReceiver{onSent: func(peer plugin.PeerInfo, msg bgptypes.RawMessage) {
 					sent <- proc.Bridge().DeliverStructured([]any{&rpc.StructuredEvent{
-						PeerAddress: peer.Address.String(), EventType: rpc.EventKindUpdate,
+						PeerAddress: peer.Address.String(), PeerAS: peer.PeerAS, EventType: rpc.EventKindUpdate,
 						Direction: rpc.DirectionSent, MessageID: msg.MessageID, RawMessage: &msg,
 						SourcePeerStr: msg.SourcePeerStr, SourceID: msg.SourceID, Meta: msg.Meta,
 					}})
@@ -469,7 +469,7 @@ func TestPeerReadyRIBNativeReconnect(t *testing.T) {
 					attrs, err := update.WireUpdate.Attrs()
 					require.NoError(t, err)
 					require.NoError(t, proc.Bridge().DeliverStructured([]any{&rpc.StructuredEvent{
-						PeerAddress: f.source.Settings().Address.String(), EventType: rpc.EventKindUpdate,
+						PeerAddress: f.source.Settings().Address.String(), PeerAS: rpc.RemoteASOf(f.source.PeerAS()), EventType: rpc.EventKindUpdate,
 						Direction: rpc.DirectionReceived, MessageID: f.id,
 						RawMessage: &bgptypes.RawMessage{WireUpdate: update.WireUpdate, AttrsWire: attrs, MessageID: f.id},
 					}}))
@@ -587,7 +587,7 @@ func TestPeerReadyRRReplayErrorCompletion(t *testing.T) {
 			attrs, err := update.WireUpdate.Attrs()
 			require.NoError(t, err)
 			require.NoError(t, adj.Bridge().DeliverStructured([]any{&rpc.StructuredEvent{
-				PeerAddress: f.source.Settings().Address.String(), EventType: rpc.EventKindUpdate,
+				PeerAddress: f.source.Settings().Address.String(), PeerAS: rpc.RemoteASOf(f.source.PeerAS()), EventType: rpc.EventKindUpdate,
 				Direction: rpc.DirectionReceived, MessageID: f.id,
 				RawMessage: &bgptypes.RawMessage{WireUpdate: update.WireUpdate, AttrsWire: attrs, MessageID: f.id},
 			}}))

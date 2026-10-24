@@ -1,13 +1,13 @@
 {
-  "note": "Re-read 2026-09-27 against \u00a75.1 'The L flag MUST be set to 1 to indicate post-policy'. Ze's Adj-RIB-Out is post-policy only. Forbidden: a post-policy Adj-RIB-Out header with L=0; TestPeerHeaderFromEventAdjRIBOut fails when the sent direction lacks PeerFlagL. TestPeerHeaderFromEventAdjRIBIn shows L is not set unconditionally.",
+  "note": "Re-read 2026-10-23 against section 5.1 'The L flag MUST be set to 1 to indicate post-policy.' after peerHeaderFromEvent became (PeerHeader, error) and refuses an unknown peer AS. Both units changed only to build the AS as rpc.RemoteASOf(65001) and read the header through mustPeerHeader, which fails the test on any error, so the new refusal branch cannot satisfy or mask either assertion. TestPeerHeaderFromEventAdjRIBOut still fails if the sent (Adj-RIB-Out, post-policy only in ze) header lacks PeerFlagL; TestPeerHeaderFromEventAdjRIBIn shows L is not set unconditionally.",
   "requirement_sha": "78b531802e313954",
   "tests": {
-    "internal/component/bgp/plugins/bmp/event_test.go::TestPeerHeaderFromEventAdjRIBIn": "1600925b71fa0ce5",
-    "internal/component/bgp/plugins/bmp/event_test.go::TestPeerHeaderFromEventAdjRIBOut": "1600925b71fa0ce5"
+    "internal/component/bgp/plugins/bmp/event_test.go::TestPeerHeaderFromEventAdjRIBIn": "14af77651b208b50",
+    "internal/component/bgp/plugins/bmp/event_test.go::TestPeerHeaderFromEventAdjRIBOut": "14af77651b208b50"
   },
   "units": {
-    "internal/component/bgp/plugins/bmp/event_test.go::TestPeerHeaderFromEventAdjRIBIn": "f9b8d61bde3447de",
-    "internal/component/bgp/plugins/bmp/event_test.go::TestPeerHeaderFromEventAdjRIBOut": "8c364bd38b11688f"
+    "internal/component/bgp/plugins/bmp/event_test.go::TestPeerHeaderFromEventAdjRIBIn": "88f14343985b6e5d",
+    "internal/component/bgp/plugins/bmp/event_test.go::TestPeerHeaderFromEventAdjRIBOut": "0772aa6eb2b16bd3"
   },
   "verdict": "enforced"
 }

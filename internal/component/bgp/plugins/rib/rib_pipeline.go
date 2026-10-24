@@ -50,12 +50,27 @@ type RouteItem struct {
 	// steps 1-5. nil when multipath is disabled or no siblings exist.
 	// Consumers that don't care about ECMP can ignore this field.
 	MultipathPeers []string
+
+	// Best says whether this received path is the one the election recorded
+	// as the prefix's winner. A source sets it after its walk, with no lock
+	// held (markBestFacts); a row it is unknown for carries no `best` member.
+	Best bestFact
+
+	// route, pathID and addPath name a received CIDR path for markBestFacts:
+	// the prefix, and the path identifier when addPath says one was read.
+	route   netip.Prefix
+	pathID  uint32
+	addPath bool
 }
 
 // PipelineMeta holds pipeline result metadata.
 type PipelineMeta struct {
 	Count int
 	JSON  string // set by json, histogram, and graph terminals
+	// Refusal is set by a terminal that cannot build its document (the graph
+	// terminal past graph.MaxNodes); JSON is then empty and the command
+	// answers this error.
+	Refusal error
 }
 
 // pipelineIterator is the pull-based iterator interface for pipeline stages.
@@ -120,6 +135,7 @@ func retainEntry(entry *storage.RouteEntry) bool {
 }
 
 type inboundSource struct {
+	r       *RIBManager
 	peers   []inboundPeerRef
 	peerIdx int
 	items   []RouteItem
@@ -134,7 +150,7 @@ func newInboundSource(r *RIBManager, selectorStr string) *inboundSource {
 	// canonical form so no conversion happens here.
 	var peers []inboundPeerRef
 	for peer, peerRIB := range r.bgpPeers {
-		if sel.Matches(peer) {
+		if r.selectsPeer(sel, peer) {
 			peers = append(peers, inboundPeerRef{peer: peerRIB.PeerAddr(), peerRIB: peerRIB})
 		}
 	}
@@ -145,7 +161,7 @@ func newInboundSource(r *RIBManager, selectorStr string) *inboundSource {
 	// small slice and makes the whole answer reproducible: peers in address
 	// order, and each peer's routes in the order IterateSorted yields them.
 	sort.Slice(peers, func(i, j int) bool { return peers[i].peer < peers[j].peer })
-	return &inboundSource{peers: peers}
+	return &inboundSource{r: r, peers: peers}
 }
 
 func (s *inboundSource) Next() (RouteItem, bool) {
@@ -181,6 +197,13 @@ func (s *inboundSource) Next() (RouteItem, bool) {
 				return true
 			}
 			prefixStr := formatNLRIAsPrefix(fam, nlriBytes, addPath[fam])
+			// The identity is read here, under the walk, and the best fact
+			// after it: see markBestFacts for the lock order.
+			route, pathID, identified := receivedRouteIdentity(fam, nlriBytes, addPath[fam])
+			if !identified {
+				// An invalid prefix is what markBestFacts skips: no best fact.
+				route = netip.Prefix{}
+			}
 			s.items = append(s.items, RouteItem{
 				Peer:       ref.peer,
 				Family:     fam,
@@ -188,9 +211,13 @@ func (s *inboundSource) Next() (RouteItem, bool) {
 				Direction:  rpc.DirectionReceived,
 				HasInEntry: true,
 				InEntry:    entry,
+				route:      route,
+				pathID:     pathID,
+				addPath:    addPath[fam],
 			})
 			return true
 		})
+		s.r.markBestFacts(s.items)
 	}
 }
 
@@ -281,6 +308,9 @@ func (s *protocolInboundSource) Next() (RouteItem, bool) {
 				Direction:  rpc.DirectionReceived,
 				HasInEntry: true,
 				InEntry:    entry,
+				// A protocol RIB's routes never enter the BGP election
+				// (gatherPrefixCandidatesLocked walks bgpPeers alone).
+				Best: bestFactNotBest,
 			})
 			return true
 		})
@@ -319,7 +349,7 @@ func newOutboundSource(r *RIBManager, selectorStr string) *outboundSource {
 	sel := selector.ParseDefault(selectorStr)
 	var peers []netip.Addr
 	for peer := range r.ribOut {
-		if sel.Matches(peer) {
+		if r.selectsPeer(sel, peer) {
 			peers = append(peers, peer)
 		}
 	}
@@ -1165,11 +1195,12 @@ func serializeRouteItem(item RouteItem) map[string]any {
 
 	if item.HasInEntry {
 		enrichRouteMapFromEntry(routeMap, item.InEntry)
+		writeBestFact(routeMap, item.Best)
 	} else if item.OutRoute != nil {
 		if item.OutRoute.NextHop != "" {
 			routeMap["next-hop"] = item.OutRoute.NextHop
 		}
-		if item.OutRoute.AddPath || item.OutRoute.PathID != 0 {
+		if item.OutRoute.AddPath {
 			routeMap["path-id"] = item.OutRoute.PathID
 		}
 		if item.OutRoute.AddPath {
@@ -1216,9 +1247,11 @@ const (
 
 // showPipeline builds and executes a pipeline from command args.
 // Called by handleCommand for "show bgp rib" with optional scope + filter stages.
-// Holds r.peerMu.RLock across source construction AND the full drain. The whole
-// answer is built under it and returned, so nothing is written to a transport
-// while it is held (AC-5 of spec-record-answers-3-zero-alloc).
+// Holds r.peerMu.RLock for source construction alone (newShowSource); each
+// source takes it again per peer inside Next, so no lock is held while a row
+// is serialized, which is what lets markBestFacts take a bestPrev shard lock.
+// The whole answer is built and returned, so nothing is written to a transport
+// while a lock is held (AC-5 of spec-record-answers-3-zero-alloc).
 //
 // The read lock covers the peer-keyed maps and the adj-rib-out entries
 // handleSent writes under peerMu.Lock. It does NOT cover an adj-rib-in entry's
@@ -1255,11 +1288,10 @@ func (r *RIBManager) showPipeline(selector string, args []string) any {
 
 	// Execute terminal — drain it and return metadata
 	meta := current.Meta()
-
+	if meta.Refusal != nil {
+		return pipelineRefusal{reason: meta.Refusal}
+	}
 	if meta.JSON != "" {
-		if hasTerminalKind(stages, "graph") {
-			return meta.JSON
-		}
 		return json.RawMessage(meta.JSON)
 	}
 
@@ -1513,15 +1545,6 @@ func parsePipelineArgs(args []string) (string, string, []pipelineStage, string) 
 func hasTerminal(stages []pipelineStage) bool {
 	for _, s := range stages {
 		if s.terminal {
-			return true
-		}
-	}
-	return false
-}
-
-func hasTerminalKind(stages []pipelineStage, kind string) bool {
-	for _, s := range stages {
-		if s.terminal && s.kind == kind {
 			return true
 		}
 	}

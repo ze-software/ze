@@ -95,6 +95,8 @@ add nothing to this contract.
 <!-- source: internal/component/bgp/reactor/session_read.go -- processMessage -->
 <!-- source: internal/component/bgp/reactor/reactor_notify.go -- notifyMessageReceiver -->
 
+The peer metadata `notifyMessageReceiver` builds is copied by value and borrows nothing either; its AS is an `rpc.RemoteAS` value, two words with no pointer.
+
 **A forwarding dedup entry borrows an outgoing item, not a pool slot forever.**
 Both rails MUST finish body construction before publishing a materialization
 to the per-fan-out dedup table. A failed body MUST abandon its candidate before

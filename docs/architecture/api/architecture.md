@@ -1837,6 +1837,9 @@ The gNMI server runs on a separate port (default 9339) with independent TLS and 
 
 Configuration is YANG-modeled under `environment { gnmi { enabled; token; tls { cert; key; } server <name> { ip; port; } } }` with env var overrides (`ze.gnmi.enabled`, `ze.gnmi.listen`, `ze.gnmi.token`, `ze.gnmi.tls.cert`, `ze.gnmi.tls.key`).
 
+Ze serialises config one way, as JSON, and answers in either JSON encoding: Capabilities advertises JSON and JSON_IETF. The gNMI specification puts no constraint on `JSON` beyond being valid JSON, and Section 2.3.1 says "Both the client and target MUST support the `JSON` encoding as a minimum." So one serialisation serves both, and only the TypedValue member differs: `json_val` for JSON, `json_ietf_val` for JSON_IETF. JSON is the proto3 zero value, so a request that leaves `encoding` unset is answered in JSON (Section 3.3.1: "If the encoding is not specified, JSON MUST be used."), and gnmic's default `--encoding json` works with no flag. A STREAM subscriber in JSON receives a copy of each shared change notification with its values rewrapped as `json_val`, never a mix of the two. A Get or a Subscribe that asks for BYTES, PROTO, ASCII or an encoding number this build does not name is refused with `Unimplemented` naming the requested encoding and the fix, as Section 3.3.1 requires.
+<!-- source: internal/component/gnmi/capabilities.go -- answerEncodingFor, supportedEncodings, answerEncoding.typedValue, answerEncoding.notification -->
+
 Subscribe STREAM delivers change notifications from both gNMI Set operations and external config commits (web, CLI, managed). External commits trigger a generic config-reload notification via the `ChangeNotifier`, which is wired into the hub's `reloadAfterCommit` hook.
 
 Prometheus counters: `ze_gnmi_requests_total{rpc}`, `ze_gnmi_subscribe_active`, `ze_gnmi_errors_total{rpc,code}`.

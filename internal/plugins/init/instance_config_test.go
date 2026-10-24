@@ -28,7 +28,11 @@ func TestZeInitActiveConfigFollowsInstanceName(t *testing.T) {
 	if _, err := store.ReadFile(zefs.KeyFileActive.Key("ze.conf")); err == nil {
 		t.Fatal("init named \"edge\" wrote file/active/ze.conf; want file/active/edge.conf")
 	}
-	if _, err := store.ReadFile(zefs.KeyFileActive.Key(resolve.DefaultConfig(store))); err != nil {
+	configName, nameErr := resolve.DefaultConfig(store)
+	if nameErr != nil {
+		t.Fatal(nameErr)
+	}
+	if _, err := store.ReadFile(zefs.KeyFileActive.Key(configName)); err != nil {
 		// Discovery always finds the loopback, so init always writes one.
 		t.Fatalf("init named \"edge\" wrote no file/active/edge.conf: %v", err)
 	}
@@ -50,7 +54,10 @@ func TestZeInitManagedWritesNoDiscoveredConfig(t *testing.T) {
 		t.Fatalf("Open: %v", err)
 	}
 	defer store.Close() //nolint:errcheck // test cleanup
-	configName := resolve.DefaultConfig(store)
+	configName, nameErr := resolve.DefaultConfig(store)
+	if nameErr != nil {
+		t.Fatal(nameErr)
+	}
 	if store.Exists(configName) {
 		t.Fatalf("managed init wrote %s; the hub supplies a managed client's first config", configName)
 	}

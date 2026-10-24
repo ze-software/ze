@@ -1787,8 +1787,8 @@ func TestResolveSinglePeer(t *testing.T) {
 	edge1 := netip.MustParseAddr("10.0.0.1")
 	edge2 := netip.MustParseAddr("10.0.0.2")
 	srv := &Server{reactor: &mockReactor{peers: []plugin.PeerInfo{
-		{Address: edge1, Name: "edge1", PeerAS: 65001},
-		{Address: edge2, Name: "edge2", PeerAS: 65002},
+		{Address: edge1, Name: "edge1", PeerAS: rpc.RemoteASOf(65001)},
+		{Address: edge2, Name: "edge2", PeerAS: rpc.RemoteASOf(65002)},
 	}}}
 
 	tests := []struct {
@@ -1860,8 +1860,8 @@ func TestResolveSinglePeer(t *testing.T) {
 // `return p.PeerAS == sel.ASNValue()` discarding the exclude flag, so "!edge1"
 // matched edge1 and "!as65001" matched the peer inside AS 65001.
 func TestSelectorMatchesPeerPolarity(t *testing.T) {
-	edge1 := plugin.PeerInfo{Address: netip.MustParseAddr("10.0.0.1"), Name: "edge1", PeerAS: 65001}
-	edge2 := plugin.PeerInfo{Address: netip.MustParseAddr("10.0.0.2"), Name: "edge2", PeerAS: 65002}
+	edge1 := plugin.PeerInfo{Address: netip.MustParseAddr("10.0.0.1"), Name: "edge1", PeerAS: rpc.RemoteASOf(65001)}
+	edge2 := plugin.PeerInfo{Address: netip.MustParseAddr("10.0.0.2"), Name: "edge2", PeerAS: rpc.RemoteASOf(65002)}
 
 	tests := []struct {
 		name      string
@@ -2849,7 +2849,7 @@ func TestPeerScopedAccountingMasksCredential(t *testing.T) {
 	accountant := &fakeAccountant{}
 	d.SetAccountingHook(accountant)
 	args := []string{"system", "authentication", "tacacs", "server", "192.0.2.1", "key", "private middle tail-value"}
-	finish := d.BeginAccountingArgs(&CommandContext{Username: "alice"}, "set", args, "192.0.2.2")
+	finish := d.beginAccountingArgs(&CommandContext{Username: "alice"}, "set", args, "192.0.2.2")
 	finish()
 	require.Len(t, accountant.starts, 1)
 	require.Len(t, accountant.stops, 1)

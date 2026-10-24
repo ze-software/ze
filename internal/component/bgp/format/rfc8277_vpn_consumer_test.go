@@ -19,6 +19,7 @@ import (
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // TestVPNWithdrawalJSONConsumersIgnoreCompatibility exercises the received-event
@@ -49,7 +50,7 @@ func TestVPNWithdrawalJSONConsumersIgnoreCompatibility(t *testing.T) {
 					attrWire, err := update.Attrs()
 					require.NoError(t, err)
 					message := bgptypes.RawMessage{Type: msgtype.TypeUPDATE, RawBytes: body, AttrsWire: attrWire, WireUpdate: update}
-					peer := plugin.PeerInfo{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001}
+					peer := plugin.PeerInfo{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: rpc.RemoteASOf(65001)}
 					content := bgptypes.ContentConfig{Encoding: plugin.EncodingJSON, Format: plugin.FormatParsed}
 					encoded := AppendMessage(nil, &peer, message, content)
 					var event map[string]any

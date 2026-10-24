@@ -58,7 +58,7 @@ func (ub *UpdateBuilder) BuildGroupedUnicast(routes []UnicastParams, maxSize int
 
 	for i := range routes {
 		r := &routes[i]
-		inet := nlri.NewINET(family.IPv4Unicast, r.Prefix, r.PathID)
+		inet := nlri.NewINET(family.IPv4Unicast, r.Prefix, r.PathID, ub.AddPath)
 		nlriLen := nlri.LenWithContext(inet, ub.AddPath)
 
 		// Single NLRI too large to fit any chunk.

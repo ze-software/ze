@@ -1,28 +1,30 @@
-# Test: fib-vpp plugin auto-loads and falls back to a noop backend when
-#       the VPP subsystem is present but disabled.
+# Test: fib-vpp plugin auto-loads, and refuses to program routes when the
+#       VPP subsystem is present but disabled.
 #
 # VALIDATES: fib-vpp is wired into the config-driven auto-load pipeline
-#            (ConfigRoots: ["fib.vpp"]); the mockBackend fallback in
-#            runFibVPPPlugin OnStarted runs when GetActiveConnector() is
-#            nil; the plugin subscribes to (system-rib, best-change)
-#            without panicking.
+#            (ConfigRoots: ["fib.vpp"]); OnStarted subscribes to
+#            (system-rib, best-change) and, with GetActiveConnector() nil,
+#            refuses to build a writer (openFibVPPWriter) and logs why.
 # PREVENTS:  fib-vpp becoming library-only dead code (the "feature not
-#            wired" mistake from memory). If the ConfigRoot changes, the
-#            auto-loader path breaks, or the mock fallback is deleted,
-#            this test catches it.
+#            wired" mistake from memory), and the silent noop backend this
+#            test once required: a writer with no VPP behind it reported
+#            every route as installed while VPP held none. If the
+#            ConfigRoot changes, the auto-loader path breaks, or the noop
+#            fallback returns, this test catches it.
 #
 # Method: spawn ze with a minimal bgp + fib.vpp config; assert the
-# plugin's lifecycle log lines appear on stderr within the timeout.
+# plugin's refusal log line appears on stderr within the timeout, and that
+# neither the noop fallback line nor the writer loop's "running" line does.
 # Uses the same bounded child-process orchestration as the other compiled
 # standalone lifecycle drivers.
 #
 # The vpp subsystem loads (its config block is present) but stays inert
 # because vpp.enabled is false; GetActiveConnector() therefore returns
-# nil and fib-vpp logs the documented warn line before entering its
-# event loop with a mockBackend.
-
+# nil and fib-vpp logs the refusal naming the cause and 'ze doctor'.
 
 cmd=foreground:seq=1:exec=le test fixture plugin/fib-vpp-plugin-load:timeout=15s
 expect=exit:code=0
-expect=stderr:pattern=VPP connector not available, using noop backend
-expect=stderr:pattern=fib-vpp: running
+expect=stderr:pattern=fib-vpp: no route is programmed into VPP
+expect=stderr:pattern=the vpp component is not running
+reject=stderr:pattern=using noop backend
+reject=stderr:pattern=fib-vpp: running

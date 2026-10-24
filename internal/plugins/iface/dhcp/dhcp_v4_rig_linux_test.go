@@ -65,6 +65,10 @@ type loopBackend struct {
 	// addressesUnread answers GetInterface without reading the addresses, as
 	// the VPP backend does (InterfaceInfo.AddressesRead false).
 	addressesUnread bool
+	// dadUnreported answers the addresses without their DAD outcome, as the
+	// VPP backend does (InterfaceInfo.DADReported false): every address
+	// carries neither Tentative nor DADFailed.
+	dadUnreported bool
 	// installed is the addresses ReplaceAddressWithLifetime put on the device
 	// and RemoveAddress has not taken off.
 	installed []string
@@ -94,6 +98,7 @@ func (b *loopBackend) GetInterface(name string) (*iface.InterfaceInfo, error) {
 	stateAt := b.stateAt
 	readErr := b.readErr
 	unread := b.addressesUnread
+	dadUnreported := b.dadUnreported
 	b.mu.Unlock()
 	if readErr != nil {
 		return nil, readErr
@@ -103,6 +108,7 @@ func (b *loopBackend) GetInterface(name string) (*iface.InterfaceInfo, error) {
 		return info, nil
 	}
 	info.AddressesRead = true
+	info.DADReported = !dadUnreported
 	if stateAt != nil {
 		info.State = stateAt(b.now())
 	}

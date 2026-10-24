@@ -361,7 +361,7 @@ parseOpts:
 		}
 	}
 	fam := prefixToFamily(prefix)
-	inet := nlri.NewINET(fam, prefix, 0)
+	inet := nlri.NewINET(fam, prefix, 0, false)
 
 	batch := bgptypes.NLRIBatch{
 		Family:  fam,
@@ -415,7 +415,7 @@ parseOpts:
 		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, err
 	}
 	fam := prefixToFamily(prefix)
-	inet := nlri.NewINET(fam, prefix, 0)
+	inet := nlri.NewINET(fam, prefix, 0, false)
 
 	batch := bgptypes.NLRIBatch{
 		Family:  fam,

@@ -4,7 +4,10 @@
 
 package trafficusage
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+)
 
 // errUnsupportedPlatform is returned by every attacher operation on non-Linux
 // builds. eBPF TCX exists only in the Linux kernel.
@@ -17,9 +20,11 @@ type unsupportedAttacher struct{}
 
 func newAttacher() attacher { return unsupportedAttacher{} }
 
-// ebpfSupported reports that eBPF TCX accounting is unavailable on non-Linux,
-// with no side effects (used by the read-only doctor check).
-func ebpfSupported() error { return errUnsupportedPlatform }
+// probeTCX reports that eBPF TCX accounting is absent on non-Linux: the build
+// holds no attacher, so there is nothing to ask a kernel.
+func probeTCX() tcxReadinessResult {
+	return classifyTCXProbe(fmt.Errorf("%w: %w", errNoTCX, errUnsupportedPlatform))
+}
 
 func (unsupportedAttacher) Available() error { return errUnsupportedPlatform }
 

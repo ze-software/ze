@@ -58,6 +58,16 @@ marked for deletion at the next sweep, and the neighbor sees Down in our next
 Hello and restarts the handshake. The RFC's "Neighbor restarted" event is not
 raised (RFC5303-3.2-12).
 
+A TLV 240 whose state is none of the three columns is discarded before
+anything changes: no adjacency is created or updated and the hold timer is not
+rearmed, as RFC 5303 section 3.2 requires. The engine's IIH handler counts
+every rejected Hello in `ze_isis_frames_dropped_total{interface,reason}` under
+the transition's reason, here `invalid-three-way-state`.
+<!-- source: internal/plugins/isis/adjacency/fsm.go -- ReceiveHello -->
+<!-- source: internal/plugins/isis/server.go -- handleIIH -->
+<!-- source: internal/plugins/isis/transport/transport.go -- CountDrop -->
+
+
 On the Up row, a received Down moves the adjacency to Initializing. The RFC
 generates no adjacency event there, but Ze still raises its internal session-down
 notice, because an adjacency that leaves Up must be withdrawn from the LSP and

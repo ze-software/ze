@@ -5,7 +5,10 @@
 
 package l2tp
 
-import "log/slog"
+import (
+	"errors"
+	"log/slog"
+)
 
 // kernelWorker is nil on non-Linux platforms. The reactor checks for nil
 // before enqueueing events, and the subsystem skips module probing and
@@ -40,12 +43,17 @@ func (w *kernelWorker) Start() {}
 // is Linux-only; other platforms run without data plane acceleration.
 func probeKernelModules() error { return nil }
 
-// newSubsystemKernelWorker returns nil on non-Linux. The reactor checks
-// for nil before using the worker, so the userspace control path still
-// functions; sessions simply cannot program the kernel data plane.
-func newSubsystemKernelWorker(_ chan<- kernelSetupFailed, _ chan<- kernelSetupSucceeded, _ *slog.Logger) *kernelWorker {
-	return nil
+// newSubsystemKernelWorker returns a nil worker and errNoKernelDataPlane on
+// non-Linux. The reactor checks for nil before using the worker, so the
+// userspace control path still functions; sessions simply cannot program the
+// kernel data plane, and the l2tp health row says so (checkHealth).
+func newSubsystemKernelWorker(_ chan<- kernelSetupFailed, _ chan<- kernelSetupSucceeded, _ *slog.Logger) (*kernelWorker, error) {
+	return nil, errNoKernelDataPlane
 }
+
+// errNoKernelDataPlane is the data-plane state on a platform with no L2TP
+// kernel module.
+var errNoKernelDataPlane = errors.New("this platform has no L2TP kernel data plane (Linux only)")
 
 // Compile-time references so the linter does not flag event type fields
 // as unused on non-Linux. All fields are consumed by kernel_linux.go.

@@ -20,6 +20,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 	"github.com/ze-software/ze/internal/core/report"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // TestLoadReactor verifies loading config into a Reactor.
@@ -74,7 +75,7 @@ bgp {
 }
 `
 
-	r, err := LoadReactor(input)
+	r, err := loadReactor(input)
 	require.NoError(t, err)
 	require.NotNil(t, r)
 
@@ -137,7 +138,7 @@ bgp {
 }
 `
 
-	r, err := LoadReactor(input)
+	r, err := loadReactor(input)
 	require.NoError(t, err)
 
 	peers := r.Peers()
@@ -183,7 +184,7 @@ bgp {
 }
 `
 
-	r, err := LoadReactor(input)
+	r, err := loadReactor(input)
 	require.NoError(t, err)
 
 	peers := r.Peers()
@@ -232,7 +233,7 @@ bgp {
 }
 `
 
-	r, err := LoadReactor(input)
+	r, err := loadReactor(input)
 	require.NoError(t, err)
 
 	peers := r.Peers()
@@ -279,7 +280,7 @@ bgp {
 }
 `
 
-	_, err := LoadReactor(input)
+	_, err := loadReactor(input)
 	require.Error(t, err)
 }
 
@@ -305,7 +306,7 @@ func TestParseAllConfigFiles(t *testing.T) {
 		if curatedNativeExampleFixtures[name] {
 			parsed++
 			t.Run(name, func(t *testing.T) {
-				r, err := LoadReactorFileWithPlugins(nil, path, nil)
+				r, err := loadReactorFileWithPlugins(nil, path, nil)
 				require.NoError(t, err)
 				require.NotNil(t, r)
 			})
@@ -363,7 +364,7 @@ func legacyExampleFixtureReason(name string) (string, bool) {
 func TestOldSyntaxHint(t *testing.T) {
 	t.Run("neighbor keyword triggers hint", func(t *testing.T) {
 		input := `neighbor 192.0.2.1 { local-as 65000; peer-as 65001; }`
-		_, err := LoadReactor(input)
+		_, err := loadReactor(input)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "unknown top-level keyword: neighbor")
 		require.Contains(t, err.Error(), "ze config migrate")
@@ -371,7 +372,7 @@ func TestOldSyntaxHint(t *testing.T) {
 
 	t.Run("template keyword rejected", func(t *testing.T) {
 		input := `template { neighbor test { local-as 65000; } }`
-		_, err := LoadReactor(input)
+		_, err := loadReactor(input)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "unknown top-level keyword: template")
 	})
@@ -379,7 +380,7 @@ func TestOldSyntaxHint(t *testing.T) {
 	t.Run("current syntax no hint", func(t *testing.T) {
 		// Valid current config should parse without error (no hint needed).
 		input := `bgp { router-id 192.0.2.254; session { asn { local 65000; } } peer transit1 { connection { remote { ip 192.0.2.1; } local { ip 192.168.1.1; } } session { asn { remote 65001; } } } }`
-		_, err := LoadReactor(input)
+		_, err := loadReactor(input)
 		require.NoError(t, err)
 	})
 }
@@ -584,7 +585,7 @@ bgp {
 }
 `
 
-	r, err := LoadReactor(input)
+	r, err := loadReactor(input)
 	require.NoError(t, err)
 	require.NotNil(t, r)
 
@@ -619,7 +620,7 @@ peer transit1 {
 }
 `
 
-	_, err := LoadReactor(input)
+	_, err := loadReactor(input)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown top-level keyword")
 }
@@ -662,7 +663,7 @@ bgp {
 }
 `
 
-	r, err := LoadReactor(input)
+	r, err := loadReactor(input)
 	require.NoError(t, err)
 	require.NotNil(t, r)
 
@@ -712,7 +713,7 @@ bgp {
 }
 `
 
-	r, err := LoadReactor(input)
+	r, err := loadReactor(input)
 	require.NoError(t, err)
 	require.NotNil(t, r)
 
@@ -759,7 +760,7 @@ bgp {
 }
 `
 
-	_, err := LoadReactor(input)
+	_, err := loadReactor(input)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "nonexistent-field")
 }
@@ -774,7 +775,7 @@ func TestPeerNameValidation(t *testing.T) {
 	// validateAndTrackPeerName validates the list key directly as the peer name.
 	//
 	// Use the resolve_test.go TestResolveBGPTree_PeerNameValidation tests for
-	// exhaustive name validation. This test verifies it through the full LoadReactor path.
+	// exhaustive name validation. This test verifies it through the full loadReactor path.
 	input := `
 bgp {
     router-id 10.0.0.1;
@@ -802,10 +803,10 @@ bgp {
 }
 `
 
-	_, err := LoadReactor(input)
+	_, err := loadReactor(input)
 	// The list key "10.0.0.1" contains dots, which triggers peer name validation.
 	// If the resolve layer validates the list key, this should error.
-	// If not yet wired, LoadReactor may succeed (validation gap).
+	// If not yet wired, loadReactor may succeed (validation gap).
 	if err != nil {
 		assert.Contains(t, err.Error(), "invalid peer name")
 	}
@@ -1057,7 +1058,7 @@ bgp {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r, err := LoadReactor(tt.config)
+			r, err := loadReactor(tt.config)
 			require.NoError(t, err)
 
 			peers := r.Peers()
@@ -1197,7 +1198,7 @@ bgp {
 
 // TestLoaderWithBlobStorage verifies config loading through blob storage.
 //
-// VALIDATES: LoadReactorFile reads config from blob storage, not filesystem.
+// VALIDATES: loadReactorFileNoPlugins reads config from blob storage, not filesystem.
 // PREVENTS: Storage wiring broken - loader silently falls back to os.ReadFile.
 func TestLoaderWithBlobStorage(t *testing.T) {
 	dir := t.TempDir()
@@ -1245,7 +1246,7 @@ bgp {
 	}
 
 	// Load from blob storage
-	r, err := LoadReactorFile(store, configPath)
+	r, err := loadReactorFileNoPlugins(store, configPath)
 	require.NoError(t, err)
 	require.NotNil(t, r)
 
@@ -1299,7 +1300,7 @@ bgp {
 	require.NoError(t, store.WriteFile(configPath, []byte(initialConfig), 0o600))
 
 	// Load initial config from blob
-	r1, err := LoadReactorFile(store, configPath)
+	r1, err := loadReactorFileNoPlugins(store, configPath)
 	require.NoError(t, err)
 	require.Len(t, r1.Peers(), 1)
 
@@ -1349,7 +1350,7 @@ bgp {
 	}
 
 	// Reload from blob - should see updated config
-	r2, err := LoadReactorFile(store, configPath)
+	r2, err := loadReactorFileNoPlugins(store, configPath)
 	require.NoError(t, err)
 	require.Len(t, r2.Peers(), 2, "reloaded config should have 2 peers")
 }
@@ -1418,8 +1419,8 @@ func TestCollectPrefixWarningsOneStale(t *testing.T) {
 
 	ri := &mockIntrospector{
 		peers: []plugin.PeerInfo{
-			{Address: netip.MustParseAddr("10.0.0.1"), PeerAS: 65001, Name: "core-rtr"},
-			{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65002},
+			{Address: netip.MustParseAddr("10.0.0.1"), PeerAS: rpc.RemoteASOf(65001), Name: "core-rtr"},
+			{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: rpc.RemoteASOf(65002)},
 		},
 	}
 
@@ -1445,8 +1446,8 @@ func TestCollectPrefixWarningsMultiple(t *testing.T) {
 
 	ri := &mockIntrospector{
 		peers: []plugin.PeerInfo{
-			{Address: netip.MustParseAddr("10.0.0.1"), PeerAS: 65001},
-			{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65002},
+			{Address: netip.MustParseAddr("10.0.0.1"), PeerAS: rpc.RemoteASOf(65001)},
+			{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: rpc.RemoteASOf(65002)},
 		},
 	}
 
@@ -1466,7 +1467,7 @@ func TestCollectPrefixWarningsNone(t *testing.T) {
 
 	ri := &mockIntrospector{
 		peers: []plugin.PeerInfo{
-			{Address: netip.MustParseAddr("10.0.0.1"), PeerAS: 65001},
+			{Address: netip.MustParseAddr("10.0.0.1"), PeerAS: rpc.RemoteASOf(65001)},
 		},
 	}
 
@@ -1488,7 +1489,7 @@ func TestCollectPrefixWarningsRuntime(t *testing.T) {
 
 	ri := &mockIntrospector{
 		peers: []plugin.PeerInfo{
-			{Address: netip.MustParseAddr("10.0.0.1"), PeerAS: 65001},
+			{Address: netip.MustParseAddr("10.0.0.1"), PeerAS: rpc.RemoteASOf(65001)},
 		},
 	}
 
@@ -1737,13 +1738,13 @@ bgp {
 	}
 
 	t.Run("raw alone is a route-pushing process", func(t *testing.T) {
-		r, err := LoadReactor(peerConfig("raw"))
+		r, err := loadReactor(peerConfig("raw"))
 		require.NoError(t, err)
 		require.Len(t, r.Peers(), 1)
 	})
 
 	t.Run("refresh alone pushes no route", func(t *testing.T) {
-		_, err := LoadReactor(peerConfig("refresh"))
+		_, err := loadReactor(peerConfig("refresh"))
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "send [ update ] or send [ raw ]")
 	})

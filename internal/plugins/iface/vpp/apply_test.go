@@ -1718,10 +1718,15 @@ func TestVPPRouteLookupChannelNotReady(t *testing.T) {
 type dumpChannel struct {
 	lastRequest api.Message
 	details     []interfaces.SwInterfaceDetails
-	macReply    interfaces.SwInterfaceSetMacAddressReply
-	sendErr     error
-	receiveErr  error
-	closed      bool
+	// addresses answers IPAddressDump: the prefixes VPP holds on each
+	// interface, both families; each dump answers its own family.
+	addresses map[interface_types.InterfaceIndex][]ip_types.AddressWithPrefix
+	// addressDumps counts the IPAddressDump requests received.
+	addressDumps int
+	macReply     interfaces.SwInterfaceSetMacAddressReply
+	sendErr      error
+	receiveErr   error
+	closed       bool
 }
 
 var _ api.Channel = (*dumpChannel)(nil)
@@ -1733,7 +1738,41 @@ func (c *dumpChannel) SendRequest(msg api.Message) api.RequestCtx {
 
 func (c *dumpChannel) SendMultiRequest(msg api.Message) api.MultiRequestCtx {
 	c.lastRequest = msg
+	if req, ok := msg.(*ip.IPAddressDump); ok {
+		c.addressDumps++
+		return &addressDumpCtx{ch: c, req: *req}
+	}
 	return &dumpMultiCtx{ch: c, pos: 0}
+}
+
+// addressDumpCtx answers one IPAddressDump with the addresses of the
+// requested interface and family.
+type addressDumpCtx struct {
+	ch  *dumpChannel
+	req ip.IPAddressDump
+	pos int
+}
+
+func (m *addressDumpCtx) ReceiveReply(msg api.Message) (bool, error) {
+	if m.ch.receiveErr != nil {
+		return false, m.ch.receiveErr
+	}
+	var family []ip_types.AddressWithPrefix
+	for _, p := range m.ch.addresses[m.req.SwIfIndex] {
+		if (p.Address.Af == ip_types.ADDRESS_IP6) == m.req.IsIPv6 {
+			family = append(family, p)
+		}
+	}
+	if m.pos >= len(family) {
+		return true, nil
+	}
+	d, ok := msg.(*ip.IPAddressDetails)
+	if !ok {
+		return false, fmt.Errorf("addressDumpCtx: unexpected reply type %T", msg)
+	}
+	*d = ip.IPAddressDetails{SwIfIndex: m.req.SwIfIndex, Prefix: family[m.pos]}
+	m.pos++
+	return false, nil
 }
 
 func (c *dumpChannel) SubscribeNotification(_ chan api.Message, _ api.Message) (api.SubscriptionCtx, error) {
@@ -2137,6 +2176,31 @@ func TestGetStatsReturnsVPPCounters(t *testing.T) {
 	}
 	if s.RxBytes != 2688 {
 		t.Errorf("RxBytes: got %d, want 2688", s.RxBytes)
+	}
+}
+
+// TestGetStatsReadErrorIsNotAbsence pins that a stats segment that fails to
+// read surfaces its error from GetStats, and that a missing stats segment says
+// so, rather than either reporting "no stats for interface". The web counters
+// page renders an unread read differently from an absent interface, so the
+// two must stay apart. Method: a provider whose read fails, then none at all.
+//
+// VALIDATES: GetStats wraps the stats segment's read error.
+// PREVENTS: a failed counter read reported as an interface with no counters.
+func TestGetStatsReadErrorIsNotAbsence(t *testing.T) {
+	readErr := errors.New("stats segment: stale epoch")
+	restore := withFakeStats(&fakeStatsProvider{err: readErr})
+	b := &vppBackendImpl{ch: &dumpChannel{}, names: newNameMap()}
+	_, err := b.GetStats("xe0")
+	restore()
+	if !errors.Is(err, readErr) {
+		t.Fatalf("GetStats on a failed read: got %v, want an error wrapping %v", err, readErr)
+	}
+
+	defer withNilStats()()
+	_, err = b.GetStats("xe0")
+	if !errors.Is(err, errVPPStatsUnavailable) {
+		t.Fatalf("GetStats with no stats segment: got %v, want %v", err, errVPPStatsUnavailable)
 	}
 }
 

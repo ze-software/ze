@@ -46,7 +46,7 @@ UPDATE is the only type with deferred body parsing. The other parsed event types
 
 ### Uniform Header
 
-Text events use the uniform header `peer <addr> remote as <asn> ...`. After the ASN value, the next token decides the shape:
+Text events use the uniform header `peer <addr> remote as <asn> ...`. The `<asn>` value is the peer's AS, or the word `unknown` while a dynamic peer's AS is not yet negotiated; the formatters write `unknown` rather than `0`, so no header carries a zero that reads as an AS. After the ASN value, the next token decides the shape:
 
 | Shape | Tokens after ASN | Type | ID |
 |-------|------------------|------|----|
@@ -86,8 +86,9 @@ NLRI tokens are collected until `textparse.IsTopLevelKeyword` sees the next attr
 
 ### OPEN Parser: parseTextOpen
 
-`parseTextOpen(text string) *Event` reads the uniform header, copies the peer address, parses the peer ASN from `remote as <n>`, skips direction, `open`, and msgID, then scans the OPEN body:
+`parseTextOpen(text string) *Event` reads the uniform header, copies the peer address, parses the peer ASN from `remote as <n>` (an `unknown` value leaves `PeerASN` unset), skips direction, `open`, and msgID, then scans the OPEN body:
 
+- `asn <value>` is the OPEN's own My Autonomous System, the sender's AS. It sets `Open.ASN`, and also `PeerASN`, because bgp-rs subscribes to received OPENs only, so the sender is the peer. The value is read with `asn.Parse`, which accepts every RFC 5396 spelling. The header's `remote as` no longer fills `Open.ASN`.
 - `router-id <value>` sets `Open.RouterID`.
 - `hold-time <value>` parses the hold timer as uint16.
 - `cap <code> <name> [<value>]` appends a capability. The optional value is consumed only when the next token is not another OPEN keyword.

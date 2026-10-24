@@ -135,7 +135,7 @@ func TestAnnounceOversizeDropsWithNamedLog(t *testing.T) {
 		require.NoError(t, err)
 		// An INET NLRI, not the wire one above: the drop log names the route through
 		// NLRI.String(), and only a decoded prefix has a name to print.
-		inet := nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0)
+		inet := nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0, false)
 		route := rib.NewRouteWithASPath(inet, netip.MustParseAddr("10.0.0.1"), attrs,
 			&attribute.ASPath{Segments: []attribute.ASPathSegment{{Type: attribute.ASSequence, ASNs: []uint32{65000}}}})
 
@@ -317,7 +317,7 @@ func TestAnnounceStripsLocalPrefTowardExternalPeer(t *testing.T) {
 		"400101 00 4002 06 02010000fde8 4005040000012c c0080465000064", " ", ""))
 	require.NoError(t, err)
 
-	wn := nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0)
+	wn := nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0, false)
 	adapter := &reactorAPIAdapter{r: &Reactor{config: &Config{LocalAS: 65000}}}
 
 	batchRail := func(isIBGP bool) []byte {

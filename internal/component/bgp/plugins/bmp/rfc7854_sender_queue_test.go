@@ -254,10 +254,11 @@ func locRIBBatch(n int, replayed bool) *ribevents.BestChangeBatch {
 	}
 	for i := range n {
 		b.Changes = append(b.Changes, ribevents.BestChangeEntry{
-			Action:  ribevents.BestChangeAdd,
-			Prefix:  netip.MustParsePrefix("10.20." + string(rune('0'+i%10)) + ".0/24"),
-			NextHop: netip.MustParseAddr("192.0.2.1"),
-			ASPath:  []uint32{65001},
+			Action:     ribevents.BestChangeAdd,
+			Attributes: locRIBOriginIGP,
+			Prefix:     netip.MustParsePrefix("10.20." + string(rune('0'+i%10)) + ".0/24"),
+			NextHop:    netip.MustParseAddr("192.0.2.1"),
+			ASPath:     []uint32{65001},
 		})
 	}
 	return b
@@ -464,7 +465,7 @@ func TestConfigureConcurrentWithEventDeliveryIsRaceFree(t *testing.T) {
 
 	se := &rpc.StructuredEvent{
 		PeerAddress: "10.0.0.1",
-		PeerAS:      65001,
+		PeerAS:      rpc.RemoteASOf(65001),
 		EventType:   rpc.EventKindUpdate,
 		Direction:   rpc.DirectionReceived,
 		RawMessage:  &bgptypes.RawMessage{Type: msgtype.TypeUPDATE, RawBytes: []byte{0x00, 0x00, 0x00, 0x00, 0x00}},

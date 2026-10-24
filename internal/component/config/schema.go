@@ -160,8 +160,16 @@ type LeafNode struct {
 	Ranges      []NumericRange // Valid numeric ranges from YANG range statements
 	Lengths     []NumericRange // Valid string lengths from YANG length statements (characters, RFC 7950 Section 9.4.4)
 	Patterns    []string       // Valid string patterns from YANG pattern statements
+	Union       []UnionMember  // Member types of a YANG union, in declared order; nil for any other type
 	Backend     []string       // ze:backend — supporting backends; nil = unrestricted (see backend_gate.go)
 	Related     []*RelatedTool // ze:related — operator tools attached to this leaf (see related.go)
+}
+
+// UnionMember is one member type of a YANG union leaf: the type's name for the
+// refusal an operator reads, and the restrictions a value is judged against.
+type UnionMember struct {
+	TypeName string
+	Leaf     *LeafNode
 }
 
 // NumericRange is an inclusive numeric range constraint from YANG.
@@ -640,8 +648,8 @@ type MultiLeafNode struct {
 
 func (n *MultiLeafNode) Kind() NodeKind { return NodeLeaf }
 
-// MultiLeaf creates a multi-word leaf node.
-func MultiLeaf(typ ValueType) *MultiLeafNode {
+// multiLeaf creates a multi-word leaf node.
+func multiLeaf(typ ValueType) *MultiLeafNode {
 	return &MultiLeafNode{Type: typ}
 }
 
@@ -659,15 +667,9 @@ type BracketLeafListNode struct {
 
 func (n *BracketLeafListNode) Kind() NodeKind { return NodeLeaf }
 
-// BracketLeafList creates a bracket-syntax leaf-list node.
-func BracketLeafList(typ ValueType) *BracketLeafListNode {
+// bracketLeafList creates a bracket-syntax leaf-list node.
+func bracketLeafList(typ ValueType) *BracketLeafListNode {
 	return &BracketLeafListNode{Type: typ}
-}
-
-// ArrayLeaf is an alias for BracketLeafList, kept for legacy schema compatibility.
-// Use BracketLeafList for new code.
-func ArrayLeaf(typ ValueType) *BracketLeafListNode {
-	return BracketLeafList(typ)
 }
 
 // ValueOrArrayNode accepts either "value;" or "[ item item ... ];" syntax.
@@ -685,14 +687,14 @@ type ValueOrArrayNode struct {
 
 func (n *ValueOrArrayNode) Kind() NodeKind { return NodeLeaf }
 
-// ValueOrArray creates a node that accepts either a single value or bracketed list.
-func ValueOrArray(typ ValueType) *ValueOrArrayNode {
+// valueOrArray creates a node that accepts either a single value or bracketed list.
+func valueOrArray(typ ValueType) *ValueOrArrayNode {
 	return &ValueOrArrayNode{Type: typ}
 }
 
-// ValueOrArrayEnum creates a node that accepts either a single value or bracketed list,
+// valueOrArrayEnum creates a node that accepts either a single value or bracketed list,
 // with validation against a fixed set of enum values.
-func ValueOrArrayEnum(validValues []string) *ValueOrArrayNode {
+func valueOrArrayEnum(validValues []string) *ValueOrArrayNode {
 	return &ValueOrArrayNode{Type: TypeString, ValidValues: validValues}
 }
 
@@ -888,6 +890,9 @@ func ValidateLeafValue(node *LeafNode, value string) error {
 	if err := ValidateValue(node.Type, value); err != nil {
 		return err
 	}
+	if len(node.Union) > 0 {
+		return validateUnionValue(node.Union, value)
+	}
 	if len(node.Enums) > 0 && !stringIn(node.Enums, value) {
 		expected := textbuf.Join(node.Enums, ", ")
 		return fmt.Errorf("invalid enum: %q (expected one of: %s)", value, expected)
@@ -904,6 +909,29 @@ func ValidateLeafValue(node *LeafNode, value string) error {
 		return err
 	}
 	return nil
+}
+
+// validateUnionValue judges a value against each member type of a union, in
+// declared order, and accepts it at the first member that does. A union carries
+// no restriction of its own, so the members are the whole check.
+//
+// RFC 7950 Section 9.12: "When interpreting an XML encoding, a value is
+// validated consecutively against each member type, in the order they are
+// specified in the "type" statement, until a match is found."
+func validateUnionValue(members []UnionMember, value string) error {
+	var reasons textbuf.Buffer
+	for i, member := range members {
+		err := ValidateLeafValue(member.Leaf, value)
+		if err == nil {
+			return nil
+		}
+		if i > 0 {
+			reasons.Str("; ")
+		}
+		reasons.Str(member.TypeName).Str(": ").Str(err.Error())
+	}
+	return fmt.Errorf("invalid value %q: it matches no member type of the union (%s); "+
+		"write a value one member type accepts", value, reasons.String())
 }
 
 // validateLengths enforces YANG `length` on a string value. The length is
@@ -1088,8 +1116,8 @@ func parseDuration(s string) (int64, error) {
 	return int64(num * multiplier), nil
 }
 
-// NormalizeBool converts enable/disable to true/false.
-func NormalizeBool(value string) string {
+// normalizeEnableBool converts enable/disable to true/false.
+func normalizeEnableBool(value string) string {
 	switch value {
 	case configEnable:
 		return configTrue

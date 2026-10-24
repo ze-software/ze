@@ -311,10 +311,13 @@ fib {
 | `fib.vpp.batch-interval-ms` | uint16 | `10` | Max milliseconds to wait before dispatching a partial batch. <!-- source: internal/plugins/fib/vpp/yang/ze-fib-vpp-conf.yang -- augments /fib:fib --> |
 
 `fib-vpp` depends on the `vpp` subsystem and on the RIB plugin. If VPP
-is disabled or the GoVPP channel fails to open, the plugin falls back to
-a noop backend and logs a warning instead of blocking the rest of ze.
+is disabled or the GoVPP channel fails to open, the plugin programs no
+route and logs an ERROR naming the cause; the rest of ze keeps running.
+When VPP connects, the plugin opens its writer and asks the system RIB to
+replay every route. Until then `show fib vpp` answers the cause as an
+error, never an empty route list.
 <!-- source: internal/plugins/fib/vpp/register.go -- Dependencies: ["rib", "vpp"] -->
-<!-- source: internal/plugins/fib/vpp/register.go -- mockBackend fallback when connector is nil -->
+<!-- source: internal/plugins/fib/vpp/register.go -- openFibVPPWriter, answerShowFibVPP -->
 
 ### SRv6 service routes
 
@@ -408,7 +411,10 @@ Two places expose VPP state through ze:
 <!-- source: internal/component/vpp/telemetry.go -- newVPPMetrics, poller.run -->
 2. **The `show fib vpp` command.** Dumps the routes `fib-vpp` believes
    it has installed in VPP, as JSON `[{"prefix": ..., "next-hop": ...}, ...]`.
+   Before the plugin has started, or while it has no VPP connection, it
+   answers an error saying why instead.
 <!-- source: internal/plugins/fib/vpp/fibvpp.go -- showInstalled -->
+<!-- source: internal/plugins/fib/vpp/register.go -- answerShowFibVPP -->
 
 Direct VPP introspection (`vppctl show int`, `vppctl show ip fib`) is
 still available through the CLI socket ze writes to `/run/vpp/cli.sock`.

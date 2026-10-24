@@ -172,8 +172,9 @@ func (s *LGServer) handleAPIProtocolsShort(w http.ResponseWriter, _ *http.Reques
 
 // serveRoutesForPeer runs "show bgp rib received peer <peer>" and writes the
 // birdwatcher routes envelope, applying pagination when the client requested
-// it. Shared by the protocol/{name} and peer/{peer} endpoints, which differ only
-// in their path parameter name and validation message.
+// it. Shared by the protocol/{name} and peer/{peer} endpoints: peer/{peer}
+// passes its address through, protocol/{name} passes the address
+// protocolSession resolved its name to.
 //
 // Both endpoints answer the routes learned from the session, so the query names
 // bgp-rib's `received` scope. With no scope keyword the plugin answers
@@ -211,7 +212,70 @@ func (s *LGServer) handleAPIRoutesProtocol(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	s.serveRoutesForPeer(w, r, name)
+	address, ok := s.protocolSession(w, name)
+	if !ok {
+		return
+	}
+
+	s.serveRoutesForPeer(w, r, address)
+}
+
+// protocolSession resolves a birdwatcher protocol id to the address of the
+// session protocols/bgp lists under it, or writes the refusal and reports
+// false.
+//
+// bgp-rib keys every session by its address, while protocols/bgp names each
+// one by its configured name (protocolID). Sending the name on to bgp-rib
+// matched no session, so a listed protocol answered 200 with no routes, and so
+// did a name no session carries.
+//
+// Two ids name a session: the id protocols/bgp lists it under (protocolID),
+// and its address. The address is unique to one session and the endpoint
+// answered it before protocols/bgp listed configured names, so a client that
+// built its URL from the address keeps working. When a configured name equals
+// another session's address, the name wins: it is the id protocols/bgp lists.
+// An id matching neither is 404 naming it.
+func (s *LGServer) protocolSession(w http.ResponseWriter, id string) (string, bool) {
+	overview, ok := s.engineAnswer(w, cmdBGPOverview)
+	if !ok {
+		return "", false
+	}
+
+	var byAddress string
+	for _, p := range summaryPeers(overview) {
+		peer, isPeer := p.(map[string]any)
+		if !isPeer {
+			continue
+		}
+		address := peerAddress(peer)
+		if protocolID(peer) != id {
+			if address == id {
+				byAddress = address
+			}
+			continue
+		}
+		if address == "" {
+			writeJSONError(w, http.StatusBadGateway, cmdBGPOverview+": session "+strconv.Quote(id)+" carries no address")
+			return "", false
+		}
+		return address, true
+	}
+	if byAddress != "" {
+		return byAddress, true
+	}
+
+	writeJSONError(w, http.StatusNotFound, "no BGP session is named "+strconv.Quote(id)+
+		": GET /api/looking-glass/protocols/bgp lists the protocol names and addresses")
+	return "", false
+}
+
+// protocolID is the name protocols/bgp lists a session under: its configured
+// name, else its address. protocolSession resolves the same id back.
+func protocolID(peer map[string]any) string {
+	if name := getStr(peer, "name"); name != "" {
+		return name
+	}
+	return peerAddress(peer)
 }
 
 // handleAPIRoutesPeer returns routes from a peer by IP address in birdwatcher format.
@@ -406,13 +470,18 @@ func (s *LGServer) handleAPIRoutesExport(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	var tb textbuf.Buffer
-	zeData, ok := s.peerRoutesAnswer(w, tb.Str("show bgp rib sent peer ").Str(name).String())
+	address, ok := s.protocolSession(w, name)
 	if !ok {
 		return
 	}
 
-	bw := transformRoutes(zeData, name)
+	var tb textbuf.Buffer
+	zeData, ok := s.peerRoutesAnswer(w, tb.Str("show bgp rib sent peer ").Str(address).String())
+	if !ok {
+		return
+	}
+
+	bw := transformRoutes(zeData, address)
 	writeJSON(w, bw)
 }
 
@@ -439,10 +508,15 @@ func (s *LGServer) handleAPIRoutesCount(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	address, ok := s.protocolSession(w, name)
+	if !ok {
+		return
+	}
+
 	// `count` is a terminal, and bgp-rib refuses anything after a terminal
 	// (parsePipelineArgs), so the scope and the peer selector come first.
 	var tb textbuf.Buffer
-	command := tb.Str("show bgp rib received peer ").Str(name).Str(" count").String()
+	command := tb.Str("show bgp rib received peer ").Str(address).Str(" count").String()
 	zeData, ok := s.engineAnswer(w, command)
 	if !ok {
 		return
@@ -737,10 +811,7 @@ func transformProtocols(ze map[string]any) map[string]any {
 		}
 
 		addr := peerAddress(peer)
-		name := getStr(peer, "name")
-		if name == "" {
-			name = addr
-		}
+		name := protocolID(peer)
 
 		received := getNum(peer, "routes-received")
 		accepted := getNum(peer, "routes-accepted")
@@ -791,10 +862,7 @@ func transformProtocolsShort(ze map[string]any) map[string]any {
 			continue
 		}
 
-		name := getStr(peer, "name")
-		if name == "" {
-			name = peerAddress(peer)
-		}
+		name := protocolID(peer)
 
 		protocols[name] = map[string]any{
 			"proto":    "BGP",

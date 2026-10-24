@@ -124,8 +124,8 @@ func (s *SRPolicy) Bytes() []byte {
 // the config rail with message.PluginNLRI, `update text` with a WireNLRI.
 func (s *SRPolicy) PathID() uint32 { return 0 }
 
-// HasPathID returns false: the Path Identifier is framed outside this value.
-func (s *SRPolicy) HasPathID() bool { return false }
+// HasAddPath returns false: the Path Identifier is framed outside this value.
+func (s *SRPolicy) HasAddPath() bool { return false }
 
 // SupportsAddPath returns false: this value never carries a Path Identifier,
 // which the sender frames around it.

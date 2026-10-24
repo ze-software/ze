@@ -28,7 +28,7 @@ func TestJSONEncoderMessageFull(t *testing.T) {
 		Address:      netip.MustParseAddr("10.0.0.2"),
 		LocalAddress: netip.MustParseAddr("10.0.0.17"),
 		LocalAS:      64512,
-		PeerAS:       64512,
+		PeerAS:       rpc.RemoteASOf(64512),
 	}
 	cases := []struct {
 		kind msgtype.MessageType

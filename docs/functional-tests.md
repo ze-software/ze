@@ -2508,7 +2508,7 @@ the seventh is one property of the plugin route's argument judgment.
 | `show test engine answer` | what the plugin read from the engine's own streamed answer to `system command list` |
 | `show test records table` | 300 rows against a declared column schema, so the head says `tab` and each row is a positional array |
 | `show test records object` | the same 300 rows with no schema declared, so the head says `map` and each row carries its own names |
-| `show config cat` | `record-plugin received: ` and the arguments it was sent. The model declares a mandatory `id` of 1..128 characters at this path and no daemon builtin serves it, so the engine's plugin route (`Dispatcher.routeToProcess`) is the only judge of what reaches the plugin |
+| `show config cat` | a JSON object whose `received` member is `record-plugin received: ` and the arguments it was sent (an object, because the engine refuses a bare JSON string as a plugin's finished answer). The model declares a mandatory `id` of 1..128 characters at this path and no daemon builtin serves it, so the engine's plugin route (`Dispatcher.routeToProcess`) is the only judge of what reaches the plugin |
 <!-- source: internal/test/cli/cmd_record_plugin.go -- CmdRecordPlugin, recordRows, recordColumnRows, recordTableColumns, engineAnswerReader, recordArgumentCommand -->
 
 `records object` and `records table` are a PAIR, and neither means anything alone. They answer the same

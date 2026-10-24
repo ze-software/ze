@@ -188,7 +188,10 @@ func loadDoctorConfig(store storage.Storage, configPath string) ([]byte, string,
 		return nil, "", errors.New("config storage unavailable; run ze init or name a config file")
 	}
 
-	configName := resolve.DefaultConfig(store)
+	configName, err := resolve.DefaultConfig(store)
+	if err != nil {
+		return nil, "", err
+	}
 	activeKey := zefs.KeyFileActive.Key(configName)
 	data, err := store.ReadFile(activeKey)
 	if err != nil {

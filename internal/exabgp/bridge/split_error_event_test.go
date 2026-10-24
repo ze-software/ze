@@ -52,7 +52,7 @@ func TestSplitErrorEventIsNotRendered(t *testing.T) {
 
 			event := splitErrorEvent(t, tc.operation)
 			for _, format := range []Format{FormatV4JSON, FormatV6JSON} {
-				encoded, err := json.Marshal(event.ExabgpJSON(format))
+				encoded, err := json.Marshal(event.exabgpJSON(format))
 				if err != nil {
 					t.Fatalf("encode: %v", err)
 				}

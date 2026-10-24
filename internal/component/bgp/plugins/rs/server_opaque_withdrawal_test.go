@@ -69,7 +69,7 @@ func bgplsRawMessage(t *testing.T) *bgptypes.RawMessage {
 // every NLRI in an UPDATE (a later MP_UNREACH of one of them would miss it and
 // leave the rest announced after the source peer goes down).
 func TestOpaqueNLRIRecordedAsSplitWireBytes(t *testing.T) {
-	records := extractWireNLRIRecords(bgplsRawMessage(t))
+	records := wireNLRIRecords(t, bgplsRawMessage(t))
 	require.NotNil(t, records)
 	t.Cleanup(func() { returnNLRIRecords(records) })
 
@@ -97,7 +97,7 @@ func TestOpaqueNLRIRecordedAsSplitWireBytes(t *testing.T) {
 func TestPeerDownWithdrawsOpaqueNLRIAsWireCommand(t *testing.T) {
 	rs := newTestRouteServer(t)
 
-	records := extractWireNLRIRecords(bgplsRawMessage(t))
+	records := wireNLRIRecords(t, bgplsRawMessage(t))
 	require.NotNil(t, records)
 	rs.withdrawalMu.Lock()
 	rs.applyNLRIRecords("10.0.0.1", records.records)

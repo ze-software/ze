@@ -42,7 +42,7 @@ var bracketFormats = []struct {
 // only), so deactivating a member deleted it on the next save.
 func TestBracketLeafListInactiveMemberRoundTrip(t *testing.T) {
 	schema := NewSchema()
-	schema.Define("items", BracketLeafList(TypeString))
+	schema.Define("items", bracketLeafList(TypeString))
 	want := []MemberState{{Value: "a"}, {Value: "b", Inactive: true}, {Value: "c"}}
 
 	for _, format := range bracketFormats {
@@ -75,7 +75,7 @@ func TestBracketLeafListInactiveMemberRoundTrip(t *testing.T) {
 // PREVENTS: the empty mirror making the serializers skip the leaf entirely.
 func TestBracketLeafListAllMembersInactiveRoundTrip(t *testing.T) {
 	schema := NewSchema()
-	schema.Define("items", BracketLeafList(TypeString))
+	schema.Define("items", bracketLeafList(TypeString))
 	for _, format := range bracketFormats {
 		t.Run(format.name, func(t *testing.T) {
 			tree, err := NewParser(schema).Parse(`items [ a ]`)
@@ -100,7 +100,7 @@ func TestBracketLeafListAllMembersInactiveRoundTrip(t *testing.T) {
 // splitting a quoted member on its space, so the two parsers disagreed.
 func TestBracketLeafListQuotedMemberRoundTrip(t *testing.T) {
 	schema := NewSchema()
-	schema.Define("items", BracketLeafList(TypeString))
+	schema.Define("items", bracketLeafList(TypeString))
 	want := []string{"a", "b c"}
 
 	set, err := NewSetParser(schema).Parse(`set items [ a "b c" ]`)
@@ -139,7 +139,7 @@ func TestBracketLeafListQuotedMemberRoundTrip(t *testing.T) {
 // every deactivated member, which the mirror cannot name.
 func TestTreeSetMirroredKeepsQuotedAndInactiveMembers(t *testing.T) {
 	schema := NewSchema()
-	schema.Define("vals", ValueOrArray(TypeString))
+	schema.Define("vals", valueOrArray(TypeString))
 	tree, err := NewParser(schema).Parse(`vals [ "a b" c d ]`)
 	require.NoError(t, err)
 	require.NoError(t, tree.DeactivateMultiValue("vals", "d"))
@@ -170,11 +170,11 @@ func TestTreeSetMirroredKeepsQuotedAndInactiveMembers(t *testing.T) {
 // PREVENTS: mergeFrom appending b twice (mirror "a b b c") and dropping the
 // second block's member markers.
 func TestMergeContainerDedupsAndCarriesInactive(t *testing.T) {
-	seq := BracketLeafList(TypeString)
+	seq := bracketLeafList(TypeString)
 	seq.Ordered = true
 	schema := NewSchema()
 	schema.Define("box", Container(
-		Field("items", BracketLeafList(TypeString)),
+		Field("items", bracketLeafList(TypeString)),
 		Field("seq", seq),
 	))
 	tree, err := NewParser(schema).Parse("box {\n\titems [ a b ];\n\tseq [ 1 1 ];\n}\nbox {\n\titems [ b c ];\n\tinactive: items c;\n\tseq [ 1 ];\n}\n")

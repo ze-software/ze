@@ -340,12 +340,20 @@ second, because it runs in the operator's own process rather than the daemon's.
 ## Discovery beats enumeration
 
 Listener checks are derived from the YANG schema, through
-`RegisterListenerDefault` and `CollectListenersWithDefaults`, with a hardcoded
-list as a fallback. A new `ze:listener` service is then covered by doctor with
-no doctor code change. The alternative, extending the YANG compiler to
+`RegisterListenerDefault` and `CollectListenersWithDefaults`. A new
+`ze:listener` service is then covered by doctor with no doctor code change.
+There is no second list: when the schema fails to load, doctor reports
+`doctor-listener-set-unknown` (an error naming the cause) and probes no schema
+listener. The schema is compiled into ze, so a load failure means a broken
+binary, and a guessed list would report the services it misses as checked. A
+schema that loads and declares no `ze:listener` service is an answer: the
+linked modules carry no listener, so there is no schema listener to probe. The protocol listeners that come
+from Go extractors (BGP, BFD, IPsec, TFTP, image server, NTP) do not depend on
+the schema and are still probed. The alternative, extending the YANG compiler to
 propagate `refine` defaults, would have touched every consumer of the compiler.
 
 <!-- source: internal/component/config/listener_defaults.go -- builtin listener defaults -->
+<!-- source: internal/component/doctor/checks_listener.go -- collectSchemaListeners, listenerSetUnknown -->
 <!-- source: internal/le/config/ports/actions.go -- Answer -->
 
 Two constraints hold this together:
@@ -354,9 +362,10 @@ Two constraints hold this together:
   always empty for a `uses zt:listener` child. Every schema-driven default
   lookup has to allow for that, not only the listener one.
 - `config.YANGSchema()` succeeds with an empty schema when no YANG module is
-  registered, which is the normal unit-test context. The schema-driven path
-  checks that the discovered service list is non-empty and falls back, or a
-  hand-built config tree gets no listener checks at all.
+  registered, which is the context of a test run without the feature tags.
+  Doctor then probes no schema listener and reports nothing about it, so a
+  doctor test that asserts a schema listener's probe runs with the full tag
+  set.
 
 `show doctor` reaches the same checks through a provider
 (`diagnostic.RegisterDoctorProvider`) rather than by importing `cmd/ze/doctor`
@@ -412,8 +421,29 @@ reports only tables ze does NOT want. `ze_vrrp` carries the RFC 9568 Section
 6.4.3 accept filter, so the table vanishing means a non-owner router accepts
 packets for the virtual address.
 
+The `l2tp` check reads the data-plane outcome the subsystem recorded at start,
+not only whether the subsystem is registered. A listener whose kernel worker
+could not be built (no l2tp generic netlink family, the
+`ze.l2tp.disable-kernel-dataplane` knob, a non-Linux build) still establishes
+sessions on the control plane, and none of them carries traffic, so the check
+reports degraded with that reason.
+
+The `vpp` check dials the socket the running vpp component dials
+(`Connector.Socket`, the configured `vpp { api-socket }`), not a fixed path.
+While VPP is the interface backend, a vpp component that is not running, a
+socket file that does not exist and a socket that refuses connections each
+report down with the path and `ze doctor` as the next step: a VPP backend
+whose daemon never started has no data plane, so it never reads healthy. A check with nothing to measure registers through
+`health.RegisterWhen`: while its gate answers false the report omits the row,
+and a gate that panics reports the row down.
+
+<!-- source: internal/plugins/iface/vpp/health.go -- checkVPPHealth, vppHealthApplies, activeVPPSocket -->
+<!-- source: internal/component/vpp/conn.go -- Connector.Socket -->
+<!-- source: internal/core/health/registry.go -- RegisterWhen, invokeCheck -->
 <!-- source: internal/component/firewall/audit.go -- firewall drift audit -->
 <!-- source: internal/component/iface/health.go -- interface error counter tracking -->
+<!-- source: internal/component/l2tp/health.go -- checkHealth -->
+<!-- source: internal/component/l2tp/subsystem.go -- kernelDataPlane -->
 <!-- source: internal/component/bgp/reactor/session_health.go -- EOR timeout and session anomaly -->
 
 Four bounds keep the checks honest:
@@ -423,7 +453,7 @@ Four bounds keep the checks honest:
 | Route-count anomaly | 100-prefix floor | a route-server client or a management peer holds 1 to 5 routes, and any ratio on those is noise |
 | Per-family EOR | one timer per peer, expected against received family count | the warning clears only when every negotiated family has sent EOR, not on the first one |
 | Firewall drift | skipped while `LastApplied() == nil` | before the first apply there is nothing to compare, so every table reads as drift |
-| VPP health | `os.Stat` on the socket before dialing | without it a host with no VPP answers 503 forever |
+| VPP health | registered with `health.RegisterWhen`, gated on `interface backend vpp` being the loaded backend | a host with no VPP has no row, so it neither answers 503 forever nor carries a healthy row nobody measured |
 
 Prefix counting is unconditional rather than gated on a configured maximum,
 because the anomaly detector needs a count on every peer. An early return in

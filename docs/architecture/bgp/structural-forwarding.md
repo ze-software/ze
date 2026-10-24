@@ -635,6 +635,12 @@ O(current peers + selected destinations), without a membership map allocation.
 <!-- source: internal/component/bgp/reactor/forward_next_hop.go -- egressNextHopWithheld -->
 <!-- source: internal/component/bgp/reactor/forward_next_hop.go -- egressNextHopLinkLocalOnlyOffLink -->
 <!-- source: internal/component/bgp/reactor/forward_build.go -- buildWithdrawalPayload -->
+
+`buildWithdrawalPayload` answers 0 octets when the payload's layout cannot be
+read. That zero is a guard: no UPDATE payload is shorter than 4 octets, so
+`fwdWithdrawal.of` refuses on it and the rail suppresses the route rather than
+forwarding an empty withdrawal.
+<!-- source: internal/component/bgp/reactor/forward_build.go -- fwdWithdrawal -->
 <!-- source: internal/component/bgp/reactor/forward_build.go -- withdrawalBySection -->
 <!-- source: internal/component/bgp/reactor/forward_build.go -- fwdWithdrawal -->
 <!-- source: internal/component/bgp/reactor/forward_next_hop.go -- applyEgressNextHopScope -->

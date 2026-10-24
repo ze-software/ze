@@ -2161,9 +2161,10 @@ type fakeBackend struct {
 	vlans            map[string]VLANSpec
 	routeAdds        []routeCall
 	routeRemoves     []routeCall
-	addRouteErr      error       // if non-nil, AddRoute records the call and returns this
-	staleRoutes      []RouteInfo // returned by ListRoutes for stale cleanup tests
-	listErr          error       // if non-nil, ListInterfaces returns this instead of enumerating
+	addRouteErr      error            // if non-nil, AddRoute records the call and returns this
+	staleRoutes      []RouteInfo      // returned by ListRoutes for stale cleanup tests
+	listErr          error            // if non-nil, ListInterfaces returns this instead of enumerating
+	getLinkErr       map[string]error // per-name GetLink read failure, distinct from absence
 	createDummyErr   map[string]error
 	createTunnelErr  map[string]error // per-name CreateTunnel error injection
 	addAddressErr    map[string]error
@@ -2626,9 +2627,12 @@ func (b *fakeBackend) GetInterface(name string) (*InterfaceInfo, error) {
 }
 
 func (b *fakeBackend) GetLink(name string) (*InterfaceInfo, error) {
+	if err := b.getLinkErr[name]; err != nil {
+		return nil, err
+	}
 	f, ok := b.ifaces[name]
 	if !ok {
-		return nil, fmt.Errorf("interface %s not found", name)
+		return nil, fmt.Errorf("interface %s: %w", name, ErrInterfaceNotFound)
 	}
 	// The same projection ListInterfaces makes. A GetInterface that answered
 	// with the name and type alone made the apply path read MTU 0 and an empty

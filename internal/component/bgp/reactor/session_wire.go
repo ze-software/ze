@@ -9,6 +9,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // observeReceivedWire borrows a complete original message synchronously. Observers MUST
@@ -110,7 +111,7 @@ func (r *Reactor) dispatchObservedWire(epoch *plugin.PeerInfo, wire []byte, ctxI
 		MessageContextID: ctxID,
 	}
 	if ctx := bgpctx.Registry.Get(ctxID); ctx != nil {
-		peer.PeerAS = ctx.PeerASN()
+		peer.PeerAS = rpc.RemoteASOf(ctx.PeerASN())
 	}
 	if endpoints != nil {
 		peer.LocalAS = endpoints.localAS.Load()

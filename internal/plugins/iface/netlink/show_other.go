@@ -9,6 +9,7 @@ package ifacenetlink
 import (
 	"fmt"
 	"net"
+	"slices"
 
 	"github.com/ze-software/ze/internal/component/iface"
 )
@@ -38,11 +39,17 @@ func (s *stubBackend) GetInterface(name string) (*iface.InterfaceInfo, error) {
 	if err := iface.ValidateIfaceName(name); err != nil {
 		return nil, err
 	}
-	ifc, err := net.InterfaceByName(name)
+	// Absence is ErrInterfaceNotFound and only absence, as in GetLink, so the
+	// table is searched rather than read through net.InterfaceByName.
+	ifcs, err := net.Interfaces()
 	if err != nil {
 		return nil, fmt.Errorf("iface: get %q: %w", name, err)
 	}
-	info, err := stdlibInterfaceInfo(ifc)
+	i := slices.IndexFunc(ifcs, func(ifc net.Interface) bool { return ifc.Name == name })
+	if i < 0 {
+		return nil, fmt.Errorf("iface: get %q: %w", name, iface.ErrInterfaceNotFound)
+	}
+	info, err := stdlibInterfaceInfo(&ifcs[i])
 	if err != nil {
 		return nil, err
 	}
@@ -55,12 +62,20 @@ func (s *stubBackend) GetLink(name string) (*iface.InterfaceInfo, error) {
 	if err := iface.ValidateIfaceName(name); err != nil {
 		return nil, err
 	}
-	ifc, err := net.InterfaceByName(name)
+	// net.InterfaceByName answers absence with an unexported error, so the
+	// table is read and searched here: a failed read stays a read failure,
+	// and only a name the table does not hold is ErrInterfaceNotFound.
+	ifcs, err := net.Interfaces()
 	if err != nil {
 		return nil, fmt.Errorf("iface: get %q: %w", name, err)
 	}
-	info := stdlibLinkInfo(ifc)
-	return &info, nil
+	for i := range ifcs {
+		if ifcs[i].Name == name {
+			info := stdlibLinkInfo(&ifcs[i])
+			return &info, nil
+		}
+	}
+	return nil, fmt.Errorf("iface: get %q: %w", name, iface.ErrInterfaceNotFound)
 }
 
 // stdlibInterfaceInfo converts one standard-library interface, addresses

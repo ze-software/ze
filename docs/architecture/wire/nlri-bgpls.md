@@ -518,6 +518,8 @@ operator interface without native topology provenance or originator guarantees.
 <!-- source: internal/plugins/isis/spf/computer.go -- Reachability, SetOnComplete -->
 <!-- source: internal/component/bgp/plugins/ls_export/export_config.go -- parseExportConfig -->
 <!-- source: internal/component/bgp/reactor/reactor_api.go -- establishedPeerInfo, connectedLocalEndpoint -->
+
+The `PeerInfo` from `establishedPeerInfo` carries the peer's AS as an `rpc.RemoteAS`; on an established session it is always known.
 <!-- source: internal/component/bgp/plugins/epe/epe_source.go -- publishLocked, emitLabel -->
 <!-- source: internal/component/bgp/plugins/epe/epe_config.go -- ParseConfig -->
 <!-- source: internal/component/bgp/reactor/session_write.go -- Session.SendRawMessage -->

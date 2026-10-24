@@ -658,12 +658,20 @@ func (b *netlinkBackend) GetStats(ifaceName string) (*iface.InterfaceStats, erro
 		return nil, fmt.Errorf("iface: get stats on %q: %w", ifaceName, err)
 	}
 	link, err := netlink.LinkByName(ifaceName)
+	var notFound netlink.LinkNotFoundError
+	if errors.As(err, &notFound) {
+		// No such link is absence and only absence, as in readLink: every
+		// other error is a read that did not answer.
+		return nil, fmt.Errorf("iface: get stats on %q: %w (%w)", ifaceName, iface.ErrInterfaceNotFound, err)
+	}
 	if err != nil {
-		return nil, fmt.Errorf("iface: get stats on %q: not found: %w", ifaceName, err)
+		return nil, fmt.Errorf("iface: get stats on %q: %w", ifaceName, err)
 	}
 	s := link.Attrs().Statistics
 	if s == nil {
-		return &iface.InterfaceStats{}, nil
+		// A link answered without IFLA_STATS64 or IFLA_STATS carries no
+		// counters: zeroes would read as an idle device.
+		return nil, fmt.Errorf("iface: get stats on %q: the kernel answered no counters", ifaceName)
 	}
 	return &iface.InterfaceStats{
 		RxBytes:     s.RxBytes,

@@ -83,7 +83,7 @@ func newOwnASChangeFixture(t *testing.T) ownASChangeFixture {
 func ownASBatch() bgptypes.NLRIBatch {
 	return bgptypes.NLRIBatch{
 		Family:  family.IPv4Unicast,
-		NLRIs:   []nlri.NLRI{nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.20.0.0/24"), 0)},
+		NLRIs:   []nlri.NLRI{nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.20.0.0/24"), 0, false)},
 		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("192.0.2.1")),
 	}
 }

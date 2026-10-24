@@ -79,6 +79,14 @@ type mpLinkNeighbor struct {
 // run loop has reported the peer established.
 func startMPLinkNeighbor(t *testing.T) *mpLinkNeighbor {
 	t.Helper()
+	return startMPLinkNeighborHolding(t, 90)
+}
+
+// startMPLinkNeighborHolding is startMPLinkNeighbor with the Hold Time the neighbor's
+// OPEN offers, in seconds. The neighbor sends one KEEPALIVE and no other, so a short
+// Hold Time lets the Peer's hold timer expire inside the test.
+func startMPLinkNeighborHolding(t *testing.T, holdSeconds uint16) *mpLinkNeighbor {
+	t.Helper()
 
 	var lc net.ListenConfig
 	ln, err := lc.Listen(context.Background(), "tcp", "127.0.0.1:0")
@@ -148,7 +156,7 @@ func startMPLinkNeighbor(t *testing.T) *mpLinkNeighbor {
 	require.NoError(t, err)
 
 	open := &message.Open{
-		Version: 4, MyAS: 65001, HoldTime: 90, BGPIdentifier: 0x02020202,
+		Version: 4, MyAS: 65001, HoldTime: holdSeconds, BGPIdentifier: 0x02020202,
 		OptionalParams: []byte{
 			2, 12,
 			65, 4, 0, 0, 0xFD, 0xE9, // ASN4 65001

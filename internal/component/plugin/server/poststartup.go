@@ -22,9 +22,9 @@ const postStartupTimeout = 10 * time.Second
 
 // sendPostStartupToAll delivers the post-startup callback to every running
 // plugin. Each delivery runs in its own goroutine with a bounded timeout, so
-// one slow or broken plugin cannot delay notification to the rest. Errors are
-// logged at Debug level because they are expected during shutdown races
-// (connection closed before callback arrives).
+// one slow or broken plugin cannot delay notification to the rest. A failure
+// is reported by reportPostStartupFailure: at Warn while the daemon runs, at
+// Debug only once it is stopping, where a closed connection is expected.
 //
 // It deliberately does NOT wait. Waiting was tried (2026-07-25) to make
 // OnAllPluginsReady handlers ordered before peer startup, so that a handler
@@ -97,8 +97,26 @@ func (s *Server) sendPostStartupTo(proc *process.Process) {
 	go func(c *plugipc.PluginConn, pluginName string) {
 		ctx, cancel := context.WithTimeout(s.ctx, postStartupTimeout)
 		defer cancel()
-		if err := c.SendPostStartup(ctx); err != nil {
-			logger().Debug("post-startup callback failed", "plugin", pluginName, "error", err)
-		}
+		s.reportPostStartupFailure(pluginName, c.SendPostStartup(ctx))
 	}(conn, name)
+}
+
+// reportPostStartupFailure says that a plugin never received its post-startup
+// callback. While the daemon runs this is a Warn naming the plugin, the cause
+// and where to look: a plugin that misses the callback never starts the work
+// it defers to post-startup, and a Debug line left the operator nothing at the
+// default level. Once the server context is done the daemon is stopping, a
+// closed connection is the expected race, and the line stays at Debug.
+func (s *Server) reportPostStartupFailure(pluginName string, err error) {
+	if err == nil {
+		return
+	}
+	if s.ctx.Err() != nil {
+		logger().Debug("post-startup callback not delivered: the daemon is stopping",
+			"plugin", pluginName, "error", err)
+		return
+	}
+	logger().Warn("plugin did not receive its post-startup callback, so work it starts after "+
+		"startup is not running; check it is running with `ze show plugin list` and read its log",
+		"plugin", pluginName, "error", err)
 }

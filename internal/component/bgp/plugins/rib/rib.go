@@ -272,6 +272,10 @@ type RIBManager struct {
 	// plugin is the SDK plugin handle for engine RPCs (update-route, subscribe-events).
 	plugin *sdk.Plugin
 
+	// unstorableFamilies records each peer and family reportUnstorableFamily
+	// has warned about, so the warning is said once (rib_unstorable.go).
+	unstorableFamilies sync.Map
+
 	// dispatchHook, when non-nil, intercepts dispatchPeerAction for test
 	// inspection instead of issuing the dispatch-command RPC. Production leaves
 	// it nil.
@@ -325,6 +329,11 @@ type RIBManager struct {
 
 	// peerUp tracks which peers are currently up
 	peerUp map[netip.Addr]bool
+
+	// peerNames holds the configured name of each session, as its last state
+	// event stated it. Like peerUp it outlives the session, so a name still
+	// selects a down session's retained and sent routes (rib_peer_name.go).
+	peerNames map[netip.Addr]string
 
 	// peerMeta tracks per-peer metadata for best-path comparison.
 	peerMeta map[netip.Addr]*peerMetadata // peer address -> metadata
@@ -645,6 +654,7 @@ func newRIBManager(plugin *sdk.Plugin) *RIBManager {
 		bgpPeers:         make(map[netip.Addr]*storage.PeerRIB),
 		ribOut:           make(map[netip.Addr]map[family.Family]map[ribOutKey]ribOutEntry),
 		peerUp:           make(map[netip.Addr]bool),
+		peerNames:        make(map[netip.Addr]string),
 		peerMeta:         make(map[netip.Addr]*peerMetadata),
 		sourceApplied:    make(map[netip.Addr]sourceApplied),
 		retainedPeers:    make(map[netip.Addr]bool),
@@ -987,7 +997,7 @@ func (r *RIBManager) handleSent(event *Event) {
 						MsgID:           msgID,
 						AttrHandle:      attrHandle,
 						ConfigStatic:    configStatic,
-						AddPath:         event.AddPath[fam] || pathID != 0 || sentNLRIHasPathID(nlriVal),
+						AddPath:         event.AddPath[fam] || sentNLRIHasPathID(nlriVal),
 						NextHop:         op.NextHop,
 						SourcePeer:      sourcePeer,
 						SourceMessageID: uint64(sourceMessageID),
@@ -1085,6 +1095,20 @@ func (r *RIBManager) handleReceived(event *Event) {
 		logger().Warn("received event dropped", "error", err)
 		return
 	}
+	// An UPDATE arrives only in Established, where the peer's AS is always
+	// negotiated. One without it is a Ze defect, and iBGP or eBGP cannot be
+	// decided for its routes, so it is refused rather than stored under AS 0.
+	// handleReceivedStructured (rib_structured.go) refuses the same event.
+	remoteAS, err := event.GetPeerASN()
+	if err != nil {
+		logger().Warn("received UPDATE dropped", "peer", event.GetPeerAddress(), "error", err)
+		return
+	}
+	peerAS, peerASKnown := remoteAS.ASN()
+	if !peerASKnown {
+		logger().Warn("received UPDATE dropped: the peer's AS is not negotiated", "peer", event.GetPeerAddress())
+		return
+	}
 
 	if len(event.FamilyOps) == 0 {
 		return
@@ -1105,7 +1129,7 @@ func (r *RIBManager) handleReceived(event *Event) {
 	}()
 
 	// Track peer metadata for best-path comparison (eBGP/iBGP detection).
-	r.updatePeerMetadata(event, peerAddr)
+	r.updatePeerMetadata(event, peerAddr, peerAS)
 
 	r.handleReceivedPool(event, peerAddr)
 	r.noteReceivedLocked(peerAddr, event.GetMsgID())
@@ -1159,7 +1183,7 @@ func (r *RIBManager) handleReceivedPool(event *Event, peerAddr netip.Addr) {
 func (r *RIBManager) insertPoolNLRIs(peerRIB *storage.PeerRIB, fam family.Family, nlriBytes, attrBytes []byte, addPath bool, msgID uint64, receivedStale bool) {
 	famStr := fam.String()
 	if !nlrisplit.Supported(fam) {
-		logger().Debug("pool: no splitter for family", "peer", peerRIB.PeerAddr(), "family", famStr)
+		r.reportUnstorableFamily(peerRIB.PeerAddr(), fam)
 		return
 	}
 	if addPath {
@@ -1264,6 +1288,7 @@ func (r *RIBManager) handleStructuredState(se *rpc.StructuredEvent) {
 	wasUp, seenBefore := r.peerUp[peerAddr]
 	isUp := state == rpc.SessionStateUp
 	r.peerUp[peerAddr] = isUp
+	r.recordPeerName(peerAddr, se.PeerName)
 
 	// cameUp records the down->up TRANSITION explicitly. It must not be inferred
 	// from replayGroups != nil: collectGroupedRibOutRoutes returns nil both when
@@ -1336,6 +1361,7 @@ func (r *RIBManager) handleState(event *Event) {
 	wasUp, seenBefore := r.peerUp[peerAddr]
 	isUp := state == "up"
 	r.peerUp[peerAddr] = isUp
+	r.recordPeerName(peerAddr, event.GetPeerName())
 
 	// See handleStructuredState for why the transition is tracked explicitly
 	// rather than inferred from replayGroups != nil.
@@ -1380,39 +1406,30 @@ func (r *RIBManager) handleState(event *Event) {
 }
 
 // updatePeerMetadata extracts and stores peer metadata from received events.
-// Uses the nested peer format which includes both local and peer ASN, plus the
-// group the session belongs to.
+// Uses the nested peer format which includes the local ASN and the group the
+// session belongs to. peerAS is the peer's negotiated AS: handleReceived
+// refuses an UPDATE whose AS is not known before it calls this, so the record
+// written here always names the peer's AS and replaces what an earlier event
+// recorded.
 // Caller must hold write lock.
 //
 // The group is kept for the same reason the ASNs are: a decision made later in
-// this plugin needs it and the event is where it arrives. An event carrying
-// none of the facts below says nothing about the peer, so it stores nothing
-// rather than replacing what an earlier event recorded.
+// this plugin needs it and the event is where it arrives.
 //
 // This is the JSON rail. handleReceivedStructured (rib_structured.go) builds
 // the same struct from a StructuredEvent, and the two MUST carry the same
 // fields: a fact one rail reads and the other drops is a peer whose best-path
 // selection depends on how its events were delivered.
-func (r *RIBManager) updatePeerMetadata(event *Event, peerAddr netip.Addr) {
-	peerASN := event.GetPeerASN()
+func (r *RIBManager) updatePeerMetadata(event *Event, peerAddr netip.Addr, peerAS uint32) {
 	localASN := getLocalASN(event)
 	group := event.GetPeerGroup()
 	localAddr := getLocalAddress(event)
 	// The PEER's BGP Identifier, which RFC 4271 Section 9.1.2.2 step f)
 	// compares (extractCandidate, rib_commands.go) and which every peer of a
 	// TABLE_DUMP_V2 dump is keyed by (rib_mrt.go).
-	//
-	// It is in the guard below because the guard asks whether the event said
-	// anything about the peer, and this is one of the things an event can say.
-	// Leaving it out would drop an identifier that arrived alone, and would
-	// leave the guard reading a struct it cannot see all of, which is the shape
-	// of the defect this field exists to repair.
 	remoteRouterID := event.GetPeerRouterID()
-	if peerASN == 0 && localASN == 0 && group == "" && !localAddr.IsValid() && remoteRouterID == 0 {
-		return
-	}
 	r.peerMeta[peerAddr] = &peerMetadata{
-		PeerASN:        peerASN,
+		PeerASN:        peerAS,
 		LocalASN:       localASN,
 		RemoteRouterID: remoteRouterID,
 		GroupName:      group,

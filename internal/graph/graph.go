@@ -5,6 +5,8 @@
 package graph
 
 import (
+	"errors"
+	"fmt"
 	"sort"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -32,6 +34,15 @@ type Edge struct {
 // MaxNodes caps the number of nodes in a topology graph to prevent
 // terminal flooding or excessive SVG rendering.
 const MaxNodes = 100
+
+// ErrTooManyNodes is the refusal of a graph past MaxNodes.
+var ErrTooManyNodes = errors.New("graph too large")
+
+// TooManyNodesError refuses a graph of nodes ASes, naming the count and the
+// MaxNodes limit it passed.
+func TooManyNodesError(nodes int) error {
+	return fmt.Errorf("%w: %d nodes, limit %d", ErrTooManyNodes, nodes, MaxNodes)
+}
 
 // DeduplicateASPath removes consecutive duplicate ASNs (AS prepending collapse).
 func DeduplicateASPath(path []uint32) []uint32 {

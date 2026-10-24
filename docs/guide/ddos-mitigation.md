@@ -544,7 +544,10 @@ holds the data, so a subcommand appears only while its plugin is loaded:
   incident the target vector (prefix / proto / port), attack family, top source
   addresses, peak pps/bps, start/end time, and whether it is still active. The
   ring is bounded by `incident-ring-size` and fed by the detector's
-  `AttackDetected` / `AttackCleared` events.
+  `AttackDetected` / `AttackCleared` events. The clear names the victim the
+  detection named, so it closes that incident as soon as the attack ends; only
+  an incident whose clear never comes waits for `stale-incident-timeout`.
+  <!-- source: internal/plugins/ddos/detect/detector.go -- emitCleared -->
 - `show ddos local` (`ddos-local`): whether an on-host nft drop is installed and
   the target vector it covers.
 - `show ddos flowspec` (`ddos-flowspec`): whether an upstream FlowSpec rule is

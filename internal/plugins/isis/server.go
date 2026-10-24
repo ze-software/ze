@@ -485,7 +485,9 @@ func (e *engine) installStubHandlers() {
 // handleIIH routes a received IIH to the circuit that owns its source ifindex.
 // The transport delivers frames keyed by ifindex; the engine maps ifindex ->
 // circuit and feeds the circuit the source SNPA (for the LAN three-way check)
-// and the PDU. A frame whose ifindex has no live circuit is dropped.
+// and the PDU. A frame whose ifindex has no live circuit is dropped. A Hello
+// the circuit rejects is counted in ze_isis_frames_dropped_total under the
+// transition's RejectReason.
 func (e *engine) handleIIH(rf transport.RawFrame) {
 	e.circuitsMu.RLock()
 	c := e.circuits[rf.IfIndex]
@@ -493,7 +495,12 @@ func (e *engine) handleIIH(rf transport.RawFrame) {
 	if c == nil {
 		return
 	}
-	c.Receive(adjacency.SNPA(rf.SrcMAC), rf.PDU)
+	tr := c.Receive(adjacency.SNPA(rf.SrcMAC), rf.PDU)
+	if tr.Rejected {
+		// A discarded Hello is counted under its reason, among them RFC 5303
+		// Section 3.2's invalid Adjacency Three-Way State.
+		e.transport.CountDrop(c.Name(), tr.RejectReason)
+	}
 }
 
 // setConfig stores the active config (used by openCircuits and reconcile). It

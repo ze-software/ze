@@ -117,7 +117,7 @@
     "claim-sha": "cd8bc30b03aa18d0",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/reactor_notify.go::notifyMessageReceiver",
-    "producer-sha": "03051e7d867f3742",
+    "producer-sha": "0d22727a4db29f29",
     "break": "body of notifyMessageReceiver replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   },
   {
@@ -128,19 +128,8 @@
     "claim-sha": "5d56b5993f6c9059",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/reactor_notify.go::notifyMessageReceiver",
-    "producer-sha": "03051e7d867f3742",
+    "producer-sha": "0d22727a4db29f29",
     "break": "body of notifyMessageReceiver replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-  },
-  {
-    "rid": "RFC9494-4.3-1",
-    "polarity": "positive",
-    "unit": "internal/component/bgp/reactor/rfc9494_llgr_trigger_test.go::TestRFC9494NegotiateWithKeysOnAdvertisedLLGR",
-    "unit-sha": "a4a518c8d14e899a",
-    "claim-sha": "581e34552084ce37",
-    "route": "revert",
-    "producer": "internal/component/bgp/reactor/session_negotiate.go::negotiateWith",
-    "producer-sha": "96d804690766eb50",
-    "break": "body of negotiateWith replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9494-4.3-1",
@@ -150,20 +139,19 @@
     "claim-sha": "5f758f28a2b79b30",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/session_negotiate.go::negotiateWith",
-    "producer-sha": "96d804690766eb50",
+    "producer-sha": "937241ab3fa56222",
     "break": "body of negotiateWith replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9494-4.3-1",
     "polarity": "positive",
-    "unit": "test/plugin/llgr-stale-received-depreferenced.ci",
-    "unit-sha": "59727078c0413ad7",
-    "claim-sha": "f7f3335d230ce342",
+    "unit": "internal/component/bgp/reactor/rfc9494_llgr_trigger_test.go::TestRFC9494NegotiateWithKeysOnAdvertisedLLGR",
+    "unit-sha": "a4a518c8d14e899a",
+    "claim-sha": "581e34552084ce37",
     "route": "revert",
-    "producer": "internal/component/bgp/reactor/reactor_notify.go::notifyMessageReceiver",
-    "producer-sha": "03051e7d867f3742",
-    "break": "body of notifyMessageReceiver replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-    "citation": "expect=stderr:contains=OK: llgr received 10.0.0.0/8 best ::1 by stale-level"
+    "producer": "internal/component/bgp/reactor/session_negotiate.go::negotiateWith",
+    "producer-sha": "937241ab3fa56222",
+    "break": "body of negotiateWith replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9494-4.3-1",
@@ -171,10 +159,22 @@
     "unit": "test/plugin/llgr-stale-received-depreferenced.ci",
     "unit-sha": "59727078c0413ad7",
     "claim-sha": "4817d51e5f553564",
-    "route": "revert",
-    "producer": "internal/component/bgp/reactor/reactor_notify.go::notifyMessageReceiver",
-    "producer-sha": "03051e7d867f3742",
-    "break": "body of notifyMessageReceiver replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/gr/gr_ingress.go::llgrStaleFromSource",
+    "producer-sha": "9b1cbde96e36aaec",
+    "break": "line 55: \"!src.LLGRAdvertised\" -\u003e \"false\"",
     "citation": "expect=stderr:contains=OK: llgr received 10.1.0.0/16 best ::1 by local-preference"
+  },
+  {
+    "rid": "RFC9494-4.3-1",
+    "polarity": "positive",
+    "unit": "test/plugin/llgr-stale-received-depreferenced.ci",
+    "unit-sha": "59727078c0413ad7",
+    "claim-sha": "f7f3335d230ce342",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/gr/gr_ingress.go::LLGRIngressFilter",
+    "producer-sha": "edc5b99bf41ea66c",
+    "break": "line 34: \"llgrStaleFromSource(src, payload)\" -\u003e \"false\"",
+    "citation": "expect=stderr:contains=OK: llgr received 10.0.0.0/8 best ::1 by stale-level"
   }
 ]

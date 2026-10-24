@@ -415,7 +415,10 @@ func collectConfig(opts *collectOptions) (any, error) {
 			return map[string]any{keyAvailable: false, keyReason: tb.Str("storage: ").Err(openErr).String()}, nil
 		}
 		defer func() { _ = store.Close() }()
-		configName = resolve.DefaultConfig(store)
+		configName, err = resolve.DefaultConfig(store)
+		if err != nil {
+			return map[string]any{keyAvailable: false, keyReason: tb.Reset().Err(err).String()}, nil
+		}
 		configData, err = store.ReadFile(configName)
 		if err != nil {
 			return map[string]any{keyAvailable: false, keyReason: tb.Reset().Str("no config found: ").Err(err).String()}, nil

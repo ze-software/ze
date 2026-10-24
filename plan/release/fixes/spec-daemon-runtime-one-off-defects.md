@@ -114,7 +114,7 @@ The plugin RPC answer format, the transaction orchestrator, the storage registry
 | AC-16 | iPXE placeholder | `ze install remote` refuses to stage a placeholder binary, naming the file and how to fetch the real one |
 | AC-17 | blob storage active pointer | The active pointer is per config name |
 | AC-18 | SIGHUP queue x2 | A SIGHUP during a transaction or an SSH or web commit is queued and runs once when it ends, as the doc says |
-| AC-19 | doctor listener fallback | A schema error is reported, not replaced by the hardcoded listener list |
+| AC-19 | doctor listener fallback | A schema error is reported, not replaced by the hardcoded listener list. Covered by `plan/release/fixes/spec-refuse-instead-of-defaulting.md` (owner approval 2026-10-24): `TestDoctorRefusesUnderivableListenerSet` |
 | AC-20 | `set debug module ... flag x` | Every keyword in one command is applied or refused |
 | AC-21 | `show capture raw action start` | No capture started is reported as an error with the reason |
 | AC-22 | mgmt guard reload, hub `--plugin` | `mgmt-guard-reload-refuses-nonloopback.ci` and `TestRunHubConfigRejectsCLIPlugins` green |

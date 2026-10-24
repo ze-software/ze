@@ -4,6 +4,7 @@ package cmd
 
 import (
 	"encoding/base64"
+	"slices"
 
 	bfdapi "github.com/ze-software/ze/internal/component/bfd/api"
 	"github.com/ze-software/ze/internal/component/command"
@@ -33,7 +34,7 @@ const (
 	keyBytes     = "bytes"
 )
 
-func HandleCaptureRaw(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
+func handleCaptureRaw(ctx *pluginserver.CommandContext, validated command.ValidatedArgs) (*plugin.Response, error) {
 	args := validated.Tokens()
 	action := ""
 	protocol := ""
@@ -67,6 +68,27 @@ func HandleCaptureRaw(ctx *pluginserver.CommandContext, validated command.Valida
 	}
 }
 
+// captureRawStartRefusal answers an error when the operator named bgp or bfd
+// and that capture did not start. Answering done with `started: []` read as
+// "capturing" while nothing was, so a later dump came back empty with no
+// reason. A start with no protocol named lists what started, as before.
+func captureRawStartRefusal(protocol string, started []string) *plugin.Response {
+	if protocol != capBGP && protocol != capBFD {
+		return nil
+	}
+	if slices.Contains(started, protocol) {
+		return nil
+	}
+	if protocol == capBGP {
+		return &plugin.Response{Status: plugin.StatusError, Error: "capture-raw start bgp: no running " +
+			"BGP reactor offers raw capture, so nothing would be captured; check BGP is configured " +
+			"and its peers are up with `ze show bgp peer`"}
+	}
+	return &plugin.Response{Status: plugin.StatusError, Error: "capture-raw start bfd: the BFD plugin " +
+		"is not loaded, so nothing would be captured; configure a `bfd` block, then check its " +
+		"sessions with `ze show bfd session`"}
+}
+
 func captureRawStart(ctx *pluginserver.CommandContext, protocol string) (*plugin.Response, error) { //nolint:dupl // start/stop symmetry is intentional
 	started := []string{}
 	started = captureRawL2TPStart(started, protocol)
@@ -83,6 +105,9 @@ func captureRawStart(ctx *pluginserver.CommandContext, protocol string) (*plugin
 			bfdRawCapture.EnableRawCapture()
 			started = append(started, capBFD)
 		}
+	}
+	if refusal := captureRawStartRefusal(protocol, started); refusal != nil {
+		return refusal, nil
 	}
 	data := plugin.Map{
 		keyAction: captureRawActionStart,

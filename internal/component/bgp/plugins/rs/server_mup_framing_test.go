@@ -65,7 +65,7 @@ func TestMUPInventoryCommandRoundTrip(t *testing.T) {
 				mupAssertRoutes(t, parsed.Groups[0].Withdraw, routes, addPath)
 
 				rs := newTestRouteServer(t)
-				records := extractWireNLRIRecords(mupInventoryMessage(t, fam, addPath, false, section))
+				records := wireNLRIRecords(t, mupInventoryMessage(t, fam, addPath, false, section))
 				if records == nil {
 					t.Fatal("native inventory extraction returned nil")
 				}
@@ -83,7 +83,7 @@ func TestMUPInventoryCommandRoundTrip(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				records = extractWireNLRIRecords(mupInventoryMessage(t, fam, addPath, true, first))
+				records = wireNLRIRecords(t, mupInventoryMessage(t, fam, addPath, true, first))
 				if records == nil {
 					t.Fatal("native withdrawal extraction returned nil")
 				}

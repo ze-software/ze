@@ -243,7 +243,7 @@ parser for as `attr-<code>`. ExaBGP writes the AS_PATH's segments and their
 types, the numeric value beside each extended community, and the flag octet in
 the unknown attribute's `attribute-0xCC-0xFF` name. The bridge subscribes at
 `FormatFull`, so every UPDATE event carries `raw.update` beside its parsed body,
-and the one UPDATE renderer, `Event.ExabgpJSON`, reads those three members off
+and the one UPDATE renderer, `Event.exabgpJSON`, reads those three members off
 the UPDATE's own path attributes. `WireUpdateToExabgpJSON`, which the ExaBGP
 compatibility fixtures go through, hands its bytes to the same renderer, so a
 fixture checks what a live process receives.
@@ -337,6 +337,19 @@ migrated session offers what the ExaBGP one did
 (`docs/exabgp/exabgp-migration.md`, "Hold time and Graceful Restart time").
 
 <!-- source: internal/exabgp/migration/migrate_defaults.go -- exabgpHoldTimeDefault, exabgpGracefulRestartTime -->
+
+## A peer AS not yet known
+
+A neighbor configured `peer-as auto` keeps ExaBGP's default peer AS,
+`ASN(0)` with the comment "0 = auto" (`src/exabgp/bgp/neighbor/session.py`),
+and `_neighbor` (`src/exabgp/reactor/api/response/json.py`) writes that value
+on every line, so an ExaBGP script reads `"peer": 0` under `asn` as "AS not
+known". Ze omits `remote.as` while a dynamic peer's AS is not negotiated, and
+the bridge writes the same `"peer": 0` for it, never `null`. The one
+difference: ExaBGP keeps 0 for the whole session, while Ze names the AS it
+negotiated on every line after the OPENs are exchanged.
+
+<!-- source: internal/exabgp/bridge/bridge_event.go -- exabgpPeerASAuto, exabgpPeerASN -->
 
 ## Template for Future Differences
 

@@ -4,8 +4,8 @@
   "tests": {
     "internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute": "92bad22f663643a9",
     "internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute#2": "92bad22f663643a9",
-    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates": "3eafc93869261790",
-    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates#2": "3eafc93869261790"
+    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates": "affdd5d6e6f3bb6f",
+    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecAuthorizationFromReceivedUpdates#2": "affdd5d6e6f3bb6f"
   },
   "units": {
     "internal/component/bgp/plugins/rib/rfc9117_best_match_test.go::TestRFC9117AuthorizationUsesLongestCoveringRoute": "c9c4af56bfe4a403",

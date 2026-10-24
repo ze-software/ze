@@ -18,7 +18,7 @@ import (
 // back the index the plugin server would hold.
 func graphFromConfig(t *testing.T, input string) *pluginserver.DeliveryGraph {
 	t.Helper()
-	r, err := LoadReactor(input)
+	r, err := loadReactor(input)
 	require.NoError(t, err)
 
 	settings := make([]*reactor.PeerSettings, 0)

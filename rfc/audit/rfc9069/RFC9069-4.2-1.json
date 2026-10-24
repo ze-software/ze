@@ -2,9 +2,9 @@
   "note": "Re-judged 2026-09-29. Positive: rfc9069_verdict_test.go::TestLocallySourcedRouteIsConveyedWithTheLocRIBPeerType (empty AS_PATH best change, Peer Type 3 on Peer Up and on the Route Monitoring carrying 10.20.30.0/24) and rfc9069_test.go::TestLocRIBFeedConveysRoutesWithTheLocRIBPeerType. Negative (R1(b), inputs pushed toward the violation): ::TestLocallySourcedRouteIsNotConveyedUnderTheMonitoredPeer gives the locally sourced route the monitored peer's address 10.0.0.1 as next hop and requires, on both Peer Up and Route Monitoring, Peer Type 3, a zero peer address and the router's own AS 65000 and BGP ID; a producer attributing the route to that peer fails it. The neighbour-rule negative TestMonitoredPeerRouteMonitoringIsNotTheLocRIBPeerType no longer carries this tag. Records observed red for all three units (locRIBPeerHeader break).",
   "requirement_sha": "409f2be4a86b366f",
   "tests": {
-    "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestLocRIBFeedConveysRoutesWithTheLocRIBPeerType": "5fb0f6e9f181c421",
-    "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestLocallySourcedRouteIsConveyedWithTheLocRIBPeerType": "eb1b3423b571c819",
-    "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestLocallySourcedRouteIsNotConveyedUnderTheMonitoredPeer": "eb1b3423b571c819"
+    "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestLocRIBFeedConveysRoutesWithTheLocRIBPeerType": "7d8d00fe3cf1f61e",
+    "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestLocallySourcedRouteIsConveyedWithTheLocRIBPeerType": "ef925362dfcc8685",
+    "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestLocallySourcedRouteIsNotConveyedUnderTheMonitoredPeer": "ef925362dfcc8685"
   },
   "units": {
     "internal/component/bgp/plugins/bmp/rfc9069_test.go::TestLocRIBFeedConveysRoutesWithTheLocRIBPeerType": "77e479748bdf19c7",

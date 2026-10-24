@@ -15,6 +15,7 @@ package rib
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"net/netip"
 	"slices"
 	"sync"
@@ -434,10 +435,19 @@ type bestPrevStore struct {
 // the path it was received as. pathID and addPath are the winner's own, read
 // from the candidate that won, so a best-change names the path the winning
 // session sent. Both are zero for a winner received without ADD-PATH.
+//
+// attrFingerprint is the winner's storage.RouteEntry.AttrFingerprint, the
+// identity of its attribute set: a re-announcement that changes only an
+// attribute (a COMMUNITY, a LOCAL_PREF) keeps peer, path, next hop and MED,
+// and without it the same-best short circuit published nothing, so BMP's
+// Loc-RIB kept the old set. A pool handle cannot serve: handles are reused
+// once released, and the record holds no reference. Zero is "not known"
+// (an entry rewritten in place clears it) and never compares equal.
 type bestPrevRecord struct {
-	rec     bestPathRecord
-	pathID  uint32
-	addPath bool
+	rec             bestPathRecord
+	attrFingerprint uint64
+	pathID          uint32
+	addPath         bool
 }
 
 // opaqueBestPrev is the stored best of one non-CIDR route: the record, and
@@ -963,7 +973,8 @@ func (r *RIBManager) checkRouteBestChange(fam family.Family, nlriBytes []byte, a
 		prevMetrics == (bestPathMetrics{MED: newBest.MED, AIGP: newBest.AIGP, HasAIGP: newBest.HasAIGP}) &&
 		prev.rec.IsEBGP() == isEBGP &&
 		prev.rec.isBlackhole() == (blackholeType == routetype.Blackhole) &&
-		!srv6SID.IsValid() && prev.rec.Flags()&flagHadSRv6SID == 0
+		!srv6SID.IsValid() && prev.rec.Flags()&flagHadSRv6SID == 0 &&
+		sameAttributeSet(prev.attrFingerprint, newBest.entry.AttrFingerprint)
 	var peerIdx uint16
 	if !sameBest {
 		// DOWN acquires peerMu before looking up this slot. Reserve it before
@@ -981,6 +992,18 @@ func (r *RIBManager) checkRouteBestChange(fam family.Family, nlriBytes []byte, a
 	if !sameBest && newBest.ASPathHandle.IsValid() {
 		if data, err := pool.ASPath.Get(newBest.ASPathHandle); err == nil {
 			asPath = formatASPath(data)
+		}
+	}
+	// The winner's attribute set, read while the candidate still retains its
+	// entry: releaseCandidates may drop the last reference to its handles.
+	var attrs []byte
+	if !sameBest {
+		var attrsErr error
+		attrs, attrsErr = storedAttributes(&newBest.entry)
+		if attrsErr != nil {
+			// The best change still names the winner; a consumer that needs
+			// the attribute set (BMP Loc-RIB) refuses the entry that lacks it.
+			logger().Warn("bgp-rib: best change published without its attribute set", "prefix", pfx, "error", attrsErr)
 		}
 	}
 	releaseCandidates(candidates)
@@ -1071,7 +1094,7 @@ func (r *RIBManager) checkRouteBestChange(fam family.Family, nlriBytes []byte, a
 	newRec := packBestPath(metricIdx, peerIdx, nhIdx, flags)
 
 	// Transfer the admission reference to the new record before publication.
-	sh.store.insert(pfx, routeKey, bestPrevRecord{rec: newRec, pathID: winnerPathID, addPath: winnerAddPath}, winnerRoute(newBest, cidr))
+	sh.store.insert(pfx, routeKey, bestPrevRecord{rec: newRec, attrFingerprint: newBest.entry.AttrFingerprint, pathID: winnerPathID, addPath: winnerAddPath}, winnerRoute(newBest, cidr))
 	if havePrev {
 		r.bestPathInterner.releasePeer(prev.rec.peerIdx())
 	}
@@ -1108,20 +1131,48 @@ func (r *RIBManager) checkRouteBestChange(fam family.Family, nlriBytes []byte, a
 	// RFC 7999 Section 3.3. Zero for every route that is not a honored
 	// blackhole, which leaves the FIB installing an ordinary route.
 	entry.RouteType = blackholeType
-	// The owned AS_PATH snapshot was made before releasing the peer admission;
-	// DOWN may already have released the original pool handle.
-	setEntryASPath(&entry, asPath)
+	// The owned AS_PATH and attribute snapshots were made before releasing the
+	// peer admission; DOWN may already have released the original pool handles.
+	setEntryPath(&entry, asPath, attrs)
 	return entry, true
 }
 
-// setEntryASPath records the winner's AS_PATH and the origin AS it ends with. The
-// live election and both replay walks set the pair through here, so a replayed
-// entry cannot carry one without the other.
-func setEntryASPath(e *bestChangeEntry, asPath []uint32) {
+// setEntryPath records the winner's AS_PATH, the origin AS it ends with, and
+// its attribute set. The live election and both replay walks set them through
+// here, so a replayed entry cannot carry one without the others.
+func setEntryPath(e *bestChangeEntry, asPath []uint32, attrs []byte) {
 	e.ASPath = asPath
 	if len(asPath) > 0 {
 		e.OriginAS = asPath[len(asPath)-1]
 	}
+	e.Attributes = attrs
+}
+
+// sameAttributeSet reports whether the recorded winner and the new one carry
+// the same attribute set, by the fingerprint storage computed at insert. A zero
+// fingerprint on either side is unknown, so the sets are treated as different
+// and the change is published: a redundant best change is harmless, a missed
+// one leaves every consumer on the old attributes.
+func sameAttributeSet(recorded, current uint64) bool {
+	if recorded == 0 {
+		return false
+	}
+	return recorded == current
+}
+
+// storedAttributes reconstructs the attribute set a stored entry names, as an
+// owned copy: the best change outlives the entry's pool handles, and a forked
+// subscriber can read bytes but not a handle. A handle that no longer resolves
+// is an error, never an empty set: a stored route always carries ORIGIN.
+//
+// This is one deliberate copy per published best change (buffer-architecture.md,
+// "When a copy is deliberate"); an unchanged best publishes nothing.
+func storedAttributes(entry *storage.RouteEntry) ([]byte, error) {
+	attrs, err := entry.ToWireBytes()
+	if err != nil {
+		return nil, fmt.Errorf("stored attribute set: a pool handle no longer resolves: %w", err)
+	}
+	return attrs, nil
 }
 
 // storedASPath formats the AS_PATH a pool handle names. An invalid handle is a
@@ -1138,31 +1189,31 @@ func storedASPath(handle attrpool.Handle) (asPath []uint32, ok bool) {
 	return formatASPath(data), true
 }
 
-// replayASPath reads the AS_PATH of the stored path a best-path record names,
-// for a replay. The packed record keeps no AS_PATH, so a replay built from the
-// record alone published an empty path for every route, and BMP's Loc-RIB dump
+// replayPath reads the AS_PATH and the attribute set of the stored path a
+// best-path record names, for a replay. The packed record keeps neither, so a
+// replay built from the record alone published an empty path for every route, and BMP's Loc-RIB dump
 // to a collector that connected after the routes arrived showed each one as
 // locally originated (RFC 9069 Section 5).
 //
 // A CIDR family names the route by pfx with routeKey nil; any other family by
 // routeKey. held is false when the winning peer no longer holds that path, or
-// its AS_PATH handle no longer resolves: the
+// its AS_PATH or attribute handles no longer resolve: the
 // record is then about to be withdrawn by the election its removal triggered,
 // and the caller skips it rather than replay a route with an invented path. An
 // empty asPath with held true is a real empty AS_PATH.
 //
 // Caller MUST hold the shard's lock and MUST NOT hold r.peerMu: this takes
 // peerMu for reading, in the shard-then-peer order the election uses.
-func (r *RIBManager) replayASPath(fam family.Family, pfx netip.Prefix, routeKey []byte, peer string, pathID uint32) (asPath []uint32, held bool) {
+func (r *RIBManager) replayPath(fam family.Family, pfx netip.Prefix, routeKey []byte, peer string, pathID uint32) (asPath []uint32, attrs []byte, held bool) {
 	addr, err := netip.ParseAddr(peer)
 	if err != nil {
-		return nil, false
+		return nil, nil, false
 	}
 	r.peerMu.RLock()
 	defer r.peerMu.RUnlock()
 	peerRIB := r.bgpPeers[addr]
 	if peerRIB == nil {
-		return nil, false
+		return nil, nil, false
 	}
 	// Stack-backed for the same reason gatherPrefixCandidatesLocked's is.
 	var pathsArray [4]storage.PrefixPath
@@ -1176,10 +1227,15 @@ func (r *RIBManager) replayASPath(fam family.Family, pfx netip.Prefix, routeKey 
 		path := &paths[i]
 		if !held && path.PathID == pathID {
 			asPath, held = storedASPath(path.Entry.ASPath)
+			if held {
+				var attrsErr error
+				attrs, attrsErr = storedAttributes(&path.Entry)
+				held = attrsErr == nil
+			}
 		}
 		path.Release()
 	}
-	return asPath, held
+	return asPath, attrs, held
 }
 
 // bgpLocRIBInstance is the Loc-RIB Instance every BGP best path is mirrored
@@ -1701,12 +1757,12 @@ func (r *RIBManager) collectBestPaths() map[family.Family][]bestChangeEntry {
 					return
 				}
 			}
-			asPath, held := r.replayASPath(fam, pfx, nil, r.bestPathInterner.peerAt(rec.peerIdx()), pathID)
+			asPath, attrs, held := r.replayPath(fam, pfx, nil, r.bestPathInterner.peerAt(rec.peerIdx()), pathID)
 			if !held {
 				return
 			}
 			e := rec.resolve(r.bestPathInterner, ribevents.BestChangeAdd, pfx, pathID, prev.addPath)
-			setEntryASPath(&e, asPath)
+			setEntryPath(&e, asPath, attrs)
 			changes = append(changes, e)
 		}
 		for i := range fs.shards {
@@ -1718,13 +1774,13 @@ func (r *RIBManager) collectBestPaths() map[family.Family][]bestChangeEntry {
 				// zero prefix, so replay builds these entries directly.
 				for _, best := range sh.store.opaque {
 					rec := best.prev
-					asPath, held := r.replayASPath(fam, netip.Prefix{}, []byte(best.route), r.bestPathInterner.peerAt(rec.rec.peerIdx()), rec.pathID)
+					asPath, attrs, held := r.replayPath(fam, netip.Prefix{}, []byte(best.route), r.bestPathInterner.peerAt(rec.rec.peerIdx()), rec.pathID)
 					if !held {
 						continue
 					}
 					e := rec.rec.resolve(r.bestPathInterner, ribevents.BestChangeAdd, netip.Prefix{}, rec.pathID, rec.addPath)
 					e.NLRI = framedRouteNLRI(nil, best.route, rec.pathID, rec.addPath)
-					setEntryASPath(&e, asPath)
+					setEntryPath(&e, asPath, attrs)
 					changes = append(changes, e)
 				}
 				sh.mu.RUnlock()

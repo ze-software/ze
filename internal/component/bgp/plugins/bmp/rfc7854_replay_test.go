@@ -29,13 +29,13 @@ func replayPlugin(t *testing.T) *BMPPlugin {
 	open := mustFabricateLocRIBOpen(t, localIdentity{asn: 65001, routerID: 0xc0000201})
 	for _, direction := range []rpc.MessageDirection{rpc.DirectionSent, rpc.DirectionReceived} {
 		bp.handleStructuredEvent(&rpc.StructuredEvent{
-			PeerAddress: "192.0.2.1", PeerAS: 65001, Direction: direction,
+			PeerAddress: "192.0.2.1", PeerAS: rpc.RemoteASOf(65001), Direction: direction,
 			EventType:  rpc.EventKindOpen,
 			RawMessage: &bgptypes.RawMessage{Type: msgtype.TypeOPEN, RawBytes: open[message.HeaderLen:]},
 		})
 	}
 	bp.handleStructuredEvent(&rpc.StructuredEvent{
-		PeerAddress: "192.0.2.1", PeerAS: 65001, RemoteRouterID: 0xc0000201,
+		PeerAddress: "192.0.2.1", PeerAS: rpc.RemoteASOf(65001), RemoteRouterID: 0xc0000201,
 		LocalAddress: "192.0.2.2", LocalPort: 41793, RemotePort: 179,
 		EventType: rpc.EventKindState, State: rpc.SessionStateUp,
 	})
@@ -44,7 +44,7 @@ func replayPlugin(t *testing.T) *BMPPlugin {
 
 func replayUpdate(bp *BMPPlugin, direction rpc.MessageDirection, body []byte, at time.Time, ctxID bgpctx.ContextID) {
 	bp.handleStructuredEvent(&rpc.StructuredEvent{
-		PeerAddress: "192.0.2.1", PeerAS: 65001, RemoteRouterID: 0xc0000201,
+		PeerAddress: "192.0.2.1", PeerAS: rpc.RemoteASOf(65001), RemoteRouterID: 0xc0000201,
 		Direction: direction, EventType: rpc.EventKindUpdate,
 		RawMessage: &bgptypes.RawMessage{Type: msgtype.TypeUPDATE, RawBytes: body,
 			Timestamp: at, WireUpdate: wireu.NewWireUpdate(body, ctxID)},
@@ -378,7 +378,7 @@ func TestBMPPeerLifecycleRetainsEstablishedIdentity(t *testing.T) {
 	}
 	conn.reset()
 	bp.handleStructuredEvent(&rpc.StructuredEvent{
-		PeerAddress: "192.0.2.1", PeerAS: 65001,
+		PeerAddress: "192.0.2.1", PeerAS: rpc.RemoteASOf(65001),
 		EventType: rpc.EventKindState, State: rpc.SessionStateDown,
 	})
 	waitQueueDrained(t, ss)

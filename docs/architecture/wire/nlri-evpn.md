@@ -182,7 +182,7 @@ Per RFC 7432 Section 7.2, key components are:
 +---------------------------+
 ```
 
-<!-- source: internal/component/bgp/plugins/nlri/evpn/types.go -- EVPNType3 (Inclusive Multicast) -->
+<!-- source: internal/component/bgp/plugins/nlri/evpn/types.go -- evpnType3 (Inclusive Multicast) -->
 
 ---
 
@@ -206,7 +206,7 @@ Per RFC 7432 Section 7.2, key components are:
 +---------------------------+
 ```
 
-<!-- source: internal/component/bgp/plugins/nlri/evpn/types.go -- EVPNType4 (Ethernet Segment) -->
+<!-- source: internal/component/bgp/plugins/nlri/evpn/types.go -- evpnType4 (Ethernet Segment) -->
 
 ---
 

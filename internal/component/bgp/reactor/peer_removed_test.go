@@ -10,6 +10,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/core/clock"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // newRemovalTestReactor builds a minimal reactor sufficient to exercise peer
@@ -49,7 +50,7 @@ func TestDoRemovePeerReturnsRemovedIdentity(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, removed)
 	assert.Equal(t, addr, removed.Address, "removed identity must be the removed peer")
-	assert.Equal(t, uint32(65001), removed.PeerAS)
+	assert.Equal(t, rpc.RemoteASOf(65001), removed.PeerAS)
 	assert.Equal(t, uint32(65000), removed.LocalAS)
 
 	_, exists := r.peers[peerKeyFromAddrPort(addr, DefaultBGPPort)]

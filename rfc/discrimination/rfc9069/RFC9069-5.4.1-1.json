@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC9069-5.4.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBRouteMonitoringUsesFourByteASNs",
+    "unit-sha": "01c9f52026a16276",
+    "claim-sha": "5688991374e474b8",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/bmp/bmp_locrib.go::attrCodeAfter",
+    "producer-sha": "147dbcda554a9c57",
+    "break": "body of attrCodeAfter replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9069-5.4.1-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBRouteMonitoringUsesFourByteASNs",
+    "unit-sha": "01c9f52026a16276",
+    "claim-sha": "77f62a13bd4c96cc",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/bmp/bmp_locrib.go::attrCodeAfter",
+    "producer-sha": "147dbcda554a9c57",
+    "break": "body of attrCodeAfter replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

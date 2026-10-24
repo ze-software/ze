@@ -18,7 +18,7 @@ import (
 // the member active and deactivating the whole leaf.
 func TestHierarchicalInactiveMemberLikeNop(t *testing.T) {
 	schema := NewSchema()
-	schema.Define("c", Container(Field("items", BracketLeafList(TypeString)), Field("plain", ValueOrArray(TypeString))))
+	schema.Define("c", Container(Field("items", bracketLeafList(TypeString)), Field("plain", valueOrArray(TypeString))))
 	cases := []struct {
 		name, leaf, hier, set string
 	}{
@@ -93,7 +93,7 @@ func TestHierarchicalInactiveMemberRoundTrips(t *testing.T) {
 // for a whole inactive leaf, which reads back as one inactive member.
 func TestInactiveLeafListBlameAndAnnotatedMatchSerialize(t *testing.T) {
 	schema := NewSchema()
-	schema.Define("c", Container(Field("items", BracketLeafList(TypeString)), Field("plain", ValueOrArray(TypeString))))
+	schema.Define("c", Container(Field("items", bracketLeafList(TypeString)), Field("plain", valueOrArray(TypeString))))
 	cases := []struct {
 		name, leaf, hier, line string
 		whole                  bool

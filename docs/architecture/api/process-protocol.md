@@ -1257,6 +1257,25 @@ reads data directly from `AttrsWire` (lazy per-attribute parsing) and `WireUpdat
 (zero-copy section access) instead of calling `ParseEvent`.
 <!-- source: pkg/plugin/rpc/bridge.go -- StructuredEvent -->
 
+`StructuredEvent.PeerAS` is an `rpc.RemoteAS`, not a bare number. A dynamic
+peer's AS is learned from its OPEN, so an event built before the OPENs are
+exchanged (the OPEN Ze sends, a NOTIFICATION Ze sends in OpenSent, the FSM
+changes before OpenConfirm) has no AS to name, and the zero value of
+`RemoteAS` is that "not yet known" state, never AS 0. Read it with
+`ASN() (uint32, bool)` and branch on the bool: the number means nothing when
+it is `false`. The JSON peer object omits `remote.as` in the same case, and
+`Event.GetPeerASN` answers the unknown `RemoteAS` for it and an error for a
+peer object it cannot read.
+
+A plugin that renders the value without branching gets the same answer from
+the type. `encoding/json` writes the number, or `null` while it is unknown, and
+a field tagged `omitzero` is left out instead. `fmt`'s `%v` and `%s` and a
+`log/slog` attribute write the number or `unknown`. Decoding reads `null` back
+as unknown and refuses AS 0, which no peer can hold (RFC 7607). `%d` has no
+such method, so it prints the struct, and `go vet` reports it.
+<!-- source: pkg/plugin/rpc/remote_as.go -- RemoteAS, RemoteASOf, ASN, MarshalJSON, UnmarshalJSON, IsZero, String, LogValue -->
+<!-- source: internal/component/bgp/event.go -- GetPeerASN -->
+
 For UPDATE events, `RawMessage` carries `AttrsWire` and `WireUpdate` with lazy accessors.
 For state events, `StructuredEvent.State` and `StructuredEvent.Reason` carry the data
 directly. For other wire messages (OPEN, NOTIFICATION, REFRESH), `RawMessage.RawBytes`

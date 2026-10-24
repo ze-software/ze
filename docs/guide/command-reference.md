@@ -127,7 +127,7 @@ rejected with one error per offending YANG path, matching the diagnostic
 the running daemon produces on reload. See
 [Backend Capability Errors](configuration.md#backend-capability-errors).
 <!-- source: internal/component/config/cli/cmd_validate.go -- cmdValidate, backend-gate loop -->
-<!-- source: internal/component/config/backend_gate.go -- ValidateBackendFeatures -->
+<!-- source: internal/component/config/backend_gate.go -- validateBackendFeatures -->
 
 ### ze config
 
@@ -575,7 +575,7 @@ the JSON shapes are identical either way.
 | `nic` | Per physical interface: `name`, `driver`, `pci-vendor`, `pci-device`, `mac`, `link-speed-mbps`, `duplex`, `carrier`, `rx-queues`, `tx-queues`, `ring-rx`, `ring-tx`, `firmware-version` |
 | `dmi` | `system-vendor`, `system-product`, `board-*`, `bios-*`, `chassis-*` |
 | `memory` | `total-bytes`, `free-bytes`, `available-bytes`, `buffers-bytes`, `cached-bytes`, `swap-total-bytes`, `swap-free-bytes`, `hugepages-total`, `hugepages-free`, `hugepage-size-bytes`, `ecc-correctable-errors`, `ecc-uncorrectable-errors`, `ecc-present` |
-| `thermal` | `sensors[]` (hwmon: `name`, `device`, `temp-mc`, `alarm`), `throttle[]` (per-CPU `core-throttle-count`, `package-throttle-count`) |
+| `thermal` | `sensors[]` (hwmon: `name`, `device`, `temp-mc`, `alarm`; a reading of 0 is listed as 0), `throttle[]` (per-CPU `core-throttle-count`, `package-throttle-count`), `errors[]` (`path`, `error`: a hwmon channel whose value could not be read, so it has no entry in `sensors[]`) |
 | `storage` | `devices[]` with `name`, `size-bytes`, `model`, `serial`, `transport` (`nvme`/`sata`/`mmc`/`virtio`/`unknown`), `rotational`, `nvme-firmware-version` (NVMe only), `smart` (via direct ioctl, no smartctl binary: `healthy`, `temp-celsius`, `power-on-hours`, `error-count`, `percent-used` (NVMe), `available-spare` (NVMe); `unavailable` + `unavailable-note` when device lacks SMART or insufficient privileges) |
 | `kernel` | `release`, `version`, `architecture`, `cmdline`, `boot-time` (RFC3339), `boot-time-unix`, `microcode-revision`, `arch-flags[]` (security-relevant subset: `smep`, `smap`, `ibt`, `user_shstk`, `ibrs`, `ibrs_enhanced`, `ssbd`) |
 
@@ -2200,6 +2200,8 @@ ze clear debug                                   # Clear the default profile
 ze set debug timeout <duration>                  # Auto-disable timer (e.g. 30m, 1h, 90s; 0=off)
 ```
 
+Each command sets or removes one option. A word after that option is refused with an error naming it (`set debug module m level debug flag x` names `flag`), so run one command per option.
+
 Hierarchical prefixes work: `ze set debug module bgp` covers all bgp.* subsystems.
 Not auto-applied on reboot (safety). Use `ze set debug active name <name>` after restart.
 Each plugin declares valid flags via the debug YANG registry; invalid flags are rejected.
@@ -2615,7 +2617,7 @@ Many commands take a `peer <selector>` argument:
 
 | Command | Access | Purpose |
 |---------|--------|---------|
-| `show bgp peer list` | read-only | List all peers (IP, ASN, state, uptime) |
+| `show bgp peer list` | read-only | List all peers (IP, ASN, state, uptime). A dynamic peer whose OPEN has not arrived has no AS yet, so its row carries no `remote-as` rather than AS 0; `show bgp`, `show bgp peer <sel> detail` and the `as` of `show bgp health` do the same <!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- setRemoteAS; internal/component/bgp/plugins/cmd/peer/health.go -- handleShowBGPHealth --> |
 | `show bgp peer <sel> detail` | read-only | Detailed peer info (config, state, counters, `prefix-updated` date, `prefix-stale` warning) |
 | `show bgp peer <sel> capabilities` | read-only | Negotiated capabilities |
 | `show bgp peer <sel> statistics` | read-only | Per-peer update statistics with rates |

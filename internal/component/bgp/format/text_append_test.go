@@ -17,7 +17,7 @@ func testPeer() *plugin.PeerInfo {
 		Address:      netip.MustParseAddr("10.0.0.1"),
 		Name:         "peer1",
 		GroupName:    "",
-		PeerAS:       65001,
+		PeerAS:       rpc.RemoteASOf(65001),
 		LocalAS:      65000,
 		LocalAddress: netip.MustParseAddr("10.0.0.2"),
 	}
@@ -196,7 +196,7 @@ func TestAppendOpen_Parity(t *testing.T) {
 		},
 	}
 	got := string(AppendOpen(nil, peer, open, rpc.DirectionReceived, 42))
-	want := "peer 10.0.0.1 remote as 65010 received open 42 router-id 1.2.3.4 hold-time 180 cap 1 multi-protocol ipv4/unicast cap 65 asn4\n"
+	want := "peer 10.0.0.1 remote as 65001 received open 42 asn 65010 router-id 1.2.3.4 hold-time 180 cap 1 multi-protocol ipv4/unicast cap 65 asn4\n"
 	if got != want {
 		t.Errorf("AppendOpen:\n got:  %q\n want: %q", got, want)
 	}

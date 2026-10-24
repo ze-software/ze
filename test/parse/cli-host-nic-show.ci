@@ -1,6 +1,6 @@
 # Test: ze show host nic returns physical NIC inventory JSON without a daemon
 # VALIDATES: offline fallback -- `show host nic` runs the in-process
-#            host.DetectNICs when no daemon is reachable, producing a JSON
+#            host.DetectSection("nic") when no daemon is reachable, producing a JSON
 #            array of physical interfaces with the per-NIC link-speed-mbps
 #            and carrier fields sourced from /sys/class/net.
 # PREVENTS: regressions where show host nic silently requires a daemon,

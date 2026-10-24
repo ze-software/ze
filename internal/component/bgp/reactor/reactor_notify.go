@@ -111,9 +111,18 @@ type callbackAdapter struct {
 	cb registry.PeerLifecycleCallback
 }
 
-func (a *callbackAdapter) OnPeerEstablished(peer *Peer) { a.cb.OnPeerEstablished(peer) }
+// The callback is told the peer as a *plugin.PeerInfo, the type
+// registry.PeerLifecycleCallback promises: a *Peer cannot cross to a receiver
+// that does not import this package, and MRT's handlers asserted PeerInfo and
+// dropped every state change in silence while a *Peer was passed.
+func (a *callbackAdapter) OnPeerEstablished(peer *Peer) {
+	info := establishedPeerInfo(peer)
+	a.cb.OnPeerEstablished(&info)
+}
+
 func (a *callbackAdapter) OnPeerClosed(peer *Peer, closed sessionClose) {
-	a.cb.OnPeerClosed(peer, closed.reason)
+	info := fsmEventPeerInfo(peer)
+	a.cb.OnPeerClosed(&info, closed.reason)
 }
 
 // AddPeerLifecycleCallback registers an external callback via the any-typed interface.
@@ -168,7 +177,7 @@ func (r *Reactor) notifyPeerNegotiated(peer *Peer, neg *capability.Negotiated) {
 		LocalAddressStr: peer.localAddrString,
 		Name:            peer.settings.Name,
 		GroupName:       peer.settings.GroupName,
-		PeerAS:          neg.PeerASN,
+		PeerAS:          rpc.RemoteASOf(neg.PeerASN),
 		LocalAS:         peer.settings.LocalAS,
 	}
 	peer.mu.RUnlock()
@@ -235,7 +244,7 @@ func (r *Reactor) emitCongestionEvent(peerAddr netip.Addr, eventType string) {
 		LocalAS:         s.LocalAS,
 		// PeerAS via the guarded accessor: this runs on the congestion controller
 		// goroutine, which can race a dynamic peer's establishment write of PeerAS.
-		PeerAS:   peer.PeerAS(),
+		PeerAS:   rpc.RemoteASOf(peer.PeerAS()),
 		RouterID: s.RouterID,
 		State:    peer.State().PluginState(),
 	}
@@ -267,6 +276,10 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.Mes
 
 	// Build PeerInfo while holding lock to avoid race on state
 	var peerInfo plugin.PeerInfo
+	// peerAS is 0 until a dynamic peer's OPEN is negotiated; peerInfo carries
+	// it as rpc.RemoteAS, which names that state. A received UPDATE, the only
+	// reader below, arrives in Established, where it is always resolved.
+	var peerAS uint32
 	// llgrAdvertised is read from the session only on the received direction,
 	// which runs on that session's read goroutine, after negotiateWith stored
 	// localLLGR; the atomic load takes no session lock.
@@ -276,6 +289,20 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.Mes
 		peer.mu.RLock()
 		session := peer.session
 		peer.mu.RUnlock()
+		// PeerAS via the guarded accessor: the sent direction runs on forward-pool /
+		// timer / plugin-RPC goroutines, which can race a dynamic peer's establishment
+		// write of PeerAS. (On the received direction this is the peer's own read
+		// goroutine, where the accessor is merely redundant, not wrong.)
+		//
+		// A dynamic peer's settings learn its AS only at Established, while the
+		// session's negotiation resolved it from the peer's OPEN in OpenConfirm, so
+		// the KEEPALIVEs exchanged in between name the negotiated AS rather than 0.
+		peerAS = peer.PeerAS()
+		if peerAS == 0 && session != nil {
+			if neg := session.Negotiated(); neg != nil {
+				peerAS = neg.PeerASN
+			}
+		}
 		peerInfo = plugin.PeerInfo{
 			Address:         s.Address,
 			LocalAddress:    s.LocalAddress,
@@ -284,12 +311,8 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.Mes
 			Name:            s.Name,
 			GroupName:       s.GroupName,
 			LocalAS:         s.LocalAS,
-			// PeerAS via the guarded accessor: the sent direction runs on forward-pool /
-			// timer / plugin-RPC goroutines, which can race a dynamic peer's establishment
-			// write of PeerAS. (On the received direction this is the peer's own read
-			// goroutine, where the accessor is merely redundant, not wrong.)
-			PeerAS:   peer.PeerAS(),
-			RouterID: s.RouterID,
+			PeerAS:          rpc.RemoteASOf(peerAS),
+			RouterID:        s.RouterID,
 			// The peer's own BGP Identifier, which RouterID above is NOT: that
 			// one is this speaker's. RFC 4271 Section 9.1.2.2 step f) compares
 			// this one, and it reaches best-path selection only through the
@@ -484,7 +507,7 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.Mes
 	if direction == rpc.DirectionReceived && wireUpdate != nil && len(r.orderedIngressSteps) > 0 {
 		src := filterapi.PeerFilterInfo{
 			Address:  peerAddr,
-			PeerAS:   peerInfo.PeerAS,
+			PeerAS:   peerAS,
 			LocalAS:  peerInfo.LocalAS,
 			RouterID: peerInfo.RouterID,
 			// RFC 9494 Section 4.3: the LLGR_STALE step binds only a speaker that
@@ -526,7 +549,7 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.Mes
 				// The external per-peer chain runs last, on the (possibly
 				// in-process-modified) payload. No-op accept when the peer has no
 				// import filters or no API server (hot-path gate inside).
-				res = r.runIngressPolicyChain(peer, peerAddr, peerInfo.PeerAS, wireUpdate, payload)
+				res = r.runIngressPolicyChain(peer, peerAddr, peerAS, wireUpdate, payload)
 			} else {
 				if ingressMeta == nil {
 					ingressMeta = make(map[string]any, 2)

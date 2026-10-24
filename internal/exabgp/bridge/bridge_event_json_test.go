@@ -24,14 +24,14 @@ func TestMarshalExabgpJSONUsesExaBGPSpacing(t *testing.T) {
 		"none":   []any{},
 		"quoted": `a:b, {c} [d] "e"`,
 	}
-	got, err := MarshalExabgpJSON(document)
+	got, err := marshalExabgpJSON(document)
 	if err != nil {
-		t.Fatalf("MarshalExabgpJSON: %v", err)
+		t.Fatalf("marshalExabgpJSON: %v", err)
 	}
 	want := `{ "announce": { "ipv4 unicast": { "10.0.0.0": [ { "nlri": "192.168.0.0/32" } ] } }, ` +
 		`"empty": {}, "none": [], "quoted": "a:b, {c} [d] \"e\"" }`
 	if string(got) != want {
-		t.Errorf("MarshalExabgpJSON =\n%s\nwant\n%s", got, want)
+		t.Errorf("marshalExabgpJSON =\n%s\nwant\n%s", got, want)
 	}
 	if !json.Valid(got) {
 		t.Errorf("the spaced form is not valid JSON: %s", got)

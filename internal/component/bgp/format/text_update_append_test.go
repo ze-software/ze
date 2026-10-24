@@ -32,7 +32,7 @@ func TestAppendSentMessage_TypeIsSent(t *testing.T) {
 
 	peer := plugin.PeerInfo{
 		Address: netip.MustParseAddr("10.0.0.1"),
-		PeerAS:  65001,
+		PeerAS:  rpc.RemoteASOf(65001),
 	}
 
 	body := buildTestUpdateBodyWithAttrs(
@@ -112,7 +112,7 @@ func TestAppendSentMessage_NoStringsReplaceSurgery(t *testing.T) {
 	ctxID := testEncodingContext()
 	peer := plugin.PeerInfo{
 		Address: netip.MustParseAddr("10.0.0.1"),
-		PeerAS:  65001,
+		PeerAS:  rpc.RemoteASOf(65001),
 	}
 	body := buildTestUpdateBodyWithAttrs(
 		netip.MustParsePrefix("192.168.1.0/24"),

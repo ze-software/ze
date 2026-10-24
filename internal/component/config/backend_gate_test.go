@@ -11,7 +11,7 @@ import (
 	"github.com/ze-software/ze/internal/component/config/yang"
 )
 
-// VALIDATES: ValidateBackendFeatures returns no error when the active
+// VALIDATES: validateBackendFeatures returns no error when the active
 //
 //	backend is listed by the annotated list node.
 //
@@ -28,11 +28,11 @@ func TestValidateBackendFeatures_SupportedAccepts(t *testing.T) {
 			},
 		},
 	}
-	errs := ValidateBackendFeatures(tree, schema, "interface", "netlink", "/interface/backend")
+	errs := validateBackendFeatures(tree, schema, "interface", "netlink", "/interface/backend")
 	assert.Empty(t, errs, "netlink backend should accept bridge")
 }
 
-// VALIDATES: ValidateBackendFeatures emits one error per YANG path whose
+// VALIDATES: validateBackendFeatures emits one error per YANG path whose
 //
 //	ze:backend annotation excludes the active backend.
 //
@@ -49,7 +49,7 @@ func TestValidateBackendFeatures_UnsupportedRejects(t *testing.T) {
 			},
 		},
 	}
-	errs := ValidateBackendFeatures(tree, schema, "interface", "vpp", "/interface/backend")
+	errs := validateBackendFeatures(tree, schema, "interface", "vpp", "/interface/backend")
 	require.Len(t, errs, 1, "expected exactly one rejection")
 	msg := errs[0].Error()
 	assert.Contains(t, msg, "/interface/bridge", "error must name the YANG path")
@@ -81,7 +81,7 @@ func TestValidateBackendFeatures_AggregatesMultiple(t *testing.T) {
 			},
 		},
 	}
-	errs := ValidateBackendFeatures(tree, schema, "interface", "vpp", "/interface/backend")
+	errs := validateBackendFeatures(tree, schema, "interface", "vpp", "/interface/backend")
 	require.Len(t, errs, 3, "expected three rejections, got: %v", errs)
 
 	paths := make(map[string]bool, len(errs))
@@ -110,7 +110,7 @@ func TestValidateBackendFeatures_UnrestrictedAccepts(t *testing.T) {
 			},
 		},
 	}
-	errs := ValidateBackendFeatures(tree, schema, "interface", "vpp", "/interface/backend")
+	errs := validateBackendFeatures(tree, schema, "interface", "vpp", "/interface/backend")
 	assert.Empty(t, errs, "unrestricted ethernet should accept vpp")
 }
 
@@ -143,7 +143,7 @@ func TestValidateBackendFeatures_ChoiceCaseOverride(t *testing.T) {
 			},
 		},
 	}
-	errs := ValidateBackendFeatures(tree, schema, "interface", "vpp", "/interface/backend")
+	errs := validateBackendFeatures(tree, schema, "interface", "vpp", "/interface/backend")
 	assert.Empty(t, errs, "per-case override should suppress outer rejection: %v", errs)
 }
 
@@ -156,7 +156,7 @@ func TestValidateBackendFeatures_EmptyActiveBackend(t *testing.T) {
 			"bridge": map[string]any{"br0": map[string]any{"name": "br0"}},
 		},
 	}
-	errs := ValidateBackendFeatures(tree, schema, "interface", "", "/interface/backend")
+	errs := validateBackendFeatures(tree, schema, "interface", "", "/interface/backend")
 	require.Len(t, errs, 1, "expected single error for empty backend")
 	assert.Contains(t, errs[0].Error(), "/interface/backend", "must point at the backend leaf path")
 }
@@ -168,7 +168,7 @@ func TestValidateBackendFeatures_AbsentComponentRoot(t *testing.T) {
 	tree := map[string]any{
 		"bgp": map[string]any{},
 	}
-	errs := ValidateBackendFeatures(tree, schema, "interface", "vpp", "/interface/backend")
+	errs := validateBackendFeatures(tree, schema, "interface", "vpp", "/interface/backend")
 	assert.Empty(t, errs, "absent component root should produce no errors")
 }
 
@@ -198,7 +198,7 @@ func TestGetBackendExtension_Deduplicates(t *testing.T) {
 			"bridge":  map[string]any{"br0": map[string]any{"name": "br0"}},
 		},
 	}
-	errs := ValidateBackendFeatures(tree, schema, "interface", "vpp", "/interface/backend")
+	errs := validateBackendFeatures(tree, schema, "interface", "vpp", "/interface/backend")
 	require.Len(t, errs, 1)
 	assert.Contains(t, errs[0].Error(), "supported: netlink")
 }
@@ -271,7 +271,7 @@ func TestValidateBackendFeatures_PerEntryIndependence(t *testing.T) {
 			},
 		},
 	}
-	errs := ValidateBackendFeatures(tree, schema, "interface", "vpp", "/interface/backend")
+	errs := validateBackendFeatures(tree, schema, "interface", "vpp", "/interface/backend")
 	require.Len(t, errs, 1, "t-bad must emit one error; t-ok is accepted via vxlan override: %v", errs)
 	msg := errs[0].Error()
 	assert.Contains(t, msg, "/interface/tunnel/t-bad")
@@ -316,7 +316,7 @@ func TestValidateBackendFeatures_NestedRejectsDoNotDoubleEmit(t *testing.T) {
 			},
 		},
 	}
-	errs := ValidateBackendFeatures(tree, schema, "interface", "vpp", "/interface/backend")
+	errs := validateBackendFeatures(tree, schema, "interface", "vpp", "/interface/backend")
 	require.Len(t, errs, 1, "nested reject must emit exactly once at the narrowest path: %v", errs)
 	assert.Contains(t, errs[0].Error(), "/interface/bridge/br0/stp")
 	assert.NotContains(t, errs[0].Error(), "only the narrowest path, not /interface/bridge")
@@ -349,7 +349,7 @@ func TestValidateBackendFeatures_InlineListNodeAnnotation(t *testing.T) {
 			},
 		},
 	}
-	errs := ValidateBackendFeatures(tree, schema, "interface", "vpp", "/interface/backend")
+	errs := validateBackendFeatures(tree, schema, "interface", "vpp", "/interface/backend")
 	require.Len(t, errs, 1, "inline-list with rejecting annotation must emit per-entry error")
 	assert.Contains(t, errs[0].Error(), "/interface/route/10.0.0.0/8")
 	assert.Contains(t, errs[0].Error(), "netlink")
@@ -381,7 +381,7 @@ func TestValidateBackendFeatures_FlexNodeAnnotation(t *testing.T) {
 			"feature": map[string]any{"enabled": "true"},
 		},
 	}
-	errs := ValidateBackendFeatures(tree, schema, "interface", "vpp", "/interface/backend")
+	errs := validateBackendFeatures(tree, schema, "interface", "vpp", "/interface/backend")
 	require.Len(t, errs, 1, "flex with rejecting annotation must emit at its own path")
 	assert.Contains(t, errs[0].Error(), "/interface/feature")
 	assert.Contains(t, errs[0].Error(), "netlink")
@@ -574,7 +574,7 @@ func TestBackendGateIPv6Autoconf(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			tree := ifaceUnitIPv6Tree(tc.backend, tc.ipv6)
-			errs := ValidateBackendFeatures(tree, schema, "interface", tc.backend, "/interface/backend")
+			errs := validateBackendFeatures(tree, schema, "interface", tc.backend, "/interface/backend")
 			if tc.rejected == "" {
 				assert.Empty(t, errs)
 				return
@@ -610,6 +610,6 @@ func TestBackendGateIPv6AcceptRADefaultIsNotMaterialized(t *testing.T) {
 	require.Equal(t, []string{"netlink"}, leaf.Backend)
 
 	tree := ifaceUnitIPv6Tree("vpp", map[string]any{"address": []any{"fd00::1/64"}})
-	errs := ValidateBackendFeatures(tree, schema, "interface", "vpp", "/interface/backend")
+	errs := validateBackendFeatures(tree, schema, "interface", "vpp", "/interface/backend")
 	assert.Empty(t, errs, "an ipv6 container that names no gated leaf is accepted under vpp")
 }

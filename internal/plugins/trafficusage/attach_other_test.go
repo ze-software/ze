@@ -21,9 +21,8 @@ func TestUnsupportedAttacher(t *testing.T) {
 	if att != nil {
 		t.Error("Attach() attachment != nil on non-Linux, want nil")
 	}
-	// The doctor uses ebpfSupported() (side-effect-free); it must report
-	// unsupported on non-Linux.
-	if ebpfSupported() == nil {
-		t.Error("ebpfSupported() = nil on non-Linux, want unsupported error")
+	// The doctor's readiness probe must report absent on non-Linux.
+	if got := probeTCX(); got.state != tcxAbsent {
+		t.Errorf("probeTCX() = %v on non-Linux, want absent", got.state)
 	}
 }

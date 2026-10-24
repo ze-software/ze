@@ -2,7 +2,7 @@
 #
 # VALIDATES: spec-bfd-1-wiring -- BFD plugin reachable from running ze.
 # PREVENTS:  BFD library code remains unwired (the original Stage 0
-#            dead-code state where RunBFDPlugin returned 0 immediately).
+#            dead-code state where runBFDPlugin returned 0 immediately).
 #
 # Method: a compiled driver launches ze with the profile-only config,
 # captures stderr, waits for every lifecycle line, then terminates the

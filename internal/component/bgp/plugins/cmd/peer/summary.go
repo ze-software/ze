@@ -360,7 +360,6 @@ func handleBgpSummary(ctx *pluginserver.CommandContext, validated command.Valida
 			fieldAddress:            p.Address.String(),
 			fieldName:               p.Name,
 			"description":           p.GroupName,
-			fieldRemoteAS:           asn.Of(p.PeerAS),
 			fieldPeerType:           p.PeerType,
 			fieldState:              p.State.String(),
 			"state-changed":         stateChangedString(p),
@@ -374,6 +373,7 @@ func handleBgpSummary(ctx *pluginserver.CommandContext, validated command.Valida
 			fieldEORSent:            p.EORSent,
 			fieldConnectionsDropped: p.ConnectionsDropped,
 		}
+		setRemoteAS(row, p)
 		mergeRibRouteCounts(row, p.Address.String(), ribCounts)
 		peerRows = append(peerRows, row)
 	}
@@ -553,7 +553,6 @@ func handleBgpPeerStatistics(ctx *pluginserver.CommandContext, validated command
 
 		entry := plugin.Map{
 			fieldAddress:            p.Address.String(),
-			fieldRemoteAS:           asn.Of(p.PeerAS),
 			fieldState:              p.State.String(),
 			fieldUptime:             p.Uptime.Truncate(time.Second).String(),
 			fieldUpdatesReceived:    p.UpdatesReceived,
@@ -563,6 +562,7 @@ func handleBgpPeerStatistics(ctx *pluginserver.CommandContext, validated command
 			fieldEORReceived:        p.EORReceived,
 			fieldEORSent:            p.EORSent,
 		}
+		setRemoteAS(entry, p)
 
 		// Compute rates from cumulative counters / uptime.
 		// Zero uptime (not established) → zero rates.

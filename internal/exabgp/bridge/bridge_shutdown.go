@@ -27,7 +27,7 @@ func ShutdownLine(format Format) ([]byte, error) {
 	case FormatV4JSON, FormatV6JSON:
 		result, _ := Event{Kind: msgTypeNotification}.exabgpEnvelope(format)
 		result[msgTypeNotification] = "shutdown"
-		encoded, err := MarshalExabgpJSON(result)
+		encoded, err := marshalExabgpJSON(result)
 		if err != nil {
 			return nil, err
 		}

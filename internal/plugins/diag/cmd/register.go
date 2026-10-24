@@ -10,7 +10,7 @@ func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{WireMethod: "ze-diag:show-tcp-check", Handler: HandleTCPCheck},
 		pluginserver.RPCRegistration{WireMethod: "ze-diag:show-capture", Handler: HandleShowCapture},
-		pluginserver.RPCRegistration{WireMethod: "ze-diag:show-capture-raw", Handler: HandleCaptureRaw},
+		pluginserver.RPCRegistration{WireMethod: "ze-diag:show-capture-raw", Handler: handleCaptureRaw},
 		pluginserver.RPCRegistration{WireMethod: "ze-diag:show-capture-interface", Handler: HandleCaptureInterface},
 	)
 }

@@ -95,8 +95,12 @@ type Event struct {
 	// the JSON encoder owes it (src/exabgp/reactor/api/response/json.py,
 	// _neighbor).
 	Local string
-	// PeerASN is the remote AS, as JSON delivered it.
-	PeerASN float64
+	// PeerASN is the remote AS, as JSON delivered it (a float64), and nil when
+	// the event names none: ze omits remote.as while a dynamic peer's AS is not
+	// yet negotiated (format.appendPeerJSON), so the OPEN ze sends it, and a
+	// NOTIFICATION sent in OpenSent, carry no AS. The ExaBGP line then writes
+	// exabgpPeerASAuto, ExaBGP's own value for a peer AS it does not know.
+	PeerASN any
 	// LocalASN is THIS speaker's AS, as JSON delivered it.
 	LocalASN float64
 	// RouterID is THIS speaker's BGP Identifier for the session, empty when the
@@ -196,7 +200,9 @@ func ReadEvent(zebgp map[string]any) Event {
 	if peer, ok := event.Payload["peer"].(map[string]any); ok {
 		if remote, ok := peer["remote"].(map[string]any); ok {
 			event.Peer, _ = remote["address"].(string)
-			event.PeerASN, _ = remote["as"].(float64)
+			if asn, named := remote["as"].(float64); named {
+				event.PeerASN = asn
+			}
 		}
 		// ze states the near end of the session under `local`
 		// (internal/component/bgp/format/text.go, appendPeerJSON). It was read
@@ -254,10 +260,10 @@ func eventKindByKey(payload map[string]any) string {
 // is the two steps in one call, for a caller that renders a single event in a
 // single format.
 func zebgpToExabgpJSON(zebgp map[string]any) map[string]any {
-	return ReadEvent(zebgp).ExabgpJSON(FormatV6JSON)
+	return ReadEvent(zebgp).exabgpJSON(FormatV6JSON)
 }
 
-// ExabgpJSON renders the event as one ExaBGP JSON object.
+// exabgpJSON renders the event as one ExaBGP JSON object.
 //
 // ExaBGP format (nested):
 //
@@ -280,7 +286,7 @@ func zebgpToExabgpJSON(zebgp map[string]any) map[string]any {
 //
 // format is FormatV4JSON or FormatV6JSON, and it decides the envelope: a v4
 // helper reads ExaBGP's frozen `4.0.1`, a v6 helper `6.0.0`.
-func (e Event) ExabgpJSON(format Format) map[string]any {
+func (e Event) exabgpJSON(format Format) map[string]any {
 	result, neighbor := e.exabgpEnvelope(format)
 
 	switch e.Kind {
@@ -343,7 +349,7 @@ func (e Event) exabgpEnvelope(format Format) (result, neighbor map[string]any) {
 		envelope = JSONVersionV4
 	case FormatV6JSON:
 	case FormatV4Text, FormatUnspecified:
-		panic("BUG: ExabgpJSON asked for a format that is not JSON")
+		panic("BUG: exabgpJSON asked for a format that is not JSON")
 	default:
 		panic("BUG: invalid bridge format")
 	}
@@ -358,7 +364,7 @@ func (e Event) exabgpEnvelope(format Format) (result, neighbor map[string]any) {
 
 	neighbor = map[string]any{
 		"address": map[string]any{"local": e.Local, exabgpMemberPeer: e.Peer},
-		"asn":     map[string]any{"local": e.LocalASN, exabgpMemberPeer: e.PeerASN},
+		"asn":     map[string]any{"local": e.LocalASN, exabgpMemberPeer: e.exabgpPeerASN()},
 	}
 	// Only a BGP message travels, so only a message states its direction.
 	// ExaBGP 6.0 hands `_neighbor` a direction for each message it encodes and
@@ -476,6 +482,9 @@ func convertUpdateIPC2(eventData map[string]any, format Format, peer string) map
 						nhKey = "no-nexthop"
 					}
 					for _, nlri := range nlriList {
+						if undecodedNLRI(bridgeLog(), peer, fam, action, nlri) {
+							continue
+						}
 						// The family is created with its first route, never
 						// before: an operation that names no route would
 						// otherwise publish the family as an empty object,
@@ -497,6 +506,9 @@ func convertUpdateIPC2(eventData map[string]any, format Format, peer string) map
 					// matching members under `announce`, so one route read two
 					// ways depending on which direction it traveled.
 					for _, nlri := range nlriList {
+						if undecodedNLRI(bridgeLog(), peer, fam, action, nlri) {
+							continue
+						}
 						if s, ok := nlri.(string); ok {
 							withdraw[exabgpFamily] = append(withdraw[exabgpFamily], map[string]any{bridgeUpdateNLRI: s})
 						} else {
@@ -567,6 +579,47 @@ func unsplitOperation(log *slog.Logger, peer, family string, operation map[strin
 		"peer", peer, "family", family, "action", action, "error", reason,
 		"raw-octets", rawOctets, "raw", raw)
 	return true
+}
+
+// undecodedNLRI answers whether one element of a ze UPDATE event's nlri list
+// is an NLRI no decoder could read as a route, and logs it on log when it is.
+//
+// ze writes `{"error": ..., "parsed": false, "raw": ...}` for such an element
+// (appendUndecodedNLRIJSON in internal/component/bgp/format/text_json.go). It
+// names no route, so neither ExaBGP encoding gets one for it: the element is
+// left out, as unsplitOperation leaves out a field that did not split, and the
+// warning names the session, the family, the reason and the bytes.
+func undecodedNLRI(log *slog.Logger, peer, family, action string, element any) bool {
+	reason, raw, failed := undecodedNLRIError(element)
+	if !failed {
+		return false
+	}
+	rawOctets := len(raw) / 2
+	if len(raw) > unsplitRawHexMax {
+		raw = raw[:unsplitRawHexMax] + "..."
+	}
+	log.Warn("exabgp-bridge: the peer sent an NLRI ze could not decode as a route of this family, "+
+		"so the script is not told about it; check that the NLRI plugin for the family is loaded "+
+		"and that the peer and ze negotiated ADD-PATH for it the same way "+
+		"(show bgp peer <peer> capabilities), and if they did, report the error and the raw bytes as a ze defect",
+		"peer", peer, "family", family, "action", action, "error", reason,
+		"raw-octets", rawOctets, "raw", raw)
+	return true
+}
+
+// undecodedNLRIError answers the reason and the raw hex of an nlri list element
+// written in the error convention, and false for an element that names a route.
+func undecodedNLRIError(element any) (reason, raw string, failed bool) {
+	object, ok := element.(map[string]any)
+	if !ok {
+		return "", "", false
+	}
+	reason, failed = object["error"].(string)
+	if !failed {
+		return "", "", false
+	}
+	raw, _ = object["raw"].(string)
+	return reason, raw, true
 }
 
 // unsplitRawHexMax bounds the hex of an unreadable NLRI field in the bridge's
@@ -1239,4 +1292,24 @@ func (e Event) APIKey() string {
 
 	var tb textbuf.Buffer
 	return tb.Str(e.Direction).Byte('-').Str(e.Kind).String()
+}
+
+// exabgpPeerASAuto is the `asn.peer` ExaBGP writes for a neighbor whose AS it
+// does not know. A neighbor configured `peer-as auto` keeps
+// SessionSettings.peer_as at its default, ASN(0) with the comment "0 = auto"
+// (src/exabgp/bgp/neighbor/session.py), and _neighbor
+// (src/exabgp/reactor/api/response/json.py) writes that value on every line.
+// An ExaBGP consumer therefore already reads 0 there as "not known", never as
+// a peer of AS 0, which RFC 7607 Section 2 forbids a router to claim.
+const exabgpPeerASAuto = 0
+
+// exabgpPeerASN is the `asn.peer` value of the ExaBGP line: the remote AS ze
+// named, or exabgpPeerASAuto while a dynamic peer's AS is not negotiated. ze
+// names the AS once it is known, where ExaBGP keeps 0 for the session's life.
+func (e *Event) exabgpPeerASN() any {
+	if e.PeerASN != nil {
+		return e.PeerASN
+	}
+	// refuse-by-default: guards exabgpPeerASAuto -- 0 is ExaBGP's "peer-as auto", the value its scripts already read as "AS not known", not a defaulted AS
+	return exabgpPeerASAuto
 }

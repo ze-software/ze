@@ -1509,7 +1509,7 @@ A boolean leaf takes these four words and nothing else. The parser normalizes
 `require` and `refuse` are capability modes, an enumeration of their own
 (`capability-mode` above), and a boolean leaf given either is refused with
 `invalid bool`.
-<!-- source: internal/component/config/schema.go -- ValidateValue, NormalizeBool -->
+<!-- source: internal/component/config/schema.go -- ValidateValue, normalizeEnableBool -->
 
 ### Origin
 

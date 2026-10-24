@@ -5,6 +5,7 @@ package mrt
 import (
 	"log/slog"
 	"net/netip"
+	"reflect"
 	"sync"
 	"time"
 
@@ -171,7 +172,13 @@ func (c *Component) onBGPMessageAny(peer any, msgType uint8, sent bool, rawBytes
 // onPeerEstablished records a BGP4MP_STATE_CHANGE_AS4 (Idle -> Established).
 func (c *Component) onPeerEstablished(peer any) {
 	pi, ok := peer.(*plugin.PeerInfo)
-	if !ok || pi == nil {
+	if !ok {
+		c.logger.Warn("mrt: BGP state change not recorded: the peer arrived as an unexpected type",
+			"event", "established", "type", reflect.TypeOf(peer))
+		return
+	}
+	if pi == nil {
+		c.logger.Warn("mrt: BGP state change not recorded: the peer is nil", "event", "established")
 		return
 	}
 	c.writeStateChange(pi, mrtfmt.FSMIdle, mrtfmt.FSMEstablished)
@@ -180,7 +187,13 @@ func (c *Component) onPeerEstablished(peer any) {
 // onPeerClosed records a BGP4MP_STATE_CHANGE_AS4 (Established -> Idle).
 func (c *Component) onPeerClosed(peer any) {
 	pi, ok := peer.(*plugin.PeerInfo)
-	if !ok || pi == nil {
+	if !ok {
+		c.logger.Warn("mrt: BGP state change not recorded: the peer arrived as an unexpected type",
+			"event", "closed", "type", reflect.TypeOf(peer))
+		return
+	}
+	if pi == nil {
+		c.logger.Warn("mrt: BGP state change not recorded: the peer is nil", "event", "closed")
 		return
 	}
 	c.writeStateChange(pi, mrtfmt.FSMEstablished, mrtfmt.FSMIdle)

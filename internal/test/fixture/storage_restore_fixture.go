@@ -442,7 +442,7 @@ func storageRestoreResumeScenario(ctx context.Context) error {
 // config becomes the device's new active version, and credentials and every
 // other key of the tree stay byte-unchanged.
 func storageRestoreConfigScenario(ctx context.Context) error {
-	device := resolve.DefaultConfig(nil)
+	device := resolve.DefaultConfigName
 	if err := storageWriteTree(".", map[string][]byte{
 		"file/active/" + device:    []byte("old config\n"),
 		storageKeyPassword:         []byte("device secret"),

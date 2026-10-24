@@ -705,11 +705,14 @@ func (b *vppBackendImpl) SetAdminDown(ifaceName string) error {
 // SetMTU lives in mtu.go.
 
 func (b *vppBackendImpl) GetStats(name string) (*iface.InterfaceStats, error) {
-	statsMap := readVPPIfaceStats()
+	statsMap, err := readVPPIfaceStats()
+	if err != nil {
+		return nil, err
+	}
 	if s, ok := statsMap[name]; ok {
 		return s, nil
 	}
-	return nil, fmt.Errorf("ifacevpp: no stats for interface %q", name)
+	return nil, fmt.Errorf("ifacevpp: the stats segment holds no counters for interface %q", name)
 }
 
 // ResetCounters on VPP is wired to sw_interface_clear_stats. When name is

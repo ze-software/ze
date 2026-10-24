@@ -14,7 +14,8 @@ import (
 // PREVENTS: Missing nodes or edges in simple case.
 func TestRenderText_SinglePath(t *testing.T) {
 	g := BuildGraphFromPaths([][]uint32{{100, 200, 300}})
-	result := RenderText(g)
+	result, err := RenderText(g)
+	require.NoError(t, err)
 
 	require.NotEmpty(t, result)
 
@@ -37,7 +38,8 @@ func TestRenderText_SinglePath(t *testing.T) {
 func TestRenderText_Diamond(t *testing.T) {
 	// AS100->AS200->AS300 and AS100->AS300
 	g := BuildGraphFromPaths([][]uint32{{100, 200, 300}, {100, 300}})
-	result := RenderText(g)
+	result, err := RenderText(g)
+	require.NoError(t, err)
 
 	require.NotEmpty(t, result)
 
@@ -57,7 +59,8 @@ func TestRenderText_Diamond(t *testing.T) {
 // PREVENTS: Crash or garbage output on empty input.
 func TestRenderText_Empty(t *testing.T) {
 	g := BuildGraphFromPaths([][]uint32{})
-	result := RenderText(g)
+	result, err := RenderText(g)
+	require.NoError(t, err)
 
 	// Should be empty
 	assert.Empty(t, result, "empty graph should produce empty output")
@@ -76,11 +79,12 @@ func TestRenderText_MaxNodes(t *testing.T) {
 	g := BuildGraphFromPaths(paths)
 	assert.Greater(t, len(g.Nodes), MaxNodes)
 
-	result := RenderText(g)
-	require.NotEmpty(t, result)
+	result, err := RenderText(g)
+	assert.Empty(t, result, "an oversized graph is refused, not drawn")
 
-	// Should indicate the graph is too large
-	assert.Contains(t, result, "too many", "should indicate graph is too large")
+	// Refused with an error naming the count and the limit.
+	require.ErrorIs(t, err, ErrTooManyNodes)
+	assert.Contains(t, err.Error(), "limit 100")
 }
 
 // TestRenderText_SingleNode verifies rendering of a graph with one ASN.
@@ -89,7 +93,8 @@ func TestRenderText_MaxNodes(t *testing.T) {
 // PREVENTS: Index out of range on single-node graph.
 func TestRenderText_SingleNode(t *testing.T) {
 	g := BuildGraphFromPaths([][]uint32{{100}})
-	result := RenderText(g)
+	result, err := RenderText(g)
+	require.NoError(t, err)
 
 	require.NotEmpty(t, result)
 	assert.Contains(t, result, "AS100")
@@ -102,7 +107,8 @@ func TestRenderText_SingleNode(t *testing.T) {
 // PREVENTS: AS prepending creating duplicate nodes.
 func TestRenderText_ASPrepending(t *testing.T) {
 	g := BuildGraphFromPaths([][]uint32{{100, 100, 200}})
-	result := RenderText(g)
+	result, err := RenderText(g)
+	require.NoError(t, err)
 
 	require.NotEmpty(t, result)
 	// AS100 should appear exactly once as a label
@@ -116,7 +122,8 @@ func TestRenderText_ASPrepending(t *testing.T) {
 // PREVENTS: Missing nodes when multiple source ASes exist.
 func TestRenderText_TwoSourcesOneOrigin(t *testing.T) {
 	g := BuildGraphFromPaths([][]uint32{{100, 300}, {200, 300}})
-	result := RenderText(g)
+	result, err := RenderText(g)
+	require.NoError(t, err)
 
 	require.NotEmpty(t, result)
 	assert.Contains(t, result, "AS100")
@@ -137,8 +144,7 @@ func TestRenderText_ExactMaxNodes(t *testing.T) {
 	g := BuildGraphFromPaths(paths)
 	assert.LessOrEqual(t, len(g.Nodes), MaxNodes)
 
-	result := RenderText(g)
-	require.NotEmpty(t, result)
-	// Should NOT contain the "too many" message
-	assert.NotContains(t, result, "too many")
+	result, err := RenderText(g)
+	require.NoError(t, err)
+	require.NotEmpty(t, result, "a graph at the limit is drawn, not refused")
 }

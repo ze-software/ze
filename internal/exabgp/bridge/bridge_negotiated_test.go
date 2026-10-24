@@ -59,11 +59,11 @@ func TestSessionsKeepTheBlockFromNegotiatedToDown(t *testing.T) {
 	if !reflect.DeepEqual(ours.Negotiated, want) {
 		t.Errorf("the peer's UPDATE block:\n got %v\nwant %v", ours.Negotiated, want)
 	}
-	line, _ := ours.ExabgpJSON(FormatV4JSON)["neighbor"].(map[string]any)
+	line, _ := ours.exabgpJSON(FormatV4JSON)["neighbor"].(map[string]any)
 	if !reflect.DeepEqual(line["negotiated"], want) {
 		t.Errorf("the JSON line does not carry the block: %v", line)
 	}
-	bare, _ := ours.ForGrant(false).ExabgpJSON(FormatV4JSON)["neighbor"].(map[string]any)
+	bare, _ := ours.ForGrant(false).exabgpJSON(FormatV4JSON)["neighbor"].(map[string]any)
 	if _, has := bare["negotiated"]; has {
 		t.Errorf("ForGrant(false) still carries the block: %v", bare)
 	}

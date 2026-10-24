@@ -864,3 +864,30 @@ func TestIfaceApplyUpdatesQoSMapOfExistingVLAN(t *testing.T) {
 		})
 	}
 }
+
+// TestInterfaceExistsReadErrorIsNotAbsence proves interfaceExists tells a
+// device the backend does not hold from a link read that did not answer.
+// Method: one name the fake holds, one it does not, and one whose GetLink
+// fails with an ENOBUFS-shaped error. Only the absent name answers false with
+// no error; the failed read answers an error that names the device and the
+// command, never "absent", which made the apply create a present device again.
+func TestInterfaceExistsReadErrorIsNotAbsence(t *testing.T) {
+	errRead := errors.New("netlink: no buffer space available")
+	b := &fakeBackend{
+		ifaces:     map[string]fakeIface{"held0": {name: "held0", linkType: "dummy"}},
+		getLinkErr: map[string]error{"unread0": errRead},
+	}
+
+	exists, err := interfaceExists(b, "held0")
+	require.NoError(t, err)
+	require.True(t, exists)
+
+	exists, err = interfaceExists(b, "absent0")
+	require.NoError(t, err, "a device the backend does not hold is absence, not a failure")
+	require.False(t, exists)
+
+	_, err = interfaceExists(b, "unread0")
+	require.ErrorIs(t, err, errRead, "a failed link read MUST NOT read as absent")
+	require.ErrorContains(t, err, `"unread0"`)
+	require.ErrorContains(t, err, "ze show interface unread0")
+}

@@ -57,8 +57,8 @@ type AddrPayload struct {
 	Managed      bool   `json:"managed"`
 }
 
-// LinkPayload is the JSON payload for link events (created, deleted).
-type LinkPayload struct {
+// linkPayload is the JSON payload for link events (created, deleted).
+type linkPayload struct {
 	Name    string `json:"name"`
 	Type    string `json:"type"`
 	Index   int    `json:"index"`
@@ -66,8 +66,8 @@ type LinkPayload struct {
 	Managed bool   `json:"managed"`
 }
 
-// StatePayload is the JSON payload for state events (up, down).
-type StatePayload struct {
+// statePayload is the JSON payload for state events (up, down).
+type statePayload struct {
 	Name  string `json:"name"`
 	Index int    `json:"index"`
 }
@@ -153,13 +153,23 @@ type InterfaceInfo struct {
 	Addresses []AddrInfo `json:"addresses,omitempty"`
 	// AddressesRead is true when the backend read the device's addresses into
 	// Addresses, so an empty Addresses means the device holds none. It is
-	// false from a backend that does not report addresses (VPP), and on
-	// every GetLink answer from any backend, since GetLink never reads
-	// addresses. Where it is false an empty Addresses means nothing:
+	// false on every GetLink answer from any backend, since GetLink never
+	// reads addresses, and from a backend that cannot read them. Where it is false an empty Addresses means nothing:
 	// ReadAddressState refuses such a read with ErrAddressesNotReported
 	// rather than report every address gone.
-	AddressesRead bool            `json:"-"`
-	Stats         *InterfaceStats `json:"stats,omitempty"`
+	AddressesRead bool `json:"-"`
+	// DADReported is true when the backend reports each IPv6 address's
+	// Duplicate Address Detection outcome in AddrInfo.Tentative and
+	// AddrInfo.DADFailed, so an address carrying neither flag completed DAD
+	// and was found unique. It is false from a backend that reads addresses
+	// but no DAD outcome (VPP) and wherever AddressesRead is false: there a
+	// flagless address says nothing about DAD, and a reader MUST NOT take it
+	// as unique.
+	DADReported bool `json:"-"`
+	// Stats is nil when the counters were not read (a backend with no stats
+	// source, or a read that failed). A reader MUST NOT take nil as zero
+	// counters; Backend.GetStats answers why the read failed.
+	Stats *InterfaceStats `json:"stats,omitempty"`
 	// CounterGeneration is an opaque raw-counter continuity token. Zero means
 	// the backend does not report continuity. Linux changes it on netdevice
 	// replacement, a raw counter decrease, or loss of link notification history.
@@ -213,7 +223,8 @@ type AddrInfo struct {
 	// DADFailed is true when Duplicate Address Detection found the IPv6
 	// address in use by another node on the link (kernel IFA_F_DADFAILED).
 	// The DHCPv6 client declines such a lease (RFC 9915 Section 18.2.10.1).
-	// A backend that runs no DAD leaves it false. Always false for IPv4.
+	// A backend that reports no DAD outcome leaves it false and says so in
+	// InterfaceInfo.DADReported. Always false for IPv4.
 	// Omitted from JSON when false.
 	DADFailed bool `json:"dad-failed,omitempty"`
 	// Origin classifies how the kernel assigned the address, so status/CLI can

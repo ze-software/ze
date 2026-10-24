@@ -224,7 +224,7 @@ func TestNLRIEncodingWithAddPath(t *testing.T) {
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
 	pathID := uint32(42)
 
-	n := nlri.NewINET(family.IPv4Unicast, prefix, pathID)
+	n := nlri.NewINET(family.IPv4Unicast, prefix, pathID, true)
 
 	// Context with AddPath=true
 	addPath := true
@@ -257,7 +257,7 @@ func TestNLRIEncodingWithoutAddPath(t *testing.T) {
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
 	pathID := uint32(42) // Even though set, should not appear in wire format
 
-	n := nlri.NewINET(family.IPv4Unicast, prefix, pathID)
+	n := nlri.NewINET(family.IPv4Unicast, prefix, pathID, true)
 
 	// Context with AddPath=false
 	addPath := false
@@ -287,7 +287,7 @@ func TestNLRIEncodingContextIntegration(t *testing.T) {
 	pathID := uint32(1)
 	fam := family.IPv4Unicast
 
-	n := nlri.NewINET(fam, prefix, pathID)
+	n := nlri.NewINET(fam, prefix, pathID, true)
 
 	// Context with AddPath=true
 	ctxAddPath := bgpctx.EncodingContextWithAddPath(true, map[bgpctx.Family]bool{{AFI: 1, SAFI: 1}: true})
@@ -367,7 +367,7 @@ func TestAddPathEncodingPermutations(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			n := nlri.NewINET(family.IPv4Unicast, prefix, tt.pathID)
+			n := nlri.NewINET(family.IPv4Unicast, prefix, tt.pathID, true)
 
 			packed := func() []byte {
 				b := make([]byte, nlri.LenWithContext(n, tt.addPath))
@@ -442,7 +442,7 @@ func TestAddPathEncodingPrefixLengths(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			prefix := netip.MustParsePrefix(tt.prefix)
-			n := nlri.NewINET(family.IPv4Unicast, prefix, tt.pathID)
+			n := nlri.NewINET(family.IPv4Unicast, prefix, tt.pathID, true)
 			addPath := true // All tests in this function use ADD-PATH
 			packed := func() []byte {
 				b := make([]byte, nlri.LenWithContext(n, addPath))
@@ -501,7 +501,7 @@ func TestAddPathEncodingIPv6(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			prefix := netip.MustParsePrefix(tt.prefix)
-			n := nlri.NewINET(family.IPv6Unicast, prefix, tt.pathID)
+			n := nlri.NewINET(family.IPv6Unicast, prefix, tt.pathID, true)
 
 			packed := func() []byte {
 				b := make([]byte, nlri.LenWithContext(n, tt.addPath))

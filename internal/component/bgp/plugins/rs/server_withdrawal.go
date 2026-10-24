@@ -81,8 +81,9 @@ func (rs *routeServer) processForward(key workerKey, item workItem) {
 	// netip.PrefixFrom (zero string allocation per prefix). String keys are
 	// deferred to the withdrawal map update after forwarding.
 	var wireRecords *nlriRecords
+	var recordsErr error
 	if item.msg != nil {
-		wireRecords = extractWireNLRIRecords(item.msg)
+		wireRecords, recordsErr = extractWireNLRIRecords(item.msg)
 	}
 
 	// Reactor fast path: when ReactorForwarded is set, the reactor already
@@ -102,6 +103,14 @@ func (rs *routeServer) processForward(key workerKey, item workItem) {
 
 	// Update withdrawal map AFTER forwarding using pre-extracted data.
 	// String keys are produced here, off the forward critical path.
+	// A wire UPDATE whose records could not be read has no text to fall back
+	// on: the inventory misses its routes, so the refusal is logged with the
+	// message it lost, and the text path is never run over an empty payload.
+	if recordsErr != nil {
+		logger().Error("route server inventory not updated: NLRI records not extracted",
+			"error", recordsErr, "source-peer", item.sourcePeer, "message-id", item.msgID)
+		return
+	}
 	rs.withdrawalMu.Lock()
 	if wireRecords != nil {
 		rs.applyNLRIRecords(item.sourcePeer, wireRecords.records)

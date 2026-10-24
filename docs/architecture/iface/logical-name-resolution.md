@@ -276,6 +276,14 @@ the address read, which a second call provides, because a link event can reach a
 subscriber after the kernel has already acted on the change: the DHCPv6 client
 tells an address deleted by a failed DAD from one deleted with a device set down
 this way. A failed address read is an error, never an empty list, and a backend
-that does not read addresses (VPP) answers `iface.ErrAddressesNotReported`.
+that does not read addresses answers `iface.ErrAddressesNotReported`.
+
+The DAD outcome is a separate fact. `AddressState.DADReported` (from
+`InterfaceInfo.DADReported`) is true only when the backend reports each IPv6
+address's DAD state in `Tentative` and `DADFailed`. The kernel backend does,
+from `IFA_F_TENTATIVE` and `IFA_F_DADFAILED`. The VPP backend reads the
+addresses with one `ip_address_dump` per family, and that reply carries no DAD
+state, so it answers `DADReported` false. There, an address with neither flag
+says nothing about DAD, and no consumer may read it as unique.
 <!-- source: internal/plugins/iface/netlink/show_linux.go -- GetInterface, addrList -->
-<!-- source: internal/plugins/iface/vpp/query.go -- GetInterface -->
+<!-- source: internal/plugins/iface/vpp/query.go -- GetInterface, GetLink, fillAddresses, addrInfoOf -->

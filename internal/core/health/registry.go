@@ -40,9 +40,16 @@ type Report struct {
 	CheckedAt  string            `json:"checked-at"`
 }
 
+// AppliesFunc reports whether a check has anything to measure right now. A
+// check that does not apply produces no row: a component nobody configured has
+// no health, and a literal healthy for it would be an answer nobody measured.
+// Same concurrency and time bounds as CheckFunc.
+type AppliesFunc func() bool
+
 type registration struct {
-	name  string
-	check CheckFunc
+	name    string
+	applies AppliesFunc // nil: the check always applies
+	check   CheckFunc
 }
 
 // Registry holds named health check functions. Safe for concurrent use.
@@ -61,6 +68,14 @@ func (r *Registry) Register(name string, check CheckFunc) {
 	r.mu.Unlock()
 }
 
+// RegisterWhen adds a named health check that runs only while applies answers
+// true. While it answers false, the report carries no row for the name.
+func (r *Registry) RegisterWhen(name string, applies AppliesFunc, check CheckFunc) {
+	r.mu.Lock()
+	r.checks = append(r.checks, registration{name: name, applies: applies, check: check})
+	r.mu.Unlock()
+}
+
 // Check runs all registered health checks and returns an aggregated report.
 func (r *Registry) Check() Report {
 	r.mu.RLock()
@@ -73,7 +88,10 @@ func (r *Registry) Check() Report {
 	overall := StatusHealthy
 
 	for _, reg := range checks {
-		status, reason := invokeCheck(reg)
+		status, reason, applies := invokeCheck(reg)
+		if !applies {
+			continue
+		}
 		components = append(components, ComponentHealth{
 			Name:      reg.name,
 			Status:    status,
@@ -113,19 +131,34 @@ func (r *Registry) Handler() http.Handler {
 	})
 }
 
-func invokeCheck(reg registration) (status Status, reason string) {
+// invokeCheck runs one registration. applies is false only when the
+// registration's gate answered false; a gate or check that panics is a row
+// reporting down.
+func invokeCheck(reg registration) (status Status, reason string, applies bool) {
 	defer func() {
 		if r := recover(); r != nil {
 			status = StatusDown
 			reason = fmt.Sprintf("check panicked: %v", r)
+			applies = true
 		}
 	}()
-	return reg.check()
+	if reg.applies != nil {
+		if !reg.applies() {
+			return "", "", false
+		}
+	}
+	status, reason = reg.check()
+	return status, reason, true
 }
 
 // Register adds a health check to the default registry.
 func Register(name string, check CheckFunc) {
 	DefaultRegistry.Register(name, check)
+}
+
+// RegisterWhen adds a gated health check to the default registry.
+func RegisterWhen(name string, applies AppliesFunc, check CheckFunc) {
+	DefaultRegistry.RegisterWhen(name, applies, check)
 }
 
 // Check runs all checks on the default registry.

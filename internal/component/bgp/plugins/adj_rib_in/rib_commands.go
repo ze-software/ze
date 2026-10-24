@@ -232,7 +232,9 @@ func (r *AdjRIBInManager) show(selectorStr string) any {
 		routeList := make([]map[string]any, 0, routes.Len())
 		routes.Range(func(key compactRouteKey, seq uint64, rt *RawRoute) bool {
 			keyStr := key.Fam.String() + ":" + key.routeName()
-			if key.PathID > 0 {
+			// RFC 7911 Section 3 reserves no identifier value, so the key shows
+			// the identifier whenever the route carries one, zero included.
+			if rt.HasPathID {
 				keyStr += ":" + textbuf.StringUint32(key.PathID)
 			}
 			routeMap := map[string]any{

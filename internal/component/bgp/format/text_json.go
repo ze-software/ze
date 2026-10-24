@@ -5,6 +5,7 @@ package format
 
 import (
 	"encoding/hex"
+	"fmt"
 	"net/netip"
 	"slices"
 	"strconv"
@@ -264,7 +265,7 @@ func appendNLRIJSONValue(buf []byte, n nlri.NLRI, fam family.Family, withdraw bo
 	// the identifier has no absent value, so a zero one is real. Ask the NLRI,
 	// which holds the layout it was parsed with; a carrier that stays silent
 	// carries none.
-	addPath := nlriHasAddPath(n)
+	addPath := nlri.HasPathID(n)
 
 	// Fallback: external plugins over RPC. Wire-encode, hex, dispatch via registry.
 	// Registry APIs are string-keyed; stringify the typed family once at this boundary.
@@ -280,14 +281,26 @@ func appendNLRIJSONValue(buf []byte, n nlri.NLRI, fam family.Family, withdraw bo
 		hexData := hex.EncodeToString(n.Bytes())
 
 		decoded, err := registry.DecodeNLRIByFamily(familyStr, hexData, addPath, withdraw)
-		if err == nil {
-			return append(buf, decoded...)
+		if err != nil {
+			// The family's decoder owns what a route of the family is, so a
+			// refusal is the answer: the element says so, and never names a
+			// route the decoder could not read.
+			return appendUndecodedNLRIJSON(buf, n, err)
+		}
+		return append(buf, decoded...)
+	}
+
+	// An opaque carrier no plugin decodes names no route: its String is a size
+	// summary, never a prefix, so it is written as undecoded.
+	if w, ok := n.(*nlri.WireNLRI); ok {
+		if _, named := w.RoutePrefix(); !named {
+			return appendUndecodedNLRIJSON(buf, n, errNoNLRIDecoder(familyStr))
 		}
 	}
 
 	// A simple prefix the session carried without ADD-PATH is one string. This
 	// is the common case, and it stays allocation-free.
-	if !addPath && n.PathID() == 0 {
+	if !addPath {
 		if p, ok := n.(prefixer); ok {
 			buf = append(buf, '"')
 			buf = p.Prefix().AppendTo(buf)
@@ -296,20 +309,33 @@ func appendNLRIJSONValue(buf []byte, n nlri.NLRI, fam family.Family, withdraw bo
 		}
 	}
 
-	// Complex NLRI (ADD-PATH, a path identifier, or not a simple prefix): output
+	// Complex NLRI (a carried path identifier, or not a simple prefix): output
 	// as an object.
 	return appendNLRIJSON(buf, n)
 }
 
-// nlriHasAddPath reports whether this NLRI's wire bytes carried an RFC 7911 Path
-// Identifier. An NLRI type that does not implement nlri.AddPathAware cannot have
-// been parsed under ADD-PATH, so it answers false.
-func nlriHasAddPath(n nlri.NLRI) bool {
-	a, ok := n.(nlri.AddPathAware)
-	if !ok {
-		return false
+// appendUndecodedNLRIJSON writes one NLRI no decoder could read as a route, in
+// the event format's error convention ({"error":...,"parsed":false,"raw":...})
+// so a consumer finds no prefix to install. raw holds the NLRI's octets as
+// received, a carried Path Identifier included, and the identifier is also
+// written as path-id when the NLRI carries one.
+func appendUndecodedNLRIJSON(buf []byte, n nlri.NLRI, reason error) []byte {
+	buf = append(buf, '{')
+	buf = appendNLRISplitErrorJSON(buf, reason, n.Bytes())
+	// RFC 7911 Section 3: "In order to carry the Path Identifier in an UPDATE
+	// message, the NLRI encoding MUST be extended by prepending the Path
+	// Identifier field, which is of four octets."
+	if nlri.HasPathID(n) {
+		buf = append(buf, `,"path-id":`...)
+		buf = strconv.AppendUint(buf, uint64(n.PathID()), 10)
 	}
-	return a.HasAddPath()
+	return append(buf, '}')
+}
+
+// errNoNLRIDecoder names the family of an opaque NLRI no loaded plugin decodes,
+// and the step that fixes it.
+func errNoNLRIDecoder(familyName string) error {
+	return fmt.Errorf("no loaded plugin decodes family %s; load the NLRI plugin for it", familyName)
 }
 
 // prefixer is implemented by NLRI types that have a Prefix() method.
@@ -337,14 +363,12 @@ func appendNLRIJSON(buf []byte, n nlri.NLRI) []byte {
 	// message, the NLRI encoding MUST be extended by prepending the Path
 	// Identifier field, which is of four octets."
 	//
-	// The section reserves no value, so an identifier of zero is an identifier
-	// and the member is written for it. A non-zero identifier is written too:
-	// an NLRI built in process holds one without having been parsed under
-	// ADD-PATH, and dropping it would lose the route's identity.
-	pathID := n.PathID()
-	if nlriHasAddPath(n) || pathID != 0 {
+	// The section reserves no value, so presence is the NLRI's own record of
+	// the negotiation (nlri.HasPathID), never the value: an identifier of zero
+	// is written, and a value the NLRI does not carry is not.
+	if nlri.HasPathID(n) {
 		buf = append(buf, `,"path-id":`...)
-		buf = strconv.AppendUint(buf, uint64(pathID), 10)
+		buf = strconv.AppendUint(buf, uint64(n.PathID()), 10)
 	}
 
 	buf = append(buf, '}')

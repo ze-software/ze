@@ -18,12 +18,9 @@ import (
 const ldpKeepaliveExpiryScenario = "ldp-keepalive-expiry-frr"
 
 const (
-	// ldpTransportAddress is ze's LDP transport address in the scenario. It is
-	// higher than FRR's, so ze is the active LSR, the only role ze plays.
-	ldpTransportAddress = "172.30.0.250"
-	ldpPort             = "646"
-	ldpLabTable         = "ldplab"
-	ldpLabChain         = "output"
+	ldpPort     = "646"
+	ldpLabTable = "ldplab"
+	ldpLabChain = "output"
 	// ldpLabChainSpec hooks the chain ahead of every other output filter.
 	ldpLabChainSpec = "{ type filter hook output priority -300; policy accept; }"
 	// ldpLabZeroWindow rewrites the receive window of every segment ze sends on
@@ -61,11 +58,15 @@ var frrShowLDPNeighbor = []string{cmdVtysh, "-c", "show mpls ldp neighbor"}
 // sides use the smaller proposal. Hellos are UDP and untouched, so the adjacency
 // stays and the close is the timer's, not the adjacency expiry's.
 func checkLDPKeepaliveExpiry(ctx context.Context, check *interoplab.CheckContext) (resultErr error) {
-	address := []string{"ip", "address", "add", ldpTransportAddress + "/32", "dev", "eth0"}
-	if _, err := check.Lab.Exec(ctx, "ze", address, nil); err != nil {
+	if !check.Network.IPv4.IsValid() {
+		return errors.New("the LDP KeepAlive expiry scenario has no selected IPv4 network")
+	}
+	frrAddress := networkHostAddress(check.Network, 3)
+	zeAddress := networkHostAddress(check.Network, 2)
+	if _, err := check.Lab.Exec(ctx, "ze", ldpTransportAddressAdd(check.Network), nil); err != nil {
 		return fmt.Errorf("add ze's LDP transport address: %w", err)
 	}
-	if err := waitContains(ctx, check.Lab, peerFRR, frrShowLDPNeighbor, 120*time.Second, zeLabAddress, ldpStateOperational); err != nil {
+	if err := waitContains(ctx, check.Lab, peerFRR, frrShowLDPNeighbor, 120*time.Second, zeAddress, ldpStateOperational); err != nil {
 		return fmt.Errorf("LDP session with ze never became operational: %w", err)
 	}
 
@@ -85,7 +86,7 @@ func checkLDPKeepaliveExpiry(ctx context.Context, check *interoplab.CheckContext
 	for _, argv := range [][]string{
 		{cmdNft, nftActionAdd, nftObjectTable, nftFamilyInet, ldpLabTable},
 		{cmdNft, nftActionAdd, nftObjectChain, nftFamilyInet, ldpLabTable, ldpLabChain, ldpLabChainSpec},
-		{cmdNft, nftActionAdd, nftObjectRule, nftFamilyInet, ldpLabTable, ldpLabChain, "ip", "daddr", frrLabAddress, ldpLabZeroWindow},
+		{cmdNft, nftActionAdd, nftObjectRule, nftFamilyInet, ldpLabTable, ldpLabChain, "ip", "daddr", frrAddress, ldpLabZeroWindow},
 	} {
 		if _, err := check.Lab.Exec(ctx, "ze", argv, nil); err != nil {
 			return fmt.Errorf("close ze's LDP receive window: %w", err)

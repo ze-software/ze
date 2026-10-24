@@ -420,7 +420,7 @@ func (t *Transport) rxLoop(c *circuit) {
 			}
 			t.metrics.framesReceived.With(c.name).Inc()
 			// Surface an inferred neighbor MTU for comparison (sec 8.2.3).
-			t.ObserveNeighborFrame(c.name, FrameHeaderLen+len(rf.PDU))
+			t.observeNeighborFrame(c.name, FrameHeaderLen+len(rf.PDU))
 			select {
 			case t.deliver <- rf:
 			case <-c.stop:
@@ -538,13 +538,13 @@ func (t *Transport) CircuitInfo(name string) (ifindex int, hwaddr [MACLen]byte, 
 	return c.handle.IfIndex(), c.handle.HWAddr(), c.handle.MTU(), true
 }
 
-// ObserveNeighborFrame records the size of a received (padded-Hello) frame and,
+// observeNeighborFrame records the size of a received (padded-Hello) frame and,
 // if the inferred neighbor MTU differs from the local interface MTU, invokes the
 // MTU-mismatch callback. ISO/IEC 10589 sec 8.2.3: a router that receives a
 // padded Hello can infer the sender's MTU from the frame size and detect a
 // mismatch. The transport only surfaces the mismatch; the engine acts on it.
-func (t *Transport) ObserveNeighborFrame(name string, frameSize int) {
-	neighborMTU := InferNeighborMTU(frameSize)
+func (t *Transport) observeNeighborFrame(name string, frameSize int) {
+	neighborMTU := inferNeighborMTU(frameSize)
 	if neighborMTU <= 0 {
 		return
 	}
@@ -561,13 +561,13 @@ func (t *Transport) ObserveNeighborFrame(name string, frameSize int) {
 	}
 }
 
-// InferNeighborMTU maps a received frame size to the neighbor's inferred MTU.
+// inferNeighborMTU maps a received frame size to the neighbor's inferred MTU.
 // The 802.3 frame is FrameHeaderLen (dst+src+length+LLC) plus the PDU; the
 // neighbor MTU is the LLC+PDU payload it padded to fill the link, i.e. the frame
 // size minus the Ethernet addressing/length overhead (dst+src+length). Returns a
 // non-positive value for a frame shorter than the header (caller: treat as
 // unknown). ISO/IEC 10589 sec 8.2.3.
-func InferNeighborMTU(frameSize int) int {
+func inferNeighborMTU(frameSize int) int {
 	// A valid frame carries at least the full header (dst+src+length+LLC); a
 	// shorter capture cannot imply a meaningful MTU.
 	if frameSize < FrameHeaderLen {
@@ -601,4 +601,12 @@ func (t *Transport) Close() {
 		}
 	}
 	t.wg.Wait()
+}
+
+// CountDrop records a received frame the engine discarded after the transport
+// delivered it, in ze_isis_frames_dropped_total{interface,reason}. reason is a
+// stable token from a closed set the caller owns (an adjacency RejectReason).
+// Safe for concurrent use once SetMetrics has run.
+func (t *Transport) CountDrop(name, reason string) {
+	t.metrics.framesDropped.With(name, reason).Inc()
 }

@@ -5,6 +5,7 @@ import (
 	"os"
 
 	ribyang "github.com/ze-software/ze/internal/component/bgp/plugins/rib/yang"
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
@@ -19,6 +20,10 @@ func init() {
 	// seam. MRT reads it from there, so neither plugin imports the other and
 	// the always-on hub no longer names a BGP package (spec-feature-gate-10).
 	registry.SetRIBDumpCallback(RIBDumpBridge)
+
+	// `show bgp rib ... graph` answers the AS topology as data; its text
+	// rendering is the box diagram, drawn wherever the pipe chain runs.
+	command.MustRegisterTextRenderer(graphAnswerKey, renderGraphText)
 
 	_ = events.RegisterNamespace(ribevents.Namespace,
 		ribevents.EventCache, ribevents.EventRoute, ribevents.EventBestChange, ribevents.EventReplayRequest,

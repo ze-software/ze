@@ -1,7 +1,7 @@
 // Design: capture_raw.go -- the three action words each select a handler
 //
 // Goal: prove the actions `show capture raw` offers an operator are the actions
-// HandleCaptureRaw dispatches on, so a word cannot exist on one side alone.
+// handleCaptureRaw dispatches on, so a word cannot exist on one side alone.
 // Method: read the enumeration at show/capture/raw/action out of the loaded
 // model with configyang.EnumValues, which fails on a leaf that declares no
 // enumeration, then drive the handler with each word and read the action it
@@ -41,7 +41,7 @@ func TestCaptureRawActionsMatchTheModel(t *testing.T) {
 	}
 
 	for _, action := range model {
-		resp, err := HandleCaptureRaw(nil, commandtest.Args(action))
+		resp, err := handleCaptureRaw(nil, commandtest.Args(action))
 		if err != nil {
 			t.Fatalf("action %q: %v", action, err)
 		}
@@ -58,7 +58,7 @@ func TestCaptureRawActionsMatchTheModel(t *testing.T) {
 		}
 	}
 
-	resp, err := HandleCaptureRaw(nil, commandtest.Args("pause"))
+	resp, err := handleCaptureRaw(nil, commandtest.Args("pause"))
 	if err != nil {
 		t.Fatal(err)
 	}

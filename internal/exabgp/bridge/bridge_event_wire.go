@@ -1,5 +1,5 @@
 // Design: docs/architecture/exabgp-bridge.md -- the members ExaBGP reads off an UPDATE's own bytes
-// Related: bridge_event.go -- Event.ExabgpJSON, the one UPDATE renderer, which calls overlayWire
+// Related: bridge_event.go -- Event.exabgpJSON, the one UPDATE renderer, which calls overlayWire
 // Related: bridge_event_packets.go -- Packet, the bytes a `full` event carries
 
 package bridge

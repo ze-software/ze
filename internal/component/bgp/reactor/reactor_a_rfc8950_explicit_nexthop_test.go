@@ -98,7 +98,7 @@ func TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair(t *testing.T) {
 			}}
 			batch := bgptypes.NLRIBatch{
 				Family:  family.IPv4Unicast,
-				NLRIs:   []nlri.NLRI{nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("203.0.113.0/24"), 0)},
+				NLRIs:   []nlri.NLRI{nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("203.0.113.0/24"), 0, false)},
 				NextHop: bgptypes.NewNextHopExplicit(nextHop),
 			}
 			err = a.AnnounceNLRIBatch(t.Context(), selector.All(), batch, plugin.OperatorSender())
@@ -159,7 +159,7 @@ func TestRFC8950BatchRailIPv4UnicastIPv6NextHopUsesMPReach(t *testing.T) {
 	}}
 	batch := bgptypes.NLRIBatch{
 		Family:  family.IPv4Unicast,
-		NLRIs:   []nlri.NLRI{nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("203.0.113.0/24"), 0)},
+		NLRIs:   []nlri.NLRI{nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("203.0.113.0/24"), 0, false)},
 		NextHop: bgptypes.NewNextHopExplicit(nextHop),
 	}
 	require.NoError(t, a.AnnounceNLRIBatch(t.Context(), selector.All(), batch, plugin.OperatorSender()))

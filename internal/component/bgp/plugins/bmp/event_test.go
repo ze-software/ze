@@ -2,6 +2,7 @@ package bmp
 
 import (
 	"bytes"
+	"errors"
 	"net"
 	"testing"
 
@@ -16,11 +17,11 @@ func TestPeerHeaderFromEvent(t *testing.T) {
 	// VALIDATES: sender builds correct PeerHeader from structured event
 	se := &rpc.StructuredEvent{
 		PeerAddress: "10.0.0.1",
-		PeerAS:      65001,
+		PeerAS:      rpc.RemoteASOf(65001),
 		LocalAS:     65000,
 	}
 
-	ph := peerHeaderFromEvent(se)
+	ph := mustPeerHeader(t, se)
 	if ph.PeerAS != 65001 {
 		t.Errorf("PeerAS = %d, want 65001", ph.PeerAS)
 	}
@@ -42,10 +43,10 @@ func TestPeerHeaderFromEvent(t *testing.T) {
 func TestPeerHeaderFromEventIPv6(t *testing.T) {
 	se := &rpc.StructuredEvent{
 		PeerAddress: "2001:db8::1",
-		PeerAS:      65002,
+		PeerAS:      rpc.RemoteASOf(65002),
 	}
 
-	ph := peerHeaderFromEvent(se)
+	ph := mustPeerHeader(t, se)
 	if ph.Flags&PeerFlagV == 0 {
 		t.Error("IPv6 address should have V flag")
 	}
@@ -64,11 +65,11 @@ func TestPeerHeaderFromEventAdjRIBOut(t *testing.T) {
 	// VALIDATES: RFC 8671 -- sent direction sets O flag (Adj-RIB-Out) and L flag (post-policy)
 	se := &rpc.StructuredEvent{
 		PeerAddress: "10.0.0.1",
-		PeerAS:      65001,
+		PeerAS:      rpc.RemoteASOf(65001),
 		Direction:   rpc.DirectionSent,
 	}
 
-	ph := peerHeaderFromEvent(se)
+	ph := mustPeerHeader(t, se)
 	if ph.Flags&PeerFlagO == 0 {
 		t.Error("sent direction should set O flag (Adj-RIB-Out)")
 	}
@@ -87,11 +88,11 @@ func TestPeerHeaderFromEventAdjRIBIn(t *testing.T) {
 	// VALIDATES: received direction does NOT set O or L flags (pre-policy Adj-RIB-In)
 	se := &rpc.StructuredEvent{
 		PeerAddress: "10.0.0.1",
-		PeerAS:      65001,
+		PeerAS:      rpc.RemoteASOf(65001),
 		Direction:   rpc.DirectionReceived,
 	}
 
-	ph := peerHeaderFromEvent(se)
+	ph := mustPeerHeader(t, se)
 	if ph.Flags&PeerFlagO != 0 {
 		t.Error("received direction should NOT set O flag")
 	}
@@ -163,7 +164,7 @@ func TestHandleSenderStatePeerUp(t *testing.T) {
 
 	se := &rpc.StructuredEvent{
 		PeerAddress:  "10.0.0.1",
-		PeerAS:       65001,
+		PeerAS:       rpc.RemoteASOf(65001),
 		LocalAS:      65000,
 		LocalAddress: "10.0.0.100",
 		EventType:    rpc.EventKindState,
@@ -255,7 +256,7 @@ func TestBMPOpenCacheClearedOnPeerDown(t *testing.T) {
 
 	se := &rpc.StructuredEvent{
 		PeerAddress: "10.0.0.1",
-		PeerAS:      65001,
+		PeerAS:      rpc.RemoteASOf(65001),
 		EventType:   rpc.EventKindState,
 		State:       rpc.SessionStateDown,
 		Reason:      "notification",
@@ -293,7 +294,7 @@ func TestHandleSenderStatePeerDown(t *testing.T) {
 
 	se := &rpc.StructuredEvent{
 		PeerAddress: "10.0.0.1",
-		PeerAS:      65001,
+		PeerAS:      rpc.RemoteASOf(65001),
 		EventType:   rpc.EventKindState,
 		State:       rpc.SessionStateDown,
 		Reason:      "notification",
@@ -345,7 +346,7 @@ func TestHandleSenderStatePeerDownCarriesTheNotificationZeSent(t *testing.T) {
 
 	down := &rpc.StructuredEvent{
 		PeerAddress: "10.0.0.1",
-		PeerAS:      65001,
+		PeerAS:      rpc.RemoteASOf(65001),
 		EventType:   rpc.EventKindState,
 		State:       rpc.SessionStateDown,
 		Reason:      "notification",
@@ -457,7 +458,7 @@ func TestBMPRouteMirroringSend(t *testing.T) {
 
 			se := &rpc.StructuredEvent{
 				PeerAddress: "10.0.0.1",
-				PeerAS:      65001,
+				PeerAS:      rpc.RemoteASOf(65001),
 				EventType:   tc.kind,
 				Direction:   rpc.DirectionReceived,
 				RawMessage:  &bgptypes.RawMessage{Type: tc.msgType, RawBytes: tc.body},
@@ -518,7 +519,7 @@ func TestBMPRouteMirroringConfig(t *testing.T) {
 
 	se := &rpc.StructuredEvent{
 		PeerAddress: "10.0.0.1",
-		PeerAS:      65001,
+		PeerAS:      rpc.RemoteASOf(65001),
 		EventType:   rpc.EventKindNotification,
 		Direction:   rpc.DirectionReceived,
 		RawMessage:  &bgptypes.RawMessage{Type: msgtype.TypeNOTIFICATION, RawBytes: []byte{0x06, 0x04}},
@@ -531,7 +532,7 @@ func TestBMPRouteMirroringConfig(t *testing.T) {
 	// and confirming that's the first thing read.
 	updateSe := &rpc.StructuredEvent{
 		PeerAddress: "10.0.0.1",
-		PeerAS:      65001,
+		PeerAS:      rpc.RemoteASOf(65001),
 		EventType:   rpc.EventKindUpdate,
 		Direction:   rpc.DirectionReceived,
 		RawMessage:  &bgptypes.RawMessage{Type: msgtype.TypeUPDATE, RawBytes: []byte{0x00, 0x00, 0x00, 0x00, 0x00}},
@@ -571,7 +572,7 @@ func TestBMPRiboutDedupSameUpdate(t *testing.T) {
 
 	se := &rpc.StructuredEvent{
 		PeerAddress: "10.0.0.1",
-		PeerAS:      65001,
+		PeerAS:      rpc.RemoteASOf(65001),
 		EventType:   rpc.EventKindUpdate,
 		Direction:   rpc.DirectionReceived,
 		RawMessage:  &bgptypes.RawMessage{Type: msgtype.TypeUPDATE, RawBytes: updateBody},
@@ -596,7 +597,7 @@ func TestBMPRiboutDedupSameUpdate(t *testing.T) {
 	differentBody := []byte{0x00, 0x00, 0x00, 0x04, 0x40, 0x01, 0x01, 0x02, 0x18, 0x0A, 0x00, 0x02}
 	se2 := &rpc.StructuredEvent{
 		PeerAddress: "10.0.0.1",
-		PeerAS:      65001,
+		PeerAS:      rpc.RemoteASOf(65001),
 		EventType:   rpc.EventKindUpdate,
 		Direction:   rpc.DirectionReceived,
 		RawMessage:  &bgptypes.RawMessage{Type: msgtype.TypeUPDATE, RawBytes: differentBody},
@@ -633,14 +634,14 @@ func TestBMPRiboutDedupDifferentAttrs(t *testing.T) {
 
 	se1 := &rpc.StructuredEvent{
 		PeerAddress: "10.0.0.1",
-		PeerAS:      65001,
+		PeerAS:      rpc.RemoteASOf(65001),
 		EventType:   rpc.EventKindUpdate,
 		Direction:   rpc.DirectionReceived,
 		RawMessage:  &bgptypes.RawMessage{Type: msgtype.TypeUPDATE, RawBytes: body1},
 	}
 	se2 := &rpc.StructuredEvent{
 		PeerAddress: "10.0.0.1",
-		PeerAS:      65001,
+		PeerAS:      rpc.RemoteASOf(65001),
 		EventType:   rpc.EventKindUpdate,
 		Direction:   rpc.DirectionReceived,
 		RawMessage:  &bgptypes.RawMessage{Type: msgtype.TypeUPDATE, RawBytes: body2},
@@ -678,7 +679,7 @@ func TestBMPRiboutDedupPeerDown(t *testing.T) {
 
 	se := &rpc.StructuredEvent{
 		PeerAddress: "10.0.0.1",
-		PeerAS:      65001,
+		PeerAS:      rpc.RemoteASOf(65001),
 		EventType:   rpc.EventKindState,
 		State:       rpc.SessionStateDown,
 		Reason:      "notification",
@@ -724,14 +725,44 @@ func TestNoDirectionAnnouncesPrePolicyAdjRIBOut(t *testing.T) {
 	for _, direction := range directions {
 		se := &rpc.StructuredEvent{
 			PeerAddress: "10.0.0.1",
-			PeerAS:      65001,
+			PeerAS:      rpc.RemoteASOf(65001),
 			Direction:   direction,
 		}
 
-		ph := peerHeaderFromEvent(se)
+		ph := mustPeerHeader(t, se)
 		if ph.Flags&PeerFlagO != 0 && ph.Flags&PeerFlagL == 0 {
 			t.Errorf("direction %d built a pre-policy Adj-RIB-Out header (O=1, L=0), which ze does not offer: flags %#02x",
 				direction, ph.Flags)
 		}
+	}
+}
+
+// mustPeerHeader is peerHeaderFromEvent for an event the test built with a
+// known peer AS: a refusal there is a broken fixture, so it fails the test.
+func mustPeerHeader(t *testing.T, se *rpc.StructuredEvent) PeerHeader {
+	t.Helper()
+	ph, err := peerHeaderFromEvent(se)
+	if err != nil {
+		t.Fatalf("peerHeaderFromEvent: %v", err)
+	}
+	return ph
+}
+
+// VALIDATES: peerHeaderFromEvent refuses an event whose peer AS is not
+// negotiated, so no caller can write a BMP per-peer header naming AS 0.
+// Method: an event with rpc.RemoteAS{} (a dynamic peer before its OPEN is
+// negotiated) must yield errPeerASUnknown, and one with AS 65001 a header
+// carrying 65001.
+// PREVENTS: a BMP collector being told the peer is AS 0, which RFC 7854
+// Section 4.2 gives no meaning: the field is "The Autonomous System number of
+// the peer from which the encapsulated PDU was received."
+func TestPeerHeaderFromEventRefusesUnknownAS(t *testing.T) {
+	_, err := peerHeaderFromEvent(&rpc.StructuredEvent{PeerAddress: "10.0.0.1"})
+	if !errors.Is(err, errPeerASUnknown) {
+		t.Fatalf("unknown peer AS: got error %v, want errPeerASUnknown", err)
+	}
+	ph := mustPeerHeader(t, &rpc.StructuredEvent{PeerAddress: "10.0.0.1", PeerAS: rpc.RemoteASOf(65001)})
+	if ph.PeerAS != 65001 {
+		t.Fatalf("known peer AS: header carries %d, want 65001", ph.PeerAS)
 	}
 }

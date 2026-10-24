@@ -44,6 +44,16 @@ handle model.
 <!-- source: internal/component/bgp/plugins/rib/rib_structured.go -- handleReceivedStructured -->
 <!-- source: internal/component/bgp/plugins/rib/rib_aigp.go -- reselectAIGPRoutes -->
 <!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- checkRouteBestChange -->
+
+Both received rails refuse an UPDATE whose peer AS is not known
+(`handleReceivedStructured` reads `rpc.RemoteAS`, `handleReceived` its JSON
+twin): an UPDATE arrives only in Established, where the AS is negotiated, so
+one without it is a Ze defect. It is logged as `received UPDATE dropped` and
+stores nothing, rather than storing routes under AS 0 whose iBGP or eBGP
+standing cannot be decided. The stored peer metadata always names the
+negotiated AS. A family with no NLRI splitter is reported once per peer and
+family by `reportUnstorableFamily`, at warning level, rather than at debug.
+<!-- source: internal/component/bgp/plugins/rib/rib.go -- handleReceived, updatePeerMetadata -->
 <!-- source: internal/core/rib/locrib/manager.go -- insert -->
 
 **`Change.Forward` is state-tracker infrastructure.** The route server and the

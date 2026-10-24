@@ -122,7 +122,11 @@ cmd=background:seq=2:exec=ze -:stdin=ze-bgp
 
 # Readiness: wait until the 15 routes are injected and queryable (proves the LG
 # server is up AND the RIB is populated before the UI page checks run).
-http=wait:seq=1:url=http://127.0.0.1:$PORT2/api/looking-glass/routes/protocol/10.0.1.1:status=200:contains="routes_count": 15:timeout=15s
+# 10.0.1.1 is the RIB-inject pseudo-peer, not a BGP session, so its routes are
+# read from routes/peer/10.0.1.1. The test used to read routes/protocol/10.0.1.1,
+# asserting 200 for a protocol id protocols/bgp never lists; that held only while
+# the endpoint passed any id through to bgp-rib unchecked.
+http=wait:seq=1:url=http://127.0.0.1:$PORT2/api/looking-glass/routes/peer/10.0.1.1:status=200:contains="routes_count": 15:timeout=15s
 
 # --- handleUIPeers: peer dashboard page ---
 http=get:seq=1:url=http://127.0.0.1:$PORT2/lg/peers:status=200:contains=BGP Peers

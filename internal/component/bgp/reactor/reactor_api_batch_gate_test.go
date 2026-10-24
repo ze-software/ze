@@ -64,7 +64,7 @@ func (c *drainBetweenContext) Err() error {
 func gateRailBatch() bgptypes.NLRIBatch {
 	nlris := make([]nlri.NLRI, 0, len(gateRailPrefixes))
 	for _, prefix := range gateRailPrefixes {
-		nlris = append(nlris, nlri.NewINET(family.IPv4Unicast, prefix, 0))
+		nlris = append(nlris, nlri.NewINET(family.IPv4Unicast, prefix, 0, false))
 	}
 	return bgptypes.NLRIBatch{
 		Family:  family.IPv4Unicast,

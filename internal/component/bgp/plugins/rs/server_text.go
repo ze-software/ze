@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/bgp/textparse"
+	"github.com/ze-software/ze/internal/core/bgp/asn"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -293,8 +294,11 @@ func parseTextNLRIOps(text string) map[string][]FamilyOperation {
 }
 
 // parseTextOpen extracts OPEN event data from text format.
-// Format: "peer <addr> remote as <n> <dir> open <id> router-id <ip> hold-time <t> cap <code> <name> [<value>]...".
-// ASN is extracted from the uniform header.
+// Format: "peer <addr> remote as <n> <dir> open <id> asn <n> router-id <ip> hold-time <t> cap <code> <name> [<value>]...".
+// The header's `remote as` is the peer's AS, `unknown` before a dynamic peer's
+// AS is negotiated. `asn` is the OPEN's own My Autonomous System (Open.ASN):
+// the sender's, which on the received OPENs bgp-rs subscribes to is the peer's,
+// so it also sets PeerASN when the header could not.
 func parseTextOpen(text string) *Event {
 	s := textparse.NewScanner(strings.TrimRight(text, "\n"))
 
@@ -316,8 +320,7 @@ func parseTextOpen(text string) *Event {
 	s.Next() // "as"
 	if asnStr, ok := s.Next(); ok {
 		if n, err := strconv.ParseUint(asnStr, 10, 32); err == nil {
-			event.PeerASN = uint32(n)  //nolint:gosec // bounded by ParseUint bitSize=32
-			event.Open.ASN = uint32(n) //nolint:gosec // bounded by ParseUint bitSize=32
+			event.PeerASN = uint32(n) //nolint:gosec // bounded by ParseUint bitSize=32
 		}
 	}
 
@@ -333,6 +336,16 @@ func parseTextOpen(text string) *Event {
 			break
 		}
 		switch tok {
+		case tokenOpenASN:
+			// bgp-rs subscribes to received OPENs only, so the OPEN's own AS
+			// is the peer's, which parseStructuredOpen records the same way.
+			if v, ok := s.Next(); ok {
+				// asn.Parse reads every RFC 5396 spelling, as every AS number in Ze is read.
+				if n, err := asn.Parse(v); err == nil {
+					event.Open.ASN = n
+					event.PeerASN = n
+				}
+			}
 		case tokenRouterID:
 			if v, ok := s.Next(); ok {
 				event.Open.RouterID = v

@@ -120,7 +120,7 @@ func TestStructuredStateRemoved_SkipsActivation(t *testing.T) {
 
 	se := &rpc.StructuredEvent{
 		PeerAddress: "10.0.0.1",
-		PeerAS:      65001,
+		PeerAS:      rpc.RemoteASOf(65001),
 		EventType:   rpc.EventKindState,
 		State:       rpc.SessionStateDown,
 		Reason:      rpc.ReasonPeerRemoved,

@@ -124,13 +124,14 @@ func TestBuildLocRIBUpdateBody_IPv4Announce(t *testing.T) {
 	// with ORIGIN + AS_PATH + NEXT_HOP and the prefix in the NLRI section.
 	nh := netip.MustParseAddr("192.0.2.1")
 	e := ribevents.BestChangeEntry{
-		Action:  ribevents.BestChangeAdd,
-		Prefix:  netip.MustParsePrefix("10.20.30.0/24"),
-		NextHop: nh,
-		ASPath:  []uint32{65001, 65002},
+		Action:     ribevents.BestChangeAdd,
+		Attributes: locRIBOriginIGP,
+		Prefix:     netip.MustParsePrefix("10.20.30.0/24"),
+		NextHop:    nh,
+		ASPath:     []uint32{65001, 65002},
 	}
 
-	body := buildLocRIBUpdateBody(family.IPv4Unicast, &e)
+	body := mustLocRIBBody(t, family.IPv4Unicast, &e)
 	sec, err := wire.ParseUpdateSections(body)
 	if err != nil {
 		t.Fatalf("ParseUpdateSections: %v", err)
@@ -173,15 +174,23 @@ func TestBuildLocRIBUpdateBody_IPv4Announce(t *testing.T) {
 // plus 8, not plus 4. The negative is the value: an ASN above 65535 survives the encode
 // whole, so a 2-byte encoder is caught by more than an off-by-four -- it cannot represent
 // the number at all. The two run together because the same encoded segment answers both.
+//
+// AGGREGATOR is the other ASN carrier, and it comes from the best path's stored
+// attribute set, which ingest already holds in four-octet form
+// (storage.ParseAttributes). The UPDATE carries it as stored, 8 octets with its ASN
+// whole, and never the AS4_PATH or AS4_AGGREGATOR a two-octet encoding would need:
+// RFC 6793 Section 4.1, "The new attributes, AS4_PATH and AS4_AGGREGATOR, MUST NOT be
+// carried in an UPDATE message between NEW BGP speakers."
 func TestLocRIBRouteMonitoringUsesFourByteASNs(t *testing.T) {
 	e := ribevents.BestChangeEntry{
-		Action:  ribevents.BestChangeAdd,
-		Prefix:  netip.MustParsePrefix("10.20.30.0/24"),
-		NextHop: netip.MustParseAddr("192.0.2.1"),
-		ASPath:  []uint32{4200000001, 65002},
+		Action:     ribevents.BestChangeAdd,
+		Attributes: locRIBFourOctetAggregatorAttrs,
+		Prefix:     netip.MustParsePrefix("10.20.30.0/24"),
+		NextHop:    netip.MustParseAddr("192.0.2.1"),
+		ASPath:     []uint32{4200000001, 65002},
 	}
 
-	body := buildLocRIBUpdateBody(family.IPv4Unicast, &e)
+	body := mustLocRIBBody(t, family.IPv4Unicast, &e)
 	sec, err := wire.ParseUpdateSections(body)
 	if err != nil {
 		t.Fatalf("ParseUpdateSections: %v", err)
@@ -206,6 +215,38 @@ func TestLocRIBRouteMonitoringUsesFourByteASNs(t *testing.T) {
 			t.Errorf("AS_PATH[%d] = %d, want %d", i, got, want)
 		}
 	}
+
+	aggregator := findAttr(sec.Attrs(body), attrAGGREGATOR)
+	if len(aggregator) != 8 {
+		t.Fatalf("AGGREGATOR value is %d octets (%x), want 8: a four-octet AS and an address",
+			len(aggregator), aggregator)
+	}
+	if asn := binary.BigEndian.Uint32(aggregator[:4]); asn != 4200000001 {
+		t.Errorf("AGGREGATOR AS = %d, want 4200000001", asn)
+	}
+	for _, code := range []byte{attrAS4PATH, attrAS4AGGREGATOR} {
+		if n := countAttr(sec.Attrs(body), code); n != 0 {
+			t.Errorf("attribute %d appears %d times, want 0 in a four-octet UPDATE", code, n)
+		}
+	}
+}
+
+// The attribute type codes TestLocRIBRouteMonitoringUsesFourByteASNs reads
+// (RFC 4271 Section 5.1.7, RFC 6793 Section 3).
+const (
+	attrAGGREGATOR    = 7
+	attrAS4PATH       = 17
+	attrAS4AGGREGATOR = 18
+)
+
+// locRIBFourOctetAggregatorAttrs is a stored set carrying ORIGIN IGP, a
+// four-octet AGGREGATOR (AS 4200000001, 192.0.2.7), and the AS4_PATH and
+// AS4_AGGREGATOR a four-octet set never needs, in type-code order.
+var locRIBFourOctetAggregatorAttrs = []byte{
+	0x40, attrORIGIN, 1, 0,
+	0xc0, attrAGGREGATOR, 8, 0xfa, 0x56, 0xea, 0x01, 192, 0, 2, 7,
+	0xc0, attrAS4PATH, 6, 2, 1, 0xfa, 0x56, 0xea, 0x01,
+	0xc0, attrAS4AGGREGATOR, 8, 0xfa, 0x56, 0xea, 0x01, 192, 0, 2, 7,
 }
 
 func TestBuildLocRIBUpdateBody_IPv4Withdraw(t *testing.T) {
@@ -216,7 +257,7 @@ func TestBuildLocRIBUpdateBody_IPv4Withdraw(t *testing.T) {
 		Prefix: netip.MustParsePrefix("10.20.30.0/24"),
 	}
 
-	body := buildLocRIBUpdateBody(family.IPv4Unicast, &e)
+	body := mustLocRIBBody(t, family.IPv4Unicast, &e)
 	sec, err := wire.ParseUpdateSections(body)
 	if err != nil {
 		t.Fatalf("ParseUpdateSections: %v", err)
@@ -238,13 +279,14 @@ func TestBuildLocRIBUpdateBody_IPv6Announce(t *testing.T) {
 	// VALIDATES: AC-1 (IPv6) -- an IPv6 announce carries reachability and
 	// next-hop in MP_REACH_NLRI, with an empty legacy NLRI section.
 	e := ribevents.BestChangeEntry{
-		Action:  ribevents.BestChangeAdd,
-		Prefix:  netip.MustParsePrefix("2001:db8::/32"),
-		NextHop: netip.MustParseAddr("2001:db8::1"),
-		ASPath:  []uint32{65010},
+		Action:     ribevents.BestChangeAdd,
+		Attributes: locRIBOriginIGP,
+		Prefix:     netip.MustParsePrefix("2001:db8::/32"),
+		NextHop:    netip.MustParseAddr("2001:db8::1"),
+		ASPath:     []uint32{65010},
 	}
 
-	body := buildLocRIBUpdateBody(family.IPv6Unicast, &e)
+	body := mustLocRIBBody(t, family.IPv6Unicast, &e)
 	sec, err := wire.ParseUpdateSections(body)
 	if err != nil {
 		t.Fatalf("ParseUpdateSections: %v", err)
@@ -271,7 +313,7 @@ func TestBuildLocRIBUpdateBody_IPv6Withdraw(t *testing.T) {
 		Prefix: netip.MustParsePrefix("2001:db8::/32"),
 	}
 
-	body := buildLocRIBUpdateBody(family.IPv6Unicast, &e)
+	body := mustLocRIBBody(t, family.IPv6Unicast, &e)
 	sec, err := wire.ParseUpdateSections(body)
 	if err != nil {
 		t.Fatalf("ParseUpdateSections: %v", err)
@@ -400,10 +442,11 @@ func TestHandleBestChangeEmitsPeerUpThenRM(t *testing.T) {
 		Family:   family.IPv4Unicast,
 		ReplayID: 1, // replay batch
 		Changes: []ribevents.BestChangeEntry{{
-			Action:  ribevents.BestChangeAdd,
-			Prefix:  netip.MustParsePrefix("10.20.30.0/24"),
-			NextHop: netip.MustParseAddr("192.0.2.1"),
-			ASPath:  []uint32{65001},
+			Action:     ribevents.BestChangeAdd,
+			Attributes: locRIBOriginIGP,
+			Prefix:     netip.MustParsePrefix("10.20.30.0/24"),
+			NextHop:    netip.MustParseAddr("192.0.2.1"),
+			ASPath:     []uint32{65001},
 		}},
 	}
 
@@ -517,10 +560,11 @@ func TestLocRIBSinglePeerUpPerInstance(t *testing.T) {
 		Family:   family.IPv4Unicast,
 		ReplayID: 1,
 		Changes: []ribevents.BestChangeEntry{{
-			Action:  ribevents.BestChangeAdd,
-			Prefix:  netip.MustParsePrefix("10.20.30.0/24"),
-			NextHop: netip.MustParseAddr("192.0.2.1"),
-			ASPath:  []uint32{65001},
+			Action:     ribevents.BestChangeAdd,
+			Attributes: locRIBOriginIGP,
+			Prefix:     netip.MustParsePrefix("10.20.30.0/24"),
+			NextHop:    netip.MustParseAddr("192.0.2.1"),
+			ASPath:     []uint32{65001},
 		}},
 	}
 	batchB := &ribevents.BestChangeBatch{
@@ -528,10 +572,11 @@ func TestLocRIBSinglePeerUpPerInstance(t *testing.T) {
 		Family:   family.IPv4Unicast,
 		ReplayID: 1,
 		Changes: []ribevents.BestChangeEntry{{
-			Action:  ribevents.BestChangeAdd,
-			Prefix:  netip.MustParsePrefix("10.40.50.0/24"),
-			NextHop: netip.MustParseAddr("192.0.2.2"),
-			ASPath:  []uint32{65002},
+			Action:     ribevents.BestChangeAdd,
+			Attributes: locRIBOriginIGP,
+			Prefix:     netip.MustParsePrefix("10.40.50.0/24"),
+			NextHop:    netip.MustParseAddr("192.0.2.2"),
+			ASPath:     []uint32{65002},
 		}},
 	}
 
@@ -726,10 +771,11 @@ func TestMixedFamilyDumpClosesTheSilentFamily(t *testing.T) {
 			Family:   family.IPv6Unicast,
 			ReplayID: replay.Broadcast,
 			Changes: []ribevents.BestChangeEntry{{
-				Action:  ribevents.BestChangeAdd,
-				Prefix:  netip.MustParsePrefix("2001:db8::/32"),
-				NextHop: netip.MustParseAddr("2001:db8::1"),
-				ASPath:  []uint32{65001},
+				Action:     ribevents.BestChangeAdd,
+				Attributes: locRIBOriginIGP,
+				Prefix:     netip.MustParsePrefix("2001:db8::/32"),
+				NextHop:    netip.MustParseAddr("2001:db8::1"),
+				ASPath:     []uint32{65001},
 			}},
 		}
 	})
@@ -805,10 +851,11 @@ func TestForeignReplayIsNotClaimedAsOurDump(t *testing.T) {
 			Family:   family.IPv4Unicast,
 			ReplayID: replay.Broadcast, // sysrib's token, not ours
 			Changes: []ribevents.BestChangeEntry{{
-				Action:  ribevents.BestChangeAdd,
-				Prefix:  netip.MustParsePrefix("10.99.0.0/24"),
-				NextHop: netip.MustParseAddr("192.0.2.9"),
-				ASPath:  []uint32{65009},
+				Action:     ribevents.BestChangeAdd,
+				Attributes: locRIBOriginIGP,
+				Prefix:     netip.MustParsePrefix("10.99.0.0/24"),
+				NextHop:    netip.MustParseAddr("192.0.2.9"),
+				ASPath:     []uint32{65009},
 			}},
 		}
 		if _, err := ribevents.BestChange.Emit(bus, foreign); err != nil {
@@ -819,10 +866,11 @@ func TestForeignReplayIsNotClaimedAsOurDump(t *testing.T) {
 			Family:   family.IPv6Unicast,
 			ReplayID: req.ReplayID, // echoed, as the real RIB does
 			Changes: []ribevents.BestChangeEntry{{
-				Action:  ribevents.BestChangeAdd,
-				Prefix:  netip.MustParsePrefix("2001:db8::/32"),
-				NextHop: netip.MustParseAddr("2001:db8::1"),
-				ASPath:  []uint32{65001},
+				Action:     ribevents.BestChangeAdd,
+				Attributes: locRIBOriginIGP,
+				Prefix:     netip.MustParsePrefix("2001:db8::/32"),
+				NextHop:    netip.MustParseAddr("2001:db8::1"),
+				ASPath:     []uint32{65001},
 			}},
 		}
 		if _, err := ribevents.BestChange.Emit(bus, ours); err != nil {
@@ -884,5 +932,120 @@ func TestForeignReplayIsNotClaimedAsOurDump(t *testing.T) {
 	if eorsA != 2 {
 		t.Errorf("dump target got %d End-of-RIB markers, want 2 (its own dump closes IPv4 and IPv6, "+
 			"and the foreign batch closes nothing)", eorsA)
+	}
+}
+
+// locRIBOriginIGP is the smallest attribute set a stored best path carries:
+// ORIGIN IGP alone, as bgp-rib publishes it for a route that has no other.
+var locRIBOriginIGP = []byte{0x40, attrORIGIN, 1, 0}
+
+// locRIBWinnerAttrs is a stored winner's attribute set as bgp-rib publishes it
+// on a best change: ORIGIN INCOMPLETE, a four-octet AS_PATH, NEXT_HOP 10.0.0.9,
+// LOCAL_PREF 200 and COMMUNITY 65001:7, in type-code order.
+var locRIBWinnerAttrs = []byte{
+	0x40, attrORIGIN, 1, 2,
+	0x40, attrASPATH, 6, 2, 1, 0x00, 0x00, 0xfd, 0xe9,
+	0x40, attrNEXTHOP, 4, 10, 0, 0, 9,
+	0x40, 5, 4, 0, 0, 0, 200,
+	0xc0, 8, 4, 0xfd, 0xe9, 0x00, 0x07,
+}
+
+// TestLocRIBRouteMonitoringCarriesTheBestPathAttributes proves a Loc-RIB Route
+// Monitoring UPDATE carries the best path's own attributes, as RFC 9069
+// Section 5.4 makes the PDU the Loc-RIB route: ORIGIN as received, LOCAL_PREF
+// and COMMUNITY present, and one NEXT_HOP, the resolved one the entry names.
+// Method: encode a best change whose stored ORIGIN is INCOMPLETE and read the
+// attributes back from the UPDATE body.
+func TestLocRIBRouteMonitoringCarriesTheBestPathAttributes(t *testing.T) {
+	e := ribevents.BestChangeEntry{
+		Action:     ribevents.BestChangeAdd,
+		Prefix:     netip.MustParsePrefix("10.20.30.0/24"),
+		NextHop:    netip.MustParseAddr("192.0.2.1"),
+		ASPath:     []uint32{65001},
+		Attributes: locRIBWinnerAttrs,
+	}
+
+	body := mustLocRIBBody(t, family.IPv4Unicast, &e)
+	sec, err := wire.ParseUpdateSections(body)
+	if err != nil {
+		t.Fatalf("ParseUpdateSections: %v", err)
+	}
+	attrs := sec.Attrs(body)
+	if origin := findAttr(attrs, attrORIGIN); !bytes.Equal(origin, []byte{2}) {
+		t.Errorf("ORIGIN = %x, want 02 (INCOMPLETE, the best path's own)", origin)
+	}
+	if lp := findAttr(attrs, 5); !bytes.Equal(lp, []byte{0, 0, 0, 200}) {
+		t.Errorf("LOCAL_PREF = %x, want 000000c8", lp)
+	}
+	if comm := findAttr(attrs, 8); !bytes.Equal(comm, []byte{0xfd, 0xe9, 0x00, 0x07}) {
+		t.Errorf("COMMUNITY = %x, want fde90007", comm)
+	}
+	if nh := findAttr(attrs, attrNEXTHOP); !bytes.Equal(nh, []byte{192, 0, 2, 1}) {
+		t.Errorf("NEXT_HOP = %x, want c0000201 (the resolved next hop)", nh)
+	}
+	if n := countAttr(attrs, attrNEXTHOP); n != 1 {
+		t.Errorf("NEXT_HOP appears %d times, want 1", n)
+	}
+	if n := countAttr(attrs, attrASPATH); n != 1 {
+		t.Errorf("AS_PATH appears %d times, want 1", n)
+	}
+}
+
+// countAttr counts the attributes of one type code in an attribute section.
+func countAttr(attrs []byte, code byte) int {
+	count := 0
+	off := 0
+	for off+3 <= len(attrs) {
+		flags := attrs[off]
+		hdr := 3
+		length := int(attrs[off+2])
+		if flags&0x10 != 0 {
+			if off+4 > len(attrs) {
+				return count
+			}
+			hdr = 4
+			length = int(binary.BigEndian.Uint16(attrs[off+2:]))
+		}
+		if attrs[off+1] == code {
+			count++
+		}
+		off += hdr + length
+	}
+	return count
+}
+
+// mustLocRIBBody encodes a best change the test expects to be conveyed.
+func mustLocRIBBody(t *testing.T, fam family.Family, e *ribevents.BestChangeEntry) []byte {
+	t.Helper()
+	body, err := buildLocRIBUpdateBody(fam, e)
+	if err != nil {
+		t.Fatalf("buildLocRIBUpdateBody: %v", err)
+	}
+	return body
+}
+
+// TestLocRIBAnnounceWithoutAttributesIsRefused proves an announce that carries
+// no attribute set is not conveyed with an invented ORIGIN: the encoder refuses
+// it, and a withdraw, which carries no attributes, is still encoded.
+// Method: encode one announce without Attributes and one withdraw.
+func TestLocRIBAnnounceWithoutAttributesIsRefused(t *testing.T) {
+	announce := ribevents.BestChangeEntry{
+		Action:  ribevents.BestChangeAdd,
+		Prefix:  netip.MustParsePrefix("10.20.30.0/24"),
+		NextHop: netip.MustParseAddr("192.0.2.1"),
+	}
+	if body, err := buildLocRIBUpdateBody(family.IPv4Unicast, &announce); err == nil {
+		t.Fatalf("announce without attributes encoded as %x, want a refusal", body)
+	}
+	announce.Attributes = []byte{0x40, attrNEXTHOP, 4, 10, 0, 0, 9}
+	if body, err := buildLocRIBUpdateBody(family.IPv4Unicast, &announce); err == nil {
+		t.Fatalf("announce without ORIGIN encoded as %x, want a refusal", body)
+	}
+	withdraw := ribevents.BestChangeEntry{
+		Action: ribevents.BestChangeWithdraw,
+		Prefix: netip.MustParsePrefix("10.20.30.0/24"),
+	}
+	if _, err := buildLocRIBUpdateBody(family.IPv4Unicast, &withdraw); err != nil {
+		t.Fatalf("withdraw refused: %v", err)
 	}
 }

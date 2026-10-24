@@ -665,3 +665,36 @@ func TestSetTransientRefusedByWriteGuard(t *testing.T) {
 		t.Error("an unguarded write did not reach the kernel")
 	}
 }
+
+// TestSetSysctlAnswersAnObject pins the shape of the `set sysctl` answer: the
+// applied event as a JSON object. Handed over as a Go string, the encoded
+// object marshaled to a JSON string scalar, which no output format renders.
+// Method: answer a transient set through answerSetSysctl and marshal it the
+// way the SDK does.
+//
+// VALIDATES: `set sysctl` answers an object carrying the applied key.
+// PREVENTS: the answer reaching the operator as a quoted string.
+func TestSetSysctlAnswersAnObject(t *testing.T) {
+	s, _ := newTestStore()
+	answer, err := answerSetSysctl(s, []string{"net.core.somaxconn", "4096"})
+	if err != nil {
+		t.Fatalf("answerSetSysctl: %v", err)
+	}
+	wire := marshalJSON(t, answer)
+	var decoded map[string]any
+	if err := json.Unmarshal([]byte(wire), &decoded); err != nil {
+		t.Fatalf("answer %s is not a JSON object: %v", wire, err)
+	}
+	if !strings.Contains(wire, "net.core.somaxconn") {
+		t.Errorf("answer %s does not name the applied key", wire)
+	}
+}
+
+// TestSetSysctlRefusesMissingValue pins the refusal of `set sysctl <key>` with
+// no value: an error, never an empty answer.
+func TestSetSysctlRefusesMissingValue(t *testing.T) {
+	s, _ := newTestStore()
+	if _, err := answerSetSysctl(s, []string{"net.core.somaxconn"}); err == nil {
+		t.Fatal("answerSetSysctl accepted a key with no value")
+	}
+}

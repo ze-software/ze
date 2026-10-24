@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/iface"
@@ -65,6 +66,25 @@ var probeKernelModulesFn = probeKernelModules
 // nothing on its own.
 var newSubsystemKernelWorkerFn = newSubsystemKernelWorker
 
+// errKernelDataPlaneDisabled is the data-plane state the
+// ze.l2tp.disable-kernel-dataplane knob leaves.
+var errKernelDataPlaneDisabled = errors.New("disabled by ze.l2tp.disable-kernel-dataplane")
+
+// kernelDataPlane answers why sessions are not programmed into the kernel, or
+// nil when every listener has a kernel worker. Safe for concurrent use.
+func (s *Subsystem) kernelDataPlane() error {
+	if fault := s.dataPlaneFault.Load(); fault != nil {
+		return *fault
+	}
+	return nil
+}
+
+// recordDataPlaneFault keeps the first reason a listener came up with no
+// kernel worker.
+func (s *Subsystem) recordDataPlaneFault(fault error) {
+	s.dataPlaneFault.CompareAndSwap(nil, &fault)
+}
+
 // Subsystem is the ze.Subsystem implementation for L2TPv2.
 //
 // Phase 3 scope: UDP listener + reactor skeleton are wired. Tunnel state
@@ -82,8 +102,13 @@ type Subsystem struct {
 	reactors      []*l2tpReactor
 	timers        []*tunnelTimer
 	kernelWorkers []*kernelWorker
-	pppDrivers    []*ppp.Driver
-	drainDones    []<-chan struct{} // auth + pool drain goroutine completion
+	// dataPlaneFault is why a listener runs with no kernel worker, unset when
+	// every listener has one. Written in Start, cleared with kernelWorkers,
+	// read by kernelDataPlane for the l2tp health row. Atomic rather than
+	// under mu so the health check never waits on a Stop draining sessions.
+	dataPlaneFault atomic.Pointer[error]
+	pppDrivers     []*ppp.Driver
+	drainDones     []<-chan struct{} // auth + pool drain goroutine completion
 	// routeObserver tracks subscriber routes (session IP-up / down).
 	// One instance per subsystem; installed into every reactor at
 	// Start. See spec-l2tp-7 "Redistribute" and route_observer.go.
@@ -295,8 +320,15 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 		var worker *kernelWorker
 		if disableDataplane {
 			s.logger.Warn("l2tp: kernel data plane disabled (ze.l2tp.disable-kernel-dataplane=true); sessions will not be programmed into the kernel")
+			s.recordDataPlaneFault(errKernelDataPlaneDisabled)
 		} else {
-			worker = newSubsystemKernelWorkerFn(errCh, successCh, s.logger)
+			var workerErr error
+			worker, workerErr = newSubsystemKernelWorkerFn(errCh, successCh, s.logger)
+			if workerErr != nil {
+				s.logger.Warn("l2tp: kernel data plane unavailable; sessions will not be programmed into the kernel",
+					"listen", addr.String(), "error", workerErr.Error())
+				s.recordDataPlaneFault(fmt.Errorf("listener %s: %w", addr, workerErr))
+			}
 		}
 		reactor.setKernelWorker(worker, errCh, successCh)
 
@@ -523,6 +555,7 @@ func (s *Subsystem) unwindLocked() {
 	}
 	s.pppDrivers = nil
 	s.kernelWorkers = nil
+	s.dataPlaneFault.Store(nil)
 	s.timers = nil
 	s.reactors = nil
 	s.listeners = nil
@@ -595,6 +628,7 @@ func (s *Subsystem) Stop(_ context.Context) error {
 	}
 	s.pppDrivers = nil
 	s.kernelWorkers = nil
+	s.dataPlaneFault.Store(nil)
 	s.timers = nil
 	s.reactors = nil
 	s.listeners = nil

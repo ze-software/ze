@@ -4,14 +4,14 @@
   "tests": {
     "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_FullTiebreak": "ae729071cdaf7dce",
     "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_MED_SameNeighborAS": "ae729071cdaf7dce",
-    "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_json_test.go::TestBestPathEqualBGPIdentifiersOnTheJSONRailFallThroughToPeerAddress": "c08f3cda82a46fa1",
-    "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_json_test.go::TestBestPathStepFComparesThePeerBGPIdentifierOnTheJSONRail": "c08f3cda82a46fa1",
-    "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_test.go::TestBestPathEqualBGPIdentifiersFallThroughToPeerAddress": "87e8200e7dcbefd4",
-    "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_test.go::TestBestPathStepFComparesThePeerBGPIdentifier": "87e8200e7dcbefd4",
+    "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_json_test.go::TestBestPathEqualBGPIdentifiersOnTheJSONRailFallThroughToPeerAddress": "6c5e1007546e58b3",
+    "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_json_test.go::TestBestPathStepFComparesThePeerBGPIdentifierOnTheJSONRail": "6c5e1007546e58b3",
+    "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_test.go::TestBestPathEqualBGPIdentifiersFallThroughToPeerAddress": "3948ecece69e2d71",
+    "internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_test.go::TestBestPathStepFComparesThePeerBGPIdentifier": "3948ecece69e2d71",
     "internal/component/bgp/plugins/rib/rfc4271_criteria_order_test.go::TestRFC4271AdjacentCriteriaApplyInTheOrderSpecified": "a129dac3a74eb33f",
-    "internal/component/bgp/plugins/rib/rfc4271_whole_set_med_test.go::TestRFC4271WholeSetMEDBeforeLaterCriteria": "75355e6a550661f3",
-    "internal/component/bgp/plugins/rib/rfc4271_whole_set_med_test.go::TestRFC4271WholeSetMEDEarlierCriteria": "75355e6a550661f3",
-    "internal/component/bgp/plugins/rib/rfc4271_whole_set_med_test.go::TestRFC4271WholeSetMEDRIBBestChange": "75355e6a550661f3"
+    "internal/component/bgp/plugins/rib/rfc4271_whole_set_med_test.go::TestRFC4271WholeSetMEDBeforeLaterCriteria": "72f4722aeea1a3c2",
+    "internal/component/bgp/plugins/rib/rfc4271_whole_set_med_test.go::TestRFC4271WholeSetMEDEarlierCriteria": "72f4722aeea1a3c2",
+    "internal/component/bgp/plugins/rib/rfc4271_whole_set_med_test.go::TestRFC4271WholeSetMEDRIBBestChange": "72f4722aeea1a3c2"
   },
   "units": {
     "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_FullTiebreak": "b5d24bd8d66b29b4",

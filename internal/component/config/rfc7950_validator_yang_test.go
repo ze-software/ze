@@ -93,8 +93,8 @@ func TestValidateTree_ValidConfig(t *testing.T) {
 func TestValidateTree_BooleanConfigAliases(t *testing.T) {
 	v := newTestValidator(t)
 
-	assert.Equal(t, "true", NormalizeBool("enable"))
-	assert.Equal(t, "false", NormalizeBool("disable"))
+	assert.Equal(t, "true", normalizeEnableBool("enable"))
+	assert.Equal(t, "false", normalizeEnableBool("disable"))
 
 	data := map[string]any{
 		"router-id": "192.0.2.1",
@@ -108,11 +108,11 @@ func TestValidateTree_BooleanConfigAliases(t *testing.T) {
 				"connection": map[string]any{
 					"remote": map[string]any{
 						"ip":      "192.0.2.2",
-						"connect": NormalizeBool("enable"),
+						"connect": normalizeEnableBool("enable"),
 					},
 					"local": map[string]any{
 						"ip":     "192.0.2.1",
-						"accept": NormalizeBool("disable"),
+						"accept": normalizeEnableBool("disable"),
 					},
 				},
 				"session": map[string]any{

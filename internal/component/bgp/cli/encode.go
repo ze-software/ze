@@ -223,13 +223,13 @@ func encodeUnicastRoute(ub *message.UpdateBuilder, routeCmd string, isIPv6, _, a
 	if isIPv6 {
 		// For IPv6, NLRI is in MP_REACH_NLRI - extract from path attributes
 		// For now, just pack the prefix directly
-		inet := nlri.NewINET(family.IPv6Unicast, parsed.Route.Prefix, 0)
+		inet := nlri.NewINET(family.IPv6Unicast, parsed.Route.Prefix, 0, false)
 		nlriLen := nlri.LenWithContext(inet, addPath)
 		nlriBytes = make([]byte, nlriLen)
 		nlri.WriteNLRI(inet, nlriBytes, 0, addPath)
 	} else {
 		// For IPv4, NLRI is inline
-		inet := nlri.NewINET(family.IPv4Unicast, parsed.Route.Prefix, 0)
+		inet := nlri.NewINET(family.IPv4Unicast, parsed.Route.Prefix, 0, false)
 		nlriLen := nlri.LenWithContext(inet, addPath)
 		nlriBytes = make([]byte, nlriLen)
 		nlri.WriteNLRI(inet, nlriBytes, 0, addPath)

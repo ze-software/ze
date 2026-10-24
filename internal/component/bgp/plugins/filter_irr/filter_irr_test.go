@@ -24,7 +24,7 @@ import (
 // PREVENTS: Torn reads when refresh goroutine swaps the prefix-list while filter
 // evaluation is in progress.
 func TestRefreshSwapsAtomically(t *testing.T) {
-	initial := prefixListFromIRR(irr.PrefixList{
+	initial := mustPrefixListFromIRR(t, irr.PrefixList{
 		IPv4: []netip.Prefix{netip.MustParsePrefix("10.0.0.0/24")},
 	})
 	plug := &irrPlugin{
@@ -34,7 +34,7 @@ func TestRefreshSwapsAtomically(t *testing.T) {
 		stopCh: make(chan struct{}),
 	}
 
-	replacement := prefixListFromIRR(irr.PrefixList{
+	replacement := mustPrefixListFromIRR(t, irr.PrefixList{
 		IPv4: []netip.Prefix{
 			netip.MustParsePrefix("10.0.0.0/24"),
 			netip.MustParsePrefix("172.16.0.0/16"),
@@ -316,7 +316,7 @@ func TestPrefixListFromIRR(t *testing.T) {
 		},
 	}
 
-	entries := prefixListFromIRR(pl)
+	entries := mustPrefixListFromIRR(t, pl)
 
 	if len(entries) != 3 {
 		t.Fatalf("entries = %d, want 3", len(entries))
@@ -344,7 +344,7 @@ func TestPrefixListFromIRRAcceptReject(t *testing.T) {
 			netip.MustParsePrefix("10.0.1.0/24"),
 		},
 	}
-	entries := prefixListFromIRR(pl)
+	entries := mustPrefixListFromIRR(t, pl)
 	list := &irrPrefixList{entries: entries}
 
 	if !list.evaluateUpdate("nlri add 10.0.0.0/24") {
@@ -357,7 +357,7 @@ func TestPrefixListFromIRRAcceptReject(t *testing.T) {
 
 // VALIDATES: AC-4 -- empty list rejects all (fail-closed).
 func TestPrefixListFromIRREmpty(t *testing.T) {
-	entries := prefixListFromIRR(irr.PrefixList{})
+	entries := mustPrefixListFromIRR(t, irr.PrefixList{})
 	list := &irrPrefixList{entries: entries}
 
 	if list.evaluateUpdate("nlri add 10.0.0.0/24") {
@@ -389,7 +389,7 @@ func TestExtractASNFromFilter(t *testing.T) {
 // `update bgp irr asn` fails (returns statusError) and leaves the existing
 // prefix-list untouched. PREVENTS: a failed refresh wiping last-known-good data.
 func TestUpdateASNFailurePreservesState(t *testing.T) {
-	existing := &irrPrefixList{entries: prefixListFromIRR(irr.PrefixList{
+	existing := &irrPrefixList{entries: mustPrefixListFromIRR(t, irr.PrefixList{
 		IPv4: []netip.Prefix{netip.MustParsePrefix("10.0.0.0/24")},
 	})}
 	plug := &irrPlugin{
@@ -448,7 +448,7 @@ func TestUpdateASSetUnused(t *testing.T) {
 // subset. PREVENTS: a single unauthorized prefix collaterally dropping the
 // legitimate routes that share the same UPDATE (all-or-nothing reject).
 func TestPartitionUpdateMixed(t *testing.T) {
-	list := &irrPrefixList{entries: prefixListFromIRR(irr.PrefixList{
+	list := &irrPrefixList{entries: mustPrefixListFromIRR(t, irr.PrefixList{
 		IPv4: []netip.Prefix{netip.MustParsePrefix("10.0.0.0/24")},
 	})}
 	p := list.partitionUpdate("nlri add 10.0.0.0/24 192.168.0.0/24")
@@ -467,7 +467,7 @@ func TestPartitionUpdateMixed(t *testing.T) {
 // accepted set (whole-update reject), and an all-in-list UPDATE yields no
 // rejected entries (accept unmodified).
 func TestPartitionUpdateAllOrNone(t *testing.T) {
-	list := &irrPrefixList{entries: prefixListFromIRR(irr.PrefixList{
+	list := &irrPrefixList{entries: mustPrefixListFromIRR(t, irr.PrefixList{
 		IPv4: []netip.Prefix{netip.MustParsePrefix("10.0.0.0/24")},
 	})}
 	allBad := list.partitionUpdate("nlri add 192.168.0.0/24 203.0.113.0/24")
@@ -776,7 +776,7 @@ func TestRefreshASNStoreFieldRace(t *testing.T) {
 // VALIDATES: refreshASN is a safe no-op when prefixStore is nil (config never
 // ran, or store open failed) -- no panic, no list mutation.
 func TestRefreshASNNilStore(t *testing.T) {
-	existing := &irrPrefixList{entries: prefixListFromIRR(irr.PrefixList{
+	existing := &irrPrefixList{entries: mustPrefixListFromIRR(t, irr.PrefixList{
 		IPv4: []netip.Prefix{netip.MustParsePrefix("10.0.0.0/24")},
 	})}
 	plug := &irrPlugin{
@@ -1291,4 +1291,39 @@ func TestDiscoveryFollowsPeeringDB(t *testing.T) {
 			t.Errorf("step %d (PeeringDB down=%v, as-set %q): live as-set = %q, want %q", i, step.down, step.asSet, got, step.want)
 		}
 	}
+}
+
+// oversizedIRRList builds an IRR answer whose IPv4 half alone fills the cap and
+// whose IPv6 half carries one prefix.
+func oversizedIRRList() irr.PrefixList {
+	pl := irr.PrefixList{IPv6: []netip.Prefix{netip.MustParsePrefix("2001:db8::/32")}}
+	pl.IPv4 = make([]netip.Prefix, 0, maxPrefixEntries)
+	for i := range maxPrefixEntries {
+		pl.IPv4 = append(pl.IPv4, netip.PrefixFrom(netip.AddrFrom4([4]byte{10, byte(i >> 16), byte(i >> 8), byte(i)}), 32))
+	}
+	return pl
+}
+
+// TestPrefixListFromIRRRefusesOversizedList checks that a list over the cap is
+// refused rather than cut. The cut filled the budget with IPv4 first, so the
+// IPv6 half was lost and every IPv6 route rejected while the refresh counted
+// success (plan/journal/guard-addition-drops-what-it-refuses.md, 2026-10-08).
+func TestPrefixListFromIRRRefusesOversizedList(t *testing.T) {
+	entries, err := prefixListFromIRR(oversizedIRRList())
+	if err == nil {
+		t.Fatalf("oversized list answered %d entries, want a refusal", len(entries))
+	}
+	if !strings.Contains(err.Error(), "1 IPv6") {
+		t.Errorf("refusal %q does not count the IPv6 half", err)
+	}
+}
+
+// mustPrefixListFromIRR is prefixListFromIRR for a list under the cap.
+func mustPrefixListFromIRR(t *testing.T, pl irr.PrefixList) []prefixEntry {
+	t.Helper()
+	entries, err := prefixListFromIRR(pl)
+	if err != nil {
+		t.Fatalf("prefixListFromIRR: %v", err)
+	}
+	return entries
 }

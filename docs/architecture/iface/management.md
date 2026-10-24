@@ -76,6 +76,13 @@ JSON and the address event stream with no new surface.
 <!-- source: internal/plugins/iface/netlink/slaac_linux.go -- addrOrigin -->
 <!-- source: internal/component/iface/iface.go -- AddrInfo -->
 
+`InterfaceInfo.DADReported` says whether a flagless IPv6 address completed
+DAD: it is true from the netlink backend, and false from a backend that reads
+addresses but no DAD outcome (VPP) and wherever `AddressesRead` is false. A
+reader MUST NOT take a flagless address as unique where it is false. A nil
+`Stats` means the counters were not read, never zero counters.
+<!-- source: internal/component/iface/iface.go -- InterfaceInfo -->
+
 A manually added IPv6 address with a finite valid and preferred lifetime has
 `IFA_F_PERMANENT` clear, so it is flag-equivalent to a SLAAC address. An
 integration test classifies `origin=slaac` against the real kernel with no

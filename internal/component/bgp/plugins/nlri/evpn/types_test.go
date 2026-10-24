@@ -126,7 +126,7 @@ func TestEVPNType3(t *testing.T) {
 	parsed, _, err := ParseEVPN(data, false)
 	require.NoError(t, err)
 
-	evpn, ok := parsed.(*EVPNType3)
+	evpn, ok := parsed.(*evpnType3)
 	require.True(t, ok)
 
 	assert.Equal(t, EVPNRouteType3, evpn.RouteType())
@@ -408,8 +408,8 @@ func TestEVPNESIIsTenOctets(t *testing.T) {
 		require.NoError(t, err)
 		require.Empty(t, remaining)
 
-		e, ok := parsed.(*EVPNType4)
-		require.True(t, ok, "expected EVPNType4, got %T", parsed)
+		e, ok := parsed.(*evpnType4)
+		require.True(t, ok, "expected evpnType4, got %T", parsed)
 		got := e.ESI()
 		assert.Len(t, got[:], 10, "ESI must be a 10-octet entity")
 		assert.Equal(t, esi, got[:])
@@ -584,8 +584,8 @@ func TestEVPNType4IPv4(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, remaining)
 
-	evpn, ok := parsed.(*EVPNType4)
-	require.True(t, ok, "expected EVPNType4, got %T", parsed)
+	evpn, ok := parsed.(*evpnType4)
+	require.True(t, ok, "expected evpnType4, got %T", parsed)
 
 	assert.Equal(t, EVPNRouteType4, evpn.RouteType())
 	assert.Equal(t, "0:65000:100", evpn.RD().String())
@@ -611,8 +611,8 @@ func TestEVPNType4IPv6(t *testing.T) {
 	parsed, _, err := ParseEVPN(data, false)
 	require.NoError(t, err)
 
-	evpn, ok := parsed.(*EVPNType4)
-	require.True(t, ok, "expected EVPNType4")
+	evpn, ok := parsed.(*evpnType4)
+	require.True(t, ok, "expected evpnType4")
 	assert.Equal(t, netip.MustParseAddr("2001:db8::1"), evpn.OriginatorIP())
 }
 
@@ -779,7 +779,7 @@ func TestEVPNType3RoundTripIPv4(t *testing.T) {
 	parsed, _, err := ParseEVPN(original, false)
 	require.NoError(t, err)
 
-	evpn, ok := parsed.(*EVPNType3)
+	evpn, ok := parsed.(*evpnType3)
 	require.True(t, ok)
 
 	encoded := evpn.Bytes()
@@ -803,7 +803,7 @@ func TestEVPNType3RoundTripIPv6(t *testing.T) {
 	parsed, _, err := ParseEVPN(original, false)
 	require.NoError(t, err)
 
-	evpn, ok := parsed.(*EVPNType3)
+	evpn, ok := parsed.(*evpnType3)
 	require.True(t, ok)
 
 	encoded := evpn.Bytes()
@@ -827,7 +827,7 @@ func TestEVPNType4RoundTripIPv4(t *testing.T) {
 	parsed, _, err := ParseEVPN(original, false)
 	require.NoError(t, err)
 
-	evpn, ok := parsed.(*EVPNType4)
+	evpn, ok := parsed.(*evpnType4)
 	require.True(t, ok)
 
 	encoded := evpn.Bytes()
@@ -851,7 +851,7 @@ func TestEVPNType4RoundTripIPv6(t *testing.T) {
 	parsed, _, err := ParseEVPN(original, false)
 	require.NoError(t, err)
 
-	evpn, ok := parsed.(*EVPNType4)
+	evpn, ok := parsed.(*evpnType4)
 	require.True(t, ok)
 
 	encoded := evpn.Bytes()
@@ -945,7 +945,7 @@ func TestEVPNType1RoundTripLabelField(t *testing.T) {
 
 // TestParseESIString verifies ESI string parsing.
 //
-// VALIDATES: ParseESIString handles all formats.
+// VALIDATES: parseESIString handles all formats.
 // PREVENTS: ESI string parsing bugs.
 func TestParseESIString(t *testing.T) {
 	t.Parallel()
@@ -968,7 +968,7 @@ func TestParseESIString(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
 			t.Parallel()
-			result, err := ParseESIString(tt.input)
+			result, err := parseESIString(tt.input)
 			if tt.wantErr {
 				require.Error(t, err)
 				return

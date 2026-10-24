@@ -103,6 +103,7 @@ const (
 	CodeDoctorImageListen                          = "doctor-image-listen"
 	CodeDoctorIPsecListen                          = "doctor-ipsec-listen"
 	CodeDoctorListenUnavailable                    = "doctor-listen-unavailable"
+	CodeDoctorListenerSetUnknown                   = "doctor-listener-set-unknown"
 	CodeDoctorNTPListen                            = "doctor-ntp-listen"
 	CodeDoctorPlatformContainerRO                  = "doctor-platform-container-ro"
 	CodeDoctorPlatformDetect                       = "doctor-platform-detect"
@@ -460,6 +461,12 @@ var builtinCodes = []CodeMeta{
 		Title:       "Listen address unavailable",
 		Description: "A configured listen address/port could not be bound.",
 		Examples:    []string{exampleDoctorJSON},
+	},
+	{
+		Code:        CodeDoctorListenerSetUnknown,
+		Title:       "Listener set cannot be derived",
+		Description: "ze doctor could not load the YANG schema it derives the listen addresses to check from, so no schema-declared listener (web, SSH, gNMI, API and the rest) was checked. The schema is built into ze, so this means the ze binary is incomplete: install a complete ze build and run ze doctor again.",
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-listener-set-unknown"},
 	},
 	{
 		Code:        "doctor-iface-missing",
@@ -1086,8 +1093,14 @@ var builtinCodes = []CodeMeta{
 	{
 		Code:        "doctor-traffic-usage-ebpf",
 		Title:       "traffic-usage eBPF unavailable",
-		Description: "The traffic-usage plugin is enabled but the kernel cannot load or attach its eBPF TCX programs (missing CAP_BPF/CAP_NET_ADMIN, no TCX support, or a non-Linux build). Byte accounting will not run.",
+		Description: "The traffic-usage plugin is enabled but this host cannot attach its eBPF TCX programs: the kernel has no TCX attach point (Linux 6.6 or later with CONFIG_NET_XGRESS), or the build is not Linux. Byte accounting will not run.",
 		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-traffic-usage-ebpf"},
+	},
+	{
+		Code:        "doctor-traffic-usage-ebpf-unknown",
+		Title:       "traffic-usage eBPF readiness not measured",
+		Description: "The traffic-usage plugin is enabled but the doctor could not ask the kernel whether it attaches eBPF TCX programs, usually because the doctor process lacks CAP_BPF or CAP_NET_ADMIN. Run `sudo ze doctor` to measure it.",
+		Examples:    []string{exampleDoctorJSON, "ze show diagnostic doctor-traffic-usage-ebpf-unknown"},
 	},
 	{
 		Code:        CodeDoctorBFDPort,

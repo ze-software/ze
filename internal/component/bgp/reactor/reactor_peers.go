@@ -494,7 +494,7 @@ func (r *Reactor) doRemovePeer(addr netip.Addr, subcode uint8) (*plugin.PeerInfo
 		Name:            settings.Name,
 		GroupName:       settings.GroupName,
 		LocalAS:         settings.LocalAS,
-		PeerAS:          peer.PeerAS(), // guarded: a dynamic peer may still be resolving its ASN
+		PeerAS:          rpc.RemoteASOf(peer.PeerAS()), // guarded: a dynamic peer may still be resolving its ASN
 		RouterID:        settings.RouterID,
 		State:           peer.State().PluginState(),
 	}

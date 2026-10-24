@@ -67,10 +67,10 @@ These are top-level plugins that own config roots and manage OS or routing resou
 
 | Topic | Payload |
 |-------|---------|
-| `interface/created` | LinkPayload: name, type, index, mtu, managed |
-| `interface/deleted` | LinkPayload |
-| `interface/up` | StatePayload: name, index |
-| `interface/down` | StatePayload |
+| `interface/created` | linkPayload: name, type, index, mtu, managed |
+| `interface/deleted` | linkPayload |
+| `interface/up` | statePayload: name, index |
+| `interface/down` | statePayload |
 | `interface/addr/added` | AddrPayload: name, unit, index, address, prefix-length, family |
 | `interface/addr/removed` | AddrPayload |
 | `interface/dhcp/lease-acquired` | DHCPPayload |

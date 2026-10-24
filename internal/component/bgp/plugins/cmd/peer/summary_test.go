@@ -17,6 +17,7 @@ import (
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/bgp/asn"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // TestBgpSummaryFormat verifies bgp summary handler returns tabular peer data.
@@ -28,7 +29,7 @@ func TestBgpSummaryFormat(t *testing.T) {
 		peers: []plugin.PeerInfo{
 			{
 				Address:            netip.MustParseAddr("192.0.2.1"),
-				PeerAS:             65001,
+				PeerAS:             rpc.RemoteASOf(65001),
 				State:              plugin.PeerStateEstablished,
 				Uptime:             5 * time.Minute,
 				UpdatesReceived:    10,
@@ -38,7 +39,7 @@ func TestBgpSummaryFormat(t *testing.T) {
 			},
 			{
 				Address: netip.MustParseAddr("192.0.2.2"),
-				PeerAS:  65002,
+				PeerAS:  rpc.RemoteASOf(65002),
 				State:   plugin.PeerStateStopped,
 			},
 		},
@@ -115,19 +116,19 @@ func TestBgpSummary_FilterByFamily(t *testing.T) {
 		peers: []plugin.PeerInfo{
 			{
 				Address:            netip.MustParseAddr("192.0.2.1"),
-				PeerAS:             65001,
+				PeerAS:             rpc.RemoteASOf(65001),
 				State:              plugin.PeerStateEstablished,
 				NegotiatedFamilies: []family.Family{family.IPv4Unicast, family.IPv6Unicast},
 			},
 			{
 				Address:            netip.MustParseAddr("192.0.2.2"),
-				PeerAS:             65002,
+				PeerAS:             rpc.RemoteASOf(65002),
 				State:              plugin.PeerStateEstablished,
 				NegotiatedFamilies: []family.Family{family.IPv4Unicast},
 			},
 			{
 				Address:            netip.MustParseAddr("192.0.2.3"),
-				PeerAS:             65003,
+				PeerAS:             rpc.RemoteASOf(65003),
 				State:              plugin.PeerStateStopped,
 				NegotiatedFamilies: nil,
 			},
@@ -298,7 +299,7 @@ func TestPeerShowStatistics(t *testing.T) {
 		peers: []plugin.PeerInfo{
 			{
 				Address:            netip.MustParseAddr("192.0.2.1"),
-				PeerAS:             65001,
+				PeerAS:             rpc.RemoteASOf(65001),
 				State:              plugin.PeerStateEstablished,
 				Uptime:             5 * time.Minute,
 				UpdatesReceived:    1000,
@@ -343,7 +344,7 @@ func TestPeerShowStatisticsZeroUptime(t *testing.T) {
 		peers: []plugin.PeerInfo{
 			{
 				Address: netip.MustParseAddr("192.0.2.1"),
-				PeerAS:  65001,
+				PeerAS:  rpc.RemoteASOf(65001),
 				State:   plugin.PeerStateStopped,
 				// Uptime is zero (not established)
 			},
@@ -376,7 +377,7 @@ func TestBgpSummaryUptimeTruncatedToSecond(t *testing.T) {
 		peers: []plugin.PeerInfo{
 			{
 				Address: netip.MustParseAddr("192.0.2.1"),
-				PeerAS:  65001,
+				PeerAS:  rpc.RemoteASOf(65001),
 				State:   plugin.PeerStateEstablished,
 				Uptime:  6*time.Minute + 10*time.Second + 766415123*time.Nanosecond,
 			},
@@ -418,7 +419,7 @@ func TestBgpPeerStatisticsUptimeTruncatedRatesExact(t *testing.T) {
 		peers: []plugin.PeerInfo{
 			{
 				Address:         netip.MustParseAddr("192.0.2.1"),
-				PeerAS:          65001,
+				PeerAS:          rpc.RemoteASOf(65001),
 				State:           plugin.PeerStateEstablished,
 				Uptime:          10*time.Second + 500*time.Millisecond,
 				UpdatesReceived: 21,
@@ -452,7 +453,7 @@ func TestBgpSummaryEmitsStateChangedAndLastError(t *testing.T) {
 		peers: []plugin.PeerInfo{
 			{
 				Address:         netip.MustParseAddr("192.0.2.1"),
-				PeerAS:          65001,
+				PeerAS:          rpc.RemoteASOf(65001),
 				State:           plugin.PeerStateEstablished,
 				Uptime:          5 * time.Minute,
 				LastStateChange: changed,
@@ -492,7 +493,7 @@ func TestBgpSummaryStateChangedAndLastErrorEmpty(t *testing.T) {
 		peers: []plugin.PeerInfo{
 			{
 				Address: netip.MustParseAddr("192.0.2.2"),
-				PeerAS:  65002,
+				PeerAS:  rpc.RemoteASOf(65002),
 				State:   plugin.PeerStateStopped,
 			},
 		},
@@ -632,7 +633,7 @@ func TestMergeRibRouteCounts(t *testing.T) {
 func TestBgpSummaryWithoutRibOmitsRouteCounts(t *testing.T) {
 	reactor := &mockReactor{
 		peers: []plugin.PeerInfo{
-			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001, State: plugin.PeerStateEstablished},
+			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: rpc.RemoteASOf(65001), State: plugin.PeerStateEstablished},
 		},
 		stats: plugin.ReactorStats{PeerCount: 1, RouterID: 0x0a000001, LocalAS: 65000},
 	}
@@ -709,7 +710,7 @@ func testPeers(count int) []plugin.PeerInfo {
 	for i := range count {
 		peers = append(peers, plugin.PeerInfo{
 			Address:         netip.AddrFrom4([4]byte{192, 0, 2, byte(i + 1)}),
-			PeerAS:          uint32(65001 + i),
+			PeerAS:          rpc.RemoteASOf(uint32(65001 + i)),
 			State:           plugin.PeerStateEstablished,
 			Uptime:          5 * time.Minute,
 			UpdatesReceived: uint32(100 * (i + 1)),
@@ -834,7 +835,7 @@ func TestBgpSummaryColumnsMatchPayload(t *testing.T) {
 		peers: []plugin.PeerInfo{
 			{
 				Address:            netip.MustParseAddr("192.0.2.1"),
-				PeerAS:             65001,
+				PeerAS:             rpc.RemoteASOf(65001),
 				State:              plugin.PeerStateEstablished,
 				NegotiatedFamilies: []family.Family{family.IPv4Unicast},
 			},
@@ -884,7 +885,7 @@ func TestBgpPeerListColumnsMatchPayload(t *testing.T) {
 				Address:   netip.MustParseAddr("192.0.2.1"),
 				Name:      "peer1",
 				GroupName: "transit",
-				PeerAS:    65001,
+				PeerAS:    rpc.RemoteASOf(65001),
 				State:     plugin.PeerStateEstablished,
 				Uptime:    time.Minute,
 			},
@@ -924,7 +925,7 @@ func TestBgpSummaryPayloadIsFlat(t *testing.T) {
 		peers: []plugin.PeerInfo{
 			{
 				Address: netip.MustParseAddr("192.0.2.1"),
-				PeerAS:  65001,
+				PeerAS:  rpc.RemoteASOf(65001),
 				State:   plugin.PeerStateEstablished,
 			},
 		},
@@ -975,13 +976,13 @@ func TestBgpSummaryFamilyKeysAreSiblings(t *testing.T) {
 		peers: []plugin.PeerInfo{
 			{
 				Address:            netip.MustParseAddr("192.0.2.1"),
-				PeerAS:             65001,
+				PeerAS:             rpc.RemoteASOf(65001),
 				State:              plugin.PeerStateEstablished,
 				NegotiatedFamilies: []family.Family{family.IPv4Unicast},
 			},
 			{
 				Address:            netip.MustParseAddr("192.0.2.2"),
-				PeerAS:             65002,
+				PeerAS:             rpc.RemoteASOf(65002),
 				State:              plugin.PeerStateEstablished,
 				NegotiatedFamilies: []family.Family{family.IPv6Unicast},
 			},
@@ -1018,7 +1019,7 @@ func TestBgpOverviewAnswersTheSummary(t *testing.T) {
 		peers: []plugin.PeerInfo{
 			{
 				Address:            netip.MustParseAddr("192.0.2.1"),
-				PeerAS:             65001,
+				PeerAS:             rpc.RemoteASOf(65001),
 				State:              plugin.PeerStateEstablished,
 				NegotiatedFamilies: []family.Family{family.IPv4Unicast},
 			},

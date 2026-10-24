@@ -61,7 +61,7 @@ programs Ze does not control, so most mistakes here are about ownership.
   only as `(mpls-fib, entry)` events that `fib-kernel` consumes
   (`internal/core/mplsfib/events.go`).
 - **Exact or refuse, at verify.** Feature support is declared with `ze:backend`
-  in YANG and checked by `config.ValidateBackendFeatures` from `OnConfigure` and
+  in YANG and checked by `config.validateBackendFeatures` from `OnConfigure` and
   `OnConfigVerify` (`core-design.md`, section 14a). A semantic limit the
   annotation cannot express goes in a backend verifier
   (`internal/component/traffic/backend.go`, `RegisterVerifier`). A runtime
@@ -106,8 +106,9 @@ programs Ze does not control, so most mistakes here are about ownership.
   the kernel first (`plan/journal/kernel-refuses-what-the-installer-sends.md`).
 - **VPP shipped five silent approximations**, including policers that run in
   series on the feature arc (`docs/architecture/traffic/fw-7-traffic-vpp.md`).
-- **The VPP backend answers an empty address list** with no error, because
-  `SwInterfaceDetails` carries no addresses
+- **VPP reports addresses but no DAD outcome.** `ip_address_details` carries
+  no DAD state, so the VPP backend answers `DADReported` false, and an address
+  without `Tentative` or `DADFailed` there is not a unique one
   (`plan/journal/zero-value-as-valid-answer.md`, `detailsToInfo`).
 - **Kernel FIB tests passed where the install is refused.** Six `.ci` tests
   had no capability marker and asserted only a log pattern

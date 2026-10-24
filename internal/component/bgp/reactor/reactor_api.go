@@ -68,7 +68,7 @@ func establishedPeerInfo(peer *Peer) plugin.PeerInfo {
 		Name:            s.Name,
 		GroupName:       s.GroupName,
 		LocalAS:         s.LocalAS,
-		PeerAS:          s.PeerAS,
+		PeerAS:          rpc.RemoteASOf(s.PeerAS),
 		RouterID:        s.RouterID,
 		// The OPEN has been read by the time a peer is Established, so this is
 		// the identifier RFC 4271 Section 9.1.2.2 step f) compares. It is a
@@ -116,7 +116,7 @@ func (o *apiStateObserver) OnPeerClosed(peer *Peer, closed sessionClose) {
 		// can be drained on the hold-timer goroutine, racing a dynamic peer's reconnect
 		// resolveDynamicPeerSettings write (reactor_dynamic.go). Other fields are immutable
 		// post-construction (PeerAS/ImportPolicy/ExportPolicy use guarded accessors).
-		PeerAS:   peer.PeerAS(),
+		PeerAS:   rpc.RemoteASOf(peer.PeerAS()),
 		RouterID: s.RouterID,
 		Connect:  s.Connection.Connect,
 		Accept:   s.Connection.Accept,
@@ -181,7 +181,7 @@ func (a *reactorAPIAdapter) Peers() []plugin.PeerInfo {
 			Name:                 s.Name,
 			GroupName:            s.GroupName,
 			LocalAS:              s.LocalAS,
-			PeerAS:               peerAS,
+			PeerAS:               rpc.RemoteASOf(peerAS),
 			RouterID:             s.RouterID,
 			RemoteRouterID:       p.RemoteRouterID(),
 			ReceiveHoldTime:      s.ReceiveHoldTime,

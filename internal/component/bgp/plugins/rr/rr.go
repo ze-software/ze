@@ -327,7 +327,11 @@ func (rr *routeReflector) handleStructuredState(se *rpc.StructuredEvent) {
 	}
 	peer := rr.peers[se.PeerAddress]
 	peer.Up = (se.State == rpc.SessionStateUp)
-	peer.ASN = se.PeerAS
+	// A dynamic peer's AS is unknown before its OPEN is negotiated: keep the
+	// last one learned rather than recording AS 0.
+	if asn, known := se.PeerAS.ASN(); known {
+		peer.ASN = asn
+	}
 	switch se.State {
 	case rpc.SessionStateUp:
 		if se.Reason == rpc.ReasonAttached {

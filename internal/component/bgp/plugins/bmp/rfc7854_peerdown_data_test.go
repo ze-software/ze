@@ -45,7 +45,7 @@ func peerDownHarness(t *testing.T) (*BMPPlugin, net.Conn) {
 func notificationEvent(direction rpc.MessageDirection, body []byte) *rpc.StructuredEvent {
 	return &rpc.StructuredEvent{
 		PeerAddress: "10.0.0.1",
-		PeerAS:      65001,
+		PeerAS:      rpc.RemoteASOf(65001),
 		EventType:   rpc.EventKindNotification,
 		Direction:   direction,
 		RawMessage:  &bgptypes.RawMessage{Type: msgtype.TypeNOTIFICATION, RawBytes: body},
@@ -56,7 +56,7 @@ func notificationEvent(direction rpc.MessageDirection, body []byte) *rpc.Structu
 func peerDownEvent(reason string) *rpc.StructuredEvent {
 	return &rpc.StructuredEvent{
 		PeerAddress: "10.0.0.1",
-		PeerAS:      65001,
+		PeerAS:      rpc.RemoteASOf(65001),
 		EventType:   rpc.EventKindState,
 		State:       rpc.SessionStateDown,
 		Reason:      reason,
@@ -283,7 +283,7 @@ func TestPeerDownIsNotSentForAPeerNeverReportedUp(t *testing.T) {
 
 			result := asyncRead(server)
 			bp.handleStructuredEvent(down)
-			if err := bp.senders[0].writeRouteMonitoring(peerHeaderFromEvent(down), msgtype.TypeUPDATE, []byte{0, 0, 0, 0}); err != nil {
+			if err := bp.senders[0].writeRouteMonitoring(mustPeerHeader(t, down), msgtype.TypeUPDATE, []byte{0, 0, 0, 0}); err != nil {
 				t.Fatalf("queue the sentinel: %v", err)
 			}
 

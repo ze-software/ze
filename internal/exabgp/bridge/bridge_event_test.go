@@ -119,7 +119,7 @@ func openMember(t *testing.T, rendered map[string]any) map[string]any {
 // compare with ExaBGP's own output, whose v6 form was produced by the pinned
 // ExaBGP from the same wire bytes.
 func TestV4JSONEnvelopeAndCapabilitiesByCode(t *testing.T) {
-	rendered := readZeEvent(t, openEventZe).ExabgpJSON(FormatV4JSON)
+	rendered := readZeEvent(t, openEventZe).exabgpJSON(FormatV4JSON)
 	if rendered["exabgp"] != JSONVersionV4 {
 		t.Errorf("envelope %v, want %s", rendered["exabgp"], JSONVersionV4)
 	}
@@ -134,7 +134,7 @@ func TestV4JSONEnvelopeAndCapabilitiesByCode(t *testing.T) {
 // capabilities keyed by name, each with its "code" inside, as ExaBGP main
 // wrote them for the same OPEN.
 func TestV6JSONCapabilitiesByName(t *testing.T) {
-	rendered := readZeEvent(t, openEventZe).ExabgpJSON(FormatV6JSON)
+	rendered := readZeEvent(t, openEventZe).exabgpJSON(FormatV6JSON)
 	open := openMember(t, rendered)
 	sameJSON(t, "capabilities", open["capabilities"], openCapabilitiesV6)
 }
@@ -145,7 +145,7 @@ func TestV6JSONCapabilitiesByName(t *testing.T) {
 func TestOpenMyASIsTheTwoOctetField(t *testing.T) {
 	event := readZeEvent(t, `{"type":"bgp","bgp":{"message":{"type":"open"},"peer":{"remote":{"address":"10.0.0.1"}},
 	 "open":{"asn":4200000000,"router-id":"1.1.1.1","timer":{"hold-time":90},"capabilities":[{"code":65,"name":"asn4","value":"4200000000"}]}}}`)
-	open := openMember(t, event.ExabgpJSON(FormatV6JSON))
+	open := openMember(t, event.exabgpJSON(FormatV6JSON))
 	sameJSON(t, "asn", open["asn"], `23456`)
 	sameJSON(t, "capabilities", open["capabilities"], `{"asn4": {"code": 65, "name": "asn4", "asn4": 4200000000}}`)
 }
@@ -241,7 +241,7 @@ func TestV4NotificationDataReadable(t *testing.T) {
 				format Format
 				data   string
 			}{{FormatV4JSON, tc.v4Data}, {FormatV6JSON, tc.v6Data}} {
-				neighbor, ok := event.ExabgpJSON(format.format)["neighbor"].(map[string]any)
+				neighbor, ok := event.exabgpJSON(format.format)["neighbor"].(map[string]any)
 				if !ok {
 					t.Fatalf("no neighbor")
 				}
@@ -316,13 +316,13 @@ func announcedNLRI(t *testing.T, rendered map[string]any, family string) map[str
 func TestV4ShapesRestoredFrom5x(t *testing.T) {
 	labeled := readZeEvent(t, updateEventZe("ipv4/mpls-label", announcedNextHop,
 		`{"prefix":"10.0.0.0/24","labels":[[100,1601]]}`, `{"origin":"igp"}`))
-	sameJSON(t, "v4 label", announcedNLRI(t, labeled.ExabgpJSON(FormatV4JSON), "ipv4 nlri-mpls")["label"], `[[100]]`)
-	sameJSON(t, "v6 label", announcedNLRI(t, labeled.ExabgpJSON(FormatV6JSON), "ipv4 nlri-mpls")["label"], `[[100, 1601]]`)
+	sameJSON(t, "v4 label", announcedNLRI(t, labeled.exabgpJSON(FormatV4JSON), "ipv4 nlri-mpls")["label"], `[[100]]`)
+	sameJSON(t, "v6 label", announcedNLRI(t, labeled.exabgpJSON(FormatV6JSON), "ipv4 nlri-mpls")["label"], `[[100, 1601]]`)
 
 	flow := readZeEvent(t, updateEventZe("ipv4/flow", announcedNextHop,
 		`{"source-ipv4":[["10.0.1.0/24"]]}`, `{"origin":"igp"}`))
-	v4String, _ := announcedNLRI(t, flow.ExabgpJSON(FormatV4JSON), "ipv4 flow")["string"].(string)
-	v6String, _ := announcedNLRI(t, flow.ExabgpJSON(FormatV6JSON), "ipv4 flow")["string"].(string)
+	v4String, _ := announcedNLRI(t, flow.exabgpJSON(FormatV4JSON), "ipv4 flow")["string"].(string)
+	v6String, _ := announcedNLRI(t, flow.exabgpJSON(FormatV6JSON), "ipv4 flow")["string"].(string)
 	if v6String == "" {
 		t.Fatalf("no flow string")
 	}

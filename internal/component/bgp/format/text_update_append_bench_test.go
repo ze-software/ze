@@ -20,7 +20,7 @@ func buildBenchUpdate(tb testing.TB) (plugin.PeerInfo, bgptypes.RawMessage, bgpt
 	peer := plugin.PeerInfo{
 		Address: netip.MustParseAddr("10.0.0.1"),
 		Name:    "bench-peer",
-		PeerAS:  65001,
+		PeerAS:  rpc.RemoteASOf(65001),
 	}
 	body := buildTestUpdateBodyWithAttrs(
 		netip.MustParsePrefix("192.168.1.0/24"),

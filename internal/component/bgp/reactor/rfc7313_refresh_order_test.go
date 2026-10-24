@@ -57,7 +57,7 @@ func answerRefresh(t *testing.T, api *reactorAPIAdapter) {
 	afi, safi := uint16(family.AFIIPv4), uint8(family.SAFIUnicast)
 	route := bgptypes.NLRIBatch{
 		Family:  family.IPv4Unicast,
-		NLRIs:   []nlri.NLRI{nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("192.0.2.0/24"), 0)},
+		NLRIs:   []nlri.NLRI{nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("192.0.2.0/24"), 0, false)},
 		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1")),
 	}
 	require.NoError(t, api.SendBoRR(all, afi, safi, operator))

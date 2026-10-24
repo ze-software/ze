@@ -74,6 +74,50 @@ caller tell this from a failure? Does anything downstream rely on this value
 being absent? If it does, that reliance is a guard, and a guard gets a name, a
 comment, and a test. Full rule: `ai/rules/principles.md`.
 
+**Code that cannot answer refuses; it does not default.** A lookup that missed,
+an input nobody recognized, a resource that could not be read: each is an
+error, a protocol discard with a counted reason, or an explicit Unknown, never
+the type's zero or a guessed constant. When the signature has no way to say so
+(`interfaceExists` returning `bool`, a label allocator returning `uint32`), the
+signature is what changes. `./le arch refuse-by-default check` refuses four
+shapes on the lines your unpushed commits and working tree changed:
+
+| Shape | Refused | Write instead |
+|-------|---------|---------------|
+| Unmatched switch value | A `default:` arm, or the return after a switch whose every case returns, answering a nil error | An error naming the value |
+| Miss answered as a hit | A branch on `!ok`, on a nil registered slot or on a read error's `err != nil` answering `true`, a lone zero or a nil error; `return err == nil` from a read | An error naming what could not be found or read |
+| ADD-PATH identifier compared with zero | `pathID != 0` and every comparison of a path identifier with `0` | The negotiated capability the route carries (`nlri.HasPathID`, `Route.AddPath`, `RawRoute.HasPathID`): zero is a valid identifier (RFC 7911 Section 2) |
+| State from a literal | `StatusHealthy` in a function that measures nothing; a check that is one literal `return nil` or `return true`; a literal boolean in a `State`, `Status` or `Health` value | Read the state; where it cannot be read, Unknown with the reason |
+
+A branch that records what it met before it answers (a field or element write,
+a counter step, the error handed to an outer variable) or whose answer carries
+the error is not refused, and neither is a parse's own "no" (`strconv.Atoi`,
+`netip.ParseAddr`): the miss then reaches a reader. A `false` beside the nil
+error hands the miss on, and a bool function literal (an `ast.Inspect`
+visitor, a yield, a poll predicate) steers its caller's loop, so neither is
+refused either. A log line is no record: a WARN beside a default is still the
+default.
+
+Where the zero IS the answer another branch relies on, name that guard on the
+shape's line or the line above it:
+
+```go
+// refuse-by-default: guards Stop -- a nil handler is the stopped state Stop leaves
+if fn == nil {
+	return nil
+}
+```
+
+The annotation opens with `guards` and a Go name the file holds or imports,
+then the reason. One that names no guard, or a name the file cannot see, is
+refused on its own line. The check lists every accepted shape with its guard,
+so a reviewer reads each one. `./le arch refuse-by-default report` lists every
+instance in the tree, refused and annotated.
+<!-- source: internal/le/arch/refusebydefault/refusebydefault.go -- ScanFile, missOf, recordsMiss, answersPlausibly -->
+<!-- source: internal/le/arch/refusebydefault/annotation.go -- parseGuard -->
+<!-- source: internal/le/arch/refusebydefault/report.go -- Check, Report -->
+
+
 ### Types that cannot lie
 
 A type that can hold an invalid value will hold one.
@@ -536,6 +580,7 @@ A finding from these tools names the rule, so the rule is not restated above.
 |------|------|-----------------|
 | Guard, handle, return | revive `early-return`, `indent-error-flow`, `superfluous-else` | An `else` that a guard makes unnecessary |
 | One fact per guard | `./le arch compound-guard check` | A terminating `if a \|\| b` on a changed line |
+| Refuse, never default | `./le arch refuse-by-default check` | On a changed line: an unmatched switch value or a miss answered as a value, an ADD-PATH identifier compared with zero, a state answered from a literal, or a `refuse-by-default:` annotation that names no guard (see "A zero value is never an answer") |
 | State an invariant positively | ruleguard `negatedElse` | `if !c` or `if a != b` with an `else`. `err != nil` and the failure form of a bound stay allowed |
 | Only a named panic | `writeGoPatterns` | A `panic(` in content that holds no panic with a `BUG`, `unreachable`, `not implemented`, `unimplemented`, `TODO` or `impossible` prefix. One allowed panic admits every other panic in the same content, so a peer-reachable panic stays a reader check (see "Assertions, in a language that has none") |
 | No unchecked error | `errcheck` (type assertions too, `check-blank: false`), `forcetypeassert`, `nilerr`, `errorlint` | A call whose error result is ignored, an unchecked assertion, `return nil` beside a live `err`, an error compared with `==` or wrapped without `%w`. A blank discard `f, _ := open()` passes: see "Every error is handled" |

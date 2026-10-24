@@ -2,8 +2,8 @@
   "note": "Re-judged 2026-09-29. The wrong tags on TestConcurrentDumpsStayAddressedToTheirOwnCollector are gone. rfc7854_session_opening_test.go::TestRFC7854SessionPeerUpOnlyForEstablishedPeers primes a new collector (primeSender) over one Established peer and one peer that exchanged OPENs and sent an UPDATE but never reported Up; it counts Peer Ups per address on the collector's bytes: exactly 1 for the Established peer, 0 for the other, and the first message is the Peer Up. A producer that announced every peer with cached OPENs, or none, goes red.",
   "requirement_sha": "55b9ac733d60f375",
   "tests": {
-    "internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go::TestRFC7854SessionPeerUpOnlyForEstablishedPeers": "524ea12738fd2dfc",
-    "internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go::TestRFC7854SessionPeerUpOnlyForEstablishedPeers#2": "524ea12738fd2dfc"
+    "internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go::TestRFC7854SessionPeerUpOnlyForEstablishedPeers": "8e6f8d24ba62ba53",
+    "internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go::TestRFC7854SessionPeerUpOnlyForEstablishedPeers#2": "8e6f8d24ba62ba53"
   },
   "units": {
     "internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go::TestRFC7854SessionPeerUpOnlyForEstablishedPeers": "b70c239ed27fa05c",

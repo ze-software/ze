@@ -72,8 +72,8 @@ func TestLIBRemoveAllForPeer(t *testing.T) {
 
 func TestLIBAllocateLabel(t *testing.T) {
 	lib := newLIB()
-	l1 := lib.AllocateLabel()
-	l2 := lib.AllocateLabel()
+	l1 := mustAllocateLabel(t, lib)
+	l2 := mustAllocateLabel(t, lib)
 	if l1 < 16 {
 		t.Errorf("first label = %d, want >= 16 (reserved range)", l1)
 	}
@@ -127,7 +127,7 @@ func TestLIBEnsureLocalIdempotent(t *testing.T) {
 	lib := newLIB()
 	fec := netip.MustParsePrefix("10.1.0.0/24")
 
-	first := lib.EnsureLocal(fec)
+	first := mustEnsureLocal(t, lib, fec)
 	if first.Label < 16 {
 		t.Errorf("local label = %d, want >= 16 (reserved range)", first.Label)
 	}
@@ -135,7 +135,7 @@ func TestLIBEnsureLocalIdempotent(t *testing.T) {
 		t.Errorf("FEC = %s, want %s", first.FEC, fec)
 	}
 
-	second := lib.EnsureLocal(fec)
+	second := mustEnsureLocal(t, lib, fec)
 	if second.Label != first.Label {
 		t.Errorf("EnsureLocal not idempotent: %d then %d", first.Label, second.Label)
 	}
@@ -145,8 +145,8 @@ func TestLIBEnsureLocalIdempotent(t *testing.T) {
 // the LocalBindings snapshot (feeds `show ldp binding`, AC-8).
 func TestLIBEnsureLocalDistinct(t *testing.T) {
 	lib := newLIB()
-	a := lib.EnsureLocal(netip.MustParsePrefix("10.1.0.0/24"))
-	b := lib.EnsureLocal(netip.MustParsePrefix("10.2.0.0/24"))
+	a := mustEnsureLocal(t, lib, netip.MustParsePrefix("10.1.0.0/24"))
+	b := mustEnsureLocal(t, lib, netip.MustParsePrefix("10.2.0.0/24"))
 	if a.Label == b.Label {
 		t.Errorf("distinct FECs share label %d", a.Label)
 	}
@@ -172,13 +172,35 @@ func TestLIBAllocateSkipsUsed(t *testing.T) {
 	lib.usedLabels[16] = true
 	lib.usedLabels[17] = true
 
-	b := lib.EnsureLocal(netip.MustParsePrefix("10.1.0.0/24"))
+	b := mustEnsureLocal(t, lib, netip.MustParsePrefix("10.1.0.0/24"))
 	if b.Label != 18 {
 		t.Errorf("allocated label = %d, want 18 (16 and 17 in use)", b.Label)
 	}
 	// The newly allocated label is now also marked used.
-	c := lib.EnsureLocal(netip.MustParsePrefix("10.2.0.0/24"))
+	c := mustEnsureLocal(t, lib, netip.MustParsePrefix("10.2.0.0/24"))
 	if c.Label == b.Label {
 		t.Errorf("reused in-use label %d", c.Label)
 	}
+}
+
+// mustEnsureLocal binds fec through LIB.EnsureLocal and fails the test on an
+// allocation error, for tests whose subject is not label exhaustion.
+func mustEnsureLocal(t *testing.T, lib *LIB, fec netip.Prefix) localBinding {
+	t.Helper()
+	b, err := lib.EnsureLocal(fec)
+	if err != nil {
+		t.Fatalf("EnsureLocal(%s): %v", fec, err)
+	}
+	return b
+}
+
+// mustAllocateLabel allocates through LIB.AllocateLabel and fails the test on
+// an allocation error.
+func mustAllocateLabel(t *testing.T, lib *LIB) uint32 {
+	t.Helper()
+	label, err := lib.AllocateLabel()
+	if err != nil {
+		t.Fatalf("AllocateLabel: %v", err)
+	}
+	return label
 }

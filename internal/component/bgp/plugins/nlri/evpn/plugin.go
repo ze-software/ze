@@ -187,7 +187,7 @@ func (p *evpnEncodeParams) setField(key, value string) error {
 		p.rd = parsed
 		p.hasRD = true
 	case fieldESI:
-		parsed, err := ParseESIString(value)
+		parsed, err := parseESIString(value)
 		if err != nil {
 			return fmt.Errorf("invalid esi: %w", err)
 		}
@@ -594,7 +594,7 @@ func evpnToJSON(e EVPN, rawData []byte) map[string]any {
 
 	// RFC 7911 Section 3: the Path Identifier rides in front of the NLRI rather
 	// than inside it, so it reaches JSON under its own key.
-	if e.HasPathID() {
+	if e.HasAddPath() {
 		result["path-id"] = e.PathID()
 	}
 
@@ -613,11 +613,11 @@ func evpnToJSON(e EVPN, rawData []byte) map[string]any {
 		}
 		result["label"] = formatLabelsForJSON(v.Labels())
 
-	case *EVPNType3:
+	case *evpnType3:
 		result["ethernet-tag"] = v.EthernetTag()
 		result["originator"] = v.OriginatorIP().String()
 
-	case *EVPNType4:
+	case *evpnType4:
 		result[fieldESI] = formatESIForJSON(v.ESI())
 		result["originator"] = v.OriginatorIP().String()
 

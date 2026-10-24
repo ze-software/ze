@@ -39,7 +39,7 @@ func makePrefix(i int) netip.Prefix {
 
 func makeTypicalRoute(i int) *Route {
 	prefix := makePrefix(i)
-	n := nlri.NewINET(family.IPv4Unicast, prefix, 0)
+	n := nlri.NewINET(family.IPv4Unicast, prefix, 0, false)
 	nh := netip.AddrFrom4([4]byte{192, 168, 1, 1})
 
 	origin := attribute.OriginIGP
@@ -112,7 +112,7 @@ func TestHeapBytesPerRouteMinimal(t *testing.T) {
 		routes = make([]*Route, N)
 		for i := range N {
 			prefix := makePrefix(i)
-			n := nlri.NewINET(family.IPv4Unicast, prefix, 0)
+			n := nlri.NewINET(family.IPv4Unicast, prefix, 0, false)
 			nh := netip.AddrFrom4([4]byte{192, 168, 1, 1})
 			routes[i] = NewRouteWithASPath(n, nh, nil, nil)
 		}

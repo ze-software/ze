@@ -56,7 +56,7 @@ func newPipeSender(conn net.Conn, mirroring bool) *BMPPlugin {
 func updateEvent(direction rpc.MessageDirection, body []byte) *rpc.StructuredEvent {
 	return &rpc.StructuredEvent{
 		PeerAddress: "10.0.0.1",
-		PeerAS:      65001,
+		PeerAS:      rpc.RemoteASOf(65001),
 		EventType:   rpc.EventKindUpdate,
 		Direction:   direction,
 		RawMessage:  &bgptypes.RawMessage{Type: msgtype.TypeUPDATE, RawBytes: body},
@@ -82,10 +82,10 @@ func TestRFC8671ReservedPeerFlagsTransmittedAsZero(t *testing.T) {
 		t.Run(one.name, func(t *testing.T) {
 			se := &rpc.StructuredEvent{
 				PeerAddress: one.address,
-				PeerAS:      65001,
+				PeerAS:      rpc.RemoteASOf(65001),
 				Direction:   one.direction,
 			}
-			ph := peerHeaderFromEvent(se)
+			ph := mustPeerHeader(t, se)
 			if ph.Flags&peerFlagsReserved != 0 {
 				t.Errorf("reserved bits set: flags = %#x, reserved mask = %#x", ph.Flags, peerFlagsReserved)
 			}
@@ -240,7 +240,7 @@ func TestRFC8671AdjRIBOutConveysNoUntransmittedUpdate(t *testing.T) {
 	// No RawMessage: nothing was transmitted, so nothing may be conveyed.
 	bp.handleStructuredEvent(&rpc.StructuredEvent{
 		PeerAddress: "10.0.0.1",
-		PeerAS:      65001,
+		PeerAS:      rpc.RemoteASOf(65001),
 		EventType:   rpc.EventKindUpdate,
 		Direction:   rpc.DirectionSent,
 	})

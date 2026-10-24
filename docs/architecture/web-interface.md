@@ -165,6 +165,12 @@ The YANG schema drives the entire UI. No hardcoded field lists.
 | `ContainerNode.Description`, `ListNode.Description` | The long explanation, as a `<p class="config-help">` block in the config view: at the top of the container view (`configContainer`, before the child list) and under the `Entries` heading of the list view (`configList`). `buildConfigViewData` (`handler_config_walk.go`) copies it into `ConfigViewData.Description`. A node that declares none renders no block. The sidebar heading keeps the summary |
 
 <!-- source: internal/component/config/schema.go -- LeafNode, ContainerNode, ListNode -->
+
+A union leaf's `LeafNode` also lists its member types in `Union`, in declared
+order. A value the editor submits is judged against each member in turn and is
+accepted at the first that takes it (RFC 7950 Section 9.12); a value no member
+takes is refused with each member's reason, rather than accepted unchecked.
+<!-- source: internal/component/config/schema.go -- UnionMember, validateUnionValue -->
 <!-- source: internal/component/web/fragment.go -- buildFieldMeta, nodeDescription -->
 <!-- source: internal/component/web/handler_config_leaf.go -- buildLeafField -->
 <!-- source: internal/component/web/handler_config_walk.go -- buildConfigViewData -->
@@ -214,6 +220,8 @@ Configured and web-only startup call `startWebServer` in
 `cmd/ze/hub/service_web.go`. Web-only mode starts the server without a BGP
 config for initial setup.
 <!-- source: cmd/ze/hub/service_web.go -- startWebServer -->
+
+With no config path, `startWebServer` takes the config name from `resolve.DefaultConfig`. When that call errors (the instance name exists but cannot be read), the server is not started: it prints `warning: web server disabled:` and the error to stderr and returns no server, rather than serving `ze.conf`.
 
 Web-only mode stops in two steps. The first Ctrl+C (SIGINT or SIGTERM) prints
 "Shutting down (Ctrl+C again to force)...", closes the listener and gives open

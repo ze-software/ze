@@ -54,7 +54,7 @@ func rsLabeledUpdate(t *testing.T, code byte, nlris []byte) *bgptypes.RawMessage
 func rsApplyLabeled(t *testing.T, rs *routeServer, code byte, nlris []byte) {
 	t.Helper()
 
-	records := extractWireNLRIRecords(rsLabeledUpdate(t, code, nlris))
+	records := wireNLRIRecords(t, rsLabeledUpdate(t, code, nlris))
 	if records == nil {
 		t.Fatal("no records extracted")
 	}
@@ -225,7 +225,7 @@ func rsApplyLabeledMatrix(t *testing.T, rs *routeServer, fam family.Family, addP
 	if err != nil {
 		t.Fatal(err)
 	}
-	records := extractWireNLRIRecords(&bgptypes.RawMessage{RawBytes: body, AttrsWire: attrsWire, WireUpdate: wu})
+	records := wireNLRIRecords(t, &bgptypes.RawMessage{RawBytes: body, AttrsWire: attrsWire, WireUpdate: wu})
 	if records == nil {
 		t.Fatal("labeled extraction returned no records")
 	}

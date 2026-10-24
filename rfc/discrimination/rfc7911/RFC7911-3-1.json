@@ -7,7 +7,7 @@
     "claim-sha": "9c86a26ae4760a27",
     "route": "revert",
     "producer": "internal/component/bgp/types/rawmessage.go::SourceEncodingContext",
-    "producer-sha": "a26e53b30d215667",
+    "producer-sha": "73aa34df6f308d31",
     "break": "body of SourceEncodingContext replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   }
 ]

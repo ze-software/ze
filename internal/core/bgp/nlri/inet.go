@@ -50,20 +50,24 @@ var (
 // Path ID is stored but NOT included in Len()/Bytes()/WriteTo().
 // Use WriteNLRI() for ADD-PATH aware encoding.
 type INET struct {
-	PrefixNLRI
+	prefixNLRI
 }
 
-// NewINET creates a new INET NLRI carrying pathID as its RFC 7911 Path
-// Identifier. Zero is an identifier like any other here.
+// NewINET creates a new INET NLRI. hasPathID states whether it carries pathID
+// as its RFC 7911 Path Identifier, and the caller takes it from the ADD-PATH
+// negotiation or from the operator's explicit identifier, never from the value:
+// zero is an identifier like any other. With hasPathID false the NLRI carries
+// no identifier and pathID is no part of it for any reader but WriteNLRI.
 //
-// The result reports HasAddPath false, because a locally built NLRI has no wire
-// layout yet. Use WriteNLRI() with addPath=true to encode the identifier.
-func NewINET(fam family.Family, prefix netip.Prefix, pathID uint32) *INET {
-	return &INET{
-		fam:    fam,
-		prefix: prefix,
-		pathID: pathID,
-	}
+// The encoder still takes the wire layout from the session's EncodingContext
+// through WriteNLRI; hasPathID is what HasPathID reports to every other reader.
+func NewINET(fam family.Family, prefix netip.Prefix, pathID uint32, hasPathID bool) *INET {
+	return &INET{prefixNLRI{
+		fam:     fam,
+		prefix:  prefix,
+		pathID:  pathID,
+		addPath: hasPathID,
+	}}
 }
 
 // ParseINET parses an INET NLRI from wire format.
@@ -148,7 +152,7 @@ func ParseINET(afi family.AFI, safi family.SAFI, data []byte, addpath bool) (NLR
 	// The layout is recorded, not inferred from the identifier. Zero is a valid
 	// Path Identifier, so a reader comparing pathID against zero cannot tell a
 	// route that carried one from a route that carried none.
-	inet := &INET{PrefixNLRI{
+	inet := &INET{prefixNLRI{
 		fam:     family.Family{AFI: afi, SAFI: safi},
 		prefix:  prefix,
 		pathID:  pathID,
@@ -158,7 +162,7 @@ func ParseINET(afi family.AFI, safi family.SAFI, data []byte, addpath bool) (NLR
 	return inet, data[offset+prefixBytes:], nil
 }
 
-// Family, Prefix, PathID methods inherited from PrefixNLRI.
+// Family, Prefix, PathID methods inherited from prefixNLRI.
 
 // Bytes returns the wire-format encoding (payload only, no path ID).
 //

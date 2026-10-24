@@ -97,6 +97,34 @@ func TestDHCPv6AddressesTheBackendDoesNotReportNotDeclined(t *testing.T) {
 	}
 }
 
+// TestDHCPv6AddressesWithoutDADOutcomeNotReadAsUnique runs the client over a
+// backend that answers the device's addresses but no DAD outcome, as the VPP
+// backend does: the leased address is present and carries neither Tentative
+// nor DADFailed.
+//
+// VALIDATES: the client reads the DAD outcome as unknown, not as unique: one
+// Warn names the interface and says the outcome cannot be read, and nothing
+// is declined or removed.
+// PREVENTS: an address whose DAD nobody reported taken as DAD-complete and
+// unique because it carries no flag (RFC 9915 Section 18.2.10.1).
+func TestDHCPv6AddressesWithoutDADOutcomeNotReadAsUnique(t *testing.T) {
+	r := newV6Rig(t, dHCPConfig{PDRequested: true})
+	r.srv.serve = leaseServer(leaseLongPD, false, false)
+	r.backend.dadUnreported = true
+	r.startWorker()
+	r.runUntil(seconds(3))
+
+	if got := r.sentOf(dhcpv6.MessageTypeDecline); len(got) != 0 {
+		t.Fatalf("%d DECLINE on a backend that reports no DAD outcome: %s", len(got), r.describeSent())
+	}
+	if got := r.countOps("remove-addr"); got != 0 {
+		t.Errorf("address removed %d times, want 0", got)
+	}
+	if got := r.logs.countWith(slog.LevelWarn, "duplicate address detection outcome", "iface", r.backend.logical); got != 1 {
+		t.Errorf("%d Warn naming %s for the unreported DAD outcome, want 1", got, r.backend.logical)
+	}
+}
+
 // TestDHCPv6FailedAddressReadDeclinesNothing fails every backend read from
 // 0.4 s, while the leased address is still tentative.
 //

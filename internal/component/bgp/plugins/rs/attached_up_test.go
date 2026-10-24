@@ -36,7 +36,7 @@ func TestRSSkipsReplayOnAttachedUp(t *testing.T) {
 			ev := parseStructuredState(&rpc.StructuredEvent{
 				EventType:   rpc.EventKindState,
 				PeerAddress: target,
-				PeerAS:      65001,
+				PeerAS:      rpc.RemoteASOf(65001),
 				State:       rpc.SessionStateUp,
 				Reason:      rpc.ReasonAttached,
 			})

@@ -7,8 +7,10 @@ package trafficusage
 import (
 	"errors"
 	"fmt"
+	"math"
 
 	"github.com/cilium/ebpf"
+	"github.com/cilium/ebpf/asm"
 	"github.com/cilium/ebpf/link"
 	"github.com/cilium/ebpf/rlimit"
 )
@@ -20,11 +22,43 @@ type tcxAttacher struct{}
 
 func newAttacher() attacher { return tcxAttacher{} }
 
-// ebpfSupported reports whether eBPF TCX accounting can run on this build,
-// without side effects (unlike Available, it does not touch the memlock rlimit),
-// so the doctor check stays read-only. On Linux the feature is built in; a
-// missing capability surfaces as a logged attach failure at runtime (AC-12).
-func ebpfSupported() error { return nil }
+// probeTCX asks this kernel whether it attaches eBPF TCX programs: it loads a
+// two-instruction sched_cls program and attaches it to an interface index no
+// device holds. Nothing stays attached and the memlock rlimit is untouched, so
+// the doctor check stays read-only. The answer is about this process's
+// privileges and this kernel, and classifyTCXProbe reads it.
+func probeTCX() tcxReadinessResult {
+	prog, err := ebpf.NewProgram(&ebpf.ProgramSpec{
+		Type:    ebpf.SchedCLS,
+		License: "GPL",
+		Instructions: asm.Instructions{
+			asm.Mov.Imm(asm.R0, 0),
+			asm.Return(),
+		},
+	})
+	if err != nil {
+		return classifyTCXProbe(fmt.Errorf("load the probe program: %w", err))
+	}
+	defer prog.Close() //nolint:errcheck // the probe program holds nothing to flush
+
+	probeLink, err := link.AttachTCX(link.TCXOptions{
+		Interface: tcxProbeIfindex,
+		Program:   prog,
+		Attach:    ebpf.AttachTCXIngress,
+	})
+	if err == nil {
+		closeAll(nil, probeLink)
+		return classifyTCXProbe(nil)
+	}
+	if errors.Is(err, ebpf.ErrNotSupported) {
+		err = fmt.Errorf("%w: %w", errNoTCX, err)
+	}
+	return classifyTCXProbe(err)
+}
+
+// tcxProbeIfindex is an interface index no device holds, so the kernel answers
+// the probe's attach with ENODEV once it has parsed a TCX request.
+const tcxProbeIfindex = math.MaxInt32
 
 // Available reports whether eBPF accounting can run here. Removing the memlock
 // rlimit is the one privileged step needed before loading; on a kernel without

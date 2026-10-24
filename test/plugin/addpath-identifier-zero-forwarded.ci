@@ -1,0 +1,143 @@
+# Test: a route an ADD-PATH peer announces under Path Identifier 0 is held as a
+#       route carrying identifier 0, and reaches the next ADD-PATH peer with the
+#       four identifier octets.
+# VALIDATES: spec-refuse-instead-of-defaulting AC-10, through the real daemon.
+#            RFC 7911 Section 3: "In order to carry the Path Identifier in an
+#            UPDATE message, the NLRI encoding MUST be extended by prepending the
+#            Path Identifier field, which is of four octets." The field reserves
+#            no value, so presence follows the negotiated capability: the source
+#            sends 00000000 180A0000, adj-rib-in keys it
+#            ipv4/unicast:10.0.0.0/24:0, and the receiver is sent
+#            00000000 180A0000 (ze's own identifier, Section 2).
+# PREVENTS: a presence test on the identifier's value (`pathID != 0`), which
+#           reads identifier 0 as "no identifier" and shows the route as the bare
+#           prefix, a different route from the one the peer sent
+#           (plan/journal/zero-value-as-valid-answer.md).
+#
+# The driver waits for ze's End-of-RIB to both peers, then for the route in
+# adj-rib-in, then drains the forward pool before the daemon stops.
+
+stdin=source:terminator=EOF_SOURCE
+option=tcp_connections:value=1
+option=timeout:value=40s
+option=linger:value=true
+# ze's ipv4/unicast End-of-RIB.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+# ORIGIN IGP, AS_PATH AS_SEQUENCE[65001], NEXT_HOP 1.1.1.1,
+# NLRI [00000000][24][10.0.0]: Path Identifier 0, then 10.0.0.0/24.
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000144001010040020602010000FDE94003040101010100000000180A0000
+EOF_SOURCE
+
+stdin=receiver:terminator=EOF_RECEIVER
+option=tcp_connections:value=1
+option=timeout:value=40s
+option=bind:value=127.0.0.2
+option=linger:value=true
+# AS_PATH [65000 65001] after ze's prepend, the same NEXT_HOP, and the NLRI
+# prefixed by the four octets of ze's own Path Identifier 0.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003702000000184001010040020A02020000FDE80000FDE94003040101010100000000180A0000
+EOF_RECEIVER
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	internal rs {
+		use bgp-rs
+	}
+	external addpath-zero {
+		run "le test fixture plugin/addpath-identifier-zero"
+		encoder json
+	}
+	internal adj-rib-in {
+		use bgp-adj-rib-in
+	}
+}
+
+bgp {
+	peer source-peer {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+				add-path {
+					direction send/receive
+					family {
+						ipv4/unicast
+					}
+				}
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		attach process adj-rib-in {
+			receive [ update-received state ]
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+	}
+
+	peer receiver {
+		connection {
+			remote {
+				ip 127.0.0.2
+			}
+			local {
+				ip 127.0.0.2
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65002
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+				add-path {
+					direction send/receive
+					family {
+						ipv4/unicast
+					}
+				}
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		attach process rs {
+			receive [ update-received state open-received refresh ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --port $PORT:stdin=source
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=receiver
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=40s
+expect=exit:code=0
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=ZE-OBSERVER-FAIL

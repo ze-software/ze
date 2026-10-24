@@ -1,16 +1,15 @@
 {
-  "code": {},
-  "note": "Re-judged 2026-10-14 (independent auditor). The three units changed only by calling mustFabricateLocRIBOpen, which fails the test on the error fabricateLocRIBOpen now returns from the one packer. Their assertions are unchanged: the fabricated OPEN carries 4-octet ASN, one Multiprotocol per dump family and Extended Next Hop only when the Route Monitoring encoding needs it, with the count asserted, and an IPv4 route with an IPv6 next hop is backed by Extended Next Hop. Single-polarity annotation stands.",
+  "note": "Re-judged 2026-10-23. TestLocRIBIPv4RouteWithIPv6NextHopIsBackedByExtendedNextHop changed by fixture only: Attributes (ORIGIN IGP) and mustLocRIBBody, which fails the test on the encoder's new error. Assertions unchanged: the IPv4 route with an IPv6 next hop travels in MP_REACH_NLRI and the fabricated OPEN carries Extended Next Hop. Carrying the stored attribute set adds no capability need: path attributes other than the ASN carriers need none, and the ASN carriers are four-octet as the 4-octet ASN capability states. The other two units are unchanged. Single-polarity annotation stands.",
   "requirement_sha": "7b21af20b10bac12",
   "tests": {
-    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestFabricatedLocRIBOpenCarriesTheRequiredCapabilities": "0d66046a7112fdb8",
-    "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestFabricatedLocRIBOpenCarriesOnlyCapabilitiesTheRouteMonitoringUses": "eb1b3423b571c819",
-    "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestLocRIBIPv4RouteWithIPv6NextHopIsBackedByExtendedNextHop": "eb1b3423b571c819"
+    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestFabricatedLocRIBOpenCarriesTheRequiredCapabilities": "72b33d9afd5c33d4",
+    "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestFabricatedLocRIBOpenCarriesOnlyCapabilitiesTheRouteMonitoringUses": "ef925362dfcc8685",
+    "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestLocRIBIPv4RouteWithIPv6NextHopIsBackedByExtendedNextHop": "ef925362dfcc8685"
   },
   "units": {
     "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestFabricatedLocRIBOpenCarriesTheRequiredCapabilities": "2ea3c8fc72d8a140",
     "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestFabricatedLocRIBOpenCarriesOnlyCapabilitiesTheRouteMonitoringUses": "065764775481077a",
-    "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestLocRIBIPv4RouteWithIPv6NextHopIsBackedByExtendedNextHop": "25824e3c421fb550"
+    "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestLocRIBIPv4RouteWithIPv6NextHopIsBackedByExtendedNextHop": "3f645e7976718736"
   },
   "verdict": "enforced"
 }

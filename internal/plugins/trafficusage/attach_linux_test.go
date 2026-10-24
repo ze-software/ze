@@ -13,9 +13,9 @@ func TestNewAttacherLinux(t *testing.T) {
 	if a := newAttacher(); a == nil {
 		t.Fatal("newAttacher() = nil on Linux")
 	}
-	// ebpfSupported is the side-effect-free check the doctor uses; on Linux the
-	// feature is built in.
-	if err := ebpfSupported(); err != nil {
-		t.Errorf("ebpfSupported() = %v on Linux, want nil", err)
+	// The doctor's probe asks the kernel, so on Linux it answers ready, absent or
+	// unknown (an unprivileged run), and never returns no verdict.
+	if got := probeTCX(); got.state == tcxReadinessUnspecified || got.reason == nil {
+		t.Errorf("probeTCX() = %v (%v) on Linux, want a verdict with its evidence", got.state, got.reason)
 	}
 }

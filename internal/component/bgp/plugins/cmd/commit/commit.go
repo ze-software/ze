@@ -536,9 +536,9 @@ func handleNamedCommitWithdraw(ctx *pluginserver.CommandContext, name string, ar
 	// Build NLRI
 	var n nlri.NLRI
 	if prefix.Addr().Is4() {
-		n = nlri.NewINET(family.IPv4Unicast, prefix, 0)
+		n = nlri.NewINET(family.IPv4Unicast, prefix, 0, false)
 	} else {
-		n = nlri.NewINET(family.IPv6Unicast, prefix, 0)
+		n = nlri.NewINET(family.IPv6Unicast, prefix, 0, false)
 	}
 
 	// Queue withdrawal

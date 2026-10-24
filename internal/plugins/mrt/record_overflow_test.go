@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 
 	"github.com/ze-software/ze/internal/component/plugin"
 	mrtfmt "github.com/ze-software/ze/internal/mrt"
@@ -37,7 +38,7 @@ func TestOnBGPMessageMaxSizeExtendedMessageNoOverflow(t *testing.T) {
 	peer := &plugin.PeerInfo{
 		Address:      netip.MustParseAddr("2001:db8::1"),
 		LocalAddress: netip.MustParseAddr("2001:db8::2"),
-		PeerAS:       65001,
+		PeerAS:       rpc.RemoteASOf(65001),
 		LocalAS:      65002,
 	}
 	raw := make([]byte, 65535) // Complete maximum-length BGP message.

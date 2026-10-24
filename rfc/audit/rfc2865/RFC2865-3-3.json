@@ -2,10 +2,10 @@
   "note": "Forbidden: a Response Authenticator computed over anything but Code+ID+Length+RequestAuth+Attributes+Secret. TestRFC2865ResponseAuthenticatorMatchesTheFormula compares ResponseAuthenticator with an independent MD5 over exactly those fields (red on a wrong formula, with a non-degenerate attribute stream); TestRFC2865ResponseAuthenticatorCoversEveryNamedField mutates each named field and asserts VerifyResponseAuth rejects it.",
   "requirement_sha": "0bb672d98351bc9a",
   "tests": {
-    "internal/component/radius/packet_test.go::TestResponseAuthenticator": "8d639d23d04e7dff",
-    "internal/component/radius/packet_test.go::TestResponseAuthenticator#2": "8d639d23d04e7dff",
-    "internal/component/radius/packet_test.go::TestVerifyResponseAuth": "8d639d23d04e7dff",
-    "internal/component/radius/packet_test.go::TestVerifyResponseAuth#2": "8d639d23d04e7dff",
+    "internal/component/radius/packet_test.go::TestResponseAuthenticator": "d7805a7dbe0458f7",
+    "internal/component/radius/packet_test.go::TestResponseAuthenticator#2": "d7805a7dbe0458f7",
+    "internal/component/radius/packet_test.go::TestVerifyResponseAuth": "d7805a7dbe0458f7",
+    "internal/component/radius/packet_test.go::TestVerifyResponseAuth#2": "d7805a7dbe0458f7",
     "internal/component/radius/rfc2865_response_auth_test.go::TestRFC2865ResponseAuthenticatorCoversEveryNamedField": "afe9edcd4686e40f",
     "internal/component/radius/rfc2865_response_auth_test.go::TestRFC2865ResponseAuthenticatorMatchesTheFormula": "afe9edcd4686e40f"
   },

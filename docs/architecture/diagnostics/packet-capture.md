@@ -24,6 +24,15 @@ Raw capture is opt-in because the byte copy is the expensive half. Activation
 uses `atomic.Pointer` with `CompareAndSwap`, so an RPC handler goroutine can
 enable a ring that a reactor goroutine reads on the hot path.
 
+`show capture raw start` with a protocol named (`bgp` or `bfd`) is an error when
+that capture did not start: no running BGP reactor offers raw capture, or the
+BFD plugin is not loaded. The error names the cause and the command to check.
+Answering done with an empty `started` list read as "capturing", and the later
+dump came back empty with no reason. A start with no protocol named still lists
+what started.
+
+<!-- source: internal/plugins/diag/cmd/capture_raw.go -- captureRawStartRefusal -->
+
 <!-- source: internal/component/bgp/reactor/capture.go -- BGP decoded ring -->
 <!-- source: internal/component/bgp/reactor/raw_capture.go -- BGP raw ring -->
 <!-- source: internal/component/l2tp/capture.go -- L2TP control packet ring -->

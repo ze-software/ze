@@ -22,7 +22,7 @@ func TestGroupedSendReducesUpdateCount(t *testing.T) {
 	for i := range 100 {
 		prefix := netip.PrefixFrom(netip.AddrFrom4([4]byte{10, 0, byte(i / 256), byte(i % 256)}), 24)
 		routes[i] = rib.NewRouteWithASPath(
-			nlri.NewINET(family.IPv4Unicast, prefix, 0),
+			nlri.NewINET(family.IPv4Unicast, prefix, 0, false),
 			netip.MustParseAddr("192.168.1.1"),
 			[]attribute.Attribute{attribute.OriginIGP},
 			&attribute.ASPath{Segments: []attribute.ASPathSegment{
@@ -59,7 +59,7 @@ func TestGroupedSendSeparatesAttributeGroups(t *testing.T) {
 		prefix := netip.PrefixFrom(netip.AddrFrom4([4]byte{10, 0, byte(i / 256), byte(i % 256)}), 24)
 		nh := nextHops[i%3] //nolint:gosec // nextHops has exactly 3 elements, i%3 is always in bounds
 		routes[i] = rib.NewRouteWithASPath(
-			nlri.NewINET(family.IPv4Unicast, prefix, 0),
+			nlri.NewINET(family.IPv4Unicast, prefix, 0, false),
 			nh,
 			[]attribute.Attribute{attribute.OriginIGP},
 			nil,
@@ -99,7 +99,7 @@ func TestBuildGroupedMPReachWithLimit(t *testing.T) {
 			prefix = netip.PrefixFrom(netip.AddrFrom16(b), 48)
 		}
 		routes[i] = rib.NewRouteWithASPath(
-			nlri.NewINET(family.IPv6Unicast, prefix, 0),
+			nlri.NewINET(family.IPv6Unicast, prefix, 0, false),
 			netip.MustParseAddr("2001:db8::1"),
 			[]attribute.Attribute{attribute.OriginIGP},
 			nil,

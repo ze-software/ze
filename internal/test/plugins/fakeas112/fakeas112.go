@@ -43,7 +43,6 @@ import (
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/redistevents"
 	"github.com/ze-software/ze/internal/core/slogutil"
-	"github.com/ze-software/ze/internal/core/textbuf"
 	as112events "github.com/ze-software/ze/internal/plugins/as112/events"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/ze"
@@ -272,10 +271,10 @@ func parseEmitArgs(args []string) (emitArgs, error) {
 // records them in the store; a del withdraws only the families currently
 // announced (intersected with the request), so it never emits a withdraw for a
 // family that was never added.
-func runEmit(args []string) (string, error) {
+func runEmit(args []string) (map[string]any, error) {
 	ea, err := parseEmitArgs(args)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	var delivered int
@@ -287,12 +286,13 @@ func runEmit(args []string) (string, error) {
 		delivered, err = emitFamiliesList(redistevents.ActionRemove, removed, asn, community, 0)
 	}
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	logger().Debug("fakeas112: emitted",
 		"action", ea.action, "families", len(ea.families), "asn", ea.asn, "communities", len(ea.community), "delivered", delivered)
-	var b textbuf.Buffer
-	return b.Reset().Str(`{"delivered":`).Int(int64(delivered)).Byte('}').String(), nil
+	// A map, never pre-encoded text: a command answer is structured data, and the
+	// engine refuses a payload that arrives as a JSON string (plugin.RawJSON).
+	return map[string]any{"delivered": delivered}, nil
 }
 
 // dispatchCommand is the OnExecuteCommand entry point.
@@ -310,7 +310,8 @@ func dispatchCommand(_, command string, args []string, _ string) (string, any, e
 	return rpc.StatusError, "", fmt.Errorf("unknown command: %s", command)
 }
 
-// helpStub used by `fakeas112 help`.
-func helpStub() string {
-	return "fakeas112 emit add|del [family <ipv4|ipv6|both>] [asn <N>] [community <c1,c2,...>]"
+// helpStub used by `fakeas112 help`. It answers an object for the same reason
+// runEmit does: a bare string is a JSON string scalar, which the engine refuses.
+func helpStub() map[string]any {
+	return map[string]any{"usage": "fakeas112 emit add|del [family <ipv4|ipv6|both>] [asn <N>] [community <c1,c2,...>]"}
 }

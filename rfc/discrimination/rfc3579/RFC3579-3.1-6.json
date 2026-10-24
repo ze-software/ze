@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC3579-3.1-6",
+    "polarity": "negative",
+    "unit": "internal/component/radius/rfc3579_client_test.go::TestRadiusDiscardsEAPAnswerWithoutMessageAuthenticator",
+    "unit-sha": "9972b8a1a7ecf5ba",
+    "claim-sha": "e8015bf7237a4740",
+    "route": "revert",
+    "producer": "internal/component/radius/packet.go::datagramCarriesAttr",
+    "producer-sha": "502f3d6229c81568",
+    "break": "body of datagramCarriesAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

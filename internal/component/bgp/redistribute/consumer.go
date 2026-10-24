@@ -4,12 +4,12 @@ package redistribute
 
 import (
 	"context"
-	"log/slog"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/bgp/textparse"
 	"github.com/ze-software/ze/internal/component/config/redistribute"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -17,6 +17,10 @@ const bgpConsumerName = "bgp"
 const originIncomplete = "incomplete"
 const originIGP = "igp"
 const updateRouteTimeout = 10 * time.Second
+
+// logger is the redistribution subsystem's logger. The bare default slog
+// printed nothing under any ze.log key, so the consumer's lines were lost.
+var logger = slogutil.LazyLogger("bgp.redistribute")
 
 // RouteDispatcher abstracts the plugin SDK's UpdateRoute method.
 type RouteDispatcher interface {
@@ -45,15 +49,24 @@ func (c *BGPConsumer) InjectRoute(ctx context.Context, fam family.Family, entry 
 	if sel == "" {
 		sel = "*"
 	}
-	slog.Debug("bgp consumer: injecting route", "command", cmd, "peer", sel)
+	logger().Debug("bgp consumer: injecting route", "command", cmd, "peer", sel)
 	cctx, cancel := context.WithTimeout(ctx, updateRouteTimeout)
 	defer cancel()
 	added, withdrawn, err := c.dispatcher.UpdateRoute(cctx, sel, cmd)
 	if err != nil {
-		slog.Warn("bgp consumer: update-route failed", "error", err, "command", cmd)
-	} else {
-		slog.Debug("bgp consumer: update-route ok", "added", added, "withdrawn", withdrawn)
+		logger().Warn("bgp consumer: update-route failed", "error", err, "command", cmd)
+		return
 	}
+	// The reactor answers an announce no peer accepted with a warning that
+	// reaches here as added=0 and no error. That is not an announce: say so,
+	// or the redistributed route is missing with nothing in the log.
+	if added == 0 {
+		logger().Warn("bgp consumer: redistributed route reached no BGP peer, so it is not "+
+			"announced; check the peer is established with `ze show bgp peer`",
+			"peer", sel, "prefix", entry.Prefix, "family", fam.String())
+		return
+	}
+	logger().Debug("bgp consumer: update-route ok", "added", added, "withdrawn", withdrawn)
 }
 
 func (c *BGPConsumer) WithdrawRoute(ctx context.Context, fam family.Family, prefix string) {
@@ -61,7 +74,7 @@ func (c *BGPConsumer) WithdrawRoute(ctx context.Context, fam family.Family, pref
 	cctx, cancel := context.WithTimeout(ctx, updateRouteTimeout)
 	defer cancel()
 	if _, _, err := c.dispatcher.UpdateRoute(cctx, "*", cmd); err != nil {
-		slog.Warn("bgp consumer: update-route failed", "error", err, "command", cmd)
+		logger().Warn("bgp consumer: update-route failed", "error", err, "command", cmd)
 	}
 }
 

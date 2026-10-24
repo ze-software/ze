@@ -46,11 +46,11 @@ func TestFlowSpecFeedsUnicastAuthorizationWithoutFirewall(t *testing.T) {
 func TestFlowSpecRefusesIncompleteExplicitRIBFeed(t *testing.T) {
 	for _, receive := range []string{"state", "update-sent state", "update-received"} {
 		t.Run(receive, func(t *testing.T) {
-			_, err := LoadReactor(fmt.Sprintf(flowSpecDeliveryConfig, "attach process bgp-rib { receive [ "+receive+" ]; }"))
+			_, err := loadReactor(fmt.Sprintf(flowSpecDeliveryConfig, "attach process bgp-rib { receive [ "+receive+" ]; }"))
 			require.Error(t, err, "a partial RIB can authorize a rule without seeing a disqualifying unicast route")
 		})
 	}
-	_, err := LoadReactor(fmt.Sprintf(flowSpecDeliveryConfig, "attach process bgp-rib { receive [ update-received state ]; }"))
+	_, err := loadReactor(fmt.Sprintf(flowSpecDeliveryConfig, "attach process bgp-rib { receive [ update-received state ]; }"))
 	require.NoError(t, err, "an explicit complete authorization feed remains valid")
 }
 
@@ -69,7 +69,7 @@ func TestFlowSpecAuthorizationRequiresInternalRIB(t *testing.T) {
 			require.NoError(t, err)
 			_, err = config.NewParser(schema).Parse(input)
 			require.NoError(t, err, "both plugin modes are valid configuration syntax")
-			_, err = LoadReactor(input)
+			_, err = loadReactor(input)
 			if tc.external {
 				require.Error(t, err, "external event delivery cannot supply the synchronous authorization gate")
 			} else {
@@ -116,7 +116,7 @@ func TestFlowSpecReplayRequiresReachableSelectingRIB(t *testing.T) {
 			require.NoError(t, err)
 			_, err = config.NewParser(schema).Parse(input)
 			require.NoError(t, err, "the process mode and bindings are valid syntax")
-			_, err = LoadReactor(input)
+			_, err = loadReactor(input)
 			if tc.reject {
 				require.Error(t, err, "the replay owner cannot query the process-local selecting RIB")
 			} else {

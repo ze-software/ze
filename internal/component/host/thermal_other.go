@@ -4,7 +4,7 @@
 
 package host
 
-// DetectThermal on non-Linux platforms returns ErrUnsupported.
-func (d *Detector) DetectThermal() (*ThermalInfo, error) {
+// detectThermal on non-Linux platforms returns ErrUnsupported.
+func (d *Detector) detectThermal() (*ThermalInfo, error) {
 	return nil, ErrUnsupported
 }

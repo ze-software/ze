@@ -283,7 +283,7 @@ func TestExabgpJSONDirectionOnMessagesOnly(t *testing.T) {
 					Kind: tt.kind, Direction: modeReceive, Peer: "10.0.0.1", Local: "10.0.0.2",
 					Payload: map[string]any{"state": "up"}, Data: map[string]any{},
 				}
-				neighbor, ok := event.ExabgpJSON(format)["neighbor"].(map[string]any)
+				neighbor, ok := event.exabgpJSON(format)["neighbor"].(map[string]any)
 				require.True(t, ok)
 				direction, has := neighbor["direction"]
 				if !tt.travels {

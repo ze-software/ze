@@ -215,6 +215,7 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `ze_iface_config_apply_started_total` | Counter | | iface (config apply) |
 | `ze_iface_ra_sent_total` | CounterVec | interface | iface-ra |
 | `ze_iface_ra_solicited_total` | CounterVec | interface | iface-ra |
+| `ze_radius_unsigned_eap_discards_total` | Counter | | radius (client) |
 
 The three iface link-event counters answer the same question from different
 points on the path, and none of them reports a lost final state. A rising

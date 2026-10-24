@@ -2,8 +2,8 @@
   "note": "positive calls checkBestPathChange directly after FamilyRIB.Remove and asserts a BestChangeWithdraw event; no UPDATE to a peer is asserted, and the 'newly installed routes' half of the sentence carries no tag. Negative is an unchanged-best re-run",
   "requirement_sha": "04f270bb5549bd27",
   "tests": {
-    "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeNoPublishSameBest": "dc546dccf368c8ad",
-    "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeWithdraw": "dc546dccf368c8ad"
+    "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeNoPublishSameBest": "0ca91d85d8302a14",
+    "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeWithdraw": "0ca91d85d8302a14"
   },
   "units": {
     "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeNoPublishSameBest": "60623f6b66fa6992",

@@ -443,6 +443,11 @@ var scenarioOperations = map[string][]operation{
 		{kind: opFRRRoute, argument: injectPrefixFirst},
 		{kind: opFRRSession, argument: zeLabAddress},
 	},
+	scenarioAddPathZeroIDFRR: {
+		{kind: opFRRSession, argument: zeLabAddress},
+		{kind: opFRRRoute, argument: injectPrefixFirst},
+		{kind: opFRRSession, argument: zeLabAddress},
+	},
 	"bgp-community-frr": {
 		{kind: opFRRSession, argument: zeLabAddress},
 		{kind: opFRRRoute, argument: injectPrefixFirst},

@@ -76,7 +76,9 @@ type NLRI interface {
 	// String returns a human-readable representation.
 	String() string
 
-	// PathID returns the ADD-PATH path identifier (0 if not present).
+	// PathID returns the ADD-PATH path identifier. Zero is an identifier like
+	// any other, so whether one is carried is HasPathID's answer, never a
+	// comparison of this value with zero.
 	// RFC 7911 Section 3: Path Identifier is a 4-octet field.
 	PathID() uint32
 
@@ -104,20 +106,38 @@ type JSONAppender interface {
 	AppendJSON(buf []byte) []byte
 }
 
-// AddPathAware is an optional interface implemented by NLRI types that hold raw
-// wire bytes whose layout depends on the ADD-PATH negotiation.
+// AddPathAware is an optional interface implemented by NLRI types that know
+// whether they carry an RFC 7911 Path Identifier.
 //
 // RFC 7911 Section 3: "In order to carry the Path Identifier in an UPDATE
 // message, the NLRI encoding MUST be extended by prepending the Path Identifier
 // field, which is of four octets."
 //
-// A decoder handed those octets cannot tell a Path Identifier from the first
-// octets of the NLRI itself, so the flag has to travel with the data. The
-// formatters probe for this interface to learn the layout of the bytes they
-// hold, rather than switching on a concrete type: a new opaque NLRI carrier
-// answers the question by implementing the method, and no formatter is edited.
+// The field reserves no value, so the identifier cannot say whether it is
+// there, and a decoder handed the octets cannot tell a Path Identifier from the
+// first octets of the NLRI itself. The fact comes from the negotiation, so it
+// travels with the NLRI: the parser records the session's ADD-PATH state, and a
+// locally built NLRI records what its builder was told. Callers ask HasPathID
+// rather than switching on a concrete type: a new NLRI carrier answers the
+// question by implementing the method, and no caller is edited.
 type AddPathAware interface {
 	HasAddPath() bool
+}
+
+// HasPathID reports whether n carries an RFC 7911 Path Identifier. It is the
+// one presence test: code MUST ask it and MUST NOT compare PathID() with zero.
+//
+// RFC 7911 Section 2: "A BGP speaker that receives a route should not assume
+// that the identifier carries any particular semantics."
+//
+// An NLRI type that does not implement AddPathAware cannot carry one, so it
+// answers false.
+func HasPathID(n NLRI) bool {
+	a, ok := n.(AddPathAware)
+	if !ok {
+		return false
+	}
+	return a.HasAddPath()
 }
 
 // SplitPathID removes the 4-octet Path Identifier from the head of one NLRI and

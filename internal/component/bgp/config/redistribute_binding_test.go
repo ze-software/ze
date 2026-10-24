@@ -16,7 +16,7 @@ import (
 func bindingsFor(t *testing.T, input string) []reactor.ProcessBinding {
 	t.Helper()
 	const peerName = "upstream"
-	r, err := LoadReactor(input)
+	r, err := loadReactor(input)
 	require.NoError(t, err)
 	for _, p := range r.Peers() {
 		settings := p.Settings()

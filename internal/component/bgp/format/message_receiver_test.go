@@ -50,7 +50,7 @@ func TestFormatSwitchingParsedRawFull(t *testing.T) {
 		Address:      netip.MustParseAddr("192.168.1.2"),
 		LocalAddress: netip.MustParseAddr("192.168.1.1"),
 		LocalAS:      65001,
-		PeerAS:       65002,
+		PeerAS:       rpc.RemoteASOf(65002),
 	}
 
 	// Valid UPDATE wire bytes (minimal: 0 withdrawn, 0 attrs, 0 nlri)
@@ -90,7 +90,7 @@ func TestFormatFullWithRoutes(t *testing.T) {
 		Address:      netip.MustParseAddr("192.168.1.2"),
 		LocalAddress: netip.MustParseAddr("192.168.1.1"),
 		LocalAS:      65001,
-		PeerAS:       65002,
+		PeerAS:       rpc.RemoteASOf(65002),
 	}
 
 	// Valid UPDATE with: 0 withdrawn, ORIGIN+NEXT_HOP attrs, one /24 NLRI
@@ -509,7 +509,7 @@ func TestNegotiatedToDecoded(t *testing.T) {
 func TestFormatFullAddPathFlags(t *testing.T) {
 	peer := plugin.PeerInfo{
 		Address: netip.MustParseAddr("10.0.0.1"),
-		PeerAS:  65001,
+		PeerAS:  rpc.RemoteASOf(65001),
 	}
 
 	// Build UPDATE with path-id in NLRI (ADD-PATH format)

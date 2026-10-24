@@ -133,7 +133,7 @@ func TestLDPFIBProgramPop(t *testing.T) {
 	fib := newLDPFIB(bus, slogutil.DiscardLogger())
 	fec := netip.MustParsePrefix("10.1.0.0/24")
 
-	fib.ProgramPop(fec, 18000)
+	fib.programPop(fec, 18000)
 
 	e := bus.lastEntry(t)
 	assert.Equal(t, mplsfibevents.ActionAdd, e.Action)
@@ -150,7 +150,7 @@ func TestLDPFIBRemovePop(t *testing.T) {
 	fib := newLDPFIB(bus, slogutil.DiscardLogger())
 	fec := netip.MustParsePrefix("10.1.0.0/24")
 
-	fib.RemovePop(fec, 18000)
+	fib.removePop(fec, 18000)
 
 	e := bus.lastEntry(t)
 	assert.Equal(t, mplsfibevents.ActionRemove, e.Action)
@@ -279,7 +279,7 @@ func TestReconcilePeerDown(t *testing.T) {
 
 	assert.Len(t, removed, 2, "both of peerA's bindings removed")
 	// shared survives via peerB; soloP is gone.
-	if _, ok := lib.RemainingForFEC(shared); !ok {
+	if _, ok := lib.remainingForFEC(shared); !ok {
 		t.Error("shared FEC should still have peerB's binding")
 	}
 	assert.True(t, fib.pushed[shared.String()], "shared push re-pointed, still installed")
@@ -369,7 +369,7 @@ func TestLDPFIBNilBus(t *testing.T) {
 	assert.NotPanics(t, func() {
 		fib.ProgramPush(netip.MustParsePrefix("10.9.0.0/24"), 17000, netip.Addr{})
 		fib.Remove(netip.MustParsePrefix("10.9.0.0/24"))
-		fib.ProgramPop(netip.MustParsePrefix("10.1.0.0/24"), 18000)
-		fib.RemovePop(netip.MustParsePrefix("10.1.0.0/24"), 18000)
+		fib.programPop(netip.MustParsePrefix("10.1.0.0/24"), 18000)
+		fib.removePop(netip.MustParsePrefix("10.1.0.0/24"), 18000)
 	})
 }

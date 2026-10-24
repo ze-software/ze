@@ -196,7 +196,9 @@ func CmdRecordPlugin(_ []string) int {
 		case recordEngineCommand:
 			return reader.answer()
 		case recordArgumentCommand:
-			return rpc.StatusDone, recordArgumentMarker + strings.Join(args, " "), nil
+			// An object, because a bare Go string marshals to a JSON scalar,
+			// which plugin.RawJSON refuses as finished text.
+			return rpc.StatusDone, map[string]string{"received": recordArgumentMarker + strings.Join(args, " ")}, nil
 		}
 		return rpc.StatusError, nil, fmt.Errorf("record-plugin: unknown command %q", command)
 	})

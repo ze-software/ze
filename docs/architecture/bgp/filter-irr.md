@@ -134,6 +134,12 @@ A configure that runs before `OnStarted`, inside the startup handshake, starts
 no resolution, because startup must not depend on the IRR server; only a
 reload configure, after `started` is set, starts it itself.
 <!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- firstResolveWait, handleConfigure, forgetUnconfigured, refreshASNCtx -->
+
+A resolved prefix list over the entry cap is refused whole, never cut: the
+refresh fails with an error naming the IPv4 and IPv6 counts and the cap, and
+the previous list stays in force. A cut filled the budget with IPv4 first, so
+every IPv6 route was rejected while the refresh reported success.
+<!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- prefixListFromIRR -->
 <!-- source: pkg/plugin/rpc/types.go -- FilterUpdateTimeout -->
 
 **A route rejected for a list reason is asked for again, by ROUTE-REFRESH.** The

@@ -78,7 +78,7 @@ func oneBuildOversizeBatch() bgptypes.NLRIBatch {
 		addr := base
 		addr[2] = byte(i >> 8)
 		addr[3] = byte(i)
-		nlris = append(nlris, nlri.NewINET(family.IPv4Unicast, netip.PrefixFrom(netip.AddrFrom4(addr), 32), 0))
+		nlris = append(nlris, nlri.NewINET(family.IPv4Unicast, netip.PrefixFrom(netip.AddrFrom4(addr), 32), 0, false))
 	}
 	return bgptypes.NLRIBatch{
 		Family:  family.IPv4Unicast,

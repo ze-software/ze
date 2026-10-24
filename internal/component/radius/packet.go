@@ -312,13 +312,18 @@ func VerifyCoAMessageAuthenticator(data, secret []byte) bool {
 // verifyResponseMessageAuthenticator checks the Message-Authenticator
 // attribute (type 80) of an Access-Accept, Access-Reject or Access-Challenge
 // against the Request Authenticator of the Access-Request it answers. It
-// reports whether a RADIUS client may accept the datagram.
+// returns the verdict, and only responseIntegrityAccepted lets a RADIUS client
+// accept the datagram.
 //
-// A datagram carrying no Message-Authenticator passes. RFC 2869 Section 5.14
-// conditions the obligation on the attribute being present, and RFC 2869
-// Section 5.19 Note 1 makes it mandatory only for a packet that also carries
-// an EAP-Message attribute. A datagram whose attribute list cannot be walked
-// fails.
+// A datagram carrying no Message-Authenticator passes unless it carries an
+// EAP-Message attribute. RFC 2869 Section 5.14 conditions the obligation on
+// the attribute being present, and RFC 2869 Section 5.19 Note 1 makes it
+// mandatory only for a packet that also carries an EAP-Message attribute. A
+// datagram whose attribute list cannot be walked fails.
+//
+// RFC 3579 Section 3.1: "Access-Challenge, Access-Accept, or Access-Reject
+// packets including EAP-Message attribute(s) without a Message-Authenticator
+// attribute SHOULD be silently discarded by the NAS."
 //
 // RFC 2869 Section 5.14: "A RADIUS Client receiving an Access-Accept,
 // Access-Reject or Access-Challenge with a Message-Authenticator Attribute
@@ -349,23 +354,33 @@ func VerifyCoAMessageAuthenticator(data, secret []byte) bool {
 // because RFC 2869 Section 5.14 computes the Message-Authenticator first and
 // the Response Authenticator over the finished packet. The Request
 // Authenticator is substituted there before the HMAC runs.
-func verifyResponseMessageAuthenticator(data []byte, requestAuth [AuthenticatorLen]byte, secret []byte) bool {
+func verifyResponseMessageAuthenticator(data []byte, requestAuth [AuthenticatorLen]byte, secret []byte) responseIntegrity {
 	if len(data) < MinPacketLen {
-		return false
+		return responseIntegrityMalformed
 	}
 	pktLen := int(binary.BigEndian.Uint16(data[2:4]))
-	if pktLen < MinPacketLen || pktLen > len(data) {
-		return false
+	if pktLen < MinPacketLen {
+		return responseIntegrityMalformed
+	}
+	if pktLen > len(data) {
+		return responseIntegrityMalformed
 	}
 
 	buf := make([]byte, pktLen)
 	copy(buf, data[:pktLen])
 	maOff, present, ok := messageAuthenticatorValueOffset(buf)
 	if !ok {
-		return false
+		return responseIntegrityMalformed
 	}
 	if !present {
-		return true
+		// RFC 3579 Section 3.1: "Access-Challenge, Access-Accept, or
+		// Access-Reject packets including EAP-Message attribute(s) without a
+		// Message-Authenticator attribute SHOULD be silently discarded by the
+		// NAS."
+		if datagramCarriesAttr(buf, AttrEAPMessage) {
+			return responseIntegrityUnsignedEAP
+		}
+		return responseIntegrityAccepted
 	}
 
 	var received [AuthenticatorLen]byte
@@ -374,7 +389,63 @@ func verifyResponseMessageAuthenticator(data []byte, requestAuth [AuthenticatorL
 	clear(buf[maOff : maOff+AuthenticatorLen])
 	mac := hmac.New(md5.New, secret) //nolint:gosec // RFC 2869 Section 5.14 mandates HMAC-MD5.
 	mac.Write(buf)
-	return hmac.Equal(received[:], mac.Sum(nil))
+	if hmac.Equal(received[:], mac.Sum(nil)) {
+		return responseIntegrityAccepted
+	}
+	return responseIntegrityMismatch
+}
+
+// responseIntegrity is the verdict verifyResponseMessageAuthenticator reaches
+// on a reply. The zero value is no verdict, so a caller that reads an unset
+// value refuses the datagram rather than accepting it.
+type responseIntegrity uint8
+
+const (
+	responseIntegrityUnspecified responseIntegrity = iota
+	// responseIntegrityAccepted: the Message-Authenticator matches, or is
+	// absent from a reply that carries no EAP-Message.
+	responseIntegrityAccepted
+	// responseIntegrityMalformed: the length or the attribute list does not walk.
+	responseIntegrityMalformed
+	// responseIntegrityUnsignedEAP: an EAP-Message with no Message-Authenticator.
+	responseIntegrityUnsignedEAP
+	// responseIntegrityMismatch: the Message-Authenticator does not match.
+	responseIntegrityMismatch
+)
+
+// String names the verdict for a log line.
+func (v responseIntegrity) String() string {
+	switch v {
+	case responseIntegrityUnspecified:
+		return "no verdict"
+	case responseIntegrityAccepted:
+		return "accepted"
+	case responseIntegrityMalformed:
+		return "malformed attribute list"
+	case responseIntegrityUnsignedEAP:
+		return "EAP-Message without Message-Authenticator (RFC 3579 Section 3.1)"
+	case responseIntegrityMismatch:
+		return "Message-Authenticator mismatch (RFC 2869 Section 5.14)"
+	}
+	return "unknown verdict"
+}
+
+// datagramCarriesAttr reports whether the attribute list of an encoded packet,
+// already walked by messageAuthenticatorValueOffset, holds an attribute of the
+// given type. The caller MUST have established that the list walks.
+func datagramCarriesAttr(data []byte, attrType uint8) bool {
+	off := HeaderLen
+	for off+2 <= len(data) {
+		attrLen := int(data[off+1])
+		if attrLen < 2 {
+			return false
+		}
+		if data[off] == attrType {
+			return true
+		}
+		off += attrLen
+	}
+	return false
 }
 
 // SignMessageAuthenticator computes the Message-Authenticator of an ENCODED

@@ -83,7 +83,7 @@ func buildBenchUpdate() benchUpdateData {
 		LocalAddress:    localAddr,
 		AddressStr:      peerAddr.String(),
 		LocalAddressStr: localAddr.String(),
-		PeerAS:          65001,
+		PeerAS:          rpc.RemoteASOf(65001),
 		LocalAS:         65000,
 		Name:            "peer1",
 		GroupName:       "group1",
@@ -125,7 +125,9 @@ func BenchmarkJSONPath(b *testing.B) {
 			b.Fatal(parseErr)
 		}
 		_ = event.GetPeerAddress()
-		_ = event.GetPeerASN()
+		if _, err := event.GetPeerASN(); err != nil {
+			b.Fatal(err)
+		}
 	}
 }
 

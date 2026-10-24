@@ -249,6 +249,19 @@ ports remain zero; listener and dial-target configuration are never substituted.
 <!-- source: internal/component/bgp/reactor/reactor_api.go -- establishedPeerInfo -->
 <!-- source: internal/component/bgp/reactor/reactor_notify.go -- notifyMessageReceiver -->
 
+Every `plugin.PeerInfo` the reactor builds (`runOnce`'s wire observer,
+`establishedPeerInfo`, `notifyMessageReceiver`, the close, removal, congestion
+and negotiated events) carries the peer's AS as `rpc.RemoteAS`, through
+`rpc.RemoteASOf`. A dynamic peer's settings hold 0 until Established, and 0
+becomes the not-yet-known state, which text writes as `remote as unknown` and
+JSON as an absent `remote.as`. `notifyMessageReceiver` closes one window: the
+KEEPALIVEs exchanged in OpenConfirm, after negotiation resolved the AS from the
+peer's OPEN but before the settings learn it, name the negotiated AS. The
+ingress policy chain and the raw-message AS are fed the plain number, which a
+received UPDATE, arriving in Established, always has resolved.
+<!-- source: pkg/plugin/rpc/remote_as.go -- RemoteAS, RemoteASOf -->
+<!-- source: internal/component/bgp/reactor/peer_run.go -- runOnce -->
+
 ### The startup convergence hold
 
 `bgp update-delay max-delay <seconds>` arms a hold when the daemon starts

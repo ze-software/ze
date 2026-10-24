@@ -143,10 +143,11 @@ func TestFabricatedLocRIBOpenCarriesOnlyCapabilitiesTheRouteMonitoringUses(t *te
 // Multiprotocol capabilities do not cover. Method: encode the route with the
 // Loc-RIB encoder, read the MP_REACH_NLRI octets, then decode the OPEN.
 func TestLocRIBIPv4RouteWithIPv6NextHopIsBackedByExtendedNextHop(t *testing.T) {
-	body := buildLocRIBUpdateBody(family.IPv4Unicast, &ribevents.BestChangeEntry{
-		Action:  routeaction.Add,
-		Prefix:  netip.MustParsePrefix("192.0.2.0/24"),
-		NextHop: netip.MustParseAddr("2001:db8::1"),
+	body := mustLocRIBBody(t, family.IPv4Unicast, &ribevents.BestChangeEntry{
+		Action:     routeaction.Add,
+		Attributes: locRIBOriginIGP,
+		Prefix:     netip.MustParsePrefix("192.0.2.0/24"),
+		NextHop:    netip.MustParseAddr("2001:db8::1"),
 	})
 	if len(body) < 4 {
 		t.Fatalf("UPDATE body = %x, too short", body)
@@ -375,7 +376,7 @@ func TestRFC8671PeerDownDoesNotDependOnTheMonitoredRIB(t *testing.T) {
 		}
 		downEvent := &rpc.StructuredEvent{
 			PeerAddress: "10.0.0.1",
-			PeerAS:      65001,
+			PeerAS:      rpc.RemoteASOf(65001),
 			EventType:   rpc.EventKindState,
 			State:       rpc.SessionStateDown,
 			Reason:      "notification",

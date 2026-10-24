@@ -112,6 +112,12 @@ detected from counter values alone.
 <!-- source: internal/plugins/iface/netlink/counter_linux.go -- counterSource.consume, counterSource.invalidate, counterStatsDecreased -->
 <!-- source: internal/plugins/iface/netlink/show_linux.go -- ListInterfaces, GetInterface -->
 
+`GetInterface` reports a missing interface only when the kernel answers the
+named `RTM_GETLINK` with `ENODEV`; that error wraps `iface.ErrInterfaceNotFound`.
+Every other netlink error is a read that did not answer and is returned as
+such, never as absence. Both calls mark their answers `DADReported`, because
+the netlink address list carries the tentative and DAD-failed flags.
+
 ## Independent collector tests
 
 <!-- source: internal/plugins/flowexport/collectors_docker_test.go -- TestFlowExportNFDumpInterop, TestFlowExportSFlowToolInterop -->

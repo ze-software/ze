@@ -126,9 +126,12 @@ func (r *realGRRIB) received(wire, attributes string) {
 	}
 	// A format=full UPDATE carries both decoded family operations and raw
 	// bytes. The consumer intentionally admits no route without an operation.
+	// An UPDATE arrives only on an established session, so its peer object
+	// carries the negotiated remote AS (format.peerMap); bgp-rib drops one
+	// that does not.
 	r.event(map[string]any{
 		"type": "update",
-		"peer": map[string]any{"remote": map[string]any{"address": testPeer}},
+		"peer": map[string]any{"remote": map[string]any{"address": testPeer, "as": 65001}},
 		"raw":  map[string]any{"attributes": attributes, "nlri": map[string]string{"ipv4/unicast": wire}},
 		"nlri": map[string]any{"ipv4/unicast": []map[string]any{{"action": "add", "next-hop": "192.0.2.1", "nlri": prefixes}}},
 	})

@@ -58,7 +58,7 @@ func TestAnnounceRailKeepsPrefixSIDInsideTheSRDomain(t *testing.T) {
 		"400101 00 4002 06 02010000fde9 "+prefixSIDAnnounceWire, " ", ""))
 	require.NoError(t, err)
 
-	route := nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("192.0.2.0/24"), 0)
+	route := nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("192.0.2.0/24"), 0, false)
 	adapter := &reactorAPIAdapter{r: &Reactor{config: &Config{LocalAS: 65000}}}
 
 	// build runs the announce rail toward one destination. isIBGP and

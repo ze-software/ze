@@ -283,7 +283,7 @@ func TestHandleState_Up_ExcludesSelf(t *testing.T) {
 func TestHandleOpen_ZeBGPFormat(t *testing.T) {
 	rs := newTestRouteServer(t)
 
-	rs.dispatchText("peer 10.0.0.1 remote as 65001 received open 0 router-id 10.0.0.1 hold-time 180 cap 1 multiprotocol ipv4/unicast cap 1 multiprotocol ipv6/unicast cap 2 route-refresh cap 65 asn4 65001")
+	rs.dispatchText("peer 10.0.0.1 remote as 65001 received open 0 asn 65001 router-id 10.0.0.1 hold-time 180 cap 1 multiprotocol ipv4/unicast cap 1 multiprotocol ipv6/unicast cap 2 route-refresh cap 65 asn4 65001")
 
 	rs.mu.RLock()
 	peer := rs.peers["10.0.0.1"]
@@ -1735,7 +1735,7 @@ func TestTextStateEventParseable(t *testing.T) {
 //
 // PREVENTS: OPEN events not being parseable in text format.
 func TestTextOpenEventParseable(t *testing.T) {
-	input := "peer 10.0.0.1 remote as 65001 received open 5 router-id 1.1.1.1 hold-time 90 cap 1 multiprotocol ipv4/unicast cap 1 multiprotocol ipv6/unicast\n"
+	input := "peer 10.0.0.1 remote as 65001 received open 5 asn 65001 router-id 1.1.1.1 hold-time 90 cap 1 multiprotocol ipv4/unicast cap 1 multiprotocol ipv6/unicast\n"
 
 	eventType, _, peerAddr, payload, err := quickParseTextEvent(input)
 	if err != nil {
@@ -1772,6 +1772,36 @@ func TestTextOpenEventParseable(t *testing.T) {
 	}
 	if !hasFamilies {
 		t.Error("missing multiprotocol capabilities")
+	}
+}
+
+// TestTextOpenASNReadsEveryRFC5396Spelling verifies the OPEN's own `asn` token
+// is read with asn.Parse, the one reader of AS number text in Ze.
+//
+// VALIDATES: an OPEN whose header carries `remote as unknown` (a dynamic peer
+// before its AS is negotiated) takes its AS from the `asn` token, in asdot as
+// well as asplain.
+//
+// PREVENTS: a hand-written decimal parse that leaves the AS at 0 for an asdot
+// spelling, which then reads as "no AS" downstream.
+func TestTextOpenASNReadsEveryRFC5396Spelling(t *testing.T) {
+	for _, tc := range []struct {
+		spelling string
+		want     uint32
+	}{
+		{"65546", 65546},
+		{"1.10", 65546},
+	} {
+		event := parseTextOpen("peer 10.0.0.1 remote as unknown received open 5 asn " + tc.spelling + " router-id 1.1.1.1 hold-time 90\n")
+		if event == nil || event.Open == nil {
+			t.Fatalf("asn %s: parseTextOpen returned no OPEN", tc.spelling)
+		}
+		if event.Open.ASN != tc.want {
+			t.Errorf("asn %s: Open.ASN = %d, want %d", tc.spelling, event.Open.ASN, tc.want)
+		}
+		if event.PeerASN != tc.want {
+			t.Errorf("asn %s: PeerASN = %d, want %d", tc.spelling, event.PeerASN, tc.want)
+		}
 	}
 }
 

@@ -26,6 +26,14 @@ All parsed text events start with `peer <address> remote as <asn>`. State events
 <!-- source: internal/component/bgp/format/text.go -- AppendOpen, AppendNotification, AppendKeepalive, AppendRouteRefresh -->
 
 Direction is `received` or `sent`. Message ID is a monotonically increasing integer per peer session for BGP wire messages.
+
+`remote as` always names the peer's AS, in every event and in both directions.
+A dynamic peer's AS is known only once its OPEN is negotiated, so an event of
+its OPEN exchange (the sent OPEN, a NOTIFICATION sent in OpenSent) reads
+`remote as unknown`, never AS 0. The OPEN body's `asn` is the OPEN's own My
+Autonomous System, the sender's: Ze's own AS on a sent OPEN, the peer's on a
+received one.
+<!-- source: internal/component/bgp/format/session_events.go -- appendRemoteASText -->
 <!-- source: internal/component/bgp/reactor/reactor_api.go -- OnPeerEstablished, OnPeerClosed -->
 
 `initial-replay` is an opaque nonzero Session receipt captured when the state
@@ -45,8 +53,8 @@ forward this bookkeeping suffix.
 
 ```
 <message>       ::= <state-event> | <message-event>
-<state-event>   ::= "peer" <address> "remote" "as" <asn> "state" <state-value> [<reason>] [<initial-replay>] LF
-<message-event> ::= "peer" <address> "remote" "as" <asn> <direction> <type> <msgid> <body> LF
+<state-event>   ::= "peer" <address> "remote" "as" <remote-as> "state" <state-value> [<reason>] [<initial-replay>] LF
+<message-event> ::= "peer" <address> "remote" "as" <remote-as> <direction> <type> <msgid> <body> LF
 
 <direction>     ::= "received" | "sent"
 <type>          ::= "update" | "open" | "notification" | "keepalive" | "refresh" | "borr" | "eorr"
@@ -74,7 +82,8 @@ forward this bookkeeping suffix.
 <extended-community> ::= "x-com" <hex> ("," <hex>)*
 <unknown-attr>  ::= "attr-" <code> <space> <hex>
 
-<open-body>     ::= "router-id" <address> "hold-time" <seconds> <capability>*
+<remote-as>     ::= <asn> | "unknown"
+<open-body>     ::= "asn" <asn> "router-id" <address> "hold-time" <seconds> <capability>*
 <capability>    ::= "cap" <code> <name> [<value>]
 
 <notification-body> ::= "code" <integer> "subcode" <integer> "code-name" <name> "subcode-name" <name> "data" <hex>
@@ -144,7 +153,7 @@ A field name is followed by a space and then its value. No `set` keyword sits be
 A label stack of more than one label prints as a comma-separated list, `label 1000,2000`. VPN and labeled unicast carry RFC 3032 Section 2.1 stack entries. EVPN Type 2 carries one or two label fields; Type 5 carries exactly one. `String()` prints the 20-bit label of each entry through `nlri.LabelValue`. The traffic class and bottom-of-stack bits are kept on the wire and are not printed. EVPN Type 1 carries exactly one three-octet label field, including the zero value required for per-ES routes; its received low bits are preserved without requiring a bottom-of-stack bit.
 <!-- source: internal/core/bgp/nlri/rd.go -- LabelValue -->
 
-`path-id <id>` is printed by VPN and labeled unicast, and only when the NLRI carries a Path Identifier. RFC 7911 Section 3 gives the field four octets and reserves no value, so zero is an identifier like any other: the types record a presence flag (`VPN.HasPathID`, `LabeledUnicast.HasPathID`) set by `ParseVPN` from the ADD-PATH negotiation, or by the caller of the constructor, and the clause follows that flag rather than a test on the value. `INET.String` prints the prefix alone, so an IPv4 or IPv6 unicast NLRI reads the same whether or not ADD-PATH was negotiated.
+`path-id <id>` is printed by VPN and labeled unicast, and only when the NLRI carries a Path Identifier. RFC 7911 Section 3 gives the field four octets and reserves no value, so zero is an identifier like any other: the types record a presence flag (`VPN.HasPathID`, `LabeledUnicast.HasPathID`) set by `parseVPNAnnounce` from the ADD-PATH negotiation, or by the caller of the constructor, and the clause follows that flag rather than a test on the value. `INET.String` prints the prefix alone, so an IPv4 or IPv6 unicast NLRI reads the same whether or not ADD-PATH was negotiated.
 <!-- source: internal/core/bgp/nlri/inet.go -- INET.String -->
 
 MVPN prints a route type name from RFC 6514 Section 4, such as `source-active` or `shared-tree-join`, and `type(<N>)` for a route type it does not name. It adds `rd <rd>` whenever the route body was long enough to hold a Route Distinguisher and that Route Distinguisher parsed. Route types 1 to 4 keep their body as octets, and ze still reads the Route Distinguisher at the front of it.
@@ -209,9 +218,9 @@ peer 10.0.0.1 remote as 65001 received update 2 nlri ipv4/unicast del 172.16.0.0
 
 peer 10.0.0.1 remote as 65001 received update 3
 
-peer 10.0.0.1 remote as 65001 sent open 42 router-id 1.1.1.1 hold-time 90
+peer 10.0.0.1 remote as 65001 sent open 42 asn 65000 router-id 1.1.1.1 hold-time 90
 
-peer 10.0.0.1 remote as 65001 received open 5 router-id 10.0.0.1 hold-time 180 cap 1 multiprotocol ipv4/unicast cap 65 asn4 65001 cap 2 route-refresh
+peer 10.0.0.1 remote as 65001 received open 5 asn 65001 router-id 10.0.0.1 hold-time 180 cap 1 multiprotocol ipv4/unicast cap 65 asn4 65001 cap 2 route-refresh
 
 peer 10.0.0.1 remote as 65001 sent notification 42 code 6 subcode 2 code-name Cease subcode-name Administrative-Shutdown data 0a0b0c0d
 

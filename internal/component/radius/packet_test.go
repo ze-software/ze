@@ -598,13 +598,13 @@ func TestSignAndVerifyMessageAuthenticatorAgree(t *testing.T) {
 	// something else there to prove it does.
 	copy(buf[4:4+AuthenticatorLen], bytes.Repeat([]byte{0x5a}, AuthenticatorLen))
 
-	if !verifyResponseMessageAuthenticator(buf[:n], requestAuth, secret) {
+	if verifyResponseMessageAuthenticator(buf[:n], requestAuth, secret) != responseIntegrityAccepted {
 		t.Error("the verifier rejected a reply the signer produced")
 	}
 
 	tampered := append([]byte{}, buf[:n]...)
 	tampered[HeaderLen+2] ^= 0x01 // one octet of the EAP-Message value
-	if verifyResponseMessageAuthenticator(tampered, requestAuth, secret) {
+	if verifyResponseMessageAuthenticator(tampered, requestAuth, secret) == responseIntegrityAccepted {
 		t.Error("the verifier accepted a reply whose attributes moved under the signature")
 	}
 }

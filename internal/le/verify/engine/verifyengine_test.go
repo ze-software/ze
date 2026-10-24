@@ -29,7 +29,7 @@ func TestFullStagesMatchesNativeActionPopulation(t *testing.T) {
 		"repo compiles/check", "go vet-platforms/darwin/freebsd/openbsd", "doc wiring",
 		"doc check/verify", "doc check/links", "doc check/retired-commands", "repo/tree-check",
 		"plugin imports/check", "plugin declarations/check", "arch enumeration/check",
-		"arch compound-guard/check",
+		"arch compound-guard/check", "arch refuse-by-default/check",
 		"yang glue/check", "repo feature-tags/check",
 		"doc check/templ-output", "web vendor/check", "web assets/check",
 		"doc index/check", "ai rules/render-check", "ai rules/index-check",

@@ -49,7 +49,7 @@ func TestPathIDKeyFollowsWhatTheSourceFramed(t *testing.T) {
 			peer := forwardBodyTestPeer(destCtx, destCtxID)
 			emit := func(prefix netip.Prefix, withdraw bool) uint32 {
 				t.Helper()
-				native := nlri.NewINET(family.IPv4Unicast, prefix, 0).Bytes()
+				native := nlri.NewINET(family.IPv4Unicast, prefix, 0, false).Bytes()
 				section := native
 				if framed {
 					section = append(binary.BigEndian.AppendUint32(nil, 0), native...)

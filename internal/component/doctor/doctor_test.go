@@ -388,7 +388,10 @@ func (s *stubStorage) Exists(name string) bool {
 
 func TestResolveDefaultConfig_NoInstanceFile(t *testing.T) {
 	store := doctorTestStore(t)
-	name := resolve.DefaultConfig(store)
+	name, nameErr := resolve.DefaultConfig(store)
+	if nameErr != nil {
+		t.Fatal(nameErr)
+	}
 	assert.Equal(t, "ze.conf", name, "filesystem storage with no instance file should return ze.conf")
 }
 
@@ -397,7 +400,10 @@ func TestResolveDefaultConfig_InvalidRegex(t *testing.T) {
 		Storage: doctorTestStore(t),
 		data:    map[string][]byte{zefs.KeyInstanceName.Pattern: []byte("../etc")},
 	}
-	name := resolve.DefaultConfig(store)
+	name, nameErr := resolve.DefaultConfig(store)
+	if nameErr != nil {
+		t.Fatal(nameErr)
+	}
 	assert.Equal(t, "ze.conf", name, "instance name failing regex should return ze.conf")
 }
 
@@ -406,7 +412,10 @@ func TestResolveDefaultConfig_ValidName(t *testing.T) {
 		Storage: doctorTestStore(t),
 		data:    map[string][]byte{zefs.KeyInstanceName.Pattern: []byte("myrouter")},
 	}
-	name := resolve.DefaultConfig(store)
+	name, nameErr := resolve.DefaultConfig(store)
+	if nameErr != nil {
+		t.Fatal(nameErr)
+	}
 	assert.Equal(t, "myrouter.conf", name)
 }
 
@@ -416,7 +425,8 @@ func TestCollectSchemaListeners_SSHDefault(t *testing.T) {
 	ssh := env.GetOrCreateContainer("ssh")
 	ssh.Set("enabled", "true")
 
-	listeners := collectSchemaListeners(tree)
+	listeners, err := collectSchemaListeners(tree)
+	require.NoError(t, err, "the schema-discovered listener set must be derivable")
 	found := false
 	for _, l := range listeners {
 		if l.service == "ssh" {
@@ -426,7 +436,7 @@ func TestCollectSchemaListeners_SSHDefault(t *testing.T) {
 			break
 		}
 	}
-	assert.True(t, found, "expected ssh listener from fallback collection")
+	assert.True(t, found, "expected the default ssh listener from schema collection")
 }
 
 func TestCollectSchemaListeners_SSHExplicit(t *testing.T) {
@@ -439,7 +449,8 @@ func TestCollectSchemaListeners_SSHExplicit(t *testing.T) {
 	srv.Set("port", "2223")
 	ssh.AddListEntry("server", "s1", srv)
 
-	listeners := collectSchemaListeners(tree)
+	listeners, err := collectSchemaListeners(tree)
+	require.NoError(t, err, "the schema-discovered listener set must be derivable")
 	found := false
 	for _, l := range listeners {
 		if strings.Contains(l.service, "ssh") && l.port == "2223" {
@@ -448,7 +459,7 @@ func TestCollectSchemaListeners_SSHExplicit(t *testing.T) {
 			break
 		}
 	}
-	assert.True(t, found, "expected explicit ssh listener from fallback collection")
+	assert.True(t, found, "expected the explicit ssh listener from schema collection")
 }
 
 func TestResolveStorageWithDiag_ReadOnly(t *testing.T) {
@@ -981,38 +992,32 @@ var doctorDependencyCovered = map[string]string{
 	"listener/tftp":            "doctor-tftp-listen",
 	"listener/image-server":    "doctor-image-listen",
 	"listener/ntp":             "doctor-ntp-listen",
-	// The Prometheus exporter endpoint under the name the schema-FALLBACK path
-	// gives it (extractTelemetryListeners, reached only when the YANG schema
-	// carries no ze:listener service). The schema path probes the same endpoint
-	// as listener/prometheus, so the two rows are one dependency seen from the
-	// two collection paths, not two listeners.
-	"listener/telemetry":    "doctor-listen-unavailable",
-	"external/tacacs":       "doctor-tacacs-unreachable",
-	"external/radius":       "doctor-radius-unreachable",
-	"external/radius-admin": "doctor-radius-admin-unreachable",
-	"external/rpki":         "doctor-rpki-unreachable",
-	"external/bmp":          "doctor-bmp-unreachable",
-	"external/ntp-server":   "doctor-ntp-server-unreachable",
-	"external/update-check": "doctor-update-check-unreachable",
-	"external/archive-http": "doctor-archive-unreachable",
-	"external/dns":          "doctor-dns-resolver",
-	"writable/ntp-persist":  "doctor-write-destination",
-	"writable/bfd-persist":  "doctor-write-destination",
-	"writable/dns-resolv":   "doctor-write-destination",
-	"writable/archive-file": "doctor-write-destination",
-	"writable/self-update":  "doctor-write-destination",
-	"netlink/l2tp":          "doctor-l2tp-unavailable",
-	"socket/l2tp-ppp":       "doctor-l2tp-ppp-unavailable",
-	"socket/pppoe":          "doctor-pppoe-unavailable",
-	"netlink/wireguard":     "doctor-wireguard-unavailable",
-	"netlink/xfrm-iface":    "doctor-xfrm-interface-unavailable",
-	"module/ipsec":          "doctor-module-missing",
-	"procfs/mpls":           "doctor-mpls-unavailable",
-	"netlink/xfrm":          "doctor-ipsec-xfrm-unavailable",
-	"module/nftables":       "doctor-firewall-nftables",
-	"module/vfio":           "doctor-vpp-dpdk",
-	"socket/vpp":            "doctor-vpp-unreachable",
-	"binary/plugin":         "doctor-plugin-missing",
+	"external/tacacs":          "doctor-tacacs-unreachable",
+	"external/radius":          "doctor-radius-unreachable",
+	"external/radius-admin":    "doctor-radius-admin-unreachable",
+	"external/rpki":            "doctor-rpki-unreachable",
+	"external/bmp":             "doctor-bmp-unreachable",
+	"external/ntp-server":      "doctor-ntp-server-unreachable",
+	"external/update-check":    "doctor-update-check-unreachable",
+	"external/archive-http":    "doctor-archive-unreachable",
+	"external/dns":             "doctor-dns-resolver",
+	"writable/ntp-persist":     "doctor-write-destination",
+	"writable/bfd-persist":     "doctor-write-destination",
+	"writable/dns-resolv":      "doctor-write-destination",
+	"writable/archive-file":    "doctor-write-destination",
+	"writable/self-update":     "doctor-write-destination",
+	"netlink/l2tp":             "doctor-l2tp-unavailable",
+	"socket/l2tp-ppp":          "doctor-l2tp-ppp-unavailable",
+	"socket/pppoe":             "doctor-pppoe-unavailable",
+	"netlink/wireguard":        "doctor-wireguard-unavailable",
+	"netlink/xfrm-iface":       "doctor-xfrm-interface-unavailable",
+	"module/ipsec":             "doctor-module-missing",
+	"procfs/mpls":              "doctor-mpls-unavailable",
+	"netlink/xfrm":             "doctor-ipsec-xfrm-unavailable",
+	"module/nftables":          "doctor-firewall-nftables",
+	"module/vfio":              "doctor-vpp-dpdk",
+	"socket/vpp":               "doctor-vpp-unreachable",
+	"binary/plugin":            "doctor-plugin-missing",
 	// The shell is the second binary an external plugin start needs: the run
 	// string names the first, and the shell is what the run string is given to.
 	"binary/plugin-shell":     "doctor-plugin-shell-missing",
@@ -1036,8 +1041,7 @@ var doctorDependencyCovered = map[string]string{
 
 	// prometheus is the telemetry exporter's own ze:listener service, and it
 	// carries a registered default (internal/component/config/listener_defaults.go),
-	// so the schema path probes it as well as the Go extractor that produces
-	// listener/telemetry.
+	// so the schema path probes it.
 	"listener/prometheus": "doctor-listen-unavailable",
 
 	// extractMCPBlock (internal/component/config/loader_extract.go) applies the
@@ -1121,7 +1125,7 @@ var listenerProbeNetworks = map[string][]string{
 // listed, and it is what lets the schema own every other row: a listener/ row in
 // neither this set nor the schema is a row nothing exercises.
 //
-// TestGoExtractorListenersStillProduceProbes binds these seven names to the
+// TestGoExtractorListenersStillProduceProbes binds these six names to the
 // extractors, so the set cannot outlive them. Without that, deleting
 // extractBFDListeners would leave listener/bfd in the inventory and in this map,
 // skipped by both loops and claiming coverage that no longer exists.
@@ -1132,7 +1136,6 @@ var goExtractorListeners = map[string]bool{
 	"listener/tftp":         true, // extractTFTPListeners
 	"listener/image-server": true, // extractImageListeners
 	"listener/ntp":          true, // extractNTPListeners
-	"listener/telemetry":    true, // extractTelemetryListeners
 }
 
 // goExtractorListenerTree turns on every service the Go extractors in
@@ -1165,20 +1168,13 @@ func goExtractorListenerTree() *config.Tree {
 	svc.GetOrCreateContainer("image-server").Set("enabled", "true")
 	tree.GetOrCreateContainer("environment").GetOrCreateContainer("ntp").Set("enabled", "true")
 
-	// Read by extractTelemetryListeners and extractSSHListeners, which run only
-	// on the schema-FALLBACK path (collectHardcodedListeners). The same
-	// containers feed the schema path under different service names, so one tree
-	// drives both.
-	tree.GetOrCreateContainer("telemetry").GetOrCreateContainer("prometheus").Set("enabled", "true")
-	tree.GetOrCreateContainer("environment").GetOrCreateContainer("ssh").Set("enabled", "true")
-
 	return tree
 }
 
 // TestGoExtractorListenersStillProduceProbes binds every goExtractorListeners
 // name to the extractor that produces it.
 //
-// The schema owns every other listener row, so those cannot go stale. These seven
+// The schema owns every other listener row, so those cannot go stale. These six
 // are hand-written on both sides -- an extractor in checks_listener.go and a name
 // here -- and nothing connected them: deleting extractBFDListeners left
 // listener/bfd sitting in the inventory and in the skip set, claiming a probe
@@ -1190,12 +1186,8 @@ func goExtractorListenerTree() *config.Tree {
 func TestGoExtractorListenersStillProduceProbes(t *testing.T) {
 	tree := goExtractorListenerTree()
 	services := map[string]bool{}
-	// Both paths, because they do not produce the same set.
-	// collectHardcodedListeners is the schema-FALLBACK, and it owns
-	// extractTelemetryListeners and extractSSHListeners; the schema path reaches
-	// the same two containers under the service names the YANG derives
-	// ("prometheus", "ssh"). A row bound to one path is not bound by the other.
-	all := append(collectAllListeners(tree), collectHardcodedListeners(tree)...)
+	all, err := collectAllListeners(tree)
+	require.NoError(t, err, "the schema-discovered listener set must be derivable")
 	for _, l := range all {
 		// Endpoint names carry a list key for some services ("bgp" does not, but
 		// a schema listener would); take the leading word.
@@ -1272,7 +1264,7 @@ func TestDoctorDependencyInventory(t *testing.T) {
 		}
 	}
 
-	const expectedTotal = 66
+	const expectedTotal = 65
 	total := len(doctorDependencyCovered) + len(doctorDependencyExcluded)
 	assert.Equal(t, expectedTotal, total,
 		"dependency inventory changed; update covered or excluded map (got %d)", total)
@@ -1319,7 +1311,8 @@ func TestDoctorProbesEveryCoveredListener(t *testing.T) {
 		require.Truef(t, hasNetworks,
 			"ze:listener service %q is covered but listenerProbeNetworks does not say which transport it binds; read its binder and add a row", name)
 
-		listeners := collectSchemaListeners(listenerEntryWithoutPortTree(svc))
+		listeners, err := collectSchemaListeners(listenerEntryWithoutPortTree(svc))
+		require.NoErrorf(t, err, "the schema-discovered listener set must be derivable for %q", name)
 		require.NotEmptyf(t, listeners,
 			"ze doctor probes nothing at all for %q with an ip-only entry; the inventory says %s reports it, so either its listener default is gone (internal/component/config/listener_defaults.go) or the entry fill in CollectListenersWithDefaults is", name, code)
 		// The entry's ip identifies its own probe. A sibling service under the

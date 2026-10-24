@@ -2,8 +2,8 @@
   "note": "TestRFC5036InitFromHelloAdjacencyAccepted checks an Initialization from the adjacency's LDP Identifier goes operational with no write; TestRFC5036InitWithoutHelloAdjacencyRejected checks another LSR ID and another label space each draw Session Rejected/No Hello referring to the Initialization and no session. Re-judged 2026-10-02 (c29 judge): since the RULINGS R4 fix an accepted Initialization takes OPENSENT to OPENREC and only the peer's KeepAlive makes the session operational (RFC 5036 2.5.4), so the unit now appends the peer's KeepAlive to the PDU before asserting operational; the assertion is unchanged, and a rejected or unaccepted Initialization still fails it (processMessages errors before the KeepAlive, and keepaliveReceived refuses without initAccepted).",
   "requirement_sha": "600ab36a6335c739",
   "tests": {
-    "internal/plugins/ldp/rfc5036_procedures_test.go::TestRFC5036InitFromHelloAdjacencyAccepted": "1229c7e2acc6a715",
-    "internal/plugins/ldp/rfc5036_procedures_test.go::TestRFC5036InitWithoutHelloAdjacencyRejected": "1229c7e2acc6a715"
+    "internal/plugins/ldp/rfc5036_procedures_test.go::TestRFC5036InitFromHelloAdjacencyAccepted": "e02b8145e25cce65",
+    "internal/plugins/ldp/rfc5036_procedures_test.go::TestRFC5036InitWithoutHelloAdjacencyRejected": "e02b8145e25cce65"
   },
   "units": {
     "internal/plugins/ldp/rfc5036_procedures_test.go::TestRFC5036InitFromHelloAdjacencyAccepted": "6966a919b670c5b5",

@@ -56,7 +56,7 @@ func (rail *owedRail) record(t *testing.T) owedFenceRecord {
 func (rail *owedRail) departure(t *testing.T, source netip.Addr, prefix string) chan error {
 	t.Helper()
 	batch := bgptypes.NLRIBatch{Family: family.IPv4Unicast, RecoverySource: source,
-		NLRIs: []nlri.NLRI{nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix(prefix), 0)}}
+		NLRIs: []nlri.NLRI{nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix(prefix), 0, false)}}
 	done := make(chan error, 1)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	go func() {

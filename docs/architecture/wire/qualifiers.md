@@ -215,9 +215,9 @@ JSON writer or a test that needs a standalone slice.
 <!-- source: internal/core/bgp/nlri/rd.go -- EncodeLabelStack -->
 
 The same split reaches the NLRI constructors. `NewVPN` takes label values and
-widens them with `LabelEntriesFor`, and `NewVPNFromEntries` takes entries as the
+widens them with `LabelEntriesFor`, and `newVPNFromEntries` takes entries as the
 wire carries them.
-<!-- source: internal/component/bgp/plugins/nlri/vpn/types.go -- NewVPN, NewVPNFromEntries -->
+<!-- source: internal/component/bgp/plugins/nlri/vpn/types.go -- NewVPN, newVPNFromEntries -->
 
 ### Rsrv on Relay
 
@@ -342,10 +342,10 @@ and RFC 7911 Section 3 reserves no value, so an identifier of zero renders as
 deciding whether the member is owed asks `HasAddPath()` instead of comparing
 that value against zero. The plugin types spell the same question
 `HasPathID()`: `VPN` and `LabeledUnicast` each hold a `hasPath` flag beside the
-identifier, and `ParseVPN` sets it from the ADD-PATH negotiation it was handed.
+identifier, and `parseVPNAnnounce` sets it from the ADD-PATH negotiation it was handed.
 
 <!-- source: internal/core/bgp/nlri/nlri.go -- WriteNLRI, LenWithContext -->
-<!-- source: internal/core/bgp/nlri/base.go -- PrefixNLRI.PathID -->
+<!-- source: internal/core/bgp/nlri/base.go -- prefixNLRI.PathID -->
 
 ---
 

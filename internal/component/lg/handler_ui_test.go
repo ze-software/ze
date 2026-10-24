@@ -395,7 +395,11 @@ func TestAsk(t *testing.T) {
 		{"dispatch failure", failing, http.StatusBadGateway, failureEngineError, false, ""},
 		{"error envelope", answering(`{"error":"refused"}`), http.StatusBadGateway, failureEngineError, true, "refused"},
 		{"empty reply", answering(""), http.StatusServiceUnavailable, failureEngineUnavailable, false, ""},
-		{"not an object", answering(`42`), http.StatusServiceUnavailable, failureUnreadableReply, false, ""},
+		// `null` is the one non-object reply the boundary still lets through
+		// (plugin.RawJSON passes it for a command with no data); a scalar is
+		// refused there, so it arrives as a failed dispatch.
+		{"not an object", answering(`null`), http.StatusServiceUnavailable, failureUnreadableReply, false, ""},
+		{"scalar refused at the boundary", answering(`42`), http.StatusBadGateway, failureEngineError, false, ""},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

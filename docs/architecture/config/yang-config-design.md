@@ -416,6 +416,16 @@ first member type that accepts it (Section 9.12). The traffic-control
 `default-class` leaf is the first Ze leaf of these types: a leafref to
 `../class/name`.
 
+The parsers and the `set` path judge a leaf before the tree is walked, through
+`ValidateLeafValue`, and a list key through `ValidateListKey`. There a union
+leaf carries its member types, each with its own range, length, pattern and
+enum set, and a value is accepted at the first member that accepts it
+(Section 9.12). A union list key, such as the prefix of a `prefix-list` entry,
+is therefore refused at parse when no member accepts it, with each member's
+reason in the message.
+
+<!-- source: internal/component/config/schema.go -- ValidateLeafValue, validateUnionValue, ValidateListKey -->
+<!-- source: internal/component/config/yang_schema.go -- unionMembersFromType -->
 <!-- source: internal/component/config/yang/validator.go -- ValidateTree, walkTree, validateLeafValue -->
 <!-- source: internal/component/config/yang/validator_lexical.go -- validateEmpty, validateBinary, validateBits, uncheckedKindError -->
 <!-- source: internal/component/config/yang/validator_reference.go -- validateLeafref, validateIdentityref, validateInstanceIdentifier -->

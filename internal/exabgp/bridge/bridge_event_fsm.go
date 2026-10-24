@@ -1,5 +1,5 @@
 // Design: docs/architecture/exabgp-bridge.md -- the connected, fsm and signal events
-// Related: bridge_event.go -- ReadEvent and ExabgpJSON call these
+// Related: bridge_event.go -- ReadEvent and exabgpJSON call these
 // Related: bridge_event_state.go -- the down reason of the same session
 
 package bridge

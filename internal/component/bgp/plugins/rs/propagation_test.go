@@ -722,7 +722,7 @@ func TestOpenCreatesEmptyFamilies(t *testing.T) {
 	rs := newTestRouteServer(t)
 
 	// OPEN with capabilities but NO multiprotocol entries
-	input := "peer 10.0.0.1 remote as 65001 received open 0 router-id 10.0.0.1 hold-time 180 cap 2 route-refresh cap 65 asn4 65001"
+	input := "peer 10.0.0.1 remote as 65001 received open 0 asn 65001 router-id 10.0.0.1 hold-time 180 cap 2 route-refresh cap 65 asn4 65001"
 	rs.dispatchText(input)
 
 	rs.mu.RLock()
@@ -823,7 +823,7 @@ func TestOpenThenStateUp_FamiliesPopulated(t *testing.T) {
 	}
 
 	// Step 1: OPEN with multiprotocol for ipv4/unicast and ipv6/unicast
-	openInput := "peer 10.0.0.1 remote as 65001 received open 0 router-id 10.0.0.1 hold-time 180 cap 1 multiprotocol ipv4/unicast cap 1 multiprotocol ipv6/unicast cap 2 route-refresh"
+	openInput := "peer 10.0.0.1 remote as 65001 received open 0 asn 65001 router-id 10.0.0.1 hold-time 180 cap 1 multiprotocol ipv4/unicast cap 1 multiprotocol ipv6/unicast cap 2 route-refresh"
 	rs.dispatchText(openInput)
 
 	// Step 2: State up

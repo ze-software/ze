@@ -142,6 +142,14 @@ func fullStages() []Stage {
 		// 3,000 splittable || guards in shipped code when it was written, and a
 		// package scope would make a neighbor's old guards due on every touch.
 		stage("arch compound-guard", "check"),
+		// arch refuse-by-default judges the same unpushed LINES against the same
+		// base as compound-guard: a changed line that answers a plausible value
+		// where the code has no answer (an unmatched switch value or a miss
+		// answered as a hit, an ADD-PATH identifier compared with zero, a state
+		// answered from a literal). The tree's existing instances are owned by
+		// spec-refuse-instead-of-defaulting and listed by `le arch
+		// refuse-by-default report`, so a tree scope would red every commit.
+		stage("arch refuse-by-default", "check"),
 		stage("yang glue", "check"),
 		stage("repo feature-tags", "check"),
 		stage("doc check", "templ-output"),

@@ -9,7 +9,10 @@
 package debug
 
 import (
+	"io"
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/command/commandtest"
@@ -529,5 +532,61 @@ func TestDebugSetLevel(t *testing.T) {
 	levels := slogutil.ListLevels()
 	if levels["test.debug.level"] != "info" {
 		t.Errorf("level = %q, want info", levels["test.debug.level"])
+	}
+}
+
+// captureDebugStderr runs fn with os.Stderr redirected and returns what it wrote.
+func captureDebugStderr(t *testing.T, fn func() int) (int, string) {
+	t.Helper()
+	reader, writer, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("pipe: %v", err)
+	}
+	orig := os.Stderr
+	os.Stderr = writer
+	code := fn()
+	os.Stderr = orig
+	writer.Close() //nolint:errcheck // test pipe
+	out, readErr := io.ReadAll(reader)
+	if readErr != nil {
+		t.Fatalf("read stderr: %v", readErr)
+	}
+	return code, string(out)
+}
+
+// TestDebugModuleSettingRefusesTrailingWords checks that set and delete refuse
+// a word after the one option they apply, naming it, and change nothing.
+// Method: `level debug flag x` used to apply the level and drop `flag x`.
+func TestDebugModuleSettingRefusesTrailingWords(t *testing.T) {
+	slogutil.ResetLevelRegistry()
+	_ = slogutil.Logger("test.debug.trailing")
+	cleanup := setupTestDebugStore(t)
+	defer cleanup()
+
+	before := slogutil.ListLevels()["test.debug.trailing"]
+	code, stderr := captureDebugStderr(t, func() int {
+		return runSetModule(commandtest.Args("test.debug.trailing", "level", "error", "flag", "x"))
+	})
+	if code != 1 {
+		t.Fatalf("set with trailing words returned %d, want 1", code)
+	}
+	if !strings.Contains(stderr, `"flag"`) {
+		t.Errorf("stderr %q does not name the unexpected word flag", stderr)
+	}
+	if level := slogutil.ListLevels()["test.debug.trailing"]; level != before {
+		t.Errorf("level changed from %q to %q although the command was refused", before, level)
+	}
+
+	if code := runSetModule(commandtest.Args("test.debug.trailing", "flag", "f")); code != 0 {
+		t.Fatalf("set flag returned %d, want 0", code)
+	}
+	code, stderr = captureDebugStderr(t, func() int {
+		return runDeleteModule(commandtest.Args("test.debug.trailing", "flag", "f", "extra"))
+	})
+	if code != 1 {
+		t.Fatalf("delete with a trailing word returned %d, want 1", code)
+	}
+	if !strings.Contains(stderr, `"extra"`) {
+		t.Errorf("stderr %q does not name the unexpected word extra", stderr)
 	}
 }

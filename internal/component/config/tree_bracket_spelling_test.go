@@ -20,8 +20,8 @@ import (
 // for what a plain leaf-list writes as `nop <leaf> b`.
 func TestDeactivatedMemberOneSpellingPerFormat(t *testing.T) {
 	schema := NewSchema()
-	schema.Define("items", BracketLeafList(TypeString))
-	schema.Define("plain", ValueOrArray(TypeString))
+	schema.Define("items", bracketLeafList(TypeString))
+	schema.Define("plain", valueOrArray(TypeString))
 	tree, err := NewParser(schema).Parse("items [ a b ];\nplain [ a b ];\n")
 	require.NoError(t, err)
 	require.NoError(t, tree.DeactivateMultiValue("items", "b"))
@@ -48,7 +48,7 @@ func TestDeactivatedMemberOneSpellingPerFormat(t *testing.T) {
 // PREVENTS: reading the new member spelling breaking an older file.
 func TestBracketMemberLegacySpellingsRead(t *testing.T) {
 	schema := NewSchema()
-	schema.Define("items", BracketLeafList(TypeString))
+	schema.Define("items", bracketLeafList(TypeString))
 	parsers := map[string]func(string) (*Tree, error){
 		"set": NewSetParser(schema).Parse,
 		"set-with-meta": func(text string) (*Tree, error) {
@@ -84,8 +84,8 @@ func TestBracketMemberLegacySpellingsRead(t *testing.T) {
 // PREVENTS: the old spelling failing member typing and refusing the draft.
 func TestBracketLegacyQuotedContestedValue(t *testing.T) {
 	schema := NewSchema()
-	schema.Define("addr", BracketLeafList(TypePrefix))
-	schema.Define("items", BracketLeafList(TypeString))
+	schema.Define("addr", bracketLeafList(TypePrefix))
+	schema.Define("items", bracketLeafList(TypeString))
 	text := "set addr \"10.0.0.0/8 192.0.2.0/24\"\nset items \"a b\"\n"
 
 	tree, err := NewSetParser(schema).Parse(text)
@@ -112,7 +112,7 @@ func TestBracketLegacyQuotedContestedValue(t *testing.T) {
 // serializer writes and the parser refuses, so the file would not reload; and
 // keepsRepeats dropping repeats it cannot prove redundant.
 func TestMergeRefusesRepeatedDeactivatedMember(t *testing.T) {
-	seq := BracketLeafList(TypeString)
+	seq := bracketLeafList(TypeString)
 	seq.Ordered = true
 	schema := NewSchema()
 	box := Container(Field("seq", seq))

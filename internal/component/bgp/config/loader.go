@@ -33,53 +33,13 @@ import (
 // Uses LazyLogger to pick up config file settings applied after init().
 var configLogger = slogutil.LazyLogger("bgp.config")
 
-// LoadReactor parses config and creates a configured Reactor.
-func LoadReactor(input string) (*reactor.Reactor, error) {
+// loadReactor parses config and creates a configured Reactor.
+func loadReactor(input string) (*reactor.Reactor, error) {
 	result, err := config.LoadConfig(input, "", nil)
 	if err != nil {
 		return nil, err
 	}
 	return CreateReactorFromTree(result.Tree, "", "", result.Plugins, nil, false)
-}
-
-// loadContext stores the config.LoadConfigResult and Storage for in-process BGP plugin use.
-// Set by the hub after LoadConfig. Retrieved by BGP's RunEngine to create the reactor
-// without re-parsing the config.
-var loadContext struct {
-	result     *config.LoadConfigResult
-	configPath string
-	store      any // storage.Storage (any to avoid import cycle)
-}
-
-// StoreLoadContext saves the LoadConfigResult and storage for retrieval by
-// the BGP plugin's RunEngine. Must be called after LoadConfig.
-func StoreLoadContext(result *config.LoadConfigResult, configPath string, store any) {
-	loadContext.result = result
-	loadContext.configPath = configPath
-	loadContext.store = store
-}
-
-// GetLoadContext returns the stored LoadConfigResult, config path, and storage.
-// Returns nil result if StoreLoadContext was not called.
-func GetLoadContext() (*config.LoadConfigResult, string, any) {
-	return loadContext.result, loadContext.configPath, loadContext.store
-}
-
-// chaosConfig stores chaos testing parameters for BGP plugin injection.
-var chaosConfig struct {
-	seed int64
-	rate float64
-}
-
-// StoreLoadChaos saves chaos config for retrieval by the BGP plugin's RunEngine.
-func StoreLoadChaos(seed int64, rate float64) {
-	chaosConfig.seed = seed
-	chaosConfig.rate = rate
-}
-
-// GetLoadChaos returns the stored chaos config (seed, rate). Zero seed means disabled.
-func GetLoadChaos() (int64, float64) {
-	return chaosConfig.seed, chaosConfig.rate
 }
 
 // CreateReactor creates a Reactor from a config.LoadConfigResult. standalone
@@ -121,14 +81,14 @@ func LoadReactorWithPluginsStandalone(store storage.Storage, input, configPath s
 	return CreateReactor(cfg, configPath, store, true)
 }
 
-// LoadReactorFile loads config from file and creates Reactor.
-func LoadReactorFile(store storage.Storage, path string) (*reactor.Reactor, error) {
-	return LoadReactorFileWithPlugins(store, path, nil)
+// loadReactorFileNoPlugins loads config from file and creates Reactor.
+func loadReactorFileNoPlugins(store storage.Storage, path string) (*reactor.Reactor, error) {
+	return loadReactorFileWithPlugins(store, path, nil)
 }
 
-// LoadReactorFileWithPlugins loads config from file and creates a borrow-mode
+// loadReactorFileWithPlugins loads config from file and creates a borrow-mode
 // (production) Reactor.
-func LoadReactorFileWithPlugins(store storage.Storage, path string, cliPlugins []string) (*reactor.Reactor, error) {
+func loadReactorFileWithPlugins(store storage.Storage, path string, cliPlugins []string) (*reactor.Reactor, error) {
 	return loadReactorFile(store, path, cliPlugins)
 }
 
@@ -343,10 +303,20 @@ func detailString(detail map[string]any, key string) string {
 }
 
 // peerLabel returns a human-readable label for a peer (name or IP + AS).
+// A dynamic peer whose AS is not yet negotiated is labeled "(AS unknown)".
 func peerLabel(p *plugin.PeerInfo) string {
 	var b textbuf.Buffer
-	if p.Name != "" {
-		return b.Reset().Str("peer ").Str(p.Name).Str(" (AS").Int(int64(p.PeerAS)).Byte(')').String()
+	b.Str("peer ")
+	if p.Name == "" {
+		b.Addr(p.Address)
+	} else {
+		b.Str(p.Name)
 	}
-	return b.Str("peer ").Addr(p.Address).Str(" (AS").Int(int64(p.PeerAS)).Byte(')').String()
+	b.Str(" (AS")
+	if peerAS, known := p.PeerAS.ASN(); known {
+		b.Int(int64(peerAS))
+	} else {
+		b.Str(" unknown")
+	}
+	return b.Byte(')').String()
 }

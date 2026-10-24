@@ -365,7 +365,7 @@ func TestRefreshSubtypeEvents(t *testing.T) {
 		if form != TextWritten || string(text) != want {
 			t.Errorf("%s: text %q (form %d), want %q", zeKind, text, form, want)
 		}
-		neighbor, _ := event.ExabgpJSON(FormatV4JSON)["neighbor"].(map[string]any) //nolint:errcheck // nil fails below
+		neighbor, _ := event.exabgpJSON(FormatV4JSON)["neighbor"].(map[string]any) //nolint:errcheck // nil fails below
 		member, _ := neighbor["route-refresh"].(map[string]any)                    //nolint:errcheck // as above
 		if member["subtype"] != word || member["afi"] != "ipv4" || member["safi"] != "unicast" {
 			t.Errorf("%s: route-refresh member %v, want afi ipv4 safi unicast subtype %s", zeKind, member, word)

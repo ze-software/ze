@@ -87,7 +87,7 @@ func TestJSONEncoderStateUp(t *testing.T) {
 		Address:      netip.MustParseAddr("192.168.1.2"),
 		LocalAddress: netip.MustParseAddr("192.168.1.1"),
 		LocalAS:      65001,
-		PeerAS:       65002,
+		PeerAS:       rpc.RemoteASOf(65002),
 	}
 
 	msg := enc.StateUp(&peer)
@@ -127,7 +127,7 @@ func TestJSONEncoderStateDown(t *testing.T) {
 		Address:      netip.MustParseAddr("192.168.1.2"),
 		LocalAddress: netip.MustParseAddr("192.168.1.1"),
 		LocalAS:      65001,
-		PeerAS:       65002,
+		PeerAS:       rpc.RemoteASOf(65002),
 	}
 
 	msg := enc.StateDown(&peer, "hold timer expired")
@@ -156,7 +156,7 @@ func TestJSONEncoderValidJSON(t *testing.T) {
 		Address:      netip.MustParseAddr("192.168.1.2"),
 		LocalAddress: netip.MustParseAddr("192.168.1.1"),
 		LocalAS:      65001,
-		PeerAS:       65002,
+		PeerAS:       rpc.RemoteASOf(65002),
 	}
 
 	messages := []string{
@@ -183,7 +183,7 @@ func TestJSONEncoderSpecialCharacters(t *testing.T) {
 		Address:      netip.MustParseAddr("192.168.1.2"),
 		LocalAddress: netip.MustParseAddr("192.168.1.1"),
 		LocalAS:      65001,
-		PeerAS:       65002,
+		PeerAS:       rpc.RemoteASOf(65002),
 	}
 
 	// Reason with special characters
@@ -210,7 +210,7 @@ func TestJSONEncoderIPv6(t *testing.T) {
 		Address:      netip.MustParseAddr("2001:db8::1"),
 		LocalAddress: netip.MustParseAddr("2001:db8::2"),
 		LocalAS:      65001,
-		PeerAS:       65002,
+		PeerAS:       rpc.RemoteASOf(65002),
 	}
 
 	msg := enc.StateUp(&peer)
@@ -241,7 +241,7 @@ func TestAPIOutputIncludesMsgID(t *testing.T) {
 		Address:      netip.MustParseAddr("10.0.0.1"),
 		LocalAddress: netip.MustParseAddr("10.0.0.2"),
 		LocalAS:      65001,
-		PeerAS:       65002,
+		PeerAS:       rpc.RemoteASOf(65002),
 	}
 
 	// UPDATE with msg-id
@@ -288,7 +288,7 @@ func TestJSONEncoderNotification(t *testing.T) {
 		Address:      netip.MustParseAddr("192.168.1.2"),
 		LocalAddress: netip.MustParseAddr("192.168.1.1"),
 		LocalAS:      65001,
-		PeerAS:       65002,
+		PeerAS:       rpc.RemoteASOf(65002),
 	}
 
 	notify := DecodedNotification{
@@ -352,7 +352,7 @@ func TestJSONEncoderNotification_HexData(t *testing.T) {
 		Address:      netip.MustParseAddr("10.0.0.1"),
 		LocalAddress: netip.MustParseAddr("10.0.0.2"),
 		LocalAS:      65001,
-		PeerAS:       65002,
+		PeerAS:       rpc.RemoteASOf(65002),
 	}
 
 	tests := []struct {
@@ -396,7 +396,7 @@ func TestJSONEncoderNotificationMinimal(t *testing.T) {
 		Address:      netip.MustParseAddr("10.0.0.1"),
 		LocalAddress: netip.MustParseAddr("10.0.0.2"),
 		LocalAS:      65001,
-		PeerAS:       65002,
+		PeerAS:       rpc.RemoteASOf(65002),
 	}
 
 	notify := DecodedNotification{
@@ -444,7 +444,7 @@ func TestJSONEncoderNotificationSent(t *testing.T) {
 		Address:      netip.MustParseAddr("10.0.0.1"),
 		LocalAddress: netip.MustParseAddr("10.0.0.2"),
 		LocalAS:      65001,
-		PeerAS:       65002,
+		PeerAS:       rpc.RemoteASOf(65002),
 	}
 
 	notify := DecodedNotification{
@@ -486,7 +486,7 @@ func TestFormatMessageNotificationText_Parsed(t *testing.T) {
 		Address:      netip.MustParseAddr("10.0.0.1"),
 		LocalAddress: netip.MustParseAddr("10.0.0.2"),
 		LocalAS:      65001,
-		PeerAS:       65002,
+		PeerAS:       rpc.RemoteASOf(65002),
 	}
 
 	// NOTIFICATION: Cease/Administrative Shutdown with message "goodbye"
@@ -534,7 +534,7 @@ func TestFormatMessageNotificationText_Parsed(t *testing.T) {
 func TestFormatMessageIgnoresEncodingForParsedNonUpdate(t *testing.T) {
 	peer := plugin.PeerInfo{
 		Address: netip.MustParseAddr("10.0.0.1"),
-		PeerAS:  65002,
+		PeerAS:  rpc.RemoteASOf(65002),
 	}
 
 	msg := bgptypes.RawMessage{
@@ -566,7 +566,7 @@ func TestFormatMessageIgnoresEncodingForParsedNonUpdate(t *testing.T) {
 func TestAPIOutputNoMsgIDWhenZero(t *testing.T) {
 	peer := plugin.PeerInfo{
 		Address: netip.MustParseAddr("10.0.0.1"),
-		PeerAS:  65002,
+		PeerAS:  rpc.RemoteASOf(65002),
 	}
 
 	msg := bgptypes.RawMessage{
@@ -623,7 +623,7 @@ func TestJSONEncoderIPv4UnicastNewFormat(t *testing.T) {
 
 	peer := plugin.PeerInfo{
 		Address: netip.MustParseAddr("10.0.0.1"),
-		PeerAS:  65001,
+		PeerAS:  rpc.RemoteASOf(65001),
 	}
 
 	// Build UPDATE with IPv4 NLRI: 192.168.1.0/24
@@ -686,7 +686,7 @@ func TestJSONEncoderIPv4UnicastNewFormat(t *testing.T) {
 func TestJSONEncoderWithdrawNewFormat(t *testing.T) {
 	peer := plugin.PeerInfo{
 		Address: netip.MustParseAddr("10.0.0.1"),
-		PeerAS:  65001,
+		PeerAS:  rpc.RemoteASOf(65001),
 	}
 
 	// Build UPDATE with withdrawn routes only
@@ -745,7 +745,7 @@ func TestJSONEncoderMultiFamilyNewFormat(t *testing.T) {
 
 	peer := plugin.PeerInfo{
 		Address: netip.MustParseAddr("10.0.0.1"),
-		PeerAS:  65001,
+		PeerAS:  rpc.RemoteASOf(65001),
 	}
 
 	// Build UPDATE with both IPv4 and IPv6 NLRI
@@ -814,7 +814,7 @@ func TestJSONEncoderAnnounceAndWithdrawSameFamily(t *testing.T) {
 
 	peer := plugin.PeerInfo{
 		Address: netip.MustParseAddr("10.0.0.1"),
-		PeerAS:  65001,
+		PeerAS:  rpc.RemoteASOf(65001),
 	}
 
 	// Build UPDATE with both NLRI and withdrawn
@@ -884,7 +884,7 @@ func TestJSONEncoderADDPATHNewFormat(t *testing.T) {
 
 	peer := plugin.PeerInfo{
 		Address: netip.MustParseAddr("10.0.0.1"),
-		PeerAS:  65001,
+		PeerAS:  rpc.RemoteASOf(65001),
 	}
 
 	// Build UPDATE with path-id in NLRI
@@ -1066,7 +1066,7 @@ func TestJSONEncoderIPv4DualNextHop(t *testing.T) {
 
 	peer := plugin.PeerInfo{
 		Address: netip.MustParseAddr("10.0.0.1"),
-		PeerAS:  65001,
+		PeerAS:  rpc.RemoteASOf(65001),
 	}
 
 	// Build UPDATE with:
@@ -1614,7 +1614,7 @@ func TestJSONEncoderNegotiated(t *testing.T) {
 	peer := plugin.PeerInfo{
 		Address:      netip.MustParseAddr("10.0.0.1"),
 		LocalAddress: netip.MustParseAddr("10.0.0.2"),
-		PeerAS:       65001,
+		PeerAS:       rpc.RemoteASOf(65001),
 		LocalAS:      65000,
 	}
 
@@ -1736,7 +1736,7 @@ func TestEventJSONHasTopLevelType(t *testing.T) {
 
 	peer := plugin.PeerInfo{
 		Address: netip.MustParseAddr("10.0.0.1"),
-		PeerAS:  65001,
+		PeerAS:  rpc.RemoteASOf(65001),
 	}
 
 	// Build UPDATE
@@ -1794,7 +1794,7 @@ func TestEventJSONBgpTypeField(t *testing.T) {
 		Address:      netip.MustParseAddr("192.168.1.2"),
 		LocalAddress: netip.MustParseAddr("192.168.1.1"),
 		LocalAS:      65001,
-		PeerAS:       65002,
+		PeerAS:       rpc.RemoteASOf(65002),
 	}
 
 	tests := []struct {
@@ -1840,7 +1840,7 @@ func TestEventJSONMessageMetadata(t *testing.T) {
 
 	peer := plugin.PeerInfo{
 		Address: netip.MustParseAddr("10.0.0.1"),
-		PeerAS:  65001,
+		PeerAS:  rpc.RemoteASOf(65001),
 	}
 
 	body := buildTestUpdateBodyWithAttrs(
@@ -1894,7 +1894,7 @@ func TestEventJSONPeerObject(t *testing.T) {
 		Address:      netip.MustParseAddr("192.168.1.2"),
 		LocalAddress: netip.MustParseAddr("192.168.1.1"),
 		LocalAS:      65001,
-		PeerAS:       65002,
+		PeerAS:       rpc.RemoteASOf(65002),
 	}
 
 	output := enc.StateUp(&peer)
@@ -1931,7 +1931,7 @@ func TestEventJSONPeerNameGroup(t *testing.T) {
 			name: "name and group",
 			peer: plugin.PeerInfo{
 				Address:   netip.MustParseAddr("10.0.0.1"),
-				PeerAS:    65001,
+				PeerAS:    rpc.RemoteASOf(65001),
 				Name:      "upstream1",
 				GroupName: "transit",
 			},
@@ -1941,7 +1941,7 @@ func TestEventJSONPeerNameGroup(t *testing.T) {
 			name: "name only",
 			peer: plugin.PeerInfo{
 				Address: netip.MustParseAddr("10.0.0.2"),
-				PeerAS:  65002,
+				PeerAS:  rpc.RemoteASOf(65002),
 				Name:    "peer_east",
 			},
 			wantGroup: false,
@@ -1950,7 +1950,7 @@ func TestEventJSONPeerNameGroup(t *testing.T) {
 			name: "group only",
 			peer: plugin.PeerInfo{
 				Address:   netip.MustParseAddr("10.0.0.3"),
-				PeerAS:    65003,
+				PeerAS:    rpc.RemoteASOf(65003),
 				GroupName: "edge",
 			},
 			wantGroup: true,
@@ -1959,7 +1959,7 @@ func TestEventJSONPeerNameGroup(t *testing.T) {
 			name: "no name no group",
 			peer: plugin.PeerInfo{
 				Address: netip.MustParseAddr("10.0.0.4"),
-				PeerAS:  65004,
+				PeerAS:  rpc.RemoteASOf(65004),
 			},
 			wantGroup: false,
 		},
@@ -1999,7 +1999,7 @@ func TestEventJSONNestedStructure(t *testing.T) {
 
 	peer := plugin.PeerInfo{
 		Address: netip.MustParseAddr("10.0.0.1"),
-		PeerAS:  65001,
+		PeerAS:  rpc.RemoteASOf(65001),
 	}
 
 	body := buildTestUpdateBodyWithAttrs(
@@ -2069,7 +2069,7 @@ func TestEventJSONRawSection(t *testing.T) {
 
 	peer := plugin.PeerInfo{
 		Address: netip.MustParseAddr("10.0.0.1"),
-		PeerAS:  65001,
+		PeerAS:  rpc.RemoteASOf(65001),
 	}
 
 	body := buildTestUpdateBodyWithAttrs(
@@ -2124,7 +2124,7 @@ func TestJSONEncoderRouterIDOnEveryMessage(t *testing.T) {
 		Address:        netip.MustParseAddr("10.0.0.2"),
 		LocalAddress:   netip.MustParseAddr("10.0.0.17"),
 		LocalAS:        64512,
-		PeerAS:         64512,
+		PeerAS:         rpc.RemoteASOf(64512),
 		RouterID:       0x0a000011,
 		RemoteRouterID: 0x0a000002,
 	}

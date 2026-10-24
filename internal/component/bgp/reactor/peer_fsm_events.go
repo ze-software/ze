@@ -7,6 +7,7 @@ package reactor
 import (
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // emitFSMEvents tells the subscribed processes about one FSM state change:
@@ -57,7 +58,7 @@ func fsmEventPeerInfo(peer *Peer) plugin.PeerInfo {
 		LocalAS:         s.LocalAS,
 		// PeerAS via the guarded accessor: a dynamic peer's establishment
 		// writes it, and a transition can be drained on another goroutine.
-		PeerAS:   peer.PeerAS(),
+		PeerAS:   rpc.RemoteASOf(peer.PeerAS()),
 		RouterID: s.RouterID,
 		State:    peer.State().PluginState(),
 	}

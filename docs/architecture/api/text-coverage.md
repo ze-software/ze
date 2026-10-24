@@ -10,6 +10,8 @@ Source of truth: text formatters in `internal/component/bgp/format/`, route-serv
 
 ## Message Type Coverage
 
+Every formatter below writes the uniform header `peer <addr> remote as <asn>`. `<asn>` is the peer's AS, or `unknown` while a dynamic peer's AS is not yet negotiated. The OPEN line also carries `asn <n>` after its message id: the OPEN's own My Autonomous System, so Ze's own AS on a sent OPEN. `parseTextOpen` reads that token into `Open.ASN`.
+
 | Message Type | Formatter | Parser | Tests |
 |-------------|-----------|--------|-------|
 | State (up/down) | `appendStateChangeText` | `parseTextState` | `TestFormatStateChange` |

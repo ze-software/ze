@@ -26,7 +26,7 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// ValidateBackendFeatures walks the parsed JSON config tree under
+// validateBackendFeatures walks the parsed JSON config tree under
 // componentRoot against the schema and returns one error per node whose
 // `ze:backend` annotation excludes activeBackend, unless a descendant with
 // its own annotation accepts activeBackend (narrowest-annotation-wins).
@@ -48,7 +48,7 @@ import (
 // immutable post-build, and the walker mutates no package-level state).
 // A single call is NOT re-entrant within itself: it appends to the
 // caller's errs slice via pointer; do not share errs across calls.
-func ValidateBackendFeatures(
+func validateBackendFeatures(
 	tree map[string]any,
 	schema *Schema,
 	componentRoot string,
@@ -336,7 +336,7 @@ func emitListEntryError(
 // the node carries an annotation (flag=true, list non-empty) or it does
 // not (flag=false, list nil). Covers every structural node type the
 // schema walker can encounter; syntax-only leaf shapes (Freeform,
-// MultiLeaf, BracketLeafList, ValueOrArray) are intentionally omitted
+// multiLeaf, bracketLeafList, valueOrArray) are intentionally omitted
 // because they have no children to gate and carrying a Backend field on
 // them would be unused scaffolding.
 func backendAnnotation(node Node) ([]string, bool) {
@@ -387,10 +387,10 @@ func sortedKeysAny(m map[string]any) []string {
 
 // ValidateBackendFeaturesJSON is a convenience wrapper that accepts the raw
 // JSON string delivered in sdk.ConfigSection.Data. Components that already
-// have a parsed map[string]any should call ValidateBackendFeatures directly.
+// have a parsed map[string]any should call validateBackendFeatures directly.
 //
 // Returns a single error when the JSON fails to parse; otherwise delegates
-// to ValidateBackendFeatures.
+// to validateBackendFeatures.
 func ValidateBackendFeaturesJSON(
 	data string,
 	schema *Schema,
@@ -405,5 +405,5 @@ func ValidateBackendFeaturesJSON(
 	if err := json.Unmarshal([]byte(data), &root); err != nil {
 		return []error{fmt.Errorf("backend feature gate: parse config JSON: %w", err)}
 	}
-	return ValidateBackendFeatures(root, schema, componentRoot, activeBackend, backendLeafPath)
+	return validateBackendFeatures(root, schema, componentRoot, activeBackend, backendLeafPath)
 }

@@ -177,9 +177,11 @@ will not be refused.
 
 > **Status:** Full RFC 7313 Enhanced Route Refresh support implemented.
 
-**Router → API:** ✅ Implemented
+**Router → API:** ✅ Implemented. The text event carries the uniform header, so
+its `remote as` is the peer's AS, or `unknown` while a dynamic peer's AS is not
+yet negotiated. The type token is `refresh`, `borr` or `eorr`:
 ```
-peer peer-east refresh ipv4/unicast
+peer 10.0.0.1 remote as 65001 received refresh 7 family ipv4/unicast
 ```
 
 **API → Router:** ✅ Done (`refresh.go`, `reactor.go`)

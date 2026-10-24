@@ -520,17 +520,19 @@ func TestRIBRouteKeyWithPathID(t *testing.T) {
 		family string
 		prefix string
 		pathID uint32
+		has    bool
 		want   string
 	}{
-		{family.IPv4Unicast.String(), "10.0.0.0/24", 0, "ipv4/unicast:10.0.0.0/24"},
-		{family.IPv4Unicast.String(), "10.0.0.0/24", 1, "ipv4/unicast:10.0.0.0/24:1"},
-		{family.IPv4Unicast.String(), "10.0.0.0/24", 2, "ipv4/unicast:10.0.0.0/24:2"},
-		{family.IPv6Unicast.String(), "2001:db8::/32", 0, "ipv6/unicast:2001:db8::/32"},
-		{family.IPv6Unicast.String(), "2001:db8::/32", 100, "ipv6/unicast:2001:db8::/32:100"},
+		{family.IPv4Unicast.String(), "10.0.0.0/24", 0, false, "ipv4/unicast:10.0.0.0/24"},
+		{family.IPv4Unicast.String(), "10.0.0.0/24", 0, true, "ipv4/unicast:10.0.0.0/24:0"},
+		{family.IPv4Unicast.String(), "10.0.0.0/24", 1, true, "ipv4/unicast:10.0.0.0/24:1"},
+		{family.IPv4Unicast.String(), "10.0.0.0/24", 2, true, "ipv4/unicast:10.0.0.0/24:2"},
+		{family.IPv6Unicast.String(), "2001:db8::/32", 0, false, "ipv6/unicast:2001:db8::/32"},
+		{family.IPv6Unicast.String(), "2001:db8::/32", 100, true, "ipv6/unicast:2001:db8::/32:100"},
 	}
 
 	for _, tt := range tests {
-		got := bgp.RouteKey(tt.family, tt.prefix, tt.pathID)
+		got := bgp.RouteKey(tt.family, tt.prefix, tt.pathID, tt.has)
 		assert.Equal(t, tt.want, got, "RouteKey(%q, %q, %d)", tt.family, tt.prefix, tt.pathID)
 	}
 }
@@ -583,13 +585,14 @@ func TestRIBParseStructuredJSON(t *testing.T) {
 
 // TestReplayRoutesWithPathID verifies path-id is included in replay commands.
 //
-// VALIDATES: Replayed routes include path-id when non-zero via formatRouteCommand.
+// VALIDATES: Replayed routes include path-id when the route carries one (ADD-PATH)
+// via formatRouteCommand.
 // PREVENTS: Path-id being lost during session restart replay.
 func TestReplayRoutesWithPathID(t *testing.T) {
 	// Test formatRouteCommand directly since replay now goes through SDK RPC
 	routeNoPathID := &Route{MsgID: 1, Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", NextHop: "1.1.1.1", PathID: 0}
-	routePathID1 := &Route{MsgID: 2, Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", NextHop: "1.1.1.1", PathID: 1}
-	routePathID2 := &Route{MsgID: 3, Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", NextHop: "2.2.2.2", PathID: 2}
+	routePathID1 := &Route{MsgID: 2, Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", NextHop: "1.1.1.1", PathID: 1, AddPath: true}
+	routePathID2 := &Route{MsgID: 3, Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", NextHop: "2.2.2.2", PathID: 2, AddPath: true}
 
 	// Route without path-id should NOT have path-information in command
 	cmd0 := formatRouteCommand(routeNoPathID)
@@ -1604,7 +1607,9 @@ func TestParseEvent_NewBGPFormat(t *testing.T) {
 	assert.Equal(t, uint64(789), event.GetMsgID())
 	assert.Equal(t, "received", event.GetDirection())
 	assert.Equal(t, "10.0.0.1", event.GetPeerAddress())
-	assert.Equal(t, uint32(65001), event.GetPeerASN())
+	peerAS, err := event.GetPeerASN()
+	require.NoError(t, err)
+	assert.Equal(t, rpc.RemoteASOf(65001), peerAS)
 
 	// Verify attributes are parsed
 	assert.Equal(t, "igp", event.Origin)

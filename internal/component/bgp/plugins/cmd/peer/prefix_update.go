@@ -44,7 +44,7 @@ var newPrefixLookupClient = func(baseURL string) prefixLookupClient {
 
 type peerResult struct {
 	Peer    string         `json:"peer"`
-	ASN     uint32         `json:"asn"`
+	ASN     uint32         `json:"asn,omitempty"`
 	Status  string         `json:"status"`
 	Changes map[string]any `json:"changes,omitempty"`
 	Error   string         `json:"error,omitempty"`
@@ -107,16 +107,18 @@ func handleBgpPeerPrefixUpdate(ctx *pluginserver.CommandContext, _ command.Valid
 
 	for i := range peers {
 		p := &peers[i]
-		result := peerResult{Peer: p.Address.String(), ASN: p.PeerAS}
+		result := peerResult{Peer: p.Address.String()}
 
-		if p.PeerAS == 0 {
+		peerAS, known := p.PeerAS.ASN()
+		if !known {
 			result.Status = statusSkipped
-			result.Error = "no remote ASN configured"
+			result.Error = "remote AS not known: the peer has no configured AS and has not negotiated one yet"
 			results = append(results, result)
 			continue
 		}
+		result.ASN = peerAS
 
-		counts, lookupErr := lookupPrefixCounts(requestCtx, client, p.PeerAS, i > 0)
+		counts, lookupErr := lookupPrefixCounts(requestCtx, client, peerAS, i > 0)
 		if errors.Is(lookupErr, context.Canceled) || errors.Is(lookupErr, context.DeadlineExceeded) {
 			return &plugin.Response{
 				Status: plugin.StatusError,

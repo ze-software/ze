@@ -141,7 +141,7 @@ func newBestSource(r *RIBManager, selectorStr string, stashCandidates map[string
 		})
 	}
 	for peer, peerRIB := range r.bgpPeers {
-		if !sel.Matches(peer) {
+		if !r.selectsPeer(sel, peer) {
 			continue
 		}
 		collect(peerRIB)
@@ -342,10 +342,10 @@ func (r *RIBManager) bestPipeline(selector string, args []string) any {
 
 	// Execute terminal — drain it and return metadata
 	meta := current.Meta()
+	if meta.Refusal != nil {
+		return pipelineRefusal{reason: meta.Refusal}
+	}
 	if meta.JSON != "" {
-		if hasTerminalKind(stages, "graph") {
-			return meta.JSON
-		}
 		return json.RawMessage(meta.JSON)
 	}
 

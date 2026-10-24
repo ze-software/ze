@@ -472,6 +472,7 @@ none of them is a defect until this table names the new trigger.
 | A received route in an earlier encoding of its family | A family registers the form Ze sends its routes in (`nlritype.RegisterCanonical`). A draft-mpmz-bess-mup-safi-02 Type 1 ST route, read without its Source Address Length, gains the octet, 0 (draft-ietf-bess-mup-safi Section 3.1.3.1), so the Adj-RIB-In and every relay hold the current form. Only the MP attribute holding such a route is rebuilt, once, on receipt; every other section is relayed from the received octets | `nlritype.RetainUpdate`, `rewriteMPNLRISections` |
 | Ingress AS4 reconciliation | A 2-octet speaker, or an UPDATE that carries AS4_PATH or AS4_AGGREGATOR, gets one canonical four-octet AS path | `(*Session).collapseASPathFamily` |
 | An external plugin reads the UPDATE | The plugin needs JSON text, not wire bytes | `appendParsedUpdateJSONDirect` |
+| A best change leaves bgp-rib | The winner's attributes cross to subscribers as bytes, because a pool handle points into bgp-rib's pool and a forked subscriber cannot read it. Once per published best change; an unchanged best publishes nothing | `storedAttributes` |
 | An owner withdrawal is owed to recovery | Twice. The writer stages the NLRI in its pooled staging storage, because a body that lost a path is copied over the session write buffer before the owe applies, and the owed path's bytes would then read as the emitted one. The owed record then copies them again, because it outlives the write and the pooled writer reuses that storage | `(*adjOutWrite).stageOwe`, `(*adjRIBOut).owe` |
 
 <!-- source: internal/component/bgp/attrpool/pool.go -- shard.intern -->
@@ -484,6 +485,7 @@ none of them is a defect until this table names the new trigger.
 <!-- source: internal/component/bgp/reactor/session_validation_nlritype.go -- rewriteMPNLRISections -->
 <!-- source: internal/component/bgp/reactor/session_read.go -- Session.collapseASPathFamily -->
 <!-- source: internal/component/bgp/format/text_update.go -- appendParsedUpdateJSONDirect -->
+<!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- storedAttributes -->
 <!-- source: internal/component/bgp/reactor/adj_rib_out.go -- adjRIBOut.owe -->
 <!-- source: internal/component/bgp/reactor/session_ownership.go -- stageOwe -->
 

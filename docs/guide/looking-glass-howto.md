@@ -138,6 +138,14 @@ peer. Do not read `0` as "this peer sent no routes" until this field says
 `true`.
 
 <!-- source: internal/component/lg/handler_api.go -- transformProtocols, routeCountsAvailable -->
+
+Each protocol's id is the session's configured name, or its address when it
+has none. The per-protocol routes and count endpoints accept that id or the
+session's address and query the RIB by address. An id that matches no session
+answers 404, `no BGP session is named "<id>"`, pointing at
+`GET /api/looking-glass/protocols/bgp` for the names; a session the engine
+lists with no address answers 502.
+<!-- source: internal/component/lg/handler_api.go -- protocolSession, protocolID -->
 <!-- source: internal/component/bgp/plugins/cmd/peer/summary.go -- route counts and peer history -->
 
 The normative statement of this behavior is

@@ -103,7 +103,7 @@ func validationReceive(t *testing.T, bridge *rpc.DirectBridge, r *RIBManager, ms
 		t.Fatal(err)
 	}
 	event := &rpc.StructuredEvent{
-		EventType: rpc.EventKindUpdate, PeerAddress: "192.0.2.1", PeerAS: 65001, LocalAS: 65000,
+		EventType: rpc.EventKindUpdate, PeerAddress: "192.0.2.1", PeerAS: rpc.RemoteASOf(65001), LocalAS: 65000,
 		RawMessage: &bgptypes.RawMessage{MessageID: msgID, RawBytes: body, WireUpdate: wu, AttrsWire: attrs},
 	}
 	// Deliberately let the selecting RIB receive first: it must consult the
@@ -304,7 +304,7 @@ func TestDisabledRPKISelectionFirstReceiveBecomesSelectable(t *testing.T) {
 		t.Fatal(err)
 	}
 	event := &rpc.StructuredEvent{
-		EventType: rpc.EventKindUpdate, PeerAddress: "192.0.2.1", PeerAS: 65001, LocalAS: 65000,
+		EventType: rpc.EventKindUpdate, PeerAddress: "192.0.2.1", PeerAS: rpc.RemoteASOf(65001), LocalAS: 65000,
 		MessageID:  10,
 		RawMessage: &bgptypes.RawMessage{MessageID: 10, RawBytes: body, WireUpdate: wu, AttrsWire: attrs},
 	}

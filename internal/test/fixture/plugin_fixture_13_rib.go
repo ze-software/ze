@@ -2,10 +2,12 @@ package fixture
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -394,6 +396,90 @@ func ribForwardObserved13(ctx context.Context, args []string) error {
 	})
 }
 
+// graph13 is the AS topology `show bgp rib ... graph` answers: the AS numbers
+// of its nodes and its edges as "from>to".
+type graph13 struct {
+	nodes []uint32
+	edges []string
+}
+
+// decodeGraph13 reads the structured graph answer. A pre-rendered text answer,
+// or any document that is not exactly `{"graph":{"nodes":[...],"edges":[...]}}`,
+// is an error.
+func decodeGraph13(result commandResult13) (graph13, error) {
+	var envelope map[string]json.RawMessage
+	if err := json.Unmarshal(result.raw, &envelope); err != nil {
+		return graph13{}, fmt.Errorf("graph answer is not a JSON object: %w: %.200s", err, result.raw)
+	}
+	if len(envelope) != 1 {
+		return graph13{}, fmt.Errorf("graph answer carries more than the \"graph\" key: %.200s", result.raw)
+	}
+	inner, ok := envelope["graph"]
+	if !ok {
+		return graph13{}, fmt.Errorf("graph answer has no \"graph\" key: %.200s", result.raw)
+	}
+	var answer struct {
+		Nodes *[]struct {
+			ASN uint32 `json:"asn"`
+		} `json:"nodes"`
+		Edges *[]struct {
+			From uint32 `json:"from"`
+			To   uint32 `json:"to"`
+		} `json:"edges"`
+	}
+	if err := json.Unmarshal(inner, &answer); err != nil {
+		return graph13{}, fmt.Errorf("graph answer: %w: %.200s", err, inner)
+	}
+	if answer.Nodes == nil {
+		return graph13{}, fmt.Errorf("graph answer has no nodes list: %.200s", inner)
+	}
+	if answer.Edges == nil {
+		return graph13{}, fmt.Errorf("graph answer has no edges list: %.200s", inner)
+	}
+	var g graph13
+	for _, n := range *answer.Nodes {
+		g.nodes = append(g.nodes, n.ASN)
+	}
+	for _, e := range *answer.Edges {
+		g.edges = append(g.edges, strconv.FormatUint(uint64(e.From), 10)+">"+strconv.FormatUint(uint64(e.To), 10))
+	}
+	slices.Sort(g.nodes)
+	slices.Sort(g.edges)
+	return g, nil
+}
+
+// graphIs records a failure unless the graph answer holds exactly nodes and
+// edges ("from>to"), in any order.
+func (a *assertions13) graphIs(label string, result commandResult13, nodes []uint32, edges []string) {
+	g, err := decodeGraph13(result)
+	if err != nil {
+		err = fmt.Errorf("%s: %w", label, err)
+		a.failures = append(a.failures, err)
+		fmt.Fprintln(os.Stderr, "FAIL", err)
+		return
+	}
+	nodes = slices.Clone(nodes)
+	edges = slices.Clone(edges)
+	slices.Sort(nodes)
+	slices.Sort(edges)
+	if !slices.Equal(g.nodes, nodes) {
+		a.graphMismatch(label, g, nodes, edges)
+		return
+	}
+	if !slices.Equal(g.edges, edges) {
+		a.graphMismatch(label, g, nodes, edges)
+		return
+	}
+	fmt.Fprintf(os.Stderr, "OK %s: graph nodes %v edges %v\n", label, g.nodes, g.edges)
+}
+
+// graphMismatch records that the graph answer g is not the one wanted.
+func (a *assertions13) graphMismatch(label string, g graph13, nodes []uint32, edges []string) {
+	err := fmt.Errorf("%s: graph nodes %v edges %v, want nodes %v edges %v", label, g.nodes, g.edges, nodes, edges)
+	a.failures = append(a.failures, err)
+	fmt.Fprintln(os.Stderr, "FAIL", err)
+}
+
 func ribGraphBest13(ctx context.Context, args []string) error {
 	return observe13(ctx, "graph-best-test", func(ctx context.Context, plugin *sdk.Plugin) error {
 		if err := ribReady13(ctx, plugin); err != nil {
@@ -403,9 +489,7 @@ func ribGraphBest13(ctx context.Context, args []string) error {
 		a.status("inject", command13(ctx, plugin, "request bgp rib inject 10.0.0.1 ipv4/unicast 10.10.1.0/24 aspath 64501,64502"))
 		graph := command13(ctx, plugin, "show bgp rib best graph")
 		a.status("best-graph", graph)
-		for _, want := range []string{asnLabel64501, asnLabel64502, "┌"} {
-			a.contains("best-graph", graph, want)
-		}
+		a.graphIs("best-graph", graph, []uint32{64501, 64502}, []string{"64501>64502"})
 		return a.finish("best-graph")
 	})
 }
@@ -420,12 +504,8 @@ func ribGraphFiltered13(ctx context.Context, args []string) error {
 		a.status("inject-2", command13(ctx, plugin, "request bgp rib inject 10.0.0.2 ipv4/unicast 10.20.1.0/24 aspath 64601,64602"))
 		graph := command13(ctx, plugin, "show bgp rib received prefix 10.10 graph")
 		a.status("filtered-graph", graph)
-		for _, want := range []string{asnLabel64501, asnLabel64502} {
-			a.contains("filtered-graph", graph, want)
-		}
-		for _, absent := range []string{"AS64601", "AS64602"} {
-			a.notContains("filtered-graph", graph, absent)
-		}
+		// 64601 and 64602 ride only on the route the prefix filter excludes.
+		a.graphIs("filtered-graph", graph, []uint32{64501, 64502}, []string{"64501>64502"})
 		return a.finish("filtered-graph")
 	})
 }
@@ -440,10 +520,10 @@ func ribGraph13(ctx context.Context, args []string) error {
 		a.status("inject-2", command13(ctx, plugin, "request bgp rib inject 10.0.0.2 ipv4/unicast 10.10.2.0/24 aspath 64504,64502,64503"))
 		graph := command13(ctx, plugin, "show bgp rib received graph")
 		a.status("graph", graph)
-		for _, want := range []string{asnLabel64501, asnLabel64502, "AS64503", "AS64504", "┌"} {
-			a.contains("graph", graph, want)
-		}
-		a.status("empty-graph", command13(ctx, plugin, "show bgp rib received prefix 99.99.99.0/24 graph"))
+		a.graphIs("graph", graph, []uint32{64501, 64502, 64503, 64504}, []string{"64501>64502", "64502>64503", "64504>64502"})
+		empty := command13(ctx, plugin, "show bgp rib received prefix 99.99.99.0/24 graph")
+		a.status("empty-graph", empty)
+		a.graphIs("empty-graph", empty, nil, nil)
 		return a.finish("graph")
 	})
 }

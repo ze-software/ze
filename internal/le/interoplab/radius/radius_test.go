@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -50,6 +51,19 @@ type labPolicy struct {
 	// in one request, or one whose State ze failed to echo, is the defect the
 	// EAP scenario's third assertion exists to catch.
 	challenges bool
+	// discardUnsigned is RFC 3579 Section 3.1 on ze's side: an answer carrying
+	// an EAP-Message and no Message-Authenticator is discarded. False is the
+	// defect radius-admin-eap-unsigned-freeradius exists to catch.
+	discardUnsigned bool
+	// countDiscards is false when ze discards the answer without stepping
+	// ze_radius_unsigned_eap_discards_total.
+	countDiscards bool
+	// metricsExported is false when ze's Prometheus endpoint carries no
+	// ze_radius_unsigned_eap_discards_total series at all.
+	metricsExported bool
+	// relayBroken is true when the relay does not carry the conversation, so
+	// even the signed answers never reach ze.
+	relayBroken bool
 }
 
 func conformingPAP() labPolicy {
@@ -87,12 +101,56 @@ func conformingEAP() labPolicy {
 	return policy
 }
 
+func conformingEAPUnsigned() labPolicy {
+	policy := conformingEAP()
+	policy.discardUnsigned = true
+	policy.countDiscards = true
+	policy.metricsExported = true
+	return policy
+}
+
 // stubLab answers the protocol-neutral CheckerLab from labPolicy, with no
 // Docker and no container.
 type stubLab struct {
 	policy  labPolicy
 	records []string
 	zeLog   []string
+	// relayMode is empty until the checker writes the relay's mode file, and
+	// relayLog is empty until the checker starts the relay.
+	relayMode string
+	relayLog  []string
+	discards  int
+}
+
+// relayed records one answer the relay carried, in the relay's own format.
+func (s *stubLab) relayed(code string) {
+	signature := "present"
+	if s.relayMode == relayModeStrip {
+		signature = "stripped"
+	}
+	s.relayLog = append(s.relayLog, "relayed mode="+s.relayMode+" code="+code+" id=1 eap-message=present message-authenticator="+signature)
+}
+
+// runRelayedLogin walks a login whose answers cross the relay. It answers
+// whether the RADIUS backend settled the login; false sends the chain to local.
+func (s *stubLab) runRelayedLogin(user string) bool {
+	if s.policy.relayBroken {
+		s.relayLog = append(s.relayLog, "unanswered mode="+s.relayMode+" id=1")
+		return false
+	}
+	s.relayed("11")
+	if s.relayMode == relayModeStrip && s.policy.discardUnsigned {
+		s.zeLog = append(s.zeLog, "WARN msg=\""+discardMessage+"\" reason=\""+unsignedEAPReason+" (RFC 3579 Section 3.1)\"")
+		if s.policy.countDiscards {
+			s.discards++
+		}
+		return false
+	}
+	s.challenge(user)
+	s.relayed("2")
+	s.record(verdictAccept, user)
+	s.zeLog = append(s.zeLog, "INFO SSH auth success username="+user+" remote=127.0.0.1:1 source="+sourceRADIUS)
+	return true
 }
 
 func newStubLab(policy labPolicy) *scenarioLab {
@@ -124,12 +182,18 @@ func (s *stubLab) runLogin(user, password, command string) string {
 	profile := ""
 	switch {
 	case s.policy.silentUsers[user]:
+		if len(s.relayLog) > 0 && !s.policy.relayBroken {
+			s.relayLog = append(s.relayLog, "unanswered mode="+s.relayMode+" id=1")
+		}
 		s.record(verdictSilent, user)
 		if s.policy.localPasswords[user] == password {
 			authenticated = true
 			profile = "admin"
 			s.zeLog = append(s.zeLog, "INFO SSH auth success username="+user+" remote=127.0.0.1:1 source="+sourceLocal)
 		}
+	case len(s.relayLog) > 0 && s.policy.serverPasswords[user] == password:
+		authenticated = s.runRelayedLogin(user)
+		profile = s.policy.profile
 	case s.policy.serverPasswords[user] == password && (s.policy.shape.CHAPPassword == credentialAbsent || s.policy.serverCanCHAP):
 		s.challenge(user)
 		s.record(verdictAccept, user)
@@ -166,6 +230,22 @@ func (s *stubLab) Exec(_ context.Context, peer string, argv []string, _ []intero
 			return interoplab.CommandResult{}, errors.New("cat: no such file")
 		}
 		return interoplab.CommandResult{Stdout: strings.Join(s.records, "\n") + "\n"}, nil
+	case peer == serverPeer && strings.Contains(command, "> "+relayModePath):
+		s.relayMode = relayModePass
+		if strings.Contains(command, " "+relayModeStrip+" ") {
+			s.relayMode = relayModeStrip
+		}
+		return interoplab.CommandResult{Stdout: s.relayMode + "\n"}, nil
+	case peer == serverPeer && command == "cat "+relayLogPath:
+		if len(s.relayLog) == 0 {
+			return interoplab.CommandResult{}, errors.New("cat: no such file")
+		}
+		return interoplab.CommandResult{Stdout: strings.Join(s.relayLog, "\n") + "\n"}, nil
+	case peer == zePeer && strings.Contains(command, metricsURL):
+		if !s.policy.metricsExported {
+			return interoplab.CommandResult{Stdout: "# HELP ze_up fixture\nze_up 1\n"}, nil
+		}
+		return interoplab.CommandResult{Stdout: unsignedDiscardSeries + " " + strconv.Itoa(s.discards) + "\n"}, nil
 	case peer == serverPeer && strings.Contains(command, "radclient"):
 		if !s.policy.papProbeAccepted {
 			return interoplab.CommandResult{Stdout: "Received Access-Reject Id 1\n"}, nil
@@ -193,8 +273,15 @@ func (s *stubLab) Logs(_ context.Context, peer string, _ int) (interoplab.LogRes
 	return interoplab.LogResult{Text: strings.Join(s.zeLog, "\n") + "\n", Available: true}, nil
 }
 
-func (s *stubLab) ExecDetached(context.Context, string, []string, []interoplab.EnvironmentVariable) error {
-	return errors.New("stub lab starts nothing")
+func (s *stubLab) ExecDetached(_ context.Context, peer string, argv []string, _ []interoplab.EnvironmentVariable) error {
+	if peer != serverPeer || !slices.Contains(argv, relayScript) {
+		return errors.New("stub lab starts only the relay, not: " + peer + " " + strings.Join(argv, " "))
+	}
+	if s.relayMode == "" {
+		return errors.New("the relay started before its mode file was written")
+	}
+	s.relayLog = append(s.relayLog, relayListening+" server="+relayUpstream)
+	return nil
 }
 func (s *stubLab) PeerPID(context.Context, string) (int, error) {
 	return 0, errors.New("stub lab has no process")

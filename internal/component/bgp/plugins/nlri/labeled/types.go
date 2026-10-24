@@ -87,11 +87,11 @@ func (l *LabeledUnicast) Family() Family { return l.family }
 func (l *LabeledUnicast) Prefix() netip.Prefix { return l.prefix }
 
 // PathID returns the ADD-PATH path identifier. Zero is an identifier like any
-// other, so a caller that needs to know whether one is carried asks HasPathID
+// other, so a caller that needs to know whether one is carried asks HasAddPath
 // rather than comparing this value against zero.
 func (l *LabeledUnicast) PathID() uint32 { return l.pathID }
 
-// HasPathID reports whether this NLRI carries an RFC 7911 Path Identifier.
+// HasAddPath reports whether this NLRI carries an RFC 7911 Path Identifier.
 //
 // RFC 7911 Section 3: "In order to carry the Path Identifier in an UPDATE
 // message, the NLRI encoding MUST be extended by prepending the Path Identifier
@@ -99,7 +99,7 @@ func (l *LabeledUnicast) PathID() uint32 { return l.pathID }
 //
 // The field has no reserved or absent value, so an identifier of zero is a real
 // identifier and PathID alone cannot say whether one is there.
-func (l *LabeledUnicast) HasPathID() bool { return l.hasPath }
+func (l *LabeledUnicast) HasAddPath() bool { return l.hasPath }
 
 // SupportsAddPath returns true - labeled unicast supports ADD-PATH per RFC 7911.
 func (l *LabeledUnicast) SupportsAddPath() bool { return true }

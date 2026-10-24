@@ -294,10 +294,10 @@ func TestAPIVersionCommand(t *testing.T) {
 // VALIDATES: X-6 (`json_v4 = '4.0.1'`, src/exabgp/version.py), AC-5, AC-6.
 func TestJSONEnvelopePerFormat(t *testing.T) {
 	event := ReadEvent(map[string]any{"type": "state", "peer": map[string]any{"address": "127.0.0.1"}, "state": "up"})
-	if got := event.ExabgpJSON(FormatV4JSON)["exabgp"]; got != "4.0.1" {
+	if got := event.exabgpJSON(FormatV4JSON)["exabgp"]; got != "4.0.1" {
 		t.Errorf("v4 JSON envelope = %v, want 4.0.1", got)
 	}
-	if got := event.ExabgpJSON(FormatV6JSON)["exabgp"]; got != "6.0.0" {
+	if got := event.exabgpJSON(FormatV6JSON)["exabgp"]; got != "6.0.0" {
 		t.Errorf("v6 JSON envelope = %v, want 6.0.0", got)
 	}
 }

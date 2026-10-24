@@ -249,7 +249,12 @@ func cmdStart(args, plugins []string, chaosSeed int64, chaosRate float64, global
 		}
 	}
 	defer store.Close() //nolint:errcheck // shutdown releases store ownership
-	store = storage.BindConfigSource(store, internalresolve.DefaultConfig(store), storage.ConfigSourceStored)
+	configName, err := internalresolve.DefaultConfig(store)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "error:", err)
+		return 1
+	}
+	store = storage.BindConfigSource(store, configName, storage.ConfigSourceStored)
 
 	// Explicit --web-only: start standalone web UI, no daemon.
 	if webOnly {
@@ -267,7 +272,6 @@ func cmdStart(args, plugins []string, chaosSeed int64, chaosRate float64, global
 		return cmdStartManaged(store, plugins, chaosSeed, chaosRate)
 	}
 
-	configName := internalresolve.DefaultConfig(store)
 	if !store.Exists(configName) {
 		// Config does not exist at all: try first-boot bootstrap.
 		switch {
@@ -316,7 +320,11 @@ func isManaged(store storage.Storage) bool {
 // With cached config: starts BGP immediately, connects to hub in background for updates.
 // Without cached config (first boot): requires hub connection to fetch initial config.
 func cmdStartManaged(store storage.Storage, plugins []string, chaosSeed int64, chaosRate float64) int {
-	configName := internalresolve.DefaultConfig(store)
+	configName, err := internalresolve.DefaultConfig(store)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "error:", err)
+		return 1
+	}
 
 	if store.Exists(configName) {
 		clientCfg := extractManagedClientConfig(store, configName)

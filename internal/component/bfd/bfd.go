@@ -12,7 +12,7 @@
 //   - api -- public types (SessionRequest, Key, StateChange, Service).
 //   - schema -- YANG module ze-bfd-conf.
 //
-// This file holds the plugin runtime hook (RunBFDPlugin), the package-level
+// This file holds the plugin runtime hook (runBFDPlugin), the package-level
 // logger, and the lifecycle that drives the engine package from parsed
 // configuration.
 package bfd
@@ -192,7 +192,7 @@ func (r *runtimeState) profileAuthFor(mode api.HopMode) engine.ProfileAuth {
 }
 
 // stopAll tears down every running loop and forgets every pinned handle.
-// Called from RunBFDPlugin's deferred cleanup so a clean shutdown returns
+// Called from runBFDPlugin's deferred cleanup so a clean shutdown returns
 // the UDP sockets to the kernel.
 func (r *runtimeState) stopAll() {
 	for key, loop := range r.loops {
@@ -592,6 +592,13 @@ var errBfdNotConfigured = errors.New("bfd: no configuration applied")
 // as a pinned one.
 var errBfdDisabled = errors.New("bfd: disabled by configuration (bfd > enabled false)")
 
+// errBfdIPv6NotBound is returned by EnsureSession for an IPv6 peer while
+// bfd > bind-v6 is false. The loop then owns only the IPv4 socket
+// (newTransport), so every Control packet to the peer would fail to send and
+// the session would sit Down with no reason the client can read.
+var errBfdIPv6NotBound = errors.New("bfd: IPv6 peer refused because no IPv6 socket is bound " +
+	"(bfd > bind-v6 is false); set `bfd { bind-v6 true; }` and commit")
+
 // EnsureSession dispatches the request to the correct engine.Loop,
 // creating the loop on demand. The returned SessionHandle is owned by
 // the caller; callers MUST call ReleaseSession when finished.
@@ -628,6 +635,12 @@ func (s *pluginService) EnsureSession(req api.SessionRequest) (api.SessionHandle
 	normalized, err := canonicalRequest(req, connectedLinks())
 	if err != nil {
 		return nil, err
+	}
+	// Without bind-v6 the loop holds the IPv4 socket alone (newTransport), so an
+	// IPv6 peer is refused here rather than given a session that cannot send.
+	// An IPv4-mapped address travels on the IPv4 socket and needs no IPv6 one.
+	if normalized.Peer.Is6() && !normalized.Peer.Is4In6() && !s.state.cfg.bindV6 {
+		return nil, errBfdIPv6NotBound
 	}
 	lk := loopKey{vrf: normalized.VRF, mode: normalized.Mode}
 	loop, err := s.state.loopFor(lk, loopDeviceFor(normalized))
@@ -821,10 +834,10 @@ func verifyBFDConfig(sections []sdk.ConfigSection) error {
 	return err
 }
 
-// RunBFDPlugin is the engine entry point. It uses the SDK 5-stage protocol
+// runBFDPlugin is the engine entry point. It uses the SDK 5-stage protocol
 // to receive configuration, drives engine.Loop instances per (VRF, mode)
 // for any pinned sessions, and blocks until shutdown.
-func RunBFDPlugin(conn net.Conn) int {
+func runBFDPlugin(conn net.Conn) int {
 	log := logger()
 	log.Debug("bfd plugin starting")
 

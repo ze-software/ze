@@ -34,7 +34,7 @@ forwarding`, independent of either engine's in-memory state.
    computes this LSR's originated FECs, its LSR-ID plus connected prefixes on
    configured interfaces (`localFECs`, `ldp/local.go`), and for each calls
    `lib.EnsureLocal` to allocate a stable local label (`ldp/lib.go`,
-   `nextLabel` starts at 16) then `fib.ProgramPop` to install the egress
+   `nextLabel` starts at 16) then `fib.programPop` to install the egress
    disposition entry immediately (`ldp/register.go`, `ldp/fib.go`).
 3. **Discovery (RFC 5036 §2.4.1).** A `discoveryManager` (`ldp/discovery_manager.go`)
    starts one `discoverOnInterface` goroutine per configured interface (or one
@@ -67,7 +67,7 @@ forwarding`, independent of either engine's in-memory state.
    `ldp/fib.go`,`:61`). On a withdraw: `withdrawRemoteBinding`
    (`ldp/fib.go`) removes the LIB entry and reconciles the same way.
 7. **FEC → mpls-fib entry.** `reconcileFEC` (`ldp/fib.go`) picks the
-   lowest-peer-key surviving binding for the FEC (`LIB.RemainingForFEC`,
+   lowest-peer-key surviving binding for the FEC (`LIB.remainingForFEC`,
    `ldp/lib.go`) and calls `applyRemoteBinding` (`ldp/fib.go`): implicit-null
    (label 3, RFC 3032 §2.1 penultimate-hop-pop) clears any stale push and forwards
    as plain IP (`fib.Remove`, `ldp/fib.go`); any other label calls

@@ -579,8 +579,8 @@ func (m *MUP) bodyLen() int {
 // PathID returns 0.
 func (m *MUP) PathID() uint32 { return 0 }
 
-// HasPathID returns false.
-func (m *MUP) HasPathID() bool { return false }
+// HasAddPath returns false.
+func (m *MUP) HasAddPath() bool { return false }
 
 // SupportsAddPath returns false - MUP doesn't support ADD-PATH.
 func (m *MUP) SupportsAddPath() bool { return false }

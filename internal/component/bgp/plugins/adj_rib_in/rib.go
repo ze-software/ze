@@ -114,6 +114,11 @@ type RawRoute struct {
 	// value carries the identifier.
 	PathID      uint32
 	NLRIFraming rpc.NLRIFraming
+	// HasPathID records that the source session negotiated ADD-PATH for this
+	// family, so PathID is an identifier the route carries, zero included.
+	// NLRIFramingPrefixOnly cannot say it: a session without ADD-PATH also
+	// stores PathID 0 that way.
+	HasPathID bool
 
 	ValidationState uint8 // RPKI validation state (0=NotValidated, 1=Valid, 2=NotFound, 3=Invalid)
 	Ineligible      bool  // Retained by validation, excluded from selection and replay.
@@ -593,6 +598,7 @@ func (r *AdjRIBInManager) installStructuredNLRIs(peerAddr netip.Addr, fam family
 			NLRIHex:     nlriHex,
 			PathID:      pathID,
 			NLRIFraming: rpc.NLRIFramingPrefixOnly,
+			HasPathID:   addPath,
 			MsgID:       msgID,
 		}
 
@@ -755,10 +761,15 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 	if len(event.FamilyOps) == 0 {
 		return
 	}
+	peer, err := validationPeerFromEvent(event)
+	if err != nil {
+		logger().Warn("received event dropped", "peer", event.GetPeerAddress(), "error", err)
+		return
+	}
 
 	r.mu.Lock()
 	defer r.unlockValidation()
-	r.rememberValidationPeer(peerAddr, validationPeerFromEvent(event))
+	r.rememberValidationPeer(peerAddr, peer)
 
 	// The event's own next-hop is an address STRING, so it cannot express the
 	// two-address form RFC 2545 Section 3 defines for an IPv6 next hop. The raw
@@ -844,6 +855,7 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 							NLRIHex:     nlriHex,
 							PathID:      pathID,
 							NLRIFraming: framing,
+							HasPathID:   addPath,
 							MsgID:       event.GetMsgID(),
 						}
 

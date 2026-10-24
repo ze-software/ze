@@ -166,7 +166,7 @@ func TestLDPInteropFRR(t *testing.T) {
 
 	// Originate ze's local FECs (AC-3) so ze also advertises labels to FRR.
 	for _, fec := range localFECs(cfg.LSRID, connectedPrefixes(cfg.Interfaces, log)) {
-		fib.ProgramPop(fec, lib.EnsureLocal(fec).Label)
+		fib.programPop(fec, mustEnsureLocal(t, lib, fec).Label)
 	}
 
 	ctx := t.Context()

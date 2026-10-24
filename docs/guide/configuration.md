@@ -2575,7 +2575,7 @@ Fix: change `backend` back to `netlink` (the default on Linux), or remove the
 unsupported entries. The same gate runs at daemon reload (`SIGHUP`) and on
 first-apply at startup, so the daemon cannot boot into an unworkable state.
 
-<!-- source: internal/component/config/backend_gate.go -- ValidateBackendFeatures, walkBackendNode -->
+<!-- source: internal/component/config/backend_gate.go -- validateBackendFeatures, walkBackendNode -->
 <!-- source: internal/component/config/yang/modules/ze-extensions.yang -- extension backend -->
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- ze:backend annotations on bridge/tunnel/wireguard/veth/mirror -->
 

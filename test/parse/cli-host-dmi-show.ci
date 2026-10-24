@@ -1,6 +1,6 @@
 # Test: ze show host dmi returns SMBIOS/DMI inventory JSON without a daemon
 # VALIDATES: offline fallback -- `show host dmi` runs the in-process
-#            host.DetectDMI when no daemon is reachable, producing JSON with
+#            host.DetectSection("dmi") when no daemon is reachable, producing JSON with
 #            the system-vendor field read from /sys/class/dmi/id.
 # PREVENTS: regressions where show host dmi silently requires a daemon,
 #           or where the DMI JSON drops its canonical kebab-case fields.

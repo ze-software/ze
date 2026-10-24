@@ -114,7 +114,7 @@ func TestOrdinaryIPv6NormalizationPreservesAdmission(t *testing.T) {
 					}
 					batch := bgptypes.NLRIBatch{
 						Family:  family.IPv6Unicast,
-						NLRIs:   []nlri.NLRI{nlri.NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8:7::/64"), 0)},
+						NLRIs:   []nlri.NLRI{nlri.NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8:7::/64"), 0, false)},
 						NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("2001:db8:c::1")),
 					}
 					api := &reactorAPIAdapter{r: r}
@@ -184,7 +184,7 @@ func testOrdinaryIPv6JointSubnet(t *testing.T, source ordinaryJointSource) {
 					}
 					batch := bgptypes.NLRIBatch{
 						Family:  family.IPv6Unicast,
-						NLRIs:   []nlri.NLRI{nlri.NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8:7::/64"), 0)},
+						NLRIs:   []nlri.NLRI{nlri.NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8:7::/64"), 0, false)},
 						NextHop: bgptypes.NewNextHopExplicit(nextHop),
 					}
 					var eors uint32

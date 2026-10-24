@@ -99,7 +99,7 @@ func flowValidationReceiveLocalAS(t *testing.T, r *RIBManager, peer netip.Addr, 
 		t.Fatal(err)
 	}
 	event := &rpc.StructuredEvent{
-		EventType: rpc.EventKindUpdate, PeerAddress: peer.String(), PeerAS: peerAS, LocalAS: localAS,
+		EventType: rpc.EventKindUpdate, PeerAddress: peer.String(), PeerAS: rpc.RemoteASOf(peerAS), LocalAS: localAS,
 		// A shared BGP Identifier must never substitute for source transport IP.
 		RemoteRouterID: 0x01010101,
 		RawMessage:     &bgptypes.RawMessage{Type: msgtype.TypeUPDATE, MessageID: id, RawBytes: body, WireUpdate: wu, AttrsWire: aw},
@@ -543,7 +543,7 @@ func TestRFC8955NextHopIgnoredForFlowSpec(t *testing.T) {
 		}
 		msgID := uint64(i + 10)
 		r.handleReceivedStructured(&rpc.StructuredEvent{
-			EventType: rpc.EventKindUpdate, PeerAddress: peer.String(), PeerAS: 65001, LocalAS: 65000,
+			EventType: rpc.EventKindUpdate, PeerAddress: peer.String(), PeerAS: rpc.RemoteASOf(65001), LocalAS: 65000,
 			LocalAddress: "192.0.2.100", RemoteRouterID: 0x01010101,
 			RawMessage: &bgptypes.RawMessage{Type: msgtype.TypeUPDATE, MessageID: msgID, RawBytes: body, WireUpdate: wu, AttrsWire: aw},
 		})

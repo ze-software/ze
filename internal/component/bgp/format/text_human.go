@@ -24,7 +24,7 @@ func appendFilterResultText(buf []byte, peer *plugin.PeerInfo, result bgpfilter.
 	buf = append(buf, "peer "...)
 	buf = peer.Address.AppendTo(buf)
 	buf = append(buf, " remote as "...)
-	buf = strconv.AppendUint(buf, uint64(peer.PeerAS), 10)
+	buf = appendRemoteASText(buf, peer.PeerAS)
 	buf = append(buf, ' ')
 	buf = direction.AppendTo(buf)
 	buf = append(buf, " update "...)
@@ -265,7 +265,7 @@ func appendStateChangeText(buf []byte, peer *plugin.PeerInfo, state rpc.SessionS
 	buf = append(buf, "peer "...)
 	buf = peer.Address.AppendTo(buf)
 	buf = append(buf, " remote as "...)
-	buf = strconv.AppendUint(buf, uint64(peer.PeerAS), 10)
+	buf = appendRemoteASText(buf, peer.PeerAS)
 	buf = append(buf, " state "...)
 	buf = state.AppendTo(buf)
 	if reason != "" {

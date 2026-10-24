@@ -50,6 +50,7 @@ remediation guidance.
 | `doctor-service-stop` | The stop settings systemd applies to the installed `ze.service` (`systemctl show -p TimeoutStopUSec -p KillMode`, drop-ins included) give ze its whole stop: a timeout of at least 90 s (60 s drain ceiling plus 30 s teardown) and `KillMode=mixed`. A host with no `systemctl` is told it does not run systemd and that the unit file is stale; any other failed query carries systemctl's own error <!-- source: internal/plugins/systemd/doctor.go -- checkServiceStop, stopQueryFailure --> |
 | `doctor-ssh-hostkey-missing` | SSH host key |
 | `doctor-listen-unavailable` | Port binding |
+| `doctor-listener-set-unknown` | The listen addresses to check cannot be derived: the YANG schema built into ze failed to load, so no web, SSH, gNMI or API listener was checked. An error, because it means an incomplete ze binary <!-- source: internal/component/doctor/checks_listener.go -- collectSchemaListeners, listenerSetUnknown --> |
 | `doctor-iface-missing` / `doctor-iface-down` | Interface existence and state |
 | `doctor-iface-selector-unmatched` / `doctor-iface-selector-ambiguous` | A `mac { match }` selector names no device, or several |
 | `doctor-iface-mac-override-by-name` | An ethernet overrides its MAC but binds by name, so the address lands on whichever device holds that name |
@@ -91,16 +92,20 @@ when any component is `down`.
 | `firewall` | Stale ze_* tables, chain drift vs config, a ze_* table the kernel lost, and an audit that could not read the kernel |
 | `iface` | RX/TX error counter increases |
 | `plugins` | Plugin crashes and disabled-by-respawn-limit |
-| `vpp` | VPP API socket reachability (when present) |
+| `vpp` | Present only while `interface { backend vpp; }` is the loaded backend. Down, with the socket path and `ze doctor` as the next step, when the vpp component is not running, the configured `vpp { api-socket }` does not exist, or it refuses connections <!-- source: internal/plugins/iface/vpp/health.go -- checkVPPHealth, vppHealthApplies --> |
 | `ipsec` | IPsec SA state |
 | `pki` | Certificate expiry |
-| `l2tp` | L2TP subsystem availability |
+| `l2tp` | L2TP subsystem running, and every listener programming sessions into the kernel data plane. Degraded, with the reason and `ze doctor` to check the kernel modules, when the l2tp generic netlink family could not be resolved, `ze.l2tp.disable-kernel-dataplane` is set, or the platform is not Linux <!-- source: internal/component/l2tp/health.go -- checkHealth, dataPlaneHealth --> |
 | `flow-export` | Exporter state and collector send errors |
 | `report-bus` | Report bus registration |
 
 <!-- source: internal/plugins/flowexport/health.go -- RegisterHealthCheck, checkFlowExportHealth; internal/core/report/register.go -- init -->
 Each check completes within 1 second. Components report `healthy`, `degraded`,
-or `down`. The overall status is the worst of all components.
+or `down`. The overall status is the worst of all components. A component that
+has nothing to measure on this host, such as `vpp` when another interface
+backend is loaded, has no row at all rather than a `healthy` row nobody
+measured.
+<!-- source: internal/core/health/registry.go -- RegisterWhen, invokeCheck -->
 
 <!-- The health-reports demo is not embedded while its recording is wrong. The
      tape drives an SSH session whose commands the CLI answers with a completion

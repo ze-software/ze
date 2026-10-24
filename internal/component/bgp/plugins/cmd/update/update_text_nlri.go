@@ -340,11 +340,12 @@ func parseINETSection(args []string, start int, fam family.Family, accum nlriAcc
 }
 
 // parseINETNLRI parses a single prefix for unicast/multicast families.
-// pathID is the ADD-PATH path identifier (0 = not set).
+// pathID is the ADD-PATH path identifier, carried when hasPathID is true: the
+// operator wrote `path-information`, and zero is an identifier like any other.
 // Returns the NLRI, extra args consumed (always 0 for INET), and any error.
 //
 //nolint:unparam // extra return used by other NLRI parsers with same signature
-func parseINETNLRI(token string, fam family.Family, pathID uint32) (nlri.NLRI, int, error) {
+func parseINETNLRI(token string, fam family.Family, pathID uint32, hasPathID bool) (nlri.NLRI, int, error) {
 	prefix, err := netip.ParsePrefix(token)
 	if err != nil {
 		return nil, 0, fmt.Errorf("%w: %s", route.ErrInvalidPrefix, token)
@@ -359,7 +360,7 @@ func parseINETNLRI(token string, fam family.Family, pathID uint32) (nlri.NLRI, i
 		return nil, 0, fmt.Errorf("%w: IPv6 prefix for %s", route.ErrFamilyMismatch, fam)
 	}
 
-	return nlri.NewINET(fam, prefix, pathID), 0, nil // 0 extra args consumed
+	return nlri.NewINET(fam, prefix, pathID, hasPathID), 0, nil // 0 extra args consumed
 }
 
 // parseNLRI dispatches to the appropriate NLRI parser based on family.
@@ -376,7 +377,7 @@ func parseNLRI(token string, fam family.Family, accum nlriAccum) (nlri.NLRI, int
 		// FlowSpec uses special parsing - should not reach here
 		return nil, 0, errFlowspecParsingRequiresParseflowspecsection
 	case family.SAFIUnicast, family.SAFIMulticast:
-		return parseINETNLRI(token, fam, accum.PathID)
+		return parseINETNLRI(token, fam, accum.PathID, accum.HasPathID)
 	default:
 		// No other SAFI reaches here (see the ignore reason above); refuse
 		// rather than guess a prefix encoding for it.

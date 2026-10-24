@@ -2,14 +2,14 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | verification |
 | Scope | protocol |
 | Priority | P1 |
 | Release reason | Shipped producers answer a default, a zero or a constant where they cannot answer, so operators and peers act on values Ze never measured; several rows are RFC defects in implemented capabilities (RADIUS, LDP, IS-IS, ADD-PATH, LLGR) |
 | Depends | `plan/release/fixes/spec-plugin-optional-dependency-refusal.md` (owns the "not built reads as not configured" rows of the 2026-10-20 dependency census; this spec reuses its refusal for the two build-gated rows it owns) |
-| Phase | - |
-| Handoff | - |
-| Updated | 2026-10-23 |
+| Phase | 7/7 |
+| Handoff | verify |
+| Updated | 2026-10-24 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -131,8 +131,8 @@ named as one").
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | The four rule shapes below cover every owned row | row-by-row reading 2026-10-23 | an owned row has no rule; add one before closing | each owned row's regression test plus a fixture per rule | unvalidated |
-| A-2 | A change-set check produces few false positives on new code | `arch compound-guard` precedent judges unpushed lines | authors meet a noisy check and annotate by reflex | run the check over the last 200 commits in report mode; count findings per true defect | unvalidated |
-| A-3 | Every ADD-PATH consumer has the negotiated flag at hand | `AddPath` fields already present at the `format.go` and `rib_pipeline.go` sites | a consumer needs the flag threaded | gopls references on each value test | unvalidated |
+| A-2 | A change-set check produces few false positives on new code | `arch compound-guard` precedent judges unpushed lines | authors meet a noisy check and annotate by reflex | run the check over the last 200 commits in report mode; count findings per true defect | confirmed 2026-10-23: `report` findings intersected with the lines `git diff -U0 a870c72164` (HEAD~200, to the working tree) changed: 10 findings over 200 commits, 6 true (a read failure or a wrong type read as "no" or absent: `filter_family/config.go` `exportChain`, `le/commit/owed_trailers.go` `answering.answered` x2 and `answering.reviewed`, `le/hookruntime/lifecycle.go` `linkedWorktree`, `le/verify/green.go` `provenParts`), 4 relied-on zeros that take the annotation (`reactor/policy_reload.go` `reconcileExportFinal` and `flushPolicyReplay`, `green.go` `recordGreen`, `exabgp/bridge/bridge_route_forms.go` `refuseMaskNotNumber`), 0 pure false positives: 1.7 findings per true defect. Reached after five precision cuts, each pinned by a fixture case: `false` beside a nil error (the flag hands the miss on), a branch that records the miss (field or element write, counter step, error handed to an outer variable), an answer that carries the error, a parse's own "no" (`Parse*`, `Atoi`), and a bool function literal (visitor, yield, poll predicate). The first cut measured 28 findings over the same range |
+| A-3 | Every ADD-PATH consumer has the negotiated flag at hand | `AddPath` fields already present at the `format.go` and `rib_pipeline.go` sites | a consumer needs the flag threaded | gopls references on each value test | confirmed with exception: the `format.go` and `rib_pipeline.go` sites hold `AddPath`; four further sites found (`bgp.RouteKey`, the adj_rib_in show key, the `appendNLRIJSONValue` bare-prefix branch, `handleSent`), and the flag is threaded for `NewINET` callers (new `hasPathID` parameter) and `adj_rib_in.RawRoute.HasPathID`. Presence accessors for the AC-3 check: `nlri.HasPathID(n)` for NLRIs, `Route.AddPath` for `bgp.Route`, `RawRoute.HasPathID` |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -185,10 +185,16 @@ named as one").
 | `TestRadiusDiscardsEAPAnswerWithoutMessageAuthenticator` | `internal/component/radius/client_test.go` | AC-9, RFC 3579 Section 3.1 | |
 | `TestLDPLabelExhaustionRefusesSecondBinding` | `internal/plugins/ldp/lib_test.go` | AC-9, RFC 3031 Section 3.14 | |
 | `TestLDPInitUnknownTLVUClearNotifies` | `internal/plugins/ldp/wire_test.go` | AC-9, RFC 5036 Section 3.3 | |
-| `TestISISHelloInvalidThreeWayStateDiscarded` | `internal/plugins/isis/adjacency/fsm_test.go` | AC-9, RFC 5303 Section 3.2 | |
-| `TestRSVPPathWithoutSenderTSpecRefused` | `internal/plugins/rsvpte/engine_test.go` | AC-9, RFC 2205 Section 3.1.3 | |
+| `TestISISHelloInvalidThreeWayStateDiscarded` | `internal/plugins/isis/rfc5303_invalid_state_wiring_test.go` | AC-9, RFC 5303 Section 3.2: `handleIIH` counts the discarded Hello | |
+| `TestRFC5303InvalidStateLeavesAdjacencyUntouched` (existing, RFC5303-3.2-7) | `internal/plugins/isis/adjacency/rfc5303_invalid_state_test.go` | AC-9, RFC 5303 Section 3.2: the FSM discards before mutation | |
+| `TestRFC2205PathWithoutSenderTSpecRefused` (existing, tagged), `TestRFC2205PathWithoutSenderTSpecDropped` (existing) | `internal/plugins/rsvpte/rfc2205_path_test.go`, `repairs_rfc2205_test.go` | AC-9, RFC 2205 Section 3.1.3 | |
+| `TestRadiusUnsignedEAPDiscardCounted` | `internal/component/radius/metrics_test.go` | AC-9: the discard reaches the `ze_radius_unsigned_eap_discards_total` series | |
+| `TestRFC4090FlagsClearUntilBypassEstablished`, `TestRFC4090RefreshTracksBypassState` (existing, RFC4090-6-3, 6-4) | `internal/plugins/rsvpte/rfc4090_frr_bypass_test.go` | AC-12: RRO local protection follows the bypass LSP's state | |
 | `TestAddPathIdentifierZeroIsAnIdentifier` | `internal/component/bgp/rib/route_test.go` and each consumer package | AC-10, RFC 7911 Sections 2 and 3 | |
-| `TestLLGREgressNilStateRefusesStaleRoute` | `internal/component/bgp/plugins/gr/gr_egress_test.go` | AC-11, RFC 9494 Section 4.3 | |
+| `TestLLGREgressFilter_NilStateWithdrawsEBGP`, `_NilStateDepreferencesIBGP` (existing, RFC9494-4.3-3, 4.6-2, 4.6-3; planned as `TestLLGREgressNilStateRefusesStaleRoute`) | `internal/component/bgp/plugins/gr/rfc9494_gr_egress_test.go` | AC-11, RFC 9494 Section 4.3 | -> Decision: fixed at 6ec2a10bcf with these tests; a second test of the same branch would duplicate them |
+| `TestDetectThermal_ZeroReadingIsAReading` | `internal/component/host/thermal_linux_test.go` | AC-11 | |
+| `TestClearedCarriesTheDetectedVictim` | `internal/plugins/ddos/detect/characterize_test.go` | AC-11 | |
+| `TestKeepaliveNamesTheNegotiatedASOfADynamicPeer` | `internal/component/bgp/reactor/reactor_notify_test.go` | AC-11 | |
 | `TestInterfaceExistsReadErrorIsNotAbsence` | `internal/component/iface/config_apply_test.go` | AC-8 | |
 | `TestL2TPHealthReadsDataPlane`, `TestTrafficUsageReadinessCanFail` | owning packages | AC-12 | |
 | one regression test per remaining owned row, named in the row's fix commit | owning packages | AC-13 | |
@@ -210,9 +216,9 @@ named as one").
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `addpath-zero-id-frr` | `test/interop/scenarios/` | FRR | identifier 0 round trip under ADD-PATH | |
-| existing RADIUS FreeRADIUS scenario, extended | `internal/le/interoplab/radius/` | FreeRADIUS | EAP answer without Message-Authenticator is discarded | |
-| existing LDP FRR scenario, extended | `internal/le/interoplab/` | FRR | unknown U=0 TLV in Init draws a notification | |
+| `addpath-zero-id-frr` | `test/interop/scenarios/`, checkers in `internal/le/interoplab/bgp/` (`scenarioAddPathZeroIDFRR`) | FRR | identifier 0 round trip under ADD-PATH | written, NOT RUN: the Docker lab must run Ze's kernel (macOS `ze` Colima profile or the Ze-kernel QEMU guest). Run: `INTEROP_SCENARIO=addpath-zero-id-frr ./le test integration interop`. It proves acceptance only (vacuity trap 4): Ze's identifier octets come from the session flag in `nlri.WriteNLRI` (reached from `reactor_api_batch.go` `writeBatchNLRI`), which this spec did not change, so reverting the spec's diff cannot redden it. Red phase owed: in `internal/core/bgp/nlri/nlri.go` `WriteNLRI`, change `if addPath && n.SupportsAddPath()` to `if addPath && n.SupportsAddPath() && n.PathID() != 0`, rerun the same command (the harness rebuilds the image from the tree), confirm the checker fails on FRR's missing `AddPath ID: RX 0,` path, restore, confirm green, and record the red |
+| `radius-admin-eap-unsigned-freeradius` | `test/interop-radius/scenarios/`, checker `internal/le/interoplab/radius/check_unsigned_eap.go` | FreeRADIUS 3.2.10, through `test/interop-radius/unsigned-relay.pl` in its container (FreeRADIUS's `rad_encode` always signs over UDP) | EAP answer without Message-Authenticator is discarded, logged and counted; the same login with the signature kept completes | green 2026-10-23 (with the four other radius scenarios) |
+| `ldp-init-unknown-tlv-frr` | `test/interop/scenarios/`, checker `internal/le/interoplab/bgp/check_ldp_init_unknown_tlv.go` | FRR ldpd; an nft rule in ze's container rewrites one TLV type in FRR's real Init (FRR cannot send an unknown TLV) | unknown U=0 TLV in Init draws an Unknown TLV notification FRR receives, and the Init is ignored (no OPERATIONAL until the rewrite is removed) | |
 
 ## Files to Modify
 - `internal/component/radius/client.go`, `packet.go` - discard EAP answer without Message-Authenticator
@@ -316,6 +322,9 @@ named as one").
 | Change-set check with a tree report | a tree-wide gate red from day one | the tree holds instances owned by other specs; a tree-wide red blocks every commit; `arch compound-guard` is the precedent |
 | Annotation names the guard | a bare `nolint` style escape | `ai/rules/principles.md` requires a relied-on zero to be named as a guard |
 | ADD-PATH presence from the negotiated capability | a sentinel identifier | RFC 7911 reserves no value |
+| `show bgp rib ... graph` answers `{"graph":{"nodes":[...],"edges":[...]}}` and refuses over `graph.MaxNodes`; the CLI draws the box through a text renderer keyed by the envelope key `graph`, registered from `bgp-rib` | keep the pre-rendered box text as a JSON string | `ai/rules/cli.md`: a payload is structured data, never finished text; `\| json` must show the structure |
+
+Owner approval (Thomas, 2026-10-24): the functional tests rib-graph, rib-graph-filtered and rib-graph-best (fixture `ribGraph13`, `internal/test/fixture/plugin_fixture_13_rib.go`) may change to assert the structured payload instead of the pre-rendered box text.
 
 ## Known Limitations
 - The rows of this family owned by `spec-plugin-optional-dependency-refusal` (2026-10-20 census rows: auto-load hard dependency, mrt and NTP not built, ddos/exabgp/flowexport undeclared BGP, redistribute and ls_export free strings) stay there
@@ -326,6 +335,8 @@ Add `// RFC NNNN Section X.Y: "quoted requirement"` above each refusal this spec
 sentences quoted in Required Reading.
 
 ## Owned journal rows
+
+Owner approval (Thomas, 2026-10-24): the doctor `collectSchemaListeners` row removes the hardcoded listener fallback and deletes `TestDoctorGnmiListenerIsProbed` (`TestDoctorGnmiDefaultEndpointIsProbed` stays); this spec's fix also covers AC-19 of `spec-daemon-runtime-one-off-defects.md`.
 
 | Class file | Date | Surface (short) | Family |
 |------------|------|-----------------|--------|
@@ -343,39 +354,47 @@ sentences quoted in Required Reading.
 | `silent-fall-through.md` | 2026-10-07 | `captureRawStart` answers done when it cannot capture | F1 |
 | `silent-fall-through.md` | 2026-10-02 | rib family with no splitter dropped at Debug | F1 |
 | `silent-fall-through.md` | 2026-09-21 | `validateYangType` default arm accepts | F2 |
-| `silent-fall-through.md` | 2026-09-21 | LDP `DecodeInit` skips unknown U=0 TLV | F2 |
 | `constant-reported-as-measured-state.md` | 2026-10-13 | from-Established FSM arm reports `connection lost` for every cause | F2 |
 | `declared-format-contradicts-payload.md` | 2026-08-19 | `RawJSON.MarshalJSON` quotes invalid JSON instead of refusing | F2 |
+| `field-carries-two-meanings.md` | 2026-10-23 | text `AppendOpen` writes the OPEN's own AS as `remote as` | F3 |
 | `zero-value-as-valid-answer.md` | 2026-10-22 | `appendNLRIJSONValue` writes a placeholder route on decode failure | F2 |
 | `zero-value-as-valid-answer.md` | 2026-10-19 | `interfaceExists` any error reads as absent | F1 |
 | `zero-value-as-valid-answer.md` | 2026-10-19 | DHCPv6 `dadUnreported` on VPP | F4 |
 | `zero-value-as-valid-answer.md` | 2026-10-19 | VPP `detailsToInfo` empty addresses | F4 |
 | `zero-value-as-valid-answer.md` | 2026-10-09 | LG `routes/protocol/{name}` 0 routes for a name | F1 |
-| `zero-value-as-valid-answer.md` | 2026-10-05 | IS-IS invalid three-way state becomes the zero action | F2 |
 | `zero-value-as-valid-answer.md` | 2026-09-20 | `serializeRouteItem` path ID compared with zero | F3 |
 | `zero-value-as-valid-answer.md` | 2026-09-20 | `vpnToJSON`, `LabeledUnicast.String` path ID compared with zero | F3 |
 | `zero-value-as-valid-answer.md` | 2026-09-08 | ddos `emitCleared` zero target never closes | F3 |
 | `zero-value-as-valid-answer.md` | 2026-09-06 | `NewINET` path ID 0 as absent | F3 |
 | `zero-value-as-valid-answer.md` | 2026-08-10 | gr egress nil state read as nothing stale | F3 |
 | `zero-value-as-valid-answer.md` | 2026-08-12 | `readOneHwmon` drops a 0.0 reading | F3 |
-| `zero-value-as-valid-answer.md` | 2026-09-21 | rsvpte `handlePath` admits PATH without SENDER_TSPEC | F2 |
 | `zero-value-as-valid-answer.md` | 2026-09-25 | resolve `DefaultConfig` read failure as missing | F1 |
 | `zero-value-as-valid-answer.md` | 2026-10-08 | `buildParamMeta` error becomes nil | F1 |
 | `zero-value-as-valid-answer.md` | 2026-10-19 | web interface detail swaps config for live on error | F1 |
+| `zero-value-as-valid-answer.md` | 2026-10-23 | web interface list reads any `ListInterfaces` error as no backend | F1 |
+| `zero-value-as-valid-answer.md` | 2026-10-23 | bgp-rib name selector matches no session | F1 |
 | `zero-value-as-valid-answer.md` | 2026-10-23 | KEEPALIVE metadata AS0 for a dynamic peer | F3 |
+| `zero-value-as-valid-answer.md` | 2026-10-23 | message before negotiation carries AS 0 for a dynamic peer, never "not yet known" | F3 |
+| `zero-value-as-valid-answer.md` | 2026-10-23 | web interface counters partial reads any `GetStats` error as no counters | F1 |
 | `guard-addition-drops-what-it-refuses.md` | 2026-10-03 | `buildWithdrawalPayload` returns nothing for two families | F2 |
 | `guard-addition-drops-what-it-refuses.md` | 2026-10-08 | `prefixListFromIRR` cut and counted success | F2 |
 | `constant-reported-as-measured-state.md` | 2026-10-08 | LG `transformRoutes` `primary` from an absent key | F4 |
 | `constant-reported-as-measured-state.md` | 2026-10-03 | BMP Loc-RIB ORIGIN literal IGP | F4 |
-| `constant-reported-as-measured-state.md` | 2026-09-21 | rsvpte `rroProtectionFlags` from config | F4 |
+| `memo-suppresses-a-change-it-cannot-see.md` | 2026-10-23 | bgp-rib `sameBest` ignores an attribute-only change of the winner | F4 |
 | `green-that-could-not-have-been-red.md` | 2026-08-31 | trafficusage `ebpfSupported` constant nil | F4 |
 | `green-that-could-not-have-been-red.md` | 2026-08-31 | l2tp `checkHealth` cannot fail | F4 |
 | `silent-fall-through.md` | 2026-10-20 | `getConfigPathPlugins` starts plugins after `ErrMissingDependency` | F1 |
 | `silent-fall-through.md` | 2026-10-20 | MRT table dump and `show system` NTP block skipped when not built | F1 |
 | `silent-fall-through.md` | 2026-10-20 | ddos responder, exabgp bridge, flowexport enrichment declare no BGP dependency | F1 |
 | `silent-fall-through.md` | 2026-10-20 | redistribute `destination`, ls_export `source` not checked against the registry | F1 |
+| `silent-fall-through.md` | 2026-10-23 | fib-vpp `newBackend` falls back to the `mockBackend` test double when VPP is unreachable | F1 |
+| `zero-value-as-valid-answer.md` | 2026-10-23 | VPP `readVPPIfaceStats` any stats read error read as no counters | F4 |
+| `zero-value-as-valid-answer.md` | 2026-10-23 | `answering.answered` read failure answered as not answered | F1 |
+| `zero-value-as-valid-answer.md` | 2026-10-23 | rs `extractWireNLRIRecords` unknown encoding context answered as no wire UPDATE | F1 |
+| `constant-reported-as-measured-state.md` | 2026-10-23 | `checkVPPHealth` healthy when the VPP socket is absent | F4 |
+| `zero-value-as-valid-answer.md` | 2026-10-24 | rib `showPipeline`, `bestPipeline` parse error answered as an `{"error":...}` payload with status done | F1 |
 
-51 rows.
+53 rows.
 
 ## Rows found already fixed
 
@@ -385,6 +404,10 @@ sentences quoted in Required Reading.
 | `zero-value-as-valid-answer.md` | 2026-09-01 | mvpn `hasRD` | `hasRD` is gone; `MVPN.rdPresent` (`nlri/mvpn/types.go`) records presence at parse |
 | `zero-value-as-valid-answer.md` | 2026-10-14 | `buildVPNNLRIBytes` path ID | `update_build_vpn.go` tests `ub.AddPath` alone; the row's own Fix cell says fixed |
 | `constant-reported-as-measured-state.md` | 2026-08-22 | rpki `validation-enabled` and `running` literals | `rpki.go` writes `rp.active.Load()` and `rp.validationEnabled()` |
+| `silent-fall-through.md` | 2026-09-21 | LDP `DecodeInit` skips unknown U=0 TLV | `DecodeInit` (`ldp/wire.go`) returns `unknownTLVError` and `(*Session).ignoreUnknownTLV` sends `statusUnknownTLV` (verified at HEAD 5762f6f2be); this spec added `TestLDPInitUnknownTLVUClearNotifies` (RFC5036-3.3-1 negative) and its record |
+| `zero-value-as-valid-answer.md` | 2026-10-05 | IS-IS invalid three-way state becomes the zero action | `ReceiveHello` (`isis/adjacency/fsm.go`) rejects before mutation since af69577952, tagged `TestRFC5303InvalidStateLeavesAdjacencyUntouched` (RFC5303-3.2-7); this spec added the drop count in `handleIIH` (`Transport.CountDrop`) and `TestISISHelloInvalidThreeWayStateDiscarded` |
+| `zero-value-as-valid-answer.md` | 2026-09-21 | rsvpte `handlePath` admits PATH without SENDER_TSPEC | d07c29546f: `handlePath` (`rsvpte/engine.go`) refuses `!msg.HasSenderTSpec`; `TestRFC2205PathWithoutSenderTSpecRefused`, `TestRFC2205PathWithoutSenderTSpecDropped` |
+| `constant-reported-as-measured-state.md` | 2026-09-21 | rsvpte `rroProtectionFlags` from config | callers gate `rroProtectionFlags` on `engine.bypassEstablished` (`rsvpte/frr.go`, `engine.go`, `reservation.go`); `TestRFC4090FlagsClearUntilBypassEstablished`, `TestRFC4090RefreshTracksBypassState` (bypass set DOWN) |
 
 ## Checklist
 

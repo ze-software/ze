@@ -76,7 +76,7 @@ func TestRFC8050MessageCallbackPreservesEncodingAndFraming(t *testing.T) {
 					message = binary.BigEndian.AppendUint16(message, uint16(19+len(body)))
 					message = append(message, 2)
 					message = append(message, body...)
-					r.notifyWireMessage(&plugin.PeerInfo{Address: addr, LocalAddress: settings.LocalAddress, PeerAS: 65001, LocalAS: 65000, MessageContextID: ctxID}, message, direction == rpc.DirectionSent)
+					r.notifyWireMessage(&plugin.PeerInfo{Address: addr, LocalAddress: settings.LocalAddress, PeerAS: rpc.RemoteASOf(65001), LocalAS: 65000, MessageContextID: ctxID}, message, direction == rpc.DirectionSent)
 					wants = append(wants, expected{subtype: subtype, message: message})
 				}
 			}

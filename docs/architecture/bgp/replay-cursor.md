@@ -116,6 +116,10 @@ to the rejected history or to a replacement Session.
 <!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- sendBatchUpdate -->
 <!-- source: internal/component/bgp/plugins/rib/rib_replay.go -- collectPeerUpReplay, formatCursorCommands -->
 
+`formatCursorCommands` writes `path-information <id>` only for a route stored
+with ADD-PATH; a path-id of 0 on an ADD-PATH route is still written, and a
+non-zero value alone no longer adds it.
+
 <!-- source: internal/component/bgp/plugins/rib/rib_structured.go -- handleSentStructured, storeSentEntries -->
 <!-- source: internal/component/bgp/plugins/rib/ribout_entry.go -- ribOutEntry -->
 

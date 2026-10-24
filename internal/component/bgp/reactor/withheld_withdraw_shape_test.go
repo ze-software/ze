@@ -147,7 +147,7 @@ func TestWithheldUnicastWithdrawWritesNothing(t *testing.T) {
 
 	batch := bgptypes.NLRIBatch{
 		Family: family.IPv6Unicast,
-		NLRIs:  []nlri.NLRI{nlri.NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8::/48"), 0)},
+		NLRIs:  []nlri.NLRI{nlri.NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8::/48"), 0, false)},
 	}
 	require.Error(t, adapter.WithdrawNLRIBatch(t.Context(), selector.All(), batch, plugin.OperatorSender()))
 

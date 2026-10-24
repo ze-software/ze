@@ -19,7 +19,7 @@ import (
 func TestRouteCreation(t *testing.T) {
 	// Create an INET NLRI
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
-	inet := nlri.NewINET(family.IPv4Unicast, prefix, 0)
+	inet := nlri.NewINET(family.IPv4Unicast, prefix, 0, false)
 
 	// Create attributes
 	origin := attribute.OriginIGP
@@ -45,7 +45,7 @@ func TestRouteCreation(t *testing.T) {
 // PREVENTS: Loss of AS-PATH data, inability to use AS-PATH for route indexing.
 func TestRouteWithASPath(t *testing.T) {
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
-	inet := nlri.NewINET(family.IPv4Unicast, prefix, 0)
+	inet := nlri.NewINET(family.IPv4Unicast, prefix, 0, false)
 
 	asPath := &attribute.ASPath{
 		Segments: []attribute.ASPathSegment{
@@ -71,8 +71,8 @@ func TestRouteWithASPath(t *testing.T) {
 func TestRouteIndex(t *testing.T) {
 	prefix1 := netip.MustParsePrefix("10.0.0.0/24")
 	prefix2 := netip.MustParsePrefix("10.0.1.0/24")
-	inet1 := nlri.NewINET(family.IPv4Unicast, prefix1, 0)
-	inet2 := nlri.NewINET(family.IPv4Unicast, prefix2, 0)
+	inet1 := nlri.NewINET(family.IPv4Unicast, prefix1, 0, false)
+	inet2 := nlri.NewINET(family.IPv4Unicast, prefix2, 0, false)
 
 	nextHop := netip.MustParseAddr("192.168.1.1")
 
@@ -98,7 +98,7 @@ func TestRouteIndex(t *testing.T) {
 // This is critical for route diversity and BGP add-path scenarios.
 func TestRouteIndexWithASPath(t *testing.T) {
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
-	inet := nlri.NewINET(family.IPv4Unicast, prefix, 0)
+	inet := nlri.NewINET(family.IPv4Unicast, prefix, 0, false)
 	nextHop := netip.MustParseAddr("192.168.1.1")
 
 	asPath1 := &attribute.ASPath{
@@ -118,4 +118,29 @@ func TestRouteIndexWithASPath(t *testing.T) {
 	// Same NLRI but different AS-PATH must have different indexes
 	require.NotEqual(t, route1.Index(), route2.Index(),
 		"same NLRI with different AS-PATH must have different indexes")
+}
+
+// TestAddPathIdentifierZeroIsAnIdentifier verifies the route index keys a path
+// on its RFC 7911 Path Identifier whenever the NLRI carries one, zero included.
+//
+// VALIDATES: AC-10, RFC 7911 Sections 2 and 3: identifier 0 and identifier 7
+// for one prefix are two paths, and identifier 0 is not the same route as the
+// prefix carried without ADD-PATH.
+// PREVENTS: Presence decided by comparing the identifier with zero, which
+// merged path 0 with the route that carries no identifier.
+func TestAddPathIdentifierZeroIsAnIdentifier(t *testing.T) {
+	prefix := netip.MustParsePrefix("10.0.0.0/24")
+	nextHop := netip.MustParseAddr("192.168.1.1")
+	index := func(pathID uint32, hasPathID bool) []byte {
+		n := nlri.NewINET(family.IPv4Unicast, prefix, pathID, hasPathID)
+		return NewRouteWithASPath(n, nextHop, nil, nil).Index()
+	}
+
+	zero := index(0, true)
+	require.Len(t, zero, 3+4+4, "AFI/SAFI, four identifier octets, the prefix")
+	require.Equal(t, []byte{0, 0, 0, 0}, zero[3:7], "identifier 0 is written")
+	require.NotEqual(t, zero, index(7, true), "path 0 and path 7 are two paths")
+	require.NotEqual(t, zero, index(0, false), "path 0 is not the route without ADD-PATH")
+	require.Equal(t, index(0, false), index(42, false),
+		"a value the NLRI does not carry is not part of its identity")
 }

@@ -82,24 +82,31 @@ cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=background:seq=2:exec=ze -:stdin=ze-bgp
 
 # Readiness: wait until the 15 routes are injected and queryable
-http=wait:seq=1:url=http://127.0.0.1:$PORT2/api/looking-glass/routes/protocol/10.0.1.1:status=200:contains="routes_count": 15:timeout=15s
+# The routes are read from routes/peer/10.0.1.1. 10.0.1.1 is the RIB-inject
+# pseudo-peer (`request bgp rib inject 10.0.1.1 ...`), not a BGP session, so
+# protocols/bgp never lists it. The test used to read routes/protocol/10.0.1.1:
+# that asserted a protocol id no client can learn from protocols/bgp answers 200,
+# which held only while the endpoint passed any id through to bgp-rib unchecked.
+# routes/peer and routes/protocol share serveRoutesForPeer, so the pagination
+# assertions below still cover the shared slicing.
+http=wait:seq=1:url=http://127.0.0.1:$PORT2/api/looking-glass/routes/peer/10.0.1.1:status=200:contains="routes_count": 15:timeout=15s
 
 # --- AC-11: default (no params) returns the full list, no pagination object ---
-http=get:seq=1:url=http://127.0.0.1:$PORT2/api/looking-glass/routes/protocol/10.0.1.1:status=200:contains="routes_count": 15
+http=get:seq=1:url=http://127.0.0.1:$PORT2/api/looking-glass/routes/peer/10.0.1.1:status=200:contains="routes_count": 15
 
 # --- AC-11: limit caps the page and reports the pre-slice total ---
-http=get:seq=2:url=http://127.0.0.1:$PORT2/api/looking-glass/routes/protocol/10.0.1.1?limit=5:status=200:contains="routes_count": 5
-http=get:seq=3:url=http://127.0.0.1:$PORT2/api/looking-glass/routes/protocol/10.0.1.1?limit=5:status=200:contains="total_results": 15
+http=get:seq=2:url=http://127.0.0.1:$PORT2/api/looking-glass/routes/peer/10.0.1.1?limit=5:status=200:contains="routes_count": 5
+http=get:seq=3:url=http://127.0.0.1:$PORT2/api/looking-glass/routes/peer/10.0.1.1?limit=5:status=200:contains="total_results": 15
 
 # --- AC-11: offset windows into the list ---
-http=get:seq=4:url=http://127.0.0.1:$PORT2/api/looking-glass/routes/protocol/10.0.1.1?limit=5&offset=10:status=200:contains="offset": 10
+http=get:seq=4:url=http://127.0.0.1:$PORT2/api/looking-glass/routes/peer/10.0.1.1?limit=5&offset=10:status=200:contains="offset": 10
 
 # --- AC-11: offset beyond the end yields an empty page, still 200 ---
-http=get:seq=5:url=http://127.0.0.1:$PORT2/api/looking-glass/routes/protocol/10.0.1.1?offset=1000:status=200:contains="routes_count": 0
+http=get:seq=5:url=http://127.0.0.1:$PORT2/api/looking-glass/routes/peer/10.0.1.1?offset=1000:status=200:contains="routes_count": 0
 
 # --- AC-11: invalid params rejected with 400 ---
-http=get:seq=6:url=http://127.0.0.1:$PORT2/api/looking-glass/routes/protocol/10.0.1.1?limit=abc:status=400
-http=get:seq=7:url=http://127.0.0.1:$PORT2/api/looking-glass/routes/protocol/10.0.1.1?limit=-1:status=400
+http=get:seq=6:url=http://127.0.0.1:$PORT2/api/looking-glass/routes/peer/10.0.1.1?limit=abc:status=400
+http=get:seq=7:url=http://127.0.0.1:$PORT2/api/looking-glass/routes/peer/10.0.1.1?limit=-1:status=400
 
 # --- AC-13: the birdwatcher surface Alice-LG consumes ---
 http=get:seq=8:url=http://127.0.0.1:$PORT2/api/looking-glass/status:status=200:contains=router_id

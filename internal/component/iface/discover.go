@@ -81,7 +81,7 @@ var kernelTunnelKinds = map[string]bool{
 func DiscoverInterfaces() ([]DiscoveredInterface, error) {
 	b := GetBackend()
 	if b == nil {
-		return nil, errIfaceNoBackendLoaded
+		return nil, ErrNoBackendLoaded
 	}
 	infos, err := b.ListInterfaces()
 	if err != nil {

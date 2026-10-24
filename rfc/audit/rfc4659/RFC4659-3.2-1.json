@@ -6,8 +6,8 @@
     "internal/component/bgp/config/rfc4659_vpnv6_label_test.go::TestRFC4659ConfiguredVPNv6RouteWithoutLabelRefused": "6c9d2e1d14bc2445",
     "internal/component/bgp/plugins/cmd/update/rfc4659_vpnv6_label_test.go::TestRFC4659VPNv6AnnouncementCarriesItsLabel": "a62298685d6d3059",
     "internal/component/bgp/plugins/cmd/update/rfc4659_vpnv6_label_test.go::TestRFC4659VPNv6AnnouncementWithoutLabelRefused": "a62298685d6d3059",
-    "internal/component/bgp/plugins/nlri/vpn/rfc4659_vpn_test.go::TestVPNv6RejectsLabellessEncode": "7f7a231ae5bf943b",
-    "internal/component/bgp/plugins/nlri/vpn/rfc4659_vpn_test.go::TestVPNv6WireRoundTrip": "7f7a231ae5bf943b"
+    "internal/component/bgp/plugins/nlri/vpn/rfc4659_vpn_test.go::TestVPNv6RejectsLabellessEncode": "4a6fbe536e431250",
+    "internal/component/bgp/plugins/nlri/vpn/rfc4659_vpn_test.go::TestVPNv6WireRoundTrip": "4a6fbe536e431250"
   },
   "units": {
     "internal/component/bgp/config/rfc4659_vpnv6_label_test.go::TestRFC4659ConfiguredVPNv6RouteKeepsItsLabel": "6f91d27c88f6041d",

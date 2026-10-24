@@ -477,7 +477,7 @@ func TestRFC5036EgressFECMappedWithoutWaiting(t *testing.T) {
 
 	sess := rfcTestSession(local)
 	egress := netip.MustParsePrefix("10.0.0.1/32")
-	want := sess.lib.EnsureLocal(egress)
+	want := mustEnsureLocal(t, sess.lib, egress)
 
 	stop := readSessionUp(t, sess, remote)
 	defer stop()

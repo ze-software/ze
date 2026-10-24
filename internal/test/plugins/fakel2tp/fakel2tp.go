@@ -27,7 +27,6 @@ import (
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/redistevents"
 	"github.com/ze-software/ze/internal/core/slogutil"
-	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/ze"
 )
@@ -104,30 +103,31 @@ func parseFamily(token string) (family.Family, error) {
 	return family.Family{}, fmt.Errorf("unknown family %q", token)
 }
 
-func runEmit(args []string) (string, error) {
+func runEmit(args []string) (map[string]any, error) {
 	if len(args) != 3 {
-		return "", errUsageFakel2tpEmitAddremoveFamilyPrefix
+		return nil, errUsageFakel2tpEmitAddremoveFamilyPrefix
 	}
 	action, err := parseAction(args[0])
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	fam, err := parseFamily(args[1])
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	prefix, err := netip.ParsePrefix(args[2])
 	if err != nil {
-		return "", fmt.Errorf("invalid prefix %q: %w", args[2], err)
+		return nil, fmt.Errorf("invalid prefix %q: %w", args[2], err)
 	}
 	delivered, err := emitOnce(action, fam, prefix)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	logger().Debug("fakel2tp: emitted",
 		"action", action, "family", fam, "prefix", prefix, "delivered", delivered)
-	var b textbuf.Buffer
-	return b.Reset().Str(`{"delivered":`).Int(int64(delivered)).Byte('}').String(), nil
+	// A map, never pre-encoded text: a command answer is structured data, and the
+	// engine refuses a payload that arrives as a JSON string (plugin.RawJSON).
+	return map[string]any{"delivered": delivered}, nil
 }
 
 // dispatchCommand is the OnExecuteCommand entry point.
@@ -140,7 +140,7 @@ func dispatchCommand(_, command string, args []string, _ string) (string, any, e
 		return rpc.StatusDone, data, nil
 	}
 	if command == "show fakel2tp help" {
-		return rpc.StatusDone, "fakel2tp emit add|remove <family> <prefix>", nil
+		return rpc.StatusDone, map[string]any{"usage": "fakel2tp emit add|remove <family> <prefix>"}, nil
 	}
 	return rpc.StatusError, "", fmt.Errorf("unknown command: %s", command)
 }

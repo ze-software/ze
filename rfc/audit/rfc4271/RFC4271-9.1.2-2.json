@@ -4,8 +4,8 @@
   "tests": {
     "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271LocRIBHoldsOnlyTheReplacingRoute": "e914a6452ddec559",
     "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271SelectedRouteReplacesTheLocRIBRoute": "e914a6452ddec559",
-    "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestLocRIBMirror": "dc546dccf368c8ad",
-    "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeWithdraw": "dc546dccf368c8ad"
+    "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestLocRIBMirror": "0ca91d85d8302a14",
+    "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeWithdraw": "0ca91d85d8302a14"
   },
   "units": {
     "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271LocRIBHoldsOnlyTheReplacingRoute": "98402ef77460d85f",

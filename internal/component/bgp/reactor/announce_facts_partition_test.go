@@ -314,7 +314,7 @@ func announceFactNegotiate(dest announceFactPeer, localAS uint32) *capability.Ne
 func announceFactBatch() bgptypes.NLRIBatch {
 	return bgptypes.NLRIBatch{
 		Family:  family.IPv4Unicast,
-		NLRIs:   []nlri.NLRI{nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0)},
+		NLRIs:   []nlri.NLRI{nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0, false)},
 		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("1.1.1.1")),
 	}
 }
@@ -370,7 +370,7 @@ func announceFactLargeBatch() bgptypes.NLRIBatch {
 	nlris := make([]nlri.NLRI, 0, prefixCount)
 	for i := range prefixCount {
 		addr := netip.AddrFrom4([4]byte{10, byte(i>>8) + 1, byte(i), 0})
-		nlris = append(nlris, nlri.NewINET(family.IPv4Unicast, netip.PrefixFrom(addr, 24), 0))
+		nlris = append(nlris, nlri.NewINET(family.IPv4Unicast, netip.PrefixFrom(addr, 24), 0, false))
 	}
 
 	batch := announceFactBatch()

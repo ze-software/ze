@@ -122,7 +122,7 @@ func l2vpnRouteToEVPNParams(r bgptypes.L2VPNRoute, intent routeIntent) (message.
 	}
 
 	// Parse ESI
-	esi, err := ParseESIString(r.ESI)
+	esi, err := parseESIString(r.ESI)
 	if err != nil {
 		return p, fmt.Errorf("invalid ESI: %w", err)
 	}

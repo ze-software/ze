@@ -4,7 +4,7 @@
 // RFC: rfc/short/rfc2865.md -- Request Authenticator (Section 4.1), retransmission (Section 2.5)
 // RFC: rfc/short/rfc2866.md -- Accounting-Request authenticator (Section 3)
 // RFC: rfc/short/rfc2869.md -- Message-Authenticator on a response (Section 5.14)
-// RFC: rfc/short/rfc3579.md -- Message-Authenticator signing (Section 3.2), attributes forbidden in accounting (Section 3.3)
+// RFC: rfc/short/rfc3579.md -- Message-Authenticator signing (Section 3.2), attributes forbidden in accounting (Section 3.3), unsigned EAP answer discarded (Section 3.1)
 
 package radius
 
@@ -457,8 +457,16 @@ func (c *Client) dispatchResponse(key responseKey, data []byte) {
 		// Attribute present MUST calculate the correct value of the
 		// Message-Authenticator and silently discard the packet if it does not
 		// match the value sent."
-		if !verifyResponseMessageAuthenticator(data, w.auth, w.secret) {
-			c.logger.Warn("radius: bad Message-Authenticator, discarding", "server", key.server)
+		//
+		// RFC 3579 Section 3.1: the same verdict discards an EAP-bearing
+		// answer that carries no Message-Authenticator, counted on
+		// ze_radius_unsigned_eap_discards_total.
+		verdict := verifyResponseMessageAuthenticator(data, w.auth, w.secret)
+		if verdict == responseIntegrityUnsignedEAP {
+			countUnsignedEAPDiscard()
+		}
+		if verdict != responseIntegrityAccepted {
+			c.logger.Warn("radius: discarding the answer", "server", key.server, "reason", verdict.String())
 			continue
 		}
 		copyData := make([]byte, len(data))

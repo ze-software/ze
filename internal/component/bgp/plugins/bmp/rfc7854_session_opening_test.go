@@ -65,13 +65,13 @@ func addOpeningPeer(t testing.TB, bp *BMPPlugin) {
 	open := mustFabricateLocRIBOpen(t, localIdentity{asn: 65009, routerID: 0xc0000209})
 	for _, direction := range []rpc.MessageDirection{rpc.DirectionSent, rpc.DirectionReceived} {
 		bp.handleStructuredEvent(&rpc.StructuredEvent{
-			PeerAddress: openingPeer.String(), PeerAS: 65009, Direction: direction,
+			PeerAddress: openingPeer.String(), PeerAS: rpc.RemoteASOf(65009), Direction: direction,
 			EventType:  rpc.EventKindOpen,
 			RawMessage: &bgptypes.RawMessage{Type: msgtype.TypeOPEN, RawBytes: open[message.HeaderLen:]},
 		})
 	}
 	bp.handleStructuredEvent(&rpc.StructuredEvent{
-		PeerAddress: openingPeer.String(), PeerAS: 65009, RemoteRouterID: 0xc0000209,
+		PeerAddress: openingPeer.String(), PeerAS: rpc.RemoteASOf(65009), RemoteRouterID: 0xc0000209,
 		Direction: rpc.DirectionReceived, EventType: rpc.EventKindUpdate,
 		RawMessage: &bgptypes.RawMessage{Type: msgtype.TypeUPDATE, RawBytes: announceBody(7), Timestamp: time.Time{}},
 	})

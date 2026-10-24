@@ -133,6 +133,7 @@ owed by this spec.
 | `escape-hatch-scoped-wider-than-its-justification` | 2026-10-18 | `attachCommunityCommand` (`rib/rib_commands.go`) | A GR-stale route is depreferenced for any attached community. RFC 9494 Section 4.3 justifies the depreference for LLGR_STALE only; the one caller passes 0xFFFF0006, so the check must name that value |
 | `declared-format-contradicts-payload` | 2026-10-02 | gr `handleOpenEvent` (JSON path) against `formatCapability` | No arm for `*capability.GracefulRestart`: the generic arm hex-encodes `WriteTo` output with the code and length header, and `decodeGR` reads that header as Restart Flags and Time. The gr tests feed header-less hex, so they cannot see it |
 | `unwired-feature` | 2026-09-08 | `parseGRCapValue` (`gr/gr.go`) | The GR capability carries the flags and restart time only, so ze tells every peer it preserves forwarding state for no family (wire `40 02 00 78`). RFC 4724 Section 3 puts the `<AFI, SAFI, Flags>` tuples after that pair; emit one per negotiated GR family |
+| `test-against-broken-path` | 2026-10-23 | `TestLateReflectorClaimsExistingReplayOwner` (`adj_rib_in/rib_validation_config_test.go`) | Starts bgp-rr forked through `RunEngine`, which 4ce0f460a5 refuses because rr's GR retention read (`retention.Family`) is same-process only. Drive bgp-rr as an internal plugin; this spec owns the forked rr/rs/gr arrangement that commit left open |
 
 ## Required Reading
 

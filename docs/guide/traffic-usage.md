@@ -145,6 +145,14 @@ learns that accounting is configured but inert rather than silently producing no
 metrics.
 <!-- source: internal/plugins/trafficusage/doctor.go -- checkTrafficUsageBPF, doctor-traffic-usage-ebpf -->
 
+The check probes TCX only when `traffic-usage` is enabled. When the probe
+cannot measure readiness (typically a `ze doctor` run without CAP_BPF and
+CAP_NET_ADMIN), it does not guess: it warns under
+`doctor-traffic-usage-ebpf-unknown` with the reason and tells you to run
+`sudo ze doctor`. `doctor-traffic-usage-ebpf` is kept for a kernel that lacks
+TCX, and names the Linux 6.6 and `CONFIG_NET_XGRESS` requirement.
+<!-- source: internal/plugins/trafficusage/doctor.go -- trafficUsageDiagnostic, probeTCX -->
+
 ## Limitations
 
 - **IPv4 only.** Per-port and per-IP accounting cover IPv4 traffic; IPv6 is not

@@ -170,6 +170,11 @@ func announcementPlan(scenario string) (processPlan, error) {
 		// second ASN is read as the next keyword and refused.
 		add("update text path-information 0.0.0.1 origin igp path [65001 65010] nhop 172.30.0.2 nlri add 10.10.0.0/24")
 		addAfter(100*time.Millisecond, "update text path-information 0.0.0.2 origin igp path [65001 65020] nhop 172.30.0.2 nlri add 10.10.0.0/24")
+	case scenarioAddPathZeroIDFRR:
+		// Path Identifier 0 is an identifier like 1 (RFC 7911 Section 3), so
+		// the two announcements are two paths of one prefix.
+		add("update text path-information 0.0.0.0 origin igp path [65001 65010] nhop 172.30.0.2 nlri add 10.10.0.0/24")
+		addAfter(100*time.Millisecond, "update text path-information 0.0.0.1 origin igp path [65001 65020] nhop 172.30.0.2 nlri add 10.10.0.0/24")
 	case "bgp-community-frr":
 		add("update text origin igp path 65001 nhop 172.30.0.2 community [65001:100 65001:200] nlri add 10.10.0.0/24")
 		addAfter(100*time.Millisecond, "update text origin igp path 65001 nhop 172.30.0.2 large-community [65001:0:1] nlri add 10.10.1.0/24")

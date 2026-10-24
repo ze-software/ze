@@ -2,8 +2,8 @@
   "note": "Independent semantic rejudgment: RFC8956 Section 5: \"A destination prefix component with offset=0 is embedded in the Flow Specification.\" Section 5 retains RFC8955 validation but replaces item a with this offset-zero amendment. Current TestFlowSpecVPNValidationSeparatesAFIAndRD uses a legal /64 offset32 four-byte pattern, the same RD/default authorizing route, and unchanged wire input. It requires retained receipt but false generation-7 eligibility, zero candidates and no additional selected event; the zero-offset rule succeeds. Removing only the Offset()==0 gate now fails that consumer oracle and clean controls pass. The pattern shape is legal under Section 3.1 length-minus-offset; rejection is authorization, not malformed encoding. Enforcement is for this amendment, not blanket inherited-rule or dataplane compliance. These are inspected scratch semantic executions, not canonical discrimination records. Current native record renewal/stamping remains parent-owned; no pending FRR carrier run, SRPM behavior, dataplane behavior, or full-RFC acceptance is inferred.",
   "requirement_sha": "4b1ebea8abd37a82",
   "tests": {
-    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecVPNValidationSeparatesAFIAndRD": "3eafc93869261790",
-    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecVPNValidationSeparatesAFIAndRD#2": "3eafc93869261790"
+    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecVPNValidationSeparatesAFIAndRD": "affdd5d6e6f3bb6f",
+    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecVPNValidationSeparatesAFIAndRD#2": "affdd5d6e6f3bb6f"
   },
   "units": {
     "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecVPNValidationSeparatesAFIAndRD": "06787942c3b80776",

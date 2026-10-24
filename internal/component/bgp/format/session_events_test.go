@@ -15,7 +15,7 @@ func sessionEventPeer() *plugin.PeerInfo {
 		Address:      netip.MustParseAddr("10.0.0.1"),
 		LocalAddress: netip.MustParseAddr("10.0.0.2"),
 		LocalAS:      65000,
-		PeerAS:       65001,
+		PeerAS:       rpc.RemoteASOf(65001),
 	}
 }
 

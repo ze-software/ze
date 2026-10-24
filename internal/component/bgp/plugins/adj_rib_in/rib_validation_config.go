@@ -7,6 +7,7 @@ import (
 	"time"
 
 	bgp "github.com/ze-software/ze/internal/component/bgp"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // validationPeer is captured once per peer, not once per prefix. A config
@@ -16,7 +17,7 @@ import (
 type validationPeer struct {
 	Name    string
 	Group   string
-	ASN     uint32
+	ASN     rpc.RemoteAS
 	LocalAS uint32
 }
 
@@ -29,14 +30,19 @@ func (r *AdjRIBInManager) rememberValidationPeer(address netip.Addr, peer valida
 
 func (r *AdjRIBInManager) validationRouteData(peer netip.Addr, key compactRouteKey, route *RawRoute) map[string]any {
 	identity := r.validationPeers[peer]
-	return map[string]any{
+	data := map[string]any{
 		"peer": peer.String(), "peer-name": identity.Name, "peer-group": identity.Group,
-		"peer-as": identity.ASN, "local-as": identity.LocalAS,
+		"local-as":     identity.LocalAS,
 		routeKeyFamily: route.Family.String(), "prefix": key.Prefix.String(),
 		routeKeyAttrHex: route.AttrHex, routeKeyNHopHex: route.NHopHex, routeKeyNLRIHex: route.NLRIHex,
 		routeKeyValidationState: route.ValidationState, routeKeyIneligible: route.Ineligible,
 		"path-id": route.PathID, "msg-id": route.MsgID,
 	}
+	// Absent, never 0, while the peer's AS is not known (rpc.RemoteAS).
+	if peerAS, known := identity.ASN.ASN(); known {
+		data["peer-as"] = peerAS
+	}
+	return data
 }
 
 // suspendForRevalidation moves only RPKI-owned families to pending and returns
@@ -123,13 +129,20 @@ func (r *AdjRIBInManager) disableValidationCommand() (string, any, error) {
 	return statusDone, map[string]any{"validation-enabled": false}, nil
 }
 
-func validationPeerFromEvent(event *bgp.Event) validationPeer {
-	peer := validationPeer{Name: event.GetPeerName(), Group: event.GetPeerGroup(), ASN: event.GetPeerASN()}
+// validationPeerFromEvent reads the identity policy selection matches on. An
+// event whose peer object cannot be read is an error, so the caller refuses it
+// rather than matching it as a peer with no AS.
+func validationPeerFromEvent(event *bgp.Event) (validationPeer, error) {
+	peerAS, err := event.GetPeerASN()
+	if err != nil {
+		return validationPeer{}, err
+	}
+	peer := validationPeer{Name: event.GetPeerName(), Group: event.GetPeerGroup(), ASN: peerAS}
 	// The received JSON representation carries local and remote identity in
 	// one object; parsing it here also preserves dynamic-group membership.
 	var identity bgp.PeerInfoJSON
 	if err := json.Unmarshal(event.Peer, &identity); err == nil && identity.Local != nil {
 		peer.LocalAS = identity.Local.AS
 	}
-	return peer
+	return peer, nil
 }

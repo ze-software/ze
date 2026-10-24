@@ -122,7 +122,7 @@ system {
 	t.Cleanup(func() { grpcBuild = originalBuild })
 	grpcBuild = func(in *apiBuildInputs, shared *apiShared) (apiServerHandle, error) {
 		if err := in.Server.Dispatcher().Register(commandName, func(_ *pluginserver.CommandContext, _ command.ValidatedArgs) (*plugin.Response, error) {
-			return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(`"ok"`)), nil
+			return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(`{"result":"ok"}`)), nil
 		}, commandName); err != nil {
 			t.Fatal(err)
 		}

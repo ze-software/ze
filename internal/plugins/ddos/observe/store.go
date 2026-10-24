@@ -98,14 +98,15 @@ func (s *store) characterize(e *ddosevent.AttackCharacterized) {
 	//   * AttackDetected opened the incident with NO victim (trafficusage had not
 	//     resolved one at confirm -- a timing race, or an IPv6-only victim it
 	//     cannot see) but characterization derived the victim from the flow ring.
-	//     The target is left EMPTY on purpose: AttackCleared also carries an empty
-	//     target (see detector.emitCleared), so leaving it empty keeps finalize's
-	//     match working.
-	//   * A resolved-target incident from a PRIOR attack can linger Active because
-	//     AttackCleared's empty target never finalizes a resolved-target incident
-	//     until sweepStale. Scanning newest-first, scoped to the interface, attaches
-	//     to the CURRENT attack's incident rather than that stale one -- exact-match
-	//     alone would wrongly attribute the score to the stale incident.
+	//     The target is left EMPTY on purpose: AttackCleared carries the target the
+	//     attack's AttackDetected carried (see detector.emitCleared), here empty, so
+	//     leaving it empty keeps finalize's match working.
+	//   * A resolved-target incident from a PRIOR attack can linger Active when its
+	//     AttackCleared never arrived (a detector reconfigured or stopped
+	//     mid-attack) until sweepStale. Scanning newest-first, scoped to the
+	//     interface, attaches to the CURRENT attack's incident rather than that
+	//     stale one -- exact-match alone would wrongly attribute the score to the
+	//     stale incident.
 	// (Two truly-concurrent attacks on one interface, one resolved + one empty, are
 	// rare enough that newest-wins is acceptable; responders gate on the event's
 	// confidence, not the store, so this is observability only.)

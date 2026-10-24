@@ -2,8 +2,8 @@
   "note": "Re-read 2026-09-27. Forbidden: O not matching the RIB conveyed on Route Monitoring or Route Mirroring. TestRFC8671OFlagSetOnAdjRIBOutMessages fails if either message for a sent UPDATE lacks O; TestRFC8671OFlagClearOnAdjRIBInMessages fails if either for a received UPDATE carries it. Both read off the collector pipe after handleStructuredEvent.",
   "requirement_sha": "f3eb27903e98a7df",
   "tests": {
-    "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671OFlagClearOnAdjRIBInMessages": "70e97cb3744c3532",
-    "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671OFlagSetOnAdjRIBOutMessages": "70e97cb3744c3532"
+    "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671OFlagClearOnAdjRIBInMessages": "1750bdc6c8f6cfcd",
+    "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671OFlagSetOnAdjRIBOutMessages": "1750bdc6c8f6cfcd"
   },
   "units": {
     "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671OFlagClearOnAdjRIBInMessages": "d825067b222ff85f",

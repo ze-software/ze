@@ -1,11 +1,11 @@
 {
-  "note": "Forbidden: a Loc-RIB instance with no emulated peer, i.e. no Loc-RIB Peer Up. internal/component/bgp/plugins/bmp/bmp_locrib_test.go::TestLocRIBSinglePeerUpPerInstance: peerUps != 1 is Errorf, red on zero (and on one per BGP peer). Single-polarity marker. Ze runs one Loc-RIB instance, so the 'such as with VRFs' plurality has no second instance to exercise.",
+  "note": "Re-judged 2026-10-23. TestLocRIBSinglePeerUpPerInstance changed by fixture only: each best change now carries Attributes (ORIGIN IGP), because buildLocRIBUpdateBody refuses an announce with no stored attribute set. The assertion is unchanged: two BGP peers' best changes produce exactly one Loc-RIB Peer Up (peerUps != 1 is Errorf), red on zero and on one per peer. Single-polarity annotation stands: the one-shot locRIBUpSent guard has no per-peer path to reject. Ze runs one Loc-RIB instance.",
   "requirement_sha": "97426f7d41647786",
   "tests": {
-    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBSinglePeerUpPerInstance": "0d66046a7112fdb8"
+    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBSinglePeerUpPerInstance": "72b33d9afd5c33d4"
   },
   "units": {
-    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBSinglePeerUpPerInstance": "3eda43fed7591d14"
+    "internal/component/bgp/plugins/bmp/rfc9069_bmp_locrib_test.go::TestLocRIBSinglePeerUpPerInstance": "47bb1c6c32383c95"
   },
   "verdict": "enforced"
 }

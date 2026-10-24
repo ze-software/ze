@@ -134,6 +134,8 @@ See [the Established FSM](../behavior/fsm-established.md) and
 <!-- source: internal/component/bgp/reactor/session_coalesce.go -- readAndProcessCoalesced -->
 <!-- source: internal/component/bgp/reactor/peer_run.go -- runOnce -->
 
+The `plugin.PeerInfo` that `runOnce` builds for the session's wire observers carries the peer's AS as `rpc.RemoteAS`: a dynamic peer's settings hold 0 until its OPEN is negotiated, and `rpc.RemoteASOf` turns that 0 into the not-yet-known state, so an observer of the OPEN exchange sees `remote as unknown` (text) or no `remote.as` (JSON), never AS 0. See [peer lifecycle](../behavior/peer-lifecycle.md).
+
 ## Regression boundaries
 
 - `TestRFC8654ExtendedMessageDirections` asserts all four capability

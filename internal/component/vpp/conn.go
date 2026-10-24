@@ -105,6 +105,13 @@ func (c *Connector) NewChannel() (api.Channel, error) {
 	return ch, nil
 }
 
+// Socket returns the VPP API socket path this connector dials: the configured
+// `vpp { api-socket }`, or its YANG default. Set once by NewConnector and never
+// written again, so it is safe for concurrent use without the mutex.
+func (c *Connector) Socket() string {
+	return c.socket
+}
+
 // IsConnected returns whether the GoVPP connection is established.
 func (c *Connector) IsConnected() bool {
 	c.mu.Lock()

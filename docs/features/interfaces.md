@@ -161,7 +161,7 @@ JunOS-style two-layer model: physical interfaces with named logical units.
 <!-- source: internal/component/sysctl/backend_linux.go -- per-interface sysctl writes -->
 <!-- source: internal/plugins/iface/netlink/mirror_linux.go — traffic mirroring via tc -->
 <!-- source: internal/plugins/iface/vpp/ifacevpp.go — VPP Backend implementation (lazy GoVPP channel) -->
-<!-- source: internal/plugins/iface/vpp/query.go — ListInterfaces/GetInterface/Get/SetMACAddress via SwInterfaceDump and SwInterfaceSetMacAddress -->
+<!-- source: internal/plugins/iface/vpp/query.go — ListInterfaces/GetInterface/Get/SetMACAddress via SwInterfaceDump, IPAddressDump and SwInterfaceSetMacAddress -->
 <!-- source: internal/plugins/iface/vpp/monitor.go — StartMonitor via WantInterfaceEvents + SubscribeNotification -->
 <!-- source: internal/plugins/iface/vpp/naming.go — ze short name <-> VPP SwIfIndex bidirectional map -->
 <!-- source: internal/plugins/iface/vpp/fib.go — RouteLookup via IPRouteLookupV2; ListKernelRoutes via ip_route_v2_dump over both v4 and v6 tables -->
@@ -175,7 +175,11 @@ Each apply creates the devices the config names: dummy, veth, bridge, tunnel,
 wireguard, xfrm, and the VLAN of each unit with a `vlan-id`. Whether a device
 exists is read before its create, never after, and it is read from the link
 alone (`GetLink`), as are the MTU and admin state the undo puts back: a failed
-address read cannot make a present device read as absent. A device that existed is kept,
+address read cannot make a present device read as absent. Only the backend's
+"no such device" answer is absence: a link read that fails (a socket that does
+not open, ENOBUFS, a dump interrupted on every retry) fails the commit, naming
+the device and `ze show interface <name>`, rather than reading as absent and
+creating a present device again. A device that existed is kept,
 and the undo of a failed apply leaves it in place. A create that fails for a
 device that did not exist fails the commit, even when the backend left a
 partial device behind, and the undo deletes only the devices the apply created.
@@ -432,9 +436,10 @@ device the kernel reports down deleted the address with the link, so nothing is
 declined, and the next up counts as a move. When the backend reports a link state
 that is neither up nor down, the client declines nothing, logs one Warn for each such
 state naming it and the interface, and reads again at the next DAD poll. A read that
-fails declines nothing either. The VPP backend does not report interface addresses,
-so on it the client cannot read a DAD outcome: it declines nothing and logs one Warn
-saying so. When the bound device goes down and comes back up, the client may
+fails declines nothing either. The VPP backend reports interface addresses but not
+their DAD outcome, because VPP's address dump carries no DAD state. On it the client
+cannot read a DAD outcome, so it does not take an unflagged address as unique: it
+declines nothing and logs one Warn saying so. When the bound device goes down and comes back up, the client may
 have moved to a new link: with a delegated prefix held it sends a Rebind for every
 lease, on the Confirm timers (RFC 9915 Section 18.2.12), at most once every 30 s,
 and it installs every leased address again with what is left of its lifetimes,
@@ -872,7 +877,7 @@ names the unit. This matches the refusal the `dhcp`, `dhcpv6` and
 `router-advertisement` containers already carry.
 
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- leaf autoconf, leaf accept-ra -->
-<!-- source: internal/component/config/backend_gate.go -- ValidateBackendFeatures, backendAnnotation -->
+<!-- source: internal/component/config/backend_gate.go -- validateBackendFeatures, backendAnnotation -->
 <!-- source: internal/component/iface/config_sysctl.go -- applySysctl emits the two keys -->
 
 ### Container leaves
@@ -1200,9 +1205,9 @@ underlying mechanism. Cells with a footnote carry a caveat.
 | | `GetMACAddress` | real | real (via SwInterfaceDump) | err |
 | | `GetStats` | real | err (pending GoVPP stats API) | err |
 | | `ResetCounters` | real [4] | err (pending sw_interface_clear_stats) | err |
-| **Query** | `ListInterfaces` | real | real (SwInterfaceDump) | real (net.Interfaces) |
-| | `GetInterface` | real | real (SwInterfaceDump) | real (net.InterfaceByName) |
-| | `GetLink` | real (no address dump) | real (SwInterfaceDump) | real (net.InterfaceByName) |
+| **Query** | `ListInterfaces` | real | real (SwInterfaceDump, IPAddressDump per family; no DAD state) | real (net.Interfaces) |
+| | `GetInterface` | real | real (SwInterfaceDump, IPAddressDump per family; no DAD state) | real (net.InterfaceByName) |
+| | `GetLink` | real (no address dump; ENODEV is not-found) | real (SwInterfaceDump, no address dump) | real (net.Interfaces) |
 | | `ListNeighbors` | real | err (pending ip_neighbor_dump) | err |
 | **Bridge** | `BridgeAddPort` | real | real (SwInterfaceSetL2Bridge) | err |
 | | `BridgeDelPort` | real | real (SwInterfaceSetL2Bridge) | err |
@@ -1357,7 +1362,7 @@ Routes, stats, counter reset, neighbour table, mirrors, and STP are the
 main gaps against feature parity.
 
 <!-- source: internal/plugins/iface/vpp/ifacevpp.go -- full Backend implementation, errNotSupported reasons per method -->
-<!-- source: internal/plugins/iface/vpp/query.go -- ListInterfaces/GetInterface/GetMACAddress/SetMACAddress via SwInterfaceDump, SwInterfaceSetMacAddress -->
+<!-- source: internal/plugins/iface/vpp/query.go -- ListInterfaces/GetInterface/GetMACAddress/SetMACAddress via SwInterfaceDump, IPAddressDump (fillAddresses), SwInterfaceSetMacAddress -->
 <!-- source: internal/plugins/iface/vpp/monitor.go -- StartMonitor/StopMonitor via WantInterfaceEvents + SubscribeNotification -->
 <!-- source: internal/plugins/iface/vpp/naming.go -- ze short name <-> VPP SwIfIndex map -->
 

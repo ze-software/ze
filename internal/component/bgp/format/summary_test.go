@@ -105,7 +105,7 @@ func summaryContent() bgptypes.ContentConfig {
 
 var summaryPeer = plugin.PeerInfo{
 	Address: netip.MustParseAddr("10.0.0.1"),
-	PeerAS:  65001,
+	PeerAS:  rpc.RemoteASOf(65001),
 }
 
 // TestFormatSummaryPeerNameGroup verifies name and group appear in summary JSON peer object.
@@ -115,7 +115,7 @@ var summaryPeer = plugin.PeerInfo{
 func TestFormatSummaryPeerNameGroup(t *testing.T) {
 	peer := plugin.PeerInfo{
 		Address:   netip.MustParseAddr("10.0.0.1"),
-		PeerAS:    65001,
+		PeerAS:    rpc.RemoteASOf(65001),
 		Name:      "upstream1",
 		GroupName: "transit",
 	}

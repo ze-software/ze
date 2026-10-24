@@ -87,9 +87,9 @@ func (cn *ChangeNotifier) NotifyConfigReload() {
 	})
 }
 
-// NotifyChange creates and broadcasts a change notification for a path.
+// notifyChange creates and broadcasts a change notification for a path.
 // The path's list entry addresses are named from schema (segmentsToPath).
-func (cn *ChangeNotifier) NotifyChange(path []string, schema *zeconfig.Schema, value any) {
+func (cn *ChangeNotifier) notifyChange(path []string, schema *zeconfig.Schema, value any) {
 	data, err := json.Marshal(value)
 	if err != nil {
 		logger.Warn("gnmi: marshal change notification", "error", err)
@@ -124,11 +124,20 @@ func (s *Server) Subscribe(stream gpb.GNMI_SubscribeServer) error {
 		return status.Error(codes.InvalidArgument, "first message must be SubscribeRequest with subscribe field")
 	}
 
+	// gNMI specification Section 3.3.1: the subscription's encoding decides the
+	// JSON member every value is sent in, and any other encoding is refused as
+	// Get refuses it.
+	encoding, err := answerEncodingFor(sub.GetEncoding())
+	if err != nil {
+		s.recordError("Subscribe", codes.Unimplemented)
+		return err
+	}
+
 	switch sub.GetMode() {
 	case gpb.SubscriptionList_ONCE:
-		return s.handleSubscribeOnce(stream, sub)
+		return s.handleSubscribeOnce(stream, sub, encoding)
 	case gpb.SubscriptionList_STREAM:
-		return s.handleSubscribeStream(stream)
+		return s.handleSubscribeStream(stream, encoding)
 	case gpb.SubscriptionList_POLL:
 		s.recordError("Subscribe", codes.Unimplemented)
 		return status.Error(codes.Unimplemented, "POLL subscribe mode not supported")
@@ -139,7 +148,7 @@ func (s *Server) Subscribe(stream gpb.GNMI_SubscribeServer) error {
 	}
 }
 
-func (s *Server) handleSubscribeOnce(stream gpb.GNMI_SubscribeServer, sub *gpb.SubscriptionList) error {
+func (s *Server) handleSubscribeOnce(stream gpb.GNMI_SubscribeServer, sub *gpb.SubscriptionList, encoding answerEncoding) error {
 	tree := s.tree()
 	if tree == nil {
 		s.recordError("Subscribe", codes.Unavailable)
@@ -166,7 +175,7 @@ func (s *Server) handleSubscribeOnce(stream gpb.GNMI_SubscribeServer, sub *gpb.S
 				Timestamp: ts,
 				Update: []*gpb.Update{{
 					Path: sub.GetPrefix(),
-					Val:  &gpb.TypedValue{Value: &gpb.TypedValue_JsonIetfVal{JsonIetfVal: data}},
+					Val:  encoding.typedValue(data),
 				}},
 			}},
 		}); sendErr != nil {
@@ -184,7 +193,7 @@ func (s *Server) handleSubscribeOnce(stream gpb.GNMI_SubscribeServer, sub *gpb.S
 			if subtree == nil || len(remaining) > 0 {
 				continue
 			}
-			val, encErr := treeToTypedValue(subtree, segments)
+			val, encErr := treeToTypedValue(subtree, segments, encoding)
 			if encErr != nil {
 				s.recordError("Subscribe", codes.Internal)
 				return status.Errorf(codes.Internal, "encode value: %v", encErr)
@@ -205,7 +214,7 @@ func (s *Server) handleSubscribeOnce(stream gpb.GNMI_SubscribeServer, sub *gpb.S
 	})
 }
 
-func (s *Server) handleSubscribeStream(stream gpb.GNMI_SubscribeServer) error {
+func (s *Server) handleSubscribeStream(stream gpb.GNMI_SubscribeServer, encoding answerEncoding) error {
 	if s.notifier == nil {
 		s.recordError("Subscribe", codes.Unavailable)
 		return status.Error(codes.Unavailable, "change notifications not available")
@@ -233,7 +242,7 @@ func (s *Server) handleSubscribeStream(stream gpb.GNMI_SubscribeServer) error {
 				return nil
 			}
 			if sendErr := stream.Send(&gpb.SubscribeResponse{
-				Response: &gpb.SubscribeResponse_Update{Update: n},
+				Response: &gpb.SubscribeResponse_Update{Update: encoding.notification(n)},
 			}); sendErr != nil {
 				return sendErr
 			}

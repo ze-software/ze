@@ -54,7 +54,7 @@ func TestForwardUpdateSplitting(t *testing.T) {
 
 	for i := range numPrefixes {
 		prefix := netip.MustParsePrefix(generatePrefix(i))
-		n := nlri.NewINET(family.IPv4Unicast, prefix, 0)
+		n := nlri.NewINET(family.IPv4Unicast, prefix, 0, false)
 		announceWire[i] = n.Bytes()
 	}
 
@@ -136,7 +136,7 @@ func TestForwardUpdateNoSplitWhenFits(t *testing.T) {
 
 	for i, p := range prefixes {
 		prefix := netip.MustParsePrefix(p)
-		n := nlri.NewINET(family.IPv4Unicast, prefix, 0)
+		n := nlri.NewINET(family.IPv4Unicast, prefix, 0, false)
 		announceWire[i] = n.Bytes()
 	}
 
@@ -186,7 +186,7 @@ func TestForwardUpdateSplittingExtendedPeer(t *testing.T) {
 
 	for i := range numPrefixes {
 		prefix := netip.MustParsePrefix(generatePrefix(i))
-		n := nlri.NewINET(family.IPv4Unicast, prefix, 0)
+		n := nlri.NewINET(family.IPv4Unicast, prefix, 0, false)
 		announceWire[i] = n.Bytes()
 	}
 
@@ -345,8 +345,8 @@ func TestSplitUpdateAddPathEndToEnd(t *testing.T) {
 // VALIDATES: Mixed family withdrawals grouped and sent separately.
 // PREVENTS: Incorrect Add-Path detection when families are mixed.
 func TestSplitUpdateMixedFamilyWithdrawals(t *testing.T) {
-	ipv4 := nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0)
-	ipv6 := nlri.NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8::/32"), 0)
+	ipv4 := nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0, false)
+	ipv6 := nlri.NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8::/32"), 0, false)
 
 	withdrawals := []nlri.NLRI{ipv4, ipv6}
 

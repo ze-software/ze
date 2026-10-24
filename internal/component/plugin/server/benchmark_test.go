@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // Baseline benchmarks for IPC performance.
@@ -35,14 +36,14 @@ func BenchmarkDispatch(b *testing.B) {
 		peers: []plugin.PeerInfo{
 			{
 				Address: netip.MustParseAddr("10.0.0.1"),
-				PeerAS:  65001,
+				PeerAS:  rpc.RemoteASOf(65001),
 				LocalAS: 65000,
 				State:   plugin.PeerStateEstablished,
 				Uptime:  5 * time.Minute,
 			},
 			{
 				Address: netip.MustParseAddr("10.0.0.2"),
-				PeerAS:  65002,
+				PeerAS:  rpc.RemoteASOf(65002),
 				LocalAS: 65000,
 				State:   plugin.PeerStateEstablished,
 				Uptime:  10 * time.Minute,

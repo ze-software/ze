@@ -75,10 +75,10 @@ redistribute { destination ospf { import bgp; } }`,
 
 func TestAIGPRefusesIncompleteExplicitRIBFeed(t *testing.T) {
 	for _, receive := range []string{"state", "update-received"} {
-		_, err := LoadReactor(fmt.Sprintf(aigpDeliveryConfig, "attach process bgp-rib { receive [ "+receive+" ]; }"))
+		_, err := loadReactor(fmt.Sprintf(aigpDeliveryConfig, "attach process bgp-rib { receive [ "+receive+" ]; }"))
 		require.Error(t, err, "incomplete retained candidate state cannot implement AIGP reselection")
 	}
-	_, err := LoadReactor(fmt.Sprintf(aigpDeliveryConfig, "attach process bgp-rib { receive [ update-received state ]; }"))
+	_, err := loadReactor(fmt.Sprintf(aigpDeliveryConfig, "attach process bgp-rib { receive [ update-received state ]; }"))
 	require.NoError(t, err)
 }
 

@@ -48,7 +48,7 @@ func TestGetSelectsEachOfTwoMultiLeafKeyEntries(t *testing.T) {
 	srv := NewServer(Config{}, treeFunc(tree), nil, nil, nil)
 	get := func(p *gpb.Path) *gpb.Update {
 		t.Helper()
-		resp, getErr := srv.Get(context.Background(), &gpb.GetRequest{Path: []*gpb.Path{p}})
+		resp, getErr := srv.Get(context.Background(), &gpb.GetRequest{Encoding: gpb.Encoding_JSON_IETF, Path: []*gpb.Path{p}})
 		if getErr != nil {
 			t.Fatalf("Get(%v): %v", p, getErr)
 		}

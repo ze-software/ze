@@ -1,14 +1,14 @@
 {
-  "note": "Re-judged 2026-10-13. TestRFC8671PeerDownDoesNotDependOnTheMonitoredRIB changed by setup only: recordPeerUpFor seeds the Peer Up that RFC 7854 Section 3.3 now requires before a Peer Down, identically under pre-policy, post-policy and all, so the comparison of presence, per-peer header, reason and data across the three policies is unchanged and still runs through handleSenderState. TestRFC8671PeerUpDoesNotDependOnTheMonitoredRIB (identical header, both OPENs, transport fields through primeSender) and rfc8671_msg_test.go::TestBMPPeerUpRoundTrip unchanged. {single-polarity: positive} holds.",
+  "note": "Re-judged 2026-10-23. TestRFC8671PeerDownDoesNotDependOnTheMonitoredRIB changed by one fixture line: PeerAS is now rpc.RemoteASOf(65001), the type StructuredEvent.PeerAS became, with the same known AS, so the event takes the same mirror path. The comparison of presence, per-peer header, reason and data across pre-policy, post-policy and all is unchanged and runs through handleSenderState. The other two units are unchanged. {single-polarity: positive} holds.",
   "requirement_sha": "5be0d12471a734fa",
   "tests": {
     "internal/component/bgp/plugins/bmp/rfc8671_msg_test.go::TestBMPPeerUpRoundTrip": "071a7fb045cb1b4e",
-    "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestRFC8671PeerDownDoesNotDependOnTheMonitoredRIB": "eb1b3423b571c819",
-    "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestRFC8671PeerUpDoesNotDependOnTheMonitoredRIB": "eb1b3423b571c819"
+    "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestRFC8671PeerDownDoesNotDependOnTheMonitoredRIB": "ef925362dfcc8685",
+    "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestRFC8671PeerUpDoesNotDependOnTheMonitoredRIB": "ef925362dfcc8685"
   },
   "units": {
     "internal/component/bgp/plugins/bmp/rfc8671_msg_test.go::TestBMPPeerUpRoundTrip": "91d88a18cef9e783",
-    "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestRFC8671PeerDownDoesNotDependOnTheMonitoredRIB": "b48a63e6ae1d0818",
+    "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestRFC8671PeerDownDoesNotDependOnTheMonitoredRIB": "1eca3ec382f94127",
     "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestRFC8671PeerUpDoesNotDependOnTheMonitoredRIB": "e748948bd94d543a"
   },
   "verdict": "enforced"

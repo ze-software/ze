@@ -2,9 +2,9 @@
   "note": "after reconnect Peer Up precedes the surviving route and each family gets EOR after its routes; an incremental UPDATE and another collector's reconnect produce no EOR, and an incomplete snapshot never emits EOR",
   "requirement_sha": "9e950d05f2096cce",
   "tests": {
-    "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854AdjReplayCompletionIsSessionScoped": "54df4950a18893be",
-    "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854AdjReplayEndsEachFamily": "54df4950a18893be",
-    "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854IncompleteAdjReplayCannotClaimCompletion": "54df4950a18893be"
+    "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854AdjReplayCompletionIsSessionScoped": "960e596b1e5f06cd",
+    "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854AdjReplayEndsEachFamily": "960e596b1e5f06cd",
+    "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854IncompleteAdjReplayCannotClaimCompletion": "960e596b1e5f06cd"
   },
   "units": {
     "internal/component/bgp/plugins/bmp/rfc7854_replay_test.go::TestRFC7854AdjReplayCompletionIsSessionScoped": "fc92d70bcfce5e19",

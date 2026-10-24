@@ -556,7 +556,7 @@ func newOldSession(name, openHex string) (*oldSession, error) {
 		peer: plugin.PeerInfo{
 			Address: peer, LocalAddress: local,
 			AddressStr: peer.String(), LocalAddressStr: local.String(),
-			LocalAS: uint32(localAS), PeerAS: uint32(peerAS), RouterID: identity.LocalRouterID,
+			LocalAS: uint32(localAS), PeerAS: rpc.RemoteASOf(uint32(peerAS)), RouterID: identity.LocalRouterID,
 		},
 		facts: SessionFacts{
 			Local: local, Peer: peer, LocalAS: uint32(localAS), PeerAS: uint32(peerAS),

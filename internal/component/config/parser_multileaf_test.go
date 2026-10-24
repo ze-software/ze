@@ -18,7 +18,7 @@ import (
 // and Get a mirror that quotes the word holding a space.
 func TestMultiLeafKeepsWordBoundaries(t *testing.T) {
 	schema := NewSchema()
-	schema.Define("run", MultiLeaf(TypeString))
+	schema.Define("run", multiLeaf(TypeString))
 
 	tree, err := NewParser(schema).Parse(`run python3 /opt/inject.py "two words" plain;`)
 	if err != nil {
@@ -40,7 +40,7 @@ func TestMultiLeafKeepsWordBoundaries(t *testing.T) {
 // TestMultiLeafRepeatedStatementReplaces checks the leaf stays single-valued.
 func TestMultiLeafRepeatedStatementReplaces(t *testing.T) {
 	schema := NewSchema()
-	schema.Define("run", MultiLeaf(TypeString))
+	schema.Define("run", multiLeaf(TypeString))
 
 	tree, err := NewParser(schema).Parse("run first one;\nrun second;")
 	if err != nil {
@@ -54,7 +54,7 @@ func TestMultiLeafRepeatedStatementReplaces(t *testing.T) {
 // TestMultiLeafRefusesNoValue checks `run;` is refused rather than dropped.
 func TestMultiLeafRefusesNoValue(t *testing.T) {
 	schema := NewSchema()
-	schema.Define("run", MultiLeaf(TypeString))
+	schema.Define("run", multiLeaf(TypeString))
 
 	if _, err := NewParser(schema).Parse("run;"); err == nil {
 		t.Fatalf("parse accepted a multi-word leaf with no value")

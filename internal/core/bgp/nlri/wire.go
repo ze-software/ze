@@ -58,7 +58,7 @@ func (w *WireNLRI) Len() int {
 // then pairs the withdrawal with its announcement. The bytes are read as an
 // announcement: a withdrawal of such a family is never carried as a WireNLRI.
 func (w *WireNLRI) String() string {
-	if prefix, ok := w.routePrefix(); ok {
+	if prefix, ok := w.RoutePrefix(); ok {
 		return prefix.String()
 	}
 	var b textbuf.Buffer
@@ -98,9 +98,9 @@ func (w *WireNLRI) WriteTo(buf []byte, off int) int {
 	return copy(buf[off:], w.data)
 }
 
-// routePrefix answers the prefix the route names when its family keys routes
+// RoutePrefix answers the prefix the route names when its family keys routes
 // by a CIDR, and false for every other family and for malformed bytes.
-func (w *WireNLRI) routePrefix() (netip.Prefix, bool) {
+func (w *WireNLRI) RoutePrefix() (netip.Prefix, bool) {
 	payload := w.data
 	if w.hasAddPath {
 		if len(payload) < 4 {

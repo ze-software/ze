@@ -63,7 +63,7 @@ func TestPeerUpOnCacheMissNeverReachesTheCollector(t *testing.T) {
 
 	up := &rpc.StructuredEvent{
 		PeerAddress:  "10.0.0.1",
-		PeerAS:       65001,
+		PeerAS:       rpc.RemoteASOf(65001),
 		LocalAS:      65000,
 		LocalAddress: "10.0.0.100",
 		EventType:    rpc.EventKindState,
@@ -73,13 +73,13 @@ func TestPeerUpOnCacheMissNeverReachesTheCollector(t *testing.T) {
 
 	down := &rpc.StructuredEvent{
 		PeerAddress: "10.0.0.1",
-		PeerAS:      65001,
+		PeerAS:      rpc.RemoteASOf(65001),
 		EventType:   rpc.EventKindState,
 		State:       rpc.SessionStateDown,
 		Reason:      "remote-close",
 	}
 	bp.handleStructuredEvent(down)
-	if err := bp.senders[0].writeRouteMonitoring(peerHeaderFromEvent(down), msgtype.TypeUPDATE, []byte{0, 0, 0, 0}); err != nil {
+	if err := bp.senders[0].writeRouteMonitoring(mustPeerHeader(t, down), msgtype.TypeUPDATE, []byte{0, 0, 0, 0}); err != nil {
 		t.Fatalf("queue the sentinel: %v", err)
 	}
 

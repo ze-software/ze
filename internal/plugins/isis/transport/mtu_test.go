@@ -40,9 +40,9 @@ func TestInferNeighborMTU(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := InferNeighborMTU(tc.frameSize)
+			got := inferNeighborMTU(tc.frameSize)
 			if got != tc.want {
-				t.Errorf("InferNeighborMTU(%d) = %d, want %d", tc.frameSize, got, tc.want)
+				t.Errorf("inferNeighborMTU(%d) = %d, want %d", tc.frameSize, got, tc.want)
 			}
 		})
 	}
@@ -51,8 +51,8 @@ func TestInferNeighborMTU(t *testing.T) {
 func TestInferNeighborMTUTooSmall(t *testing.T) {
 	// VALIDATES: a frame smaller than the header yields a non-positive inferred
 	// MTU (no underflow; caller treats <=0 as "unknown").
-	if got := InferNeighborMTU(FrameHeaderLen - 1); got > 0 {
-		t.Errorf("InferNeighborMTU(short) = %d, want <= 0", got)
+	if got := inferNeighborMTU(FrameHeaderLen - 1); got > 0 {
+		t.Errorf("inferNeighborMTU(short) = %d, want <= 0", got)
 	}
 }
 
@@ -73,7 +73,7 @@ func TestMTUMismatch(t *testing.T) {
 
 	// Peer padded its Hello to a 1492-byte link; local MTU is 1500.
 	neighborFrameSize := FrameHeaderLen + (1492 - LLCHeaderLen)
-	tr.ObserveNeighborFrame("eth0", neighborFrameSize)
+	tr.observeNeighborFrame("eth0", neighborFrameSize)
 
 	if !fired {
 		t.Fatal("MTU mismatch callback did not fire")
@@ -92,7 +92,7 @@ func TestMTUNoMismatchWhenEqual(t *testing.T) {
 
 	fired := false
 	tr.onMTUMismatch(func(string, int, int) { fired = true })
-	tr.ObserveNeighborFrame("eth0", FrameHeaderLen+(1500-LLCHeaderLen))
+	tr.observeNeighborFrame("eth0", FrameHeaderLen+(1500-LLCHeaderLen))
 	if fired {
 		t.Error("MTU mismatch fired for equal MTUs")
 	}

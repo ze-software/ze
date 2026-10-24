@@ -200,7 +200,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Owned journal rows
 
-The 51 open rows this root cause owns. Each is re-pointed to this spec when it lands.
+The 52 open rows this root cause owns. Each is re-pointed to this spec when it lands.
 
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
@@ -256,6 +256,7 @@ The 51 open rows this root cause owns. Each is re-pointed to this spec when it l
 | `unwired-feature.md` | 2026-09-06 | peer leaf `behavior > manual-eor` read by no reactor code |
 | `zero-value-as-valid-answer.md` | 2026-10-10 | `goyang-enum-negative.patch` has no owner to drop it |
 | `zero-value-as-valid-answer.md` | 2026-10-10 | `TestGoyangNumbersAnEnumAfterANegativeValue` follow-up |
+| `hardcoded-count-in-test.md` | 2026-10-23 | `request bgp watchdog *` moved to YANG (`dcc0ab9dc5`): wire-method snapshot and site catalog not refreshed |
 
 ## Rows found already fixed
 

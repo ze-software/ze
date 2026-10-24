@@ -111,7 +111,7 @@ All BGP events have the same structure: type in `message`, `peer` and event-spec
 | bgp.message.id | int | Message identifier (omitted if 0) |
 | bgp.message.direction | string | "received" or "sent" (omitted if empty) |
 | bgp.peer.remote.address | string | Peer IP address |
-| bgp.peer.remote.as | int | Peer AS number |
+| bgp.peer.remote.as | int | Peer AS number. Omitted while a dynamic peer's AS is not yet negotiated: the OPEN Ze sends it, a NOTIFICATION sent in OpenSent, and the `connected` and `fsm` events before OpenConfirm carry none. AS 0 is never written, because no peer can hold it (RFC 7607 Section 2) |
 | bgp.peer.remote.router-id | string | The PEER's BGP Identifier, dotted quad. Omitted before the peer's OPEN is read |
 | bgp.peer.router-id | string | THIS speaker's BGP Identifier for the session, dotted quad. Omitted when the peer sets none |
 
@@ -355,6 +355,15 @@ Each address family has an array of operations under `nlri`:
   `{"action": "del", "error": "parsing NLRI at offset 0: nlri: short read", "parsed": false, "raw": "402001"}`.
   An empty `nlri` list is never written for a field that failed to split, because
   it would read as an operation on no route.
+- When a field splits but one NLRI in it is not a route Ze can read (the
+  family's plugin decoder refuses its octets, or no loaded plugin decodes an
+  opaque family), that element of the `nlri` list uses the same convention:
+  `{"error": "<reason>", "parsed": false, "raw": "<hex>"}`, with `path-id` too
+  when the NLRI carried one. `raw` holds the NLRI's octets as received, Path
+  Identifier included. The element carries no `prefix`, so a consumer cannot
+  install it as a route, and the ExaBGP bridge leaves it out with a warning.
+  <!-- source: internal/component/bgp/format/text_json.go -- appendNLRIJSONValue, appendUndecodedNLRIJSON -->
+  <!-- source: internal/exabgp/bridge/bridge_event.go -- undecodedNLRI -->
 
 Two producers write this member, and both write it the same way. The parsed
 JSON event with no attribute or NLRI filter is written straight from the wire
@@ -621,8 +630,12 @@ never reaches up.
 `message-size` is the largest message this speaker may send (65535 once the
 peer advertised RFC 8654 Extended Message, 4096 otherwise). `route-refresh` is
 `absent`, `normal` or `enhanced` (RFC 7313). `add-path`, `extended-next-hop`
-and `paths-limit` appear only when they hold a family.
+and `paths-limit` appear only when they hold a family. `families` and the two
+`add-path` lists keep the order the peer's OPEN listed its Multiprotocol
+capabilities in, filtered by what ze sent, the order ExaBGP lists them in; the
+order is the same on every event of one session.
 <!-- source: internal/component/bgp/format/json.go -- JSONEncoder.Negotiated -->
+<!-- source: internal/core/bgp/capability/negotiated.go -- Negotiate, Negotiated.Families -->
 <!-- source: internal/component/bgp/reactor/peer_derived_bindings.go -- Peer.announceNegotiated -->
 
 ---
@@ -670,7 +683,8 @@ API command responses:
 
 ## Text Format
 
-Text format does not use JSON wrapping. Parsed text events use `peer <ip> remote as <asn> ...`.
+Text format does not use JSON wrapping. Parsed text events use `peer <ip> remote as <asn> ...`. While a dynamic peer's AS is not yet negotiated, `<asn>` is the word
+`unknown`, so the line keeps its token positions: `peer 192.0.2.1 remote as unknown sent notification 2 ...`.
 
 **State:**
 ```
@@ -684,7 +698,7 @@ peer 192.0.2.1 remote as 65001 received update 1 origin igp path 65001 next 192.
 
 **OPEN:**
 ```
-peer 192.0.2.1 remote as 65001 received open 1 router-id 1.1.1.1 hold-time 90 cap 1 multiprotocol ipv4/unicast
+peer 192.0.2.1 remote as 65001 received open 1 asn 65001 router-id 1.1.1.1 hold-time 90 cap 1 multiprotocol ipv4/unicast
 ```
 
 **KEEPALIVE:**

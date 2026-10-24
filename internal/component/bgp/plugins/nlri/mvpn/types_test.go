@@ -23,7 +23,7 @@ func TestMVPNTypes(t *testing.T) {
 // TestMVPNBasic verifies basic MVPN NLRI creation.
 func TestMVPNBasic(t *testing.T) {
 	t.Parallel()
-	mvpn := NewMVPN(MVPNIntraASIPMSIAD, []byte{1, 2, 3, 4})
+	mvpn := newMVPN(MVPNIntraASIPMSIAD, []byte{1, 2, 3, 4})
 
 	assert.Equal(t, MVPNIntraASIPMSIAD, mvpn.RouteType())
 	assert.NotNil(t, mvpn.Bytes())
@@ -32,7 +32,7 @@ func TestMVPNBasic(t *testing.T) {
 // TestMVPNFamily verifies MVPN address family.
 func TestMVPNFamily(t *testing.T) {
 	t.Parallel()
-	mvpn := NewMVPN(MVPNIntraASIPMSIAD, nil)
+	mvpn := newMVPN(MVPNIntraASIPMSIAD, nil)
 
 	assert.Equal(t, AFIIPv4, mvpn.Family().AFI)
 	assert.Equal(t, SAFIMVPN, mvpn.Family().SAFI)
@@ -102,7 +102,7 @@ func TestMVPNStringCommandStyle(t *testing.T) {
 	}{
 		{
 			name:     "mvpn without rd",
-			mvpn:     NewMVPN(MVPNIntraASIPMSIAD, []byte{1, 2, 3, 4}),
+			mvpn:     newMVPN(MVPNIntraASIPMSIAD, []byte{1, 2, 3, 4}),
 			expected: "intra-as-i-pmsi-ad",
 		},
 		{
@@ -147,7 +147,7 @@ func TestMVPNWriteToMatchesBytes(t *testing.T) {
 	}{
 		{
 			name: "basic mvpn",
-			mvpn: NewMVPN(MVPNIntraASIPMSIAD, []byte{1, 2, 3, 4}),
+			mvpn: newMVPN(MVPNIntraASIPMSIAD, []byte{1, 2, 3, 4}),
 		},
 		{
 			name: "mvpn with rd",

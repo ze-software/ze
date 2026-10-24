@@ -136,9 +136,9 @@ scope and MUST NOT rely on the default.
 
 | Surface | Scope | Command |
 |---------|-------|---------|
-| `routes/protocol/{name}`, `routes/peer/{peer}` | `received` | `show bgp rib received peer <name>` |
-| `routes/count/protocol/{name}` | `received` | `show bgp rib received peer <name> count` |
-| `routes/export/{name}` | `sent` | `show bgp rib sent peer <name>` |
+| `routes/protocol/{name}`, `routes/peer/{peer}` | `received` | `show bgp rib received peer <address>` |
+| `routes/count/protocol/{name}` | `received` | `show bgp rib received peer <address> count` |
+| `routes/export/{name}` | `sent` | `show bgp rib sent peer <address>` |
 | `routes/prefix`, `routes/search` | `received` | `show bgp rib received prefix <prefix>` |
 | `routes_received`, `routes_imported` (Section 5) | `received` | `route-counts.in` of `show bgp rib status` |
 | `routes_exported` (Section 5) | `sent` | `route-counts.out` of `show bgp rib status` |
@@ -148,6 +148,21 @@ scope and MUST NOT rely on the default.
 
 The UI peer page shows the received count and the sent count side by side. A
 count the engine does not answer renders as an empty cell, never as `0`.
+
+`{name}` in `routes/protocol`, `routes/count/protocol` and `routes/export` is
+the protocol id `protocols/bgp` lists a session under: its configured name,
+else its address. `bgp-rib` keys every session by its address, so each of the
+three first asks `show bgp` for the session listed under that id and sends
+bgp-rib the session's address. The session's address is accepted as an id
+too, because an address names exactly one session and these endpoints answered
+it before `protocols/bgp` listed configured names. When a configured name
+spells another session's address, the name wins: it is the id
+`protocols/bgp` lists. An id that is neither a listed name nor a session
+address answers 404 naming it and `/api/looking-glass/protocols/bgp`, and no
+rib command is sent. Before 2026-10-23 the name went to
+bgp-rib as it was, matched no session, and every one of the three answered
+200 with no routes, for a listed session and an unknown name alike.
+<!-- source: internal/component/lg/handler_api.go -- protocolSession, protocolID -->
 
 Before 2026-10-08 the per-peer list, its count, the peer page and the prefix
 queries named no scope. A route Ze sent a session was listed under that session
@@ -242,7 +257,7 @@ Every routes endpoint MUST return an array of route objects under `routes`.
 | `from_protocol` | string | The learning session. The server MUST substitute the peer address when one is known |
 | `age` | number | Seconds. MUST be present |
 | `learnt_from` | string | Peer address. MUST be present |
-| `primary` | bool | Whether this is the best path. MUST be present. Every row of `routes/table/{family}` is `true`, because that endpoint answers only best paths. The per-peer endpoints report `false` for every row, because the `bgp-rib` rows they read do not say which path won |
+| `primary` | bool | Whether this is the best path. MUST be present. Every row of `routes/table/{family}` is `true`, because that endpoint answers only best paths. The received endpoints (`routes/protocol/{name}`, `routes/peer/{peer}`, `routes/prefix`, `routes/search`) read the `best` member of each `bgp-rib` row: `true` on the path the election recorded as its prefix's winner, `false` on every other path. A row of a family whose winner the RIB keys by wire NLRI (VPN, EVPN and the other non-CIDR families) carries no `best`, and `routes/export/{name}` rows are sent routes, which never carry one: `primary` is then `false` |
 | `bgp` | object | MUST be present, as below |
 
 ### 6.1 The `bgp` member

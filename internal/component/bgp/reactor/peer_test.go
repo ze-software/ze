@@ -49,7 +49,7 @@ func freePort(t *testing.T) int {
 func testRoute(prefixStr string) *rib.Route {
 	prefix := netip.MustParsePrefix(prefixStr)
 	fam := family.IPv4Unicast
-	n := nlri.NewINET(fam, prefix, 0)
+	n := nlri.NewINET(fam, prefix, 0, false)
 	return rib.NewRouteWithASPath(n, netip.MustParseAddr("10.0.0.1"), nil, nil)
 }
 

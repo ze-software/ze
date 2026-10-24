@@ -77,9 +77,9 @@ func (e *EVPNType2) AppendJSON(buf []byte) []byte {
 	return buf
 }
 
-// AppendJSON for EVPNType3 (Inclusive Multicast Ethernet Tag).
+// AppendJSON for evpnType3 (Inclusive Multicast Ethernet Tag).
 // Keys: code, ethernet-tag, name, originator, parsed, raw, rd.
-func (e *EVPNType3) AppendJSON(buf []byte) []byte {
+func (e *evpnType3) AppendJSON(buf []byte) []byte {
 	buf = append(buf, `[{"code":3,"ethernet-tag":`...)
 	buf = strconv.AppendUint(buf, uint64(e.EthernetTag()), 10)
 	buf = append(buf, `,"name":"Inclusive Multicast","originator":"`...)
@@ -92,9 +92,9 @@ func (e *EVPNType3) AppendJSON(buf []byte) []byte {
 	return buf
 }
 
-// AppendJSON for EVPNType4 (Ethernet Segment).
+// AppendJSON for evpnType4 (Ethernet Segment).
 // Keys: code, esi, name, originator, parsed, raw, rd.
-func (e *EVPNType4) AppendJSON(buf []byte) []byte {
+func (e *evpnType4) AppendJSON(buf []byte) []byte {
 	buf = append(buf, `[{"code":4,"esi":"`...)
 	buf = append(buf, formatESIForJSON(e.ESI())...)
 	buf = append(buf, `","name":"Ethernet Segment","originator":"`...)

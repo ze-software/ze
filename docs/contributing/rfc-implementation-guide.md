@@ -758,6 +758,10 @@ words>`. Nothing outside the commits records either
 <!-- source: internal/le/commit/prepare.go -- admissionTrailer -->
 <!-- source: internal/le/commit/owed_trailers.go -- readPersonActs -->
 
+A trailer commit that cannot be read is never counted as discharging the act:
+`./le commit create` refuses with `commit <sha>: cannot judge "<subject>", so it
+stays owed`, the read error, and `git show <sha>` to inspect it.
+
 <!-- source: internal/le/test/weakened/proposed.go -- RFC-tagged carrier approval -->
 <!-- source: ai/skills/ze-rfc.md -- requirement id allocation and annotations -->
 

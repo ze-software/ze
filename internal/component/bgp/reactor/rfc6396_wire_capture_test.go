@@ -38,7 +38,7 @@ func recordSessionWire(t *testing.T, session *Session) (string, func()) {
 	r := New(&Config{})
 	r.addMessageObserver(recorder)
 	session.onWireMessage = func(wire []byte, ctx bgpctx.ContextID, sent bool, _ *sessionTransport) {
-		r.notifyWireMessage(&plugin.PeerInfo{Address: netip.MustParseAddr("192.0.2.1"), LocalAddress: netip.MustParseAddr("192.0.2.2"), PeerAS: 65002, LocalAS: 65001, MessageContextID: ctx}, wire, sent)
+		r.notifyWireMessage(&plugin.PeerInfo{Address: netip.MustParseAddr("192.0.2.1"), LocalAddress: netip.MustParseAddr("192.0.2.2"), PeerAS: rpc.RemoteASOf(65002), LocalAS: 65001, MessageContextID: ctx}, wire, sent)
 	}
 	return path, stop
 }

@@ -207,6 +207,16 @@ first value octet as part of the length and lose following attributes.
   its Peer cannot establish ownership of the replacement epoch.
 <!-- source: internal/component/bgp/reactor/peer_connection.go — resolvePendingCollision, inboundConnection -->
 <!-- source: internal/component/bgp/reactor/peer_run.go — runOnce -->
+
+The reactor hands the MRT component its state changes as a `*plugin.PeerInfo`,
+the type `registry.PeerLifecycleCallback` promises: `callbackAdapter` builds it
+with `establishedPeerInfo` on Established and `fsmEventPeerInfo` on close. A
+peer of any other type, or a nil one, is logged as a warning naming the event
+and is not recorded, never dropped in silence. The PeerInfo's AS is an
+`rpc.RemoteAS`, unknown for a dynamic peer before its OPEN is negotiated; a
+BGP4MP record written then carries AS 0, MRT's own convention for an unknown AS.
+<!-- source: internal/component/bgp/reactor/reactor_notify.go -- callbackAdapter -->
+<!-- source: internal/plugins/mrt/register.go -- peerBridge -->
 - On-demand CLI dump (BIRD)
 - Buffered writes with configurable flush
 

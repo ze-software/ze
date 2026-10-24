@@ -228,3 +228,27 @@ func TestReplayRelaysComplexRoutesAsStored(t *testing.T) {
 	// NextHopHex (reactor_api_relay.go), so those two fields are what it relays.
 	assert.Equal(t, "40010100400200"+"900e0014000104040a000001000000000730003e810a0001", got.AttrHex)
 }
+
+// TestAddPathIdentifierZeroIsAnIdentifier verifies the show key names the RFC
+// 7911 Path Identifier whenever the source session negotiated ADD-PATH.
+//
+// VALIDATES: AC-10, RFC 7911 Sections 2 and 3: identifier 0 under ADD-PATH is
+// shown as ":0"; the same prefix from a session without ADD-PATH has no
+// identifier in its key.
+// PREVENTS: Presence decided by comparing the identifier with zero.
+func TestAddPathIdentifierZeroIsAnIdentifier(t *testing.T) {
+	r := newTestManager(t)
+	withAddPath := netip.MustParseAddr("192.0.2.1")
+	withoutAddPath := netip.MustParseAddr("192.0.2.2")
+	r.installStructuredNLRIs(withAddPath, family.IPv4Unicast, []byte{0, 0, 0, 0, 24, 10, 0, 0}, true, "400101", "c0000201", 1)
+	r.installStructuredNLRIs(withoutAddPath, family.IPv4Unicast, []byte{24, 10, 0, 0}, false, "400101", "c0000201", 2)
+
+	shown, ok := r.show("*").(map[string]any)
+	require.True(t, ok)
+	byPeer, ok := shown["adj-rib-in"].(map[string][]map[string]any)
+	require.True(t, ok)
+	require.Len(t, byPeer[withAddPath.String()], 1)
+	require.Len(t, byPeer[withoutAddPath.String()], 1)
+	assert.Equal(t, "ipv4/unicast:10.0.0.0/24:0", byPeer[withAddPath.String()][0]["key"])
+	assert.Equal(t, "ipv4/unicast:10.0.0.0/24", byPeer[withoutAddPath.String()][0]["key"])
+}

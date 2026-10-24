@@ -11,6 +11,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -26,10 +27,14 @@ var errStubUnused = errors.New("fakeStore: method not used by these tests")
 // fakeStore implements storage.Storage; only ReadFile carries behavior.
 type fakeStore struct {
 	storage.Storage
-	data map[string][]byte
+	data    map[string][]byte
+	readErr error
 }
 
 func (f fakeStore) ReadFile(name string) ([]byte, error) {
+	if f.readErr != nil {
+		return nil, f.readErr
+	}
 	if b, ok := f.data[name]; ok {
 		return b, nil
 	}
@@ -60,10 +65,32 @@ func TestDefaultConfig(t *testing.T) {
 		{"path traversal blocked", map[string][]byte{key: []byte("../evil")}, "ze.conf"},
 		{"leading hyphen blocked", map[string][]byte{key: []byte("-bad")}, "ze.conf"},
 	} {
-		if got := DefaultConfig(fakeStore{data: tc.stored}); got != tc.want {
+		got, err := DefaultConfig(fakeStore{data: tc.stored})
+		if err != nil {
+			t.Errorf("%s: DefaultConfig: %v", tc.name, err)
+		}
+		if got != tc.want {
 			t.Errorf("%s: DefaultConfig = %q, want %q", tc.name, got, tc.want)
 		}
 	}
+}
+
+// TestDefaultConfigReadFailureIsNotMissing proves a failed read of the
+// instance name answers an error naming the key and the command, never
+// "ze.conf" as a missing key does. Method: a store whose ReadFile fails with a
+// CRC-shaped error.
+func TestDefaultConfigReadFailureIsNotMissing(t *testing.T) {
+	key := zefs.KeyInstanceName.Pattern
+	errCRC := errors.New("zefs: crc mismatch")
+
+	name, err := DefaultConfig(fakeStore{readErr: errCRC})
+	if !errors.Is(err, errCRC) {
+		t.Fatalf("failed read: DefaultConfig = %q, %v; want an error wrapping %v", name, err, errCRC)
+	}
+	if !strings.Contains(err.Error(), key) || !strings.Contains(err.Error(), "ze doctor") {
+		t.Fatalf("failed read: error %q does not name %s and the command", err, key)
+	}
+
 }
 
 // Explicit paths own their folder regardless of a pinned default. Empty and

@@ -27,7 +27,7 @@ default page, rather than one flat switch in the workbench handler.
 <!-- source: internal/component/web/page_ip_dns.go -- DNS form -->
 <!-- source: internal/component/web/page_traffic.go -- traffic table -->
 
-- One `BuildInterfaceTableData` serves every type view through a `?type=`
+- One `buildInterfaceTableData` serves every type view through a `?type=`
   query parameter and `matchesTypeFilter`, instead of one handler per type.
   The left nav still shows a link per type.
 - A VLAN is matched by `VlanID > 0`, not by a type string. A VLAN
@@ -37,6 +37,18 @@ default page, rather than one flat switch in the workbench handler.
   gretap, ip6gre, ip6gretap, ipip, sit, ip6tnl, wireguard). A new tunnel kind
   in the iface package must be added here, or it disappears from the Tunnel
   view.
+- The interface detail page shows live state. It falls back to the configured
+  entry only where no live state exists: no backend is loaded, or the backend
+  holds no such device (`iface.ErrInterfaceNotFound`), the same entry the list
+  marks `configured`. Any other read failure, an address dump included,
+  renders the error and `ze show interface <name>`, never config presented as
+  live state (`interfaceDetailInfo`).
+- The interface list merges live state with the configured entries. It lists
+  the configured entries alone only when no backend is loaded
+  (`iface.ErrNoBackendLoaded`). Any other failed live read renders the error
+  and `ze show interface` instead of the table: listing the configured entries
+  for it marked every one `configured` and dropped every live-only device, with
+  no sign the read had failed (`interfaceListInfos`).
 - Routes are capped at 1000 rows and the cap is passed to `ListKernelRoutes`,
   so the limit is applied server-side. A full-table box holds 900k routes and
   rendering them as HTML exhausts the browser.
@@ -45,8 +57,12 @@ default page, rather than one flat switch in the workbench handler.
   connection management for no gain.
 - DNS resolver config is one object, so it renders as a singleton form rather
   than a table.
-- Interface statistics can be nil, for example a loopback on some platforms.
-  The counter table renders "not available" instead of zeros.
+- The counter table renders "not available" only where no live counters
+  exist: no backend is loaded, or the backend holds no such device (a
+  configured interface not yet created). Any other failed counter read, a
+  link the kernel answered without counters included, renders the failure and
+  `ze show interface <name>` instead: shown as "not available" it read as a
+  device with no counters and hid the failure (`interfaceCounterStats`).
 
 ## BGP
 

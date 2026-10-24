@@ -11,6 +11,7 @@ package l2tp
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net/netip"
 	"testing"
@@ -51,15 +52,18 @@ func startWithListener(t *testing.T) *Subsystem {
 	return sub
 }
 
+// errNoWorkerInTest is the construction failure the stubbed constructor reports.
+var errNoWorkerInTest = errors.New("no kernel worker in this test")
+
 // withStubbedKernelWorker replaces the kernel-worker constructor for one test
 // and reports how many times it was called.
 func withStubbedKernelWorker(t *testing.T) *int {
 	t.Helper()
 	calls := 0
 	saved := newSubsystemKernelWorkerFn
-	newSubsystemKernelWorkerFn = func(chan<- kernelSetupFailed, chan<- kernelSetupSucceeded, *slog.Logger) *kernelWorker {
+	newSubsystemKernelWorkerFn = func(chan<- kernelSetupFailed, chan<- kernelSetupSucceeded, *slog.Logger) (*kernelWorker, error) {
 		calls++
-		return nil
+		return nil, errNoWorkerInTest
 	}
 	t.Cleanup(func() { newSubsystemKernelWorkerFn = saved })
 	return &calls

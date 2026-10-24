@@ -1821,6 +1821,42 @@ than one request.
 | `radius-admin-chap-freeradius` | The same, with `auth-method chap` against a `Cleartext-Password` entry | `verdict=accept` with a CHAP-Password present and NO User-Password beside it, which is what RFC 2865 Section 4.1 demands of an Access-Request |
 | `radius-admin-chap-hashed-freeradius` | The CHAP login is REFUSED, and ze authenticates the user through no backend at all | A `radclient` probe first proves the same entry accepts the same password over PAP, then `verdict=reject` for the CHAP request |
 | `radius-admin-eap-freeradius` | The same, with `auth-method eap-mschapv2`. Ze answers the EAP conversation itself from the operator's password, Naks the server's MD5-Challenge toward MSCHAPv2, and returns the State on every later round | `verdict=state-echo` for at least one round carrying the State the server issued, then `verdict=accept`, both with an EAP-Message present and NEITHER password attribute beside it |
+| `radius-admin-eap-unsigned-freeradius` | The EAP login through the relay twice. With the relay passing the answers, the login completes and `ze_radius_unsigned_eap_discards_total` reads 0. With the relay removing the Message-Authenticator, the login fails, ze logs `radius: discarding the answer` with the RFC 3579 Section 3.1 reason, and the counter is above 0 | `verdict=state-echo` and `verdict=accept` for the passed login. The relay's own log records each answer it carried: an Access-Accept with the signature `present`, then an Access-Challenge with an EAP-Message and the signature `stripped` |
+
+The unsigned scenario needs an answer FreeRADIUS will not send. RFC 3579
+Section 3.1:
+
+> Access-Challenge, Access-Accept, or Access-Reject packets including
+> EAP-Message attribute(s) without a Message-Authenticator attribute SHOULD be
+> silently discarded by the NAS.
+
+FreeRADIUS 3.2.10 writes a Message-Authenticator as the first attribute of
+every Access-Accept, Access-Reject and Access-Challenge it sends over UDP:
+`rad_encode` in `src/lib/radius.c` decides it from its `code2ma` table, which no
+configuration item reaches, so neither an unlang `update reply` nor a proxy
+server removes it. The lab therefore mounts `test/interop-radius/unsigned-relay.pl`
+into the server's container, and the checker starts it there on port 1912, the
+port the scenario's `ze.conf` names. The relay forwards each Access-Request
+unchanged to FreeRADIUS on 1812 and each answer back to ze. In `strip` mode it
+removes the Message-Authenticator and nothing else; in both modes it recomputes
+the Response Authenticator (RFC 2865 Section 3). The mode is a file the checker
+writes, and a missing or unknown mode forwards nothing. The image carries Perl
+and its `Digest::MD5`, and no other program that speaks UDP and MD5, which is
+why the relay is Perl.
+
+The `pass` login is the control for the three ways the refusal could be read
+wrongly. It proves the relay carries the conversation, that its recomputed
+Response Authenticator is right (a wrong one would fail it, since `pass` mode
+recomputes too), and that the counter starts at 0. The `strip` login then
+differs from it by the missing attribute alone. The counter is read from ze's
+Prometheus endpoint on loopback, and a series the exposition does not carry is
+an error, never a zero.
+
+The scenario passed on 2026-10-23 and discriminates: with
+`verifyResponseMessageAuthenticator` answering `responseIntegrityAccepted` for
+an unsigned EAP answer, as it did before the discard, and ze rebuilt, it fails
+with "assertion 6: ze completed an EAP login for radiusop through answers whose
+Message-Authenticator the relay removed".
 
 The third scenario is the one that proves `docs/guide/radius.md` is telling the
 truth. RFC 2865 Section 2.2:
@@ -1846,6 +1882,8 @@ as evidence.
 <!-- source: internal/le/interoplab/radius/radius.go -- the suite, its pinned image, its peers and its probes -->
 <!-- source: internal/le/interoplab/radius/checkers.go -- every observation, on ze's side and on the server's -->
 <!-- source: test/interop-radius/mods-ze-request-log -- the linelog module the server's record comes from -->
+<!-- source: internal/le/interoplab/radius/check_unsigned_eap.go -- checkEAPUnsigned, startRelay, unsignedDiscardCount -->
+<!-- source: test/interop-radius/unsigned-relay.pl -- the relay that removes the server's Message-Authenticator -->
 
 ### The FreeRADIUS subscriber suite
 
@@ -2010,6 +2048,37 @@ reads the whole table with `birdc show route`, and never `show route for
 not found", and birdc exits 1. A lookup therefore fails in the exact state the
 assertion exists to observe, and the failure is not absence. Ask a question the
 peer answers in both states, then read the absence out of the answer.
+
+A checker that reads a BGP attribute from BIRD reads BIRD 3's spelling. `birdc
+show route ... all` prints each attribute on its own line as a tab, the
+attribute's name, a colon, a space and the value (`ea_show`, `nest/rt-attr.c` at
+v3.4.0), and the names are `proto/bgp/attrs.c`'s `bgp_origin`, `bgp_path`,
+`bgp_next_hop`, `bgp_med`, `bgp_local_pref`, `bgp_community`,
+`bgp_large_community`, `bgp_originator_id` and `bgp_cluster_list`. BIRD 2's
+`BGP.as_path` family and its `Type: BGP univ` line are gone; BIRD 3 prints
+`preference:`, `from:` and `source:` lines instead, and closes each route with
+`Internal route handling values:`. An AS path is space-separated ASNs and a
+community list is `(65001,100) (65001,200)`, as in BIRD 2. Captured from the lab
+image on 2026-10-23, for an iBGP route reflected once:
+
+```
+10.77.0.0/24         unicast [b 17:15:20.935 from 10.99.0.3] * (100) [AS65020i]
+	via 10.99.0.2 on eth0
+	preference: 100
+	from: 10.99.0.3
+	source: BGP
+	bgp_origin: IGP
+	bgp_path: 65010 65020
+	bgp_next_hop: 10.99.0.2
+	bgp_med: 77
+	bgp_local_pref: 250
+	bgp_community: (65001,100) (65001,200)
+	bgp_originator_id: 10.99.0.2
+	bgp_cluster_list: 10.99.0.3
+	bgp_large_community: (65001, 0, 1) (65001, 2, 3)
+	Internal route handling values: 0L 2G 0S id 1
+```
+<!-- source: internal/le/interoplab/bgp/check_rfc_predicate.go -- birdASPathAttribute -->
 
 Scenarios with non-linear behavior register a bespoke checker in
 `specialCheckers` (`check_special.go`). Each one owes a named subtest in
@@ -2526,6 +2595,7 @@ is not packet-forwarding evidence.
 | 37 | remove-private-as-as4path-frr | Ze, FRR, BIRD | remove-private-as handling for AS4_PATH private ASNs |
 | 38 | vpn-addpath-frr | Ze, FRR | ipv4/mpls-vpn over ADD-PATH with no path-information: FRR holds the exact RD, prefix and label, so ze wrote Path Identifier 0 (RFC 7911 Section 3) |
 | 39 | ldp-keepalive-expiry-frr | Ze, FRR ldpd | ze's LDP KeepAlive Timer expires after an `ldplab` nft table in ze's container rewrites the TCP window ze advertises on the session to zero, so FRR can send ze no PDU while its kernel still acknowledges ze's segments (a drop of FRR's segments would also drop the ACKs they carry and stall ze's own stream); FRR logs `msg[in]: notification: ... status KeepAlive Timer Expired (fatal error)` (RFC 5036 Section 3.5.1.2.3) and leaves OPERATIONAL. Red with the send reverted: FRR logs only `connection closed by remote end`. Ships its own `daemons` (`ldpd=yes`) and gives ze transport address 172.30.0.250 so ze is the active LSR |
+| 53 | ldp-init-unknown-tlv-frr | Ze, FRR ldpd | RFC 5036 Section 3.3 on ze's receive side: "if U is clear (=0), a notification MUST be returned to the message originator and the entire message MUST be ignored". FRR cannot send an unknown TLV, so an `ldplab` nft rule in ze's container rewrites the type of the first Capability TLV in FRR's real Initialization (0x8506, the Dynamic Capability Announcement ldpd's `send_init` writes at LDP offset 36) to 0x3f00, U and F clear, and counts each match. FRR, the originator, logs `msg[in]: notification: ... status Unknown TLV`, and stays short of OPERATIONAL for 10 s because ze never answers the ignored Initialization with a KeepAlive. With the rule removed the same peers reach OPERATIONAL, the positive control. FRR proves the Notification reached the originator and decodes as Unknown TLV; the rule's counter proves ze was shown the TLV. Red with `skipTLV` returning nil for every TLV: FRR logs no received `status Unknown TLV` Notification. Shares the `daemons` and the 172.30.0.250 transport address of `ldp-keepalive-expiry-frr` |
 | 40 | bgp-attr-flags-low-nibble-gobgp | Ze, GoBGP, raw injector | RFC 4271 Section 4.3: attribute 241 sent to Ze at flags 0xCF reaches GoBGP at 0xE0 (low nibble cleared, Partial stamped by Section 5), never 0xEF |
 | 41 | bgp-large-community-no-repeat-gobgp | Ze, GoBGP, raw injector, native speaker | RFC 8092 Section 3: an export policy adding values the route already carries leaves GoBGP with each Large Community once, and the native speaker's `no-repeated-large-community` oracle finds no value sent twice on the wire. GoBGP alone cannot go red: it removes repeats on receipt, as the same section requires of a receiver (v4.10.0 decodes every value, then `ValidateAttribute` in `pkg/packet/bgp/validate.go` drops each repeat). Red on GoBGP v4.10.0 with the `largeCommunityRedundant` branch of the egress normalizer disabled: GoBGP still printed each value once, and the oracle failed on 65000:1:1 and 65000:2:2 transmitted twice in one UPDATE | <!-- doc-links: ignore (GoBGP v4.10.0 source in github.com/osrg/gobgp, outside this repository) -->
 | 42 | bgp-mup-malformed-t1st-withdraw-gobgp | Ze, GoBGP, raw injector | draft-ietf-bess-mup-safi Section 3.1.3.1: a malformed T1ST withdraws the earlier generation at GoBGP, a well-formed sibling stays, the session stays up |
@@ -2540,6 +2610,7 @@ is not packet-forwarding evidence.
 | 51 | bgp-exabgp-bridge-vpnv4-frr | Ze (exabgp bridge), FRR | RFC 4364: an ExaBGP API script writes ExaBGP 6.0's `announce ipv4 mpls-vpn 10.0.0.0/24 next-hop ... rd 65001:100 label 100`; the bridge hands it to `update text ... mp ipv4/mpls-vpn add`, and FRR holds the route under RD 65001:100 with remote label 100, its session staying up. Red with the bridge's `mpls-vpn` row of `bridgeSAFI` removed, which refuses the line |
 | 52 | bgp-flowspec-redirect-check-frr | Ze (route server, bgp-rib), FRR, raw injector | draft-simpson-idr-flowspec-redirect-02 Section 3: the injector (AS 65004) sends a cover for 192.0.2.0/24 originated in AS 65009, then a FlowSpec rule for that prefix with the 0x0800 redirect-to-IP community and next hop 192.0.2.77. The longest match for the next hop is not originated in the peer's AS, so FRR must hold the rule (`show bgp ipv4 flowspec detail json`) with no `FS:redirect` in its `ecomlist`. No lab daemon originates a 0x0800 rule, hence the raw frames; both reach FRR through Ze's peer-up replay. The plain `show bgp ipv4 flowspec json` is FRR's generic route printer and carries no extended communities, so a check on it passes either way. Red with the RIB's refusal disabled (`flowSpecRedirectRefused` answering false, by Go overlay): FRR holds `"ecomlist":"FS:redirect IP 0x0"` |
 <!-- source: test/interop/scenarios/ -- scenario directories -->
+<!-- source: internal/le/interoplab/bgp/check_ldp_init_unknown_tlv.go -- checkLDPInitUnknownTLV, ldpInitRewrite -->
 
 ### Running
 
@@ -2670,7 +2741,7 @@ and `internal/` (vendor and testdata trees skipped):
 
 | Pin | Read from | Upstream asked |
 |-----|-----------|----------------|
-| Image tag | `FROM` in a Dockerfile (not a stage name, not `scratch`), an image string literal in Go (an official image with no repository path, such as `alpine:3.24.3`, only with a dotted version tag on a line that names an image), a scenario's `*-image` file | The registry's OCI tag list, with the anonymous token it offers (Docker Hub, ghcr.io, quay.io) |
+| Image tag | `FROM` in a Dockerfile (not a stage name, not `scratch`), an image string literal in Go (an official image with no repository path, such as `alpine:3.24.3`, only with a dotted version tag on a line whose code names an image). Comments are never read: a comment that quotes an image, or an example of what is not one, pins nothing. Also a scenario's `*-image` file | The registry's OCI tag list, with the anonymous token it offers (Docker Hub, ghcr.io, quay.io) |
 | Go module | `go install <path>@<version>` in a Dockerfile | `proxy.golang.org`, including the next major version paths, since `@latest` of a `/v3` path never names v4 |
 | Git tag | `git clone --branch <tag> https://github.com/...`, a codeload or archive tag URL | The GitHub repository's latest release |
 | Source commit | `ZE_SOURCE_COMMIT` | The newest commit of the default branch |
@@ -2681,6 +2752,7 @@ number count and suffix), so `golang:1.25-alpine` is judged against
 such as `latest` is reported `floating` with the newest plain release beside it.
 An upstream that does not answer leaves its row `unresolved` with the cause.
 <!-- source: internal/le/lab/pin/scan.go -- Scan -->
+<!-- source: internal/le/lab/pin/scan.go -- literalPins, withoutComments -->
 <!-- source: internal/le/lab/pin/upstream.go -- registryTags, goLatest, latestTag -->
 
 ### A package test's own server container (labtest)

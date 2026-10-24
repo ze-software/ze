@@ -141,7 +141,7 @@ func TestRFC4271SelfNextHopSetComesFromPeerEvents(t *testing.T) {
 	require.NoError(t, err)
 
 	r.peerMu.Lock()
-	r.updatePeerMetadata(&Event{Peer: peer}, peerAddr)
+	r.updatePeerMetadata(&Event{Peer: peer}, peerAddr, 65001)
 	r.peerMu.Unlock()
 
 	require.NotNil(t, r.peerMeta[peerAddr])

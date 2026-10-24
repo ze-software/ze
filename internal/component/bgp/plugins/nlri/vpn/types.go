@@ -88,14 +88,14 @@ type VPN struct {
 //
 // The values are widened to RFC 3032 Section 2.1 stack entries, with a zero
 // traffic class and the bottom-of-stack bit on the last. A caller relaying a
-// stack it parsed uses NewVPNFromEntries, so the peer's traffic class is kept.
+// stack it parsed uses newVPNFromEntries, so the peer's traffic class is kept.
 func NewVPN(fam Family, rd RouteDistinguisher, labels []uint32, prefix netip.Prefix, pathID uint32, hasPath bool) *VPN {
-	return NewVPNFromEntries(fam, rd, nlri.LabelEntriesFor(labels), prefix, pathID, hasPath)
+	return newVPNFromEntries(fam, rd, nlri.LabelEntriesFor(labels), prefix, pathID, hasPath)
 }
 
-// NewVPNFromEntries creates a VPN NLRI from label stack ENTRIES as the wire
+// newVPNFromEntries creates a VPN NLRI from label stack ENTRIES as the wire
 // carries them.
-func NewVPNFromEntries(fam Family, rd RouteDistinguisher, entries []uint32, prefix netip.Prefix, pathID uint32, hasPath bool) *VPN {
+func newVPNFromEntries(fam Family, rd RouteDistinguisher, entries []uint32, prefix netip.Prefix, pathID uint32, hasPath bool) *VPN {
 	return &VPN{
 		family:  fam,
 		rd:      rd,
@@ -106,7 +106,7 @@ func NewVPNFromEntries(fam Family, rd RouteDistinguisher, entries []uint32, pref
 	}
 }
 
-// ParseVPN parses a VPN NLRI from wire format.
+// parseVPNAnnounce parses a VPN NLRI from wire format.
 //
 // RFC 4364 Section 4.3.4 and RFC 4659 Section 3.2 define the NLRI encoding.
 // Per RFC 3107, the labeled VPN NLRI format is:
@@ -125,7 +125,7 @@ func NewVPNFromEntries(fam Family, rd RouteDistinguisher, entries []uint32, pref
 //
 // For VPNv4 (RFC 4364): AFI=1, SAFI=128.
 // For VPNv6 (RFC 4659): AFI=2, SAFI=128.
-func ParseVPN(afi AFI, safi SAFI, data []byte, addpath bool) (*VPN, []byte, error) {
+func parseVPNAnnounce(afi AFI, safi SAFI, data []byte, addpath bool) (*VPN, []byte, error) {
 	return parseVPN(afi, safi, data, addpath, false)
 }
 
@@ -261,20 +261,20 @@ func (v *VPN) LabelEntries() []uint32 { return v.labels }
 func (v *VPN) Prefix() netip.Prefix { return v.prefix }
 
 // PathID returns the ADD-PATH path identifier. Zero is an identifier like any
-// other, so a caller that needs to know whether one is carried asks HasPathID
+// other, so a caller that needs to know whether one is carried asks HasAddPath
 // rather than comparing this value against zero.
 func (v *VPN) PathID() uint32 { return v.pathID }
 
-// HasPathID reports whether this NLRI carries an RFC 7911 Path Identifier.
+// HasAddPath reports whether this NLRI carries an RFC 7911 Path Identifier.
 //
 // RFC 7911 Section 3: "In order to carry the Path Identifier in an UPDATE
 // message, the NLRI encoding MUST be extended by prepending the Path Identifier
 // field, which is of four octets."
 //
 // The field has no reserved or absent value, so an identifier of zero is a real
-// identifier and PathID alone cannot say whether one is there. ParseVPN records
+// identifier and PathID alone cannot say whether one is there. parseVPNAnnounce records
 // the answer from the ADD-PATH negotiation it was handed.
-func (v *VPN) HasPathID() bool { return v.hasPath }
+func (v *VPN) HasAddPath() bool { return v.hasPath }
 
 // SupportsAddPath returns true - VPN NLRIs support ADD-PATH per RFC 7911.
 func (v *VPN) SupportsAddPath() bool { return true }

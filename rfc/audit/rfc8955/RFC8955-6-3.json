@@ -2,8 +2,8 @@
   "note": "drives unicast add of a foreign more-specific, its withdraw, loss and return of the covering route, validation eligibility flips and session down, asserting a withdraw or reinstall event for the retained rule at each step without a new FlowSpec UPDATE",
   "requirement_sha": "508626fc308dfc4f",
   "tests": {
-    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecUnicastLifecycleRevalidatesRetainedRule": "e900920dae82a00f",
-    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecUnicastLifecycleRevalidatesRetainedRule#2": "e900920dae82a00f"
+    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecUnicastLifecycleRevalidatesRetainedRule": "affdd5d6e6f3bb6f",
+    "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecUnicastLifecycleRevalidatesRetainedRule#2": "affdd5d6e6f3bb6f"
   },
   "units": {
     "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestFlowSpecUnicastLifecycleRevalidatesRetainedRule": "c358ea038139731d",

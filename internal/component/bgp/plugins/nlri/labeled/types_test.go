@@ -310,9 +310,9 @@ func TestLabeledUnicastStringKeepsAPathIdentifierOfZero(t *testing.T) {
 
 	withZero := NewLabeledUnicast(fam, prefix, []uint32{100}, 0, true)
 	assert.Equal(t, "prefix 10.0.0.0/8 label 100 path-id 0", withZero.String())
-	assert.True(t, withZero.HasPathID())
+	assert.True(t, withZero.HasAddPath())
 
 	without := NewLabeledUnicast(fam, prefix, []uint32{100}, 0, false)
 	assert.Equal(t, "prefix 10.0.0.0/8 label 100", without.String())
-	assert.False(t, without.HasPathID())
+	assert.False(t, without.HasAddPath())
 }

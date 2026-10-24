@@ -35,6 +35,7 @@ func TestGNMIGetWiring(t *testing.T) {
 	ctx := t.Context()
 
 	resp, err := client.Get(ctx, &gpb.GetRequest{
+		Encoding: gpb.Encoding_JSON_IETF,
 		Path: []*gpb.Path{{
 			Elem: []*gpb.PathElem{
 				{Name: "bgp"},
@@ -69,6 +70,7 @@ func TestGNMIGetNotFoundWiring(t *testing.T) {
 	ctx := t.Context()
 
 	_, err = client.Get(ctx, &gpb.GetRequest{
+		Encoding: gpb.Encoding_JSON_IETF,
 		Path: []*gpb.Path{{
 			Elem: []*gpb.PathElem{
 				{Name: "nonexistent"},
@@ -112,7 +114,8 @@ func TestGNMISubscribeOnceWiring(t *testing.T) {
 	err = stream.Send(&gpb.SubscribeRequest{
 		Request: &gpb.SubscribeRequest_Subscribe{
 			Subscribe: &gpb.SubscriptionList{
-				Mode: gpb.SubscriptionList_ONCE,
+				Encoding: gpb.Encoding_JSON_IETF,
+				Mode:     gpb.SubscriptionList_ONCE,
 			},
 		},
 	})

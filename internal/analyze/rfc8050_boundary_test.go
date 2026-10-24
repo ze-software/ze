@@ -19,6 +19,7 @@ import (
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/mrt"
 	mrtplugin "github.com/ze-software/ze/internal/plugins/mrt"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // The recorder legitimately selects AP from the empty IPv6 family. These five
@@ -35,7 +36,7 @@ func TestMRTEmptyMPFamilyRequiresContext(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "empty-family.mrt")
 	recorder := mrtplugin.New(mrtplugin.Config{AllPath: path}, nil)
 	recorder.Start(nil)
-	recorder.OnBGPMessage(&plugin.PeerInfo{Address: netip.MustParseAddr("192.0.2.1"), LocalAddress: netip.MustParseAddr("192.0.2.2"), PeerAS: 65000, LocalAS: 65001, MessageContextID: ctx}, msgtype.TypeUPDATE, false, wire.Bytes)
+	recorder.OnBGPMessage(&plugin.PeerInfo{Address: netip.MustParseAddr("192.0.2.1"), LocalAddress: netip.MustParseAddr("192.0.2.2"), PeerAS: rpc.RemoteASOf(65000), LocalAS: 65001, MessageContextID: ctx}, msgtype.TypeUPDATE, false, wire.Bytes)
 	recorder.Stop()
 	record, err := os.ReadFile(path)
 	if err != nil {

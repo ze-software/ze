@@ -7,7 +7,7 @@
     "claim-sha": "43fabd26752654f4",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/nlri/mup/types.go::parseBodyT1ST",
-    "producer-sha": "67b23c39431ab0fb",
+    "producer-sha": "31ace49c7adea703",
     "break": "body of parseBodyT1ST replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   },
   {
@@ -18,7 +18,7 @@
     "claim-sha": "2b2520fb140f7200",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/nlri/mup/types.go::parseBodyT1ST",
-    "producer-sha": "67b23c39431ab0fb",
+    "producer-sha": "31ace49c7adea703",
     "break": "body of parseBodyT1ST replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   }
 ]

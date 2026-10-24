@@ -1,6 +1,7 @@
 package bgp
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/ze-software/ze/internal/core/bgp/routeaction"
@@ -34,7 +35,9 @@ func TestParseEvent_ZeBGPUpdateFormat(t *testing.T) {
 	assert.Equal(t, uint64(42), event.GetMsgID())
 	assert.Equal(t, "received", event.GetDirection())
 	assert.Equal(t, "10.0.0.1", event.GetPeerAddress())
-	assert.Equal(t, uint32(65001), event.GetPeerASN())
+	peerAS, err := event.GetPeerASN()
+	require.NoError(t, err)
+	assert.Equal(t, rpc.RemoteASOf(65001), peerAS)
 	assert.Equal(t, "igp", event.Origin)
 	assert.Equal(t, []uint32{65001}, event.ASPath)
 
@@ -295,7 +298,9 @@ func TestParseEvent_PeerFormats(t *testing.T) {
 			event, err := ParseEvent([]byte(tt.input))
 			require.NoError(t, err)
 			assert.Equal(t, tt.addr, event.GetPeerAddress())
-			assert.Equal(t, tt.asn, event.GetPeerASN())
+			peerAS, err := event.GetPeerASN()
+			require.NoError(t, err)
+			assert.Equal(t, rpc.RemoteASOf(tt.asn), peerAS)
 		})
 	}
 }
@@ -370,16 +375,18 @@ func TestRouteKey(t *testing.T) {
 		family string
 		prefix string
 		pathID uint32
+		has    bool
 		want   string
 	}{
-		{"no path-id", "ipv4/unicast", "10.0.0.0/24", 0, "ipv4/unicast:10.0.0.0/24"},
-		{"with path-id", "ipv4/unicast", "10.0.0.0/24", 42, "ipv4/unicast:10.0.0.0/24:42"},
-		{"ipv6", "ipv6/unicast", "2001:db8::/32", 0, "ipv6/unicast:2001:db8::/32"},
+		{"no path-id", "ipv4/unicast", "10.0.0.0/24", 0, false, "ipv4/unicast:10.0.0.0/24"},
+		{"with path-id", "ipv4/unicast", "10.0.0.0/24", 42, true, "ipv4/unicast:10.0.0.0/24:42"},
+		{"path-id zero", "ipv4/unicast", "10.0.0.0/24", 0, true, "ipv4/unicast:10.0.0.0/24:0"},
+		{"ipv6", "ipv6/unicast", "2001:db8::/32", 0, false, "ipv6/unicast:2001:db8::/32"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := RouteKey(tt.family, tt.prefix, tt.pathID)
+			got := RouteKey(tt.family, tt.prefix, tt.pathID, tt.has)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -498,4 +505,26 @@ func TestGetPeerRouterID_Boundaries(t *testing.T) {
 			assert.Equal(t, tt.want, event.GetPeerRouterID())
 		})
 	}
+}
+
+// TestGetPeerASNWithoutRemoteASIsUnknown proves that a peer object with no
+// remote.as, which format.appendPeerJSON writes while a dynamic peer's AS is
+// not yet negotiated, decodes as an unknown AS rather than AS 0.
+func TestGetPeerASNWithoutRemoteASIsUnknown(t *testing.T) {
+	event := &Event{Peer: json.RawMessage(`{"remote":{"address":"10.0.0.1"},"local":{"address":"10.0.0.2","as":65001}}`)}
+	peerAS, err := event.GetPeerASN()
+	require.NoError(t, err)
+	_, known := peerAS.ASN()
+	assert.False(t, known, "a peer object without remote.as must not name an AS")
+}
+
+// TestGetPeerASNUnreadablePeerIsAnError proves that a peer member the decoder
+// cannot read is reported as an error, never as the unknown AS a readable
+// member without remote.as means: "unreadable" and "not yet negotiated" are
+// two answers, and a caller that refuses an unknown AS must still learn the
+// event itself was malformed.
+func TestGetPeerASNUnreadablePeerIsAnError(t *testing.T) {
+	event := &Event{Peer: json.RawMessage(`{"remote":{"as":"not-a-number"}}`)}
+	_, err := event.GetPeerASN()
+	require.Error(t, err, "an unreadable peer member must be an error")
 }

@@ -40,9 +40,19 @@ func TestShowVPP_RegisteredWireMethods(t *testing.T) {
 	}
 }
 
+// TestVPPHealthCheckSocketMissing proves that a VPP backend whose configured
+// API socket does not exist reads down, with the path, the cause and the
+// command that diagnoses it. Method: point the running vpp component at a
+// socket path nothing created and run the check. The check stats the socket
+// the vpp component dials (`vpp { api-socket }`), never a hardcoded path.
 func TestVPPHealthCheckSocketMissing(t *testing.T) {
-	status, _ := checkVPPHealth()
-	assert.Equal(t, health.StatusHealthy, status, "healthy when VPP socket does not exist")
+	missing := filepath.Join(t.TempDir(), "api.sock")
+	withActiveVPPSocket(t, missing, true)
+
+	status, reason := checkVPPHealth()
+	assert.Equal(t, health.StatusDown, status, "a VPP backend with no API socket has no data plane")
+	assert.Contains(t, reason, missing, "the reason names the configured socket")
+	assert.Contains(t, reason, "ze doctor", "the reason names the command that diagnoses it")
 }
 
 func vppWireguardTree(backend string, pluginEnabled bool) *config.Tree {

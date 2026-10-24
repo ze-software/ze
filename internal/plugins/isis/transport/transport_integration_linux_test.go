@@ -314,7 +314,7 @@ func TestISISTransportMTUExpose(t *testing.T) {
 			gotLocal, gotNeighbor = localMTU, neighborMTU
 		})
 		// Simulate a neighbor that padded its Hello to a 1492-byte link.
-		tr.ObserveNeighborFrame(vethA, FrameHeaderLen+(1492-LLCHeaderLen))
+		tr.observeNeighborFrame(vethA, FrameHeaderLen+(1492-LLCHeaderLen))
 		if !fired {
 			t.Fatal("MTU mismatch not surfaced")
 		}

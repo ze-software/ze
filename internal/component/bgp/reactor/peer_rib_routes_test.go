@@ -50,7 +50,7 @@ func bigCommunities(n int) attribute.Communities {
 // PREVENTS: the cross-session disclosure and the last-slot panic on the rail the
 // round-1 and round-2 fixes never touched.
 func TestBuildRIBRouteUpdate_RejectsAttributesTooLargeForBuildBuffer(t *testing.T) {
-	n := nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0)
+	n := nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0, false)
 	route := rib.NewRouteWithASPath(n, netip.MustParseAddr("10.0.0.1"),
 		[]attribute.Attribute{bigCommunities(400)}, // 1600 octets
 		&attribute.ASPath{Segments: []attribute.ASPathSegment{{Type: attribute.ASSequence, ASNs: []uint32{65001}}}})
@@ -80,7 +80,7 @@ func TestBuildRIBRouteUpdate_RejectsAttributesTooLargeForBuildBuffer(t *testing.
 // region, even though they fit within len(attrBuf).
 // PREVENTS: an UPDATE announcing a prefix built from overwritten bytes.
 func TestBuildRIBRouteUpdate_AttributesNeverReachTheNLRIRegion(t *testing.T) {
-	n := nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0)
+	n := nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0, false)
 	nlriLen := nlri.LenWithContext(n, false)
 	require.Equal(t, 4, nlriLen, "fixture assumes a 4-octet /24 NLRI")
 
@@ -124,7 +124,7 @@ func TestBuildRIBRouteUpdate_AttributesNeverReachTheNLRIRegion(t *testing.T) {
 // VALIDATES: buildWithdrawNLRI returns nil rather than writing past its regions.
 // PREVENTS: a panic, and an overlapping copy silently corrupting an MP withdrawal.
 func TestBuildWithdrawNLRI_RejectsNLRITooLargeForItsRegion(t *testing.T) {
-	v6 := nlri.NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8::1/128"), 0)
+	v6 := nlri.NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8::1/128"), 0, false)
 
 	t.Run("mp-nlri-past-the-tail-region", func(t *testing.T) {
 		// 2048 + 17 > 2050: the NLRI does not fit above nlriRegion.
@@ -139,7 +139,7 @@ func TestBuildWithdrawNLRI_RejectsNLRITooLargeForItsRegion(t *testing.T) {
 	})
 
 	t.Run("ipv4-into-a-buffer-shorter-than-the-nlri", func(t *testing.T) {
-		v4 := nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0)
+		v4 := nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0, false)
 		assert.Nil(t, buildWithdrawNLRI(make([]byte, 2), v4, false),
 			"an NLRI longer than the whole buffer must be rejected, not written past len")
 	})

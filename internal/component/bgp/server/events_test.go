@@ -504,7 +504,7 @@ func TestStateChangeRespectsEncoding(t *testing.T) {
 
 	peer := plugin.PeerInfo{
 		Address: netip.MustParseAddr("10.0.0.1"),
-		PeerAS:  65001,
+		PeerAS:  rpc.RemoteASOf(65001),
 	}
 
 	// Verify FormatStateChange produces correct output per encoding.

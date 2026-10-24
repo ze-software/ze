@@ -156,6 +156,14 @@ restored MPLS fallback requiring another configured table is refused.
 
 <!-- source: internal/plugins/fib/vpp/srv6_state.go -- restore, loadState, sameSRv6Policy -->
 <!-- source: internal/plugins/fib/vpp/register.go -- srv6OwnershipKey, runFibVPPPlugin -->
+
+The VPP writer exists only when VPP answers. With no vpp connector, or a GoVPP
+channel that will not open, `fib-vpp` programs nothing and logs `no route is
+programmed into VPP`, rather than running a no-op backend that reported every
+route installed; the Connected and Reconnected events retry, and the replay
+then installs every route. Meanwhile `show fib vpp` refuses with the cause
+instead of answering an empty list.
+<!-- source: internal/plugins/fib/vpp/register.go -- openFibVPPWriter, answerShowFibVPP -->
 <!-- source: internal/plugins/fib/vpp/srv6_fallback.go -- reserveState, checkpointSRv6Fallback, beginSRv6Fallback, finishSRv6Fallback -->
 <!-- source: internal/plugins/fib/vpp/backend.go -- addRichRouteInTable, delRouteInTable, errVPPMutationUncertain -->
 

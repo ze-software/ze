@@ -105,7 +105,7 @@ func TestUpdateDelayEstablishWaitOverMaxDelayRefused(t *testing.T) {
 // startup door: the whole reactor build fails rather than silently dropping the
 // leaf.
 func TestUpdateDelayEstablishWaitOverMaxDelayRefusedAtLoad(t *testing.T) {
-	_, err := LoadReactor(updateDelayConfig(`
+	_, err := loadReactor(updateDelayConfig(`
     update-delay {
         max-delay 30;
         establish-wait 40;
@@ -141,8 +141,8 @@ func TestUpdateDelayBoundaries(t *testing.T) {
 			text := updateDelayConfig("    update-delay { " + tc.block + " }")
 			// The YANG range refuses some of these before the parser sees them,
 			// and the cross-leaf rule refuses the rest. Both are the daemon
-			// saying no, and LoadReactor is where an operator meets either.
-			_, err := LoadReactor(text)
+			// saying no, and loadReactor is where an operator meets either.
+			_, err := loadReactor(text)
 			if tc.valid {
 				require.NoError(t, err, "the config must be accepted")
 				return

@@ -85,10 +85,10 @@ func subscribeStore(bus ze.EventBus, s *store) (unsubscribe func()) {
 }
 
 // startStaleSweep starts the one worker goroutine that finalizes incidents which
-// never received an AttackCleared. The detector emits Cleared with an empty
-// target, so an incident opened against a resolved victim is never matched by
-// it, and a detector that is reconfigured or stopped mid-attack emits no Cleared
-// at all. This sweep is the only path that closes those incidents, and
+// never received an AttackCleared. The detector's Cleared carries the target its
+// Detected carried, so finalize closes the incident that Detected opened, but a
+// detector that is reconfigured or stopped mid-attack emits no Cleared at all.
+// This sweep is the only path that closes those incidents, and
 // stale-incident-timeout is the age at which it does.
 //
 // The caller MUST call the returned stop exactly once. stop closes the worker's

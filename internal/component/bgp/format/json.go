@@ -45,13 +45,19 @@ func NewJSONEncoder(_ string) *JSONEncoder {
 }
 
 // peerMap builds the "peer" JSON object from PeerInfo.
-// Both local and remote are always present with address + as.
+// Both local and remote are always present with an address. Each carries its
+// as, except remote while a dynamic peer's AS is not yet negotiated.
 func peerMap(peer *plugin.PeerInfo) map[string]any {
 	localAddr := ""
 	if peer.LocalAddress.IsValid() {
 		localAddr = peer.LocalAddrStr()
 	}
-	remote := map[string]any{"address": peer.AddrStr(), "as": peer.PeerAS}
+	remote := map[string]any{"address": peer.AddrStr()}
+	// Absent, not 0, while a dynamic peer's AS is not yet negotiated
+	// (rpc.RemoteAS), as appendPeerJSON writes it.
+	if asn, known := peer.PeerAS.ASN(); known {
+		remote["as"] = asn
+	}
 	m := map[string]any{
 		"name":   peer.Name,
 		"local":  map[string]any{"address": localAddr, "as": peer.LocalAS},

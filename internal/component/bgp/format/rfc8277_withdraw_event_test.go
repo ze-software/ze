@@ -11,6 +11,7 @@ import (
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
@@ -52,7 +53,7 @@ func labeledWithdrawEvent(t *testing.T, compat [3]byte, addPath bool, pathID byt
 		AttrsWire:  attrsWire,
 		WireUpdate: wu,
 	}
-	peer := plugin.PeerInfo{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001}
+	peer := plugin.PeerInfo{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: rpc.RemoteASOf(65001)}
 	content := bgptypes.ContentConfig{Encoding: plugin.EncodingJSON, Format: plugin.FormatParsed}
 	return string(AppendMessage(nil, &peer, msg, content))
 }
@@ -131,7 +132,7 @@ func labeledWithdrawEventFor(t *testing.T, withdrawn []byte) string {
 		AttrsWire:  attrsWire,
 		WireUpdate: wu,
 	}
-	peer := plugin.PeerInfo{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001}
+	peer := plugin.PeerInfo{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: rpc.RemoteASOf(65001)}
 	content := bgptypes.ContentConfig{Encoding: plugin.EncodingJSON, Format: plugin.FormatParsed}
 	return string(AppendMessage(nil, &peer, msg, content))
 }

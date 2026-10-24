@@ -202,6 +202,8 @@ about the last cycle and not a preference.
 
 <!-- source: internal/component/bgp/fsm/state.go -- EventAutomaticStart, EventAutomaticStartWithDampPeerOscillations, EventAutomaticStop, EventOpenCollisionDump -->
 <!-- source: internal/component/bgp/reactor/peer_run.go -- runOnce -->
+
+The `plugin.PeerInfo` that `runOnce` builds for the session's wire observers carries the peer's AS as `rpc.RemoteAS`: a dynamic peer's settings hold 0 until its OPEN is negotiated, and `rpc.RemoteASOf` turns that 0 into the not-yet-known state, so an observer of the OPEN exchange sees `remote as unknown` (text) or no `remote.as` (JSON), never AS 0. See [peer lifecycle](peer-lifecycle.md).
 <!-- source: internal/component/bgp/reactor/session_connection.go -- teardownAutomatic, CloseWithNotification -->
 
 ### The six BFD strict-mode events
@@ -249,6 +251,9 @@ waiting, so a peer that is not carries none.
 
 <!-- source: internal/component/bgp/reactor/peer_bfd.go -- bfdSubState -->
 <!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- handleBgpPeerDetail, fieldBFDSubState -->
+
+`show bgp peer detail` and `show bgp peer list` leave the `remote-as` field out of a peer's row while a dynamic peer's AS is not yet negotiated, as the JSON events omit `remote.as`, rather than showing AS 0. An AS selector matches no such peer.
+<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- setRemoteAS, handleBgpPeerList, filterPeersBySelectorValue -->
 
 <!-- source: internal/component/bgp/fsm/state.go -- BfdSubState, SubStateOpenSentBfdUpPending, SubStateOpenSentConfirmedBfdUpPending -->
 <!-- source: internal/component/bgp/fsm/fsm.go -- EnterBfdUpPending, handleOpenSent -->

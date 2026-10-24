@@ -41,7 +41,9 @@ and never writes to them.
   so every public field name can end in `-bytes`. Skipping that conversion
   reports 8 GB of memory as "8053028 bytes".
 - Temperatures stay in millicelsius, the kernel hwmon convention. The field
-  names carry an explicit `-mc` suffix.
+  names carry an explicit `-mc` suffix. A reading of 0 is a reading: a channel
+  is present because its file parsed, never because its value is non-zero, and
+  one that cannot be read is named in the thermal section's `errors` instead.
 - `cpu_capacity` values are not standard across kernel versions. The classifier
   compares against the maximum seen (maximum is a performance core, anything
   lower is efficiency) rather than hardcoding the values one generation

@@ -1,6 +1,6 @@
 # Test: ze show host storage returns block-device inventory JSON without a daemon
 # VALIDATES: offline fallback -- `show host storage` runs the in-process
-#            host.DetectStorage when no daemon is reachable, producing JSON
+#            host.DetectSection("storage") when no daemon is reachable, producing JSON
 #            with a devices array whose entries carry the always-present
 #            size-bytes and rotational fields sourced from /sys/block.
 # PREVENTS: regressions where show host storage silently requires a daemon,

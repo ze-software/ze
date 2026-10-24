@@ -13,7 +13,7 @@ import (
 func testRoute(prefix string) *rib.Route {
 	p := netip.MustParsePrefix(prefix)
 	fam := family.IPv4Unicast
-	n := nlri.NewINET(fam, p, 0)
+	n := nlri.NewINET(fam, p, 0, false)
 	nh := netip.MustParseAddr("1.2.3.4")
 	return rib.NewRouteWithASPath(n, nh, nil, nil)
 }
@@ -22,7 +22,7 @@ func testRoute(prefix string) *rib.Route {
 func testNLRI(prefix string) nlri.NLRI {
 	p := netip.MustParsePrefix(prefix)
 	fam := family.IPv4Unicast
-	return nlri.NewINET(fam, p, 0)
+	return nlri.NewINET(fam, p, 0, false)
 }
 
 // TestTransaction_QueueAnnounce verifies route queuing in transactions.
@@ -120,10 +120,10 @@ func TestTransaction_AddPathPreservation(t *testing.T) {
 			replacementHop := netip.MustParseAddr("192.0.2.2")
 			tx := NewTransaction("paths", "*")
 			for _, pathID := range []uint32{0xffffffff, 256, 0, 7} {
-				n := nlri.NewINET(tt.family, prefix, pathID)
+				n := nlri.NewINET(tt.family, prefix, pathID, true)
 				tx.QueueAnnounce(rib.NewRouteWithASPath(n, nextHop, nil, nil))
 			}
-			replacement := nlri.NewINET(tt.family, prefix, 0)
+			replacement := nlri.NewINET(tt.family, prefix, 0, false)
 			tx.QueueAnnounce(rib.NewRouteWithASPath(replacement, replacementHop, nil, nil))
 
 			routes := tx.Routes()
@@ -153,11 +153,11 @@ func TestTransaction_AddPathCancellation(t *testing.T) {
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
 	nextHop := netip.MustParseAddr("192.0.2.1")
 	for _, pathID := range []uint32{0, 7, 8} {
-		n := nlri.NewINET(family.IPv4Unicast, prefix, pathID)
+		n := nlri.NewINET(family.IPv4Unicast, prefix, pathID, true)
 		tx.QueueAnnounce(rib.NewRouteWithASPath(n, nextHop, nil, nil))
 	}
-	tx.QueueWithdraw(nlri.NewINET(family.IPv4Unicast, prefix, 7))
-	tx.QueueWithdraw(nlri.NewINET(family.IPv4Unicast, prefix, 9))
+	tx.QueueWithdraw(nlri.NewINET(family.IPv4Unicast, prefix, 7, true))
+	tx.QueueWithdraw(nlri.NewINET(family.IPv4Unicast, prefix, 9, true))
 	routes := tx.Routes()
 	if len(routes) != 2 {
 		t.Fatalf("got %d announcements after withdrawal, want 2", len(routes))
@@ -173,10 +173,10 @@ func TestTransaction_AddPathCancellation(t *testing.T) {
 		t.Fatal("withdrawals lost their path identities")
 	}
 
-	reannounced := nlri.NewINET(family.IPv4Unicast, prefix, 7)
+	reannounced := nlri.NewINET(family.IPv4Unicast, prefix, 7, true)
 	tx.QueueAnnounce(rib.NewRouteWithASPath(reannounced, nextHop, nil, nil))
-	tx.QueueWithdraw(nlri.NewINET(family.IPv4Unicast, prefix, 9))
-	tx.QueueWithdraw(nlri.NewINET(family.IPv4Unicast, prefix, 0))
+	tx.QueueWithdraw(nlri.NewINET(family.IPv4Unicast, prefix, 9, true))
+	tx.QueueWithdraw(nlri.NewINET(family.IPv4Unicast, prefix, 0, false))
 	routes = tx.Routes()
 	if len(routes) != 2 {
 		t.Fatalf("got %d announcements after reannouncement, want 2", len(routes))
@@ -200,7 +200,7 @@ func TestTransaction_RouteOrder(t *testing.T) {
 		prefix := netip.MustParsePrefix("10.0.0.0/24")
 		nextHop := netip.MustParseAddr("192.0.2.1")
 		for _, pathID := range pathIDs {
-			n := nlri.NewINET(family.IPv4Unicast, prefix, pathID)
+			n := nlri.NewINET(family.IPv4Unicast, prefix, pathID, true)
 			tx.QueueAnnounce(rib.NewRouteWithASPath(n, nextHop, nil, nil))
 		}
 		for range 10 {

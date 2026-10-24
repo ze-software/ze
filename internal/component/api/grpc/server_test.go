@@ -797,7 +797,7 @@ func TestGRPCAuthenticator(t *testing.T) {
 	var seenUser string
 	exec := func(_ context.Context, auth api.CallerIdentity, _ string) (*plugin.Response, error) {
 		seenUser = auth.Username
-		return plugin.NewResponse(api.StatusDone, plugin.RawJSON(`"ok"`)), nil
+		return plugin.NewResponse(api.StatusDone, plugin.RawJSON(`{"result":"ok"}`)), nil
 	}
 	cmds := func() ([]api.CommandMeta, error) { return nil, nil }
 	auth := func(_, _ string) bool { return true }

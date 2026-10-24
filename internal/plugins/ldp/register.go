@@ -325,8 +325,13 @@ func runLDPEngine(conn net.Conn) int {
 		// FEC and program its egress pop now; the bindings are advertised to each
 		// session once it reaches the operational state.
 		for _, fec := range localFECs(cfg.LSRID, connectedPrefixes(cfg.Interfaces, log)) {
-			lb := lib.EnsureLocal(fec)
-			fib.ProgramPop(fec, lb.Label)
+			lb, err := lib.EnsureLocal(fec)
+			if err != nil {
+				log.Error("ldp: FEC not originated: no local label is free, and RFC 3031 Section 3.14 forbids sharing one; originate fewer FECs (fewer connected prefixes on LDP interfaces)",
+					"fec", fec, "error", err)
+				continue
+			}
+			fib.programPop(fec, lb.Label)
 		}
 
 		startFn := func(ifctx context.Context, ifName string, c ldpConfig) {
@@ -390,7 +395,7 @@ func runLDPEngine(conn net.Conn) int {
 	// fib-kernel does not retain stale AF_MPLS state after the engine exits.
 	if fib != nil {
 		for _, lb := range lib.localBindings() {
-			fib.RemovePop(lb.FEC, lb.Label)
+			fib.removePop(lb.FEC, lb.Label)
 		}
 	}
 

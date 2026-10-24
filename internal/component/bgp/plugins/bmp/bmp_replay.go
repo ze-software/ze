@@ -115,7 +115,10 @@ func (bp *BMPPlugin) cacheAdjSections(st *peerUpState, se *rpc.StructuredEvent, 
 		return err
 	}
 	ctx := bgpctx.Registry.Get(wu.SourceCtxID())
-	peer := peerHeaderFromEvent(se)
+	peer, err := peerHeaderFromEvent(se)
+	if err != nil {
+		return err
+	}
 	if st.routes == nil {
 		st.routes = make(map[adjRouteKey]*adjRoute)
 	}

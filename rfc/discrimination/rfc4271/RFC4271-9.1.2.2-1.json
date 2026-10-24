@@ -84,7 +84,7 @@
     "claim-sha": "387cc2d40cba20af",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange",
-    "producer-sha": "a5957db57472ecce",
+    "producer-sha": "88acffb0c877e485",
     "break": "body of checkRouteBestChange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   }
 ]

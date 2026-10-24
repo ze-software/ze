@@ -402,15 +402,12 @@ func runSysctlPlugin(conn net.Conn) int {
 			}
 			return statusDone, describeProfile(args[0]), nil
 		case "set sysctl":
-			if len(args) < 2 {
-				return statusError, "", errSysctlSetRequiresKeyAndValue
-			}
-			applied, err := s.setTransient(args[0], args[1])
+			applied, err := answerSetSysctl(s, args)
 			if err != nil {
-				return statusError, "", fmt.Errorf("sysctl set %s: %w", args[0], err)
+				return statusError, "", err
 			}
-			if applied != "" && eb != nil {
-				if _, emitErr := eb.Emit(sysctlevents.Namespace, sysctlevents.EventApplied, applied); emitErr != nil {
+			if eb != nil {
+				if _, emitErr := eb.Emit(sysctlevents.Namespace, sysctlevents.EventApplied, string(applied)); emitErr != nil {
 					log.Debug("sysctl: applied emit failed", "err", emitErr)
 				}
 			}
@@ -441,6 +438,21 @@ func runSysctlPlugin(conn net.Conn) int {
 	s.restoreAll()
 
 	return 0
+}
+
+// answerSetSysctl applies `set sysctl <key> <value>` as a transient value and
+// answers the applied event object. It is a json.RawMessage because the
+// payload is already encoded: handed over as a Go string it would marshal to a
+// JSON string scalar, which no format renders and plugin.RawJSON refuses.
+func answerSetSysctl(s *store, args []string) (json.RawMessage, error) {
+	if len(args) < 2 {
+		return nil, errSysctlSetRequiresKeyAndValue
+	}
+	applied, err := s.setTransient(args[0], args[1])
+	if err != nil {
+		return nil, fmt.Errorf("sysctl set %s: %w", args[0], err)
+	}
+	return json.RawMessage(applied), nil
 }
 
 // commandDecls names the commands this plugin serves and states what each

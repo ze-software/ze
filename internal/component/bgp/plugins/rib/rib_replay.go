@@ -503,7 +503,7 @@ func formatCursorCommands(g *replayGroup, prev *Route) []string {
 	} else {
 		tb.Str("mp ").Str(g.Family.String())
 	}
-	if g.Route.AddPath || g.PathID != 0 {
+	if g.Route.AddPath {
 		tb.Str(" path-information ").Uint32(g.PathID)
 	}
 	tb.Str(" add")

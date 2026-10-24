@@ -57,7 +57,13 @@ record and is removed on withdrawal or peer purge. Ordinary CIDR records remain
 pointer-free and carry no label snapshot.
 
 <!-- source: internal/component/bgp/plugins/rib/rib_validation.go -- receivedFamilyAttrs, reconcileReceived, reconcileReceivedNLRIs -->
+A negotiated family with no registered `nlrisplit` splitter (a family an
+external plugin registered at runtime) cannot be stored. Its routes are not
+stored, selected or re-sent, and the RIB says so at Warn once per peer and
+family, naming the fix, on both receive paths (`reportUnstorableFamily`).
+
 <!-- source: internal/component/bgp/plugins/rib/rib.go -- handleReceivedPool, insertPoolNLRIs -->
+<!-- source: internal/component/bgp/plugins/rib/rib_unstorable.go -- reportUnstorableFamily -->
 <!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- bestPrevStore, checkRouteBestChange, purgeBestPrevForPeer -->
 
 ### Adj-RIB-Out native inventory
@@ -964,6 +970,21 @@ left out are deleted before the next read, which costs the owner one empty page.
 <!-- source: internal/component/bgp/plugins/adj_rib_in/rib.go -- handleReceived, buildReplayRoutes, walkReplayRoutes -->
 <!-- source: internal/component/bgp/plugins/adj_rib_in/replay_page.go -- buildReplayPage -->
 
+### Selecting a session by its name
+
+`bgp-rib` keys every BGP session by its address, in `bgpPeers`, `ribOut` and
+`peerUp`. A peer selector that names a session (`show bgp rib received peer
+injector`, and the `request bgp rib` actions that take a selector) cannot be
+answered from an address, so `selector.Matches` answers false for it. The RIB
+records the configured name each state event carries (`StructuredEvent.PeerName`,
+or `peer.name` in a JSON event) in `peerNames`, and `selectsPeer` matches a name
+selector against it. Like `peerUp`, the record outlives the session, so a name
+still selects a down session's retained and sent routes. A session configured
+with no name is selected by no name, the way `show bgp` lists it under its
+address. Before 2026-10-23 every name selector matched nothing, and `show bgp
+rib received peer <name>` answered 0 routes for a session holding routes.
+<!-- source: internal/component/bgp/plugins/rib/rib_peer_name.go -- recordPeerName, selectsPeer -->
+
 ### Validation eligibility
 
 `bgp-adj-rib-in` retains the received wire attributes, next hop and NLRI when a
@@ -1279,12 +1300,21 @@ PeerIdx, NextHopIdx, Flags bit 0 = isEBGP) packed into one scalar. The
 three index fields resolve through a shared `bestPrevInterner` on the
 RIBManager (one interner across every family's `bestPrevStore`), which
 dedupes peer addresses, next-hops, and received MED/AIGP tuples to dense uint16
-indices. The hot-path same-best check is a single `uint64` equality;
-emission resolves indices back to their original values via reverse
+indices. The hot-path same-best check compares that `uint64`, the path
+identifier, and the winner's attribute fingerprint
+(`storage.RouteEntry.AttrFingerprint`, an FNV-1a hash of the received
+attribute bytes) that `bestPrevRecord` keeps beside it. Without the
+fingerprint, a re-announcement that changed only an attribute (a COMMUNITY,
+a LOCAL_PREF) under the same winner published no best change, and BMP's
+Loc-RIB kept the old set. A pool handle cannot stand in for the fingerprint:
+handles are reused once released, and the record holds no reference. A zero
+fingerprint means "not known" (an entry rewritten in place clears it) and
+never compares equal, so the change is published. The record is 24 bytes per
+prefix. Emission resolves indices back to their original values via reverse
 tables. BART fringe nodes are opaque to GC because the stored value
 carries no pointers -- the motivation for the pack is cutting GC scan
 time at 1M-prefix scale.
-<!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- bestPathRecord uint64 + bestPrevInterner -->
+<!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- bestPathRecord uint64 + bestPrevInterner, bestPrevRecord, sameAttributeSet -->
 
 
 ### ADD-PATH Support (RFC 7911)
@@ -1816,12 +1846,28 @@ row `show bgp rib best last N` produced but the final one would be encoded from
 a released slot. `applyBestStages` is where the ring is given its reference and
 where the release it owes is returned to the caller.
 
-`show bgp rib` is NOT built on any of this. It holds `peerMu.RLock` across its
-whole drain and returns one document, so it writes nothing to a socket under the
-lock, and its adj-rib-in handles are covered by nothing at all.
+`show bgp rib` holds `peerMu.RLock` only to build its sources
+(`newShowSource`). Each source then materializes one peer at a time: the
+adj-rib-in half retains every entry it buffers inside the PeerRIB walk, and the
+adj-rib-out half takes `peerMu` again for each peer. No lock is held while a row
+is serialized or yielded.
+
+**A received row says whether its path won.** After a peer's walk has given the
+PeerRIB lock back, `markBestFacts` looks each buffered CIDR row up in the
+`bestPrev` store under that prefix's shard read lock, and the row carries
+`best`: `true` when the recorded winner names this peer and, under ADD-PATH,
+this path identifier, `false` otherwise or when no winner is recorded. The
+lookup MUST run with no other lock held, because an election takes the shard
+lock before `peerMu` and the PeerRIB lock; a lookup made inside the walk, or
+under `peerMu`, would wait behind a queued writer that is itself waiting on the
+election. A protocol RIB's rows answer `false`, because its routes never enter
+the election. A non-CIDR row carries no `best`: its winner is keyed by wire
+NLRI, which the row no longer holds, and an absent member says the RIB could
+not tell, where `false` would claim it lost. Sent rows carry none either.
 <!-- source: internal/component/bgp/plugins/rib/storage/peerrib.go -- LookupRetained -->
 <!-- source: internal/component/bgp/plugins/rib/rib_pipeline_best.go -- bestPipeline, bestPathRows, bestSource, applyBestStages -->
-<!-- source: internal/component/bgp/plugins/rib/rib_pipeline.go -- showPipeline, inboundSource, lastFilter -->
+<!-- source: internal/component/bgp/plugins/rib/rib_pipeline.go -- showPipeline, newShowSource, inboundSource, lastFilter -->
+<!-- source: internal/component/bgp/plugins/rib/rib_pipeline_bestfact.go -- markBestFacts, bestFactOf, writeBestFact -->
 
 ### Example: IPv4 Unicast
 

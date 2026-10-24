@@ -307,6 +307,14 @@ Three methods take this path:
 <!-- source: internal/component/plugin/server/dispatch_registry.go -- serveEngineOpJSON, recordAnswer.write -->
 <!-- source: pkg/plugin/sdk/sdk_dispatch.go -- Plugin.answerExecuteCommand -->
 
+A dispatched command whose response the engine cannot build still gets an
+answer. A payload `plugin.RawJSON` refuses, such as a bare JSON string, is one
+case. `WriteAnswer` then writes a head and a terminator whose message names the
+reason, and no record. A message over no record derives to `error`, so the
+plugin reads the failure at once instead of waiting for its own timeout. The
+build error is still returned, so the transport logs that the answer was lost.
+<!-- source: internal/component/plugin/dispatch.go -- WriteAnswer, writeUnbuiltAnswer -->
+
 Every other engine op returns its own typed output on one line, and so does
 every startup RPC.
 

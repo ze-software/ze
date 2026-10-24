@@ -101,6 +101,9 @@ func setModuleSetting(p *Profile, module string, args []string) int {
 			stderrLine("usage: set debug module <name> level <level>")
 			return 1
 		}
+		if refusedTrailingWords(args, 2, "set debug module <name> level <level>") {
+			return 1
+		}
 		level := args[1]
 		if !slogutil.ValidateLevel(level) {
 			var tb textbuf.Buffer
@@ -113,6 +116,9 @@ func setModuleSetting(p *Profile, module string, args []string) int {
 	if keyword == "flag" {
 		if len(args) < 2 {
 			stderrLine("usage: set debug module <name> flag <flag>")
+			return 1
+		}
+		if refusedTrailingWords(args, 2, "set debug module <name> flag <flag>") {
 			return 1
 		}
 		flag := args[1]
@@ -135,6 +141,9 @@ func setModuleSetting(p *Profile, module string, args []string) int {
 			stderrLine("usage: set debug module <name> scope <kind> <value>")
 			return 1
 		}
+		if refusedTrailingWords(args, 3, "set debug module <name> scope <kind> <value>") {
+			return 1
+		}
 		kind := args[1]
 		if debugyang.HasModule(module) && !debugyang.ValidateScope(module, kind) {
 			var tb textbuf.Buffer
@@ -149,6 +158,19 @@ func setModuleSetting(p *Profile, module string, args []string) int {
 	var tb textbuf.Buffer
 	stderrLine(tb.Str("unknown debug option: ").Str(keyword).String())
 	return 1
+}
+
+// refusedTrailingWords reports, and answers true for, any word after the
+// `used` words one option consumes. One command sets one option, so a second
+// option written after the first was dropped unreported before this check.
+func refusedTrailingWords(args []string, used int, usage string) bool {
+	if len(args) <= used {
+		return false
+	}
+	var tb textbuf.Buffer
+	stderrLine(tb.Str("error: unexpected word ").Quoted(args[used]).Str(" after ").Join(args[:used], " ").
+		Str(": one command sets one option, so run one command per option (usage: ").Str(usage).Str(")").String())
+	return true
 }
 
 // runDeleteModule handles `delete debug module <name> [flag <f> | scope <k> <v>]`.
@@ -199,6 +221,9 @@ func deleteModuleSetting(p *Profile, module string, args []string) int {
 			stderrLine("usage: delete debug module <name> flag <flag>")
 			return 1
 		}
+		if refusedTrailingWords(args, 2, "delete debug module <name> flag <flag>") {
+			return 1
+		}
 		if p.HasFlag(module, args[1]) {
 			p.toggleFlag(module, args[1])
 		}
@@ -207,6 +232,9 @@ func deleteModuleSetting(p *Profile, module string, args []string) int {
 	if keyword == "scope" {
 		if len(args) < 3 {
 			stderrLine("usage: delete debug module <name> scope <kind> <value>")
+			return 1
+		}
+		if refusedTrailingWords(args, 3, "delete debug module <name> scope <kind> <value>") {
 			return 1
 		}
 		if p.HasScope(module, args[1], args[2]) {

@@ -10,6 +10,7 @@
 package ldp
 
 import (
+	"errors"
 	"net"
 	"net/netip"
 	"testing"
@@ -74,7 +75,7 @@ func TestRFC3031LocalFECsGetDistinctLabels(t *testing.T) {
 	}
 	want := make(map[netip.Prefix]uint32, len(fecs))
 	for _, fec := range fecs {
-		want[fec] = sess.lib.EnsureLocal(fec).Label
+		want[fec] = mustEnsureLocal(t, sess.lib, fec).Label
 	}
 
 	stop := readSessionUp(t, sess, remote)
@@ -106,7 +107,7 @@ func TestRFC3031WrappedAllocatorNeverReissuesALabel(t *testing.T) {
 	}
 	earlyLabels := make(map[netip.Prefix]uint32, len(early))
 	for _, fec := range early {
-		earlyLabels[fec] = sess.lib.EnsureLocal(fec).Label // 16, 17, 18
+		earlyLabels[fec] = mustEnsureLocal(t, sess.lib, fec).Label // 16, 17, 18
 	}
 
 	// Move the counter to the top of the label space, so the next allocations
@@ -122,10 +123,10 @@ func TestRFC3031WrappedAllocatorNeverReissuesALabel(t *testing.T) {
 		netip.MustParsePrefix("10.6.0.0/24"),
 	}
 	for _, fec := range late {
-		sess.lib.EnsureLocal(fec)
+		mustEnsureLocal(t, sess.lib, fec)
 	}
 	for _, fec := range early {
-		if again := sess.lib.EnsureLocal(fec).Label; again != earlyLabels[fec] {
+		if again := mustEnsureLocal(t, sess.lib, fec).Label; again != earlyLabels[fec] {
 			t.Errorf("FEC %s rebound to label %d after the wrap, want its label %d", fec, again, earlyLabels[fec])
 		}
 	}
@@ -181,4 +182,43 @@ func TestApplyRemoteBindingImplicitNull(t *testing.T) {
 	applyRemoteBinding(fib, fec, ImplicitNull, peer, slogutil.DiscardLogger())
 
 	assert.Empty(t, bus.emits, "implicit-null must not program a push entry")
+}
+
+// TestLDPLabelExhaustionRefusesSecondBinding fills the local label space up to
+// its last free value, then binds two FECs. The first takes the last free label,
+// 1048575, the boundary of the 20-bit space. The second finds none free: it must
+// get ErrLabelSpaceExhausted and no binding, never a label the first FEC holds.
+//
+// RFC 3031 Section 3.14: "In all other cases, Rd MUST NOT distribute to Ru
+// bindings of the same label value to two different FECs."
+//
+// RFC requirement: RFC3031-3.14-1 negative -- with every local label from 16 to
+// 1048575 bound, EnsureLocal refuses a further FEC with ErrLabelSpaceExhausted
+// and stores no binding for it, so no label value is bound to two FECs
+// (lib.go LIB.allocateLabelLocked, LIB.EnsureLocal).
+func TestLDPLabelExhaustionRefusesSecondBinding(t *testing.T) {
+	lib := newLIB()
+	for label := uint32(16); label < MaxLabel; label++ {
+		lib.usedLabels[label] = true
+	}
+
+	last := netip.MustParsePrefix("10.1.0.0/24")
+	got := mustEnsureLocal(t, lib, last)
+	if got.Label != MaxLabel {
+		t.Fatalf("last free label: got %d, want %d", got.Label, MaxLabel)
+	}
+
+	over := netip.MustParsePrefix("10.2.0.0/24")
+	b, err := lib.EnsureLocal(over)
+	if !errors.Is(err, ErrLabelSpaceExhausted) {
+		t.Fatalf("EnsureLocal with the space full: label %d, err %v; want ErrLabelSpaceExhausted", b.Label, err)
+	}
+	for _, lb := range lib.localBindings() {
+		if lb.FEC == over {
+			t.Fatalf("a refused FEC was stored with label %d", lb.Label)
+		}
+	}
+	if again := mustEnsureLocal(t, lib, last); again.Label != MaxLabel {
+		t.Fatalf("the bound FEC changed label to %d", again.Label)
+	}
 }

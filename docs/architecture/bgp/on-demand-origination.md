@@ -20,7 +20,9 @@ Every other rail that reaches a peer works the same way.
 and dispatches it, so a redistributed static or OSPF route re-enters through this
 same announce rail. Export policy still applies: `exportFilterForBody` runs the
 destination peer's export chain at the session write gate for every originated
-route.
+route. An announce that reached no peer comes back as zero routes added with no
+error; `InjectRoute` logs that at Warn under `bgp.redistribute`, naming the
+prefix and `ze show bgp peer`, because the route is then not announced.
 
 **Every form names its destination, and every form states
 `RequiresSelector`.** `send bgp <selector> unicast <prefix>` reaches the peers

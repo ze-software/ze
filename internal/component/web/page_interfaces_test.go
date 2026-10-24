@@ -1,6 +1,8 @@
 package web
 
 import (
+	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -54,11 +56,11 @@ func testInterfaces() []iface.InterfaceInfo {
 	}
 }
 
-// TestInterfaceTableData_Build verifies that BuildInterfaceTableData
+// TestInterfaceTableData_Build verifies that buildInterfaceTableData
 // produces correct rows from a list of InterfaceInfo.
 func TestInterfaceTableData_Build(t *testing.T) {
 	infos := testInterfaces()
-	data := BuildInterfaceTableData(infos, "")
+	data := buildInterfaceTableData(infos, "")
 
 	assert.Equal(t, "All Interfaces", data.Title)
 	assert.Len(t, data.Rows, 4)
@@ -71,7 +73,7 @@ func TestInterfaceTableData_Build(t *testing.T) {
 // TestInterfaceTableData_Flags verifies that R/. flags are computed from state.
 func TestInterfaceTableData_Flags(t *testing.T) {
 	infos := testInterfaces()
-	data := BuildInterfaceTableData(infos, "")
+	data := buildInterfaceTableData(infos, "")
 
 	// eth0 is up -> R green
 	assert.Equal(t, "R", data.Rows[0].Flags)
@@ -87,22 +89,22 @@ func TestInterfaceTableData_FilterByType(t *testing.T) {
 	infos := testInterfaces()
 
 	// Filter ethernet.
-	data := BuildInterfaceTableData(infos, "ethernet")
+	data := buildInterfaceTableData(infos, "ethernet")
 	require.Len(t, data.Rows, 1)
 	assert.Equal(t, "eth0", data.Rows[0].Key)
 
 	// Filter bridge.
-	data = BuildInterfaceTableData(infos, "bridge")
+	data = buildInterfaceTableData(infos, "bridge")
 	require.Len(t, data.Rows, 1)
 	assert.Equal(t, "br0", data.Rows[0].Key)
 
 	// Filter tunnel (matches gre type).
-	data = BuildInterfaceTableData(infos, "tunnel")
+	data = buildInterfaceTableData(infos, "tunnel")
 	require.Len(t, data.Rows, 1)
 	assert.Equal(t, "gre0", data.Rows[0].Key)
 
 	// Filter vlan (matches VlanID > 0).
-	data = BuildInterfaceTableData(infos, "vlan")
+	data = buildInterfaceTableData(infos, "vlan")
 	require.Len(t, data.Rows, 1)
 	assert.Equal(t, "eth0.100", data.Rows[0].Key)
 }
@@ -116,7 +118,7 @@ func TestInterfaceTableData_FilterEthernetMatchesKernelDevice(t *testing.T) {
 		{Name: "enp1s0", Type: "device", State: "up", MTU: 1500, MAC: "00:11:22:33:44:55"},
 	}
 
-	data := BuildInterfaceTableData(infos, "ethernet")
+	data := buildInterfaceTableData(infos, "ethernet")
 	require.Len(t, data.Rows, 1)
 	assert.Equal(t, "enp1s0", data.Rows[0].Key)
 	assert.Equal(t, "ethernet", data.Rows[0].Cells[1])
@@ -295,7 +297,7 @@ func requireInterfaceRow(t *testing.T, data WorkbenchTableData, key string) Work
 
 // TestInterfaceTableData_EmptyState verifies empty table renders correctly.
 func TestInterfaceTableData_EmptyState(t *testing.T) {
-	data := BuildInterfaceTableData(nil, "")
+	data := buildInterfaceTableData(nil, "")
 	assert.Empty(t, data.Rows)
 	assert.Equal(t, "No interfaces found.", data.EmptyMessage)
 	assert.NotEmpty(t, data.AddURL)
@@ -303,7 +305,7 @@ func TestInterfaceTableData_EmptyState(t *testing.T) {
 
 // TestInterfaceTableData_EmptyWithFilter verifies empty state with filter.
 func TestInterfaceTableData_EmptyWithFilter(t *testing.T) {
-	data := BuildInterfaceTableData(nil, "ethernet")
+	data := buildInterfaceTableData(nil, "ethernet")
 	assert.Empty(t, data.Rows)
 	assert.Contains(t, data.EmptyMessage, "ethernet")
 }
@@ -394,4 +396,89 @@ func TestMatchesTypeFilter_TunnelIncludesKernelTypes(t *testing.T) {
 func TestMatchesTypeFilter_VlanByVlanID(t *testing.T) {
 	assert.True(t, matchesTypeFilter(iface.InterfaceInfo{VlanID: 100}, "vlan"))
 	assert.False(t, matchesTypeFilter(iface.InterfaceInfo{VlanID: 0}, "vlan"))
+}
+
+// TestInterfaceDetailReadErrorIsNotConfiguredState proves the detail page
+// serves the configured entry only where no live state exists (no backend, or
+// no such device), and refuses a failed live read with the reason and the
+// command, never presenting configured state as live.
+// Method: one configured dummy, judged against each read outcome.
+func TestInterfaceDetailReadErrorIsNotConfiguredState(t *testing.T) {
+	tree := config.NewTree()
+	ifaceTree := config.NewTree()
+	ifaceTree.AddListEntry("dummy", "dum0", config.NewTree())
+	tree.SetContainer("interface", ifaceTree)
+
+	live := &iface.InterfaceInfo{Name: "dum0", State: "up"}
+	info, err := interfaceDetailInfo("dum0", live, nil, tree)
+	require.NoError(t, err)
+	assert.Same(t, live, info)
+
+	for _, absent := range []error{iface.ErrNoBackendLoaded, fmt.Errorf("iface: get: %w", iface.ErrInterfaceNotFound)} {
+		info, err = interfaceDetailInfo("dum0", nil, absent, tree)
+		require.NoError(t, err, "no live state to show is not a failure: %v", absent)
+		require.NotNil(t, info)
+		assert.Equal(t, "configured", info.State)
+	}
+
+	errDump := errors.New("netlink: address dump interrupted")
+	info, err = interfaceDetailInfo("dum0", nil, errDump, tree)
+	require.ErrorIs(t, err, errDump, "a failed live read MUST NOT show the configured entry")
+	assert.Nil(t, info)
+	assert.Contains(t, err.Error(), "ze show interface dum0")
+
+	_, err = interfaceDetailInfo("dum0", nil, nil, tree)
+	require.Error(t, err, "a backend answering nothing and no error is not an answer")
+}
+
+// TestInterfaceListReadErrorIsNotConfiguredState proves the list page shows
+// the configured entries alone only where no live state exists (no backend is
+// loaded), and refuses any other failed live read with the reason and the
+// command, never presenting the configured entries as the whole answer.
+// Method: interfaceListInfos, the decision handleInterfacesPage renders, judged
+// against each read outcome.
+func TestInterfaceListReadErrorIsNotConfiguredState(t *testing.T) {
+	live := []iface.InterfaceInfo{{Name: "dum0", State: "up"}}
+	infos, err := interfaceListInfos(live, nil)
+	require.NoError(t, err)
+	assert.Equal(t, live, infos)
+
+	infos, err = interfaceListInfos(nil, fmt.Errorf("iface: %w", iface.ErrNoBackendLoaded))
+	require.NoError(t, err, "no backend loaded is no live state, not a failure")
+	assert.Empty(t, infos)
+
+	errDump := errors.New("netlink: link dump interrupted")
+	infos, err = interfaceListInfos(nil, errDump)
+	require.ErrorIs(t, err, errDump, "a failed live read MUST NOT show the configured entries as the list")
+	assert.Nil(t, infos)
+	assert.Contains(t, err.Error(), "ze show interface")
+}
+
+// TestInterfaceCountersReadErrorIsNotUnavailable proves the counters partial
+// answers "not available" only where no live counters exist (no backend is
+// loaded, or the backend holds no such device), and refuses any other failed
+// counter read with the reason and the command, never presenting the failure
+// as an interface without counters.
+// Method: interfaceCounterStats, the decision handleInterfaceCountersContent
+// renders, judged against each read outcome.
+func TestInterfaceCountersReadErrorIsNotUnavailable(t *testing.T) {
+	read := &iface.InterfaceStats{RxBytes: 7}
+	stats, err := interfaceCounterStats("dum0", read, nil)
+	require.NoError(t, err)
+	assert.Same(t, read, stats)
+
+	for _, absent := range []error{iface.ErrNoBackendLoaded, fmt.Errorf("iface: get: %w", iface.ErrInterfaceNotFound)} {
+		stats, err = interfaceCounterStats("dum0", nil, absent)
+		require.NoError(t, err, "no live counters to show is not a failure: %v", absent)
+		assert.Nil(t, stats)
+	}
+
+	errRead := errors.New("netlink: link dump interrupted")
+	stats, err = interfaceCounterStats("dum0", nil, errRead)
+	require.ErrorIs(t, err, errRead, "a failed counter read MUST NOT render as counters not available")
+	assert.Nil(t, stats)
+	assert.Contains(t, err.Error(), "ze show interface dum0")
+
+	_, err = interfaceCounterStats("dum0", nil, nil)
+	require.Error(t, err, "a backend answering no counters and no error is not an answer")
 }

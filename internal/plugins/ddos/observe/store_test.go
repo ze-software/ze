@@ -98,9 +98,8 @@ func TestStoreCharacterizeAttachesToUnresolvedIncident(t *testing.T) {
 
 // VALIDATES: characterization attaches to the CURRENT attack's incident, not a
 // stale resolved-target incident lingering from a prior attack on the same victim
-// (AttackCleared's empty target cannot finalize a resolved-target incident, so it
-// stays Active until sweepStale). Newest-first + interface scoping picks the
-// current one.
+// (one whose AttackCleared never arrived, so it stays Active until sweepStale).
+// Newest-first + interface scoping picks the current one.
 // PREVENTS: on repeated attacks against the same victim, the confidence score
 // being written to the previous, stale incident instead of the live one.
 func TestStoreCharacterizePrefersCurrentIncidentOverStale(t *testing.T) {

@@ -2,8 +2,8 @@
   "note": "Global uniqueness is an operator property; what ze owns is that every LDP Identifier it sends carries the configured lsr-id and that it refuses its own identifier from the wire. The positive now reads the header of a Hello sendHello puts on a real UDP socket and of the Initialization runSession sends on a session built by sessionConfigForAdj, both of which must carry the engine's 192.0.2.77, and a distinct-LSR Hello must form the adjacency. The negative shows a Hello carrying ze's own LSR ID forms no adjacency.",
   "requirement_sha": "54c7aeee0a8bbab5",
   "tests": {
-    "internal/plugins/ldp/rfc5036_procedures_test.go::TestRFC5036DistinctLSRIDFormsAdjacency": "1229c7e2acc6a715",
-    "internal/plugins/ldp/rfc5036_procedures_test.go::TestRFC5036OwnLSRIDFormsNoAdjacency": "1229c7e2acc6a715"
+    "internal/plugins/ldp/rfc5036_procedures_test.go::TestRFC5036DistinctLSRIDFormsAdjacency": "e02b8145e25cce65",
+    "internal/plugins/ldp/rfc5036_procedures_test.go::TestRFC5036OwnLSRIDFormsNoAdjacency": "e02b8145e25cce65"
   },
   "units": {
     "internal/plugins/ldp/rfc5036_procedures_test.go::TestRFC5036DistinctLSRIDFormsAdjacency": "63b5c03174c19718",

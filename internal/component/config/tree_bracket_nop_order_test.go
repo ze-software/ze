@@ -15,7 +15,7 @@ import (
 // leaf inactive, and a nop naming a value the list lacks replacing the list.
 func TestSetFormatMemberNopBeforeListLine(t *testing.T) {
 	schema := NewSchema()
-	schema.Define("c", Container(Field("items", BracketLeafList(TypeString))))
+	schema.Define("c", Container(Field("items", bracketLeafList(TypeString))))
 
 	cases := []struct {
 		name     string
@@ -83,7 +83,7 @@ func TestSetFormatMemberNopBeforeListLine(t *testing.T) {
 // the problem, why, and the fix (ai/rules/user-facing-errors.md).
 // PREVENTS: an operator told only that the deactivation is ambiguous.
 func TestSetFormatMemberNopOnRepeatedOrderedMember(t *testing.T) {
-	seq := BracketLeafList(TypeString)
+	seq := bracketLeafList(TypeString)
 	seq.Ordered = true
 	schema := NewSchema()
 	schema.Define("c", Container(Field("items", seq)))

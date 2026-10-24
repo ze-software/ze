@@ -72,6 +72,7 @@ func TestFormatAnnounceCommand_WithPathID(t *testing.T) {
 		Prefix:  "10.0.0.0/24",
 		NextHop: "10.0.0.1",
 		PathID:  42,
+		AddPath: true,
 	}
 
 	cmd := FormatAnnounceCommand(route)
@@ -168,7 +169,7 @@ func TestFormatWithdrawCommand(t *testing.T) {
 		},
 		{
 			name:  "with path-id",
-			route: &Route{Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", PathID: 42},
+			route: &Route{Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", PathID: 42, AddPath: true},
 			want:  "update text nlri path-information 42 del 10.0.0.0/24",
 		},
 		{
@@ -184,4 +185,27 @@ func TestFormatWithdrawCommand(t *testing.T) {
 			assert.Equal(t, tt.want, cmd)
 		})
 	}
+}
+
+// TestAddPathIdentifierZeroIsAnIdentifier verifies replay commands carry the
+// RFC 7911 Path Identifier exactly when the route carries one, whatever its value.
+//
+// VALIDATES: AC-10, RFC 7911 Sections 2 and 3: identifier 0 under ADD-PATH is
+// written as "path-information 0" and as four identifier octets in update hex;
+// a value the route does not carry is written nowhere.
+// PREVENTS: Presence decided by comparing the identifier with zero, which
+// re-advertised path 0 as a different route with no identifier.
+func TestAddPathIdentifierZeroIsAnIdentifier(t *testing.T) {
+	carried := &Route{Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", NextHop: "10.0.0.1", AddPath: true}
+	assert.Contains(t, FormatAnnounceCommand(carried), "nlri path-information 0 add 10.0.0.0/24")
+	assert.Equal(t, "update text nlri path-information 0 del 10.0.0.0/24", FormatWithdrawCommand(carried))
+	assert.Equal(t, "00000000180a0000", RouteNLRIHex(carried))
+
+	notCarried := &Route{Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", NextHop: "10.0.0.1", PathID: 42}
+	assert.NotContains(t, FormatAnnounceCommand(notCarried), "path-information")
+	assert.Equal(t, "update text nlri del 10.0.0.0/24", FormatWithdrawCommand(notCarried))
+	assert.Equal(t, "180a0000", RouteNLRIHex(notCarried))
+
+	raw := &Route{Family: family.IPv4Unicast, Prefix: "10.0.0.0/24", RawNLRI: "000000001800a0000", AddPath: true}
+	assert.Contains(t, FormatWithdrawCommand(raw), "update hex nlri ipv4/unicast addpath del")
 }

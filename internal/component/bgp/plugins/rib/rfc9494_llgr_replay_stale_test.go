@@ -40,7 +40,7 @@ func feedReplayStaleSource(r *RIBManager, body []byte, meta map[string]any, msgI
 	r.handleReceivedStructured(&rpc.StructuredEvent{
 		EventType:   rpc.EventKindUpdate,
 		PeerAddress: replayStaleSource.String(),
-		PeerAS:      65001,
+		PeerAS:      rpc.RemoteASOf(65001),
 		LocalAS:     65000,
 		Meta:        meta,
 		RawMessage: &bgptypes.RawMessage{

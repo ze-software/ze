@@ -12,13 +12,16 @@ import (
 	"github.com/ze-software/ze/internal/core/rtproto"
 )
 
-var errIfaceNoBackendLoaded = errors.New("iface: no backend loaded")
+// ErrNoBackendLoaded is the answer of every by-name read when no interface
+// backend is active. A caller that serves configured state in place of live
+// state MUST do so only for this error, never for a failed read.
+var ErrNoBackendLoaded = errors.New("iface: no backend loaded")
 
 // backendOrErr returns the active backend or an error if none is loaded.
 func backendOrErr() (Backend, error) {
 	b := GetBackend()
 	if b == nil {
-		return nil, errIfaceNoBackendLoaded
+		return nil, ErrNoBackendLoaded
 	}
 	return b, nil
 }

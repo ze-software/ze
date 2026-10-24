@@ -120,7 +120,7 @@ func TestOrdinaryIPv6GrowthAsymmetricFraming(t *testing.T) {
 			}
 			api := &reactorAPIAdapter{r: r}
 			routes := []*rib.Route{rib.NewRouteWithASPath(
-				nlri.NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8::/128"), 7),
+				nlri.NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8::/128"), 7, true),
 				peer.settings.LocalAddress, nil, nil)}
 			result, sendErr := api.SendRoutes(selector.All(), routes, nil, false, plugin.OperatorSender())
 			if !tc.refuse && sendErr != nil {
@@ -177,7 +177,7 @@ func TestOrdinaryIPv6GrowthAsymmetricFraming(t *testing.T) {
 			before := len(conn.written())
 			batch := bgptypes.NLRIBatch{
 				Family:  family.IPv6Unicast,
-				NLRIs:   []nlri.NLRI{nlri.NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8::1/128"), 9)},
+				NLRIs:   []nlri.NLRI{nlri.NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8::1/128"), 9, true)},
 				NextHop: bgptypes.NewNextHopExplicit(peer.settings.LocalAddress),
 			}
 			if err := api.AnnounceNLRIBatch(t.Context(), selector.All(), batch, plugin.OperatorSender()); err != nil {

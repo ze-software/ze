@@ -109,6 +109,7 @@ const (
 	tokenAS       = "as"
 	tokenCap      = "cap"
 	tokenRouterID = "router-id"
+	tokenOpenASN  = "asn"
 	tokenHoldTime = "hold-time"
 	tokenFamily   = "family"
 
@@ -788,14 +789,19 @@ func parseStructuredState(se *rpc.StructuredEvent) *Event {
 	if se.PeerAddress == "" {
 		return nil
 	}
-	return &Event{
+	event := &Event{
 		Type:          eventState,
 		PeerAddr:      se.PeerAddress,
-		PeerASN:       se.PeerAS,
 		State:         se.State.String(),
 		Reason:        se.Reason,
 		InitialReplay: se.InitialReplay,
 	}
+	// A state event of a dynamic peer whose OPEN is not yet negotiated names
+	// no AS, and the event then carries none rather than AS 0.
+	if asn, known := se.PeerAS.ASN(); known {
+		event.PeerASN = asn
+	}
+	return event
 }
 
 // rsOpenUnreadable is the warning for a received OPEN the route server cannot

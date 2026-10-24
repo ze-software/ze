@@ -17,8 +17,8 @@ func init() {
 	// the daemon `show debug` command (live runtime state, in yang/).
 	command.MustRegisterLocalMeta("set debug module", runSetModule, registry.Meta{
 		ShortHelp: "Enable debug output for one subsystem.",
-		Description: "A level, a flag or a scope can be set in the same command, and each one narrows " +
-			"what the subsystem writes.",
+		Description: "One level, one flag or one scope can be set in the same command, and each one narrows " +
+			"what the subsystem writes. A word after that option is refused: run one command per option.",
 	})
 	command.MustRegisterLocalMeta("delete debug module", runDeleteModule, registry.Meta{
 		ShortHelp: "Disable debug for a subsystem, or remove one of its flags/scopes.",

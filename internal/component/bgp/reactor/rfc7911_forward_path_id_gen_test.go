@@ -314,7 +314,7 @@ func fwdPathIDNLRI(pathID uint32) []byte {
 // fwdPathIDBareNLRI builds 10.0.0.0/24 with no Path Identifier, which is what a
 // source that negotiated no ADD-PATH sends.
 func fwdPathIDBareNLRI() []byte {
-	return nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0).Bytes()
+	return nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0, false).Bytes()
 }
 
 // fwdForwardOnePathID forwards one UPDATE and returns the single Path

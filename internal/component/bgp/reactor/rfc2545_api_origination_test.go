@@ -160,16 +160,16 @@ func testAPIOriginateIPv6NextHop(t *testing.T, rail string, postPolicy bool) {
 			api := &reactorAPIAdapter{r: r}
 			batch := bgptypes.NLRIBatch{
 				Family:  family.IPv6Unicast,
-				NLRIs:   []nlri.NLRI{nlri.NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8:7::/64"), 0)},
+				NLRIs:   []nlri.NLRI{nlri.NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8:7::/64"), 0, false)},
 				NextHop: bgptypes.NewNextHopExplicit(tc.nextHop),
 			}
 			sibling := bgptypes.NLRIBatch{
 				Family:  family.IPv4Unicast,
-				NLRIs:   []nlri.NLRI{nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("198.51.100.0/24"), 0)},
+				NLRIs:   []nlri.NLRI{nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("198.51.100.0/24"), 0, false)},
 				NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("192.0.2.1")),
 			}
 			laterIPv6 := rib.NewRouteWithASPath(
-				nlri.NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8:8::/64"), 0),
+				nlri.NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8:8::/64"), 0, false),
 				netip.MustParseAddr("2001:db8:9::1"), nil, nil)
 			policyCalls := 0
 			if postPolicy {
@@ -380,12 +380,12 @@ func testOriginatedPolicyForwardQueue(t *testing.T) {
 			api := &reactorAPIAdapter{r: r}
 			first := bgptypes.NLRIBatch{
 				Family:  family.IPv6Unicast,
-				NLRIs:   []nlri.NLRI{nlri.NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8:7::/64"), 0)},
+				NLRIs:   []nlri.NLRI{nlri.NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8:7::/64"), 0, false)},
 				NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("2001:db8:1::1")),
 			}
 			later := bgptypes.NLRIBatch{
 				Family:  family.IPv4Unicast,
-				NLRIs:   []nlri.NLRI{nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("198.51.100.0/24"), 0)},
+				NLRIs:   []nlri.NLRI{nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("198.51.100.0/24"), 0, false)},
 				NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("192.0.2.1")),
 			}
 			for _, batch := range []*bgptypes.NLRIBatch{&first, &later} {

@@ -1,13 +1,13 @@
 {
-  "note": "Re-read 2026-09-27. Transmit clause: TestRFC8671ReservedPeerFlagsTransmittedAsZero fails if peerHeaderFromEvent, locRIBPeerHeader or the byte writePeerHeader puts on the wire carries a reserved bit. Receipt clause: TestRFC8671ReservedPeerFlagsIgnoredOnReceipt fails if a header with every reserved bit set is refused or changes a defined flag, over two bases.",
+  "note": "Re-read 2026-10-23 after peerHeaderFromEvent became (PeerHeader, error). Transmit clause: TestRFC8671ReservedPeerFlagsTransmittedAsZero, over a known AS and through mustPeerHeader (fatal on any error), still fails if peerHeaderFromEvent, locRIBPeerHeader or the byte writePeerHeader puts on the wire carries a reserved bit, for IPv4 and IPv6, both directions. Receipt clause: TestRFC8671ReservedPeerFlagsIgnoredOnReceipt fails if a header with every reserved bit set is refused or changes a defined flag, over two bases. The unit edits are the AS type change only; no assertion moved.",
   "requirement_sha": "edc718f92035419f",
   "tests": {
-    "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671ReservedPeerFlagsIgnoredOnReceipt": "70e97cb3744c3532",
-    "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671ReservedPeerFlagsTransmittedAsZero": "70e97cb3744c3532"
+    "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671ReservedPeerFlagsIgnoredOnReceipt": "1750bdc6c8f6cfcd",
+    "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671ReservedPeerFlagsTransmittedAsZero": "1750bdc6c8f6cfcd"
   },
   "units": {
     "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671ReservedPeerFlagsIgnoredOnReceipt": "99410a2dd5338591",
-    "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671ReservedPeerFlagsTransmittedAsZero": "d37d9dba39f2439a"
+    "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671ReservedPeerFlagsTransmittedAsZero": "bb0f77b85790c02d"
   },
   "verdict": "enforced"
 }

@@ -548,10 +548,11 @@ func TestSenderReconnectReplaysInitiationPeerUpAndDump(t *testing.T) {
 			Family:   family.IPv4Unicast,
 			ReplayID: replay.Broadcast,
 			Changes: []ribevents.BestChangeEntry{{
-				Action:  ribevents.BestChangeAdd,
-				Prefix:  dumped,
-				NextHop: netip.MustParseAddr("192.0.2.1"),
-				ASPath:  []uint32{65001},
+				Action:     ribevents.BestChangeAdd,
+				Attributes: locRIBOriginIGP,
+				Prefix:     dumped,
+				NextHop:    netip.MustParseAddr("192.0.2.1"),
+				ASPath:     []uint32{65001},
 			}},
 		}
 		if _, err := ribevents.BestChange.Emit(bus, batch); err != nil {

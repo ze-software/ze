@@ -298,6 +298,10 @@ type MemoryInfo struct {
 type ThermalInfo struct {
 	Sensors  []SensorReading `json:"sensors,omitempty"`
 	Throttle []ThrottleEntry `json:"throttle,omitempty"`
+	// Errors names each hwmon channel whose value could not be read or
+	// parsed. Such a channel is absent from Sensors: it has no reading, and
+	// a guessed 0 would read as a real 0 degC.
+	Errors []DetectError `json:"errors,omitempty"`
 }
 
 // SensorReading is one hwmon temperature reading in millicelsius.
@@ -474,7 +478,7 @@ var sectionDetectors = map[string]func(*Detector) (any, error){
 	sectionNIC:      func(d *Detector) (any, error) { return d.DetectNICs() },
 	sectionDMI:      func(d *Detector) (any, error) { return d.DetectDMI() },
 	sectionMemory:   func(d *Detector) (any, error) { return d.DetectMemory() },
-	sectionThermal:  func(d *Detector) (any, error) { return d.DetectThermal() },
+	sectionThermal:  func(d *Detector) (any, error) { return d.detectThermal() },
 	sectionStorage:  func(d *Detector) (any, error) { return d.DetectStorage() },
 	sectionKernel:   func(d *Detector) (any, error) { return d.DetectKernel() },
 	sectionPlatform: func(d *Detector) (any, error) { return d.DetectPlatform() },
@@ -532,23 +536,8 @@ func DetectSection(name string) (any, error) {
 // DetectCPU returns the CPU section using the default Detector.
 func DetectCPU() (*CPUInfo, error) { return defaultDetector.DetectCPU() }
 
-// DetectNICs returns the NIC section using the default Detector.
-func DetectNICs() ([]NICInfo, error) { return defaultDetector.DetectNICs() }
-
-// DetectDMI returns the DMI section using the default Detector.
-func DetectDMI() (*DMIInfo, error) { return defaultDetector.DetectDMI() }
-
 // DetectMemory returns the memory section using the default Detector.
 func DetectMemory() (*MemoryInfo, error) { return defaultDetector.DetectMemory() }
-
-// DetectThermal returns the thermal section using the default Detector.
-func DetectThermal() (*ThermalInfo, error) { return defaultDetector.DetectThermal() }
-
-// DetectStorage returns the storage section using the default Detector.
-func DetectStorage() (*StorageInfo, error) { return defaultDetector.DetectStorage() }
-
-// DetectKernel returns the kernel section using the default Detector.
-func DetectKernel() (*KernelInfo, error) { return defaultDetector.DetectKernel() }
 
 // DetectHost returns the host section using the default Detector.
 func DetectHost() (*HostInfo, error) { return defaultDetector.DetectHost() }
@@ -584,7 +573,7 @@ func (d *Detector) Detect() (*Inventory, error) {
 		inv.Errors = append(inv.Errors, DetectError{Path: sectionMemory, Err: err.Error()})
 	}
 
-	if t, err := d.DetectThermal(); err == nil {
+	if t, err := d.detectThermal(); err == nil {
 		inv.Thermal = t
 	} else if !errors.Is(err, ErrUnsupported) {
 		inv.Errors = append(inv.Errors, DetectError{Path: sectionThermal, Err: err.Error()})

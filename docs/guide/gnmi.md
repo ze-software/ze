@@ -62,7 +62,7 @@ TLS certificates are loaded once at startup. Certificate rotation requires resta
 
 | RPC | Description |
 |-----|-------------|
-| Capabilities | Returns supported YANG models, encodings (JSON_IETF), and gNMI version |
+| Capabilities | Returns supported YANG models, encodings (JSON and JSON_IETF), and gNMI version |
 | Get | Reads config state from the running tree by path |
 | Set | Applies config modifications atomically (update, replace, delete) |
 | Subscribe ONCE | Snapshot of current config for requested paths |

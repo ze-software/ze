@@ -630,7 +630,7 @@ func (p *SetParser) walkAndMarkInactive(tree *Tree, parent Node, tokens []string
 		return fmt.Errorf("line %d: inactive on leaf-list expects either no value or one value, got %d", lineNum, len(tokens))
 	}
 
-	// ValueOrArray: a final token denotes a single leaf-list value
+	// valueOrArray: a final token denotes a single leaf-list value
 	// (deactivate one element); no token denotes the whole leaf-list.
 	if _, ok := node.(*ValueOrArrayNode); ok {
 		if len(tokens) == 1 {
@@ -973,7 +973,7 @@ func NormalizeLeafValue(typ ValueType, value string) string {
 	//exhaustive:ignore // Only boolean and ASN leaves need canonical spelling conversion.
 	switch typ {
 	case TypeBool:
-		return NormalizeBool(value)
+		return normalizeEnableBool(value)
 	case TypeASN:
 		// An AS number is stored as its decimal value, whichever notation the
 		// operator typed. The readers of local-as, peer-as and every other AS

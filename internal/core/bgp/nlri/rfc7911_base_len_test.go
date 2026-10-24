@@ -60,7 +60,7 @@ func TestLen_INET(t *testing.T) {
 				fam = family.IPv6Unicast
 			}
 
-			inet := NewINET(fam, tt.prefix, tt.pathID)
+			inet := NewINET(fam, tt.prefix, tt.pathID, true)
 
 			got := inet.Len()
 			if got != tt.wantLen {
@@ -109,7 +109,7 @@ func TestWriteTo_INET(t *testing.T) {
 				fam = family.IPv6Unicast
 			}
 
-			inet := NewINET(fam, tt.prefix, tt.pathID)
+			inet := NewINET(fam, tt.prefix, tt.pathID, true)
 
 			// Write to buffer using WriteTo
 			buf := make([]byte, 100)
@@ -144,7 +144,7 @@ func TestWriteTo_INET(t *testing.T) {
 func TestWriteNLRI_AddPath(t *testing.T) {
 	t.Parallel()
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
-	inet := NewINET(family.IPv4Unicast, prefix, 0) // No stored path ID
+	inet := NewINET(family.IPv4Unicast, prefix, 0, false) // No stored path ID
 
 	t.Run("AddPath enabled", func(t *testing.T) {
 		t.Parallel()
@@ -183,7 +183,7 @@ func TestWriteNLRI_AddPath(t *testing.T) {
 func TestWriteNLRI_WithStoredPathID(t *testing.T) {
 	t.Parallel()
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
-	inet := NewINET(family.IPv4Unicast, prefix, 42) // Stored path ID = 42
+	inet := NewINET(family.IPv4Unicast, prefix, 42, true) // Stored path ID = 42
 
 	buf := make([]byte, 100)
 	n := WriteNLRI(inet, buf, 0, true)
@@ -207,10 +207,10 @@ func TestWriteNLRI_WithStoredPathID(t *testing.T) {
 func TestLenWithContext_MatchesWriteNLRI(t *testing.T) {
 	t.Parallel()
 	nlris := []NLRI{
-		NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0),
-		NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 1),
-		NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8::/64"), 0),
-		NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8::/64"), 100),
+		NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0, false),
+		NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 1, true),
+		NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8::/64"), 0, false),
+		NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8::/64"), 100, true),
 	}
 
 	addPathValues := []bool{false, true}

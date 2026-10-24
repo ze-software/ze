@@ -11,7 +11,7 @@ a session on a disabled service is told no. It used to be told nothing: the
 flag gated startup alone, `EnsureSession` never read it, and a peer kept
 creating sessions on a service the operator had turned off
 (plan/journal/unwired-feature.md).
-<!-- source: internal/component/bfd/bfd.go -- RunBFDPlugin, (*pluginService).EnsureSession -->
+<!-- source: internal/component/bfd/bfd.go -- runBFDPlugin, (*pluginService).EnsureSession -->
 <!-- test: internal/component/bfd/enabled_test.go TestDisabledBFDRefusesTheSessionABGPPeerAsksFor -->
 <!-- source: internal/component/bfd/transport/udp_linux.go -- applySocketOptions, applySocketOptionsV6 -->
 <!-- source: internal/component/bfd/session/auth.go -- SetAuth, Sign, Verify -->

@@ -1,14 +1,13 @@
 {
-  "note": "Re-judged 2026-09-30 under ruling R40. Forbidden: mapping a non-egress FEC with no existing mapping, and passing its label upstream, before a label from the downstream LSR arrives. TestRFC5036NonEgressFECNotMappedBeforeDownstreamLabel holds the negative: a non-egress FEC with only a third-party binding is not mapped and no label is sent upstream. TestRFC5036EgressFECMappedWithoutWaiting is the positive: the wait binds only non-egress FECs, so the egress FEC is mapped at once, and an implementation that refused every mapping goes red. The sentence is a prohibition; mapping a transit FEC once the downstream label arrives is not an obligation of this sentence, and transit mapping remains a Support-remaining gap of rfc5036.",
+  "note": "Re-judged 2026-09-30 under ruling R40. Forbidden: mapping a non-egress FEC with no existing mapping, and passing its label upstream, before a label from the downstream LSR arrives. TestRFC5036NonEgressFECNotMappedBeforeDownstreamLabel holds the negative: a non-egress FEC with only a third-party binding is not mapped and no label is sent upstream. TestRFC5036EgressFECMappedWithoutWaiting is the positive: the wait binds only non-egress FECs, so the egress FEC is mapped at once, and an implementation that refused every mapping goes red. The sentence is a prohibition; mapping a transit FEC once the downstream label arrives is not an obligation of this sentence, and transit mapping remains a Support-remaining gap of rfc5036. Re-read 2026-10-23: the positive unit now binds the egress FEC through mustEnsureLocal because LIB.EnsureLocal returns an error on label exhaustion; the assertions are unchanged.",
   "requirement_sha": "0a71a332a4cb1b43",
   "tests": {
-    "internal/plugins/ldp/rfc5036_procedures_test.go::TestRFC5036EgressFECMappedWithoutWaiting": "1229c7e2acc6a715",
-    "internal/plugins/ldp/rfc5036_procedures_test.go::TestRFC5036NonEgressFECNotMappedBeforeDownstreamLabel": "1229c7e2acc6a715"
+    "internal/plugins/ldp/rfc5036_procedures_test.go::TestRFC5036EgressFECMappedWithoutWaiting": "e02b8145e25cce65",
+    "internal/plugins/ldp/rfc5036_procedures_test.go::TestRFC5036NonEgressFECNotMappedBeforeDownstreamLabel": "e02b8145e25cce65"
   },
   "units": {
-    "internal/plugins/ldp/rfc5036_procedures_test.go::TestRFC5036EgressFECMappedWithoutWaiting": "b1ec24fb20f14c36",
+    "internal/plugins/ldp/rfc5036_procedures_test.go::TestRFC5036EgressFECMappedWithoutWaiting": "6e275e55a92defe6",
     "internal/plugins/ldp/rfc5036_procedures_test.go::TestRFC5036NonEgressFECNotMappedBeforeDownstreamLabel": "829c896633a5c741"
   },
-  "upgrade_reason": "Ruling R40 (2026-09-30) reads this row as a MUST NOT that Ze meets by never mapping before the downstream label arrives. The earlier weak verdict required the unit to show the FEC IS mapped once the downstream label arrives, which is not what this sentence obliges; re-read of both units shows the prohibition held and the egress positive discriminates an always-refuse implementation.",
   "verdict": "enforced"
 }

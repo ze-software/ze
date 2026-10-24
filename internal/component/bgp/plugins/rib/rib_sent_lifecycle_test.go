@@ -368,7 +368,7 @@ func lifecycleFeedJSON(t *testing.T, r *RIBManager, source netip.Addr, message u
 	if err != nil {
 		t.Fatal(err)
 	}
-	peer := pluginapi.PeerInfo{Address: source, AddressStr: source.String(), PeerAS: 65001, LocalAS: 65000}
+	peer := pluginapi.PeerInfo{Address: source, AddressStr: source.String(), PeerAS: rpc.RemoteASOf(65001), LocalAS: 65000}
 	line := format.AppendMessage(nil, &peer, bgptypes.RawMessage{Type: msgtype.TypeUPDATE, RawBytes: body,
 		WireUpdate: wu, AttrsWire: attrs, MessageID: message},
 		bgptypes.ContentConfig{Encoding: pluginapi.EncodingJSON, Format: pluginapi.FormatFull})
@@ -397,7 +397,7 @@ func lifecycleFeed(t *testing.T, r *RIBManager, source netip.Addr, message uint6
 		t.Fatal(err)
 	}
 	r.handleReceivedStructured(&rpc.StructuredEvent{
-		EventType: rpc.EventKindUpdate, PeerAddress: source.String(), PeerAS: 65001, LocalAS: 65000,
+		EventType: rpc.EventKindUpdate, PeerAddress: source.String(), PeerAS: rpc.RemoteASOf(65001), LocalAS: 65000,
 		RawMessage: &bgptypes.RawMessage{Type: msgtype.TypeUPDATE, RawBytes: body, WireUpdate: wu,
 			AttrsWire: attrs, MessageID: message},
 	})

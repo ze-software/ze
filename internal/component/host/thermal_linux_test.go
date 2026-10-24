@@ -3,6 +3,8 @@
 package host
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -10,9 +12,9 @@ import (
 // label (device), temp-mc and alarm; and per-CPU throttle counters.
 func TestDetectThermal_HwmonScan(t *testing.T) {
 	d := &Detector{Root: "testdata/n100-4x-igc"}
-	th, err := d.DetectThermal()
+	th, err := d.detectThermal()
 	if err != nil {
-		t.Fatalf("DetectThermal: %v", err)
+		t.Fatalf("detectThermal: %v", err)
 	}
 	// Fixture: 1 acpitz + 1 nvme + 4 coretemp = 6 sensors.
 	if got, want := len(th.Sensors), 6; got != want {
@@ -43,9 +45,9 @@ func TestDetectThermal_HwmonScan(t *testing.T) {
 // /sys/devices/system/cpu/cpu*/thermal_throttle/.
 func TestDetectThermal_ThrottleCounters(t *testing.T) {
 	d := &Detector{Root: "testdata/n100-4x-igc"}
-	th, err := d.DetectThermal()
+	th, err := d.detectThermal()
 	if err != nil {
-		t.Fatalf("DetectThermal: %v", err)
+		t.Fatalf("detectThermal: %v", err)
 	}
 	if got, want := len(th.Throttle), 4; got != want {
 		t.Fatalf("len(Throttle) = %d, want %d", got, want)
@@ -87,5 +89,74 @@ func TestParseCPUIndex(t *testing.T) {
 				t.Errorf("n = %d, want %d", n, tc.n)
 			}
 		})
+	}
+}
+
+// TestDetectThermal_ZeroReadingIsAReading proves that a 0 degC hwmon reading
+// is reported as a reading and that a channel whose value cannot be read is
+// reported as a read failure, never as a reading and never dropped in silence.
+// Method: a fixture hwmon node with temp1_input "0" and temp2_input holding no
+// number; the first must come back with TempMC 0, the second in Errors.
+func TestDetectThermal_ZeroReadingIsAReading(t *testing.T) {
+	root := t.TempDir()
+	node := filepath.Join(root, "sys", "class", "hwmon", "hwmon0")
+	if err := os.MkdirAll(node, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	files := map[string]string{
+		"name":        "acpitz\n",
+		"temp1_input": "0\n",
+		"temp2_input": "not-a-number\n",
+	}
+	for leaf, body := range files {
+		if err := os.WriteFile(filepath.Join(node, leaf), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	th, err := (&Detector{Root: root}).detectThermal()
+	if err != nil {
+		t.Fatalf("detectThermal: %v", err)
+	}
+	if got, want := len(th.Sensors), 1; got != want {
+		t.Fatalf("len(Sensors) = %d, want %d (the 0 degC channel only): %+v", got, want, th.Sensors)
+	}
+	if th.Sensors[0].TempMC != 0 {
+		t.Errorf("Sensors[0].TempMC = %d, want 0", th.Sensors[0].TempMC)
+	}
+	unreadable := filepath.Join(node, "temp2_input")
+	if len(th.Errors) != 1 || th.Errors[0].Path != unreadable {
+		t.Fatalf("Errors = %+v, want one entry for %s", th.Errors, unreadable)
+	}
+}
+
+// TestDetectThermal_UnlistableNodeIsAReadFailure proves that an hwmon node
+// whose directory cannot be listed is reported in Errors, not dropped as a
+// node with no sensor. Method: a node whose name file is readable but whose
+// directory has no read permission, so os.ReadDir fails with EACCES; the node
+// must appear in Errors. Root reads any directory, so the test skips as root.
+func TestDetectThermal_UnlistableNodeIsAReadFailure(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root lists a directory with no read permission")
+	}
+	root := t.TempDir()
+	node := filepath.Join(root, "sys", "class", "hwmon", "hwmon0")
+	if err := os.MkdirAll(node, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(node, "name"), []byte("acpitz\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(node, 0o311); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(node, 0o755) })
+
+	th, err := (&Detector{Root: root}).detectThermal()
+	if err != nil {
+		t.Fatalf("detectThermal: %v", err)
+	}
+	if len(th.Errors) != 1 || th.Errors[0].Path != node {
+		t.Fatalf("Errors = %+v, want one entry for %s", th.Errors, node)
 	}
 }

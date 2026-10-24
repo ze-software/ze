@@ -45,7 +45,7 @@ func TestWithdrawOnlyUpdateKeepsPathIdentifier(t *testing.T) {
 	if err != nil {
 		t.Fatalf("attributes: %v", err)
 	}
-	records := extractWireNLRIRecords(&bgptypes.RawMessage{RawBytes: body, AttrsWire: attrsWire, WireUpdate: wu})
+	records := wireNLRIRecords(t, &bgptypes.RawMessage{RawBytes: body, AttrsWire: attrsWire, WireUpdate: wu})
 	if records == nil {
 		t.Fatal("no records extracted")
 	}
@@ -108,7 +108,7 @@ func TestWithdrawOnePathKeepsTheOther(t *testing.T) {
 	origin := []byte{0x40, 1, 1, 0}
 
 	apply := func(msg *bgptypes.RawMessage) {
-		records := extractWireNLRIRecords(msg)
+		records := wireNLRIRecords(t, msg)
 		if records == nil {
 			t.Fatal("no records extracted")
 		}

@@ -277,6 +277,7 @@ func linkedWorktree(deadline stdcontext.Context, root string) bool {
 	command := exec.CommandContext(deadline, "git", "rev-parse", "--path-format=absolute", "--git-dir", "--git-common-dir")
 	command.Dir = root
 	output, err := command.Output()
+	// refuse-by-default: guards reportDerivedDebt -- false sends it on to name the debt it could not derive, never to silence
 	if err != nil {
 		return false
 	}

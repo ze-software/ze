@@ -106,7 +106,11 @@ func TestScenarioDaemonReadsTheInstalledConfig(t *testing.T) {
 	if err := store.WriteKey(zefs.KeyInstanceName.Pattern, []byte(answers[nameAnswer])); err != nil {
 		t.Fatalf("write instance name the way ze init does: %v", err)
 	}
-	if got := resolve.DefaultConfig(store); got != zeConfigFile {
+	got, err := resolve.DefaultConfig(store)
+	if err != nil {
+		t.Fatalf("read the instance name back: %v", err)
+	}
+	if got != zeConfigFile {
 		t.Fatalf("instance name %q makes bare `ze start` read %q, but the scenario installs %q", answers[nameAnswer], got, zeConfigFile)
 	}
 }

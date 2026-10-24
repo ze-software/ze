@@ -410,7 +410,14 @@ func runInit(r io.Reader, promptW io.Writer, dir string, managed bool, webCertAd
 				if config := iface.EmitConfig(discovered); config != "" {
 					// Named by the instance name written above, the file a bare
 					// `ze start` on this store reads.
-					configKey := zefs.KeyFileActive.Key(resolve.DefaultConfig(store))
+					configName, nameErr := resolve.DefaultConfig(store)
+					if nameErr != nil {
+						if closeErr := iface.CloseBackend(); closeErr != nil {
+							return fmt.Errorf("name initial config: %w; close backend: %w", nameErr, closeErr)
+						}
+						return fmt.Errorf("name initial config: %w", nameErr)
+					}
+					configKey := zefs.KeyFileActive.Key(configName)
 					if wErr := store.WriteKey(configKey, []byte(config)); wErr != nil {
 						if closeErr := iface.CloseBackend(); closeErr != nil {
 							return fmt.Errorf("write initial config: %w; close backend: %w", wErr, closeErr)

@@ -1029,3 +1029,50 @@ func TestDetectedFlagNeverSurvivesAClear(t *testing.T) {
 		t.Fatalf("detected-emitted flag survived the clear (attackGen is now %d, the Detected belonged to 1): applyTick will stage an AttackOngoing for the next attack before its AttackDetected has fanned out", gen)
 	}
 }
+
+// TestClearedCarriesTheDetectedVictim proves that the clear names the victim
+// the attack was detected against, so ddos-observe can close an incident opened
+// for a resolved victim. Method: flood until a Detected with a resolved target
+// is published, let the rate fall until the detector clears, then compare the
+// Cleared target with the Detected one. An empty Cleared target matched only an
+// incident whose own target was empty, so a resolved victim's incident stayed
+// open until the stale sweep.
+func TestClearedCarriesTheDetectedVictim(t *testing.T) {
+	bus := newDTestBus()
+	cfg := floodConfig()
+	cfg.ClearConsecutive = 1
+	d := newDetector(cfg, bus, func(_ context.Context, _ string) (string, json.RawMessage, error) {
+		return statusDone, json.RawMessage(`{"egress-ips":[{"ip":"203.0.113.42","bytes":1000000}]}`), nil
+	})
+
+	var detected *ddosevent.AttackDetected
+	var cleared *ddosevent.AttackCleared
+	ddosevent.Detected.Subscribe(bus, func(e *ddosevent.AttackDetected) { detected = e })
+	ddosevent.Cleared.Subscribe(bus, func(e *ddosevent.AttackCleared) { cleared = e })
+
+	var cum uint64
+	tick := func() {
+		d.onRate([]iface.InterfaceInfo{{Name: "xe0", Stats: &iface.InterfaceStats{RxPackets: cum}}})
+	}
+	for range 20 {
+		cum += 50
+		tick()
+	}
+	cum += 100000
+	tick()
+	d.wg.Wait()
+	if detected == nil || !detected.Target.DstPrefix.IsValid() {
+		t.Fatalf("expected a Detected with a resolved victim, got %+v", detected)
+	}
+
+	tick() // delta 0: active -> clearing
+	tick() // delta 0: clearing -> idle, Cleared published
+	d.wg.Wait()
+
+	if cleared == nil {
+		t.Fatal("AttackCleared not emitted")
+	}
+	if cleared.Target.DstPrefix != detected.Target.DstPrefix {
+		t.Fatalf("Cleared target = %v, want the detected victim %v", cleared.Target.DstPrefix, detected.Target.DstPrefix)
+	}
+}

@@ -2,8 +2,8 @@
   "note": "SignMessageAuthenticator matches an openssl HMAC-MD5 vector over the Access-Request, and a 0xff placeholder yields the same digest, so the field hashes as sixteen zero octets",
   "requirement_sha": "a7462dc3196e989a",
   "tests": {
-    "internal/component/radius/packet_test.go::TestSignMessageAuthenticatorMatchesRFC3579": "8d639d23d04e7dff",
-    "internal/component/radius/packet_test.go::TestSignMessageAuthenticatorZeroesTheSignatureField": "8d639d23d04e7dff"
+    "internal/component/radius/packet_test.go::TestSignMessageAuthenticatorMatchesRFC3579": "d7805a7dbe0458f7",
+    "internal/component/radius/packet_test.go::TestSignMessageAuthenticatorZeroesTheSignatureField": "d7805a7dbe0458f7"
   },
   "units": {
     "internal/component/radius/packet_test.go::TestSignMessageAuthenticatorMatchesRFC3579": "c528f537be510b3a",

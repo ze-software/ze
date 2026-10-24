@@ -4,8 +4,8 @@
   "tests": {
     "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271AdjRIBInUpdateRunsTheDecisionProcess": "e914a6452ddec559",
     "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271AdjRIBInUpdateThatDisplacesTheBestReselects": "e914a6452ddec559",
-    "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeNoPublishSameBest": "dc546dccf368c8ad",
-    "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeWithdraw": "dc546dccf368c8ad"
+    "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeNoPublishSameBest": "0ca91d85d8302a14",
+    "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestRIBBestChangeWithdraw": "0ca91d85d8302a14"
   },
   "units": {
     "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271AdjRIBInUpdateRunsTheDecisionProcess": "448dc56158d37236",

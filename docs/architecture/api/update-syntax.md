@@ -99,7 +99,7 @@ send bgp upstream1 update text origin set igp nhop set self nlri add prefix 1.0.
 # Both equivalent - nhop accumulates
 ```
 
-**Output format** (event from engine to plugin): attributes have no `set` keyword, `next` is the emitted next-hop keyword, and the header includes `remote as`:
+**Output format** (event from engine to plugin): attributes have no `set` keyword, `next` is the emitted next-hop keyword, and the header includes `remote as`, the peer's AS, or `unknown` while a dynamic peer's AS is not yet negotiated:
 ```bash
 # Output always shows next-hop with its nlri group:
 peer 10.0.0.1 remote as 65001 received update 123 origin igp next 192.168.1.1 nlri ipv4/unicast add 1.0.0.0/24
@@ -514,6 +514,8 @@ labeled Compatibility field is not interpreted as an announcement label stack.
 peer 10.0.0.1 remote as 65001 received update 123 origin igp med 100 next 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24
 peer 10.0.0.1 remote as 65001 received update 123 attr-99 400101... nlri ipv4/unicast add 10.1.0.0/24
 ```
+
+`remote as` is the peer's AS. Before a dynamic peer's AS is negotiated the formatter writes `unknown` there, never `0`.
 <!-- source: internal/component/bgp/format/text_human.go -- appendFilterResultText, appendAttributeText -->
 
 **JSON format:**

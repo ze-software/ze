@@ -65,6 +65,7 @@ func (r *AdjRIBInManager) installComplexNLRIs(peerAddr netip.Addr, fam family.Fa
 			NLRIHex:     hex.EncodeToString(payload),
 			PathID:      pathID,
 			NLRIFraming: rpc.NLRIFramingPrefixOnly,
+			HasPathID:   addPath,
 			MsgID:       msgID,
 		})
 		return true

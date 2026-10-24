@@ -620,7 +620,7 @@ func (s *Server) dispatchCommandArgsResponse(ctx context.Context, proc *process.
 	// The typed path bypasses Dispatch. Only the accounting copy is rendered;
 	// policy and forwarding continue to receive the original argument slice.
 	if s.dispatcher != nil {
-		defer s.dispatcher.BeginAccountingArgs(cmdCtx, command, args, peer)()
+		defer s.dispatcher.beginAccountingArgs(cmdCtx, command, args, peer)()
 	}
 
 	if s.dispatcher != nil && !s.dispatcher.isAuthorizedCommandArgs(cmdCtx, command, args, peer, false) {

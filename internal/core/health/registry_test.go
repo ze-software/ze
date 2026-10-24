@@ -112,3 +112,49 @@ func TestHandler503(t *testing.T) {
 		t.Errorf("code = %d, want 503", rec.Code)
 	}
 }
+
+// TestRegisterWhenOmitsARowThatDoesNotApply proves a gated check that does not
+// apply produces no row and does not run, so it cannot raise or lower the
+// overall status. Method: one gated-off check that would answer down, one
+// gated-on check, one ungated check.
+func TestRegisterWhenOmitsARowThatDoesNotApply(t *testing.T) {
+	r := &Registry{}
+	ran := false
+	r.RegisterWhen("vpp", func() bool { return false }, func() (Status, string) {
+		ran = true
+		return StatusDown, "not connected"
+	})
+	r.RegisterWhen("l2tp", func() bool { return true }, func() (Status, string) { return StatusDegraded, "no kernel" })
+	r.Register("bgp", func() (Status, string) { return StatusHealthy, "" })
+
+	report := r.Check()
+	if ran {
+		t.Error("a check whose gate answered false ran")
+	}
+	if len(report.Components) != 2 {
+		t.Fatalf("components = %d, want 2 (the gated-off row omitted): %+v", len(report.Components), report.Components)
+	}
+	for _, c := range report.Components {
+		if c.Name == "vpp" {
+			t.Errorf("gated-off row present: %+v", c)
+		}
+	}
+	if report.Status != StatusDegraded {
+		t.Errorf("status = %s, want degraded from the gated-on row", report.Status)
+	}
+}
+
+// TestRegisterWhenGatePanicIsDown proves a gate that panics reports its row
+// down rather than vanishing. Method: a gate that panics.
+func TestRegisterWhenGatePanicIsDown(t *testing.T) {
+	r := &Registry{}
+	r.RegisterWhen("vpp", func() bool { panic("gate") }, func() (Status, string) { return StatusHealthy, "" })
+
+	report := r.Check()
+	if len(report.Components) != 1 {
+		t.Fatalf("components = %d, want 1", len(report.Components))
+	}
+	if report.Components[0].Status != StatusDown {
+		t.Errorf("status = %s, want down", report.Components[0].Status)
+	}
+}

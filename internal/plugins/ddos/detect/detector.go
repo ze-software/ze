@@ -106,6 +106,12 @@ type detector struct {
 	// ended (see markDetectedEmitted).
 	detectedEmitted bool
 	attackGen       uint64 // bumped on each activate and clear; guards stale async emits
+	// attackTarget is the victim the current generation's AttackDetected names,
+	// guarded by d.mu. recordAttackTarget writes it in the same critical section
+	// that checks the generation, so emitCleared carries exactly the target the
+	// Detected for this attack carried, and ddos-observe closes the incident it
+	// opened. It stays empty when no Detected was published for the attack.
+	attackTarget ddosevent.VectorTuple
 
 	// ctx bounds every characterization goroutine to the detector's lifetime;
 	// Stop cancels it so in-flight source queries unwind promptly at shutdown or
@@ -517,12 +523,13 @@ func (d *detector) emitCleared() {
 	d.detectedEmitted = false
 	d.pending.cleared = &ddosevent.AttackCleared{
 		Interface:  d.attackIface,
-		Target:     ddosevent.VectorTuple{DstPrefix: netip.Prefix{}},
+		Target:     d.attackTarget,
 		Observable: true,
 	}
 	d.peakRxPps = 0
 	d.peakRxBps = 0
 	d.attackIface = ""
+	d.attackTarget = ddosevent.VectorTuple{}
 }
 
 // classifyDirection resolves whether the victim is an address this box terminates

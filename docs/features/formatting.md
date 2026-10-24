@@ -387,7 +387,7 @@ rib`, for example, adds:
 | `count` | Count matching routes without serializing rows |
 | `first <n>` / `last <n>` | Take first or last N routes |
 | `histogram` | Count routes by family and prefix length |
-| `graph` | Render an AS-path topology graph (box-drawing) |
+| `graph` | Answer the AS-path topology as `nodes` and `edges`; the text format draws it as a box diagram and `\| json` shows the structure. More than 100 ASes is refused: narrow it with a filter first |
 | `reason` | Explain best-path selection (`show bgp rib best` only) |
 
 These are parsed and validated the same way as generic pipes, but resolved
@@ -398,4 +398,5 @@ answer. Both kinds run in the daemon. A generic pipe filters what the command
 already produced. A command filter stops it being produced.
 
 <!-- source: internal/component/bgp/plugins/cmd/rib/rib.go -- PipeFilter registrations -->
+<!-- source: internal/component/bgp/plugins/rib/rib_topology.go -- graphTerminal, renderGraphText -->
 <!-- source: internal/component/command/pipe.go -- foldFilters, lookupFilter, validateFilter -->

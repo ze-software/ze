@@ -167,8 +167,8 @@ func (r *RTC) Len() int {
 // PathID returns 0.
 func (r *RTC) PathID() uint32 { return 0 }
 
-// HasPathID returns false.
-func (r *RTC) HasPathID() bool { return false }
+// HasAddPath returns false.
+func (r *RTC) HasAddPath() bool { return false }
 
 // SupportsAddPath returns false - RTC doesn't support ADD-PATH.
 func (r *RTC) SupportsAddPath() bool { return false }

@@ -17,6 +17,16 @@ Information Base, and a dataplane write through the MPLS FIB event bus.
 | `show ldp ...` proxies | `cmd_show.go` |
 | Port 646 readiness check | `doctor.go` |
 
+## Decision: local label exhaustion refuses the FEC
+
+`LIB.EnsureLocal` gives each originated FEC one stable local label from 16 to
+1048575, and local labels are never freed. When every label in that range is
+bound, `allocateLabelLocked` returns `ErrLabelSpaceExhausted` and the FEC gets
+no binding: the engine logs an error naming the FEC and does not originate it.
+Handing out a label already bound would advertise one label for two FECs, which
+RFC 3031 section 3.14 forbids.
+<!-- source: internal/plugins/ldp/lib.go -- allocateLabelLocked, EnsureLocal -->
+
 ## Decision: reconcile discovery, do not restart the engine
 
 A config reload diffs the desired interface set against the running per-interface

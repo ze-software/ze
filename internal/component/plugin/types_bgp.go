@@ -126,7 +126,9 @@ type PeerInfo struct {
 	Name      string // Human-readable peer name for CLI selector
 	GroupName string // Peer-group this peer belongs to
 	LocalAS   uint32
-	PeerAS    uint32
+	// PeerAS is the peer's AS, or "not yet known" for a dynamic peer whose
+	// OPEN has not been negotiated: build it with rpc.RemoteASOf.
+	PeerAS rpc.RemoteAS
 	// RouterID is THIS speaker's BGP Identifier for the session, as the peer's
 	// configuration states it. It is not the peer's, and a comparison that owes
 	// the peer's identifier MUST read RemoteRouterID below.

@@ -147,8 +147,8 @@ func (v *VPLS) Len() int { return 19 }
 // PathID returns 0.
 func (v *VPLS) PathID() uint32 { return 0 }
 
-// HasPathID returns false.
-func (v *VPLS) HasPathID() bool { return false }
+// HasAddPath returns false.
+func (v *VPLS) HasAddPath() bool { return false }
 
 // SupportsAddPath returns false - VPLS doesn't support ADD-PATH.
 func (v *VPLS) SupportsAddPath() bool { return false }

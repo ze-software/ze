@@ -148,8 +148,8 @@ func appendColonHex(dst, data []byte) string {
 	return string(buf)
 }
 
-// ParseESIString parses an Ethernet Segment Identifier from string format.
-func ParseESIString(s string) (ESI, error) {
+// parseESIString parses an Ethernet Segment Identifier from string format.
+func parseESIString(s string) (ESI, error) {
 	var esi ESI
 	if s == "0" || s == "" {
 		return esi, nil
@@ -210,7 +210,7 @@ type EVPN interface {
 	Len() int
 	String() string
 	PathID() uint32
-	HasPathID() bool
+	HasAddPath() bool
 	SupportsAddPath() bool
 	WriteTo(buf []byte, off int) int
 }
@@ -324,7 +324,7 @@ func (e *EVPNType1) ESI() ESI                 { return e.esi }
 func (e *EVPNType1) EthernetTag() uint32      { return e.ethernetTag }
 func (e *EVPNType1) Labels() []uint32         { return []uint32{nlri.LabelValue(e.label)} }
 func (e *EVPNType1) PathID() uint32           { return e.pathID }
-func (e *EVPNType1) HasPathID() bool          { return e.hasPath }
+func (e *EVPNType1) HasAddPath() bool         { return e.hasPath }
 func (e *EVPNType1) SupportsAddPath() bool    { return true }
 
 // WriteTo encodes the EVPN Type 1 NLRI directly into buf at off. Returns
@@ -452,7 +452,7 @@ func (e *EVPNType2) MAC() [6]byte             { return e.mac }
 func (e *EVPNType2) IP() netip.Addr           { return e.ip }
 func (e *EVPNType2) Labels() []uint32         { return nlri.LabelValues(e.labels) }
 func (e *EVPNType2) PathID() uint32           { return e.pathID }
-func (e *EVPNType2) HasPathID() bool          { return e.hasPath }
+func (e *EVPNType2) HasAddPath() bool         { return e.hasPath }
 func (e *EVPNType2) SupportsAddPath() bool    { return true }
 
 // WriteTo encodes the EVPN Type 2 NLRI directly into buf at off.
@@ -532,8 +532,8 @@ func (e *EVPNType2) String() string {
 	return b.String()
 }
 
-// EVPNType3 represents an Inclusive Multicast Ethernet Tag route (RFC 7432 Section 7.3).
-type EVPNType3 struct {
+// evpnType3 represents an Inclusive Multicast Ethernet Tag route (RFC 7432 Section 7.3).
+type evpnType3 struct {
 	rd           RouteDistinguisher
 	ethernetTag  uint32
 	originatorIP netip.Addr
@@ -541,12 +541,12 @@ type EVPNType3 struct {
 	hasPath      bool
 }
 
-func parseEVPNType3(data []byte, pathID uint32, hasPath bool) (*EVPNType3, error) {
+func parseEVPNType3(data []byte, pathID uint32, hasPath bool) (*evpnType3, error) {
 	if len(data) < 8+4+1 {
 		return nil, ErrEVPNTruncated
 	}
 
-	e := &EVPNType3{pathID: pathID, hasPath: hasPath}
+	e := &evpnType3{pathID: pathID, hasPath: hasPath}
 	offset := 0
 
 	rd, err := ParseRouteDistinguisher(data[offset : offset+8])
@@ -571,18 +571,18 @@ func parseEVPNType3(data []byte, pathID uint32, hasPath bool) (*EVPNType3, error
 	return e, nil
 }
 
-func (e *EVPNType3) Family() Family           { return L2VPNEVPN }
-func (e *EVPNType3) RouteType() EVPNRouteType { return EVPNRouteType3 }
-func (e *EVPNType3) RD() RouteDistinguisher   { return e.rd }
-func (e *EVPNType3) EthernetTag() uint32      { return e.ethernetTag }
-func (e *EVPNType3) OriginatorIP() netip.Addr { return e.originatorIP }
-func (e *EVPNType3) PathID() uint32           { return e.pathID }
-func (e *EVPNType3) HasPathID() bool          { return e.hasPath }
-func (e *EVPNType3) SupportsAddPath() bool    { return true }
+func (e *evpnType3) Family() Family           { return L2VPNEVPN }
+func (e *evpnType3) RouteType() EVPNRouteType { return EVPNRouteType3 }
+func (e *evpnType3) RD() RouteDistinguisher   { return e.rd }
+func (e *evpnType3) EthernetTag() uint32      { return e.ethernetTag }
+func (e *evpnType3) OriginatorIP() netip.Addr { return e.originatorIP }
+func (e *evpnType3) PathID() uint32           { return e.pathID }
+func (e *evpnType3) HasAddPath() bool         { return e.hasPath }
+func (e *evpnType3) SupportsAddPath() bool    { return true }
 
 // WriteTo encodes the EVPN Type 3 NLRI directly into buf at off.
 // Zero-alloc: RD and IP are written in place.
-func (e *EVPNType3) WriteTo(buf []byte, off int) int {
+func (e *evpnType3) WriteTo(buf []byte, off int) int {
 	ipLen, ipBytesLen := 128, 16
 	if e.originatorIP.Is4() {
 		ipLen, ipBytesLen = 32, 4
@@ -611,13 +611,13 @@ func (e *EVPNType3) WriteTo(buf []byte, off int) int {
 
 // Bytes returns a standalone wire encoding. Retained for JSON / test
 // callers; hot-path senders should call WriteTo into a pool buffer.
-func (e *EVPNType3) Bytes() []byte {
+func (e *evpnType3) Bytes() []byte {
 	buf := make([]byte, e.Len())
 	e.WriteTo(buf, 0)
 	return buf
 }
 
-func (e *EVPNType3) Len() int {
+func (e *evpnType3) Len() int {
 	n := 8 + 4 + 1
 	if e.originatorIP.Is4() {
 		n += 4
@@ -627,7 +627,7 @@ func (e *EVPNType3) Len() int {
 	return n + 2
 }
 
-func (e *EVPNType3) String() string {
+func (e *evpnType3) String() string {
 	var b textbuf.Buffer
 	b.Str("multicast rd ").Str(e.rd.String()).Str(" ip ").Addr(e.originatorIP)
 	if e.ethernetTag != 0 {
@@ -636,8 +636,8 @@ func (e *EVPNType3) String() string {
 	return b.String()
 }
 
-// EVPNType4 represents an Ethernet Segment route (RFC 7432 Section 7.4).
-type EVPNType4 struct {
+// evpnType4 represents an Ethernet Segment route (RFC 7432 Section 7.4).
+type evpnType4 struct {
 	rd           RouteDistinguisher
 	esi          ESI
 	originatorIP netip.Addr
@@ -645,12 +645,12 @@ type EVPNType4 struct {
 	hasPath      bool
 }
 
-func parseEVPNType4(data []byte, pathID uint32, hasPath bool) (*EVPNType4, error) {
+func parseEVPNType4(data []byte, pathID uint32, hasPath bool) (*evpnType4, error) {
 	if len(data) < 8+10+1 {
 		return nil, ErrEVPNTruncated
 	}
 
-	e := &EVPNType4{pathID: pathID, hasPath: hasPath}
+	e := &evpnType4{pathID: pathID, hasPath: hasPath}
 	offset := 0
 
 	rd, err := ParseRouteDistinguisher(data[offset : offset+8])
@@ -688,18 +688,18 @@ func parseEVPNType4(data []byte, pathID uint32, hasPath bool) (*EVPNType4, error
 	return e, nil
 }
 
-func (e *EVPNType4) Family() Family           { return L2VPNEVPN }
-func (e *EVPNType4) RouteType() EVPNRouteType { return EVPNRouteType4 }
-func (e *EVPNType4) RD() RouteDistinguisher   { return e.rd }
-func (e *EVPNType4) ESI() ESI                 { return e.esi }
-func (e *EVPNType4) OriginatorIP() netip.Addr { return e.originatorIP }
-func (e *EVPNType4) PathID() uint32           { return e.pathID }
-func (e *EVPNType4) HasPathID() bool          { return e.hasPath }
-func (e *EVPNType4) SupportsAddPath() bool    { return true }
+func (e *evpnType4) Family() Family           { return L2VPNEVPN }
+func (e *evpnType4) RouteType() EVPNRouteType { return EVPNRouteType4 }
+func (e *evpnType4) RD() RouteDistinguisher   { return e.rd }
+func (e *evpnType4) ESI() ESI                 { return e.esi }
+func (e *evpnType4) OriginatorIP() netip.Addr { return e.originatorIP }
+func (e *evpnType4) PathID() uint32           { return e.pathID }
+func (e *evpnType4) HasAddPath() bool         { return e.hasPath }
+func (e *evpnType4) SupportsAddPath() bool    { return true }
 
 // WriteTo encodes the EVPN Type 4 NLRI directly into buf at off.
 // Zero-alloc: RD and IP are written in place.
-func (e *EVPNType4) WriteTo(buf []byte, off int) int {
+func (e *evpnType4) WriteTo(buf []byte, off int) int {
 	ipLen, ipBytesLen := 128, 16
 	if e.originatorIP.Is4() {
 		ipLen, ipBytesLen = 32, 4
@@ -728,13 +728,13 @@ func (e *EVPNType4) WriteTo(buf []byte, off int) int {
 
 // Bytes returns a standalone wire encoding. Retained for JSON / test
 // callers; hot-path senders should call WriteTo into a pool buffer.
-func (e *EVPNType4) Bytes() []byte {
+func (e *evpnType4) Bytes() []byte {
 	buf := make([]byte, e.Len())
 	e.WriteTo(buf, 0)
 	return buf
 }
 
-func (e *EVPNType4) Len() int {
+func (e *evpnType4) Len() int {
 	n := 8 + 10 + 1
 	if e.originatorIP.Is4() {
 		n += 4
@@ -744,7 +744,7 @@ func (e *EVPNType4) Len() int {
 	return n + 2
 }
 
-func (e *EVPNType4) String() string {
+func (e *evpnType4) String() string {
 	var b textbuf.Buffer
 	return b.Str("ethernet-segment rd ").Str(e.rd.String()).Str(" esi ").Str(e.esi.String()).Str(" ip ").Addr(e.originatorIP).String()
 }
@@ -835,7 +835,7 @@ func (e *EVPNType5) Prefix() netip.Prefix     { return e.prefix }
 func (e *EVPNType5) Gateway() netip.Addr      { return e.gateway }
 func (e *EVPNType5) Labels() []uint32         { return nlri.LabelValues(e.labels) }
 func (e *EVPNType5) PathID() uint32           { return e.pathID }
-func (e *EVPNType5) HasPathID() bool          { return e.hasPath }
+func (e *EVPNType5) HasAddPath() bool         { return e.hasPath }
 func (e *EVPNType5) SupportsAddPath() bool    { return true }
 
 // WriteTo encodes the EVPN Type 5 NLRI directly into buf at off.
@@ -932,7 +932,7 @@ func (e *eVPNGeneric) Family() Family           { return L2VPNEVPN }
 func (e *eVPNGeneric) RouteType() EVPNRouteType { return e.routeType }
 func (e *eVPNGeneric) RD() RouteDistinguisher   { return RouteDistinguisher{} }
 func (e *eVPNGeneric) PathID() uint32           { return e.pathID }
-func (e *eVPNGeneric) HasPathID() bool          { return e.hasPath }
+func (e *eVPNGeneric) HasAddPath() bool         { return e.hasPath }
 func (e *eVPNGeneric) SupportsAddPath() bool    { return true }
 func (e *eVPNGeneric) String() string           { return textbuf.StrInt("evpn-type", int64(e.routeType)) }
 
@@ -977,13 +977,13 @@ func NewEVPNType2(rd RouteDistinguisher, esi [10]byte, ethernetTag uint32, mac [
 }
 
 // NewEVPNType3 creates an Inclusive Multicast Ethernet Tag route (Type 3).
-func NewEVPNType3(rd RouteDistinguisher, ethernetTag uint32, originatorIP netip.Addr) *EVPNType3 {
-	return &EVPNType3{rd: rd, ethernetTag: ethernetTag, originatorIP: originatorIP}
+func NewEVPNType3(rd RouteDistinguisher, ethernetTag uint32, originatorIP netip.Addr) *evpnType3 {
+	return &evpnType3{rd: rd, ethernetTag: ethernetTag, originatorIP: originatorIP}
 }
 
 // NewEVPNType4 creates an Ethernet Segment route (Type 4).
-func NewEVPNType4(rd RouteDistinguisher, esi [10]byte, originatorIP netip.Addr) *EVPNType4 {
-	return &EVPNType4{rd: rd, esi: esi, originatorIP: originatorIP}
+func NewEVPNType4(rd RouteDistinguisher, esi [10]byte, originatorIP netip.Addr) *evpnType4 {
+	return &evpnType4{rd: rd, esi: esi, originatorIP: originatorIP}
 }
 
 // newEVPNType5 creates an IP Prefix route (Type 5).

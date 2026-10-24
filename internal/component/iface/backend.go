@@ -35,6 +35,13 @@ var ErrBackendNotReady = errors.New("iface: backend not ready")
 // and allocates a fresh interface on every call.
 var ErrInterfaceExists = errors.New("iface: interface already exists")
 
+// ErrInterfaceNotFound is the one answer that means a device is absent.
+// Backend.GetLink MUST wrap it when the backend read the link table and found
+// no device of that name, and MUST NOT wrap it for any other failure: a
+// failed socket open, ENOBUFS or an interrupted dump is a read that did not
+// answer, and interfaceExists refuses it rather than reading it as absence.
+var ErrInterfaceNotFound = errors.New("iface: interface not found")
+
 // ErrCountersNotResettable indicates the backend cannot physically zero
 // RX/TX counters in the kernel (Linux has no generic reset; only a few
 // drivers support ETHTOOL_* resets). The iface dispatch layer catches
@@ -188,6 +195,9 @@ type Backend interface {
 
 	// Query.
 	ListInterfaces() ([]InterfaceInfo, error)
+	// GetInterface reads one device with its addresses. An absent device
+	// MUST answer an error wrapping ErrInterfaceNotFound, and only an absent
+	// one: the web detail page shows configured state for that answer alone.
 	GetInterface(name string) (*InterfaceInfo, error)
 	// GetLink returns the link facts of one device: everything GetInterface
 	// reports except the addresses, so Addresses is nil and AddressesRead is
@@ -195,6 +205,8 @@ type Backend interface {
 	// fail it. A caller that decides whether a device exists, or reads its
 	// MTU or admin state, MUST use it: GetInterface fails when the address
 	// dump fails, and such a caller would read a present device as absent.
+	// An absent device MUST answer an error wrapping ErrInterfaceNotFound,
+	// and only an absent one.
 	GetLink(name string) (*InterfaceInfo, error)
 	// ListNeighbors returns the kernel neighbor table (IPv4 ARP + IPv6 ND).
 	// family is one of NeighborFamilyAny / NeighborFamilyIPv4 / NeighborFamilyIPv6
@@ -387,7 +399,7 @@ func EnsureBackend() error {
 	}
 	name := DefaultBackendName()
 	if name == "" {
-		return errIfaceNoBackendLoaded
+		return ErrNoBackendLoaded
 	}
 	return LoadBackend(name)
 }

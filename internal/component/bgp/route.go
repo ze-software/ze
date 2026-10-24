@@ -70,9 +70,10 @@ type Route struct {
 }
 
 // RouteKey creates a unique key for a route.
-// RFC 7911: When ADD-PATH is negotiated, path-id is part of the key.
-func RouteKey(family, prefix string, pathID uint32) string {
-	if pathID == 0 {
+// RFC 7911: When ADD-PATH is negotiated, path-id is part of the key. hasPathID
+// is that negotiation (Route.AddPath); identifier 0 is part of the key too.
+func RouteKey(family, prefix string, pathID uint32, hasPathID bool) string {
+	if !hasPathID {
 		var tb textbuf.Buffer
 		return tb.Str(family).Byte(':').Str(prefix).String()
 	}

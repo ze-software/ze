@@ -26,7 +26,7 @@ wire. The caller flushes with that selector. It does not read the selector back
 out of the command, and the next section says what that cost.
 
 Up, `bridge_event.go` reads one ze event into a `bridge.Event`. Each encoder
-renders that. `ExabgpJSON` writes one JSON object per event, in envelope version
+renders that. `exabgpJSON` writes one JSON object per event, in envelope version
 6.0.0. `AppendText` writes ExaBGP's one-event-per-line text. A script's own
 `encoder` leaf decides which one it gets.
 
@@ -38,15 +38,20 @@ no `direction` on them (`Response.JSON._neighbor` is handed `None` for each).
 API 4 lines follow 6.0 here, so a 4.2 helper meets the `router-id` that 5.0
 and 6.0 write and 4.2 did not.
 
+`asn.peer` is the remote AS ze named. While a dynamic peer's AS is not yet
+negotiated ze omits `remote.as`, and the bridge writes `0`, the value ExaBGP
+writes for a `peer-as auto` neighbor (`exabgp-differences.md`, "A peer AS not
+yet known").
+
 <!-- source: internal/exabgp/bridge/bridge_event.go -- exabgpEnvelope -->
 
-`MarshalExabgpJSON` serializes the JSON object in ExaBGP's own spacing,
+`marshalExabgpJSON` serializes the JSON object in ExaBGP's own spacing,
 `{ "key": value, "key": value }` and `[ a, b ]`, on both the fleet and the
 single-event path. ExaBGP builds its JSON by hand that way, and scripts match on
 substrings of it: upstream's api-rr script tests `'"nlri": "192.168.0.0/32"'`,
 which Go's compact form never contains.
 
-<!-- source: internal/exabgp/bridge/bridge_event_json.go -- MarshalExabgpJSON -->
+<!-- source: internal/exabgp/bridge/bridge_event_json.go -- marshalExabgpJSON -->
 
 An `announce route-refresh <afi> <safi>` line becomes `request peer <selector>
 refresh <afi>/<safi>`, which sends the peer a ROUTE-REFRESH (RFC 2918 Section 3).
@@ -106,13 +111,13 @@ translated forms.
 
 <!-- source: internal/exabgp/bridge/bridge_command.go -- TranslateLine, Translation, convertRoute -->
 An End-of-RIB is rendered as ExaBGP renders it, `{"eor": {"afi": ..., "safi": ...}}`
-inside `message`, and never as an update with the member missing. `ExabgpJSON`
+inside `message`, and never as an update with the member missing. `exabgpJSON`
 used to write `message` only when the converted update was non-empty, and an
 End-of-RIB converts to nothing, so the marker reached a script as an event with
 no message at all. A ported ExaBGP script reads that line, matches none of its
 keywords and takes its failure branch.
 
-<!-- source: internal/exabgp/bridge/bridge_event.go -- ReadEvent, Event, ExabgpJSON, the eor arm of the update case -->
+<!-- source: internal/exabgp/bridge/bridge_event.go -- ReadEvent, Event, exabgpJSON, the eor arm of the update case -->
 <!-- source: internal/exabgp/bridge/bridge_event_text.go -- Event.AppendText, TextForm -->
 
 A family operation whose NLRI field did not split into routes reaches the bridge
@@ -128,8 +133,14 @@ in every UPDATE. The JSON encoder creates an `announce` family only with its
 first route. It used to create the family before reading any route, so the error operation reached a
 script as `"ipv6 unicast": {}`, an announce of nothing.
 
-<!-- source: internal/exabgp/bridge/bridge_event.go -- convertUpdateIPC2, unsplitOperation -->
-<!-- source: internal/exabgp/bridge/bridge_event_text.go -- Event.appendUpdateText -->
+One NLRI inside a list that did split can still be unreadable: its family's
+decoder refused the octets, or no loaded plugin decodes the family. ze writes
+that element in the same convention, and both encoders leave the element out
+while the routes beside it pass. The bridge logs one warning for it, with the
+same members and the same 256-character bound on the bytes.
+
+<!-- source: internal/exabgp/bridge/bridge_event.go -- convertUpdateIPC2, unsplitOperation, undecodedNLRI -->
+<!-- source: internal/exabgp/bridge/bridge_event_text.go -- Event.appendUpdateText, appendUpdateOperation -->
 
 ## The text encoder is ExaBGP's own, ported
 
@@ -181,7 +192,10 @@ closes, and the runner waits for each script to read up to that EOF and exit
 before it kills the rest. The wait is one second for all the scripts together,
 and a script still running when it ends is logged and killed. ExaBGP gives a
 script the same chance: it writes the line, then sends SIGTERM and waits up to
-two seconds before it kills.
+two seconds before it kills. The external runner gets that chance only on
+Linux: elsewhere the engine kills a stopped plugin's process group at once
+(`docs/architecture/api/process-protocol.md`), so its scripts seldom see the
+line, and `exabgp-bridge-shutdown-external.ci` runs in the Linux guest.
 <!-- source: internal/exabgp/bridge/bridge_event_fsm.go -- writeSignal -->
 <!-- source: internal/exabgp/bridge/bridge_shutdown.go -- ShutdownLine -->
 <!-- source: internal/plugins/exabgp/bridgerun/fleet.go -- Fleet.Shutdown -->
@@ -777,8 +791,11 @@ among them, so every peer grants it and every line carries the block. The
 `negotiated` event writes the same block inside `neighbor` too.
 
 The block is ExaBGP's: `message_size`, `hold_time`, `asn4`, `refresh`,
-`families` in AFI then SAFI order, `nexthop` (one `<afi> <safi> <next-hop afi>`
-per RFC 8950 tuple) and `add_path` with both lists always written.
+`families` in the order ze's event carries them, the peer's OPEN order that
+ExaBGP writes too (`negotiated.py`, `Negotiated.received`), `nexthop` (one
+`<afi> <safi> <next-hop afi>` per RFC 8950 tuple, in the order of `families`,
+because ze's event carries the tuples as an object) and `add_path` with both
+lists always written, each in the order of `families`.
 `multisession` and `operational` are false on every ze session (Ze supports neither), so a
 4.2 or 5.0 line that said true is an ALLOWED difference in `TestOldResponses50`.
 
@@ -816,11 +833,18 @@ and `body` at its top; a consolidated text UPDATE writes ` header .. body ..` on
 a line of its own before `update end`. An empty body is left out everywhere but
 the packet JSON, which writes `0x`, as ExaBGP does.
 
-The bytes come from the engine: both runners subscribe with the `full` format,
+The bytes come from the engine: a runner subscribes with the `full` format,
 which carries each message's body beside its parsed form (`raw.update`,
-`raw.message`, `docs/architecture/api/json-format.md`). The bridge derives the
+`raw.message`, `docs/architecture/api/json-format.md`), only when some script
+is granted a form that writes them: `packets` in either direction, or a received
+`consolidate`. Otherwise it subscribes `parsed`, so the engine does not
+hex-encode every UPDATE for nothing. The internal runner decides at
+`OnConfigure`, which a reload cannot change; the external runner's one script
+has no feed, so it always subscribes `parsed`. The bridge derives the
 header from the body length and the type. An OPERATIONAL message has no
 producer, so neither form is written for one.
+<!-- source: internal/plugins/exabgp/bridgerun/fleet.go -- EventFormat -->
+<!-- source: internal/exabgp/bridge/bridge_event_packets.go -- GrantsPacket, FormsFor -->
 
 Two differences from ExaBGP remain. ExaBGP reads `consolidate` and `parsed` for
 the neighbor, from any process that asked, and ze reads them per script, which

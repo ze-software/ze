@@ -375,7 +375,12 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 
 	// Ensure a config file exists for the editor.
 	if configPath == "" {
-		configPath = internalresolve.DefaultConfig(store)
+		name, err := internalresolve.DefaultConfig(store)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "warning: web server disabled:", err)
+			return nil, nil
+		}
+		configPath = name
 	}
 	if !store.Exists(configPath) {
 		if writeErr := store.WriteFile(configPath, []byte("# ze config\n"), 0o600); writeErr != nil {

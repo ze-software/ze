@@ -136,14 +136,19 @@ func Addresses(name string) ([]AddrInfo, error) { return globalResolver.addresse
 // address read: a device set down between the two reads up with its addresses
 // already gone. A consumer that needs the link state at or after the address
 // read takes a second read and uses its State.
+//
+// DADReported is InterfaceInfo.DADReported of the same read: false means the
+// addresses carry no DAD outcome, so a reader MUST NOT take an address
+// without Tentative or DADFailed as unique.
 type AddressState struct {
-	Addresses []AddrInfo
-	State     string
+	Addresses   []AddrInfo
+	State       string
+	DADReported bool
 }
 
 // ErrAddressesNotReported is the ReadAddressState error of a backend that does
-// not read a device's addresses (InterfaceInfo.AddressesRead false, the VPP
-// backend). The device's addresses are unknown, not absent.
+// not read a device's addresses (InterfaceInfo.AddressesRead false). The
+// device's addresses are unknown, not absent.
 var ErrAddressesNotReported = errors.New("the active iface backend does not report interface addresses")
 
 // ReadAddressState reads the logical interface's addresses and its
@@ -159,7 +164,11 @@ func ReadAddressState(name string) (AddressState, error) {
 	if !info.AddressesRead {
 		return AddressState{}, fmt.Errorf("interface %q: %w", name, ErrAddressesNotReported)
 	}
-	return AddressState{Addresses: classifyAddresses(info.Addresses), State: info.State}, nil
+	return AddressState{
+		Addresses:   classifyAddresses(info.Addresses),
+		State:       info.State,
+		DADReported: info.DADReported,
+	}, nil
 }
 
 // Subscribe registers for link events on the logical name and returns a

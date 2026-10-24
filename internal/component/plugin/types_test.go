@@ -171,3 +171,19 @@ func TestRawJSONRefusesNonJSON(t *testing.T) {
 	require.NoError(t, err)
 	assert.JSONEq(t, `{"peer-count":3}`, string(obj))
 }
+
+// TestRawJSONRefusesAScalar checks that a payload which is valid JSON but a
+// top-level scalar is refused like text is. A Go string marshaled at the RPC
+// boundary arrives as `"text"`: valid JSON, and still finished text, which
+// `| yaml` and `| table` unmarshal to a scalar and print back
+// (plan/journal/declared-format-contradicts-payload.md, 2026-08-19).
+func TestRawJSONRefusesAScalar(t *testing.T) {
+	for _, payload := range []string{`"reload initiated"`, `42`, `true`, ` "padded"`} {
+		_, err := json.Marshal(RawJSON(payload))
+		require.Error(t, err, "scalar %s must not marshal as an answer", payload)
+		assert.Contains(t, err.Error(), "object or an array")
+	}
+	arr, err := json.Marshal(RawJSON(` [1,2]`))
+	require.NoError(t, err)
+	assert.JSONEq(t, `[1,2]`, string(arr))
+}

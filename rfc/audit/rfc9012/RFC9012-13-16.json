@@ -1,8 +1,8 @@
 {
   "code": {
-    "internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange": "c43894606dafdb4c"
+    "internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange": "c0e6a04e9a53a9ba"
   },
-  "note": "Section 13 defines disregard of tunnel-type-meaningless sub-TLVs in terms of encapsulation-header construction. Existing opaque carry and Preference-readback tests do not observe that consumer. checkRouteBestChange exports no attribute-23 tunnel parameters; the absent consumer remains owned by plan/spec-bgp-tunnel-encapsulation-consumption.md AC-2/AC-6. The applied owner-ruling annotation and removal of the four obsolete 13-16 carry tags preserve their assertions and existing 13-18/-19/RFC9830 identities. Preserve the complete quote and MUST applicability, with no whole-requirement credit.",
+  "note": "RFC 9012 Section 13, rfc/full/rfc9012.txt:1695-1705: \"Sub-TLVs of this sort MUST be disregarded.\" The deciding clarification is also a whole sentence: \"That is, they MUST NOT affect the creation of the encapsulation header.\" The antecedent is a sub-TLV meaningless for the containing tunnel type, such as a UDP port for a non-UDP tunnel or a mismatched Protocol Type. No tagged carriers exist for this row. Independently read checkRouteBestChange and the supporting SubTLVs/tunnelTLVLayout boundaries: opaque signaling and endpoint/framing validation exist, but election exports no attribute-23 encapsulation parameters and no type-specific encapsulation consumer is present in the scoped FIB/sysrib/RIB search. Thus unchanged propagation/non-malformed treatment cannot establish this header-construction disregard rule. Retain unimplemented, the checkRouteBestChange guard and the declared plan/post-release/features/spec-bgp-tunnel-encapsulation-consumption.md boundary. Existing 13-18/-19 and RFC9830 assertions/claims remain untouched and are not credited to 13-16. No checks run.",
   "requirement_sha": "6eb9e53c070a2d18",
   "verdict": "unimplemented"
 }

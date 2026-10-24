@@ -556,17 +556,17 @@ func moduleBuiltIn(name string) bool {
 
 // newSubsystemKernelWorker constructs a kernel worker ready for wiring
 // into a reactor. Resolves the L2TP Generic Netlink family and builds the
-// real kernelOps. Returns nil if genl resolution fails (kernel integration
-// stays disabled for this reactor; userspace control still works).
+// real kernelOps. When genl resolution fails it returns a nil worker and the
+// failure: kernel integration stays disabled for this reactor while userspace
+// control still works, and the subsystem keeps the error so the l2tp health
+// row reports the dead data plane (checkHealth).
 //
 // Caller MUST call SetKernelWorker on the reactor before Start(), then
 // Start() the worker after the reactor has its channels wired.
-func newSubsystemKernelWorker(errCh chan<- kernelSetupFailed, successCh chan<- kernelSetupSucceeded, logger *slog.Logger) *kernelWorker {
+func newSubsystemKernelWorker(errCh chan<- kernelSetupFailed, successCh chan<- kernelSetupSucceeded, logger *slog.Logger) (*kernelWorker, error) {
 	genl, err := resolveGenlFamily()
 	if err != nil {
-		logger.Warn("l2tp: genl family resolve failed; kernel integration disabled",
-			"error", err.Error())
-		return nil
+		return nil, fmt.Errorf("resolve the l2tp generic netlink family: %w", err)
 	}
-	return newKernelWorker(newKernelOps(genl), errCh, successCh, logger)
+	return newKernelWorker(newKernelOps(genl), errCh, successCh, logger), nil
 }

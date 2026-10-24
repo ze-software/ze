@@ -378,10 +378,11 @@ func (w *v6Worker) queueDAD(p netip.Prefix) {
 // can land before the monitor delivers that down.
 //
 // A read that cannot answer declines nothing: a failed read leaves every
-// address pending for the next poll, and a backend that does not report
-// addresses (iface.ErrAddressesNotReported, VPP) leaves the DAD outcome
-// unknown, so the addresses are dropped from the poll, undeclined, with one
-// Warn.
+// address pending for the next poll. A backend that does not report
+// addresses (iface.ErrAddressesNotReported), or reports them without their
+// DAD outcome (AddressState.DADReported false, the VPP backend), leaves the
+// outcome unknown: an address carrying no flag there is not a unique one, so
+// the addresses are dropped from the poll, undeclined, with one Warn.
 func (w *v6Worker) checkDAD() bool {
 	if len(w.dadPending) == 0 {
 		return true
@@ -397,6 +398,10 @@ func (w *v6Worker) checkDAD() bool {
 	if err != nil {
 		loggerPtr.Load().Debug("iface dhcp v6: cannot read the DAD outcome, retrying",
 			"iface", w.c.ifaceName, "err", err)
+		return true
+	}
+	if !read.DADReported {
+		w.dadUnreported(errDADNotReported)
 		return true
 	}
 	var duplicates, gone []netip.Prefix
@@ -429,13 +434,18 @@ func (w *v6Worker) checkDAD() bool {
 	return w.decline(duplicates) != v6EndCanceled
 }
 
+// errDADNotReported is the cause dadUnreported logs for a backend that
+// reports a device's addresses without their DAD outcome.
+var errDADNotReported = errors.New("the iface backend reports interface addresses without their duplicate address detection outcome")
+
 // dadUnreported drops the pending addresses from the DAD poll without
-// declining them, because the backend does not report a device's addresses
-// and so cannot show a DAD outcome. The Warn is logged once for the worker.
+// declining them, because the backend shows no DAD outcome: it does not
+// report the device's addresses, or reports them without the outcome (err
+// says which). The Warn is logged once for the worker.
 func (w *v6Worker) dadUnreported(err error) {
 	if !w.unreportedWarned {
 		w.unreportedWarned = true
-		loggerPtr.Load().Warn("iface dhcp v6: the iface backend does not report interface addresses, so ze cannot read the duplicate address detection outcome of the leased addresses and declines none of them; run the DHCPv6 client on an interface of the kernel (netlink) iface backend to have duplicates declined",
+		loggerPtr.Load().Warn("iface dhcp v6: the iface backend does not report the duplicate address detection outcome of the leased addresses, so ze cannot tell a duplicate from a unique address and declines none of them; run the DHCPv6 client on an interface of the kernel (netlink) iface backend to have duplicates declined",
 			"iface", w.c.ifaceName, "addresses", w.dadPending, "err", err)
 	}
 	w.dadPending = w.dadPending[:0]

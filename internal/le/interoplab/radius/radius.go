@@ -42,10 +42,11 @@ const (
 	zePeer     = "ze"
 	serverPeer = "freeradius"
 
-	scenarioPAP        = "radius-admin-pap-freeradius"
-	scenarioCHAP       = "radius-admin-chap-freeradius"
-	scenarioCHAPHashed = "radius-admin-chap-hashed-freeradius"
-	scenarioEAP        = "radius-admin-eap-freeradius"
+	scenarioPAP         = "radius-admin-pap-freeradius"
+	scenarioCHAP        = "radius-admin-chap-freeradius"
+	scenarioCHAPHashed  = "radius-admin-chap-hashed-freeradius"
+	scenarioEAP         = "radius-admin-eap-freeradius"
+	scenarioEAPUnsigned = "radius-admin-eap-unsigned-freeradius"
 
 	// nasIdentifier is the container hostname, and ze sends it as
 	// NAS-Identifier (RFC 2865 Section 4.1) because radiusBackend.Build reads
@@ -116,10 +117,11 @@ func (r Report) Text() string {
 // without a checker breaks the run instead of passing silently.
 func scenarioCheckerMap(timeout time.Duration) map[string]interoplab.Checker {
 	return map[string]interoplab.Checker{
-		scenarioPAP:        checker(checkPAP, timeout),
-		scenarioCHAP:       checker(checkCHAP, timeout),
-		scenarioCHAPHashed: checker(checkCHAPHashed, timeout),
-		scenarioEAP:        checker(checkEAP, timeout),
+		scenarioPAP:         checker(checkPAP, timeout),
+		scenarioCHAP:        checker(checkCHAP, timeout),
+		scenarioCHAPHashed:  checker(checkCHAPHashed, timeout),
+		scenarioEAP:         checker(checkEAP, timeout),
+		scenarioEAPUnsigned: checker(checkEAPUnsigned, timeout),
 	}
 }
 
@@ -247,6 +249,9 @@ func serverPeerConfig(root string, source interoplab.ScenarioSource, container s
 			{Source: filepath.Join(lab, "site-default"), Target: "/etc/raddb/sites-enabled/default", ReadOnly: true},
 			{Source: filepath.Join(lab, "mods-ze-request-log"), Target: "/etc/raddb/mods-enabled/ze_request_log", ReadOnly: true},
 			{Source: filepath.Join(source.Directory, "users"), Target: "/etc/raddb/mods-config/files/authorize", ReadOnly: true},
+			// The relay radius-admin-eap-unsigned-freeradius starts, mounted in every
+			// scenario because the mount is inert until a checker runs it.
+			{Source: filepath.Join(lab, "unsigned-relay.pl"), Target: relayScript, ReadOnly: true},
 		},
 		// -X keeps the full request and reply on the container log, so a failed
 		// scenario names what the server decoded rather than only that it said no.

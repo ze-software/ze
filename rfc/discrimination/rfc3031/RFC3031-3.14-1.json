@@ -1,6 +1,17 @@
 [
   {
     "rid": "RFC3031-3.14-1",
+    "polarity": "negative",
+    "unit": "internal/plugins/ldp/rfc3031_label_test.go::TestLDPLabelExhaustionRefusesSecondBinding",
+    "unit-sha": "4b94810482c8d396",
+    "claim-sha": "a400a046340b241c",
+    "route": "revert",
+    "producer": "internal/plugins/ldp/lib.go::allocateLabelLocked",
+    "producer-sha": "7b3749b76ce03026",
+    "break": "body of allocateLabelLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC3031-3.14-1",
     "polarity": "positive",
     "unit": "internal/plugins/ldp/rfc3031_label_test.go::TestRFC3031LocalFECsGetDistinctLabels",
     "unit-sha": "39da4f2388be0d51",
@@ -8,7 +19,7 @@
     "route": "mutant",
     "producer": "internal/plugins/ldp/lib.go::allocateLabelLocked",
     "producer-sha": "231360435e40e6b1",
-    "break": "line 64: \"l.nextLabel \u003e MaxLabel\" -\u003e \"true\""
+    "break": "line 64: \"l.nextLabel > MaxLabel\" -> \"true\""
   },
   {
     "rid": "RFC3031-3.14-1",
@@ -19,6 +30,6 @@
     "route": "mutant",
     "producer": "internal/plugins/ldp/lib.go::allocateLabelLocked",
     "producer-sha": "231360435e40e6b1",
-    "break": "line 67: \"!l.usedLabels[label]\" -\u003e \"true\""
+    "break": "line 67: \"!l.usedLabels[label]\" -> \"true\""
   }
 ]

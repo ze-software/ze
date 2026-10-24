@@ -239,7 +239,7 @@ func TestPromptCreateConfigOutputFormat(t *testing.T) {
 // VALIDATES: Default config name is ze.conf without identity, <name>.conf with identity.
 // PREVENTS: Accidental change of default config name logic.
 func TestDefaultConfigName(t *testing.T) {
-	if got := resolve.DefaultConfig(nil); got != "ze.conf" {
+	if got, err := resolve.DefaultConfig(nil); err != nil || got != "ze.conf" {
 		t.Errorf("defaultConfigName(filesystem) = %q, want %q", got, "ze.conf")
 	}
 
@@ -252,7 +252,7 @@ func TestDefaultConfigName(t *testing.T) {
 	defer blobStore.Close() //nolint:errcheck // test cleanup
 
 	// No identity set: falls back to ze.conf
-	if got := resolve.DefaultConfig(blobStore); got != "ze.conf" {
+	if got, err := resolve.DefaultConfig(blobStore); err != nil || got != "ze.conf" {
 		t.Errorf("defaultConfigName(blob, no identity) = %q, want %q", got, "ze.conf")
 	}
 
@@ -260,7 +260,7 @@ func TestDefaultConfigName(t *testing.T) {
 	if err := blobStore.WriteFile("meta/instance/name", []byte("ze-first"), 0); err != nil {
 		t.Fatal(err)
 	}
-	if got := resolve.DefaultConfig(blobStore); got != "ze-first.conf" {
+	if got, err := resolve.DefaultConfig(blobStore); err != nil || got != "ze-first.conf" {
 		t.Errorf("defaultConfigName(blob, identity=ze-first) = %q, want %q", got, "ze-first.conf")
 	}
 }

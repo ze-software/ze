@@ -141,14 +141,14 @@ func (s *Sender) buildInlineBatch(prefixes []netip.Prefix) []byte {
 
 	nlriTotal := 0
 	for _, p := range prefixes {
-		nlriTotal += nlri.LenWithContext(nlri.NewINET(fam, p, 0), false)
+		nlriTotal += nlri.LenWithContext(nlri.NewINET(fam, p, 0, false), false)
 	}
 
 	nlriBytes := make([]byte, nlriTotal)
 	off := 0
 
 	for _, p := range prefixes {
-		inet := nlri.NewINET(fam, p, 0)
+		inet := nlri.NewINET(fam, p, 0, false)
 		off += nlri.WriteNLRI(inet, nlriBytes, off, false)
 	}
 
@@ -218,14 +218,14 @@ func (s *Sender) buildMPBatch(prefixes []netip.Prefix) []byte {
 	// Build concatenated NLRIs.
 	nlriTotal := 0
 	for _, p := range prefixes {
-		nlriTotal += nlri.LenWithContext(nlri.NewINET(fam, p, 0), false)
+		nlriTotal += nlri.LenWithContext(nlri.NewINET(fam, p, 0, false), false)
 	}
 
 	nlriBytes := make([]byte, nlriTotal)
 	off := 0
 
 	for _, p := range prefixes {
-		inet := nlri.NewINET(fam, p, 0)
+		inet := nlri.NewINET(fam, p, 0, false)
 		off += nlri.WriteNLRI(inet, nlriBytes, off, false)
 	}
 
@@ -265,13 +265,13 @@ func (s *Sender) buildWithdrawBatch(prefixes []netip.Prefix) []byte {
 
 	nlriTotal := 0
 	for _, p := range prefixes {
-		nlriTotal += nlri.LenWithContext(nlri.NewINET(fam, p, 0), false)
+		nlriTotal += nlri.LenWithContext(nlri.NewINET(fam, p, 0, false), false)
 	}
 
 	nlriBytes := make([]byte, nlriTotal)
 	off := 0
 	for _, p := range prefixes {
-		inet := nlri.NewINET(fam, p, 0)
+		inet := nlri.NewINET(fam, p, 0, false)
 		off += nlri.WriteNLRI(inet, nlriBytes, off, false)
 	}
 
@@ -343,7 +343,7 @@ func (s *Sender) buildForceMPRoute(prefix netip.Prefix) []byte {
 	}
 
 	// MP_REACH_NLRI (type 14) with AFI=1/SAFI=1.
-	inet := nlri.NewINET(family.IPv4Unicast, prefix, 0)
+	inet := nlri.NewINET(family.IPv4Unicast, prefix, 0, false)
 	nlriBytes := make([]byte, nlri.LenWithContext(inet, false))
 	nlri.WriteNLRI(inet, nlriBytes, 0, false)
 

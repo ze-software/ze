@@ -58,7 +58,7 @@ Ze uses the canonical `afi/safi` names from the family registry:
 
 ```
 NLRI (interface)
-├── PrefixNLRI [embedded: family, prefix, pathID]
+├── prefixNLRI [embedded: family, prefix, pathID]
 │   ├── INET (IPv4/IPv6 unicast/multicast)
 │   └── LabeledUnicast (SAFI 4) [+labels]
 ├── MUP (Mobile User Plane, draft-ietf-bess-mup-safi) [standalone - the route type
@@ -70,8 +70,8 @@ NLRI (interface)
 ├── EVPN (L2VPN EVPN, RFC 7432)
 │   ├── EVPNType1 (Ethernet Auto-Discovery)
 │   ├── EVPNType2 (MAC/IP Advertisement)
-│   ├── EVPNType3 (Inclusive Multicast)
-│   ├── EVPNType4 (Ethernet Segment)
+│   ├── evpnType3 (Inclusive Multicast)
+│   ├── evpnType4 (Ethernet Segment)
 │   └── EVPNType5 (IP Prefix)
 ├── FlowSpec (RFC 5575)
 ├── FlowSpecVPN (RFC 8955)
@@ -87,20 +87,28 @@ NLRI (interface)
 
 ### Embedding Details
 
-**PrefixNLRI** (base.go) - Shared by prefix-based types:
+**prefixNLRI** (base.go) - Shared by prefix-based types:
 - `family` - AFI/SAFI address family
 - `prefix` - IP prefix (netip.Prefix)
 - `pathID` - RFC 7911 ADD-PATH identifier
-- `addPath` - true when the wire carried a Path Identifier, read through `HasAddPath()`
+- `addPath` - true when this NLRI carries a Path Identifier, read through `HasAddPath()`
 
 RFC 7911 Section 3 reserves no value for the Path Identifier, so `pathID` of
-zero identifies a path and says nothing about whether one arrived. `addPath`
-answers that, and only the parser can set it, because the negotiation is what
-told the parser how to read the octets. A locally built NLRI reports false: it
-has no wire layout yet, and `WriteNLRI` takes the layout from the session's
-EncodingContext.
+zero identifies a path and says nothing about whether one is carried. `addPath`
+answers that, and it comes from the negotiation, never from the value: the
+parser records the session's ADD-PATH flag, and `NewINET` takes it as an
+argument from its caller (the builder's negotiated flag, or the operator's
+explicit `path-information`). `WriteNLRI` still takes the wire layout from the
+session's EncodingContext.
 
-**RDNLRIBase** (base.go) - Shared by RD-based types:
+`nlri.HasPathID(n)` is the one presence test. It probes `nlri.AddPathAware`,
+which every NLRI type implements (types that cannot carry an identifier answer
+false), and no code compares `PathID()` with zero to decide presence: the route
+index (`rib.Route.Index`), the JSON formatter, the replay commands
+(`bgp.FormatAnnounceCommand`, `formatCursorCommands`), the Adj-RIB-Out show
+(`serializeRouteItem`) and the Adj-RIB-In show key all ask the carried flag.
+
+**rdNLRIBase** (base.go) - Shared by RD-based types:
 - `rd` - Route Distinguisher (8 bytes)
 - `data` - Route-type specific data after RD (zero-copy slice)
 - `cached` - Wire format cache (zero-copy slice from parsing)
@@ -112,7 +120,7 @@ EncodingContext.
 
 **Note:** IPVPN stays standalone because its field order differs (rd before prefix).
 
-<!-- source: internal/core/bgp/nlri/base.go -- PrefixNLRI, RDNLRIBase -->
+<!-- source: internal/core/bgp/nlri/base.go -- prefixNLRI, rdNLRIBase -->
 <!-- source: internal/core/bgp/nlri/inet.go -- INET struct -->
 <!-- source: internal/component/bgp/plugins/nlri/labeled/types.go -- LabeledUnicast struct -->
 <!-- source: internal/component/bgp/plugins/nlri/vpn/types.go -- VPN struct -->
@@ -157,7 +165,7 @@ EncodingContext.
 
 `ParseINET` takes the ADD-PATH flag the session negotiated, consumes the 4-octet
 Path Identifier when it is set, and records the flag on the NLRI it returns. A
-reader of a parsed INET therefore asks `HasAddPath()` for the layout and reads
+reader of an INET therefore asks `nlri.HasPathID` for presence and reads
 `PathID()` for the value, including when that value is zero.
 
 <!-- source: internal/core/bgp/nlri/inet.go -- ParseINET, INET.Len, INET.WriteTo -->
@@ -299,7 +307,7 @@ Wire: 60 00 3E 81 00 00 FD E8 00 00 00 64 0A
       +------------------------------------ Length: 96 bits
 ```
 
-<!-- source: internal/component/bgp/plugins/nlri/vpn/types.go -- VPN struct, ParseVPN -->
+<!-- source: internal/component/bgp/plugins/nlri/vpn/types.go -- VPN struct, parseVPNAnnounce -->
 <!-- source: internal/core/bgp/nlri/rd.go -- RouteDistinguisher, RDType constants -->
 
 ---
@@ -508,7 +516,7 @@ are the same bytes, and the key inverse answers `ErrUnsupported` for it.
 ```go
 // internal/core/bgp/nlri/labeled.go
 type LabeledUnicast struct {
-    PrefixNLRI           // Embeds family, prefix, pathID (Family(), Prefix(), PathID() inherited)
+    prefixNLRI           // Embeds family, prefix, pathID (Family(), Prefix(), PathID() inherited)
     labels  []uint32     // Label stack (BOS on last)
 }
 
@@ -516,7 +524,7 @@ type LabeledUnicast struct {
 func (l *LabeledUnicast) Len() int                       // Payload length only
 func (l *LabeledUnicast) WriteTo(buf []byte, off int) int  // Write payload only
 func (l *LabeledUnicast) Bytes() []byte                  // Payload bytes only
-// Family(), Prefix(), PathID() inherited from PrefixNLRI
+// Family(), Prefix(), PathID() inherited from prefixNLRI
 
 // For ADD-PATH aware encoding, use package functions:
 nlri.LenWithContext(n, ctx)      // Adds 4 bytes when ctx.AddPath=true
@@ -574,27 +582,27 @@ type NLRI interface {
     String() string
 }
 
-// PrefixNLRI base type (base.go) - embedded by INET and LabeledUnicast
-type PrefixNLRI struct {
+// prefixNLRI base type (base.go) - embedded by INET and LabeledUnicast
+type prefixNLRI struct {
     family Family        // AFI/SAFI
     prefix netip.Prefix  // IP prefix
     pathID uint32        // RFC 7911: 0 means no path ID
 }
 
-// INET embeds PrefixNLRI
+// INET embeds prefixNLRI
 type INET struct {
-    PrefixNLRI  // Family(), Prefix(), PathID() inherited
+    prefixNLRI  // Family(), Prefix(), PathID() inherited
 }
 
-// LabeledUnicast embeds PrefixNLRI + adds labels
+// LabeledUnicast embeds prefixNLRI + adds labels
 type LabeledUnicast struct {
-    PrefixNLRI           // Family(), Prefix(), PathID() inherited
+    prefixNLRI           // Family(), Prefix(), PathID() inherited
     labels []uint32      // Label stack (BOS on last)
 }
 ```
 
 <!-- source: internal/core/bgp/nlri/nlri.go -- NLRI interface -->
-<!-- source: internal/core/bgp/nlri/base.go -- PrefixNLRI struct -->
+<!-- source: internal/core/bgp/nlri/base.go -- prefixNLRI struct -->
 <!-- source: internal/core/bgp/nlri/inet.go -- INET struct -->
 <!-- source: internal/component/bgp/plugins/nlri/labeled/types.go -- LabeledUnicast struct -->
 
@@ -629,7 +637,7 @@ A rule has two answers, each optional:
 
 | Answer | Read by | Question |
 |--------|---------|----------|
-| `Judge` | `message.validateMPNLRISyntax`, at the RFC 7606 walk | The verdict for the whole NLRI section of one MP attribute: well-formed, treat-as-withdraw, or session reset (NOTIFICATION 3/1, like every MP NLRI reset) |
+| `Judge` | `message.validateMPNLRISyntax`, at the RFC 7606 walk | The verdict for the whole NLRI section of one MP attribute: well-formed, treat-as-withdraw, or session reset (NOTIFICATION 3/9 with the whole MP attribute as Data, like every MP NLRI reset: RFC 4760 Section 7) |
 | `Retain` | `reactor.typedNLRIEdit`, after the Section 5.4 type filter | The section with the malformed NLRIs removed, so neither the RIB, a synthesized withdrawal nor a relay carries them; or "cannot be walked", which resets the session |
 
 | Family | Rule | Judge | Retain |
@@ -648,13 +656,15 @@ direction applies to every multiprotocol family, SAFI 73 included).
 |---------|---------|
 | every NLRI 96 bits (AFI 1) or 192 bits (AFI 2) | well-formed |
 | walkable, at least one NLRI of another length (13 octets, 24 under AFI 1, 12 under AFI 2) | treat-as-withdraw for the whole UPDATE (RFC 9830 Section 5); the malformed NLRIs are removed before synthesis, so the withdrawal carries only the well-formed ones, and an UPDATE of only malformed NLRIs is consumed with nothing relayed |
-| a length of 0, a length not a multiple of 8, an NLRI overrunning the attribute, or a path identifier cut short | session reset, NOTIFICATION 3/1 (RFC 9830 Section 5: Ze has no AFI/SAFI disable) |
+| a length of 0, a length not a multiple of 8, an NLRI overrunning the attribute, or a path identifier cut short | session reset, NOTIFICATION 3/9 with the MP attribute as Data (RFC 9830 Section 5: Ze has no AFI/SAFI disable; RFC 4760 Section 7 names the subcode) |
 
 A treat-as-withdraw verdict on an UPDATE with no reachable NLRI is escalated to
 session reset by the RFC 7606 Section 5.2 check in `ValidateUpdateRFC7606AddPath`
 when the UPDATE carries any path attribute other than MP_UNREACH_NLRI. An UPDATE
 whose only attribute is MP_UNREACH_NLRI is the shape Section 5.2 exempts, so a
-walkable malformed SR Policy NLRI in it stays treat-as-withdraw.
+walkable malformed SR Policy NLRI in it stays treat-as-withdraw. The escalated
+reset sends NOTIFICATION 3/9 with the MP attribute that held the malformed NLRI
+as Data, the same as an unwalkable section (RFC 4760 Section 7).
 
 <!-- source: internal/core/bgp/nlri/nlrisyntax/nlrisyntax.go -- Rule, Register, Get -->
 <!-- source: internal/component/bgp/message/rfc7606.go -- validateMPNLRISyntax, mpNLRIJudgementResult -->
@@ -820,9 +830,9 @@ octets after the length, without reading their label or bottom-of-stack bits.
 It then reads the RD and prefix, and publishes those identities and any
 negotiated Path Identifier, including zero. There is no `labels` field in
 that withdrawal JSON. Announcements still decode their complete label stack;
-`ParseVPN` remains the announcement parser. Decoding does not rewrite the
+`parseVPNAnnounce` remains the announcement parser. Decoding does not rewrite the
 native bytes retained for forwarding.
-<!-- source: internal/component/bgp/plugins/nlri/vpn/types.go -- ParseVPN, parseVPN -->
+<!-- source: internal/component/bgp/plugins/nlri/vpn/types.go -- parseVPNAnnounce, parseVPN -->
 <!-- source: internal/component/bgp/plugins/nlri/vpn/vpn.go -- DecodeNLRIHex, vpnToJSON -->
 
 The SAFI 4 labeled-unicast decoder also uses the caller's `withdraw` flag.
@@ -842,7 +852,7 @@ negotiation result travels beside them, on three surfaces:
 
 | Surface | Carrier |
 |---------|---------|
-| Formatter to registry | `nlri.AddPathAware`, probed by `appendNLRIJSONValue` |
+| Formatter to registry | `nlri.HasPathID`, asked by `appendNLRIJSONValue` |
 | Registry to plugin | `DecodeNLRIByFamily(family, hex, addPath, withdraw)` and `Registration.InProcessNLRIDecoder` |
 | Engine to external plugin | The `add-path` field of `rpc.DecodeNLRIInput` |
 
@@ -862,9 +872,9 @@ family and renders `{"prefix": ..., "path-id": 0}` rather than a bare prefix
 string when the session carried a Path Identifier of zero.
 
 Two plugin types parse the octets themselves and record the same flag on their
-own value: `VPN` (`hasPath`, set by `ParseVPN` from the negotiation it was
+own value: `VPN` (`hasPath`, set by `parseVPNAnnounce` from the negotiation it was
 handed) and `LabeledUnicast` (`hasPath`, set by the caller of
-`NewLabeledUnicast`). Both publish it as `HasPathID()`, which is what
+`NewLabeledUnicast`). Both publish it as `HasAddPath()`, which is what
 `vpnToJSON` and the two `String()` renderings read. A reader comparing the
 identifier against zero cannot tell a route that carried one from a route that
 carried none, so no surface does.

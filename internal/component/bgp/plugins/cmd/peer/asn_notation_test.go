@@ -8,6 +8,7 @@ import (
 	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/bgp/asn"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // TestPeerRowsFollowTheConfiguredNotation proves the AS numbers an operator
@@ -25,7 +26,7 @@ func TestPeerRowsFollowTheConfiguredNotation(t *testing.T) {
 	reactor := &mockReactor{
 		peers: []plugin.PeerInfo{{
 			Address: netip.MustParseAddr("192.0.2.1"),
-			PeerAS:  65546,
+			PeerAS:  rpc.RemoteASOf(65546),
 			LocalAS: 100,
 			State:   plugin.PeerStateEstablished,
 		}},

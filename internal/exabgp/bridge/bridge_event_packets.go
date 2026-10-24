@@ -305,7 +305,7 @@ func (e Event) consolidatedLine(format Format, log *slog.Logger) []byte {
 		line = append(line, last...)
 		return append(line, '\n')
 	case FormatV4JSON, FormatV6JSON:
-		document := e.ExabgpJSON(format)
+		document := e.exabgpJSON(format)
 		document["header"] = e.Packet.headerText()
 		if e.Packet.body != "" {
 			document["body"] = e.Packet.bodyText()
@@ -333,7 +333,7 @@ func (p Packet) appendHeaderBodyText(buf []byte) []byte {
 // marshalLine serializes one ExaBGP JSON document as a line, or logs and
 // answers nil when it does not marshal.
 func marshalLine(document map[string]any, log *slog.Logger) []byte {
-	encoded, err := MarshalExabgpJSON(document)
+	encoded, err := marshalExabgpJSON(document)
 	if err != nil {
 		log.Warn("exabgp-bridge: marshal external JSON failed", "error", err)
 		return nil

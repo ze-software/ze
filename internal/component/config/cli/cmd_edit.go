@@ -439,7 +439,7 @@ func cmdEditWithStorage(store storage.Storage, args []string) int {
 	}
 	if *fileOverride {
 		if configPath == "" {
-			configPath = resolve.DefaultConfig(nil)
+			configPath = resolve.DefaultConfigName
 		}
 		if _, err := os.Stat(configPath); os.IsNotExist(err) {
 			if !promptCreateConfig(configPath) {
@@ -472,7 +472,12 @@ func cmdEditWithStorage(store storage.Storage, args []string) int {
 		}()
 	}
 	if configPath == "" {
-		configPath = resolve.DefaultConfig(store)
+		name, err := resolve.DefaultConfig(store)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "error:", err)
+			return exitError
+		}
+		configPath = name
 		if !store.Exists(configPath) {
 			configPath = selectConfig(store, "file/active", configPath)
 			if configPath == "" {
@@ -522,7 +527,13 @@ func cmdEditBackup(backupPath, configName, user string) int {
 		return exitError
 	}
 	if configName == "" {
-		configName = resolve.DefaultConfig(store)
+		name, err := resolve.DefaultConfig(store)
+		if err != nil {
+			store.Close() //nolint:errcheck // The read failure is the error reported.
+			fmt.Fprintln(os.Stderr, "error:", err)
+			return exitError
+		}
+		configName = name
 		if !store.Exists(configName) {
 			configName = selectConfig(store, "file/active", configName)
 		}

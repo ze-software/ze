@@ -183,9 +183,12 @@ $ ze cli -c 'update bgp irr asn 65001'
 $ ze cli -c 'update bgp irr as-set AS-CUSTOMER'
 ```
 
-A refresh that returns prefixes atomically replaces the in-memory list. The firewall IRR plugin also writes its lists to ZeFS; the BGP filter does not (see "After a restart" below). Two other outcomes keep the last known good list instead, and both record the reason in `show bgp irr`:
+A refresh that returns prefixes atomically replaces the in-memory list. The firewall IRR plugin also writes its lists to ZeFS; the BGP filter does not (see "After a restart" below). Three other outcomes keep the last known good list instead, and each records the reason in `show bgp irr`:
 
 - The refresh failed: the server was unreachable, refused the query, or sent a truncated reply.
+- The refresh returned more than 500000 prefixes across both families. The BGP filter refuses the list whole rather than cutting it, because a cut kept the IPv4 half and lost IPv6; the error gives the IPv4 and IPv6 counts. Narrow the AS-SET.
+<!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- prefixListFromIRR -->
+
 - The refresh succeeded and returned no prefixes at all. Ze treats "I have nothing" the same as a failure, because an empty allow-list rejects every route the peer sends. A server that answers `D` (key not found), answers with no records, or reports an error can therefore not empty a live list.
 
 The prefixes an empty answer left in place are still enforced. `show bgp irr` and `show firewall irr` mark the entry `stale` and give the age of the data, so enforcing data nobody has confirmed is visible rather than silent.

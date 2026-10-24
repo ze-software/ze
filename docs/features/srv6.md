@@ -85,6 +85,14 @@ These implementation details are not evidence of an executed forwarding proof.
 <!-- source: internal/plugins/fib/vpp/srv6.go -- addSRv6Steer, acquirePolicy, releasePolicy -->
 <!-- source: internal/plugins/fib/vpp/srv6_state.go -- restore -->
 <!-- source: internal/plugins/fib/vpp/register.go -- runFibVPPPlugin -->
+
+The VPP writer exists only when VPP answers. With no vpp connector, or a GoVPP
+channel that will not open, `fib-vpp` programs nothing and logs `no route is
+programmed into VPP`, rather than running a no-op backend that reported every
+route installed; the Connected and Reconnected events retry, and the replay
+then installs every route. Meanwhile `show fib vpp` refuses with the cause
+instead of answering an empty list.
+<!-- source: internal/plugins/fib/vpp/register.go -- openFibVPPWriter, answerShowFibVPP -->
 <!-- source: internal/component/vpp/vpp.go -- runOnce -->
 
 Durable admission is bounded by 4,096 ownership keys across policies, steering,

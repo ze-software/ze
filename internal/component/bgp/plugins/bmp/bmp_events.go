@@ -13,6 +13,7 @@ package bmp
 
 import (
 	"encoding/binary"
+	"errors"
 	"hash/fnv"
 	"net/netip"
 
@@ -241,11 +242,13 @@ func fsmEventData(event uint16) []byte {
 func (bp *BMPPlugin) clearPeerState(se *rpc.StructuredEvent) peerDownCause {
 	bp.mu.Lock()
 	notify := bp.notifyCache[se.PeerAddress]
-	peer := peerHeaderFromEvent(se)
+	// The Peer Down names the peer its Peer Up reported, never the teardown
+	// event: that event can arrive after the reactor has cleared the
+	// negotiated identity. With no Peer Up there is no Peer Down to write
+	// (cause.reported), so no header is built.
+	var peer PeerHeader
 	st := bp.peerUps[se.PeerAddress]
 	if st != nil {
-		// A teardown event can arrive after the reactor has cleared its
-		// negotiated identity. Close the peer previously reported to BMP.
 		peer = st.peer
 		peer.TimestampSec, peer.TimestampUsec = 0, 0
 	}
@@ -323,9 +326,14 @@ func (bp *BMPPlugin) recordPeerUp(se *rpc.StructuredEvent) {
 	if sentOpen == nil || recvOpen == nil {
 		return
 	}
+	peer, err := peerHeaderFromEvent(se)
+	if err != nil {
+		logger().Warn("bmp: peer up not recorded", "peer", se.PeerAddress, "error", err)
+		return
+	}
 
 	st := &peerUpState{
-		peer: peerHeaderFromEvent(se),
+		peer: peer,
 		// RFC 7854 Section 4.10 reports the established TCP endpoints,
 		// including the ephemeral port of an active opener.
 		localPort:  se.LocalPort,
@@ -532,7 +540,15 @@ func (bp *BMPPlugin) handleSenderMirror(se *rpc.StructuredEvent, senders []*send
 		return
 	}
 
-	peer := peerHeaderFromEvent(se)
+	// RFC 7854 Section 4.2: "Peer AS: The Autonomous System number of the peer from which the encapsulated PDU was received."
+	// A dynamic peer's OPEN exchange happens before its AS is negotiated, and
+	// the header has no way to say "not known", so that message is not mirrored
+	// rather than mirrored under AS 0.
+	peer, err := peerHeaderFromEvent(se)
+	if err != nil {
+		logger().Debug("bmp: route mirroring skipped", "peer", se.PeerAddress, "error", err)
+		return
+	}
 	rawBytes := msg.RawBytes
 	msgType := msg.Type
 	for _, ss := range senders {
@@ -591,8 +607,14 @@ func (bp *BMPPlugin) handleSenderUpdate(se *rpc.StructuredEvent, senders []*send
 	if !stream {
 		return
 	}
-
-	peer := peerHeaderFromEvent(se)
+	// An UPDATE arrives only in Established, where the peer's AS is always
+	// negotiated: one without it is a Ze defect, refused rather than reported
+	// under AS 0.
+	peer, err := peerHeaderFromEvent(se)
+	if err != nil {
+		logger().Warn("bmp: route monitoring not sent", "peer", se.PeerAddress, "error", err)
+		return
+	}
 	for _, ss := range senders {
 		if err := ss.writeRouteMonitoring(peer, msgType, rawBytes); err != nil {
 			logger().Debug("bmp: sender route monitoring failed", "collector", ss.name, "error", err)
@@ -741,15 +763,29 @@ func (bp *BMPPlugin) duplicateUpdate(address string, received, withdraws bool, r
 	return false
 }
 
+// errPeerASUnknown is peerHeaderFromEvent's refusal: the event names no
+// negotiated peer AS, and the BMP per-peer header cannot say "not known".
+var errPeerASUnknown = errors.New("the peer's AS is not negotiated, and the BMP per-peer header has no value for an unknown AS")
+
 // peerHeaderFromEvent builds a BMP PeerHeader from a StructuredEvent.
 // Sets flags based on event metadata:
 //   - V flag: IPv6 peer address
 //   - L flag: post-policy (sent direction)
 //   - O flag: Adj-RIB-Out (sent direction, RFC 8671)
-func peerHeaderFromEvent(se *rpc.StructuredEvent) PeerHeader {
+//
+// RFC 7854 Section 4.2: "Peer AS: The Autonomous System number of the peer
+// from which the encapsulated PDU was received." The field has no value for
+// "not known", so an event whose peer AS is not yet negotiated (a dynamic
+// peer's OPEN exchange) yields errPeerASUnknown and no header: no caller can
+// write AS 0 for a peer whose AS it does not know.
+func peerHeaderFromEvent(se *rpc.StructuredEvent) (PeerHeader, error) {
+	asn, known := se.PeerAS.ASN()
+	if !known {
+		return PeerHeader{}, errPeerASUnknown
+	}
 	ph := PeerHeader{
 		PeerType:  PeerTypeGlobal,
-		PeerAS:    se.PeerAS,
+		PeerAS:    asn,
 		PeerBGPID: se.RemoteRouterID,
 	}
 	// RFC 7854 Section 5: "Otherwise, the BMP Timestamp field MUST be set
@@ -778,7 +814,7 @@ func peerHeaderFromEvent(se *rpc.StructuredEvent) PeerHeader {
 		ph.Flags |= PeerFlagO | PeerFlagL
 	}
 
-	return ph
+	return ph, nil
 }
 
 // parseIPInto writes the BMP address field and reports whether it is IPv6.

@@ -15,6 +15,7 @@
 package hub
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -87,8 +88,12 @@ func commandMetaSource(s *pluginserver.Server) func() ([]commandMeta, error) {
 		if err != nil {
 			return nil, fmt.Errorf("command metadata: %w", err)
 		}
+		paramsByPath, err := buildParamMeta(schema)
+		if err != nil {
+			return nil, fmt.Errorf("command metadata: %w", err)
+		}
 		return &yangCommandMeta{
-			paramsByPath:      buildParamMeta(schema),
+			paramsByPath:      paramsByPath,
 			taskSupportByPath: buildTaskSupportMap(schema),
 			uiResourceByPath:  yangloader.PathToUIResource(schema),
 		}, nil
@@ -240,10 +245,12 @@ func anchoredParams(params []commandParam, defs []command.ArgDef) []commandParam
 }
 
 // buildParamMeta extracts all RPC metadata from the YANG loader and builds a
-// map from CLI command path to neutral input parameters.
-func buildParamMeta(schema *yangloader.Resolved) map[string][]commandParam {
+// map from CLI command path to neutral input parameters. A schema whose rpc
+// pointers cannot be published is an error: answering nil published every
+// command with no input parameters, the resolvable ones included.
+func buildParamMeta(schema *yangloader.Resolved) (map[string][]commandParam, error) {
 	if schema == nil {
-		return nil
+		return nil, errors.New("no YANG schema to read command parameters from")
 	}
 
 	// Build reverse map: CLI path -> wire method.
@@ -258,7 +265,7 @@ func buildParamMeta(schema *yangloader.Resolved) map[string][]commandParam {
 	// is rebuilt from it.
 	pub, err := yangloader.PublishedRPCs(schema)
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("command parameters: %w; `ze schema` names the module to correct", err)
 	}
 	inputs := make(map[string][]yangloader.LeafMeta, len(pub.Commands))
 	for _, rpc := range pub.Commands {
@@ -284,7 +291,7 @@ func buildParamMeta(schema *yangloader.Resolved) map[string][]commandParam {
 		result[path] = params
 	}
 
-	return result
+	return result, nil
 }
 
 // buildTaskSupportMap extracts ze:task-support values from the YANG loader.

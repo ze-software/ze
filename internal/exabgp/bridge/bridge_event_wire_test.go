@@ -34,7 +34,7 @@ func wireUpdateEvent() map[string]any {
 
 func wireUpdateAttributes(t *testing.T, e *Event) map[string]any {
 	t.Helper()
-	line := e.ExabgpJSON(FormatV4JSON)
+	line := e.exabgpJSON(FormatV4JSON)
 	neighbor, _ := line["neighbor"].(map[string]any)
 	message, _ := neighbor["message"].(map[string]any)
 	update, _ := message["update"].(map[string]any)

@@ -9,9 +9,12 @@
 #            clobbering the second.
 # PREVENTS:  a future refactor that routes the system RIB to a single
 #            FIB backend, which would silently break the dual-dataplane
-#            promise. The warn line "VPP connector not available" is
-#            proof that fib-vpp's code path ran alongside fib-kernel's
-#            netlink path.
+#            promise. fib-vpp's refusal line ("no route is programmed into
+#            VPP", logged after it subscribed, because no VPP connector
+#            runs here) is proof that fib-vpp's code path ran alongside
+#            fib-kernel's netlink path. The noop backend this test once
+#            required is refused: it reported routes installed that VPP
+#            never held.
 #
 # Method: spawn ze with both fib.kernel {} and fib.vpp {enabled true;}
 # present; assert both plugins log lifecycle messages. fib-kernel's
@@ -22,6 +25,6 @@
 
 cmd=foreground:seq=1:exec=le test fixture plugin/fib-vpp-coexist-with-fib-kernel:timeout=15s
 expect=exit:code=0
-expect=stderr:pattern=VPP connector not available, using noop backend
-expect=stderr:pattern=fib-vpp: running
+expect=stderr:pattern=fib-vpp: no route is programmed into VPP
+reject=stderr:pattern=using noop backend
 expect=stderr:pattern=subsystem=fib.kernel

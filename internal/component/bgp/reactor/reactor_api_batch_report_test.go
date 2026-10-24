@@ -147,7 +147,7 @@ func commitWithdrawals(count int) []nlri.NLRI {
 	out := make([]nlri.NLRI, 0, count)
 	for i := range count {
 		addr := netip.AddrFrom4([4]byte{10, byte(i >> 16), byte(i >> 8), byte(i)})
-		out = append(out, nlri.NewINET(family.IPv4Unicast, netip.PrefixFrom(addr, 32), 0))
+		out = append(out, nlri.NewINET(family.IPv4Unicast, netip.PrefixFrom(addr, 32), 0, false))
 	}
 	return out
 }
@@ -209,10 +209,10 @@ func TestSendRoutesKeepsThePartialUpdatesOfARefusedCommit(t *testing.T) {
 
 	routes := []*rib.Route{
 		rib.NewRouteWithASPath(
-			nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.1.0.0/24"), 0),
+			nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.1.0.0/24"), 0, false),
 			netip.MustParseAddr("192.0.2.1"), nil, nil),
 		rib.NewRouteWithASPath(
-			nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.2.0.0/24"), 0),
+			nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.2.0.0/24"), 0, false),
 			netip.MustParseAddr("192.0.2.2"), nil, nil),
 	}
 
@@ -254,7 +254,7 @@ func TestSendRoutesCountsOnlyTheWithdrawalsThatLeft(t *testing.T) {
 	// One IPv6 prefix in a second family still fits and still leaves.
 	withdrawals := commitWithdrawals(2000)
 	withdrawals = append(withdrawals,
-		nlri.NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8::/32"), 0))
+		nlri.NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8::/32"), 0, false))
 
 	result, err := adapter.SendRoutes(selector.All(), nil, withdrawals, false, plugin.OperatorSender())
 	require.NoError(t, err)

@@ -75,7 +75,7 @@ func feedReceivedIBGP(r *RIBManager, peer netip.Addr, ctxID bgpctx.ContextID, bo
 	r.handleReceivedStructured(&rpc.StructuredEvent{
 		EventType:   rpc.EventKindUpdate,
 		PeerAddress: peer.String(),
-		PeerAS:      65000,
+		PeerAS:      rpc.RemoteASOf(65000),
 		LocalAS:     65000,
 		RawMessage: &bgptypes.RawMessage{
 			Type:       msgtype.TypeUPDATE,

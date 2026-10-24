@@ -456,7 +456,7 @@ func writeAnnounceUpdate(buf []byte, off int, route bgptypes.RouteSpec, linkLoca
 	if isIPv6 {
 		// RFC 4760 Section 3 - IPv6: Write MP_REACH_NLRI directly (zero-alloc)
 		// Wire format: AFI(2) + SAFI(1) + NH_Len(1) + NextHop(16 or 32) + Reserved(1) + NLRI(var)
-		inet := nlri.NewINET(family.IPv6Unicast, route.Prefix, 0)
+		inet := nlri.NewINET(family.IPv6Unicast, route.Prefix, 0, false)
 		nlriPayloadLen := nlri.LenWithContext(inet, addPath)
 
 		// RFC 2545 Section 3: "The value of the Length of Next Hop Network Address
@@ -575,7 +575,7 @@ func writeAnnounceUpdate(buf []byte, off int, route bgptypes.RouteSpec, linkLoca
 
 	if !isIPv6 {
 		// RFC 7911: WriteNLRI handles ADD-PATH encoding
-		inet := nlri.NewINET(family.IPv4Unicast, route.Prefix, 0)
+		inet := nlri.NewINET(family.IPv4Unicast, route.Prefix, 0, false)
 		off += nlri.WriteNLRI(inet, buf, off, addPath)
 	}
 
@@ -623,7 +623,7 @@ func writeWithdrawUpdate(buf []byte, off int, prefix netip.Prefix, addPath bool)
 
 		// RFC 4271 Section 4.3 - Withdrawn Routes: list of IP address prefixes
 		// RFC 7911: WriteNLRI handles ADD-PATH encoding when negotiated
-		inet := nlri.NewINET(family.IPv4Unicast, prefix, 0)
+		inet := nlri.NewINET(family.IPv4Unicast, prefix, 0, false)
 		off += nlri.WriteNLRI(inet, buf, off, addPath)
 
 		// RFC 4271 Section 4.3 - Backfill Withdrawn Routes Length
@@ -649,7 +649,7 @@ func writeWithdrawUpdate(buf []byte, off int, prefix netip.Prefix, addPath bool)
 
 		// RFC 4760 Section 4 - MP_UNREACH_NLRI wire format:
 		//   AFI(2) + SAFI(1) + Withdrawn_NLRI(var)
-		inet := nlri.NewINET(family.IPv6Unicast, prefix, 0)
+		inet := nlri.NewINET(family.IPv6Unicast, prefix, 0, false)
 		nlriPayloadLen := nlri.LenWithContext(inet, addPath)
 		mpValueLen := 2 + 1 + nlriPayloadLen
 

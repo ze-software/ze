@@ -200,7 +200,7 @@ func TestAnnounceNLRIBatch_NoMatchingPeers(t *testing.T) {
 
 	batch := bgptypes.NLRIBatch{
 		Family:  family.IPv4Unicast,
-		NLRIs:   []nlri.NLRI{nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0)},
+		NLRIs:   []nlri.NLRI{nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0, false)},
 		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1")),
 	}
 
@@ -222,7 +222,7 @@ func TestWithdrawNLRIBatch_NoMatchingPeers(t *testing.T) {
 
 	batch := bgptypes.NLRIBatch{
 		Family: family.IPv4Unicast,
-		NLRIs:  []nlri.NLRI{nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0)},
+		NLRIs:  []nlri.NLRI{nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0, false)},
 	}
 
 	err := adapter.WithdrawNLRIBatch(t.Context(), selector.Addr(netip.MustParseAddr("192.168.1.1")), batch, plugin.OperatorSender())
@@ -261,7 +261,7 @@ func TestAnnounceNLRIBatch_FamilyNotNegotiated(t *testing.T) {
 	// Try to announce IPv6 - all peers skipped
 	batch := bgptypes.NLRIBatch{
 		Family:  family.IPv6Unicast,
-		NLRIs:   []nlri.NLRI{nlri.NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8::/32"), 0)},
+		NLRIs:   []nlri.NLRI{nlri.NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8::/32"), 0, false)},
 		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("2001:db8::1")),
 	}
 
@@ -302,7 +302,7 @@ func TestWithdrawNLRIBatch_FamilyNotNegotiated(t *testing.T) {
 	// Try to withdraw IPv6 - all peers skipped
 	batch := bgptypes.NLRIBatch{
 		Family: family.IPv6Unicast,
-		NLRIs:  []nlri.NLRI{nlri.NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8::/32"), 0)},
+		NLRIs:  []nlri.NLRI{nlri.NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8::/32"), 0, false)},
 	}
 
 	// Should return warning error when all peers skipped
@@ -337,8 +337,8 @@ func TestAnnounceNLRIBatch_QueueForNonEstablished(t *testing.T) {
 	batch := bgptypes.NLRIBatch{
 		Family: family.IPv4Unicast,
 		NLRIs: []nlri.NLRI{
-			nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0),
-			nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.1.0/24"), 0),
+			nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0, false),
+			nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.1.0/24"), 0, false),
 		},
 		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1")),
 	}
@@ -381,8 +381,8 @@ func TestWithdrawNLRIBatch_QueueForNonEstablished(t *testing.T) {
 	batch := bgptypes.NLRIBatch{
 		Family: family.IPv4Unicast,
 		NLRIs: []nlri.NLRI{
-			nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0),
-			nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.1.0/24"), 0),
+			nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0, false),
+			nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.1.0/24"), 0, false),
 		},
 	}
 

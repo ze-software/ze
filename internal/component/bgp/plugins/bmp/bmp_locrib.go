@@ -17,6 +17,7 @@ package bmp
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"math"
 	"net/netip"
@@ -271,26 +272,39 @@ func assembleUpdateBody(withdrawn, attrs, nlri []byte) []byte {
 	return body
 }
 
-// buildLocRIBUpdateBody reconstructs a BGP UPDATE message body from a Loc-RIB
-// best-change entry. It is a minimal Route Monitoring UPDATE per RFC 9069
-// "Route Monitoring Content": ORIGIN + AS_PATH + NEXT_HOP + NLRI for an
-// announce, the prefix in Withdrawn Routes (IPv4) or MP_UNREACH_NLRI (IPv6)
-// for a withdraw. BestChangeEntry does not carry communities or LOCAL_PREF, so
-// those attributes are absent (documented fidelity limit; the spec forbids a
-// RIB back-door for the full attribute set).
+// errLocRIBNoPrefix and errLocRIBNoAttributes name the two best changes a
+// Loc-RIB Route Monitoring message cannot convey.
+var (
+	errLocRIBNoPrefix     = errors.New("the best change names no CIDR prefix")
+	errLocRIBNoAttributes = errors.New("the best change carries no attribute set for the best path")
+)
+
+// buildLocRIBUpdateBody builds the BGP UPDATE body a Loc-RIB Route Monitoring
+// message carries for one best change.
 //
-// Returns nil when the entry has no usable prefix.
-func buildLocRIBUpdateBody(fam family.Family, e *ribevents.BestChangeEntry) []byte {
+// RFC 9069 Section 5.4: "As described in Section 4.6 of [RFC7854], "Following
+// the common BMP header and per-peer header is a BGP Update PDU.""
+//
+// The Loc-RIB route is the best path, so an announce carries the best path's
+// own attributes, which bgp-rib publishes as e.Attributes. AS_PATH is written
+// from e.ASPath and the next hop from e.NextHop, the resolved one; the stored
+// AS_PATH, NEXT_HOP, MP_REACH_NLRI, MP_UNREACH_NLRI, AS4_PATH and
+// AS4_AGGREGATOR are not copied. A withdraw puts the prefix in Withdrawn
+// Routes (IPv4) or MP_UNREACH_NLRI (IPv6).
+//
+// An announce with no attribute set is refused: writing a fixed ORIGIN in its
+// place reported a route the Loc-RIB does not hold.
+func buildLocRIBUpdateBody(fam family.Family, e *ribevents.BestChangeEntry) ([]byte, error) {
 	nlri := encodeNLRIPrefix(e.Prefix)
 	if nlri == nil {
-		return nil
+		return nil, errLocRIBNoPrefix
 	}
 	isV4 := e.Prefix.Addr().Is4()
 
 	if e.Action == routeaction.Withdraw {
 		if isV4 {
 			// RFC 4271 Section 4.3: IPv4 withdrawn routes in the Withdrawn field.
-			return assembleUpdateBody(nlri, nil, nil)
+			return assembleUpdateBody(nlri, nil, nil), nil
 		}
 		// RFC 4760 Section 4: IPv6 withdraw via MP_UNREACH_NLRI (type 15).
 		mp := &attribute.MPUnreachNLRI{
@@ -298,37 +312,57 @@ func buildLocRIBUpdateBody(fam family.Family, e *ribevents.BestChangeEntry) []by
 			SAFI: attribute.SAFI(fam.SAFI),
 			NLRI: nlri,
 		}
-		return assembleUpdateBody(nil, writeAttr(mp), nil)
+		return assembleUpdateBody(nil, writeAttr(mp), nil), nil
+	}
+	if len(e.Attributes) == 0 {
+		return nil, errLocRIBNoAttributes
 	}
 
-	// Announce. ORIGIN defaults to IGP; AS_PATH is empty for locally originated
-	// routes (RFC 9069 allows this). The attribute encoder is the same one
-	// injectRoute uses, so no parallel encoder is introduced.
-	//
+	// The stored set is in type-code order, so ORIGIN (1) comes first, then
+	// the AS_PATH and NEXT_HOP written here (2, 3), then the rest (4 and up).
+	attrs, err := appendLocRIBStoredAttrs(nil, e.Attributes, attrCodeBefore)
+	if err != nil {
+		return nil, err
+	}
+	hasOrigin, err := hasStoredAttr(attrs, uint8(attribute.AttrOrigin))
+	if err != nil {
+		return nil, err
+	}
+	if !hasOrigin {
+		// RFC 4271 Section 5.1.1: "ORIGIN is a well-known mandatory attribute".
+		return nil, fmt.Errorf("the best path's attribute set has no ORIGIN")
+	}
+
 	// RFC 9069 Section 5.4.1: "Loc-RIB Route Monitoring messages MUST use a
 	// 4-byte ASN encoding as indicated in the Peer Up sent OPEN message
 	// (Section 5.2) capability." attribute.ASPath.WriteTo writes 4-byte ASNs
 	// unconditionally (WriteToWithASN4(buf, off, true)), and the fabricated OPEN
 	// advertises the matching 4-octet ASN capability, so the two agree by
-	// construction rather than by negotiation.
+	// construction rather than by negotiation. An empty AS_PATH is a locally
+	// originated route (RFC 9069 allows this).
 	ab := attribute.NewBuilder()
-	ab.SetOrigin(uint8(attribute.OriginIGP))
 	if len(e.ASPath) > 0 {
 		ab.SetASPath(e.ASPath)
 	}
-
 	nh := e.NextHop
-	if isV4 && nh.Is4() {
+	legacyNextHop := isV4 && nh.Is4()
+	if legacyNextHop {
 		// Legacy NEXT_HOP (type 3, IPv4 only) + IPv4 NLRI in the NLRI field.
 		ab.SetNextHopAddr(nh)
-		return assembleUpdateBody(nil, ab.Build(), nlri)
+	}
+	attrs = append(attrs, ab.Build()...)
+	attrs, err = appendLocRIBStoredAttrs(attrs, e.Attributes, attrCodeAfter)
+	if err != nil {
+		return nil, err
+	}
+	if legacyNextHop {
+		return assembleUpdateBody(nil, attrs, nlri), nil
 	}
 
 	// IPv6 NLRI (or an IPv4 NLRI reachable via an IPv6 next-hop): reachability
 	// and next-hop travel together in MP_REACH_NLRI (RFC 4760 / RFC 8950). The
 	// IPv4 case is decodable because fabricateLocRIBOpen advertises the Extended
 	// Next Hop capability for it (locRIBExtendedNextHop).
-	attrs := ab.Build()
 	if nh.IsValid() {
 		mp := attribute.NewMPReachNLRI(
 			attribute.AFI(fam.AFI), attribute.SAFI(fam.SAFI),
@@ -336,7 +370,80 @@ func buildLocRIBUpdateBody(fam family.Family, e *ribevents.BestChangeEntry) []by
 		)
 		attrs = append(attrs, writeAttr(mp)...)
 	}
-	return assembleUpdateBody(nil, attrs, nil)
+	return assembleUpdateBody(nil, attrs, nil), nil
+}
+
+// attrCodeBefore and attrCodeAfter select the stored attributes written before
+// and after the AS_PATH and NEXT_HOP buildLocRIBUpdateBody writes itself.
+func attrCodeBefore(code uint8) bool { return code < uint8(attribute.AttrASPath) }
+
+func attrCodeAfter(code uint8) bool {
+	if code <= uint8(attribute.AttrNextHop) {
+		return false
+	}
+	// The NLRI and next hop are the entry's; the AS4_* pair cannot occur in a
+	// four-octet set (RFC 6793 Section 4.1) and is dropped if it does.
+	switch attribute.AttributeCode(code) { //nolint:exhaustive // a predicate over four codes; every other code is kept
+	case attribute.AttrMPReachNLRI, attribute.AttrMPUnreachNLRI, attribute.AttrAS4Path, attribute.AttrAS4Aggregator:
+		return false
+	}
+	return true
+}
+
+// appendLocRIBStoredAttrs appends to dst each attribute of the stored set src
+// whose type code keep selects, header and value as stored. A truncated
+// attribute is an error naming its offset.
+func appendLocRIBStoredAttrs(dst, src []byte, keep func(uint8) bool) ([]byte, error) {
+	off := 0
+	for off < len(src) {
+		size, err := storedAttrSize(src, off)
+		if err != nil {
+			return nil, err
+		}
+		if keep(src[off+1]) {
+			dst = append(dst, src[off:off+size]...)
+		}
+		off += size
+	}
+	return dst, nil
+}
+
+// hasStoredAttr reports whether an attribute section holds an attribute of
+// type code. A section it cannot walk is an error, never "absent".
+func hasStoredAttr(attrs []byte, code uint8) (bool, error) {
+	off := 0
+	for off < len(attrs) {
+		size, err := storedAttrSize(attrs, off)
+		if err != nil {
+			return false, err
+		}
+		if attrs[off+1] == code {
+			return true, nil
+		}
+		off += size
+	}
+	return false, nil
+}
+
+// storedAttrSize returns the octets the attribute at off occupies, header
+// included (RFC 4271 Section 4.3: flags, type code, then a one-octet length,
+// or two octets when the Extended Length bit 0x10 is set).
+func storedAttrSize(attrs []byte, off int) (int, error) {
+	header := 3
+	if off+2 < len(attrs) && attrs[off]&0x10 != 0 {
+		header = 4
+	}
+	if off+header > len(attrs) {
+		return 0, fmt.Errorf("the best path's attribute set is truncated at octet %d", off)
+	}
+	length := int(attrs[off+2])
+	if header == 4 {
+		length = int(binary.BigEndian.Uint16(attrs[off+2:]))
+	}
+	if off+header+length > len(attrs) {
+		return 0, fmt.Errorf("the best path's attribute set is truncated at octet %d", off)
+	}
+	return header + length, nil
 }
 
 // localIdentity returns the router's own ASN and router-id for the Loc-RIB
@@ -644,8 +751,10 @@ func (bp *BMPPlugin) handleBestChange(batch *ribevents.BestChangeBatch) {
 	}
 	peer := locRIBPeerHeader(id, installed)
 	for i := range batch.Changes {
-		body := buildLocRIBUpdateBody(batch.Family, &batch.Changes[i])
-		if body == nil {
+		body, err := buildLocRIBUpdateBody(batch.Family, &batch.Changes[i])
+		if err != nil {
+			logger().Warn("bmp: loc-rib route monitoring for one best change not sent; run `ze show bgp rib best` to read the route",
+				"family", batch.Family.String(), "prefix", batch.Changes[i].Prefix, "error", err)
 			continue
 		}
 		for _, ss := range senders {

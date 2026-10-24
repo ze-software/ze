@@ -60,9 +60,9 @@ func TestInventoryGroupedExtractionAllocations(t *testing.T) {
 			})
 			wantHex := hex.EncodeToString(tc.wire)
 			allocs := testing.AllocsPerRun(100, func() {
-				records := extractWireNLRIRecords(msg)
-				if records == nil {
-					t.Fatal("no inventory extracted")
+				records, err := extractWireNLRIRecords(msg)
+				if err != nil {
+					t.Fatal(err)
 				}
 				defer returnNLRIRecords(records)
 				if len(records.records) != count {

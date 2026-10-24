@@ -61,7 +61,7 @@ func TestAPIRequestCarriesAuthenticatedAuthorizationGeneration(t *testing.T) {
 	server.Dispatcher().SetAuthorizer(newAuthorizer)
 	const command = "test generation command"
 	if err := server.Dispatcher().Register(command, func(_ *pluginserver.CommandContext, _ cmd.ValidatedArgs) (*plugin.Response, error) {
-		return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(`"ok"`)), nil
+		return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(`{"result":"ok"}`)), nil
 	}, command); err != nil {
 		t.Fatal(err)
 	}
@@ -97,7 +97,7 @@ func TestAPIRequestTACACSDenialOverridesAcceptedLocalAllow(t *testing.T) {
 	ran := false
 	if err := server.Dispatcher().Register(command, func(_ *pluginserver.CommandContext, _ cmd.ValidatedArgs) (*plugin.Response, error) {
 		ran = true
-		return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(`"unexpected"`)), nil
+		return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(`{"result":"unexpected"}`)), nil
 	}, command); err != nil {
 		t.Fatal(err)
 	}
@@ -128,7 +128,7 @@ func TestServerDispatcherUsesContextAuthorizer(t *testing.T) {
 	server.Dispatcher().SetAuthorizer(newAuthorizer)
 	const command = "test web session generation"
 	if err := server.Dispatcher().Register(command, func(_ *pluginserver.CommandContext, _ cmd.ValidatedArgs) (*plugin.Response, error) {
-		return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(`"ok"`)), nil
+		return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(`{"result":"ok"}`)), nil
 	}, command); err != nil {
 		t.Fatal(err)
 	}

@@ -43,7 +43,7 @@ func TestBuildBatchAnnounceUpdate_RefusesANextHopWithNoWireForm(t *testing.T) {
 		t.Helper()
 		batch := bgptypes.NLRIBatch{
 			Family:  fam,
-			NLRIs:   []nlri.NLRI{nlri.NewINET(fam, netip.MustParsePrefix(prefix), 0)},
+			NLRIs:   []nlri.NLRI{nlri.NewINET(fam, netip.MustParsePrefix(prefix), 0, false)},
 			NextHop: bgptypes.NewNextHopExplicit(nextHop),
 		}
 		return adapter.buildBatchAnnounceUpdate(make([]byte, message.MaxMsgLen), make([]byte, message.MaxMsgLen),
@@ -126,7 +126,7 @@ func TestAnnounceNLRIBatch_NextHopUnencodableIsNotFamilyMismatch(t *testing.T) {
 	// builder (TestResolveNextHop_ExplicitInvalid).
 	batch := bgptypes.NLRIBatch{
 		Family:  fam,
-		NLRIs:   []nlri.NLRI{nlri.NewINET(fam, netip.MustParsePrefix("2001:db8::/32"), 0)},
+		NLRIs:   []nlri.NLRI{nlri.NewINET(fam, netip.MustParsePrefix("2001:db8::/32"), 0, false)},
 		NextHop: bgptypes.NewNextHopExplicit(netip.Addr{}),
 	}
 

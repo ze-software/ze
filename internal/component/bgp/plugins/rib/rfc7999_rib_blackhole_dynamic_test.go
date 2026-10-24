@@ -84,7 +84,7 @@ func TestBlackholeGroupIdentityArrivesOnAJSONEvent(t *testing.T) {
 	require.NoError(t, err)
 
 	r.peerMu.Lock()
-	r.updatePeerMetadata(&Event{Peer: peerJSON}, member)
+	r.updatePeerMetadata(&Event{Peer: peerJSON}, member, 65001)
 	r.peerMu.Unlock()
 
 	r.peerMu.RLock()

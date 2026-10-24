@@ -178,6 +178,7 @@ func staleFromMeta(meta map[string]any) uint8 {
 		return 0
 	}
 	v, ok := meta["stale"]
+	// refuse-by-default: guards advertisedStaleLevel -- no "stale" key is a rail that carried no level, which advertisedStaleLevel recovers for a rebuilt route
 	if !ok {
 		return 0
 	}

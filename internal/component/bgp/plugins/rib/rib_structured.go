@@ -91,6 +91,14 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 		logger().Warn("received structured event dropped", "error", err)
 		return
 	}
+	// An UPDATE arrives only in Established, where the peer's AS is always
+	// negotiated. One without it is a Ze defect, and iBGP or eBGP cannot be
+	// decided for its routes, so it is refused rather than stored under AS 0.
+	peerAS, peerASKnown := se.PeerAS.ASN()
+	if !peerASKnown {
+		logger().Warn("received UPDATE dropped: the peer's AS is not negotiated", "peer", se.PeerAddress)
+		return
+	}
 
 	msg, ok := se.RawMessage.(*bgptypes.RawMessage)
 	if !ok || msg == nil || msg.WireUpdate == nil {
@@ -153,7 +161,7 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	// skip both the heap alloc AND the map write. Only when the struct
 	// changes do we take the address (triggering the escape).
 	candidate := peerMetadata{
-		PeerASN:        se.PeerAS,
+		PeerASN:        peerAS,
 		LocalASN:       se.LocalAS,
 		RemoteRouterID: se.RemoteRouterID,
 		ContextID:      wu.SourceCtxID(),
@@ -295,6 +303,9 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	mpReach, err := wu.MPReach()
 	if err == nil && mpReach != nil {
 		fam := mpReach.Family()
+		if !nlrisplit.Supported(fam) {
+			r.reportUnstorableFamily(peerRIB.PeerAddr(), fam)
+		}
 		if nlrisplit.Supported(fam) {
 			nlriBytes := mpReach.NLRIBytes()
 			if len(nlriBytes) > 0 {

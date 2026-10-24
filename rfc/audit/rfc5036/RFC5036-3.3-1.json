@@ -1,11 +1,13 @@
 {
-  "note": "TestRFC5036UnknownTLVWithUBitSetIsSkipped checks an unknown TLV with U=1 is skipped, the mapping is applied and nothing is written; TestRFC5036UnknownTLVWithUBitClearIsRefused checks U=0 draws the Unknown TLV Notification referring to the Label Mapping, the mapping is not applied and the session stays up.",
+  "note": "TestRFC5036UnknownTLVWithUBitSetIsSkipped checks an unknown TLV with U=1 is skipped, the mapping is applied and nothing is written; TestRFC5036UnknownTLVWithUBitClearIsRefused checks U=0 draws the Unknown TLV Notification referring to the Label Mapping, the mapping is not applied and the session stays up. TestLDPInitUnknownTLVUClearNotifies (rfc5036_init_unknown_tlv_test.go) checks the same U=0 half for an Initialization: DecodeInit refuses with unknownTLVError, Session.ignoreUnknownTLV answers an Unknown TLV Notification referring to message 7 of type Initialization, processMessages returns nil and the session stays in OpenSent, so the whole message is ignored.",
   "requirement_sha": "726151364760073b",
   "tests": {
-    "internal/plugins/ldp/rfc5036_procedures_test.go::TestRFC5036UnknownTLVWithUBitClearIsRefused": "1229c7e2acc6a715",
-    "internal/plugins/ldp/rfc5036_procedures_test.go::TestRFC5036UnknownTLVWithUBitSetIsSkipped": "1229c7e2acc6a715"
+    "internal/plugins/ldp/rfc5036_init_unknown_tlv_test.go::TestLDPInitUnknownTLVUClearNotifies": "5424780f09223fc3",
+    "internal/plugins/ldp/rfc5036_procedures_test.go::TestRFC5036UnknownTLVWithUBitClearIsRefused": "e02b8145e25cce65",
+    "internal/plugins/ldp/rfc5036_procedures_test.go::TestRFC5036UnknownTLVWithUBitSetIsSkipped": "e02b8145e25cce65"
   },
   "units": {
+    "internal/plugins/ldp/rfc5036_init_unknown_tlv_test.go::TestLDPInitUnknownTLVUClearNotifies": "d100c67bfcda92cd",
     "internal/plugins/ldp/rfc5036_procedures_test.go::TestRFC5036UnknownTLVWithUBitClearIsRefused": "e25215107eea4618",
     "internal/plugins/ldp/rfc5036_procedures_test.go::TestRFC5036UnknownTLVWithUBitSetIsSkipped": "736b05c3dd598a51"
   },

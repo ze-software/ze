@@ -45,6 +45,7 @@ type ConfigJournal interface {
 
 // PeerLifecycleCallback receives peer state change notifications.
 // Used by external observers (e.g., HealthRevert) that cannot import bgp/reactor.
+// peer is *plugin.PeerInfo, a copy the receiver may keep.
 type PeerLifecycleCallback interface {
 	OnPeerEstablished(peer any)
 	OnPeerClosed(peer any, reason string)

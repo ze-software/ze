@@ -16,6 +16,7 @@ import (
 	"github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // The children of `show bgp` that another in-tree package declares for itself.
@@ -388,7 +389,7 @@ func fullyPopulatedPeer() plugin.PeerInfo {
 		Address:                 netip.MustParseAddr("192.0.2.1"),
 		Name:                    "edge1",
 		GroupName:               "transit",
-		PeerAS:                  65001,
+		PeerAS:                  rpc.RemoteASOf(65001),
 		LocalAS:                 65000,
 		RouterID:                0xC0000201,
 		PeerType:                "external",

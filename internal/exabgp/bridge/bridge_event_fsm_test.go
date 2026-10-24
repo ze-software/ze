@@ -23,7 +23,7 @@ func TestConnectedIsExabgpState(t *testing.T) {
 	if event.APIKey() != apiKeyNeighborChanges {
 		t.Errorf("APIKey = %q, want %q", event.APIKey(), apiKeyNeighborChanges)
 	}
-	doc := event.ExabgpJSON(FormatV4JSON)
+	doc := event.exabgpJSON(FormatV4JSON)
 	neighbor, _ := doc["neighbor"].(map[string]any)
 	if doc["type"] != msgTypeState || neighbor["state"] != "connected" {
 		t.Errorf("JSON = %v", doc)
@@ -41,7 +41,7 @@ func TestFSMIsExabgpFSM(t *testing.T) {
 	if event.APIKey() != apiKeyFSM {
 		t.Errorf("APIKey = %q, want %q", event.APIKey(), apiKeyFSM)
 	}
-	doc := event.ExabgpJSON(FormatV4JSON)
+	doc := event.exabgpJSON(FormatV4JSON)
 	neighbor, _ := doc["neighbor"].(map[string]any)
 	if doc["type"] != msgTypeFSM || neighbor["state"] != "OPENSENT" {
 		t.Errorf("JSON = %v", doc)
@@ -59,7 +59,7 @@ func TestSignalIsExabgpSignal(t *testing.T) {
 	if event.APIKey() != apiKeySignal {
 		t.Errorf("APIKey = %q, want %q", event.APIKey(), apiKeySignal)
 	}
-	doc := event.ExabgpJSON(FormatV4JSON)
+	doc := event.exabgpJSON(FormatV4JSON)
 	neighbor, _ := doc["neighbor"].(map[string]any)
 	if doc["type"] != msgTypeSignal || neighbor["code"] != "15" || neighbor["name"] != "SIGTERM" {
 		t.Errorf("JSON = %v", doc)
@@ -78,7 +78,7 @@ func TestDownNamesClosingNotification(t *testing.T) {
 		{`{"direction":"received","code":4,"subcode":0}`, "notification received (4,0)"},
 	} {
 		event := readZeLine(t, `{"type":"bgp","bgp":{"message":{"type":"state"},`+zePeerJSON+`,"state":"down","reason":"notification","notification":`+tc.member+`}}`)
-		neighbor, _ := event.ExabgpJSON(FormatV4JSON)["neighbor"].(map[string]any)
+		neighbor, _ := event.exabgpJSON(FormatV4JSON)["neighbor"].(map[string]any)
 		if neighbor["reason"] != tc.want {
 			t.Errorf("JSON reason = %v, want %q", neighbor["reason"], tc.want)
 		}
@@ -86,5 +86,39 @@ func TestDownNamesClosingNotification(t *testing.T) {
 		if string(text) != "neighbor 10.0.0.2 down - "+tc.want+"\n" {
 			t.Errorf("text = %q, want %q", text, tc.want)
 		}
+	}
+}
+
+// TestUnknownPeerASIsExabgpAuto: a ze event with no remote.as, which ze writes
+// while a dynamic peer's AS is not yet negotiated, becomes ExaBGP's `"peer": 0`,
+// the value ExaBGP itself writes for a `peer-as auto` neighbor
+// (src/exabgp/bgp/neighbor/session.py, peer_as ASN(0) "0 = auto"), and an event
+// that names the AS keeps it. Method: translate both forms and read asn.peer
+// from the encoded ExaBGP JSON, so the test sees the bytes a script reads.
+func TestUnknownPeerASIsExabgpAuto(t *testing.T) {
+	cases := []struct {
+		name string
+		peer string
+		want string
+	}{
+		{"unknown", `"peer":{"local":{"address":"10.0.0.17","as":64512},"remote":{"address":"10.0.0.2"}}`, `{"local":64512,"peer":0}`},
+		{"known", zePeerJSON, `{"local":64512,"peer":64512}`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			event := readZeLine(t, `{"type":"bgp","bgp":{"message":{"type":"connected"},`+tc.peer+`}}`)
+			doc := event.exabgpJSON(FormatV4JSON)
+			neighbor, ok := doc["neighbor"].(map[string]any)
+			if !ok {
+				t.Fatalf("no neighbor in %v", doc)
+			}
+			asn, err := json.Marshal(neighbor["asn"])
+			if err != nil {
+				t.Fatalf("asn not encodable: %v", err)
+			}
+			if string(asn) != tc.want {
+				t.Errorf("asn = %s, want %s", asn, tc.want)
+			}
+		})
 	}
 }

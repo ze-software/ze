@@ -12,6 +12,7 @@ import (
 	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // TestBgpHandlerRPCs verifies BGP handler RPCs are registered via init().
@@ -50,8 +51,8 @@ func TestBgpHandlerRPCs(t *testing.T) {
 func TestHandlerPeerList(t *testing.T) {
 	reactor := &mockReactor{
 		peers: []plugin.PeerInfo{
-			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001, State: plugin.PeerStateEstablished, Uptime: time.Minute},
-			{Address: netip.MustParseAddr("192.0.2.2"), PeerAS: 65002, State: plugin.PeerStateStopped},
+			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: rpc.RemoteASOf(65001), State: plugin.PeerStateEstablished, Uptime: time.Minute},
+			{Address: netip.MustParseAddr("192.0.2.2"), PeerAS: rpc.RemoteASOf(65002), State: plugin.PeerStateStopped},
 		},
 	}
 	ctx := newTestContext(reactor)

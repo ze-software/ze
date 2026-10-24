@@ -3,9 +3,15 @@
 package reactor
 
 import (
+	"encoding/json"
+	"strings"
 	"sync"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/bgp/format"
+	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
+	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/core/bgp/capability"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 
 	"github.com/stretchr/testify/require"
@@ -71,4 +77,103 @@ func TestPeerSessionSentPathRace(t *testing.T) {
 
 	close(stop)
 	wg.Wait()
+}
+
+// TestKeepaliveNamesTheNegotiatedASOfADynamicPeer proves that the message event
+// of a dynamic peer names the AS its OPEN negotiated, both ways, while the
+// session is still before Established. Method: a peer configured with no AS
+// (dynamic), a session whose negotiation resolved AS 65002, and one sent and
+// one received KEEPALIVE through notifyMessageReceiver. The peer's settings
+// learn the AS only at Established, so reading them reported AS 0.
+func TestKeepaliveNamesTheNegotiatedASOfADynamicPeer(t *testing.T) {
+	cfg := &Config{ListenAddr: "127.0.0.1:0"}
+	r := New(cfg)
+
+	peerAddr := mustParseAddr("10.0.0.1")
+	require.NoError(t, r.AddPeer(NewPeerSettings(peerAddr, 65001, 0, 0x01010101)))
+	var sentAS, receivedAS []uint32
+	r.setMessageReceiver(&testDeliveryReceiver{
+		onSent: func(p plugin.PeerInfo, _ bgptypes.RawMessage) {
+			peerAS, _ := p.PeerAS.ASN()
+			sentAS = append(sentAS, peerAS)
+		},
+		onReceived: func(p plugin.PeerInfo, _ bgptypes.RawMessage) {
+			peerAS, _ := p.PeerAS.ASN()
+			receivedAS = append(receivedAS, peerAS)
+		},
+	})
+
+	r.mu.RLock()
+	peer, ok := r.findPeerByAddr(peerAddr)
+	r.mu.RUnlock()
+	require.True(t, ok)
+	require.Zero(t, peer.PeerAS(), "the peer must be dynamic: no AS before Established")
+
+	session := NewSession(peer.settings)
+	session.negotiated = capability.Negotiate(
+		[]capability.Capability{&capability.ASN4{ASN: 65001}},
+		[]capability.Capability{&capability.ASN4{ASN: 65002}},
+		capability.PeerIdentity{LocalASN: 65001, PeerASN: 65002},
+	)
+	peer.mu.Lock()
+	peer.session = session
+	peer.mu.Unlock()
+
+	r.notifyMessageReceiver(peerAddr, msgtype.TypeKEEPALIVE, []byte{}, nil, 0, rpc.DirectionSent, BufHandle{}, nil, "", 0)
+	r.notifyMessageReceiver(peerAddr, msgtype.TypeKEEPALIVE, []byte{}, nil, 0, rpc.DirectionReceived, BufHandle{}, nil, "", 0)
+
+	require.Equal(t, []uint32{65002}, sentAS, "sent KEEPALIVE must name the negotiated AS")
+	require.Equal(t, []uint32{65002}, receivedAS, "received KEEPALIVE must name the negotiated AS")
+}
+
+// TestPreNegotiationEventsDoNotNameAS0 proves that a dynamic peer's message
+// events written before the OPENs are exchanged say the peer's AS is not yet
+// known, in every encoding, rather than naming AS 0. Method: a peer configured
+// with no AS (dynamic) and no session, the OPEN Ze sends and a NOTIFICATION
+// sent in OpenSent notified through notifyMessageReceiver, and the PeerInfo
+// each one carried rendered by the JSON and text formatters plugins receive.
+// RFC 7607 Section 2 makes AS 0 impossible as a peer's AS, so a 0 here is a
+// value the event invented.
+func TestPreNegotiationEventsDoNotNameAS0(t *testing.T) {
+	cfg := &Config{ListenAddr: "127.0.0.1:0"}
+	r := New(cfg)
+
+	peerAddr := mustParseAddr("10.0.0.1")
+	require.NoError(t, r.AddPeer(NewPeerSettings(peerAddr, 65001, 0, 0x01010101)))
+	var sent []plugin.PeerInfo
+	r.setMessageReceiver(&testDeliveryReceiver{
+		onSent: func(p plugin.PeerInfo, _ bgptypes.RawMessage) { sent = append(sent, p) },
+	})
+
+	r.notifyMessageReceiver(peerAddr, msgtype.TypeOPEN, []byte{4, 0xfd, 0xe9, 0, 90, 1, 1, 1, 1, 0}, nil, 0, rpc.DirectionSent, BufHandle{}, nil, "", 0)
+	r.notifyMessageReceiver(peerAddr, msgtype.TypeNOTIFICATION, []byte{6, 2}, nil, 0, rpc.DirectionSent, BufHandle{}, nil, "", 0)
+	require.Len(t, sent, 2)
+
+	enc := format.NewJSONEncoder("")
+	notify := format.DecodedNotification{ErrorCode: 6, ErrorSubcode: 2}
+	for i, out := range []string{
+		enc.Open(&sent[0], format.DecodedOpen{ASN: 65001}, rpc.DirectionSent, 1),
+		enc.Notification(&sent[1], notify, rpc.DirectionSent, 2),
+		enc.Keepalive(&sent[1], rpc.DirectionSent, 3),
+	} {
+		var event struct {
+			BGP struct {
+				Peer struct {
+					Remote map[string]any `json:"remote"`
+				} `json:"peer"`
+			} `json:"bgp"`
+		}
+		require.NoError(t, json.Unmarshal([]byte(out), &event), out)
+		require.NotContains(t, event.BGP.Peer.Remote, "as", "JSON event %d names an AS the peer has not told yet: %s", i, out)
+	}
+
+	for i, line := range []string{
+		string(format.AppendNotification(nil, &sent[1], notify, rpc.DirectionSent, 2)),
+		string(format.AppendKeepalive(nil, &sent[1], rpc.DirectionSent, 3)),
+		string(format.AppendConnected(nil, &sent[1], plugin.EncodingText)),
+	} {
+		require.True(t, strings.HasPrefix(line, "peer 10.0.0.1 remote as unknown "), "text event %d must say the AS is unknown: %q", i, line)
+	}
+	connected := string(format.AppendConnected(nil, &sent[1], plugin.EncodingJSON))
+	require.NotContains(t, connected, `"as":0`, "JSON connected event names AS 0: %s", connected)
 }

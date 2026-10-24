@@ -191,6 +191,16 @@ The map is published through a temporary file in the same directory and one rena
 <!-- source: internal/le/test/functional/reach.go -- reachedPackages, packagesInProfile, initLineRanges -->
 <!-- source: internal/le/test/functional/run.go -- runGating, reduceCoverage, publishSuiteMap -->
 
+## Stages that judge the change, not the tree
+
+Three arch stages in the population judge what the change under test added rather than the whole tree, because the tree still holds instances other work owns and a tree scope would red every commit until all of them were fixed. `arch enumeration check` judges the change set's packages. `arch compound-guard check` and `arch refuse-by-default check` judge the changed LINES in the unpushed range, committed or not, against the merge base of HEAD and its upstream (or `origin/main`), read from refs only, so the detached worktree `./le verify worktree` runs in answers the same range as its source checkout. A checkout with no such base exits 2, never 0. Each has a `report` action (`./le arch enumeration report`, `./le arch refuse-by-default report`) that lists the tree's instances and exits 0, because a reader deciding what to fix is not a gate. The fast population keeps all three.
+
+`arch refuse-by-default` refuses a changed line that answers a plausible value where the code has no answer: a switch's unmatched value answered with a nil error, a lookup miss or read error answered as a hit, an ADD-PATH path identifier compared with zero, and a state or health answer written from a literal. A shape carrying a `refuse-by-default: guards <Symbol>` annotation is accepted and listed in the stage's output, so a reviewer reads every guard a change names (`docs/contributing/ze-go-style.md`, "A zero value is never an answer").
+
+<!-- source: internal/le/verify/engine/stages.go -- fullStages -->
+<!-- source: internal/le/arch/refusebydefault/actions.go -- runCheck, runReport -->
+<!-- source: internal/le/arch/compoundguard/actions.go -- runCheck -->
+
 ## Native stage execution
 
 `internal/le/verify/engine.RunMode` executes the ordered stage population and captures each stage result. A red stage does not hide later reds, unless the run was asked for `first-red` (below). An interrupt ends the run with 130, whether it lands between stages or during one, and whether the run's context saw it or only the stage process did (a SIGINT or SIGTERM straight to the child); no later stage starts. The stage is marked interrupted, with no verdict, only when the interrupt cut it short: the dispatcher's cancel signal reached the running process (`cancelStage`, `internal/le/verify/dispatch/dispatch.go`; a signal that finds the process already reaped answers `os.ErrProcessDone` and leaves the stage's exit as its verdict), the child died of SIGINT or SIGTERM, or the stage exited 130 itself after the interrupt landed, as a child that handles SIGINT does. Any other exit answered before the interrupt stays a verdict. The action runner returns a populated `ActionResult`, so an omitted registration cannot look like exit zero, and when the runner refuses a stage with a reason of its own (`killed`, `interrupted`, `spawn`) that reason is the report's failure rather than a generic one.

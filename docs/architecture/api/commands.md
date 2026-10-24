@@ -886,7 +886,7 @@ show bgp rib [filters...] [terminal]        # Unified route display with pipelin
     source filters: received | advertised
     filters: peer <selector>, path <pattern>, prefix <pattern>, community <value>,
              family <afi/safi>
-    terminals: count, histogram, graph (AS topology box-drawing)
+    terminals: count, histogram, graph (AS topology as nodes and edges, drawn as boxes in text)
 show bgp rib best [filters...] [terminal]   # Best-path per prefix (RFC 4271 §9.1.2)
 show bgp rib status                         # RIB status (peer/route counts)
 clear bgp rib in <selector>                  # Clear Adj-RIB-In (* for all peers)
@@ -2229,6 +2229,26 @@ filters of its own, and nothing reported the loss.
 <!-- source: internal/component/command/pipe_filter.go -- RegisterPipeFilters, lookupPipeFilters -->
 <!-- source: internal/component/command/pipe_columns.go -- parseDisplay, parseFill, columnsInChain, applyDisplaySelect, selectFields -->
 <!-- source: internal/component/command/pipe_table.go -- tableStyle.orderKeys, fillKeys, bestColumnOrder -->
+
+### A drawing for an answer: the registered text renderer
+
+Some data reads only as a drawing. `show bgp rib ... graph` answers the AS
+topology as data, `{"graph":{"nodes":[{"asn":..,"name":..,"layer":..}],"edges":[{"from":..,"to":..}]}}`,
+and an operator wants the box diagram, not a table of nodes. The answer stays
+data, so `| json`, `| yaml` and every program read the structure, and its owner
+registers the drawing under the answer's envelope key with
+`command.MustRegisterTextRenderer` from its own `register.go` (`bgp-rib`
+registers `graph`). The `text` format, the default one or an explicit `| text`,
+draws an answer whose one envelope key has a renderer with it; the pipe
+metadata key beside the answer does not count. Every other answer is the
+generic text table. A renderer that cannot draw what it was given answers an
+error, and the operator reads it as a pipe error naming the key, never an empty
+screen. A topology past 100 ASes is refused by the command itself, with the
+filter that narrows it.
+
+<!-- source: internal/component/command/text_renderer.go -- TextRenderer, RegisterTextRenderer, applyRegisteredText -->
+<!-- source: internal/component/command/pipe.go -- ApplyPipes pipeText -->
+<!-- source: internal/component/bgp/plugins/rib/rib_topology.go -- graphAnswer, renderGraphText, errGraphTooManyNodes -->
 
 ### Pipe aliases: a name for an operator chain
 

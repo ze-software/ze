@@ -93,6 +93,7 @@ func (d *derivedDebt) readPersonActs(root, head string) error {
 	for _, carried := range acts.carried {
 		d.Items = append(d.Items, answers.carriedItems(carried)...)
 	}
+	d.Refusals = append(d.Refusals, answers.problems...)
 	return nil
 }
 
@@ -218,24 +219,38 @@ func (acts *personActs) readCarried(deletion, value string, malformed func()) {
 	})
 }
 
-// answering evaluates the Person-act answers over one range.
+// answering evaluates the Person-act answers over one range. problems names
+// each ask it could not judge because a read failed (unreadProblem); the item
+// stays open and
+// readPersonActs hands the problem on as a refusal, so the cause reaches the
+// operator. Not safe for concurrent use.
 type answering struct {
 	root     string
 	cache    *commitCache
 	acts     *personActs
 	patchIDs map[string]string
+	problems []string
+}
+
+// unreadProblem names an obligation subject on commit that could not be
+// judged because a read failed, and the command that shows the commit.
+func unreadProblem(commit, subject string, err error) string {
+	return "commit " + commit + ": cannot judge " + strconv.Quote(subject) +
+		", so it stays owed: " + err.Error() + "; check the commit with `git show " + commit + "`"
 }
 
 // answered says whether one obligation on commit is answered: not applicable,
 // closed, reviewed or attested for a review; not applicable, approved or
 // attested for an RFC approval. A commit whose facts git could not read
-// answers nothing, so its item stays open.
+// answers nothing, so its item stays open, and the read failure is recorded in
+// problems.
 func (a *answering) answered(commit string, kind owedItemKind, subject string) bool {
 	if patchID := a.patchIDs[commit]; patchID != "" && a.acts.attested[patchID] {
 		return true
 	}
 	facts, err := a.cache.read(a.root, commit)
 	if err != nil {
+		a.problems = append(a.problems, unreadProblem(commit, subject, err))
 		return false
 	}
 	switch kind {
@@ -253,6 +268,7 @@ func (a *answering) answered(commit string, kind owedItemKind, subject string) b
 		}
 		changed, err := changedTaggedUnits(a.root, facts)
 		if err != nil {
+			a.problems = append(a.problems, unreadProblem(commit, subject, err))
 			return false
 		}
 		return !slices.Contains(changed, subject)
@@ -270,6 +286,7 @@ func (a *answering) reviewed(stem string, facts commitFacts) bool {
 	}
 	artifacts, err := filepath.Glob(filepath.Join(a.root, "tmp", "review", stem+"-*.md"))
 	if err != nil {
+		a.problems = append(a.problems, unreadProblem(facts.SHA, stem, err))
 		return false
 	}
 	for _, artifact := range artifacts {
@@ -305,11 +322,13 @@ func (a *answering) carriedItems(carried carriedTrailer) []owedItem {
 	open := owedItem{Commit: matched, Kind: carried.kind, Reason: carried.reason}
 	facts, err := a.cache.read(a.root, matched)
 	if err != nil {
+		a.problems = append(a.problems, unreadProblem(matched, carried.reason, err))
 		return []owedItem{open}
 	}
 	if carried.kind == owedItemReview {
 		stem, err := closedSpecStem(facts.Paths, facts.Removed, commitSides(a.root, facts))
 		if err != nil {
+			a.problems = append(a.problems, unreadProblem(matched, carried.reason, err))
 			return []owedItem{open}
 		}
 		if a.answered(matched, owedItemReview, stem) {
@@ -320,6 +339,7 @@ func (a *answering) carriedItems(carried carriedTrailer) []owedItem {
 	}
 	units, err := changedTaggedUnits(a.root, facts)
 	if err != nil {
+		a.problems = append(a.problems, unreadProblem(matched, carried.reason, err))
 		return []owedItem{open}
 	}
 	items := make([]owedItem, 0, len(units))

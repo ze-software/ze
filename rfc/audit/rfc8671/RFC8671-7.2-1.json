@@ -2,9 +2,9 @@
   "note": "Re-read 2026-09-27. Forbidden: a behaviour-altering change (the RFC's i.e.: filtering, table names) without a Peer Down/Peer Up per peer. Filtering: TestRFC8671BehaviorChangeBouncesEachPeerAndKeepsTheSession fails unless each of two peers gets exactly one Peer Down then one Peer Up after a route-monitoring-policy change through the engine reload rail. Table names: the Loc-RIB table name is the constant locRIBTableName, so no change can occur. Negatives: TestRFC8671UnrelatedBGPChangeBouncesNothing, TestRFC8671RemovingEveryCollectorBouncesTheSession. Not asserted: that other behavior leaves (route-mirroring, loc-rib) also bounce.",
   "requirement_sha": "185f8cbb8c34166b",
   "tests": {
-    "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671BehaviorChangeBouncesEachPeerAndKeepsTheSession": "70e97cb3744c3532",
-    "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671RemovingEveryCollectorBouncesTheSession": "70e97cb3744c3532",
-    "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671UnrelatedBGPChangeBouncesNothing": "70e97cb3744c3532"
+    "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671BehaviorChangeBouncesEachPeerAndKeepsTheSession": "1750bdc6c8f6cfcd",
+    "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671RemovingEveryCollectorBouncesTheSession": "1750bdc6c8f6cfcd",
+    "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671UnrelatedBGPChangeBouncesNothing": "1750bdc6c8f6cfcd"
   },
   "units": {
     "internal/component/bgp/plugins/bmp/rfc8671_test.go::TestRFC8671BehaviorChangeBouncesEachPeerAndKeepsTheSession": "4c68d1d9d70417f6",

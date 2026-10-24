@@ -1,5 +1,5 @@
 // Design: docs/architecture/exabgp-bridge.md -- the reason of a `down` state event
-// Related: bridge_event.go -- ExabgpJSON writes the reason this file names
+// Related: bridge_event.go -- exabgpJSON writes the reason this file names
 // Related: bridge_event_text.go -- appendStateText writes it on the text line
 
 package bridge

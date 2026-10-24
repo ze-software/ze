@@ -2,7 +2,7 @@
   "note": "Station clause: termination_absent_test.go::TestBMPReceiverEndsTheSessionWhenTheRouterLeavesWithoutTermination sends Initiation + Peer Up, confirms one router and one peer held, closes the pipe with no Termination, and requires handleSession to return with zero routers and zero peers (record: removeRouter break observed red). RECOMMENDED clause: sender_queue_test.go::TestSenderStopSendsTerminationToCollector reads a Termination on the collector side through stop() racing holdConnection (record: writeTerminationLocked break observed red). {single-polarity: positive} holds: the sentence permits the no-message close, so no non-compliant router input exists for the station to refuse.",
   "requirement_sha": "5cfc5355e3dc68da",
   "tests": {
-    "internal/component/bgp/plugins/bmp/rfc7854_sender_queue_test.go::TestSenderStopSendsTerminationToCollector": "8f727193769a3f0a",
+    "internal/component/bgp/plugins/bmp/rfc7854_sender_queue_test.go::TestSenderStopSendsTerminationToCollector": "2912814cb124f447",
     "internal/component/bgp/plugins/bmp/rfc7854_termination_absent_test.go::TestBMPReceiverEndsTheSessionWhenTheRouterLeavesWithoutTermination": "ed236b6be6cca946"
   },
   "units": {

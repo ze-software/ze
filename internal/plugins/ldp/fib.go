@@ -59,7 +59,7 @@ func withdrawRemoteBinding(fib *ldpFIB, lib *LIB, fec netip.Prefix, peerKey stri
 // hold the reconcile lock (withReconcileLock) so the LIB read and the FIB program
 // are atomic with respect to concurrent updates for the same FEC.
 func reconcileFEC(fib *ldpFIB, lib *LIB, fec netip.Prefix, log *slog.Logger) {
-	if b, ok := lib.RemainingForFEC(fec); ok {
+	if b, ok := lib.remainingForFEC(fec); ok {
 		applyRemoteBinding(fib, fec, b.Label, b.NextHop, log)
 		return
 	}
@@ -177,12 +177,12 @@ func (f *ldpFIB) withReconcileLock(fn func()) {
 	fn()
 }
 
-// ProgramPop installs an egress pop: traffic arriving with the local label this
+// programPop installs an egress pop: traffic arriving with the local label this
 // LSR advertised for fec has the label popped and is then forwarded by normal IP
 // lookup. This LSR is the egress for fec (a connected prefix or its own LSR-ID),
 // so it advertises a real label (ultimate-hop popping) rather than implicit-null.
 // fib-kernel keys the AF_MPLS entry by InLabel; FEC rides along for diagnostics.
-func (f *ldpFIB) ProgramPop(fec netip.Prefix, inLabel uint32) {
+func (f *ldpFIB) programPop(fec netip.Prefix, inLabel uint32) {
 	f.emit(mplsfibevents.Entry{
 		Action:  mplsfibevents.ActionAdd,
 		Op:      mplsfibevents.OpPop,
@@ -191,8 +191,8 @@ func (f *ldpFIB) ProgramPop(fec netip.Prefix, inLabel uint32) {
 	})
 }
 
-// RemovePop withdraws the egress pop entry keyed by inLabel.
-func (f *ldpFIB) RemovePop(fec netip.Prefix, inLabel uint32) {
+// removePop withdraws the egress pop entry keyed by inLabel.
+func (f *ldpFIB) removePop(fec netip.Prefix, inLabel uint32) {
 	f.emit(mplsfibevents.Entry{
 		Action:  mplsfibevents.ActionRemove,
 		Op:      mplsfibevents.OpPop,

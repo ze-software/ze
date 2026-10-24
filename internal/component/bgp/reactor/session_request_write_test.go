@@ -45,7 +45,7 @@ func requestWriteFixture(t *testing.T) (*reactorAPIAdapter, *Peer, *recordingCon
 	}
 	batch := bgptypes.NLRIBatch{
 		Family:  family.IPv4Unicast,
-		NLRIs:   []nlri.NLRI{nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.20.0.0/24"), 0)},
+		NLRIs:   []nlri.NLRI{nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.20.0.0/24"), 0, false)},
 		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("192.0.2.1")),
 	}
 	return &reactorAPIAdapter{r: r}, peer, conn, batch

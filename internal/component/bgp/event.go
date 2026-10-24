@@ -9,6 +9,7 @@ package bgp
 import (
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"net/netip"
 	"strings"
 
@@ -509,18 +510,21 @@ func (e *Event) GetPeerAddress() string {
 	return ""
 }
 
-// GetPeerASN extracts the remote peer ASN (YANG: remote.as).
-func (e *Event) GetPeerASN() uint32 {
+// GetPeerASN extracts the remote peer ASN (YANG: remote.as). The member is
+// absent while a dynamic peer's AS is not yet negotiated (format.appendPeerJSON),
+// so an event with no peer object, or a peer object with no remote.as, answers
+// the unknown rpc.RemoteAS. A peer object the decoder cannot read is an error:
+// the event is malformed, which is a different answer from "not yet known".
+func (e *Event) GetPeerASN() (rpc.RemoteAS, error) {
 	if len(e.Peer) == 0 {
-		return 0
+		return rpc.RemoteAS{}, nil
 	}
 
 	var info PeerInfoJSON
-	if err := json.Unmarshal(e.Peer, &info); err == nil && info.Remote.AS > 0 {
-		return info.Remote.AS
+	if err := json.Unmarshal(e.Peer, &info); err != nil {
+		return rpc.RemoteAS{}, fmt.Errorf("event peer object unreadable: %w", err)
 	}
-
-	return 0
+	return rpc.RemoteASOf(info.Remote.AS), nil
 }
 
 // GetPeerRouterID extracts the peer's BGP Identifier (YANG: remote.router-id)

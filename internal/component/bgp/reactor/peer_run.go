@@ -12,6 +12,7 @@ import (
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
@@ -257,7 +258,7 @@ func (p *Peer) runOnce() error {
 		wirePeer := plugin.PeerInfo{
 			Address: settings.Address, AddressStr: p.addrString,
 			LocalAddress: settings.LocalAddress, LocalAddressStr: p.localAddrString,
-			LocalAS: settings.LocalAS, PeerAS: settings.PeerAS, RouterID: settings.RouterID,
+			LocalAS: settings.LocalAS, PeerAS: rpc.RemoteASOf(settings.PeerAS), RouterID: settings.RouterID,
 		}
 		session.onWireMessage = func(wire []byte, ctxID bgpctx.ContextID, sent bool, endpoints *sessionTransport) {
 			p.reactor.dispatchObservedWire(&wirePeer, wire, ctxID, sent, endpoints)

@@ -2,6 +2,17 @@
   {
     "rid": "RFC5036-3.3-1",
     "polarity": "negative",
+    "unit": "internal/plugins/ldp/rfc5036_init_unknown_tlv_test.go::TestLDPInitUnknownTLVUClearNotifies",
+    "unit-sha": "858120fff5018668",
+    "claim-sha": "f0256a6de358c09f",
+    "route": "revert",
+    "producer": "internal/plugins/ldp/wire.go::DecodeInit",
+    "producer-sha": "48c007e35bc0070e",
+    "break": "body of DecodeInit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC5036-3.3-1",
+    "polarity": "negative",
     "unit": "internal/plugins/ldp/rfc5036_procedures_test.go::TestRFC5036UnknownTLVWithUBitClearIsRefused",
     "unit-sha": "47cc399621aa9a73",
     "claim-sha": "c30ac696e7d516f5",

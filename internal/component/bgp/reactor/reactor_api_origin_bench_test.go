@@ -38,7 +38,7 @@ func BenchmarkAPIOriginVsForward(b *testing.B) {
 	base := baseBuilder.Build()
 
 	b.Run("api-origin", func(b *testing.B) {
-		wn := nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0)
+		wn := nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0, false)
 		batch := bgptypes.NLRIBatch{
 			Family:  family.IPv4Unicast,
 			NLRIs:   []nlri.NLRI{wn},
@@ -107,7 +107,7 @@ func BenchmarkAnnounceRails(b *testing.B) {
 	builder.AddCommunity(65000, 100)
 	packed := builder.Build()
 
-	wn := nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0)
+	wn := nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0, false)
 	adapter := &reactorAPIAdapter{r: &Reactor{config: &Config{LocalAS: 65000}}}
 
 	b.Run("batch", func(b *testing.B) {
@@ -133,7 +133,7 @@ func BenchmarkAnnounceRails(b *testing.B) {
 	// this is the sub-benchmark whose plan.add reaches ValidateNextHops.
 	b.Run("batch-mp", func(b *testing.B) {
 		mpNextHop := netip.MustParseAddr("2001:db8::1")
-		mpNLRI := nlri.NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8:1::/48"), 0)
+		mpNLRI := nlri.NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8:1::/48"), 0, false)
 		batch := bgptypes.NLRIBatch{
 			Family:  family.IPv6Unicast,
 			NLRIs:   []nlri.NLRI{mpNLRI},

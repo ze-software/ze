@@ -82,6 +82,28 @@ shape stays consistent and each interface has its own enable.
 `track-ip` is off by default for cardinality. Per-(port, proto) is always on. LRU
 caps and a stale timeout bound the `/metrics` output.
 
+## Readiness: the doctor asks the kernel
+
+The `traffic-usage-ebpf` doctor check runs in the `ze doctor` process, not in
+the daemon, so it cannot read what the daemon's attach achieved. It asks the
+same kernel instead: it loads a two-instruction `sched_cls` program and
+attaches it with `link.AttachTCX` to an interface index no device holds. A
+kernel that parses the TCX request answers `ENODEV` for the missing device,
+which proves TCX is there. Nothing stays attached, and the memlock rlimit is
+not touched, so the check stays read-only.
+
+| The kernel answers | Verdict | Doctor code |
+|--------------------|---------|-------------|
+| `ENODEV` for the probe interface | ready | none |
+| `ErrNotSupported` (no TCX attach point), or a non-Linux build | absent | `doctor-traffic-usage-ebpf` |
+| `EPERM`, `EACCES` or any other error | unknown: this process was not allowed to ask | `doctor-traffic-usage-ebpf-unknown`, naming `sudo ze doctor` |
+
+The probe measures this kernel and the doctor process's privileges. A daemon
+started with fewer capabilities than the doctor still fails at attach, and logs
+the failure from the engine run.
+<!-- source: internal/plugins/trafficusage/attach_linux.go -- probeTCX -->
+<!-- source: internal/plugins/trafficusage/doctor.go -- classifyTCXProbe, trafficUsageDiagnostic -->
+
 ## eBPF traps
 
 These cost days if rediscovered:

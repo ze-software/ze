@@ -158,7 +158,7 @@ func TestStructuredRailReadsTheGroupOffTheEvent(t *testing.T) {
 		PeerAddress: "192.0.2.50",
 		PeerName:    "ix-192.0.2.50",
 		PeerGroup:   "ix",
-		PeerAS:      64511,
+		PeerAS:      rpc.RemoteASOf(64511),
 		LocalAS:     65000,
 		RawMessage: &bgptypes.RawMessage{
 			Type:       msgtype.TypeUPDATE,

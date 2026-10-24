@@ -271,7 +271,7 @@ func (b *bgplsBase) NLRIType() BGPLSNLRIType     { return b.nlriType }
 func (b *bgplsBase) ProtocolID() BGPLSProtocolID { return b.protocolID }
 func (b *bgplsBase) Identifier() uint64          { return b.identifier }
 func (b *bgplsBase) PathID() uint32              { return 0 }
-func (b *bgplsBase) HasPathID() bool             { return false }
+func (b *bgplsBase) HasAddPath() bool            { return false }
 func (b *bgplsBase) SupportsAddPath() bool       { return false }
 
 // cachedBytes returns the original wire bytes if parseBGPLS set them, or nil

@@ -1492,14 +1492,14 @@ in the diagnostic.
 |---------|-------------|
 | **YANG extension** | `ze:backend "<names>"` on a YANG node declares which backends implement it. Absent annotation = unrestricted. Declared in `ze-extensions.yang` alongside `ze:os`, `ze:listener`, etc. |
 | **Schema reader** | `getBackendExtension` in `yang_schema.go` mirrors `getOSExtension`; stores the de-duplicated name list on the schema `Node` (`LeafNode.Backend`, `ContainerNode.Backend`, `ListNode.Backend`). |
-| **Walker** | `config.ValidateBackendFeatures(tree, schema, root, activeBackend, backendLeafPath)` descends the parsed JSON tree alongside the schema and emits one error per YANG path where the node's annotation excludes the active backend. |
+| **Walker** | `config.validateBackendFeatures(tree, schema, root, activeBackend, backendLeafPath)` descends the parsed JSON tree alongside the schema and emits one error per YANG path where the node's annotation excludes the active backend. |
 | **Narrowest wins** | A descendant annotation that accepts the active backend suppresses an outer annotation that rejects it, so per-case overrides work. |
 | **Wiring** | iface, firewall, and traffic plugins call the gate in `OnConfigure` (startup) and `OnConfigVerify` (reload). `ze config validate` calls the same helper so offline validation matches daemon commit. Runtime `errNotSupported` returns in `ifacevpp` stay as defence-in-depth. |
 | **Initial coverage** | iface: `bridge`, `tunnel`, `wireguard`, `veth`, `mirror` annotated `ze:backend "netlink"`. firewall: seven `ze:backend "nft"` annotations on conntrack-driven matches (`connection-state`, `connection-mark`) and nft-only action/modifier leaves. traffic: carries a `leaf backend` default (`tc`); per-feature annotations land with `spec-fw-7-traffic-vpp`. |
 
 <!-- source: internal/component/config/yang/modules/ze-extensions.yang -- extension backend -->
 <!-- source: internal/component/config/yang_schema.go -- getBackendExtension, Backend population on LeafNode/ContainerNode/ListNode -->
-<!-- source: internal/component/config/backend_gate.go -- ValidateBackendFeatures, walkBackendNode, walkBackendListEntry -->
+<!-- source: internal/component/config/backend_gate.go -- validateBackendFeatures, walkBackendNode, walkBackendListEntry -->
 <!-- source: internal/component/iface/register.go -- validateBackendGate, called from OnConfigure and OnConfigVerify -->
 <!-- source: internal/component/firewall/engine.go -- validateBackendGate, called from OnConfigure and OnConfigVerify -->
 <!-- source: internal/component/traffic/register.go -- validateBackendGate, called from OnConfigure and OnConfigVerify -->
@@ -2510,6 +2510,7 @@ Cross-component coupling follows a strict hierarchy:
 | plugin/server | aaa, audit |
 | ppp | none (leaf: PPP/LCP/NCP state machines; only `internal/core/textbuf` outside stdlib) |
 | pppoe | config/yang, plugin/server (CLI RPCs), ppp (Driver, DevPPPSetup), iface |
+| radius | aaa (backend registration), config, config/yang, plugin/registry (the metrics hook in `radius/metrics.go`) |
 | ssh | audit, cli, authz, config, plugin/server |
 | web | aaa, audit, cli, authz, config |
 

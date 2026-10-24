@@ -12,7 +12,7 @@ import (
 func TestRDNLRIBaseBuildDataNoAlias(t *testing.T) {
 	t.Parallel()
 	original := []byte{0x01, 0x02, 0x03}
-	base := RDNLRIBase{data: original}
+	base := rdNLRIBase{data: original}
 
 	result := base.buildData()
 	result[0] = 0xFF // Mutate returned slice
@@ -74,7 +74,7 @@ func TestRDNLRIBaseBuildData(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			base := RDNLRIBase{
+			base := rdNLRIBase{
 				rd:   tt.rd,
 				data: tt.data,
 			}

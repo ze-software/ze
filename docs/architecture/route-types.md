@@ -22,6 +22,10 @@ Ze has multiple route representations serving different purposes in the data flo
 **Note:** `rib.Route` in `internal/component/bgp/rib/` is what a named commit and
 the route API build and hand to `CommitService`. It stores nothing: the engine keeps
 no RIB, and route storage lives in the `bgp-rib` plugin.
+Its `Index()` identity holds the RFC 7911 Path Identifier whenever the NLRI carries
+one (`nlri.HasPathID`), identifier 0 included: presence comes from the negotiation
+recorded on the NLRI, never from comparing the value with zero
+(`docs/architecture/wire/nlri.md`, "Embedding Details").
 
 ## Route Type Families
 

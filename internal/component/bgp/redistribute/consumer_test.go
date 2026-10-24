@@ -1,7 +1,10 @@
 package redistribute
 
 import (
+	"bytes"
 	"context"
+	"log/slog"
+	"strings"
 	"sync"
 	"testing"
 
@@ -20,12 +23,18 @@ type recordedDispatch struct {
 type fakeDispatcher struct {
 	mu    sync.Mutex
 	calls []recordedDispatch
+	// noPeer answers as the reactor does when no peer accepted the announce:
+	// added=0 and no error.
+	noPeer bool
 }
 
 func (f *fakeDispatcher) UpdateRoute(_ context.Context, selector, command string) (uint32, uint32, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.calls = append(f.calls, recordedDispatch{selector: selector, command: command})
+	if f.noPeer {
+		return 0, 0, nil
+	}
 	return 1, 1, nil
 }
 
@@ -194,4 +203,27 @@ func TestBGPConsumerWithdrawRouteIPv6(t *testing.T) {
 	calls := disp.snapshot()
 	require.Len(t, calls, 1)
 	assert.Equal(t, "update text mp ipv6/unicast del 2001:db8::/64", calls[0].command)
+}
+
+// TestBGPConsumerAnnounceReachingNoPeerWarns proves an announce the reactor
+// accepted on no peer is reported at Warn through the subsystem logger, with
+// the prefix and the command that shows the peers, and never read as done.
+// Method: a dispatcher answering added=0 with no error, the logger captured
+// at Info, and the captured text read for the Warn line.
+func TestBGPConsumerAnnounceReachingNoPeerWarns(t *testing.T) {
+	orig := logger
+	t.Cleanup(func() { logger = orig })
+	var buf bytes.Buffer
+	captured := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	logger = func() *slog.Logger { return captured }
+
+	c := NewBGPConsumer(&fakeDispatcher{noPeer: true})
+	c.InjectRoute(context.Background(), family.IPv4Unicast, configredist.RouteEntry{Prefix: "10.0.0.0/24", NextHop: "192.0.2.1"})
+
+	out := buf.String()
+	for _, want := range []string{"level=WARN", "reached no BGP peer", "10.0.0.0/24", "ze show bgp peer"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("log %q lacks %q", out, want)
+		}
+	}
 }

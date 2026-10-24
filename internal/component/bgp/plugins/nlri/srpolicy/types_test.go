@@ -122,7 +122,7 @@ func TestSRPolicyString(t *testing.T) {
 func TestSRPolicySupportsAddPath(t *testing.T) {
 	sp := New(family.AFIIPv4, 0, 100, netip.MustParseAddr("10.0.0.1"))
 	assert.False(t, sp.SupportsAddPath())
-	assert.False(t, sp.HasPathID())
+	assert.False(t, sp.HasAddPath())
 	assert.Equal(t, uint32(0), sp.PathID())
 }
 

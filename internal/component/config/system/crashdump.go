@@ -110,7 +110,10 @@ func readCrashDumpConfig(configPath string) (name string, data []byte, err error
 	}
 	defer store.Close() //nolint:errcheck // read-only close
 
-	name = resolve.DefaultConfig(store)
+	name, err = resolve.DefaultConfig(store)
+	if err != nil {
+		return "", nil, fmt.Errorf("crash-dump intent: %w", err)
+	}
 	data, err = storage.ReadActiveConfig(store, name)
 	if err != nil {
 		return "", nil, fmt.Errorf("crash-dump intent: read %s: %w", name, err)

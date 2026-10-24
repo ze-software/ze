@@ -120,7 +120,7 @@ func pathIDTestBody(t *testing.T, sourceAS, pathID uint32) []byte {
 	var pathIDBytes [4]byte
 	binary.BigEndian.PutUint32(pathIDBytes[:], pathID)
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
-	nlriBytes := append(pathIDBytes[:], nlri.NewINET(family.IPv4Unicast, prefix, 0).Bytes()...)
+	nlriBytes := append(pathIDBytes[:], nlri.NewINET(family.IPv4Unicast, prefix, 0, false).Bytes()...)
 	return buildRawUpdateBody(nil, forwardBodyBaseAttrs(t, sourceAS), [][]byte{nlriBytes})
 }
 

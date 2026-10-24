@@ -40,9 +40,12 @@ func apiRequest(t *testing.T, dispatch CommandDispatcher, target string) *httpte
 }
 
 // dispatchEndpoints are the API endpoints that answer from one dispatched
-// command, with the command each one sends and the key its payload sits under.
-// peerScoped marks the endpoints that answer through peerRoutesAnswer, which
-// reads an error envelope as 404 rather than 502.
+// command, with the first command each one sends and the key its payload sits
+// under. peerScoped marks the endpoints that answer through peerRoutesAnswer,
+// which reads an error envelope as 404 rather than 502. routes/protocol and
+// routes/export first resolve their protocol id through `show bgp`
+// (protocolSession), so their first command is the overview, and their rib
+// command names the address mockDispatch lists peer1 under.
 var dispatchEndpoints = []struct {
 	target     string
 	command    string
@@ -53,9 +56,9 @@ var dispatchEndpoints = []struct {
 	{"/api/looking-glass/protocols/short", cmdBGPOverview, "protocols", false},
 	{"/api/looking-glass/protocols/bmp", cmdShowBMPPeers, "protocols", false},
 	{"/api/looking-glass/routes/prefix?prefix=10.0.0.0/24", "show bgp rib received prefix 10.0.0.0/24", "routes", false},
-	{"/api/looking-glass/routes/protocol/peer1", "show bgp rib received peer peer1", "routes", true},
+	{"/api/looking-glass/routes/protocol/peer1", cmdBGPOverview, "routes", true},
 	{"/api/looking-glass/routes/peer/192.0.2.1", "show bgp rib received peer 192.0.2.1", "routes", true},
-	{"/api/looking-glass/routes/export/peer1", "show bgp rib sent peer peer1", "routes", true},
+	{"/api/looking-glass/routes/export/peer1", cmdBGPOverview, "routes", true},
 	{"/api/looking-glass/routes/bmp/peer1", "show bgp rib protocol bmp peer peer1", "routes", true},
 }
 
@@ -117,11 +120,14 @@ func TestAPIDispatchFailureIsRefused(t *testing.T) {
 //
 // VALIDATES: protocols/bgp, protocols/short, protocols/bmp and routes/prefix
 // answer 502 naming the command and "engine error" when the answer is an
-// error envelope.
+// error envelope, and so do routes/protocol and routes/export when the
+// envelope answers the `show bgp` they resolve their protocol id through.
 // PREVENTS: the protocols transforms rendering the envelope as an empty set.
 func TestAPIProtocolsRefusalEnvelopeIsRefused(t *testing.T) {
 	for _, endpoint := range dispatchEndpoints {
-		if endpoint.peerScoped {
+		// A peer-scoped endpoint that sends the overview first meets the
+		// envelope there, where it is an engine failure like any other.
+		if endpoint.peerScoped && endpoint.command != cmdBGPOverview {
 			continue
 		}
 		t.Run(endpoint.target, func(t *testing.T) {
@@ -143,6 +149,16 @@ func envelopeDispatch(_ context.Context, _ plugin.CallerIdentity, _ string) (*pl
 	return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(`{"error":"refused here"}`)), nil
 }
 
+// ribEnvelopeDispatch serves the `show bgp` overview as mockDispatch does and
+// answers every other command with bgp-rib's error envelope, so an endpoint
+// that resolves its protocol id first reaches bgp-rib's refusal.
+func ribEnvelopeDispatch(ctx context.Context, caller plugin.CallerIdentity, cmd string) (*plugin.Response, error) {
+	if cmd == cmdBGPOverview {
+		return mockDispatch()(ctx, caller, cmd)
+	}
+	return envelopeDispatch(ctx, caller, cmd)
+}
+
 // TestAPIPeerRoutesEnvelopeIsNotFound proves the peer-scoped route endpoints
 // keep the two failures apart: the engine's envelope is 404 carrying its
 // refusal, while TestAPIDispatchFailureIsRefused holds a failed dispatch at
@@ -158,7 +174,7 @@ func TestAPIPeerRoutesEnvelopeIsNotFound(t *testing.T) {
 			continue
 		}
 		t.Run(endpoint.target, func(t *testing.T) {
-			rec := apiRequest(t, envelopeDispatch, endpoint.target)
+			rec := apiRequest(t, ribEnvelopeDispatch, endpoint.target)
 
 			if rec.Code != http.StatusNotFound {
 				t.Fatalf("status = %d, want %d; body %s", rec.Code, http.StatusNotFound, rec.Body.String())
@@ -373,5 +389,117 @@ func TestAPIBMPProtocolsListsOnlyNamesRoutesAnswers(t *testing.T) {
 	}
 	if len(dispatched) != 0 {
 		t.Errorf("a refused name was dispatched: %q", dispatched)
+	}
+}
+
+// TestAPIProtocolNameSelectsItsSession proves the per-protocol endpoints ask
+// bgp-rib for the session protocols/bgp lists under that name.
+//
+// VALIDATES: routes/protocol/{name}, routes/export/{name} and
+// routes/count/protocol/{name} resolve the birdwatcher protocol id (the
+// configured name, else the address, as transformProtocols builds it) to the
+// session address through `show bgp`, and send that address to bgp-rib; the
+// session address is accepted as an id too; an id that is neither a listed
+// name nor a session address answers 404 naming it and protocols/bgp, and
+// sends no rib command.
+// PREVENTS: the name going to bgp-rib, whose peer keys are addresses, so a
+// listed session answered 200 with 0 routes and an unknown one did too
+// (plan/journal/zero-value-as-valid-answer.md, 2026-10-09).
+func TestAPIProtocolNameSelectsItsSession(t *testing.T) {
+	sessions := []struct {
+		target string
+		want   string
+	}{
+		{"/api/looking-glass/routes/protocol/peer1", "show bgp rib received peer 10.0.0.1"},
+		{"/api/looking-glass/routes/export/peer1", "show bgp rib sent peer 10.0.0.1"},
+		{"/api/looking-glass/routes/count/protocol/peer1", "show bgp rib received peer 10.0.0.1 count"},
+		// The session address names the same session: it is unique to one
+		// session, and the endpoints answered it before names were listed.
+		{"/api/looking-glass/routes/protocol/10.0.0.1", "show bgp rib received peer 10.0.0.1"},
+		{"/api/looking-glass/routes/export/10.0.0.1", "show bgp rib sent peer 10.0.0.1"},
+		{"/api/looking-glass/routes/count/protocol/10.0.0.1", "show bgp rib received peer 10.0.0.1 count"},
+	}
+	for _, session := range sessions {
+		t.Run(session.target, func(t *testing.T) {
+			var asked []string
+			served := mockDispatch()
+			recording := func(ctx context.Context, caller plugin.CallerIdentity, cmd string) (*plugin.Response, error) {
+				asked = append(asked, cmd)
+				return served(ctx, caller, cmd)
+			}
+
+			rec := apiRequest(t, recording, session.target)
+
+			if rec.Code != http.StatusOK {
+				t.Fatalf("status = %d, want 200; body %s", rec.Code, rec.Body.String())
+			}
+			if got := asked[len(asked)-1]; got != session.want {
+				t.Errorf("rib command = %q, want %q (asked %q)", got, session.want, asked)
+			}
+		})
+	}
+
+	for _, target := range []string{
+		"/api/looking-glass/routes/protocol/nosuch",
+		"/api/looking-glass/routes/export/nosuch",
+		"/api/looking-glass/routes/count/protocol/nosuch",
+		// An address no session carries is neither a name nor an address.
+		"/api/looking-glass/routes/protocol/10.9.9.9",
+	} {
+		t.Run(target, func(t *testing.T) {
+			var asked []string
+			served := mockDispatch()
+			recording := func(ctx context.Context, caller plugin.CallerIdentity, cmd string) (*plugin.Response, error) {
+				asked = append(asked, cmd)
+				return served(ctx, caller, cmd)
+			}
+
+			rec := apiRequest(t, recording, target)
+
+			if rec.Code != http.StatusNotFound {
+				t.Fatalf("status = %d, want 404; body %s", rec.Code, rec.Body.String())
+			}
+			name := target[strings.LastIndex(target, "/")+1:]
+			message := errorBody(t, rec)
+			if !strings.Contains(message, `"`+name+`"`) || !strings.Contains(message, "/api/looking-glass/protocols/bgp") {
+				t.Errorf("error = %q, want it to name %q and /api/looking-glass/protocols/bgp", message, name)
+			}
+			for _, cmd := range asked {
+				if strings.HasPrefix(cmd, "show bgp rib") {
+					t.Errorf("sent %q for a protocol id no session carries", cmd)
+				}
+			}
+		})
+	}
+}
+
+// TestAPIProtocolNameWinsOverAnotherSessionsAddress proves a configured name
+// that spells another session's address selects the named session.
+//
+// VALIDATES: protocolSession matches the listed name first and the session
+// address only when no session lists the id as its name.
+// PREVENTS: the address form shadowing the id protocols/bgp lists, so a client
+// following that list reached a different session.
+func TestAPIProtocolNameWinsOverAnotherSessionsAddress(t *testing.T) {
+	const overview = `{"router-id":"1.2.3.4","local-as":"65000","peers-configured":2,"peers-established":2,"peers":[` +
+		`{"name":"peerB","peer-address":"10.0.0.2","remote-as":"65002","state":"established"},` +
+		`{"name":"10.0.0.2","peer-address":"10.0.0.1","remote-as":"65001","state":"established"}]}`
+	var asked []string
+	served := mockDispatch()
+	dispatch := func(ctx context.Context, caller plugin.CallerIdentity, cmd string) (*plugin.Response, error) {
+		asked = append(asked, cmd)
+		if cmd == cmdBGPOverview {
+			return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(overview)), nil
+		}
+		return served(ctx, caller, cmd)
+	}
+
+	rec := apiRequest(t, dispatch, "/api/looking-glass/routes/protocol/10.0.0.2")
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body %s", rec.Code, rec.Body.String())
+	}
+	if got, want := asked[len(asked)-1], "show bgp rib received peer 10.0.0.1"; got != want {
+		t.Errorf("rib command = %q, want %q (asked %q)", got, want, asked)
 	}
 }

@@ -2,8 +2,8 @@
   "note": "Re-judged 2026-10-01 (BGP c18 judge). The old objection (units call the encoders only) is closed at the entry point: NEW TestRFC4271OwnASDestinationBecomingReachableIsSentToPeers originates 10.20.0.0/24 through reactorAPIAdapter.AnnounceNLRIBatch (the API announce entry point) toward one internal and one external Established peer and parses each connection's bytes: exactly one UPDATE, Withdrawn Routes empty, attributes present, NLRI = the prefix. NEW TestRFC4271OwnASDestinationBecomingUnreachableIsSentToPeers: after that announcement WithdrawNLRIBatch writes exactly one more UPDATE per peer with the prefix in Withdrawn Routes, no attributes, no NLRI, so a change that removes reachability is advertised, not left standing. Observed-red records: + on reactor_api_batch.go::AnnounceNLRIBatch, - on WithdrawNLRIBatch. The HEAD encoder units (writeAnnounceUpdate/writeWithdrawUpdate) stay as supplementary. Residual, not a clause gap: own-AS reachability changes are driven through the API rail; static-route reload and default-originate rails are not exercised by these units.",
   "requirement_sha": "d4f8378b727d117d",
   "tests": {
-    "internal/component/bgp/reactor/rfc4271_own_as_change_test.go::TestRFC4271OwnASDestinationBecomingReachableIsSentToPeers": "fa30f047f2cf9313",
-    "internal/component/bgp/reactor/rfc4271_own_as_change_test.go::TestRFC4271OwnASDestinationBecomingUnreachableIsSentToPeers": "fa30f047f2cf9313",
+    "internal/component/bgp/reactor/rfc4271_own_as_change_test.go::TestRFC4271OwnASDestinationBecomingReachableIsSentToPeers": "65c56f20c159fe54",
+    "internal/component/bgp/reactor/rfc4271_own_as_change_test.go::TestRFC4271OwnASDestinationBecomingUnreachableIsSentToPeers": "65c56f20c159fe54",
     "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271OwnASReachabilityChangeAdvertised": "94aa07ebd53dcc5b",
     "internal/component/bgp/reactor/rfc4271_test.go::TestRFC4271OwnASUnreachabilityChangeAdvertised": "94aa07ebd53dcc5b"
   },

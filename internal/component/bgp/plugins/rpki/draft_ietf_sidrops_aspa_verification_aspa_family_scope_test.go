@@ -83,7 +83,7 @@ func feedASPAUpdate(t *testing.T, rp *rPKIPlugin, body []byte) []validationReque
 		PeerAddress: "192.0.2.50",
 		PeerName:    "ix-192.0.2.50",
 		PeerGroup:   "ix",
-		PeerAS:      100,
+		PeerAS:      rpc.RemoteASOf(100),
 		LocalAS:     65000,
 		MessageID:   71,
 		RawMessage: &bgptypes.RawMessage{

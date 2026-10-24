@@ -33,7 +33,7 @@ func feedReceivedWithIdentifier(t *testing.T, r *RIBManager, peer netip.Addr, re
 	r.handleReceivedStructured(&rpc.StructuredEvent{
 		EventType:      rpc.EventKindUpdate,
 		PeerAddress:    peer.String(),
-		PeerAS:         65001,
+		PeerAS:         rpc.RemoteASOf(65001),
 		LocalAS:        65000,
 		RouterID:       identifierFor(t, "192.0.2.254"), // this speaker's own, shared by every peer
 		RemoteRouterID: remoteRouterID,

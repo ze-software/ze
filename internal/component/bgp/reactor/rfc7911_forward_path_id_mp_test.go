@@ -64,7 +64,7 @@ func TestForwardPathIDMPGeneration(t *testing.T) {
 					if framed {
 						section = binary.BigEndian.AppendUint32(section, 0)
 					}
-					section = append(section, nlri.NewINET(fam, prefix, 0).Bytes()...)
+					section = append(section, nlri.NewINET(fam, prefix, 0, false).Bytes()...)
 				}
 				nextHop := netip.MustParseAddr("2001:db8::1").AsSlice()
 				mp := buildMPReachSource(uint16(fam.AFI), byte(fam.SAFI), nextHop, section)
@@ -132,7 +132,7 @@ func TestForwardPathIDMPGeneration(t *testing.T) {
 					if !present {
 						t.Fatalf("missing native prefix %s", prefix)
 					}
-					if !bytes.Equal(native, nlri.NewINET(fam, prefix, 0).Bytes()) {
+					if !bytes.Equal(native, nlri.NewINET(fam, prefix, 0, false).Bytes()) {
 						t.Fatalf("identifier %d accompanies %x, want %s", id, native, prefix)
 					}
 					identifiers[i] = id

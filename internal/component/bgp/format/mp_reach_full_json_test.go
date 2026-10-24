@@ -40,7 +40,7 @@ func TestFullJSONStatesMPReachOnce(t *testing.T) {
 		0x00,                                     // reserved
 		0x30, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01, // 2001:db8:1::/48
 	}
-	peer := plugin.PeerInfo{Address: netip.MustParseAddr("2001:db8::1"), PeerAS: 65001}
+	peer := plugin.PeerInfo{Address: netip.MustParseAddr("2001:db8::1"), PeerAS: rpc.RemoteASOf(65001)}
 	ctxID, err := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
 	require.NoError(t, err)
 

@@ -76,7 +76,7 @@ func TestLLGREORWriterKeepsRefreshedRoute(t *testing.T) {
 			f.destination.session.SetMessageCallback(f.r.notifyMessageReceiver)
 			deliverSent := func(msg bgptypes.RawMessage) {
 				require.NoError(t, proc.Bridge().DeliverStructured([]any{&rpc.StructuredEvent{
-					PeerAddress: f.destination.Settings().Address.String(), EventType: rpc.EventKindUpdate,
+					PeerAddress: f.destination.Settings().Address.String(), PeerAS: rpc.RemoteASOf(f.destination.PeerAS()), EventType: rpc.EventKindUpdate,
 					Direction: rpc.DirectionSent, MessageID: msg.MessageID, RawMessage: &msg,
 					SourcePeerStr: msg.SourcePeerStr, SourceID: msg.SourceID, Meta: msg.Meta,
 				}}))
@@ -110,7 +110,7 @@ func TestLLGREORWriterKeepsRefreshedRoute(t *testing.T) {
 				attrs, err := update.WireUpdate.Attrs()
 				require.NoError(t, err)
 				require.NoError(t, proc.Bridge().DeliverStructured([]any{&rpc.StructuredEvent{
-					PeerAddress: source.Settings().Address.String(), EventType: rpc.EventKindUpdate,
+					PeerAddress: source.Settings().Address.String(), PeerAS: rpc.RemoteASOf(source.PeerAS()), EventType: rpc.EventKindUpdate,
 					Direction: rpc.DirectionReceived, MessageID: update.WireUpdate.MessageID(),
 					RawMessage: &bgptypes.RawMessage{WireUpdate: update.WireUpdate, AttrsWire: attrs, MessageID: update.WireUpdate.MessageID()},
 				}}))

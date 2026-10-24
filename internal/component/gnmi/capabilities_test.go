@@ -2,6 +2,7 @@ package gnmi
 
 import (
 	"context"
+	"slices"
 	"testing"
 
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
@@ -21,11 +22,10 @@ func TestCapabilitiesResponse(t *testing.T) {
 		t.Error("expected at least one supported model")
 	}
 
-	if len(resp.SupportedEncodings) == 0 {
-		t.Fatal("expected at least one encoding")
-	}
-	if resp.SupportedEncodings[0] != gpb.Encoding_JSON_IETF {
-		t.Errorf("expected JSON_IETF encoding, got %v", resp.SupportedEncodings[0])
+	// gNMI specification Section 2.3.1: "Both the client and target MUST
+	// support the `JSON` encoding as a minimum."
+	if !slices.Equal(resp.SupportedEncodings, []gpb.Encoding{gpb.Encoding_JSON, gpb.Encoding_JSON_IETF}) {
+		t.Errorf("supported encodings = %v, want [JSON JSON_IETF]", resp.SupportedEncodings)
 	}
 
 	if resp.GNMIVersion == "" {

@@ -93,7 +93,7 @@ func testBatchOnePrefix(t *testing.T) bgptypes.NLRIBatch {
 	t.Helper()
 	return bgptypes.NLRIBatch{
 		Family: family.IPv4Unicast,
-		NLRIs:  []nlri.NLRI{nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("192.0.2.0/24"), 0)},
+		NLRIs:  []nlri.NLRI{nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("192.0.2.0/24"), 0, false)},
 	}
 }
 

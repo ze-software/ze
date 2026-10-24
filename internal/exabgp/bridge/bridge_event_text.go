@@ -208,7 +208,13 @@ func appendUpdateOperation(buf []byte, prefix, family string, operation map[stri
 	nextHop, _ := operation["next-hop"].(string)
 	values, _ := operation[bridgeUpdateNLRI].([]any)
 
-	for range values {
+	for _, value := range values {
+		// An undecoded element names no route, and updateMessageJSON left it out
+		// of the document routes is read from and logged it there, so it takes
+		// no entry here and is not logged twice.
+		if _, _, undecoded := undecodedNLRIError(value); undecoded {
+			continue
+		}
 		var announced bool
 		switch action {
 		case "add":

@@ -454,7 +454,7 @@ func forwardBodyNLRIs(count int, addPath bool) []byte {
 			out = append(out, pathID[:]...)
 		}
 		prefix := netip.PrefixFrom(netip.AddrFrom4([4]byte{10, byte(i / 256), byte(i), 0}), 24)
-		out = append(out, nlri.NewINET(family.IPv4Unicast, prefix, 0).Bytes()...)
+		out = append(out, nlri.NewINET(family.IPv4Unicast, prefix, 0, false).Bytes()...)
 	}
 	return out
 }

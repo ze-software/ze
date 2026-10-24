@@ -61,7 +61,7 @@ func TestOrdinaryWithdrawalFinalResult(t *testing.T) {
 				return PolicyResponse{Action: PolicyAccept}
 			}
 			api := &reactorAPIAdapter{r: r}
-			withdrawals := []nlri.NLRI{nlri.NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8:ffff::/48"), 0)}
+			withdrawals := []nlri.NLRI{nlri.NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8:ffff::/48"), 0, false)}
 			result, err := api.SendRoutes(selector.All(), nil, withdrawals, false, plugin.OperatorSender())
 			if err != nil {
 				t.Fatalf("named commit aggregate error: %v", err)

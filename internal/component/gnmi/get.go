@@ -29,6 +29,13 @@ func (s *Server) Get(_ context.Context, req *gpb.GetRequest) (*gpb.GetResponse, 
 		return nil, status.Error(codes.Unavailable, "config tree not available")
 	}
 
+	// gNMI specification Section 3.3.1
+	encoding, err := answerEncodingFor(req.GetEncoding())
+	if err != nil {
+		s.recordError("Get", codes.Unimplemented)
+		return nil, err
+	}
+
 	if len(req.GetPath()) == 0 {
 		s.recordError("Get", codes.InvalidArgument)
 		return nil, status.Error(codes.InvalidArgument, "at least one path required")
@@ -60,7 +67,7 @@ func (s *Server) Get(_ context.Context, req *gpb.GetRequest) (*gpb.GetResponse, 
 			return nil, status.Errorf(codes.NotFound, "path not found: %s", pathString(segments))
 		}
 
-		val, err := treeToTypedValue(subtree, segments)
+		val, err := treeToTypedValue(subtree, segments, encoding)
 		if err != nil {
 			s.recordError("Get", codes.Internal)
 			return nil, status.Errorf(codes.Internal, "encode value: %v", err)
@@ -126,8 +133,9 @@ func walkTree(tree *zeconfig.Tree, schema *zeconfig.Schema, segments []string) (
 }
 
 // treeToTypedValue encodes a tree node as a gNMI TypedValue.
-// Leaf values are returned as StringVal; containers as JSON_IETF.
-func treeToTypedValue(tree *zeconfig.Tree, segments []string) (*gpb.TypedValue, error) {
+// Leaf values are returned as StringVal; containers as JSON in the encoding
+// the request asked for (answerEncoding.typedValue).
+func treeToTypedValue(tree *zeconfig.Tree, segments []string, encoding answerEncoding) (*gpb.TypedValue, error) {
 	if len(segments) > 0 {
 		leafName := segments[len(segments)-1]
 		if val, ok := tree.Get(leafName); ok {
@@ -142,9 +150,7 @@ func treeToTypedValue(tree *zeconfig.Tree, segments []string) (*gpb.TypedValue, 
 	if err != nil {
 		return nil, err
 	}
-	return &gpb.TypedValue{
-		Value: &gpb.TypedValue_JsonIetfVal{JsonIetfVal: data},
-	}, nil
+	return encoding.typedValue(data), nil
 }
 
 // listToTree wraps a YANG list (map of entries) as a synthetic Tree

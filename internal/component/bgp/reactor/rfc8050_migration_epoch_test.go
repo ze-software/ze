@@ -21,6 +21,7 @@ import (
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/mrt"
 	mrtplugin "github.com/ze-software/ze/internal/plugins/mrt"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // RFC requirement: RFC8050-x-4 positive -- actual migration-fallback OPENs supply the recorded local ASN and mixed withdrawal decoding context in both directions; original packets, exact prefixes and Path Identifiers survive, including through a retained outbound writer after the Session transport changes.
@@ -38,7 +39,7 @@ func TestMRTMigrationEpochUsesActualLocalOPEN(t *testing.T) {
 	t.Cleanup(stop)
 	r := New(&Config{})
 	r.addMessageObserver(recorder)
-	peer := plugin.PeerInfo{Address: settings.Address, LocalAS: migrationLocalAS, PeerAS: migrationLocalAS}
+	peer := plugin.PeerInfo{Address: settings.Address, LocalAS: migrationLocalAS, PeerAS: rpc.RemoteASOf(migrationLocalAS)}
 	var fallback atomic.Bool
 	connect := func() (*Session, net.Conn, []byte) {
 		s := NewSession(settings)

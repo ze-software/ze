@@ -319,7 +319,8 @@ func filterPeersByPolicySelector(peers []plugin.PeerInfo, selector string) []plu
 	if number, ok := selectorpkg.ParseASNSelector(selector); ok {
 		var matched []plugin.PeerInfo
 		for i := range peers {
-			if peers[i].PeerAS == number {
+			// A peer whose AS is not yet negotiated matches no AS selector.
+			if peerAS, known := peers[i].PeerAS.ASN(); known && peerAS == number {
 				matched = append(matched, peers[i])
 			}
 		}

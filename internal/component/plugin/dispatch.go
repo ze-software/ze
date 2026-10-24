@@ -21,6 +21,7 @@ import (
 	"io"
 	"slices"
 
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -203,10 +204,17 @@ func ResponseJSON(resp *Response, err error) (string, error) {
 // surface that takes the whole answer as one string (REST, gRPC, web, MCP, the
 // looking glass). Both project one *Response, and AC-10 of
 // spec-streaming-answer-protocol holds them to the same JSON.
+//
+// A response that cannot become an answer (a reserved envelope key, a payload
+// that does not marshal or that plugin.RawJSON refuses) is answered as that
+// failure: nothing has been written yet, so the failure is the whole answer,
+// with no record and the reason as its message. Returning the error alone
+// would leave the caller waiting for an id nobody answers, because the
+// transport has no answer to put on the wire for it.
 func WriteAnswer(w io.Writer, id uint64, resp *Response) error {
 	records, generated, err := answerRecords(resp)
 	if err != nil {
-		return err
+		return writeUnbuiltAnswer(w, id, err)
 	}
 	head := rpc.AnswerTail{Message: answerMessage(resp), Warning: answerWarning(resp)}
 	if generated {
@@ -217,9 +225,23 @@ func WriteAnswer(w io.Writer, id uint64, resp *Response) error {
 
 	document, err := builtDocument(resp)
 	if err != nil {
-		return err
+		return writeUnbuiltAnswer(w, id, err)
 	}
 	return rpc.WriteDocumentAnswer(w, id, head, document)
+}
+
+// writeUnbuiltAnswer answers id with the reason its response could not be
+// built into an answer. A message over a count of zero derives to an error
+// (rpc.Verdict), so the caller reads the failure rather than a success or no
+// answer at all. The build error is returned too, so the transport still logs
+// that the command's own answer was lost.
+func writeUnbuiltAnswer(w io.Writer, id uint64, buildErr error) error {
+	var tb textbuf.Buffer
+	message := tb.Str("the command's answer could not be sent: ").Err(buildErr).String()
+	if err := rpc.WriteDocumentAnswer(w, id, rpc.AnswerTail{Message: message}, nil); err != nil {
+		return errors.Join(buildErr, err)
+	}
+	return buildErr
 }
 
 // AnswerFor returns the answer resp produces for a consumer in THIS process:

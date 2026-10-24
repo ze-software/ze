@@ -6,13 +6,17 @@
 package ifacevpp
 
 import (
+	"errors"
 	"fmt"
 	"net"
+	"net/netip"
 	"strings"
 
 	"go.fd.io/govpp/api"
 	interfaces "go.fd.io/govpp/binapi/interface"
 	"go.fd.io/govpp/binapi/interface_types"
+	"go.fd.io/govpp/binapi/ip"
+	"go.fd.io/govpp/binapi/ip_types"
 
 	"github.com/ze-software/ze/internal/component/iface"
 )
@@ -84,29 +88,37 @@ func (b *vppBackendImpl) ListInterfaces() ([]iface.InterfaceInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	statsMap := readVPPIfaceStats()
+	// A failed stats read leaves every Stats nil ("not read"); the interface
+	// list itself is still the answer.
+	statsMap, _ := readVPPIfaceStats() //nolint:errcheck // a nil map attaches no Stats, which is "not read"
 	out := make([]iface.InterfaceInfo, 0, len(details))
 	for i := range details {
 		info := detailsToInfo(&details[i])
-		if s, ok := statsMap[info.Name]; ok {
-			info.Stats = s
+		if err := b.fillAddresses(&info, details[i].SwIfIndex); err != nil {
+			return nil, fmt.Errorf("ifacevpp: list interfaces: %w", err)
 		}
+		attachVPPIfaceStats(&info, statsMap)
 		out = append(out, info)
 	}
 	return out, nil
 }
 
+// errVPPStatsUnavailable is the read of a stats segment Ze is not connected
+// to: no counters were read, which is not an interface without counters.
+var errVPPStatsUnavailable = errors.New("ifacevpp: the VPP stats segment is not connected")
+
 // readVPPIfaceStats reads per-interface counters from the VPP stats segment
-// and returns them keyed by interface name. Returns an empty map if the
-// stats provider is unavailable (graceful degradation).
-func readVPPIfaceStats() map[string]*iface.InterfaceStats {
+// and returns them keyed by interface name. A stats segment Ze is not
+// connected to answers errVPPStatsUnavailable, and a failed read its error:
+// neither is an interface without counters.
+func readVPPIfaceStats() (map[string]*iface.InterfaceStats, error) {
 	sp := getActiveStatsProvider()
 	if sp == nil {
-		return nil
+		return nil, errVPPStatsUnavailable
 	}
 	var raw api.InterfaceStats
 	if err := sp.GetInterfaceStats(&raw); err != nil {
-		return nil
+		return nil, fmt.Errorf("ifacevpp: read the stats segment: %w", err)
 	}
 	out := make(map[string]*iface.InterfaceStats, len(raw.Interfaces))
 	for i := range raw.Interfaces {
@@ -124,46 +136,121 @@ func readVPPIfaceStats() map[string]*iface.InterfaceStats {
 			RxDropped: raw.Interfaces[i].Drops,
 		}
 	}
-	return out
+	return out, nil
 }
 
-// GetInterface returns the single interface matching name. The name is the
-// VPP long name; SwInterfaceDump's NameFilter is substring-match, so we
-// re-check for an exact InterfaceName match.
-//
-// The answer carries no addresses and leaves AddressesRead false:
-// SwInterfaceDetails holds none, and reading them is a separate
-// IPAddressDump per interface and family that this backend does not issue.
-// iface.ReadAddressState therefore refuses it with ErrAddressesNotReported.
+// attachVPPIfaceStats sets info.Stats from statsMap. A stats read that failed
+// leaves Stats nil, which InterfaceInfo.Stats documents as "not read", and the
+// failure is answered by GetStats, which reads the segment for itself.
+func attachVPPIfaceStats(info *iface.InterfaceInfo, statsMap map[string]*iface.InterfaceStats) {
+	if s, ok := statsMap[info.Name]; ok {
+		info.Stats = s
+	}
+}
+
+// GetInterface returns the single interface matching name, with the
+// addresses VPP holds on it. A failed address dump fails the read: the
+// answer never reports an interface as holding no address when its
+// addresses were not read.
 func (b *vppBackendImpl) GetInterface(name string) (*iface.InterfaceInfo, error) {
+	details, err := b.detailsByName(name)
+	if err != nil {
+		return nil, err
+	}
+	info := detailsToInfo(details)
+	if err := b.fillAddresses(&info, details.SwIfIndex); err != nil {
+		return nil, fmt.Errorf("ifacevpp: get %q: %w", name, err)
+	}
+	statsMap, _ := readVPPIfaceStats() //nolint:errcheck // a nil map attaches no Stats, which is "not read"
+	attachVPPIfaceStats(&info, statsMap)
+	return &info, nil
+}
+
+// GetLink returns the link facts of the single interface matching name and
+// issues no address dump, so a failed address dump cannot fail it:
+// Addresses is nil and AddressesRead false, as Backend.GetLink specifies.
+func (b *vppBackendImpl) GetLink(name string) (*iface.InterfaceInfo, error) {
+	details, err := b.detailsByName(name)
+	if err != nil {
+		return nil, err
+	}
+	info := detailsToInfo(details)
+	statsMap, _ := readVPPIfaceStats() //nolint:errcheck // a nil map attaches no Stats, which is "not read"
+	attachVPPIfaceStats(&info, statsMap)
+	return &info, nil
+}
+
+// detailsByName returns the SwInterfaceDetails of the interface named name.
+// The name is the VPP long name; SwInterfaceDump's NameFilter is
+// substring-match, so the answer is re-checked for an exact InterfaceName
+// match. An absent interface answers an error wrapping
+// iface.ErrInterfaceNotFound.
+func (b *vppBackendImpl) detailsByName(name string) (*interfaces.SwInterfaceDetails, error) {
 	details, err := b.dumpByName(name)
 	if err != nil {
 		return nil, err
 	}
-	statsMap := readVPPIfaceStats()
 	for i := range details {
 		if trimCString(details[i].InterfaceName) == name {
-			info := detailsToInfo(&details[i])
-			if s, ok := statsMap[info.Name]; ok {
-				info.Stats = s
-			}
-			return &info, nil
+			return &details[i], nil
 		}
 	}
-	return nil, fmt.Errorf("ifacevpp: interface %q not found", name)
+	return nil, fmt.Errorf("ifacevpp: interface %q: %w", name, iface.ErrInterfaceNotFound)
 }
 
-// GetLink is GetInterface: this backend's GetInterface already reads no
-// addresses, so its answer is the link facts alone.
-func (b *vppBackendImpl) GetLink(name string) (*iface.InterfaceInfo, error) {
-	return b.GetInterface(name)
+// fillAddresses reads the addresses VPP holds on the interface at index into
+// info and marks them read. SwInterfaceDetails carries no address, so each
+// family is one IPAddressDump. VPP's address dump carries no Duplicate
+// Address Detection outcome, so DADReported stays false: an address here
+// with neither Tentative nor DADFailed says nothing about DAD.
+func (b *vppBackendImpl) fillAddresses(info *iface.InterfaceInfo, index interface_types.InterfaceIndex) error {
+	for _, isIPv6 := range [2]bool{false, true} {
+		ctx := b.ch.SendMultiRequest(&ip.IPAddressDump{SwIfIndex: index, IsIPv6: isIPv6})
+		// Bounded by VPP: the dump ends with its last-reply marker.
+		for {
+			details := &ip.IPAddressDetails{}
+			last, err := ctx.ReceiveReply(details)
+			if err != nil {
+				return fmt.Errorf("IPAddressDump(sw_if_index %d, ipv6 %t): %w", index, isIPv6, err)
+			}
+			if last {
+				break
+			}
+			addr, err := addrInfoOf(details.Prefix)
+			if err != nil {
+				return fmt.Errorf("IPAddressDump(sw_if_index %d): %w", index, err)
+			}
+			info.Addresses = append(info.Addresses, addr)
+		}
+	}
+	info.AddressesRead = true
+	return nil
+}
+
+// addrInfoOf converts one prefix of VPP's address dump. The address family
+// byte comes from VPP, an open set: an unknown one is an error, never an
+// address of a guessed family.
+func addrInfoOf(p ip_types.AddressWithPrefix) (iface.AddrInfo, error) {
+	var addr netip.Addr
+	var family string
+	switch p.Address.Af {
+	case ip_types.ADDRESS_IP4:
+		addr = netip.AddrFrom4(p.Address.Un.GetIP4())
+		family = familyIPv4
+	case ip_types.ADDRESS_IP6:
+		addr = netip.AddrFrom16(p.Address.Un.GetIP6())
+		family = familyIPv6
+	default: // VPP's address family set is open; an unknown one reads no address
+		return iface.AddrInfo{}, fmt.Errorf("address of unknown family %d", p.Address.Af)
+	}
+	return iface.AddrInfo{Address: addr.String(), PrefixLength: int(p.Len), Family: family}, nil
 }
 
 // GetMACAddress returns the L2 address of the named interface. Loopback/L3
 // interfaces have a zero MAC; callers receive "00:00:00:00:00:00" rather than
 // an error.
 func (b *vppBackendImpl) GetMACAddress(name string) (string, error) {
-	info, err := b.GetInterface(name)
+	info, err := b.GetLink(name)
 	if err != nil {
 		return "", err
 	}

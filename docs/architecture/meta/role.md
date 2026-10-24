@@ -290,6 +290,8 @@ establish) would read it.
 <!-- source: internal/component/bgp/server/events.go -- getStructuredStateEvent, deliverPeerState -->
 <!-- source: internal/component/bgp/reactor/reactor_peers.go -- doRemovePeer, notifyFiltersPeerRemoved -->
 <!-- source: internal/component/bgp/reactor/reactor_api.go -- reconcilePeersJournaled -->
+
+The `plugin.PeerInfo` `doRemovePeer` passes on carries the peer's AS as an `rpc.RemoteAS`, read through the guarded accessor; for a dynamic peer removed before its AS was negotiated it is the not-yet-known state, never AS 0.
 <!-- source: internal/component/bgp/plugins/role/register.go -- RunEngine, CLIHandler -->
 <!-- source: internal/component/bgp/reactor/reactor_dynamic.go -- removeDynamicPeer -->
 <!-- source: internal/component/plugin/server/delivery_graph.go -- (*Server).PeerScopedProcs -->

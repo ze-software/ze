@@ -86,13 +86,13 @@ func TestGnmicInterop(t *testing.T) {
 	startTestServer(t, srv)
 	address := srv.Address()
 
-	t.Run("capabilities advertise the loaded models and JSON_IETF", func(t *testing.T) {
+	t.Run("capabilities advertise the loaded models, JSON and JSON_IETF", func(t *testing.T) {
 		result := runGnmic(t, certs, address, gnmicToken, "capabilities")
 		requireGnmicSuccess(t, result)
 		var answer gpb.CapabilityResponse
 		decodeGnmicOutput(t, result.Stdout, &answer)
-		if !slices.Equal(answer.GetSupportedEncodings(), []gpb.Encoding{gpb.Encoding_JSON_IETF}) {
-			t.Errorf("supported encodings = %v, want [JSON_IETF]", answer.GetSupportedEncodings())
+		if !slices.Equal(answer.GetSupportedEncodings(), []gpb.Encoding{gpb.Encoding_JSON, gpb.Encoding_JSON_IETF}) {
+			t.Errorf("supported encodings = %v, want [JSON JSON_IETF]", answer.GetSupportedEncodings())
 		}
 		if answer.GetGNMIVersion() != "0.10.0" {
 			t.Errorf("gNMI version = %q, want 0.10.0", answer.GetGNMIVersion())
@@ -116,13 +116,30 @@ func TestGnmicInterop(t *testing.T) {
 		requireRouterIDUpdate(t, notifications[0].GetUpdate(), gnmicRouterID)
 	})
 
+	t.Run("get in gnmic's default encoding answers the running value", func(t *testing.T) {
+		result := runGnmic(t, certs, address, gnmicToken, "get", "--path", "/bgp/router-id")
+		requireGnmicSuccess(t, result)
+		var answer gpb.GetResponse
+		decodeGnmicOutput(t, result.Stdout, &answer)
+		notifications := answer.GetNotification()
+		if len(notifications) != 1 {
+			t.Fatalf("Get answered %d notifications, want 1: %s", len(notifications), result.Stdout)
+		}
+		requireRouterIDUpdate(t, notifications[0].GetUpdate(), gnmicRouterID)
+	})
+
 	t.Run("get of an absent path is NotFound", func(t *testing.T) {
 		result := runGnmic(t, certs, address, gnmicToken, "get", "--encoding", "json_ietf", "--path", "/bgp/no-such-leaf")
 		requireGnmicRefusal(t, result, "code = NotFound desc = path not found: /bgp/no-such-leaf")
 	})
 
+	t.Run("get in an encoding Ze does not advertise is Unimplemented", func(t *testing.T) {
+		result := runGnmic(t, certs, address, gnmicToken, "get", "--encoding", "proto", "--path", "/bgp/router-id")
+		requireGnmicRefusal(t, result, "code = Unimplemented desc = encoding PROTO is not supported")
+	})
+
 	t.Run("subscribe once sends the value then the sync", func(t *testing.T) {
-		result := runGnmic(t, certs, address, gnmicToken, "subscribe", "--mode", "once", "--path", "/bgp/router-id")
+		result := runGnmic(t, certs, address, gnmicToken, "subscribe", "--encoding", "json_ietf", "--mode", "once", "--path", "/bgp/router-id")
 		requireGnmicSuccess(t, result)
 		responses := decodeGnmicSubscribeOutput(t, result.Stdout)
 		if len(responses) != 2 {

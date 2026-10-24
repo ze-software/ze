@@ -187,9 +187,9 @@ func frameMVPN(routeType MVPNRouteType, body []byte) []byte {
 	return append(packed, body...)
 }
 
-// NewMVPN creates a new MVPN NLRI carrying body as its route type specific
+// newMVPN creates a new MVPN NLRI carrying body as its route type specific
 // field. It answers nil for a body the one-octet Length field cannot describe.
-func NewMVPN(routeType MVPNRouteType, body []byte) *MVPN {
+func newMVPN(routeType MVPNRouteType, body []byte) *MVPN {
 	packed := frameMVPN(routeType, body)
 	if packed == nil {
 		return nil
@@ -361,8 +361,8 @@ func (m *MVPN) Len() int { return len(m.packed) }
 // PathID returns 0 (MVPN doesn't typically use ADD-PATH).
 func (m *MVPN) PathID() uint32 { return 0 }
 
-// HasPathID returns false.
-func (m *MVPN) HasPathID() bool { return false }
+// HasAddPath returns false.
+func (m *MVPN) HasAddPath() bool { return false }
 
 // SupportsAddPath returns false - MVPN doesn't support ADD-PATH.
 func (m *MVPN) SupportsAddPath() bool { return false }

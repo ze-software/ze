@@ -20,12 +20,12 @@ of this layer.
 
 The transport's only MTU role is to **expose** the ioctl MTU, so the engine can
 size padding, and to **infer** a neighbor MTU from a received frame size, so the
-engine can compare (ISO/IEC 10589 section 8.2.3). `InferNeighborMTU(frameSize)`
+engine can compare (ISO/IEC 10589 section 8.2.3). `inferNeighborMTU(frameSize)`
 subtracts the two MAC addresses and the length field. A capture shorter than the
 header returns a non-positive value, treated as unknown, so it cannot underflow.
 
 <!-- source: internal/plugins/isis/transport/frame.go -- BuildFrame, ParseFrame, the 802.3 and LLC layout -->
-<!-- source: internal/plugins/isis/transport/transport.go -- InterfaceMTU, InferNeighborMTU, ObserveNeighborFrame -->
+<!-- source: internal/plugins/isis/transport/transport.go -- InterfaceMTU, inferNeighborMTU, observeNeighborFrame -->
 
 ## Decision: one socket per circuit, with explicit multicast membership
 

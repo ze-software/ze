@@ -77,8 +77,11 @@ func (r *Route) Index() []byte {
 	fam := r.nlri.Family()
 	// Phase 3: WriteTo(nil) returns payload only, need to include path ID separately
 	nlriLen := r.nlri.Len()
-	pathID := r.nlri.PathID()
-	hasPathID := pathID != 0
+	// RFC 7911 Section 2: a path is identified "by the combination of the
+	// address prefix and the Path Identifier", and Section 3 reserves no value,
+	// so presence comes from the NLRI's record of the negotiation, never from
+	// comparing the identifier with zero.
+	hasPathID := nlri.HasPathID(r.nlri)
 
 	// Calculate index size
 	size := 3 + nlriLen // AFI(2) + SAFI(1) + NLRI
@@ -100,7 +103,7 @@ func (r *Route) Index() []byte {
 
 	// Path ID (if present)
 	if hasPathID {
-		binary.BigEndian.PutUint32(buf[offset:], pathID)
+		binary.BigEndian.PutUint32(buf[offset:], r.nlri.PathID())
 		offset += 4
 	}
 

@@ -150,19 +150,8 @@
     "claim-sha": "44f45fdef859a965",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/rr/rr.go::handleStateDown",
-    "producer-sha": "44f0effeca819c1c",
+    "producer-sha": "0fa1100ffeff0983",
     "break": "body of handleStateDown replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-  },
-  {
-    "rid": "RFC8277-2.4-1",
-    "polarity": "positive",
-    "unit": "internal/component/bgp/plugins/rr/rfc8277_vpn_withdrawal_test.go::TestVPNWithdrawalLeavesExactReflectorInventory",
-    "unit-sha": "23636d932d7a0b7a",
-    "claim-sha": "db121d87dff8ea14",
-    "route": "revert",
-    "producer": "internal/component/bgp/plugins/rr/withdrawal.go::walkVPNNLRIs",
-    "producer-sha": "58af7eadd7447c60",
-    "break": "body of walkVPNNLRIs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC8277-2.4-1",
@@ -172,14 +161,25 @@
     "claim-sha": "e681975e391a13e7",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/rr/withdrawal.go::walkVPNNLRIs",
-    "producer-sha": "58af7eadd7447c60",
+    "producer-sha": "af326fd756df8ea9",
+    "break": "body of walkVPNNLRIs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8277-2.4-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/plugins/rr/rfc8277_vpn_withdrawal_test.go::TestVPNWithdrawalLeavesExactReflectorInventory",
+    "unit-sha": "23636d932d7a0b7a",
+    "claim-sha": "db121d87dff8ea14",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rr/withdrawal.go::walkVPNNLRIs",
+    "producer-sha": "af326fd756df8ea9",
     "break": "body of walkVPNNLRIs replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC8277-2.4-1",
     "polarity": "negative",
     "unit": "internal/component/bgp/plugins/rr/rfc8277_withdrawal_test.go::TestLabeledWithdrawalLeavesTheWithdrawalMap",
-    "unit-sha": "ae9a17c3627587c9",
+    "unit-sha": "6dced0570cd1217b",
     "claim-sha": "0f4f2fe8c7cb289a",
     "route": "revert",
     "producer": "internal/component/bgp/wireu/mpwire.go::wrapNLRI",
@@ -190,7 +190,7 @@
     "rid": "RFC8277-2.4-1",
     "polarity": "positive",
     "unit": "internal/component/bgp/plugins/rr/rfc8277_withdrawal_test.go::TestLabeledWithdrawalLeavesTheWithdrawalMap",
-    "unit-sha": "ae9a17c3627587c9",
+    "unit-sha": "6dced0570cd1217b",
     "claim-sha": "4e73927d30171fa8",
     "route": "revert",
     "producer": "internal/component/bgp/wireu/mpwire.go::wrapNLRI",
@@ -205,19 +205,8 @@
     "claim-sha": "f5b38d892265bda0",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/rs/server_handlers.go::sendBatchedWithdrawals",
-    "producer-sha": "0348e9ad675b9a74",
+    "producer-sha": "b3ffd09f62c13f8c",
     "break": "body of sendBatchedWithdrawals replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-  },
-  {
-    "rid": "RFC8277-2.4-1",
-    "polarity": "negative",
-    "unit": "internal/component/bgp/plugins/rs/rfc8277_vpn_withdrawal_test.go::TestVPNWithdrawalLeavesExactRouteServerInventory",
-    "unit-sha": "7c7961b0426cabca",
-    "claim-sha": "e681975e391a13e7",
-    "route": "revert",
-    "producer": "internal/component/bgp/plugins/rs/server_inventory.go::recordKey",
-    "producer-sha": "d5563e3444f8fb62",
-    "break": "body of recordKey replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC8277-2.4-1",
@@ -229,6 +218,17 @@
     "producer": "internal/component/bgp/plugins/rs/server_inventory.go::appendOpaqueRecords",
     "producer-sha": "54de24653a66fc25",
     "break": "body of appendOpaqueRecords replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8277-2.4-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rs/rfc8277_vpn_withdrawal_test.go::TestVPNWithdrawalLeavesExactRouteServerInventory",
+    "unit-sha": "7c7961b0426cabca",
+    "claim-sha": "e681975e391a13e7",
+    "route": "revert",
+    "producer": "internal/component/bgp/plugins/rs/server_inventory.go::recordKey",
+    "producer-sha": "1bb3f3cfba973e57",
+    "break": "body of recordKey replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC8277-2.4-1",

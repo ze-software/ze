@@ -6,6 +6,8 @@ package rs
 
 import (
 	"encoding/binary"
+	"errors"
+	"fmt"
 	"net/netip"
 	"sync"
 
@@ -53,13 +55,23 @@ var nlriRecordPool = sync.Pool{
 	},
 }
 
+// The refusals of extractWireNLRIRecords. Each names why no record set exists,
+// so a caller never reads a refusal as an UPDATE that carried no NLRI.
+var (
+	errNoWireUpdate           = errors.New("the message carries no wire UPDATE")
+	errUnknownEncodingContext = errors.New("the UPDATE names an encoding context the registry does not hold, so its ADD-PATH layout is unknown")
+	errNLRIRecordPool         = errors.New("the NLRI record pool returned a value of another type")
+)
+
 // extractWireNLRIRecords extracts compact NLRI records from a raw wire UPDATE.
 // MUST be called BEFORE forwarding (buffer lifetime safety: cache eviction can
 // free the pool buffer backing msg.WireUpdate after ForwardCached).
 // The caller MUST call returnNLRIRecords when done with the pooled handle.
-func extractWireNLRIRecords(msg *bgptypes.RawMessage) *nlriRecords {
+// It refuses with an error, and returns no handle, when msg carries no wire
+// UPDATE or names an encoding context the registry does not hold.
+func extractWireNLRIRecords(msg *bgptypes.RawMessage) (*nlriRecords, error) {
 	if msg.WireUpdate == nil {
-		return nil
+		return nil, errNoWireUpdate
 	}
 	wu := msg.WireUpdate
 
@@ -67,14 +79,12 @@ func extractWireNLRIRecords(msg *bgptypes.RawMessage) *nlriRecords {
 	// section, which a withdraw-only UPDATE does not have.
 	encCtx, known := msg.SourceEncodingContext()
 	if !known {
-		logger().Error("NLRI records not extracted: the UPDATE names an encoding context the registry does not hold, so its ADD-PATH layout is unknown",
-			"context-id", wu.SourceCtxID(), "message-id", msg.MessageID)
-		return nil
+		return nil, fmt.Errorf("%w: context %d", errUnknownEncodingContext, wu.SourceCtxID())
 	}
 
 	sp, ok := nlriRecordPool.Get().(*nlriRecords)
 	if !ok {
-		return nil
+		return nil, errNLRIRecordPool
 	}
 	sp.records = sp.records[:0]
 
@@ -121,7 +131,7 @@ func extractWireNLRIRecords(msg *bgptypes.RawMessage) *nlriRecords {
 		sp.records = appendUnicastRecords(sp.records, family.IPv4Unicast, "ipv4/unicast", iter, addPathV4, actionAdd)
 	}
 
-	return sp
+	return sp, nil
 }
 
 // returnNLRIRecords MUST be called after extractWireNLRIRecords. The caller MUST

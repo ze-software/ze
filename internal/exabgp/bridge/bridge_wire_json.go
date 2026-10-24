@@ -1,5 +1,5 @@
 // Design: docs/architecture/exabgp-bridge.md -- the ExaBGP JSON the bridge writes
-// Related: bridge_event.go -- Event.ExabgpJSON, the one UPDATE renderer this feeds
+// Related: bridge_event.go -- Event.exabgpJSON, the one UPDATE renderer this feeds
 // Related: bridge_event_wire.go -- overlayWire, which reads the members ze's JSON states lossily
 //
 // The file carries the BGP gate because it parses an UPDATE with the BGP
@@ -86,7 +86,7 @@ func WireUpdateToExabgpJSON(payload []byte, facts SessionFacts, direction rpc.Me
 		AddressStr:      facts.Peer.String(),
 		LocalAddressStr: facts.Local.String(),
 		LocalAS:         facts.LocalAS,
-		PeerAS:          facts.PeerAS,
+		PeerAS:          rpc.RemoteASOf(facts.PeerAS),
 		RouterID:        facts.RouterID,
 	}
 	message := bgptypes.RawMessage{
@@ -98,7 +98,7 @@ func WireUpdateToExabgpJSON(payload []byte, facts SessionFacts, direction rpc.Me
 	}
 
 	// The parsed ze document, with the UPDATE's bytes beside it as a `full`
-	// event carries them, so the one ExaBGP renderer (Event.ExabgpJSON) reads
+	// event carries them, so the one ExaBGP renderer (Event.exabgpJSON) reads
 	// both, as it does for the runner's events.
 	rendered := format.AppendMessage(nil, peer, message, bgptypes.ContentConfig{
 		Encoding: plugin.EncodingJSON,
@@ -111,7 +111,7 @@ func WireUpdateToExabgpJSON(payload []byte, facts SessionFacts, direction rpc.Me
 	event := ReadEvent(zebgp)
 	event.Packet = Packet{code: packetCodes[msgTypeUpdate], body: hex.EncodeToString(payload)}
 	event.attrContext = contextID
-	return event.ExabgpJSON(FormatV6JSON), nil
+	return event.exabgpJSON(FormatV6JSON), nil
 }
 
 // sessionContextID answers the registered EncodingContext for what the session

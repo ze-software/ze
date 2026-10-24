@@ -28,7 +28,7 @@ func TestEVPNConfigOriginatingAddressAndCommunities(t *testing.T) {
 	decoded, rest, err := ParseEVPN(route.NLRI, false)
 	require.NoError(t, err)
 	require.Empty(t, rest)
-	type3, ok := decoded.(*EVPNType3)
+	type3, ok := decoded.(*evpnType3)
 	require.True(t, ok, "decoded route is %T", decoded)
 	require.Equal(t, netip.MustParseAddr("192.0.2.1"), type3.OriginatorIP())
 	request.Content = strings.Fields("multicast rd 65000:7")

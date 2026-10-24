@@ -1027,11 +1027,11 @@ func (b *DirectBridge) DispatchRPC(ctx context.Context, method string, params js
 // Pooled via GetStructuredEvent/PutStructuredEvent — callers MUST return via
 // PutStructuredEvent after all consumers have processed the event.
 type StructuredEvent struct {
-	PeerAddress string // Source peer address string
-	PeerName    string // Peer name from config
-	PeerGroup   string // Peer group name from config
-	PeerAS      uint32 // Remote peer AS number
-	LocalAS     uint32 // Local AS number
+	PeerAddress string   // Source peer address string
+	PeerName    string   // Peer name from config
+	PeerGroup   string   // Peer group name from config
+	PeerAS      RemoteAS // Remote peer AS number, unknown before a dynamic peer's OPEN
+	LocalAS     uint32   // Local AS number
 	// RouterID is THIS speaker's BGP Identifier for the session, taken from the
 	// peer's configuration (plugin.PeerInfo.RouterID). It said "Remote peer's
 	// BGP Identifier (from OPEN)" until 2026-08-31 and never carried one, which
@@ -1084,7 +1084,7 @@ func PutStructuredEvent(se *StructuredEvent) {
 	se.PeerAddress = ""
 	se.PeerName = ""
 	se.PeerGroup = ""
-	se.PeerAS = 0
+	se.PeerAS = RemoteAS{}
 	se.LocalAS = 0
 	se.RouterID = 0
 	se.RemoteRouterID = 0

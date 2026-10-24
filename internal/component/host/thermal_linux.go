@@ -15,23 +15,25 @@ import (
 	"strings"
 )
 
-// DetectThermal aggregates hwmon temperature readings and per-CPU
+// detectThermal aggregates hwmon temperature readings and per-CPU
 // thermal_throttle counters. Sensors with no temp*_input file are
 // skipped (some hwmon nodes only expose fan RPM or voltage).
-func (d *Detector) DetectThermal() (*ThermalInfo, error) {
-	sensors, err := d.readHwmonSensors()
+func (d *Detector) detectThermal() (*ThermalInfo, error) {
+	info := &ThermalInfo{}
+	sensors, err := d.readHwmonSensors(&info.Errors)
 	if err != nil && !errors.Is(err, ErrUnsupported) {
 		return nil, err
 	}
-	throttle := d.readThrottleCounters()
-	return &ThermalInfo{Sensors: sensors, Throttle: throttle}, nil
+	info.Sensors = sensors
+	info.Throttle = d.readThrottleCounters()
+	return info, nil
 }
 
 // readHwmonSensors walks /sys/class/hwmon/hwmonN and returns one
 // SensorReading per tempM_input file. hwmon nodes may expose multiple
 // temp channels (e.g. coretemp exposes one per core); each becomes a
-// separate entry.
-func (d *Detector) readHwmonSensors() ([]SensorReading, error) {
+// separate entry. A channel whose value cannot be read is recorded in errs.
+func (d *Detector) readHwmonSensors(errs *[]DetectError) ([]SensorReading, error) {
 	base := d.sysfsPath("class/hwmon")
 	entries, err := os.ReadDir(base)
 	if err != nil {
@@ -42,7 +44,7 @@ func (d *Detector) readHwmonSensors() ([]SensorReading, error) {
 	}
 	var readings []SensorReading
 	for _, e := range entries {
-		readings = append(readings, d.readOneHwmon(filepath.Join(base, e.Name()))...)
+		readings = append(readings, d.readOneHwmon(filepath.Join(base, e.Name()), errs)...)
 	}
 	sort.Slice(readings, func(i, j int) bool {
 		if readings[i].Name != readings[j].Name {
@@ -57,13 +59,22 @@ func (d *Detector) readHwmonSensors() ([]SensorReading, error) {
 // Each temp channel may have a sibling tempN_label describing what it
 // reads (e.g. "Core 0", "Tctl"); we append the label to the device
 // name for disambiguation.
-func (d *Detector) readOneHwmon(dir string) []SensorReading {
+//
+// 0 millicelsius is a reading like any other, so presence comes from the read
+// succeeding, never from the value. A channel that cannot be read or parsed has
+// no reading: it is left out of the result and named in errs, and so is a node
+// whose directory cannot be listed.
+func (d *Detector) readOneHwmon(dir string, errs *[]DetectError) []SensorReading {
 	name := readFileString(filepath.Join(dir, "name"))
 	if name == "" {
 		return nil
 	}
 	entries, err := os.ReadDir(dir)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil // The node was unplugged after the class listing: no sensor.
+	}
 	if err != nil {
+		*errs = append(*errs, DetectError{Path: dir, Err: err.Error()})
 		return nil
 	}
 	var out []SensorReading
@@ -73,9 +84,10 @@ func (d *Detector) readOneHwmon(dir string) []SensorReading {
 			continue
 		}
 		idx := strings.TrimSuffix(strings.TrimPrefix(fn, "temp"), "_input")
-		mc := readFileInt(filepath.Join(dir, fn))
-		if mc == 0 {
-			// Missing or unreadable: skip.
+		path := filepath.Join(dir, fn)
+		mc, readErr := readHwmonMillicelsius(path)
+		if readErr != nil {
+			recordSysfsErr(errs, path, readErr)
 			continue
 		}
 		label := readFileString(filepath.Join(dir, "temp"+idx+"_label"))
@@ -83,11 +95,26 @@ func (d *Detector) readOneHwmon(dir string) []SensorReading {
 		out = append(out, SensorReading{
 			Name:   name,
 			Device: strings.TrimSpace(label),
-			TempMC: int64(mc),
+			TempMC: mc,
 			Alarm:  alarm,
 		})
 	}
 	return out
+}
+
+// readHwmonMillicelsius reads one tempN_input file. Every outcome other than a
+// parsed integer is an error, so a caller cannot mistake a failed read for a
+// 0 degC reading.
+func readHwmonMillicelsius(path string) (int64, error) {
+	b, err := os.ReadFile(path) //nolint:gosec // caller-scoped sysfs path
+	if err != nil {
+		return 0, err
+	}
+	mc, err := strconv.ParseInt(strings.TrimSpace(string(b)), 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("hwmon temperature is not an integer: %w", err)
+	}
+	return mc, nil
 }
 
 // readThrottleCounters walks /sys/devices/system/cpu/cpu*/thermal_throttle/

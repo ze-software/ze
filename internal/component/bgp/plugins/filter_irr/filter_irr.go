@@ -5,6 +5,7 @@ package filter_irr
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net"
 	"net/netip"
 	"slices"
@@ -850,6 +851,12 @@ func (plug *irrPlugin) refreshASNCtx(ctx context.Context, asn uint32) {
 		// reflects the fallback name.
 		st.asSet = entry.ASSet
 	}
+	var pl irr.PrefixList
+	var entries []prefixEntry
+	if err == nil {
+		pl = entry.PrefixList()
+		entries, err = prefixListFromIRR(pl)
+	}
 	if err != nil {
 		st.lastErr = err.Error()
 		queried := st.asSet
@@ -860,8 +867,7 @@ func (plug *irrPlugin) refreshASNCtx(ctx context.Context, asn uint32) {
 		return
 	}
 
-	pl := entry.PrefixList()
-	st.list = &irrPrefixList{entries: prefixListFromIRR(pl)}
+	st.list = &irrPrefixList{entries: entries}
 	st.lastOK = now
 	st.lastErr = ""
 	st.v4Count = len(pl.IPv4)
@@ -890,17 +896,18 @@ func asnName(asn uint32) string {
 
 const maxPrefixEntries = 500_000
 
-func prefixListFromIRR(pl irr.PrefixList) []prefixEntry {
+func prefixListFromIRR(pl irr.PrefixList) ([]prefixEntry, error) {
+	// A list over the cap is refused whole, never cut. A cut fills the budget
+	// with IPv4 first, so the IPv6 half is lost and every IPv6 route rejected
+	// while the refresh reports success.
 	total := len(pl.IPv4) + len(pl.IPv6)
 	if total > maxPrefixEntries {
-		logger().Warn("irr: prefix list exceeds cap, truncating", "total", total, "cap", maxPrefixEntries)
-		total = maxPrefixEntries
+		return nil, fmt.Errorf("irr: prefix list of %d entries (%d IPv4, %d IPv6) exceeds the %d-entry cap, "+
+			"so it is refused and the previous list stays in force: narrow the AS-SET",
+			total, len(pl.IPv4), len(pl.IPv6), maxPrefixEntries)
 	}
 	entries := make([]prefixEntry, 0, total)
 	for _, p := range pl.IPv4 {
-		if len(entries) >= maxPrefixEntries {
-			break
-		}
 		entries = append(entries, prefixEntry{
 			prefix: p,
 			ge:     uint8(p.Bits()),
@@ -908,16 +915,13 @@ func prefixListFromIRR(pl irr.PrefixList) []prefixEntry {
 		})
 	}
 	for _, p := range pl.IPv6 {
-		if len(entries) >= maxPrefixEntries {
-			break
-		}
 		entries = append(entries, prefixEntry{
 			prefix: p,
 			ge:     uint8(p.Bits()),
 			le:     128,
 		})
 	}
-	return entries
+	return entries, nil
 }
 
 func incRefreshOutcome(result string) {

@@ -8,9 +8,15 @@
 package ldp
 
 import (
+	"errors"
 	"net/netip"
 	"sync"
 )
+
+// ErrLabelSpaceExhausted is returned when every local label from 16 to
+// MaxLabel is bound. The LIB never frees a local label, so the condition holds
+// until the process restarts.
+var ErrLabelSpaceExhausted = errors.New("ldp: every local label from 16 to 1048575 is bound")
 
 // LabelBinding is a single FEC-to-label binding from a peer.
 type LabelBinding struct {
@@ -55,9 +61,9 @@ func newLIB() *LIB {
 
 // allocateLabelLocked returns the next free local label, skipping any already in
 // use so the wrap from MaxLabel back to 16 cannot hand out a duplicate. Caller
-// holds l.mu. Returns nextLabel unchanged only if the entire 20-bit space is
-// exhausted (not reachable for the handful of local FECs an LSR originates).
-func (l *LIB) allocateLabelLocked() uint32 {
+// holds l.mu. When every label from 16 to MaxLabel is in use it returns
+// ErrLabelSpaceExhausted and binds nothing.
+func (l *LIB) allocateLabelLocked() (uint32, error) {
 	for attempts := 0; attempts <= MaxLabel-16; attempts++ {
 		label := l.nextLabel
 		l.nextLabel++
@@ -66,14 +72,17 @@ func (l *LIB) allocateLabelLocked() uint32 {
 		}
 		if !l.usedLabels[label] {
 			l.usedLabels[label] = true
-			return label
+			return label, nil
 		}
 	}
-	return l.nextLabel
+	// RFC 3031 Section 3.14: "In all other cases, Rd MUST NOT distribute to Ru
+	// bindings of the same label value to two different FECs."
+	return 0, ErrLabelSpaceExhausted
 }
 
-// AllocateLabel returns the next available local label.
-func (l *LIB) AllocateLabel() uint32 {
+// AllocateLabel returns the next available local label, or
+// ErrLabelSpaceExhausted when none is free.
+func (l *LIB) AllocateLabel() (uint32, error) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	return l.allocateLabelLocked()
@@ -81,17 +90,24 @@ func (l *LIB) AllocateLabel() uint32 {
 
 // EnsureLocal returns the local binding for fec, allocating a local label on
 // first use. Idempotent: repeated calls for the same FEC return the same label,
-// so a FEC keeps one stable local label across all sessions and reloads.
-func (l *LIB) EnsureLocal(fec netip.Prefix) localBinding {
+// so a FEC keeps one stable local label across all sessions and reloads. When
+// no label is free it returns ErrLabelSpaceExhausted and stores no binding, so
+// the FEC is never advertised with a label another FEC holds.
+func (l *LIB) EnsureLocal(fec netip.Prefix) (localBinding, error) {
 	key := fec.String()
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	if b, ok := l.local[key]; ok {
-		return *b
+		return *b, nil
 	}
-	b := &localBinding{FEC: fec, Label: l.allocateLabelLocked()}
+	// RFC 3031 Section 3.14
+	label, err := l.allocateLabelLocked()
+	if err != nil {
+		return localBinding{}, err
+	}
+	b := &localBinding{FEC: fec, Label: label}
 	l.local[key] = b
-	return *b
+	return *b, nil
 }
 
 // localBindings returns a snapshot of all local bindings.
@@ -182,11 +198,11 @@ func (l *LIB) LookupRemote(fec netip.Prefix, peerKey string) (*LabelBinding, boo
 	return &cp, true
 }
 
-// RemainingForFEC returns a surviving remote binding for fec, choosing the lowest
+// remainingForFEC returns a surviving remote binding for fec, choosing the lowest
 // peer key for a deterministic, stable result, or false if no peer advertises it.
 // Used to re-point a FEC's push to another peer when one withdraws, rather than
 // dropping forwarding for a FEC that is still reachable.
-func (l *LIB) RemainingForFEC(fec netip.Prefix) (LabelBinding, bool) {
+func (l *LIB) remainingForFEC(fec netip.Prefix) (LabelBinding, bool) {
 	key := fec.String()
 	l.mu.RLock()
 	defer l.mu.RUnlock()

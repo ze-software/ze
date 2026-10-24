@@ -2,8 +2,8 @@
   "note": "Re-judged 2026-10-04 after f93a30fbfc. Forbidden: announcing to a one-hop external peer a route with no next hop included, rather than treat-as-withdraw. TestNextHopSelfWithheldRouteServerWithdraws requires the fixture reached nhSelfWithheld (next-hop self configured, no address of this speaker, so third-party is disabled and nothing remains) and asserts on the route-server rail no MP_REACH next hop and the exact MP_UNREACH_NLRI for the prefix; the client is on-link, so no other gate explains the refusal. Both rails share egressNextHopWithheld and each calls mods.SetWithdraw on any refusal, and the general-rail withdrawal is proven by the 4-1 unit. Control: TestLinkLocalRouteWithANextHopIsAnnouncedToAnExternalPeer (RIB rail, cross-rail, conformant). The RIB-rail positive alone is a zero-address builder check.",
   "requirement_sha": "559ca70e99101ad3",
   "tests": {
-    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithANextHopIsAnnouncedToAnExternalPeer": "fbbc388ab95f6372",
-    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithNoNextHopIsNotAnnouncedToAnExternalPeer": "fbbc388ab95f6372",
+    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithANextHopIsAnnouncedToAnExternalPeer": "b37f1fd5003ae834",
+    "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go::TestLinkLocalRouteWithNoNextHopIsNotAnnouncedToAnExternalPeer": "b37f1fd5003ae834",
     "internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_withhold_withdraw_test.go::TestNextHopSelfWithheldRouteServerWithdraws": "1f41fe0d3b72271c"
   },
   "units": {

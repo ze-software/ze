@@ -143,8 +143,11 @@ func cmdRestoreConfig(storePath string, parsed restoreArgs) int {
 		out.StdErr() //nolint:errcheck // error output
 		return 1
 	}
-	deviceName := resolve.DefaultConfig(target)
-	stamp, source, err := restoreConfig(target, parsed, deviceName)
+	deviceName, err := resolve.DefaultConfig(target)
+	var stamp, source string
+	if err == nil {
+		stamp, source, err = restoreConfig(target, parsed, deviceName)
+	}
 	if closeErr := target.Close(); closeErr != nil {
 		err = errors.Join(err, closeErr)
 	}

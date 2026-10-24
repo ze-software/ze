@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 func TestIsPolicyTestKeyword(t *testing.T) {
@@ -70,9 +71,9 @@ func TestParsePolicyTestArgs(t *testing.T) {
 
 func TestFilterPeersByPolicySelector(t *testing.T) {
 	peers := []plugin.PeerInfo{
-		{Address: netip.MustParseAddr("10.0.0.1"), Name: "alpha", PeerAS: 65001},
-		{Address: netip.MustParseAddr("10.0.0.2"), Name: "beta", PeerAS: 65002},
-		{Address: netip.MustParseAddr("10.0.0.3"), Name: "gamma", PeerAS: 65001},
+		{Address: netip.MustParseAddr("10.0.0.1"), Name: "alpha", PeerAS: rpc.RemoteASOf(65001)},
+		{Address: netip.MustParseAddr("10.0.0.2"), Name: "beta", PeerAS: rpc.RemoteASOf(65002)},
+		{Address: netip.MustParseAddr("10.0.0.3"), Name: "gamma", PeerAS: rpc.RemoteASOf(65001)},
 	}
 
 	if got := filterPeersByPolicySelector(peers, "*"); len(got) != 3 {
@@ -118,9 +119,9 @@ func TestToFilterRefs(t *testing.T) {
 // selects two.
 func TestPolicySelectorReadsEveryNotation(t *testing.T) {
 	peers := []plugin.PeerInfo{
-		{Address: netip.MustParseAddr("10.0.0.1"), Name: "alpha", PeerAS: 65546},
-		{Address: netip.MustParseAddr("10.0.0.2"), Name: "beta", PeerAS: 65002},
-		{Address: netip.MustParseAddr("10.0.0.3"), Name: "gamma", PeerAS: 65546},
+		{Address: netip.MustParseAddr("10.0.0.1"), Name: "alpha", PeerAS: rpc.RemoteASOf(65546)},
+		{Address: netip.MustParseAddr("10.0.0.2"), Name: "beta", PeerAS: rpc.RemoteASOf(65002)},
+		{Address: netip.MustParseAddr("10.0.0.3"), Name: "gamma", PeerAS: rpc.RemoteASOf(65546)},
 	}
 	for _, selector := range []string{"AS65546", "as65546", "AS1.10", "as1.10"} {
 		got := filterPeersByPolicySelector(peers, selector)

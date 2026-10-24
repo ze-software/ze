@@ -19,6 +19,7 @@ import (
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // ParseEvent read path attributes from an "attributes" object while every
@@ -75,7 +76,7 @@ func parsedUpdateEvent(t *testing.T) []byte {
 		LocalAddress: netip.MustParseAddr("10.0.0.2"),
 		Name:         "peer1",
 		LocalAS:      65002,
-		PeerAS:       65001,
+		PeerAS:       rpc.RemoteASOf(65001),
 	}
 	msg := bgptypes.RawMessage{
 		Type:       msgtype.TypeUPDATE,

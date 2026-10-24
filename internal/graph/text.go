@@ -11,15 +11,15 @@ import (
 )
 
 // RenderText renders the graph as Unicode box-drawing art on a character grid.
-// Returns an empty string for empty graphs. Returns a message for oversized graphs.
-func RenderText(g *Graph) string {
-	if len(g.Nodes) == 0 {
-		return ""
-	}
-
+// An empty graph draws as an empty string. A graph past MaxNodes is refused
+// with ErrTooManyNodes rather than drawn, because the drawing would flood the
+// terminal.
+func RenderText(g *Graph) (string, error) {
 	if len(g.Nodes) > MaxNodes {
-		var b textbuf.Buffer
-		return b.Reset().Str("graph too many nodes (").Int(int64(len(g.Nodes))).Str(", limit ").Int(int64(MaxNodes)).Str(")\n").String()
+		return "", TooManyNodesError(len(g.Nodes))
+	}
+	if len(g.Nodes) == 0 {
+		return "", nil
 	}
 
 	cfg := TextConfig()
@@ -47,7 +47,7 @@ func RenderText(g *Graph) string {
 		drawEdge(grid, fromPos, toPos)
 	}
 
-	return grid.String()
+	return grid.String(), nil
 }
 
 // grid is a 2D character grid for text rendering.

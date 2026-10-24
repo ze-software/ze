@@ -151,7 +151,7 @@ func doRegisterBuiltinCommands() {
 			}},
 		{[]string{"show bgp rib"}, "Show routes (scope: sent|received|sent-received, filters, terminals)",
 			func(r *RIBManager, sel string, args []string) (string, any, error) {
-				return statusDone, r.showPipeline(sel, args), nil
+				return commandAnswer(r.showPipeline(sel, args))
 			}},
 		{[]string{"clear bgp rib in"}, "Clear Adj-RIB-In routes",
 			func(r *RIBManager, _ string, args []string) (string, any, error) {
@@ -208,7 +208,7 @@ func doRegisterBuiltinCommands() {
 			}},
 		{[]string{"show bgp rib best"}, "Show best-path per prefix (add 'reason' terminal to narrate the RFC 4271 §9.1.2 decision process)",
 			func(r *RIBManager, sel string, args []string) (string, any, error) {
-				return statusDone, r.bestPipeline(sel, args), nil
+				return commandAnswer(r.bestPipeline(sel, args))
 			}},
 		{[]string{"show bgp rib best status"}, "Show best-path computation status",
 			func(r *RIBManager, _ string, _ []string) (string, any, error) {
@@ -625,7 +625,7 @@ func (r *RIBManager) inboundEmpty(selectorStr string) any {
 	var purgedPeers []netip.Addr
 
 	for peer, peerRIB := range r.bgpPeers {
-		if !sel.Matches(peer) {
+		if !r.selectsPeer(sel, peer) {
 			continue
 		}
 		cleared += peerRIB.Len()
@@ -653,7 +653,7 @@ func (r *RIBManager) outboundResend(selectorStr, famStr string) any {
 	groupsToResend := make(map[netip.Addr][]replayGroup)
 
 	for peer := range r.ribOut {
-		if !sel.Matches(peer) {
+		if !r.selectsPeer(sel, peer) {
 			continue
 		}
 		if !r.peerUp[peer] {
@@ -875,7 +875,7 @@ func (r *RIBManager) retainRoutes(selectorStr string, families []family.Family, 
 	var affected []netip.Addr
 	var writes []sentLifecycleWrite
 	for peer := range r.bgpPeers {
-		if !sel.Matches(peer) {
+		if !r.selectsPeer(sel, peer) {
 			continue
 		}
 		r.retainedPeers[peer] = true
@@ -908,7 +908,7 @@ func (r *RIBManager) releaseRoutes(selectorStr string) any {
 	var purgedPeers []netip.Addr
 	var writes []sentLifecycleWrite
 	for peer := range r.retainedPeers {
-		if !sel.Matches(peer) {
+		if !r.selectsPeer(sel, peer) {
 			continue
 		}
 		delete(r.retainedPeers, peer)

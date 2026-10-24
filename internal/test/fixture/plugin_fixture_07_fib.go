@@ -213,10 +213,17 @@ func missing07(required []string, seen map[string]bool) []string {
 	return missing
 }
 
+// fibVPPRefused07 is the line fib-vpp logs from OnStarted when no VPP
+// connector exists: it subscribed to best-change, then refused to build a
+// writer, because a writer with no VPP behind it would report every route as
+// installed while VPP holds none. Seeing it proves the plugin auto-loaded and
+// reached its start path.
+const fibVPPRefused07 = "fib-vpp: no route is programmed into VPP"
+
 func fibVPPLoad07(ctx context.Context, _ []string) error {
-	return runZePatterns07(ctx, fmt.Sprintf(fibVPPConfig07, ""), []string{"ze.log.fib.vpp=debug", "ze.log.vpp=info"}, []string{"VPP connector not available, using noop backend", "fib-vpp: running"})
+	return runZePatterns07(ctx, fmt.Sprintf(fibVPPConfig07, ""), []string{"ze.log.fib.vpp=debug", "ze.log.vpp=info"}, []string{fibVPPRefused07})
 }
 
 func fibVPPCoexist07(ctx context.Context, _ []string) error {
-	return runZePatterns07(ctx, fmt.Sprintf(fibVPPConfig07, "\tkernel {\n\t}\n"), []string{"ze.log.fib.vpp=debug", "ze.log.fib.kernel=debug", "ze.log.vpp=info"}, []string{"VPP connector not available, using noop backend", "fib-vpp: running", "subsystem=fib.kernel"})
+	return runZePatterns07(ctx, fmt.Sprintf(fibVPPConfig07, "\tkernel {\n\t}\n"), []string{"ze.log.fib.vpp=debug", "ze.log.fib.kernel=debug", "ze.log.vpp=info"}, []string{fibVPPRefused07, "subsystem=fib.kernel"})
 }

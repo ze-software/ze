@@ -483,7 +483,18 @@ func ApplyPipes(output string, ops []pipeOp, meta pipeChainMeta, columns []Colum
 			result = applyTableStyled(result, tableStyle{orders: columns, request: request})
 			lineFormatExecuted = true
 		case pipeText:
-			result = applyTableStyled(result, tableStyle{plain: true, orders: columns, request: request})
+			// An answer whose owner registered a drawing for its envelope key
+			// is drawn by it (text_renderer.go); every other answer is the
+			// generic text table.
+			drawn, found, msg := applyRegisteredText(result)
+			if msg != "" {
+				return "", msg
+			}
+			if found {
+				result = drawn
+			} else {
+				result = applyTableStyled(result, tableStyle{plain: true, orders: columns, request: request})
+			}
 			lineFormatExecuted = true
 		case pipeYAML:
 			result = applyYAML(result)

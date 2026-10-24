@@ -142,7 +142,7 @@ func (e Event) Line(format Format, log *slog.Logger) []byte {
 			panic("BUG: invalid bridge text form")
 		}
 	case FormatV4JSON, FormatV6JSON:
-		encoded, err := MarshalExabgpJSON(e.ExabgpJSON(format))
+		encoded, err := marshalExabgpJSON(e.exabgpJSON(format))
 		if err != nil {
 			log.Warn("exabgp-bridge: marshal external JSON failed", "error", err)
 			return nil

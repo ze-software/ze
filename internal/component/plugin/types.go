@@ -10,6 +10,7 @@
 package plugin
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"iter"
@@ -171,6 +172,9 @@ func (RawJSON) responseData() {}
 // failure a guard must never produce (`ai/rules/evidence.md`). `| json`,
 // `| yaml` and `| table` would each hand the reader that same text back.
 //
+// A JSON scalar is refused too: the payload MUST be an object or an array,
+// or `null`, which an RPC boundary passes for a command with no data.
+//
 // An empty payload stays `null`. ExecuteCommandOutput.Data
 // (`pkg/plugin/rpc/types.go`) is `omitempty`, and a command that answers with
 // no data is not an error.
@@ -183,6 +187,14 @@ func (r RawJSON) MarshalJSON() ([]byte, error) {
 		return nil, fmt.Errorf("plugin: response payload is not JSON, so no format "+
 			"can render it: marshal the value instead of pre-rendering it, or answer "+
 			"with plugin.Map or plugin.Slice (got %d bytes starting %.32q)", len(b), string(b))
+	}
+	// A top-level scalar is valid JSON and still finished text: a Go string
+	// marshaled at the RPC boundary arrives as `"text"`, and `| yaml` and
+	// `| table` unmarshal it to a scalar and print it back.
+	if first := bytes.TrimSpace(b); first[0] != '{' && first[0] != '[' && !bytes.Equal(first, []byte("null")) {
+		return nil, fmt.Errorf("plugin: response payload must be a JSON object or an array, "+
+			"so every format can render it: answer with plugin.Map or plugin.Slice "+
+			"(got %d bytes starting %.32q)", len(b), string(b))
 	}
 	return b, nil
 }

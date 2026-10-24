@@ -119,6 +119,15 @@ type BestChangeEntry struct {
 	// such as flow-export enrichment use them for bgpSource/DestinationAsNumber.
 	OriginAS uint32   `json:"origin-as,omitempty"`
 	ASPath   []uint32 `json:"as-path,omitempty"`
+	// Attributes is the winning path's attribute set as the RIB stores it, in
+	// RFC 4271 Section 4.3 wire form (type-code order, AS_PATH and AGGREGATOR
+	// four-octet, no AS4_PATH or AS4_AGGREGATOR). The RIB fills it on every
+	// add/update, live and replayed, and leaves it nil on withdraw. It travels
+	// as bytes, never as a pool handle, because a handle points into the RIB's
+	// own pool and a forked consumer cannot read it. BMP Loc-RIB Route
+	// Monitoring (RFC 9069 Section 5.4) writes the best path's own attributes
+	// from here; an announce without it carries no attribute set to convey.
+	Attributes []byte `json:"attributes,omitempty"`
 	// ECMPNextHops are the in-process Loc-RIB intra-source equal-cost sibling
 	// next-hops of this entry's best, carried from sysrib's changeToBatch
 	// (computed at Loc-RIB emit on locrib.Change.ECMP). sysrib uses them to

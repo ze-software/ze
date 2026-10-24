@@ -40,9 +40,9 @@ func TestExitWithdrawRestoresConfiguredRoute(t *testing.T) {
 	require.Len(t, replaced, 1, "the fixture must replace the configured route on the wire")
 	initial := len(conn.written())
 
-	configured := nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0)
-	scriptOnly := nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.5.0/24"), 0)
-	longer := nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/25"), 0)
+	configured := nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0, false)
+	scriptOnly := nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.5.0/24"), 0, false)
+	longer := nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/25"), 0, false)
 
 	rest := peer.restoreConfigured([]nlri.NLRI{configured, scriptOnly, longer})
 
@@ -62,7 +62,7 @@ func TestExitWithdrawRestoresConfiguredRoute(t *testing.T) {
 // with no static route, the withdrawal is answered whole and nothing is sent.
 func TestRestoreConfiguredWithoutConfigWithdrawsEverything(t *testing.T) {
 	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
-	withdrawn := []nlri.NLRI{nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0)}
+	withdrawn := []nlri.NLRI{nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0, false)}
 
 	rest := peer.restoreConfigured(withdrawn)
 
@@ -125,7 +125,7 @@ func TestExitWithdrawRestoresConfiguredVPNAndLabeledRoutes(t *testing.T) {
 	sameVPN := wire(vpn, "70"+"800000"+"0000fde800000001"+"0a0000")
 	otherRD := wire(vpn, "70"+"800000"+"0000fde800000002"+"0a0000")
 	sameLabeled := wire(labeled, "30"+"000641"+"0a0002")
-	unicast := nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0)
+	unicast := nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0, false)
 
 	rest := peer.restoreConfigured([]nlri.NLRI{sameVPN, otherRD, sameLabeled, unicast})
 

@@ -8,6 +8,7 @@ import (
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
@@ -34,7 +35,7 @@ func addPathUpdateEvent(t *testing.T, ctxID bgpctx.ContextID) string {
 		t.Fatalf("attributes: %v", err)
 	}
 	msg := bgptypes.RawMessage{Type: msgtype.TypeUPDATE, RawBytes: body, AttrsWire: attrsWire, WireUpdate: wu}
-	peer := plugin.PeerInfo{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001}
+	peer := plugin.PeerInfo{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: rpc.RemoteASOf(65001)}
 	content := bgptypes.ContentConfig{Encoding: plugin.EncodingJSON, Format: plugin.FormatParsed}
 	return string(AppendMessage(nil, &peer, msg, content))
 }

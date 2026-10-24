@@ -39,7 +39,7 @@ func requireMirrorAgrees(t *testing.T, tree *Tree, want []string) {
 // (which reads the scalar) wrote the new one: a second load merge lost members.
 func TestTreeSetKeepsMirroredLeafListConsistent(t *testing.T) {
 	schema := NewSchema()
-	schema.Define("items", BracketLeafList(TypeString))
+	schema.Define("items", bracketLeafList(TypeString))
 	tree, err := NewParser(schema).Parse(`items [ a ]`)
 	require.NoError(t, err)
 
@@ -96,7 +96,7 @@ func TestTreeSetLeavesUnmirroredValuesWhole(t *testing.T) {
 // as one value.
 func TestSetParserBracketStoresMembers(t *testing.T) {
 	schema := NewSchema()
-	schema.Define("items", BracketLeafList(TypeString))
+	schema.Define("items", bracketLeafList(TypeString))
 	input := "set items [ a b ]\nset items [ c d ]\n"
 	want := []string{"c", "d"}
 

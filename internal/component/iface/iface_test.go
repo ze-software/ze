@@ -105,7 +105,7 @@ func TestPayloadFormat(t *testing.T) {
 func TestLinkPayloadFormat(t *testing.T) {
 	// VALIDATES: Link event payload uses correct fields.
 	// PREVENTS: Missing fields in interface created/deleted events.
-	payload := LinkPayload{
+	payload := linkPayload{
 		Name:    "eth0",
 		Type:    "ethernet",
 		Index:   2,
@@ -133,7 +133,7 @@ func TestLinkPayloadFormat(t *testing.T) {
 func TestStatePayloadFormat(t *testing.T) {
 	// VALIDATES: State event payload (up/down) uses correct fields.
 	// PREVENTS: Missing index in state change events.
-	payload := StatePayload{
+	payload := statePayload{
 		Name:  "eth0",
 		Index: 2,
 	}

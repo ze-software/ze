@@ -1,5 +1,5 @@
 // Design: docs/architecture/exabgp-bridge.md -- the JSON a script reads
-// Related: bridge_event.go -- ExabgpJSON, the document this serializes
+// Related: bridge_event.go -- exabgpJSON, the document this serializes
 
 package bridge
 
@@ -8,7 +8,7 @@ import (
 	"fmt"
 )
 
-// MarshalExabgpJSON serializes one ExabgpJSON document in ExaBGP's own spacing:
+// marshalExabgpJSON serializes one exabgpJSON document in ExaBGP's own spacing:
 // `{ "key": value, "key": value }` and `[ a, b ]`.
 //
 // The spacing is part of the contract a script reads. ExaBGP builds its JSON
@@ -20,7 +20,7 @@ import (
 // that test failed on a line carrying the route.
 //
 // An empty object or array stays `{}` or `[]`.
-func MarshalExabgpJSON(document map[string]any) ([]byte, error) {
+func marshalExabgpJSON(document map[string]any) ([]byte, error) {
 	compact, err := json.Marshal(document)
 	if err != nil {
 		return nil, fmt.Errorf("marshal ExaBGP JSON: %w", err)

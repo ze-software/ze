@@ -377,13 +377,13 @@ func TestCommitService_TwoLevel_ExplicitASPathTakesPrecedence(t *testing.T) {
 // newIPv4NLRI creates an IPv4 unicast NLRI for testing.
 func newIPv4NLRI(prefix string) nlri.NLRI {
 	p := netip.MustParsePrefix(prefix)
-	return nlri.NewINET(family.IPv4Unicast, p, 0)
+	return nlri.NewINET(family.IPv4Unicast, p, 0, false)
 }
 
 // newIPv6NLRI creates an IPv6 unicast NLRI for testing.
 func newIPv6NLRI(prefix string) nlri.NLRI {
 	p := netip.MustParsePrefix(prefix)
-	return nlri.NewINET(family.IPv6Unicast, p, 0)
+	return nlri.NewINET(family.IPv6Unicast, p, 0, false)
 }
 
 // ==============================================================

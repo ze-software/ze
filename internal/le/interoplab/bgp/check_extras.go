@@ -77,6 +77,13 @@ var scenarioExtras = map[string][]operation{
 	scenarioAddPathFRR: {
 		{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show bgp ipv4 unicast 10.10.0.0/24"}, contains: []string{injectPrefixFirst, "Paths: (2 available", "AddPath ID: RX 1,", "AddPath ID: RX 2,"}},
 	},
+	// RFC 7911 Section 3 reserves no Path Identifier value, so the identifier
+	// ze writes as 0.0.0.0 is a path of its own: FRR holds two paths for the
+	// prefix and prints "AddPath ID: RX 0," for the first. A sender that reads
+	// 0 as "no identifier" leaves FRR one path, or none.
+	scenarioAddPathZeroIDFRR: {
+		{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show bgp ipv4 unicast 10.10.0.0/24"}, contains: []string{injectPrefixFirst, "Paths: (2 available", "AddPath ID: RX 0,", "AddPath ID: RX 1,"}},
+	},
 	scenarioECMPFRR: {
 		{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show bgp ipv4 unicast 10.100.0.0/24 json"}, contains: []string{ecmpPrefix, zeLabAddress, gobgpLabAddress}},
 	},
@@ -171,7 +178,7 @@ var scenarioExtras = map[string][]operation{
 		// which is one second before FRR has advertised anything. The needles
 		// are the ones an immediate read carried, so this waits for the state it
 		// already asserted and asserts nothing less.
-		{kind: opWaitContains, peer: peerBIRD, command: []string{cmdBirdc, "show route for 10.39.1.0/24 all"}, contains: []string{"10.39.1.0/24", "BGP.local_pref: 250", "BGP.med: 77"}, timeout: 60 * time.Second},
+		{kind: opWaitContains, peer: peerBIRD, command: []string{cmdBirdc, "show route for 10.39.1.0/24 all"}, contains: []string{"10.39.1.0/24", "bgp_local_pref: 250", "bgp_med: 77"}, timeout: 60 * time.Second},
 		// The accepted prefix is the proof, because it is the route ze DID relay
 		// on the same session: a BIRD whose table is empty, or whose session with
 		// ze never came up, cannot satisfy it and cannot pass this absence by
@@ -432,7 +439,14 @@ var scenarioExtras = map[string][]operation{
 		{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show ipv6 ospf6 database link"}, contains: []string{zeLabAddress}},
 	},
 	"ospfv3-nssa-redist-frr": {
-		{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show ipv6 ospf6 route"}, contains: []string{ospf6NSSAPrefix, "NSSA"}},
+		// RFC 3101 Section 2.4: "NSSA AS boundary routers may only originate
+		// Type-7 LSAs into NSSAs." FRR's route table cannot show that: ospf6_route_show
+		// prints a type-7-derived route with the same "E1"/"E2" path type as a
+		// type-5 one (ospf6_path_type_substr, FRR 10.3.1 and 10.7.1 alike), and no
+		// "NSSA" token at all. The LSA type is read from the database instead,
+		// filtered to type-7 LSAs that ze (router-id 172.30.0.2) originated, so
+		// the prefix appears only when ze sent it as an NSSA-LSA.
+		{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show ipv6 ospf6 database type-7 adv-router " + zeLabAddress}, contains: []string{ospf6NSSAPrefix, "Type7"}},
 		// RFC 3101 Section 2.3: an AS-External-LSA is never flooded into an NSSA,
 		// so FRR's AS-scoped database holds no LSA at all and its "ASE" type token
 		// appears nowhere in the database listing. ze's redistributed prefix is the

@@ -587,7 +587,14 @@ func (rp *rPKIPlugin) handleStructuredUpdate(se *rpc.StructuredEvent) {
 	peerAddr := se.PeerAddress
 	peerName := se.PeerName
 	peerGroup := se.PeerGroup
-	peerASN := se.PeerAS
+	// An UPDATE arrives only in Established, where the peer's AS is always
+	// negotiated. One without it is a Ze defect, and ASPA cannot tell
+	// upstream from downstream for it, so it is not validated under AS 0.
+	peerASN, peerASKnown := se.PeerAS.ASN()
+	if !peerASKnown {
+		logger().Warn("UPDATE not validated: the peer's AS is not negotiated", "peer", se.PeerAddress)
+		return
+	}
 	msgID := se.MessageID
 	wu := msg.WireUpdate
 	ctx := bgpctx.Registry.Get(wu.SourceCtxID())
@@ -605,7 +612,7 @@ func (rp *rPKIPlugin) handleStructuredUpdate(se *rpc.StructuredEvent) {
 	// ASPA verification (once per UPDATE, not per-prefix).
 	aspaState := aspaStateNone
 	var normalizedPath []uint32
-	if rp.aspaEnabled.Load() && se.PeerAS != se.LocalAS {
+	if rp.aspaEnabled.Load() && peerASN != se.LocalAS {
 		aspaState = ASPAInvalid
 		if asp != nil {
 			aspaState, normalizedPath = aspaStateForPath(rp.aspaCache, asp.Segments,

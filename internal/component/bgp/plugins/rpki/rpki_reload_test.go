@@ -102,7 +102,7 @@ func TestRPKIReloadRetainsAndRevalidatesReceivedRoutes(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := adj.DeliverStructured([]any{&rpc.StructuredEvent{
-		EventType: rpc.EventKindUpdate, PeerAddress: "192.0.2.1", PeerAS: 65001, LocalAS: 65000,
+		EventType: rpc.EventKindUpdate, PeerAddress: "192.0.2.1", PeerAS: rpc.RemoteASOf(65001), LocalAS: 65000,
 		PeerName: "customer", PeerGroup: "customers", MessageID: 10,
 		RawMessage: &bgptypes.RawMessage{MessageID: 10, RawBytes: body, WireUpdate: wu, AttrsWire: attrs},
 	}}); err != nil {
@@ -385,7 +385,7 @@ func receiveRPKIReloadRoute(t *testing.T, adj *rpc.DirectBridge) (ribevents.Vali
 		t.Fatal(err)
 	}
 	if err := adj.DeliverStructured([]any{&rpc.StructuredEvent{
-		EventType: rpc.EventKindUpdate, PeerAddress: "192.0.2.1", PeerAS: 65001, LocalAS: 65000,
+		EventType: rpc.EventKindUpdate, PeerAddress: "192.0.2.1", PeerAS: rpc.RemoteASOf(65001), LocalAS: 65000,
 		MessageID:  10,
 		RawMessage: &bgptypes.RawMessage{MessageID: 10, RawBytes: body, WireUpdate: wu, AttrsWire: attrs},
 	}}); err != nil {
@@ -621,7 +621,7 @@ func TestRPKIUpdatePublicationReachesDecorator(t *testing.T) {
 			}
 			update := &rpc.StructuredEvent{
 				EventType: rpc.EventKindUpdate, PeerAddress: "192.0.2.50",
-				PeerName: "ix-192.0.2.50", PeerGroup: "ix", PeerAS: 100, LocalAS: 65000, MessageID: 71,
+				PeerName: "ix-192.0.2.50", PeerGroup: "ix", PeerAS: rpc.RemoteASOf(100), LocalAS: 65000, MessageID: 71,
 				RawMessage: &bgptypes.RawMessage{MessageID: 71, RawBytes: body, WireUpdate: wu, AttrsWire: attrs},
 			}
 			primary := fmt.Sprintf(`{"type":"bgp","bgp":{

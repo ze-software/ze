@@ -44,7 +44,9 @@ func routeNetworks(env map[string]any) []string {
 // PREVENTS: a route Ze advertised reading as one the peer advertised.
 func TestAPIRoutesLearnedFromAPeerAreOnlyTheReceived(t *testing.T) {
 	base, client := startPagServer(t, mockDispatch())
-	for _, path := range []string{"routes/protocol/10.0.0.1", "routes/peer/10.0.0.1"} {
+	// routes/protocol takes the id protocols/bgp lists (mockDispatch names
+	// its one session peer1), routes/peer the session address.
+	for _, path := range []string{"routes/protocol/peer1", "routes/peer/10.0.0.1"} {
 		env := getRoutes(t, client, base+"/api/looking-glass/"+path)
 		networks := routeNetworks(env)
 		if len(networks) != 1 || networks[0] != receivedPrefix {
@@ -60,7 +62,7 @@ func TestAPIRoutesLearnedFromAPeerAreOnlyTheReceived(t *testing.T) {
 // PREVENTS: the export view drifting to the default two-direction scope.
 func TestAPIRoutesExportIsOnlyTheSent(t *testing.T) {
 	base, client := startPagServer(t, mockDispatch())
-	env := getRoutes(t, client, base+"/api/looking-glass/routes/export/10.0.0.1")
+	env := getRoutes(t, client, base+"/api/looking-glass/routes/export/peer1")
 	networks := routeNetworks(env)
 	if len(networks) != 1 || networks[0] != sentPrefix {
 		t.Fatalf("networks = %v, want only the sent %s", networks, sentPrefix)

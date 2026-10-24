@@ -25,7 +25,7 @@ func TestInlineListEntryStoresALeafListAsMembers(t *testing.T) {
 	schema := NewSchema()
 	schema.Define("policy", Container(
 		Field("group", List(TypeString,
-			Field("member", ValueOrArray(TypeString)),
+			Field("member", valueOrArray(TypeString)),
 		)),
 	))
 
@@ -95,7 +95,7 @@ func TestInlineListEntryRoundTripsThroughTheSerializer(t *testing.T) {
 	schema := NewSchema()
 	schema.Define("policy", Container(
 		Field("group", List(TypeString,
-			Field("member", ValueOrArray(TypeString)),
+			Field("member", valueOrArray(TypeString)),
 		)),
 	))
 
@@ -128,7 +128,7 @@ func TestInlineListEntryKeepsTheBlockFormWhereOneLineWouldLose(t *testing.T) {
 		schema.Define("policy", Container(
 			Field("group", List(TypeString,
 				Field("label", Leaf(TypeString)),
-				Field("member", ValueOrArray(TypeString)),
+				Field("member", valueOrArray(TypeString)),
 			)),
 		))
 
@@ -145,7 +145,7 @@ func TestInlineListEntryKeepsTheBlockFormWhereOneLineWouldLose(t *testing.T) {
 		schema := NewSchema()
 		schema.Define("policy", Container(
 			Field("group", List(TypeString,
-				Field("member", ValueOrArray(TypeString)),
+				Field("member", valueOrArray(TypeString)),
 			)),
 		))
 

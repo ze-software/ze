@@ -2,10 +2,10 @@
   "note": "Re-judged 2026-10-20 (independent auditor, authored none of the change). draft-abraitis-idr-addpath-paths-limit Section 3: \"A sender advertising multiple paths for the same prefix SHOULD send only the specified maximum number of paths indicated in the PATHS-LIMIT capability.\" The only change to test/plugin/paths-limit-live.ci since the last judgement is f68a27c87b (IPv6 expects MP_REACH_NLRI first), on the four IPv6 frames seq 9, 10, 12 and 15: each changed expect hex was parsed attribute by attribute and the old and new frames carry the identical set of attribute TLVs, byte for byte, with the same message and attribute lengths and NLRI; only MP_REACH_NLRI moved to the front (RFC 7606 Section 5.1). No action line, comment or other directive changed. The path identifiers inside each MP_REACH_NLRI (1, 2, 2 replacement, 3 retry) and the IPv4 frames, the withdrawal and the ordering of the sequence are unchanged, so the admitted-count assertions read exactly as before. The two Go units are unchanged. Ran green at HEAD: ./le test bgp plugin paths-limit-live. Verdict stands.",
   "requirement_sha": "269b2ebb1239d058",
   "tests": {
-    "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go::TestPathsLimitForwardWritersShareState": "a713b6c8c18e9df8",
-    "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go::TestPathsLimitForwardWritersShareState#2": "a713b6c8c18e9df8",
-    "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go::TestPathsLimitSessionAcrossUpdates": "a713b6c8c18e9df8",
-    "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go::TestPathsLimitSessionAcrossUpdates#2": "a713b6c8c18e9df8",
+    "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go::TestPathsLimitForwardWritersShareState": "523e558a407aacb5",
+    "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go::TestPathsLimitForwardWritersShareState#2": "523e558a407aacb5",
+    "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go::TestPathsLimitSessionAcrossUpdates": "523e558a407aacb5",
+    "internal/component/bgp/reactor/draft_abraitis_idr_addpath_paths_limit_session_test.go::TestPathsLimitSessionAcrossUpdates#2": "523e558a407aacb5",
     "test/plugin/paths-limit-live.ci": "ed4627d81e081e66",
     "test/plugin/paths-limit-live.ci#2": "ed4627d81e081e66"
   },

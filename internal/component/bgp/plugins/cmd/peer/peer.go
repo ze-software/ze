@@ -411,7 +411,9 @@ func filterPeersBySelectorValue(ctx *pluginserver.CommandContext, selectorStr st
 		asn := sel.ASNValue()
 		var matched []plugin.PeerInfo
 		for i := range allPeers {
-			asnMatch := allPeers[i].PeerAS == asn
+			// A peer whose AS is not yet negotiated matches no AS selector.
+			peerAS, known := allPeers[i].PeerAS.ASN()
+			asnMatch := known && peerAS == asn
 			if sel.IsExclude() {
 				asnMatch = !asnMatch
 			}
@@ -467,10 +469,10 @@ func handleBgpPeerList(ctx *pluginserver.CommandContext, validated command.Valid
 	for i := range peers {
 		p := &peers[i]
 		row := map[string]any{
-			fieldRemoteAS: asn.Of(p.PeerAS),
-			fieldState:    p.State.String(),
-			fieldUptime:   p.Uptime.Truncate(time.Second).String(),
+			fieldState:  p.State.String(),
+			fieldUptime: p.Uptime.Truncate(time.Second).String(),
 		}
+		setRemoteAS(row, p)
 		// draft-ietf-idr-bgp-bfd-strict-mode Section 11: "Implementations SHOULD
 		// provide visibility for these sub-states in its display of the BGP
 		// finite state machine." Written only when there is one, so a peer that
@@ -518,7 +520,6 @@ func handleBgpPeerDetail(ctx *pluginserver.CommandContext, validated command.Val
 			"connect-retry":     int(p.ConnectRetry.Seconds()),
 		}
 		row := map[string]any{
-			fieldRemoteAS:           asn.Of(p.PeerAS),
 			fieldLocalAS:            asn.Of(p.LocalAS),
 			fieldRouterID:           routerID,
 			fieldPeerType:           p.PeerType,
@@ -545,6 +546,7 @@ func handleBgpPeerDetail(ctx *pluginserver.CommandContext, validated command.Val
 			// times a BGP peer has tried to establish a peer session".
 			"connect-retry-counter": p.ConnectRetryCounter,
 		}
+		setRemoteAS(row, p)
 		// draft-ietf-idr-bgp-bfd-strict-mode Section 11: "Implementations SHOULD
 		// provide visibility for these sub-states in its display of the BGP
 		// finite state machine." Carried by BOTH peer displays, because an
@@ -1018,4 +1020,13 @@ func handlePeerHistory(ctx *pluginserver.CommandContext, validated command.Valid
 			"count":       len(out),
 		},
 	}, nil
+}
+
+// setRemoteAS writes the peer's AS into a peer row, and leaves the field out
+// while a dynamic peer's AS is not yet negotiated, as the JSON events do
+// (format.appendPeerJSON), rather than showing AS 0.
+func setRemoteAS(row map[string]any, p *plugin.PeerInfo) {
+	if peerAS, known := p.PeerAS.ASN(); known {
+		row[fieldRemoteAS] = asn.Of(peerAS)
+	}
 }

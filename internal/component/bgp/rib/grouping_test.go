@@ -24,7 +24,7 @@ import (
 func testRouteWithASPath(prefix, nextHop string, attrs []attribute.Attribute, asPath *attribute.ASPath) *Route {
 	p := netip.MustParsePrefix(prefix)
 	fam := family.IPv4Unicast
-	n := nlri.NewINET(fam, p, 0)
+	n := nlri.NewINET(fam, p, 0, false)
 	return NewRouteWithASPath(n, netip.MustParseAddr(nextHop), attrs, asPath)
 }
 

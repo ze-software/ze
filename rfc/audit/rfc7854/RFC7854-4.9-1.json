@@ -3,8 +3,8 @@
   "requirement_sha": "16daa710662a204f",
   "tests": {
     "internal/component/bgp/plugins/bmp/rfc7854_peerdown_cause_test.go::TestRFC7854PeerDownLocalCloseCarriesTheFSMEvent": "9670cb870441e913",
-    "internal/component/bgp/plugins/bmp/rfc7854_peerdown_data_test.go::TestRFC7854PeerDownCarriesTheDataItsReasonRequires": "ab9c7c72418a5e12",
-    "internal/component/bgp/plugins/bmp/rfc7854_peerdown_data_test.go::TestRFC7854PeerDownOmitsDataWhereTheReasonHasNone": "ab9c7c72418a5e12"
+    "internal/component/bgp/plugins/bmp/rfc7854_peerdown_data_test.go::TestRFC7854PeerDownCarriesTheDataItsReasonRequires": "8dcc38402b26c51a",
+    "internal/component/bgp/plugins/bmp/rfc7854_peerdown_data_test.go::TestRFC7854PeerDownOmitsDataWhereTheReasonHasNone": "8dcc38402b26c51a"
   },
   "units": {
     "internal/component/bgp/plugins/bmp/rfc7854_peerdown_cause_test.go::TestRFC7854PeerDownLocalCloseCarriesTheFSMEvent": "5e0db2b1f05b542a",

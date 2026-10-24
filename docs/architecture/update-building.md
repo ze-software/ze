@@ -204,6 +204,11 @@ pack or send that result. Native IPv4 remains legal where its profile allows it.
 Admission checks only serialized inputs: the unicast builder ignores an unused
 link-local hint when the emitted next hop is not native IPv6.
 <!-- source: internal/component/bgp/message/update_build.go -- BuildUnicast, checkUnicastNextHop -->
+
+The INET NLRI `BuildUnicast` builds states whether it carries a Path
+Identifier from the builder's ADD-PATH negotiation (`ub.AddPath`), never from
+the value: a path-id of 0 is an identifier like any other.
+<!-- source: internal/core/bgp/nlri/inet.go -- NewINET -->
 <!-- source: internal/component/bgp/reactor/peer.go -- resolveNextHop, linkLocalOnlyNextHopRefused -->
 <!-- test: internal/component/bgp/reactor/rfc2545_static_origination_test.go TestStaticOriginateIPv6NextHopAdmission -->
 <!-- test: internal/component/bgp/reactor/mapped_plain_next_hop_test.go TestMappedPlainNextHopBuilder -->
@@ -1046,6 +1051,9 @@ received path identity needed when destination encoding removed it. Its scalar
 origin is body-common; extra family/announcement ordinals are emitted only for
 received ADD-PATH paths. Source attributes are not copied into the writer table.
 <!-- source: internal/component/bgp/plugins/rib/rib_replay.go -- resendRoutesWithCursor, formatCursorCommands -->
+
+A replayed command carries `path-information <id>` only when the stored route
+was received with ADD-PATH, never because its path-id is non-zero.
 
 RFC 2918 Section 4: "Otherwise, the BGP speaker shall re-advertise to that peer the Adj-RIB-Out of the <AFI, SAFI> carried in the message, based on its outbound route filtering policy." That "shall" is why the refresh rail outranks Section 9.2 here. Until 2026-09-14 `sendRoutes` set no marker, so a refresh on an up session sent the RFC 7313 BoRR and EoRR with no UPDATE between them, and RFC 7313 Section 4 has the receiver purge on the EoRR every route the BoRR marked stale: the refresh withdrew the family instead of restoring it. `test/plugin/plugin-refresh.ci` is the recording.
 

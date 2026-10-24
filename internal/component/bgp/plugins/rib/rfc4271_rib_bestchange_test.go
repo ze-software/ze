@@ -1008,6 +1008,83 @@ func TestRIBReplayCarriesASPath(t *testing.T) {
 	assert.Equal(t, uint32(65010), batch.Changes[0].OriginAS, "replay must carry the winner's origin AS")
 }
 
+// TestRIBBestChangeCarriesTheWinnerAttributes proves a best change carries the
+// winning path's stored attribute set, live and replayed, so a consumer that
+// conveys the Loc-RIB route (BMP, RFC 9069 Section 5.4) writes the route's own
+// ORIGIN and the rest rather than a constant.
+//
+// Method: one route with ORIGIN INCOMPLETE, a NEXT_HOP and a COMMUNITY is
+// elected; the live entry and the replayed entry must both carry those
+// attributes in type-code order.
+func TestRIBBestChangeCarriesTheWinnerAttributes(t *testing.T) {
+	bus := newTestEventBus()
+	r := newTestRIBManagerWithBus(bus)
+
+	peerAddr := netip.MustParseAddr("192.0.2.1")
+	r.peerMeta[peerAddr] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
+	fam := family.Family{AFI: 1, SAFI: 1}
+	prefix := ipv4Prefix(24, 10, 0, 0)
+	stored := []byte{
+		0x40, 0x01, 0x01, 0x02, // ORIGIN INCOMPLETE
+		0x40, 0x03, 0x04, 192, 168, 1, 1, // NEXT_HOP
+		0xc0, 0x08, 0x04, 0xfd, 0xe9, 0x00, 0x07, // COMMUNITY 65001:7
+	}
+	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr.String())
+	r.bgpPeers[peerAddr].Insert(fam, stored, prefix)
+	live, elected := r.checkBestPathChange(fam, prefix, false, nil)
+	require.True(t, elected, "the election must produce a change")
+	assert.Equal(t, stored, live.Attributes, "the live change must carry the winner's attributes")
+
+	bus.mu.Lock()
+	bus.events = nil
+	bus.mu.Unlock()
+	r.replayBestPaths(&replay.Request{ReplayID: replay.Broadcast})
+
+	evt := bus.lastEvent()
+	require.NotNil(t, evt, "should publish replay batch")
+	batch, ok := evt.Payload.(*bestChangeBatch)
+	require.True(t, ok, "expected *bestChangeBatch payload, got %T", evt.Payload)
+	require.Len(t, batch.Changes, 1)
+	assert.Equal(t, stored, batch.Changes[0].Attributes, "replay must carry the winner's attributes")
+}
+
+// TestRIBBestChangeOnAttributeOnlyChange pins that a winner whose attributes
+// change, with its peer, path, next hop and MED unchanged, publishes a best
+// change carrying the new set. The same-best short circuit compared everything
+// but the attribute set, so BMP's Loc-RIB kept the old COMMUNITY forever.
+// Method: elect one path, re-insert it with a different COMMUNITY, elect again.
+func TestRIBBestChangeOnAttributeOnlyChange(t *testing.T) {
+	bus := newTestEventBus()
+	r := newTestRIBManagerWithBus(bus)
+
+	peerAddr := netip.MustParseAddr("192.0.2.1")
+	r.peerMeta[peerAddr] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
+	fam := family.Family{AFI: 1, SAFI: 1}
+	prefix := ipv4Prefix(24, 10, 0, 0)
+	first := []byte{
+		0x40, 0x01, 0x01, 0x02, // ORIGIN INCOMPLETE
+		0x40, 0x03, 0x04, 192, 168, 1, 1, // NEXT_HOP
+		0xc0, 0x08, 0x04, 0xfd, 0xe9, 0x00, 0x07, // COMMUNITY 65001:7
+	}
+	second := []byte{
+		0x40, 0x01, 0x01, 0x02, // ORIGIN INCOMPLETE
+		0x40, 0x03, 0x04, 192, 168, 1, 1, // NEXT_HOP
+		0xc0, 0x08, 0x04, 0xfd, 0xe9, 0x00, 0x08, // COMMUNITY 65001:8
+	}
+	r.bgpPeers[peerAddr] = storage.NewPeerRIB(peerAddr.String())
+	r.bgpPeers[peerAddr].Insert(fam, first, prefix)
+	_, elected := r.checkBestPathChange(fam, prefix, false, nil)
+	require.True(t, elected, "the first election must produce a change")
+
+	r.bgpPeers[peerAddr].Insert(fam, second, prefix)
+	change, elected := r.checkBestPathChange(fam, prefix, false, nil)
+	require.True(t, elected, "an attribute-only change of the winner must publish a best change")
+	assert.Equal(t, second, change.Attributes, "the change must carry the winner's new attributes")
+
+	_, elected = r.checkBestPathChange(fam, prefix, false, nil)
+	assert.False(t, elected, "an unchanged winner must still publish nothing")
+}
+
 // TestRIBBroadcastReplayCharacterization pins AC-3/A-4 at the bgp-rib hop: a
 // broadcast replay request makes the RIB emit its full best-path table as a
 // batch that reports IsReplay() and whose marshaled wire still carries

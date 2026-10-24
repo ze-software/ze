@@ -6,6 +6,8 @@
 package web
 
 import (
+	"errors"
+	"fmt"
 	"html/template"
 	"net/http"
 	"strconv"
@@ -43,7 +45,7 @@ const (
 
 func buildInterfaceTableDataForView(runtime []iface.InterfaceInfo, viewTree *config.Tree, filterType string) WorkbenchTableData {
 	infos := mergeInterfaceInfos(runtime, collectConfiguredInterfaces(viewTree))
-	return BuildInterfaceTableData(infos, filterType)
+	return buildInterfaceTableData(infos, filterType)
 }
 
 func collectConfiguredInterfaces(viewTree *config.Tree) []iface.InterfaceInfo {
@@ -261,10 +263,10 @@ func ifaceFlag(info iface.InterfaceInfo) (string, string) {
 	}
 }
 
-// BuildInterfaceTableData constructs a WorkbenchTableData from a list of
+// buildInterfaceTableData constructs a WorkbenchTableData from a list of
 // InterfaceInfo. filterType, when non-empty, restricts the table to
 // interfaces matching that type.
-func BuildInterfaceTableData(infos []iface.InterfaceInfo, filterType string) WorkbenchTableData {
+func buildInterfaceTableData(infos []iface.InterfaceInfo, filterType string) WorkbenchTableData {
 	rates := iface.ListRates()
 
 	columns := []WorkbenchTableColumn{
@@ -554,21 +556,40 @@ func handleInterfacesPage(renderer *Renderer, r *http.Request, path []string, vi
 		return buildTrafficPageContent(renderer)
 	}
 
-	infos, err := iface.ListInterfaces()
+	live, readErr := iface.ListInterfaces()
+	infos, err := interfaceListInfos(live, readErr)
 	if err != nil {
-		// Backend not loaded: still show configured entries from the editor tree.
-		tableData := buildInterfaceTableDataForView(nil, viewTree, filterType)
-		return renderer.renderComponent("workbench_table", workbenchTable(tableData))
+		return renderer.renderComponent("iface_list_unread", ifaceDetailUnread(err.Error()))
 	}
 
 	tableData := buildInterfaceTableDataForView(infos, viewTree, filterType)
 	return renderer.renderComponent("workbench_table", workbenchTable(tableData))
 }
 
+// interfaceListInfos decides which live interfaces the list page merges with
+// the configured ones, from the live read (live, readErr). The configured
+// entries stand alone only where no live state exists to show: no backend is
+// loaded. Any other read failure is an error: listing the configured entries
+// for it presented them as the whole answer, every live-only device missing
+// and every configured one marked "configured", and hid the failure.
+func interfaceListInfos(live []iface.InterfaceInfo, readErr error) ([]iface.InterfaceInfo, error) {
+	if readErr == nil {
+		return live, nil
+	}
+	if errors.Is(readErr, iface.ErrNoBackendLoaded) {
+		// No backend loaded is no live state: the configured entries are
+		// listed alone (buildInterfaceTableDataForView).
+		return nil, nil
+	}
+	return nil, fmt.Errorf("interfaces: their live state could not be read (%w), so neither live nor "+
+		"configured state is listed; check it with `ze show interface`", readErr)
+}
+
 func handleInterfaceDetailContent(renderer *Renderer, name string, viewTree *config.Tree) template.HTML {
-	info, err := iface.GetInterface(name)
-	if err != nil || info == nil {
-		info = configuredInterfaceByName(viewTree, name)
+	live, readErr := iface.GetInterface(name)
+	info, err := interfaceDetailInfo(name, live, readErr, viewTree)
+	if err != nil {
+		return renderer.renderComponent("iface_detail_unread", ifaceDetailUnread(err.Error()))
 	}
 	if info == nil {
 		return renderer.renderComponent("iface_detail_missing", ifaceDetailMissing())
@@ -576,6 +597,31 @@ func handleInterfaceDetailContent(renderer *Renderer, name string, viewTree *con
 
 	detailData := buildInterfaceDetailData(renderer, info)
 	return renderer.renderComponent("workbench_detail", workbenchDetail(detailData))
+}
+
+// interfaceDetailInfo decides what the detail page shows for name from the
+// live read (live, readErr). The configured entry stands in only where no live
+// state exists to show: no backend is loaded, or the backend holds no such
+// device, as the list page marks the same entry "configured". Any other read
+// failure, an address dump included, is an error: showing the configured entry
+// for it presented config as live state and hid the failure. A nil answer and
+// a nil error mean neither live nor configured state names the interface.
+func interfaceDetailInfo(name string, live *iface.InterfaceInfo, readErr error, viewTree *config.Tree) (*iface.InterfaceInfo, error) {
+	if readErr == nil && live != nil {
+		return live, nil
+	}
+	if readErr == nil {
+		return nil, fmt.Errorf("interface %s: the backend answered no state and no error, so its live state "+
+			"is unknown; check it with `ze show interface %s`", name, name)
+	}
+	if errors.Is(readErr, iface.ErrNoBackendLoaded) {
+		return configuredInterfaceByName(viewTree, name), nil
+	}
+	if errors.Is(readErr, iface.ErrInterfaceNotFound) {
+		return configuredInterfaceByName(viewTree, name), nil
+	}
+	return nil, fmt.Errorf("interface %s: its live state could not be read (%w), so neither live nor "+
+		"configured state is shown; check it with `ze show interface %s`", name, readErr, name)
 }
 
 func configuredInterfaceByName(viewTree *config.Tree, name string) *iface.InterfaceInfo {
@@ -590,10 +636,36 @@ func configuredInterfaceByName(viewTree *config.Tree, name string) *iface.Interf
 }
 
 func handleInterfaceCountersContent(renderer *Renderer, name string) template.HTML {
-	stats, err := iface.GetStats(name)
+	read, readErr := iface.GetStats(name)
+	stats, err := interfaceCounterStats(name, read, readErr)
 	if err != nil {
-		stats = nil
+		return renderer.renderComponent("iface_counters_unread", ifaceDetailUnread(err.Error()))
 	}
 
 	return renderer.renderComponent("iface_counters_table", detailKVTable(counterRows(stats, name)))
+}
+
+// interfaceCounterStats decides which counters the counters partial renders
+// for name, from the live read (read, readErr). A nil answer and a nil error
+// mean no live counters exist to show: no backend is loaded, or the backend
+// holds no such device, as the detail page then shows the configured entry
+// with counters "not available". Any other read failure is an error: rendering
+// it as "not available" presented a failed read as a device without counters
+// and hid the failure.
+func interfaceCounterStats(name string, read *iface.InterfaceStats, readErr error) (*iface.InterfaceStats, error) {
+	if readErr == nil && read != nil {
+		return read, nil
+	}
+	if readErr == nil {
+		return nil, fmt.Errorf("interface %s: the backend answered no counters and no error, so its counters "+
+			"are unknown; check them with `ze show interface %s`", name, name)
+	}
+	if errors.Is(readErr, iface.ErrNoBackendLoaded) {
+		return nil, nil //nolint:nilnil // nil stats is the "no live counters" answer counterRows renders
+	}
+	if errors.Is(readErr, iface.ErrInterfaceNotFound) {
+		return nil, nil //nolint:nilnil // nil stats is the "no live counters" answer counterRows renders
+	}
+	return nil, fmt.Errorf("interface %s: its counters could not be read (%w); check them with "+
+		"`ze show interface %s`", name, readErr, name)
 }

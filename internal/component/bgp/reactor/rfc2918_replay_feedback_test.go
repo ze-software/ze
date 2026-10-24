@@ -21,7 +21,7 @@ import (
 func refreshFeedbackBatch() bgptypes.NLRIBatch {
 	return bgptypes.NLRIBatch{
 		Family:  family.IPv4Unicast,
-		NLRIs:   []nlri.NLRI{nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("192.0.2.0/24"), 0)},
+		NLRIs:   []nlri.NLRI{nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("192.0.2.0/24"), 0, false)},
 		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1")),
 		Replay:  true,
 	}
@@ -54,7 +54,7 @@ func TestRefreshSentFeedbackRetainsReplayOrigin(t *testing.T) {
 			peer.sendInitialRoutes()
 		}
 		batch.Replay = false
-		batch.NLRIs = []nlri.NLRI{nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("198.51.100.0/24"), 0)}
+		batch.NLRIs = []nlri.NLRI{nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("198.51.100.0/24"), 0, false)}
 		if err := api.AnnounceNLRIBatch(t.Context(), selector.All(), batch, plugin.OperatorSender()); err != nil {
 			t.Fatal(err)
 		}

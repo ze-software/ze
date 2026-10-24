@@ -61,7 +61,13 @@ func writeHeader(buf []byte, extTimestamp bool, now time.Time, typ, subtype uint
 // and fills hdr whose IP slices point into ipBuf.
 // ipBuf must be at least 32 bytes (2 x 16 for IPv6).
 func peerInfoToHeader(peer *plugin.PeerInfo, ipBuf []byte, hdr *mrtfmt.BGP4MPHeader) {
-	hdr.PeerAS = peer.PeerAS
+	// A dynamic peer's AS is unknown until its OPEN is negotiated, so the OPEN
+	// Ze sends to it has none to record. MRT's own convention for that is 0.
+	// RFC 6396 Section 4.4.1: "In some cases, the Peer AS Number may be undefined.  In such cases, the value of this field MAY be set to zero."
+	hdr.PeerAS = 0
+	if asn, known := peer.PeerAS.ASN(); known {
+		hdr.PeerAS = asn
+	}
 	hdr.LocalAS = peer.LocalAS
 	hdr.IfIndex = 0
 	addr := peer.Address

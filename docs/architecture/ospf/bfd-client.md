@@ -28,11 +28,13 @@ adjacency down inside the BFD detection window instead of the
   wants OSPF BFD also carries `bfd { enabled true; }`, as the `ospf-bfd-frr`
   interop scenario does. OSPFv3
   also needs `bind-v6 true` in that container: it defaults to false, and without
-  it the loop holds only an IPv4 socket, so every Control packet to an IPv6
-  neighbour fails to send (`ospfv3-bfd-frr` sets both).
+  it the loop holds only an IPv4 socket, so the BFD service refuses every
+  session for an IPv6 neighbour with an error naming `bfd { bind-v6 true; }`
+  (`ospfv3-bfd-frr` sets both).
   <!-- source: internal/component/plugin/server/startup_autoload.go -- getConfigPathPlugins -->
   <!-- source: internal/component/bfd/register.go -- init -->
   <!-- source: internal/component/bfd/bfd.go -- newTransport -->
+  <!-- source: internal/component/bfd/bfd.go -- pluginService.EnsureSession, errBfdIPv6NotBound -->
   <!-- source: internal/plugins/ospf/bfd_client.go -- checkBFDOptIns -->
   <!-- source: internal/plugins/ospf/register.go -- registerOSPF, runOSPFEngine -->
 - **One long-lived subscriber goroutine per session, never one per event.** It

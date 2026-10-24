@@ -171,6 +171,8 @@ configuration valid: example.conf
 ```
 <!-- source: cmd/ze/ze_core_dispatch.go -- registerLocalCommands, "start" root handler; cmd/ze/ze_core_start.go -- cmdStart, startConfigPath -->
 
+With no file, `ze start` uses the config the store names, and refuses with exit 1 if the store's instance name cannot be read; `ze doctor` checks the store.
+
 The config path goes behind the `start` keyword. A bare `./ze example.conf` is rejected with `unknown command: example.conf` (exit 1); global flags such as `-d` are consumed before the keyword, so they stay ahead of it.
 
 An explicit path selects the store in that file's folder, before

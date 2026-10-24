@@ -11,6 +11,7 @@ import (
 	"github.com/ze-software/ze/internal/component/command/commandtest"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/bgp/asn"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // TestHandlerPeerDetailAllPeers verifies peer detail returns all peers with wildcard.
@@ -20,8 +21,8 @@ import (
 func TestHandlerPeerDetailAllPeers(t *testing.T) {
 	reactor := &mockReactor{
 		peers: []plugin.PeerInfo{
-			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001, State: plugin.PeerStateEstablished},
-			{Address: netip.MustParseAddr("192.0.2.2"), PeerAS: 65002, State: plugin.PeerStateStopped},
+			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: rpc.RemoteASOf(65001), State: plugin.PeerStateEstablished},
+			{Address: netip.MustParseAddr("192.0.2.2"), PeerAS: rpc.RemoteASOf(65002), State: plugin.PeerStateStopped},
 		},
 	}
 	ctx := newTestContext(reactor)
@@ -59,7 +60,7 @@ func TestHandlerPeerDetailReportsConnectRetryCounter(t *testing.T) {
 	reactor := &mockReactor{
 		peers: []plugin.PeerInfo{{
 			Address:             netip.MustParseAddr("192.0.2.1"),
-			PeerAS:              65001,
+			PeerAS:              rpc.RemoteASOf(65001),
 			State:               plugin.PeerStateConnecting,
 			ConnectRetryCounter: 17,
 		}},
@@ -88,8 +89,8 @@ func TestHandlerPeerDetailReportsConnectRetryCounter(t *testing.T) {
 func TestHandlerPeerDetailFilterByIP(t *testing.T) {
 	reactor := &mockReactor{
 		peers: []plugin.PeerInfo{
-			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001, State: plugin.PeerStateEstablished},
-			{Address: netip.MustParseAddr("192.0.2.2"), PeerAS: 65002, State: plugin.PeerStateStopped},
+			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: rpc.RemoteASOf(65001), State: plugin.PeerStateEstablished},
+			{Address: netip.MustParseAddr("192.0.2.2"), PeerAS: rpc.RemoteASOf(65002), State: plugin.PeerStateStopped},
 		},
 	}
 	ctx := newTestContext(reactor)
@@ -418,7 +419,7 @@ func TestBgpSummaryHandler(t *testing.T) {
 		peers: []plugin.PeerInfo{
 			{
 				Address:            netip.MustParseAddr("192.0.2.1"),
-				PeerAS:             65001,
+				PeerAS:             rpc.RemoteASOf(65001),
 				State:              plugin.PeerStateEstablished,
 				Uptime:             5 * time.Minute,
 				UpdatesReceived:    10,
@@ -428,7 +429,7 @@ func TestBgpSummaryHandler(t *testing.T) {
 			},
 			{
 				Address: netip.MustParseAddr("192.0.2.2"),
-				PeerAS:  65002,
+				PeerAS:  rpc.RemoteASOf(65002),
 				State:   plugin.PeerStateStopped,
 			},
 		},
@@ -488,7 +489,7 @@ func TestBgpPeerCapabilitiesHandler(t *testing.T) {
 		peers: []plugin.PeerInfo{
 			{
 				Address: netip.MustParseAddr("192.0.2.1"),
-				PeerAS:  65001,
+				PeerAS:  rpc.RemoteASOf(65001),
 				State:   plugin.PeerStateEstablished,
 			},
 		},
@@ -539,7 +540,7 @@ func TestBgpPeerCapabilitiesNoPeer(t *testing.T) {
 func TestBgpPeerCapabilitiesNotFound(t *testing.T) {
 	reactor := &mockReactor{
 		peers: []plugin.PeerInfo{
-			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001, State: plugin.PeerStateEstablished},
+			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: rpc.RemoteASOf(65001), State: plugin.PeerStateEstablished},
 		},
 	}
 	ctx := newTestContext(reactor)
@@ -558,7 +559,7 @@ func TestBgpPeerCapabilitiesNotFound(t *testing.T) {
 func TestHandlerTeardownByName(t *testing.T) {
 	reactor := &mockReactor{
 		peers: []plugin.PeerInfo{
-			{Name: "router-east", Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001},
+			{Name: "router-east", Address: netip.MustParseAddr("192.0.2.1"), PeerAS: rpc.RemoteASOf(65001)},
 		},
 	}
 	ctx := newTestContext(reactor)
@@ -589,7 +590,7 @@ func TestHandlerTeardownByName(t *testing.T) {
 func TestHandlerTeardownUnknownName(t *testing.T) {
 	reactor := &mockReactor{
 		peers: []plugin.PeerInfo{
-			{Name: "router-east", Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001},
+			{Name: "router-east", Address: netip.MustParseAddr("192.0.2.1"), PeerAS: rpc.RemoteASOf(65001)},
 		},
 	}
 	ctx := newTestContext(reactor)
@@ -618,8 +619,8 @@ func TestHandlerTeardownSelectorParity(t *testing.T) {
 
 	t.Run("asn selector resolves", func(t *testing.T) {
 		reactor := &mockReactor{peers: []plugin.PeerInfo{
-			{Name: "router-east", Address: east, PeerAS: 65001},
-			{Name: "router-west", Address: netip.MustParseAddr("192.0.2.2"), PeerAS: 65002},
+			{Name: "router-east", Address: east, PeerAS: rpc.RemoteASOf(65001)},
+			{Name: "router-west", Address: netip.MustParseAddr("192.0.2.2"), PeerAS: rpc.RemoteASOf(65002)},
 		}}
 		ctx := newTestContext(reactor)
 		ctx.Peer = "as65001"
@@ -633,8 +634,8 @@ func TestHandlerTeardownSelectorParity(t *testing.T) {
 
 	t.Run("exclusion selector refused", func(t *testing.T) {
 		reactor := &mockReactor{peers: []plugin.PeerInfo{
-			{Name: "router-east", Address: east, PeerAS: 65001},
-			{Name: "router-west", Address: netip.MustParseAddr("192.0.2.2"), PeerAS: 65002},
+			{Name: "router-east", Address: east, PeerAS: rpc.RemoteASOf(65001)},
+			{Name: "router-west", Address: netip.MustParseAddr("192.0.2.2"), PeerAS: rpc.RemoteASOf(65002)},
 		}}
 		ctx := newTestContext(reactor)
 		ctx.Peer = "!router-east"
@@ -657,7 +658,7 @@ func TestHandlerTeardownSelectorParity(t *testing.T) {
 // queue it never looked at is worse than one that errors.
 func TestHandlerFlushUnresolvedSelectorFailsClosed(t *testing.T) {
 	reactor := &mockReactor{peers: []plugin.PeerInfo{
-		{Name: "router-east", Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001},
+		{Name: "router-east", Address: netip.MustParseAddr("192.0.2.1"), PeerAS: rpc.RemoteASOf(65001)},
 	}}
 	ctx := newTestContext(reactor)
 	ctx.Peer = "router-easr" // typo
@@ -703,7 +704,7 @@ func TestHandlerFlushWildcardStillFlushesAll(t *testing.T) {
 // address -- the pool would find no worker and report a successful no-op.
 func TestHandlerFlushByName(t *testing.T) {
 	reactor := &mockReactor{peers: []plugin.PeerInfo{
-		{Name: "router-east", Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001},
+		{Name: "router-east", Address: netip.MustParseAddr("192.0.2.1"), PeerAS: rpc.RemoteASOf(65001)},
 	}}
 	ctx := newTestContext(reactor)
 	ctx.Peer = "router-east"
@@ -727,9 +728,9 @@ func TestHandlerFlushByName(t *testing.T) {
 // so the bridge answered the script before the forward pool drained.
 func TestHandlerFlushAddressList(t *testing.T) {
 	reactor := &mockReactor{peers: []plugin.PeerInfo{
-		{Name: "east", Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001},
-		{Name: "west", Address: netip.MustParseAddr("192.0.2.2"), PeerAS: 65002},
-		{Name: "north", Address: netip.MustParseAddr("192.0.2.3"), PeerAS: 65003},
+		{Name: "east", Address: netip.MustParseAddr("192.0.2.1"), PeerAS: rpc.RemoteASOf(65001)},
+		{Name: "west", Address: netip.MustParseAddr("192.0.2.2"), PeerAS: rpc.RemoteASOf(65002)},
+		{Name: "north", Address: netip.MustParseAddr("192.0.2.3"), PeerAS: rpc.RemoteASOf(65003)},
 	}}
 	ctx := newTestContext(reactor)
 	ctx.Peer = "192.0.2.1,192.0.2.2"

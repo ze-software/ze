@@ -9,6 +9,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // AppendConnected appends a `connected` event to buf: the peer's TCP
@@ -90,7 +91,7 @@ func appendPeerTextPrefix(buf []byte, peer *plugin.PeerInfo) []byte {
 	buf = append(buf, "peer "...)
 	buf = peer.Address.AppendTo(buf)
 	buf = append(buf, " remote as "...)
-	return strconv.AppendUint(buf, uint64(peer.PeerAS), 10)
+	return appendRemoteASText(buf, peer.PeerAS)
 }
 
 // appendCloseNotificationJSON writes the NOTIFICATION that closed a session
@@ -122,4 +123,15 @@ func appendCloseNotificationText(buf []byte, closing plugin.CloseNotification) [
 	buf = strconv.AppendUint(buf, uint64(closing.Code), 10)
 	buf = append(buf, ' ')
 	return strconv.AppendUint(buf, uint64(closing.Subcode), 10)
+}
+
+// appendRemoteASText writes the AS of a text line's `remote as <asn>`, or
+// `unknown` while a dynamic peer's AS is not yet negotiated. The word keeps
+// the line's token positions, so a positional parser still finds what follows.
+func appendRemoteASText(buf []byte, peerAS rpc.RemoteAS) []byte {
+	asn, known := peerAS.ASN()
+	if !known {
+		return append(buf, "unknown"...)
+	}
+	return strconv.AppendUint(buf, uint64(asn), 10)
 }

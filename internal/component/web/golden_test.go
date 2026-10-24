@@ -521,6 +521,9 @@ var webTemplGoldenSpec = golden.Spec{
 		{Name: "ifaceDetailMissing", Fixture: "component/iface_detail_missing", Variants: []golden.Variant{
 			{Data: ifaceDetailMissing()},
 		}},
+		{Name: "ifaceDetailUnread", Fixture: "component/iface_detail_unread", Variants: []golden.Variant{
+			{Data: ifaceDetailUnread("interface eth0: its live state could not be read")},
+		}},
 	},
 	"component_peer_detail.templ": {
 		{Name: "peerDetailStatus", Fixture: "component/peer_detail_status", Variants: []golden.Variant{

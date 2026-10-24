@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/vishvananda/netlink"
+	"golang.org/x/sys/unix"
 
 	"github.com/ze-software/ze/internal/component/iface"
 )
@@ -66,6 +67,7 @@ func (b *netlinkBackend) ListInterfaces() ([]iface.InterfaceInfo, error) {
 		}
 		info.Addresses = addrs
 		info.AddressesRead = true
+		info.DADReported = true // addrList surfaces IFA_F_TENTATIVE and IFA_F_DADFAILED
 		result = append(result, info)
 	}
 	return result, nil
@@ -82,6 +84,7 @@ func (b *netlinkBackend) GetInterface(name string) (*iface.InterfaceInfo, error)
 	}
 	info.Addresses = addrs
 	info.AddressesRead = true
+	info.DADReported = true // addrList surfaces IFA_F_TENTATIVE and IFA_F_DADFAILED
 	return &info, nil
 }
 
@@ -101,6 +104,12 @@ func (b *netlinkBackend) readLink(name string) (netlink.Link, iface.InterfaceInf
 		return nil, iface.InterfaceInfo{}, err
 	}
 	links, err := b.counters.snapshot(name)
+	if errors.Is(err, unix.ENODEV) {
+		// The kernel answered the named RTM_GETLINK with ENODEV: no such
+		// device, the one answer that is absence. Every other error is a
+		// read that did not answer.
+		return nil, iface.InterfaceInfo{}, fmt.Errorf("iface: get %q: %w (%w)", name, iface.ErrInterfaceNotFound, err)
+	}
 	if err != nil {
 		return nil, iface.InterfaceInfo{}, fmt.Errorf("iface: get %q: %w", name, err)
 	}

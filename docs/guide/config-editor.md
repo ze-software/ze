@@ -287,6 +287,14 @@ with `-f`, `--web` or `--insecure-web`, and the refusal names both flags.
 Without a config name the editor uses the artifact's `<instance>.conf` and
 otherwise asks which config to edit.
 <!-- source: internal/component/config/cli/cmd_edit.go -- cmdEditBackup -->
+
+When the editor takes the config name from the store, it reads the store's
+instance name. If that key exists but cannot be read (a CRC mismatch, an I/O
+error), `ze config edit` exits with an error that names `ze doctor` and
+`ze init`, rather than opening `ze.conf`. With no store at all it uses
+`ze.conf`.
+<!-- source: internal/component/config/cli/cmd_edit.go -- cmdEditWithStorage -->
+<!-- source: internal/core/resolve/resolve.go -- DefaultConfig -->
 <!-- source: internal/component/config/cli/backup_flag.go -- openBackup, publishInBackup -->
 <!-- source: internal/component/cli/editor.go -- NewOfflineSessionEditor, SetOfflinePromotion -->
 

@@ -12,6 +12,7 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/internal/core/family"
 	mrtfmt "github.com/ze-software/ze/internal/mrt"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // TestRFC8050AddPathRecordAddsNoFieldToTheBaseLayout proves that Ze's MRT
@@ -63,7 +64,7 @@ func TestRFC8050AddPathRecordAddsNoFieldToTheBaseLayout(t *testing.T) {
 	peer := &plugin.PeerInfo{
 		Address:          netip.MustParseAddr("192.0.2.1"),
 		LocalAddress:     netip.MustParseAddr("192.0.2.2"),
-		PeerAS:           65001,
+		PeerAS:           rpc.RemoteASOf(65001),
 		LocalAS:          65000,
 		MessageContextID: ctxID,
 	}

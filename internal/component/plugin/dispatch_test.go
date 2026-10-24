@@ -2282,3 +2282,37 @@ func benchmarkPeerRows(rows int) iter.Seq[rpc.RowRecord] {
 		}
 	}
 }
+
+// TestWriteAnswerRefusedPayloadStillAnswers proves a response whose payload
+// cannot become an answer is answered as that failure, rather than left
+// unanswered.
+//
+// VALIDATES: a payload plugin.RawJSON refuses (a JSON scalar, as a plugin's
+// Go string arrives) writes a terminator whose message names the refusal and
+// whose verdict is error, and WriteAnswer still returns the build error for
+// the transport's log.
+// PREVENTS: WriteAnswer returning before any line, so the transport sent
+// nothing for the id and the caller waited until its own timeout (the
+// rib-graph functional tests hung 20 s on `show bgp rib ... graph`).
+func TestWriteAnswerRefusedPayloadStillAnswers(t *testing.T) {
+	var wire bytes.Buffer
+	err := WriteAnswer(&wire, 9, NewResponse(StatusDone, RawJSON(`"AS64501\n"`)))
+	if err == nil {
+		t.Fatal("WriteAnswer returned no error for a payload RawJSON refuses")
+	}
+
+	lines := readAnswer(t, wire.Bytes())
+	if len(lines) == 0 {
+		t.Fatal("the refused payload wrote no line, so the caller is never answered")
+	}
+	terminator := lines[len(lines)-1].tail
+	if terminator.Kind != rpc.AnswerKindTerminator {
+		t.Fatalf("the answer ends with a %q line, so it reads as truncated", terminator.Kind)
+	}
+	if !strings.Contains(terminator.Message, "object or an array") {
+		t.Errorf("the terminator states %q, want the refusal's reason", terminator.Message)
+	}
+	if verdict := rpc.Verdict(&terminator); verdict != rpc.VerdictError {
+		t.Errorf("the answer derives %q, want %q", verdict, rpc.VerdictError)
+	}
+}

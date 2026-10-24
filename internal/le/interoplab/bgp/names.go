@@ -539,6 +539,7 @@ const (
 const (
 	scenarioAS112OriginASFRR                 = "as112-origin-as-frr"
 	scenarioAddPathFRR                       = "bgp-addpath-frr"
+	scenarioAddPathZeroIDFRR                 = "addpath-zero-id-frr"
 	scenarioECMPFRR                          = "bgp-ecmp-frr"
 	scenarioEVPNFRR                          = "bgp-evpn-frr"
 	scenarioEVPNGoBGP                        = "bgp-evpn-gobgp"
@@ -635,7 +636,7 @@ const (
 	rfc7705Prefix      = "10.77.5.0/24"
 	rfc7705GlobalAS    = "65001"
 	rfc7705LocalAS     = "65020"
-	rfc7705BIRDASPath  = "BGP.as_path: " + rfc7705LocalAS + "\n"
+	rfc7705BIRDASPath  = "bgp_path: " + rfc7705LocalAS + "\n"
 	rfc7705BIRDShowAll = "show route for " + rfc7705Prefix + " all"
 	// rfc7705GoBGPASNs is the AS_SEQUENCE GoBGP's JSON prints for the Local
 	// AS session with no option: 65030 outermost, the global 65001 behind.

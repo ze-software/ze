@@ -28,7 +28,7 @@ func FormatAnnounceCommand(route *Route) string {
 			b.Str(" nhop set ").Str(hex.EncodeToString(nextHop.AsSlice()))
 		}
 		b.Str(" nlri ").Str(route.Family.String())
-		if route.AddPath || route.PathID != 0 {
+		if route.AddPath {
 			b.Str(" addpath")
 		}
 		b.Str(" add ").Str(RouteNLRIHex(route))
@@ -49,7 +49,7 @@ func RouteNLRIHex(route *Route) string {
 	}
 	var raw [21]byte
 	offset := 0
-	if route.AddPath || route.PathID != 0 {
+	if route.AddPath {
 		binary.BigEndian.PutUint32(raw[:4], route.PathID)
 		offset = 4
 	}
@@ -154,7 +154,7 @@ func FormatWithdrawCommand(route *Route) string {
 	if route.RawNLRI != "" {
 		var b textbuf.Buffer
 		b.Str("update hex nlri ").Str(route.Family.String())
-		if route.AddPath || route.PathID != 0 {
+		if route.AddPath {
 			b.Str(" addpath")
 		}
 		return b.Str(" del ").Str(route.RawNLRI).String()
@@ -182,7 +182,7 @@ func writeNLRIModifiers(sb *textbuf.Buffer, route *Route) {
 	for _, label := range route.Labels {
 		sb.Str(" label ").Uint32(label)
 	}
-	if route.AddPath || route.PathID != 0 {
+	if route.AddPath {
 		sb.Str(" path-information ").Uint32(route.PathID)
 	}
 }

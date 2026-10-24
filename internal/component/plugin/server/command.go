@@ -435,7 +435,9 @@ func selectorMatchesPeer(sel *selector.Selector, p *plugin.PeerInfo) bool {
 	case selector.KindName:
 		match = p.Name == sel.NameValue()
 	case selector.KindASN:
-		match = p.PeerAS == sel.ASNValue()
+		// A peer whose AS is not yet negotiated matches no AS selector.
+		asn, known := p.PeerAS.ASN()
+		match = known && asn == sel.ASNValue()
 	default:
 		return sel.Matches(p.Address)
 	}
@@ -967,8 +969,8 @@ func (d *Dispatcher) BeginAccounting(ctx *CommandContext, input string) func() {
 	return d.beginAccounting(ctx, input, tokens)
 }
 
-// BeginAccountingArgs preserves typed arguments without parsing rendered text.
-func (d *Dispatcher) BeginAccountingArgs(ctx *CommandContext, command string, args []string, peer string) func() {
+// beginAccountingArgs preserves typed arguments without parsing rendered text.
+func (d *Dispatcher) beginAccountingArgs(ctx *CommandContext, command string, args []string, peer string) func() {
 	if d.accountant == nil {
 		return func() {}
 	}

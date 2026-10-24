@@ -1,6 +1,7 @@
 package hub
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/command"
@@ -347,7 +348,11 @@ module ze-fixture-api {
 		t.Fatalf("resolve the fixture modules: %v", err)
 	}
 
-	params := buildParamMeta(schema)["show sockets"]
+	byPath, err := buildParamMeta(schema)
+	if err != nil {
+		t.Fatalf("buildParamMeta: %v", err)
+	}
+	params := byPath["show sockets"]
 	if len(params) != 2 {
 		t.Fatalf("params = %+v, want the two input leaves", params)
 	}
@@ -395,5 +400,46 @@ func TestBuildCommandMetaCarriesTheAnchorOfARegisteredArgument(t *testing.T) {
 	}
 	if got[0].Params[1].Anchor != "" {
 		t.Errorf("prefix anchor = %q, want none", got[0].Params[1].Anchor)
+	}
+}
+
+// TestBuildParamMetaRefusesAnUnpublishableSchema proves a schema whose ze:rpc
+// pointer cannot be published answers an error naming it, never a nil map
+// that publishes every command with no input parameters. Method: one command
+// module pointing at an rpc no module declares, resolved and handed over.
+func TestBuildParamMetaRefusesAnUnpublishableSchema(t *testing.T) {
+	loader := yangloader.NewLoader()
+	if err := loader.LoadEmbedded(); err != nil {
+		t.Fatalf("load the embedded modules: %v", err)
+	}
+	const cmdModule = `
+module ze-fixture-cmd {
+  namespace "urn:ze:fixture:cmd";
+  prefix zefix;
+  import ze-extensions { prefix ze; }
+  container show {
+    config false;
+    container gone {
+      config false;
+      ze:command "ze-fixture:gone";
+      ze:rpc "ze-fixture-api:gone";
+    }
+  }
+}
+`
+	if err := loader.AddModuleFromText("ze-fixture-cmd", cmdModule); err != nil {
+		t.Fatalf("load the fixture command module: %v", err)
+	}
+	if err := loader.AddModuleFromText("ze-fixture-api", "module ze-fixture-api { namespace \"urn:ze:fixture:api\"; prefix zefixapi; }"); err != nil {
+		t.Fatalf("load the fixture API module: %v", err)
+	}
+	schema, err := loader.Resolve()
+	if err != nil {
+		t.Fatalf("resolve the fixture modules: %v", err)
+	}
+
+	byPath, err := buildParamMeta(schema)
+	if !errors.Is(err, yangloader.ErrRPCPointer) {
+		t.Fatalf("buildParamMeta = %v, %v; want an ErrRPCPointer refusal", byPath, err)
 	}
 }

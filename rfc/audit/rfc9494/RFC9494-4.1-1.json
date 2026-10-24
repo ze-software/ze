@@ -2,8 +2,8 @@
   "note": "Forbidden: honouring code 71 received without code 64. TestHandleStructuredOpenLLGRNoGR sends an OPEN with only code 71 and fails if peerLLGRCaps holds the peer (assert.False llgrOK), which is the map onSessionDown reads. Negative: TestHandleStructuredOpenGRPlusLLGR keeps both capabilities when code 64 is present, with families, F bits and LLST 7200/3600 asserted.",
   "requirement_sha": "c9df9da8f9bbf93f",
   "tests": {
-    "internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go::TestHandleStructuredOpenGRPlusLLGR": "e921a209356a7dad",
-    "internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go::TestHandleStructuredOpenLLGRNoGR": "e921a209356a7dad"
+    "internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go::TestHandleStructuredOpenGRPlusLLGR": "22ad123d24cafff0",
+    "internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go::TestHandleStructuredOpenLLGRNoGR": "22ad123d24cafff0"
   },
   "units": {
     "internal/component/bgp/plugins/gr/rfc9494_gr_event_test.go::TestHandleStructuredOpenGRPlusLLGR": "9d7f7987bdd005ed",

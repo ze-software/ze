@@ -122,6 +122,8 @@ blob; the URL form is storage-2. Keep the bootstrap admin as a recovery user unt
 have tested the configured users below.
 <!-- source: internal/plugins/init/main.go -- Run, runInit -->
 
+The initial config is stored under the name the instance name gives it. If that name cannot be read back, `ze init` fails with `name initial config:` rather than writing `ze.conf`.
+
 ## 5. Create the first stored config
 
 Keep the active configuration inside `database/` for bare `ze start`. Do not

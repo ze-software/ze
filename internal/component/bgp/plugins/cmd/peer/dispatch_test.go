@@ -10,6 +10,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // newDispatchContext creates a CommandContext with all init()-registered RPCs,
@@ -26,7 +27,7 @@ func newDispatchContext(reactor plugin.ReactorLifecycle) *pluginserver.CommandCo
 func TestDispatchPeerListRequiresShowVerb(t *testing.T) {
 	reactor := &mockReactor{
 		peers: []plugin.PeerInfo{
-			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001, State: plugin.PeerStateEstablished, Uptime: time.Minute},
+			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: rpc.RemoteASOf(65001), State: plugin.PeerStateEstablished, Uptime: time.Minute},
 		},
 	}
 	ctx := newDispatchContext(reactor)
@@ -39,7 +40,7 @@ func TestDispatchPeerListRequiresShowVerb(t *testing.T) {
 func TestDispatchBGPPeerDetail(t *testing.T) {
 	reactor := &mockReactor{
 		peers: []plugin.PeerInfo{
-			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001, State: plugin.PeerStateEstablished},
+			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: rpc.RemoteASOf(65001), State: plugin.PeerStateEstablished},
 		},
 	}
 	ctx := newDispatchContext(reactor)
@@ -56,7 +57,7 @@ func TestDispatchBGPPeerDetail(t *testing.T) {
 func TestDispatchShowSummary(t *testing.T) {
 	reactor := &mockReactor{
 		peers: []plugin.PeerInfo{
-			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001, State: plugin.PeerStateEstablished},
+			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: rpc.RemoteASOf(65001), State: plugin.PeerStateEstablished},
 		},
 	}
 	ctx := newDispatchContext(reactor)
@@ -75,7 +76,7 @@ func TestDispatchShowSummary(t *testing.T) {
 func TestDispatchShowBGPPeerList(t *testing.T) {
 	reactor := &mockReactor{
 		peers: []plugin.PeerInfo{
-			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001, State: plugin.PeerStateEstablished},
+			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: rpc.RemoteASOf(65001), State: plugin.PeerStateEstablished},
 		},
 	}
 	ctx := newDispatchContext(reactor)
@@ -95,8 +96,8 @@ func TestDispatchShowBGPPeerList(t *testing.T) {
 func TestDispatchShowBGPPeerDetail(t *testing.T) {
 	reactor := &mockReactor{
 		peers: []plugin.PeerInfo{
-			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001, State: plugin.PeerStateEstablished},
-			{Address: netip.MustParseAddr("192.0.2.2"), PeerAS: 65002, State: plugin.PeerStateStopped},
+			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: rpc.RemoteASOf(65001), State: plugin.PeerStateEstablished},
+			{Address: netip.MustParseAddr("192.0.2.2"), PeerAS: rpc.RemoteASOf(65002), State: plugin.PeerStateStopped},
 		},
 	}
 	ctx := newDispatchContext(reactor)
@@ -117,7 +118,7 @@ func TestDispatchShowBGPPeerDetail(t *testing.T) {
 func TestDispatchShowBGPPeerCapabilities(t *testing.T) {
 	reactor := &mockReactor{
 		peers: []plugin.PeerInfo{
-			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001, State: plugin.PeerStateEstablished},
+			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: rpc.RemoteASOf(65001), State: plugin.PeerStateEstablished},
 		},
 		peerCaps: &plugin.PeerCapabilitiesInfo{Families: []string{"ipv4/unicast"}, ASN4: true},
 	}
@@ -134,7 +135,7 @@ func TestDispatchShowBGPPeerCapabilities(t *testing.T) {
 func TestDispatchShowBGPPeerStatistics(t *testing.T) {
 	reactor := &mockReactor{
 		peers: []plugin.PeerInfo{
-			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001, State: plugin.PeerStateEstablished, Uptime: time.Minute},
+			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: rpc.RemoteASOf(65001), State: plugin.PeerStateEstablished, Uptime: time.Minute},
 		},
 	}
 	ctx := newDispatchContext(reactor)
@@ -150,7 +151,7 @@ func TestDispatchShowBGPPeerStatistics(t *testing.T) {
 func TestDispatchShowBGPPeerHistory(t *testing.T) {
 	reactor := &mockReactor{
 		peers: []plugin.PeerInfo{
-			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001, State: plugin.PeerStateEstablished},
+			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: rpc.RemoteASOf(65001), State: plugin.PeerStateEstablished},
 		},
 		history: map[string][]plugin.FSMTransitionRecord{
 			"192.0.2.1": {{From: "idle", To: "established", Reason: "test"}},

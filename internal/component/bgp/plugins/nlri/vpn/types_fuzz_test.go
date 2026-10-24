@@ -15,7 +15,7 @@ func skipOversizedFuzzVPN(t *testing.T, data []byte) {
 
 // FuzzParseVPN tests VPN NLRI binary parsing robustness.
 //
-// VALIDATES: ParseVPN handles arbitrary bytes without crashing.
+// VALIDATES: parseVPNAnnounce handles arbitrary bytes without crashing.
 // PREVENTS: Panic on truncated data, malformed labels, bad RD, prefix overflow.
 // SECURITY: VPN bytes come from untrusted BGP UPDATE NLRI.
 func FuzzParseVPN(f *testing.F) {
@@ -38,7 +38,7 @@ func FuzzParseVPN(f *testing.F) {
 
 	f.Fuzz(func(t *testing.T, data []byte) {
 		skipOversizedFuzzVPN(t, data)
-		vpn, _, err := ParseVPN(AFIIPv4, SAFIVPN, data, false)
+		vpn, _, err := parseVPNAnnounce(AFIIPv4, SAFIVPN, data, false)
 		if err != nil {
 			return
 		}
@@ -49,13 +49,13 @@ func FuzzParseVPN(f *testing.F) {
 		buf := make([]byte, vpn.Len()+10)
 		_ = vpn.WriteTo(buf, 0)
 		_ = vpn.PathID()
-		_ = vpn.HasPathID()
+		_ = vpn.HasAddPath()
 	})
 }
 
 // FuzzParseVPNAddPath tests VPN NLRI parsing with ADD-PATH enabled.
 //
-// VALIDATES: ParseVPN with addpath=true handles arbitrary bytes without crashing.
+// VALIDATES: parseVPNAnnounce with addpath=true handles arbitrary bytes without crashing.
 // PREVENTS: Panic on truncated path-ID, interaction between path-ID and label/RD parsing.
 // SECURITY: ADD-PATH bytes come from untrusted BGP UPDATE NLRI.
 func FuzzParseVPNAddPath(f *testing.F) {
@@ -73,7 +73,7 @@ func FuzzParseVPNAddPath(f *testing.F) {
 
 	f.Fuzz(func(t *testing.T, data []byte) {
 		skipOversizedFuzzVPN(t, data)
-		vpn, _, err := ParseVPN(AFIIPv4, SAFIVPN, data, true)
+		vpn, _, err := parseVPNAnnounce(AFIIPv4, SAFIVPN, data, true)
 		if err != nil {
 			return
 		}

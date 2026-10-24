@@ -339,7 +339,7 @@ func TreeEqual(a, b *Tree) bool {
 		}
 	}
 
-	// Compare multiValues (leaf-list / ValueOrArray storage)
+	// Compare multiValues (leaf-list / valueOrArray storage)
 	if len(a.multiValues) != len(b.multiValues) {
 		return false
 	}
@@ -416,7 +416,7 @@ func TestTreeEqual(t *testing.T) {
 // PREVENTS: Broken array roundtrip.
 func TestSerializeArray(t *testing.T) {
 	schema := NewSchema()
-	schema.Define("items", BracketLeafList(TypeString))
+	schema.Define("items", bracketLeafList(TypeString))
 
 	input := `items [ foo bar baz ]`
 

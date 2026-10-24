@@ -181,16 +181,16 @@ func TestShowCommandPayloadsAreStructured(t *testing.T) {
 //	payload shape it exists to catch, and that the three operators really do
 //	give a reader nothing when they meet one.
 func TestPreRenderedTextPayloadIsRefused(t *testing.T) {
-	// A quoted string is what finished text looks like once it is JSON. It is
-	// the shape RawJSON's own json.Valid guard cannot see, because the bytes
-	// are a valid JSON value. Only the top-level shape says no.
+	// A quoted string is what finished text looks like once it is JSON. The
+	// bytes are a valid JSON value, so only the top-level shape says no, and
+	// RawJSON itself now refuses it before any reader meets it.
 	const text = `"bgp keepalive, message direction received"`
 
-	payload, err := plugin.ResponseJSON(
+	_, err := plugin.ResponseJSON(
 		plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(text)), nil)
-	require.NoError(t, err, "a JSON string passes RawJSON's validity guard")
-	require.Equal(t, text, payload)
+	require.ErrorContains(t, err, "object or an array", "RawJSON must refuse a JSON scalar")
 
+	payload := text
 	_, err = decodeStructured(payload)
 	require.Error(t, err, "decodeStructured must refuse a scalar payload")
 

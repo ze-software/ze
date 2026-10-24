@@ -71,7 +71,7 @@ func feedReceivedFromGroup(r *RIBManager, peer netip.Addr, group string, ctxID b
 		EventType:   rpc.EventKindUpdate,
 		PeerAddress: peer.String(),
 		PeerGroup:   group,
-		PeerAS:      65001,
+		PeerAS:      rpc.RemoteASOf(65001),
 		LocalAS:     65000,
 		RawMessage: &bgptypes.RawMessage{
 			Type:       msgtype.TypeUPDATE,

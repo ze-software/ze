@@ -17,11 +17,11 @@ func testSchema() *Schema {
 	schema.Define("router-id", Leaf(TypeIPv4))
 	schema.Define("local-as", Leaf(TypeUint32))
 
-	schema.Define("name-server", ValueOrArray(TypeIP))
+	schema.Define("name-server", valueOrArray(TypeIP))
 
 	// as-path is an ordered SEQUENCE (ze:ordered): duplicate ASNs are meaningful
 	// prepends and must NOT be deduplicated the way a set leaf-list is.
-	orderedASPath := ValueOrArray(TypeString)
+	orderedASPath := valueOrArray(TypeString)
 	orderedASPath.Ordered = true
 	schema.Define("as-path", orderedASPath)
 
@@ -152,7 +152,7 @@ func TestParserLeafListRepeatedStatements(t *testing.T) {
 // prepends (RFC 4271 Section 5.1.2), so collapsing `as-path [ 30740 30740 ... ]`
 // to a single 30740 silently drops the prepend and changes what ze advertises.
 //
-// VALIDATES: an Ordered ValueOrArray node preserves order and duplicates in both the
+// VALIDATES: an Ordered valueOrArray node preserves order and duplicates in both the
 // bracket form and repeated-statement form, while a non-ordered set still dedups.
 //
 // PREVENTS: the l2vpn AS_PATH regression (encode 31 / exabgp conf-l2vpn) where
@@ -612,7 +612,7 @@ neighbor 192.0.2.1 {
 // PREVENTS: Broken API process lists.
 func TestParserArray(t *testing.T) {
 	schema := NewSchema()
-	schema.Define("items", BracketLeafList(TypeString))
+	schema.Define("items", bracketLeafList(TypeString))
 
 	input := `items [ foo bar baz ]`
 
@@ -641,7 +641,7 @@ func TestParserArray(t *testing.T) {
 // SetSlice + Set; this one just forgot the SetSlice.
 func TestParserArrayStoresSlice(t *testing.T) {
 	schema := NewSchema()
-	schema.Define("items", BracketLeafList(TypeString))
+	schema.Define("items", bracketLeafList(TypeString))
 
 	p := NewParser(schema)
 	tree, err := p.Parse(`items [ foo bar baz ]`)
@@ -662,7 +662,7 @@ func TestParserArrayStoresSlice(t *testing.T) {
 // PREVENTS: Edge case failures.
 func TestParserArraySingle(t *testing.T) {
 	schema := NewSchema()
-	schema.Define("items", BracketLeafList(TypeString))
+	schema.Define("items", bracketLeafList(TypeString))
 
 	input := `items [ single ]`
 

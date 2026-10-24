@@ -29,7 +29,7 @@ func TestPolicyFinalWireStateNativeEvents(t *testing.T) {
 		t.Fatal(err)
 	}
 	peer := plugin.PeerInfo{Address: netip.MustParseAddr("127.0.0.2"),
-		LocalAddress: netip.MustParseAddr("127.0.0.5"), LocalAS: 65000, PeerAS: 65000}
+		LocalAddress: netip.MustParseAddr("127.0.0.5"), LocalAS: 65000, PeerAS: rpc.RemoteASOf(65000)}
 	content := bgptypes.ContentConfig{Encoding: plugin.EncodingJSON, Format: plugin.FormatFull}
 	state := &policyFinalWireState{routes: make(map[string]bool)}
 	for _, tc := range []struct {

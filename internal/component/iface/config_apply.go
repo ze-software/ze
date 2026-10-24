@@ -905,7 +905,10 @@ func applyConfigPass(cfg, previous *ifaceConfig, b Backend) (errs []error, defer
 		if e.Disable {
 			continue
 		}
-		existed := interfaceExists(b, e.Name)
+		existed, existsErr := interfaceExists(b, e.Name)
+		if existsErr != nil {
+			return record(e.Name+" read", existsErr)
+		}
 		created := false
 		if err := applyBackendStep(journal, func() error {
 			if err := b.CreateDummy(e.Name); err != nil {
@@ -963,7 +966,10 @@ func applyConfigPass(cfg, previous *ifaceConfig, b Backend) (errs []error, defer
 		// Existence is read before the create: a failed create that left
 		// a device behind must still fail the apply, and only a device
 		// this step made is deleted by the undo.
-		existed := interfaceExists(b, e.Name)
+		existed, existsErr := interfaceExists(b, e.Name)
+		if existsErr != nil {
+			return record(e.Name+" read", existsErr)
+		}
 		created := false
 		if err := applyBackendStep(journal, func() error {
 			if err := b.CreateVeth(e.Name, peer); err != nil {
@@ -1003,7 +1009,11 @@ func applyConfigPass(cfg, previous *ifaceConfig, b Backend) (errs []error, defer
 			deleted := false
 			if err := applyBackendStep(journal, func() error {
 				if err := b.DeleteInterface(e.Name); err != nil {
-					if !interfaceExists(b, e.Name) {
+					exists, existsErr := interfaceExists(b, e.Name)
+					if existsErr != nil {
+						return errors.Join(err, existsErr)
+					}
+					if !exists {
 						log.Debug("iface config: tunnel already absent before recreate",
 							"name", e.Name, "err", err)
 						return nil
@@ -1090,7 +1100,10 @@ func applyConfigPass(cfg, previous *ifaceConfig, b Backend) (errs []error, defer
 		}
 		if !hadPrev {
 			// New wireguard interface: create the netdev first.
-			existed := interfaceExists(b, e.Name)
+			existed, existsErr := interfaceExists(b, e.Name)
+			if existsErr != nil {
+				return record(e.Name+" read", existsErr)
+			}
 			created := false
 			if err := applyBackendStep(journal, func() error {
 				if err := b.CreateWireguardDevice(e.Name); err != nil {
@@ -1150,7 +1163,11 @@ func applyConfigPass(cfg, previous *ifaceConfig, b Backend) (errs []error, defer
 			deleted := false
 			if err := applyBackendStep(journal, func() error {
 				if err := b.DeleteInterface(e.Name); err != nil {
-					if !interfaceExists(b, e.Name) {
+					exists, existsErr := interfaceExists(b, e.Name)
+					if existsErr != nil {
+						return errors.Join(err, existsErr)
+					}
+					if !exists {
 						return nil
 					}
 					return err
@@ -1169,7 +1186,10 @@ func applyConfigPass(cfg, previous *ifaceConfig, b Backend) (errs []error, defer
 		// Existence is read before the create: a failed create that left
 		// a device behind must still fail the apply, and only a device
 		// this step made is deleted by the undo.
-		existed := interfaceExists(b, e.Name)
+		existed, existsErr := interfaceExists(b, e.Name)
+		if existsErr != nil {
+			return record(e.Name+" read", existsErr)
+		}
 		created := false
 		if err := applyBackendStep(journal, func() error {
 			if err := b.CreateXFRM(e.Spec); err != nil {
@@ -1196,7 +1216,10 @@ func applyConfigPass(cfg, previous *ifaceConfig, b Backend) (errs []error, defer
 		// Existence is read before the create: a failed create that left
 		// a device behind must still fail the apply, and only a device
 		// this step made is deleted by the undo.
-		existed := interfaceExists(b, e.Name)
+		existed, existsErr := interfaceExists(b, e.Name)
+		if existsErr != nil {
+			return record(e.Name+" read", existsErr)
+		}
 		created := false
 		if err := applyBackendStep(journal, func() error {
 			if err := b.CreateBridge(e.Name); err != nil {
@@ -1420,7 +1443,10 @@ func applyConfigPass(cfg, previous *ifaceConfig, b Backend) (errs []error, defer
 				// take that leftover for a VLAN an earlier apply made and
 				// swallow the error. A VLAN that existed is kept and never
 				// deleted by the undo; only one this step made is.
-				existed := interfaceExists(b, vlanName)
+				existed, existsErr := interfaceExists(b, vlanName)
+				if existsErr != nil {
+					return record(vlanName+" read", existsErr)
+				}
 				created := false
 				if err := applyBackendStep(journal, func() error {
 					if err := b.CreateVLAN(VLANSpec{
@@ -2029,9 +2055,20 @@ func heldByLinkType(held *InterfaceInfo, wantType string, known bool) bool {
 	return held.Type == wantType
 }
 
-func interfaceExists(b Backend, name string) bool {
+// interfaceExists answers whether the backend holds a device of that name.
+// Only ErrInterfaceNotFound is absence. Any other GetLink failure is a read
+// that did not answer, and it is returned: reading it as absent made the
+// apply create a present device again and the undo delete one it never made.
+func interfaceExists(b Backend, name string) (bool, error) {
 	_, err := b.GetLink(name)
-	return err == nil
+	if err == nil {
+		return true, nil
+	}
+	if errors.Is(err, ErrInterfaceNotFound) {
+		return false, nil
+	}
+	return false, fmt.Errorf("cannot read interface %q, so whether it exists is unknown "+
+		"(check it with `ze show interface %s`): %w", name, name, err)
 }
 
 // recreateManagedInterface rebuilds the device the prune step deleted, as that
