@@ -7,7 +7,7 @@
     "claim-sha": "26357dde6e5e9fcf",
     "route": "revert",
     "producer": "internal/core/bgp/nlri/flowspec/types_vpn.go::ParseFlowSpecVPN",
-    "producer-sha": "2473fdbeb312fb88",
+    "producer-sha": "ce9b7070a09b55c9",
     "break": "body of ParseFlowSpecVPN replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   },
   {
@@ -18,7 +18,7 @@
     "claim-sha": "ab7f6fef3545f368",
     "route": "revert",
     "producer": "internal/core/bgp/nlri/flowspec/types_vpn.go::ParseFlowSpecVPN",
-    "producer-sha": "2473fdbeb312fb88",
+    "producer-sha": "ce9b7070a09b55c9",
     "break": "body of ParseFlowSpecVPN replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   }
 ]

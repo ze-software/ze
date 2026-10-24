@@ -95,7 +95,7 @@
     "claim-sha": "9ec7907bd793a063",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange",
-    "producer-sha": "88acffb0c877e485",
+    "producer-sha": "3f5dec7a9b9128da",
     "break": "body of checkRouteBestChange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   },
   {
@@ -106,7 +106,7 @@
     "claim-sha": "86170910a072ad03",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange",
-    "producer-sha": "88acffb0c877e485",
+    "producer-sha": "3f5dec7a9b9128da",
     "break": "body of checkRouteBestChange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   },
   {

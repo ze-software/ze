@@ -7,7 +7,7 @@
     "claim-sha": "223319b2754811dc",
     "route": "revert",
     "producer": "internal/component/bgp/message/update_build_plugin.go::BuildPlugin",
-    "producer-sha": "143085ab5af451bf",
+    "producer-sha": "20783220d773535c",
     "break": "body of BuildPlugin replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   },
   {
@@ -18,7 +18,7 @@
     "claim-sha": "e9a80b6fc312b850",
     "route": "revert",
     "producer": "internal/component/bgp/message/update_build_plugin.go::BuildPlugin",
-    "producer-sha": "143085ab5af451bf",
+    "producer-sha": "20783220d773535c",
     "break": "body of BuildPlugin replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   },
   {
@@ -29,7 +29,7 @@
     "claim-sha": "1c2d291ef75ae072",
     "route": "revert",
     "producer": "internal/component/bgp/message/update_build_plugin.go::BuildPlugin",
-    "producer-sha": "143085ab5af451bf",
+    "producer-sha": "20783220d773535c",
     "break": "body of BuildPlugin replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   },
   {
@@ -40,7 +40,7 @@
     "claim-sha": "c4ea4642cd1f9602",
     "route": "revert",
     "producer": "internal/component/bgp/message/update_build_plugin.go::BuildPlugin",
-    "producer-sha": "143085ab5af451bf",
+    "producer-sha": "20783220d773535c",
     "break": "body of BuildPlugin replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   },
   {

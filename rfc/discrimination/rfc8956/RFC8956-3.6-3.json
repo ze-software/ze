@@ -7,7 +7,7 @@
     "claim-sha": "cca4e77b8af9dc34",
     "route": "revert",
     "producer": "internal/core/bgp/nlri/flowspec/types_numeric.go::parseNumericComponent",
-    "producer-sha": "955992031c86f3d3",
+    "producer-sha": "2e0eae71b0400856",
     "break": "body of parseNumericComponent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   },
   {
@@ -18,7 +18,7 @@
     "claim-sha": "2a213f746ae0f825",
     "route": "revert",
     "producer": "internal/core/bgp/nlri/flowspec/types_numeric.go::parseNumericComponent",
-    "producer-sha": "955992031c86f3d3",
+    "producer-sha": "2e0eae71b0400856",
     "break": "body of parseNumericComponent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   }
 ]

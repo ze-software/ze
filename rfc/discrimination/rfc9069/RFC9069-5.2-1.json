@@ -25,7 +25,7 @@
     "rid": "RFC9069-5.2-1",
     "polarity": "positive",
     "unit": "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestLocRIBIPv4RouteWithIPv6NextHopIsBackedByExtendedNextHop",
-    "unit-sha": "5b4de35e41af74f5",
+    "unit-sha": "a768d6e52c0233b3",
     "claim-sha": "3d2119616254c256",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/bmp/bmp_locrib.go::fabricateLocRIBOpen",
