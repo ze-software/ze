@@ -344,6 +344,13 @@ the config but eBPF/TCX is unavailable on the running kernel, so the operator
 learns that accounting is configured but inert rather than silently producing no
 metrics.</p>
 <!-- source: internal/plugins/trafficusage/doctor.go -- checkTrafficUsageBPF, doctor-traffic-usage-ebpf -->
+<p>The check probes TCX only when <code>traffic-usage</code> is enabled. When the probe
+cannot measure readiness (typically a <code>ze doctor</code> run without CAP_BPF and
+CAP_NET_ADMIN), it does not guess: it warns under
+<code>doctor-traffic-usage-ebpf-unknown</code> with the reason and tells you to run
+<code>sudo ze doctor</code>. <code>doctor-traffic-usage-ebpf</code> is kept for a kernel that lacks
+TCX, and names the Linux 6.6 and <code>CONFIG_NET_XGRESS</code> requirement.</p>
+<!-- source: internal/plugins/trafficusage/doctor.go -- trafficUsageDiagnostic, probeTCX -->
 <h2 id="limitations">Limitations</h2>
 <ul>
 <li><strong>IPv4 only.</strong> Per-port and per-IP accounting cover IPv4 traffic; IPv6 is not
@@ -404,7 +411,7 @@ churn only the current top talkers are retained.</li>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

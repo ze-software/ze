@@ -425,6 +425,10 @@ on the receiver's wire.</p>
 <!-- source: internal/test/fixture/plugin_fixture_llgr_lifecycle.go -- llgrLifecycle -->
 <!-- source: internal/component/bgp/plugins/gr/gr.go -- wireStateCallbacks -->
 <!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- outboundResend -->
+<p>A peer selector given to bgp-rib by name matches the configured name the
+session's state events carried (<code>selectsPeer</code>), since bgp-rib keys sessions by
+address. A session whose events named it nothing is selected by no name.</p>
+<!-- source: internal/component/bgp/plugins/rib/rib_peer_name.go -- selectsPeer -->
 <p>The received-route EOR scenario uses a different release prefix for each phase.
 The initial readiness and DOWN-release markers replay when the source
 reconnects; neither releases its EOR. Only after the observer sees the refreshed
@@ -695,7 +699,7 @@ A family omitted from GR with zero or unexchanged LLST is not retained.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

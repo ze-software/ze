@@ -30,7 +30,7 @@ Per-peer RFC 7999 policy turns an authorized BLACKHOLE community inside an autho
 
 ### Feature-gated builds (Jul 2026)
 
-*platform*
+*deploy & configure*
 
 Thirty-six subsystems compile out behind build tags, so a deployment ships only the code it runs. All are on by default, and the config loader fails closed on a config carrying blocks the running build has no code for.
 
@@ -46,7 +46,7 @@ First-hop gateway redundancy with RFC 9568 VRRPv3 (IPv4 and IPv6) and RFC 3768 V
 
 ### RFC compliance gate (Jul 2026)
 
-*platform*
+*deploy & configure*
 
 Every RFC Ze implements is enrolled requirement by requirement, and a requirement counts as met only when a test names it and fails when the behaviour is taken out. Gaps are published on the RFC status page instead of being inferred from test coverage.
 
@@ -96,7 +96,7 @@ A native IKEv2 VPN stack built from the wire format up and interop-tested agains
 
 ### Appliance fleet management (May 2026)
 
-*platform*
+*deploy & configure*
 
 `ze appliance` manages images end to end: encrypted secrets, TLS and SSH provisioning, day-2 operations, remote push, and export/import for disaster recovery.
 
@@ -112,7 +112,7 @@ A full L2TPv2 stack for broadband access: tunnel and session FSMs, a reliable de
 
 ### VPP dataplane (Apr 2026)
 
-*platform*
+*deploy & configure*
 
 A VPP dataplane backend for high-performance forwarding: connection management, DPDK binding, and FIB programming via GoVPP.
 
@@ -136,7 +136,7 @@ A complete BFD implementation (RFC 5880/5881/5883): single- and multi-hop, authe
 
 ### gokrazy appliance build (Apr 2026)
 
-*platform*
+*deploy & configure*
 
 The first gokrazy VM appliance build for x86_64 starts the appliance path: a self-contained image as well as daemon mode.
 
@@ -146,7 +146,7 @@ The first gokrazy VM appliance build for x86_64 starts the appliance path: a sel
 
 ### Interfaces and kernel FIB (Mar 2026)
 
-*platform*
+*deploy & configure*
 
 A JunOS-style interface management subsystem (netlink monitoring, DHCP, SLAAC) and a FIB pipeline that installs best-path routes into the kernel via netlink.
 
@@ -202,7 +202,7 @@ A forward-all route server (RFC 7947) for IXPs: targeted per-peer replay on reco
 
 ### Hub architecture and Plugin SDK (Jan 2026)
 
-*platform*
+*deploy & configure*
 
 Ze splits into a hub orchestrator that forks BGP as a child process, gains live config reload over SIGHUP, and ships a documented SDK for writing plugins outside the core tree.
 

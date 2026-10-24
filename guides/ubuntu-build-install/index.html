@@ -147,6 +147,7 @@ retains a <code>.replaced-&lt;stamp&gt;</code> backup. <code>ze init --from &lt;
 blob; the URL form is storage-2. Keep the bootstrap admin as a recovery user until you
 have tested the configured users below.</p>
 <!-- source: internal/plugins/init/main.go -- Run, runInit -->
+<p>The initial config is stored under the name the instance name gives it. If that name cannot be read back, <code>ze init</code> fails with <code>name initial config:</code> rather than writing <code>ze.conf</code>.</p>
 <h2 id="5-create-the-first-stored-config">5. Create the first stored config</h2>
 <p>Keep the active configuration inside <code>database/</code> for bare <code>ze start</code>. Do not
 create <code>/etc/ze/edge-01.conf</code> as a second source of truth in this workflow.
@@ -337,7 +338,7 @@ sudo /usr/local/bin/ze uninstall local
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

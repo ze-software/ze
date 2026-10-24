@@ -160,6 +160,11 @@ admission is released so synchronous subscribers can read peer state.
 <!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- checkRouteBestChange, purgeBestPrevForPeer -->
 <!-- source: internal/component/bgp/plugins/rib/rib.go -- handleStructuredState, handleState -->
 
+Both state handlers also record the session's configured name
+(`recordPeerName`), and it outlives the session the way `peerUp` does, so a
+name selector still reaches a down session's retained and sent routes.
+<!-- source: internal/component/bgp/plugins/rib/rib_peer_name.go -- recordPeerName, selectsPeer -->
+
 The peer-map lock does not protect route handles against UPDATE mutation.
 `AppendPrefixPathsRetained` and `AppendKeyPathsRetained` retain each storage
 revision under `PeerRIB.mu`; gathering transfers entry and label ownership to
@@ -174,6 +179,16 @@ A same-best decision acquires no new peer reference.
 <!-- source: internal/component/bgp/plugins/rib/storage/peerrib.go -- AppendPrefixPathsRetained, AppendKeyPathsRetained -->
 <!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- gatherPrefixCandidatesLocked, gatherKeyCandidatesLocked, releaseCandidates -->
 <!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- checkRouteBestChange -->
+
+Same-best also requires the same attribute set. The record keeps the winner's
+`AttrFingerprint`, so a re-announcement that changes only an attribute (a
+COMMUNITY, a LOCAL_PREF) publishes a best change, and BMP's Loc-RIB follows it.
+A zero fingerprint is unknown and never compares equal. A published change
+carries the winner's attribute set as an owned copy (`storedAttributes`), read
+before the candidates are released; a handle that no longer resolves publishes
+the change without it and logs a warning, and a consumer that needs the set
+refuses that entry. The replay walks read the same pair through `replayPath`.
+<!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- sameAttributeSet, storedAttributes, setEntryPath, replayPath -->
 
 ### Enforced Before Selection (Not Best-Path Reasons)
 

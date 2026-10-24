@@ -108,6 +108,8 @@ ze start --web 8443 --insecure-web               # No authentication (forces 127
 </code></pre>
 <p>When no certificate is configured, ze generates an ECDSA P-256 self-signed certificate automatically. The certificate includes SANs for localhost, 127.0.0.1, ::1, and the listen address. <code>WebCertHosts</code> builds that list, and a listen address of <code>0.0.0.0</code> adds every non-loopback interface address of the machine.</p>
 <!-- source: cmd/ze/ze_core_start.go -- cmdStart, flagStartWeb, flagStartInsecureWeb -->
+<p>When no config file is named, the daemon reads the config name from the store. If the store's instance name cannot be read, <code>ze start</code> exits 1 with an error naming <code>ze doctor</code>, and a web server started with no config path stays off and prints <code>warning: web server disabled:</code> with the reason.</p>
+<!-- source: cmd/ze/hub/service_web.go -- startWebServer -->
 <!-- source: internal/core/selfcert/selfcert.go -- GenerateWebCertWithAddr, GenerateWebCertWithNames, WebCertHosts -->
 <table>
 <thead>
@@ -625,7 +627,7 @@ data: &lt;html-fragment&gt;
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

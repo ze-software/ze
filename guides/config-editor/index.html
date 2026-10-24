@@ -431,6 +431,13 @@ with <code>-f</code>, <code>--web</code> or <code>--insecure-web</code>, and the
 Without a config name the editor uses the artifact's <code>&lt;instance&gt;.conf</code> and
 otherwise asks which config to edit.</p>
 <!-- source: internal/component/config/cli/cmd_edit.go -- cmdEditBackup -->
+<p>When the editor takes the config name from the store, it reads the store's
+instance name. If that key exists but cannot be read (a CRC mismatch, an I/O
+error), <code>ze config edit</code> exits with an error that names <code>ze doctor</code> and
+<code>ze init</code>, rather than opening <code>ze.conf</code>. With no store at all it uses
+<code>ze.conf</code>.</p>
+<!-- source: internal/component/config/cli/cmd_edit.go -- cmdEditWithStorage -->
+<!-- source: internal/core/resolve/resolve.go -- DefaultConfig -->
 <!-- source: internal/component/config/cli/backup_flag.go -- openBackup, publishInBackup -->
 <!-- source: internal/component/cli/editor.go -- NewOfflineSessionEditor, SetOfflinePromotion -->
 <p><code>ze config show</code>, <code>diff</code>, <code>set</code> and <code>list</code> take the same <code>--backup &lt;artifact&gt;</code>
@@ -845,7 +852,7 @@ ze config archive prod config.conf # Archive to named destination
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

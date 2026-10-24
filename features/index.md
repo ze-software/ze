@@ -1,6 +1,6 @@
 # Every feature Ze ships.
 
-52 shipped or experimental feature cards. Each card's category shows where the feature fits: operate, routing, services, automate, observe, secure, or platform. Everything shipped runs in both daemon and appliance modes unless a card says otherwise.
+52 shipped or experimental feature cards. Each card's category shows where the feature fits: operate, routing, services, automate, observe, secure, or deploy & configure. Everything shipped runs in both daemon and appliance modes unless a card says otherwise.
 
 ## Built for demanding operators.
 
@@ -221,7 +221,7 @@ Implemented, still waiting for production evidence or for a named part to be fin
 
 ### ISO and PXE Install
 
-*platform / Experimental* -- `PXE` `ISO`
+*deploy & configure / Experimental* -- `PXE` `ISO`
 
 - **PXE** bare-metal provisioning
 - Current amd64 installation **ISO under 150 MB**
@@ -231,7 +231,7 @@ Implemented, still waiting for production evidence or for a named part to be fin
 
 ### Kernel Tunables
 
-*platform / Experimental* -- `Sysctl` `Profiles`
+*deploy & configure / Experimental* -- `Sysctl` `Profiles`
 
 - Three-layer **precedence**
 - Named **profiles** (DSR, router, hardened)
@@ -503,7 +503,7 @@ Implemented, still waiting for production evidence or for a named part to be fin
 
 ### Minimal Appliance Mode
 
-*platform / Experimental* -- `Appliance` `Server`
+*deploy & configure / Experimental* -- `Appliance` `Server`
 
 - **Kernel, init, Ze** runtime
 - No **package manager** or general shell
@@ -514,7 +514,7 @@ Implemented, still waiting for production evidence or for a named part to be fin
 
 ### Runs Itself
 
-*platform / Experimental* -- `Update` `Systemd`
+*deploy & configure / Experimental* -- `Update` `Systemd`
 
 - Binary **self-update**
 - Built-in **readiness** checks
@@ -524,7 +524,7 @@ Implemented, still waiting for production evidence or for a named part to be fin
 
 ### Docker Support
 
-*platform / Experimental* -- `Daemon only` `Scratch` `Compose`
+*deploy & configure / Experimental* -- `Daemon only` `Scratch` `Compose`
 
 - **Static binary** on scratch base
 - **Compose** support included
@@ -534,7 +534,7 @@ Implemented, still waiting for production evidence or for a named part to be fin
 
 ### Feature Gates
 
-*platform / Experimental* -- `36 subsystems` `Default on`
+*deploy & configure / Experimental* -- `36 subsystems` `Default on`
 
 - Compile out **whole subsystems**, BGP included
 - Smaller binary, smaller **attack surface**

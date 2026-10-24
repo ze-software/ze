@@ -65,9 +65,9 @@ Logo blue identifies Ze. Seven distinct subject colors connect related content a
 
 Category tokens retain their existing names for authored pages. `-base` supplies vivid borders and markers; `-mid` supplies a secondary accent. `-deep` is readable text on `-chip` labels and `-tint` surfaces. Despite its name, `-deep` becomes lighter in the dark theme. Labels, selected filters and cards use these same roles. Do not put white text on a bright accent without checking contrast. Normal text needs at least 4.5:1 in both themes.
 
-The category identities are fixed: Operate is blue, Routing amber, Services orange, Automate violet, Observe green, Secure magenta and Platform teal. Broad project updates and cross-topic evidence are neutral. Keep these identities in explicit and automatic dark mode. Status colors remain independent of this subject palette.
+The category identities are fixed: Operate is blue, Routing amber, Services orange, Automate violet, Observe green, Secure magenta and Deploy & configure teal. Broad project updates and cross-topic evidence are neutral. Keep these identities in explicit and automatic dark mode. Status colors remain independent of this subject palette.
 
- Operate Routing Services Automate Observe Secure Platform Neutral
+ Operate Routing Services Automate Observe Secure Deploy & configure Neutral
 
 **Operate**
 
@@ -117,7 +117,7 @@ Visibility: telemetry, health and diagnostics.
 
 Security: SSH authentication, access control, TACACS+, audit trail and PKI store.
 
-**Platform**
+**Deploy & configure**
 
 ### Teal
 
@@ -143,7 +143,8 @@ A `cat-*` class sets the subject color for labels, borders, technology chips, li
 2. Use `cat-meta` for cross-topic content with no primary subject. Unclassified cards use the same neutral roles. Do not invent a category to create variety.
 3. Pass authored categories through the shared generator vocabulary. Unknown values are errors, not permission to choose an arbitrary color.
 4. Use shared `--acc`, `--acc-deep`, `--acc-chip` and `--acc-tint` roles. Do not assign hues by position, hash or presentation tone, or override them for a page or theme.
-5. Keep status independent. Success, warning and failure use `--green`, `--amber` and `--danger-deep`, with words explaining the result. Neutral evidence measures make no verdict. Maturity keeps its explicit labels and border treatment.
+5. Standard category cards fade from the subject tint at the top to the reading surface below. The tint stays equal at matching heights on the left and right. Use `--acc` for every outer edge: a thin outline with a stronger top border. The border color stays solid as the background fades. Neutral cards follow the same rule with their neutral tokens.
+6. Keep status independent. Success, warning and failure use `--green`, `--amber` and `--danger-deep`, with words explaining the result. Neutral evidence measures make no verdict. Maturity keeps its explicit labels and border treatment.
 
 **Routing**
 
@@ -155,7 +156,7 @@ A `cat-*` class sets the subject color for labels, borders, technology chips, li
 - Chips name **technologies**
 - Bullets state **facts**
 
-**Platform**
+**Deploy & configure**
 
 ### Mode chips
 

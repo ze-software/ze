@@ -150,6 +150,8 @@ Replacement acquires the same ownership lock as the daemon and refuses while
 any process owns the store, including a web-only daemon. Changing the SSH target
 does not bypass this protection.</p>
 <!-- source: internal/plugins/init/main.go -- Run, runInit -->
+<p>The initial config is written under the name the store's instance name gives it. When that name cannot be read, <code>ze init</code> fails with <code>name initial config: ...</code> and closes the interface backend it opened, rather than writing the config under <code>ze.conf</code>.</p>
+<!-- source: internal/plugins/init/main.go -- runInit -->
 <h3 id="store-folder-and-ownership">Store folder and ownership</h3>
 <p>An explicit config path selects its parent folder. Without one, clients and
 daemons use <code>ze.config.dir</code>, then the binary's default configuration folder.
@@ -173,6 +175,9 @@ stamp that would not resolve. <code>ze data check</code> lists what repair left 
 <!-- source: internal/component/config/storage/pointer.go -- ReadActiveConfig, PromoteCandidate -->
 <!-- source: cmd/ze/hub/config_source.go -- initializeConfigSource -->
 <!-- source: cmd/ze/ze_core_start.go -- openExplicitStore, cmdStart -->
+<p>Without a file, <code>ze start</code> names its config after the instance name (<code>meta/instance/name</code>), or <code>ze.conf</code> when that key is absent, blank or not a valid file stem. When the key exists but cannot be read (a CRC mismatch, an I/O error), <code>ze start</code> exits 1 with an error that names <code>ze doctor</code> and <code>ze init</code>, rather than starting <code>ze.conf</code> on a device whose own name it could not read.</p>
+<!-- source: internal/core/resolve/resolve.go -- DefaultConfig -->
+<!-- source: cmd/ze/ze_core_start.go -- cmdStart, cmdStartManaged -->
 <!-- source: internal/plugins/init/main.go -- Run -->
 <!-- source: cmd/ze/ze_core_autoinit.go -- gokrazyAutoInit -->
 <p>The tree root and every directory beneath it must be 0700, each frame file 0600,
@@ -916,7 +921,7 @@ ze signal quit                 # goroutine dump (kills daemon!)
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

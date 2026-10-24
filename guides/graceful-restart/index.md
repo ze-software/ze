@@ -362,6 +362,11 @@ on the receiver's wire.
 <!-- source: internal/component/bgp/plugins/gr/gr.go -- wireStateCallbacks -->
 <!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- outboundResend -->
 
+A peer selector given to bgp-rib by name matches the configured name the
+session's state events carried (`selectsPeer`), since bgp-rib keys sessions by
+address. A session whose events named it nothing is selected by no name.
+<!-- source: internal/component/bgp/plugins/rib/rib_peer_name.go -- selectsPeer -->
+
 The received-route EOR scenario uses a different release prefix for each phase.
 The initial readiness and DOWN-release markers replay when the source
 reconnects; neither releases its EOR. Only after the observer sees the refreshed

@@ -555,6 +555,11 @@ refresh; it does not grant Initial replay authority.
 <!-- source: internal/component/bgp/plugins/rib/register.go -- ConfigRoots, SignalsSessionReady, FencesLiveForwards -->
 <!-- source: internal/component/bgp/reactor/session_ownership.go -- checkInitialWrite, allow -->
 <!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- outboundResend -->
+
+A peer selector given to bgp-rib by name matches the configured name the
+session's state events carried (`selectsPeer`), since bgp-rib keys sessions by
+address. A session whose events named it nothing is selected by no name.
+<!-- source: internal/component/bgp/plugins/rib/rib_peer_name.go -- selectsPeer -->
 <!-- source: internal/component/bgp/plugins/rib/rib_replay.go -- replayRoutesWithCursor, resendRoutesWithCursor -->
 
 ### Protocol

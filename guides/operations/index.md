@@ -49,6 +49,9 @@ any process owns the store, including a web-only daemon. Changing the SSH target
 does not bypass this protection.
 <!-- source: internal/plugins/init/main.go -- Run, runInit -->
 
+The initial config is written under the name the store's instance name gives it. When that name cannot be read, `ze init` fails with `name initial config: ...` and closes the interface backend it opened, rather than writing the config under `ze.conf`.
+<!-- source: internal/plugins/init/main.go -- runInit -->
+
 ### Store folder and ownership
 
 An explicit config path selects its parent folder. Without one, clients and
@@ -75,6 +78,10 @@ stamp that would not resolve. `ze data check` lists what repair left behind.
 <!-- source: internal/component/config/storage/pointer.go -- ReadActiveConfig, PromoteCandidate -->
 <!-- source: cmd/ze/hub/config_source.go -- initializeConfigSource -->
 <!-- source: cmd/ze/ze_core_start.go -- openExplicitStore, cmdStart -->
+
+Without a file, `ze start` names its config after the instance name (`meta/instance/name`), or `ze.conf` when that key is absent, blank or not a valid file stem. When the key exists but cannot be read (a CRC mismatch, an I/O error), `ze start` exits 1 with an error that names `ze doctor` and `ze init`, rather than starting `ze.conf` on a device whose own name it could not read.
+<!-- source: internal/core/resolve/resolve.go -- DefaultConfig -->
+<!-- source: cmd/ze/ze_core_start.go -- cmdStart, cmdStartManaged -->
 <!-- source: internal/plugins/init/main.go -- Run -->
 <!-- source: cmd/ze/ze_core_autoinit.go -- gokrazyAutoInit -->
 

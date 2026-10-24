@@ -84908,7 +84908,7 @@
         "tags": 456,
         "units": 456,
         "audited": 94,
-        "discrimination-records": 231,
+        "discrimination-records": 232,
         "escapes": 0,
         "stale-records": 16
       },
@@ -90205,7 +90205,15 @@
               "line": 430,
               "carrier": "interop/nightly",
               "claim": "-- the same receiver accepts ze's withdrawal of that route with no attribute error, because the clause's condition (\"advertises the route\") is not met and no AS_PATH is created. RFC 4271 Section 6.3 makes the opposite a Missing Well-known Attribute error.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "mutant",
+                "state": "verified",
+                "producer": "internal/component/bgp/wireu/aspath_slot.go::Record",
+                "break": "line 159: \"!PayloadAdvertisesNLRI(payload)\" -\u003e \"false\"",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "positive",

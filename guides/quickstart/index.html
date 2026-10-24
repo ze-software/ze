@@ -271,6 +271,7 @@ received routes. It is not needed for the config above; see <a href="../plugins/
 <pre><code class="language-bash">./ze start example.conf
 </code></pre>
 <!-- source: cmd/ze/ze_core_dispatch.go -- registerLocalCommands, "start" root handler; cmd/ze/ze_core_start.go -- cmdStart, startConfigPath -->
+<p>With no file, <code>ze start</code> uses the config the store names, and refuses with exit 1 if the store's instance name cannot be read; <code>ze doctor</code> checks the store.</p>
 <p>The config path goes behind the <code>start</code> keyword. A bare <code>./ze example.conf</code> is rejected with <code>unknown command: example.conf</code> (exit 1); global flags such as <code>-d</code> are consumed before the keyword, so they stay ahead of it.</p>
 <p>An explicit path selects the store in that file's folder, before
 <code>ZE_CONFIG_DIR</code> or the default path. If neither a tree nor a seed exists there,
@@ -390,7 +391,7 @@ announce a route; the address split is what keeps it working when you do.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

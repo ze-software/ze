@@ -872,6 +872,8 @@ attestation, <code>./le commit create subject "&lt;subject&gt;" attest &lt;commi
 (<code>docs/architecture/testing/verify-freshness-scope.md</code>).</p>
 <!-- source: internal/le/commit/prepare.go -- admissionTrailer -->
 <!-- source: internal/le/commit/owed_trailers.go -- readPersonActs -->
+<p>A trailer commit that cannot be read is never counted as discharging the act:
+<code>./le commit create</code> refuses with <code>commit &lt;sha&gt;: cannot judge "&lt;subject&gt;", so it stays owed</code>, the read error, and <code>git show &lt;sha&gt;</code> to inspect it.</p>
 <!-- source: internal/le/test/weakened/proposed.go -- RFC-tagged carrier approval -->
 <!-- source: ai/skills/ze-rfc.md -- requirement id allocation and annotations -->
 <p>Full rules: <code>ai/skills/ze-rfc.md</code>; audit method: <code>ai/skills/ze-rfc-audit.md</code>.</p>
@@ -1067,7 +1069,7 @@ func (n *MyNLRI) SupportsAddPath() bool { return true }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

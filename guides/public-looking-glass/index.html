@@ -226,6 +226,13 @@ no source when the <code>bgp-rib</code> plugin is not loaded, and none for a BMP
 peer. Do not read <code>0</code> as "this peer sent no routes" until this field says
 <code>true</code>.</p>
 <!-- source: internal/component/lg/handler_api.go -- transformProtocols, routeCountsAvailable -->
+<p>Each protocol's id is the session's configured name, or its address when it
+has none. The per-protocol routes and count endpoints accept that id or the
+session's address and query the RIB by address. An id that matches no session
+answers 404, <code>no BGP session is named "&lt;id&gt;"</code>, pointing at
+<code>GET /api/looking-glass/protocols/bgp</code> for the names; a session the engine
+lists with no address answers 502.</p>
+<!-- source: internal/component/lg/handler_api.go -- protocolSession, protocolID -->
 <!-- source: internal/component/bgp/plugins/cmd/peer/summary.go -- route counts and peer history -->
 <p>The normative statement of this behavior is
 <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/api/birdwatcher-compat.md" target="_blank" rel="noopener">Birdwatcher compatibility</a>,
@@ -317,7 +324,7 @@ journalctl -u ze.service -n 100 --no-pager
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

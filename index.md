@@ -104,7 +104,7 @@ Read the generated references before you run Ze.
 
 Ze is an open-source configuration and protocol engine. The network operating system built on it speaks BGP, manages Linux interfaces, programs the FIB, and serves the same YANG-modeled configuration through SSH, web, API, and MCP.
 
- [Operate (6)](https://ze-software.net/features/#operate) [Routing (9)](https://ze-software.net/features/#routing) [Services (9)](https://ze-software.net/features/#services) [Automate (7)](https://ze-software.net/features/#automate) [Observe (9)](https://ze-software.net/features/#observe) [Secure (6)](https://ze-software.net/features/#secure) [Platform (6)](https://ze-software.net/features/#platform)
+ [Operate (6)](https://ze-software.net/features/#operate) [Routing (9)](https://ze-software.net/features/#routing) [Services (9)](https://ze-software.net/features/#services) [Automate (7)](https://ze-software.net/features/#automate) [Observe (9)](https://ze-software.net/features/#observe) [Secure (6)](https://ze-software.net/features/#secure) [Deploy & configure (6)](https://ze-software.net/features/#platform)
 
 Open a feature for its behavior and limitations, and [check its maturity](https://ze-software.net/reference/feature-status/) before choosing a deployment.
 
@@ -132,9 +132,9 @@ Open a feature for its behavior and limitations, and [check its maturity](https:
 
  [Audit Trail](https://ze-software.net/guides/audit/) [PKI Store](https://ze-software.net/features/) [DDoS and Anomaly Detection](https://ze-software.net/guides/anomaly/) [IRR Route Filtering](https://ze-software.net/guides/irr-filtering/) [Secure by Default](https://ze-software.net/reference/plugins/) [TACACS+ AAA](https://ze-software.net/guides/tacacs/) [View secure features →](https://ze-software.net/features/#secure)
 
-### Platform
+### Deploy & configure
 
- [ISO and PXE Install](https://ze-software.net/guides/ze-install/) [Kernel Tunables](https://ze-software.net/features/) [Minimal Appliance Mode](https://ze-software.net/guides/appliance/) [Runs Itself](https://ze-software.net/features/introspection/) [Docker Support](https://ze-software.net/features/) [Feature Gates](https://ze-software.net/guides/quickstart/) [View platform features →](https://ze-software.net/features/#platform)
+ [ISO and PXE Install](https://ze-software.net/guides/ze-install/) [Kernel Tunables](https://ze-software.net/features/) [Minimal Appliance Mode](https://ze-software.net/guides/appliance/) [Runs Itself](https://ze-software.net/features/introspection/) [Docker Support](https://ze-software.net/features/) [Feature Gates](https://ze-software.net/guides/quickstart/) [View deploy & configure features →](https://ze-software.net/features/#platform)
 
 ## Run it as a lab,
 daemon, or appliance.

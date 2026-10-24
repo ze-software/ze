@@ -822,6 +822,10 @@ refresh; it does not grant Initial replay authority.</p>
 <!-- source: internal/component/bgp/plugins/rib/register.go -- ConfigRoots, SignalsSessionReady, FencesLiveForwards -->
 <!-- source: internal/component/bgp/reactor/session_ownership.go -- checkInitialWrite, allow -->
 <!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- outboundResend -->
+<p>A peer selector given to bgp-rib by name matches the configured name the
+session's state events carried (<code>selectsPeer</code>), since bgp-rib keys sessions by
+address. A session whose events named it nothing is selected by no name.</p>
+<!-- source: internal/component/bgp/plugins/rib/rib_peer_name.go -- selectsPeer -->
 <!-- source: internal/component/bgp/plugins/rib/rib_replay.go -- replayRoutesWithCursor, resendRoutesWithCursor -->
 <h3 id="protocol">Protocol</h3>
 <table>
@@ -2055,7 +2059,7 @@ backend. Cycles among selected plugins are refused for order-only edges too.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>

@@ -413,6 +413,10 @@ for a shard while holding <code>peerMu</code>, and Loc-RIB publication happens a
 admission is released so synchronous subscribers can read peer state.</p>
 <!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- checkRouteBestChange, purgeBestPrevForPeer -->
 <!-- source: internal/component/bgp/plugins/rib/rib.go -- handleStructuredState, handleState -->
+<p>Both state handlers also record the session's configured name
+(<code>recordPeerName</code>), and it outlives the session the way <code>peerUp</code> does, so a
+name selector still reaches a down session's retained and sent routes.</p>
+<!-- source: internal/component/bgp/plugins/rib/rib_peer_name.go -- recordPeerName, selectsPeer -->
 <p>The peer-map lock does not protect route handles against UPDATE mutation.
 <code>AppendPrefixPathsRetained</code> and <code>AppendKeyPathsRetained</code> retain each storage
 revision under <code>PeerRIB.mu</code>; gathering transfers entry and label ownership to
@@ -427,6 +431,15 @@ A same-best decision acquires no new peer reference.</p>
 <!-- source: internal/component/bgp/plugins/rib/storage/peerrib.go -- AppendPrefixPathsRetained, AppendKeyPathsRetained -->
 <!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- gatherPrefixCandidatesLocked, gatherKeyCandidatesLocked, releaseCandidates -->
 <!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- checkRouteBestChange -->
+<p>Same-best also requires the same attribute set. The record keeps the winner's
+<code>AttrFingerprint</code>, so a re-announcement that changes only an attribute (a
+COMMUNITY, a LOCAL_PREF) publishes a best change, and BMP's Loc-RIB follows it.
+A zero fingerprint is unknown and never compares equal. A published change
+carries the winner's attribute set as an owned copy (<code>storedAttributes</code>), read
+before the candidates are released; a handle that no longer resolves publishes
+the change without it and logs a warning, and a consumer that needs the set
+refuses that entry. The replay walks read the same pair through <code>replayPath</code>.</p>
+<!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- sameAttributeSet, storedAttributes, setEntryPath, replayPath -->
 <h3 id="enforced-before-selection-not-best-path-reasons">Enforced Before Selection (Not Best-Path Reasons)</h3>
 <p>These checks are implemented, but as ingress filters that reject the UPDATE
 before it reaches best-path selection, so they never appear as a reason in the
@@ -725,7 +738,7 @@ updated after.</li>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 06:34 UTC</span>
                 </div>
             </div>
         </footer>
