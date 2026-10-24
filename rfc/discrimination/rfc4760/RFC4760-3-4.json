@@ -7,7 +7,7 @@
     "claim-sha": "ac62f950f258c2ba",
     "route": "revert",
     "producer": "internal/component/bgp/message/update_build.go::BuildUnicast",
-    "producer-sha": "e7dd8c913660084d",
+    "producer-sha": "9a2131cf7338716b",
     "break": "body of BuildUnicast replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   },
   {
@@ -18,7 +18,7 @@
     "claim-sha": "e75d1660c0542e3b",
     "route": "revert",
     "producer": "internal/component/bgp/message/update_build.go::BuildUnicast",
-    "producer-sha": "e7dd8c913660084d",
+    "producer-sha": "9a2131cf7338716b",
     "break": "body of BuildUnicast replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   },
   {

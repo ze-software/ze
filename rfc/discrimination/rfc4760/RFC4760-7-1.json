@@ -29,7 +29,7 @@
     "claim-sha": "d8e3d9147579256c",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/rib/rib.go::handleStructuredState",
-    "producer-sha": "a8163b3c964b8110",
+    "producer-sha": "ce77371cfbf4696e",
     "break": "body of handleStructuredState replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   },
   {
