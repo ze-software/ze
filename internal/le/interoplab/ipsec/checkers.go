@@ -915,6 +915,14 @@ func checkInvalidKERetry(ctx context.Context, lab *scenarioLab) error {
 	return lab.verifyTunnelTraffic(ctx, "traffic did not flow through the retried IKE_SA_INIT tunnel")
 }
 
+// The strongSwan log lines checkChildRekeyNarrowing waits for after the reload.
+// swanLogPeerDeletedIKE is logged at DBG1 by process_r (ike_delete.c, strongSwan 6.1.0),
+// which runs only on a Delete the PEER sent, so it cannot be strongSwan's own deletion.
+const (
+	swanLogChildClosed    = "closing CHILD_SA ze-child{"
+	swanLogPeerDeletedIKE = "received DELETE for IKE_SA ze["
+)
+
 func checkChildRekeyNarrowing(ctx context.Context, lab *scenarioLab) error {
 	const wideLocal, wideRemote = "10.1.0.0/24", "10.2.0.0/24"
 	const narrowLocal = "10.1.0.0/25"
@@ -942,6 +950,16 @@ func checkChildRekeyNarrowing(ctx context.Context, lab *scenarioLab) error {
 	if _, err := lab.exec(ctx, swanPeer, "sh", "-c", command); err != nil {
 		return err
 	}
+	// The waits after the reload count only lines logged after it: the container's log
+	// holds the whole run, where an earlier exchange can carry the same line.
+	closedMark, err := lab.logMark(ctx, swanPeer, swanLogChildClosed)
+	if err != nil {
+		return err
+	}
+	deleteMark, err := lab.logMark(ctx, swanPeer, swanLogPeerDeletedIKE)
+	if err != nil {
+		return err
+	}
 	loaded, err := lab.query(ctx, swanPeer, cmdSwanctl, "--load-conns")
 	if err != nil {
 		return err
@@ -950,19 +968,22 @@ func checkChildRekeyNarrowing(ctx context.Context, lab *scenarioLab) error {
 		return interoplab.WithSearchedOutput(fmt.Errorf("strongSwan did not load narrowed connection"), loaded)
 	}
 	// The reload has to take the wide Child SA down, or the narrowed selectors below could
-	// never be negotiated. strongSwan 5.9 did that by deleting the whole IKE SA; 6.x
-	// (replace_children, vici_config.c) closes the Child SA and re-creates it in place
-	// with CREATE_CHILD_SA. Both close the wide child, and 6.1 logs it as this line.
-	if err := lab.waitLog(ctx, swanPeer, "closing CHILD_SA ze-child{", lab.timeout); err != nil {
+	// never be negotiated. strongSwan (replace_children, vici_config.c) closes the Child
+	// SA and re-creates it in place with CREATE_CHILD_SA, and logs the close as this line.
+	if err := lab.waitLogAfter(ctx, swanPeer, swanLogChildClosed, closedMark, lab.timeout); err != nil {
 		return err
 	}
 	// Ze answers a peer Delete of its only Child SA by reconnecting (owner decision Q-5),
 	// and it MUST tell the peer it closed the IKE SA first (RFC 7296 Section 2.4), or
-	// strongSwan 6.x sends its in-place CREATE_CHILD_SA into an IKE SA Ze no longer holds
-	// and gets an unprotected INVALID_IKE_SPI back. strongSwan logs this line both when it
-	// deletes the IKE SA itself (5.9) and when it processes Ze's Delete for it (6.x).
-	if err := lab.waitLog(ctx, swanPeer, "deleting IKE_SA ze[", lab.timeout); err != nil {
-		return fmt.Errorf("strongSwan never deleted the IKE SA of the closed Child SA, so Ze dropped it without a Delete: %w", err)
+	// strongSwan sends its in-place CREATE_CHILD_SA into an IKE SA Ze no longer holds and
+	// gets an unprotected INVALID_IKE_SPI back. Only process_r (ike_delete.c), which
+	// handles the PEER's Delete, logs this line. "deleting IKE_SA" is also logged when
+	// strongSwan deletes the IKE SA on its own initiative (build_i), so it proves nothing.
+	if err := lab.waitLogAfter(ctx, swanPeer, swanLogPeerDeletedIKE, deleteMark, lab.timeout); err != nil {
+		return fmt.Errorf("strongSwan logged no Delete from Ze for the IKE SA of the closed Child SA. "+
+			"Ze may have dropped it without one, or the reload or the log read failed; "+
+			"rerun with IPSEC_INTEROP_SCENARIO=child-rekey-narrowing ./le test integration interop-ipsec "+
+			"and read both peers' logs: %w", err)
 	}
 	if err := lab.waitChildSelectors(ctx, narrowLocal, wideRemote); err != nil {
 		return err

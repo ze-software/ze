@@ -134,6 +134,34 @@ func (l *scenarioLab) waitLog(ctx context.Context, peer, needle string, timeout 
 	return err
 }
 
+// logMark counts the lines of peer's log that carry needle now, so waitLogAfter can
+// tell a line logged after this point from one logged before it.
+func (l *scenarioLab) logMark(ctx context.Context, peer, needle string) (int, error) {
+	logs, err := l.logs(ctx, peer)
+	if err != nil {
+		return 0, err
+	}
+	return strings.Count(logs, needle), nil
+}
+
+// waitLogAfter waits until peer's log carries needle more often than mark, the count
+// logMark took, so only a line logged after the mark satisfies it. waitLog matches the
+// whole log from the container's start, where an earlier exchange can carry the same
+// line. The log is read as its last logLinesMax lines: an earlier line leaving that
+// window lowers the count, so it can delay the match but never fake one.
+func (l *scenarioLab) waitLogAfter(ctx context.Context, peer, needle string, mark int, timeout time.Duration) error {
+	var tb textbuf.Buffer
+	description := tb.Str(peer).Str(" log ").Quoted(needle).Str(" after the mark").String()
+	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
+		Timeout: timeout, Interval: 2 * time.Second, Description: description,
+	}, func(probe context.Context) (string, error) {
+		return l.logs(probe, peer)
+	}, func(logs string) bool {
+		return strings.Count(logs, needle) > mark
+	})
+	return err
+}
+
 func (l *scenarioLab) listSAs(ctx context.Context) (string, error) {
 	return l.exec(ctx, swanPeer, cmdSwanctl, "--list-sas")
 }
