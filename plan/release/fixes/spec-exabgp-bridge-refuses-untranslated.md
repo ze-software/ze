@@ -6,7 +6,7 @@
 | Scope | protocol |
 | Priority | P1 |
 | Release reason | ExaBGP 6.0, 5.0 and 4.2 compatibility is agreed; a migrated config or helper script that loses a family, a flush, an End-of-RIB or a capability warning in silence runs differently from ExaBGP with no sign to the operator |
-| Depends | `plan/release/fixes/spec-exabgp-6-api-compatibility.md` (in progress; its item 2 defines the error answer a script receives, which this spec uses for every refusal, and it edits the same files) |
+| Depends | `spec-exabgp-6-api-compatibility` (closed 2026-10-24; its item 2 defines the error answer a script receives, which this spec uses for every refusal, and it edits the same files) |
 | Phase | - |
 | Handoff | - |
 | Updated | 2026-10-24 |
@@ -74,7 +74,7 @@ guard is ruled out. The receive half is done in the exabgp-6 spec (`session as-s
   → Constraint: every refusal this spec adds is listed on this page with its fix
 - [ ] `docs/exabgp/exabgp-differences.md` - documented differences
   → Decision: OPERATIONAL and multi-session are documented differences (owner rule); the migrate warning for them is a documented-difference notice, not a refusal of the whole config
-- [ ] `plan/release/fixes/spec-exabgp-6-api-compatibility.md` - item 2 error answer, item 5 refusals
+- [ ] `spec-exabgp-6-api-compatibility` (closed 2026-10-24) - item 2 error answer, item 5 refusals
   → Constraint: a refusal reaches the script as that spec's error answer for the helper's API version; no second answer path
 - [ ] `ai/META-DECISIONS.md` - ExaBGP compatibility section
   → Decision: "Where ze is stricter than ExaBGP without an RFC MUST behind it, ExaBGP's behaviour wins"; this answers the EOR row's open owner question
@@ -335,7 +335,7 @@ guard is ruled out. The receive half is done in the exabgp-6 spec (`session as-s
 | Only bridge-originated routes may carry an AS_SET (owner, 2026-10-22: "as_set allow it via the bridge but not directly from the plugin, so only exabgp compat can make it"), granted by a Go-only `registry.Registration` field | delete the send guard; an operator config leaf; a grant on the SDK wire | deleting the guard is ruled out by the owner; a grant on the wire can be claimed by any external plugin |
 
 ## Known Limitations
-- AS_SET in `as-path` is AC-11 here (moved 2026-10-24). Other mistranslations that Ze refuses (`clear adj-rib out` without selector, `announce route-refresh` read as a route, `interface-set`) and absent vocabulary (`vpls`, `ping`) are owned by `spec-exabgp-6-api-compatibility.md` and its journal rows, not here
+- AS_SET in `as-path` is AC-11 here (moved 2026-10-24). Other mistranslations that Ze refuses (`clear adj-rib out` without selector, `announce route-refresh` read as a route, `interface-set`) and absent vocabulary (`vpls`, `ping`) were handled by `spec-exabgp-6-api-compatibility` (closed 2026-10-24) and its journal rows, not here
 
 ## RFC Documentation (Scope: protocol)
 

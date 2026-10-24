@@ -28,7 +28,7 @@
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
-**SUPERSEDED on 2026-10-17 by `plan/release/fixes/spec-exabgp-6-api-compatibility.md` (Phase 5).**
+**SUPERSEDED on 2026-10-17 by `spec-exabgp-6-api-compatibility` (Phase 5, closed 2026-10-24).**
 Its design question is decided there (Key Design Decisions, "SR Policy attributes through
 the API": the API section reaches `parseConfigRoute` through the registry), and its evidence
 is carried there. Do not implement from this file. Its removal goes through

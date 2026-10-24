@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | done |
 | Priority | P1 |
 | Release reason | Preserve the bridge API compatibility and response contracts approved for shipped helpers. |
 | Scope | protocol |
@@ -14,6 +14,19 @@
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Blocker
+
+**Resolved (2026-10-24, `/ze-close` step 6 resumed).** Every record below is
+fresh: `./le rfc check` (run once after e52837ad2c) lists no refusal for
+DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1 (audit re-judged enforced in
+592470ea24, both proofs re-recorded), none for RFC2545-3-1/3-2 on
+`srpolicy/config.go::parseConfigRoute` (6f076fc22d), and none for
+DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-6, whose audit an independent agent
+re-judged `partial` over the d7673ff783 row (e52837ad2c). The check still exits 2
+on 45 refusals, each traced to another spec's commit: RFC2545-3-1..3-4 and
+RFC2869, RFC3579, RFC3031, RFC5036, RFC9384, RFC9915 producers changed by
+238bdb62e9 (spec-refuse-instead-of-defaulting), RFC7296 and RFC3948 by
+038795338e and ef1a1a3960 (IKE), RFC7950 by 7f34543a08 (config). The history
+of the hand-back follows.
 
 `/ze-close` step 6 (2026-10-24): `./le rfc check` exits 2, and three of its
 refusals trace to this spec's own commit 1dbfd1d7b7 ("negotiated families keep
@@ -809,7 +822,7 @@ refusal names RFC 7911 Section 3.
 ### Documentation Updates
 - `docs/architecture/exabgp-bridge.md`, `docs/exabgp/exabgp-differences.md`, `docs/exabgp/exabgp-migration.md`, `docs/architecture/api/json-format.md`, `docs/architecture/api/commands.md` (Peer Selectors, review round 1), `docs/architecture/wire/attributes.md`, `rfc/short/rfc9774.md`, `docs/architecture/testing/interop.md` (`bgp-as-set-accept-frr`).
 - `./le doc check verify`: PASSED at Phase 8 (2026-10-24); rerun for the review round 1 commits is recorded in the commit body.
-- Closure citers: `internal/exabgp/bridge/testdata/exabgp-old/README.md` repointed from this spec to the stage pin in `internal/le/test/functional/exabgp.go`. Still owed when closure resumes: the sentence in `docs/functional-tests.md` ("The spec ... carries what remains", end of the old-4.2/old-5.0 section) cites this spec by path, and that file carries session d3d51937's uncommitted `ze-stripped-flow` hunk whose `strippedFlowTags` is not in HEAD, so the citer edit can only land with or after that session's commit. `internal/test/fixture/plugin_fixture_15_rpki.go` and the journal rows cite the bare stem and stay.
+- Closure citers: `internal/exabgp/bridge/testdata/exabgp-old/README.md` repointed from this spec to the stage pin in `internal/le/test/functional/exabgp.go`. `plan/release/fixes/spec-exabgp-bridge-refuses-untranslated.md` and `spec-api-sr-policy-attributes.md` restated to the bare stem at closure. Not done (Work Not Done): the sentence in `docs/functional-tests.md` ("The spec ... carries what remains", end of the old-4.2/old-5.0 section) cites this spec by path, and that file carries session d3d51937's uncommitted `ze-stripped-flow` hunk whose `strippedFlowTags` is not in HEAD, so the citer edit can only land with or after that session's commit. `internal/test/fixture/plugin_fixture_15_rpki.go` and the journal rows cite the bare stem and stay.
 - Full verification (`./le verify current`) has NOT run over this work, by owner decision (2026-10-24): another session is changing when verify may run, and it must never run while others develop. It is owed as verification debt over the closing commits, and `./le commit push` stays refused until it is green.
 
 ### Deviations from Plan
@@ -887,6 +900,7 @@ refusal names RFC 7911 Section 3.
 |-------------------|-----|---------------------------|
 | The f9bfb853b AS_SET send half: a route the operator writes with an AS_SET is sent (RFC 9774 Section 3 operator exemption) | moved, owner 2026-10-24: "Move to bridge-refuses-untranslated"; it is a bridge translation that spec owns, and it needs the Go-only grant in `registry.Registration` | `plan/release/fixes/spec-exabgp-bridge-refuses-untranslated.md` (AC-11) |
 | Commit the R2-I2 / R3-N3 paragraph in `docs/architecture/api/commands.md` (single-peer commands are those whose handler calls `ResolveSinglePeer`, `raw` included) | written, in the working tree only: the file also carries session d3d51937's uncommitted `show config running` hunk, whose `running_rpc.go` is not in HEAD, so carrying the file would publish a claim HEAD does not support; it lands with or after that session's commit | `plan/release/fixes/spec-plugin-optional-dependency-refusal.md` (session d3d51937's spec, whose commit carries `commands.md`) |
+| Repoint the citation of this spec in `docs/functional-tests.md` (end of the old-4.2/old-5.0 section, "carries what remains") to the bare stem `spec-exabgp-6-api-compatibility` | the file carries session d3d51937's uncommitted `ze-stripped-flow` hunk, whose `strippedFlowTags` (`internal/le/test/functional/binaries.go`) is not in HEAD, so carrying the file would publish a claim HEAD does not support; d3d51937 was still writing its state file at closure (15:20); until its commit lands, HEAD's page cites a path commit B removes | `plan/release/fixes/spec-plugin-optional-dependency-refusal.md` (session d3d51937's spec, whose commit carries `docs/functional-tests.md`) |
 
 ## Review Gate
 
@@ -970,3 +984,5 @@ Fresh reviewer, scoped to 29545c31ad and the R2-N5 text in e9a4c54e17: 0 BLOCKER
 | Gate | State | Evidence |
 |------|-------|----------|
 | `./le verify current` over commit B | owed, not run by owner decision (2026-10-24) | verification debt; `./le commit push` refuses until it is green |
+| `./le rfc check` | exit 2, no refusal from this spec's commits | run once after e52837ad2c; the 45 refusals trace to 238bdb62e9, 038795338e, ef1a1a3960 and 7f34543a08 (Blocker, resolved) |
+| structural gates at `./le commit create` | carried reds: `arch tier/check`, `doc wiring` (and lint, staticcheck) from the latest verify run, from other sessions' files | `structural-red-ok`, authorised by Thomas on 2026-10-24 for this session's commits |
