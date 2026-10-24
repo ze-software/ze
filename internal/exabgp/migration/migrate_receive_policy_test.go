@@ -2,9 +2,79 @@ package migration
 
 import (
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
+
+	gyang "github.com/openconfig/goyang/pkg/yang"
+
+	configyang "github.com/ze-software/ze/internal/component/config/yang"
 )
+
+// TestReceivePolicyValuesMatchTheExaBGPModel proves the Go constants
+// applyReceivePolicy compares against are exactly the enumeration values
+// exabgp.yang declares for the neighbor leaves `as-set` and
+// `tunnel-encapsulation`, read from the loaded model rather than from a copy.
+//
+// VALIDATES: each leaf's enumeration equals the set of constants spelled in
+// migrate_receive_policy.go.
+// PREVENTS: a value the model accepts that the migration refuses as unknown,
+// and a value renamed in the model while the Go constant keeps the old
+// spelling, so `as-set accept` silently migrates to a peer that withdraws.
+func TestReceivePolicyValuesMatchTheExaBGPModel(t *testing.T) {
+	cases := []struct {
+		leaf  string
+		known []string
+	}{
+		{"as-set", []string{exabgpASSetWithdraw, exabgpASSetAccept}},
+		{"tunnel-encapsulation", []string{exabgpTunnelEncapAuto, exabgpTunnelEncapFilter, exabgpTunnelEncapAccept}},
+	}
+	neighbor := exabgpNeighborEntry(t)
+	for _, tc := range cases {
+		t.Run(tc.leaf, func(t *testing.T) {
+			leaf := neighbor.Dir[tc.leaf]
+			if leaf == nil {
+				t.Fatalf("exabgp.yang declares no neighbor leaf %s", tc.leaf)
+			}
+			if leaf.Type == nil || leaf.Type.Kind != gyang.Yenum || leaf.Type.Enum == nil {
+				t.Fatalf("exabgp.yang neighbor leaf %s is not an enumeration", tc.leaf)
+			}
+			declared := slices.Clone(leaf.Type.Enum.Names())
+			slices.Sort(declared)
+			known := slices.Clone(tc.known)
+			slices.Sort(known)
+			if !slices.Equal(declared, known) {
+				t.Fatalf("exabgp.yang %s declares %v, migrate_receive_policy.go spells %v", tc.leaf, declared, known)
+			}
+		})
+	}
+}
+
+// exabgpNeighborEntry answers the `neighbor` list of the exabgp.yang module,
+// loaded the way exaBGPSchema loads it, and FAILS rather than answering nil.
+func exabgpNeighborEntry(t *testing.T) *gyang.Entry {
+	t.Helper()
+	loader := configyang.NewLoader()
+	if err := loader.LoadEmbedded(); err != nil {
+		t.Fatalf("load embedded modules: %v", err)
+	}
+	if err := loader.AddModuleFromText("exabgp.yang", exabgpYANG); err != nil {
+		t.Fatalf("add exabgp.yang: %v", err)
+	}
+	resolved, err := loader.Resolve()
+	if err != nil {
+		t.Fatalf("resolve exabgp.yang: %v", err)
+	}
+	module := resolved.GetEntry("exabgp")
+	if module == nil {
+		t.Fatal("exabgp.yang is not loaded")
+	}
+	neighbor := module.Dir["neighbor"]
+	if neighbor == nil {
+		t.Fatal("exabgp.yang declares no neighbor list")
+	}
+	return neighbor
+}
 
 // receivePolicyNeighbor is an ExaBGP 6.0 neighbor stating one receive-policy
 // leaf, the ExaBGP f9bfb853b grammar (configuration/grammar/tree/neighbor.py).

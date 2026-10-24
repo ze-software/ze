@@ -1078,7 +1078,21 @@ func TestMigrateFileBasedTests(t *testing.T) {
 		t.Skip("test/exabgp directory not found")
 	}
 
-	tests := []string{"simple", "graceful-restart", "route-refresh", "process", "nexthop"}
+	// Every directory under test/exabgp is a case, discovered rather than
+	// listed, so a golden added there cannot sit unread by any runner.
+	entries, err := os.ReadDir(testDataDir)
+	if err != nil {
+		t.Fatalf("read %s: %v", testDataDir, err)
+	}
+	var tests []string
+	for _, entry := range entries {
+		if entry.IsDir() {
+			tests = append(tests, entry.Name())
+		}
+	}
+	if len(tests) == 0 {
+		t.Fatalf("%s holds no test directory", testDataDir)
+	}
 
 	for _, name := range tests {
 		t.Run(name, func(t *testing.T) {

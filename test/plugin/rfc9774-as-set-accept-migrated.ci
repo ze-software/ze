@@ -5,13 +5,17 @@
 # otherwise (e.g., during a transition phase), BGP speakers:" ... "MUST use the
 # "treat-as-withdraw" error handling behavior per [RFC7606] upon reception of BGP
 # UPDATE messages containing AS_SETs or AS_CONFED_SETs in the AS_PATH or AS4_PATH
-# [RFC6793]." `session as-set accept`, which only `ze exabgp migrate` writes, is
-# that operator configuration.
+# [RFC6793]." `session as-set accept`, which `ze exabgp migrate` writes for an
+# ExaBGP neighbor with `as-set accept`, is that operator configuration.
 #
 # VALIDATES: the peer announces P (10.1.0.0/24) with AS_PATH AS_SEQUENCE [65001]
-# then AS_SET {65010 65011}. The observer plugin receives P as announced, with
-# the set in its AS_PATH, the session stays up, and no RFC 9774 verdict is logged.
-# PREVENTS: a migrated peer withdrawing the routes its ExaBGP neighbor kept.
+# then AS_SET {65010 65011}. The observer plugin receives P as announced, its
+# raw AS_PATH still holding segment type 1 (AS_SET) with 65010 and 65011
+# (01 02 0000FDF2 0000FDF3), the session stays up, and no RFC 9774 verdict is
+# logged. The observer subscribes in the full format, because the parsed
+# AS_PATH lists ASNs only and cannot tell a set from a sequence.
+# PREVENTS: a migrated peer withdrawing the routes its ExaBGP neighbor kept, or
+# keeping them with the set rewritten as a sequence.
 # The withdraw default is rfc9774-as-set-receive-treat-as-withdraw.ci.
 
 stdin=peer:terminator=EOF_PEER
@@ -73,7 +77,7 @@ cmd=background:seq=1:exec=le test peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
 expect=exit:code=0
 expect=stderr:contains=ZE-AS-SET-KEPT prefix=10.1.0.0/24
-expect=stderr:contains=65010
+expect=stderr:contains=as-path=02010000FDE901020000FDF20000FDF3
 reject=stderr:pattern=RFC 9774 Section 3
 reject=stderr:pattern=ZE-OBSERVER-FAIL
 reject=stderr:pattern=panic

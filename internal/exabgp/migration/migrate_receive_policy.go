@@ -11,6 +11,25 @@ import (
 	"github.com/ze-software/ze/internal/component/config"
 )
 
+// The ExaBGP receive-policy values, each spelled once. exabgp.yang declares the
+// same words as the enumerations of the neighbor leaves `as-set` and
+// `tunnel-encapsulation`, and TestReceivePolicyValuesMatchTheExaBGPModel holds
+// the two in agreement: the parser refuses a word the model does not declare,
+// so a constant spelled differently would never match.
+const (
+	exabgpASSetWithdraw     = "withdraw"
+	exabgpASSetAccept       = "accept"
+	exabgpTunnelEncapAuto   = "auto"
+	exabgpTunnelEncapFilter = "filter"
+	exabgpTunnelEncapAccept = "accept"
+)
+
+// zeASSetAccept is the ze peer leaf value `session { as-set accept; }` the
+// migration writes. ze-bgp-conf.yang declares it, and
+// TestMigrateASSetAcceptKeepsTheSet parses the migrated config against that
+// model.
+const zeASSetAccept = "accept"
+
 // applyReceivePolicy judges the two receive-policy leaves ExaBGP 6.0 added to
 // a neighbor (f9bfb853b, configuration/grammar/tree/neighbor.py) and writes
 // what each needs on the migrated ze peer:
@@ -47,11 +66,11 @@ func applyASSetPolicy(neighbor, peer *config.Tree) error {
 	if !ok {
 		return nil
 	}
-	if value == "withdraw" {
+	if value == exabgpASSetWithdraw {
 		return nil
 	}
-	if value == "accept" {
-		peerSession(peer).Set("as-set", "accept")
+	if value == exabgpASSetAccept {
+		peerSession(peer).Set("as-set", zeASSetAccept)
 		return nil
 	}
 	return fmt.Errorf("as-set %s: this neighbor cannot be migrated\n"+
@@ -84,13 +103,13 @@ func checkTunnelEncapsulationPolicy(neighbor *config.Tree) error {
 	if !ok {
 		return nil
 	}
-	if value == "accept" {
+	if value == exabgpTunnelEncapAccept {
 		return nil
 	}
-	if value == "auto" {
+	if value == exabgpTunnelEncapAuto {
 		return nil
 	}
-	if value == "filter" {
+	if value == exabgpTunnelEncapFilter {
 		return fmt.Errorf("tunnel-encapsulation filter: this neighbor cannot be migrated\n" +
 			"why: ze cannot yet drop a received Tunnel Encapsulation attribute " +
 			"(RFC 9012 Section 11) from one peer\n" +
