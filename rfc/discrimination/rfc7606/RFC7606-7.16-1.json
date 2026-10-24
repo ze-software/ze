@@ -7,7 +7,7 @@
     "claim-sha": "1248e59cd86bffec",
     "route": "revert",
     "producer": "internal/component/bgp/message/rfc7606_optional_attrs.go::validateAttrSetDepth",
-    "producer-sha": "590ddc9a89c7e95f",
+    "producer-sha": "27048304eac7aefd",
     "break": "body of validateAttrSetDepth replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   },
   {
@@ -40,7 +40,7 @@
     "claim-sha": "e86a6a0cb136762b",
     "route": "revert",
     "producer": "internal/component/bgp/message/rfc7606_optional_attrs.go::validateAttrSetDepth",
-    "producer-sha": "590ddc9a89c7e95f",
+    "producer-sha": "27048304eac7aefd",
     "break": "body of validateAttrSetDepth replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   },
   {
@@ -51,7 +51,7 @@
     "claim-sha": "5ea3531ad36146e9",
     "route": "revert",
     "producer": "internal/component/bgp/message/rfc7606_optional_attrs.go::validateAttrSetDepth",
-    "producer-sha": "590ddc9a89c7e95f",
+    "producer-sha": "27048304eac7aefd",
     "break": "body of validateAttrSetDepth replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   },
   {
@@ -62,7 +62,7 @@
     "claim-sha": "6bf49e924e671586",
     "route": "revert",
     "producer": "internal/component/bgp/message/rfc7606_optional_attrs.go::validateAttrSetDepth",
-    "producer-sha": "590ddc9a89c7e95f",
+    "producer-sha": "27048304eac7aefd",
     "break": "body of validateAttrSetDepth replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   },
   {
@@ -73,7 +73,7 @@
     "claim-sha": "79e72ec3f2a7900f",
     "route": "revert",
     "producer": "internal/component/bgp/message/rfc7606_optional_attrs.go::validateAttrSetDepth",
-    "producer-sha": "590ddc9a89c7e95f",
+    "producer-sha": "27048304eac7aefd",
     "break": "body of validateAttrSetDepth replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   },
   {
@@ -84,7 +84,7 @@
     "claim-sha": "8c1591dca72a2444",
     "route": "revert",
     "producer": "internal/component/bgp/message/rfc7606_optional_attrs.go::validateAttrSetDepth",
-    "producer-sha": "590ddc9a89c7e95f",
+    "producer-sha": "27048304eac7aefd",
     "break": "body of validateAttrSetDepth replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   },
   {

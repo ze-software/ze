@@ -117,3 +117,53 @@ func TestRFC7606AttrSetNestingCapBoundary(t *testing.T) {
 		"one level beyond the cap must be rejected")
 	require.Contains(t, result.Description, "nested deeper")
 }
+
+// TestRFC7606AttrSetIncludedASSetKeepsRoute proves that an AS_SET or AS_CONFED_SET in an
+// ATTR_SET's included AS_PATH or AS4_PATH does not make the ATTR_SET malformed, whatever
+// the receiving peer's `session as-set` says, while the included path's other checks
+// still run. Method: one UPDATE per included path, validated through
+// ValidateUpdateRFC7606Peer with acceptASSet false (withdraw, the RFC 9774 default) and
+// true (accept); the top-level AS_PATH holds no set, so only the ATTR_SET is judged.
+//
+// RFC 6368 Section 5 makes the ATTR_SET malformed when "The included attributes are
+// malformed themselves." RFC 9774 Section 3 binds "reception of BGP UPDATE messages
+// containing AS_SETs or AS_CONFED_SETs in the AS_PATH or AS4_PATH [RFC6793]." and never
+// calls a set malformed. FRR and BIRD keep the route: neither decodes code 128.
+//
+// RFC requirement: RFC7606-7.16-1 positive -- an ATTR_SET whose included AS_PATH holds an
+// AS_SET or AS_CONFED_SET, or whose included AS4_PATH holds an AS_SET, draws no RFC 7606
+// action from ValidateUpdateRFC7606Peer with acceptASSet false and with it true.
+// RFC requirement: RFC7606-7.16-1 negative -- the same included AS_SET holding AS 0 draws
+// treat-as-withdraw on attribute code 128 under both values.
+func TestRFC7606AttrSetIncludedASSetKeepsRoute(t *testing.T) {
+	// AS_SEQUENCE {65000}, then the set segment; four-octet AS numbers (RFC 6368 Section 5).
+	seq := []byte{0x02, 0x01, 0x00, 0x00, 0xfd, 0xe8}
+	asSet := append(append([]byte{}, seq...), 0x01, 0x02, 0x00, 0x00, 0xfe, 0x1c, 0x00, 0x00, 0xfe, 0x1d)
+	confedSet := append(append([]byte{}, seq...), 0x04, 0x01, 0x00, 0x00, 0xfe, 0x1c)
+	as4Set := append(append([]byte{}, seq...), 0x01, 0x01, 0xfa, 0x56, 0xea, 0x01)
+	zeroSet := append(append([]byte{}, seq...), 0x01, 0x01, 0x00, 0x00, 0x00, 0x00)
+	noAddPath := func(uint16, uint8) bool { return false }
+
+	for _, accept := range []bool{false, true} {
+		for _, tc := range []struct {
+			name  string
+			inner []byte
+		}{
+			{"AS_SET in included AS_PATH", optAttr(0x40, 0x02, asSet)},
+			{"AS_CONFED_SET in included AS_PATH", optAttr(0x40, 0x02, confedSet)},
+			{"AS_SET in included AS4_PATH", optAttr(0xc0, 0x11, as4Set)},
+		} {
+			attrs := updateWith(optAttr(0xc0, 0x80, attrSetValue(65000, tc.inner)))
+			result := ValidateUpdateRFC7606Peer(attrs, true, false, false, noAddPath, false, accept)
+			require.Equal(t, RFC7606ActionNone, result.Action,
+				"acceptASSet %v: %s: %s", accept, tc.name, result.Description)
+		}
+
+		attrs := updateWith(optAttr(0xc0, 0x80, attrSetValue(65000, optAttr(0x40, 0x02, zeroSet))))
+		result := ValidateUpdateRFC7606Peer(attrs, true, false, false, noAddPath, false, accept)
+		require.Equal(t, RFC7606ActionTreatAsWithdraw, result.Action, "acceptASSet %v: AS 0", accept)
+		require.Equal(t, uint8(128), result.AttrCode, "acceptASSet %v: AS 0", accept)
+		require.Equal(t, "RFC 7606 Section 7.16: malformed ATTR_SET, an included attribute is itself malformed, code (2)",
+			result.Description, "acceptASSet %v: AS 0", accept)
+	}
+}

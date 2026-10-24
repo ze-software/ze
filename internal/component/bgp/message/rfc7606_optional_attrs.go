@@ -110,7 +110,9 @@ func validateIPv6ExtCommunityAttr(code uint8, length int, _ []byte, _, _ bool, _
 // The outer session's isIBGP/asn4 and the receiving peer's policy are deliberately
 // unused: see the inner-context note in validateAttrSetDepth. The included attributes
 // describe the originating network's path, not this session's, so the receiving peer's
-// `session as-set accept` does not reach them. Taking them and ignoring them is the
+// `session as-set` does not reach them: an AS_SET in an included AS_PATH never makes the
+// ATTR_SET malformed (see the RFC 9774 note at the inner validation). Taking them and
+// ignoring them is the
 // point -- the signature is fixed by attrValidatorFn.
 func validateAttrSetAttr(code uint8, length int, attrData []byte, _, _ bool, _ receivePolicy) *RFC7606ValidationResult {
 	return validateAttrSetDepth(code, length, attrData, 0)
@@ -225,7 +227,18 @@ func validateAttrSetDepth(
 		// RFC 7606 Section 7.16: "An UPDATE message with a malformed ATTR_SET
 		// attribute SHALL be handled using the approach of 'treat as withdraw'."
 		// Attribute discard describes handling, not absence of malformation.
-		if r := validateAttribute(innerCode, innerLen, innerData, true, true, receivePolicy{}); r != nil &&
+		//
+		// The policy keeps a set segment in an included AS_PATH or AS4_PATH, so their
+		// structural and AS 0 checks still run but the RFC 9774 set scan does not. RFC
+		// 9774 Section 3 binds "reception of BGP UPDATE messages containing AS_SETs or
+		// AS_CONFED_SETs in the AS_PATH or AS4_PATH [RFC6793]." It names the UPDATE's own
+		// paths and never calls a set malformed, so a set inside an ATTR_SET is not
+		// "malformed themselves" in the RFC 6368 sense. FRR (bgp_attr_parse sends code
+		// 128 to bgp_attr_unknown, kept as transit) and BIRD (bgp_decode_attr sends it
+		// to bgp_decode_unknown, kept opaque) never look inside, so both keep the route
+		// whatever their reject-as-sets or allow_as_sets setting: Ze does the same, under
+		// either value of the receiving peer's `session as-set`.
+		if r := validateAttribute(innerCode, innerLen, innerData, true, true, receivePolicy{acceptASSet: true}); r != nil &&
 			r.Action != RFC7606ActionNone {
 			return malformed("an included attribute is itself malformed, code", int64(innerCode))
 		}
