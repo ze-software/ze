@@ -1,16 +1,16 @@
 {
-  "note": "FewerThanThreeOctetsRemainTreatAsWithdraw isolates one- and two-octet tails and an incomplete extended-length header; AttributeLengthConflictTreatAsWithdraw isolates a declared attribute length exceeding the remaining section and requires exact treat-as-withdraw; clean controls require None, and stronger no-reachable-NLRI or unparseable-NLRI outcomes remain separately exercised rather than being counted as equivalent withdrawals",
+  "note": "Re-judged 2026-10-24 (independent auditor, after 66858fa127). RFC 7606 Section 4: \"In either of these cases, an error condition exists and the \"treat- as-withdraw\" approach MUST be used (unless some other, more severe error is encountered dictating a stronger approach)\"; the first case is \"the length of the last encountered path attribute would cause the Total Attribute Length to be exceeded when parsing the enclosed path attributes.\" Changed unit: TestRFC7606AttributeLengthConflictTreatAsWithdraw lost its RFC8654-3-1 tag and gained an RFC 7606 quote and a claim naming exactly what it asserts; body unchanged. Buffer isolates case 1: ORIGIN, AS_PATH, NEXT_HOP, then COMMUNITY declaring 8 (a legal COMMUNITY length, so 7.8 cannot fire) with 4 octets following; hasNLRI=true, so the Section 5.2 escalation in structuralError does not apply. Exact TreatAsWithdraw, AttrCode 8 and \"Section 4\" text: a reset or a silent accept both fail it. Producer read: ValidateUpdateRFC7606AddPath bounds check returns structuralError (treat-as-withdraw with reachable NLRI); every session-reset check returns immediately, so the collected strongest before a structural exit is never above treat-as-withdraw and the \"more severe\" carve-out is not downgraded. Case 2 is TestRFC7606FewerThanThreeOctetsRemainTreatAsWithdraw (1 and 2 trailing octets, 3 with Extended Length: exact TreatAsWithdraw; clean mandatory set: exact None). Positives: that clean control and the exact-None baselines of TestRFC7606SystematicLengthCorruption. Verdict stands.",
   "requirement_sha": "9027ac42bdf73e4d",
   "tests": {
     "internal/component/bgp/message/rfc7606_clause_test.go::TestRFC7606FewerThanThreeOctetsRemainTreatAsWithdraw": "a8996fb398de9acf",
     "internal/component/bgp/message/rfc7606_clause_test.go::TestRFC7606FewerThanThreeOctetsRemainTreatAsWithdraw#2": "a8996fb398de9acf",
-    "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606AttributeLengthConflictTreatAsWithdraw": "f5b8bd82514f3d77",
-    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "54f63ffca6a2c672"
+    "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606AttributeLengthConflictTreatAsWithdraw": "967945e3e7f8b25f",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "9582b83dd8b96bf0"
   },
   "units": {
     "internal/component/bgp/message/rfc7606_clause_test.go::TestRFC7606FewerThanThreeOctetsRemainTreatAsWithdraw": "a02beace3815f0ac",
     "internal/component/bgp/message/rfc7606_clause_test.go::TestRFC7606FewerThanThreeOctetsRemainTreatAsWithdraw#2": "a02beace3815f0ac",
-    "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606AttributeLengthConflictTreatAsWithdraw": "6215492127a94045",
+    "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606AttributeLengthConflictTreatAsWithdraw": "1ef5d370bd1a51fd",
     "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "07b9d95ed1e789a5"
   },
   "verdict": "enforced"
