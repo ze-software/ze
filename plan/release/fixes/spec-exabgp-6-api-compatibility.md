@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
+| Status | in-progress |
 | Priority | P1 |
 | Release reason | Preserve the bridge API compatibility and response contracts approved for shipped helpers. |
 | Scope | protocol |
@@ -29,7 +29,16 @@ DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1 proofs were stored (dcc219072a,
 | same record, positive, `TestSoftwareVersionCapabilityIsRecordedForDisplay` | no longer verifies (producer-changed) | same |
 
 The closure skill forbids the closing agent from writing proof records: this is
-implementation work (`/ze-implement` step 5). The other 48 refusals in the same
+implementation work (`/ze-implement` step 5).
+
+Progress (2026-10-24, `/ze-implement`): both discrimination records are
+re-taken. `./le rfc discriminate-record` observed each unit go red under the
+`revert` break of `negotiated.go::Negotiate` and rewrote `producer-sha` from
+`7d637b6d32bc44a0` to `f5de8d610f57837f` in both entries; `./le rfc
+discriminate stem draft-abraitis-bgp-version-capability` lists them. The audit
+verdict row is still stale: its re-judge with `ze-rfc-audit` runs in an
+independent agent, never in the session that re-recorded the proofs. The
+other 48 refusals in the same
 run trace to other specs (238bdb62e9 for RFC2545 and RFC9384, and the IKE and
 YANG stems) and do not block this spec. Once the three records verify,
 `/ze-close` resumes at step 6: the Review Gate artifact is recorded and clean,
