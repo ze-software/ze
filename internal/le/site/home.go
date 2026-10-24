@@ -47,9 +47,8 @@ const (
 	homeUpdateTags = 4
 )
 
-// homeSummaryRunes is how much of a summary the "Latest news" band shows. The
-// band sits above the fold and the proof cards under it have to stay visible,
-// so one line each is the whole budget.
+// homeSummaryRunes bounds summaries in the "Latest news" band and weekly cards.
+// The homepage leaves the full introduction to the linked article.
 const homeSummaryRunes = 108
 
 // audienceData is website/data/audience.json: the two card grids the homepage
@@ -515,9 +514,19 @@ func blogTeaserCards(weeks []changeWeek) string {
 	cards := make([]string, 0, shown)
 	for index := range shown {
 		week := weeks[index]
-		intro := week.Intro
-		if intro == "" {
-			intro = "Weekly update"
+		summary := week.homeSummary
+		if summary == "" {
+			paragraphEnd := 0
+			for line := range strings.Lines(week.Intro) {
+				if strings.TrimSpace(line) == "" {
+					break
+				}
+				paragraphEnd += len(line)
+			}
+			summary = week.Intro[:paragraphEnd]
+		}
+		if summary == "" {
+			summary = "Weekly update"
 		}
 		var out textbuf.Buffer
 		out.Reset().Str("                    <article class=\"card card-post home-update-card cat-").
@@ -530,7 +539,7 @@ func blogTeaserCards(weeks []changeWeek) string {
 		out.Str("                        <p class=\"home-update-date\">Week of ").
 			Str(html.EscapeString(week.Slug)).Str("</p>\n")
 		out.Str("                        <h3><a href=\"").Str(html.EscapeString(week.route())).
-			Str("\">").Str(html.EscapeString(intro)).Str("</a></h3>\n")
+			Str("\">").Str(html.EscapeString(clipSummary(summary))).Str("</a></h3>\n")
 		out.Str(homeUpdateTagRow(week.Topics))
 		out.Str("                    </article>")
 		cards = append(cards, out.String())

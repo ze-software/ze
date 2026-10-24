@@ -376,6 +376,14 @@ without relying on a host SSH service or shell.
 <!-- source: internal/le/site/homebody.go -- homeTemplate -->
 <!-- source: internal/le/site/home.go -- homeBody -->
 
+The homepage's weekly cards use the post's optional `home-summary:` front
+matter. Write one short summary of at most 108 characters. Without it,
+the card uses the introduction's first paragraph. The renderer collapses
+whitespace and clips long summaries at a word boundary, with an ellipsis.
+The full weekly page, feed and changelog data keep the complete introduction.
+<!-- source: internal/le/site/home.go -- blogTeaserCards, clipSummary -->
+<!-- source: internal/le/site/changes.go -- readChangeWeek, changeWeek -->
+
 Guides retain their source heading IDs, prose, examples and demonstrations.
 `insertDocTOC` groups the complete body beside its outline after the generated
 title block. It verifies that the body starts with that block before splitting;
@@ -510,6 +518,10 @@ this before considering the update done.
    its category) rather than forcing a near-miss.
    Weekly RFC counts are historical at publication. Keep
    `ze-stat-snapshot: true` in front matter, never in a body HTML comment.
+
+   **Summarize for the homepage.** Add `home-summary:` using the
+   [homepage card contract](#site-design-and-content-rules). Keep the full introduction
+   and its qualifications in the body.
 
    **Pin release evidence before drafting.** Resolve `HEAD` once to a full
    commit ID and use its first-parent history for both reporting boundaries.

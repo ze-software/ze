@@ -86,13 +86,14 @@ type changeTopic struct {
 }
 
 // changeWeek is one week of the changelog as data/changes.json states it. The
-// sections are the page's own content and are not published in that file.
+// sections and optional homepage summary are not published in that file.
 type changeWeek struct {
-	Slug     string        `json:"slug"`
-	Intro    string        `json:"intro"`
-	IsDraft  bool          `json:"is_draft"`
-	Topics   []changeTopic `json:"topics"`
-	sections []weekSection
+	Slug        string        `json:"slug"`
+	Intro       string        `json:"intro"`
+	IsDraft     bool          `json:"is_draft"`
+	Topics      []changeTopic `json:"topics"`
+	homeSummary string
+	sections    []weekSection
 }
 
 // weekSection is one themed part of a week: its header and its Markdown body.
@@ -274,11 +275,12 @@ func readChangeWeek(sourcePath string, vocabulary map[string]string) (changeWeek
 		return changeWeek{}, err
 	}
 	return changeWeek{
-		Slug:     slug,
-		Intro:    intro,
-		IsDraft:  strings.HasPrefix(strings.ToUpper(metadata["status"]), "DRAFT"),
-		Topics:   topics,
-		sections: sections,
+		Slug:        slug,
+		Intro:       intro,
+		IsDraft:     strings.HasPrefix(strings.ToUpper(metadata["status"]), "DRAFT"),
+		Topics:      topics,
+		homeSummary: strings.TrimSpace(metadata["home-summary"]),
+		sections:    sections,
 	}, nil
 }
 
