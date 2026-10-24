@@ -4,7 +4,7 @@ Source: `internal/le/rfc`, `rfc/short/*.md`, and `rfc/audit/*/*.json`.
 
 ## Gate verdict
 
-RED. 36 open gate issues. Check results below names them, up to the 25 this page inlines. Reproduce it with `./le rfc check`. The gate's own line reads `rfc-requirements: 36 violation(s)`.
+RED. 28 open gate issues. Check results below names them, up to the 25 this page inlines. Reproduce it with `./le rfc check`. The gate's own line reads `rfc-requirements: 28 violation(s)`.
 
 ### Overall
 
@@ -25,7 +25,7 @@ what Ze has
 | Tested both ways | 56.0% | 2,332 of 4,163 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 10.2% | 426 of 4,163 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 4,163 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 66.7% | 5,899 of 8,849 tagged units in enrolled RFCs, 4 escaped and 42 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 66.9% | 5,924 of 8,852 tagged units in enrolled RFCs, 4 escaped and 20 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -36,7 +36,7 @@ measures that are neither good news nor bad
 | Not applicable | 16.0% | 668 of 4,163 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 1.1% | 44 of 4,163 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 1.2% | 52 of 4,163 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
-| Semantic verdicts | 2,269 | 0 shifted, 3 stale, 2,020 missing | requirements a reader has judged and whose judgement is still current. A missing verdict is not claimed, and the shifted and stale ones are named on their own RFC's page |
+| Semantic verdicts | 2,270 | 0 shifted, 2 stale, 2,020 missing | requirements a reader has judged and whose judgement is still current. A missing verdict is not claimed, and the shifted and stale ones are named on their own RFC's page |
 
 ### Negative
 
@@ -46,7 +46,7 @@ what Ze owes
 |---|---:|---|---|
 | Partial proof; remaining gap | 0.3% | 14 of 4,163 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 15.1% | 627 of 4,163 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Gate verdict | RED | 36 open gate issues | whether ./le rfc check passes over this tree |
+| Gate verdict | RED | 28 open gate issues | whether ./le rfc check passes over this tree |
 
 The 8 shares marked as a part above are the whole of the 4,163 gated MUSTs: they add to 100%. Proven by test is the first two of them added together, so it is not a part of its own. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -71,15 +71,15 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 | Metric | Value |
 |---|---:|
-| Gate issues | 36 |
+| Gate issues | 28 |
 | Gated MUST-level requirements | 4,292 |
 | Enrolled RFCs | 177 |
-| Resolved test tags | 9,150 |
+| Resolved test tags | 9,153 |
 | Declared gaps | 627 |
 | RFCs with declared gaps | 74 |
-| Fresh semantic audit verdicts | 2,269 |
+| Fresh semantic audit verdicts | 2,270 |
 | Shifted semantic audit verdicts | 0 |
-| Stale semantic audit verdicts | 3 |
+| Stale semantic audit verdicts | 2 |
 
 ## Who implements each document
 
@@ -211,9 +211,9 @@ This gate runs before a commit is verified: ./le rfc check is 1 stage of the 58 
 | Reproduce it | `./le rfc check` | 1 of 58 full-mode verify stages run it |
 | Requirement source | `rfc/short/*.md` | 4,292 gated MUST-level requirements |
 | Enrolment | `rfc/short/*.md`, the `\| Enrolment \|` Meta row | 177 enrolled RFCs |
-| Test tags | `internal/`, `pkg/`, `test/` | 9,150 resolved tags |
+| Test tags | `internal/`, `pkg/`, `test/` | 9,153 resolved tags |
 | Public ledger | `rfc/short/*.md`, the `\| Support \|` Meta row | 74 RFCs with gaps, 2 Supported with Remaining |
-| Semantic audits | `rfc/audit/*/*.json` | 2,269 fresh, 0 shifted, 3 stale, 2,020 missing |
+| Semantic audits | `rfc/audit/*/*.json` | 2,270 fresh, 0 shifted, 2 stale, 2,020 missing |
 | Pre-commit verification | `internal/le/verify/engine/stages.go` | ./le rfc check, 1 of 58 full-mode stages |
 | Published artifacts | `data/rfc-compliance.json`, `data/rfc-requirements.json` | the same answers this page renders, machine-readable |
 
@@ -221,10 +221,8 @@ This gate runs before a commit is verified: ./le rfc check is 1 stage of the 58 
 
 | RFC | Requirement | Level | What is wrong | The requirement |
 |---|---|---|---|---|
-| - | `-` | - | rfc/audit/draft-ietf-bess-mup-safi/DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-6.json: DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-6 is 'partial' without a matching {partial} annotation | - |
 | - | `-` | - | RFC2545-3-3 partial scope needs a current verified mutant/revert for negative internal/component/bgp/reactor/rfc2545_peer_send_test.go::TestSendAnnounceOmitsLinkLocalWhenPeerOffLink | - |
 | - | `-` | - | RFC2545-3-3 partial scope needs a current verified mutant/revert for positive internal/component/bgp/reactor/rfc2545_peer_send_test.go::TestSendAnnounceAppendsLinkLocalWhenSection3Holds | - |
-| - | `-` | - | rfc/short/draft-ietf-bess-mup-safi.md:410: DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-6 has a STALE audit verdict -- the REQUIREMENT TEXT or declared partial scope changed since it was judged, so every judgement under it is void. Re-read draft-ietf-bess-mup-safi with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md) | - |
 | - | `-` | - | rfc/short/rfc7950.md:316: RFC7950-7.6.5-1 has a STALE audit verdict -- the REQUIREMENT TEXT or declared partial scope changed since it was judged, so every judgement under it is void. Re-read rfc7950 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md) | - |
 | - | `-` | - | rfc/short/rfc7950.md:352: RFC7950-7.9.4-1 has a STALE audit verdict -- the REQUIREMENT TEXT or declared partial scope changed since it was judged, so every judgement under it is void. Re-read rfc7950 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md) | - |
 | - | `-` | - | rfc/discrimination/rfc2545/RFC2545-3-1.json: the revert record for RFC2545-3-1 positive at internal/component/bgp/reactor/rfc2545_announce_nexthop_guard_test.go::TestSessionSendAnnounceAcceptsLinkLocalSecondAddress no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break "body of writeAnnounceUpdate replaced by panic(\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\")" was observed to redden that unit when applied to internal/component/bgp/reactor/reactor_wire.go::writeAnnounceUpdate. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved | - |
@@ -245,9 +243,11 @@ This gate runs before a commit is verified: ./le rfc check is 1 stage of the 58 
 | - | `-` | - | rfc/discrimination/rfc5036/RFC5036-2.6.1.2-2.json: the revert record for RFC5036-2.6.1.2-2 positive at internal/plugins/ldp/rfc5036_procedures_test.go::TestRFC5036EgressFECMappedWithoutWaiting no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break "body of runSession replaced by panic(\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\")" was observed to redden that unit when applied to internal/plugins/ldp/register.go::runSession. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved | - |
 | - | `-` | - | rfc/discrimination/rfc7296/RFC7296-2.21.4-6.json: the mutant record for RFC7296-2.21.4-6 positive at internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrUnprotectedNotifyChangesNoState no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break "line 137: \\"err == nil\\" -> \\"err == nil \|\| err != nil\\"" was observed to redden that unit when applied to internal/component/ike/engine/inbound.go::handleOwnedInbound. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved | - |
 | - | `-` | - | rfc/discrimination/rfc7296/RFC7296-2.21.4-6.json: the mutant record for RFC7296-2.21.4-6 negative at internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrUnprotectedNotifyChangesNoState no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break "line 137: \\"err == nil\\" -> \\"err == nil && err != nil\\"" was observed to redden that unit when applied to internal/component/ike/engine/inbound.go::handleOwnedInbound. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved | - |
-| - | `-` | - | rfc/discrimination/rfc7296/RFC7296-2.21.4-7.json: the revert record for RFC7296-2.21.4-7 negative at internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrProtectedInformationalNotifyChangesNoState no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break "body of handleInformationalOwned replaced by panic(\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\")" was observed to redden that unit when applied to internal/component/ike/engine/inbound.go::handleInformationalOwned. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved | - |
+| - | `-` | - | rfc/discrimination/rfc7296/RFC7296-2.21.4-8.json: the mutant record for RFC7296-2.21.4-8 positive at internal/component/ike/engine/rfc7296_suspicious_test.go::TestSusOwnerLoopPublishesMovedEndpoint no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break "line 274: \\"ps.publishSAEndpoint(sa)\\" -> \\"_ = sa\\"" was observed to redden that unit when applied to internal/component/ike/engine/established.go::maintainSA. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved | - |
+| - | `-` | - | rfc/discrimination/rfc7950/RFC7950-7.3.4-1.json: the revert record for RFC7950-7.3.4-1 positive at internal/component/config/rfc7950_yang_schema_defaults_clauses_test.go::TestRFC7950DerivedTypeInheritsOrReplacesTheDefault no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break "body of yangToLeaf replaced by panic(\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\")" was observed to redden that unit when applied to internal/component/config/yang_schema.go::yangToLeaf. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved | - |
+| - | `-` | - | rfc/discrimination/rfc9384/RFC9384-4-1.json: the revert record for RFC9384-4-1 positive at internal/component/bgp/plugins/cmd/peer/rfc9384_last_error_unsent_test.go::TestBgpSummaryLastErrorSeparatesToldFromCouldNotTell no longer verifies (unit-changed): the tagged unit's behavior changed since the red was observed. The break "body of lastErrorString replaced by panic(\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\")" was observed to redden that unit when applied to internal/component/bgp/plugins/cmd/peer/summary.go::lastErrorString. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved | - |
 
-11 further findings not shown here. The whole list is in data/rfc-compliance.json, and each one is on its own RFC's page under the requirement it names.
+3 further findings not shown here. The whole list is in data/rfc-compliance.json, and each one is on its own RFC's page under the requirement it names.
 
 ## Enrolled RFCs
 

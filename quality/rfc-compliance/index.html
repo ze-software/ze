@@ -126,7 +126,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>56.0%</strong><b>2,332 of 4,163 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>10.2%</strong><b>426 of 4,163 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 4,163 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>66.7%</strong><b>5,899 of 8,849 tagged units in enrolled RFCs, 4 escaped and 42 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>66.9%</strong><b>5,924 of 8,852 tagged units in enrolled RFCs, 4 escaped and 20 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -134,14 +134,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>16.0%</strong><b>668 of 4,163 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>1.1%</strong><b>44 of 4,163 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>1.2%</strong><b>52 of 4,163 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Semantic verdicts</span><strong>2,269</strong><b>0 shifted, 3 stale, 2,020 missing</b><p>requirements a reader has judged and whose judgement is still current. A missing verdict is not claimed, and the shifted and stale ones are named on their own RFC&#39;s page</p></article>
+<article class="rfc-card rfc-neutral"><span>Semantic verdicts</span><strong>2,270</strong><b>0 shifted, 2 stale, 2,020 missing</b><p>requirements a reader has judged and whose judgement is still current. A missing verdict is not claimed, and the shifted and stale ones are named on their own RFC&#39;s page</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>Partial proof; remaining gap</span><strong>0.3%</strong><b>14 of 4,163 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>15.1%</strong><b>627 of 4,163 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Gate verdict</span><strong>RED</strong><b>36 open gate issues</b><p>whether ./le rfc check passes over this tree</p></article>
+<article class="rfc-card rfc-bad"><span>Gate verdict</span><strong>RED</strong><b>28 open gate issues</b><p>whether ./le rfc check passes over this tree</p></article>
 </div>
 <p>The 8 shares marked as a part above are the whole of the 4,163 gated MUSTs: they add to 100%. Proven by test is the first two of them added together, so it is not a part of its own. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -212,8 +212,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </details>
 <div class="rfc-verdict rfc-bad">
 <p><span>Gate verdict</span><strong>RED</strong></p>
-<p>36 open gate issues. Check results below names them, up to the 25 this page inlines.</p>
-<p>Reproduce it with <code>./le rfc check</code>. The gate's own line reads <code>rfc-requirements: 36 violation(s)</code>.</p>
+<p>28 open gate issues. Check results below names them, up to the 25 this page inlines.</p>
+<p>Reproduce it with <code>./le rfc check</code>. The gate's own line reads <code>rfc-requirements: 28 violation(s)</code>.</p>
 </div>
 <section><h2>Who implements each document</h2>
 <p>The ledger counts what Ze implements in its own Go. A document another layer performs leaves the gated population and names what performs it, and where Ze can observe the behavior the requirement still carries a test over the state Ze installs.</p>
@@ -556,7 +556,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Test tags</td>
 <td><code>internal/</code>, <code>pkg/</code>, <code>test/</code></td>
-<td>9,150 resolved tags</td>
+<td>9,153 resolved tags</td>
 </tr>
 <tr><td>Public ledger</td>
 <td><code>rfc/short/*.md</code>, the <code>| Support |</code> Meta row</td>
@@ -564,7 +564,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Semantic audits</td>
 <td><code>rfc/audit/*/*.json</code></td>
-<td>2,269 fresh, 0 shifted, 3 stale, 2,020 missing</td>
+<td>2,270 fresh, 0 shifted, 2 stale, 2,020 missing</td>
 </tr>
 <tr><td>Pre-commit verification</td>
 <td><code>internal/le/verify/engine/stages.go</code></td>
@@ -586,12 +586,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>-</td>
 <td><code>-</code></td>
 <td>-</td>
-<td>rfc/audit/draft-ietf-bess-mup-safi/DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-6.json: DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-6 is &#39;partial&#39; without a matching {partial} annotation</td>
-<td>-</td>
-</tr>
-<tr><td>-</td>
-<td><code>-</code></td>
-<td>-</td>
 <td>RFC2545-3-3 partial scope needs a current verified mutant/revert for negative internal/component/bgp/reactor/rfc2545_peer_send_test.go::TestSendAnnounceOmitsLinkLocalWhenPeerOffLink</td>
 <td>-</td>
 </tr>
@@ -599,12 +593,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><code>-</code></td>
 <td>-</td>
 <td>RFC2545-3-3 partial scope needs a current verified mutant/revert for positive internal/component/bgp/reactor/rfc2545_peer_send_test.go::TestSendAnnounceAppendsLinkLocalWhenSection3Holds</td>
-<td>-</td>
-</tr>
-<tr><td>-</td>
-<td><code>-</code></td>
-<td>-</td>
-<td>rfc/short/draft-ietf-bess-mup-safi.md:410: DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-6 has a STALE audit verdict -- the REQUIREMENT TEXT or declared partial scope changed since it was judged, so every judgement under it is void. Re-read draft-ietf-bess-mup-safi with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
 <td>-</td>
 </tr>
 <tr><td>-</td>
@@ -730,13 +718,25 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>-</td>
 <td><code>-</code></td>
 <td>-</td>
-<td>rfc/discrimination/rfc7296/RFC7296-2.21.4-7.json: the revert record for RFC7296-2.21.4-7 negative at internal/component/ike/engine/rfc7296_notify_error_test.go::TestErrProtectedInformationalNotifyChangesNoState no longer verifies (producer-changed): the producer&#39;s behavior changed since the break was applied to it. The break &#34;body of handleInformationalOwned replaced by panic(\&#34;BUG: ./le rfc discriminate-record disabled this producer to observe the red\&#34;)&#34; was observed to redden that unit when applied to internal/component/ike/engine/inbound.go::handleInformationalOwned. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved</td>
+<td>rfc/discrimination/rfc7296/RFC7296-2.21.4-8.json: the mutant record for RFC7296-2.21.4-8 positive at internal/component/ike/engine/rfc7296_suspicious_test.go::TestSusOwnerLoopPublishesMovedEndpoint no longer verifies (producer-changed): the producer&#39;s behavior changed since the break was applied to it. The break &#34;line 274: \&#34;ps.publishSAEndpoint(sa)\&#34; -&gt; \&#34;_ = sa\&#34;&#34; was observed to redden that unit when applied to internal/component/ike/engine/established.go::maintainSA. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved</td>
+<td>-</td>
+</tr>
+<tr><td>-</td>
+<td><code>-</code></td>
+<td>-</td>
+<td>rfc/discrimination/rfc7950/RFC7950-7.3.4-1.json: the revert record for RFC7950-7.3.4-1 positive at internal/component/config/rfc7950_yang_schema_defaults_clauses_test.go::TestRFC7950DerivedTypeInheritsOrReplacesTheDefault no longer verifies (producer-changed): the producer&#39;s behavior changed since the break was applied to it. The break &#34;body of yangToLeaf replaced by panic(\&#34;BUG: ./le rfc discriminate-record disabled this producer to observe the red\&#34;)&#34; was observed to redden that unit when applied to internal/component/config/yang_schema.go::yangToLeaf. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved</td>
+<td>-</td>
+</tr>
+<tr><td>-</td>
+<td><code>-</code></td>
+<td>-</td>
+<td>rfc/discrimination/rfc9384/RFC9384-4-1.json: the revert record for RFC9384-4-1 positive at internal/component/bgp/plugins/cmd/peer/rfc9384_last_error_unsent_test.go::TestBgpSummaryLastErrorSeparatesToldFromCouldNotTell no longer verifies (unit-changed): the tagged unit&#39;s behavior changed since the red was observed. The break &#34;body of lastErrorString replaced by panic(\&#34;BUG: ./le rfc discriminate-record disabled this producer to observe the red\&#34;)&#34; was observed to redden that unit when applied to internal/component/bgp/plugins/cmd/peer/summary.go::lastErrorString. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved</td>
 <td>-</td>
 </tr>
 </tbody>
 </table>
 </div>
-<p>11 further findings not shown here. The whole list is in data/rfc-compliance.json, and each one is on its own RFC&#39;s page under the requirement it names.</p>
+<p>3 further findings not shown here. The whole list is in data/rfc-compliance.json, and each one is on its own RFC&#39;s page under the requirement it names.</p>
 </section>
 <section><h2>Enrolled RFCs</h2>
 <div class="rfc-table-wrap">
@@ -2144,7 +2144,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 14:55 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 15:26 UTC</span>
                 </div>
             </div>
         </footer>

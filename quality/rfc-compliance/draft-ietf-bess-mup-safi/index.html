@@ -121,7 +121,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 47 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 47 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 47 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>80.0%</strong><b>36 of 45 tagged units, 0 escaped and 9 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>100.0%</strong><b>48 of 48 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -136,7 +136,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>63.8%</strong><b>30 of 47 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>17</strong><b>of 47 gated MUSTs judged</b><p>2 weak, wrong or unimplemented, 1 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>17</strong><b>of 47 gated MUSTs judged</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <p>The 8 shares marked as a part above are the whole of the 47 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -231,16 +231,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>47</td>
+<td>50</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>45</td>
+<td>48</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>17</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>45</td>
+<td>48</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/draft-ietf-bess-mup-safi.md</code></td>
@@ -536,9 +536,12 @@ The BGP-MUP NLRI codec only: ipv4/mup and ipv6/mup family registration, ISD/DSD/
 <td>3.1.3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-6">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_withdraw_test.go#L111" title="internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_withdraw_test.go" target="_blank" rel="noopener"><code>TestMUPMalformedT1STTreatAsWithdraw</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_02_relay_test.go#L29" title="internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_02_relay_test.go" target="_blank" rel="noopener"><code>TestMUPT1ST02TreatAsWithdraw</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go#L38" title="internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go" target="_blank" rel="noopener"><code>TestMUPT1STMandatoryFieldsWithinLength</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_withdraw_test.go#L137" title="internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_withdraw_test.go" target="_blank" rel="noopener"><code>TestMUPMalformedT1STTreatAsWithdraw</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_t1st_truncation_test.go#L53" title="internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_t1st_truncation_test.go" target="_blank" rel="noopener"><code>TestMUPT1STFixedOctetsWithinLength</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go#L46" title="internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go" target="_blank" rel="noopener"><code>TestMUPT1STMandatoryFieldsWithinLength</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_t1st_truncation_test.go#L37" title="internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_t1st_truncation_test.go" target="_blank" rel="noopener"><code>TestMUPT1STSourceAddressWithinLength</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-bess-mup-safi-3.1.3.1-7">DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-7</code></td><td colspan="3"><span class="rfc-subject">- 1: encoding is invalid (a valid TLV requires at minimum a Type byte and a Length byte); MUST be treated as Treat-as- withdraw. (Section 3.1.3.1)</span></td></tr>
@@ -1219,12 +1222,12 @@ The BGP-MUP NLRI codec only: ipv4/mup and ipv6/mup family registration, ISD/DSD/
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go#L202" title="internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go" target="_blank" rel="noopener"><code>TestMUPWellFormedRouteKeptAtIngress</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go#L113" title="internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go" target="_blank" rel="noopener"><code>TestMUPMalformedRouteTreatedAsWithdrawnAtIngress</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1239,12 +1242,12 @@ The BGP-MUP NLRI codec only: ipv4/mup and ipv6/mup family registration, ISD/DSD/
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go#L203" title="internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go" target="_blank" rel="noopener"><code>TestMUPWellFormedRouteKeptAtIngress</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go#L114" title="internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go" target="_blank" rel="noopener"><code>TestMUPMalformedRouteTreatedAsWithdrawnAtIngress</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1259,12 +1262,12 @@ The BGP-MUP NLRI codec only: ipv4/mup and ipv6/mup family registration, ISD/DSD/
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go#L204" title="internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go" target="_blank" rel="noopener"><code>TestMUPWellFormedRouteKeptAtIngress</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go#L115" title="internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go" target="_blank" rel="noopener"><code>TestMUPMalformedRouteTreatedAsWithdrawnAtIngress</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_t1st_address_length_test.go#L63" title="internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_t1st_address_length_test.go" target="_blank" rel="noopener"><code>TestMUPT1STEndpointLengthIsTheOnlyFault</code></a></td>
@@ -1284,28 +1287,38 @@ The BGP-MUP NLRI codec only: ipv4/mup and ipv6/mup family registration, ISD/DSD/
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go#L205" title="internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go" target="_blank" rel="noopener"><code>TestMUPWellFormedRouteKeptAtIngress</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go#L116" title="internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go" target="_blank" rel="noopener"><code>TestMUPMalformedRouteTreatedAsWithdrawnAtIngress</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_t1st_address_length_test.go#L89" title="internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_t1st_address_length_test.go" target="_blank" rel="noopener"><code>TestMUPT1STSourceLengthIsTheOnlyFault</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#draft-ietf-bess-mup-safi-3.1.3.1-6"><code>DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-6</code></a></h3>
 <p>- &lt; 0: the mandatory fields exceed the declared Length; the NLRI is malformed; MUST be treated as Treat-as-withdraw. (§3.1.3.1)</p>
-<p><strong>Audit verdict:</strong> partial (the tests enforce only the declared tested scope; the whole requirement remains unmet), stale-requirement. Independent rejudgment at HEAD 6f076fc22d of the {partial} row d7673ff783 recorded. draft-ietf-bess-mup-safi-01 Section 3.1.3.1 (rfc/drafts/draft-ietf-bess-mup-safi.txt): &#34;- &lt; 0:   the mandatory fields exceed the declared Length; the NLRI is malformed; MUST be treated as Treat-as-withdraw.&#34; The same section: &#34;The Source Address Length has a fixed length of 1 octet.&#34; Tested: &#34;mandatory fields exceed the declared Length&#34;, scoped by the Reason to a declared Length ending inside the Endpoint Address, complete mandatory fields the accepted control. Gap: &#34;MUST be treated as Treat-as-withdraw&#34;, for a draft-mpmz-bess-mup-safi-02 Type 1 ST route ending exactly at its Endpoint Address, which lacks the mandatory Source Address Length octet. Producer: internal/component/bgp/plugins/nlri/mup/types.go::parseBodyT1ST, whose len(rest)==0 branch after the endpoint sets sourceBits=0 and sourceOctetAbsent=true and returns nil instead of ErrMUPTruncated; the route is then held and relayed with the octet added (canonical.go canonicalT1STGrow/writeCanonicalT1ST, observed by reactor/t1st_02_relay_test.go TestMUPT1ST02RelayedWithSourceLength). The gap is therefore real, not a disclosure of untested code. It is the owner decision of 2026-10-22 recorded in plan/release/fixes/spec-exabgp-6-api-compatibility.md (follow ExaBGP f9bfb853b: &#39;a -02 MUP Type 1 ST route without Source Address Length read as length 0&#39;), a deliberate deviation never counted as conformant. Letter: violated for the -02 shape. Spirit: the rule exists so a parser never reads mandatory fields out of the octets past the Length; the -02 read consumes nothing past the Length, so framing stays sound, but a missing mandatory field is supplied by assumption, which the draft forbids. Tested scope, four questions: (1) TestMUPT1STMandatoryFieldsWithinLength (nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go) asserts ErrorIs ErrMUPTruncated for t1stBody cut by 3 octets (Source Address Length plus 2 endpoint octets), positive asserts NoError, empty remainder, exact TEID 0x3039 and endpoint 10.0.0.1; TestMUPMalformedT1STTreatAsWithdraw (reactor/draft_ietf_bess_mup_safi_t1st_withdraw_test.go) holds well-formed K0, receives the same key with its endpoint cut by 2 octets between siblings L and L2 (L2 with unknown TLV 0xF0), and asserts ActionNone, MP_REACH equal to exactly L||L2, MP_UNREACH equal to exactly K0 and decodable by the registered recognizer; its negative asserts a well-formed UPDATE returns byte-identical. That is treat-as-withdraw per RFC 7606 Section 2, what the draft says, not merely what the code does. (2) Exact ErrorIs and byte-exact section assertions fail on a mutant that returns nil, reads the endpoint short, or widens the -02 tolerance to a mid-endpoint stop; the recorded discrimination is only a revert (panic) break of parseBodyT1ST and ValidateNLRI, which proves the units exercise the producers, not this branch, so question 2 rests on this reading. (3) Isolated: TEID 1/0x3039 nonzero, Endpoint Address Length 32 valid, only the truncation fires; siblings well formed. (4) Whole requirement: no. Besides the -02 gap, truncation inside the prefix, inside TEID/QFI/Endpoint Address Length, and inside a non-zero Source Address all reach ErrMUPTruncated in parseBodyT1ST/parsePrefixField but are tagged by neither unit: implemented, unverified under this row, and given no credit. Polarity labels differ between the two units (parser: negative = truncated; reactor: positive = truncated withdrawn), each pair is a distinct conforming/violating input, not one assertion in two hats. Partial stands, zero whole-requirement credit.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent rejudgment at HEAD ff3feee994 after 3249a93545 and 38fb0c08fe, replacing the weak verdict of 8be6ddfbed. draft-ietf-bess-mup-safi Section 3.1.3.1 (rfc/drafts/draft-ietf-bess-mup-safi.txt): &#34;The Source Address Length has a fixed length of 1 octet.&#34;, &#34;compute the number of remaining octets by subtracting, from the Length field in the MUP NLRI common header, the offset of the end of the Source Address measured from the start of the Route Type specific field&#34;, and &#34;- &lt; 0:   the mandatory fields exceed the declared Length; the NLRI is malformed; MUST be treated as Treat-as-withdraw.&#34; Producer at HEAD, types.go::parseBodyT1ST: ErrMUPTruncated when fewer than the 6 fixed octets (TEID, QFI, Endpoint Address Length) remain, when the Endpoint Address is short, when nothing remains for the Source Address Length octet (the draft-mpmz-bess-mup-safi-02 form), and when a non-zero Source Address is short; ValidateNLRI runs the same decode at ingress. (1) Asserts the draft, not the code: the parser units assert ErrorIs ErrMUPTruncated, the session units assert RFC 7606 treat-as-withdraw itself (ActionNone, the route leaves MP_REACH_NLRI, MP_UNREACH_NLRI is exactly the held generation K0 and decodable, siblings byte for byte). (2) Fails on non-compliance, at every bound inside parseBodyT1ST: TestMUPT1STFixedOctetsWithinLength (new) cuts the Length inside the TEID, before the QFI and before the Endpoint Address Length; TestMUPT1STSourceAddressWithinLength (new) gives Source Address Length 32 and two source octets. Each is followed by a whole second NLRI, so the body slice has capacity past its Length and a parser that skipped the bound reads the next route&#39;s octets: I traced that deleting len(rest) &lt; fixedLen panics on rest[4] or rest[5] and deleting len(rest) &lt; sourceOctets panics on rest[sourceOctets:], both red; the recorded mutants (line 314 and line 359 to false) confirm it. The endpoint cut and the -02 cut in TestMUPT1STMandatoryFieldsWithinLength go red under a lenient len(rest)==0 return or a deleted endpoint bound (read; their records are revert-to-panic only). TestMUPT1ST02TreatAsWithdraw (now tagged) and TestMUPMalformedT1STTreatAsWithdraw carry the -02 and endpoint cuts through the receive path. (3) Isolated: TEID 0x3039 non-zero, Endpoint and Source Address Lengths 32, following NLRI well formed, so only the truncation can fire. (4) Whole requirement: every cut that leaves the route key (RD, Prefix Length, Prefix) intact is tagged and discriminated, with both polarities: a route ending exactly at its Length parses with nothing left and exact TEID and endpoint, and a well-formed UPDATE comes back byte-identical. Reading taken, stated openly: a Length ending inside the RD or the prefix is also below zero by the letter, but Section 3.1.3 makes RD, Prefix Length and Prefix the route key, so such a route has no key to withdraw and Ze discards it (TestMUPUnkeyableMalformedT1STDiscardedNotRelayed, &#34;RD overruns the Length&#34;; TestMUPParseErrors for the shared RD and parsePrefixField bounds). Those units are untagged for this row and earn it no credit; the unkeyable class is judged as the discard ruling, not here. Polarity labels are inverted between packages (mup: positive = well formed parses; reactor: positive = malformed withdrawn) but each file holds a genuine conforming and violating pair. Untagged corroboration: tlv_applicability_test parses a T1ST with a 32-bit source address and TLVs. Implemented and tested for all keyable truncations.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_t1st_truncation_test.go#L53" title="internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_t1st_truncation_test.go" target="_blank" rel="noopener"><code>TestMUPT1STFixedOctetsWithinLength</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_t1st_truncation_test.go#L37" title="internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_t1st_truncation_test.go" target="_blank" rel="noopener"><code>TestMUPT1STSourceAddressWithinLength</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go#L46" title="internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go" target="_blank" rel="noopener"><code>TestMUPT1STMandatoryFieldsWithinLength</code></a></td>
 <td>unit/verify</td>
@@ -1318,6 +1331,11 @@ The BGP-MUP NLRI codec only: ipv4/mup and ipv6/mup family registration, ISD/DSD/
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go#L38" title="internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go" target="_blank" rel="noopener"><code>TestMUPT1STMandatoryFieldsWithinLength</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_02_relay_test.go#L29" title="internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_02_relay_test.go" target="_blank" rel="noopener"><code>TestMUPT1ST02TreatAsWithdraw</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1997,7 +2015,7 @@ The BGP-MUP NLRI codec only: ipv4/mup and ipv6/mup family registration, ISD/DSD/
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 14:55 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 15:26 UTC</span>
                 </div>
             </div>
         </footer>

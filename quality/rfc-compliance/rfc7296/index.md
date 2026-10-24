@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0.0% | 0 of 223 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 223 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 223 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 32.0% | 225 of 704 tagged units, 0 escaped and 14 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 33.5% | 236 of 704 tagged units, 0 escaped and 3 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -1371,9 +1371,9 @@ Audit verdict: not audited: no reader has judged these tests
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestEapRtxMidEAPReplayRefusesUnprotected`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_eap_retransmit_test.go#L151) | unit/verify | revert, verified |
-| negative | [`TestRtxResponderReplaysCachedResponseOnlyForDuplicate`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_retransmit_test.go#L209) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRtxResponderReplaysCachedResponseOnlyForDuplicate`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_retransmit_test.go#L209) | unit/verify | revert, verified |
 | positive | [`TestEapRtxResponderReplaysCachedResponseMidEAP`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_eap_retransmit_test.go#L96) | unit/verify | revert, verified |
-| positive | [`TestRtxResponderReplaysCachedResponseOnlyForDuplicate`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_retransmit_test.go#L206) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRtxResponderReplaysCachedResponseOnlyForDuplicate`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_retransmit_test.go#L206) | unit/verify | revert, verified |
 
 ### [`RFC7296-2.1-4`](#rfc7296-2.1-4)
 
@@ -1384,9 +1384,9 @@ Audit verdict: not audited: no reader has judged these tests
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestEapRtxResponderReplaysCachedResponseMidEAP`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_eap_retransmit_test.go#L93) | unit/verify | revert, verified |
-| negative | [`TestRtxResponderReplaysCachedResponseOnlyForDuplicate`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_retransmit_test.go#L213) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRtxResponderReplaysCachedResponseOnlyForDuplicate`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_retransmit_test.go#L213) | unit/verify | revert, verified |
 | positive | [`TestEapRtxResponderReplaysCachedResponseMidEAP`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_eap_retransmit_test.go#L89) | unit/verify | revert, verified |
-| positive | [`TestRtxResponderReplaysCachedResponseOnlyForDuplicate`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_retransmit_test.go#L211) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRtxResponderReplaysCachedResponseOnlyForDuplicate`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_retransmit_test.go#L211) | unit/verify | revert, verified |
 
 ### [`RFC7296-2.1-5`](#rfc7296-2.1-5)
 
@@ -1487,9 +1487,9 @@ Audit verdict: not audited: no reader has judged these tests
 |---|---|---|---|
 | negative | [`TestDPDNoTransportTakesNoWindow`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_dpd_liveness_test.go#L106) | unit/verify | unproven |
 | negative | [`TestWinOneRequestPerTick`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_window_test.go#L89) | unit/verify | revert, verified |
-| negative | [`TestWinTeardownDoesNotHang`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_window_test.go#L537) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestWinTeardownDoesNotHang`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_window_test.go#L537) | unit/verify | revert, verified |
 | positive | [`TestWinOneRequestPerTick`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_window_test.go#L84) | unit/verify | revert, verified |
-| positive | [`TestWinTeardownDoesNotHang`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_window_test.go#L531) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestWinTeardownDoesNotHang`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_window_test.go#L531) | unit/verify | revert, verified |
 
 ### [`RFC7296-2.3-4`](#rfc7296-2.3-4)
 
@@ -2004,8 +2004,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestErrProtectedInformationalNotifyChangesNoState`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_notify_error_test.go#L410) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestErrProtectedInformationalNotifyChangesNoState`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_notify_error_test.go#L403) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestErrProtectedInformationalNotifyChangesNoState`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_notify_error_test.go#L410) | unit/verify | revert, verified |
+| positive | [`TestErrProtectedInformationalNotifyChangesNoState`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_notify_error_test.go#L403) | unit/verify | revert, verified |
 
 ### [`RFC7296-2.21.4-8`](#rfc7296-2.21.4-8)
 
@@ -2338,9 +2338,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Test
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestResponseBitMatchesDirection`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_header_test.go#L374) | unit/verify | revert, verified |
-| negative | [`TestNrsInformationalHandlerRefusesAResponse`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_noresponse_test.go#L257) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestNrsInformationalHandlerRefusesAResponse`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_noresponse_test.go#L257) | unit/verify | revert, verified |
 | negative | [`TestNrsResponseNeverDrawsAResponse`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_noresponse_test.go#L56) | unit/verify | revert, verified |
-| positive | [`TestNrsInformationalHandlerRefusesAResponse`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_noresponse_test.go#L252) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestNrsInformationalHandlerRefusesAResponse`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_noresponse_test.go#L252) | unit/verify | revert, verified |
 | positive | [`TestNrsResponseNeverDrawsAResponse`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_noresponse_test.go#L46) | unit/verify | revert, verified |
 
 ### [`RFC7296-3.2-2`](#rfc7296-3.2-2)
@@ -2918,7 +2918,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | negative | [`TestRteUnownedEstablishedSATrustsNothing`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_routing_test.go#L47) | unit/verify | revert, verified |
 | positive | [`TestRFC7296ICMPUnreachableDoesNotFailTheSA`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_icmp_linux_test.go#L67) | unit/verify | revert, verified |
 | positive | [`TestResponderAcceptsReinitAfterStaleSA`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_responder_test.go#L695) | unit/verify | revert, verified |
-| positive | [`TestRteUnownedEstablishedSATrustsNothing`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_routing_test.go#L53) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRteUnownedEstablishedSATrustsNothing`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_routing_test.go#L53) | unit/verify | revert, verified |
 
 ### [`RFC7296-2.4-4`](#rfc7296-2.4-4)
 

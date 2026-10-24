@@ -140,7 +140,7 @@ Operate uses blue, Routing indigo, Services violet, Automate magenta, Observe gr
 
 The homepage's "Run reproducible labs", "Run as a daemon" and "Run as an appliance" cards share the existing daemon blue from `--sky-*`. This approved section exception keeps their category names, metadata and links. It does not change the general category mapping.
 
-Headings, protocol and mode chips, card bodies and borders stay neutral. Explicit software labels may use the violet concept badge. Do not repeat the category tint across several parts of the same card. Check each badge and selected-control fill against its text in light and dark themes; normal text needs at least 4.5:1. Plugin totals and status labels keep their independent neutral and status roles.
+Headings, protocol and mode chips, card bodies and borders stay neutral. Explicit software labels may use the blue concept badge. Do not repeat the category tint across several parts of the same card. Check each badge and selected-control fill against its text in light and dark themes; normal text needs at least 4.5:1. Plugin totals and status labels keep their independent neutral and status roles.
 
 | Use | Color family | Shared tokens |
 | --- | --- | --- |
@@ -221,11 +221,11 @@ A pale blue-gray page with white surfaces and navy text in the light theme; deep
 
 ## Two recurring concepts
 
-Violet identifies named software; teal identifies evidence and test layers. The text stays neutral.
+Blue identifies named software; teal identifies evidence and test layers. The text stays neutral.
 
 Apply `concept-software` to an explicit small software or application name: FRR, BIRD, GoBGP, Docker, QEMU or VPP. Apply `concept-evidence` to a benchmark, evidence label or test layer such as Local, Process, Linux or Release. Teal does not mean that a test passed; success, warning and failure retain their separate status words and colors.
 
-The semantic tokens `--concept-software` and `--concept-evidence` reuse the existing violet and teal bases. Category and concept backgrounds use `--badge-accent-share`: 24% accent in light mode and 18% in dark mode, mixed into `--panel`, under neutral `--text`. Put the class on the chip, badge or short inline name, including `.hl` names. Never put it on a heading, a card or a prose container. Names can wrap on narrow screens; do not force an entire phrase onto one line.
+The semantic tokens `--concept-software` and `--concept-evidence` reuse the existing blue and teal bases. Category and concept backgrounds use `--badge-accent-share`: 24% accent in light mode and 18% in dark mode, mixed into `--panel`, under neutral `--text`. Put the class on the chip, badge or short inline name, including `.hl` names. Never put it on a heading, a card or a prose container. Names can wrap on narrow screens; do not force an entire phrase onto one line.
 
 BGP, OSPF and other protocols, deployment modes and command syntax remain neutral. Assign concept classes explicitly from the content's meaning; never recolor every occurrence of a word. Subject-category badges retain their seven families, including the homepage run labels' shared blue.
 
@@ -307,19 +307,23 @@ Separate standard homepage sections with spacing and no horizontal rules, and om
 
 Keep homepage section containers, including Latest news, shadowless. Cards within them retain their component shadows.
 
-Proof cards share heading, detail and evidence rows. Align every evidence divider and the first line of its text to the same row boundary, even when another card's evidence wraps. Preserve the complete evidence wording.
+Proof cards share heading, detail and evidence rows. Align every evidence divider and the first line of its text to the same row boundary, even when another card's evidence wraps. Emphasise the generated figures with 2.2rem, tabular blue numerals; keep their labels neutral. Preserve the complete evidence wording.
 
-Place release evidence directly after Latest news. Combine the useful Why Ze introduction with the explanation of Ze's own SSH service under Manage Ze directly, without a separate Why Ze heading or Self-contained management badge. Keep the architectural argument cards below that explanation.
+Place Code quality, in numbers directly after Latest news. In the management panel's left column, put Why Ze first, followed by Manage Ze directly and the explanation of Ze's own SSH service. Do not add a Self-contained management badge or another standalone Why Ze section. Keep the architectural argument cards below the panel.
 
 The management section uses two equal columns: compact explanation, interface map and documentation links on the left; a real SSH recording on the right. Keep readable step labels beside the player, show its SSH introduction as the preview, start there on demand, and retain full-screen controls, the full session and the transcript. Stack the columns at widths of 960px or less. Leave 1.5rem below the filled lab/daemon/appliance section so it does not touch the following section.
 
 ### Dispatch cards
 
-Use the subject color on each choice's title and compact category label. Keep the panel and border neutral, without decorative colored shapes.
+Use the subject colour as the compact category label's background. Keep title text, panels and borders neutral, without decorative coloured shapes.
 
 ### Generated pages
 
 Start from existing components before adding CSS. If a page needs a new surface, document the rule here when the component ships.
+
+The homepage documentation section explains the reader benefit of references generated from YANG and code: complete configuration coverage for the documented build, updated when the site is rebuilt. Put its introduction to the right of the title on desktop and below it on narrow screens. Offer direct configuration, CLI and plugin reference cards before the feature directory.
+
+Reference and feature-category cards share the run cards' padding, neutral panel, border and rounded corners. Use the established subject colour as the compact name badge's background, with neutral text. Keep feature links one per line at a readable size, and separate the final catalogue link with a neutral rule. Preserve every existing feature link and its order.
 
 ## Component patterns to reuse
 

@@ -1338,12 +1338,12 @@
         "met-below": 0,
         "optional-not-offered": 0,
         "derived-from-other-rows": 0,
-        "tags": 47,
-        "units": 45,
+        "tags": 50,
+        "units": 48,
         "audited": 17,
-        "discrimination-records": 45,
+        "discrimination-records": 48,
         "escapes": 0,
-        "stale-records": 9
+        "stale-records": 0
       },
       "requirements": [
         {
@@ -1836,11 +1836,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/bgp/plugins/nlri/mup/types.go::parseBodyT1ST",
                 "break": "body of parseBodyT1ST replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             },
@@ -1854,11 +1853,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/bgp/plugins/nlri/mup/types.go::parseBodyT1ST",
                 "break": "body of parseBodyT1ST replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             }
@@ -1891,11 +1889,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/bgp/plugins/nlri/mup/types.go::parseBodyT1ST",
                 "break": "body of parseBodyT1ST replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             },
@@ -1909,11 +1906,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/bgp/plugins/nlri/mup/types.go::parseBodyT1ST",
                 "break": "body of parseBodyT1ST replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             }
@@ -1946,11 +1942,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/bgp/plugins/nlri/mup/types.go::parseBodyT1ST",
                 "break": "body of parseBodyT1ST replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             },
@@ -1964,11 +1959,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/bgp/plugins/nlri/mup/types.go::parseBodyT1ST",
                 "break": "body of parseBodyT1ST replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             },
@@ -2018,11 +2012,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/bgp/plugins/nlri/mup/types.go::parseBodyT1ST",
                 "break": "body of parseBodyT1ST replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             },
@@ -2036,11 +2029,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/bgp/plugins/nlri/mup/types.go::parseBodyT1ST",
                 "break": "body of parseBodyT1ST replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             },
@@ -2054,11 +2046,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/bgp/plugins/nlri/mup/types.go::parseBodyT1ST",
                 "break": "body of parseBodyT1ST replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             }
@@ -2076,11 +2067,45 @@
           "section": "3.1.3.1",
           "text": "- \u003c 0: the mandatory fields exceed the declared Length; the NLRI is malformed; MUST be treated as Treat-as-withdraw. (§3.1.3.1)",
           "gated": true,
-          "positive-test": "`internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go` `TestMUPT1STMandatoryFieldsWithinLength` (unit/verify), `internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_withdraw_test.go` `TestMUPMalformedT1STTreatAsWithdraw` (unit/verify)",
-          "negative-test": "`internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go` `TestMUPT1STMandatoryFieldsWithinLength` (unit/verify), `internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_withdraw_test.go` `TestMUPMalformedT1STTreatAsWithdraw` (unit/verify)",
-          "note": "**audit: partial, stale-requirement**",
+          "positive-test": "`internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go` `TestMUPT1STMandatoryFieldsWithinLength` (unit/verify), `internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_02_relay_test.go` `TestMUPT1ST02TreatAsWithdraw` (unit/verify), `internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_withdraw_test.go` `TestMUPMalformedT1STTreatAsWithdraw` (unit/verify)",
+          "negative-test": "`internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_t1st_truncation_test.go` `TestMUPT1STSourceAddressWithinLength` (unit/verify), `internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_t1st_truncation_test.go` `TestMUPT1STFixedOctetsWithinLength` (unit/verify), `internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go` `TestMUPT1STMandatoryFieldsWithinLength` (unit/verify), `internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_withdraw_test.go` `TestMUPMalformedT1STTreatAsWithdraw` (unit/verify)",
+          "note": "",
           "nightly-only": false,
           "covers": [
+            {
+              "polarity": "negative",
+              "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_t1st_truncation_test.go::TestMUPT1STFixedOctetsWithinLength",
+              "file": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_t1st_truncation_test.go",
+              "line": 53,
+              "carrier": "unit/verify",
+              "claim": "-- a T1ST route whose declared Length ends after two TEID octets, after the whole TEID with no QFI, or after the QFI with no Endpoint Address Length, each followed by another NLRI, makes ParseMUP return ErrMUPTruncated.",
+              "tags": 1,
+              "proof": {
+                "route": "mutant",
+                "state": "verified",
+                "producer": "internal/component/bgp/plugins/nlri/mup/types.go::parseBodyT1ST",
+                "break": "line 314: \"len(rest) \u003c fixedLen\" -\u003e \"false\"",
+                "verified": true,
+                "proves": true
+              }
+            },
+            {
+              "polarity": "negative",
+              "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_t1st_truncation_test.go::TestMUPT1STSourceAddressWithinLength",
+              "file": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_t1st_truncation_test.go",
+              "line": 37,
+              "carrier": "unit/verify",
+              "claim": "-- a T1ST route whose Source Address Length is 32 and whose declared Length ends after two of the four Source Address octets, followed by another NLRI, makes ParseMUP return ErrMUPTruncated.",
+              "tags": 1,
+              "proof": {
+                "route": "mutant",
+                "state": "verified",
+                "producer": "internal/component/bgp/plugins/nlri/mup/types.go::parseBodyT1ST",
+                "break": "line 359: \"len(rest) \u003c sourceOctets\" -\u003e \"false\"",
+                "verified": true,
+                "proves": true
+              }
+            },
             {
               "polarity": "negative",
               "unit": "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STMandatoryFieldsWithinLength",
@@ -2134,6 +2159,23 @@
             },
             {
               "polarity": "positive",
+              "unit": "internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_02_relay_test.go::TestMUPT1ST02TreatAsWithdraw",
+              "file": "internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_02_relay_test.go",
+              "line": 29,
+              "carrier": "unit/verify",
+              "claim": "-- a T1ST whose Length ends at its Endpoint Address with no Source Address Length octet, received after a well-formed generation of the same route was held, leaves MP_REACH_NLRI and is withdrawn in MP_UNREACH_NLRI by that generation's bytes, its well-formed sibling is kept byte for byte, and the action is not a session reset",
+              "tags": 1,
+              "proof": {
+                "route": "revert",
+                "state": "verified",
+                "producer": "internal/component/bgp/plugins/nlri/mup/types.go::parseBodyT1ST",
+                "break": "body of parseBodyT1ST replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
+                "proves": true
+              }
+            },
+            {
+              "polarity": "positive",
               "unit": "internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_withdraw_test.go::TestMUPMalformedT1STTreatAsWithdraw",
               "file": "internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_withdraw_test.go",
               "line": 111,
@@ -2151,10 +2193,10 @@
             }
           ],
           "audit": {
-            "verdict": "partial",
-            "meaning": "the tests enforce only the declared tested scope; the whole requirement remains unmet",
-            "note": "Independent rejudgment at HEAD 6f076fc22d of the {partial} row d7673ff783 recorded. draft-ietf-bess-mup-safi-01 Section 3.1.3.1 (rfc/drafts/draft-ietf-bess-mup-safi.txt): \"- \u003c 0:   the mandatory fields exceed the declared Length; the NLRI is malformed; MUST be treated as Treat-as-withdraw.\" The same section: \"The Source Address Length has a fixed length of 1 octet.\" Tested: \"mandatory fields exceed the declared Length\", scoped by the Reason to a declared Length ending inside the Endpoint Address, complete mandatory fields the accepted control. Gap: \"MUST be treated as Treat-as-withdraw\", for a draft-mpmz-bess-mup-safi-02 Type 1 ST route ending exactly at its Endpoint Address, which lacks the mandatory Source Address Length octet. Producer: internal/component/bgp/plugins/nlri/mup/types.go::parseBodyT1ST, whose len(rest)==0 branch after the endpoint sets sourceBits=0 and sourceOctetAbsent=true and returns nil instead of ErrMUPTruncated; the route is then held and relayed with the octet added (canonical.go canonicalT1STGrow/writeCanonicalT1ST, observed by reactor/t1st_02_relay_test.go TestMUPT1ST02RelayedWithSourceLength). The gap is therefore real, not a disclosure of untested code. It is the owner decision of 2026-10-22 recorded in plan/release/fixes/spec-exabgp-6-api-compatibility.md (follow ExaBGP f9bfb853b: 'a -02 MUP Type 1 ST route without Source Address Length read as length 0'), a deliberate deviation never counted as conformant. Letter: violated for the -02 shape. Spirit: the rule exists so a parser never reads mandatory fields out of the octets past the Length; the -02 read consumes nothing past the Length, so framing stays sound, but a missing mandatory field is supplied by assumption, which the draft forbids. Tested scope, four questions: (1) TestMUPT1STMandatoryFieldsWithinLength (nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go) asserts ErrorIs ErrMUPTruncated for t1stBody cut by 3 octets (Source Address Length plus 2 endpoint octets), positive asserts NoError, empty remainder, exact TEID 0x3039 and endpoint 10.0.0.1; TestMUPMalformedT1STTreatAsWithdraw (reactor/draft_ietf_bess_mup_safi_t1st_withdraw_test.go) holds well-formed K0, receives the same key with its endpoint cut by 2 octets between siblings L and L2 (L2 with unknown TLV 0xF0), and asserts ActionNone, MP_REACH equal to exactly L||L2, MP_UNREACH equal to exactly K0 and decodable by the registered recognizer; its negative asserts a well-formed UPDATE returns byte-identical. That is treat-as-withdraw per RFC 7606 Section 2, what the draft says, not merely what the code does. (2) Exact ErrorIs and byte-exact section assertions fail on a mutant that returns nil, reads the endpoint short, or widens the -02 tolerance to a mid-endpoint stop; the recorded discrimination is only a revert (panic) break of parseBodyT1ST and ValidateNLRI, which proves the units exercise the producers, not this branch, so question 2 rests on this reading. (3) Isolated: TEID 1/0x3039 nonzero, Endpoint Address Length 32 valid, only the truncation fires; siblings well formed. (4) Whole requirement: no. Besides the -02 gap, truncation inside the prefix, inside TEID/QFI/Endpoint Address Length, and inside a non-zero Source Address all reach ErrMUPTruncated in parseBodyT1ST/parsePrefixField but are tagged by neither unit: implemented, unverified under this row, and given no credit. Polarity labels differ between the two units (parser: negative = truncated; reactor: positive = truncated withdrawn), each pair is a distinct conforming/violating input, not one assertion in two hats. Partial stands, zero whole-requirement credit.",
-            "freshness": "stale-requirement"
+            "verdict": "enforced",
+            "meaning": "the tests do what the requirement demands",
+            "note": "Independent rejudgment at HEAD ff3feee994 after 3249a93545 and 38fb0c08fe, replacing the weak verdict of 8be6ddfbed. draft-ietf-bess-mup-safi Section 3.1.3.1 (rfc/drafts/draft-ietf-bess-mup-safi.txt): \"The Source Address Length has a fixed length of 1 octet.\", \"compute the number of remaining octets by subtracting, from the Length field in the MUP NLRI common header, the offset of the end of the Source Address measured from the start of the Route Type specific field\", and \"- \u003c 0:   the mandatory fields exceed the declared Length; the NLRI is malformed; MUST be treated as Treat-as-withdraw.\" Producer at HEAD, types.go::parseBodyT1ST: ErrMUPTruncated when fewer than the 6 fixed octets (TEID, QFI, Endpoint Address Length) remain, when the Endpoint Address is short, when nothing remains for the Source Address Length octet (the draft-mpmz-bess-mup-safi-02 form), and when a non-zero Source Address is short; ValidateNLRI runs the same decode at ingress. (1) Asserts the draft, not the code: the parser units assert ErrorIs ErrMUPTruncated, the session units assert RFC 7606 treat-as-withdraw itself (ActionNone, the route leaves MP_REACH_NLRI, MP_UNREACH_NLRI is exactly the held generation K0 and decodable, siblings byte for byte). (2) Fails on non-compliance, at every bound inside parseBodyT1ST: TestMUPT1STFixedOctetsWithinLength (new) cuts the Length inside the TEID, before the QFI and before the Endpoint Address Length; TestMUPT1STSourceAddressWithinLength (new) gives Source Address Length 32 and two source octets. Each is followed by a whole second NLRI, so the body slice has capacity past its Length and a parser that skipped the bound reads the next route's octets: I traced that deleting len(rest) \u003c fixedLen panics on rest[4] or rest[5] and deleting len(rest) \u003c sourceOctets panics on rest[sourceOctets:], both red; the recorded mutants (line 314 and line 359 to false) confirm it. The endpoint cut and the -02 cut in TestMUPT1STMandatoryFieldsWithinLength go red under a lenient len(rest)==0 return or a deleted endpoint bound (read; their records are revert-to-panic only). TestMUPT1ST02TreatAsWithdraw (now tagged) and TestMUPMalformedT1STTreatAsWithdraw carry the -02 and endpoint cuts through the receive path. (3) Isolated: TEID 0x3039 non-zero, Endpoint and Source Address Lengths 32, following NLRI well formed, so only the truncation can fire. (4) Whole requirement: every cut that leaves the route key (RD, Prefix Length, Prefix) intact is tagged and discriminated, with both polarities: a route ending exactly at its Length parses with nothing left and exact TEID and endpoint, and a well-formed UPDATE comes back byte-identical. Reading taken, stated openly: a Length ending inside the RD or the prefix is also below zero by the letter, but Section 3.1.3 makes RD, Prefix Length and Prefix the route key, so such a route has no key to withdraw and Ze discards it (TestMUPUnkeyableMalformedT1STDiscardedNotRelayed, \"RD overruns the Length\"; TestMUPParseErrors for the shared RD and parsePrefixField bounds). Those units are untagged for this row and earn it no credit; the unkeyable class is judged as the discard ruling, not here. Polarity labels are inverted between packages (mup: positive = well formed parses; reactor: positive = malformed withdrawn) but each file holds a genuine conforming and violating pair. Untagged corroboration: tlv_applicability_test parses a T1ST with a 32-bit source address and TLVs. Implemented and tested for all keyable truncations.",
+            "freshness": "fresh"
           }
         },
         {
@@ -94170,7 +94212,7 @@
         "audited": 52,
         "discrimination-records": 150,
         "escapes": 0,
-        "stale-records": 2
+        "stale-records": 0
       },
       "requirements": [
         {
@@ -96926,11 +96968,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/ike/engine/established.go::maintainSA",
                 "break": "body of maintainSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             },
@@ -96961,11 +97002,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/ike/engine/established.go::maintainSA",
                 "break": "body of maintainSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             },
@@ -171163,7 +171203,7 @@
         "audited": 95,
         "discrimination-records": 239,
         "escapes": 0,
-        "stale-records": 14
+        "stale-records": 3
       },
       "requirements": [
         {
@@ -175561,11 +175601,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/ike/engine/inbound.go::handleOwnedInbound",
                 "break": "body of handleOwnedInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             },
@@ -175596,11 +175635,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/ike/engine/inbound.go::handleOwnedInbound",
                 "break": "body of handleOwnedInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             }
@@ -175644,11 +175682,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/ike/engine/inbound.go::handleOwnedInbound",
                 "break": "body of handleOwnedInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             },
@@ -175679,11 +175716,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/ike/engine/inbound.go::handleOwnedInbound",
                 "break": "body of handleOwnedInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             }
@@ -176195,11 +176231,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/ike/engine/established.go::sayGoodbye",
                 "break": "body of sayGoodbye replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             },
@@ -176230,11 +176265,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/ike/engine/established.go::sayGoodbye",
                 "break": "body of sayGoodbye replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             }
@@ -178400,11 +178434,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/ike/engine/inbound.go::handleInformationalOwned",
                 "break": "body of handleInformationalOwned replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             },
@@ -178418,11 +178451,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/ike/engine/inbound.go::handleInformationalOwned",
                 "break": "body of handleInformationalOwned replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             }
@@ -179808,11 +179840,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/ike/engine/inbound.go::handleInformationalOwned",
                 "break": "body of handleInformationalOwned replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             },
@@ -179843,11 +179874,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/ike/engine/inbound.go::handleInformationalOwned",
                 "break": "body of handleInformationalOwned replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             },
@@ -182260,11 +182290,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/ike/engine/inbound.go::handleInformationalOwned",
                 "break": "body of handleInformationalOwned replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             }

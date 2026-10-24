@@ -225,11 +225,12 @@
             <section id="proof" class="home-proof-block reveal" aria-labelledby="proof-title">
                 <div class="home-proof-head">
                     <div>
-                        <h2 id="proof-title">Release claims stay checkable.</h2>
+                        <h2 id="proof-title">Code quality, in numbers</h2>
                         <p>
-                            Every homepage number links to the page where you can
-                            inspect the test layer, transcript, peer list, RFC
-                            gate, or generated source evidence behind it.
+                            Explore the tests behind Ze: unit tests, end-to-end
+                            scenarios, protocol checks, fuzzing and interoperability
+                            with other implementations. Each figure links to the
+                            evidence and its current coverage.
                         </p>
                     </div>
                     <div class="home-proof-actions">
@@ -309,15 +310,22 @@
             <section id="why-ze" class="home-section-panel home-section-panel-management" aria-labelledby="why-title">
                 <article class="why-lead">
                     <div class="why-lead-copy">
-                        <h2 id="why-title">Manage Ze directly.</h2>
+                        <h2 id="why-title">Why Ze?</h2>
                         <p>
-                            Ze combines its routing daemon, appliance runtime and
-                            lab workflows with policy data, generated references
-                            and product evidence. Its own SSH server connects you
-                            directly to the CLI and configuration editor,
-                            without a host SSH service or shell.
-                            The web interface, REST, gRPC, gNMI and MCP expose the
-                            same YANG-modeled configuration.
+                            Ze brings BGP, Linux interfaces and FIB programming
+                            together with network services and plugins in one
+                            open-source platform. Use the same configuration model
+                            and tools in a lab, as a daemon or as an appliance,
+                            with policy data, generated references and test
+                            evidence available alongside them.
+                        </p>
+                        <h3>Manage Ze directly.</h3>
+                        <p>
+                            Ze runs its own SSH server, CLI and configuration editor.
+                            Connect directly to configure and operate it,
+                            without a host SSH service or shell. The web interface,
+                            REST, gRPC, gNMI and MCP expose the same YANG-modeled
+                            configuration.
                         </p>
                         <div class="interface-map" aria-label="Ze’s own SSH server, CLI, web interface, APIs and MCP connect to its YANG-modeled configuration">
                             <div><span>Ze SSH + CLI</span><span>Web</span><span>APIs + MCP</span></div>
@@ -405,18 +413,33 @@
             </section>
             <section id="features-summary" class="home-section-panel home-section-panel-map" aria-labelledby="core-title">
                 <div class="section-head reveal">
-                    <h2 id="core-title">Generated references are part of the product.</h2>
-                    <p>Read the generated references before you run Ze.</p>
+                    <h2 id="core-title">Documentation that matches the code.</h2>
+                    <div class="reference-intro">
+                        <p>Read the generated references before you run Ze.</p>
+                        <p>The same YANG schema and command definitions drive Ze and its references. Each website build brings changes into the documentation, including configuration supplied by plugins.</p>
+                    </div>
                 </div>
-                <div class="section-note reveal">
-                    <p>
-                        Ze is an open-source configuration and protocol engine.
-                        The network operating system built on it speaks BGP,
-                        manages Linux interfaces, programs the FIB, and serves
-                        the same YANG-modeled configuration through SSH, web,
-                        API, and MCP.
-                    </p>
+                <div class="reference-grid reveal">
+                    <article class="card reference-card cat-platform">
+                        <span class="cat">Configuration</span>
+                        <h3>The full YANG tree</h3>
+                        <p>Browse every configuration setting in the documented build, including the settings supplied by plugins.</p>
+                        <a class="audience-card-cta" href="reference/configuration/">Configuration reference</a>
+                    </article>
+                    <article class="card reference-card cat-operate">
+                        <span class="cat">Commands</span>
+                        <h3>Command syntax and help</h3>
+                        <p>Find commands, arguments and pipe operators from the same definitions that supply Ze's built-in help.</p>
+                        <a class="audience-card-cta" href="reference/cli/">CLI reference</a>
+                    </article>
+                    <article class="card reference-card cat-automate">
+                        <span class="cat">Plugins</span>
+                        <h3>Plugins and dependencies</h3>
+                        <p>Explore registered plugins, their dependencies, configuration roots and the source that implements them.</p>
+                        <a class="audience-card-cta" href="reference/plugins/">Plugin catalogue</a>
+                    </article>
                 </div>
+                <h3 class="feature-directory-title">Explore features by category</h3>
                 <div class="legend reveal" role="group" aria-label="Browse features by category">
                     <a class="cat-operate" href="features/#operate">Operate (6)</a>
                     <a class="cat-routing" href="features/#routing">Routing (9)</a>
@@ -859,7 +882,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 14:55 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 15:26 UTC</span>
                 </div>
             </div>
         </footer>

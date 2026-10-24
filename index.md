@@ -70,9 +70,9 @@ A week on configuration safety, the public API and the appliance kernel, with fi
 
 One page per RFC, naming each requirement, the test evidence behind it, and the ones that have none.
 
-## Release claims stay checkable.
+## Code quality, in numbers
 
-Every homepage number links to the page where you can inspect the test layer, transcript, peer list, RFC gate, or generated source evidence behind it.
+Explore the tests behind Ze: unit tests, end-to-end scenarios, protocol checks, fuzzing and interoperability with other implementations. Each figure links to the evidence and its current coverage.
 
  [Read the evidence map](https://ze-software.net/quality/) [Watch product demos](https://ze-software.net/demos/terminal/) [**38,300+ unit tests**
 
@@ -106,9 +106,13 @@ Every homepage number links to the page where you can inspect the test layer, tr
 
  Docker interop peer list.](https://ze-software.net/quality/qemu-interop-release/#docker-interop) Tested against **BGP**[FRR](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[BIRD](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[GoBGP](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[OpenBGPd](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[FreeRtr](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[RustyBGP](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[rustbgpd](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[ExaBGP](https://ze-software.net/features/exabgp-compatibility/) **BGP support**[StayRTR](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[pmacct](https://ze-software.net/quality/qemu-interop-release/#docker-interop) **VPN**[strongSwan](https://ze-software.net/quality/qemu-interop-release/#docker-interop) **Access**[accel-ppp](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[xl2tpd](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[FreeRADIUS](https://ze-software.net/quality/qemu-interop-release/#docker-interop) **Redundancy**[keepalived](https://ze-software.net/quality/qemu-interop-release/#docker-interop)
 
-## Manage Ze directly.
+## Why Ze?
 
-Ze combines its routing daemon, appliance runtime and lab workflows with policy data, generated references and product evidence. Its own SSH server connects you directly to the CLI and configuration editor, without a host SSH service or shell. The web interface, REST, gRPC, gNMI and MCP expose the same YANG-modeled configuration.
+Ze brings BGP, Linux interfaces and FIB programming together with network services and plugins in one open-source platform. Use the same configuration model and tools in a lab, as a daemon or as an appliance, with policy data, generated references and test evidence available alongside them.
+
+### Manage Ze directly.
+
+Ze runs its own SSH server, CLI and configuration editor. Connect directly to configure and operate it, without a host SSH service or shell. The web interface, REST, gRPC, gNMI and MCP expose the same YANG-modeled configuration.
 
  Ze SSH + CLIWebAPIs + MCP **YANG-modeled configuration** Routing · Interfaces · Network services [See the browser workflow →](https://ze-software.net/features/web-interface/) [Explore CLI interaction →](https://ze-software.net/features/cli-commands/)
 
@@ -149,11 +153,37 @@ The shipped daemon speaks BGP, manages Linux interfaces, programs the FIB, and s
 
 Plugins can be compiled Go modules or external processes. Compiled modules load their YANG into the daemon validator; external plugins can expose their model through `ze schema`.
 
-## Generated references are part of the product.
+## Documentation that matches the code.
 
 Read the generated references before you run Ze.
 
-Ze is an open-source configuration and protocol engine. The network operating system built on it speaks BGP, manages Linux interfaces, programs the FIB, and serves the same YANG-modeled configuration through SSH, web, API, and MCP.
+The same YANG schema and command definitions drive Ze and its references. Each website build brings changes into the documentation, including configuration supplied by plugins.
+
+**Configuration**
+
+### The full YANG tree
+
+Browse every configuration setting in the documented build, including the settings supplied by plugins.
+
+ [Configuration reference](https://ze-software.net/reference/configuration/)
+
+**Commands**
+
+### Command syntax and help
+
+Find commands, arguments and pipe operators from the same definitions that supply Ze's built-in help.
+
+ [CLI reference](https://ze-software.net/reference/cli/)
+
+**Plugins**
+
+### Plugins and dependencies
+
+Explore registered plugins, their dependencies, configuration roots and the source that implements them.
+
+ [Plugin catalogue](https://ze-software.net/reference/plugins/)
+
+### Explore features by category
 
  [Operate (6)](https://ze-software.net/features/#operate) [Routing (9)](https://ze-software.net/features/#routing) [Services (9)](https://ze-software.net/features/#services) [Automate (7)](https://ze-software.net/features/#automate) [Observe (9)](https://ze-software.net/features/#observe) [Secure (6)](https://ze-software.net/features/#secure) [Setup (6)](https://ze-software.net/features/#platform)
 

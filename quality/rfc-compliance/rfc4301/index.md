@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 12.0% | 12 of 100 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 100 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 100 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 88.6% | 148 of 167 tagged units, 0 escaped and 2 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 89.8% | 150 of 167 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -830,9 +830,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Both
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC4301SADLifetimeHardTimeTerminatesTheSA`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_sad_lifetime_action_test.go#L81) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC4301SADLifetimeHardTimeTerminatesTheSA`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_sad_lifetime_action_test.go#L81) | unit/verify | revert, verified |
 | negative | [`TestRFC4301SADLifetimeTerminatesTheSAAtTheEndOfItsInterval`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_sad_lifetime_test.go#L52) | unit/verify | revert, verified |
-| positive | [`TestRFC4301SADLifetimeSoftTimeReplacesTheSA`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_sad_lifetime_action_test.go#L23) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC4301SADLifetimeSoftTimeReplacesTheSA`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_sad_lifetime_action_test.go#L23) | unit/verify | revert, verified |
 | positive | [`TestRFC4301SADLifetimeIndicatesReplaceBeforeTerminate`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_sad_lifetime_test.go#L23) | unit/verify | revert, verified |
 
 ### [`RFC4301-4.4.2.1-12`](#rfc4301-4.4.2.1-12)
