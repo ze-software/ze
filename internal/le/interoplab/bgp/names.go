@@ -686,6 +686,35 @@ const (
 	rfc9774ReceiveVerdict        = "RFC 9774 Section 3: AS_SET in AS_PATH"
 )
 
+// The bgp-attr-set-included-as-set-frr-bird scenario, where a raw injector
+// announces attrSetIncludedSetPrefix with an ATTR_SET (RFC 6368) whose
+// included AS_PATH holds an AS_SET, then attrSetIncludedASZeroPrefix with an
+// ATTR_SET whose included AS_PATH holds AS 0, then the control
+// attrSetIncludedControlPrefix. Ze keeps and relays the first, treats the
+// second as withdrawn, and relays the control to FRR and BIRD.
+//
+// attrSetIncludedASSetSegment is the included AS_SET segment as ze relays it
+// inside the ATTR_SET (type 1, two four-octet members, 65009 and 65010). The
+// UPDATE's own AS_PATH carries no set and no 65009, so its presence in FRR's
+// capture means the ATTR_SET reached FRR intact. attrSetIncludedSetNLRI is the
+// NLRI of the set route, the proof that its UPDATE is in the capture.
+//
+// attrSetIncludedASZeroVerdict is the description ze's treat-as-withdraw log
+// line carries for the AS 0 route (validateAttrSetDepth,
+// internal/component/bgp/message/rfc7606_optional_attrs.go). Code 2 is the
+// included AS_PATH.
+const (
+	attrSetIncludedSetPrefix     = "10.97.80.0/24"
+	attrSetIncludedASZeroPrefix  = "10.97.81.0/24"
+	attrSetIncludedControlPrefix = "10.97.82.0/24"
+	attrSetIncludedASSetSegment  = "01020000fdf10000fdf2"
+	attrSetIncludedSetNLRI       = "180a6150"
+	attrSetIncludedASZeroVerdict = "malformed ATTR_SET, an included attribute is itself malformed, code (2)"
+
+	attrSetIncludedUpdateDump    = "/tmp/attr-set-included-as-set-updates.mrt"
+	attrSetIncludedUpdateDumpHex = "od -An -v -tx1 " + attrSetIncludedUpdateDump + " | tr -d ' \\n'"
+)
+
 // The bgp-prefix-sid-duplicate-tlv-frr scenario, where a raw injector announces
 // prefixSIDDuplicatePrefix as an SRv6 L3VPN route whose Prefix-SID repeats the
 // SRv6 L3 Service TLV, and ze relays it to FRR over iBGP.

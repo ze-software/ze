@@ -2354,6 +2354,12 @@ AS_SET and then its clean twin; FRR, running `no bgp reject-as-sets` so it would
 hold both clean prefixes and neither set prefix, and Ze's own `show bgp rib` must hold the control
 and not the injected set route, because the send guard alone already keeps a relayed set off FRR
 and only Ze's own RIB can show the receive half), the
+RFC 6368 ATTR_SET under RFC 9774 (`bgp-attr-set-included-as-set-frr-bird` has the raw injector
+announce a route whose ATTR_SET carries an included AS_PATH holding an AS_SET, then one whose
+included AS_PATH holds AS 0, then a clean control; RFC 9774 binds only the UPDATE's own paths, and
+FRR's `bgp_attr_unknown` and BIRD's `bgp_decode_unknown` keep code 128 opaque, so FRR and BIRD
+must both hold the set route, FRR's MRT capture of what Ze sent must hold the included AS_SET
+segment, and neither peer nor Ze's RIB may hold the AS 0 route, which Ze treats as withdrawn), the
 RFC 8669 Section 6 repeated Prefix-SID TLV (`bgp-prefix-sid-duplicate-tlv-frr` gives ze an SRv6
 L3VPN route whose Prefix-SID carries the SRv6 L3 Service TLV twice, and requires FRR, whose own
 parser refuses a repeated type-5 TLV, to hold the route with the first SID only), the

@@ -217,6 +217,56 @@ var scenarioOperations = map[string][]operation{
 		{kind: opWaitLogContains, peer: "ze", contains: []string{rfc9774ReceiveVerdict}, timeout: 30 * time.Second},
 		{kind: opFRRSession, argument: zeLabAddress},
 	},
+	// RFC 9774 Section 3 binds sets "in the AS_PATH or AS4_PATH", the
+	// UPDATE's own, and FRR (bgp_attr_unknown) and BIRD (bgp_decode_unknown)
+	// never look inside an ATTR_SET. So an AS_SET inside one keeps the route,
+	// and both peers must hold it with the ATTR_SET ze relayed. An AS 0 inside
+	// one makes the included AS_PATH malformed itself (RFC 6368 Section 5),
+	// so that route is treated as withdrawn and neither peer holds it.
+	//
+	// The injector sends the set route, then the AS 0 route, then the control
+	// on one session, so a peer holding the control means ze has judged both.
+	// The set route is the discriminating presence: with the included paths
+	// judged under the zero receive policy again, ze withdraws it and neither
+	// peer holds it. FRR prints nothing for a transit attribute, so the
+	// ATTR_SET is read out of FRR's capture of what ze sent.
+	//
+	// Red walk of 2026-10-24: with validateAttrSetDepth's included-attribute
+	// policy put back to receivePolicy{} (the code before f9a295a7cf) in a
+	// `git archive` export of HEAD, the harness-built image 1f9ce84d62c8 failed
+	// assertion 5 (FRR never held 10.97.80.0/24) and ze logged the ATTR_SET
+	// treat-as-withdraw. Restored, image a7c2e27a049c passed.
+	"bgp-attr-set-included-as-set-frr-bird": {
+		{kind: opFRRSession, argument: zeLabAddress},
+		{kind: opBIRDSession, argument: birdZeProtocol},
+		{kind: opFRRRoute, argument: attrSetIncludedControlPrefix, timeout: 90 * time.Second},
+		{kind: opBIRDRoute, argument: attrSetIncludedControlPrefix, timeout: 60 * time.Second},
+		{kind: opFRRRoute, argument: attrSetIncludedSetPrefix, timeout: 30 * time.Second},
+		{kind: opBIRDRoute, argument: attrSetIncludedSetPrefix, timeout: 30 * time.Second},
+		{
+			kind:     opRequireContains,
+			peer:     peerFRR,
+			command:  []string{"sh", shellErrexitCommand, attrSetIncludedUpdateDumpHex},
+			contains: []string{attrSetIncludedSetNLRI, attrSetIncludedASSetSegment},
+		},
+		{
+			kind:    opRequireAbsent,
+			peer:    peerFRR,
+			command: []string{cmdVtysh, "-c", showTableJSON},
+			absent:  []string{attrSetIncludedASZeroPrefix},
+			proof:   []string{attrSetIncludedSetPrefix, attrSetIncludedControlPrefix},
+		},
+		{kind: opBIRDRouteAbsent, argument: attrSetIncludedASZeroPrefix, proof: []string{attrSetIncludedSetPrefix, attrSetIncludedControlPrefix}},
+		{
+			kind:    opRequireAbsent,
+			peer:    "ze",
+			command: zeCommand(zeShowBGPRIB),
+			absent:  []string{attrSetIncludedASZeroPrefix},
+			proof:   []string{attrSetIncludedSetPrefix, attrSetIncludedControlPrefix},
+		},
+		{kind: opWaitLogContains, peer: "ze", contains: []string{attrSetIncludedASZeroVerdict}, timeout: 30 * time.Second},
+		{kind: opFRRSession, argument: zeLabAddress},
+	},
 	"bgp-prefix-sid-duplicate-tlv-frr": {
 		{kind: opFRRSession, argument: zeLabAddress},
 		{kind: opFRRRoute, argument: prefixSIDDuplicatePrefix, family: frrFamilyIPv4VPN, timeout: 90 * time.Second},
