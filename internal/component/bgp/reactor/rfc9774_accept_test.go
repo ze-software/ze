@@ -41,6 +41,10 @@ func asSetPeerTree(policy string) map[string]any {
 // treats the same bytes as withdrawn. Method: parse the peer from a config tree with
 // parsePeerFromTree, then drive the receive rail (enforceRFC7606) with each UPDATE.
 // The leaf keeps every other check: AS 0 in the same path is still treat-as-withdraw.
+//
+// RFC requirement: RFC9774-3-2 positive -- a peer parsed from config with session as-set
+// withdraw or no as-set leaf draws treat-as-withdraw from Session.enforceRFC7606 for an
+// AS_SET or AS_CONFED_SET in AS_PATH and an AS_SET in AS4_PATH.
 func TestRFC9774ReceiveASSetAcceptedByOperator(t *testing.T) {
 	nlri := []byte{24, 192, 0, 2}
 	setPath := append(rfc9774Segment(rfc9774SegSequence, 4, 65002), rfc9774Segment(rfc9774SegSet, 4, 65020, 65021)...)

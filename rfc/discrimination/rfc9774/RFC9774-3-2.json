@@ -3,7 +3,7 @@
     "rid": "RFC9774-3-2",
     "polarity": "positive",
     "unit": "internal/component/bgp/message/rfc9774_test.go::TestValidateASPathRejectsSetSegments",
-    "unit-sha": "f0e514f7b7477164",
+    "unit-sha": "4b566b767e962696",
     "claim-sha": "88a5111359e55467",
     "route": "revert",
     "producer": "internal/component/bgp/message/rfc9774.go::ASPathSetSegment",
@@ -14,12 +14,23 @@
     "rid": "RFC9774-3-2",
     "polarity": "negative",
     "unit": "internal/component/bgp/message/rfc9774_test.go::TestValidateASPathRejectsSetSegments",
-    "unit-sha": "f0e514f7b7477164",
+    "unit-sha": "4b566b767e962696",
     "claim-sha": "ca0ff00f30132f64",
     "route": "revert",
     "producer": "internal/component/bgp/message/rfc9774.go::ASPathSetSegment",
     "producer-sha": "72c02bda4fd3b039",
     "break": "body of ASPathSetSegment replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9774-3-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc9774_accept_test.go::TestRFC9774ReceiveASSetAcceptedByOperator",
+    "unit-sha": "6f889527008abfb1",
+    "claim-sha": "d7161ed91e563c03",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/rfc7606.go::validateASPathPolicy",
+    "producer-sha": "962ce246b0a79ae2",
+    "break": "body of validateASPathPolicy replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC9774-3-2",
