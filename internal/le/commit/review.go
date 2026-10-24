@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -500,50 +501,100 @@ func checkReviewSelected(root, stem string, paths []string, selection hunks.Sele
 	}
 	if len(repin) != 0 {
 		result.Problems = append(result.Problems, countedPaths(len(repin), " path(s) committed by hunks: ", repin)+
-			"; the review pins the content this commit carries, not the working-tree file, so record it again with:\n  "+
-			hunksReviewRecord(stem, string(content), result.CodeFiles, selection))
+			"; the review pins the content this commit carries, not the working-tree file, so "+
+			hunksReviewRepin(root, stem, string(content), &result, selection))
 		result.Clean = false
 	}
 	return result
 }
 
-// reviewHeaderValues read the record keywords a review artifact holds, so the
-// command that re-records it carries the same reviewers, rounds and reasons.
-var (
-	reviewRoundsPattern    = regexp.MustCompile(`<!-- ze-review\s+[^>]*rounds=(\d+)`)
-	reviewReviewersPattern = regexp.MustCompile(`<!-- ze-review\s+[^>]*reviewers=([^\s>]+)`)
-	reviewReasonPattern    = regexp.MustCompile(`(?m)^rounds-reason: (.+)$`)
-	reviewOwnerPattern     = regexp.MustCompile(`(?m)^owner-authorised: (.+)$`) //nolint:misspell // owner-authorised is the artifact line spec.reviewArtifact.Document writes
+// reviewRecordHeaderPattern reads the header line spec.reviewArtifact.Document
+// writes. The reviewers value runs to " model=", so a reviewers list holding a
+// space is read whole.
+var reviewRecordHeaderPattern = regexp.MustCompile(
+	`\A<!-- ze-review spec=(\S+) verdict=(\S+) rounds=(\d+) reviewers=(.*) model=(\S+) ts=(\S+) -->\n`)
+
+// The artifact lines spec.reviewArtifact.Document writes around the pins.
+const (
+	recordedTitle        = "# Independent review — "
+	recordedFiles        = "\n\nfiles:\n"
+	recordedReason       = "\nrounds-reason: "
+	recordedOwner        = "\nowner-authorised: " //nolint:misspell // owner-authorised is the artifact line spec.reviewArtifact.Document writes
+	recordedFindings     = "\n## Findings\n\n"
+	recordedNoFindings   = recordedFindings + "(none recorded)\n"
+	recordRefusedPrefix  = "no record command is printed: "
+	recordUnshapedReason = "the artifact is not in the shape `./le spec review record` writes, so no command " +
+		"could reproduce it: re-run the independent review and record it"
 )
 
-// hunksReviewRecord answers the exact `./le spec review record` command that
-// re-pins the review over every code file of this commit: each hunks path with
-// the patch the commit names, every other code file whole, and the verdict,
-// rounds, reviewers and reasons the artifact already holds. A record replaces
-// the artifact, so the command names the whole population, never only the
-// stale path. Every value is shell-quoted, so a path with a space pastes as one
+// recordedReview is what a review artifact holds that a new record must carry
+// again: the rounds, reviewers and reasons, and the digest of every pin.
+type recordedReview struct {
+	rounds    string
+	reviewers string
+	reason    string
+	owner     string
+	pins      map[string]string
+}
+
+// hunksReviewRepin answers how a hunks path's stale review is recorded again:
+// the exact `./le spec review record` command, or why none is printed.
+//
+// A record replaces the artifact, so the command names every path the artifact
+// pins and every code file of this commit, each hunks path with the patch the
+// commit names. Pasting it MUST NOT vouch for anything nobody reviewed, so it
+// prints only when the verdict is clean and every other path it would pin
+// still carries the content the review saw. It MUST reproduce the artifact
+// exactly, so an artifact holding findings, or one `record` did not write,
+// gets no command: findings live in a file the command cannot name, and a
+// hand-written artifact holds no value the command could trust. Every value is
+// shell-quoted, so a path with a space or a reason with a quote pastes as one
 // word.
-func hunksReviewRecord(stem, artifactText string, codeFiles []string, selection hunks.Selection) string {
+func hunksReviewRepin(root, stem, artifactText string, result *ReviewResult, selection hunks.Selection) string {
+	if result.Verdict != "clean" {
+		return recordRefusedPrefix + "the artifact's verdict is " + result.Verdict +
+			", which blocks first: fix every finding and re-run the independent review to a clean pass"
+	}
+	recorded, problem := parseRecordedReview(artifactText)
+	if problem != "" {
+		return recordRefusedPrefix + problem
+	}
+	named := make(map[string]bool, len(recorded.pins)+len(result.CodeFiles))
+	for path := range recorded.pins {
+		named[path] = true
+	}
+	for _, path := range result.CodeFiles {
+		named[path] = true
+	}
+	paths := slices.Sorted(maps.Keys(named))
+	var unfresh []string
+	for _, path := range paths {
+		if selection.Selected(path) {
+			continue
+		}
+		pinned, exists := recorded.pins[path]
+		if !exists {
+			unfresh = append(unfresh, path)
+			continue
+		}
+		if pinned != reviewHash(filepath.Join(root, filepath.FromSlash(path))) {
+			unfresh = append(unfresh, path)
+		}
+	}
+	if len(unfresh) != 0 {
+		return recordRefusedPrefix + countedPaths(len(unfresh), " path(s) not committed by hunks are stale or unreviewed: ", unfresh) +
+			"; a record would pin them with no review, so re-run the independent review over them first"
+	}
 	var command textbuf.Buffer
-	command.Str("./le spec review record spec ").Str(shellQuote(stem)).Str(" verdict clean rounds ")
-	// An artifact `record` wrote always holds its rounds. One that does not
-	// was written by hand, and no value here would be its truth, so the
-	// command names the hole rather than inventing a count.
-	if match := reviewRoundsPattern.FindStringSubmatch(artifactText); len(match) == 2 {
-		command.Str(match[1])
-	} else {
-		command.Str("<the rounds the review ran: the artifact names none>")
+	command.Str("record it again with:\n  ./le spec review record spec ").Str(shellQuote(stem)).
+		Str(" verdict clean rounds ").Str(recorded.rounds).Str(" reviewers ").Str(shellQuote(recorded.reviewers))
+	if recorded.reason != "" {
+		command.Str(" rounds-reason ").Str(shellQuote(recorded.reason))
 	}
-	if match := reviewReviewersPattern.FindStringSubmatch(artifactText); len(match) == 2 {
-		command.Str(" reviewers ").Str(shellQuote(match[1]))
+	if recorded.owner != "" {
+		command.Str(" owner-authorised ").Str(shellQuote(recorded.owner)) //nolint:misspell // owner-authorised is the review record keyword spec.parseReviewRecord reads
 	}
-	if match := reviewReasonPattern.FindStringSubmatch(artifactText); len(match) == 2 {
-		command.Str(" rounds-reason ").Str(shellQuote(match[1]))
-	}
-	if match := reviewOwnerPattern.FindStringSubmatch(artifactText); len(match) == 2 {
-		command.Str(" owner-authorised ").Str(shellQuote(match[1])) //nolint:misspell // owner-authorised is the review record keyword spec.parseReviewRecord reads
-	}
-	for _, path := range codeFiles {
+	for _, path := range paths {
 		if selection.Selected(path) {
 			command.Str(" hunks ").Str(shellQuote(path)).Byte(' ').Str(shellQuote(selection[path].Patch))
 			continue
@@ -551,6 +602,64 @@ func hunksReviewRecord(stem, artifactText string, codeFiles []string, selection 
 		command.Str(" file ").Str(shellQuote(path))
 	}
 	return command.String()
+}
+
+// parseRecordedReview reads an artifact in exactly the shape
+// spec.reviewArtifact.Document writes, consuming every byte, so the values it
+// answers rebuild the same artifact. It answers why it cannot otherwise.
+func parseRecordedReview(artifactText string) (recordedReview, string) {
+	header := reviewRecordHeaderPattern.FindStringSubmatch(artifactText)
+	if len(header) != 7 {
+		return recordedReview{}, recordUnshapedReason
+	}
+	recorded := recordedReview{rounds: header[3], reviewers: header[4], pins: make(map[string]string)}
+	body, titled := strings.CutPrefix(artifactText[len(header[0]):], recordedTitle+header[1]+recordedFiles)
+	if !titled {
+		return recordedReview{}, recordUnshapedReason
+	}
+	for strings.HasPrefix(body, "  ") {
+		line, rest, ended := strings.Cut(body[2:], "\n")
+		if !ended {
+			return recordedReview{}, recordUnshapedReason
+		}
+		hash, path, paired := strings.Cut(line, "  ")
+		if !paired {
+			return recordedReview{}, recordUnshapedReason
+		}
+		recorded.pins[path] = hash
+		body = rest
+	}
+	middle, unfound := strings.CutSuffix(body, recordedNoFindings)
+	if !unfound {
+		if strings.Contains(body, recordedFindings) {
+			return recordedReview{}, "the artifact records findings, and a pasted command cannot carry them: " +
+				"record it again with findings-file naming a file that holds its Findings section"
+		}
+		return recordedReview{}, recordUnshapedReason
+	}
+	if rest, reasoned := strings.CutPrefix(middle, recordedReason); reasoned {
+		// The reason runs to the owner line, or to the end; a reason may span
+		// lines, so only the owner line's own marker ends it.
+		if index := strings.LastIndex(rest, "\n"+recordedOwner); index >= 0 {
+			recorded.reason, middle = rest[:index], rest[index+1:]
+		} else {
+			recorded.reason, middle = strings.TrimSuffix(rest, "\n"), ""
+		}
+	}
+	if rest, owned := strings.CutPrefix(middle, recordedOwner); owned {
+		recorded.owner, middle = strings.TrimSuffix(rest, "\n"), ""
+	}
+	if middle != "" {
+		return recordedReview{}, recordUnshapedReason
+	}
+	// record trims both values, so one with an outer space did not come from it.
+	if recorded.reason != strings.TrimSpace(recorded.reason) {
+		return recordedReview{}, recordUnshapedReason
+	}
+	if recorded.owner != strings.TrimSpace(recorded.owner) {
+		return recordedReview{}, recordUnshapedReason
+	}
+	return recorded, ""
 }
 
 // judgeReviewCoverage fills the verdict, the coverage and the problems of one

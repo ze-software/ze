@@ -371,8 +371,11 @@ func checkSourceGates(root string, options *Options, result *Prepared, paths, re
 			result.Trailers = append(result.Trailers, trailer)
 		}
 	}
-	if problems := testCoverageProblemsSelected(root, paths, selection); len(problems) != 0 &&
-		strings.TrimSpace(options.NoTest) == "" {
+	problems, err := testCoverageProblemsSelected(root, paths, selection)
+	if err != nil {
+		return err
+	}
+	if len(problems) != 0 && strings.TrimSpace(options.NoTest) == "" {
 		return fmt.Errorf("%s\n  or name no-test with a truthful reason",
 			strings.Join(problems, "\n"))
 	}
@@ -509,13 +512,11 @@ func normalizePaths(root string, raw []string, validate func(string, string) err
 	return unique(paths), nil
 }
 
-func testCoverageProblems(root string, paths []string) []string {
-	return testCoverageProblemsSelected(root, paths, nil)
-}
-
-// testCoverageProblemsSelected is testCoverageProblems over a commit whose
-// hunks paths carry the selected blob.
-func testCoverageProblemsSelected(root string, paths []string, selection hunks.Selection) []string {
+// testCoverageProblemsSelected answers whether a commit carrying Go carries a
+// test too, judging each hunks path by the selected blob. A path it cannot read is an error that
+// no-test cannot waive: the gate cannot say whether that path owes a test, and
+// a hunks entry that names no blob would otherwise pass unjudged.
+func testCoverageProblemsSelected(root string, paths []string, selection hunks.Selection) ([]string, error) {
 	owing := make([]string, 0)
 	hasTest := false
 	for _, path := range paths {
@@ -527,7 +528,7 @@ func testCoverageProblemsSelected(root string, paths []string, selection hunks.S
 		}
 		content, err := selection.Read(root, path)
 		if err != nil {
-			continue
+			return nil, fmt.Errorf("test-coverage gate cannot read %s: %w", path, err)
 		}
 		head := content
 		if len(head) > 500 {
@@ -540,9 +541,9 @@ func testCoverageProblemsSelected(root string, paths []string, selection hunks.S
 		owing = append(owing, path)
 	}
 	if len(owing) == 0 || hasTest {
-		return nil
+		return nil, nil
 	}
-	return []string{"this commit carries Go and no test:\n  " + strings.Join(owing, "\n  ")}
+	return []string{"this commit carries Go and no test:\n  " + strings.Join(owing, "\n  ")}, nil
 }
 
 func testCoverageRequired(path string) bool {

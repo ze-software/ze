@@ -234,10 +234,10 @@ None: `./le commit create` is driven by its package tests over a real repository
 
 | Field | Value |
 |-------|-------|
-| Artifact | not yet recorded: the round 3 re-review is owed |
+| Artifact | not yet recorded: the round 4 re-review is owed |
 | `./le spec review check` | not run |
-| Rounds | round 1 over 322391f9eb; round 2 over 322391f9eb and f442e95663 (findings below); round 3 owed over the round 2 fix commit |
-| Reviewer lenses used | rounds 1 and 2: independent reviewer in the parent session |
+| Rounds | round 1 over 322391f9eb; round 2 over 322391f9eb and f442e95663; round 3 over those and e77cbf6d17 (findings below); round 4 owed over the round 3 fix commit, run by the parent session |
+| Reviewer lenses used | rounds 1 to 3: independent reviewer in the parent session |
 
 The agent that wrote the round 1 fixes holds no Agent tool and authored them, so
 it cannot review them. The parent session runs the independent round 2 re-review
@@ -274,6 +274,23 @@ over it, run by the parent session.
 Each round 2 test was forced red by breaking its producer (a whitespace split
 of the changed names, a `Read` that falls back when `Blob` fails, the old `...`
 hint), then restored green.
+
+### Round 3
+
+Round 3 ran in the parent session over 322391f9eb, f442e95663 and e77cbf6d17:
+0 BLOCKER, 3 ISSUE, 1 NOTE. The fixes below are in the round 3 fix commit;
+round 4 is owed over it, run by the parent session.
+
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | The printed record pinned every other code file as `file`, stale or unreviewed ones included, so pasting it cleared the gate's own refusal with no review | `internal/le/commit/review.go` hunksReviewRecord | `hunksReviewRepin` prints the command only when every path it would pin as `file` (each the artifact pins and each code file of the commit) still matches its pin; otherwise it prints none and names the paths that need a re-review first; `TestReviewHunksRepinRefusesWhatNobodyReviewed` (changed after the review, never reviewed) |
+| 2 | ISSUE | `verdict clean` was hard-coded | `internal/le/commit/review.go` hunksReviewRecord | No command for a verdict that is not clean: the refusal says the verdict blocks first; `TestReviewHunksRepinRefusesWhatNobodyReviewed` (findings verdict) |
+| 3 | ISSUE | A malformed selection entry was swallowed by the coverage gate (`continue`) and the weakening gate (empty text) | `internal/le/commit/prepare.go` testCoverageProblemsSelected; `internal/le/test/weakened/testweakened.go` worktreeText | The coverage gate returns the read error, which `no-test` cannot waive; `worktreeText` answers the read problem, reported as "check could not run"; committing.md and the `selectedFileStat` comment now hold; `TestCoverageHunksMalformedEntryFailsClosed`, `TestWeakenedTestsRefusesAMalformedHunksEntry` |
+| 4 | NOTE | The command dropped findings and every reason line past the first, and its rounds placeholder failed when pasted | `internal/le/commit/review.go` hunksReviewRecord | `parseRecordedReview` reads the artifact in exactly the shape the recorder writes, every byte consumed, and carries the full reason and owner authorization; an artifact holding findings, or not in that shape, gets no command and the refusal says why; `TestReviewHunksStaleNamesExactRecord` records through the real recorder with a two-line reason holding a single quote, pastes the printed command into the recorder and finds the gate clean and the reason whole; the findings and hand-written cases are in `TestReviewHunksRepinRefusesWhatNobodyReviewed` |
+
+Each round 3 test was forced red by breaking its producer (the freshness check,
+the verdict check, a reason cut to its first line, the coverage `continue`, an
+empty `worktreeText`), then restored green.
 
 ## Pre-Commit Verification
 

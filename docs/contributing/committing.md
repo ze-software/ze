@@ -136,10 +136,19 @@ The review pin compares like with like. Record the review of a hunks code file
 with the same pair, `./le spec review record spec <stem> verdict clean rounds
 <n> hunks <path> <patch-file>`, which pins HEAD's blob with the patch applied.
 A pin taken over the working-tree file is stale, and the refusal prints the
-whole record command to paste: the rounds and reviewers the artifact holds,
-each hunks path with the patch the commit names, and every other code file of
-the commit as `file`, each value shell-quoted. A record replaces the artifact,
-so the command names every code file, never only the stale one.
+whole record command to paste: the rounds, reviewers, rounds reason and owner
+authorization the artifact holds, each hunks path with the patch the commit
+names, and every other path the artifact pins or the commit carries as `file`,
+each value shell-quoted, so a path with a space or a reason with a quote or a
+line break pastes as one word. A record replaces the artifact, so the command
+names the whole population, never only the stale path.
+
+Pasting that command MUST NOT vouch for content nobody reviewed, so the refusal
+prints none, and says why, when the verdict is not clean (the findings block
+first), when a path the command would pin as `file` changed after the review
+or was never reviewed (it needs a re-review first), when the artifact records
+findings (a pasted command cannot carry them; record again with
+`findings-file`), or when the artifact is not in the shape `record` writes.
 
 Three judgements do not read the selected blob, and each says so:
 
@@ -160,7 +169,7 @@ unstaged changes against the new commit. `./le repo compiles check` after the
 script judges what the commit holds, as for any commit.
 <!-- source: internal/le/commit/hunks/hunks.go -- Apply, Selection -->
 <!-- source: internal/le/commit/hunks_select.go -- selectHunks -->
-<!-- source: internal/le/commit/review.go -- hunksReviewRecord -->
+<!-- source: internal/le/commit/review.go -- hunksReviewRepin, parseRecordedReview -->
 <!-- source: internal/le/commit/prepare.go -- Create, checkVerificationGates -->
 <!-- source: internal/le/commit/review.go -- closureStemSelected, checkReviewSelected -->
 <!-- source: internal/le/spec/review.go -- recordedHash -->

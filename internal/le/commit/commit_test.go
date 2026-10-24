@@ -113,16 +113,16 @@ func TestMessageAndKeywordGrammarAreClosed(t *testing.T) {
 func TestGoSourceRequiresTestUnlessExplicitlyExempt(t *testing.T) {
 	root := t.TempDir()
 	writeCommitFixture(t, root, "internal/a.go", "// Design: docs/a.md -- a\npackage a\n")
-	if problems := testCoverageProblems(root, []string{"internal/a.go"}); len(problems) != 1 {
+	if problems := mustCoverage(t, root, []string{"internal/a.go"}, nil); len(problems) != 1 {
 		t.Fatalf("source-only coverage problems = %q", problems)
 	}
 	writeCommitFixture(t, root, "internal/a_test.go", "package a\n")
-	if problems := testCoverageProblems(root, []string{"internal/a.go", "internal/a_test.go"}); len(problems) != 0 {
+	if problems := mustCoverage(t, root, []string{"internal/a.go", "internal/a_test.go"}, nil); len(problems) != 0 {
 		t.Fatalf("source plus test coverage problems = %q", problems)
 	}
 	for _, path := range []string{"internal/register.go", "cmd/le/main.go", "vendor/example/a.go"} {
 		writeCommitFixture(t, root, path, "package p\n")
-		if problems := testCoverageProblems(root, []string{path}); len(problems) != 0 {
+		if problems := mustCoverage(t, root, []string{path}, nil); len(problems) != 0 {
 			t.Errorf("exempt %s problems = %q", path, problems)
 		}
 	}

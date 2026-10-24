@@ -7,6 +7,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/le/commit/hunks"
 )
 
 func TestProspectiveCommitPreservesSharedIndexAndPairsRenameWithSpaces(t *testing.T) {
@@ -131,4 +133,29 @@ func runProspectiveGitOutput(t *testing.T, root string, args ...string) string {
 		t.Fatalf("git %s: %v: %s", strings.Join(args, " "), err, output)
 	}
 	return string(output)
+}
+
+// TestWeakenedTestsRefusesAMalformedHunksEntry proves the weakening gate
+// fails closed on a hunks entry that names no blob: the comparison cannot
+// run, and it says so, rather than reading the test file as empty.
+//
+// VALIDATES: worktreeText surfaces the selection's read error.
+// PREVENTS: a malformed selection judged as a deleted test file, or not at all.
+func TestWeakenedTestsRefusesAMalformedHunksEntry(t *testing.T) {
+	root := t.TempDir()
+	const path = "pkg/shared_test.go"
+	writeProspectiveFile(t, root, path, "package pkg\nfunc TestA(t *testing.T) {\n\trequire.NoError(t, err)\n}\n")
+	runProspectiveGit(t, root, "init", "-q")
+	runProspectiveGit(t, root, "add", "-A")
+	auditCommit(t, root, "baseline")
+	selection := hunks.Selection{path: {Entry: "not an index line", Patch: "tmp/mine.patch"}}
+
+	_, problems := weakenedTests(root, []string{path}, nil, nil, "HEAD", selection)
+	joined := strings.Join(problems, "\n")
+	if !strings.Contains(joined, cannotRunPrefix+"read "+path+": ") {
+		t.Fatalf("the gate judged a malformed hunks entry instead of refusing it: %q", problems)
+	}
+	if !strings.Contains(joined, "is not a `git ls-files -s` line") {
+		t.Fatalf("the refusal does not name the malformed entry: %q", problems)
+	}
 }

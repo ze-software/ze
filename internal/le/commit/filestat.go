@@ -65,8 +65,8 @@ func fileStats(root string, paths []string, selection hunks.Selection) []FileSta
 // HEAD's, since the working-tree file holds hunks the commit leaves behind. A
 // path HEAD does not hold has no blob to compare, and an entry that names no
 // blob has nothing to measure, so the counts of each are unavailable; the
-// review and coverage gates refuse that entry by name, reading it through
-// Selection.Read.
+// review, coverage and weakening gates refuse that entry by name, reading it
+// through Selection.Read.
 func selectedFileStat(root, path string, selection hunks.Selection) FileStat {
 	blob, err := selection.Blob(path)
 	if err != nil {

@@ -405,7 +405,11 @@ func comparePath(root, oldPath, newPath, anchor string, selection hunks.Selectio
 	path := oldPath
 	if newPath != "" {
 		path = newPath
-		newText = worktreeText(root, newPath, selection)
+		text, problem := worktreeText(root, newPath, selection)
+		if problem != "" {
+			return nil, problem
+		}
+		newText = text
 	}
 	packageDir := filepath.Dir(path)
 	packageName := filepath.Base(packageDir)
@@ -457,12 +461,15 @@ func baselineText(root, path, anchor string) (string, string) {
 	return stdout, ""
 }
 
-func worktreeText(root, path string, selection hunks.Selection) string {
+// worktreeText answers the text the commit carries for path, or why it cannot
+// be read. A path the commit carries that cannot be read is never compared as
+// empty: the comparison would judge a test file the commit does not hold.
+func worktreeText(root, path string, selection hunks.Selection) (string, string) {
 	content, err := selection.Read(root, path)
 	if err != nil {
-		return ""
+		return "", "read " + path + ": " + err.Error()
 	}
-	return string(content)
+	return string(content), ""
 }
 
 func readRepositoryFile(root, path string) ([]byte, error) {
