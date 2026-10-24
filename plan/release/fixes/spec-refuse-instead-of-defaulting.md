@@ -393,8 +393,9 @@ Owner approval (Thomas, 2026-10-24): the doctor `collectSchemaListeners` row rem
 | `zero-value-as-valid-answer.md` | 2026-10-23 | rs `extractWireNLRIRecords` unknown encoding context answered as no wire UPDATE | F1 |
 | `constant-reported-as-measured-state.md` | 2026-10-23 | `checkVPPHealth` healthy when the VPP socket is absent | F4 |
 | `zero-value-as-valid-answer.md` | 2026-10-24 | rib `showPipeline`, `bestPipeline` parse error answered as an `{"error":...}` payload with status done | F1 |
+| `guard-enumerates-instead-of-subtracting.md` | 2026-10-24 | `commandRegistrars` does not classify `RegisterTextRenderer` / `MustRegisterTextRenderer`, added by this spec's 238bdb62e9; `TestEveryCommandRegistrarIsMatched` red | - |
 
-53 rows.
+54 rows.
 
 ## Rows found already fixed
 

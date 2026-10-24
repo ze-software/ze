@@ -354,6 +354,12 @@ The owner's Ubuntu host booted `7.2.9-ze` (installed with `./le setup docker-ker
 Rebuild (2026-10-14, after commits 7bd12b1e80 and af8cc93d2f): the Docker builder refused (`/var/lib/docker` 31.4G free, 40G needed); `ze-host appliance kernel --builder qemu --target runtime --arch amd64 --profile runtime` built `~/.cache/ze/runtime-kernel/7.2.9-runtime-amd64-runtime-qemu-fc13b746-34cba457` (release `7.2.9-ze`, `runtime.require` enforced; log `scratch/kernel-rebuild/kernel-qemu.log`). The host check over this host (`ens18` from netplan's file name, `xt_LOG` loaded, UFW installed) refuses the old `docker-7c0d8f79` config naming both and passes the new one. `install` resolves the `runtime-docker-fc13b746` path only, so it cannot place the QEMU-built entry (`plan/journal/stale-artifact-reused.md`); owed: owner frees Docker space and reruns the Docker build, or the resolver gains the QEMU entry.
 -> Constraint: `HOTPLUG_PCI_ACPI` depends on `ACPI`, which arm64's defconfig sets; the arm64 runtime build on the Mac has not been run with AC-21, and `runtime.require` refuses it if kconfig drops a symbol there.
 
+## Owned journal rows
+
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+| `command-name-breaks-the-cli-grammar.md` | 2026-10-24 | `setup docker-host` and `setup docker-kernel` fail `./le cli grammar` R9; rename to `setup docker host` / `setup docker kernel` |
+
 ## Known Limitations
 
 - Ze's own build, its pin and its digest belong to `plan/release/delivery/spec-appliance-ships-ze-kernel.md`; this spec uses whatever kernel passes.
