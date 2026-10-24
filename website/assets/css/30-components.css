@@ -1242,7 +1242,7 @@ pre.code-copy-wrap, .md-content pre.code-copy-wrap { position: relative; padding
 .blog-reading-body .blog-article-content > .blog-section-reveal { padding: 0; border: 0; background: transparent; font-size: 1.2rem; font-weight: 400; }
 .blog-reading-body .blog-article-content h2 { display: block; font-size: 1.8rem; line-height: 1.35; margin: 2.75rem 0 1.2rem; }
 .blog-reading-body .blog-article-content h2::before { content: none; }
-.blog-reading-body .blog-key-points { display: block; padding: 1.3rem; border: 1px solid var(--line); border-left: 3px solid var(--blue); background: var(--brand-surface); box-shadow: none; }
+.blog-reading-body .blog-key-points { display: block; padding: 1.3rem; border: 1px solid var(--line); background: var(--reference-section-gradient); box-shadow: none; }
 .blog-reading-body .blog-key-points-label { margin-bottom: 0.8rem; color: var(--blue); }
 .blog-reading-body .blog-key-points-label::after { content: none; }
 .blog-reading-body .blog-key-points ul { display: block; padding-left: 1.1rem; list-style: disc; }
@@ -1382,7 +1382,7 @@ body:has(.site-home) .footer-bottom { border-top: 0; }
 .site-home .capability-links a:is(:hover, :focus-visible) { color: var(--blue); text-decoration: underline; text-underline-offset: 0.2em; }
 .site-home .capability-footer { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--line); font-size: 0.82rem; font-weight: 800; }
 .site-home .capability-note { color: var(--muted); font-size: 0.88rem; }
-.site-home .home-proof-block { margin: 0; padding: 3rem clamp(1rem, 3vw, 2.5rem); background: var(--brand-section-gradient); border: 1px solid var(--line); border-radius: var(--radius-xl); box-shadow: none; clip-path: none; }
+.site-home .home-proof-block { margin: 0; padding: 3rem clamp(1rem, 3vw, 2.5rem); background: var(--evidence-section-gradient); border: 1px solid var(--line); border-radius: var(--radius-xl); box-shadow: none; clip-path: none; }
 .site-home .home-proof-head { display: flex; justify-content: space-between; align-items: start; gap: 2.5rem; margin-bottom: 1.5rem; }
 .site-home .home-proof-head > div:first-child { display: block; flex: 1; }
 .site-home .home-proof-head h2 { white-space: normal; }
@@ -1450,13 +1450,28 @@ body:has(.site-home) .footer-bottom { border-top: 0; }
     box-decoration-break: clone;
 }
 
-/* Repeat the hero's blue identity at reader decisions and evidence, not by
-   alternating arbitrary sections or recoloring subject cards. */
-.site-home .home-section-panel-run {
+/* Section surfaces identify a reading purpose. Category colors stay on badges. */
+.site-home .home-section-panel-run,
+.site-home .home-section-panel-map {
     margin-bottom: var(--space-6);
     padding: 2rem clamp(1rem, 3vw, 2.5rem);
     border-radius: var(--radius-xl);
     background: var(--brand-section-gradient);
+}
+
+.site-home .home-section-panel-map,
+.docs-path-grid {
+    background: var(--reference-section-gradient);
+}
+
+.docs-path-grid,
+.quality-hero {
+    padding: clamp(1rem, 2vw, 1.5rem);
+    border-radius: var(--radius-xl);
+}
+
+.quality-hero {
+    background: var(--evidence-section-gradient);
 }
 
 .section-note {

@@ -192,10 +192,11 @@ const homeTemplate = `        <div class="site-home">
                         <h2 id="proof-title">Regression prevention</h2>
                         <p>
                             Tests help catch changes that break existing behavior.
-                            Unit tests, end-to-end scenarios, protocol checks,
+                            Go tests, end-to-end scenarios, protocol checks,
                             fuzzing and interoperability tests cover different
-                            failure modes. Each figure links to the evidence and
-                            current coverage.
+                            failure modes. The figures describe the test suite
+                            and its coverage. Each card explains what is checked
+                            and links to how those checks work.
                         </p>
                     </div>
                     <div class="home-proof-actions">
@@ -206,26 +207,26 @@ const homeTemplate = `        <div class="site-home">
                 <div class="proof-strip" aria-label="Project evidence">
                     <a class="proof" href="quality/unit-fuzz-mutation/">
                         <strong
-                            >{unit_tests} <span class="label">unit tests</span></strong
+                            >{unit_tests} <span class="label">Go tests</span></strong
                         >
                         <ul>
-                            <li>Wire encoding, parsing</li>
-                            <li>Config, FSM, plugins</li>
-                            <li>gomu mutates code to check assertions</li>
+                            <li>Check encoded bytes and parsed values.</li>
+                            <li>Verify config, state transitions and plugins.</li>
+                            <li>gomu checks whether tests catch code changes.</li>
                         </ul>
-                        <span class="proof-check concept-evidence">Local test, fuzz, and mutation evidence.</span>
+                        <span class="proof-check concept-evidence">Go tests and mutation checks.</span>
                     </a>
                     <a class="proof" href="quality/functional-ci/">
                         <strong
                             >{e2e_tests}
-                            <span class="label">end to end tests</span></strong
+                            <span class="label">end-to-end tests</span></strong
                         >
                         <ul>
-                            <li>Peering, sessions, updates</li>
-                            <li>Editor, commits, reloads</li>
-                            <li>Commands checked as operators run them</li>
+                            <li>Start sessions and exchange route updates.</li>
+                            <li>Run editor commands, commits and reloads.</li>
+                            <li>Check output, errors and saved state.</li>
                         </ul>
-                        <span class="proof-check concept-evidence">Functional transcript format and rerun path.</span>
+                        <span class="proof-check concept-evidence">Scenarios and expected results.</span>
                     </a>
                     <a class="proof" href="quality/rfc-compliance/">
                         <strong
@@ -242,22 +243,22 @@ const homeTemplate = `        <div class="site-home">
                     <a class="proof" href="quality/unit-fuzz-mutation/#fuzz-targets-are-still-tests">
                         <strong>{fuzz_targets} <span class="label">fuzz targets</span></strong>
                         <ul>
-                            <li>Parsers, external inputs</li>
-                            <li>Wire formats, config files</li>
-                            <li>Saved crashes become regression cases</li>
+                            <li>Generate inputs for parsers and decoders.</li>
+                            <li>Probe packets and config text for crashes.</li>
+                            <li>Replay saved failures as regression cases.</li>
                         </ul>
-                        <span class="proof-check concept-evidence">Fuzz crashes kept as regression cases.</span>
+                        <span class="proof-check concept-evidence">Fuzz inputs and regression cases.</span>
                     </a>
                     <a class="proof" href="quality/qemu-interop-release/#docker-interop">
                         <strong
-                            >{interop_targets} <span class="label">interop targets</span></strong
+                            >{interop_targets} <span class="label">interop test images</span></strong
                         >
                         <ul>
-                            <li>BGP, OSPF, IS-IS, BFD, BMP, RPKI, VRRP</li>
-                            <li>IPsec, L2TP, PPPoE, RADIUS</li>
-                            <li>Real daemons in Docker, checked by peer CLIs</li>
+                            <li>Peer CLIs check sessions and route exchange.</li>
+                            <li>BGP, OSPF, IS-IS, BFD, BMP, RPKI, VRRP.</li>
+                            <li>Separate labs: IPsec, L2TP, PPPoE, RADIUS.</li>
                         </ul>
-                        <span class="proof-check concept-evidence">Docker interop peer list.</span>
+                        <span class="proof-check concept-evidence">Docker scenarios and peer checks.</span>
                     </a>
                 </div>
                 <div class="interop-strip" aria-label="Implementations Ze is tested against">

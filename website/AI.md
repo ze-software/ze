@@ -370,12 +370,15 @@ matched without case. This assigns presentation roles only, not support or
 evidence claims. Typed dependency and vendor labels emit their roles directly;
 authored HTML uses explicit concept classes.
 
-The shared blue page surfaces carry Ze's identity beyond the hero. Light pages
-use a blue-washed foundation, stronger blue section surfaces and white reading
-cards; dark pages keep their approved richer navy panels. The management,
-evidence and run sections use `--brand-section-gradient`, and supporting notes,
-reading takeaways and navigation selection use `--brand-surface`. Key reading
-and action links use accessible `--blue`. Choose these surfaces by their reader
+Three section surfaces give the page color without recoloring individual cards.
+Blue identifies management and run choices through `--brand-section-gradient`.
+Teal identifies testing through `--evidence-section-gradient` on the homepage
+proof section and quality overview. Lavender identifies references and reading
+through `--reference-section-gradient` on the homepage documentation section,
+documentation route grid and article takeaways. Light pages use a neutral
+foundation and white cards; dark pages retain their navy foundations and cards.
+Supporting notes and navigation selection use `--brand-surface`. Key reading
+and action links use accessible `--blue`. Choose surfaces by their reader
 purpose, never alternating arbitrary sections. Preserve the hero gradient,
 neutral card borders, plain headings and terminal imagery. These colors retain
 the approved layout. Poppins headings
@@ -397,7 +400,11 @@ Use `categoryLabel` for category display names: `platform` reads as
 <!-- source: internal/le/site/docpage.go -- categoryLabel -->
 
 The homepage preserves its useful content and data slots. Regression prevention
-follows Latest news. The management panel's left column starts with Why Ze,
+follows Latest news. Its cards describe the behavior checked, with short action
+sentences and links to the test methods. Counts represent Go test functions,
+functional scenarios, fuzz targets and interop images, not a passing-run total.
+The RFC card separately shows the tested share of tracked MUST requirements.
+The management panel's left column starts with Why Ze,
 then explains how to manage Ze directly through its own SSH service. It has no
 self-contained management badge. The architectural argument cards remain below
 the panel. Its primary actions reach the demo gallery and BGP quickstart

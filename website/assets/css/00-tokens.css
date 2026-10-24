@@ -68,8 +68,8 @@
     --pink: #ff64ab;
     --gold: #e2a01a;
     --danger-deep: #c1121f;
-    --bg: #edf6ff;
-    --bg-soft: #e3f0ff;
+    --bg: #f5f6fa;
+    --bg-soft: #eaf0f8;
     --panel: #fff;
     --panel-strong: #fff;
     --line: #d8e3ec;
@@ -95,8 +95,8 @@
     --link-bg: var(--panel);
     --audience-bg: var(--panel);
     --btn-bg: var(--panel);
-    --body-bg-1: #edf6ff;
-    --body-bg-2: #e3f0ff;
+    --body-bg-1: #f5f6fa;
+    --body-bg-2: #eaf0f8;
     --page-title-descender-room: 0.16em;
     --page-title-max-width: min(100%, 32ch);
     --page-title-copy-max-width: min(100%, 92ch);
@@ -149,6 +149,12 @@
     --brand-surface: #d9ebff;
     --brand-surface-end: #e1f6ff;
     --brand-section-gradient: linear-gradient(120deg, var(--brand-surface), var(--brand-surface-end));
+    --evidence-surface: #daf2ec;
+    --evidence-surface-end: #ecf9f5;
+    --evidence-section-gradient: linear-gradient(120deg, var(--evidence-surface), var(--evidence-surface-end));
+    --reference-surface: #ece7fb;
+    --reference-surface-end: #f4f0fc;
+    --reference-section-gradient: linear-gradient(120deg, var(--reference-surface), var(--reference-surface-end));
     --badge-accent-share: 24%;
     --concept-software: var(--sky-base);
     --concept-evidence: var(--teal-base);
@@ -285,6 +291,10 @@
     --journey-title-gradient: linear-gradient(#fff, #fff);
     --brand-surface: #123d60;
     --brand-surface-end: #164858;
+    --evidence-surface: #174144;
+    --evidence-surface-end: #18343e;
+    --reference-surface: #332a4b;
+    --reference-surface-end: #252d45;
     --badge-accent-share: 18%;
     --accent-solid-foreground: #091b2e;
 }
@@ -410,6 +420,10 @@
         --journey-title-gradient: linear-gradient(#fff, #fff);
         --brand-surface: #123d60;
         --brand-surface-end: #164858;
+        --evidence-surface: #174144;
+        --evidence-surface-end: #18343e;
+        --reference-surface: #332a4b;
+        --reference-surface-end: #252d45;
         --badge-accent-share: 18%;
         --accent-solid-foreground: #091b2e;
     }
