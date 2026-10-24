@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Priority | P3 |
 | Release reason | Release-independent tooling: the development loop must stop running the whole-tree verification day to day, which loads the shared machine and blocks every other session. No shipped behavior changes. |
 | Depends | - |
-| Phase | - |
+| Phase | 2/6 |
 | Handoff | - |
 | Updated | 2026-10-24 |
 
@@ -153,8 +153,8 @@ Goal: the change set is anchored on git, so scoped selection never widens merely
 | A-2 | Every narrowing stage reads only the published scope, so publishing `./...` makes the full run whole-tree with no stage edit. | `verify-freshness-scope.md`; `scopeMatrix`, `Selector.Select`, `selectSuites` | A stage that narrows from its own source keeps narrowing the release check | `TestFullModePublishesWholeTree` asserts the three stages' populations; grep for every reader of `greenBaseline` and `ScopeFileKey` | unvalidated |
 | A-3 | An agent's tool call reaches the le binary with a stdin or stdout that is not a terminal, and Thomas's shell reaches it with both. The `./le` launcher passes its stdio to the binary unchanged. | The Bash tool runs commands with pipes; `./le` is a POSIX shell script that runs the binary as a child | An agent passes the gate, or Thomas is refused | One run from an agent session (refused) and one from Thomas's terminal (admitted), recorded in the spec at Phase 3 | unvalidated |
 | A-4 | `./le go lint run scope packages` lints exactly the named packages. | `internal/le/go/lint/actions.go` keyword `scope packages`, `planScope` | The scoped run lints the whole module | Read `planScope` in Phase 4; `TestChangedPopulationReadsScope` | unvalidated |
-| A-5 | `selectSuites` narrows functional suites by the suite map today. | `verify-freshness-scope.md` "What a suite REACHED" vs `running-commands.md` "Suite selection is not scoped" | The scoped run runs every functional suite, which is a near-full run | Read `selectSuites` in Phase 2; repair the wrong page | unvalidated |
-| A-6 | `refs/remotes/origin/HEAD` exists in a linked worktree with no upstream. | `git clone` sets it; worktrees share refs | A worktree agent's scoped run refuses | `TestAnchorFallsBackToOriginHead`, `TestAnchorRefusesWithNoUpstream` | unvalidated |
+| A-5 | `selectSuites` narrows functional suites by the suite map today. | `verify-freshness-scope.md` "What a suite REACHED" vs `running-commands.md` "Suite selection is not scoped" | The scoped run runs every functional suite, which is a near-full run | Read `selectSuites` in Phase 2; repair the wrong page | confirmed: `selectSuites` (`internal/le/test/functional/suitemap.go`) narrows from the recorded suite map unless recording, the map is unreadable, or the selector refused or widened; `running-commands.md` "Suite selection is not scoped" was the wrong page and is rewritten |
+| A-6 | `refs/remotes/origin/HEAD` exists in a linked worktree with no upstream. | `git clone` sets it; worktrees share refs | A worktree agent's scoped run refuses | `TestAnchorFallsBackToOriginHead`, `TestAnchorRefusesWithNoUpstream` | confirmed: this checkout's `refs/remotes/origin/HEAD` is a symbolic ref to `refs/remotes/origin/main` (`git symbolic-ref`), refs are shared by linked worktrees, and `TestAnchorFallsBackToOriginHead` passes |
 | A-7 | `docker run -t` without `-i` gives the container process a terminal on stdin and stdout, and the docker client accepts it when its own stdout is the progress writer. | Docker CLI: `-t` allocates a pseudo-TTY; only `-i` with a non-TTY stdin is refused | The in-container run is refused, and the release-candidate evidence cannot run | `TestEvidenceContainerHasTerminal` asserts `-t` in the arguments; one release-candidate run by Thomas, recorded at Phase 3 | unvalidated |
 
 ### Risks
@@ -394,6 +394,7 @@ No new numeric input: `part i of m` keeps its existing parsing and tests; the ga
 ## Design Insights
 
 - The certificate (`tmp/ze-verify.status`) is overwritten by every run, red or green, so anchoring scope on it made one interrupted run (exit 130) widen every later scoped run until someone ran a full verify. The anchor belongs to git, which no run can overwrite.
+- Phase 2 found a second anchor already in the package: `upstreamBase` in `internal/le/repo/changed/lines.go`, the changed-line reader of `arch compound-guard`, `arch refuse-by-default` and the doc gates, which fell back to `refs/remotes/origin/main`. Two answers to one question drift, so it now reads `ResolveAnchor`, and its fallback is `refs/remotes/origin/HEAD` like the selector's. Its tests gained the `origin/HEAD` symbolic ref a clone leaves; no assertion changed.
 - Whether the machine is quiet enough for a full run is a judgement about the next hour, which no check at start can make. Who started the run is a fact the process can read at start: a person at a terminal, or a tool call through pipes.
 
 ## Owned journal rows

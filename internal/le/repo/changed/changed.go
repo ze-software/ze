@@ -3,10 +3,10 @@
 // Related: scope.go -- the scoped-verify question this area also answers
 // Related: report.go -- the two renderings of one selection
 //
-// Package repochanged sizes verification from the last proven commit and the
-// working tree. Scope resolves packages and feature tags; Selector resolves the
-// Go-only race groups. Both use greenBaseline, so an unproven history cannot
-// become an empty selection merely because its latest commit changes no Go.
+// Package repochanged sizes verification from the change set: the working tree
+// and every commit since the anchor git computes (ResolveAnchor). Scope resolves
+// packages and feature tags; Selector resolves the Go-only race groups. Both read
+// the one anchor, so neither can start the unpushed range somewhere else.
 //
 // A git failure is an error, never permission to skip. A directory the
 // toolchain cannot resolve is named in Selection.Unresolved, so the race stage
@@ -299,8 +299,8 @@ func (s Selector) relative(dir string) (string, bool) {
 	return out.Str(relativePrefix).Str(strings.TrimPrefix(dir, prefix)).String(), true
 }
 
-// Select answers the race groups since the last proven commit, including the
-// working tree. With no proven baseline, every package needs a race judgment.
+// Select answers the race groups of the change set: the working tree and every
+// commit since the anchor. A checkout with no anchor is an error.
 func (s Selector) Select() (Selection, error) {
 	files, err := s.ChangedFiles()
 	if err != nil {
@@ -314,17 +314,15 @@ func (s Selector) Select() (Selection, error) {
 			}
 		}
 	}
-	baseline, err := greenBaseline(s.Root, func(root string, args ...string) (string, error) {
+	// A checkout with no anchor is an error, never a wide answer: `./...` here
+	// would race the whole tree on every scoped run (ResolveAnchor).
+	anchor, err := ResolveAnchor(s.Root, func(root string, args ...string) (string, error) {
 		return s.run(root, append([]string{gitCommand}, args...))
 	})
 	if err != nil {
-		if errors.Is(err, errNoGreenBaseline) {
-			full := widen(err.Error())
-			return Selection{Rest: full.Packages}, nil
-		}
 		return Selection{}, err
 	}
-	committed, err := s.run(s.Root, []string{gitCommand, gitDiff, gitNameOnly, baseline, "HEAD", "--", goFiles})
+	committed, err := s.run(s.Root, []string{gitCommand, gitDiff, gitNameOnly, anchor.Commit, "HEAD", "--", goFiles})
 	if err != nil {
 		return Selection{}, err
 	}

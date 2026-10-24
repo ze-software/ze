@@ -63,11 +63,6 @@ type LineBase struct {
 // unpushed range has no start.
 var errNoUpstreamBase = errors.New("no pushed commit behind HEAD to diff against")
 
-// upstreamFallback is the ref the base falls back to when the branch tracks
-// no upstream. A detached checkout, which is what `le verify worktree` judges,
-// tracks none.
-const upstreamFallback = "refs/remotes/origin/main"
-
 // LinesSinceUpstream answers the lines changed between the last pushed commit
 // behind HEAD and the working tree: every unpushed commit, the staged and
 // unstaged edits, and each untracked file. A push is where the gates are owed
@@ -75,8 +70,9 @@ const upstreamFallback = "refs/remotes/origin/main"
 // A clean checkout of pushed code answers nothing, which is correct, because
 // that code was judged before it was pushed.
 //
-// The base is the merge base of HEAD and the branch's upstream, or of HEAD and
-// origin/main when no upstream resolves. It reads refs only, never a file
+// The base is the change set's anchor: the merge base of HEAD and the branch's
+// upstream, or of HEAD and refs/remotes/origin/HEAD when no upstream resolves
+// (ResolveAnchor). It reads refs only, never a file
 // under tmp/, so a detached worktree that shares refs with its source checkout
 // answers the same range. With neither ref, or no common history, it returns
 // errNoUpstreamBase naming why: an empty base must never read as "nothing
@@ -139,32 +135,15 @@ func PathsSince(root string, base LineBase) ([]string, error) {
 	return paths, nil
 }
 
-// upstreamBase answers the merge base of HEAD and the first of the upstream
-// and origin/main that resolves.
+// upstreamBase answers the change set's anchor (ResolveAnchor) as a line base,
+// so the line reader and the package selector cannot come to start the unpushed
+// range at different commits.
 func upstreamBase(root string) (LineBase, error) {
-	ref, err := upstreamRef(root)
+	anchor, err := ResolveAnchor(root, runGit)
 	if err != nil {
-		return LineBase{}, err
+		return LineBase{}, fmt.Errorf("%w: %w", errNoUpstreamBase, err)
 	}
-	// merge-base exits 1 when the two share no commit, which a shallow clone
-	// cut above the fork point also produces.
-	out, err := runGit(root, "merge-base", "HEAD", ref)
-	if err != nil {
-		return LineBase{}, fmt.Errorf("%w: HEAD and %s share no commit this repository holds, as in a shallow clone (%w)", errNoUpstreamBase, ref, err)
-	}
-	return LineBase{Commit: strings.TrimSpace(out), Reason: "the merge base of HEAD and " + ref + ", so every unpushed commit is judged"}, nil
-}
-
-// upstreamRef answers the branch's upstream, or origin/main when the branch
-// tracks none.
-func upstreamRef(root string) (string, error) {
-	if out, err := runGit(root, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"); err == nil {
-		return strings.TrimSpace(out), nil
-	}
-	if _, err := runGit(root, "rev-parse", "--verify", "--quiet", upstreamFallback+"^{commit}"); err != nil {
-		return "", fmt.Errorf("%w: the branch tracks no upstream and %s does not resolve", errNoUpstreamBase, upstreamFallback)
-	}
-	return upstreamFallback, nil
+	return LineBase{Commit: anchor.Commit, Reason: "the merge base of HEAD and " + anchor.Upstream + ", so every unpushed commit is judged"}, nil
 }
 
 // linesAgainst answers the lines the working tree changed against one commit.

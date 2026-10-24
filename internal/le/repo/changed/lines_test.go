@@ -120,6 +120,7 @@ func TestChangedLinesTouches(t *testing.T) {
 func TestLinesSinceUpstreamAgainstARealCheckout(t *testing.T) {
 	root := gitFixture(t)
 	gitIn(t, root, "update-ref", "refs/remotes/origin/main", "HEAD")
+	gitIn(t, root, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main")
 	// The owner's machine sets this globally. Set here, it makes the test fail
 	// without --inter-hunk-context=0 on every machine: lines 1 and 3 would then
 	// merge into one hunk covering the unchanged line 2.
@@ -154,6 +155,7 @@ func TestLinesSinceUpstreamJudgesTheUnpushedRange(t *testing.T) {
 	root := gitFixture(t)
 	pushed := gitOut(t, root, "rev-parse", "HEAD")
 	gitIn(t, root, "update-ref", "refs/remotes/origin/main", "HEAD")
+	gitIn(t, root, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main")
 	commitReadme(t, root, "base\nfirst\n")
 	first := gitOut(t, root, "rev-parse", "HEAD")
 	commitReadme(t, root, "base\nfirst\nsecond\n")
@@ -211,6 +213,7 @@ func TestPathsSinceListsTheUnpushedRange(t *testing.T) {
 	gitIn(t, root, "add", "-A")
 	gitIn(t, root, "-c", "user.email=t@ze", "-c", "user.name=t", "commit", "-qm", "pushed")
 	gitIn(t, root, "update-ref", "refs/remotes/origin/main", "HEAD")
+	gitIn(t, root, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main")
 	gitIn(t, root, "rm", "-q", "internal/le/tool/tool.go")
 	commitReadme(t, root, "base\nunpushed\n")
 	writeFile(t, root, "internal/core/env/env.go", "package env\n\nvar edited = 1\n")

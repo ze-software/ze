@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -223,13 +224,12 @@ func TestADirectoryWhoseGoFilesAreAllBuildIgnoredIsDropped(t *testing.T) {
 // (plan/journal/gate-excludes-part-of-its-population.md).
 func TestADroppedDirectoryIsNamedRatherThanForgotten(t *testing.T) {
 	root := t.TempDir()
-	selectionBaseline(t, root)
+	isolateSelection(t)
 	const listQuery = "go list -e -f {{if not .Error}}{{.Dir}}{{end}} ./internal/le/gone"
-	rec := &recorder{answers: map[string]string{
-		"git cat-file -t verified": "commit\n",
-		unstagedQuery:              "internal/le/gone/gone.go\n",
-		listQuery:                  "",
-	}}
+	rec := &recorder{answers: anchoredAnswers(map[string]string{
+		unstagedQuery: "internal/le/gone/gone.go\n",
+		listQuery:     "",
+	})}
 
 	selection, err := Selector{Root: root, Run: rec.run}.Select()
 	if err != nil {
@@ -247,13 +247,12 @@ func TestADroppedDirectoryIsNamedRatherThanForgotten(t *testing.T) {
 // unresolved, so a caller reading Unresolved is reading a real drop.
 func TestAResolvedDirectoryLeavesNothingUnresolved(t *testing.T) {
 	root := t.TempDir()
-	selectionBaseline(t, root)
+	isolateSelection(t)
 	const listQuery = "go list -e -f {{if not .Error}}{{.Dir}}{{end}} ./internal/le/repo/changed"
-	rec := &recorder{answers: map[string]string{
-		"git cat-file -t verified": "commit\n",
-		unstagedQuery:              "internal/le/repo/changed/changed.go\n",
-		listQuery:                  filepath.Join(root, "internal", "le", "repo", "changed") + "\n",
-	}}
+	rec := &recorder{answers: anchoredAnswers(map[string]string{
+		unstagedQuery: "internal/le/repo/changed/changed.go\n",
+		listQuery:     filepath.Join(root, "internal", "le", "repo", "changed") + "\n",
+	})}
 
 	selection, err := Selector{Root: root, Run: rec.run}.Select()
 	if err != nil {
@@ -336,5 +335,32 @@ func goToolchain(t *testing.T) {
 	t.Helper()
 	if _, err := exec.LookPath("go"); err != nil {
 		t.Skip("no go toolchain on PATH")
+	}
+}
+
+// TestRaceGroupsAnchoredOnUpstream is AC-7 and the wiring row for
+// `le repo changed groups`: with a red certificate and an upstream, one Go
+// edit races its own group, never ./....
+func TestRaceGroupsAnchoredOnUpstream(t *testing.T) {
+	goToolchain(t)
+	root := gitFixture(t)
+	isolateSelection(t)
+	red := filepath.Join(t.TempDir(), "ze-verify.status")
+	writeFile(t, filepath.Dir(red), "ze-verify.status", "exit=130\nmode=full\ngit_sha=unknown\n")
+	t.Setenv("ZE_VERIFY_STATUS_FILE", red)
+	trackPublished(t, root)
+	if err := os.Remove(filepath.Join(root, "internal", "le", "tool", "tool.go")); err != nil {
+		t.Fatal(err)
+	}
+
+	selection, err := (Selector{Root: root}).Select()
+	if err != nil {
+		t.Fatalf("Select: %v", err)
+	}
+	if !slices.Equal(selection.Groups, []Group{{Name: "core", Pattern: "./internal/core/..."}}) {
+		t.Errorf("groups = %+v, want the core group alone", selection.Groups)
+	}
+	if len(selection.Rest) != 0 {
+		t.Errorf("rest = %v, want nothing: no certificate may widen an anchored selection", selection.Rest)
 	}
 }

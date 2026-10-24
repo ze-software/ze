@@ -44,7 +44,7 @@ distributed data-intensive systems:
 skips `_test.go`, `vendor/`, `testdata/`, and a dot directory. A changed line
 differs between the working tree and the last pushed commit behind HEAD. That
 commit is the merge base of HEAD and the branch upstream. When the branch tracks
-no upstream, it is the merge base of HEAD and `origin/main`.
+no upstream, it is the merge base of HEAD and `refs/remotes/origin/HEAD`.
 
 The gate is owed before a push, so it judges the unpushed range. The next run
 still judges a guard that was committed without a verify. A clean checkout of

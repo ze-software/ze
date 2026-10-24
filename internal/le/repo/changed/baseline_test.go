@@ -2,7 +2,7 @@
 package repochanged
 
 import (
-	"os"
+	"errors"
 	"path/filepath"
 	"slices"
 	"testing"
@@ -10,42 +10,39 @@ import (
 	"github.com/ze-software/ze/internal/core/env"
 )
 
-// TestRaceSelectionWithoutGreenBaselineCoversTheTree classifies a clean closure
-// tree with absent, red, incomplete, and unresolvable certificates as unproven.
-func TestRaceSelectionWithoutGreenBaselineCoversTheTree(t *testing.T) {
-	for name, certificate := range map[string]string{
-		"cold":       "",
-		"red":        "exit=1\ngit_sha=verified\n",
-		"missing":    "exit=0\n",
-		"unknown":    "exit=0\ngit_sha=unknown\n",
-		"unresolved": "exit=0\ngit_sha=unresolved\n",
-	} {
-		t.Run(name, func(t *testing.T) {
-			root := t.TempDir()
-			selectionBaseline(t, root)
-			writeFile(t, root, "tmp/ze-verify.status", certificate)
-			rec := &recorder{}
-			selection, err := (Selector{Root: root, Run: rec.run}).Select()
-			if err != nil {
-				t.Fatal(err)
-			}
-			if !slices.Equal(selection.Rest, []string{"./..."}) {
-				t.Fatalf("unproven tree selected %+v, want the whole tree", selection)
-			}
-		})
+// VALIDATES: the race groups start the committed term at the git anchor, so a
+// committed Go edit behind a docs-only commit is raced and a checkout with no
+// anchor is refused rather than raced whole.
+// PREVENTS: the loop where a missing or red verify certificate made every
+// scoped race pass race ./....
+
+// The two anchor queries the recorder answers, and the commit names it answers
+// them with.
+const (
+	anchorUpstreamQuery  = "git rev-parse --verify -q @{u}^{commit}"
+	anchorMergeBaseQuery = "git merge-base HEAD upstream"
+	anchorCommittedQuery = "git diff --name-only anchor HEAD -- *.go"
+)
+
+// anchoredAnswers adds the anchor's two answers to a recorder table: @{u} is
+// "upstream", and its merge base with HEAD is "anchor".
+func anchoredAnswers(answers map[string]string) map[string]string {
+	if answers == nil {
+		answers = map[string]string{}
 	}
+	answers[anchorUpstreamQuery] = "upstream\n"
+	answers[anchorMergeBaseQuery] = "anchor\n"
+	return answers
 }
 
 // TestRaceSelectionIncludesGoBeforeADocsOnlyClosure uses an empty working tree
 // and an earlier committed Go edit to prove HEAD alone is not the boundary.
 func TestRaceSelectionIncludesGoBeforeADocsOnlyClosure(t *testing.T) {
-	root := t.TempDir()
-	selectionBaseline(t, root)
-	rec := &recorder{answers: map[string]string{
-		"git cat-file -t verified":                   "commit\n",
-		"git diff --name-only verified HEAD -- *.go": "internal/component/bgp/wire/update.go\n",
-	}}
-	selection, err := (Selector{Root: root, Run: rec.run}).Select()
+	isolateSelection(t)
+	rec := &recorder{answers: anchoredAnswers(map[string]string{
+		anchorCommittedQuery: "internal/component/bgp/wire/update.go\n",
+	})}
+	selection, err := (Selector{Root: t.TempDir(), Run: rec.run}).Select()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,33 +51,44 @@ func TestRaceSelectionIncludesGoBeforeADocsOnlyClosure(t *testing.T) {
 		t.Fatalf("closure selected %+v, want %v", selection, want)
 	}
 	if len(selection.Rest) != 0 {
-		t.Fatalf("proven baseline widened to %v", selection.Rest)
+		t.Fatalf("an anchored selection widened to %v", selection.Rest)
 	}
 }
 
-// TestRaceSelectionWithGreenDocsOnlyChangeIsEmpty contrasts a proven baseline
-// with the cold case: no intervening Go edit really does leave nothing to race.
-func TestRaceSelectionWithGreenDocsOnlyChangeIsEmpty(t *testing.T) {
-	root := t.TempDir()
-	selectionBaseline(t, root)
-	rec := &recorder{answers: map[string]string{"git cat-file -t verified": "commit\n"}}
-	selection, err := (Selector{Root: root, Run: rec.run}).Select()
+// TestRaceSelectionAtAnchorDocsOnlyChangeIsEmpty proves the empty answer is
+// earned: every query ran, and no Go edit since the anchor leaves nothing to
+// race.
+func TestRaceSelectionAtAnchorDocsOnlyChangeIsEmpty(t *testing.T) {
+	isolateSelection(t)
+	rec := &recorder{answers: anchoredAnswers(nil)}
+	selection, err := (Selector{Root: t.TempDir(), Run: rec.run}).Select()
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !selection.Empty() {
-		t.Fatalf("covered docs-only tree selected %+v", selection)
+		t.Fatalf("docs-only tree selected %+v", selection)
 	}
-	if len(rec.calls) != 5 {
-		t.Fatalf("queried %v, want baseline validation and all four change queries", rec.calls)
+	if len(rec.calls) != 6 {
+		t.Fatalf("queried %v, want the three working-tree queries, the two anchor queries and the committed query", rec.calls)
+	}
+}
+
+// TestRaceSelectionRefusesWithNoAnchor proves a checkout whose upstream and
+// origin/HEAD both fail to resolve is an error, never ./....
+func TestRaceSelectionRefusesWithNoAnchor(t *testing.T) {
+	isolateSelection(t)
+	rec := &recorder{}
+	selection, err := (Selector{Root: t.TempDir(), Run: rec.run}).Select()
+	if !errors.Is(err, ErrNoUpstream) {
+		t.Fatalf("Select err = %v (selection %+v), want ErrNoUpstream", err, selection)
 	}
 }
 
 // TestRaceSelectionHonorsPublishedFullScope proves that a run's shared widening
-// survives a green certificate and an otherwise empty Go-only diff.
+// survives an otherwise empty Go-only diff.
 func TestRaceSelectionHonorsPublishedFullScope(t *testing.T) {
 	root := t.TempDir()
-	selectionBaseline(t, root)
+	isolateSelection(t)
 	file := filepath.Join(t.TempDir(), "scope-packages.txt")
 	if err := WriteScopePackages(file, root, []string{"./..."}); err != nil {
 		t.Fatal(err)
@@ -90,7 +98,7 @@ func TestRaceSelectionHonorsPublishedFullScope(t *testing.T) {
 	// Keep both equal so their inherited environment order cannot hide the file.
 	t.Setenv("ZE_VERIFY_SCOPE_PACKAGES", file)
 	env.ResetCache()
-	rec := &recorder{answers: map[string]string{"git cat-file -t verified": "commit\n"}}
+	rec := &recorder{answers: anchoredAnswers(nil)}
 	selection, err := (Selector{Root: root, Run: rec.run}).Select()
 	if err != nil {
 		t.Fatal(err)
@@ -101,16 +109,17 @@ func TestRaceSelectionHonorsPublishedFullScope(t *testing.T) {
 }
 
 // TestRaceSelectionRealCommittedClosure drives real Git over an isolated
-// repository: unverified Go, a docs-only closure, then verified docs-only work.
+// repository: an unpushed Go commit behind a docs-only one is raced, and once
+// both are on the upstream nothing is.
 func TestRaceSelectionRealCommittedClosure(t *testing.T) {
 	root := gitFixture(t)
+	isolateSelection(t)
 	gitIn(t, root, "add", "internal")
 	gitIn(t, root, "-c", "user.email=t@ze", "-c", "user.name=t", "commit", "-qm", "code baseline")
-	selectionBaseline(t, root)
-	writeFile(t, root, "tmp/ze-verify.status", "exit=0\ngit_sha="+gitOut(t, root, "rev-parse", "HEAD")+"\n")
+	trackPublished(t, root)
 	writeFile(t, root, "internal/core/env/env.go", "package env\n\nconst Changed = true\n")
 	gitIn(t, root, "add", "internal/core/env/env.go")
-	gitIn(t, root, "-c", "user.email=t@ze", "-c", "user.name=t", "commit", "-qm", "unverified Go")
+	gitIn(t, root, "-c", "user.email=t@ze", "-c", "user.name=t", "commit", "-qm", "unpushed Go")
 	commitReadme(t, root, "docs-only closure\n")
 
 	selection, err := (Selector{Root: root}).Select()
@@ -121,37 +130,26 @@ func TestRaceSelectionRealCommittedClosure(t *testing.T) {
 		t.Fatalf("docs-only closure lost the earlier Go edit: %+v", selection)
 	}
 	if len(selection.Rest) != 0 {
-		t.Fatalf("verified baseline widened to %v", selection.Rest)
+		t.Fatalf("an anchored selection widened to %v", selection.Rest)
 	}
 
-	writeFile(t, root, "tmp/ze-verify.status", "exit=0\ngit_sha="+gitOut(t, root, "rev-parse", "HEAD")+"\n")
-	commitReadme(t, root, "verified code, newer docs\n")
+	gitIn(t, root, "branch", "-f", "published", "HEAD")
 	selection, err = (Selector{Root: root}).Select()
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !selection.Empty() {
-		t.Fatalf("verified docs-only change selected %+v", selection)
-	}
-
-	if err := os.Remove(filepath.Join(root, "tmp", "ze-verify.status")); err != nil {
-		t.Fatal(err)
-	}
-	selection, err = (Selector{Root: root}).Select()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !slices.Equal(selection.Rest, []string{"./..."}) {
-		t.Fatalf("cold docs-only closure selected %+v", selection)
+		t.Fatalf("a pushed tree selected %+v", selection)
 	}
 }
 
-func selectionBaseline(t *testing.T, root string) {
+// isolateSelection clears the scope files a verify run publishes, so a test
+// selects from its own fixture rather than from an answer the environment
+// carries.
+func isolateSelection(t *testing.T) {
 	t.Helper()
-	t.Setenv("ZE_VERIFY_STATUS_FILE", filepath.Join(root, "tmp", "ze-verify.status"))
 	t.Setenv("ZE_VERIFY_SCOPE_PACKAGES", "")
 	t.Setenv(ScopeFileKey, "")
 	env.ResetCache()
 	t.Cleanup(env.ResetCache)
-	writeFile(t, root, "tmp/ze-verify.status", "exit=0\ngit_sha=verified\n")
 }

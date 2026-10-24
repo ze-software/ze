@@ -80,7 +80,8 @@ command, inventory, and wiring checks for changed files.
 <!-- source: internal/le/doc/wiring/docwiring.go -- Answer -->
 
 The change is the unpushed range. The base is the merge base of HEAD and the
-branch upstream, or of HEAD and `origin/main` when the branch tracks none, and
+branch upstream, or of HEAD and `refs/remotes/origin/HEAD` when the branch
+tracks none (`ResolveAnchor`, `internal/le/repo/changed/anchor.go`), and
 the range runs from that base to the working tree. The gate is owed before a
 push, so a change committed without a run is still judged by the next run.
 The file set, the changed lines and every read of a file's earlier content

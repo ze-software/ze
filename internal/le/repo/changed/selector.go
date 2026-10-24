@@ -39,11 +39,10 @@
 // Three inputs still widen to every package, because each one changes what the
 // Go packages themselves compile to: go.mod, go.sum and vendor/ (dependencyMoved).
 //
-// A fourth widens for a different reason. The change set is the working tree
-// PLUS everything committed since the last proven commit, so with no proven
-// commit the second term is every commit in history rather than none of them
-// (greenBaseline). A tree with no green point behind it is a tree where nothing
-// is proven, and the wide answer clears itself on the first passing verify.
+// The change set is the working tree PLUS every commit HEAD holds that the
+// upstream does not, from the anchor git computes (ResolveAnchor). A checkout
+// with no anchor is refused with exit 2 and the command that sets one, never
+// widened: a wide answer there would make every scoped run a full one.
 //
 // A tracked Go directory the unit tag set never compiles widens only when the
 // wide answer buys a check the narrow one does not. The module root buys none.
@@ -280,12 +279,20 @@ func (s Scope) resolveSelector(args []string) (ScopeReport, int) {
 
 	paths, err := changedPaths(root, opts.pathsFrom)
 	if err != nil {
-		if errors.Is(err, errNoGreenBaseline) {
-			// Its own message already names the condition and the file, and it is
-			// a widening reason rather than a broken query.
-			return emitReport(opts, failOpen(everyTag), err)
+		if refusal, refused := errors.AsType[anchorRefusal](err); refused {
+			// No anchor means no committed term: the working tree alone would drop
+			// every unpushed commit, and `./...` would turn every scoped run into a
+			// full one. Neither is an answer, so the selector refuses.
+			_, _ = fmt.Fprintf(os.Stderr, "verify-scope: %v\n", refusal.cause)
+			return ScopeReport{}, 2
 		}
 		return emitReport(opts, failOpen(everyTag), fmt.Errorf("the changed paths could not be read (%w)", err))
+	}
+	if len(paths) == 0 {
+		// A clean tree at its anchor: every commit is already on the upstream.
+		// That is the one change set that is truly empty, and it is said.
+		_, _ = fmt.Fprintln(os.Stderr, "verify-scope: the change set holds nothing: the working tree is clean and HEAD holds no commit the upstream lacks")
+		return emitReport(opts, changeSet{}, nil)
 	}
 
 	seeds, widen := classifyPaths(root, paths)
@@ -481,7 +488,7 @@ func changedPaths(root, pathsFrom string) ([]string, error) {
 }
 
 // gitChangedPaths collects the unstaged, staged, untracked, and
-// committed-since-the-last-green paths.
+// committed-since-the-anchor paths.
 //
 // Every query uses -z, so a path holding a space, a quote or a newline arrives
 // verbatim instead of in git's quoted form. No pathspec filters the queries: a
@@ -489,21 +496,27 @@ func changedPaths(root, pathsFrom string) ([]string, error) {
 // fail-open branch could never run outside a test (ai/rules/evidence.md -- a
 // guard on a path the traffic does not take does not exist).
 func gitChangedPaths(root string) ([]string, error) {
-	queries := workingTreeQueries()
-	baseline, err := greenBaseline(root, runGit)
+	anchor, err := ResolveAnchor(root, runGit)
 	if err != nil {
-		return nil, err
+		return nil, anchorRefusal{cause: err}
 	}
 	// A commit that has left the working-tree diff is invisible to the three
-	// queries above, so a scoped verify on a clean tree would test nothing in the
-	// package that commit changed.
-	queries = append(queries, []string{gitDiff, gitNameOnly, "-z", baseline, "HEAD"})
+	// working-tree queries, so a scoped verify on a clean tree would test nothing
+	// in the package that commit changed.
+	queries := append(workingTreeQueries(), []string{gitDiff, gitNameOnly, "-z", anchor.Commit, "HEAD"})
 	return runGitQueries(root, queries)
 }
 
-// errNoGreenBaseline says that no verify run has recorded a commit it proved.
-// The caller widens on it, so it is a widening reason rather than a failure.
-var errNoGreenBaseline = errors.New("no verify run has recorded a green commit")
+// anchorRefusal marks the one changed-path failure the selector refuses on
+// rather than widening: the checkout has no anchor (ResolveAnchor).
+type anchorRefusal struct {
+	cause error
+}
+
+func (r anchorRefusal) Error() string { return r.cause.Error() }
+
+// Unwrap exposes the anchor's own error, ErrNoUpstream included.
+func (r anchorRefusal) Unwrap() error { return r.cause }
 
 // workingTreeQueries are the three questions that answer what the WORKING TREE
 // changed against HEAD: unstaged, staged and untracked. They need no baseline,
@@ -558,61 +571,6 @@ func runGitQueries(root string, queries [][]string) ([]string, error) {
 		}
 	}
 	return paths, nil
-}
-
-// greenBaseline returns the commit recorded by the last PASSING verify. When no
-// such commit exists it returns errNoGreenBaseline naming the condition, and the
-// caller widens the run to every package.
-//
-// Earlier scoped selection dropped the committed-since term when no green
-// baseline existed. Without a proven commit, every commit in history is
-// unverified, so a clean tree would select nothing and report green over code
-// no stage ran. A scoped green is commit evidence, so that narrow answer could
-// otherwise be laundered into a commit.
-//
-// The wide answer clears itself: the first passing verify writes exit=0 and a
-// SHA, and every later run narrows again.
-func greenBaseline(root string, query func(string, ...string) (string, error)) (string, error) {
-	statusPath := os.Getenv("ZE_VERIFY_STATUS_FILE")
-	if statusPath == "" {
-		statusPath = filepath.Join("tmp", "ze-verify.status")
-	}
-	// An ABSOLUTE override is used as it stands. `filepath.Join(root, "/abs")`
-	// yields `<root>/abs`, which no file answers to, so the read would fail and
-	// the run would widen on a status file the operator did supply.
-	if !filepath.IsAbs(statusPath) {
-		statusPath = filepath.Join(root, statusPath)
-	}
-	body, err := os.ReadFile(statusPath) //nolint:gosec // statusPath is the tracked verify-status file, or the operator override this action accepts
-	if err != nil {
-		return "", fmt.Errorf("%w: %s cannot be read (%w)", errNoGreenBaseline, statusPath, err)
-	}
-	exit, sha := "", ""
-	for line := range strings.SplitSeq(string(body), "\n") {
-		switch {
-		case strings.HasPrefix(line, "exit="):
-			exit = strings.TrimSpace(strings.TrimPrefix(line, "exit="))
-		case strings.HasPrefix(line, "git_sha="):
-			sha = strings.TrimSpace(strings.TrimPrefix(line, "git_sha="))
-		}
-	}
-	if exit != "0" {
-		return "", fmt.Errorf("%w: %s records exit=%s over the commit it names", errNoGreenBaseline, statusPath, exit)
-	}
-	if sha == "" {
-		return "", fmt.Errorf("%w: %s records no git_sha", errNoGreenBaseline, statusPath)
-	}
-	if sha == "unknown" {
-		return "", fmt.Errorf("%w: %s records git_sha=unknown", errNoGreenBaseline, statusPath)
-	}
-	kind, err := query(root, "cat-file", "-t", sha)
-	if err != nil {
-		return "", fmt.Errorf("%w: %s records git_sha=%s, which this repository does not hold", errNoGreenBaseline, statusPath, sha)
-	}
-	if strings.TrimSpace(kind) != "commit" {
-		return "", fmt.Errorf("%w: %s records git_sha=%s, which is a %s rather than a commit", errNoGreenBaseline, statusPath, sha, strings.TrimSpace(kind))
-	}
-	return sha, nil
 }
 
 func runGit(root string, args ...string) (string, error) {
