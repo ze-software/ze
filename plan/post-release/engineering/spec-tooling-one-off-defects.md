@@ -263,6 +263,7 @@ The verification-debt shards, the session directory, the hook registry.
 | `gate-red-where-nothing-blocks-on-it` | 2026-09-10 | repository check, commit audit and doc check verify red over concurrent work |
 | `gate-red-where-nothing-blocks-on-it` | 2026-09-17 | `le-docvalid-answers.ci`, `le-evidence-answers.ci` red at HEAD |
 | `gate-red-where-nothing-blocks-on-it` | 2026-10-05 | `pluginOwnershipGate` added with no baseline, `le-placement-answers` red |
+| `published-value-drifts-from-the-behavior-it-describes` | 2026-10-24 | `lab pin` filed under reports while `bump` writes |
 
 ## Rows found already fixed
 
