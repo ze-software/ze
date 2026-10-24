@@ -3,8 +3,8 @@
   "requirement_sha": "b669cbed0dc68492",
   "tests": {
     "internal/component/bgp/message/rfc7606_minimum_length_test.go::TestRFC7606MPReachLengthFourIsIncorrect": "82ace2d65ae0254d",
-    "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606MPMinimumLengthsAccepted": "967945e3e7f8b25f",
-    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPUnreachTooShort": "9582b83dd8b96bf0",
+    "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606MPMinimumLengthsAccepted": "9c80e5afd66474f0",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPUnreachTooShort": "bc2b72193ea95ce6",
     "test/plugin/rfc7606-reset.ci": "b0e1897488f23526"
   },
   "units": {

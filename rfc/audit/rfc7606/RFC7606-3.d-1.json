@@ -2,11 +2,11 @@
   "note": "MissingOrigin and MissingASPath assert exact treat-as-withdraw and identify the missing attribute; ValidUpdate accepts the complete mandatory set, and MandatoryAttributesAcrossUpdateForms distinguishes a missing legacy NEXT_HOP from MP-only reception; the corrected empty-MP systematic cases still detect missing ORIGIN/AS_PATH but now require the stronger Section 5.2 session reset rather than an invalid withdrawal of no routes",
   "requirement_sha": "5acef4812d356633",
   "tests": {
-    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MissingASPath": "9582b83dd8b96bf0",
-    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MissingOrigin": "9582b83dd8b96bf0",
-    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "9582b83dd8b96bf0",
-    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption#2": "9582b83dd8b96bf0",
-    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ValidUpdate": "9582b83dd8b96bf0"
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MissingASPath": "bc2b72193ea95ce6",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MissingOrigin": "bc2b72193ea95ce6",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "bc2b72193ea95ce6",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption#2": "bc2b72193ea95ce6",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ValidUpdate": "bc2b72193ea95ce6"
   },
   "units": {
     "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MissingASPath": "2c564263c38a67e8",

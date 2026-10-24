@@ -5,10 +5,10 @@
     "internal/component/bgp/message/rfc8669_test.go::TestRFC8669MalformedAttributeDiscardedAndNotAdvertised": "43a22ffce691e1e9",
     "internal/component/bgp/message/rfc8669_test.go::TestRFC8669TrailingBytesDiscarded": "43a22ffce691e1e9",
     "internal/component/bgp/message/rfc8669_test.go::TestRFC8669WellFormedAttributeAccepted": "43a22ffce691e1e9",
-    "internal/component/bgp/message/rfc8669_tlv_length_test.go::TestRFC8669ConformingTLVLengthsAcceptedOnLabeledUnicast": "8e72f4119752045c",
-    "internal/component/bgp/message/rfc8669_tlv_length_test.go::TestRFC8669EmptyAttributeMalformed": "8e72f4119752045c",
-    "internal/component/bgp/message/rfc8669_tlv_length_test.go::TestRFC8669LabelIndexLengthMalformedOnLabeledUnicast": "8e72f4119752045c",
-    "internal/component/bgp/message/rfc8669_tlv_length_test.go::TestRFC8669SRGBLengthMalformedOnLabeledUnicast": "8e72f4119752045c",
+    "internal/component/bgp/message/rfc8669_tlv_length_test.go::TestRFC8669ConformingTLVLengthsAcceptedOnLabeledUnicast": "1103eb5d26ca65ea",
+    "internal/component/bgp/message/rfc8669_tlv_length_test.go::TestRFC8669EmptyAttributeMalformed": "1103eb5d26ca65ea",
+    "internal/component/bgp/message/rfc8669_tlv_length_test.go::TestRFC8669LabelIndexLengthMalformedOnLabeledUnicast": "1103eb5d26ca65ea",
+    "internal/component/bgp/message/rfc8669_tlv_length_test.go::TestRFC8669SRGBLengthMalformedOnLabeledUnicast": "1103eb5d26ca65ea",
     "test/plugin/prefixsid-malformed-receive.ci": "25f53a520a6edebb"
   },
   "units": {

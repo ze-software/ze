@@ -8,7 +8,7 @@
     "internal/component/bgp/reactor/rfc7911_session_addpath_test.go::TestEnforceRFC7606_IPv4BodyAddPathLargePathIDAccepted#2": "8d5eb17dbb438d04",
     "internal/component/bgp/reactor/rfc7911_session_addpath_test.go::TestEnforceRFC7606_MPAddPathLargePathIDAccepted": "8d5eb17dbb438d04",
     "internal/component/bgp/reactor/rfc7911_session_addpath_test.go::TestEnforceRFC7606_MPAddPathLargePathIDAccepted#2": "8d5eb17dbb438d04",
-    "internal/component/bgp/reactor/session_validation_nlritype_bypass_test.go::TestRFC7606Section54ReadsTypedNLRIUnderAddPath": "d39f8e1a55320a07"
+    "internal/component/bgp/reactor/session_validation_nlritype_bypass_test.go::TestRFC7606Section54ReadsTypedNLRIUnderAddPath": "470773810c685ca2"
   },
   "units": {
     "internal/component/bgp/reactor/rfc7911_reactor_b_test.go::TestRFC7911AddPathStateAppliesPerFamily": "da5d88f2c8b20920",

@@ -2,9 +2,9 @@
   "note": "Re-judged 2026-10-20 (independent auditor, authored none of the change). RFC 9252 Section 7: \"The treat-as-withdraw action [RFC7606] MUST be performed when at least one malformed SRv6 Service TLV is present in the BGP Prefix-SID attribute.\" The only change to test/plugin/prefixsid-malformed-receive.ci since the last judgement is 1f662ce70b: each changed expect hex was parsed attribute by attribute and the old and new frames carry the identical set of attribute TLVs, byte for byte, with the same message and attribute lengths and NLRI; only MP_REACH_NLRI moved to the front (RFC 7606 Section 5.1). No action line, comment or other directive changed. Frame (b2), this row's functional negative, is the MP_UNREACH_NLRI withdrawal and is byte-identical; (b1), which installs the route it withdraws, only reordered. The Go units are unchanged. Ran green at HEAD (./le test bgp plugin prefixsid-malformed-receive). Verdict stands.",
   "requirement_sha": "ea6bba09fa831885",
   "tests": {
-    "internal/component/bgp/message/rfc7606_test.go::TestValidatePrefixSIDAttr_Valid": "54f63ffca6a2c672",
-    "internal/component/bgp/message/rfc7606_test.go::TestValidateSRv6ServiceTLV_SIDInfoTooShort": "54f63ffca6a2c672",
-    "internal/component/bgp/message/rfc7606_test.go::TestValidateSRv6ServiceTLV_TrailingBytes": "54f63ffca6a2c672",
+    "internal/component/bgp/message/rfc7606_test.go::TestValidatePrefixSIDAttr_Valid": "bc2b72193ea95ce6",
+    "internal/component/bgp/message/rfc7606_test.go::TestValidateSRv6ServiceTLV_SIDInfoTooShort": "bc2b72193ea95ce6",
+    "internal/component/bgp/message/rfc7606_test.go::TestValidateSRv6ServiceTLV_TrailingBytes": "bc2b72193ea95ce6",
     "internal/component/bgp/message/rfc9252_service_tlv_overrun_test.go::TestRFC7606PrefixSIDFramingErrorAfterServiceTLV": "e5706566cb3524e5",
     "internal/component/bgp/message/rfc9252_service_tlv_overrun_test.go::TestRFC9252SIDInformationStrayOctetsTreatAsWithdraw": "e5706566cb3524e5",
     "internal/component/bgp/message/rfc9252_service_tlv_overrun_test.go::TestRFC9252ServiceTLVOverrunTreatAsWithdraw": "e5706566cb3524e5",

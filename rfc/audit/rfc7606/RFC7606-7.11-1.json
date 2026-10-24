@@ -2,13 +2,13 @@
   "note": "Three negatives assert the exact SessionReset + AttrCode 14 + \"7.11\" across families for an inconsistent next-hop length: IPv6 NH_LEN=5 (rfc7606_test.go:557), IPv4 NH_LEN=3 (:609), VPNv4 NH_LEN=4 (:660). Four positives assert ActionNone for consistent lengths (IPv6/16 :504, IPv6/32 :529, IPv4/4 :586, VPNv4/12 :634). validateMPReachNextHop (rfc7606.go:695-720) checks nhLen against the per-AFI/SAFI ValidNextHopLens table, so the reset fires for NH inconsistency specifically, not a structural cascade. Would fail if Ze weakened the action below session reset. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quoted sentence states the same obligation the paraphrase did, and no clause is new. Verdict unchanged.",
   "requirement_sha": "fb5216e1ccb7346a",
   "tests": {
-    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachIPv4NextHopInvalid": "9582b83dd8b96bf0",
-    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachIPv4NextHopValid": "9582b83dd8b96bf0",
-    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachIPv6NextHopDualValid": "9582b83dd8b96bf0",
-    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachIPv6NextHopInvalid": "9582b83dd8b96bf0",
-    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachIPv6NextHopValid": "9582b83dd8b96bf0",
-    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachVPNv4NextHopInvalid": "9582b83dd8b96bf0",
-    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachVPNv4NextHopValid": "9582b83dd8b96bf0"
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachIPv4NextHopInvalid": "bc2b72193ea95ce6",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachIPv4NextHopValid": "bc2b72193ea95ce6",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachIPv6NextHopDualValid": "bc2b72193ea95ce6",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachIPv6NextHopInvalid": "bc2b72193ea95ce6",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachIPv6NextHopValid": "bc2b72193ea95ce6",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachVPNv4NextHopInvalid": "bc2b72193ea95ce6",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachVPNv4NextHopValid": "bc2b72193ea95ce6"
   },
   "units": {
     "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachIPv4NextHopInvalid": "c04fe46c3cd2d1a5",

@@ -2,11 +2,11 @@
   "note": "Re-audited 2026-08-27. Isolated exact negatives cover both Section 7.1 clauses: ORIGIN length 2 and defined-length value 3 each require TreatAsWithdraw, AttrCode 1, and a Section 7.1 description. Three positives accept exactly values 0, 1 and 2 with ActionNone. test/plugin/rfc7606-withdraw.ci adds end-to-end session-survival proof: after the malformed ORIGIN, a second valid route must reach the peer. The compiled rfc7606Withdraw13 observer waits for establishment, sends the first route, gates on the post-malformation update counter, then sends the second route; it cannot make the peer expectation pass after a reset. Acceptance, SessionReset over-reaction, the wrong attribute, or rejecting a defined value each fail. 2026-09-25 re-audit: commit 1fb33e8098 renamed the carrier's exec heads (ze-peer to le test peer, ze-test fixture to le test fixture) and changed no assertion, so the judgement above still describes what it judged. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quoted sentence states the same obligation the paraphrase did, and no clause is new. Verdict unchanged.",
   "requirement_sha": "ed41dd867c1d91d9",
   "tests": {
-    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MalformedOriginLength": "9582b83dd8b96bf0",
-    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606OriginValueEGP": "9582b83dd8b96bf0",
-    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606OriginValueIGP": "9582b83dd8b96bf0",
-    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606OriginValueIncomplete": "9582b83dd8b96bf0",
-    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606OriginValueInvalid": "9582b83dd8b96bf0",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MalformedOriginLength": "bc2b72193ea95ce6",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606OriginValueEGP": "bc2b72193ea95ce6",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606OriginValueIGP": "bc2b72193ea95ce6",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606OriginValueIncomplete": "bc2b72193ea95ce6",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606OriginValueInvalid": "bc2b72193ea95ce6",
     "test/plugin/rfc7606-withdraw.ci": "aeb0ed73d53fef7c"
   },
   "units": {

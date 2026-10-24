@@ -2,7 +2,7 @@
   "note": "Re-judged 2026-10-20 (independent auditor, authored none of the change). RFC 8669 Section 3.1: \"It MUST be ignored when received for other BGP AFI/SAFI combinations.\" The only change to test/plugin/prefixsid-malformed-receive.ci since the last judgement is 1f662ce70b: each changed expect hex was parsed attribute by attribute and the old and new frames carry the identical set of attribute TLVs, byte for byte, with the same message and attribute lengths and NLRI; only MP_REACH_NLRI moved to the front (RFC 7606 Section 5.1). No action line, comment or other directive changed. Frame (c) (10.0.3.0/24 IPv4 VPN, 6-octet Label-Index then a valid L3 Service TLV) still requires attribute 40 relayed octet-equal; the Go units are unchanged. Single-polarity annotation unchanged and still accurate. Ran green at HEAD. Verdict stands.",
   "requirement_sha": "30f781814532f3d1",
   "tests": {
-    "internal/component/bgp/message/rfc8669_tlv_length_test.go::TestRFC8669LabelIndexAnyLengthIgnoredOffLabeledUnicast": "8e72f4119752045c",
+    "internal/component/bgp/message/rfc8669_tlv_length_test.go::TestRFC8669LabelIndexAnyLengthIgnoredOffLabeledUnicast": "1103eb5d26ca65ea",
     "internal/component/bgp/plugins/rib/pool/rfc8669_test.go::TestRFC8669LabelIndexIgnoredOnNonLabeledUnicastFamily": "880d4dcf544fb926",
     "internal/component/bgp/reactor/rfc8669_label_index_family_test.go::TestClearTransmittedLabelIndexOnlyOnLabeledUnicast": "274e120ed359a9db",
     "internal/core/bgp/attribute/rfc8669_prefixsid_family_test.go::TestParsePrefixSIDAcceptsOffFamilyLabelIndexLength": "c1ece5c8f901efd5",

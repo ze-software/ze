@@ -2,7 +2,7 @@
   "note": "TestRFC7606CollectAllErrors (rfc7606_test.go:1393) uses two attribute-discard errors (ATOMIC_AGG + AGGREGATOR) and asserts require.Equal(AttributeDiscard) with DiscardEntries len 2 covering codes 6 and 7 \u2014 fails on escalation or on dropping either entry. The {single-polarity,negative} annotation is sound: 'multiple attribute errors exist' has no error-free instance, so no positive can be constructed. Exact assertion, isolated buffer. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quoted sentence states the same obligation the paraphrase did, and no clause is new. Verdict unchanged.",
   "requirement_sha": "44614555a945eb21",
   "tests": {
-    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606CollectAllErrors": "9582b83dd8b96bf0"
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606CollectAllErrors": "bc2b72193ea95ce6"
   },
   "units": {
     "internal/component/bgp/message/rfc7606_test.go::TestRFC7606CollectAllErrors": "43f463753b5a4bfa"

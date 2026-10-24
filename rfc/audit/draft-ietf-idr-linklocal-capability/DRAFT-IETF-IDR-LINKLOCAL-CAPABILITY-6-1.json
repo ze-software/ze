@@ -4,11 +4,11 @@
   "tests": {
     "internal/component/bgp/message/draft_ietf_idr_linklocal_capability_malformed_test.go::TestLinkLocalCapabilityMalformedThirtyTwoOctet": "457a2ef6fe4d17e0",
     "internal/component/bgp/message/draft_ietf_idr_linklocal_capability_malformed_test.go::TestLinkLocalCapabilityWellFormedThirtyTwoOctet": "457a2ef6fe4d17e0",
-    "internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545EffectivePairPolicyAndMixedSibling": "3cde2952e2f0ce3c",
-    "internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545ReceivedPairFirstAddressValidated": "3cde2952e2f0ce3c",
-    "internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545ReceivedPairFirstAddressValidated#2": "3cde2952e2f0ce3c",
-    "internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545ReceivedPairSecondAddressValidated": "3cde2952e2f0ce3c",
-    "internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545ReceivedPairSecondAddressValidated#2": "3cde2952e2f0ce3c"
+    "internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545EffectivePairPolicyAndMixedSibling": "9bb8eb3f720cb9d1",
+    "internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545ReceivedPairFirstAddressValidated": "9bb8eb3f720cb9d1",
+    "internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545ReceivedPairFirstAddressValidated#2": "9bb8eb3f720cb9d1",
+    "internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545ReceivedPairSecondAddressValidated": "9bb8eb3f720cb9d1",
+    "internal/component/bgp/reactor/rfc2545_forward_subnet_test.go::TestRFC2545ReceivedPairSecondAddressValidated#2": "9bb8eb3f720cb9d1"
   },
   "units": {
     "internal/component/bgp/message/draft_ietf_idr_linklocal_capability_malformed_test.go::TestLinkLocalCapabilityMalformedThirtyTwoOctet": "73db372fb94e901c",

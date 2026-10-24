@@ -4,8 +4,8 @@
   "tests": {
     "internal/component/bgp/message/rfc7606_clause_test.go::TestRFC7606FewerThanThreeOctetsRemainTreatAsWithdraw": "a8996fb398de9acf",
     "internal/component/bgp/message/rfc7606_clause_test.go::TestRFC7606FewerThanThreeOctetsRemainTreatAsWithdraw#2": "a8996fb398de9acf",
-    "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606AttributeLengthConflictTreatAsWithdraw": "967945e3e7f8b25f",
-    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "9582b83dd8b96bf0"
+    "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606AttributeLengthConflictTreatAsWithdraw": "9c80e5afd66474f0",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "bc2b72193ea95ce6"
   },
   "units": {
     "internal/component/bgp/message/rfc7606_clause_test.go::TestRFC7606FewerThanThreeOctetsRemainTreatAsWithdraw": "a02beace3815f0ac",

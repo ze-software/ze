@@ -4,8 +4,8 @@
   "tests": {
     "internal/component/bgp/message/rfc4271_test.go::TestRFC4271LocalPrefIgnoredOnExternalSession": "abbe4d642c22df9a",
     "internal/component/bgp/message/rfc4271_test.go::TestRFC4271LocalPrefKeptOnInternalSession": "abbe4d642c22df9a",
-    "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC4271LocalPrefFromExternalPeerNeverReachesTheRIB": "593a50cf663b99d0",
-    "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC4271LocalPrefFromExternalPeerNeverReachesTheRIB#2": "593a50cf663b99d0"
+    "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC4271LocalPrefFromExternalPeerNeverReachesTheRIB": "53dcb3e91fceb09a",
+    "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC4271LocalPrefFromExternalPeerNeverReachesTheRIB#2": "53dcb3e91fceb09a"
   },
   "units": {
     "internal/component/bgp/message/rfc4271_test.go::TestRFC4271LocalPrefIgnoredOnExternalSession": "fbdb58c658f3a9bf",

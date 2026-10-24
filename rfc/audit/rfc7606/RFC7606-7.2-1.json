@@ -2,14 +2,14 @@
   "note": "Re-judged 2026-10-19 (independent auditor, after ca4eae70a0). Section 7.2: \"An AS_PATH is considered malformed if an unrecognized segment type is encountered or if it contains a malformed segment.\" and \"An UPDATE message with a malformed AS_PATH attribute SHALL be handled using the approach of \"treat-as-withdraw\".\" RFC 9774 Section 3 (owner decision: AS_SET is treat-as-withdraw) now makes validateASPath return asPathSetVerdict after the structure walk. TestRFC7606ASPathValidSet changed from asserting None to asserting TreatAsWithdraw with the exact description \"RFC 9774 Section 3: AS_SET in AS_PATH\". As a 7.2 positive it still discriminates: a regression that read AS_SET (type 1) as an unrecognized or malformed segment returns from the walk first with a Section 7.2 description and fails the exact Equal; the input is well-framed so nothing else trips. It no longer proves acceptance, which is correct now that RFC 9774 deprecates AS_SET; TestRFC7606ASPathValidSequence remains the exact-None positive. The four isolated negatives (segment type, overrun, underrun, zero length) are unchanged.",
   "requirement_sha": "4c2066d0971c798e",
   "tests": {
-    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPath4ByteASN": "9582b83dd8b96bf0",
-    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPath4ByteASNOverrun": "9582b83dd8b96bf0",
-    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPathSegmentOverrun": "9582b83dd8b96bf0",
-    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPathSegmentUnderrun": "9582b83dd8b96bf0",
-    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPathUnrecognizedSegmentType": "9582b83dd8b96bf0",
-    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPathValidSequence": "9582b83dd8b96bf0",
-    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPathValidSet": "9582b83dd8b96bf0",
-    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPathZeroSegmentLength": "9582b83dd8b96bf0"
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPath4ByteASN": "bc2b72193ea95ce6",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPath4ByteASNOverrun": "bc2b72193ea95ce6",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPathSegmentOverrun": "bc2b72193ea95ce6",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPathSegmentUnderrun": "bc2b72193ea95ce6",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPathUnrecognizedSegmentType": "bc2b72193ea95ce6",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPathValidSequence": "bc2b72193ea95ce6",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPathValidSet": "bc2b72193ea95ce6",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPathZeroSegmentLength": "bc2b72193ea95ce6"
   },
   "units": {
     "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPath4ByteASN": "8af8ded3670d3571",

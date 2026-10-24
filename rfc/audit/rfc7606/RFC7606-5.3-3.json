@@ -2,9 +2,9 @@
   "note": "Re-judged 2026-10-23 (independent auditor, after a59427f8c0). RFC 7606 Section 5.3: \"Similarly, the MP_REACH_NLRI or MP_UNREACH_NLRI attribute of an update SHALL be considered to be incorrect if any of the following are true: o The length of any of the included NLRI is inconsistent with the given AFI/SAFI (for example, if an IPv4 NLRI has a length greater than 32 or an IPv6 NLRI has a length greater than 128).\" The only change to a tagged unit is a comment in TestRFC7606MPNLRILengthConsistentWithAFIAccepted renaming validateMPReachAttr to validateMPNLRIField, which is the current producer (rfc7606.go validateMPNLRIField -> validateMPNLRISyntax -> ValidateNLRISyntaxAddPath). Body unchanged: IPv6 /64 and /128 return nil from ValidateNLRISyntax. The production-path pair is unchanged: TestRFC7606NLRIPrefixLengthTooLongIPv6 (IPv6 MP_REACH prefixLen 129 through ValidateUpdateRFC7606, exact SessionReset) and TestRFC7606MPReachWellFormedAccepted; that reset now also carries the 3/9 NOTIFICATION with the attribute, which this row does not assert and does not need. All three ran green. Verdict stands.",
   "requirement_sha": "9a82ef9a86e029a1",
   "tests": {
-    "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606MPNLRILengthConsistentWithAFIAccepted": "967945e3e7f8b25f",
-    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606NLRIPrefixLengthTooLongIPv6": "9582b83dd8b96bf0",
-    "internal/component/bgp/message/rfc7606_withdraw_test.go::TestRFC7606MPReachWellFormedAccepted": "e59dbb7ce3b5e1e2"
+    "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606MPNLRILengthConsistentWithAFIAccepted": "9c80e5afd66474f0",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606NLRIPrefixLengthTooLongIPv6": "bc2b72193ea95ce6",
+    "internal/component/bgp/message/rfc7606_withdraw_test.go::TestRFC7606MPReachWellFormedAccepted": "d319c56e708c79aa"
   },
   "units": {
     "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606MPNLRILengthConsistentWithAFIAccepted": "e4fa74d2e88a1f93",
