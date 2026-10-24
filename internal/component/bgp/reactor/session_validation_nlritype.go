@@ -397,11 +397,7 @@ func (s *Session) typedNLRIEdit(
 		}
 	}
 
-	// A section whose routes all arrived in the family's current encoding, and lost
-	// none, is relayed as received. One that held a route in an earlier encoding
-	// carries it in the current one (nlritype.RegisterCanonical,
-	// draft-ietf-bess-mup-safi Section 3.1.3.1), so it is rewritten too.
-	if dropped+malformed+retained.WithdrawnCount+retained.Canonicalized == 0 && !relayChanged {
+	if dropped+malformed+retained.WithdrawnCount == 0 && !relayChanged {
 		return edits, true
 	}
 	return append(edits, mpNLRIEdit{
@@ -507,15 +503,10 @@ func updateCarriesNoRoutes(body []byte) bool {
 // attribute's NLRI replaced, and an attribute whose NLRI is now empty removed.
 //
 // Attribute flags are preserved byte for byte, including the Extended Length
-// bit, while the new length still fits the received length encoding, so the
-// rewrite introduces no difference the peer did not send. A replacement NLRI is
-// shorter than the one it replaces (a held generation that stands in for a
-// malformed NLRI travels apart, in typedNLRIPlaceWithdrawals) unless it carries a
-// route in its family's canonical form, which can be longer
-// (nlritype.RegisterCanonical). An attribute that then passes 255 octets gains the
-// Extended Length bit: RFC 4271 Section 4.3, "If the Extended Length bit of the
-// Attribute Flags octet is set to 1, the third and fourth octets of the path
-// attribute contain the length of the attribute data in octets."
+// bit. A replacement NLRI is never longer than the one it replaces (a held
+// generation that stands in for a malformed NLRI travels apart, in
+// typedNLRIPlaceWithdrawals), so the original length encoding always still fits
+// and re-deciding it could only introduce a difference the peer did not send.
 func rewriteMPNLRISections(pathAttrs []byte, edits []mpNLRIEdit) []byte {
 	out := make([]byte, 0, len(pathAttrs))
 
@@ -571,10 +562,6 @@ func rewriteMPNLRISections(pathAttrs []byte, edits []mpNLRIEdit) []byte {
 			continue
 		}
 		newLen := start + len(edit.nlri)
-		if lenWidth == 1 && newLen > 0xff {
-			flags |= 0x10
-			lenWidth = 2
-		}
 		out = append(out, flags, code)
 		if lenWidth == 2 {
 			out = append(out, byte(newLen>>8), byte(newLen))

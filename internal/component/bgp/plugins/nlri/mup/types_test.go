@@ -163,6 +163,7 @@ func TestMUPParseErrors(t *testing.T) {
 		{"t1st source length is neither 32 nor 128", AFIIPv4, "0100031C000000640000006420C0A800020000303909200A000001400A000101"},
 		{"t1st teid is zero", AFIIPv4, "01000317000000640000006420C0A800010000000009200A000001"},
 		{"t1st truncated endpoint address", AFIIPv4, "01000316000000640000006420C0A800010000303909200A0000"},
+		{"t1st stops after the endpoint, no source address length", AFIIPv4, "01000317000000640000006420C0A800010000303909200A000001"},
 		{"t1st stops inside the endpoint address", AFIIPv4, "01000316000000640000006420C0A800010000303909200A0000"},
 		{"t1st stops inside the fixed fields", AFIIPv4, "01000314000000640000006420C0A8000100003039"},
 		{"t1st trailing octet cannot hold a tlv", AFIIPv4, "0100031D000000640000006420C0A800020000303909200A000001200A00010100"},
@@ -185,42 +186,43 @@ func TestMUPParseErrors(t *testing.T) {
 	}
 }
 
-// TestMUPT1STWithoutSourceLengthOctet verifies a Type 1 ST route in the -02
-// encoding, which ends at its endpoint address, is read as ExaBGP reads it.
+// TestMUPT1STWithoutSourceLengthOctet verifies a Type 1 ST route in the
+// draft-mpmz-bess-mup-safi-02 encoding, which ends at its endpoint address with
+// no Source Address Length octet, is refused as malformed.
 //
-// VALIDATES: ParseMUP reads the route as Source Address Length 0 with no
-// source and no TLVs (architecture_error and
-// with_source_length, t1st.py at ExaBGP f9bfb853b), and Len, WriteTo and the
-// JSON raw member give it the octet, 0, as the current draft writes it; an
-// IPv6 route ending at its endpoint reads the same way.
-// PREVENTS: a 5.0 speaker's T1ST route without a source being withdrawn as
-// malformed, where ExaBGP keeps it.
+// VALIDATES: draft-ietf-bess-mup-safi Section 3.1.3.1, "The Source Address
+// Length has a fixed length of 1 octet.", and "< 0: the mandatory fields exceed
+// the declared Length; the NLRI is malformed; MUST be treated as
+// Treat-as-withdraw.": ParseMUP answers ErrMUPTruncated for an IPv4 and an IPv6
+// route that stop at the endpoint address, and reads the same route with the
+// octet, 0, as no source address.
+// PREVENTS: a route short of a mandatory field being installed and relayed.
 func TestMUPT1STWithoutSourceLengthOctet(t *testing.T) {
 	t.Parallel()
 	const legacy = "01000317000000640000006420C0A800010000303909200A000001"
 	const current = "01000318000000640000006420C0A800010000303909200A00000100"
-	mup := parseHex(t, AFIIPv4, legacy)
+	for _, tc := range []struct {
+		afi  AFI
+		wire string
+	}{
+		{AFIIPv4, legacy},
+		{AFIIPv6, "0100032700000064000000644020010DB800000000000030390980" +
+			"20010DB8000000000000000000000001"},
+	} {
+		data, err := hex.DecodeString(tc.wire)
+		require.NoError(t, err, "fixture is not hex")
+		mup, rest, parseErr := ParseMUP(tc.afi, data)
+		require.ErrorIs(t, parseErr, ErrMUPTruncated, "%s", tc.wire)
+		assert.Nil(t, mup, "a refused NLRI must not be returned half filled")
+		assert.Nil(t, rest)
+	}
+
+	mup := parseHex(t, AFIIPv4, current)
 	require.True(t, mup.parsed)
-	assert.Equal(t, MUPT1ST, mup.RouteType())
 	assert.Equal(t, uint8(0), mup.sourceBits)
 	assert.False(t, mup.source.IsValid(), "no source is carried")
 	assert.Equal(t, netip.MustParseAddr("10.0.0.1"), mup.endpoint)
-	assert.Equal(t, uint32(0x3039), mup.teid)
-	assert.Equal(t, len(current)/2, mup.Len())
 	assert.Equal(t, current, strings.ToUpper(hex.EncodeToString(mup.Bytes())))
-	assert.Equal(t, current, string(mup.appendRaw(nil)))
-
-	// The current encoding of the same route reads to the same fields and
-	// writes the same octets.
-	same := parseHex(t, AFIIPv4, current)
-	assert.Equal(t, mup.Bytes(), same.Bytes())
-
-	// IPv6: an IPv6 /64 prefix and IPv6 endpoint, ending at the endpoint.
-	v6 := parseHex(t, AFIIPv6, "0100032700000064000000644020010DB800000000000030390980"+
-		"20010DB8000000000000000000000001")
-	assert.True(t, v6.parsed)
-	assert.Equal(t, netip.MustParseAddr("2001:db8::1"), v6.endpoint)
-	assert.Equal(t, uint8(0), v6.sourceBits)
 }
 
 // TestMUPUnknownRouteTypeKeepsOctets verifies an unimplemented route type is

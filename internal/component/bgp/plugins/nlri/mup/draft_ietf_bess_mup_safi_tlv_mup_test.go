@@ -49,6 +49,12 @@ func TestMUPT1STMandatoryFieldsWithinLength(t *testing.T) {
 	truncated := t1stNLRI(t, t1stBody[:len(t1stBody)-6]) // endpoint address cut to 2 octets
 	_, _, err = ParseMUP(AFIIPv4, truncated)
 	assert.ErrorIs(t, err, ErrMUPTruncated)
+
+	// RFC requirement: DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-6 negative -- a T1ST route whose
+	// declared Length ends exactly at the endpoint address, with no Source Address Length
+	// octet (the draft-mpmz-bess-mup-safi-02 form), lacks a mandatory field and is refused.
+	_, _, err = ParseMUP(AFIIPv4, t1stNLRI(t, t1stThroughEndpoint))
+	assert.ErrorIs(t, err, ErrMUPTruncated)
 }
 
 // TestMUPT1STTLVFraming pins the remaining-octet rules and the TLV walk.

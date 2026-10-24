@@ -167,9 +167,6 @@ type Retained struct {
 	WithdrawnCount int
 	// UnkeyableCount counts the NLRIs in Unkeyable, which Discarded includes.
 	UnkeyableCount int
-	// Canonicalized counts the kept NLRIs Kept carries in the family's canonical
-	// form (canonical.go) rather than as they arrived.
-	Canonicalized int
 }
 
 // Removed reports whether any NLRI left the section.
@@ -191,13 +188,8 @@ func (r Retained) Removed() bool { return r.Discarded+r.WithdrawnCount > 0 }
 // the key check allocates nothing. In an MP_UNREACH_NLRI section a Withdraw verdict
 // keeps the NLRI: a malformed route withdrawn is still the withdrawal of that route.
 //
-// A kept route the family's canonical form (RegisterCanonical) grows is written in
-// that form, in an announcement and a withdrawal alike, and counted in
-// Canonicalized: the section that holds one is rewritten, and no other is.
-//
-// The common "nothing removed" answer costs no allocation. Removing or
-// canonicalizing a route allocates the rewritten section, which happens only on
-// input a peer got wrong or sent in an earlier encoding of its family.
+// The common "nothing removed" answer costs no allocation. Removing a route
+// allocates the rewritten section, which happens only on input a peer got wrong.
 //
 // A non-nil error means the NLRI framing could not be trusted, and data is
 // returned unchanged. When the length fields do not agree with the section, the
@@ -241,19 +233,13 @@ func RetainUpdate(
 	}
 
 	// One pass to count, so the common "nothing removed" answer costs no
-	// allocation and the rewrite below is sized exactly. A kept route in an earlier
-	// encoding of its family is counted at the size of its canonical form.
-	canonical := canonicalFor(fam)
+	// allocation and the rewrite below is sized exactly.
 	var out Retained
 	keepBytes := 0
 	for _, one := range nlris {
 		switch judge(r, key, one, addPath, scratch) {
 		case Keep:
 			keepBytes += len(one)
-			if grow := canonicalGrow(canonical, one, addPath); grow > 0 {
-				keepBytes += grow
-				out.Canonicalized++
-			}
 		case Withdraw:
 			out.WithdrawnCount++
 		case Discard:
@@ -263,7 +249,7 @@ func RetainUpdate(
 			out.UnkeyableCount++
 		}
 	}
-	if !out.Removed() && out.Canonicalized == 0 {
+	if !out.Removed() {
 		return Retained{Kept: data}, nil
 	}
 
@@ -273,14 +259,7 @@ func RetainUpdate(
 	for _, one := range nlris {
 		switch judge(r, key, one, addPath, scratch) {
 		case Keep:
-			grow := canonicalGrow(canonical, one, addPath)
-			if grow == 0 {
-				out.Kept = append(out.Kept, one...)
-				continue
-			}
-			off := len(out.Kept)
-			out.Kept = out.Kept[:off+len(one)+grow]
-			canonical.WriteTo(out.Kept, off, one, addPath)
+			out.Kept = append(out.Kept, one...)
 		case Withdraw:
 			out.Withdrawn = append(out.Withdrawn, one...)
 		case unkeyable:
@@ -355,7 +334,6 @@ func ResetForTest() {
 	recognizers = map[family.Family]Recognizer{}
 	bodyJudged = map[family.Family]bool{}
 	updateChecks = map[family.Family]UpdateCheck{}
-	canonicals = map[family.Family]Canonical{}
 }
 
 // SnapshotForTest empties the registry and returns a function that puts back exactly what
@@ -380,18 +358,14 @@ func SnapshotForTest() func() {
 	maps.Copy(savedJudged, bodyJudged)
 	savedChecks := make(map[family.Family]UpdateCheck, len(updateChecks))
 	maps.Copy(savedChecks, updateChecks)
-	savedCanonicals := make(map[family.Family]Canonical, len(canonicals))
-	maps.Copy(savedCanonicals, canonicals)
 	recognizers = map[family.Family]Recognizer{}
 	bodyJudged = map[family.Family]bool{}
 	updateChecks = map[family.Family]UpdateCheck{}
-	canonicals = map[family.Family]Canonical{}
 	return func() {
 		mu.Lock()
 		defer mu.Unlock()
 		recognizers = saved
 		bodyJudged = savedJudged
 		updateChecks = savedChecks
-		canonicals = savedCanonicals
 	}
 }

@@ -307,6 +307,32 @@ field of the UPDATE itself (`test/plugin/flowspec-malformed-nlri-reset.ci`).
 
 ---
 
+## A MUP Type 1 ST route without its Source Address Length
+
+A received Type 1 Session Transformed route that ends right after its Endpoint
+Address, the draft-mpmz-bess-mup-safi-02 encoding with no Source Address Length
+octet, is treated as withdrawn by Ze. draft-ietf-bess-mup-safi Section 3.1.3.1
+says "The Source Address Length has a fixed length of 1 octet.", and a route
+whose mandatory fields exceed its Length "is malformed; MUST be treated as
+Treat-as-withdraw." Ze never rewrites the route into the current form.
+
+ExaBGP 6.0 reads such a route as Source Address Length 0 and sends it on with
+the octet added (`architecture_error`, `with_source_length`,
+`src/exabgp/bgp/message/update/nlri/mup/t1st.py`). ExaBGP 5.0 sends the -02
+form itself: it writes the Source Address Length only when a source address is
+given (`Type1SessionTransformedRoute._pack`, 5.0 branch at 5424eecab).
+
+The interop consequence: an ExaBGP 5.0 speaker, or any -02 speaker, that
+announces a Type 1 ST route with no source address reaches Ze as a withdrawal
+of that route, so the route is never installed or relayed. A route that carries
+a source address, and every route from ExaBGP 6.0, is unaffected. A script
+behind the ExaBGP bridge is unaffected too: the bridge passes the route as
+text, and Ze's encoder always writes the octet.
+<!-- source: internal/component/bgp/plugins/nlri/mup/types.go -- MUP.parseBodyT1ST -->
+<!-- source: internal/component/bgp/plugins/nlri/mup/encode.go -- writeT1STData -->
+
+---
+
 ## A route aimed wider than a `clear adj-rib out`
 
 ExaBGP keeps one outgoing RIB per peer, so `clear adj-rib out` for one neighbor

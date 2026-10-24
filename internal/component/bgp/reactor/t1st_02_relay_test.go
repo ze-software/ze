@@ -1,7 +1,6 @@
 package reactor
 
 import (
-	"bytes"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -10,71 +9,39 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/message"
 )
 
-// These tests drive the canonical form the mup plugin's init() registers
-// (mup_test.go links the plugin into this binary), through the receive path's RFC
-// 7606 pass, whose output is what the Adj-RIB-In holds and every relay forwards.
+// These tests drive the mup plugin's recognizer (mup_test.go links the plugin into
+// this binary) through the receive path's RFC 7606 pass, whose output is what the
+// Adj-RIB-In holds and every relay forwards.
 
-// TestMUPT1ST02RelayedWithSourceLength proves a received draft-mpmz-bess-mup-safi-02
-// Type 1 ST route, which ends at its Endpoint Address, leaves the receive path with
-// the Source Address Length octet, 0, and the Length one larger.
+// TestMUPT1ST02TreatAsWithdraw proves a received draft-mpmz-bess-mup-safi-02 Type 1
+// ST route, which ends at its Endpoint Address with no Source Address Length octet,
+// is treated as withdrawn rather than installed or relayed.
 //
 // VALIDATES: draft-ietf-bess-mup-safi Section 3.1.3.1, "The Source Address Length has
-// a fixed length of 1 octet.", for an announcement and a withdrawal; a current-form
-// sibling is kept byte for byte; an UPDATE with no -02 route is returned as received,
-// not copied; an MP_REACH_NLRI the octets push past 255 gains the Extended Length bit.
-// PREVENTS: the raw relay forwarding a -02 route as received, where ExaBGP f9bfb853b
-// re-sends it with the octet (with_source_length, t1st.py).
-func TestMUPT1ST02RelayedWithSourceLength(t *testing.T) {
-	old := mupWireNLRI(3, t1stBody(1)...)
-	current := mupWireNLRI(3, t1stBody(1, 0x00)...)
-	sibling := mupWireNLRI(3, t1stBody(2, 0x00, 0xf0, 0x02, 0xaa, 0xbb)...)
+// a fixed length of 1 octet.", and "< 0: the mandatory fields exceed the declared
+// Length; the NLRI is malformed; MUST be treated as Treat-as-withdraw.": after a
+// well-formed generation K0 of the route, the -02 route leaves MP_REACH_NLRI and the
+// route is withdrawn by K0's bytes, while a current-form sibling is kept byte for
+// byte; no session reset.
+// PREVENTS: a route short of a mandatory field being held in the Adj-RIB-In or relayed,
+// in its received form or rewritten.
+func TestMUPT1ST02TreatAsWithdraw(t *testing.T) {
+	old := mupWireNLRI(3, t1stBody(2)...)
+	k0 := mupWireNLRI(3, t1stBody(2, 0x00)...)
+	sibling := mupWireNLRI(3, t1stBody(1, 0x00, 0xf0, 0x02, 0xaa, 0xbb)...)
 
-	t.Run("announcement", func(t *testing.T) {
-		s := nlriTypeTestSession()
-		nlri := append(append([]byte{}, old...), sibling...)
-		wu, action, _ := applyRFC7606Body(t, s, makeUpdateBody(nil, mpReachAttrs(mupFam, nlri), nil))
-		assert.Equal(t, message.RFC7606ActionNone, action)
+	s := nlriTypeTestSession()
+	holdT1STGeneration(t, s, mupFam, k0)
+	nlri := append(append([]byte{}, old...), sibling...)
+	wu, action, validation := applyRFC7606Body(t, s, makeUpdateBody(nil, mpReachAttrs(mupFam, nlri), nil))
+	assert.Equal(t, message.RFC7606ActionNone, action, "a malformed T1ST is never a session reset")
+	assert.Nil(t, validation.typedWithdrawBodies, "no MP_UNREACH was present, so the withdrawal joins the UPDATE")
 
-		kept, found := mpReachNLRIOf(t, wu.Payload())
-		require.True(t, found)
-		assert.Equal(t, append(append([]byte{}, current...), sibling...), kept,
-			"the -02 route leaves with Source Address Length 0, the sibling as received")
-		requireDecodable(t, mupFam, kept)
-	})
-
-	t.Run("withdrawal", func(t *testing.T) {
-		s := nlriTypeTestSession()
-		wu, _, _ := applyRFC7606Body(t, s, makeUpdateBody(nil, mpUnreachAttrs(mupFam, old), nil))
-
-		withdrawn, found := mpUnreachNLRIOf(t, wu.Payload())
-		require.True(t, found)
-		assert.Equal(t, current, withdrawn, "the -02 withdrawal leaves in the current form")
-	})
-
-	t.Run("current form not copied", func(t *testing.T) {
-		s := nlriTypeTestSession()
-		body := makeUpdateBody(nil, mpReachAttrs(mupFam, append(append([]byte{}, current...), sibling...)), nil)
-		wu, _, _ := applyRFC7606Body(t, s, body)
-		assert.Equal(t, body, wu.Payload())
-		assert.Same(t, &body[0], &wu.Payload()[0], "an UPDATE with no -02 route is relayed from the received octets")
-	})
-
-	t.Run("growth past 255 octets", func(t *testing.T) {
-		s := nlriTypeTestSession()
-		// MP_REACH value: AFI, SAFI, next hop (1+4), reserved = 9 octets, then
-		// 9 routes of 27 octets: 252 octets, and 261 once each gains its octet.
-		var nlri, want []byte
-		for i := range 9 {
-			nlri = append(nlri, mupWireNLRI(3, t1stBody(byte(i+1))...)...)
-			want = append(want, mupWireNLRI(3, t1stBody(byte(i+1), 0x00)...)...)
-		}
-		require.Equal(t, 243, len(nlri))
-		wu, action, _ := applyRFC7606Body(t, s, makeUpdateBody(nil, mpReachAttrs(mupFam, nlri), nil))
-		assert.Equal(t, message.RFC7606ActionNone, action)
-
-		kept, found := mpReachNLRIOf(t, wu.Payload())
-		require.True(t, found, "the rewritten MP_REACH_NLRI frames")
-		assert.True(t, bytes.Equal(want, kept), "every -02 route gains its octet")
-		requireDecodable(t, mupFam, kept)
-	})
+	kept, found := mpReachNLRIOf(t, wu.Payload())
+	require.True(t, found)
+	assert.Equal(t, sibling, kept, "the -02 route leaves the announcement, the sibling stays as received")
+	withdrawn, found := mpUnreachNLRIOf(t, wu.Payload())
+	require.True(t, found, "the -02 route is withdrawn, not installed")
+	assert.Equal(t, k0, withdrawn, "the route is withdrawn by the generation held for its key")
+	requireDecodable(t, mupFam, withdrawn)
 }

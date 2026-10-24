@@ -4,9 +4,9 @@
   "tests": {
     "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_ingress_test.go::TestMUPUnknownTLVNotStrippedAtIngress": "979695ac9f064e0d",
     "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_ingress_test.go::TestMUPUnknownTLVPropagatedUnchangedAtIngress": "979695ac9f064e0d",
-    "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STUnknownTLVIgnoredAndPropagated": "b8681e31e994fbcc",
-    "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STUnknownTLVIgnoredAndPropagated#2": "b8681e31e994fbcc",
-    "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STUnknownTLVIgnoredAndPropagated#3": "b8681e31e994fbcc"
+    "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STUnknownTLVIgnoredAndPropagated": "7735bbf54b4c85d4",
+    "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STUnknownTLVIgnoredAndPropagated#2": "7735bbf54b4c85d4",
+    "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go::TestMUPT1STUnknownTLVIgnoredAndPropagated#3": "7735bbf54b4c85d4"
   },
   "units": {
     "internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_ingress_test.go::TestMUPUnknownTLVNotStrippedAtIngress": "2f4a99aaf046da2e",
