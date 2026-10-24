@@ -797,7 +797,7 @@ refusal names RFC 7911 Section 3.
 | 4.2 and 5.0 helpers keep working (the corpora ExaBGP checks itself against) | functional and corpus | `TestOldCommands50` 4250/4250, `TestOldCommands42` 2541/2541, `TestOldResponses50` 23392/23392, `TestOldResponses42` 20930/20930; `old-4.2` and `old-5.0` populations in the same exabgp-test run |
 | RTC and MPLS VPN routes a helper announces reach another implementation | interop | `bgp-exabgp-bridge-rtc-gobgp` (GoBGP holds `65001:65001:100`), `bgp-exabgp-bridge-vpnv4-frr` (FRR holds RD 65001:100, label 100), each red at assertion 2 with its `bridgeSAFI` row overlaid away (7cec4fa82c) |
 | SR Policy with attributes from a helper reaches another implementation | interop and functional | `bgp-exabgp-bridge-sr-policy-gobgp` (65651c27e0, 440ee43f73), `test/plugin/update-text-sr-policy-attributes.ci` (9dea34f1b9) |
-| AS_SET receive half: a set kept on an operator-configured peer, withdrawn elsewhere, kept inside ATTR_SET | interop and functional | `bgp-as-set-accept-frr`: green (1 passed), red with the accept path forced off in `session_validation_receive.go` (the `s.settings.AcceptASSet` argument to `ValidateUpdateRFC7606Peer`, the only edit between the red tree and the green one) and the image rebuilt; the green run is over the restored tree; failing at assertion 5, the ze RIB wait, both controls present and 10.98.0.0/16 absent; `bgp-attr-set-included-as-set-frr-bird` (375613b8a4); `test/plugin/rfc9774-as-set-accept-migrated.ci` asserts the kept segment bytes (5155557163) |
+| AS_SET receive half: a set kept on an operator-configured peer, withdrawn elsewhere, kept inside ATTR_SET | interop and functional | `bgp-as-set-accept-frr`: green (1 passed), red with the accept path forced off in `session_validation_receive.go` (the `s.settings.AcceptASSet` argument to `ValidateUpdateRFC7606Peer`, the only edit between the red tree and the green one) and the image rebuilt, failing at assertion 5, the ze RIB wait, both controls present and 10.98.0.0/16 absent; the green run is over the restored tree; `bgp-attr-set-included-as-set-frr-bird` (375613b8a4); `test/plugin/rfc9774-as-set-accept-migrated.ci` asserts the kept segment bytes (5155557163) |
 | J: the journaled bridge defects are gone | unit and source | `TestExaBGPStageClearsPythonPath` (`internal/le/test/functional/exabgp_test.go`): a shell `PYTHONPATH` never reaches the stage's child; the `Net` comment in `internal/exabgp/bridge/bridge_batch.go` (the doc comment on `Net`) states what `Net` does: `withdraw X` then `announce X` puts both on the wire, and `announce X` then `withdraw X` dispatches the withdrawal alone |
 
 ## Work Not Done
@@ -835,9 +835,19 @@ refusal names RFC 7911 Section 3.
 | R2-I2 | ISSUE | The single-peer verb list omitted `raw` (`handleRaw` calls `ResolveSinglePeer(ctx, "raw")`) | `docs/architecture/api/commands.md` | resolved: the paragraph defines a single-peer command by its handler calling `ResolveSinglePeer`, with a source anchor for every caller grep finds (`peer.go`, `admin.go`, `notify.go`, `raw.go`, `clear_soft.go`). The edit is in the working tree, not in the round 2 commit: the file also carries a live session's uncommitted `show config running` section whose `running_rpc.go` is not in HEAD, so it lands with or after that session's commit |
 | R2-N1 | NOTE | Goal Validation row 5 did not say the red tree differed from the green only at the forced-off argument | this spec | the row names the single edit (the `AcceptASSet` argument in `session_validation_receive.go`) and says the green run is the restored tree |
 | R2-N2 | NOTE | AC-42 tests missing from the TDD, Functional and Wiring tables | this spec | three unit rows, the `rfc9774-as-set-accept-migrated` functional row and the `session as-set accept` wiring row added |
-| R2-N3 | NOTE | TDD File cells named the wrong file for four tests | this spec | corrected after grep: `bridgerun/version_test.go`, `bridge_version_test.go`, `migrate_process_leaves_test.go`, `bridge_script_version_test.go` |
+| R2-N3 | NOTE | TDD File cells named the wrong file | this spec | after grep: three cells corrected (`bridgerun/version_test.go`, `bridge_version_test.go`, `migrate_process_leaves_test.go`, the last by splitting the `migrate_test.go` row), one row added (`TestV6TextScriptWarnedOnceByName` in `bridge_script_version_test.go`) |
 | R2-N4 | NOTE | No Goal Validation row for item J | this spec | row added naming `TestExaBGPStageClearsPythonPath` and the `Net` comment in `bridge_batch.go` |
 | R2-N5 | NOTE | interop `bgp-as-set-accept-frr` assertion 6 looks for set member 65101 anywhere in Ze's RIB output, not on the 10.98.0.0/16 route; sound today because only that route carries 65101 | `internal/le/interoplab/bgp/checkers.go` | noted, no change |
+
+### Round 3 findings
+
+Fresh reviewer, scoped to 29545c31ad and the R2-N5 text in e9a4c54e17: 0 BLOCKER, 0 ISSUE, so the loop stops.
+
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| R3-N1 | NOTE | Goal Validation AS_SET row: "failing at assertion 5" followed the green-run clause and read as the green run failing | this spec | reordered: failure clause after "the image rebuilt", green-run clause last |
+| R3-N2 | NOTE | R2-N3 said four cells corrected; one was a row added and one a row split | this spec | R2-N3 reworded |
+| R3-N3 | NOTE | R2-I2 paragraph is correct and covers all 8 `ResolveSinglePeer` call sites, but is uncommitted; HEAD's commands.md still omits `raw` | `docs/architecture/api/commands.md` | lands with or after session d3d51937's `show config running` commit, whose code is not in HEAD; closure waits on it and on the full verify |
 
 ## Pre-Commit Verification
 
