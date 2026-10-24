@@ -150,6 +150,7 @@ renders no cause.
 | AC-10 | `./le commit create` over a Go file with findings only on unchanged lines | The commit proceeds and prints those findings |
 | AC-11 | `./le commit create` that leaves a number-parse allowlist entry stale | The commit is refused naming the entry |
 | AC-12 | An action writing directly to process stderr is added | The source test fails naming the file |
+| AC-13 | A verify stage's own rerun (`le go staticcheck check part 6 of 6`, a stage's `rerun` line) judges the tree at HEAD | its verdict is written into the failure index as a judged entry, so a red can be cleared, or a never-judged stage judged, without a full verify; a rerun over a working tree that differs from HEAD in the stage's inputs records nothing and says why. Design decision owed first: how "differs in the stage's inputs" is computed |
 
 ## Risks & Assumptions
 

@@ -129,6 +129,7 @@ le to git (private index, object store, never the shared index or HEAD); le to t
 | AC-8 | `PruneLanded`, verify artifact paths, the hook's derived-artifact rebuild | write under a lock with an atomic rename; two concurrent writers never lose a row or a file |
 | AC-9 | discrimination breaks the producer | in a snapshot; the shared index and working tree are untouched |
 | AC-10 | every row in "Owned journal rows" | re-checked after the change: fixed, or still red with a cause that is not the live tree, an unbuilt commit, or an unkeyed artifact |
+| AC-11 | the post-commit shared-index sync meets `.git/index.lock` that no live process holds (an empty file left by a killed git, seen twice on 2026-10-23) | the sync tells a dead lock from a held one, says which it found, and either repairs the index or prints the exact repair; a held lock is retried with bounded backoff, as the 2026-10-23 concurrent-session-corruption row asks |
 
 ## 🧪 TDD Test Plan
 

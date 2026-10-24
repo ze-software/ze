@@ -128,6 +128,8 @@ Runner to admission registry; runner to child (progress signal); fixture to daem
 | AC-8 | a test fails | the runner keeps its full output, the daemon stderr included |
 | AC-9 | `breakStalled` kills a holder | it waits for the process group to exit before SIGKILL, bounded by the holder's own declared teardown |
 | AC-10 | every row in "Owned journal rows" | re-run under the AC-1 load: green, or red with a cause that is not the clock or an unadmitted resource |
+| AC-11 | `le go staticcheck check part 6 of 6` under the AC-1 load (its bound is `deadlinePerRow`, 90 s a row, `internal/le/go/staticcheck/judge.go`; on 2026-10-23 the part passed in 62 s a row on 2026-10-21 and missed the 9 min bound under load) | the run judges the matrix, or fails because Staticcheck made no progress for the stall window; total elapsed time alone never ends it |
+| AC-12 | `./le go lint run scope <pkgs>` while other sessions edit unrelated files | the scoped run judges its packages; it does not refuse with "lint inputs changed during planning" for edits outside its scope |
 
 ## 🧪 TDD Test Plan
 
