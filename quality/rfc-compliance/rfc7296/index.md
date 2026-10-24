@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0.0% | 0 of 223 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 223 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 223 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 33.5% | 236 of 704 tagged units, 0 escaped and 3 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 33.9% | 239 of 704 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -1992,8 +1992,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestErrUnprotectedNotifyChangesNoState`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_notify_error_test.go#L296) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestErrUnprotectedNotifyChangesNoState`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_notify_error_test.go#L292) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestErrUnprotectedNotifyChangesNoState`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_notify_error_test.go#L296) | unit/verify | mutant, verified |
+| positive | [`TestErrUnprotectedNotifyChangesNoState`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_notify_error_test.go#L292) | unit/verify | mutant, verified |
 | positive | [`TestErrUnprotectedNotifyLeavesHalfOpenSA`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_unprotected_notify_handshake_test.go#L25) | unit/verify | mutant, verified |
 
 ### [`RFC7296-2.21.4-7`](#rfc7296-2.21.4-7)
@@ -2019,7 +2019,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | negative | [`TestSusRateLimitCapsTheNotify`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_suspicious_test.go#L191) | unit/verify | mutant, verified |
 | positive | [`TestSusMovedSAEndpointDrawsTheNotify`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_suspicious_test.go#L222) | unit/verify | mutant, verified |
 | positive | [`TestSusOutOfSARequestFromSAPeerDrawsProtectedNotify`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_suspicious_test.go#L79) | unit/verify | revert, verified |
-| positive | [`TestSusOwnerLoopPublishesMovedEndpoint`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_suspicious_test.go#L284) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestSusOwnerLoopPublishesMovedEndpoint`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_suspicious_test.go#L284) | unit/verify | mutant, verified |
 
 ### [`RFC7296-3.10.1-1`](#rfc7296-3.10.1-1)
 

@@ -225,12 +225,13 @@
             <section id="proof" class="home-proof-block reveal" aria-labelledby="proof-title">
                 <div class="home-proof-head">
                     <div>
-                        <h2 id="proof-title">Code quality, in numbers</h2>
+                        <h2 id="proof-title">Regression prevention</h2>
                         <p>
-                            Explore the tests behind Ze: unit tests, end-to-end
-                            scenarios, protocol checks, fuzzing and interoperability
-                            with other implementations. Each figure links to the
-                            evidence and its current coverage.
+                            Tests help catch changes that break existing behavior.
+                            Unit tests, end-to-end scenarios, protocol checks,
+                            fuzzing and interoperability tests cover different
+                            failure modes. Each figure links to the evidence and
+                            current coverage.
                         </p>
                     </div>
                     <div class="home-proof-actions">
@@ -264,13 +265,13 @@
                     </a>
                     <a class="proof" href="quality/rfc-compliance/">
                         <strong
-                            ><span data-ze-stat="rfc.implemented_display">154</span>
-                            <span class="label">RFCs supported</span></strong
+                            ><span data-ze-stat="rfc.proven_percent">66.3</span>%
+                            <span class="label">RFC MUSTs tested</span></strong
                         >
                         <ul>
-                            <li><span data-ze-stat="rfc.gated_implemented_display">4,163</span> MUSTs to test</li>
-                            <li><span data-ze-stat="rfc.proven_display">2,758</span> checked with a test</li>
-                            <li><span data-ze-stat="rfc.proven_percent">66.3</span>% done</li>
+                            <li><span data-ze-stat="rfc.proven_display">2,758</span> of <span data-ze-stat="rfc.gated_implemented_display">4,163</span> tracked MUSTs</li>
+                            <li>Across <span data-ze-stat="rfc.implemented_display">154</span> RFCs</li>
+                            <li>Tests tied to requirements</li>
                         </ul>
                         <span class="proof-check concept-evidence">RFC requirement ledger.</span>
                     </a>
@@ -882,7 +883,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 15:26 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 16:00 UTC</span>
                 </div>
             </div>
         </footer>

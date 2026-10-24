@@ -70,9 +70,9 @@ A week on configuration safety, the public API and the appliance kernel, with fi
 
 One page per RFC, naming each requirement, the test evidence behind it, and the ones that have none.
 
-## Code quality, in numbers
+## Regression prevention
 
-Explore the tests behind Ze: unit tests, end-to-end scenarios, protocol checks, fuzzing and interoperability with other implementations. Each figure links to the evidence and its current coverage.
+Tests help catch changes that break existing behavior. Unit tests, end-to-end scenarios, protocol checks, fuzzing and interoperability tests cover different failure modes. Each figure links to the evidence and current coverage.
 
  [Read the evidence map](https://ze-software.net/quality/) [Watch product demos](https://ze-software.net/demos/terminal/) [**38,300+ unit tests**
 
@@ -86,11 +86,11 @@ Explore the tests behind Ze: unit tests, end-to-end scenarios, protocol checks, 
 - Editor, commits, reloads
 - Commands checked as operators run them
 
- Functional transcript format and rerun path.](https://ze-software.net/quality/functional-ci/) [**154 RFCs supported**
+ Functional transcript format and rerun path.](https://ze-software.net/quality/functional-ci/) [**66.3% RFC MUSTs tested**
 
-- 4,163 MUSTs to test
-- 2,758 checked with a test
-- 66.3% done
+- 2,758 of 4,163 tracked MUSTs
+- Across 154 RFCs
+- Tests tied to requirements
 
  RFC requirement ledger.](https://ze-software.net/quality/rfc-compliance/) [**91 fuzz targets**
 

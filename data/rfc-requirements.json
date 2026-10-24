@@ -171203,7 +171203,7 @@
         "audited": 95,
         "discrimination-records": 239,
         "escapes": 0,
-        "stale-records": 3
+        "stale-records": 0
       },
       "requirements": [
         {
@@ -178362,11 +178362,10 @@
               "tags": 1,
               "proof": {
                 "route": "mutant",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/ike/engine/inbound.go::handleOwnedInbound",
                 "break": "line 137: \"err == nil\" -\u003e \"err == nil \u0026\u0026 err != nil\"",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             },
@@ -178380,11 +178379,10 @@
               "tags": 1,
               "proof": {
                 "route": "mutant",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/ike/engine/inbound.go::handleOwnedInbound",
                 "break": "line 137: \"err == nil\" -\u003e \"err == nil || err != nil\"",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             },
@@ -178555,11 +178553,10 @@
               "tags": 1,
               "proof": {
                 "route": "mutant",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/ike/engine/established.go::maintainSA",
                 "break": "line 274: \"ps.publishSAEndpoint(sa)\" -\u003e \"_ = sa\"",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             }
