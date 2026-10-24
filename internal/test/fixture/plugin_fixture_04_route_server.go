@@ -154,7 +154,15 @@ func rsObserver04(expected int, prefix string, requireReplay bool) Driver {
 				hardDeadline := time.Now().Add(idleTimeout * 8)
 				needEOR := expected
 				eorPeers := make(map[string]struct{}, needEOR)
-				forwardSeen := prefix == ""
+				// Every peer but the source (conn=1) receives the forward, and
+				// each test expects it on each of them: stopping after the
+				// first would Cease the others before theirs is sent.
+				needForward := 0
+				if prefix != "" {
+					needForward = expected - 1
+				}
+				forwardPeers := make(map[string]struct{}, needForward)
+				forwardSeen := needForward == 0
 				if !requireReplay {
 					forwardSeen = false
 					needEOR = 0
@@ -198,27 +206,28 @@ func rsObserver04(expected int, prefix string, requireReplay bool) Driver {
 						case map[string]any:
 							emptyNLRI = len(value) == 0
 						}
+						address := sentToAddress04(bgp)
+						if address == "" {
+							continue
+						}
 						if emptyNLRI {
-							peer, _ := bgp["peer"].(map[string]any)
-							remote, _ := peer["remote"].(map[string]any)
-							address, _ := remote["address"].(string)
-							if address == "" {
-								address, _ = peer["address"].(string)
-							}
-							if address != "" {
-								before := len(eorPeers)
-								eorPeers[address] = struct{}{}
-								if len(eorPeers) != before {
-									idleDeadline = time.Now().Add(idleTimeout)
-								}
-							}
-						} else if !forwardSeen {
-							encoded, _ := json.Marshal(update)
-							if strings.Contains(string(encoded), prefix) {
-								forwardSeen = true
+							before := len(eorPeers)
+							eorPeers[address] = struct{}{}
+							if len(eorPeers) != before {
 								idleDeadline = time.Now().Add(idleTimeout)
 							}
+							continue
 						}
+						encoded, _ := json.Marshal(update)
+						if !strings.Contains(string(encoded), prefix) {
+							continue
+						}
+						before := len(forwardPeers)
+						forwardPeers[address] = struct{}{}
+						if len(forwardPeers) != before {
+							idleDeadline = time.Now().Add(idleTimeout)
+						}
+						forwardSeen = len(forwardPeers) >= needForward
 					case <-timer.C:
 					case <-ctx.Done():
 						if !timer.Stop() {
@@ -231,7 +240,7 @@ func rsObserver04(expected int, prefix string, requireReplay bool) Driver {
 				}
 				var scenarioErr error
 				if requireReplay && (len(eorPeers) < needEOR || !forwardSeen) {
-					scenarioErr = fmt.Errorf("route server did not replay (EOR peers=%d/%d, forward=%t)", len(eorPeers), needEOR, forwardSeen)
+					scenarioErr = fmt.Errorf("route server did not replay (EOR peers=%d/%d, forward peers=%d/%d)", len(eorPeers), needEOR, len(forwardPeers), needForward)
 				}
 				shutdownCtx, cancel := context.WithTimeout(context.Background(), WaitBudget(25, 15*time.Second))
 				defer cancel()
@@ -248,4 +257,18 @@ func rsObserver04(expected int, prefix string, requireReplay bool) Driver {
 			return runErr
 		}
 	}
+}
+
+// sentToAddress04 names the peer a sent UPDATE event went to, from
+// `peer.remote.address` or, in the flat form, `peer.address`. It answers "" when
+// the event names neither, and the caller then skips the event.
+func sentToAddress04(bgp map[string]any) string {
+	peer, _ := bgp["peer"].(map[string]any)
+	remote, _ := peer["remote"].(map[string]any)
+	address, _ := remote["address"].(string)
+	if address != "" {
+		return address
+	}
+	address, _ = peer["address"].(string)
+	return address
 }
