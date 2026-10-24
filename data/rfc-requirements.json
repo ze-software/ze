@@ -90177,7 +90177,7 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/reactor/rfc4271_aspath_empty_test.go` `TestForwardPresentEmptyASPath` (unit/verify), `internal/component/bgp/reactor/rfc4271_reactor_batch_test.go` `TestEstablishedAnnounce_ExplicitASPath_PrependsLocalAS` (unit/verify), `internal/component/bgp/wireu/rfc4271_advertise_test.go` `TestASPathSlotPrependOnlyWhenAdvertising` (unit/verify), `internal/component/bgp/wireu/rfc4271_aspath_slot_test.go` `TestASPathSlotPrependsBeforeALeadingASSet` (unit/verify), `internal/component/bgp/wireu/rfc4271_aspath_slot_test.go` `TestASPathSlotStartsANewSegmentWhenTheLeadingOneIsFull` (unit/verify), `internal/le/interoplab/bgp/check_rfc.go` `checkRelayWithdrawalShape` (interop/nightly)",
           "negative-test": "`internal/component/bgp/reactor/rfc4271_reactor_batch_test.go` `TestEstablishedAnnounce_ExplicitASPath_IBGPVerbatim` (unit/verify), `internal/component/bgp/wireu/rfc4271_advertise_test.go` `TestASPathSlotPrependOnlyWhenAdvertising` (unit/verify), `internal/le/interoplab/bgp/check_rfc.go` `checkRelayWithdrawalShape` (interop/nightly)",
-          "note": "**audit: enforced, stale-unit**",
+          "note": "",
           "nightly-only": false,
           "covers": [
             {
@@ -90305,12 +90305,8 @@
           "audit": {
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
-            "note": "Independent whole-row source rejudgment, 2026-10-08. Read RFC 4271 Section 5.1.2 in full: the external-advertisement condition covers leading AS_SEQUENCE prepend, a new leading AS_SEQUENCE on 255-member overflow, a new AS_SEQUENCE before a leading AS_SET, and construction of an AS_SEQUENCE when the AS_PATH is empty. The same section defines an empty AS_PATH by a zero attribute length, not absence. Read every current tagged carrier: TestEstablishedAnnounce_ExplicitASPath_PrependsLocalAS and TestEstablishedAnnounce_ExplicitASPath_IBGPVerbatim, both TestASPathSlotPrependOnlyWhenAdvertising covers, TestASPathSlotPrependsBeforeALeadingASSet, TestASPathSlotStartsANewSegmentWhenTheLeadingOneIsFull, TestForwardPresentEmptyASPath, and both checkRelayWithdrawalShape covers. The retained sequence test checks [65000,65001,65002]; the set test checks both segment types and exact members; overflow checks a new [65000] sequence and a retained 255-member segment. Its retained-member assertion is count-only, not a full original-content comparison, and the retained iBGP case compares decoded numbers, not original TLV bytes; no stronger evidence is claimed. The advertisement/withdrawal pair prevents an unconditional prepend or an entirely disabled mechanism from passing. The former absent-attribute test remains intact but correctly no longer claims the empty-path clause. The new consumer root supplies explicit 40 02 00, follows notifyMessageReceiver through ForwardUpdate or reactorForwardRS to the real Session writer, and requires exactly one recipient UPDATE, unchanged NLRI and source bytes, and exactly 02 01 fd e8 or 02 01 00 00 fd e8 for ordinary external recipients. Internal and RS-client controls require the attribute to remain present and empty. Both forward producers construct the external-only intent; ASPathEdit.Record selects recordPrepend, its present-attribute branch parses the zero-length value, and attribute.ASPath.Prepend creates the one-member sequence. These are the formerly unexercised producer and consumer branches. Saved evidence read: job-joint-schema-ipv4-self-empty-aspath-race20-a9d2bfd1.log has 20 passes of this root, not a package pass; job-present-empty-aspath-selective-semantic-red-ecbbbd92.log fails all four external exact-byte cases while all eight internal/RS controls pass; job-present-empty-aspath-restored-consumer-91fea142.log restores all twelve passes. job-present-empty-aspath-native-binding-b6c62391.log separately records a producer-disabled panic at Prepend; this is a reachability binding, not a substitute for the selective semantic failure. The registered FRR checker requires the exact relayed path and positively decoded withdrawal without an attribute error and with a surviving session; its source was read, but no fresh interop execution is claimed. The concrete absent-versus-present-empty proof hole is closed, and the retained carriers cover the remaining conditional branches. Upgrade weak to enforced for this row only; this is not a claim about all RFC 4271 behavior, prepend-none/no-empty configuration variants, or whole-package race success. No edits, tests, builds, gates, Docker, or canonical writes were performed by this reviewer.",
-            "freshness": "stale-unit",
-            "moved": [
-              "internal/le/interoplab/bgp/check_rfc.go::checkRelayWithdrawalShape",
-              "internal/le/interoplab/bgp/check_rfc.go::checkRelayWithdrawalShape#2"
-            ]
+            "note": "Rejudged 2026-10-24 by an independent auditor (authored none of it). RFC 4271 Section 5.1.2 b), rfc/full/rfc4271.txt:1393-1425: \"When a given BGP speaker advertises the route to an external peer, the advertising speaker updates the AS_PATH attribute as follows:\" followed by 1) prepend into a leading AS_SEQUENCE, with a new AS_SEQUENCE on overflow, 2) a new AS_SEQUENCE before a leading AS_SET, 3) creating an AS_SEQUENCE when the AS_PATH is empty. STALE only because 850913e128 (owner-approved, RFC-approved line in its body) rewrote assertions 1 and 2 of checkRelayWithdrawalShape from a two-step loop calling fail(index+1, err) into two literal runOperation calls with fail(1, ...) and fail(2, ...): the same operations (FRR session to zeAddress, then the relayed route with a 60 s timeout), in the same order, with the same failure numbers. Read the whole function: assertion 3 still reads the route back from FRR and requires the exact relayed AS_PATH (requireFRRASPath against zeInjectorASPath), assertions 4 and 5 still require FRR to drop the prefix and log its own decode of the withdrawal, and assertion 6 is the negative half. No behaviour changed, so the 2026-10-08 whole-row judgement stands for every other carrier (TestEstablishedAnnounce_ExplicitASPath_PrependsLocalAS/IBGPVerbatim, both TestASPathSlotPrependOnlyWhenAdvertising covers, TestASPathSlotPrependsBeforeALeadingASSet, TestASPathSlotStartsANewSegmentWhenTheLeadingOneIsFull, TestForwardPresentEmptyASPath), with its stated limits: the overflow retained-member check is count-only and the iBGP control compares decoded numbers, not TLV bytes. The interop pair is recorded with a paired break in 20016b8e32; no fresh interop run is claimed here. rfc4271_reactor_batch_test.go carries another session's uncommitted NewINET hunks at lines 203-384, outside both tagged units (543+), so the tagged unit shas are those of HEAD.",
+            "freshness": "fresh"
           }
         },
         {
@@ -171244,7 +171240,7 @@
         "audited": 95,
         "discrimination-records": 239,
         "escapes": 0,
-        "stale-records": 6
+        "stale-records": 12
       },
       "requirements": [
         {
@@ -175642,10 +175638,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/ike/engine/inbound.go::handleOwnedInbound",
                 "break": "body of handleOwnedInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -175676,10 +175673,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/ike/engine/inbound.go::handleOwnedInbound",
                 "break": "body of handleOwnedInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             }
@@ -175723,10 +175721,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/ike/engine/inbound.go::handleOwnedInbound",
                 "break": "body of handleOwnedInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -175757,10 +175756,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/ike/engine/inbound.go::handleOwnedInbound",
                 "break": "body of handleOwnedInbound replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             }
@@ -178403,10 +178403,11 @@
               "tags": 1,
               "proof": {
                 "route": "mutant",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/ike/engine/inbound.go::handleOwnedInbound",
                 "break": "line 137: \"err == nil\" -\u003e \"err == nil \u0026\u0026 err != nil\"",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -178420,10 +178421,11 @@
               "tags": 1,
               "proof": {
                 "route": "mutant",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/ike/engine/inbound.go::handleOwnedInbound",
                 "break": "line 137: \"err == nil\" -\u003e \"err == nil || err != nil\"",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -185095,7 +185097,7 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/reactor/rfc7311_direct_link_test.go` `TestRFC7311DirectLinkCostNeverWrapsOrDisappears` (unit/verify), `internal/component/bgp/reactor/rfc7311_processing_test.go` `TestAIGPForwardedMetricsReachFinalWire` (unit/verify), `internal/component/bgp/reactor/rfc7311_source_cost_test.go` `TestRFC7311SourceLinkCostReachesRecipient` (unit/verify), `internal/component/bgp/reactor/rfc7311_source_cost_test.go` `TestRFC7311UnknownCostWithdrawsUntilMetricRecovers` (unit/verify)",
           "negative-test": "`internal/component/bgp/reactor/rfc7311_direct_link_test.go` `TestRFC7311DirectLinkCostNeverWrapsOrDisappears` (unit/verify), `internal/component/bgp/reactor/rfc7311_processing_test.go` `TestAIGPForwardedMetricsReachFinalWire` (unit/verify), `internal/component/bgp/reactor/rfc7311_source_cost_test.go` `TestRFC7311SourceLinkCostReachesRecipient` (unit/verify), `internal/component/bgp/reactor/rfc7311_source_cost_test.go` `TestRFC7311UnknownCostWithdrawsUntilMetricRecovers` (unit/verify)",
-          "note": "**audit: enforced, stale-unit**",
+          "note": "",
           "nightly-only": false,
           "covers": [
             {
@@ -185238,12 +185240,8 @@
           "audit": {
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
-            "note": "Rejudged 2026-10-23 by an independent auditor (not the author) after 010e649057, which makes the final writer (session_ownership.go adjOutWrite.allow) send a synthesized withdrawal only to a destination holding an adj-out record for the route. RFC 4271 Section 3.1 allows a withdrawal only for \"the IP prefix that expresses the destination for a previously advertised route\". RFC 7311 Section 3.4.3: \"Then, when R1 changes the next hop of a route from R2 to R1, the AIGP TLV value MUST be increased by a non-zero amount.\" The moved unit is TestRFC7311UnknownCostWithdrawsUntilMetricRecovers (both tags). Its initially-withheld subcases now first plant an earlier generation of the route at the destination (advertiseFirst) so the unknown/zero-cost withhold produces a legitimate withdrawal; the previously-advertised subcases are unchanged (announce 107, then lose the cost via readvertiseAIGP). Every subcase on the general and rs-cached rails still requires the last frame to be a pure withdrawal of 10.20.0.0/24 with no NLRI and no attributes, then recovery after metric 11 as exactly one announcement of the exact prefix carrying AIGP 111 (received 100 plus 11). Announcing next-hop-self without the increment, or adding the destination's cost, fails both polarities. The never-advertised subcase now emits nothing (RFC 4271 Section 3.1); that silence is not asserted by this carrier, but it cannot hide an unincremented announcement because the withhold decision precedes the writer's withdraw-or-silence choice and is exercised by every subcase. The absent-cost withdrawal remains Ze's safe refusal, not an RFC 7311 mandate. The helper aigpForwardToWire now primes adj-out through ownershipWriterForward when synthesized; its tagged callers TestRFC7311DirectLinkCostNeverWrapsOrDisappears and TestAIGPForwardedMetricsReachFinalWire are byte-identical and still assert configured-link sum 107 and a real withdrawal; TestRFC7311SourceLinkCostReachesRecipient (107/119, transparent 100) is unchanged. Ran: all four units PASS on 2026-10-23. FINDING (2026-10-23 audit probe): the re-fixture removed the only never-advertised recovery case. A scratch probe outside the tree (newAIGPReplayFixture, destination AIGPLinkMetric 43, unknown or zero cost, receive and forward with no advertiseFirst, then metric 11 and readvertiseAIGP) run through go test -overlay with the HEAD 010e649057 session_write.go and session_ownership.go gets 0 recovery UPDATEs where 1 carrying AIGP 111 is owed, for both unknown and zero cost: the withheld route is never sent to a destination it was never advertised to, because the AIGP recovery record (noteAIGPWrite) was taken only from the withdrawal that the final writer now drops. Before 010e649057 the initially-withheld subcases of TestRFC7311UnknownCostWithdrawsUntilMetricRecovers and the unprimed TestRFC7311ExtendedNextHopCostRecovery drove exactly this path; with advertiseFirst they cannot fail on it. An uncommitted session_write.go change by another session (aigpCostWithheld, noteAIGPWrite from the unfiltered withdrawal) makes the probe pass on the working tree; it is not committed and not judged here. Restoring the never-advertised subcases (no frame on withhold, then exactly one announcement with AIGP 111) is an RFC-tagged test change that needs owner approval, so it is reported, not made. For this row the verdict stays enforced: the non-zero increment is still proven on every announcement the carriers see (107, 111, 119), and no subcase can pass with an unincremented announcement; the lost recovery belongs to RFC7311-3.4.3-7.",
-            "freshness": "stale-unit",
-            "moved": [
-              "internal/component/bgp/reactor/rfc7311_source_cost_test.go::TestRFC7311UnknownCostWithdrawsUntilMetricRecovers",
-              "internal/component/bgp/reactor/rfc7311_source_cost_test.go::TestRFC7311UnknownCostWithdrawsUntilMetricRecovers#2"
-            ]
+            "note": "Rejudged 2026-10-24 by an independent auditor (authored none of it) after c660756f9d and 690c96d6bf. RFC 7311 Section 3.4.3, rfc/full/rfc7311.txt:470-473: \"Then, when R1 changes the next hop of a route from R2 to R1, the AIGP TLV value MUST be increased by a non-zero amount.\" The moved unit is TestRFC7311UnknownCostWithdrawsUntilMetricRecovers (both tags). c660756f9d (owner-approved RFC-tagged test change) adds a third start, never-advertised, beside initially-withheld and previously-advertised, on both the general and rs-cached rails and for both unknown and zero cost: the destination sees no frame on the withhold (RFC 4271 Section 3.1 forbids withdrawing a route it never held) and, after a distance of 11, exactly one UPDATE whose NLRI is exactly 10.20.0.0/24, with no withdrawn field, carrying AIGP exactly 111 (received 100 plus 11). The other two starts keep the exact pure-withdrawal assertion (withdrawn exactly 24 10 20 0, no NLRI, no attributes). Every announcement the carrier observes must carry the increment, so an unincremented next-hop-self announcement, a dropped AIGP, or adding the wrong cost fails every subcase; the absent-cost withhold is Ze's refusal, not an RFC 7311 mandate, and is not claimed as one. The prior finding (never-advertised recovery lost, unasserted) is closed: 690c96d6bf makes writeUpdateBody record the unfiltered cost-withheld withdrawal for AIGP recovery before the adj-out filter, and the restored subcases would go red without it (c660756f9d body: red on exactly those six over the earlier producers). The three other carriers (TestRFC7311DirectLinkCostNeverWrapsOrDisappears, TestAIGPForwardedMetricsReachFinalWire, TestRFC7311SourceLinkCostReachesRecipient) are byte-identical and their 2026-10-23 judgement stands (configured-link sum 107, 107/119, transparent 100). Ran 2026-10-24: go test -run 'RFC7311|AIGPCostWithheld' ./internal/component/bgp/reactor/ ok.",
+            "freshness": "fresh"
           }
         },
         {
@@ -185254,7 +185252,7 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/plugins/rib/rfc7311_selection_test.go` `TestAIGPDistanceChangeReselectsRetainedRoutes` (unit/verify), `internal/component/bgp/reactor/rfc7311_aigp_readvertise_test.go` `TestAIGPReadvertisesFromReceivedGeneration` (unit/verify), `internal/component/bgp/reactor/rfc7311_cost_boundaries_test.go` `TestRFC7311RecursiveZeroCostRemainsAnnounced` (unit/verify), `internal/component/bgp/reactor/rfc7311_cost_boundaries_test.go` `TestRFC7311ExtendedNextHopCostRecovery` (unit/verify), `internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go` `TestRFC7311RecursiveAIGPChangeReachesWire` (unit/verify), `internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go` `TestRFC7311ReceivedRecursiveAIGPChangeReachesWire` (unit/verify), `internal/component/sysrib/rfc7311_metric_test.go` `TestAIGPRecursiveDistanceUsesReceivedMetrics` (unit/verify)",
           "negative-test": "`internal/component/bgp/plugins/rib/rfc7311_selection_test.go` `TestAIGPDistanceChangeReselectsRetainedRoutes` (unit/verify), `internal/component/bgp/reactor/rfc7311_aigp_readvertise_test.go` `TestAIGPReadvertisesFromReceivedGeneration` (unit/verify), `internal/component/bgp/reactor/rfc7311_cost_boundaries_test.go` `TestRFC7311RecursiveZeroCostRemainsAnnounced` (unit/verify), `internal/component/bgp/reactor/rfc7311_cost_boundaries_test.go` `TestRFC7311ExtendedNextHopCostRecovery` (unit/verify), `internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go` `TestRFC7311RecursiveAIGPChangeReachesWire` (unit/verify), `internal/component/bgp/reactor/rfc7311_recursive_readvertise_test.go` `TestRFC7311ReceivedRecursiveAIGPChangeReachesWire` (unit/verify), `internal/component/sysrib/rfc7311_metric_test.go` `TestAIGPRecursiveDistanceUsesReceivedMetrics` (unit/verify)",
-          "note": "**audit: weak, stale-unit**",
+          "note": "",
           "nightly-only": false,
           "covers": [
             {
@@ -185501,14 +185499,10 @@
             }
           ],
           "audit": {
-            "verdict": "weak",
-            "meaning": "the tests pass over code that does not enforce the requirement",
-            "note": "Rejudged 2026-10-23 by an independent auditor (not the author) after 010e649057, which makes the final writer (session_ownership.go adjOutWrite.allow) send a synthesized withdrawal only to a destination holding an adj-out record for the route. RFC 4271 Section 3.1 allows a withdrawal only for \"the IP prefix that expresses the destination for a previously advertised route\". RFC 7311 Section 3.4.3: \"Any change due to (a) in any of these values MUST trigger a new AIGP computation for that route.\" The moved unit is TestRFC7311ExtendedNextHopCostRecovery (both tags): it now calls advertiseFirst with the received UPDATE before receipt, so the cost-withheld IPv4 route over a 16- or 32-octet IPv6 next hop is withdrawn from a destination that held it. Assertions unchanged: exactly one withheld UPDATE that is the exact legacy or MP withdrawal; after a Loc-RIB distance of 11 appears and readvertiseAIGP runs with no new source UPDATE, exactly a second UPDATE with no legacy NLRI or withdrawn field, MP_REACH carrying the negotiated IPv6 self hop and original NLRI, and AIGP exactly 111 with flags 0x80. For a destination that held the route, not recomputing on the distance change sends no second frame and forcing legacy framing fails the MP assertions. The other six carriers (TestAIGPDistanceChangeReselectsRetainedRoutes, TestAIGPReadvertisesFromReceivedGeneration, TestRFC7311RecursiveZeroCostRemainsAnnounced, TestAIGPRecursiveDistanceUsesReceivedMetrics, TestRFC7311RecursiveAIGPChangeReachesWire, TestRFC7311ReceivedRecursiveAIGPChangeReachesWire) are byte-identical and their 2026-10-12 judgement stands; (b) threshold behaviour is not claimed. Ran: the moved unit PASS on 2026-10-23. FINDING (2026-10-23 audit probe): the re-fixture removed the only never-advertised recovery case. A scratch probe outside the tree (newAIGPReplayFixture, destination AIGPLinkMetric 43, unknown or zero cost, receive and forward with no advertiseFirst, then metric 11 and readvertiseAIGP) run through go test -overlay with the HEAD 010e649057 session_write.go and session_ownership.go gets 0 recovery UPDATEs where 1 carrying AIGP 111 is owed, for both unknown and zero cost: the withheld route is never sent to a destination it was never advertised to, because the AIGP recovery record (noteAIGPWrite) was taken only from the withdrawal that the final writer now drops. Before 010e649057 the initially-withheld subcases of TestRFC7311UnknownCostWithdrawsUntilMetricRecovers and the unprimed TestRFC7311ExtendedNextHopCostRecovery drove exactly this path; with advertiseFirst they cannot fail on it. An uncommitted session_write.go change by another session (aigpCostWithheld, noteAIGPWrite from the unfiltered withdrawal) makes the probe pass on the working tree; it is not committed and not judged here. Restoring the never-advertised subcases (no frame on withhold, then exactly one announcement with AIGP 111) is an RFC-tagged test change that needs owner approval, so it is reported, not made. Verdict weak: \"Any change due to (a) in any of these values MUST trigger a new AIGP computation for that route\" binds every destination, and at HEAD a distance change after an unknown-cost withhold produces no advertisement to a destination that never held the route, while every tagged carrier stays green.",
-            "freshness": "stale-unit",
-            "moved": [
-              "internal/component/bgp/reactor/rfc7311_cost_boundaries_test.go::TestRFC7311ExtendedNextHopCostRecovery",
-              "internal/component/bgp/reactor/rfc7311_cost_boundaries_test.go::TestRFC7311ExtendedNextHopCostRecovery#2"
-            ]
+            "verdict": "enforced",
+            "meaning": "the tests do what the requirement demands",
+            "note": "Rejudged 2026-10-24 by an independent auditor (authored none of it) after 690c96d6bf and c660756f9d. RFC 7311 Section 3.4.3, rfc/full/rfc7311.txt:524-530: \"Any change due to (a) in any of these values MUST trigger a new AIGP computation for that route.\" (a) is \"the AIGP TLV values of all the next hops that are recursively resolved during this procedure\"; (b), the IGP distance to a next hop that is not recursively resolved, is left to a configurable threshold and is not this row. The weak finding of 2026-10-23 was that a route withheld for an unknown or zero cost was never recovered toward a destination that never held it, because noteAIGPWrite recorded the recipient only from the withdrawal the final writer drops, and no carrier could see it. 690c96d6bf fixes the producer (writeUpdateBody records the unfiltered cost-withheld withdrawal, add-only, before the adj-out filter; flushWrites commits it), so the recompute path readvertiseAIGP now reaches every recipient for both (a) and (b) triggers. c660756f9d (owner-approved) restores the never-advertised start in TestRFC7311ExtendedNextHopCostRecovery: 16- and 32-octet IPv6 next hop, no frame on withhold, then exactly withheldFrames+1 UPDATEs, the last with MP_REACH carrying the negotiated IPv6 self hop and the original NLRI and AIGP exactly 111 with flags 0x80; the advertised-first start keeps its exact legacy or MP withdrawal. The (a) obligation itself is proven by the byte-identical carriers TestRFC7311RecursiveAIGPChangeReachesWire (recursive next hop AIGP changes reach the wire as exact sums without a new source UPDATE, finite recovery after saturation from the original received value) and TestRFC7311ReceivedRecursiveAIGPChangeReachesWire (received AIGP-only replacement of the immediate or deeper recursive next hop reaches the dependent route, exact 1107 and the control prefix untouched at 30), plus TestRFC7311RecursiveZeroCostRemainsAnnounced (a recursive next hop's AIGP 7 replaced by 0 must stay announced with the recomputed value, never withdrawn) and the byte-identical TestAIGPRecursiveDistanceUsesReceivedMetrics and TestAIGPDistanceChangeReselectsRetainedRoutes, whose 2026-10-12 judgement stands; not recomputing on an (a) change leaves the old metric on the wire and fails those exact-value waits. FINDING (attribution, not a red): TestRFC7311ExtendedNextHopCostRecovery triggers the recompute with a Loc-RIB IGP distance of 11 (a (b) change), so its -7 tags prove the shared recompute and recovery machinery rather than the (a) clause; Ze recomputing on every (b) change is a threshold of zero, which the RFC permits. Fix: retag it to the (b) sentence or name the shared recompute path in their claim; the (a) proof does not rest on them. Verdict enforced because the (a) carriers assert exact recomputed values and the recovery defect behind the earlier weak verdict is fixed and now asserted. Ran 2026-10-24: go test -run 'RFC7311|AIGPCostWithheld' ./internal/component/bgp/reactor/ ok.",
+            "freshness": "fresh"
           }
         },
         {
@@ -187127,7 +187121,7 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go` `TestConfiguredEVPNPerESRoute` (unit/verify), `internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go` `TestOriginEthernetADPerESUsesTypeOneRD` (unit/verify)",
           "negative-test": "`internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go` `TestConfiguredEVPNRefusesInvalidPerESRoute` (unit/verify), `internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go` `TestOriginEthernetADPerESRefusesLabelStack` (unit/verify)",
-          "note": "**audit: enforced, stale-unit**",
+          "note": "",
           "nightly-only": false,
           "covers": [
             {
@@ -187204,11 +187198,8 @@
           "audit": {
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
-            "note": "Re-judged 2026-10-18 (independent auditor, after 0411b53e91). RFC 7432 Section 8.2.1: \"The MPLS label in the NLRI MUST be set to 0.\" Stale only because 0411b53e91 replaced the redundancy-mode argument with a routeIntent struct (redundancyMode plus overlayIndex) through parseL2VPNArgs, l2vpnRouteToEVPNParams, parseConfigRoute and EncodeRoute; the new overlay-index guard refuses only a named selector on a non-ip-prefix route and never touches the Ethernet A-D path. The tagged test units did not change. The zero-label check in ValidateEVPNOriginationMode (nlris[24]|nlris[25]|nlris[26] != 0 on MAX-ET Type 1) is unchanged and both producers still call it. Fresh overlay mutant disabling that check reddens TestConfiguredEVPNRefusesInvalidPerESRoute and TestOriginEthernetADPerESRefusesLabelStack while the positives TestConfiguredEVPNPerESRoute and TestOriginEthernetADPerESUsesTypeOneRD stay green and still compare the three zero label octets byte for byte.",
-            "freshness": "stale-unit",
-            "moved": [
-              "internal/component/bgp/plugins/nlri/evpn/config.go::parseConfigRoute"
-            ]
+            "note": "Rejudged 2026-10-24 by an independent auditor (authored none of it). RFC 7432 Section 8.2.1, rfc/full/rfc7432.txt:1146: \"The MPLS label in the NLRI MUST be set to 0.\" (the Ethernet A-D per ES route). STALE because a4fe1b70f3 moved generic attribute encoding (ORIGIN, MED, LOCAL_PREF and the rest) out of parseConfigRoute into the central config dispatcher; parseConfigRoute now emits only the merged extended communities. The label path is untouched: parseConfigRoute still calls l2vpnRouteToEVPNParams and then message.ValidateEVPNOriginationMode on params.NLRI, whose MAX-ET Type 1 branch refuses nlris[24]|nlris[25]|nlris[26] != 0 (update_build_evpn.go:260). Positives TestConfiguredEVPNPerESRoute and TestOriginEthernetADPerESUsesTypeOneRD compare the whole NLRI byte for byte, ending in the three zero label octets. Fresh overlay mutant 2026-10-24 (go test -overlay, the zero-label condition replaced by false, every other check kept): TestConfiguredEVPNRefusesInvalidPerESRoute goes red (\"An error is expected but got nil\") and TestConfiguredEVPNPerESRoute stays green, so the negative's \"label 100\" input is refused by this rule, not by its missing ESI. TestOriginEthernetADPerESRefusesLabelStack is byte-identical and its 2026-10-18 mutant result stands. Both config carriers pass on the tree.",
+            "freshness": "fresh"
           }
         },
         {
@@ -227404,7 +227395,7 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/message/header_test.go` `TestValidateLengthWithMax` (unit/verify), `internal/component/bgp/reactor/rfc8654_directional_session_test.go` `TestRFC8654ReceiveLimitFollowsLocalOPEN` (unit/verify)",
           "negative-test": "`internal/component/bgp/message/header_test.go` `TestValidateLengthWithMax` (unit/verify), `internal/component/bgp/reactor/rfc8654_directional_session_test.go` `TestRFC8654ReceiveLimitFollowsLocalOPEN` (unit/verify), `internal/le/interoplab/bgp/check_extended_message_scenarios.go` `checkExtendedRemoteOnlyRejectFRR` (interop/nightly), `internal/le/interoplab/bgp/check_extended_message_scenarios.go` `checkExtendedNeitherRejectFRR` (interop/nightly)",
-          "note": "**audit: enforced, stale-unit**",
+          "note": "",
           "nightly-only": false,
           "covers": [
             {
@@ -227501,11 +227492,8 @@
           "audit": {
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
-            "note": "RFC 8654 Section 5, rfc/full/rfc8654.txt:171-189: \"A BGP speaker that has the ability to use BGP Extended Messages but has not advertised the BGP Extended Message Capability, presumably due to configuration, MUST NOT accept a BGP Extended Message.\" Independently read all four distinct tagged carriers (six tag units): message/header_test.go::TestValidateLengthWithMax, reactor/rfc8654_directional_session_test.go::TestRFC8654ReceiveLimitFollowsLocalOPEN, and both rejection checkers in internal/le/interoplab/bgp/check_extended_message_scenarios.go. Also read setupCapturingSession, checkExtendedMessages/checkExtendedReceiveRejection, case declarations and requireExtendedRejection. Header cases require exact 1/2 errors for oversized UPDATE/NOTIFICATION/ROUTE-REFRESH without permission. Real OPEN exchange covers all four local/remote advertisements, both readers, and 4096/4097/65535: no local advertisement requires exact notification including offending length and zero dispatch; local-only advertisement requires complete exactly-once payload dispatch and Established state. FRR carriers establish a baseline route, check original and rewritten OPEN advertisements separately, require a foreign-produced oversized UPDATE, exact 1/2 plus offending length, and original-session closure. Read negotiateWith and Negotiate: receive permission remains localExtMsg, send permission remoteExtMsg; session.extendedMessage takes ExtendedMessageRecv, independently of new negotiation bookkeeping. Implemented-tested, with no new runtime/discrimination execution claimed. The session carrier's positive/negative prose labels are reversed relative to conforming-input convention, but both distinct input classes have substantive exact assertions and the header carrier supplies the conventional pair. No assertion or claim changed; preserve both code guards.",
-            "freshness": "stale-unit",
-            "moved": [
-              "internal/core/bgp/capability/negotiated.go::Negotiate"
-            ]
+            "note": "Rejudged 2026-10-24 by an independent auditor (authored none of it). RFC 8654 Section 5, rfc/full/rfc8654.txt:171-176: \"A BGP speaker that has the ability to use BGP Extended Messages but has not advertised the BGP Extended Message Capability, presumably due to configuration, MUST NOT accept a BGP Extended Message.\" STALE because 1dbfd1d7b7 changed capability.Negotiate: it now keeps the peer's Multiprotocol capabilities in OPEN order (remoteOrder) and builds familySlice from it, for ExaBGP's negotiated-family order. Read the whole diff: it touches only the Multiprotocol case, the implicit-family fallback and the family slice; the Extended Message handling, the per-direction receive limit and every other capability branch are unchanged, and negotiateWith is unchanged. The tagged carriers are byte-identical, so the earlier judgement stands: the receive limit follows the local OPEN, and a message over 4096 octets is refused when the local side did not advertise the capability, whatever the peer advertised. Separate from this verdict, the revert records for RFC8654-5-1 no longer verify (producer-changed) and owe re-recording; that is a discrimination-record violation, not a stale verdict.",
+            "freshness": "fresh"
           }
         },
         {

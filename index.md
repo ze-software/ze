@@ -169,7 +169,7 @@ A bootable gokrazy image for appliance hardware: read-only root filesystem, no s
 
 Every homepage number links to the page where you can inspect the test layer, transcript, peer list, RFC gate, or generated source evidence behind it.
 
- [Read the evidence map](https://ze-software.net/quality/) [Watch product demos](https://ze-software.net/demos/terminal/) [**38,200+ unit tests**
+ [Read the evidence map](https://ze-software.net/quality/) [Watch product demos](https://ze-software.net/demos/terminal/) [**38,300+ unit tests**
 
 - Wire encoding, parsing
 - Config, FSM, plugins

@@ -3267,7 +3267,7 @@ and <code>internal/</code> (vendor and testdata trees skipped):</p>
 <tbody>
 <tr>
 <td>Image tag</td>
-<td><code>FROM</code> in a Dockerfile (not a stage name, not <code>scratch</code>), an image string literal in Go (an official image with no repository path, such as, only with a dotted version tag on a line that names an image), a scenario's <code>*-image</code> file. <span class="ev-src"><span class="ev-ref"><code>alpine:3.24.3</code></span></span></td>
+<td><code>FROM</code> in a Dockerfile (not a stage name, not <code>scratch</code>), an image string literal in Go (an official image with no repository path, such as, only with a dotted version tag on a line whose code names an image). Comments are never read: a comment that quotes an image, or an example of what is not one, pins nothing. Also a scenario's <code>*-image</code> file. <span class="ev-src"><span class="ev-ref"><code>alpine:3.24.3</code></span></span></td>
 <td>The registry's OCI tag list, with the anonymous token it offers (Docker Hub, ghcr.io, quay.io)</td>
 </tr>
 <tr>
@@ -3293,6 +3293,7 @@ number count and suffix), so <code>golang:1.25-alpine</code> is judged against
 such as <code>latest</code> is reported <code>floating</code> with the newest plain release beside it.
 An upstream that does not answer leaves its row <code>unresolved</code> with the cause.</p>
 <!-- source: internal/le/lab/pin/scan.go -- Scan -->
+<!-- source: internal/le/lab/pin/scan.go -- literalPins, withoutComments -->
 <!-- source: internal/le/lab/pin/upstream.go -- registryTags, goLatest, latestTag -->
 <h3 id="a-package-tests-own-server-container-labtest">A package test's own server container (labtest)</h3>
 <p>A package <code>_test.go</code> that needs one real server, such as stayrtr for the RPKI
@@ -3629,7 +3630,7 @@ ExaBGP compat covers wire encoding for all supported address families.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 07:04 UTC</span>
                 </div>
             </div>
         </footer>

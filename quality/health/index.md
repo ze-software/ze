@@ -21,7 +21,7 @@ This page answers **is our testing correct**, not *is our testing large*. Those 
 
 ### Tests with no reachable failure call
 
-**113 / 38208 (floor 114)** (ok)
+**113 / 38279 (floor 114)** (ok)
 
 These execute code and pass unconditionally. Breaking the code under test would not turn them red.
 
@@ -83,15 +83,15 @@ Enrolled and gate-green, but no requirement is proven by BOTH polarities. Some o
 
 ### In-repo test inventory
 
-**38248 test functions** (ok)
+**38319 test functions** (ok)
 
-6476 Go test files, 91 fuzz targets, 153 benchmarks, 2554 .ci scenarios, 179 .et editor tests. Counts cover internal, cmd, pkg, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.
+6507 Go test files, 91 fuzz targets, 153 benchmarks, 2555 .ci scenarios, 179 .et editor tests. Counts cover internal, cmd, pkg, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.
 
 *Action if this degrades:* This is volume, not health. It is here to state the counting boundary, because a count that silently includes vendored tests inflates by ~6x.
 
 ### Test files that expect a specific error
 
-**2396 / 6476** (ok)
+**2408 / 6507** (ok)
 
 Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, ...), with comments stripped. Setup guards of the form `if err != nil { t.Fatal(err) }` are deliberately NOT counted: those assert the happy path. Blind spot: expecting *an* error is weaker than pinning the right one.
 
@@ -107,8 +107,8 @@ Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, .
 | internal/plugins/completion | 0 | 7 | 0.0 |
 | internal/component/sysrib | 2 | 28 | 7.1 |
 | internal/component/lg | 2 | 27 | 7.4 |
-| internal/component/doctor | 2 | 23 | 8.7 |
 | internal/chaos/peer | 1 | 11 | 9.1 |
+| internal/component/cmd | 2 | 20 | 10.0 |
 
 ### Technique adoption by package age
 
@@ -121,7 +121,7 @@ A technique adopted only forward from its introduction shows here as a step: rec
 | package first commit | packages with tests | with a fuzz target | with an RFC-tagged test | with a .ci scenario |
 |---|---|---|---|---|
 | 2025 | 1 | 0 | 0 | 0 |
-| 2026 | 669 | 36 | 131 | 37 |
+| 2026 | 670 | 36 | 131 | 37 |
 
 ## Integrity
 

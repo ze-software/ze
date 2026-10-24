@@ -1826,7 +1826,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>No test carries RFC7432-8.2.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc7432-8.2.1-2"><code>RFC7432-8.2.1-2</code></a></h3>
 <p>The MPLS label in the NLRI MUST be set to 0. (§8.2.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/plugins/nlri/evpn/config.go::parseConfigRoute moved. Re-judged 2026-10-18 (independent auditor, after 0411b53e91). RFC 7432 Section 8.2.1: &#34;The MPLS label in the NLRI MUST be set to 0.&#34; Stale only because 0411b53e91 replaced the redundancy-mode argument with a routeIntent struct (redundancyMode plus overlayIndex) through parseL2VPNArgs, l2vpnRouteToEVPNParams, parseConfigRoute and EncodeRoute; the new overlay-index guard refuses only a named selector on a non-ip-prefix route and never touches the Ethernet A-D path. The tagged test units did not change. The zero-label check in ValidateEVPNOriginationMode (nlris[24]|nlris[25]|nlris[26] != 0 on MAX-ET Type 1) is unchanged and both producers still call it. Fresh overlay mutant disabling that check reddens TestConfiguredEVPNRefusesInvalidPerESRoute and TestOriginEthernetADPerESRefusesLabelStack while the positives TestConfiguredEVPNPerESRoute and TestOriginEthernetADPerESUsesTypeOneRD stay green and still compare the three zero label octets byte for byte.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-24 by an independent auditor (authored none of it). RFC 7432 Section 8.2.1, rfc/full/rfc7432.txt:1146: &#34;The MPLS label in the NLRI MUST be set to 0.&#34; (the Ethernet A-D per ES route). STALE because a4fe1b70f3 moved generic attribute encoding (ORIGIN, MED, LOCAL_PREF and the rest) out of parseConfigRoute into the central config dispatcher; parseConfigRoute now emits only the merged extended communities. The label path is untouched: parseConfigRoute still calls l2vpnRouteToEVPNParams and then message.ValidateEVPNOriginationMode on params.NLRI, whose MAX-ET Type 1 branch refuses nlris[24]|nlris[25]|nlris[26] != 0 (update_build_evpn.go:260). Positives TestConfiguredEVPNPerESRoute and TestOriginEthernetADPerESUsesTypeOneRD compare the whole NLRI byte for byte, ending in the three zero label octets. Fresh overlay mutant 2026-10-24 (go test -overlay, the zero-label condition replaced by false, every other check kept): TestConfiguredEVPNRefusesInvalidPerESRoute goes red (&#34;An error is expected but got nil&#34;) and TestConfiguredEVPNPerESRoute stays green, so the negative&#39;s &#34;label 100&#34; input is refused by this rule, not by its missing ESI. TestOriginEthernetADPerESRefusesLabelStack is byte-identical and its 2026-10-18 mutant result stands. Both config carriers pass on the tree.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -3166,7 +3166,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 06:03 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 07:04 UTC</span>
                 </div>
             </div>
         </footer>

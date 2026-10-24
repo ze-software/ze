@@ -126,7 +126,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>56.0%</strong><b>2,331 of 4,163 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>10.2%</strong><b>426 of 4,163 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 4,163 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>65.4%</strong><b>5,780 of 8,843 tagged units in enrolled RFCs, 4 escaped and 154 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>65.3%</strong><b>5,774 of 8,843 tagged units in enrolled RFCs, 4 escaped and 160 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -134,14 +134,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>16.0%</strong><b>668 of 4,163 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>1.1%</strong><b>44 of 4,163 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>1.2%</strong><b>52 of 4,163 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Semantic verdicts</span><strong>2,235</strong><b>0 shifted, 36 stale, 2,021 missing</b><p>requirements a reader has judged and whose judgement is still current. A missing verdict is not claimed, and the shifted and stale ones are named on their own RFC&#39;s page</p></article>
+<article class="rfc-card rfc-neutral"><span>Semantic verdicts</span><strong>2,240</strong><b>0 shifted, 31 stale, 2,021 missing</b><p>requirements a reader has judged and whose judgement is still current. A missing verdict is not claimed, and the shifted and stale ones are named on their own RFC&#39;s page</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>Partial proof; remaining gap</span><strong>0.4%</strong><b>15 of 4,163 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>15.1%</strong><b>627 of 4,163 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Gate verdict</span><strong>RED</strong><b>100 open gate issues</b><p>whether ./le rfc check passes over this tree</p></article>
+<article class="rfc-card rfc-bad"><span>Gate verdict</span><strong>RED</strong><b>183 open gate issues</b><p>whether ./le rfc check passes over this tree</p></article>
 </div>
 <p>The 8 shares marked as a part above are the whole of the 4,163 gated MUSTs: they add to 100%. Proven by test is the first two of them added together, so it is not a part of its own. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -212,8 +212,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </details>
 <div class="rfc-verdict rfc-bad">
 <p><span>Gate verdict</span><strong>RED</strong></p>
-<p>100 open gate issues. Check results below names them, up to the 25 this page inlines.</p>
-<p>Reproduce it with <code>./le rfc check</code>. The gate's own line reads <code>rfc-requirements: 100 violation(s)</code>.</p>
+<p>183 open gate issues. Check results below names them, up to the 25 this page inlines.</p>
+<p>Reproduce it with <code>./le rfc check</code>. The gate's own line reads <code>rfc-requirements: 183 violation(s)</code>.</p>
 </div>
 <section><h2>Who implements each document</h2>
 <p>The ledger counts what Ze implements in its own Go. A document another layer performs leaves the gated population and names what performs it, and where Ze can observe the behavior the requirement still carries a test over the state Ze installs.</p>
@@ -564,7 +564,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Semantic audits</td>
 <td><code>rfc/audit/*/*.json</code></td>
-<td>2,235 fresh, 0 shifted, 36 stale, 2,021 missing</td>
+<td>2,240 fresh, 0 shifted, 31 stale, 2,021 missing</td>
 </tr>
 <tr><td>Pre-commit verification</td>
 <td><code>internal/le/verify/engine/stages.go</code></td>
@@ -634,12 +634,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>-</td>
 <td><code>-</code></td>
 <td>-</td>
-<td>rfc/short/rfc4271.md:853: RFC4271-5.1.2-3 has a STALE audit verdict -- what it judged changed: internal/le/interoplab/bgp/check_rfc.go::checkRelayWithdrawalShape (func-scoped), internal/le/interoplab/bgp/check_rfc.go::checkRelayWithdrawalShape#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc4271 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
-<td>-</td>
-</tr>
-<tr><td>-</td>
-<td><code>-</code></td>
-<td>-</td>
 <td>rfc/short/rfc4659.md:349: RFC4659-3.2-1 has a STALE audit verdict -- what it judged changed: internal/component/bgp/plugins/nlri/vpn/rfc4659_vpn_test.go::TestVPNv6WireRoundTrip (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc4659 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
 <td>-</td>
 </tr>
@@ -688,25 +682,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>-</td>
 <td><code>-</code></td>
 <td>-</td>
-<td>rfc/short/rfc7311.md:159: RFC7311-3.4.3-6 has a STALE audit verdict -- what it judged changed: internal/component/bgp/reactor/rfc7311_source_cost_test.go::TestRFC7311UnknownCostWithdrawsUntilMetricRecovers (func-scoped), internal/component/bgp/reactor/rfc7311_source_cost_test.go::TestRFC7311UnknownCostWithdrawsUntilMetricRecovers#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7311 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
-<td>-</td>
-</tr>
-<tr><td>-</td>
-<td><code>-</code></td>
-<td>-</td>
-<td>rfc/short/rfc7311.md:160: RFC7311-3.4.3-7 has a STALE audit verdict -- what it judged changed: internal/component/bgp/reactor/rfc7311_cost_boundaries_test.go::TestRFC7311ExtendedNextHopCostRecovery (func-scoped), internal/component/bgp/reactor/rfc7311_cost_boundaries_test.go::TestRFC7311ExtendedNextHopCostRecovery#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7311 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
-<td>-</td>
-</tr>
-<tr><td>-</td>
-<td><code>-</code></td>
-<td>-</td>
 <td>rfc/short/rfc7432.md:579: RFC7432-5-1 has a STALE audit verdict -- what it judged changed: internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNESIIsTenOctets (func-scoped), internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNESIIsTenOctets#2 (func-scoped), internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNESIIsTenOctets#3 (func-scoped), internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNESIIsTenOctets#4 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7432 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
-<td>-</td>
-</tr>
-<tr><td>-</td>
-<td><code>-</code></td>
-<td>-</td>
-<td>rfc/short/rfc7432.md:581: RFC7432-8.2.1-2 has a STALE audit verdict -- what it judged changed: internal/component/bgp/plugins/nlri/evpn/config.go::parseConfigRoute (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7432 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
 <td>-</td>
 </tr>
 <tr><td>-</td>
@@ -733,10 +709,34 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>rfc/short/rfc7854.md:119: RFC7854-x-10 has a STALE audit verdict -- what it judged changed: internal/component/bgp/plugins/bmp/event_test.go::TestHandleSenderStatePeerDown (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7854 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
 <td>-</td>
 </tr>
+<tr><td>-</td>
+<td><code>-</code></td>
+<td>-</td>
+<td>rfc/short/rfc7911.md:272: RFC7911-2-1 has a STALE audit verdict -- what it judged changed: internal/component/bgp/reactor/session_write.go::writeUpdateBody (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7911 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
+<td>-</td>
+</tr>
+<tr><td>-</td>
+<td><code>-</code></td>
+<td>-</td>
+<td>rfc/short/rfc7911.md:273: RFC7911-2-2 has a STALE audit verdict -- what it judged changed: internal/component/bgp/reactor/session_write.go::writeUpdateBody (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7911 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
+<td>-</td>
+</tr>
+<tr><td>-</td>
+<td><code>-</code></td>
+<td>-</td>
+<td>rfc/short/rfc7950.md:316: RFC7950-7.6.5-1 has a STALE audit verdict -- the REQUIREMENT TEXT or declared partial scope changed since it was judged, so every judgement under it is void. Re-read rfc7950 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
+<td>-</td>
+</tr>
+<tr><td>-</td>
+<td><code>-</code></td>
+<td>-</td>
+<td>rfc/short/rfc7950.md:352: RFC7950-7.9.4-1 has a STALE audit verdict -- the REQUIREMENT TEXT or declared partial scope changed since it was judged, so every judgement under it is void. Re-read rfc7950 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
+<td>-</td>
+</tr>
 </tbody>
 </table>
 </div>
-<p>75 further findings not shown here. The whole list is in data/rfc-compliance.json, and each one is on its own RFC&#39;s page under the requirement it names.</p>
+<p>158 further findings not shown here. The whole list is in data/rfc-compliance.json, and each one is on its own RFC&#39;s page under the requirement it names.</p>
 </section>
 <section><h2>Enrolled RFCs</h2>
 <div class="rfc-table-wrap">
@@ -2144,7 +2144,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 06:38 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 07:04 UTC</span>
                 </div>
             </div>
         </footer>

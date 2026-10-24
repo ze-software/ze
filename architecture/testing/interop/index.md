@@ -2738,7 +2738,7 @@ and `internal/` (vendor and testdata trees skipped):
 
 | Pin | Read from | Upstream asked |
 |-----|-----------|----------------|
-| Image tag | `FROM` in a Dockerfile (not a stage name, not `scratch`), an image string literal in Go (an official image with no repository path, such as `alpine:3.24.3`, only with a dotted version tag on a line that names an image), a scenario's `*-image` file | The registry's OCI tag list, with the anonymous token it offers (Docker Hub, ghcr.io, quay.io) |
+| Image tag | `FROM` in a Dockerfile (not a stage name, not `scratch`), an image string literal in Go (an official image with no repository path, such as `alpine:3.24.3`, only with a dotted version tag on a line whose code names an image). Comments are never read: a comment that quotes an image, or an example of what is not one, pins nothing. Also a scenario's `*-image` file | The registry's OCI tag list, with the anonymous token it offers (Docker Hub, ghcr.io, quay.io) |
 | Go module | `go install <path>@<version>` in a Dockerfile | `proxy.golang.org`, including the next major version paths, since `@latest` of a `/v3` path never names v4 |
 | Git tag | `git clone --branch <tag> https://github.com/...`, a codeload or archive tag URL | The GitHub repository's latest release |
 | Source commit | `ZE_SOURCE_COMMIT` | The newest commit of the default branch |
@@ -2749,6 +2749,7 @@ number count and suffix), so `golang:1.25-alpine` is judged against
 such as `latest` is reported `floating` with the newest plain release beside it.
 An upstream that does not answer leaves its row `unresolved` with the cause.
 <!-- source: internal/le/lab/pin/scan.go -- Scan -->
+<!-- source: internal/le/lab/pin/scan.go -- literalPins, withoutComments -->
 <!-- source: internal/le/lab/pin/upstream.go -- registryTags, goLatest, latestTag -->
 
 ### A package test's own server container (labtest)
