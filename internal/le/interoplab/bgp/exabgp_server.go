@@ -139,6 +139,11 @@ type exabgpWire struct {
 	connection     net.Conn
 	sessionEnd     time.Time
 	messageTimeout time.Duration
+	// unknownMessageSent is set when the mock followed its KEEPALIVE with the
+	// type 255 message (`option=open:send-unknown-message`). The speaker is
+	// then Established before it reads that message, so an End-of-RIB that
+	// precedes its answer is no difference: see matchExaBGPFrames.
+	unknownMessageSent bool
 }
 
 // read reads the next whole message off the session.
@@ -191,9 +196,10 @@ func addExaBGPUnknownCapability(openBody []byte) ([]byte, error) {
 func serveExaBGPConnection(connection net.Conn, spec exabgpCase, connectionIndex int, recorder *frameRecorder, output io.Writer) error {
 	steps := spec.steps[connectionIndex]
 	wire := exabgpWire{
-		connection:     connection,
-		sessionEnd:     time.Now().Add(exabgpSessionLength),
-		messageTimeout: spec.messageTimeout,
+		connection:         connection,
+		sessionEnd:         time.Now().Add(exabgpSessionLength),
+		messageTimeout:     spec.messageTimeout,
+		unknownMessageSent: spec.sendUnknownMessage,
 	}
 	if err := connection.SetWriteDeadline(wire.sessionEnd); err != nil {
 		return err
@@ -382,6 +388,20 @@ func matchExaBGPFrames(wire exabgpWire, segment []exabgpStep, recorder *frameRec
 			if err := matchExaBGPDocument(body, remaining[found].wantJSON, facts); err != nil {
 				return err
 			}
+		}
+		// The mock sent the type 255 message right behind its KEEPALIVE, and
+		// that KEEPALIVE moves the speaker to Established. RFC 4271 Section
+		// 8.2.2, OpenConfirm: "If the local system receives a KEEPALIVE message
+		// (KeepAliveMsg (Event 26)), the local system:" then "changes its state
+		// to Established." An Established speaker sends its initial update and
+		// its End-of-RIB (RFC 4724 Section 2). ze sends them from the peer's
+		// sendInitialRoutes goroutine while the session reader takes the next
+		// header, so either the End-of-RIB or the answer to the unknown message
+		// may reach the wire first, and both orders conform. An End-of-RIB the
+		// group does not name is then passed over, and the answer is still
+		// owed. The fixture, recorded against ExaBGP, names no End-of-RIB.
+		if found < 0 && wire.unknownMessageSent && messageType == bgpUpdate && exabgpEndOfRIB(body) {
+			continue
 		}
 		if found < 0 {
 			// Capturing beats stopping when a recorder is open: an adaptation

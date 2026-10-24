@@ -3387,7 +3387,7 @@ where upstream's list spans every session of the run.
 | `update:send-default-route` | the mock | The mock announces 0.0.0.0/32 once the session is up |
 | `open:send-unknown-capability` | the mock | The mock's OPEN carries capability 66, which ze does not implement |
 | `open:inspect-open-message` | the mock | Each session's first step is ze's OPEN, compared byte for byte; an OPEN step is refused without it |
-| `open:send-unknown-message` | the mock | `old-5.0`: a header-only message of type 255 follows the mock's OPEN and KEEPALIVE, as the 5.0 mock sends it |
+| `open:send-unknown-message` | the mock | `old-5.0`: a header-only message of type 255 follows the mock's OPEN and KEEPALIVE, as the 5.0 mock sends it. That KEEPALIVE makes ze Established, so its End-of-RIB can reach the wire before its answer to the type 255 message: the mock passes over an End-of-RIB the group does not name, and still holds the case to the answer |
 | `notification:send-notification` | the mock | `old-4.2`: the mock answers every message after the OPEN exchange with a Cease, subcode 0, carrying "closing session because we can", and the case passes when ze closes the session, whatever the script still names, as the 4.2 mock does. ze keeping the session until the message timeout fails it |
 | `bind:ipv6` | the mock | The mock listens on IPv6 alone, on every IPv6 address where upstream binds `::1`, because `conf-llnh-update` and `conf-llnh-lla-only` connect to `fd00::3`; without it, on every address, where upstream listens on 127.0.0.1 |
 | `timeout:<seconds>` | the mock | How long ze may send nothing, at most the session's 60 seconds |
@@ -3505,9 +3505,8 @@ allowance does not cover it. A case carrying only one of the two lines is
 refused. The allowance describes how ze differs, so under `--dut exabgp` it is
 not read and the case is judged on its own run.
 
-The two populations are run by hand and are not in the `exabgp-test` stage,
-because they are not green yet: against ze, `old-5.0` passed 51 of its 72
-cases (2026-10-18) and `old-4.2` 22 of its 34 (2026-10-20). The mock is `le`
+The `exabgp-test` stage runs both populations once, under the last pin's
+environment, since their helpers import no ExaBGP. The mock is `le`
 itself, so a run after an edit to it names a session build,
 `./le --name <name> test exabgp old-4.2 --all`, or it runs the stale shared
 binary. The spec
@@ -3517,6 +3516,7 @@ binary. The spec
 ./le test exabgp old-5.0 --all
 ```
 <!-- source: internal/test/cli/cmd_exabgp_old.go -- exabgpConfigDir, checkExaBGPAllowedPair, judgeExaBGPAllowed -->
+<!-- source: internal/le/test/functional/exabgp.go -- exaBGPOldSuites -->
 <!-- test: internal/test/cli/cmd_exabgp_old_test.go TestExaBGPConfigDirPrefersThePopulationsOwn, TestParseExaBGPCIAllowed, TestJudgeExaBGPAllowed, TestDiscoverExaBGPOldPopulations -->
 
 The `api` population carries ExaBGP's `exabgp_api.py` helper module from the

@@ -18,6 +18,7 @@ package bgp
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
 	"io"
 	"net"
 	"strings"
@@ -219,5 +220,44 @@ func playTypeRecordingSpeaker(speaker net.Conn, types chan<- []byte) {
 			return
 		}
 		seen = append(seen, messageType)
+	}
+}
+
+// TestExaBGPCaseUnknownMessageSkipsAnEarlyEndOfRIB plays a speaker that sends
+// its initial End-of-RIB before its answer to the type 255 message, the order
+// ze produces under load, and checks the mock still holds the case to the
+// NOTIFICATION it expects. Without the option the same End-of-RIB stays an
+// unexpected message, as upstream's mock refuses any frame its group does not
+// name.
+func TestExaBGPCaseUnknownMessageSkipsAnEarlyEndOfRIB(t *testing.T) {
+	// RFC 4271 Section 6.1: Message Header Error (1), Bad Message Type (3),
+	// the erroneous Type field 0xFF as its Data.
+	const notification = "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF" + "0016" + "03" + "01" + "03" + "FF"
+	eor, _ := hex.DecodeString(caseFrameEOR)    //nolint:errcheck // a constant of this file
+	answer, _ := hex.DecodeString(notification) //nolint:errcheck // a constant of this test
+	for _, tc := range []struct {
+		name    string
+		option  string
+		wantErr string
+	}{
+		{"stated", "option=open:send-unknown-message\n", ""},
+		{"not stated", "", "unexpected message = " + caseFrameEOR},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			spec, err := readExaBGPCase(writeCase(t, tc.option+"1:raw:"+notification+"\n"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = serveCaseOverPipe(t, spec, [][]byte{eor, answer})
+			if tc.wantErr == "" {
+				if err != nil {
+					t.Fatalf("the run failed: %v", err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+				t.Fatalf("the run answered %v, want an error naming %q", err, tc.wantErr)
+			}
+		})
 	}
 }
