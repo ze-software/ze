@@ -1666,7 +1666,7 @@ section[aria-labelledby="blog-teaser-title"] {
 
 /*
  * Blog "Ze weekly updates" cards (blog index + homepage teaser). Same base
- * card, with a soft background behind its name and a "Read the update ->"
+ * card, with a plain headline and a "Read the update ->"
  * affordance that slides on hover. Surfaces and borders stay neutral.
  */
 .card-post {
@@ -1678,7 +1678,7 @@ section[aria-labelledby="blog-teaser-title"] {
 }
 
 /*
- * Keep post headlines inside the card padding, like other compact names.
+ * Keep post headlines inside the card padding.
  */
 .card-post h3 {
     margin: 0 0 0.95rem;
@@ -1841,7 +1841,7 @@ section[aria-labelledby="blog-teaser-title"] {
 
 
 /*
- * Subject colors identify compact card names, never the full card surface.
+ * Subject colors identify small category badges, never headings or card bodies.
  * Use cat-meta for cross-topic content. Never choose a hue by position.
  */
 .cat-operate {

@@ -1416,35 +1416,12 @@ body:has(.site-home) .footer-bottom { border-top: 0; }
 .feature-filter-controls label:not(:first-child) { margin-top: 1rem; }
 .feature-filter-controls label { margin-bottom: 0.4rem; }
 
-/* Category color belongs only behind the primary name. Keep the surrounding
-   card, its body copy, secondary labels and chips on neutral surfaces. */
-.card h3,
-.md-content .card h3,
-.card.home-update-card h3,
-.card-post.blog-card h3,
-.docs-path-card h2,
-.audience-card h3,
-.capability-title h3,
-.proof > strong,
-.whats-new-item h3,
-.contribute-route h2,
-.contribute-contract h3,
-.contribute-funding h3,
-.contribute-action > strong,
-.faq-index a > strong,
-.faq-group-head h2,
-.faq-card summary,
-.plugin-group-head h2,
-.plugin-detail-panel h2 {
-    width: fit-content;
-    padding: 0.18em 0.38em;
-    border-radius: var(--radius-sm);
+/* Color the small category badge (for example, Decision), not the heading. */
+.card .cat,
+.card[class*="cat-"] .cat,
+.card.audience-card .cat,
+.card-label,
+.contribute-route-kicker {
     background: color-mix(in srgb, var(--acc, var(--neutral-base)) 18%, var(--panel));
     color: var(--text);
-}
-
-/* Leave neutral space around a collapsed FAQ as well as an open answer. */
-.faq-card summary {
-    max-width: calc(100% - 1.4rem);
-    margin: 0.7rem;
 }

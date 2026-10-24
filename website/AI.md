@@ -345,10 +345,11 @@ That section is the canonical record of the owner's approved website design
 rules. Apply it to proposals and implementation.
 
 The approved design uses logo blue for Ze's identity and a distinct soft
-background behind each category card's name. Follow the canonical
+background behind each card's small category badge. Follow the canonical
 [card color rules and live palette](style-guide/index.html#sg-category), including the neutral case and
-independent status colors. Card names use neutral text on a small category-tinted
-background; the rest of the card stays neutral. Category selection controls
+independent status colors. "Decision" is the colored badge; "Reasons to consider
+Ze" is a plain heading. Badge text, headings and card bodies use neutral colors.
+Do not put a colored background behind the heading. Category selection controls
 use the matching tint and neutral text across both themes. The homepage's
 "Run reproducible labs", "Run as a daemon" and "Run as an appliance" cards
 share the existing daemon blue as an approved section exception; their category

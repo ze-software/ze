@@ -120,6 +120,13 @@ can you change "Deploy and Configure" to "Setup"</p>
                         <p>We need colors per service. I think we need to either not make it as prominent. So can you try to do that? Keep the colors, because the card, if the card name is not colorful in the background of the color, it's not clear. So perhaps only using background colors and not for the text may be the way to go.</p>
                         <p>Not for the full card. Your system to read my voice don't work.</p>
                     </blockquote>
+                    <p>Thomas clarified the exact element on 24 October 2026:</p>
+                    <blockquote>
+                        <p>You mis-understood and performed a change making it all ugly, for the card I meant the not the title of the card, but the name of the card<br />
+Not: reason to consider Ze<br />
+But: Decision</p>
+                        <p>You can work on styling the card tho</p>
+                    </blockquote>
                     <ol>
                         <li>
                             <h3>Preserve useful information</h3>
@@ -270,7 +277,7 @@ can you change "Deploy and Configure" to "Setup"</p>
             <section aria-labelledby="sg-palette">
                 <div class="section-head reveal">
                     <h2 id="sg-palette">Palette: brand, subjects and status</h2>
-                    <p>Logo blue identifies Ze. Soft category colors sit behind card names; the text and card bodies stay neutral.</p>
+                    <p>Logo blue identifies Ze. Soft category colors sit behind the small badges, such as Decision; headings, text and card bodies stay neutral.</p>
                 </div>
                 <div class="section-note reveal">
                     <p>
@@ -287,10 +294,12 @@ can you change "Deploy and Configure" to "Setup"</p>
                     </p>
                     <p>
                         The <code>cat-*</code> classes select a shared color family.
-                        Use its soft tint only behind the card's primary name,
+                        Use its soft tint only behind the card's category badge,
                         with neutral <code>--text</code> lettering. Keep the
-                        colored area compact; do not fill the card body or color
-                        its border. Selection controls use the matching soft
+                        colored area compact. The <code>.cat</code> label
+                        "Decision" gets the tint; the heading "Reasons to
+                        consider Ze" stays plain. Do not fill the heading or
+                        card body, or color its border. Selection controls use the matching soft
                         background with neutral text and a visible selected state.
                         Normal text needs at least 4.5:1 in both themes.
                     </p>
@@ -309,10 +318,10 @@ can you change "Deploy and Configure" to "Setup"</p>
                         It does not change the general category mapping.
                     </p>
                     <p>
-                        Secondary category labels, technology chips, card bodies
-                        and borders stay neutral. Do not repeat the title tint
-                        across several parts of the same card.
-                        Check each name and selected-control fill against its text
+                        Headings, technology chips, card bodies and borders stay
+                        neutral. Do not repeat the badge tint across several
+                        parts of the same card.
+                        Check each badge and selected-control fill against its text
                         in light and dark themes; normal text needs at least 4.5:1.
                         Plugin totals and status labels keep their independent
                         neutral and status roles.
@@ -320,7 +329,7 @@ can you change "Deploy and Configure" to "Setup"</p>
                 </div>
                 <div class="md-content">
                     <table data-column-controls="off">
-                        <caption>Card-name background families, 24 October 2026</caption>
+                        <caption>Category-badge background families, 24 October 2026</caption>
                         <thead><tr><th scope="col">Use</th><th scope="col">Color family</th><th scope="col">Shared tokens</th></tr></thead>
                         <tbody>
                             <tr><th scope="row">Operate</th><td>Blue</td><td><code>--sky-*</code></td></tr>
@@ -398,16 +407,17 @@ can you change "Deploy and Configure" to "Setup"</p>
 
             <section aria-labelledby="sg-category">
                 <div class="section-head reveal">
-                    <h2 id="sg-category">Color behind the card name</h2>
+                    <h2 id="sg-category">Color the badge, keep the heading plain</h2>
                     <p>
-                        Give each category a soft background behind its card names.
-                        Keep the lettering neutral and the rest of each card plain.
+                        Give each category a soft background behind its small badge.
+                        Keep the lettering neutral, the heading plain and the body unfilled.
                     </p>
                 </div>
                 <div class="section-note reveal">
                     <p>
                         A <code>cat-*</code> class selects the tint behind a card's
-                        primary name. Secondary labels, borders, body surfaces,
+                        small <code>.cat</code> or <code>.card-label</code> badge.
+                        Headings, borders, body surfaces,
                         technology chips, body text and bullet markers stay neutral.
                         The same rules cover homepage, feature, documentation,
                         article, plugin, comparison, FAQ and evidence cards.
@@ -424,7 +434,7 @@ can you change "Deploy and Configure" to "Setup"</p>
                         vocabulary. Unknown values are errors, not permission
                         to choose an arbitrary color.</li>
                     <li>Use neutral <code>--text</code> on the compact colored
-                        name background so it stays readable in both themes.
+                        badge background so it stays readable in both themes.
                         Keep the shared mapping across pages and themes, with
                         only the approved homepage run-path exception above.
                         Do not assign hues by position, hash or presentation tone.</li>
@@ -433,8 +443,8 @@ can you change "Deploy and Configure" to "Setup"</p>
                         Hover borders use <code>--line-strong</code>.
                         Keep shadows neutral and restrained. Do not add colored
                         edge stripes, body washes, rings or glows.</li>
-                    <li>Category labels use neutral <code>--panel</code>
-                        backgrounds. Keep technology and
+                    <li>Category badges use a soft tint mixed with
+                        <code>--panel</code>. Keep technology and
                         mode chips neutral. Match filter backgrounds to their
                         category and show selection and keyboard focus clearly.</li>
                     <li>Keep status independent. Success, warning and failure
