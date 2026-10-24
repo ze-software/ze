@@ -232,38 +232,31 @@ func validateAttributeFlags(code, flags uint8) *RFC7606ValidationResult {
 // Returns:
 //   - ValidationResult with strongest action, error details, and attribute codes to discard
 func ValidateUpdateRFC7606(pathAttrs []byte, hasNLRI, isIBGP, asn4 bool) *RFC7606ValidationResult {
-	return ValidateUpdateRFC7606AddPath(pathAttrs, hasNLRI, isIBGP, asn4, nil, false)
+	return ValidateUpdateRFC7606Peer(pathAttrs, hasNLRI, isIBGP, asn4, nil, false, false)
 }
 
-// ValidateUpdateRFC7606AddPath is ValidateUpdateRFC7606 with per-family ADD-PATH awareness.
+// ValidateUpdateRFC7606Peer is ValidateUpdateRFC7606 with the session's negotiated state
+// and the peer's operator configuration.
+//
 // addPathFor reports whether RFC 7911 ADD-PATH is negotiated for an (AFI, SAFI); it is
 // consulted only for the Section 5.3 NLRI-syntax check inside MP attributes, so that a valid
 // ADD-PATH UPDATE (whose NLRI carry a 4-byte path identifier) is not misread as malformed.
 // A nil addPathFor means "no ADD-PATH", which is the correct default for callers that do not
-// have negotiated state (the plain ValidateUpdateRFC7606 wrapper, and unit tests).
+// have negotiated state (the plain ValidateUpdateRFC7606, and unit tests).
 //
 // linkLocalNextHop reports whether the session negotiated the Link-Local Next Hop
 // capability (code 77). draft-ietf-idr-linklocal-capability Section 6 applies "only when
 // the Link-Local Next Hop Capability has been negotiated", and then makes a 32-octet
 // MP_REACH_NLRI Next Hop that is not a Global followed by a Link-Local treat-as-withdraw
 // (validateLinkLocalNextHopPair). False is the answer for a session that did not
-// negotiate it, which is also the plain ValidateUpdateRFC7606 wrapper's.
+// negotiate it, which is also the plain ValidateUpdateRFC7606's.
 //
-// It applies RFC 9774 Section 3 to every AS_SET and AS_CONFED_SET: it is
-// ValidateUpdateRFC7606Peer for a peer without `session as-set accept`.
-func ValidateUpdateRFC7606AddPath(
-	pathAttrs []byte, hasNLRI, isIBGP, asn4 bool, addPathFor func(afi uint16, safi uint8) bool,
-	linkLocalNextHop bool,
-) *RFC7606ValidationResult {
-	return ValidateUpdateRFC7606Peer(pathAttrs, hasNLRI, isIBGP, asn4, addPathFor, linkLocalNextHop, false)
-}
-
-// ValidateUpdateRFC7606Peer is ValidateUpdateRFC7606AddPath with the peer's AS_SET policy.
 // acceptASSet is the peer's `session as-set accept`: an AS_SET or AS_CONFED_SET in
 // AS_PATH or AS4_PATH is then kept instead of treated as withdrawn. RFC 9774 Section 3
 // binds BGP speakers "Unless explicitly configured by a network operator to do otherwise
-// (e.g., during a transition phase)", and only `ze exabgp migrate` writes the leaf, for
-// a neighbor ExaBGP configured with `as-set accept`. False is RFC 9774's own behavior.
+// (e.g., during a transition phase)": the operator sets the leaf, and `ze exabgp migrate`
+// writes it for a neighbor ExaBGP configured with `as-set accept`. False is RFC 9774's
+// own behavior.
 func ValidateUpdateRFC7606Peer(
 	pathAttrs []byte, hasNLRI, isIBGP, asn4 bool, addPathFor func(afi uint16, safi uint8) bool,
 	linkLocalNextHop, acceptASSet bool,
@@ -516,8 +509,9 @@ func ValidateUpdateRFC7606Peer(
 			}
 		}
 
-		// Validate specific attributes per RFC 7606 Section 7
-		result := validateReceivedAttribute(attrCode, attrLen, attrData, isIBGP, asn4, acceptASSet)
+		// Validate specific attributes per RFC 7606 Section 7. The peer's policy rides
+		// along so the AS_PATH and AS4_PATH validators apply RFC 9774 Section 3.
+		result := validateAttribute(attrCode, attrLen, attrData, isIBGP, asn4, receivePolicy{acceptASSet: acceptASSet})
 		if result != nil && result.Action != RFC7606ActionNone {
 			// RFC 7606 Section 3.h: session-reset is immediate — no point collecting more
 			if result.Action == RFC7606ActionSessionReset {
@@ -720,7 +714,9 @@ func ValidateUpdateRFC7606Peer(
 }
 
 // attrValidatorFn checks a single attribute and returns a validation result, or nil if valid.
-type attrValidatorFn func(code uint8, length int, data []byte, isIBGP, asn4 bool) *RFC7606ValidationResult
+// policy is the receiving peer's operator configuration (receivePolicy); a validator that
+// no configuration changes ignores it.
+type attrValidatorFn func(code uint8, length int, data []byte, isIBGP, asn4 bool, policy receivePolicy) *RFC7606ValidationResult
 
 // attrValidators maps attribute type codes to per-attribute RFC 7606 validators.
 // nil entries mean no specific validation for that code.
@@ -743,9 +739,9 @@ func init() {
 }
 
 // validateAttribute checks a single attribute per RFC 7606 Section 7.
-func validateAttribute(code uint8, length int, attrData []byte, isIBGP, asn4 bool) *RFC7606ValidationResult {
+func validateAttribute(code uint8, length int, attrData []byte, isIBGP, asn4 bool, policy receivePolicy) *RFC7606ValidationResult {
 	if fn := attrValidators[code]; fn != nil {
-		return fn(code, length, attrData, isIBGP, asn4)
+		return fn(code, length, attrData, isIBGP, asn4, policy)
 	}
 	return nil
 }
@@ -753,7 +749,7 @@ func validateAttribute(code uint8, length int, attrData []byte, isIBGP, asn4 boo
 // RFC 7311 Section 3.2: "When receiving a BGP Update message containing a
 // malformed AIGP attribute, the attribute MUST be treated exactly as if it
 // were an unrecognized non-transitive attribute.".
-func validateAIGPAttr(code uint8, _ int, data []byte, _, _ bool) *RFC7606ValidationResult {
+func validateAIGPAttr(code uint8, _ int, data []byte, _, _ bool, _ receivePolicy) *RFC7606ValidationResult {
 	if _, err := attribute.AIGPMetricOffset(data); err != nil {
 		return &RFC7606ValidationResult{
 			Action:      RFC7606ActionAttributeDiscard,
@@ -766,7 +762,7 @@ func validateAIGPAttr(code uint8, _ int, data []byte, _, _ bool) *RFC7606Validat
 }
 
 // RFC 7606 Section 7.1: ORIGIN must be length 1, value 0-2.
-func validateOriginAttr(code uint8, length int, attrData []byte, _, _ bool) *RFC7606ValidationResult {
+func validateOriginAttr(code uint8, length int, attrData []byte, _, _ bool, _ receivePolicy) *RFC7606ValidationResult {
 	if length != 1 {
 		var b textbuf.Buffer
 		return &RFC7606ValidationResult{
@@ -787,12 +783,13 @@ func validateOriginAttr(code uint8, length int, attrData []byte, _, _ bool) *RFC
 }
 
 // RFC 7606 Section 7.2: Validate AS_PATH segment structure.
-func validateASPathAttr(_ uint8, _ int, attrData []byte, _, asn4 bool) *RFC7606ValidationResult {
-	return validateASPath(attrData, asn4)
+// The peer's policy decides the set scan: RFC 9774 Section 3.
+func validateASPathAttr(_ uint8, _ int, attrData []byte, _, asn4 bool, policy receivePolicy) *RFC7606ValidationResult {
+	return validateASPathPolicy(attrData, asn4, policy.acceptASSet)
 }
 
 // RFC 7606 Section 7.3: NEXT_HOP must be length 4.
-func validateNextHopAttr(code uint8, length int, data []byte, _, _ bool) *RFC7606ValidationResult {
+func validateNextHopAttr(code uint8, length int, data []byte, _, _ bool, _ receivePolicy) *RFC7606ValidationResult {
 	if length != 4 {
 		var b textbuf.Buffer
 		return &RFC7606ValidationResult{
@@ -817,7 +814,7 @@ func validateNextHopAttr(code uint8, length int, data []byte, _, _ bool) *RFC760
 }
 
 // RFC 7606 Section 7.4: MED must be length 4.
-func validateMEDAttr(code uint8, length int, _ []byte, _, _ bool) *RFC7606ValidationResult {
+func validateMEDAttr(code uint8, length int, _ []byte, _, _ bool, _ receivePolicy) *RFC7606ValidationResult {
 	if length != 4 {
 		var b textbuf.Buffer
 		return &RFC7606ValidationResult{
@@ -830,7 +827,7 @@ func validateMEDAttr(code uint8, length int, _ []byte, _, _ bool) *RFC7606Valida
 }
 
 // RFC 7606 Section 7.5: LOCAL_PREF from EBGP discarded; must be length 4.
-func validateLocalPrefAttr(code uint8, length int, _ []byte, isIBGP, _ bool) *RFC7606ValidationResult {
+func validateLocalPrefAttr(code uint8, length int, _ []byte, isIBGP, _ bool, _ receivePolicy) *RFC7606ValidationResult {
 	if !isIBGP {
 		return &RFC7606ValidationResult{
 			Action:      RFC7606ActionAttributeDiscard,
@@ -851,7 +848,7 @@ func validateLocalPrefAttr(code uint8, length int, _ []byte, isIBGP, _ bool) *RF
 }
 
 // RFC 7606 Section 7.6: ATOMIC_AGGREGATE must be length 0 (attribute-discard).
-func validateAtomicAggAttr(code uint8, length int, _ []byte, _, _ bool) *RFC7606ValidationResult {
+func validateAtomicAggAttr(code uint8, length int, _ []byte, _, _ bool, _ receivePolicy) *RFC7606ValidationResult {
 	if length != 0 {
 		var b textbuf.Buffer
 		return &RFC7606ValidationResult{
@@ -869,7 +866,7 @@ func validateAtomicAggAttr(code uint8, length int, _ []byte, _, _ bool) *RFC7606
 // RFC 7607 Section 2 adds a second malformed condition over the same attribute: an AS of
 // zero. Both land on the RFC 7606 Section 7.7 procedure, attribute discard, and the
 // Reason column tells the two apart for an operator reading the discard.
-func validateAggregatorAttr(code uint8, length int, attrData []byte, _, asn4 bool) *RFC7606ValidationResult {
+func validateAggregatorAttr(code uint8, length int, attrData []byte, _, asn4 bool, _ receivePolicy) *RFC7606ValidationResult {
 	expectedLen := 6
 	asOctets := 2
 	if asn4 {
@@ -910,7 +907,7 @@ func validateAggregatorAttr(code uint8, length int, attrData []byte, _, asn4 boo
 }
 
 // RFC 7606 Section 7.8: Community must be non-zero multiple of 4.
-func validateCommunityAttr(code uint8, length int, _ []byte, _, _ bool) *RFC7606ValidationResult {
+func validateCommunityAttr(code uint8, length int, _ []byte, _, _ bool, _ receivePolicy) *RFC7606ValidationResult {
 	// RFC 7606 Section 7.8: the COMMUNITIES attribute is malformed if its length is zero or
 	// not a non-zero multiple of 4. Name which clause fired so the two are distinguishable.
 	if length == 0 || length%4 != 0 {
@@ -929,7 +926,7 @@ func validateCommunityAttr(code uint8, length int, _ []byte, _, _ bool) *RFC7606
 }
 
 // RFC 7606 Section 7.9: ORIGINATOR_ID from EBGP discarded; must be length 4.
-func validateOriginatorIDAttr(code uint8, length int, _ []byte, isIBGP, _ bool) *RFC7606ValidationResult {
+func validateOriginatorIDAttr(code uint8, length int, _ []byte, isIBGP, _ bool, _ receivePolicy) *RFC7606ValidationResult {
 	if !isIBGP {
 		return &RFC7606ValidationResult{
 			Action:      RFC7606ActionAttributeDiscard,
@@ -950,7 +947,7 @@ func validateOriginatorIDAttr(code uint8, length int, _ []byte, isIBGP, _ bool) 
 }
 
 // RFC 7606 Section 7.10: CLUSTER_LIST from EBGP discarded; must be non-zero multiple of 4.
-func validateClusterListAttr(code uint8, length int, _ []byte, isIBGP, _ bool) *RFC7606ValidationResult {
+func validateClusterListAttr(code uint8, length int, _ []byte, isIBGP, _ bool, _ receivePolicy) *RFC7606ValidationResult {
 	if !isIBGP {
 		return &RFC7606ValidationResult{
 			Action:      RFC7606ActionAttributeDiscard,
@@ -971,7 +968,7 @@ func validateClusterListAttr(code uint8, length int, _ []byte, isIBGP, _ bool) *
 }
 
 // RFC 7606 Section 7.14: Extended Community must be non-zero multiple of 8.
-func validateExtCommunityAttr(code uint8, length int, _ []byte, _, _ bool) *RFC7606ValidationResult {
+func validateExtCommunityAttr(code uint8, length int, _ []byte, _, _ bool, _ receivePolicy) *RFC7606ValidationResult {
 	if length == 0 || length%8 != 0 {
 		var b textbuf.Buffer
 		return &RFC7606ValidationResult{
@@ -985,7 +982,7 @@ func validateExtCommunityAttr(code uint8, length int, _ []byte, _, _ bool) *RFC7
 
 // RFC 8092 Section 6: "A BGP Large Communities attribute SHALL be considered
 // malformed if the length ... is not a non-zero multiple of 12.".
-func validateLargeCommunityAttr(code uint8, length int, _ []byte, _, _ bool) *RFC7606ValidationResult {
+func validateLargeCommunityAttr(code uint8, length int, _ []byte, _, _ bool, _ receivePolicy) *RFC7606ValidationResult {
 	if length == 0 || length%12 != 0 {
 		var b textbuf.Buffer
 		return &RFC7606ValidationResult{
@@ -1181,7 +1178,7 @@ const (
 	asPathTypeConfedSet  = 4 // AS_CONFED_SET (RFC 5065)
 )
 
-// validateASPath validates AS_PATH segment structure per RFC 7606 Section 7.2.
+// validateASPathPolicy validates AS_PATH segment structure per RFC 7606 Section 7.2.
 //
 // An AS_PATH is considered malformed if:
 // - Unrecognized segment type is encountered
@@ -1195,14 +1192,15 @@ const (
 // Parameters:
 //   - data: Raw AS_PATH attribute value bytes
 //   - asn4: True if ASNs are 4 bytes, false for 2 bytes
+//   - acceptASSet: the peer's RFC 9774 Section 3 operator configuration; true keeps a
+//     set segment, and every other check still runs
 //
 // Returns nil if valid, or RFC7606ValidationResult with treat-as-withdraw action.
-func validateASPath(data []byte, asn4 bool) *RFC7606ValidationResult {
-	return validateASPathPolicy(data, asn4, false)
-}
-
-// validateASPathPolicy is validateASPath with the peer's RFC 9774 Section 3 operator
-// configuration: acceptASSet true keeps a set segment, and every other check still runs.
+//
+// RFC 9774 Section 3: "Unless explicitly configured by a network operator to do otherwise
+// (e.g., during a transition phase), BGP speakers:" ... "MUST use the "treat-as-withdraw"
+// error handling behavior per [RFC7606] upon reception of BGP UPDATE messages containing
+// AS_SETs or AS_CONFED_SETs in the AS_PATH or AS4_PATH [RFC6793]."
 func validateASPathPolicy(data []byte, asn4, acceptASSet bool) *RFC7606ValidationResult {
 	// Empty AS_PATH is valid per RFC 7606 Section 5 (AS_PATH may have length zero)
 	if len(data) == 0 {
@@ -1283,11 +1281,12 @@ func validateASPathPolicy(data []byte, asn4, acceptASSet bool) *RFC7606Validatio
 		}
 	}
 
-	// RFC 9774 Section 3. Like the AS 0 scan, it runs after the structure walk, so a
-	// structural fault keeps its RFC 7606 Section 7.2 description.
+	// RFC 9774 Section 3: the operator configuration keeps the set.
 	if acceptASSet {
 		return nil
 	}
+	// RFC 9774 Section 3. Like the AS 0 scan, the set scan runs after the structure
+	// walk, so a structural fault keeps its RFC 7606 Section 7.2 description.
 	if segType, found := ASPathSetSegment(data, asSize); found {
 		return asPathSetVerdict(attrCodeASPath, "AS_PATH", segType)
 	}

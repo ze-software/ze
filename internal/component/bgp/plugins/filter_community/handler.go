@@ -126,7 +126,7 @@ func genericCommunityHandler(code attribute.AttributeCode, valueSize int, p *fil
 	// which could is heard on the first route rather than after the leak. A
 	// peer-sourced COMMUNITY whose length is not a multiple of 4 is treat-as-withdraw
 	// at receive (message.validateCommunityAttr, in the attrValidators table that
-	// Session.enforceRFC7606 drives through message.ValidateUpdateRFC7606AddPath),
+	// Session.enforceRFC7606 drives through message.ValidateUpdateRFC7606Peer),
 	// and the synthesized withdrawal carries no COMMUNITY into the forward path at
 	// all; codes 16 and 32 have the same rule in validateExtCommunityAttr and
 	// validateLargeCommunityAttr. Locally originated routes take their value from

@@ -1,5 +1,5 @@
 // Design: docs/architecture/wire/messages.md -- RFC 7606 UPDATE validation.
-// Related: rfc7606.go -- ValidateUpdateRFC7606AddPath, the Section 5.2 escalation under test.
+// Related: rfc7606.go -- ValidateUpdateRFC7606Peer, the Section 5.2 escalation under test.
 // Related: ../plugins/nlri/srpolicy/register.go -- the RFC 9830 Section 5 NLRI syntax rule.
 //
 // The package is message_test rather than message because the SR Policy syntax rule is a

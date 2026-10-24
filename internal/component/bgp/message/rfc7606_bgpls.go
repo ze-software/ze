@@ -51,7 +51,7 @@ func init() {
 // the attribute length.
 //
 // The second bullet is the generic RFC 7606 Section 4 framing check that
-// ValidateUpdateRFC7606AddPath already ran: this validator is called only after the
+// ValidateUpdateRFC7606Peer already ran: this validator is called only after the
 // attribute's flags, type and length have been read and its value proved to fit inside the
 // Total Path Attribute Length.
 //
@@ -81,7 +81,7 @@ func init() {
 // No TLV type, and no byte of any TLV value, is read. Section 8.2.2 opens by forbidding it:
 // "A BGP-LS Attribute MUST NOT be considered malformed or invalid based on the inclusion/
 // exclusion of TLVs or contents of the TLV fields (i.e., semantic errors)".
-func validateBGPLSAttr(code uint8, length int, attrData []byte, _, _ bool) *RFC7606ValidationResult {
+func validateBGPLSAttr(code uint8, length int, attrData []byte, _, _ bool, _ receivePolicy) *RFC7606ValidationResult {
 	// The walk is bounded by the attribute length, which the caller read from the wire and
 	// bounds-checked against the path-attributes section. Every iteration advances off by at
 	// least bgplsTLVHeaderLen, so a peer cannot stall it.

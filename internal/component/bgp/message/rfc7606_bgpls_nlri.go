@@ -20,7 +20,7 @@ import (
 // Link-State NLRI to determine if it is malformed." Seven bullets follow, and this file
 // implements six of them. The seventh, "The syntactic correctness of the NLRI fields has
 // been verified as per [RFC7606]", is the generic Section 4 and Section 5.3 framing that
-// ValidateUpdateRFC7606AddPath already ran before either entry point here is reached.
+// ValidateUpdateRFC7606Peer already ran before either entry point here is reached.
 //
 // The six split by the ACTION Section 8.2.2 prescribes, and the split is what gives this
 // file two entry points rather than one.

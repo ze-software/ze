@@ -185,3 +185,17 @@ func TestAddPathModeKeywordsMatchTheYANGModel(t *testing.T) {
 	slices.Sort(known)
 	require.Equal(t, declared, known)
 }
+
+// TestASSetPolicyValuesMatchTheYANGModel proves applyASSetPolicy compares the
+// peer leaf `session as-set` against exactly the values the model declares.
+//
+// PREVENTS: a value the model accepts that applyASSetPolicy refuses at peer
+// build, and a value renamed in the model while the Go constant keeps the old
+// spelling, so `accept` stops keeping a received AS_SET.
+func TestASSetPolicyValuesMatchTheYANGModel(t *testing.T) {
+	declared := yangEnumValues(t, "bgp", "group", "peer", "session", "as-set")
+
+	known := []string{asSetPolicyWithdraw, asSetPolicyAccept}
+	slices.Sort(known)
+	require.Equal(t, declared, known)
+}

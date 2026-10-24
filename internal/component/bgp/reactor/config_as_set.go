@@ -18,8 +18,8 @@ const (
 // otherwise (e.g., during a transition phase), BGP speakers:" ... "MUST use the
 // "treat-as-withdraw" error handling behavior per [RFC7606] upon reception of BGP
 // UPDATE messages containing AS_SETs or AS_CONFED_SETs in the AS_PATH or AS4_PATH
-// [RFC6793]." `accept` is that configuration, and only `ze exabgp migrate` writes
-// it: the transition is a migration from ExaBGP, whose neighbor said `as-set accept`.
+// [RFC6793]." `accept` is that configuration: the operator sets it, and
+// `ze exabgp migrate` writes it for an ExaBGP neighbor that said `as-set accept`.
 // An absent leaf is `withdraw`, the YANG default and the RFC's behavior.
 func applyASSetPolicy(ps *PeerSettings, name string, session map[string]any) error {
 	raw, present := session["as-set"]

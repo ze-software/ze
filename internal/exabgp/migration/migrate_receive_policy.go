@@ -30,27 +30,33 @@ func applyReceivePolicy(neighbor, peer *config.Tree) error {
 }
 
 // applyASSetPolicy writes nothing for `as-set withdraw`, ExaBGP's default,
-// because it is ze's default too (message/rfc7606.go validateASPath,
+// because it is ze's default too (message/rfc7606.go validateASPathAttr,
 // message/rfc7607.go validateAS4PathAttr).
 //
 // `as-set accept` keeps such a route in ExaBGP (bgp/message/update/
 // collection.py, UpdateCollection._withdrawn_in_context), and becomes the ze
-// peer leaf `session { as-set accept; }`, which only this migration writes.
-// RFC 9774 Section 3: "Unless explicitly configured by a network operator to
-// do otherwise (e.g., during a transition phase), BGP speakers:" ... "MUST use
-// the "treat-as-withdraw" error handling behavior per [RFC7606] upon reception
-// of BGP UPDATE messages containing AS_SETs or AS_CONFED_SETs in the AS_PATH or
-// AS4_PATH [RFC6793]." The ExaBGP line is that operator configuration.
+// peer leaf `session { as-set accept; }`, the same operator leaf any ze
+// config may set. RFC 9774 Section 3: "Unless explicitly configured by a
+// network operator to do otherwise (e.g., during a transition phase), BGP
+// speakers:" ... "MUST use the "treat-as-withdraw" error handling behavior per
+// [RFC7606] upon reception of BGP UPDATE messages containing AS_SETs or
+// AS_CONFED_SETs in the AS_PATH or AS4_PATH [RFC6793]." The ExaBGP line is that
+// operator configuration.
 func applyASSetPolicy(neighbor, peer *config.Tree) error {
 	value, ok := neighbor.Get("as-set")
-	if !ok || value == "withdraw" {
+	if !ok {
+		return nil
+	}
+	if value == "withdraw" {
 		return nil
 	}
 	if value == "accept" {
 		peerSession(peer).Set("as-set", "accept")
 		return nil
 	}
-	return fmt.Errorf("as-set %s: ExaBGP knows withdraw and accept; use as-set withdraw or as-set accept", value)
+	return fmt.Errorf("as-set %s: this neighbor cannot be migrated\n"+
+		"why: ExaBGP knows withdraw and accept\n"+
+		"fix: use as-set withdraw or as-set accept", value)
 }
 
 // peerSession answers the peer's session container, creating it when the
@@ -85,10 +91,13 @@ func checkTunnelEncapsulationPolicy(neighbor *config.Tree) error {
 		return nil
 	}
 	if value == "filter" {
-		return fmt.Errorf("tunnel-encapsulation filter: ze cannot yet drop a received " +
-			"Tunnel Encapsulation attribute (RFC 9012 Section 11) from one peer; remove the " +
-			"line to migrate a peer that keeps it, as tunnel-encapsulation accept does")
+		return fmt.Errorf("tunnel-encapsulation filter: this neighbor cannot be migrated\n" +
+			"why: ze cannot yet drop a received Tunnel Encapsulation attribute " +
+			"(RFC 9012 Section 11) from one peer\n" +
+			"fix: remove the tunnel-encapsulation line to migrate a peer that keeps the " +
+			"attribute, as tunnel-encapsulation accept does")
 	}
-	return fmt.Errorf("tunnel-encapsulation %s: ExaBGP knows auto, filter and accept; "+
-		"use tunnel-encapsulation auto", value)
+	return fmt.Errorf("tunnel-encapsulation %s: this neighbor cannot be migrated\n"+
+		"why: ExaBGP knows auto, filter and accept\n"+
+		"fix: use tunnel-encapsulation auto", value)
 }

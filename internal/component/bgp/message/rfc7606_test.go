@@ -112,7 +112,7 @@ func TestRFC7606MPReachAddPathValidNotReset(t *testing.T) {
 	addPathFor := func(afi uint16, safi uint8) bool { return afi == 2 && safi == 1 }
 
 	// With ADD-PATH awareness the path id is skipped and the /64 is accepted.
-	got := ValidateUpdateRFC7606AddPath(mk(valid), false, false, false, addPathFor, false)
+	got := ValidateUpdateRFC7606Peer(mk(valid), false, false, false, addPathFor, false, false)
 	require.Equal(t, RFC7606ActionNone, got.Action,
 		"a valid ADD-PATH MP_REACH must not be session-reset: %s", got.Description)
 
@@ -127,7 +127,7 @@ func TestRFC7606MPReachAddPathValidNotReset(t *testing.T) {
 	bad := append(append([]byte{}, header...),
 		0x00, 0x00, 0x00, 0x02, // path identifier
 		129, 0x20) // prefix length 129 (> 128 IPv6 maximum)
-	gotBad := ValidateUpdateRFC7606AddPath(mk(bad), false, false, false, addPathFor, false)
+	gotBad := ValidateUpdateRFC7606Peer(mk(bad), false, false, false, addPathFor, false, false)
 	require.Equal(t, RFC7606ActionSessionReset, gotBad.Action,
 		"an ADD-PATH NLRI with prefix length > 128 must still session-reset")
 }

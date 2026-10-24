@@ -445,7 +445,7 @@ func TestRFC8654ExtendedDuplicateAttributes(t *testing.T) {
 // message, then a NOTIFICATION message MUST be sent with the Error Subcode
 // 'Malformed Attribute List'."
 // MUTATION: Remove either in-loop duplicate-MP reset in
-// ValidateUpdateRFC7606AddPath: that case dispatches instead of NOTIFICATION 3/1.
+// ValidateUpdateRFC7606Peer: that case dispatches instead of NOTIFICATION 3/1.
 // RFC requirement: RFC8654-3-1 positive -- a single well-formed MP_REACH or MP_UNREACH in an extended UPDATE is processed without resetting.
 // RFC requirement: RFC8654-3-1 negative -- a second identical MP_REACH or MP_UNREACH causes exact NOTIFICATION 3/1, Idle and no additional consumer dispatch.
 func TestRFC8654ExtendedDuplicateMPResets(t *testing.T) {

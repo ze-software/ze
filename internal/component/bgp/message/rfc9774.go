@@ -1,7 +1,7 @@
 // Design: docs/architecture/wire/attributes.md — AS_PATH segment types
 // RFC: rfc/short/rfc9774.md — Deprecation of AS_SET and AS_CONFED_SET in BGP
-// Related: rfc7606.go — validateASPath, the AS_PATH caller of the set scan
-// Related: rfc7607.go — validateAS4PathAttr, the AS4_PATH caller of the set scan
+// Related: rfc7606.go — validateASPathPolicy, the AS_PATH caller of the set scan
+// Related: rfc7607.go — validateAS4PathPolicy, the AS4_PATH caller of the set scan
 //
 // RFC 9774 deprecates two of the four AS_PATH segment types. The scan lives in its own
 // file so the AS_PATH and AS4_PATH validators share one answer and cannot disagree.
@@ -10,24 +10,16 @@ package message
 
 import "github.com/ze-software/ze/internal/core/textbuf"
 
-// validateReceivedAttribute is validateAttribute with the peer's RFC 9774 Section 3
-// operator configuration. RFC 9774 Section 3: "Unless explicitly configured by a network
-// operator to do otherwise (e.g., during a transition phase), BGP speakers:" ... "MUST
-// use the "treat-as-withdraw" error handling behavior per [RFC7606] upon reception of
-// BGP UPDATE messages containing AS_SETs or AS_CONFED_SETs in the AS_PATH or AS4_PATH
-// [RFC6793]." acceptASSet is that configuration (the peer leaf `session as-set accept`,
-// written only by `ze exabgp migrate`), so the two set-bearing attributes skip their set
-// scan and keep every other check; every other attribute is judged as before.
-func validateReceivedAttribute(code uint8, length int, data []byte, isIBGP, asn4, acceptASSet bool) *RFC7606ValidationResult {
-	if acceptASSet {
-		if code == attrCodeASPath {
-			return validateASPathPolicy(data, asn4, true)
-		}
-		if code == attrCodeAS4Path {
-			return validateAS4PathPolicy(code, data, true)
-		}
-	}
-	return validateAttribute(code, length, data, isIBGP, asn4)
+// receivePolicy is the peer's operator configuration that a registered attribute validator
+// consults. Every validator in attrValidators receives it, so the attribute's own validator
+// decides, and the table stays the only dispatch. The zero value is the RFCs' own
+// behavior, which is what a caller with no peer configuration gets.
+type receivePolicy struct {
+	// acceptASSet is the peer leaf `session as-set accept`, set by the operator (and
+	// written by `ze exabgp migrate` for an ExaBGP neighbor configured `as-set accept`).
+	// When true, the AS_PATH and AS4_PATH validators keep a set segment and run every
+	// other check (RFC 9774 Section 3).
+	acceptASSet bool
 }
 
 // asPathSetVerdict builds the treat-as-withdraw verdict for a set segment found in the

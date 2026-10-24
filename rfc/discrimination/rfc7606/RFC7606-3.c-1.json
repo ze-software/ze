@@ -3,12 +3,12 @@
     "rid": "RFC7606-3.c-1",
     "polarity": "negative",
     "unit": "internal/component/bgp/message/rfc7606_attribute_envelope_test.go::TestRFC7606ImplementedAttributeFlagConflicts",
-    "unit-sha": "f5642828637bdcca",
+    "unit-sha": "1dcab632280b5ffa",
     "claim-sha": "6f1b1d62e599fd6d",
     "route": "revert",
-    "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606AddPath",
-    "producer-sha": "826126729e221442",
-    "break": "body of ValidateUpdateRFC7606AddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606Peer",
+    "producer-sha": "56a82251688aac11",
+    "break": "body of ValidateUpdateRFC7606Peer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC7606-3.c-1",

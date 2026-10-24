@@ -48,15 +48,24 @@ func init() {
 // reported nowhere on this rail today; the set scan answers nothing for one. Widening
 // this validator to report it would close that gap silently, under an RFC that does not
 // ask for it.
-func validateAS4PathAttr(code uint8, _ int, attrData []byte, _, _ bool) *RFC7606ValidationResult {
-	return validateAS4PathPolicy(code, attrData, false)
+//
+// The receiving peer's policy decides the set scan: the zero receivePolicy is the RFCs'
+// own behavior, and acceptASSet keeps a set segment (RFC 9774 Section 3).
+func validateAS4PathAttr(code uint8, _ int, attrData []byte, _, _ bool, policy receivePolicy) *RFC7606ValidationResult {
+	// RFC 9774 Section 3
+	return validateAS4PathPolicy(code, attrData, policy.acceptASSet)
 }
 
-// validateAS4PathPolicy is validateAS4PathAttr with the peer's RFC 9774 Section 3
-// operator configuration: acceptASSet true keeps a set segment, and the AS 0 check
-// still runs.
+// validateAS4PathPolicy is the body of validateAS4PathAttr, given the peer's RFC 9774
+// Section 3 operator configuration: acceptASSet true keeps a set segment, and the AS 0
+// check still runs.
+//
+// RFC 9774 Section 3: "Unless explicitly configured by a network operator to do otherwise
+// (e.g., during a transition phase), BGP speakers:" ... "MUST use the "treat-as-withdraw"
+// error handling behavior per [RFC7606] upon reception of BGP UPDATE messages containing
+// AS_SETs or AS_CONFED_SETs in the AS_PATH or AS4_PATH [RFC6793]."
 func validateAS4PathPolicy(code uint8, attrData []byte, acceptASSet bool) *RFC7606ValidationResult {
-	// RFC 9774 Section 3
+	// RFC 9774 Section 3: the operator configuration keeps the set; AS 0 is still judged.
 	if !acceptASSet {
 		if segType, found := ASPathSetSegment(attrData, as4AggregatorASOctets); found {
 			return asPathSetVerdict(code, "AS4_PATH", segType)
@@ -84,7 +93,7 @@ func validateAS4PathPolicy(code uint8, attrData []byte, acceptASSet bool) *RFC76
 // ("malformed if the attribute length is not 8") and no receive path enforces it, which
 // rfc/short/rfc6793.md records under RFC6793-6-5. The bound below is what this function
 // needs to read the AS field, not a length verdict.
-func validateAS4AggregatorAttr(code uint8, _ int, attrData []byte, _, _ bool) *RFC7606ValidationResult {
+func validateAS4AggregatorAttr(code uint8, _ int, attrData []byte, _, _ bool, _ receivePolicy) *RFC7606ValidationResult {
 	if len(attrData) < as4AggregatorASOctets {
 		return nil
 	}

@@ -55,7 +55,11 @@ func asSetAcceptMigrated(ctx context.Context, _ []string) error {
 				ReportFailure(err)
 				return err
 			case event := <-events:
-				asPath, ok := announcedASPath(event, asSetAcceptPrefix)
+				asPath, ok, err := announcedASPath(event, asSetAcceptPrefix)
+				if err != nil {
+					ReportFailure(err)
+					return err
+				}
 				if !ok {
 					continue
 				}
@@ -69,8 +73,10 @@ func asSetAcceptMigrated(ctx context.Context, _ []string) error {
 
 // announcedASPath answers the AS_PATH of a received parsed UPDATE event when
 // one of its NLRI entries announces prefix ("action": "add"), and false for
-// any other event, a withdrawal of prefix included.
-func announcedASPath(event, prefix string) (string, bool) {
+// any other event, a withdrawal of prefix included. An event that is not JSON
+// is an error: the observer cannot judge it, so it must not read as "not this
+// route".
+func announcedASPath(event, prefix string) (string, bool, error) {
 	var root struct {
 		BGP struct {
 			Message struct {
@@ -85,15 +91,18 @@ func announcedASPath(event, prefix string) (string, bool) {
 			} `json:"update"`
 		} `json:"bgp"`
 	}
-	if json.Unmarshal([]byte(event), &root) != nil || root.BGP.Message.Direction != directionReceived {
-		return "", false
+	if err := json.Unmarshal([]byte(event), &root); err != nil {
+		return "", false, fmt.Errorf("as-set accept observer: event is not JSON: %w", err)
+	}
+	if root.BGP.Message.Direction != directionReceived {
+		return "", false, nil
 	}
 	for _, entries := range root.BGP.Update.NLRI {
 		for _, entry := range entries {
 			if entry.Action == "add" && slices.Contains(entry.NLRI, prefix) {
-				return string(root.BGP.Update.Attr["as-path"]), true
+				return string(root.BGP.Update.Attr["as-path"]), true, nil
 			}
 		}
 	}
-	return "", false
+	return "", false, nil
 }

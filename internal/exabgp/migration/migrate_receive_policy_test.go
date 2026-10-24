@@ -42,25 +42,45 @@ func TestMigrateReceivePolicySameAsZe(t *testing.T) {
 // reproduce stops the migration with an error naming the leaf and the value,
 // rather than writing a peer that treats received routes differently.
 //
-// VALIDATES: `tunnel-encapsulation filter` (ze has no attribute 23 filter) and
-// a value ExaBGP does not know are each refused.
+// VALIDATES: `tunnel-encapsulation filter` (ze has no attribute 23 filter) is
+// refused by the migration, with the reason and the fix on their own lines; a
+// value ExaBGP does not know is refused by the exabgp.yang enumeration at parse.
 // PREVENTS: A migrated peer silently withdrawing routes ExaBGP accepted, or
 // passing on an attribute ExaBGP dropped.
 func TestMigrateReceivePolicyRefusedWithoutZeEquivalent(t *testing.T) {
-	cases := []struct{ leaf, value string }{
-		{"tunnel-encapsulation", "filter"},
-		{"as-set", "keep"},
-		{"tunnel-encapsulation", "drop"},
+	cases := []struct {
+		leaf, value string
+		atParse     bool
+	}{
+		{"tunnel-encapsulation", "filter", false},
+		{"as-set", "keep", true},
+		{"tunnel-encapsulation", "drop", true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.leaf+"-"+tc.value, func(t *testing.T) {
 			tree, err := ParseExaBGPConfig(receivePolicyNeighbor(tc.leaf, tc.value))
+			if tc.atParse {
+				if err == nil {
+					t.Fatalf("%s %s parsed, want the enumeration to refuse it", tc.leaf, tc.value)
+				}
+				for _, word := range []string{tc.leaf, tc.value} {
+					if !strings.Contains(err.Error(), word) {
+						t.Errorf("refusal %q does not name %q", err, word)
+					}
+				}
+				return
+			}
 			if err != nil {
 				t.Fatalf("parse: %v", err)
 			}
 			_, err = MigrateFromExaBGP(tree)
 			if err == nil {
 				t.Fatalf("%s %s migrated, want a refusal", tc.leaf, tc.value)
+			}
+			for _, line := range []string{"\nwhy: ", "\nfix: "} {
+				if !strings.Contains(err.Error(), line) {
+					t.Errorf("refusal %q has no %q line", err, strings.TrimSpace(line))
+				}
 			}
 			for _, word := range []string{tc.leaf, tc.value} {
 				if !strings.Contains(err.Error(), word) {

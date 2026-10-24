@@ -587,7 +587,7 @@ func rewriteMPNLRISections(pathAttrs []byte, edits []mpNLRIEdit) []byte {
 
 	// Any trailing bytes the walk could not frame are copied through untouched.
 	//
-	// This IS a live path, not a belt on a brace. ValidateUpdateRFC7606AddPath abandons its
+	// This IS a live path, not a belt on a brace. ValidateUpdateRFC7606Peer abandons its
 	// own walk on an RFC 7606 Section 4 framing error and still reports the MP attributes it
 	// read before it, so this function is reached with a section whose tail was never
 	// validated. Copying the tail verbatim is what keeps the rebuild honest: the same bounds

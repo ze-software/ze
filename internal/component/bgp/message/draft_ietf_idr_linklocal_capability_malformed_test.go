@@ -67,7 +67,7 @@ func TestLinkLocalCapabilityMalformedThirtyTwoOctet(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			attrs := llnhUpdateAttrs(t, "20", tc.nextHop)
-			result := ValidateUpdateRFC7606AddPath(attrs, false, false, true, nil, true)
+			result := ValidateUpdateRFC7606Peer(attrs, false, false, true, nil, true, false)
 			if result.Action != RFC7606ActionTreatAsWithdraw {
 				t.Fatalf("action = %v (%q), want treat-as-withdraw", result.Action, result.Description)
 			}
@@ -108,7 +108,7 @@ func TestLinkLocalCapabilityWellFormedThirtyTwoOctet(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			attrs := llnhUpdateAttrs(t, "20", tc.nextHop)
-			result := ValidateUpdateRFC7606AddPath(attrs, false, false, true, nil, true)
+			result := ValidateUpdateRFC7606Peer(attrs, false, false, true, nil, true, false)
 			if result.Action != RFC7606ActionNone {
 				t.Fatalf("action = %v (%q), want none", result.Action, result.Description)
 			}
@@ -125,14 +125,14 @@ func TestLinkLocalCapabilityWellFormedThirtyTwoOctet(t *testing.T) {
 func TestLinkLocalCapabilityNotNegotiatedJudgesLengthOnly(t *testing.T) {
 	for _, nextHop := range []string{llnhLinkLocal + llnhGlobal, llnhGlobal + llnhGlobal} {
 		attrs := llnhUpdateAttrs(t, "20", nextHop)
-		result := ValidateUpdateRFC7606AddPath(attrs, false, false, true, nil, false)
+		result := ValidateUpdateRFC7606Peer(attrs, false, false, true, nil, false, false)
 		if result.Action != RFC7606ActionNone {
 			t.Fatalf("next hop %s without capability 77: action = %v (%q), want none", nextHop, result.Action, result.Description)
 		}
 	}
 	for _, negotiated := range []bool{false, true} {
 		attrs := llnhUpdateAttrs(t, "10", llnhLinkLocal)
-		result := ValidateUpdateRFC7606AddPath(attrs, false, false, true, nil, negotiated)
+		result := ValidateUpdateRFC7606Peer(attrs, false, false, true, nil, negotiated, false)
 		if result.Action != RFC7606ActionNone {
 			t.Fatalf("16-octet next hop, capability 77 %v: action = %v (%q), want none", negotiated, result.Action, result.Description)
 		}
@@ -146,7 +146,7 @@ func TestLinkLocalCapabilityNotNegotiatedJudgesLengthOnly(t *testing.T) {
 // leaves the NLRI unlocatable.
 func TestLinkLocalCapabilityWrongLengthStillResets(t *testing.T) {
 	attrs := llnhUpdateAttrs(t, "21", llnhGlobal+llnhLinkLocal+"00")
-	result := ValidateUpdateRFC7606AddPath(attrs, false, false, true, nil, true)
+	result := ValidateUpdateRFC7606Peer(attrs, false, false, true, nil, true, false)
 	if result.Action != RFC7606ActionSessionReset {
 		t.Fatalf("action = %v (%q), want session reset", result.Action, result.Description)
 	}

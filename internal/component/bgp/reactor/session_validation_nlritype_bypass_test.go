@@ -24,7 +24,7 @@ import (
 // the Section 5.4 MUST.
 //
 // VALIDATES: RFC 7606 Section 5.4 on an UPDATE whose attribute section ALSO carries a
-// Section 4 structural error AFTER the MP attribute. ValidateUpdateRFC7606AddPath
+// Section 4 structural error AFTER the MP attribute. ValidateUpdateRFC7606Peer
 // (message/rfc7606.go) abandons its walk at such an error and returns treat-as-withdraw.
 // It must still report where the MP NLRI was, because it had already read it.
 //

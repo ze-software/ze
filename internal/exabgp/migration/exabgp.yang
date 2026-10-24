@@ -82,10 +82,22 @@ module exabgp {
         leaf shutdown { type boolean; default false; }
         // ExaBGP 6.0 receive policy (f9bfb853b, grammar/tree/neighbor.py):
         // as-set withdraw|accept, tunnel-encapsulation auto|filter|accept.
-        // migrate_receive_policy.go accepts the values ze reproduces and
-        // refuses the rest.
-        leaf as-set { type string; }
-        leaf tunnel-encapsulation { type string; }
+        // The enumerations are ExaBGP's own value sets, so a value ExaBGP
+        // rejects is refused here; migrate_receive_policy.go then refuses
+        // the values ze cannot reproduce.
+        leaf as-set {
+            type enumeration {
+                enum withdraw;
+                enum accept;
+            }
+        }
+        leaf tunnel-encapsulation {
+            type enumeration {
+                enum auto;
+                enum filter;
+                enum accept;
+            }
+        }
 
         // Family block (ExaBGP uses space: "ipv4 unicast")
         container family {

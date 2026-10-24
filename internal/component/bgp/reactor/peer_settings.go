@@ -572,8 +572,8 @@ type PeerSettings struct {
 	// AS_CONFED_SET in AS_PATH or AS4_PATH is kept instead of treated as
 	// withdrawn. RFC 9774 Section 3 binds speakers "Unless explicitly configured
 	// by a network operator to do otherwise (e.g., during a transition phase)";
-	// only `ze exabgp migrate` writes the leaf, for an ExaBGP neighbor configured
-	// with `as-set accept`. False is RFC 9774's own behavior.
+	// the operator sets the leaf, and `ze exabgp migrate` writes it for an ExaBGP
+	// neighbor configured with `as-set accept`. False is RFC 9774's own behavior.
 	AcceptASSet bool
 
 	// AIGPOriginate permits explicitly configured metrics on domain-local

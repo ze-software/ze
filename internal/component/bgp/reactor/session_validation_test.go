@@ -4,7 +4,7 @@
 // validator walk instead of walking the attribute section a second time.
 //
 // The EBGP-boundary check of RFC 8669 Section 4 used to call attribute.AttrFind on the
-// same bytes message.ValidateUpdateRFC7606AddPath had just parsed. The lookup now rides
+// same bytes message.ValidateUpdateRFC7606Peer had just parsed. The lookup now rides
 // that walk. The two forms must agree on every input. That includes an input whose walk
 // abandons the section part way through. These tests are the differential that proves it.
 
@@ -156,7 +156,7 @@ func TestPrefixSIDSingleWalkSameVerdict(t *testing.T) {
 			for _, isIBGP := range []bool{false, true} {
 				for _, asn4 := range []bool{false, true} {
 					for i, attrs := range corpus {
-						result := message.ValidateUpdateRFC7606AddPath(attrs, hasNLRI, isIBGP, asn4, addPathFor, false)
+						result := message.ValidateUpdateRFC7606Peer(attrs, hasNLRI, isIBGP, asn4, addPathFor, false, false)
 						_, _, _, found := attribute.AttrFind(attrs, attribute.AttrPrefixSID)
 
 						// The folded flag must never invent an attribute. This holds at every
@@ -196,7 +196,7 @@ func TestPrefixSIDSingleWalkCorpusReachesEveryAction(t *testing.T) {
 	discardWithSID, noneWithSID, abortedWithSIDBytes := 0, 0, 0
 
 	for _, attrs := range prefixSIDCorpus() {
-		result := message.ValidateUpdateRFC7606AddPath(attrs, true, false, false, nil, false)
+		result := message.ValidateUpdateRFC7606Peer(attrs, true, false, false, nil, false, false)
 		seen[result.Action]++
 		_, _, _, found := attribute.AttrFind(attrs, attribute.AttrPrefixSID)
 		switch {
@@ -248,7 +248,7 @@ func TestPrefixSIDEBGPDiscardAcrossCorpus(t *testing.T) {
 		}
 		// Session reset closes the connection and has its own tests. The Prefix-SID branch
 		// cannot be reached under it.
-		probe := message.ValidateUpdateRFC7606AddPath(attrs, true, false, false, nil, false)
+		probe := message.ValidateUpdateRFC7606Peer(attrs, true, false, false, nil, false, false)
 		if probe.Action > message.RFC7606ActionAttributeDiscard {
 			continue
 		}

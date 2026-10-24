@@ -256,8 +256,9 @@ On receive, a well-framed AS_PATH or AS4_PATH holding an AS_SET or AS_CONFED_SET
 makes the UPDATE treat-as-withdraw, on every session whatever the AS width. The
 exception is a peer whose config says `session as-set accept`: RFC 9774 Section 3
 binds speakers "Unless explicitly configured by a network operator to do otherwise
-(e.g., during a transition phase)", and `ze exabgp migrate` writes that leaf, and
-nothing else does, for an ExaBGP neighbor configured with `as-set accept`. Such a
+(e.g., during a transition phase)". The leaf is that operator configuration: an
+operator may set it on any peer, and `ze exabgp migrate` writes it for an ExaBGP
+neighbor configured with `as-set accept`. Such a
 peer keeps the route, and the AS_PATH and AS4_PATH validators still run every other
 check (structure, AS 0); the send half below is unchanged for it. A
 structural fault in the same AS_PATH keeps its RFC 7606 Section 7.2 description,
@@ -271,7 +272,7 @@ withdrawal anyway, and it announces nothing. A configured raw `attribute` AS_PAT
 is written beside the typed one, which is why every occurrence is judged. Raw
 injection (`send bgp ... raw`) is exempt. The decoders and renderers still show
 both types.
-<!-- source: internal/component/bgp/message/rfc9774.go -- ASPathSetSegment, asPathSetVerdict, validateReceivedAttribute -->
+<!-- source: internal/component/bgp/message/rfc9774.go -- ASPathSetSegment, asPathSetVerdict, receivePolicy -->
 <!-- source: internal/component/bgp/reactor/config_as_set.go -- applyASSetPolicy -->
 <!-- source: internal/component/bgp/reactor/session_rfc9774.go -- transmittedPathHoldsSet, writeUpdateAsWithdrawal -->
 

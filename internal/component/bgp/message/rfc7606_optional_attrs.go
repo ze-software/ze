@@ -59,7 +59,7 @@ func init() {
 // under any switching capability; anything longer might be, so it is accepted. Rejecting
 // more would blackhole valid routes, which is worse than under-validating an attribute ze
 // does not act on.
-func validateTrafficEngineeringAttr(code uint8, length int, _ []byte, _, _ bool) *RFC7606ValidationResult {
+func validateTrafficEngineeringAttr(code uint8, length int, _ []byte, _, _ bool, _ receivePolicy) *RFC7606ValidationResult {
 	if length < trafficEngDescriptorLen {
 		var b textbuf.Buffer
 		return &RFC7606ValidationResult{
@@ -84,7 +84,7 @@ func validateTrafficEngineeringAttr(code uint8, length int, _ []byte, _, _ bool)
 //
 // Zero is malformed by the "non-zero" half: 0 % 20 == 0 would pass a multiple-of-20 test
 // on its own.
-func validateIPv6ExtCommunityAttr(code uint8, length int, _ []byte, _, _ bool) *RFC7606ValidationResult {
+func validateIPv6ExtCommunityAttr(code uint8, length int, _ []byte, _, _ bool, _ receivePolicy) *RFC7606ValidationResult {
 	if length == 0 || length%ipv6ExtCommunityLen != 0 {
 		var b textbuf.Buffer
 		return &RFC7606ValidationResult{
@@ -107,10 +107,12 @@ func validateIPv6ExtCommunityAttr(code uint8, length int, _ []byte, _, _ bool) *
 //	   include the MP_REACH or MP_UNREACH attribute.
 //	o  The included attributes are malformed themselves.
 //
-// The outer session's isIBGP/asn4 are deliberately unused: see the inner-context note in
-// validateAttrSetDepth. Taking them and ignoring them is the point -- the signature is
-// fixed by attrValidatorFn.
-func validateAttrSetAttr(code uint8, length int, attrData []byte, _, _ bool) *RFC7606ValidationResult {
+// The outer session's isIBGP/asn4 and the receiving peer's policy are deliberately
+// unused: see the inner-context note in validateAttrSetDepth. The included attributes
+// describe the originating network's path, not this session's, so the receiving peer's
+// `session as-set accept` does not reach them. Taking them and ignoring them is the
+// point -- the signature is fixed by attrValidatorFn.
+func validateAttrSetAttr(code uint8, length int, attrData []byte, _, _ bool, _ receivePolicy) *RFC7606ValidationResult {
 	return validateAttrSetDepth(code, length, attrData, 0)
 }
 
@@ -223,7 +225,7 @@ func validateAttrSetDepth(
 		// RFC 7606 Section 7.16: "An UPDATE message with a malformed ATTR_SET
 		// attribute SHALL be handled using the approach of 'treat as withdraw'."
 		// Attribute discard describes handling, not absence of malformation.
-		if r := validateAttribute(innerCode, innerLen, innerData, true, true); r != nil &&
+		if r := validateAttribute(innerCode, innerLen, innerData, true, true, receivePolicy{}); r != nil &&
 			r.Action != RFC7606ActionNone {
 			return malformed("an included attribute is itself malformed, code", int64(innerCode))
 		}

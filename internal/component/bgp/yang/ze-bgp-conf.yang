@@ -751,11 +751,12 @@ module ze-bgp-conf {
                 }
                 default withdraw;
                 description "RFC 9774 Section 3 treats an UPDATE whose AS_PATH or AS4_PATH holds an AS_SET or
-                    AS_CONFED_SET as withdrawn, unless the operator configures otherwise during a transition.
-                    accept is that transition for a peer migrated from ExaBGP: ze exabgp migrate writes it for a
-                    neighbor whose ExaBGP config said as-set accept, and nothing else writes it. Every other
-                    check of the path still runs, and Ze still never advertises a set to this peer.";
-                ze:help "Received AS_SET handling; accept is written only by ze exabgp migrate.";
+                    AS_CONFED_SET as withdrawn, unless explicitly configured otherwise by a network operator.
+                    accept is that operator configuration: the operator sets it on a peer that must keep such
+                    routes, and ze exabgp migrate writes it for a neighbor whose ExaBGP config said as-set
+                    accept. Every other check of the path still runs, and Ze still never advertises a set to
+                    this peer.";
+                ze:help "Received AS_SET handling; accept keeps such a route, as the operator configured.";
             }
 
             container asn {

@@ -35,7 +35,7 @@ func TestRFC7606OriginalReachabilityMetadata(t *testing.T) {
 				attrs = append(attrs, 0xc0, 8, 4, 0)
 			}
 			// RFC 7606 Sections 4 and 5.2: preserve observed reachability.
-			result := ValidateUpdateRFC7606AddPath(attrs, tc.legacy, false, false, nil, false)
+			result := ValidateUpdateRFC7606Peer(attrs, tc.legacy, false, false, nil, false, false)
 			require.Equal(t, tc.wantAction, result.Action, result.Description)
 			require.Equal(t, tc.wantReach, result.HasReachableNLRI)
 		})

@@ -234,7 +234,7 @@ effect, and refuses the config, naming the leaf, for a value it cannot reproduce
 | ExaBGP line | Migration | Why |
 |-------------|-----------|-----|
 | `as-set withdraw` (ExaBGP's default) | accepted, nothing written | Ze treats every received route whose AS_PATH or AS4_PATH holds an AS_SET or AS_CONFED_SET as withdrawn (RFC 9774 Section 3) |
-| `as-set accept` | written as `session { as-set accept; }` on the peer | The peer keeps such a route, as the ExaBGP neighbor did. RFC 9774 Section 3 allows it when "explicitly configured by a network operator", and only the migration writes this leaf: Ze's own configs keep the RFC's behavior. Structure and AS 0 checks still apply |
+| `as-set accept` | written as `session { as-set accept; }` on the peer | The peer keeps such a route, as the ExaBGP neighbor did. RFC 9774 Section 3 allows it when "explicitly configured by a network operator", and the leaf is that configuration: an operator may also set it on any ze peer, and a peer without it keeps the RFC's behavior. Structure and AS 0 checks still apply |
 | `tunnel-encapsulation accept` | accepted, nothing written | Ze keeps a received Tunnel Encapsulation attribute on every session |
 | `tunnel-encapsulation auto` (ExaBGP's default) | accepted, nothing written | Same as an ExaBGP config without the line. On an external neighbor ExaBGP drops the attribute and Ze does not yet: that is Ze's RFC 9012 Section 11 gap (`rfc/short/rfc9012.md`, RFC9012-11-5), with or without the line |
 | `tunnel-encapsulation filter` | refused | Ze cannot yet drop the attribute from one peer |

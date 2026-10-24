@@ -123,7 +123,7 @@ func TestRFC7606MPNLRILengthConsistentWithAFIAccepted(t *testing.T) {
 // TestRFC7606MPReachNLRIOverrunsAttribute negative).
 //
 // The test calls ValidateUpdateRFC7606, the wrapper that runs
-// ValidateUpdateRFC7606AddPath with no ADD-PATH family and no Link-Local Next Hop.
+// ValidateUpdateRFC7606Peer with no ADD-PATH family and no Link-Local Next Hop.
 //
 // RFC requirement: RFC7606-5.3-4 positive -- an IPv4 MP_REACH_NLRI whose last NLRI, 10.0.0.0/8, needs exactly the one octet remaining in the attribute is accepted by ValidateUpdateRFC7606 with action None.
 func TestRFC7606MPReachNLRIConsistentWithAFISAFIAccepted(t *testing.T) {

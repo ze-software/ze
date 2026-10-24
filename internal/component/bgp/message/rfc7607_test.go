@@ -1,7 +1,7 @@
 // Design: docs/architecture/wire/messages.md — AS 0 is proscribed on the wire
 // RFC: rfc/short/rfc7607.md — Codification of AS 0 Processing
 // Related: rfc7607.go — the AS4_PATH and AS4_AGGREGATOR validators these drive
-// Related: rfc7606.go — validateASPath and validateAggregatorAttr, extended for AS 0
+// Related: rfc7606.go — validateASPathAttr and validateAggregatorAttr, extended for AS 0
 
 package message
 
@@ -21,7 +21,7 @@ func asPathAttr(asns []uint32, asn4 bool) []byte {
 	return append([]byte{0x40, attrCodeASPath, byte(len(value))}, value...)
 }
 
-// TestRFC7607ASPathZeroTreatAsWithdraw drives validateASPath, the producer the RFC
+// TestRFC7607ASPathZeroTreatAsWithdraw drives validateASPathAttr, the producer the RFC
 // 7606 attribute walk calls for code 2, over an AS_SEQUENCE that carries AS 0. RFC
 // 7607 Section 2 makes that UPDATE malformed and RFC 7606 Section 7.2 makes a
 // malformed AS_PATH a treat-as-withdraw.
@@ -30,7 +30,8 @@ func asPathAttr(asns []uint32, asn4 bool) []byte {
 // handled by the RFC 7606 procedure for that attribute, which is treat-as-withdraw.
 func TestRFC7607ASPathZeroTreatAsWithdraw(t *testing.T) {
 	for _, asn4 := range []bool{false, true} {
-		result := validateASPath(asPathAttr([]uint32{65001, 0, 65002}, asn4)[3:], asn4)
+		path := asPathAttr([]uint32{65001, 0, 65002}, asn4)[3:]
+		result := validateASPathAttr(attrCodeASPath, len(path), path, false, asn4, receivePolicy{})
 		if result == nil {
 			t.Fatalf("asn4=%v: AS 0 in AS_PATH was accepted", asn4)
 		}
@@ -50,7 +51,8 @@ func TestRFC7607ASPathZeroTreatAsWithdraw(t *testing.T) {
 // check is bound to the zero and not to the presence of an AS_PATH.
 func TestRFC7607ASPathNonZeroAccepted(t *testing.T) {
 	for _, asn4 := range []bool{false, true} {
-		if result := validateASPath(asPathAttr([]uint32{65001, 65002}, asn4)[3:], asn4); result != nil {
+		path := asPathAttr([]uint32{65001, 65002}, asn4)[3:]
+		if result := validateASPathAttr(attrCodeASPath, len(path), path, false, asn4, receivePolicy{}); result != nil {
 			t.Errorf("asn4=%v: a path with no AS 0 was rejected: %s", asn4, result.Description)
 		}
 	}
@@ -73,7 +75,7 @@ func TestRFC7607AggregatorZeroDiscard(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			result := validateAggregatorAttr(attrCodeAggregator, len(tc.data), tc.data, false, tc.asn4)
+			result := validateAggregatorAttr(attrCodeAggregator, len(tc.data), tc.data, false, tc.asn4, receivePolicy{})
 			if result == nil {
 				t.Fatal("AS 0 in AGGREGATOR was accepted")
 			}
@@ -100,7 +102,7 @@ func TestRFC7607AggregatorNonZeroAccepted(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			result := validateAggregatorAttr(attrCodeAggregator, len(tc.data), tc.data, false, tc.asn4)
+			result := validateAggregatorAttr(attrCodeAggregator, len(tc.data), tc.data, false, tc.asn4, receivePolicy{})
 			if result != nil {
 				t.Errorf("a non-zero AGGREGATOR was rejected: %s", result.Description)
 			}
@@ -113,7 +115,7 @@ func TestRFC7607AggregatorNonZeroAccepted(t *testing.T) {
 func TestRFC7607AS4PathZeroDiscard(t *testing.T) {
 	// One AS_SEQUENCE of two four-octet ASNs, the second of which is zero.
 	data := []byte{asPathTypeASSequence, 2, 0x00, 0x00, 0xFD, 0xE9, 0x00, 0x00, 0x00, 0x00}
-	result := validateAS4PathAttr(attrCodeAS4Path, len(data), data, false, true)
+	result := validateAS4PathAttr(attrCodeAS4Path, len(data), data, false, true, receivePolicy{})
 	if result == nil {
 		t.Fatal("AS 0 in AS4_PATH was accepted")
 	}
@@ -129,7 +131,7 @@ func TestRFC7607AS4PathZeroDiscard(t *testing.T) {
 // discard is bound to the zero and not to the attribute being present at all.
 func TestRFC7607AS4PathNonZeroAccepted(t *testing.T) {
 	data := []byte{asPathTypeASSequence, 2, 0x00, 0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x02}
-	result := validateAS4PathAttr(attrCodeAS4Path, len(data), data, false, true)
+	result := validateAS4PathAttr(attrCodeAS4Path, len(data), data, false, true, receivePolicy{})
 	if result != nil {
 		t.Errorf("a non-zero AS4_PATH was rejected: %s", result.Description)
 	}
@@ -139,7 +141,7 @@ func TestRFC7607AS4PathNonZeroAccepted(t *testing.T) {
 // RFC 6793 Section 6 procedure for a malformed AS4_AGGREGATOR is attribute discard.
 func TestRFC7607AS4AggregatorZeroDiscard(t *testing.T) {
 	data := []byte{0x00, 0x00, 0x00, 0x00, 192, 0, 2, 1}
-	result := validateAS4AggregatorAttr(attrCodeAS4Aggregator, len(data), data, false, true)
+	result := validateAS4AggregatorAttr(attrCodeAS4Aggregator, len(data), data, false, true, receivePolicy{})
 	if result == nil {
 		t.Fatal("AS 0 in AS4_AGGREGATOR was accepted")
 	}
@@ -155,7 +157,7 @@ func TestRFC7607AS4AggregatorZeroDiscard(t *testing.T) {
 // AS is accepted, so the discard is bound to the zero AS.
 func TestRFC7607AS4AggregatorNonZeroAccepted(t *testing.T) {
 	data := []byte{0x00, 0x01, 0x00, 0x01, 192, 0, 2, 1}
-	result := validateAS4AggregatorAttr(attrCodeAS4Aggregator, len(data), data, false, true)
+	result := validateAS4AggregatorAttr(attrCodeAS4Aggregator, len(data), data, false, true, receivePolicy{})
 	if result != nil {
 		t.Errorf("a non-zero AS4_AGGREGATOR was rejected: %s", result.Description)
 	}

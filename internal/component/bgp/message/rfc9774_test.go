@@ -30,7 +30,7 @@ func joinSegments(segments ...[]byte) []byte {
 // receive rule. Goal: an AS_SET or AS_CONFED_SET segment anywhere in a well-framed AS_PATH,
 // on a two-octet or a four-octet session, is treat-as-withdraw naming RFC 9774 Section 3,
 // while AS_SEQUENCE and AS_CONFED_SEQUENCE paths stay accepted. Method: build each path
-// from segments and call validateASPath directly.
+// from segments and call the registered validator, validateASPathAttr, directly.
 //
 // RFC requirement: RFC9774-3-2 positive -- an AS_SET or AS_CONFED_SET segment in a
 // well-framed AS_PATH, at either AS width, is treat-as-withdraw on attribute code 2 with
@@ -59,7 +59,7 @@ func TestValidateASPathRejectsSetSegments(t *testing.T) {
 			{"confed set last", joinSegments(seq, confedSet), "AS_CONFED_SET"},
 		}
 		for _, tc := range rejected {
-			got := validateASPath(tc.path, asn4)
+			got := validateASPathAttr(attrCodeASPath, len(tc.path), tc.path, false, asn4, receivePolicy{})
 			if got == nil {
 				t.Fatalf("asn4=%v %s: accepted, want treat-as-withdraw", asn4, tc.name)
 			}
@@ -85,7 +85,7 @@ func TestValidateASPathRejectsSetSegments(t *testing.T) {
 			"three mixed non-set types": joinSegments(confedSeq, seq, seq),
 		}
 		for name, path := range accepted {
-			if got := validateASPath(path, asn4); got != nil {
+			if got := validateASPathAttr(attrCodeASPath, len(path), path, false, asn4, receivePolicy{}); got != nil {
 				t.Errorf("asn4=%v %s: %q, want accepted", asn4, name, got.Description)
 			}
 		}
@@ -101,7 +101,7 @@ func TestValidateASPathStructureBeforeSet(t *testing.T) {
 	overrun := joinSegments(set, []byte{asPathTypeASSequence, 3, 0, 0, 0xfd, 0xe9})
 	underrun := joinSegments(set, []byte{asPathTypeASSequence})
 	for name, path := range map[string][]byte{"overrun": overrun, "underrun": underrun} {
-		got := validateASPath(path, true)
+		got := validateASPathAttr(attrCodeASPath, len(path), path, false, true, receivePolicy{})
 		if got == nil {
 			t.Fatalf("%s: accepted, want the structural fault", name)
 		}
@@ -134,7 +134,7 @@ func TestValidateAS4PathRejectsSetSegments(t *testing.T) {
 			{"set outranks AS 0 discard", joinSegments(zeroSeq, set), "AS_SET"},
 		}
 		for _, tc := range cases {
-			got := validateAS4PathAttr(attrCodeAS4Path, len(tc.path), tc.path, false, asn4)
+			got := validateAS4PathAttr(attrCodeAS4Path, len(tc.path), tc.path, false, asn4, receivePolicy{})
 			if got == nil {
 				t.Fatalf("asn4=%v %s: accepted, want treat-as-withdraw", asn4, tc.name)
 			}
@@ -150,16 +150,16 @@ func TestValidateAS4PathRejectsSetSegments(t *testing.T) {
 			}
 		}
 
-		got := validateAS4PathAttr(attrCodeAS4Path, len(zeroSeq), zeroSeq, false, asn4)
+		got := validateAS4PathAttr(attrCodeAS4Path, len(zeroSeq), zeroSeq, false, asn4, receivePolicy{})
 		if got == nil || got.Action != RFC7606ActionAttributeDiscard {
 			t.Errorf("asn4=%v AS 0 without set: %+v, want attribute discard", asn4, got)
 		}
-		if got := validateAS4PathAttr(attrCodeAS4Path, len(seq), seq, false, asn4); got != nil {
+		if got := validateAS4PathAttr(attrCodeAS4Path, len(seq), seq, false, asn4, receivePolicy{}); got != nil {
 			t.Errorf("asn4=%v clean AS4_PATH: %q, want accepted", asn4, got.Description)
 		}
 
 		misframed := joinSegments(set, []byte{asPathTypeASSequence, 2, 0, 0})
-		if got := validateAS4PathAttr(attrCodeAS4Path, len(misframed), misframed, false, asn4); got != nil {
+		if got := validateAS4PathAttr(attrCodeAS4Path, len(misframed), misframed, false, asn4, receivePolicy{}); got != nil {
 			t.Errorf("asn4=%v misframed AS4_PATH with set: %q, want no verdict from the set scan", asn4, got.Description)
 		}
 	}
@@ -169,7 +169,7 @@ func TestValidateAS4PathRejectsSetSegments(t *testing.T) {
 // Section 3 at the validator: with acceptASSet true an AS_SET in AS_PATH or AS4_PATH
 // draws no verdict, while with false it is treat-as-withdraw; AS 0 and a structural
 // fault still draw their own verdicts with the exception on. Method: one UPDATE
-// attribute block per case through ValidateUpdateRFC7606AddPath, both policies.
+// attribute block per case through ValidateUpdateRFC7606Peer, both policies.
 func TestValidateUpdateAcceptASSetKeepsSetsOnly(t *testing.T) {
 	wantAction := func(want, got RFC7606Action, format string, args ...any) {
 		t.Helper()
@@ -205,8 +205,9 @@ func TestValidateUpdateAcceptASSetKeepsSetsOnly(t *testing.T) {
 		wantAction(tc.acceptWant, got.Action, "%s, accept: %s", tc.name, got.Description)
 	}
 
-	// AS4_PATH on a 2-octet session: the set verdict outranks nothing once accepted,
-	// and AS 0 still earns its attribute discard (RFC 7607 Section 2, RFC 6793 Section 6).
+	// AS4_PATH on a 2-octet session. With the operator configuration on, a set draws no
+	// verdict, and AS 0 still earns its attribute discard (RFC 7607 Section 2, RFC 6793
+	// Section 6).
 	asPath2 := []byte{2, 2, 0xfd, 0xea, 0x5b, 0xa0}
 	as4 := func(value []byte) []byte {
 		block := attrs(2, asPath2)

@@ -28,7 +28,7 @@ import (
 //
 // PREVENTS: two defects at once.
 //
-// The MUST itself was skippable. `ValidateUpdateRFC7606AddPath` (message/rfc7606.go) counted
+// The MUST itself was skippable. `ValidateUpdateRFC7606Peer` (message/rfc7606.go) counted
 // MP attributes in its walk and judged the count afterwards, so appending one attribute
 // whose declared length overruns the section returned treat-as-withdraw from inside the loop
 // and the duplicate was never reported. The peer kept a session RFC 7606 says must be reset.

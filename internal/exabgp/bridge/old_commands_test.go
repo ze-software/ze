@@ -333,7 +333,7 @@ func decodeOldUpdate(body []byte, facts SessionFacts) (rows []string, ok bool) {
 
 // oldSessionReset reports whether ze, receiving the UPDATE body, resets the
 // session rather than reading a route from it: the RFC 7606 walk the reactor
-// runs before the bridge sees a message (message.ValidateUpdateRFC7606AddPath).
+// runs before the bridge sees a message (message.ValidateUpdateRFC7606Peer).
 //
 // The renderer alone is lenient where the walk is not. 5.0's recorder packed
 // `next-hop self` of an IPv6 route on the IPv4 session unresolved, as a four
@@ -371,7 +371,7 @@ func oldSessionReset(body []byte, facts SessionFacts) bool {
 			return received.AddPathFor(family.Family{AFI: family.AFI(afi), SAFI: family.SAFI(safi)})
 		}
 	}
-	verdict := message.ValidateUpdateRFC7606AddPath(body[start:start+attrs], len(body) > start+attrs, true, true, addPath, false)
+	verdict := message.ValidateUpdateRFC7606Peer(body[start:start+attrs], len(body) > start+attrs, true, true, addPath, false, false)
 	return verdict != nil && verdict.Action == message.RFC7606ActionSessionReset
 }
 

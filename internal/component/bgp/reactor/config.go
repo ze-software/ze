@@ -359,6 +359,7 @@ func parsePeerSettings(name string, tree map[string]any, ip netip.Addr, peerAS, 
 	if err := applyAIGPSettings(ps, name, sessionMap); err != nil {
 		return nil, err
 	}
+	// RFC 9774 Section 3
 	if err := applyASSetPolicy(ps, name, sessionMap); err != nil {
 		return nil, err
 	}
