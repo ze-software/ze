@@ -330,6 +330,21 @@ destination prefix.</p>
     }
 }
 </code></pre>
+<p>The BGP RIB is the <code>bgp-rib</code> plugin, which only a build with the <code>ze_bgp</code> tag
+carries. Turning <code>bgp true</code> on starts it when the build has it, even with no
+<code>bgp {}</code> block; with enrichment off, flow export never starts it. A build
+without <code>ze_bgp</code> still runs flow export, and refuses <code>bgp true</code> at
+<code>ze config validate</code>, at commit, at daemon start and at SIGHUP reload, before
+any plugin starts. The refusal names the setting and gives the fix on its own
+line:</p>
+<pre><code>config: "flow-export enrichment bgp true" needs plugin bgp-rib, and this build does not include it
+  fix: rebuild ze with build tag ze_bgp added to its -tags list, or remove "flow-export enrichment bgp true" from the config
+</code></pre>
+<p>Set <code>bgp false</code> (or leave the leaf out) to run flow export on that build.
+Before this refusal existed, such a build accepted the setting and the exporter
+silently received no RIB data.</p>
+<!-- source: internal/plugins/flowexport/register.go -- ConfigNeeds, bgpRIBPlugin -->
+<!-- source: internal/component/config/optional_provider.go -- refuseAbsentOptionalProviders, unmetNeedMessage -->
 <h2 id="operational-command">Operational Command</h2>
 <p><code>show flow export [name &lt;collector&gt;]</code> reports per-collector export statistics.
 With no argument it lists every collector; with <code>name &lt;collector&gt;</code> it returns
@@ -551,7 +566,7 @@ the collector endpoints off any untrusted path.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 09:38 UTC</span>
                 </div>
             </div>
         </footer>

@@ -123,7 +123,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 <article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>50.8%</strong><b>31 of 61 tagged units, 0 escaped and 7 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
-<article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>9</strong><b>of 9 gated MUSTs judged</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -186,7 +185,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -835,7 +834,7 @@ Pending note: retain enforced with this full population, cross-boundary routing 
 </div>
 <h3><a href="#rfc7911-5-5"><code>RFC7911-5-5</code></a></h3>
 <p>The peer SHALL act accordingly in processing an UPDATE message related to a particular &lt;AFI, SAFI&gt;. (Section 5)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 7911 Section 5: &#34;The peer SHALL act accordingly in processing an UPDATE message related to a particular &lt;AFI, SAFI&gt;.&#34; Read together with the immediately preceding full send/receive negotiation and extended-(prefix,Path Identifier) encoding sentence. All four current carriers read: TestRFC7911AddPathStateAppliesPerFamily, TestEnforceRFC7606_MPAddPathLargePathIDAccepted, TestEnforceRFC7606_IPv4BodyAddPathLargePathIDAccepted and TestRFC7606Section54ReadsTypedNLRIUnderAddPath. The receive matrix positively accepts only the encoding selected for each family and negatively requires exact SessionReset on wrong framing in both IPv4/IPv6 orientations; large identifier octets isolate the framing misread. The typed test now installs a real receive context and verifies the recognized EVPN route retains its identifier while the unknown route disappears. enforceRFC7606 and typedNLRIEdit consult recvCtx.AddPathFor on the specific family. This is receive-side evidence, not an extra generation claim. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/component/bgp/reactor/session_validation_nlritype_bypass_test.go::TestRFC7606Section54ReadsTypedNLRIUnderAddPath moved. RFC 7911 Section 5: &#34;The peer SHALL act accordingly in processing an UPDATE message related to a particular &lt;AFI, SAFI&gt;.&#34; Read together with the immediately preceding full send/receive negotiation and extended-(prefix,Path Identifier) encoding sentence. All four current carriers read: TestRFC7911AddPathStateAppliesPerFamily, TestEnforceRFC7606_MPAddPathLargePathIDAccepted, TestEnforceRFC7606_IPv4BodyAddPathLargePathIDAccepted and TestRFC7606Section54ReadsTypedNLRIUnderAddPath. The receive matrix positively accepts only the encoding selected for each family and negatively requires exact SessionReset on wrong framing in both IPv4/IPv6 orientations; large identifier octets isolate the framing misread. The typed test now installs a real receive context and verifies the recognized EVPN route retains its identifier while the unknown route disappears. enforceRFC7606 and typedNLRIEdit consult recvCtx.AddPathFor on the specific family. This is receive-side evidence, not an extra generation claim. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1049,7 +1048,7 @@ Pending note: retain enforced with this full population, cross-boundary routing 
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 08:58 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 09:38 UTC</span>
                 </div>
             </div>
         </footer>

@@ -23,7 +23,7 @@ eBPF TCX per-port and per-IP byte accounting
 ## Used by
 
 - Required dependency for: None
-- Optional dependency for: None
+- Optional dependency for: [`anomaly-detect`](../anomaly-detect/index.md), [`ddos-detect`](../ddos-detect/index.md)
 
 ## Repository artifacts
 

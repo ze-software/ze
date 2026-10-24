@@ -4,7 +4,7 @@ Source: `internal/le/rfc`, `rfc/short/*.md`, and `rfc/audit/*/*.json`.
 
 ## Gate verdict
 
-RED. 136 open gate issues. Check results below names them, up to the 25 this page inlines. Reproduce it with `./le rfc check`. The gate's own line reads `rfc-requirements: 136 violation(s)`.
+RED. 146 open gate issues. Check results below names them, up to the 25 this page inlines. Reproduce it with `./le rfc check`. The gate's own line reads `rfc-requirements: 146 violation(s)`.
 
 ### Overall
 
@@ -25,7 +25,7 @@ what Ze has
 | Tested both ways | 56.0% | 2,331 of 4,163 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 10.2% | 426 of 4,163 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 4,163 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 65.5% | 5,793 of 8,843 tagged units in enrolled RFCs, 4 escaped and 141 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 65.8% | 5,816 of 8,843 tagged units in enrolled RFCs, 4 escaped and 118 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -36,7 +36,7 @@ measures that are neither good news nor bad
 | Not applicable | 16.0% | 668 of 4,163 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 1.1% | 44 of 4,163 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 1.2% | 52 of 4,163 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
-| Semantic verdicts | 2,228 | 36 shifted, 7 stale, 2,021 missing | requirements a reader has judged and whose judgement is still current. A missing verdict is not claimed, and the shifted and stale ones are named on their own RFC's page |
+| Semantic verdicts | 2,218 | 41 shifted, 12 stale, 2,021 missing | requirements a reader has judged and whose judgement is still current. A missing verdict is not claimed, and the shifted and stale ones are named on their own RFC's page |
 
 ### Negative
 
@@ -46,7 +46,7 @@ what Ze owes
 |---|---:|---|---|
 | Partial proof; remaining gap | 0.4% | 15 of 4,163 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 15.1% | 627 of 4,163 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Gate verdict | RED | 136 open gate issues | whether ./le rfc check passes over this tree |
+| Gate verdict | RED | 146 open gate issues | whether ./le rfc check passes over this tree |
 
 The 8 shares marked as a part above are the whole of the 4,163 gated MUSTs: they add to 100%. Proven by test is the first two of them added together, so it is not a part of its own. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -71,15 +71,15 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 | Metric | Value |
 |---|---:|
-| Gate issues | 136 |
+| Gate issues | 146 |
 | Gated MUST-level requirements | 4,292 |
 | Enrolled RFCs | 177 |
 | Resolved test tags | 9,143 |
 | Declared gaps | 627 |
 | RFCs with declared gaps | 74 |
-| Fresh semantic audit verdicts | 2,228 |
-| Shifted semantic audit verdicts | 36 |
-| Stale semantic audit verdicts | 7 |
+| Fresh semantic audit verdicts | 2,218 |
+| Shifted semantic audit verdicts | 41 |
+| Stale semantic audit verdicts | 12 |
 
 ## Who implements each document
 
@@ -213,7 +213,7 @@ This gate runs before a commit is verified: ./le rfc check is 1 stage of the 57 
 | Enrolment | `rfc/short/*.md`, the `\| Enrolment \|` Meta row | 177 enrolled RFCs |
 | Test tags | `internal/`, `pkg/`, `test/` | 9,143 resolved tags |
 | Public ledger | `rfc/short/*.md`, the `\| Support \|` Meta row | 74 RFCs with gaps, 2 Supported with Remaining |
-| Semantic audits | `rfc/audit/*/*.json` | 2,228 fresh, 36 shifted, 7 stale, 2,021 missing |
+| Semantic audits | `rfc/audit/*/*.json` | 2,218 fresh, 41 shifted, 12 stale, 2,021 missing |
 | Pre-commit verification | `internal/le/verify/engine/stages.go` | ./le rfc check, 1 of 57 full-mode stages |
 | Published artifacts | `data/rfc-compliance.json`, `data/rfc-requirements.json` | the same answers this page renders, machine-readable |
 
@@ -229,25 +229,25 @@ This gate runs before a commit is verified: ./le rfc check is 1 stage of the 57 
 | - | `-` | - | rfc/short/draft-ietf-idr-linklocal-capability.md:129: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1 has a STALE audit verdict -- what it judged changed: internal/component/bgp/message/draft_ietf_idr_linklocal_capability_malformed_test.go::TestLinkLocalCapabilityMalformedThirtyTwoOctet (func-scoped), internal/component/bgp/message/draft_ietf_idr_linklocal_capability_malformed_test.go::TestLinkLocalCapabilityWellFormedThirtyTwoOctet (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read draft-ietf-idr-linklocal-capability with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md) | - |
 | - | `-` | - | rfc/short/rfc3948.md:216: RFC3948-2.1-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/ike/engine/rfc3948_rebind_test.go::TestRFC3948RebindMigratesTunnelChildSAs, internal/component/ike/engine/rfc3948_rebind_test.go::TestRFC3948RebindNotRunWithoutAnAdoptedMove, internal/component/ike/engine/rfc3948_rebind_test.go::TestRFC3948RebindRekeysTransportChildSA, internal/component/ike/engine/rfc3948_rebind_test.go::TestRFC3948RebindRekeysWithoutAMigrator), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal | - |
 | - | `-` | - | rfc/short/rfc3948.md:217: RFC3948-3.1.2-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/le/interoplab/ipsec/checkers.go::checkNATTTransportInnerChecksum, internal/le/interoplab/ipsec/checkers.go::checkNATTTunnelInnerChecksum), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal | - |
+| - | `-` | - | rfc/short/rfc4271.md:794: RFC4271-5.1.5-3 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC4271LocalPrefFromExternalPeerNeverReachesTheRIB, internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC4271LocalPrefFromExternalPeerNeverReachesTheRIB#2), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal | - |
+| - | `-` | - | rfc/short/rfc6286.md:111: RFC6286-2.1-1 has a STALE audit verdict -- what it judged changed: internal/component/bgp/reactor/config.go::parsePeerSettings (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc6286 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md) | - |
 | - | `-` | - | rfc/short/rfc7296.md:491: RFC7296-2.7-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/le/interoplab/ipsec/checkers.go::checkESNBothOffered, internal/le/interoplab/ipsec/checkers.go::checkESNExtendedOnlyRefused), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal | - |
 | - | `-` | - | rfc/short/rfc7296.md:623: RFC7296-2.21.4-8 has a STALE audit verdict -- what it judged changed: internal/component/ike/engine/established.go::maintainSA (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7296 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md) | - |
+| - | `-` | - | rfc/short/rfc7606.md:326: RFC7606-2-3 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606NonRouteSelectionAttributesAreDiscarded, internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606RouteSelectionAttributesNeverDiscarded), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal | - |
 | - | `-` | - | rfc/short/rfc7606.md:328: RFC7606-3.c-1 has a STALE audit verdict -- what it judged changed: internal/component/bgp/message/rfc7606_attribute_envelope_test.go::TestRFC7606ImplementedAttributeFlagConflicts (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7606 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md) | - |
 | - | `-` | - | rfc/short/rfc7606.md:329: RFC7606-3.d-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/message/rfc7606_test.go::TestRFC7606MissingASPath, internal/component/bgp/message/rfc7606_test.go::TestRFC7606MissingOrigin, internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption, internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption#2, internal/component/bgp/message/rfc7606_test.go::TestRFC7606ValidUpdate), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal | - |
 | - | `-` | - | rfc/short/rfc7606.md:330: RFC7606-3.e-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPathUnrecognizedSegmentType, internal/component/bgp/message/rfc7606_test.go::TestRFC7606LocalPrefIBGPInvalid, internal/component/bgp/message/rfc7606_test.go::TestRFC7606MalformedOriginLength, internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal | - |
 | - | `-` | - | rfc/short/rfc7606.md:331: RFC7606-3.f-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/message/rfc7606_test.go::TestRFC7606AggregatorLen8NoASN4Invalid, internal/component/bgp/message/rfc7606_test.go::TestRFC7606MalformedAtomicAggregate, internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal | - |
-| - | `-` | - | rfc/short/rfc7606.md:332: RFC7606-3.g-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachIPv4NextHopValid, internal/component/bgp/message/rfc7606_test.go::TestRFC7606MultipleMPReach, internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal | - |
+| - | `-` | - | rfc/short/rfc7606.md:332: RFC7606-3.g-1 has a STALE audit verdict -- what it judged changed: internal/component/bgp/reactor/rfc7606_session_validation_dupmp_test.go::TestRFC7606Section3gDuplicateMPBeatsAnAbandonedWalk (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7606 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md) | - |
 | - | `-` | - | rfc/short/rfc7606.md:333: RFC7606-3.h-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/message/rfc7606_test.go::TestRFC7606CollectAllErrors), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal | - |
 | - | `-` | - | rfc/short/rfc7606.md:334: RFC7606-3.h-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/message/rfc7606_test.go::TestRFC7606MultipleErrorsStrongest), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal | - |
 | - | `-` | - | rfc/short/rfc7606.md:336: RFC7606-3.j-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachTooShort, internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPUnreachTooShort, internal/component/bgp/message/rfc7606_test.go::TestRFC7606NLRIOverrun, internal/component/bgp/message/rfc7606_test.go::TestRFC7606NLRIPrefixLengthTooLongIPv4, internal/component/bgp/message/rfc7606_test.go::TestRFC7606NLRIPrefixLengthTooLongIPv6, internal/component/bgp/message/rfc7606_test.go::TestRFC7606NLRIPrefixLengthValidIPv4, internal/component/bgp/message/rfc7606_test.go::TestRFC7606NLRIPrefixLengthValidIPv6), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal | - |
-| - | `-` | - | rfc/short/rfc7606.md:337: RFC7606-4-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal | - |
+| - | `-` | - | rfc/short/rfc7606.md:337: RFC7606-4-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606AttributeLengthConflictTreatAsWithdraw, internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal | - |
 | - | `-` | - | rfc/short/rfc7606.md:340: RFC7606-5.1-3 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachIPv4NextHopValid), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal | - |
 | - | `-` | - | rfc/short/rfc7606.md:341: RFC7606-5.2-1 has a STALE audit verdict -- what it judged changed: internal/component/bgp/message/rfc7606_attribute_envelope_test.go::TestRFC7606EmptyMPReachEscalatesToReset (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7606 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md) | - |
-| - | `-` | - | rfc/short/rfc7606.md:343: RFC7606-7.1-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/message/rfc7606_test.go::TestRFC7606MalformedOriginLength, internal/component/bgp/message/rfc7606_test.go::TestRFC7606OriginValueEGP, internal/component/bgp/message/rfc7606_test.go::TestRFC7606OriginValueIGP, internal/component/bgp/message/rfc7606_test.go::TestRFC7606OriginValueIncomplete, internal/component/bgp/message/rfc7606_test.go::TestRFC7606OriginValueInvalid), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal | - |
-| - | `-` | - | rfc/short/rfc7606.md:344: RFC7606-7.2-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPath4ByteASN, internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPath4ByteASNOverrun, internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPathSegmentOverrun, internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPathSegmentUnderrun, internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPathUnrecognizedSegmentType, internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPathValidSequence, internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPathValidSet, internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPathZeroSegmentLength), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal | - |
-| - | `-` | - | rfc/short/rfc7606.md:345: RFC7606-7.3-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption, internal/component/bgp/message/rfc7606_test.go::TestRFC7606ValidUpdate), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal | - |
-| - | `-` | - | rfc/short/rfc7606.md:346: RFC7606-7.4-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/message/rfc7606_test.go::TestRFC7606FlagsOptionalAttributeValid, internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal | - |
+| - | `-` | - | rfc/short/rfc7606.md:342: RFC7606-5.4-1 has a STALE audit verdict -- what it judged changed: internal/component/bgp/reactor/session_validation_nlritype_bypass_test.go::TestRFC7606Section54FiltersWhenTheAttributeWalkIsAbandoned (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7606 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md) | - |
 
-111 further findings not shown here. The whole list is in data/rfc-compliance.json, and each one is on its own RFC's page under the requirement it names.
+121 further findings not shown here. The whole list is in data/rfc-compliance.json, and each one is on its own RFC's page under the requirement it names.
 
 ## Enrolled RFCs
 

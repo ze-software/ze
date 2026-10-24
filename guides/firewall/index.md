@@ -22,6 +22,17 @@ firewall {
 }
 ```
 
+`backend vpp` needs the VPP component, which only a build with the `ze_vpp`
+tag carries. Selecting it starts that component with the firewall and orders
+the firewall after it; `backend nft` does not start it, though the firewall
+still starts after VPP when a `vpp {}` block runs it. In a build without
+`ze_vpp`, `ze config validate`, a commit and daemon boot all refuse
+`firewall backend vpp` before anything is applied, naming the leaf and the
+`ze_vpp` tag, where the config used to pass validation and fail at apply.
+
+<!-- source: internal/component/firewall/register.go -- vppPlugin, backendVPP, ConfigNeeds -->
+<!-- source: internal/component/config/optional_provider.go -- refuseAbsentOptionalProviders -->
+
 ### Clean-shutdown teardown
 
 `flush-on-shutdown` controls whether stopping the `ze` process removes ze-owned

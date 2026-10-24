@@ -18,7 +18,7 @@ DDoS FlowSpec/RTBH responder: upstream mitigation with leak-probe clear
 ## Dependencies
 
 - Required: None
-- Optional: None
+- Optional: [`bgp`](../bgp/index.md)
 
 ## Used by
 

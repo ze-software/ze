@@ -174,7 +174,6 @@ Generated group for registry entries mapped to the Firewall area. Config roots: 
 | [`firewall-domain`](firewall-domain/index.md) | DNS-sourced address groups for firewall rules | `firewall` | `firewall` | `internal/component/firewall/plugins/domain` |
 | [`firewall-irr`](firewall-irr/index.md) | IRR-based prefix-list filtering for firewall rules | `firewall` | `firewall` | `internal/component/firewall/plugins/irr` |
 
-- [`firewall`](firewall/index.md): Start after `vpp` (order only).
 ## Flow Export
 
 Generated group for registry entries mapped to the Flow Export area. Config roots: `flow-export`. Source area: `internal/plugins/flowexport`.

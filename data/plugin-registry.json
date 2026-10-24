@@ -6,7 +6,10 @@
       "anomaly/detect"
     ],
     "dependencies": [],
-    "optional_dependencies": [],
+    "optional_dependencies": [
+      "flow-export",
+      "traffic-usage"
+    ],
     "start_after": [],
     "source_dir": "internal/plugins/anomaly/detect",
     "yang_files": [
@@ -714,7 +717,10 @@
     "dependencies": [
       "interface"
     ],
-    "optional_dependencies": [],
+    "optional_dependencies": [
+      "flow-export",
+      "traffic-usage"
+    ],
     "start_after": [],
     "source_dir": "internal/plugins/ddos/detect",
     "yang_files": [
@@ -728,7 +734,9 @@
       "ddos/flowspec"
     ],
     "dependencies": [],
-    "optional_dependencies": [],
+    "optional_dependencies": [
+      "bgp"
+    ],
     "start_after": [],
     "source_dir": "internal/plugins/ddos/flowspec",
     "yang_files": [
@@ -866,10 +874,10 @@
       "firewall"
     ],
     "dependencies": [],
-    "optional_dependencies": [],
-    "start_after": [
+    "optional_dependencies": [
       "vpp"
     ],
+    "start_after": [],
     "source_dir": "internal/component/firewall",
     "yang_files": [
       "internal/component/firewall/yang/ze-firewall-cmd.yang",
@@ -994,7 +1002,9 @@
     "dependencies": [
       "sysctl"
     ],
-    "optional_dependencies": [],
+    "optional_dependencies": [
+      "vpp"
+    ],
     "start_after": [],
     "source_dir": "internal/component/iface",
     "yang_files": [

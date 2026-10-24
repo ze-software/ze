@@ -26,6 +26,10 @@ Thomas refined the card color rule on 24 October 2026:
 
 > It's very nice to have different cards with different colors, but the excessive colors on the card make it look less professional. Perhaps the border shouldn't be colored, only the title should have a color. The color brings differentiation, but it should be a bit more subdued.
 
+Thomas requested a different Routing color on 24 October 2026:
+
+> The color for routing is ugly.
+
 1. ### Preserve useful information
 
  Start with an inventory of existing capabilities, differentiators, demonstrations, evidence, deployment options, use cases, updates and release status. Give every item an explicit place in the proposal. Explain each move or reduction in detail. Removing useful information requires the owner's agreement.
@@ -73,7 +77,7 @@ Logo blue identifies Ze. Seven distinct subject colors connect related content a
 
 Category tokens retain their existing names for authored pages. Cards use `-deep` for readable titles and compact category labels on neutral surfaces. Selection controls can use `-base`, `-chip` and `-tint` to express their category and active state. Despite its name, `-deep` becomes lighter in the dark theme. Do not put white text on a bright accent without checking contrast. Normal text needs at least 4.5:1 in both themes.
 
-The category identities are fixed: Operate is blue, Routing amber, Services orange, Automate violet, Observe green, Secure magenta and Deploy & configure teal. Broad project updates and cross-topic evidence are neutral. Keep these identities in explicit and automatic dark mode. Status colors remain independent of this subject palette.
+The category identities are fixed: Operate is blue, Routing indigo, Services orange, Automate violet, Observe green, Secure magenta and Deploy & configure teal. Broad project updates and cross-topic evidence are neutral. Keep these identities in explicit and automatic dark mode. Status colors remain independent of this subject palette.
 
  Operate Routing Services Automate Observe Secure Deploy & configure Neutral
 
@@ -87,7 +91,7 @@ Operator surfaces: SSH CLI, YANG configuration, web workbench, looking glass.
 
 **Routing**
 
-### Amber
+### Indigo
 
 `--lemon-*`
 

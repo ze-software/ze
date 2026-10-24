@@ -131,6 +131,15 @@ the nft backend lowers them to nftables kernel expressions.</p>
     backend nft;
 }
 </code></pre>
+<p><code>backend vpp</code> needs the VPP component, which only a build with the <code>ze_vpp</code>
+tag carries. Selecting it starts that component with the firewall and orders
+the firewall after it; <code>backend nft</code> does not start it, though the firewall
+still starts after VPP when a <code>vpp {}</code> block runs it. In a build without
+<code>ze_vpp</code>, <code>ze config validate</code>, a commit and daemon boot all refuse
+<code>firewall backend vpp</code> before anything is applied, naming the leaf and the
+<code>ze_vpp</code> tag, where the config used to pass validation and fail at apply.</p>
+<!-- source: internal/component/firewall/register.go -- vppPlugin, backendVPP, ConfigNeeds -->
+<!-- source: internal/component/config/optional_provider.go -- refuseAbsentOptionalProviders -->
 <h3 id="clean-shutdown-teardown">Clean-shutdown teardown</h3>
 <p><code>flush-on-shutdown</code> controls whether stopping the <code>ze</code> process removes ze-owned
 tables from the kernel. It defaults to <code>true</code>: an orderly stop (SIGTERM, e.g.
@@ -1158,7 +1167,7 @@ A crash bypasses this path entirely, leaving tables in place.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 09:38 UTC</span>
                 </div>
             </div>
         </footer>

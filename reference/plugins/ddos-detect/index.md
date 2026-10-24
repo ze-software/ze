@@ -18,7 +18,7 @@ Automatic DDoS attack detector with two-stage detection
 ## Dependencies
 
 - Required: [`interface`](../interface/index.md)
-- Optional: None
+- Optional: [`flow-export`](../flow-export/index.md), [`traffic-usage`](../traffic-usage/index.md)
 
 ## Used by
 

@@ -49,7 +49,7 @@
     <h1 id="plugin-catalog-title">Plugin catalog</h1>
     <p>Ze features are composed from plugins. This catalog is generated from the live registry and explains what each plugin is for, what it configures, and which other plugins it relies on. Click any plugin to open a local detail page.</p>
 </div>
-                <p class="plugin-summary">Generated from 91 registry entries: 91 runtime plugins. Among runtime plugins, 73 declare configuration roots, 45 declare dependencies, and 77 ship YANG modules.</p>
+                <p class="plugin-summary">Generated from 91 registry entries: 91 runtime plugins. Among runtime plugins, 73 declare configuration roots, 48 declare dependencies, and 77 ship YANG modules.</p>
                 <div class="plugin-console" role="search" aria-label="Search plugins">
                     <label for="plugin-search">Search by feature, protocol, config root, dependency, or source path</label>
                     <input id="plugin-search" type="search" autocomplete="off" placeholder="Try RPKI, FlowSpec, FIB, DHCP, DDoS, l2tp, bgp-filter..." />
@@ -134,15 +134,16 @@
                     <p>Generated group for registry entries mapped to the Anomaly area. Config roots: <code>anomaly</code>. Source area: <code>internal/plugins/anomaly</code>.</p>
                     <div class="cards plugin-grid">
 
-                    <article class="card plugin-card cat-secure" id="plugin-anomaly-detect" data-plugin-card data-family="anomaly" data-category="security" data-search="anomaly-detect Behavioral anomaly detector (report-only): per-entity pattern-of-life over trafficfeature Behavioral anomaly detector (report-only): per-entity pattern-of-life over trafficfeature internal/plugins/anomaly/detect Anomaly   anomaly/detect    internal/plugins/anomaly/detect/yang/ze-anomaly-detect-conf.yang">
+                    <article class="card plugin-card cat-secure" id="plugin-anomaly-detect" data-plugin-card data-family="anomaly" data-category="security" data-search="anomaly-detect Behavioral anomaly detector (report-only): per-entity pattern-of-life over trafficfeature Behavioral anomaly detector (report-only): per-entity pattern-of-life over trafficfeature internal/plugins/anomaly/detect Anomaly   anomaly/detect  flow-export traffic-usage  internal/plugins/anomaly/detect/yang/ze-anomaly-detect-conf.yang">
                         <span class="cat">Anomaly</span>
                         <h3><a href="anomaly-detect/"><code>anomaly-detect</code></a></h3>
                         <p class="plugin-desc">Behavioral anomaly detector (report-only): per-entity pattern-of-life over trafficfeature</p>
                         <div class="chips">
                             <span class="chip mode">config:anomaly/detect</span>
+                            <span class="chip">optional:flow-export</span>
                             <span class="chip">YANG:1</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>anomaly/detect</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>anomaly/detect</code></dd></div><div><dt>Optional</dt><dd><code>flow-export</code>, <code>traffic-usage</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
                     </article>
 
                     <article class="card plugin-card cat-secure" id="plugin-anomaly-observe" data-plugin-card data-family="anomaly" data-category="security" data-search="anomaly-observe Behavioral anomaly observability: incident lifecycle store and show anomaly observe CLI Behavioral anomaly observability: incident lifecycle store and show anomaly observe CLI internal/plugins/anomaly/observe Anomaly   anomaly/observe    internal/plugins/anomaly/observe/yang/ze-anomaly-observe-conf.yang">
@@ -792,27 +793,29 @@
                     <p>Generated group for registry entries mapped to the DDoS area. Config roots: <code>ddos</code>. Source area: <code>internal/plugins/ddos</code>.</p>
                     <div class="cards plugin-grid">
 
-                    <article class="card plugin-card cat-secure" id="plugin-ddos-detect" data-plugin-card data-family="ddos" data-category="security" data-search="ddos-detect Automatic DDoS attack detector with two-stage detection Automatic DDoS attack detector with two-stage detection internal/plugins/ddos/detect DDoS   ddos/detect interface   internal/plugins/ddos/detect/yang/ze-ddos-detect-conf.yang">
+                    <article class="card plugin-card cat-secure" id="plugin-ddos-detect" data-plugin-card data-family="ddos" data-category="security" data-search="ddos-detect Automatic DDoS attack detector with two-stage detection Automatic DDoS attack detector with two-stage detection internal/plugins/ddos/detect DDoS   ddos/detect interface flow-export traffic-usage  internal/plugins/ddos/detect/yang/ze-ddos-detect-conf.yang">
                         <span class="cat">DDoS</span>
                         <h3><a href="ddos-detect/"><code>ddos-detect</code></a></h3>
                         <p class="plugin-desc">Automatic DDoS attack detector with two-stage detection</p>
                         <div class="chips">
                             <span class="chip mode">config:ddos/detect</span>
                             <span class="chip">needs:interface</span>
+                            <span class="chip">optional:flow-export</span>
                             <span class="chip">YANG:1</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>ddos/detect</code></dd></div><div><dt>Needs</dt><dd><code>interface</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>ddos/detect</code></dd></div><div><dt>Needs</dt><dd><code>interface</code></dd></div><div><dt>Optional</dt><dd><code>flow-export</code>, <code>traffic-usage</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
                     </article>
 
-                    <article class="card plugin-card cat-secure" id="plugin-ddos-flowspec" data-plugin-card data-family="ddos" data-category="security" data-search="ddos-flowspec DDoS FlowSpec/RTBH responder: upstream mitigation with leak-probe clear DDoS FlowSpec/RTBH responder: upstream mitigation with leak-probe clear internal/plugins/ddos/flowspec DDoS   ddos/flowspec    internal/plugins/ddos/flowspec/yang/ze-ddos-flowspec-conf.yang">
+                    <article class="card plugin-card cat-secure" id="plugin-ddos-flowspec" data-plugin-card data-family="ddos" data-category="security" data-search="ddos-flowspec DDoS FlowSpec/RTBH responder: upstream mitigation with leak-probe clear DDoS FlowSpec/RTBH responder: upstream mitigation with leak-probe clear internal/plugins/ddos/flowspec DDoS   ddos/flowspec  bgp  internal/plugins/ddos/flowspec/yang/ze-ddos-flowspec-conf.yang">
                         <span class="cat">DDoS</span>
                         <h3><a href="ddos-flowspec/"><code>ddos-flowspec</code></a></h3>
                         <p class="plugin-desc">DDoS FlowSpec/RTBH responder: upstream mitigation with leak-probe clear</p>
                         <div class="chips">
                             <span class="chip mode">config:ddos/flowspec</span>
+                            <span class="chip">optional:bgp</span>
                             <span class="chip">YANG:1</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>ddos/flowspec</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>ddos/flowspec</code></dd></div><div><dt>Optional</dt><dd><code>bgp</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
                     </article>
 
                     <article class="card plugin-card cat-secure" id="plugin-ddos-flowtriq" data-plugin-card data-family="ddos" data-category="security" data-search="ddos-flowtriq DDoS incident reporter for Flowtriq cloud API DDoS incident reporter for Flowtriq cloud API internal/plugins/ddos/flowtriq DDoS   ddos/flowtriq    internal/plugins/ddos/flowtriq/yang/ze-ddos-flowtriq-conf.yang">
@@ -945,16 +948,16 @@
                     <p>Generated group for registry entries mapped to the Firewall area. Config roots: <code>firewall</code>. Source area: <code>internal/component/firewall</code>.</p>
                     <div class="cards plugin-grid">
 
-                    <article class="card plugin-card cat-services" id="plugin-firewall" data-plugin-card data-family="firewall" data-category="security" data-search="firewall Packet filter and NAT rules (nftables on Linux) Packet filter and NAT rules (nftables on Linux) internal/component/firewall Firewall   firewall   vpp internal/component/firewall/yang/ze-firewall-cmd.yang internal/component/firewall/yang/ze-firewall-conf.yang">
+                    <article class="card plugin-card cat-services" id="plugin-firewall" data-plugin-card data-family="firewall" data-category="security" data-search="firewall Packet filter and NAT rules (nftables on Linux) Packet filter and NAT rules (nftables on Linux) internal/component/firewall Firewall   firewall  vpp  internal/component/firewall/yang/ze-firewall-cmd.yang internal/component/firewall/yang/ze-firewall-conf.yang">
                         <span class="cat">Firewall</span>
                         <h3><a href="firewall/"><code>firewall</code></a></h3>
                         <p class="plugin-desc">Packet filter and NAT rules (nftables on Linux)</p>
                         <div class="chips">
                             <span class="chip mode">config:firewall</span>
-                            <span class="chip">Start after:vpp</span>
+                            <span class="chip">optional:vpp</span>
                             <span class="chip">YANG:2</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>firewall</code></dd></div><div><dt>Start after</dt><dd><code>vpp</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>firewall</code></dd></div><div><dt>Optional</dt><dd><code>vpp</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
                     </article>
 
                     <article class="card plugin-card cat-services" id="plugin-firewall-domain" data-plugin-card data-family="firewall" data-category="security" data-search="firewall-domain DNS-sourced address groups for firewall rules DNS-sourced address groups for firewall rules internal/component/firewall/plugins/domain Firewall   firewall firewall   internal/component/firewall/plugins/domain/yang/ze-firewall-domain-group-cmd.yang internal/component/firewall/plugins/domain/yang/ze-firewall-domain-group.yang">
@@ -1054,16 +1057,17 @@
                     <p>Generated group for registry entries mapped to the Interface area. Config roots: <code>interface</code>. Source area: <code>internal/component/iface</code>, <code>internal/plugins/vrrp</code>.</p>
                     <div class="cards plugin-grid">
 
-                    <article class="card plugin-card cat-services" id="plugin-interface" data-plugin-card data-family="interface" data-category="dataplane" data-search="interface OS network interface monitoring and management OS network interface monitoring and management internal/component/iface Interface   interface sysctl   internal/component/iface/yang/ze-iface-api.yang internal/component/iface/yang/ze-iface-cmd.yang internal/component/iface/yang/ze-iface-conf.yang internal/component/iface/yang/ze-iface-interface-cmd.yang internal/component/iface/yang/ze-iface-monitor-cmd.yang internal/component/iface/yang/ze-iface-show-cmd.yang">
+                    <article class="card plugin-card cat-services" id="plugin-interface" data-plugin-card data-family="interface" data-category="dataplane" data-search="interface OS network interface monitoring and management OS network interface monitoring and management internal/component/iface Interface   interface sysctl vpp  internal/component/iface/yang/ze-iface-api.yang internal/component/iface/yang/ze-iface-cmd.yang internal/component/iface/yang/ze-iface-conf.yang internal/component/iface/yang/ze-iface-interface-cmd.yang internal/component/iface/yang/ze-iface-monitor-cmd.yang internal/component/iface/yang/ze-iface-show-cmd.yang">
                         <span class="cat">Interface</span>
                         <h3><a href="interface/"><code>interface</code></a></h3>
                         <p class="plugin-desc">OS network interface monitoring and management</p>
                         <div class="chips">
                             <span class="chip mode">config:interface</span>
                             <span class="chip">needs:sysctl</span>
+                            <span class="chip">optional:vpp</span>
                             <span class="chip">YANG:6</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>interface</code></dd></div><div><dt>Needs</dt><dd><code>sysctl</code></dd></div><div><dt>YANG</dt><dd>6 modules</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>interface</code></dd></div><div><dt>Needs</dt><dd><code>sysctl</code></dd></div><div><dt>Optional</dt><dd><code>vpp</code></dd></div><div><dt>YANG</dt><dd>6 modules</dd></div></dl>
                     </article>
 
                     <article class="card plugin-card cat-services" id="plugin-vrrp" data-plugin-card data-family="interface" data-category="dataplane" data-search="vrrp Virtual Router Redundancy Protocol (RFC 9568 / RFC 3768): first-hop gateway redundancy Virtual Router Redundancy Protocol (RFC 9568 / RFC 3768): first-hop gateway redundancy internal/plugins/vrrp Interface   interface interface   internal/plugins/vrrp/yang/ze-vrrp-cmd.yang internal/plugins/vrrp/yang/ze-vrrp-conf.yang">
@@ -1627,7 +1631,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 09:22 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 09:38 UTC</span>
                 </div>
             </div>
         </footer>

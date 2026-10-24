@@ -18,7 +18,7 @@ OS network interface monitoring and management
 ## Dependencies
 
 - Required: [`sysctl`](../sysctl/index.md)
-- Optional: None
+- Optional: [`vpp`](../vpp/index.md)
 
 ## Used by
 

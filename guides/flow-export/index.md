@@ -175,6 +175,26 @@ flow-export {
 }
 ```
 
+The BGP RIB is the `bgp-rib` plugin, which only a build with the `ze_bgp` tag
+carries. Turning `bgp true` on starts it when the build has it, even with no
+`bgp {}` block; with enrichment off, flow export never starts it. A build
+without `ze_bgp` still runs flow export, and refuses `bgp true` at
+`ze config validate`, at commit, at daemon start and at SIGHUP reload, before
+any plugin starts. The refusal names the setting and gives the fix on its own
+line:
+
+```
+config: "flow-export enrichment bgp true" needs plugin bgp-rib, and this build does not include it
+  fix: rebuild ze with build tag ze_bgp added to its -tags list, or remove "flow-export enrichment bgp true" from the config
+```
+
+Set `bgp false` (or leave the leaf out) to run flow export on that build.
+Before this refusal existed, such a build accepted the setting and the exporter
+silently received no RIB data.
+
+<!-- source: internal/plugins/flowexport/register.go -- ConfigNeeds, bgpRIBPlugin -->
+<!-- source: internal/component/config/optional_provider.go -- refuseAbsentOptionalProviders, unmetNeedMessage -->
+
 ## Operational Command
 
 `show flow export [name <collector>]` reports per-collector export statistics.

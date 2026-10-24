@@ -18,7 +18,7 @@ Behavioral anomaly detector (report-only): per-entity pattern-of-life over traff
 ## Dependencies
 
 - Required: None
-- Optional: None
+- Optional: [`flow-export`](../flow-export/index.md), [`traffic-usage`](../traffic-usage/index.md)
 
 ## Used by
 

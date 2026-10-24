@@ -23,14 +23,7 @@ VPP data plane lifecycle management
 ## Used by
 
 - Required dependency for: [`fib-vpp`](../fib-vpp/index.md)
-- Optional dependency for: [`traffic`](../traffic/index.md)
-
-## Startup ordering
-
-Order only when both plugins are selected; never auto-loads a plugin.
-
-- Start after: None
-- Starts before: [`firewall`](../firewall/index.md)
+- Optional dependency for: [`firewall`](../firewall/index.md), [`interface`](../interface/index.md), [`traffic`](../traffic/index.md)
 
 ## Repository artifacts
 

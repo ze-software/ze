@@ -4141,7 +4141,7 @@
       "implementation": "ze",
       "implementation-reason": "Ze's own Go implements this document; each requirement row cites its producer.",
       "public-status": "Partial",
-      "public-coverage": "Capability 77 declared, negotiated and acted on, for the send side and for the reflection path. Declaration: `extractLLNHCapabilities` (`internal/component/bgp/plugins/llnh/llnh.go`) advertises the empty code 77 capability for a peer or group whose config carries a `link-local-nexthop` key that is not `disable`, and `refuseLinkLocalCapabilityWithoutAddress` (same file) refuses that config, at commit and at startup, when neither the peer nor its group sets `session link-local`, the only source of the own Link-Local Section 4 makes the next hop include. Gap: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-1-2, Section 1's \"implementations must ensure that they are strictly associated with a specific interface\": a received Link-Local next hop is kept without its interface, and the configured `session link-local` address is not tied to the session's interface. Negotiation: `parseCapability` (`internal/core/bgp/capability/capability.go`) types it and `Negotiate` (`internal/core/bgp/capability/negotiated.go`) sets `LinkLocalNextHop` only when both OPENs carried it, which `Peer.linkLocalOnlyNextHopPermitted` (`internal/component/bgp/reactor/peer.go`) reads beside the RFC 8950 Extended Next Hop Encoding state Section 5 asks for. Send: `resolveNextHop` (same file) refuses a link-local next hop on a session that may not carry it, so the route is left out rather than encoded in a form RFC 2545 Section 3 forbids, and `buildMPReach` (`internal/component/bgp/message/update_build.go`) writes the 16-octet Link-Local-only field or the 32-octet pair, for IPv4 NLRI as well as IPv6. Reflection: `egressNextHopIsLinkLocalOnly` (`internal/component/bgp/reactor/forward_next_hop.go`) and `sameLinkLayerSegment` (`internal/component/bgp/reactor/link_scope.go`) decide, per client, between the rewrite and the ineligibility Section 4 allows. Receive: `parseNextHops` (`internal/core/bgp/attribute/mpnlri.go`) still performs no `fe80::/10` test, so a received 16-octet link-local-only Next Hop is read as a Global IPv6 next hop; the Section 3 receive sentence is indicative and carries no checklist row (see Notes). Receive error handling (Section 6): `ValidateUpdateRFC7606AddPath` (`internal/component/bgp/message/rfc7606.go`) takes the negotiated capability from `Session.validateRFC7606Attrs` (`internal/component/bgp/reactor/session_validation_receive.go`), and on a capability-77 session `validateLinkLocalNextHopPair` (`internal/component/bgp/message/rfc7606_linklocal.go`) makes a 32-octet Next Hop field treat-as-withdraw (RFC 7606 Section 7.3) unless it is a Global or `::` followed by a Link-Local, or two Link-Locals, the forms Section 6 tells a receiver to use. A wrong Length of Next Hop still ends in the RFC 7606 Section 7.11 session reset, which that section requires.",
+      "public-coverage": "Capability 77 declared, negotiated and acted on, for the send side and for the reflection path. Declaration: `extractLLNHCapabilities` (`internal/component/bgp/plugins/llnh/llnh.go`) advertises the empty code 77 capability for a peer or group whose config carries a `link-local-nexthop` key that is not `disable`, and `refuseLinkLocalCapabilityWithoutAddress` (same file) refuses that config, at commit and at startup, when neither the peer nor its group sets `session link-local`, the only source of the own Link-Local Section 4 makes the next hop include. Gap: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-1-2, Section 1's \"implementations must ensure that they are strictly associated with a specific interface\": a received Link-Local next hop is kept without its interface, and the configured `session link-local` address is not tied to the session's interface. Negotiation: `parseCapability` (`internal/core/bgp/capability/capability.go`) types it and `Negotiate` (`internal/core/bgp/capability/negotiated.go`) sets `LinkLocalNextHop` only when both OPENs carried it, which `Peer.linkLocalOnlyNextHopPermitted` (`internal/component/bgp/reactor/peer.go`) reads beside the RFC 8950 Extended Next Hop Encoding state Section 5 asks for. Send: `resolveNextHop` (same file) refuses a link-local next hop on a session that may not carry it, so the route is left out rather than encoded in a form RFC 2545 Section 3 forbids, and `buildMPReach` (`internal/component/bgp/message/update_build.go`) writes the 16-octet Link-Local-only field or the 32-octet pair, for IPv4 NLRI as well as IPv6. Reflection: `egressNextHopIsLinkLocalOnly` (`internal/component/bgp/reactor/forward_next_hop.go`) and `sameLinkLayerSegment` (`internal/component/bgp/reactor/link_scope.go`) decide, per client, between the rewrite and the ineligibility Section 4 allows. Receive: `parseNextHops` (`internal/core/bgp/attribute/mpnlri.go`) still performs no `fe80::/10` test, so a received 16-octet link-local-only Next Hop is read as a Global IPv6 next hop; the Section 3 receive sentence is indicative and carries no checklist row (see Notes). Receive error handling (Section 6): `ValidateUpdateRFC7606Peer` (`internal/component/bgp/message/rfc7606.go`) takes the negotiated capability from `Session.validateRFC7606Attrs` (`internal/component/bgp/reactor/session_validation_receive.go`), and on a capability-77 session `validateLinkLocalNextHopPair` (`internal/component/bgp/message/rfc7606_linklocal.go`) makes a 32-octet Next Hop field treat-as-withdraw (RFC 7606 Section 7.3) unless it is a Global or `::` followed by a Link-Local, or two Link-Locals, the forms Section 6 tells a receiver to use. A wrong Length of Next Hop still ends in the RFC 7606 Section 7.11 session reset, which that section requires.",
       "public-remaining": "-",
       "summary-path": "rfc/short/draft-ietf-idr-linklocal-capability.md",
       "shard-path": "rfc/requirements/draft-ietf-idr-linklocal-capability.md",
@@ -84921,7 +84921,7 @@
         "audited": 94,
         "discrimination-records": 232,
         "escapes": 0,
-        "stale-records": 11
+        "stale-records": 8
       },
       "requirements": [
         {
@@ -86955,7 +86955,7 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/message/rfc4271_test.go` `TestRFC4271LocalPrefKeptOnInternalSession` (unit/verify), `internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go` `TestRFC4271LocalPrefFromExternalPeerNeverReachesTheRIB` (unit/verify)",
           "negative-test": "`internal/component/bgp/message/rfc4271_test.go` `TestRFC4271LocalPrefIgnoredOnExternalSession` (unit/verify), `internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go` `TestRFC4271LocalPrefFromExternalPeerNeverReachesTheRIB` (unit/verify)",
-          "note": "",
+          "note": "**audit: enforced, shifted**",
           "nightly-only": false,
           "covers": [
             {
@@ -87015,7 +87015,11 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "Re-judged 2026-10-12 (independent auditor). SHIFTED by 4e731b2d96 (owner-approved lint-only reactor test edits). The tagged unit is byte-identical (gate-verified); the file-level changes are comment punctuation, slices.Concat over the same bytes, joined appends, strings.SplitSeq, newDefaultOriginatePeer taking its fixed addresses from constants with the same values, and registerTypeLenRecognizer losing a lo every caller passed as 1, none of which changes what a helper this unit calls produces. Verdict stands. RFC 4271 §5.1.5, rfc/full/rfc4271.txt:1599-1604: 'If it is contained in an UPDATE message that is received from an external peer, then this attribute MUST be ignored by the receiving speaker, except in the case of BGP Confederations [RFC3065].' The current full short row has this same receive-side sentence and no partial annotation. Read all four covers: internal/component/bgp/message/rfc4271_test.go::TestRFC4271LocalPrefKeptOnInternalSession requires ActionNone and empty DiscardEntries; ::TestRFC4271LocalPrefIgnoredOnExternalSession requires exactly AttributeDiscard, one entry, code 5; both polarities of internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC4271LocalPrefFromExternalPeerNeverReachesTheRIB drive an actual Established session. The internal case requires byte-identical attributes including preference 200 and unchanged NLRI. The external case uses the matching four-octet peer AS, requires one dispatched UPDATE, exact attribute codes [1,2,3,252], absence of code 5, byte-identical retained ORIGIN/AS_PATH/NEXT_HOP, unchanged NLRI, Established state and no NOTIFICATION. The 252 marker is not mistaken for a surviving LOCAL_PREF.\nProducing/consuming path read: message/rfc7606.go::validateLocalPrefAttr → reactor/session_validation.go::enforceRFC7606 → ApplyAttrDiscard/rebuild → session_read.go::processMessage → reactor_notify.go::notifyMessageReceiver. The latter derives RawBytes and AttrsWire from the rewritten WireUpdate, not the original raw body. rib_structured.go::handleReceivedStructured consumes that WireUpdate and packed attributes. Q1 yes: exact ignore-versus-retain behavior; Q2 yes by inspection: preserving external preference, dropping the UPDATE or stripping the internal control breaks explicit assertions; Q3 yes: valid established peers and matching external AS isolate preference handling; Q4 yes for the implemented non-confederation receive boundary, not send-side omission or entire RFC support. No confederation feature support or fresh semantic execution is inferred.\nPending note: use the preceding RFC quote, population, assertions and producer chain; retain enforced and state explicitly that this audit ran no tests and independent peer acceptance remains pending.",
-            "freshness": "fresh"
+            "freshness": "shifted",
+            "moved": [
+              "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC4271LocalPrefFromExternalPeerNeverReachesTheRIB",
+              "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC4271LocalPrefFromExternalPeerNeverReachesTheRIB#2"
+            ]
           }
         },
         {
@@ -93368,11 +93372,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-gone",
-                "detail": "the producer the break was applied to is no longer in the tree",
-                "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606AddPath",
-                "break": "body of ValidateUpdateRFC7606AddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "state": "verified",
+                "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606Peer",
+                "break": "body of ValidateUpdateRFC7606Peer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             },
@@ -93386,11 +93389,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-gone",
-                "detail": "the producer the break was applied to is no longer in the tree",
-                "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606AddPath",
-                "break": "body of ValidateUpdateRFC7606AddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "state": "verified",
+                "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606Peer",
+                "break": "body of ValidateUpdateRFC7606Peer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             },
@@ -93404,11 +93406,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-gone",
-                "detail": "the producer the break was applied to is no longer in the tree",
-                "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606AddPath",
-                "break": "body of ValidateUpdateRFC7606AddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "state": "verified",
+                "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606Peer",
+                "break": "body of ValidateUpdateRFC7606Peer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             }
@@ -158552,7 +158553,7 @@
           "gated": true,
           "positive-test": "scoped evidence: `internal/component/bgp/reactor/config_test.go` `TestParsePeerFromTreeInvalid` (unit/verify), `internal/component/bgp/reactor/rfc6286_router_id_test.go` `TestRFC6286GlobalZeroRouterIDRejected` (unit/verify)",
           "negative-test": "scoped evidence: `internal/component/bgp/reactor/rfc6286_router_id_test.go` `TestRFC6286NonZeroRouterIDAccepted` (unit/verify), `internal/component/bgp/reactor/rfc6286_router_id_test.go` `TestRFC6286GlobalZeroRouterIDRejected` (unit/verify)",
-          "note": "**audit: partial** {partial} tested \"non-zero integer\"; gap \"is the same for every local interface and every BGP peer\"; owner-approved deviation (spec-bgp-open-session-rfc-defects Q2, owner 2026-10-13: \"we should have a global router-id which can be overwritten per peer which is over what the RFC allows\"), not counted conformant: the global `router-id` is the default and a peer or group may override it with the `session router-id` leaf, and each OPEN carries its own peer's identifier, so a configured override gives that peer an identifier different from the others'; internal/component/bgp/reactor/config.go::parsePeerSettings reads the override. The non-zero clause is enforced: parseRouterID rejects 0.0.0.0 for the global leaf and a per-peer override Parent quote: The BGP Identifier is a 4-octet, unsigned, non-zero integer that should be unique within an AS. The value of the BGP Identifier for a BGP speaker is determined on startup and is the same for every local interface and every BGP peer. (Section 2.1) Scoped evidence only; all obligations outside tested remain unmet or unproven; zero whole-requirement credit. scope audit: fresh",
+          "note": "**audit: partial, stale-unit** {partial} tested \"non-zero integer\"; gap \"is the same for every local interface and every BGP peer\"; owner-approved deviation (spec-bgp-open-session-rfc-defects Q2, owner 2026-10-13: \"we should have a global router-id which can be overwritten per peer which is over what the RFC allows\"), not counted conformant: the global `router-id` is the default and a peer or group may override it with the `session router-id` leaf, and each OPEN carries its own peer's identifier, so a configured override gives that peer an identifier different from the others'; internal/component/bgp/reactor/config.go::parsePeerSettings reads the override. The non-zero clause is enforced: parseRouterID rejects 0.0.0.0 for the global leaf and a per-peer override Parent quote: The BGP Identifier is a 4-octet, unsigned, non-zero integer that should be unique within an AS. The value of the BGP Identifier for a BGP speaker is determined on startup and is the same for every local interface and every BGP peer. (Section 2.1) Scoped evidence only; all obligations outside tested remain unmet or unproven; zero whole-requirement credit. scope audit: stale-unit",
           "nightly-only": false,
           "annotation": {
             "kind": "partial",
@@ -158635,7 +158636,10 @@
             "verdict": "partial",
             "meaning": "the tests enforce only the declared tested scope; the whole requirement remains unmet",
             "note": "Re-judged 2026-10-24 (independent auditor, authored none of the change). RFC 6286 Section 2.1: \"The BGP Identifier is a 4-octet, unsigned, non-zero integer that should be unique within an AS. The value of the BGP Identifier for a BGP speaker is determined on startup and is the same for every local interface and every BGP peer.\" 5ac5c3fc0d changed the Producer reactor/config.go::parsePeerSettings only to call applyASSetPolicy (session as-set accept on a migrated peer); the session router-id override the Gap names and the parseRouterID zero refusal are unchanged, so Tested 'non-zero integer' and Gap 'is the same for every local interface and every BGP peer' stand, Producer internal/component/bgp/reactor/config.go::parsePeerSettings. Partial, zero whole-requirement credit. Verdict unchanged: partial. Earlier judgement follows. Re-judged 2026-10-21 (Phase 7 agent, not the author of 72a56ddfbf) after 72a56ddfbf changed parsePeerSettings: the only change parses the peer shutdown presence container into ps.AdminShutdown; the session router-id override read the Gap names and the parseRouterID zero refusal are unchanged, so Tested 'non-zero integer' and Gap 'is the same for every local interface and every BGP peer' stand, Producer internal/component/bgp/reactor/config.go::parsePeerSettings. Verdict unchanged. Earlier judgement follows. Re-judged 2026-10-21 by an independent judge (spec-bgp-open-session-rfc-defects AC-4) against the owner-approved deviation record and rfc/full/rfc6286.txt Section 2.1: 'The value of the BGP Identifier for a BGP speaker is determined on startup and is the same for every local interface and every BGP peer.' Row is {partial}, not counted conformant. Tested: 'non-zero integer'. Gap: 'is the same for every local interface and every BGP peer', the owner deviation (Q2, 2026-10-13): Producer internal/component/bgp/reactor/config.go::parsePeerSettings reads the per-peer/group session router-id override, so an override gives that peer a different identifier. Within Tested: TestParsePeerFromTreeInvalid zero_router_id_rejected (peer-level 0.0.0.0 refused with the RFC 6286 error), TestRFC6286GlobalZeroRouterIDRejected (global 0.0.0.0 refused by PeersFromTree, 0.0.0.1 accepted and inherited as 1), TestRFC6286NonZeroRouterIDAccepted (peer-level 0.0.0.1 becomes 1); parseRouterID refuses id == 0 alone, and the four parseRouterID records verify. Second departing clause not named in Gap or Support remaining: 'determined on startup' -- reload_globals.go applyGlobalsJournaled applies a changed global router-id while ze runs (Q3, owner 2026-10-13: out of scope, ships as is), so the identifier is not fixed at startup; the whole requirement remains unproven and the disclosure owes that clause. Limit kept from the 2026-10-14 judgement: a config with no router-id at any level is refused only by the config mandatory check, which no tag here exercises.",
-            "freshness": "fresh"
+            "freshness": "stale-unit",
+            "moved": [
+              "internal/component/bgp/reactor/config.go::parsePeerSettings"
+            ]
           }
         },
         {
@@ -193092,7 +193096,7 @@
         "audited": 53,
         "discrimination-records": 74,
         "escapes": 0,
-        "stale-records": 32
+        "stale-records": 14
       },
       "requirements": [
         {
@@ -193222,7 +193226,7 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/message/rfc7606_structural_test.go` `TestRFC7606NonRouteSelectionAttributesAreDiscarded` (unit/verify)",
           "negative-test": "`internal/component/bgp/message/rfc7606_structural_test.go` `TestRFC7606RouteSelectionAttributesNeverDiscarded` (unit/verify)",
-          "note": "",
+          "note": "**audit: enforced, shifted**",
           "nightly-only": false,
           "covers": [
             {
@@ -193248,7 +193252,11 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "TestRFC7606RouteSelectionAttributesNeverDiscarded (rfc7606_structural_test.go:426) enumerates ORIGIN/AS_PATH/NEXT_HOP/MED/LOCAL_PREF(iBGP) and asserts NotEqual(AttributeDiscard) AND NotEqual(None) AND DiscardEntries empty with AttrCode pinned per case — a two-sided exclusion that fails if any route-selection attr is discarded or silently accepted. Positive TestRFC7606NonRouteSelectionAttributesAreDiscarded (:497) shows ATOMIC_AGGREGATE/AGGREGATOR ARE discarded, so the MUST NOT is not trivially satisfied by never discarding. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quote reads \"except in the case of an attribute that has no effect on route selection or installation\", the paraphrase's scope. Verdict unchanged.",
-            "freshness": "fresh"
+            "freshness": "shifted",
+            "moved": [
+              "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606NonRouteSelectionAttributesAreDiscarded",
+              "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606RouteSelectionAttributesNeverDiscarded"
+            ]
           }
         },
         {
@@ -193309,11 +193317,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
-                "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606AddPath",
-                "break": "body of ValidateUpdateRFC7606AddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "state": "verified",
+                "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606Peer",
+                "break": "body of ValidateUpdateRFC7606Peer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             },
@@ -193479,11 +193486,10 @@
               "tags": 2,
               "proof": {
                 "route": "revert",
-                "state": "producer-gone",
-                "detail": "the producer the break was applied to is no longer in the tree",
-                "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606AddPath",
-                "break": "body of ValidateUpdateRFC7606AddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "state": "verified",
+                "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606Peer",
+                "break": "body of ValidateUpdateRFC7606Peer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             },
@@ -193559,11 +193565,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-gone",
-                "detail": "the producer the break was applied to is no longer in the tree",
-                "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606AddPath",
-                "break": "body of ValidateUpdateRFC7606AddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "state": "verified",
+                "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606Peer",
+                "break": "body of ValidateUpdateRFC7606Peer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             }
@@ -193629,11 +193634,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-gone",
-                "detail": "the producer the break was applied to is no longer in the tree",
-                "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606AddPath",
-                "break": "body of ValidateUpdateRFC7606AddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "state": "verified",
+                "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606Peer",
+                "break": "body of ValidateUpdateRFC7606Peer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             }
@@ -193658,7 +193662,7 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/message/rfc7606_test.go` `TestRFC7606MPReachIPv4NextHopValid` (unit/verify)",
           "negative-test": "`internal/component/bgp/message/rfc7606_test.go` `TestRFC7606MultipleMPReach` (unit/verify), `internal/component/bgp/message/rfc7606_test.go` `TestRFC7606SystematicLengthCorruption` (unit/verify), `internal/component/bgp/reactor/rfc7606_session_validation_dupmp_test.go` `TestRFC7606Section3gDuplicateMPBeatsAnAbandonedWalk` (unit/verify), `internal/component/bgp/reactor/rfc7606_session_validation_dupmp_test.go` `TestRFC7606Section3gDuplicateMPUnreachBeatsAnAbandonedWalk` (unit/verify), `internal/component/bgp/reactor/rfc7606_session_validation_dupmp_unreach_test.go` `TestRFC7606Section3gDuplicateMPUnreachResetsWithRoutesPresent` (unit/verify), `internal/component/bgp/reactor/session_dupmp_unreach_wire_test.go` `TestSessionRFC7606DuplicateMPUnreachNotificationOnTheWire` (unit/verify), `internal/component/bgp/reactor/session_test.go` `TestSessionRFC7606SessionResetNotification` (unit/verify)",
-          "note": "**audit: enforced, shifted**",
+          "note": "**audit: enforced, stale-unit**",
           "nightly-only": false,
           "covers": [
             {
@@ -193680,11 +193684,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-gone",
-                "detail": "the producer the break was applied to is no longer in the tree",
-                "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606AddPath",
-                "break": "body of ValidateUpdateRFC7606AddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "state": "verified",
+                "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606Peer",
+                "break": "body of ValidateUpdateRFC7606Peer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             },
@@ -193747,11 +193750,9 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "Duplicate MP_REACH and MP_UNREACH cases select reset, including duplicates encountered before an abandoned attribute walk with reachable NLRI preventing Section 5.2 from supplying a substitute verdict; real-session tests observe NOTIFICATION 3/1 and no route dispatch, including the separate MP_UNREACH wire carrier, while single-MP controls remain accepted",
-            "freshness": "shifted",
+            "freshness": "stale-unit",
             "moved": [
-              "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachIPv4NextHopValid",
-              "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MultipleMPReach",
-              "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption"
+              "internal/component/bgp/reactor/rfc7606_session_validation_dupmp_test.go::TestRFC7606Section3gDuplicateMPBeatsAnAbandonedWalk"
             ]
           }
         },
@@ -194028,11 +194029,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-gone",
-                "detail": "the producer the break was applied to is no longer in the tree",
-                "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606AddPath",
-                "break": "body of ValidateUpdateRFC7606AddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "state": "verified",
+                "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606Peer",
+                "break": "body of ValidateUpdateRFC7606Peer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             },
@@ -194064,11 +194064,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-gone",
-                "detail": "the producer the break was applied to is no longer in the tree",
-                "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606AddPath",
-                "break": "body of ValidateUpdateRFC7606AddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "state": "verified",
+                "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606Peer",
+                "break": "body of ValidateUpdateRFC7606Peer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             }
@@ -194079,6 +194078,7 @@
             "note": "Re-judged 2026-10-24 (independent auditor, after 66858fa127). RFC 7606 Section 4: \"In either of these cases, an error condition exists and the \"treat- as-withdraw\" approach MUST be used (unless some other, more severe error is encountered dictating a stronger approach)\"; the first case is \"the length of the last encountered path attribute would cause the Total Attribute Length to be exceeded when parsing the enclosed path attributes.\" Changed unit: TestRFC7606AttributeLengthConflictTreatAsWithdraw lost its RFC8654-3-1 tag and gained an RFC 7606 quote and a claim naming exactly what it asserts; body unchanged. Buffer isolates case 1: ORIGIN, AS_PATH, NEXT_HOP, then COMMUNITY declaring 8 (a legal COMMUNITY length, so 7.8 cannot fire) with 4 octets following; hasNLRI=true, so the Section 5.2 escalation in structuralError does not apply. Exact TreatAsWithdraw, AttrCode 8 and \"Section 4\" text: a reset or a silent accept both fail it. Producer read: ValidateUpdateRFC7606AddPath bounds check returns structuralError (treat-as-withdraw with reachable NLRI); every session-reset check returns immediately, so the collected strongest before a structural exit is never above treat-as-withdraw and the \"more severe\" carve-out is not downgraded. Case 2 is TestRFC7606FewerThanThreeOctetsRemainTreatAsWithdraw (1 and 2 trailing octets, 3 with Extended Length: exact TreatAsWithdraw; clean mandatory set: exact None). Positives: that clean control and the exact-None baselines of TestRFC7606SystematicLengthCorruption. Verdict stands.",
             "freshness": "shifted",
             "moved": [
+              "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606AttributeLengthConflictTreatAsWithdraw",
               "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption"
             ]
           }
@@ -194549,11 +194549,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "unit-changed",
-                "detail": "the tagged unit's behavior changed since the red was observed",
-                "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606AddPath",
-                "break": "body of ValidateUpdateRFC7606AddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "state": "verified",
+                "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606Peer",
+                "break": "body of ValidateUpdateRFC7606Peer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             },
@@ -194567,11 +194566,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-gone",
-                "detail": "the producer the break was applied to is no longer in the tree",
-                "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606AddPath",
-                "break": "body of ValidateUpdateRFC7606AddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "state": "verified",
+                "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606Peer",
+                "break": "body of ValidateUpdateRFC7606Peer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             },
@@ -194594,11 +194592,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-gone",
-                "detail": "the producer the break was applied to is no longer in the tree",
-                "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606AddPath",
-                "break": "body of ValidateUpdateRFC7606AddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "state": "verified",
+                "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606Peer",
+                "break": "body of ValidateUpdateRFC7606Peer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             },
@@ -194638,11 +194635,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-gone",
-                "detail": "the producer the break was applied to is no longer in the tree",
-                "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606AddPath",
-                "break": "body of ValidateUpdateRFC7606AddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "state": "verified",
+                "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606Peer",
+                "break": "body of ValidateUpdateRFC7606Peer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             },
@@ -194656,11 +194652,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-gone",
-                "detail": "the producer the break was applied to is no longer in the tree",
-                "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606AddPath",
-                "break": "body of ValidateUpdateRFC7606AddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "state": "verified",
+                "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606Peer",
+                "break": "body of ValidateUpdateRFC7606Peer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             },
@@ -194692,11 +194687,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-gone",
-                "detail": "the producer the break was applied to is no longer in the tree",
-                "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606AddPath",
-                "break": "body of ValidateUpdateRFC7606AddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "state": "verified",
+                "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606Peer",
+                "break": "body of ValidateUpdateRFC7606Peer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             },
@@ -194728,7 +194722,7 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/plugins/nlri/mup/rfc7606_test.go` `TestRecognizeNLRIRejectsUnimplementedTypes` (unit/verify), `internal/component/bgp/plugins/nlri/mvpn/rfc7606_test.go` `TestRecognizeNLRIRejectsUnimplementedTypes` (unit/verify), `internal/component/bgp/reactor/rfc7606_session_validation_nlritype_test.go` `TestRFC7606Section54DiscardsUnrecognizedEVPNType` (unit/verify), `internal/component/bgp/reactor/rfc7606_session_validation_nlritype_test.go` `TestRFC7606Section54DropsMPUnreachOnlyUpdateRatherThanForgeEOR` (unit/verify), `internal/component/bgp/reactor/rfc7606_session_validation_nlritype_test.go` `TestRFC7606Section54SessionResetsUnparseableTypedNLRI` (unit/verify), `internal/component/bgp/reactor/rfc7606_session_validation_nlritype_typed_test.go` `TestRFC7606Section54DiscardsUnrecognizedMVPNType` (unit/verify), `internal/component/bgp/reactor/rfc7606_session_validation_nlritype_typed_test.go` `TestRFC7606Section54DiscardsUnrecognizedMUPType` (unit/verify), `internal/component/bgp/reactor/rfc7606_session_validation_nlritype_typed_test.go` `TestRFC7606Section54FiltersTreatAsWithdrawSynthesis` (unit/verify), `internal/component/bgp/reactor/session_validation_nlritype_bypass_test.go` `TestRFC7606Section54FiltersWhenTheAttributeWalkIsAbandoned` (unit/verify), `internal/component/bgp/reactor/session_validation_nlritype_bypass_test.go` `TestRFC7606Section54ReadsTypedNLRIUnderAddPath` (unit/verify), `internal/le/interoplab/bgp/check_rfc.go` `checkRFC7606TypedNLRIDiscard` (interop/nightly), `test/plugin/rfc7606-54-discard-unrecognized-mup-nlri.ci` (functional/verify), `test/plugin/rfc7606-54-discard-unrecognized-nlri.ci` (functional/verify)",
           "negative-test": "`internal/component/bgp/reactor/rfc7606_session_validation_nlritype_test.go` `TestRFC7606Section54PropagatesUnknownBGPLSType` (unit/verify), `test/plugin/rfc7606-54-bgpls-override-propagates.ci` (functional/verify)",
-          "note": "",
+          "note": "**audit: enforced, stale-unit**",
           "nightly-only": false,
           "covers": [
             {
@@ -194887,7 +194881,10 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "Re-judged 2026-10-14 (independent auditor) after the Recognizer became a three-way verdict (spec-bgp-update-propagation-rfc-defects N-3). RFC 7606 Section 5.4: \"A BGP speaker advertising support for such a typed address family MUST handle routes with unrecognized NLRI types within that address family by discarding them, unless the relevant specification for that address family specifies otherwise.\" Re-read the four changed units diff by diff: mup and mvpn TestRecognizeNLRIRejectsUnimplementedTypes now compare against nlritype.Keep and nlritype.Discard exactly, which is stricter than the old bool (a recognizer answering Withdraw for an unknown type now goes red); the one moved expectation, a one-octet T1ST body, is now Withdraw (malformed implemented type) and still never Discard. The reactor fake recognizers changed only their return type through keepIf; the survivor-byte, ActionNone and BGP-LS override assertions are unchanged. All other covers and their earlier reading stand. Rejudged 2026-10-16 (independent reader) after the owner-approved multi-label withdrawal change (RFC 8277 Section 2.4, nlrisplit.LabeledWithdrawal): SynthesizeWithdraw gained an addPath bool and SynthesizeWithdrawFamilies/mpReachToUnreach an addPath predicate, which mpReachToUnreach reads only for a family nlrisplit.CarriesCompatibility names (labeled unicast, VPN). The edits in TestRFC7606Section54DropsMPUnreachOnlyUpdateRatherThanForgeEOR, TestRFC7606Section54FiltersTreatAsWithdrawSynthesis and TestRFC7606Section54FiltersWhenTheAttributeWalkIsAbandoned pass a nil addPath predicate to SynthesizeWithdrawFamilies; their families (EVPN, MVPN, MUP) carry no Compatibility field, so the predicate is never read and the discard/filter assertions are unchanged. RFC 7606 Section 5.4: \"A BGP speaker advertising support for such a typed address family MUST handle routes with unrecognized NLRI types within that address family by discarding them, unless the relevant specification for that address family specifies otherwise.\" Verdict stands.",
-            "freshness": "fresh"
+            "freshness": "stale-unit",
+            "moved": [
+              "internal/component/bgp/reactor/session_validation_nlritype_bypass_test.go::TestRFC7606Section54FiltersWhenTheAttributeWalkIsAbandoned"
+            ]
           }
         },
         {
@@ -195092,11 +195089,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-gone",
-                "detail": "the producer the break was applied to is no longer in the tree",
-                "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606AddPath",
-                "break": "body of ValidateUpdateRFC7606AddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "state": "verified",
+                "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606Peer",
+                "break": "body of ValidateUpdateRFC7606Peer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             },
@@ -195142,11 +195138,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-gone",
-                "detail": "the producer the break was applied to is no longer in the tree",
-                "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606AddPath",
-                "break": "body of ValidateUpdateRFC7606AddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "state": "verified",
+                "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606Peer",
+                "break": "body of ValidateUpdateRFC7606Peer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             },
@@ -195310,11 +195305,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-gone",
-                "detail": "the producer the break was applied to is no longer in the tree",
-                "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606AddPath",
-                "break": "body of ValidateUpdateRFC7606AddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "state": "verified",
+                "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606Peer",
+                "break": "body of ValidateUpdateRFC7606Peer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             }
@@ -195473,11 +195467,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-gone",
-                "detail": "the producer the break was applied to is no longer in the tree",
-                "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606AddPath",
-                "break": "body of ValidateUpdateRFC7606AddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "state": "verified",
+                "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606Peer",
+                "break": "body of ValidateUpdateRFC7606Peer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             }
@@ -196271,11 +196264,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-gone",
-                "detail": "the producer the break was applied to is no longer in the tree",
-                "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606AddPath",
-                "break": "body of ValidateUpdateRFC7606AddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "state": "verified",
+                "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606Peer",
+                "break": "body of ValidateUpdateRFC7606Peer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             },
@@ -196295,6 +196287,7 @@
             "note": "ZeroLengthAttributeMalformed supplies otherwise complete valid attributes and isolates zero-length COMMUNITY, MED and LARGE_COMMUNITY, asserting exact treat-as-withdraw and each offending code; ValidUpdate and the exact systematic EBGP baseline accept the specified zero-length AS_PATH and ATOMIC_AGGREGATE exceptions; severity-floor corruption sweeps are not relied upon as semantic proof",
             "freshness": "shifted",
             "moved": [
+              "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606ZeroLengthAttributeMalformed",
               "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption",
               "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ValidUpdate"
             ]
@@ -196308,7 +196301,7 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/message/rfc7606_clause_test.go` `TestRFC7606UnrecognizedDuplicateAttributeLaterOccurrenceDiscarded` (unit/verify), `internal/component/bgp/message/rfc7606_structural_test.go` `TestRFC7606DuplicateAttributeFirstOccurrenceWins` (unit/verify)",
           "negative-test": "`internal/component/bgp/message/rfc7606_clause_test.go` `TestRFC7606UnrecognizedDuplicateAttributeLaterOccurrenceDiscarded` (unit/verify), `internal/component/bgp/message/rfc7606_structural_test.go` `TestRFC7606DuplicateAttributeFirstOccurrenceIsValidated` (unit/verify)",
-          "note": "",
+          "note": "**audit: enforced, shifted**",
           "nightly-only": false,
           "covers": [
             {
@@ -196370,7 +196363,11 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "Recognized case held by the HEAD first-wins pair; unrecognized case now proven: TestRFC7606UnrecognizedDuplicateAttributeLaterOccurrenceDiscarded (0xF0 twice) requires Action None, DuplicateRanges exactly the later occurrence, and StripAttrRanges leaving mandatory+first byte for byte; the reactor applies StripAttrRanges (session_validation.go).",
-            "freshness": "fresh"
+            "freshness": "shifted",
+            "moved": [
+              "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606DuplicateAttributeFirstOccurrenceIsValidated",
+              "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606DuplicateAttributeFirstOccurrenceWins"
+            ]
           }
         },
         {
@@ -196688,6 +196685,7 @@
             "note": "Negative session_validate_test.go:107 (TestEnforceRFC7606_InvalidTrailingNLRI) runs the production path enforceRFC7606 -\u003e ValidateNLRISyntax(nlri,false) on a trailing /33; asserts require.Error + require.Equal(SessionReset). Valid ORIGIN/AS_PATH/NEXT_HOP filler isolates it, and removing the \u003e32 check (rfc7606.go:857) would let the /33 parse cleanly (5 bytes fit) -\u003e ActionNone -\u003e test fails. Positive structural_test.go:55 accepts /32; direct unit negative rfc7606_test.go:736 reinforces. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quote is the lead-in plus its first bullet (\"The length of any of the included NLRI is greater than 32.\"). Verdict unchanged.",
             "freshness": "shifted",
             "moved": [
+              "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606NLRIMaxPrefixLengthAccepted",
               "internal/component/bgp/message/rfc7606_test.go::TestRFC7606NLRIPrefixLengthTooLongIPv4"
             ]
           }
@@ -196700,7 +196698,7 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/message/rfc7606_structural_test.go` `TestRFC7606NLRILastPrefixExactlyFitsAccepted` (unit/verify), `internal/component/bgp/reactor/rfc7606_receive_boundary_test.go` `TestRFC7606CoalescedMalformedNLRIBoundaries` (unit/verify)",
           "negative-test": "`internal/component/bgp/reactor/rfc7606_receive_boundary_test.go` `TestRFC7606CoalescedMalformedNLRIBoundaries` (unit/verify), `internal/component/bgp/reactor/session_validate_test.go` `TestEnforceRFC7606_InvalidWithdrawnNLRI` (unit/verify)",
-          "note": "",
+          "note": "**audit: enforced, shifted**",
           "nightly-only": false,
           "covers": [
             {
@@ -196760,7 +196758,10 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "Re-judged 2026-10-12 (independent auditor). SHIFTED by 4e731b2d96 (owner-approved lint-only reactor test edits). The tagged unit is byte-identical (gate-verified); the file-level changes are comment punctuation, slices.Concat over the same bytes, joined appends, strings.SplitSeq, newDefaultOriginatePeer taking its fixed addresses from constants with the same values, and registerTypeLenRecognizer losing a lo every caller passed as 1, none of which changes what a helper this unit calls produces. Verdict stands. NLRILastPrefixExactlyFitsAccepted provides the exact-boundary positive; InvalidWithdrawnNLRI uses a legal /24 with only two prefix octets, isolating the last-prefix overrun from the greater-than-32 rule and requiring session reset; CoalescedMalformedNLRIBoundaries additionally checks original physical-message boundaries with and without ADD-PATH and Extended Message so adjoining messages cannot repair a truncated NLRI",
-            "freshness": "fresh"
+            "freshness": "shifted",
+            "moved": [
+              "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606NLRILastPrefixExactlyFitsAccepted"
+            ]
           }
         },
         {
@@ -196808,6 +196809,7 @@
             "note": "Re-judged 2026-10-23 (independent auditor, after a59427f8c0). RFC 7606 Section 5.3: \"Similarly, the MP_REACH_NLRI or MP_UNREACH_NLRI attribute of an update SHALL be considered to be incorrect if any of the following are true: o The length of any of the included NLRI is inconsistent with the given AFI/SAFI (for example, if an IPv4 NLRI has a length greater than 32 or an IPv6 NLRI has a length greater than 128).\" The only change to a tagged unit is a comment in TestRFC7606MPNLRILengthConsistentWithAFIAccepted renaming validateMPReachAttr to validateMPNLRIField, which is the current producer (rfc7606.go validateMPNLRIField -\u003e validateMPNLRISyntax -\u003e ValidateNLRISyntaxAddPath). Body unchanged: IPv6 /64 and /128 return nil from ValidateNLRISyntax. The production-path pair is unchanged: TestRFC7606NLRIPrefixLengthTooLongIPv6 (IPv6 MP_REACH prefixLen 129 through ValidateUpdateRFC7606, exact SessionReset) and TestRFC7606MPReachWellFormedAccepted; that reset now also carries the 3/9 NOTIFICATION with the attribute, which this row does not assert and does not need. All three ran green. Verdict stands.",
             "freshness": "shifted",
             "moved": [
+              "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606MPNLRILengthConsistentWithAFIAccepted",
               "internal/component/bgp/message/rfc7606_test.go::TestRFC7606NLRIPrefixLengthTooLongIPv6"
             ]
           }
@@ -196820,7 +196822,7 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/message/rfc7606_structural_test.go` `TestRFC7606MPReachNLRIConsistentWithAFISAFIAccepted` (unit/verify), `internal/component/bgp/message/rfc7606_withdraw_test.go` `TestRFC7606MPReachWellFormedAccepted` (unit/verify)",
           "negative-test": "`internal/component/bgp/message/rfc7606_withdraw_test.go` `TestRFC7606MPReachNLRIOverrunsAttribute` (unit/verify)",
-          "note": "",
+          "note": "**audit: enforced, stale-unit**",
           "nightly-only": false,
           "covers": [
             {
@@ -196863,7 +196865,10 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "Re-judged 2026-10-24 (independent auditor, after 66858fa127). RFC 7606 Section 5.3: \"When parsing NLRI contained in the attribute, the length of the last NLRI found exceeds the amount of unconsumed data remaining in the attribute.\" New positive tag on TestRFC7606MPReachNLRIConsistentWithAFISAFIAccepted (moved from RFC8654-3-1): an IPv4 MP_REACH (valid 4-octet next hop) whose last NLRI, 10.0.0.0/8, needs exactly the one remaining octet must give exact ActionNone through ValidateUpdateRFC7606. That is the exact boundary of \"exceeds\": an off-by-one in ValidateNLRISyntaxAddPath (pos+prefixBytes \u003e= len) turns it red, so it is a genuine conforming input, not merely no-error. Claim and doc comment now match the body. Second positive TestRFC7606MPReachWellFormedAccepted (IPv6 /32 with exactly 4 octets) is also flush. Negative TestRFC7606MPReachNLRIOverrunsAttribute: valid 16-octet IPv6 next hop, /128 with 2 octets, exact SessionReset (the 3(j) consequence) and \"overrun\". Producer read: validateMPNLRIField -\u003e validateMPNLRISyntax -\u003e ValidateNLRISyntaxAddPath. FINDING (not verdict-changing): the negative's require.Contains(\"overrun\") also matches the next-hop message \"... next-hop length N overruns the attribute\" and the ADD-PATH \"identifier overruns\" message; the valid next hop isolates it today, but the assertion would not catch the outcome moving to the next-hop branch. Fix: require.Equal on \"RFC 7606 Section 5.3/3(j): NLRI overrun (need 16 bytes, have 2)\" and AttrCode 14. Verdict stands.",
-            "freshness": "fresh"
+            "freshness": "stale-unit",
+            "moved": [
+              "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606MPReachNLRIConsistentWithAFISAFIAccepted"
+            ]
           }
         },
         {
@@ -196973,6 +196978,7 @@
             "note": "Re-judged 2026-10-24 (independent auditor, after 66858fa127). RFC 7606 Section 5.3: \"Similarly, the MP_REACH_NLRI or MP_UNREACH_NLRI attribute of an update SHALL be considered to be incorrect if any of the following are true:\" ... \"The length of the MP_UNREACH_NLRI attribute is less than 3, or the length of the MP_REACH_NLRI attribute is less than 5.\" Changed unit TestRFC7606MPUnreachTooShort now asserts the exact description \"RFC 7606 Section 5.3: MP_UNREACH_NLRI length 2 \u003c 3\", and its doc comment no longer claims length 3 is tested here, naming TestRFC7606MPUnreachMinValid and TestRFC7606MPMinimumLengthsAccepted for the valid side: both minor findings of the previous judgement are closed. Producer read: validateMPAttrLength emits exactly that text with SessionReset, AttrCode 15 and the RFC 4760 Section 7 NOTIFICATION. Both clauses have both polarities at the boundary: negatives MP_REACH 4 (TestRFC7606MPReachLengthFourIsIncorrect, exact \"length 4 \u003c 5\", code 14) and MP_UNREACH 2 (this unit), positives MP_REACH 5 (FlowSpec, no next hop, so 7.11 cannot interfere) and MP_UNREACH 3 (exact None), plus the wire-level rfc7606-reset.ci (MP_REACH length 2, exact 3/9). Verdict stands.",
             "freshness": "shifted",
             "moved": [
+              "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606MPMinimumLengthsAccepted",
               "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPUnreachTooShort"
             ]
           }
@@ -196985,7 +196991,7 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/message/rfc7606_structural_test.go` `TestRFC7606EqualStrengthErrorsDoNotEscalate` (unit/verify)",
           "negative-test": "`internal/component/bgp/message/rfc7606_structural_test.go` `TestRFC7606StrongestActionWins` (unit/verify)",
-          "note": "",
+          "note": "**audit: enforced, shifted**",
           "nightly-only": false,
           "covers": [
             {
@@ -197011,7 +197017,11 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "TestRFC7606StrongestActionWins (rfc7606_structural_test.go:324) has two require.Equal cases: ATOMIC_AGG(discard)+COMMUNITY(TAW) =\u003e TreatAsWithdraw AttrCode 8, and COMMUNITY(TAW)+MP_REACH IPv6 5-byte-NH =\u003e SessionReset AttrCode 14. Positive TestRFC7606EqualStrengthErrorsDoNotEscalate (:378) requires two discard errors to yield EXACTLY AttributeDiscard (both DiscardEntries present), which only require.Equal can enforce against escalation. Buffers isolate the intended errors with controlled ordering. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The row now quotes the Section 2 ordering sentence (\"listed in order, from the one with the strongest action to the one with the weakest\"). Ze implements three of the four approaches (RFC7606Action: AttributeDiscard, TreatAsWithdraw, SessionReset; AFI/SAFI disable is the MAY of RFC7606-2-4 that ze does not take), and the tagged units pin discard \u003c treat-as-withdraw \u003c session reset with require.Equal, so the order among the approaches ze can select is proven. Verdict unchanged.",
-            "freshness": "fresh"
+            "freshness": "shifted",
+            "moved": [
+              "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606EqualStrengthErrorsDoNotEscalate",
+              "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606StrongestActionWins"
+            ]
           }
         }
       ],
@@ -197237,11 +197247,11 @@
       "display": "RFC 7607",
       "title": "Codification of AS 0 Processing",
       "enrolled": true,
-      "enrolment-reason": "Codification of AS 0 Processing: five MUST-level requirements, all in Section 2, all met and all proven in both polarities. RFC7607-2-2 (AS 0 in AS_PATH or AGGREGATOR is malformed, handled per RFC 7606) is enforced by validateASPath and validateAggregatorAttr (internal/component/bgp/message/rfc7606.go), which land on treat-as-withdraw and attribute discard as RFC 7606 sections 7.2 and 7.7 each require. RFC7607-2-3 (AS 0 in AS4_PATH or AS4_AGGREGATOR, handled per RFC 6793) is enforced by validateAS4PathAttr and validateAS4AggregatorAttr (internal/component/bgp/message/rfc7607.go), which register the first validators codes 17 and 18 ever had and land on the attribute discard RFC 6793 section 6 chooses. RFC7607-2-1 (never originate or propagate AS 0) is proven over the real receive rail in internal/component/bgp/reactor/rfc7607_update_test.go, driving Session.enforceRFC7606 rather than a leaf validator: an AS 0 route is stopped before any plugin sees it, so nothing can relay one, and the paired negatives accept the same UPDATE with one AS number changed. RFC7607-2-4 (a peer AS of zero aborts the connection with NOTIFICATION 2/2 Bad Peer AS) is enforced by Session.validateOpenPeerAS (internal/component/bgp/reactor/session_open_as.go) on BOTH OPEN rails, handleOpen and the collision-winner processOpen, and reads the Four-octet AS capability as well as the two-octet My AS because a four-octet speaker carries its real AS there. RFC7607-2-5 (never initiate a connection claiming to be AS 0) is enforced by Session.sendOpen, paired with the zt:asn YANG range \"1..4294967295\" that refuses AS 0 at config load. Ze uses AS 0 internally as a not-known-yet sentinel for a dynamic peer, for observation grouping and for BGP-LS descriptors; every check above reads the WIRE field instead, and rfc/short/rfc7607.md tabulates the five sentinel sites against the check that leaves each one alone. Enrolled 2026-08-30.",
+      "enrolment-reason": "Codification of AS 0 Processing: five MUST-level requirements, all in Section 2, all met and all proven in both polarities. RFC7607-2-2 (AS 0 in AS_PATH or AGGREGATOR is malformed, handled per RFC 7606) is enforced by validateASPathAttr and validateAggregatorAttr (internal/component/bgp/message/rfc7606.go), which land on treat-as-withdraw and attribute discard as RFC 7606 sections 7.2 and 7.7 each require. RFC7607-2-3 (AS 0 in AS4_PATH or AS4_AGGREGATOR, handled per RFC 6793) is enforced by validateAS4PathAttr and validateAS4AggregatorAttr (internal/component/bgp/message/rfc7607.go), which register the first validators codes 17 and 18 ever had and land on the attribute discard RFC 6793 section 6 chooses. RFC7607-2-1 (never originate or propagate AS 0) is proven over the real receive rail in internal/component/bgp/reactor/rfc7607_update_test.go, driving Session.enforceRFC7606 rather than a leaf validator: an AS 0 route is stopped before any plugin sees it, so nothing can relay one, and the paired negatives accept the same UPDATE with one AS number changed. RFC7607-2-4 (a peer AS of zero aborts the connection with NOTIFICATION 2/2 Bad Peer AS) is enforced by Session.validateOpenPeerAS (internal/component/bgp/reactor/session_open_as.go) on BOTH OPEN rails, handleOpen and the collision-winner processOpen, and reads the Four-octet AS capability as well as the two-octet My AS because a four-octet speaker carries its real AS there. RFC7607-2-5 (never initiate a connection claiming to be AS 0) is enforced by Session.sendOpen, paired with the zt:asn YANG range \"1..4294967295\" that refuses AS 0 at config load. Ze uses AS 0 internally as a not-known-yet sentinel for a dynamic peer, for observation grouping and for BGP-LS descriptors; every check above reads the WIRE field instead, and rfc/short/rfc7607.md tabulates the five sentinel sites against the check that leaves each one alone. Enrolled 2026-08-30.",
       "implementation": "ze",
       "implementation-reason": "Ze's own Go implements this document; each requirement row cites its producer.",
       "public-status": "Supported",
-      "public-coverage": "`internal/component/bgp/message/rfc7607.go` (AS4_PATH and AS4_AGGREGATOR validators), `internal/component/bgp/message/rfc7606.go` (`validateASPath`, `validateAggregatorAttr`), `internal/component/bgp/reactor/session_open_as.go` (`validateOpenPeerAS`, both OPEN rails), `internal/component/bgp/reactor/session_negotiate.go` (`sendOpen`)",
+      "public-coverage": "`internal/component/bgp/message/rfc7607.go` (AS4_PATH and AS4_AGGREGATOR validators), `internal/component/bgp/message/rfc7606.go` (`validateASPathAttr`, `validateAggregatorAttr`), `internal/component/bgp/reactor/session_open_as.go` (`validateOpenPeerAS`, both OPEN rails), `internal/component/bgp/reactor/session_negotiate.go` (`sendOpen`)",
       "public-remaining": "All 5 MUST-level requirements implemented and extracted, each with a positive and a negative test tag. AS 0 in AS_PATH is treat-as-withdrawn and in AGGREGATOR, AS4_PATH and AS4_AGGREGATOR it is discarded, which is what RFC 7606 sections 7.2 and 7.7 and RFC 6793 section 6 each prescribe. An OPEN whose peer AS is zero, in either the two-octet My AS field or the Four-octet AS capability, draws NOTIFICATION 2/2 Bad Peer AS on both OPEN rails. This row read `Unsupported` from 2026-08-30 until the implementation landed the same day; before that it claimed `Supported` on a description belonging to RFC 4486.",
       "summary-path": "rfc/short/rfc7607.md",
       "shard-path": "rfc/requirements/rfc7607.md",
@@ -208589,7 +208599,7 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/reactor/rfc7911_reactor_b_test.go` `TestRFC7911AddPathStateAppliesPerFamily` (unit/verify), `internal/component/bgp/reactor/rfc7911_session_addpath_test.go` `TestEnforceRFC7606_MPAddPathLargePathIDAccepted` (unit/verify), `internal/component/bgp/reactor/rfc7911_session_addpath_test.go` `TestEnforceRFC7606_IPv4BodyAddPathLargePathIDAccepted` (unit/verify), `internal/component/bgp/reactor/session_validation_nlritype_bypass_test.go` `TestRFC7606Section54ReadsTypedNLRIUnderAddPath` (unit/verify)",
           "negative-test": "`internal/component/bgp/reactor/rfc7911_reactor_b_test.go` `TestRFC7911AddPathStateAppliesPerFamily` (unit/verify), `internal/component/bgp/reactor/rfc7911_session_addpath_test.go` `TestEnforceRFC7606_MPAddPathLargePathIDAccepted` (unit/verify), `internal/component/bgp/reactor/rfc7911_session_addpath_test.go` `TestEnforceRFC7606_IPv4BodyAddPathLargePathIDAccepted` (unit/verify)",
-          "note": "",
+          "note": "**audit: enforced, shifted**",
           "nightly-only": false,
           "covers": [
             {
@@ -208684,7 +208694,10 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "RFC 7911 Section 5: \"The peer SHALL act accordingly in processing an UPDATE message related to a particular \u003cAFI, SAFI\u003e.\" Read together with the immediately preceding full send/receive negotiation and extended-(prefix,Path Identifier) encoding sentence. All four current carriers read: TestRFC7911AddPathStateAppliesPerFamily, TestEnforceRFC7606_MPAddPathLargePathIDAccepted, TestEnforceRFC7606_IPv4BodyAddPathLargePathIDAccepted and TestRFC7606Section54ReadsTypedNLRIUnderAddPath. The receive matrix positively accepts only the encoding selected for each family and negatively requires exact SessionReset on wrong framing in both IPv4/IPv6 orientations; large identifier octets isolate the framing misread. The typed test now installs a real receive context and verifies the recognized EVPN route retains its identifier while the unknown route disappears. enforceRFC7606 and typedNLRIEdit consult recvCtx.AddPathFor on the specific family. This is receive-side evidence, not an extra generation claim. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.",
-            "freshness": "fresh"
+            "freshness": "shifted",
+            "moved": [
+              "internal/component/bgp/reactor/session_validation_nlritype_bypass_test.go::TestRFC7606Section54ReadsTypedNLRIUnderAddPath"
+            ]
           }
         },
         {
@@ -226733,7 +226746,7 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/reactor/rfc8654_rib_recovery_test.go` `TestRFC8654TreatAsWithdrawRemovesInstalledRoutes` (unit/verify), `internal/component/bgp/reactor/rfc8654_rib_recovery_test.go` `TestRFC8654ExtendedTwoFamilyWithdrawalRecovery` (unit/verify), `internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go` `TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling` (unit/verify), `internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go` `TestRFC8654ExtendedAttributeDiscard` (unit/verify), `internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go` `TestRFC8654ExtendedDuplicateAttributes` (unit/verify), `internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go` `TestRFC8654ExtendedDuplicateMPResets` (unit/verify)",
           "negative-test": "`internal/component/bgp/reactor/rfc8654_rib_recovery_test.go` `TestRFC8654TreatAsWithdrawRemovesInstalledRoutes` (unit/verify), `internal/component/bgp/reactor/rfc8654_rib_recovery_test.go` `TestRFC8654ExtendedTwoFamilyWithdrawalRecovery` (unit/verify), `internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go` `TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling` (unit/verify), `internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go` `TestRFC8654ExtendedAttributeDiscard` (unit/verify), `internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go` `TestRFC8654ExtendedDuplicateAttributes` (unit/verify), `internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go` `TestRFC8654ExtendedDuplicateMPResets` (unit/verify)",
-          "note": "",
+          "note": "**audit: enforced, stale-unit**",
           "nightly-only": false,
           "covers": [
             {
@@ -226945,7 +226958,11 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "Re-judged 2026-10-24 (independent auditor, after 66858fa127). RFC 8654 Section 3: \"Peers that wish to use the BGP Extended Message Capability MUST support error handling for BGP UPDATE messages per [RFC7606].\" The two message-level units (TestRFC7606MPReachNLRIConsistentWithAFISAFIAccepted, TestRFC7606AttributeLengthConflictTreatAsWithdraw) no longer carry this tag, which removes the over-claim the previous judgement named: they never involved Extended Message. Both polarities remain, carried only by session-level units on a session that negotiated Extended Message with UPDATEs over 4096 octets: TestRFC8654TreatAsWithdrawRemovesInstalledRoutes (valid 4097-octet UPDATE installs 3 routes in Adj-RIB-In, Loc-RIB and downstream; ORIGIN=3 alone removes all three from each and withdraws downstream; a later valid UPDATE reinstalls on the same Established session with no NOTIFICATION), TestRFC8654ExtendedTwoFamilyWithdrawalRecovery, TestRFC8654ExtendedAttributeDiscard (valid ATOMIC_AGGREGATE/AGGREGATOR kept byte-exact; malformed one absent, NLRI intact, Established, no NOTIFICATION, both readers), TestRFC8654ExtendedDuplicateAttributes (exact published attributes after keep-first), TestRFC8654ExtendedDuplicateMPResets (single MP processed; duplicate gives Idle, no extra dispatch) and TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling (malformed ORIGIN over 1100 routes: all withdrawn, Established, no NOTIFICATION; attribute section overrunning the message: 3/1, Idle, nothing dispatched). Each unit's tags sit on distinct subtests or phases, not one assertion in two hats. Claims match the bodies. FINDING (not verdict-changing): the positive tag on TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling names the malformed-ORIGIN subtest, which is an error input (RFC 7606's treat-as-withdraw outcome), so that unit is two negatives; the requirement's conforming positives come from the other units. Fix: retag that line as a second negative, or add a well-formed over-4096 subtest asserting the UPDATE is dispatched with attributes and NLRI intact and keep the positive tag on it. Verdict stands.",
-            "freshness": "fresh"
+            "freshness": "stale-unit",
+            "moved": [
+              "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedDuplicateMPResets",
+              "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedDuplicateMPResets#2"
+            ]
           }
         },
         {
@@ -280581,11 +280598,11 @@
       "display": "RFC 9774",
       "title": "Deprecation of AS_SET and AS_CONFED_SET in BGP",
       "enrolled": true,
-      "enrolment-reason": "Owner decision 2026-10-18, \"Implement RFC 9774\", lifting the 2026-10-08 enrolment freeze for this RFC only. Two MUST-level requirements, both in Section 3, both met and proven in both polarities. RFC9774-3-2 (treat-as-withdraw on receipt of an AS_SET or AS_CONFED_SET in AS_PATH or AS4_PATH) is enforced by validateASPath (internal/component/bgp/message/rfc7606.go) and validateAS4PathAttr (internal/component/bgp/message/rfc7607.go), which share ASPathSetSegment (internal/component/bgp/message/rfc9774.go). RFC9774-3-1 (never advertise an UPDATE containing either set) is enforced by Session.transmittedPathHoldsSet and Session.writeUpdateAsWithdrawal (internal/component/bgp/reactor/session_rfc9774.go), called from Session.writeUpdateBody, the one UPDATE writer. The two MUST-level sites of Sections 5.2 and 6.1 bind route aggregation, which Ze does not implement, and are excluded as feature-out-of-scope in rfc/extraction/rfc9774.json. Enrolled 2026-10-19.",
+      "enrolment-reason": "Owner decision 2026-10-18, \"Implement RFC 9774\", lifting the 2026-10-08 enrolment freeze for this RFC only. Two MUST-level requirements, both in Section 3, both met and proven in both polarities. RFC9774-3-2 (treat-as-withdraw on receipt of an AS_SET or AS_CONFED_SET in AS_PATH or AS4_PATH) is enforced by validateASPathAttr (internal/component/bgp/message/rfc7606.go) and validateAS4PathAttr (internal/component/bgp/message/rfc7607.go), which share ASPathSetSegment (internal/component/bgp/message/rfc9774.go). RFC9774-3-1 (never advertise an UPDATE containing either set) is enforced by Session.transmittedPathHoldsSet and Session.writeUpdateAsWithdrawal (internal/component/bgp/reactor/session_rfc9774.go), called from Session.writeUpdateBody, the one UPDATE writer. The two MUST-level sites of Sections 5.2 and 6.1 bind route aggregation, which Ze does not implement, and are excluded as feature-out-of-scope in rfc/extraction/rfc9774.json. Enrolled 2026-10-19.",
       "implementation": "ze",
       "implementation-reason": "Ze's own Go implements this document; each requirement row cites its producer.",
       "public-status": "Supported",
-      "public-coverage": "`internal/component/bgp/message/rfc9774.go` (`ASPathSetSegment`), `internal/component/bgp/message/rfc7606.go` (`validateASPath`), `internal/component/bgp/message/rfc7607.go` (`validateAS4PathAttr`), `internal/component/bgp/reactor/session_rfc9774.go` (`transmittedPathHoldsSet`, `writeUpdateAsWithdrawal`), `internal/component/bgp/reactor/session_write.go` (`writeUpdateBody`)",
+      "public-coverage": "`internal/component/bgp/message/rfc9774.go` (`ASPathSetSegment`), `internal/component/bgp/message/rfc7606.go` (`validateASPathAttr`), `internal/component/bgp/message/rfc7607.go` (`validateAS4PathAttr`), `internal/component/bgp/reactor/session_rfc9774.go` (`transmittedPathHoldsSet`, `writeUpdateAsWithdrawal`), `internal/component/bgp/reactor/session_write.go` (`writeUpdateBody`)",
       "public-remaining": "Both Section 3 MUST-level requirements implemented, each with a positive and a negative test tag. One operator override, on receive only: the peer leaf `session as-set accept`, set by the operator (and written by `ze exabgp migrate` for an ExaBGP `as-set accept` neighbor), keeps a received set (see \"Owner-approved deviation\"; not counted as conformant). The `send bgp \u003cpeer\u003e raw` test instrument writes operator bytes as given. Route aggregation (Sections 5, 5.2, 6.1, 6.2) is not implemented, so its obligations are an implementation gap outside the conformance count.",
       "summary-path": "rfc/short/rfc9774.md",
       "shard-path": "rfc/requirements/rfc9774.md",
@@ -280982,7 +280999,7 @@
         "audited": 61,
         "discrimination-records": 152,
         "escapes": 0,
-        "stale-records": 2
+        "stale-records": 0
       },
       "requirements": [
         {
@@ -285783,11 +285800,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-gone",
-                "detail": "the producer the break was applied to is no longer in the tree",
-                "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606AddPath",
-                "break": "body of ValidateUpdateRFC7606AddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "state": "verified",
+                "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606Peer",
+                "break": "body of ValidateUpdateRFC7606Peer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             },
@@ -285801,11 +285817,10 @@
               "tags": 2,
               "proof": {
                 "route": "revert",
-                "state": "producer-gone",
-                "detail": "the producer the break was applied to is no longer in the tree",
-                "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606AddPath",
-                "break": "body of ValidateUpdateRFC7606AddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "state": "verified",
+                "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606Peer",
+                "break": "body of ValidateUpdateRFC7606Peer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+                "verified": true,
                 "proves": true
               }
             }

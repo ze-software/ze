@@ -165,6 +165,20 @@ generic signal with no target, and the local responder cannot install a targeted
 rule. The coarse rule matches the destination prefix; characterization (below)
 then narrows it in place to the attack's protocol, ports, and TCP flags.</p>
 <!-- source: internal/plugins/ddos/detect/characterize.go -- characterizeTarget fills the victim DstPrefix from traffic-usage -->
+<p>The flow sources are the <code>traffic-usage</code> plugin (build tag <code>ze_trafficusage</code>)
+and <code>flow-export</code> (<code>ze_flowexport</code>). A build that carries neither refuses
+<code>ddos detect enabled true</code> at <code>ze config validate</code>, at commit, at daemon start
+and at SIGHUP reload, naming both tags as alternatives in its fix line. A build
+that carries either accepts it, and whether that source is configured stays the
+<code>doctor-ddos-detect-no-flow-source</code> warning of <code>ze doctor</code>. With detection
+enabled, both compiled-in sources are started; one with no config stays idle.
+<code>anomaly detect enabled true</code> gets the same treatment, for the same two sources.</p>
+<p><code>ddos flowspec response-level enforce</code> announces through the BGP subsystem, so a
+build without <code>ze_bgp</code> refuses it the same way, naming <code>ze_bgp</code>;
+<code>response-level alert</code> announces nothing and is accepted in every build.</p>
+<!-- source: internal/plugins/ddos/detect/register.go -- ConfigNeeds -->
+<!-- source: internal/plugins/anomaly/detect/register.go -- ConfigNeeds -->
+<!-- source: internal/plugins/ddos/flowspec/register.go -- ConfigNeeds, bgpPlugin -->
 <p>The drop rule is removed automatically when the attack stops (the detector
 observes RxPps falling below threshold, which works because nftables drops occur
 after the kernel NIC RX counter), when it reaches <code>max-mitigation-duration</code>, and
@@ -960,7 +974,7 @@ degrades to a coarse generic-flood drop.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 09:38 UTC</span>
                 </div>
             </div>
         </footer>
