@@ -484,11 +484,14 @@ but every recipient it was withheld from is retained with the received
 generation, and is announced the route once a distance becomes available. A
 failed write discards that record, as it does for an announcement, and a
 withdrawal that decides nothing about AIGP, such as a relay recovery's
-withdrawal of an obsolete owner, leaves it in place. A resolved
-recursive sum may be zero; it remains an announcement with the computed AIGP. A source withdrawal, replacement or
-disconnect still invalidates the generation. A recursive BGP next hop with no
-AIGP is different: RFC 7311 Section 3.4.3 explicitly requires removal of the
-attribute in that case.</p>
+withdrawal of an obsolete owner, leaves it in place. Without ADD-PATH every
+source shares the recipient's key, so a withdrawal from one source, withheld or
+written, never replaces another source's live record: the recipient may hold
+that source's route, and its own distance changes must still re-advertise it.
+A resolved recursive sum may be zero; it remains an announcement with the
+computed AIGP. A source withdrawal, replacement or disconnect still invalidates
+the generation. A recursive BGP next hop with no AIGP is different: RFC 7311
+Section 3.4.3 explicitly requires removal of the attribute in that case.</p>
 <!-- source: internal/component/bgp/reactor/forward_aigp.go -- applyFactsAIGP -->
 <!-- source: internal/component/bgp/reactor/aigp_readvertise.go -- noteAIGPWrite, commitAIGPWrites, replayAIGP -->
 <!-- source: internal/component/bgp/reactor/session_write.go -- writeUpdateBody -->
@@ -511,7 +514,14 @@ legacy framing, replacing any sibling NEXT_HOP from the stored attribute block
 with the route's own next hop. A negotiated 16- or 32-octet IPv6 next hop remains
 in MP_REACH during reconstruction, including recovery after a cost withdrawal.
 Withdrawals, replacements and disconnects invalidate retained generations; queued
-replays check the generation and destination session again before writing.</p>
+replays check the generation and destination session again before writing.
+A replay already queued for a record with the same outcome is not queued again,
+so one batch never writes the same UPDATE twice. The forward worker releases
+that claim when its batch ends, whether the write emitted the UPDATE or nothing
+(PATHS-LIMIT, the adj-out filter, a rejected final policy), so a later pass with
+the same outcome queues it again.</p>
+<!-- source: internal/component/bgp/reactor/aigp_readvertise.go -- replayAIGP, releaseAIGPReplays -->
+<!-- source: internal/component/bgp/reactor/forward_pool.go -- fwdBatchHandler -->
 <p>Live AIGP announcements and their later attribute-free withdrawals use the same
 source FIFO. A source that has entered this path stays on it across settings
 reloads. Live items also carry a session generation, checked before destination
@@ -738,7 +748,7 @@ updated after.</li>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 06:34 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 07:19 UTC</span>
                 </div>
             </div>
         </footer>

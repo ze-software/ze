@@ -196,6 +196,8 @@ The homepage hero uses the shared `--hero-panel-surface` navy gradient in both t
 
 The homepage's four starting actions fill the space beside the release callout in equal columns. Center each title and its supporting text within its column. At widths of 850px or less, use two equal columns and keep the text centered.
 
+Standard homepage sections use 2rem of top and bottom padding, reduced to 1.5rem at widths of 560px or less, with no added top margin. Stacked section titles and introductions have a 0.5rem gap. Keep the hero and proof panels' separate spacing.
+
 ### Dispatch cards
 
 Use one accent palette per choice and a light circle-line ornament. Do not use filled decorative balls.

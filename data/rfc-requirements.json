@@ -76328,7 +76328,7 @@
           "gated": true,
           "positive-test": "`internal/component/ike/engine/child_test.go` `TestChildSANATTEncapPorts` (unit/verify), `internal/component/ike/engine/rfc3948_encap_port_test.go` `TestRFC3948ChildSAFollowsANATMappedPeerPort500` (unit/verify), `internal/component/ike/engine/rfc3948_encap_port_test.go` `TestRFC3948ResponderChildSAEncapsulatesToTheIKEPeerPort` (unit/verify), `internal/component/ike/engine/rfc3948_encap_port_test.go` `TestRFC3948EAPResponderChildSAEncapsulatesToTheIKEPeerPort` (unit/verify), `internal/component/ike/engine/rfc3948_rebind_test.go` `TestRFC3948RebindMigratesTunnelChildSAs` (unit/verify), `internal/component/ike/engine/rfc3948_rebind_test.go` `TestRFC3948RebindRekeysWithoutAMigrator` (unit/verify), `internal/component/ike/engine/rfc3948_rebind_test.go` `TestRFC3948RebindRekeysTransportChildSA` (unit/verify)",
           "negative-test": "`internal/component/ike/engine/rfc3948_encap_port_test.go` `TestRFC3948ChildSARefusesEncapWithoutAnIKEPort` (unit/verify), `internal/component/ike/engine/rfc3948_rebind_test.go` `TestRFC3948RebindNotRunWithoutAnAdoptedMove` (unit/verify)",
-          "note": "",
+          "note": "**audit: enforced, shifted**",
           "nightly-only": false,
           "covers": [
             {
@@ -76489,7 +76489,13 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "Re-judged 2026-10-15 after b457ba88cf (Child SA encap ports come from the IKE SA) rewrote TestChildSANATTEncapPorts, the test this verdict found wrong, and, with 8233b4e305 and 4fecbbd82a, added eight tagged units: TestRFC3948ChildSAFollowsANATMappedPeerPort500 and TestRFC3948ChildSARefusesEncapWithoutAnIKEPort (b457ba88cf), TestRFC3948ResponderChildSAEncapsulatesToTheIKEPeerPort and TestRFC3948EAPResponderChildSAEncapsulatesToTheIKEPeerPort (8233b4e305), and the four TestRFC3948Rebind units (4fecbbd82a). RFC 3948 Section 2.1: \"the Source Port and Destination Port MUST be the same as that used by IKE traffic,\". Producer: childEncapPorts (create_child.go) answers remote = the peer's authenticated IKE endpoint port and local = the bound NAT-T socket port (MOBIKE: its local path), refuses with errChildEncapPort when no endpoint exists, and installChildSA no longer defaults to 4500. Positive: TestChildSANATTEncapPorts and TestRFC3948ChildSAFollowsANATMappedPeerPort500 assert exact (sport, dport) on both installed states with the peer on 14500 (or a NAT-mapped 500) and the local socket on a kernel-picked port, so the 4500 constant cannot pass; TestRFC3948ResponderChildSAEncapsulatesToTheIKEPeerPort calls handleAuthRequest directly with the PSK IKE_AUTH from source port 14500, and TestRFC3948EAPResponderChildSAEncapsulatesToTheIKEPeerPort drives the EAP exchange through handleInbound from the same port; both assert the installed pair; TestRFC3948RebindMigratesTunnelChildSAs, TestRFC3948RebindRekeysWithoutAMigrator and TestRFC3948RebindRekeysTransportChildSA assert the migrated or rekeyed states carry the moved IKE port. Negative: TestRFC3948ChildSARefusesEncapWithoutAnIKEPort asserts errChildEncapPort naming the peer and zero installed states (with and without MOBIKE, and a rekey that leaves only the old pair); TestRFC3948RebindNotRunWithoutAnAdoptedMove asserts the ports do not change without an adopted move. Both source and destination port are asserted in both directions, so the whole sentence is covered. Proven at the dataplane.SAParams boundary through mockDP; the kernel read-back (rfc3948_encap_port_integration_linux_test.go) is untagged and has not run. The engine tests ran green 2026-10-15 (./le job run, -run 'TestRFC3948|TestChildSANATTEncapPorts'). rfc/discrimination/rfc3948.json holds a RFC3948-2.1-2 record for each of the nine tagged units: three written by b7b658f27d (TestChildSANATTEncapPorts, TestRFC3948ChildSAFollowsANATMappedPeerPort500, TestRFC3948ChildSARefusesEncapWithoutAnIKEPort), two by 8233b4e305 and four by 4fecbbd82a, each with the commit that added its unit.",
-            "freshness": "fresh"
+            "freshness": "shifted",
+            "moved": [
+              "internal/component/ike/engine/rfc3948_rebind_test.go::TestRFC3948RebindMigratesTunnelChildSAs",
+              "internal/component/ike/engine/rfc3948_rebind_test.go::TestRFC3948RebindNotRunWithoutAnAdoptedMove",
+              "internal/component/ike/engine/rfc3948_rebind_test.go::TestRFC3948RebindRekeysTransportChildSA",
+              "internal/component/ike/engine/rfc3948_rebind_test.go::TestRFC3948RebindRekeysWithoutAMigrator"
+            ]
           }
         },
         {
@@ -171240,7 +171246,7 @@
         "audited": 95,
         "discrimination-records": 239,
         "escapes": 0,
-        "stale-records": 12
+        "stale-records": 14
       },
       "requirements": [
         {
@@ -176272,10 +176278,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/ike/engine/established.go::sayGoodbye",
                 "break": "body of sayGoodbye replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -176306,10 +176313,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/ike/engine/established.go::sayGoodbye",
                 "break": "body of sayGoodbye replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             }

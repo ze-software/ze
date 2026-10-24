@@ -1,17 +1,20 @@
 {
   "gate": {
     "ok": false,
-    "error-count": 183,
+    "error-count": 187,
     "gated-must": 4292,
     "enrolled-rfcs": 177,
     "test-tags": 9143,
-    "message": "rfc-requirements: 183 violation(s)",
+    "message": "rfc-requirements: 187 violation(s)",
     "violations": [
+      "internal/le/interoplab/ipsec: `go vet` cannot type-check this package, so the 7 RFC requirement(s) tagged in it are not evidence: no test here can run. Tagged here: RFC3948-3.1.2-1, RFC3948-3.1.2-2, RFC7296-2.7-1, RFC7627-5.4-1, .... go vet said: internal/le/interoplab/ipsec/checkers.go:955:44: undefined: swanLogChildClosed. Fix the package so `./le verify deps unit-cached` compiles it, then re-run `./le rfc check`",
       "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-6 is annotated {partial: tested \"mandatory fields exceed the declared Lengt} but its public row says draft-ietf-bess-mup-safi is 'Partial' with ''. A known unmet MUST cannot be advertised as clean support -- correct `Support status` or `Support remaining` in the summary's own Meta table, then run ./le rfc index-update. A hand edit to docs/features/rfc-status.md is destroyed by the next run",
       "RFC2545-3-3 partial scope needs a current verified mutant/revert for negative internal/component/bgp/reactor/rfc2545_peer_send_test.go::TestSendAnnounceOmitsLinkLocalWhenPeerOffLink",
       "RFC2545-3-3 partial scope needs a current verified mutant/revert for positive internal/component/bgp/reactor/rfc2545_peer_send_test.go::TestSendAnnounceAppendsLinkLocalWhenSection3Holds",
       "rfc/short/draft-abraitis-bgp-version-capability.md:94: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1 has a STALE audit verdict -- what it judged changed: internal/core/bgp/capability/negotiated.go::Negotiate (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read draft-abraitis-bgp-version-capability with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
       "rfc/short/rfc2918.md:197: RFC2918-4-3 has a STALE audit verdict -- what it judged changed: internal/component/bgp/reactor/rfc2918_replay_feedback_test.go::TestRefreshSentFeedbackRetainsReplayOrigin (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc2918 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+      "rfc/short/rfc3948.md:216: RFC3948-2.1-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/ike/engine/rfc3948_rebind_test.go::TestRFC3948RebindMigratesTunnelChildSAs, internal/component/ike/engine/rfc3948_rebind_test.go::TestRFC3948RebindNotRunWithoutAnAdoptedMove, internal/component/ike/engine/rfc3948_rebind_test.go::TestRFC3948RebindRekeysTransportChildSA, internal/component/ike/engine/rfc3948_rebind_test.go::TestRFC3948RebindRekeysWithoutAMigrator), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal",
+      "rfc/short/rfc3948.md:217: RFC3948-3.1.2-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/le/interoplab/ipsec/checkers.go::checkNATTTransportInnerChecksum, internal/le/interoplab/ipsec/checkers.go::checkNATTTunnelInnerChecksum), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal",
       "rfc/short/rfc4271.md:792: RFC4271-5.1.5-1 has a STALE audit verdict -- what it judged changed: internal/component/bgp/reactor/rfc4271_reactor_api_origin_test.go::TestAnnounceStripsLocalPrefTowardExternalPeer (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc4271 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
       "rfc/short/rfc4271.md:793: RFC4271-5.1.5-2 has a STALE audit verdict -- what it judged changed: internal/component/bgp/reactor/rfc4271_reactor_api_origin_test.go::TestAnnounceStripsLocalPrefTowardExternalPeer (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc4271 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
       "rfc/short/rfc4271.md:814: RFC4271-8.2.2-20 has a STALE audit verdict -- what it judged changed: internal/component/bgp/reactor/peer_run.go::runOnce (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc4271 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
@@ -22,6 +25,7 @@
       "rfc/short/rfc5549.md:225: RFC5549-4-4 has a STALE audit verdict -- what it judged changed: internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go::TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair (func-scoped), internal/component/bgp/reactor/reactor_a_rfc8950_explicit_nexthop_test.go::TestRFC8950ExplicitIPv6NextHopFollowsTheNegotiatedPair#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc5549 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
       "rfc/short/rfc5575.md:609: RFC5575-4-8 has a STALE audit verdict -- what it judged changed: internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestRFC8955NextHopIgnoredForFlowSpec (func-scoped), internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestRFC8955NextHopIgnoredForFlowSpec#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc5575 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
       "rfc/short/rfc6396.md:439: RFC6396-4.4.2-2 has a STALE audit verdict -- what it judged changed: internal/plugins/mrt/rfc6396_component_test.go::TestOneBGPMessagePerBGP4MPRecord (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc6396 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+      "rfc/short/rfc7296.md:491: RFC7296-2.7-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/le/interoplab/ipsec/checkers.go::checkESNBothOffered, internal/le/interoplab/ipsec/checkers.go::checkESNExtendedOnlyRefused), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal",
       "rfc/short/rfc7296.md:623: RFC7296-2.21.4-8 has a STALE audit verdict -- what it judged changed: internal/component/ike/engine/established.go::maintainSA (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7296 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
       "rfc/short/rfc7432.md:579: RFC7432-5-1 has a STALE audit verdict -- what it judged changed: internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNESIIsTenOctets (func-scoped), internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNESIIsTenOctets#2 (func-scoped), internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNESIIsTenOctets#3 (func-scoped), internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNESIIsTenOctets#4 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7432 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
       "rfc/short/rfc7432.md:583: RFC7432-8.2.1-4 has a STALE audit verdict -- what it judged changed: internal/component/bgp/plugins/nlri/evpn/config.go::parseConfigRoute (func-scoped), internal/component/bgp/plugins/nlri/evpn/encode.go::l2vpnRouteToEVPNParams (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7432 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
@@ -193,6 +197,9 @@
     ],
     "findings": [
       {
+        "message": "internal/le/interoplab/ipsec: `go vet` cannot type-check this package, so the 7 RFC requirement(s) tagged in it are not evidence: no test here can run. Tagged here: RFC3948-3.1.2-1, RFC3948-3.1.2-2, RFC7296-2.7-1, RFC7627-5.4-1, .... go vet said: internal/le/interoplab/ipsec/checkers.go:955:44: undefined: swanLogChildClosed. Fix the package so `./le verify deps unit-cached` compiles it, then re-run `./le rfc check`"
+      },
+      {
         "message": "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-6 is annotated {partial: tested \"mandatory fields exceed the declared Lengt} but its public row says draft-ietf-bess-mup-safi is 'Partial' with ''. A known unmet MUST cannot be advertised as clean support -- correct `Support status` or `Support remaining` in the summary's own Meta table, then run ./le rfc index-update. A hand edit to docs/features/rfc-status.md is destroyed by the next run"
       },
       {
@@ -206,6 +213,12 @@
       },
       {
         "message": "rfc/short/rfc2918.md:197: RFC2918-4-3 has a STALE audit verdict -- what it judged changed: internal/component/bgp/reactor/rfc2918_replay_feedback_test.go::TestRefreshSentFeedbackRetainsReplayOrigin (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc2918 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)"
+      },
+      {
+        "message": "rfc/short/rfc3948.md:216: RFC3948-2.1-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/ike/engine/rfc3948_rebind_test.go::TestRFC3948RebindMigratesTunnelChildSAs, internal/component/ike/engine/rfc3948_rebind_test.go::TestRFC3948RebindNotRunWithoutAnAdoptedMove, internal/component/ike/engine/rfc3948_rebind_test.go::TestRFC3948RebindRekeysTransportChildSA, internal/component/ike/engine/rfc3948_rebind_test.go::TestRFC3948RebindRekeysWithoutAMigrator), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal"
+      },
+      {
+        "message": "rfc/short/rfc3948.md:217: RFC3948-3.1.2-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/le/interoplab/ipsec/checkers.go::checkNATTTransportInnerChecksum, internal/le/interoplab/ipsec/checkers.go::checkNATTTunnelInnerChecksum), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal"
       },
       {
         "message": "rfc/short/rfc4271.md:792: RFC4271-5.1.5-1 has a STALE audit verdict -- what it judged changed: internal/component/bgp/reactor/rfc4271_reactor_api_origin_test.go::TestAnnounceStripsLocalPrefTowardExternalPeer (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc4271 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)"
@@ -236,6 +249,9 @@
       },
       {
         "message": "rfc/short/rfc6396.md:439: RFC6396-4.4.2-2 has a STALE audit verdict -- what it judged changed: internal/plugins/mrt/rfc6396_component_test.go::TestOneBGPMessagePerBGP4MPRecord (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc6396 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)"
+      },
+      {
+        "message": "rfc/short/rfc7296.md:491: RFC7296-2.7-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/le/interoplab/ipsec/checkers.go::checkESNBothOffered, internal/le/interoplab/ipsec/checkers.go::checkESNExtendedOnlyRefused), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal"
       },
       {
         "message": "rfc/short/rfc7296.md:623: RFC7296-2.21.4-8 has a STALE audit verdict -- what it judged changed: internal/component/ike/engine/established.go::maintainSA (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7296 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)"
@@ -885,8 +901,8 @@
   },
   "audit": {
     "verdicts": 2271,
-    "fresh": 2240,
-    "shifted": 0,
+    "fresh": 2239,
+    "shifted": 1,
     "stale": 31,
     "missing": 2021
   },

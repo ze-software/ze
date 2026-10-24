@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0.0% | 0 of 223 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 223 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 223 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 32.2% | 227 of 704 tagged units, 0 escaped and 12 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 32.0% | 225 of 704 tagged units, 0 escaped and 14 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -1487,9 +1487,9 @@ Audit verdict: not audited: no reader has judged these tests
 |---|---|---|---|
 | negative | [`TestDPDNoTransportTakesNoWindow`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_dpd_liveness_test.go#L106) | unit/verify | unproven |
 | negative | [`TestWinOneRequestPerTick`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_window_test.go#L89) | unit/verify | revert, verified |
-| negative | [`TestWinTeardownDoesNotHang`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_window_test.go#L537) | unit/verify | revert, verified |
+| negative | [`TestWinTeardownDoesNotHang`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_window_test.go#L537) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestWinOneRequestPerTick`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_window_test.go#L84) | unit/verify | revert, verified |
-| positive | [`TestWinTeardownDoesNotHang`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_window_test.go#L531) | unit/verify | revert, verified |
+| positive | [`TestWinTeardownDoesNotHang`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_window_test.go#L531) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC7296-2.3-4`](#rfc7296-2.3-4)
 
