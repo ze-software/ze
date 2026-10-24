@@ -22,7 +22,12 @@ kept to meta decisions only):
 | Id | Date | Decision | Thomas's words |
 |----|------|----------|----------------|
 | O-1 | 2026-10-22 | The Go build cache gets a size cap that every `./le` run enforces | "yes" to "Cap the Go build-cache size, enforced on every `./le` run?" |
-| O-2 | 2026-10-22 | The trim limits the ambient Go cache (`~/.cache/go-build`) as well as le's own caches, superseding D-6 of the closed `spec-le-bounds-its-build-stores`; le's caches keep their 40G budget (A-1, AC-10, AC-11) | "The trim should limit both cache." and "40 gig is right" |
+| O-2 | 2026-10-22 | The trim limits the ambient Go cache (`~/.cache/go-build`) as well as le's own caches, superseding D-6 of the closed `spec-le-bounds-its-build-stores`; le's caches keep their 40G budget (A-1, AC-10, AC-11). Superseded by O-3: there is no separate ambient cache left to budget | "The trim should limit both cache." and "40 gig is right" |
+| O-3 | 2026-10-24 | One Go build cache per host: the per-user `~/.cache/ze` (`$XDG_CACHE_HOME/ze`), never `~/Library/Caches` and never a second copy in the checkout. Every `./le` action, every verify worktree, the bootstrap and lint caches, and every tool outside le write there. Outside le, `go env -w GOCACHE` names it, and gopls, golangci-lint and staticcheck are pointed at it by shell variables (`GOPLSCACHE`, `GOLANGCI_LINT_CACHE`, `STATICCHECK_CACHE`) set in both zsh and NuShell, not by links from their default folders. On the Linux host `~/.cache` is its own drive, which is why the location matters | "We want to use the cache in the .cache folder because on another host it's a different drive", "We should not have anything in the library. we want to remove the duplication", "We also need to support NuShell", and "shell" to links or shell variables |
+| O-4 | 2026-10-24 | When any part of O-3 is wrong on a host, le prints what is wrong and repairs it itself: the checkout's `cache/` link, the `go env` GOCACHE setting, and the shell variable lines for zsh and NuShell | "when le cache is wrong, print it and fix itself" |
+
+O-3 and O-4 rework G-3, A-1, A-5, AC-10, AC-11 and AC-14 before implementation:
+the ambient budget is dropped because the ambient cache stops existing.
 
 O-1: the Go build cache gets a size cap that every `./le` run enforces. Background, handover 17
 (`plan/handover/17-exabgp-6-linux-continue.md`, "Owner decisions" row 1): the
