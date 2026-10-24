@@ -1290,7 +1290,7 @@ pre.code-copy-wrap, .md-content pre.code-copy-wrap { position: relative; padding
 .cli-reference-content .cli-pipes summary { font-size: 0.78rem; }
 
 /* Homepage: an authentic interface, practical reasons and linked evidence. */
-.site-home .hero { display: block; padding: 0 clamp(1rem, 3vw, 2.5rem); margin: 0 0 2rem; color: var(--hero-text); background: var(--hero-bg); border-radius: var(--radius-xl); box-shadow: none; clip-path: none; border-bottom: 3px solid var(--brand-bright); overflow: visible; }
+.site-home .hero { display: block; padding: 0 clamp(1rem, 3vw, 2.5rem); margin: 0 0 2rem; color: var(--hero-text); background: var(--hero-panel-surface); border-radius: var(--radius-xl); box-shadow: none; clip-path: none; border-bottom: 3px solid var(--brand-bright); overflow: visible; }
 .site-home .hero-start-panel { padding: 0; margin: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; overflow: visible; }
 .site-home .hero-start-panel::after { content: none; }
 .site-home .hero-start-intro.hero-grid { grid-template-columns: minmax(0, 0.98fr) minmax(0, 1.12fr); grid-template-areas: "copy preview"; gap: 2.75rem; align-items: center; padding: 3.25rem 0 2rem; }

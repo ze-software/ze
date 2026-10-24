@@ -304,14 +304,11 @@ a {
     transform: rotate(180deg);
 }
 
-/*
- * CSS-only hover/focus dropdown -- no JS state to fall out of sync with a
- * mouseenter/mouseleave/click-toggle race. The panel sits flush against the
- * trigger (no gap) so there's no dead zone to lose :hover crossing into it.
- */
+/* A transparent bridge keeps the hover path open across the visible gap
+ * between the trigger and the dropdown panel. Click and focus also open it. */
 .nav-dropdown-panel {
     position: absolute;
-    top: 100%;
+    top: calc(100% + 0.75rem);
     left: 50%;
     z-index: 30;
     display: none;
@@ -326,6 +323,15 @@ a {
     box-shadow:
         0 1px 2px rgba(40, 20, 55, 0.06),
         0 1.2rem 2.6rem var(--shadow);
+}
+
+.nav-dropdown-panel::before {
+    content: "";
+    position: absolute;
+    right: 0;
+    bottom: 100%;
+    left: 0;
+    height: calc(0.75rem + 1px);
 }
 
 .nav-dropdown:hover .nav-dropdown-panel,
@@ -2721,12 +2727,16 @@ footer {
         display: none;
         width: 100%;
         max-width: none;
-        margin-top: 0.35rem;
+        margin-top: 0.75rem;
         padding: 0.6rem;
         transform: none;
         flex-direction: column;
         gap: 0.5rem;
         box-shadow: none;
+    }
+
+    .nav-dropdown-panel::before {
+        content: none;
     }
 
 
