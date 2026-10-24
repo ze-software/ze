@@ -244,7 +244,7 @@ is treat-as-withdraw (RFC 9830 Section 5). An AS_SET or AS_CONFED_SET segment in
 AS_PATH or AS4_PATH is treat-as-withdraw (RFC 9774 Section 3), and on AS4_PATH it
 outranks the attribute discard AS 0 earns (RFC 7606 Section 3(h)).
 
-<!-- source: internal/component/bgp/message/rfc7606.go -- ValidateUpdateRFC7606AddPath, validateNextHopAttr -->
+<!-- source: internal/component/bgp/message/rfc7606.go -- ValidateUpdateRFC7606Peer, validateNextHopAttr -->
 <!-- source: internal/component/bgp/reactor/session_validation.go -- rfc7606NLRISyntaxAction, rfc7606ResetNotification -->
 
 At the default log level, every RFC 7606 action other than session reset

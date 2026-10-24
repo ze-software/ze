@@ -755,12 +755,20 @@ send bgp !upstream1 cached 12345
 > **Note:** Filter selectors (`[local-as ...]`, `[peer-as ...]`) from ExaBGP multi-session
 > draft are not supported — the draft never became an RFC.
 
-Not every command takes every selector. `teardown`, `notify`, `disable`, `enable`,
-`pause`, `resume`, `clear soft` and `delete bgp peer` act on one peer: the selector
-must resolve to exactly one, and `*`, an exclusion or a selector matching several
-peers is refused. The YANG `selector` leaf of `ze-peer-cmd.yang` says which
-commands act on every peer it matches.
+Not every command takes every selector. A command whose handler resolves its
+selector through `ResolveSinglePeer` acts on one peer: the selector must resolve
+to exactly one, and `*`, an exclusion or a selector matching several peers is
+refused. The handlers that call it are the list, so grep for the function rather
+than trusting a copy here; the source anchors below name each caller (among them
+`teardown`, `notify`, `disable`, `enable`, `pause`, `resume`, `clear soft`,
+`delete bgp peer` and `raw`). The YANG `selector` leaf of `ze-peer-cmd.yang` says
+which commands act on every peer it matches.
 <!-- source: internal/component/plugin/server/command.go -- ResolveSinglePeer -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- teardown, remove, peerFlowControl -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/admin.go -- disable, enable -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/notify.go -- notify -->
+<!-- source: internal/component/bgp/plugins/cmd/raw/raw.go -- handleRaw -->
+<!-- source: internal/component/bgp/plugins/route_refresh/handler/clear_soft.go -- clear soft -->
 <!-- source: internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang -- selector -->
 
 ### Route Commands (update text)

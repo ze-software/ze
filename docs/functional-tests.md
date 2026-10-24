@@ -3509,8 +3509,8 @@ The `exabgp-test` stage runs both populations once, under the last pin's
 environment, since their helpers import no ExaBGP. The mock is `le`
 itself, so a run after an edit to it names a session build,
 `./le --name <name> test exabgp old-4.2 --all`, or it runs the stale shared
-binary. The spec
-`plan/release/fixes/spec-exabgp-6-api-compatibility.md` carries what remains.
+binary. Each allowance carries its reason; the ExaBGP gaps that remain are
+owned by `plan/release/fixes/spec-exabgp-bridge-refuses-untranslated.md`.
 
 ```bash
 ./le test exabgp old-5.0 --all
