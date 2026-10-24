@@ -163,14 +163,132 @@ func interopScenarioOf(tree string, reader *sourceReader, index *scopeIndex,
 	return match[1], nil
 }
 
+// observeBreaks is the whole observation of one record's breaks: the clean
+// run, the red of every break together, and for a pair each break alone.
+//
+// solos holds one overlay set per break, Producer's first, and is empty for a
+// single-break record. A pair is recorded only when every break applied alone
+// leaves the unit green: a break that reddens it alone is a single-break proof
+// that the pair dresses up, and a break the unit never executes leaves the pair
+// behaving as the others alone, which the same runs show green. The solo runs
+// are what makes that hold on a carrier no coverage profile reaches.
+func (o *observationRunner) observeBreaks(broken []overlayFile,
+	solos [][]overlayFile) (ObservedRed, []SoloGreen, error) {
+	if err := o.requireCleanGreen(); err != nil {
+		return ObservedRed{}, nil, err
+	}
+	red, err := o.requireRed(broken...)
+	if err != nil {
+		return ObservedRed{}, nil, err
+	}
+	solo, err := o.requireSoloGreen(solos)
+	if err != nil {
+		return ObservedRed{}, nil, err
+	}
+	return red, solo, nil
+}
+
+// requireSoloGreen runs each break of a pair by itself and demands the unit
+// stays green under every one, answering the green runs in break order.
+func (o *observationRunner) requireSoloGreen(solos [][]overlayFile) ([]SoloGreen, error) {
+	if len(solos) == 0 {
+		return nil, nil
+	}
+	breaks := o.breaks()
+	if len(solos) != len(breaks) {
+		var tb textbuf.Buffer
+		return nil, parseErr(tb.Str("BUG: ").Int(int64(len(solos))).Str(" solo break sets for ").
+			Int(int64(len(breaks))).Str(" breaks"))
+	}
+	runs := make([]SoloGreen, 0, len(solos))
+	for position, files := range solos {
+		run, err := o.runAlone(breaks[position], files)
+		if err != nil {
+			return nil, err
+		}
+		runs = append(runs, run)
+	}
+	return runs, nil
+}
+
+// runAlone applies one break of a pair by itself and answers its green run.
+func (o *observationRunner) runAlone(alone PairedBreak, files []overlayFile) (SoloGreen, error) {
+	overlay, err := writeOverlay(o.tree, files...)
+	if err != nil {
+		return SoloGreen{}, err
+	}
+	started := time.Now()
+	passed, output, err := o.run(overlay, "")
+	if err != nil {
+		return SoloGreen{}, err
+	}
+	var tb textbuf.Buffer
+	if !passed {
+		return SoloGreen{}, parseErr(tb.Str(o.record.Unit).Str(" went red under the break ").
+			Quoted(alone.Break).Str(" in ").Str(alone.Producer).Str(" applied ALONE, so the pair ").
+			Str("is not needed for the red. Nothing is written: record that break by itself, ").
+			Str("or name the breaks the red really needs:\n").Str(excerpt(output)))
+	}
+	if why := o.cleanRunUnobserved(output); why != "" {
+		return SoloGreen{}, parseErr(tb.Str("the run of the break in ").Str(alone.Producer).
+			Str(" alone observed nothing: ").Str(why))
+	}
+	return SoloGreen{Producer: alone.Producer, Break: alone.Break,
+		Seconds: int(time.Since(started).Seconds()), Green: o.greenLine(output)}, nil
+}
+
+// breaks answers every break one broken run applies, Producer's first.
+func (o *observationRunner) breaks() []PairedBreak {
+	all := make([]PairedBreak, 0, 1+len(o.record.Paired))
+	all = append(all, PairedBreak{Producer: o.record.Producer, Break: o.record.Break})
+	return append(all, o.record.Paired...)
+}
+
+// greenLine answers the line of a green run's output a record keeps as the
+// sight of it: the scenario's pass line for an interop run, the last line the
+// runner printed otherwise.
+func (o *observationRunner) greenLine(output string) string {
+	if o.scenario != "" {
+		if verdict, ran := interopScenarioVerdict(output, o.scenario, interopVerdictPass); ran {
+			return "interop: " + o.scenario + verdict
+		}
+	}
+	last := ""
+	for line := range strings.Lines(output) {
+		if trimmed := strings.TrimSpace(line); trimmed != "" {
+			last = trimmed
+		}
+	}
+	return last
+}
+
+// wantsProfile answers whether the clean run builds a coverage profile.
+//
+// A unit carrier on the revert route builds one, since a panic in a producer
+// the unit never calls cannot redden it and could only be absent from the run.
+// A record with paired breaks builds one on the mutant route too, so every
+// paired producer is held to reachability. A single-break mutant record keeps
+// its red as that evidence. A functional or interop carrier builds none: the
+// unit is a second process, and its reds and greens are the evidence.
+func (o *observationRunner) wantsProfile() bool {
+	if o.carrier.Kind != kindUnit {
+		return false
+	}
+	if o.record.Route == RouteRevert {
+		return true
+	}
+	return len(o.record.Paired) > 0
+}
+
 // requireCleanGreen refuses to break a unit that is already failing.
 //
 // A red that was there before the break proves nothing about the break, and it
-// is the cheapest way to spend an hour on a scenario for no evidence. For a
-// unit carrier the same run carries the coverage profile that answers AC-6.
+// is the cheapest way to spend an hour on a scenario for no evidence. Where
+// wantsProfile holds, the same run carries the coverage profile that answers
+// AC-6, in the Linux guest as on the host.
 func (o *observationRunner) requireCleanGreen() error {
 	profile := ""
-	if o.carrier.Kind == kindUnit && o.record.Route == RouteRevert {
+	if o.wantsProfile() {
 		scratch, err := observationScratch(o.tree)
 		if err != nil {
 			return err
@@ -205,10 +323,12 @@ func (o *observationRunner) requireCleanGreen() error {
 // requireProducerReached is AC-6: a producer the tagged unit never executes is
 // the defect, not a proof of one.
 //
-// It is checked where a coverage profile exists, which is the unit carrier. For
-// a functional or interop carrier the observed red IS the reachability
-// evidence: a break the run never reaches cannot redden it, so a producer that
-// is not executed leaves the run green and the record is refused by AC-11.
+// It is checked where a coverage profile exists, which is a unit carrier on the
+// revert route or with paired breaks (wantsProfile). For a single break on any
+// other carrier the observed red IS the reachability evidence: a break the run
+// never reaches cannot redden it, so a producer that is not executed leaves the
+// run green and the record is refused by AC-11. For a pair on a functional or
+// interop carrier the solo runs are (requireSoloGreen).
 func (o *observationRunner) requireProducerReached(profile string) error {
 	module, err := modulePath(o.tree)
 	if err != nil {
@@ -231,8 +351,9 @@ func (o *observationRunner) requireProducerReachedIn(module, profile string) err
 	if err != nil {
 		return err
 	}
-	// Every producer of a paired break is held to it: a pair whose second break
-	// sits in code the unit never runs is one break wearing the name of two.
+	// Every producer of a paired break is held to it on a unit carrier: a pair
+	// whose second break sits in code the unit never runs is one break wearing
+	// the name of two.
 	for _, key := range o.producerKeys() {
 		if err := o.requireKeyReached(covered, key); err != nil {
 			return err

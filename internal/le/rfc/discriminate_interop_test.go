@@ -12,7 +12,7 @@ func interopJudgeFixture(citation string) *observationRunner {
 		carrier:  Carrier{Kind: kindInterop},
 		scenario: "relay-shape",
 		record: DiscriminationRecord{RID: selftestRIDSend, Polarity: PolarityNegative,
-			Unit: "internal/le/interoplab/bgp/check_rfc.go::checkRelayWithdrawalShape",
+			Unit:  "internal/le/interoplab/bgp/check_rfc.go::checkRelayWithdrawalShape",
 			Route: RouteMutant, Producer: selftestProducerUnit, Break: selftestBreak,
 			Citation: citation},
 	}
@@ -87,5 +87,45 @@ func TestInteropRedMustNameTheCitedAssertion(t *testing.T) {
 	err = runner.judgeRed(true, stayed)
 	if err == nil || !strings.Contains(err.Error(), "GREEN") {
 		t.Fatalf("a scenario that passed under the break was not refused as green: %v", err)
+	}
+}
+
+// VALIDATES: R2-4 -- the cited assertion is read where the checker writes it,
+// `scenario <name> assertion <N>:` (checkerFailure in
+// internal/le/interoplab/bgp/check_engine.go), and nowhere else on the line.
+// METHOD: judgeRed over FAIL lines that carry `assertion 6` in the cause of
+// another assertion, under another scenario's name, with no scenario anchor,
+// and without the colon that closes the number, then over the anchored form.
+// PREVENTS: a red from assertion 2 whose cause text happens to quote
+// "assertion 6" being recorded as assertion 6's proof.
+func TestInteropCitedAssertionIsReadAtTheCheckerAnchor(t *testing.T) {
+	runner := interopJudgeFixture("6")
+	const head = "interop: [1/1] relay-shape: FAIL (30s): "
+	refused := map[string]string{
+		"the cause of another assertion": head +
+			"scenario relay-shape assertion 2: wait timed out after assertion 6 setup\n",
+		"another scenario's name": head + "scenario relay-other assertion 6: no route\n",
+		"no scenario anchor":      head + "lab: assertion 6: no route\n",
+		"no closing colon":        head + "scenario relay-shape assertion 6 no route\n",
+	}
+	for name, output := range refused {
+		if err := runner.judgeRed(false, output); err == nil {
+			t.Errorf("a FAIL line with %s was recorded as assertion 6's red", name)
+		}
+	}
+	anchored := head + "scenario relay-shape assertion 6: FRR saw NEXT_HOP missing\n"
+	if err := runner.judgeRed(false, anchored); err != nil {
+		t.Fatalf("a red at the anchored assertion was refused: %v", err)
+	}
+	// The shape the relay checker's red reaches the suite in (2026-10-24): an
+	// outer checkerFailure wraps the inner one, and the inner one is cited.
+	wrapped := head + "scenario relay-shape assertion 0: scenario relay-shape assertion 6: " +
+		"FRR refused the attributes of an UPDATE ze relayed\n"
+	if err := runner.judgeRed(false, wrapped); err != nil {
+		t.Fatalf("a red at the wrapped anchored assertion was refused: %v", err)
+	}
+	outer := head + "scenario relay-shape assertion 6: scenario relay-shape assertion 2: no route\n"
+	if runner.judgeRed(false, outer) == nil {
+		t.Fatal("a wrapper's number was read in place of the inner assertion 2")
 	}
 }

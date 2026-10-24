@@ -82,9 +82,11 @@ func (o *observationRunner) interopBrokenUnobserved(output string) string {
 // interopAttribution answers why a failing interop run is NOT the cited
 // assertion's red, or the empty string when it is.
 //
-// The checker renders `assertion N` for `fail(N, cause)`, and the citation is
-// that N (interopCitationState). The number is matched whole, so assertion 1
-// is not named by `assertion 12`.
+// The checker renders `scenario <name> assertion N: <cause>` for
+// `fail(N, cause)` (checkerFailure, internal/le/interoplab/bgp/check_engine.go),
+// and the citation is that N (interopCitationState). The number is read there
+// and nowhere else on the line, so a cause that quotes another assertion is
+// never read as the cited one, and assertion 1 is not named by `assertion 12`.
 func (o *observationRunner) interopAttribution(output string) string {
 	verdict, failed := interopScenarioVerdict(output, o.scenario, interopVerdictFail)
 	var tb textbuf.Buffer
@@ -94,28 +96,38 @@ func (o *observationRunner) interopAttribution(output string) string {
 	if o.record.Citation == "" {
 		return tb.Str("the record cites no assertion, so no failure can be tied to one").String()
 	}
-	if namesAssertion(verdict, o.record.Citation) {
+	if namesAssertion(verdict, o.scenario, o.record.Citation) {
 		return ""
 	}
 	return tb.Str("the FAIL line of scenario ").Str(o.scenario).Str(" does not name assertion ").
-		Str(o.record.Citation).Str(", the one the record cites: ").Str(verdict).String()
+		Str(o.record.Citation).Str(" where the checker writes it, `scenario ").Str(o.scenario).
+		Str(" assertion ").Str(o.record.Citation).Str(":`, the one the record cites: ").
+		Str(verdict).String()
 }
 
-// namesAssertion answers whether text carries `assertion <number>` with the
-// number complete, not the prefix of a longer one.
-func namesAssertion(text, number string) bool {
-	needle := "assertion " + number
+// namesAssertion answers whether a FAIL verdict's checker anchor,
+// `scenario <name> assertion N:`, carries number as its N.
+//
+// A checker failure can be wrapped by another one: the relay checker's error
+// reaches the suite as `scenario S assertion 0: scenario S assertion 6: cause`.
+// The anchor read is the innermost of that chain, each link starting exactly
+// where the previous one's colon ends, so a cause text that merely quotes an
+// assertion is never one of them.
+func namesAssertion(verdict, scenario, number string) bool {
+	anchor := "scenario " + scenario + " assertion "
+	_, rest, found := strings.Cut(verdict, anchor)
+	if !found {
+		return false
+	}
 	for {
-		at := strings.Index(text, needle)
-		if at < 0 {
+		cited, cause, closed := strings.Cut(rest, ":")
+		if !closed {
 			return false
 		}
-		text = text[at+len(needle):]
-		if text == "" {
-			return true
+		inner, wrapped := strings.CutPrefix(strings.TrimPrefix(cause, " "), anchor)
+		if !wrapped {
+			return cited == number
 		}
-		if text[0] < '0' || text[0] > '9' {
-			return true
-		}
+		rest = inner
 	}
 }

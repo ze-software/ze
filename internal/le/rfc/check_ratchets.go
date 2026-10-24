@@ -641,6 +641,13 @@ func checkDiscriminationRatchet(in discriminationInput) []string {
 		if verdict.removable() {
 			continue
 		}
+		// A pair with no solo runs is wrong in the record itself, not in any
+		// tree it was taken over, so no working-tree edit can explain it and it
+		// is refused wherever it stands.
+		if verdict.State == ProofSoloOwed {
+			errs = append(errs, discriminationSoloOwedError(verdict))
+			continue
+		}
 		if !verdict.Verified() && driftIsCommitted(in, verdict) {
 			errs = append(errs, discriminationStaleError(verdict))
 		}
@@ -763,6 +770,22 @@ func discriminationWithdrawnErrors(in discriminationInput, recorded map[Cover]bo
 	return errs
 }
 
+// discriminationSoloOwedError refuses a paired record that never ran its breaks
+// one at a time.
+//
+// It is not a drift: no fingerprint moved, so the stale text and its repair
+// would both be wrong. The repair is the re-take, which runs every break alone
+// and stores each green beside the pair.
+func discriminationSoloOwedError(verdict *DiscriminationVerdict) string {
+	record := &verdict.Record
+	var tb textbuf.Buffer
+	return tb.Str(record.Source).Str(": the ").Str(record.Route).Str(" record for ").Str(record.RID).
+		Byte(' ').Str(record.Polarity).Str(" at ").Str(record.Unit).Str(" is refused (").
+		Str(verdict.State).Str("): ").Str(verdict.Detail).
+		Str(". Without one green run per break, the red may come from a single break, and the ").
+		Str("record would name a producer the property does not depend on").String()
+}
+
 // discriminationStaleError says which fingerprint moved and what was recorded
 // against it.
 //
@@ -865,7 +888,9 @@ func discriminationDrifted(in discriminationInput) []string {
 	var out []string
 	for index := range in.Verdicts {
 		verdict := &in.Verdicts[index]
-		if verdict.Verified() || verdict.removable() || driftIsCommitted(in, verdict) {
+		// A pair owing its solo runs is the ratchet's violation, never a drift.
+		if verdict.Verified() || verdict.removable() || verdict.State == ProofSoloOwed ||
+			driftIsCommitted(in, verdict) {
 			continue
 		}
 		var tb textbuf.Buffer

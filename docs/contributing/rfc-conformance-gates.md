@@ -1036,6 +1036,7 @@ machine. "This break makes this unit red" is decidable and replayable.
 | `producer-sha` | that function's behavior hash when the break was applied |
 | `break` | what was done to the producer, derived from what was applied. No gate parses it; a reviewer reads it |
 | `paired` | the further breaks applied together with `producer`'s in the one broken run, each a `producer`, `producer-sha` and `break` of its own. Absent on a single-break record. A paired producer that is gone or changed stales the record exactly as `producer` does |
+| `solo` | present exactly when `paired` is: one entry per break, `producer` first then each paired break, holding `producer`, `break`, `seconds` and `green`, the line of a run with that break ALONE that showed the unit passing. Missing, short, out of order or naming another break is refused |
 | `citation` | the assertion a proof or a `foreign-producer` escape rests on: a numbered `fail(N, ...)` site for an interop checker, a directive line for a `.ci`. Required for a functional or interop proof and for the `foreign-producer` escape, refused for a unit record and for the two escapes that name a producer |
 | `reason` | why no break exists, for the escape only, out of the closed vocabulary below |
 
@@ -1201,16 +1202,38 @@ withdrawal carries no created AS_PATH is held both by the dispatch in
 and neither alone is the red. The mutant route takes `mutant` more than once:
 every named mutant is applied to the one broken run (two in one file land in that
 file's single replacement), the clean run stays untouched, the first selector
-becomes the record's `producer` and every further one a `paired` entry. Each
-paired producer is held to what the record's producer is held to: on a unit
-carrier the clean run's coverage must show the unit executing it, and the gate
-re-checks its fingerprint against HEAD. A selector named twice is refused. The
-recorder does not check that every break of the set was needed. The author
-shows that each break alone leaves the unit green and names those runs in the
-commit, because a break the red did not need makes the record claim more than
-was observed.
+becomes the record's `producer` and every further one a `paired` entry. A
+selector named twice is refused.
+
+The recorder then runs each break of the set ALONE, applied to the tree's own
+copy of its file, and requires every one of those runs to leave the unit green.
+It runs them on every carrier kind, and stores them in the record's `solo`
+list, one entry per break in the order applied, `producer` first, each with its
+duration and the line that showed the unit passing. Together with the red of
+the whole set this shows that every break is needed: a break that reddens the
+unit alone is refused, with the instruction to record it by itself, and a break
+the unit never executes leaves the set behaving as the remaining breaks alone,
+which their own solo runs show green. On a unit carrier, host or Linux guest,
+the clean run also builds a coverage profile for a paired record, and each
+paired producer must show as executed in it, exactly as a revert producer must.
+A functional or interop carrier is a second process, so no profile reaches it,
+and the solo runs are its evidence. `./le rfc check` refuses a paired record
+whose `solo` list is short, out of order, names another break or holds an empty
+green line, and a single-break or escape record that carries one, as an
+unloadable record. A paired record with no `solo` list at all, taken before the
+recorder ran solo runs, still loads, so the derived files every hook builds stay
+readable, and its verdict is `solo-owed`. That verdict is a violation wherever
+the record stands, committed or not, because no working-tree edit can explain a
+proof that was never taken, and the violation names the repair: re-take the
+record with `./le rfc discriminate-record`, which runs each break alone. It
+re-checks each paired producer's fingerprint against HEAD as it does
+`producer`'s. It cannot re-run the solo runs: the record keeps what the recorder
+observed, as it does for the red.
 <!-- source: internal/le/rfc/discriminate_action.go -- mutantBreak, selectMutant -->
-<!-- source: internal/le/rfc/discriminate.go -- PairedBreak, validatePairedBreak -->
+<!-- source: internal/le/rfc/discriminate_observe.go -- observeBreaks, requireSoloGreen, wantsProfile -->
+<!-- source: internal/le/rfc/discriminate.go -- PairedBreak, SoloGreen, validateSoloRuns, ProofSoloOwed -->
+<!-- source: internal/le/rfc/discriminate_validate.go -- validatePairedBreak -->
+<!-- source: internal/le/rfc/check_ratchets.go -- checkDiscriminationRatchet, discriminationSoloOwedError -->
 
     ./le rfc discriminate-record id <ID> polarity negative unit <file>::<Func> \
       route mutant report <report.json> mutant <file:line:column#n> \
@@ -1343,10 +1366,16 @@ so a silent child stays silent.
 An interop observation is judged by the scenario's own progress line, never by
 the exit code or the `interop: N passed, M failed` summary. The clean run must
 print `interop: [i/n] <scenario>: pass (`, and the run under the break must
-print `interop: [i/n] <scenario>: FAIL (` with `assertion <citation>` on that
-line, the number matched whole. A run that executed no scenario is refused as
-unobserved, and a FAIL that names another assertion is refused as not the
-record's. Before 2026-10-23 any interop red counted: a mutant whose ze
+print `interop: [i/n] <scenario>: FAIL (`, and the cited number is read where
+the checker writes it, the anchor `scenario <scenario> assertion <citation>:`
+(`checkerFailure`, `internal/le/interoplab/bgp/check_engine.go`). A checker
+failure wrapped by
+another one, `scenario S assertion 0: scenario S assertion 6: <cause>`, is read
+at its innermost link, each link starting where the previous one's colon ends.
+A cause text that quotes another assertion's number is therefore never read as
+the citation. A run that executed
+no scenario is refused as unobserved, and a FAIL that names another assertion is
+refused as not the record's. Before 2026-10-23 any interop red counted: a mutant whose ze
 cross-compile failed ended the run with `0 passed, 0 failed` and was sealed as
 a negative proof.
 <!-- source: internal/le/rfc/discriminate_interop.go -- interopCleanUnobserved, interopBrokenUnobserved, interopAttribution -->

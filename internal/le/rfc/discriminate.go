@@ -101,6 +101,14 @@ type DiscriminationRecord struct {
 	// Each is fingerprinted and re-verified exactly as Producer is, and a record
 	// with none is the single-break record every earlier record is.
 	Paired []PairedBreak `json:"paired,omitempty"`
+	// Solo is the evidence that every break of a pair is needed: each break
+	// applied ALONE left the unit green, one entry per break in the order they
+	// were applied, Producer's first. With the red of all of them together it
+	// proves that no single break is the red and that every break engages, on
+	// every carrier kind, since a break the unit never executes leaves the pair
+	// behaving as the remaining breaks alone, which these runs show green. A
+	// record without paired breaks carries none.
+	Solo []SoloGreen `json:"solo,omitempty"`
 	// Reason is why no break exists, for the escape only. A closed vocabulary,
 	// and each reason's precondition is checked against the tree.
 	Reason string `json:"reason,omitempty"`
@@ -116,6 +124,16 @@ type PairedBreak struct {
 	Producer    string `json:"producer"`
 	ProducerSHA string `json:"producer-sha"`
 	Break       string `json:"break"`
+}
+
+// SoloGreen is one break of a pair applied by itself, and the green run it
+// left. Producer and Break name the break as the record does; Green is the line
+// of the run's output that showed the unit passing.
+type SoloGreen struct {
+	Producer string `json:"producer"`
+	Break    string `json:"break"`
+	Seconds  int    `json:"seconds"`
+	Green    string `json:"green"`
 }
 
 // Proves answers whether this record claims a proof rather than the escape.
@@ -283,6 +301,19 @@ func loadDiscriminationFile(tree string, file evidenceFile) ([]DiscriminationRec
 
 // decodeDiscrimination decodes and VALIDATES one requirement's records.
 func decodeDiscrimination(raw string, file evidenceFile) ([]DiscriminationRecord, error) {
+	records, err := readDiscriminationRecords(raw, file)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateDiscriminationFile(records, file); err != nil {
+		return nil, err
+	}
+	return records, nil
+}
+
+// readDiscriminationRecords parses one record file without judging its
+// records, for the recorder replacing a record the gate now refuses.
+func readDiscriminationRecords(raw string, file evidenceFile) ([]DiscriminationRecord, error) {
 	var tb textbuf.Buffer
 	decoder := json.NewDecoder(strings.NewReader(raw))
 	decoder.DisallowUnknownFields()
@@ -295,212 +326,26 @@ func decodeDiscrimination(raw string, file evidenceFile) ([]DiscriminationRecord
 	}
 	for index := range records {
 		records[index].Source = file.Rel
+	}
+	return records, nil
+}
+
+// validateDiscriminationFile judges every record of one file, and that each
+// proves the requirement the file is named for.
+func validateDiscriminationFile(records []DiscriminationRecord, file evidenceFile) error {
+	var tb textbuf.Buffer
+	for index := range records {
 		if err := validateDiscrimination(records[index], file.Rel, index+1); err != nil {
-			return nil, err
+			return err
 		}
 		if records[index].RID != file.RID {
-			return nil, parseErr(tb.Str(file.Rel).Str(": record ").Int(int64(index + 1)).
+			return parseErr(tb.Str(file.Rel).Str(": record ").Int(int64(index + 1)).
 				Str(" proves ").Quoted(records[index].RID).Str(" but the filename says ").
 				Quoted(file.RID).Str(". A requirement's records live in its own file, so the ").
 				Str("two can never drift apart"))
 		}
 	}
-	return records, nil
-}
-
-// validateDiscrimination refuses a record that cannot mean what it says.
-//
-// position is 1-based, because it is read by a person counting rows in a file.
-//
-// The two keys are parsed by fingerprintKey, the ONE key parser this package
-// has. A record therefore inherits its path-safety refusal and, with it, the
-// refusal of the retired `<path>:<line>` form -- which is the shape a record
-// must never take, because a stored line is current only until the next edit
-// above it.
-func validateDiscrimination(record DiscriminationRecord, rel string, position int) error {
-	var tb textbuf.Buffer
-	tb.Str(rel).Str(": record ").Int(int64(position))
-	if record.RID == "" {
-		return parseErr(tb.Str(" names no requirement: 'rid' is empty"))
-	}
-	where := tb.Str(" for ").Str(record.RID).String()
-	if !polarities[record.Polarity] {
-		return parseErr(tb.Str(" has polarity ").Quoted(record.Polarity).
-			Str(", want one of: ").Join(Polarities(), ", "))
-	}
-	if _, _, err := fingerprintKey(record.Unit, where); err != nil {
-		return err
-	}
-	if err := validateBehaviorSHA(record.UnitSHA, where, "unit-sha"); err != nil {
-		return err
-	}
-	if err := validateBehaviorSHA(record.ClaimSHA, where, "claim-sha"); err != nil {
-		return err
-	}
-	if !discriminationRoutes[record.Route] {
-		return parseErr(tb.Str(" has route ").Quoted(record.Route).
-			Str(", want one of: ").Join(DiscriminationRoutes(), ", "))
-	}
-	if !record.Proves() {
-		if len(record.Paired) > 0 {
-			return parseErr(tb.Reset().Str(where).Str(" takes the ").Str(RouteNoBreak).
-				Str(" route and carries paired breaks. The escape states that NO break exists"))
-		}
-		return validateEscapeShape(record, where)
-	}
-	if record.Reason != "" {
-		return parseErr(tb.Reset().Str(where).Str(" takes the ").Str(record.Route).
-			Str(" route and carries the escape reason ").Quoted(record.Reason).
-			Str(". A reason says why NO break exists; this record states one"))
-	}
-	symbol, err := producerSymbol(record.Producer, where, record.Route)
-	if err != nil {
-		return err
-	}
-	if symbol == "" {
-		return parseErr(tb.Reset().Str(where).Str(" has producer ").Quoted(record.Producer).
-			Str(", which names a whole file. A break is applied to a FUNCTION, so the ").
-			Str("producer key carries the symbol it was applied to"))
-	}
-	if err := validateBehaviorSHA(record.ProducerSHA, where, "producer-sha"); err != nil {
-		return err
-	}
-	if strings.TrimSpace(record.Break) == "" {
-		return parseErr(tb.Reset().Str(where).Str(" takes the ").Str(record.Route).
-			Str(" route and states no break. The record exists so a reviewer can read what ").
-			Str("was done to the producer; a proof nobody can read is a claim"))
-	}
-	for index := range record.Paired {
-		if err := validatePairedBreak(record.Paired[index], where, record.Route); err != nil {
-			return err
-		}
-	}
 	return nil
-}
-
-// validatePairedBreak holds one paired break to the rules the record's own
-// producer, fingerprint and break text are held to.
-func validatePairedBreak(paired PairedBreak, where, route string) error {
-	symbol, err := producerSymbol(paired.Producer, where, route)
-	if err != nil {
-		return err
-	}
-	var tb textbuf.Buffer
-	if symbol == "" {
-		return parseErr(tb.Str(where).Str(" has the paired producer ").Quoted(paired.Producer).
-			Str(", which names a whole file. A break is applied to a FUNCTION"))
-	}
-	if err := validateBehaviorSHA(paired.ProducerSHA, where, "paired producer-sha"); err != nil {
-		return err
-	}
-	if strings.TrimSpace(paired.Break) == "" {
-		return parseErr(tb.Str(where).Str(" pairs ").Str(paired.Producer).
-			Str(" and states no break for it. A reviewer reads what was done to each producer"))
-	}
-	return nil
-}
-
-// producerSymbol answers the function half of a proof record's producer key.
-func producerSymbol(producer, where, route string) (string, error) {
-	if producer == "" {
-		var tb textbuf.Buffer
-		return "", parseErr(tb.Str(where).Str(" takes the ").Str(route).
-			Str(" route and names no producer. A break is a change to code the claim rests ").
-			Str("on, so the record names that code as <path>::<FuncName>"))
-	}
-	_, symbol, err := fingerprintKey(producer, where)
-	return symbol, err
-}
-
-// validateEscapeShape refuses an escape that cannot be checked, or that reads
-// as a proof.
-//
-// A no-break record states that no break exists, so a break text or a producer
-// fingerprint on it is a proof half-written, and counting it as debt while it
-// reads as evidence is the confusion the escape exists to avoid.
-//
-// Every escape names what ties it to THIS claim, and which field carries the
-// tie depends on whether there is code here to point at. escapeDeclaration and
-// escapeGenerated each claim something about the CODE the claim rests on, so
-// they name that code as the producer and carry no citation: their tie is the
-// claim naming what that file declares. escapeForeign claims there is no such
-// code in this tree, so it names no producer and CITES the assertion its own
-// checker makes instead. A record carrying neither tie is the blanket opt-out
-// this vocabulary exists to refuse (R-9), and discriminate_escape.go is where
-// each claim is checked against the tree.
-func validateEscapeShape(record DiscriminationRecord, where string) error {
-	var tb textbuf.Buffer
-	tb.Str(where).Str(" takes the ").Str(RouteNoBreak).Str(" route and carries ")
-	switch {
-	case record.ProducerSHA != "":
-		return parseErr(tb.Str("a producer fingerprint. The escape states that NO break exists"))
-	case record.Break != "":
-		return parseErr(tb.Str("a break. The escape states that NO break exists"))
-	}
-	if !escapeReasons[record.Reason] {
-		return parseErr(tb.Reset().Str(where).Str(" takes the ").Str(RouteNoBreak).
-			Str(" route and gives the reason ").Quoted(record.Reason).
-			Str(", want one of: ").Join(escapeReasonNames(), ", ").
-			Str(". Each reason claims a fact this gate goes and checks; free text would ").
-			Str("let \"there is nothing to break here\" read as \"this tag is proven\""))
-	}
-	if record.Reason == escapeForeign {
-		return validateForeignEscape(record, where)
-	}
-	if record.Citation != "" {
-		return parseErr(tb.Reset().Str(where).Str(" is ").Str(record.Reason).
-			Str(" and cites the assertion ").Quoted(record.Citation).
-			Str(". A citation is the tie only where no producer can be named. This reason ").
-			Str("names one, and its tie is the claim naming what that file declares"))
-	}
-	if record.Producer == "" {
-		return parseErr(tb.Reset().Str(where).Str(" is ").Str(record.Reason).
-			Str(" and names no producer. That reason claims something about the code the ").
-			Str("claim rests on, so the record names that code and the gate goes and reads it"))
-	}
-	_, _, err := fingerprintKey(record.Producer, where)
-	return err
-}
-
-// validateForeignEscape refuses the foreign escape that names nothing.
-//
-// The reason says the behavior is produced outside this repository, so there is
-// no producer here to name and the record MUST NOT name one. What it must carry
-// instead is the citation: the carrier kind is a property of all 37 interop tags
-// at once, so on its own it discharges every one of them equally, and the
-// assertion number is the only field that says which claim this escape is about.
-func validateForeignEscape(record DiscriminationRecord, where string) error {
-	var tb textbuf.Buffer
-	if record.Producer != "" {
-		return parseErr(tb.Str(where).Str(" is ").Str(escapeForeign).
-			Str(" and names the producer ").Quoted(record.Producer).
-			Str(". That reason says the behavior is produced OUTSIDE this repository, ").
-			Str("so there is no producer here to name"))
-	}
-	if record.Citation != "" {
-		return nil
-	}
-	return parseErr(tb.Str(where).Str(" is ").Str(escapeForeign).
-		Str(" and cites no assertion. No code in this tree produces the behavior, so the ").
-		Str("assertion this checker makes about it is the only thing that ties the escape to ").
-		Str("THIS claim: cite the `fail(N, ...)` number the checker writes out"))
-}
-
-// validateBehaviorSHA refuses a fingerprint that is not one.
-//
-// Length alone is not the check, for the reason validateSHA already states: a
-// value padded to the right width is still not a fingerprint, so the charset is
-// judged too. shaRE is that shape, declared once and shared.
-func validateBehaviorSHA(value, where, field string) error {
-	if shaRE.MatchString(value) {
-		return nil
-	}
-	var tb textbuf.Buffer
-	return parseErr(tb.Str(where).Str(" has ").Str(field).Str(" ").Quoted(value).
-		Str(", which is not a fingerprint. Expected exactly ").Int(shaHexLen).
-		Str(" lowercase hex characters, as ./le rfc discriminate computes them from the ").
-		Str("unit's behavior. A hand-written fingerprint is never valid: it would publish a ").
-		Str("red nobody observed"))
 }
 
 // behaviorSHA fingerprints what a unit DOES.
@@ -648,6 +493,64 @@ func verifyDiscrimination(tree string, records []DiscriminationRecord,
 	return verdicts, nil
 }
 
+// validateSoloRuns holds a paired record to its solo evidence: one green run
+// per break, naming the break it ran, in the order the breaks were applied.
+//
+// Without them a pair proves only that its breaks together redden the unit,
+// which one of them may do alone, or with a partner that never runs.
+func validateSoloRuns(record DiscriminationRecord, where string) error {
+	var tb textbuf.Buffer
+	if len(record.Paired) == 0 {
+		if len(record.Solo) > 0 {
+			return parseErr(tb.Str(where).Str(" carries solo runs and no paired breaks. A ").
+				Str("solo run shows one break of a pair is needed; a single break is its own red"))
+		}
+		return nil
+	}
+	// refuse-by-default: guards ProofSoloOwed -- a pair with no solo runs
+	// loads, so the derived files every hook builds never go unreadable, and
+	// verifyOneDiscrimination refuses it as owing them.
+	if len(record.Solo) == 0 {
+		return nil
+	}
+	breaks := make([]PairedBreak, 0, 1+len(record.Paired))
+	breaks = append(breaks, PairedBreak{Producer: record.Producer, Break: record.Break})
+	breaks = append(breaks, record.Paired...)
+	if len(record.Solo) != len(breaks) {
+		return parseErr(tb.Str(where).Str(" pairs ").Int(int64(len(breaks))).
+			Str(" breaks and carries ").Int(int64(len(record.Solo))).
+			Str(" solo runs. Each break of a pair is applied ALONE and must leave the unit ").
+			Str("green, or the pair is not shown to need it. Re-take the record with ").
+			Str("`./le rfc discriminate-record`, which runs them"))
+	}
+	for position, solo := range record.Solo {
+		want := breaks[position]
+		if solo.Producer != want.Producer {
+			return parseErr(tb.Str(where).Str(" has solo run ").Int(int64(position)).
+				Str(" naming ").Quoted(solo.Producer).Str(", want ").Quoted(want.Producer).
+				Str(": the solo runs follow the order the breaks were applied"))
+		}
+		if solo.Break != want.Break {
+			return parseErr(tb.Str(where).Str(" has solo run ").Int(int64(position)).
+				Str(" with break ").Quoted(solo.Break).Str(", want ").Quoted(want.Break))
+		}
+		if solo.Seconds < 0 {
+			return parseErr(tb.Str(where).Str(" has solo run ").Int(int64(position)).
+				Str(" with a negative duration"))
+		}
+		if strings.TrimSpace(solo.Green) == "" {
+			return parseErr(tb.Str(where).Str(" has solo run ").Int(int64(position)).
+				Str(" with no green line. The record keeps the line that showed the unit ").
+				Str("passing, so a reader can see the run was observed"))
+		}
+	}
+	return nil
+}
+
+// ProofSoloOwed is a paired record that carries no solo runs: its breaks
+// together were seen red, and no run showed each one is needed.
+const ProofSoloOwed = "solo-owed"
+
 // verifyOneDiscrimination answers the state of one record.
 //
 // The order is the order a reader can act on. The unit comes first, because a
@@ -706,6 +609,8 @@ func verifyOneDiscrimination(reader *sourceReader, index *scopeIndex, table []Ca
 			return DiscriminationVerdict{}, err
 		}
 		var tb textbuf.Buffer
+		// A paired producer gone from the tree refuses the record: the miss is the verdict.
+		// refuse-by-default: guards ProofProducerGone -- the miss is the refusing verdict
 		if !held {
 			return DiscriminationVerdict{Record: record, State: ProofProducerGone,
 				Moved: paired.Producer, Detail: tb.Str("the paired producer ").Str(paired.Producer).
@@ -716,6 +621,14 @@ func verifyOneDiscrimination(reader *sourceReader, index *scopeIndex, table []Ca
 				Moved: paired.Producer, Detail: tb.Str("the paired producer ").Str(paired.Producer).
 					Str("'s behavior changed since the break was applied to it").String()}, nil
 		}
+	}
+	// A pair taken before the recorder ran each break alone loads, so every
+	// derived file stays buildable, and is refused here as owing that proof.
+	if len(record.Paired) > 0 && len(record.Solo) == 0 {
+		return DiscriminationVerdict{Record: record, State: ProofSoloOwed,
+			Detail: "the record pairs breaks and carries no solo runs, so no break is shown to " +
+				"be needed for the red. Re-take it with `./le rfc discriminate-record`, which " +
+				"runs each break alone"}, nil
 	}
 	if state, detail := citationState(carrier, carried, record, unit); state != ProofVerified {
 		return DiscriminationVerdict{Record: record, State: state, Detail: detail}, nil

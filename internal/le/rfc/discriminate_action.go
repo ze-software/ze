@@ -352,7 +352,7 @@ func observeFor(tree string, reader *sourceReader, index *scopeIndex, carrier Ca
 			return ObservedRed{}, err
 		}
 	}
-	broken, err := brokenSource(tree, reader, index, record, request)
+	broken, solos, err := brokenSource(tree, reader, index, record, request)
 	if err != nil {
 		return ObservedRed{}, err
 	}
@@ -360,25 +360,28 @@ func observeFor(tree string, reader *sourceReader, index *scopeIndex, carrier Ca
 	if err != nil {
 		return ObservedRed{}, err
 	}
-	if err := runner.requireCleanGreen(); err != nil {
+	red, solo, err := runner.observeBreaks(broken, solos)
+	if err != nil {
 		return ObservedRed{}, err
 	}
-	return runner.requireRed(broken...)
+	record.Solo = solo
+	return red, nil
 }
 
 // brokenSource answers the file contents the breaks produce, one per touched
 // file, and fills the record's producer, paired breaks and break text from what
-// was actually applied.
+// was actually applied. For a pair it also answers each break's files ALONE,
+// Producer's first, so each can be run by itself; for one break, none.
 func brokenSource(tree string, reader *sourceReader, index *scopeIndex,
-	record *DiscriminationRecord, request recordRequest) ([]overlayFile, error) {
+	record *DiscriminationRecord, request recordRequest) ([]overlayFile, [][]overlayFile, error) {
 	if record.Route == RouteMutant {
 		return mutantBreak(tree, reader, index, record, request)
 	}
 	broken, err := revertBreak(reader, index, record)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return []overlayFile{broken}, nil
+	return []overlayFile{broken}, nil, nil
 }
 
 // overlayFile is one file replaced for the length of one observation.
@@ -398,36 +401,39 @@ type overlayFile struct {
 // property two checks guard on the same path. The first names the record's
 // producer and every further one is recorded as paired. Two mutants of one file
 // land in that file's single replacement, applied in the order named, so the
-// overlay never selects a copy holding only one of them.
+// overlay never selects a copy holding only one of them. Each mutant of a set
+// is also answered ALONE, applied to the tree's own copy of its file, for the
+// solo runs that show the set needs it.
 func mutantBreak(tree string, reader *sourceReader, index *scopeIndex,
-	record *DiscriminationRecord, request recordRequest) ([]overlayFile, error) {
+	record *DiscriminationRecord, request recordRequest) ([]overlayFile, [][]overlayFile, error) {
 	var tb textbuf.Buffer
 	if request.report == "" || len(request.mutants) == 0 {
-		return nil, parseErr(tb.Str("the ").Str(RouteMutant).
+		return nil, nil, parseErr(tb.Str("the ").Str(RouteMutant).
 			Str(" route needs report <path> and mutant <file:line:column#n>, which name the ").
 			Str("generated break to apply. `./le rfc discriminate ... report <path>` proposes them"))
 	}
 	mutants, err := loadGomuReport(tree, request.report)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	var files []overlayFile
+	var solos [][]overlayFile
 	named := map[string]bool{}
 	for position, selector := range request.mutants {
 		if named[selector] {
-			return nil, parseErr(tb.Str("mutant ").Str(selector).Str(" is named twice. ").
+			return nil, nil, parseErr(tb.Str("mutant ").Str(selector).Str(" is named twice. ").
 				Str("Each break of a set is applied once, so a repeat names nothing new"))
 		}
 		named[selector] = true
 		mutant, err := selectMutant(mutants, request.report, selector)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		slot := slices.IndexFunc(files, func(file overlayFile) bool { return file.rel == mutant.FilePath })
 		if slot < 0 {
 			content := reader.read(mutant.FilePath)
 			if content == nil {
-				return nil, parseErr(tb.Str(mutant.FilePath).
+				return nil, nil, parseErr(tb.Str(mutant.FilePath).
 					Str(": the report names a file this tree does not hold"))
 			}
 			files = append(files, overlayFile{rel: mutant.FilePath, content: *content})
@@ -435,14 +441,19 @@ func mutantBreak(tree string, reader *sourceReader, index *scopeIndex,
 		}
 		broken, err := replaceOnLine(files[slot].content, mutant)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		files[slot].content = broken
+		alone, err := replaceOnLine(*reader.read(mutant.FilePath), mutant)
+		if err != nil {
+			return nil, nil, err
+		}
+		solos = append(solos, []overlayFile{{rel: mutant.FilePath, content: alone}})
 		// The producer is read from the tree, never from the copy being broken,
 		// so an earlier mutant of the same file cannot move the function lookup.
 		producer := functionAtLine(index, *reader.read(mutant.FilePath), mutant.Line)
 		if producer == "" {
-			return nil, parseErr(tb.Str(selector).
+			return nil, nil, parseErr(tb.Str(selector).
 				Str(" sits in no function, and a record names the FUNCTION a break was applied to"))
 		}
 		key := tb.Reset().Str(mutant.FilePath).Str("::").Str(producer).String()
@@ -452,7 +463,10 @@ func mutantBreak(tree string, reader *sourceReader, index *scopeIndex,
 		}
 		record.Paired = append(record.Paired, PairedBreak{Producer: key, Break: mutant.text()})
 	}
-	return files, nil
+	if len(solos) == 1 {
+		return files, nil, nil
+	}
+	return files, solos, nil
 }
 
 // selectMutant answers the one mutant a selector names in a report.
@@ -708,7 +722,14 @@ func mergeDiscrimination(tree, stem string, record DiscriminationRecord) error {
 	file := evidenceFile{Stem: stem, RID: record.RID, Rel: discriminationRecordRel(stem, record.RID)}
 	kept := []DiscriminationRecord{}
 	if _, err := os.Stat(treePath(tree, file.Rel)); err == nil {
-		existing, loadErr := loadDiscriminationFile(tree, file)
+		raw, readErr := readFile(treePath(tree, file.Rel), file.Rel)
+		if readErr != nil {
+			return readErr
+		}
+		// The records are judged after the one being replaced is dropped: a
+		// re-take is how a record the gate now refuses is repaired, so that
+		// record's refusal must not block its own replacement.
+		existing, loadErr := readDiscriminationRecords(raw, file)
 		if loadErr != nil {
 			return loadErr
 		}
@@ -716,6 +737,9 @@ func mergeDiscrimination(tree, stem string, record DiscriminationRecord) error {
 			if existing[position].Cover() != record.Cover() {
 				kept = append(kept, existing[position])
 			}
+		}
+		if err := validateDiscriminationFile(kept, file); err != nil {
+			return err
 		}
 	}
 	kept = append(kept, record)
