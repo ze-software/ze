@@ -1297,7 +1297,7 @@ a.hl:hover {
 .proof strong {
     display: block;
     margin-bottom: 0.9rem;
-    color: var(--acc-deep);
+    color: var(--text);
     font-size: clamp(1.65rem, 3vw, 2.35rem);
     font-weight: 800;
     letter-spacing: -0.06em;
@@ -1666,7 +1666,7 @@ section[aria-labelledby="blog-teaser-title"] {
 
 /*
  * Blog "Ze weekly updates" cards (blog index + homepage teaser). Same base
- * card, with a subject-colored headline and a "Read the update ->"
+ * card, with a soft background behind its name and a "Read the update ->"
  * affordance that slides on hover. Surfaces and borders stay neutral.
  */
 .card-post {
@@ -1678,19 +1678,14 @@ section[aria-labelledby="blog-teaser-title"] {
 }
 
 /*
- * Give post headlines their own spacing without adding a colored band.
+ * Keep post headlines inside the card padding, like other compact names.
  */
 .card-post h3 {
-    margin: 0 -1.25rem 0.95rem;
-    padding: 0.8rem 1.25rem;
-}
-
-.card-post > h3:first-child {
-    margin-top: -1.25rem;
+    margin: 0 0 0.95rem;
 }
 
 .card-post h3 a {
-    color: var(--acc-deep);
+    color: var(--text);
 }
 
 /* Whole-card click target: stretch a card's title link over the entire
@@ -1714,7 +1709,7 @@ section[aria-labelledby="blog-teaser-title"] {
     display: inline-flex;
     align-items: center;
     gap: 0.4rem;
-    color: var(--acc-deep);
+    color: var(--text);
     font-weight: 800;
     font-size: 0.82rem;
     letter-spacing: 0.02em;
@@ -1836,7 +1831,7 @@ section[aria-labelledby="blog-teaser-title"] {
     border: 1px solid var(--line);
     border-radius: 999px;
     background: var(--panel);
-    color: var(--acc-deep, var(--muted));
+    color: var(--text);
     font-size: 0.68rem;
     font-weight: 700;
     line-height: 1.25;
@@ -1846,15 +1841,63 @@ section[aria-labelledby="blog-teaser-title"] {
 
 
 /*
- * Subject categories share Setup's teal across cards, labels and controls.
+ * Subject colors identify compact card names, never the full card surface.
  * Use cat-meta for cross-topic content. Never choose a hue by position.
  */
-.cat-operate,
-.cat-routing,
-.cat-automate,
-.cat-observe,
-.cat-secure,
-.cat-services,
+.cat-operate {
+    --acc: var(--sky-base);
+    --acc-mid: var(--sky-mid);
+    --acc-deep: var(--sky-deep);
+    --acc-chip: var(--sky-chip);
+    --acc-tint: var(--sky-tint);
+    --acc-glow: var(--sky-glow);
+}
+
+.cat-routing {
+    --acc: var(--lemon-base);
+    --acc-mid: var(--lemon-mid);
+    --acc-deep: var(--lemon-deep);
+    --acc-chip: var(--lemon-chip);
+    --acc-tint: var(--lemon-tint);
+    --acc-glow: var(--lemon-glow);
+}
+
+.cat-automate {
+    --acc: var(--grape-base);
+    --acc-mid: var(--grape-mid);
+    --acc-deep: var(--grape-deep);
+    --acc-chip: var(--grape-chip);
+    --acc-tint: var(--grape-tint);
+    --acc-glow: var(--grape-glow);
+}
+
+.cat-observe {
+    --acc: var(--mint-base);
+    --acc-mid: var(--mint-mid);
+    --acc-deep: var(--mint-deep);
+    --acc-chip: var(--mint-chip);
+    --acc-tint: var(--mint-tint);
+    --acc-glow: var(--mint-glow);
+}
+
+.cat-secure {
+    --acc: var(--pink-base);
+    --acc-mid: var(--pink-mid);
+    --acc-deep: var(--pink-deep);
+    --acc-chip: var(--pink-chip);
+    --acc-tint: var(--pink-tint);
+    --acc-glow: var(--pink-glow);
+}
+
+.cat-services {
+    --acc: var(--gold-base);
+    --acc-mid: var(--gold-mid);
+    --acc-deep: var(--gold-deep);
+    --acc-chip: var(--gold-chip);
+    --acc-tint: var(--gold-tint);
+    --acc-glow: var(--gold-glow);
+}
+
 .cat-platform {
     --acc: var(--teal-base);
     --acc-mid: var(--teal-mid);
@@ -1866,7 +1909,7 @@ section[aria-labelledby="blog-teaser-title"] {
 
 .card h3,
 .md-content .card h3 {
-    color: var(--acc-deep);
+    color: var(--text);
 }
 
 .card .cat {
@@ -1878,7 +1921,7 @@ section[aria-labelledby="blog-teaser-title"] {
     border-radius: 0.6rem;
     border: 1px solid var(--line);
     background: var(--panel);
-    color: var(--acc-deep);
+    color: var(--text);
     font-family: Poppins, ui-sans-serif, system-ui, sans-serif;
     font-size: 0.66rem;
     font-weight: 800;
@@ -1899,7 +1942,7 @@ section[aria-labelledby="blog-teaser-title"] {
     padding: 0.34rem 0.9rem;
     border-radius: 999px;
     background: var(--panel);
-    color: var(--acc-deep);
+    color: var(--text);
     font-size: 0.68rem;
     line-height: 1;
     transition: transform 160ms ease;
@@ -2022,7 +2065,7 @@ section[aria-labelledby="blog-teaser-title"] {
 }
 
 .card-label {
-    color: var(--acc-deep);
+    color: var(--text);
     background: var(--panel);
     display: inline-flex;
     width: fit-content;
@@ -2066,8 +2109,8 @@ section[aria-labelledby="blog-teaser-title"] {
     padding: 0.5rem 0.78rem 0.5rem 0.62rem;
     border: 1px solid var(--acc);
     border-radius: 999px;
-    background-color: var(--acc-chip);
-    color: var(--acc-deep);
+    background-color: color-mix(in srgb, var(--acc) 18%, var(--panel));
+    color: var(--text);
     font-family: Poppins, ui-sans-serif, system-ui, sans-serif;
     font-size: 0.72rem;
     font-weight: 900;
@@ -2101,7 +2144,7 @@ section[aria-labelledby="blog-teaser-title"] {
 .legend a:hover {
     transform: translateY(-1px);
     border-color: var(--acc);
-    color: var(--acc-deep);
+    color: var(--text);
     box-shadow:
         0 0.85rem 1.6rem -0.9rem var(--acc-glow),
         inset 0 0 0 1px rgba(255, 255, 255, 0.82);
@@ -2113,8 +2156,8 @@ section[aria-labelledby="blog-teaser-title"] {
 
 .legend button[aria-pressed="true"] {
     border-color: var(--acc-deep);
-    background-color: var(--acc-chip);
-    color: var(--acc-deep);
+    background-color: color-mix(in srgb, var(--acc) 18%, var(--panel));
+    color: var(--text);
     box-shadow:
         0 0 0 2px var(--acc-deep),
         0 0.75rem 1.7rem -0.7rem var(--acc-glow);
@@ -2133,14 +2176,14 @@ section[aria-labelledby="blog-teaser-title"] {
     padding: 0.08rem 0.32rem;
     border-radius: var(--radius-pill);
     background: var(--panel);
-    color: var(--acc-deep);
+    color: var(--text);
     font-size: var(--type-micro);
     line-height: 1.2;
 }
 
 .legend button[aria-pressed="true"] .legend-count {
     background: var(--glass-surface-strong);
-    color: var(--acc-deep);
+    color: var(--text);
 }
 
 .feature-filter-status {
@@ -2315,7 +2358,7 @@ pre {
 
 .docs-path-card h2 {
     margin: 0 0 var(--space-2);
-    color: var(--acc-deep, var(--neutral-deep));
+    color: var(--text);
     font-size: clamp(1.3rem, 2.4vw, 1.9rem);
     line-height: 1.08;
 }
@@ -2377,7 +2420,7 @@ pre {
 }
 
 .audience-card h3 {
-    color: var(--acc-deep);
+    color: var(--text);
 }
 
 .audience-card:not(.card):has(a):hover {
@@ -2400,7 +2443,7 @@ pre {
 .card.audience-card .cat {
     border: 1px solid var(--line);
     background: var(--panel);
-    color: var(--acc-deep);
+    color: var(--text);
 }
 
 
@@ -2425,7 +2468,7 @@ pre {
     align-items: baseline;
     gap: 0.4rem;
     margin-top: 1rem;
-    color: var(--acc-deep);
+    color: var(--text);
     font-size: 0.82rem;
     font-weight: 800;
     letter-spacing: 0.02em;
@@ -2846,8 +2889,8 @@ footer {
     height: 2rem;
     margin-bottom: 0.85rem;
     border-radius: 999px;
-    color: var(--acc-deep, var(--neutral-deep));
-    background: var(--acc-chip, var(--neutral-chip));
+    color: var(--text);
+    background: var(--bg-soft);
     font-weight: 800;
 }
 
@@ -3115,9 +3158,9 @@ footer {
 
 .blog-card h3 a:hover,
 .blog-card h3 a:focus-visible {
-    color: var(--acc-deep);
+    color: var(--text);
     text-decoration: underline;
-    text-decoration-color: var(--acc-chip);
+    text-decoration-color: currentColor;
     text-underline-offset: 0.18em;
 }
 
@@ -3206,7 +3249,7 @@ footer {
     min-height: 2rem;
     margin-top: auto;
     padding: var(--space-5) 0 0;
-    color: var(--acc-deep);
+    color: var(--text);
     font-size: var(--type-ui);
 }
 
@@ -3892,7 +3935,7 @@ footer {
     padding: 0.28rem 0.55rem;
     border-radius: 999px;
     background: var(--panel);
-    color: var(--acc-deep, var(--neutral-deep));
+    color: var(--text);
     font-family: Poppins, ui-sans-serif, system-ui, sans-serif;
     font-size: 0.68rem;
     font-weight: 900;
@@ -3904,7 +3947,7 @@ footer {
 .contribute-contract h3,
 .contribute-funding h3 {
     margin: 0 0 0.55rem;
-    color: var(--acc-deep);
+    color: var(--text);
     font-size: clamp(1.2rem, 2vw, 1.55rem);
     line-height: 1.16;
 }
@@ -3936,7 +3979,7 @@ footer {
 .contribute-contract aside strong {
     display: block;
     margin-bottom: 0.4rem;
-    color: var(--acc-deep);
+    color: var(--text);
     font-family: Poppins, ui-sans-serif, system-ui, sans-serif;
 }
 
@@ -3979,7 +4022,7 @@ footer {
 }
 
 .contribute-action span {
-    color: var(--acc-deep);
+    color: var(--text);
     font-size: 0.72rem;
     font-weight: 900;
     letter-spacing: 0.12em;
@@ -3987,7 +4030,7 @@ footer {
 }
 
 .contribute-action strong {
-    color: var(--acc-deep);
+    color: var(--text);
     font-family: Poppins, ui-sans-serif, system-ui, sans-serif;
     font-size: 1.05rem;
     line-height: 1.2;
@@ -4015,14 +4058,14 @@ footer {
 }
 
 .faq-index a span {
-    color: var(--acc-deep);
+    color: var(--text);
     font-size: 0.72rem;
     font-weight: 900;
     letter-spacing: 0.12em;
 }
 
 .faq-index a strong {
-    color: var(--acc-deep);
+    color: var(--text);
     font-family: Poppins, ui-sans-serif, system-ui, sans-serif;
     font-size: 1.08rem;
     line-height: 1.2;
@@ -4065,7 +4108,7 @@ footer {
     border: 1px solid var(--line);
     border-radius: var(--radius-pill);
     background: var(--panel);
-    color: var(--acc-deep);
+    color: var(--text);
     font-family:
         ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
         "Liberation Mono", monospace;
@@ -4079,7 +4122,7 @@ footer {
 
 .faq-group-head h2 {
     margin: 0;
-    color: var(--acc-deep);
+    color: var(--text);
     font-size: clamp(1.35rem, 2.5vw, 1.9rem);
     line-height: 1.15;
     letter-spacing: -0.03em;
@@ -4117,7 +4160,7 @@ footer {
     justify-content: space-between;
     gap: 1rem;
     padding: 1rem 1.1rem;
-    color: var(--acc-deep);
+    color: var(--text);
     font-family: Poppins, ui-sans-serif, system-ui, sans-serif;
     font-size: clamp(1.05rem, 2vw, 1.32rem);
     font-weight: 900;
@@ -4128,8 +4171,7 @@ footer {
 
 .faq-card summary:hover,
 .faq-card summary:focus-visible {
-    color: var(--acc-deep);
-    background: var(--panel);
+    color: var(--text);
     text-decoration: underline;
 }
 
@@ -4451,7 +4493,7 @@ footer {
 
 .md-content .compare-dispatch .card h3 {
     margin-top: 0;
-    color: var(--acc-deep);
+    color: var(--text);
 }
 
 .compare-tools {
@@ -5864,12 +5906,12 @@ body.search-open {
     justify-content: space-between;
     gap: 0.75rem;
     padding-bottom: 0.45rem;
-    border-bottom: 2px solid var(--acc);
+    border-bottom: 2px solid var(--line);
 }
 
 .plugin-group-head h2 {
     margin: 0;
-    color: var(--acc-deep);
+    color: var(--text);
 }
 
 .plugin-group-head span {
@@ -5894,7 +5936,7 @@ body.search-open {
 
 .plugin-card h3 {
     margin: 0 0 0.6rem;
-    color: var(--acc-deep);
+    color: var(--text);
     font-size: 1.18rem;
     line-height: 1.18;
     letter-spacing: -0.025em;
@@ -5935,7 +5977,7 @@ body.search-open {
 
 .card.feature-card h3 {
     margin: 0 0 0.6rem;
-    color: var(--acc-deep);
+    color: var(--text);
     font-size: 1.18rem;
     line-height: 1.18;
     letter-spacing: -0.025em;
@@ -6020,13 +6062,13 @@ body.search-open {
 
 .plugin-detail-panel h2 {
     margin: 0 0 0.7rem;
-    color: var(--acc-deep);
+    color: var(--text);
     font-size: 1.25rem;
 }
 
 .plugin-detail-panel h3 {
     margin: 0.8rem 0 0.25rem;
-    color: var(--acc-deep);
+    color: var(--text);
     font-size: 0.92rem;
 }
 
@@ -6053,7 +6095,7 @@ body.search-open {
 }
 
 .plugin-detail-facts dt {
-    color: var(--acc-deep);
+    color: var(--text);
     font-family: Poppins, ui-sans-serif, system-ui, sans-serif;
     font-size: 0.72rem;
     font-weight: 800;

@@ -461,7 +461,7 @@
     }
 
     .whats-new-head a:hover {
-        color: var(--acc-deep, var(--text));
+        color: var(--text);
         text-decoration: underline;
     }
 
@@ -478,7 +478,7 @@
     }
 
     .whats-new-label {
-        color: var(--acc-deep, var(--muted));
+        color: var(--text);
         font-size: var(--type-micro);
         font-weight: 800;
         letter-spacing: 0.1em;
@@ -497,12 +497,12 @@
     }
 
     .whats-new-item h3 a {
-        color: var(--acc-deep);
+        color: var(--text);
         text-decoration: none;
     }
 
     .whats-new-item h3 a:hover {
-        color: var(--acc-deep, var(--text));
+        color: var(--text);
         text-decoration: underline;
     }
 
@@ -553,7 +553,7 @@
 
     .docs-path-card h2 {
         margin: 0 0 var(--space-2);
-        color: var(--acc-deep, var(--neutral-deep));
+        color: var(--text);
         font-size: clamp(1.3rem, 2.4vw, 1.9rem);
         line-height: 1.08;
     }
@@ -597,8 +597,8 @@
         min-width: 1.35rem;
         padding: 0.08rem 0.32rem;
         border-radius: var(--radius-pill);
-        background: var(--acc-tint);
-        color: var(--acc-deep);
+        background: var(--panel);
+        color: var(--text);
         font-size: var(--type-micro);
         line-height: 1.2;
     }
@@ -745,7 +745,7 @@
         display: block;
         margin-bottom: var(--space-2);
         background: var(--panel);
-        color: var(--acc-deep);
+        color: var(--text);
         font-size: var(--type-kicker);
         font-weight: 900;
         letter-spacing: 0.13em;
@@ -928,7 +928,7 @@
     .terminal-demo__transcript summary {
         padding: var(--space-3) var(--space-5);
         background: var(--panel);
-        color: var(--acc-deep);
+        color: var(--text);
         font-size: var(--type-small);
         font-weight: 850;
         cursor: pointer;
@@ -1141,7 +1141,7 @@
 .proof-strip{grid-template-columns:repeat(5,minmax(0,1fr))}
 .proof{display:flex;flex-direction:column;min-height:14rem}
 .proof .label{display:block;margin-top:0.18rem;font-size:0.46em;letter-spacing:0;text-transform:none}
-.proof-check{display:block;margin-top:auto;padding-top:0.9rem;color:var(--acc-deep);font-size:var(--type-small);font-weight:850;line-height:1.35}
+.proof-check{display:block;margin-top:auto;padding-top:0.9rem;color:var(--text);font-size:var(--type-small);font-weight:850;line-height:1.35}
 .proof-check::before{content:"Evidence:";margin-right:0.3rem;font-weight:900}
 .terminal-panel{grid-template-columns:minmax(0,0.72fr) minmax(0,1fr)}
 @media (max-width:1180px){.hero-start-intro{grid-template-columns:minmax(0,1fr);grid-template-areas:"copy" "demo";align-items:start}.hero-start-copy{max-width:48rem}.hero-start-title,.hero-start-copy .hero-start-points{max-width:18ch}.hero-action-row{flex-wrap:wrap}.proof-strip{grid-template-columns:repeat(3,minmax(0,1fr))}}
@@ -1263,7 +1263,7 @@ pre.code-copy-wrap, .md-content pre.code-copy-wrap { position: relative; padding
 .feature-results .cards { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
 .feature-results .card.feature-card { padding: 1.35rem; background: var(--panel); border: 1px solid var(--line); box-shadow: var(--clay); }
 .feature-results .card.feature-card.experimental { border-style: dashed; border-top-style: solid; }
-.feature-results .card.feature-card h3 { font-size: 1.18rem; line-height: 1.35; color: var(--acc-deep); }
+.feature-results .card.feature-card h3 { font-size: 1.18rem; line-height: 1.35; color: var(--text); }
 .feature-results .card.feature-card ul { font-size: 0.84rem; line-height: 1.75; }
 .feature-results .card.feature-card .status { position: static; inset: auto; display: block; order: 1; margin: 0.4rem 0 0; padding: 0.8rem 0 0; border: 0; border-top: 1px solid var(--line); border-radius: 0; color: var(--muted); background: transparent; font: 600 0.72rem/1.5 Lato, sans-serif; letter-spacing: 0; text-transform: none; }
 .feature-results .card.feature-card .cat { position: static; inset: auto; align-self: flex-start; margin: 0 0 0.8rem; font-size: 0.65rem; transform: none; }
@@ -1372,10 +1372,10 @@ body:has(.site-home) .footer-bottom { border-top: 0; }
 .site-home .usp-card p { font-size: 0.88rem; line-height: 1.75; }
 .site-home .capability-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; }
 .site-home .capability { display: flex; flex-direction: column; min-width: 0; padding: 1.4rem; border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--panel); box-shadow: var(--clay); }
-.site-home .capability-title h3 { font-size: 1.15rem; color: var(--acc-deep); margin: 0 0 0.8rem; }
+.site-home .capability-title h3 { font-size: 1.15rem; color: var(--text); margin: 0 0 0.8rem; }
 .site-home .capability-links { display: flex; flex-wrap: wrap; gap: 0.35rem 0.75rem; flex: 1; }
 .site-home .capability-links a { color: var(--muted); text-decoration: none; border-bottom: 1px solid var(--line); font-size: 0.8rem; line-height: 1.65; }
-.site-home .capability-footer { color: var(--acc-deep); font-size: 0.8rem; font-weight: 700; margin-top: 1.2rem; }
+.site-home .capability-footer { color: var(--text); font-size: 0.8rem; font-weight: 700; margin-top: 1.2rem; }
 .site-home .capability-note { color: var(--muted); font-size: 0.88rem; }
 .site-home .home-proof-block { margin: 0; padding: 3rem clamp(1rem, 3vw, 2.5rem); background: var(--bg-soft); border: 1px solid var(--line); border-radius: var(--radius-xl); box-shadow: none; clip-path: none; }
 .site-home .home-proof-head { display: flex; justify-content: space-between; align-items: start; gap: 2.5rem; margin-bottom: 1.5rem; }
@@ -1385,7 +1385,7 @@ body:has(.site-home) .footer-bottom { border-top: 0; }
 .site-home .proof-strip { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; border: 1px solid var(--line); border-radius: var(--radius-lg); overflow: hidden; background: var(--panel); }
 .site-home .proof { min-height: 0; padding: 1.4rem; border: 0; border-right: 1px solid var(--line); border-radius: 0; background: var(--panel); box-shadow: none; transform: none; }
 .site-home .proof:last-child { border-right: 0; }
-.site-home .proof strong { font-size: 1.9rem; color: var(--acc-deep); }
+.site-home .proof strong { font-size: 1.9rem; color: var(--text); }
 .site-home .proof .label { margin: 0.45rem 0 1rem; color: var(--text); font-size: 0.8rem; }
 .site-home .proof ul { margin: 0 0 1.1rem; padding-left: 1rem; color: var(--muted); font-size: 0.78rem; line-height: 1.75; }
 .site-home .proof-check { margin-top: 0; padding-top: 0.75rem; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.72rem; font-weight: 400; }
@@ -1415,3 +1415,36 @@ body:has(.site-home) .footer-bottom { border-top: 0; }
 .cli-directory-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .feature-filter-controls label:not(:first-child) { margin-top: 1rem; }
 .feature-filter-controls label { margin-bottom: 0.4rem; }
+
+/* Category color belongs only behind the primary name. Keep the surrounding
+   card, its body copy, secondary labels and chips on neutral surfaces. */
+.card h3,
+.md-content .card h3,
+.card.home-update-card h3,
+.card-post.blog-card h3,
+.docs-path-card h2,
+.audience-card h3,
+.capability-title h3,
+.proof > strong,
+.whats-new-item h3,
+.contribute-route h2,
+.contribute-contract h3,
+.contribute-funding h3,
+.contribute-action > strong,
+.faq-index a > strong,
+.faq-group-head h2,
+.faq-card summary,
+.plugin-group-head h2,
+.plugin-detail-panel h2 {
+    width: fit-content;
+    padding: 0.18em 0.38em;
+    border-radius: var(--radius-sm);
+    background: color-mix(in srgb, var(--acc, var(--neutral-base)) 18%, var(--panel));
+    color: var(--text);
+}
+
+/* Leave neutral space around a collapsed FAQ as well as an open answer. */
+.faq-card summary {
+    max-width: calc(100% - 1.4rem);
+    margin: 0.7rem;
+}

@@ -344,15 +344,16 @@ Before adding or restyling a page or component, read the
 That section is the canonical record of the owner's approved website design
 rules. Apply it to proposals and implementation.
 
-The approved design uses logo blue for Ze's identity and Setup's teal as the
-shared accent for all seven subject categories. Follow the canonical
+The approved design uses logo blue for Ze's identity and a distinct soft
+background behind each category card's name. Follow the canonical
 [card color rules and live palette](style-guide/index.html#sg-category), including the neutral case and
-independent status colors. Keep category names visible on card titles, compact
-category labels and selection controls across both themes. The homepage's
+independent status colors. Card names use neutral text on a small category-tinted
+background; the rest of the card stays neutral. Category selection controls
+use the matching tint and neutral text across both themes. The homepage's
 "Run reproducible labs", "Run as a daemon" and "Run as an appliance" cards
 share the existing daemon blue as an approved section exception; their category
 metadata stays unchanged. Card borders,
-surfaces, technology chips and body text stay neutral. Do not assign hues by position,
+body surfaces, technology chips and body text stay neutral. Do not assign hues by position,
 hash or presentation tone. White or light reading surfaces and dark navy heroes
 and terminal panels retain the approved layout. Poppins headings
 and Lato body text share the same hierarchy across the homepage, guides,
