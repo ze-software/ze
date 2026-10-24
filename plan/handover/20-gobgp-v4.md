@@ -16,6 +16,10 @@ them now; the "Owed" lists below are history. This handover closes once the
 gates over its own code pass: the full verify, `./le test weakened check`,
 and an independent review of 690c96d6bf, d4373233df and 34ad745067. Every
 `structural-red-ok` use is accepted by the owner (2026-10-24).
+The review of 690c96d6bf and d4373233df found two AIGP defects, fixed in
+071a80c5e5 (a withdrawal never replaces another source's live record) and
+88a86751c6 (a replay that emits nothing is queued again); the lab scenario
+bgp-nexthop-self-local-auto-frr passed over 88a86751c6.
 
 ## Landed with this handover
 
