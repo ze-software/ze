@@ -429,7 +429,7 @@
         background:
             radial-gradient(circle at 100% 0, rgba(0, 159, 227, 0.18), transparent 14rem),
             var(--outcome-surface);
-        box-shadow: var(--shadow-clay), 0 1.1rem 2.4rem rgba(10, 6, 18, 0.18);
+        box-shadow: none;
     }
 
     .whats-new-head {
