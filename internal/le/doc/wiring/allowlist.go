@@ -44,6 +44,13 @@ var wiringAllowlist = map[allowKey]bool{
 	// os.Stdout.
 	{Path: "internal/core/cliio/cliio.go", Name: "SwapStreams"}: true,
 
+	// Cross-package test seam: the terminal gate of every WholeTree action is an
+	// unexported package variable in leaction. Tests in the verify and
+	// verify/evidence packages run with no terminal and replace it to drive a
+	// gated verb. Production reaches the gate only through Area.admit, and no
+	// keyword, flag or environment variable reaches the seam.
+	{Path: "internal/le/le/action/leaction.go", Name: "SetWholeTreeAdmission"}: true,
+
 	// Audit has the same shape as CheckSiblings. The config claim audit compares
 	// the complete config schema with the complete claim union. Only a gate that
 	// links the plugin composition root can assemble both. AuditConfigured is
