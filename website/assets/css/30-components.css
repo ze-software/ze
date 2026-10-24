@@ -1296,7 +1296,7 @@ pre.code-copy-wrap, .md-content pre.code-copy-wrap { position: relative; padding
 .site-home .hero-start-intro.hero-grid { grid-template-columns: minmax(0, 0.98fr) minmax(0, 1.12fr); grid-template-areas: "copy preview"; gap: 2.75rem; align-items: center; padding: 3.25rem 0 2rem; }
 .site-home .hero-copy { grid-area: copy; max-width: none; }
 .site-home .hero .eyebrow { display: block; width: auto; margin: 0 0 1.15rem; padding: 0; border: 0; background: none; box-shadow: none; color: #8fcff4; font: 700 0.7rem/1.6 Lato, sans-serif; letter-spacing: 0.12em; text-transform: uppercase; }
-.site-home #hero-title { display: block; max-width: none; margin: 0 0 1.4rem; font-size: clamp(2.5rem, 3.9vw, 3.7rem); line-height: 1.1; letter-spacing: -0.045em; color: var(--hero-text); background: none; -webkit-text-fill-color: currentColor; transform: none; }
+.site-home #hero-title { display: block; width: auto; max-width: none; margin: 0 0 1.4rem; font-size: clamp(2.5rem, 3.9vw, 3.7rem); line-height: 1.1; letter-spacing: -0.045em; white-space: normal; color: var(--hero-text); background: none; -webkit-text-fill-color: currentColor; transform: none; }
 .site-home #hero-title em { font-style: normal; color: var(--brand-bright); }
 .site-home .hero-start-points { display: flex; flex-wrap: wrap; gap: 0.4rem 0.8rem; max-width: none; margin: 0 0 1.1rem; color: var(--hero-muted); font-size: 0.75rem; line-height: 1.6; font-weight: 400; }
 .site-home .hero-start-points span { display: inline; margin: 0; padding: 0; color: var(--hero-muted); background: none; -webkit-background-clip: border-box; background-clip: border-box; -webkit-text-fill-color: currentColor; }

@@ -35,13 +35,13 @@ const homeTemplate = `        <div class="site-home">
                         <div class="hero-start-intro hero-grid">
                             <div class="hero-start-copy hero-copy">
                                 <p class="eyebrow">Ze, an OpenNOS</p>
-                                <h1 id="hero-title" class="hero-start-title">The network OS<br /><em>you can program.</em></h1>
+                                <h1 id="hero-title" class="hero-start-title">A network OS.<br /><em>A platform for immutable services.</em></h1>
                                 <p class="hero-start-points" aria-label="Key capabilities">
                                     <span>Plugin extensible</span>
                                     <span>Appliance option</span>
                                     <span>ExaBGP compatible</span>
                                 </p>
-                                <p class="hero-intro">Routing, network services and operator tools. Connect directly to Ze’s own SSH server.</p>
+                                <p class="hero-intro">Extend Ze with plugins for networking, automation and services of your own.</p>
                                 <p class="hero-start-lead">
                                     Ze speaks <a href="guides/bgp-peering/"><strong>BGP</strong></a>,
                                     <a href="guides/isis/"><strong>ISIS</strong></a>,
