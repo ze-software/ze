@@ -82,19 +82,21 @@ tests) is not a rule: it goes in the spec or commit it applies to.
 - No release, version, tag or user consumes `main`. A red test does not hold a
   commit: commit the work and name the red test and its cause in the body.
   Full rule: `ai/rules/pre-release.md`.
-- During development, run only the tests that cover what you changed: the
-  package test, the component group, the functional suite for the behavior.
-  The full gate (`./le verify current`, `./le verify worktree`) runs once per
-  piece of work, over its final commit, never between phases, review rounds or
-  fixes.
-- A commit that changes only documentation or prose owes no full gate, before
+- Day-to-day work is judged only by the tests of the components it changed
+  (BGP, OSPF, IS-IS, a plugin, the tooling), found from the change itself: the
+  packages it reaches, the feature tags those packages build under, and the
+  functional suites that exercise them. A piece of work, its closure, a commit
+  and a push owe that scoped evidence and nothing wider.
+- The full verification (`./le verify current`, `./le verify worktree`) is a
+  release check that proves no regression across the tree. It is not run day
+  to day, and never by an agent on its own initiative.
+- A full verification runs only on an idle machine: no other agent session
+  live and no development job running. The tooling refuses to start one
+  otherwise, naming what is running, rather than leaving it to an agent's
+  judgement.
+- A commit that changes only documentation or prose owes no test run, before
   a commit or before a push: the targeted checks for the files it touched are
-  its evidence. A push gate compares the pushed tree with the last green tree
-  ignoring such paths.
-- There is no verification-debt ledger. Debt is derived from git and the last
-  green full verify, and `./le commit push` refuses while it is owed. The
-  session-start line is the only report of it, and it is never work to do
-  before the single full gate.
+  its evidence.
 - A check that ran is not re-run to reconfirm what its output said.
 - When the user asks for a commit, prepare the script and run it. Do not review
   again or rerun gates for the commit. If `./le verify status check` is FRESH,

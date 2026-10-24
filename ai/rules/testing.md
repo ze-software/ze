@@ -16,8 +16,10 @@
 
 ## Fix Code, Not Tests
 
-- **When a test fails, the code MUST be fixed, and the test's expectations MUST NOT be weakened, simplified, or retargeted to match it.** When the mechanism underneath changes, the expectation stays and the replacement mechanism satisfies it.
+- **When a test fails, MUST show the observed failure, trace its cause to the producing code, fix that code, and rerun the existing failing test.** The test's expectations MUST NOT be weakened, simplified, or retargeted to match the code. When the mechanism underneath changes, the expectation stays and the replacement mechanism satisfies it.
 - **Test data is covered too: a golden file, an expected output, a fixture, a `.ci` expectation MUST NOT be updated to turn a red run green without the user's explicit approval**, however plausible the new output looks.
+- **If the test itself is wrong, MUST explain its exact defect and why its expectation is incorrect before changing or replacing it.** This explanation MUST NOT replace required owner approval.
+- **Test and verification maintenance MUST be reported separately from product fixes.** Moving or replacing tests and refreshing snapshots MUST NOT be presented as fixing the product.
 
 - **Two weakenings pass the gate and MUST be judged by hand.** `writeWeakening` reads structure, so it sees neither an expected value changed in place (`Equal(t, 1, x)` to `Equal(t, 2, x)`) nor a rewrite that repoints an existing test at new behavior: the function count and the assertion count are unchanged, and the coverage loss is semantic.
 - **A new behavior MUST get a new case, and an existing test MUST NOT be repurposed to carry it.** The behavior that test verified still needs proving.
@@ -82,7 +84,7 @@
 - **A compiled observer MUST report an assertion failure by returning an error, and MUST NOT print a line and return `nil`.** `fixture.Observe` can still request a clean daemon shutdown, so `expect=exit:code=0` does not prove the observer's assertion and MUST NOT be relied on alone. `fixture.Run` passes the returned error to `fixture.ReportFailure`, which emits the `ZE-OBSERVER-FAIL` sentinel the runner detects.
 - **An assertion on a production log line SHOULD be preferred over either**, because it verifies the production code path rather than the observer: `expect=stderr:pattern=<decision log>` plus `reject=stderr:pattern=<wrong outcome>`.
 
-- **A commit owes the focused test for what it changed, run once; the full gate is owed before a push.** That focused test MUST run through a native action: `./le job run label unit-pkg quiet command go test <package>`, a component group (`./le test unit bgp`), or `./le test unit all`. Everything after `command` is the child's argv unchanged, so the `PKG=` spelling belongs to `./le test fuzz` and `go test` refuses it as an import path.
+- **A commit and a push owe the focused test for what they changed, run once; the full gate is a release check and is owed by neither.** That focused test MUST run through a native action: `./le job run label unit-pkg quiet command go test <package>` or a component group (`./le test unit bgp`). Everything after `command` is the child's argv unchanged, so the `PKG=` spelling belongs to `./le test fuzz` and `go test` refuses it as an import path.
 - **A bare `go test` MUST NOT be used in its place.** `internal/le/go/toolchain.Toolchain` gives native actions the repository build cache and the feature tags, and a shell run has neither.
 
 **The action or page in the row MUST be used; the obligation is derivable but the
