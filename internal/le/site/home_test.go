@@ -362,8 +362,8 @@ func TestTheHomepageCardsKeepTheDataFilesOwnOrder(t *testing.T) {
 // A list derived from the data reorders its buttons whenever a card moves, and
 // drops a category no card carries.
 func TestTheFeatureCategoryLinksFollowThePagesOwnOrder(t *testing.T) {
-	if got := categoryLabel(categoryPlatform); got != "Deploy & configure" {
-		t.Errorf("the category display label is %q, want unescaped Deploy & configure", got)
+	if got := categoryLabel(categoryPlatform); got != "Setup" {
+		t.Errorf("the category display label is %q, want Setup", got)
 	}
 	paths := homeFixture(t)
 	var features featureData
@@ -372,7 +372,7 @@ func TestTheFeatureCategoryLinksFollowThePagesOwnOrder(t *testing.T) {
 	}
 	links := featureCategoryLinks(features)
 	want := []string{"Operate (6)", "Routing (9)", "Services (9)", "Automate (7)",
-		"Observe (9)", "Secure (6)", "Deploy &amp; configure (6)"}
+		"Observe (9)", "Secure (6)", "Setup (6)"}
 	previous := 0
 	for _, label := range want {
 		at := strings.Index(links, ">"+label+"</a>")
@@ -389,8 +389,8 @@ func TestTheFeatureCategoryLinksFollowThePagesOwnOrder(t *testing.T) {
 	}
 	group := sliceBetween(t, homeFeatureOverview(features), `<article class="capability cat-platform">`, "</article>")
 	for _, want := range []string{
-		`<h3>Deploy &amp; configure</h3>`,
-		`href="features/#platform">View deploy &amp; configure features →</a>`,
+		`<h3>Setup</h3>`,
+		`href="features/#platform">View setup features →</a>`,
 	} {
 		if !strings.Contains(group, want) {
 			t.Errorf("the category overview is missing %q", want)

@@ -43,7 +43,7 @@ var pageCategories = map[string]bool{
 // categoryLabel gives a category its display name without changing its identifier.
 func categoryLabel(category string) string {
 	if category == categoryPlatform {
-		return "Deploy & configure"
+		return "Setup"
 	}
 	if category == "" {
 		return ""

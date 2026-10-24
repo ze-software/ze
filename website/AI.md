@@ -365,7 +365,7 @@ result as `cat-<category>` and keep functional filter metadata separate. Take
 subject assignments from the existing feature and topic records, not a new
 page-specific color map. The design guide owns the palette and assignment rules.
 Use `categoryLabel` for category display names: `platform` reads as
-"Deploy & configure" while its identifier, anchors, classes and color stay
+"Setup" while its identifier, anchors, classes and color stay
 `platform`. Escape the label when rendering HTML.
 <!-- source: internal/le/site/docpage.go -- categoryLabel -->
 
