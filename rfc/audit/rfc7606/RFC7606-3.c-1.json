@@ -1,19 +1,19 @@
 {
-  "note": "Re-judged 2026-10-19 (independent auditor). Section 3(c): \"If the value of either the Optional or Transitive bits in the Attribute Flags is in conflict with their specified values, then the attribute MUST be treated as malformed and the \"treat-as-withdraw\" approach used, unless the specification for the attribute mandates different handling for incorrect Attribute Flags.\" TestRFC7606ImplementedAttributeFlagConflicts: The only change to this unit since the last judgement (ca4eae70a0) is the new sixth argument of ValidateUpdateRFC7606AddPath, passed as false (no capability 77), which skips the draft-ietf-idr-linklocal-capability Section 6 branch; no input byte or assertion changed, and the unit passes at HEAD. The prior reading stands: per attribute the correct flags give exact None and each of the Optional and Transitive conflicts gives exact TreatAsWithdraw with the attribute's own code; the other carriers are unchanged. The revert record for its negative is unit-changed and owes re-recording.",
+  "note": "Re-judged 2026-10-24 (independent auditor, authored none of 9c3697d0d1). RFC 7606 Section 3(c): \"If the value of either the Optional or Transitive bits in the Attribute Flags is in conflict with their specified values, then the attribute MUST be treated as malformed and the \"treat-as-withdraw\" approach used, unless the specification for the attribute mandates different handling for incorrect Attribute Flags.\" The only change to TestRFC7606ImplementedAttributeFlagConflicts is the call: the deleted ValidateUpdateRFC7606AddPath(..., nil, false) became ValidateUpdateRFC7606Peer(..., nil, false, false). The added acceptASSet=false is the RFC 9774 default and reaches only the AS_PATH/AS4_PATH validators, which this unit's TRAFFIC_ENGINEERING and ATTR_SET inputs never touch. No input byte or assertion changed: per attribute the correct flags give exact None and each Optional and Transitive conflict gives exact TreatAsWithdraw with the attribute's own code. Producer read at HEAD: validateAttributeFlags and the registered validators are unchanged in behavior (signature gained an ignored receivePolicy). The other carriers are unchanged. Unit ran green at HEAD; the revert records for this row verify.",
   "requirement_sha": "72ee164d066e6961",
   "tests": {
-    "internal/component/bgp/message/rfc7606_attribute_envelope_test.go::TestRFC7606ImplementedAttributeFlagConflicts": "98c95aaab9c010a7",
+    "internal/component/bgp/message/rfc7606_attribute_envelope_test.go::TestRFC7606ImplementedAttributeFlagConflicts": "07e68360a37b62da",
     "internal/component/bgp/message/rfc7606_flags_optional_test.go::TestRFC7606FlagsOptionalAttributeAsSpecifiedAccepted": "60359f14a91ec4e9",
     "internal/component/bgp/message/rfc7606_flags_optional_test.go::TestRFC7606FlagsOptionalAttributeConflict": "60359f14a91ec4e9",
     "internal/component/bgp/message/rfc7606_flags_plugin_test.go::TestRFC7606FlagsPluginAttributeAsSpecifiedAccepted": "3c00bdc455473898",
     "internal/component/bgp/message/rfc7606_flags_plugin_test.go::TestRFC7606FlagsPluginAttributeConflict": "3c00bdc455473898",
-    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606FlagsOptionalAttributeValid": "9582b83dd8b96bf0",
-    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606FlagsWellKnownMarkedOptional": "9582b83dd8b96bf0",
-    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606FlagsWellKnownNotTransitive": "9582b83dd8b96bf0",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606FlagsOptionalAttributeValid": "bc2b72193ea95ce6",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606FlagsWellKnownMarkedOptional": "bc2b72193ea95ce6",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606FlagsWellKnownNotTransitive": "bc2b72193ea95ce6",
     "internal/component/bgp/reactor/rfc7606_attribute_envelope_test.go::TestRFC7606AttributeEnvelopeSession": "7f12ec998cbec524"
   },
   "units": {
-    "internal/component/bgp/message/rfc7606_attribute_envelope_test.go::TestRFC7606ImplementedAttributeFlagConflicts": "bb792b86ac4211a1",
+    "internal/component/bgp/message/rfc7606_attribute_envelope_test.go::TestRFC7606ImplementedAttributeFlagConflicts": "b2a5741cd6a089e6",
     "internal/component/bgp/message/rfc7606_flags_optional_test.go::TestRFC7606FlagsOptionalAttributeAsSpecifiedAccepted": "f416658a0a9ca7ba",
     "internal/component/bgp/message/rfc7606_flags_optional_test.go::TestRFC7606FlagsOptionalAttributeConflict": "abb3e1952487a86d",
     "internal/component/bgp/message/rfc7606_flags_plugin_test.go::TestRFC7606FlagsPluginAttributeAsSpecifiedAccepted": "bd3d5b436c261341",

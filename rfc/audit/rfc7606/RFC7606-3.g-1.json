@@ -1,12 +1,12 @@
 {
-  "note": "Duplicate MP_REACH and MP_UNREACH cases select reset, including duplicates encountered before an abandoned attribute walk with reachable NLRI preventing Section 5.2 from supplying a substitute verdict; real-session tests observe NOTIFICATION 3/1 and no route dispatch, including the separate MP_UNREACH wire carrier, while single-MP controls remain accepted",
+  "note": "Re-judged 2026-10-24 (independent auditor, authored none of 9c3697d0d1). RFC 7606 Section 3(g): \"If the MP_REACH_NLRI attribute or the MP_UNREACH_NLRI [RFC4760] attribute appears more than once in the UPDATE message, then a NOTIFICATION message MUST be sent with the Error Subcode \"Malformed Attribute List\".\" The only change to TestRFC7606Section3gDuplicateMPBeatsAnAbandonedWalk is a doc-comment rename (ValidateUpdateRFC7606AddPath to ValidateUpdateRFC7606Peer). Re-read the body: two MP_REACH (EVPN with reachable NLRI, then ipv4 10.0.0.0/24) followed by an AS_PATH declaring 64 octets with none present; the abandoned walk alone is treat-as-withdraw because reachable NLRI exists, so only the duplicate can yield the asserted exact SessionReset plus error, which isolates 3(g). The 3/1 subcode is asserted by the session-level carriers (TestSessionRFC7606SessionResetNotification, TestSessionRFC7606DuplicateMPUnreachNotificationOnTheWire), and single-MP controls stay accepted. Producer ValidateUpdateRFC7606Peer's in-loop duplicate reset is unchanged by 9c3697d0d1. Unit ran green at HEAD.",
   "requirement_sha": "e5e5758114e8c992",
   "tests": {
-    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachIPv4NextHopValid": "9582b83dd8b96bf0",
-    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MultipleMPReach": "9582b83dd8b96bf0",
-    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "9582b83dd8b96bf0",
-    "internal/component/bgp/reactor/rfc7606_session_validation_dupmp_test.go::TestRFC7606Section3gDuplicateMPBeatsAnAbandonedWalk": "25c96de03fee2bc0",
-    "internal/component/bgp/reactor/rfc7606_session_validation_dupmp_test.go::TestRFC7606Section3gDuplicateMPUnreachBeatsAnAbandonedWalk": "25c96de03fee2bc0",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachIPv4NextHopValid": "bc2b72193ea95ce6",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MultipleMPReach": "bc2b72193ea95ce6",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "bc2b72193ea95ce6",
+    "internal/component/bgp/reactor/rfc7606_session_validation_dupmp_test.go::TestRFC7606Section3gDuplicateMPBeatsAnAbandonedWalk": "5410a09a55003218",
+    "internal/component/bgp/reactor/rfc7606_session_validation_dupmp_test.go::TestRFC7606Section3gDuplicateMPUnreachBeatsAnAbandonedWalk": "5410a09a55003218",
     "internal/component/bgp/reactor/rfc7606_session_validation_dupmp_unreach_test.go::TestRFC7606Section3gDuplicateMPUnreachResetsWithRoutesPresent": "63addcbc92d19c5a",
     "internal/component/bgp/reactor/session_dupmp_unreach_wire_test.go::TestSessionRFC7606DuplicateMPUnreachNotificationOnTheWire": "052daf09fdcc69d4",
     "internal/component/bgp/reactor/session_test.go::TestSessionRFC7606SessionResetNotification": "aeb6993b67f2a376"
@@ -15,7 +15,7 @@
     "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachIPv4NextHopValid": "e8d83289676a1ed9",
     "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MultipleMPReach": "0e8aea350f1562ff",
     "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "07b9d95ed1e789a5",
-    "internal/component/bgp/reactor/rfc7606_session_validation_dupmp_test.go::TestRFC7606Section3gDuplicateMPBeatsAnAbandonedWalk": "b2a21ea860c6a050",
+    "internal/component/bgp/reactor/rfc7606_session_validation_dupmp_test.go::TestRFC7606Section3gDuplicateMPBeatsAnAbandonedWalk": "f71506cc9e58d181",
     "internal/component/bgp/reactor/rfc7606_session_validation_dupmp_test.go::TestRFC7606Section3gDuplicateMPUnreachBeatsAnAbandonedWalk": "96ca1d9cb26b0ea9",
     "internal/component/bgp/reactor/rfc7606_session_validation_dupmp_unreach_test.go::TestRFC7606Section3gDuplicateMPUnreachResetsWithRoutesPresent": "4d880456e07a5960",
     "internal/component/bgp/reactor/session_dupmp_unreach_wire_test.go::TestSessionRFC7606DuplicateMPUnreachNotificationOnTheWire": "93d2242114ff07aa",

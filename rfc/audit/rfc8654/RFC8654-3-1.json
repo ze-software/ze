@@ -1,19 +1,19 @@
 {
-  "note": "Re-judged 2026-10-24 (independent auditor, after 66858fa127). RFC 8654 Section 3: \"Peers that wish to use the BGP Extended Message Capability MUST support error handling for BGP UPDATE messages per [RFC7606].\" The two message-level units (TestRFC7606MPReachNLRIConsistentWithAFISAFIAccepted, TestRFC7606AttributeLengthConflictTreatAsWithdraw) no longer carry this tag, which removes the over-claim the previous judgement named: they never involved Extended Message. Both polarities remain, carried only by session-level units on a session that negotiated Extended Message with UPDATEs over 4096 octets: TestRFC8654TreatAsWithdrawRemovesInstalledRoutes (valid 4097-octet UPDATE installs 3 routes in Adj-RIB-In, Loc-RIB and downstream; ORIGIN=3 alone removes all three from each and withdraws downstream; a later valid UPDATE reinstalls on the same Established session with no NOTIFICATION), TestRFC8654ExtendedTwoFamilyWithdrawalRecovery, TestRFC8654ExtendedAttributeDiscard (valid ATOMIC_AGGREGATE/AGGREGATOR kept byte-exact; malformed one absent, NLRI intact, Established, no NOTIFICATION, both readers), TestRFC8654ExtendedDuplicateAttributes (exact published attributes after keep-first), TestRFC8654ExtendedDuplicateMPResets (single MP processed; duplicate gives Idle, no extra dispatch) and TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling (malformed ORIGIN over 1100 routes: all withdrawn, Established, no NOTIFICATION; attribute section overrunning the message: 3/1, Idle, nothing dispatched). Each unit's tags sit on distinct subtests or phases, not one assertion in two hats. Claims match the bodies. FINDING (not verdict-changing): the positive tag on TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling names the malformed-ORIGIN subtest, which is an error input (RFC 7606's treat-as-withdraw outcome), so that unit is two negatives; the requirement's conforming positives come from the other units. Fix: retag that line as a second negative, or add a well-formed over-4096 subtest asserting the UPDATE is dispatched with attributes and NLRI intact and keep the positive tag on it. Verdict stands.",
+  "note": "Re-judged 2026-10-24 (independent auditor, authored none of 9c3697d0d1). RFC 8654 Section 3: \"Peers that wish to use the BGP Extended Message Capability MUST support error handling for BGP UPDATE messages per [RFC7606].\" The only change to TestRFC8654ExtendedDuplicateMPResets is its MUTATION comment naming ValidateUpdateRFC7606Peer instead of the deleted ValidateUpdateRFC7606AddPath. Re-read the body: on a session with Extended Message, a single MP_REACH and a single MP_UNREACH in a >4096-octet UPDATE stay Established with the exact body dispatched once; the duplicate gives an error, Idle, no further dispatch and NOTIFICATION 3/1 with empty data. Positive and negative are distinct phases. Producer ValidateUpdateRFC7606Peer's duplicate-MP reset unchanged in behavior. Other carriers unchanged. FINDING still open from the previous judgement: the positive tag on TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling names the malformed-ORIGIN subtest, an error input, so that unit is two negatives; fix: retag it as a second negative, or add a well-formed over-4096 subtest asserting dispatch with attributes and NLRI intact and move the positive tag there. Conforming positives come from the other units. Units ran green at HEAD.",
   "requirement_sha": "58d67f2664ef1bc5",
   "tests": {
     "internal/component/bgp/reactor/rfc8654_rib_recovery_test.go::TestRFC8654ExtendedTwoFamilyWithdrawalRecovery": "610d0686eb8443b5",
     "internal/component/bgp/reactor/rfc8654_rib_recovery_test.go::TestRFC8654ExtendedTwoFamilyWithdrawalRecovery#2": "610d0686eb8443b5",
     "internal/component/bgp/reactor/rfc8654_rib_recovery_test.go::TestRFC8654TreatAsWithdrawRemovesInstalledRoutes": "610d0686eb8443b5",
     "internal/component/bgp/reactor/rfc8654_rib_recovery_test.go::TestRFC8654TreatAsWithdrawRemovesInstalledRoutes#2": "610d0686eb8443b5",
-    "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedAttributeDiscard": "593a50cf663b99d0",
-    "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedAttributeDiscard#2": "593a50cf663b99d0",
-    "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedDuplicateAttributes": "593a50cf663b99d0",
-    "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedDuplicateAttributes#2": "593a50cf663b99d0",
-    "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedDuplicateMPResets": "593a50cf663b99d0",
-    "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedDuplicateMPResets#2": "593a50cf663b99d0",
-    "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling": "593a50cf663b99d0",
-    "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling#2": "593a50cf663b99d0"
+    "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedAttributeDiscard": "e740e4066666be24",
+    "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedAttributeDiscard#2": "e740e4066666be24",
+    "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedDuplicateAttributes": "e740e4066666be24",
+    "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedDuplicateAttributes#2": "e740e4066666be24",
+    "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedDuplicateMPResets": "e740e4066666be24",
+    "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedDuplicateMPResets#2": "e740e4066666be24",
+    "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling": "e740e4066666be24",
+    "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling#2": "e740e4066666be24"
   },
   "units": {
     "internal/component/bgp/reactor/rfc8654_rib_recovery_test.go::TestRFC8654ExtendedTwoFamilyWithdrawalRecovery": "4119cce75f3d57e2",
@@ -24,8 +24,8 @@
     "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedAttributeDiscard#2": "e6c5794b4e7e6542",
     "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedDuplicateAttributes": "99c6d7506146e12f",
     "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedDuplicateAttributes#2": "99c6d7506146e12f",
-    "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedDuplicateMPResets": "94b0b4f5eccd88d3",
-    "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedDuplicateMPResets#2": "94b0b4f5eccd88d3",
+    "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedDuplicateMPResets": "0c0b8fdda8fed997",
+    "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedDuplicateMPResets#2": "0c0b8fdda8fed997",
     "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling": "6496b9ab79e6256e",
     "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling#2": "6496b9ab79e6256e"
   },
