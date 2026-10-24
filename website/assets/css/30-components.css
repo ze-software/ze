@@ -1390,7 +1390,7 @@ body:has(.site-home) .footer-bottom { border-top: 0; }
 .site-home .proof-strip { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; border: 1px solid var(--line); border-radius: var(--radius-lg); overflow: hidden; background: var(--panel); }
 .site-home .proof { min-height: 0; padding: 1.4rem; border: 0; border-right: 1px solid var(--line); border-radius: 0; background: var(--panel); box-shadow: none; transform: none; }
 .site-home .proof:last-child { border-right: 0; }
-.site-home .proof strong { font-size: 1.9rem; color: var(--text); }
+.site-home .proof strong { font-size: 2.2rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.2; color: var(--blue); }
 .site-home .proof .label { margin: 0.45rem 0 1rem; color: var(--text); font-size: 0.8rem; }
 .site-home .proof ul { margin: 0 0 1.1rem; padding-left: 1rem; color: var(--muted); font-size: 0.78rem; line-height: 1.75; }
 .site-home .proof-check { margin-top: 0; padding-top: 0.75rem; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.72rem; font-weight: 400; }

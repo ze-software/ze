@@ -150,7 +150,7 @@
     --brand-surface-end: #e1f6ff;
     --brand-section-gradient: linear-gradient(120deg, var(--brand-surface), var(--brand-surface-end));
     --badge-accent-share: 24%;
-    --concept-software: var(--gold-base);
+    --concept-software: var(--sky-base);
     --concept-evidence: var(--teal-base);
     --brand-indigo: #312782;
     --hero-bg: #071c38;

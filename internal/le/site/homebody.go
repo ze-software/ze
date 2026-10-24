@@ -189,7 +189,7 @@ const homeTemplate = `        <div class="site-home">
             <section id="proof" class="home-proof-block reveal" aria-labelledby="proof-title">
                 <div class="home-proof-head">
                     <div>
-                        <h2 id="proof-title">Code quality</h2>
+                        <h2 id="proof-title">Code quality, in numbers</h2>
                         <p>
                             Explore the tests behind Ze: unit tests, end-to-end
                             scenarios, protocol checks, fuzzing and interoperability

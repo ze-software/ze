@@ -354,7 +354,7 @@ use the matching tint and neutral text across both themes. The homepage's
 "Run reproducible labs", "Run as a daemon" and "Run as an appliance" cards
 share the existing daemon blue as an approved section exception; their category
 metadata stays unchanged. Card borders, body surfaces and body text stay neutral.
-Explicit compact software labels use `concept-software` (violet); evidence,
+Explicit compact software labels use `concept-software` (blue); evidence,
 benchmark and test-layer labels use `concept-evidence` (teal). Category and
 concept badges use `--badge-accent-share`: 24% accent in light mode and 18%
 in dark mode, mixed into `--panel`, with neutral `--text` lettering.
