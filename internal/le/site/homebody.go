@@ -14,6 +14,8 @@ package site
 //	{hero_demo_file} {hero_demo_title}
 //	{hero_demo_transcript}         its file name, manifest title and transcript link
 //	{tour_demo_href}               the recording "Watch a demo" opens
+//	{web_demo_poster} {web_demo_video} {web_demo_transcript}
+//	                              verified browser media from that recording
 //	{whats_new}                    the newest article, the newest week, the note
 //	{unit_tests} {e2e_tests}       the proof strip's nine data-ze-stat spans
 //	{fuzz_targets} {interop_targets}
@@ -67,11 +69,13 @@ const homeTemplate = `        <div class="site-home">
                                 </div>
                             </div>
                             <div class="showcase" data-product-showcase>
-                                <div class="screen-tabs" role="group" aria-label="Choose a product screenshot" hidden>
+                                <div class="screen-tabs" role="group" aria-label="Choose a product interface" hidden>
                                     <button type="button" data-product-target="product-routes" aria-controls="product-routes" aria-pressed="true">Looking glass</button>
-                                    <button type="button" data-product-target="product-editor" aria-controls="product-editor" aria-pressed="false">Config editor</button>
-                                    <button type="button" data-product-target="product-dashboard" aria-controls="product-dashboard" aria-pressed="false">CLI</button>
+                                    <button type="button" data-product-target="product-web" aria-controls="product-web" aria-pressed="false">Web configuration</button>
+                                    <button type="button" data-product-target="product-editor" aria-controls="product-editor" aria-pressed="false">CLI editor</button>
+                                    <button type="button" data-product-target="product-dashboard" aria-controls="product-dashboard" aria-pressed="false">CLI dashboard</button>
                                 </div>
+                                <div class="product-panels">
                                 <figure class="screen product-screen" id="product-routes" data-product-panel>
                                     <div class="screen-toolbar"><strong>Ze / Looking glass</strong><a href="assets/product-routes.png" target="_blank" rel="noopener">Open full size ↗</a></div>
                                     <a href="assets/product-routes.png" target="_blank" rel="noopener"><img src="assets/product-routes.png" alt="Ze looking glass with prefix, AS path and community filters, a route graph and route table" width="2820" height="1848" /></a>
@@ -82,8 +86,23 @@ const homeTemplate = `        <div class="site-home">
                                         <p class="capture-caption">Captured for the June 2026 LINX talk.</p>
                                     </figcaption>
                                 </figure>
+                                <figure class="screen product-screen" id="product-web" data-product-panel>
+                                    <div class="screen-toolbar"><strong>Ze / Web configuration</strong><a href="{web_demo_poster}" target="_blank" rel="noopener">Open full size ↗</a></div>
+                                    <div class="screen-media">
+                                        <video controls playsinline preload="none" poster="{web_demo_poster}" aria-label="Edit, review and commit configuration in Ze's web interface">
+                                            <source src="{web_demo_video}" type="video/webm" />
+                                            <a href="{web_demo_video}">Download the browser recording</a>.
+                                        </video>
+                                    </div>
+                                    <figcaption class="screen-description">
+                                        <strong>Configure Ze in your browser.</strong>
+                                        <p>Edit a setting, review its diff, commit the draft and verify the active value.</p>
+                                        <a href="{tour_demo_href}">Explore the web interface →</a>
+                                        <p class="capture-caption">A real session with an isolated local Ze lab. <a href="{web_demo_transcript}">Read the transcript.</a></p>
+                                    </figcaption>
+                                </figure>
                                 <figure class="screen product-screen" id="product-editor" data-product-panel>
-                                    <div class="screen-toolbar"><strong>Ze / Configuration editor</strong><a href="assets/product-editor.jpg" target="_blank" rel="noopener">Open full size ↗</a></div>
+                                    <div class="screen-toolbar"><strong>Ze / CLI configuration editor</strong><a href="assets/product-editor.jpg" target="_blank" rel="noopener">Open full size ↗</a></div>
                                     <a href="assets/product-editor.jpg" target="_blank" rel="noopener"><img src="assets/product-editor.jpg" alt="Ze configuration editor showing a transit peer, a pending remote ASN edit and contextual connection completions" width="1440" height="852" loading="lazy" /></a>
                                     <figcaption class="screen-description">
                                         <strong>Edit the configuration with context.</strong>
@@ -94,7 +113,7 @@ const homeTemplate = `        <div class="site-home">
                                 </figure>
                                 <figure class="screen product-screen" id="product-dashboard" data-product-panel>
                                     <div class="screen-toolbar"><strong>Ze / CLI dashboard</strong><a href="assets/product-dashboard.png" target="_blank" rel="noopener">Open full size ↗</a></div>
-                                    <a href="assets/product-dashboard.png" target="_blank" rel="noopener"><img src="assets/product-dashboard.png" alt="Ze terminal dashboard showing three established BGP peers, uptime and message counters" width="942" height="544" loading="lazy" /></a>
+                                    <a href="assets/product-dashboard.png" target="_blank" rel="noopener"><img src="assets/product-dashboard.png" alt="Ze terminal dashboard showing three established BGP peers, uptime and message counters" width="1384" height="811" loading="lazy" /></a>
                                     <figcaption class="screen-description">
                                         <strong>Keep the peers in view.</strong>
                                         <p>Inspect BGP sessions from Ze’s own CLI.</p>
@@ -102,6 +121,7 @@ const homeTemplate = `        <div class="site-home">
                                         <p class="capture-caption">A frame from the published terminal recording. Replay the demonstration below.</p>
                                     </figcaption>
                                 </figure>
+                                </div>
                             </div>
                         </div>
                         <div class="hero-action-row">
@@ -182,17 +202,38 @@ const homeTemplate = `        <div class="site-home">
                 </div>
 
                 <article class="why-lead">
-                    <span class="eyebrow">Self-contained management</span>
-                    <h3>Manage Ze directly.</h3>
-                    <p>Ze runs its own SSH server, CLI and configuration editor. Connect directly to Ze to configure and operate it, without a host SSH service or shell. Its web interface, REST, gRPC, gNMI and MCP expose the same YANG-modeled configuration.</p>
-                    <div class="interface-map" aria-label="Ze’s own SSH server, CLI, web interface, APIs and MCP connect to its YANG-modeled configuration">
-                        <div><span>Ze SSH + CLI</span><span>Web</span><span>APIs + MCP</span></div>
-                        <div class="map-stem" aria-hidden="true">↓</div>
-                        <strong>YANG-modeled configuration</strong>
-                        <small>Routing · Interfaces · Network services</small>
+                    <div class="why-lead-copy">
+                        <span class="eyebrow">Self-contained management</span>
+                        <h3>Manage Ze directly.</h3>
+                        <p>Ze runs its own SSH server, CLI and configuration editor. Connect directly to Ze to configure and operate it, without a host SSH service or shell. Its web interface, REST, gRPC, gNMI and MCP expose the same YANG-modeled configuration.</p>
+                        <div class="interface-map" aria-label="Ze’s own SSH server, CLI, web interface, APIs and MCP connect to its YANG-modeled configuration">
+                            <div><span>Ze SSH + CLI</span><span>Web</span><span>APIs + MCP</span></div>
+                            <div class="map-stem" aria-hidden="true">↓</div>
+                            <strong>YANG-modeled configuration</strong>
+                            <small>Routing · Interfaces · Network services</small>
+                        </div>
+                        <nav class="why-lead-links" aria-label="Management documentation">
+                            <a href="features/web-interface/">See the browser workflow →</a>
+                            <a href="features/cli-commands/">Explore CLI interaction →</a>
+                        </nav>
                     </div>
-                    <a href="features/web-interface/">See the browser workflow →</a>
-                    <a href="features/cli-commands/">Explore CLI interaction →</a>
+                    <figure class="why-demo">
+                        <figcaption>
+                            <h4>From connection to configuration</h4>
+                            <p>Change a setting through Ze’s SSH editor, review the diff, commit it and check the result.</p>
+                        </figcaption>
+                        <ol class="why-demo-steps" aria-label="SSH walkthrough steps">
+                            <li>Connect</li><li>Edit</li><li>Review</li><li>Commit</li>
+                        </ol>
+                        <div class="why-demo-player" data-cast-start="{management_demo_start}">
+                            {management_demo}
+                        </div>
+                        <p class="why-demo-note">Playback starts at the SSH introduction ({management_demo_start}) in the full recorded session. Use full screen for a closer look.</p>
+                        <nav class="why-lead-links" aria-label="SSH walkthrough resources">
+                            <a href="{management_demo_guide}">Full recording and quickstart →</a>
+                            <a href="{management_demo_transcript}">Read transcript →</a>
+                        </nav>
+                    </figure>
                 </article>
 
                 <div class="cards usp-grid reveal" aria-label="Ze architectural arguments">

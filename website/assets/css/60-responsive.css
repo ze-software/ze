@@ -100,12 +100,14 @@
     .site-home .hero-copy { max-width: 46rem; }
     .site-home #hero-title { font-size: clamp(2.7rem, 6vw, 3.7rem); }
     .site-home .showcase { width: 100%; max-width: 46rem; justify-self: center; }
-    .site-home .screen > a img { max-height: 30rem; }
     .site-home .hero-outcome-links { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .site-home .proof-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .site-home .proof { border-bottom: 1px solid var(--line); }
     .site-home .blog-list, .site-home .home-usecase-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .blog-article-shell, .blog-article-shell.has-visual { gap: 2rem; }
+}
+@media (max-width: 960px) {
+    .site-home .why-lead { grid-template-columns: minmax(0, 1fr); gap: 1.5rem; }
 }
 @media (max-width: 850px) {
     .doc-layout, .blog-reading-layout, .cli-reference-layout, .feature-catalog[data-enhanced="true"] { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.5rem; }

@@ -97,6 +97,11 @@ func writeHeroDemo(t *testing.T, root, output string) {
 		`[12.5,"o","done\r\n"]` + "\n"
 	writeDemoAsset(t, media, homeHeroDemo+".cast", cast)
 	writeDemoAsset(t, media, homeHeroDemo+".txt", "ze> show bgp summary\nPeer 192.0.2.1 established\n")
+	writeDemoAsset(t, media, "zefs-config.cast", cast)
+	writeDemoAsset(t, media, "zefs-config.txt", "ze# show | compare\nze# commit now\nSession committed\n")
+	writeDemoAsset(t, media, homeTourDemo+".png", "fixture browser poster")
+	writeDemoAsset(t, media, homeTourDemo+".webm", "fixture browser recording")
+	writeDemoAsset(t, media, homeTourDemo+".txt", "Edit the hostname, review the diff and commit.\n")
 	writeDemoJSON(t, filepath.Join(root, "demos", "terminal", "manifest.json"), map[string]any{
 		"schema":       2,
 		"renderer":     map[string]any{"name": "ze-demo", "version": "3", "image": "img", "platform": "linux/native"},
@@ -109,6 +114,10 @@ func writeHeroDemo(t *testing.T, root, output string) {
 			"id": homeTourDemo, "title": "Web tour", "description": "Commit from the browser.",
 			"page": "guide/quickstart.md", "anchor": "web-tour", "platform": "portable",
 			"kind": "browser", "engine": "playwright", "source": "run.cjs", "validate": "check",
+		}, map[string]any{
+			"id": "zefs-config", "title": "Fixture SSH walkthrough", "description": "Commit over SSH.",
+			"page": "guide/quickstart.md", "anchor": "fixture-ssh", "platform": "portable",
+			"kind": "terminal", "engine": "ze-demo", "source": "tape", "validate": "check",
 		}},
 	})
 	writeDemoJSON(t, filepath.Join(media, "manifest.json"), map[string]any{
@@ -120,8 +129,53 @@ func writeHeroDemo(t *testing.T, root, output string) {
 				"cast":       demoAssetRecord(t, media, homeHeroDemo+".cast"),
 				"transcript": demoAssetRecord(t, media, homeHeroDemo+".txt"),
 			},
+		}, homeTourDemo: map[string]any{
+			"release": "26.08.27",
+			"assets": map[string]any{
+				"poster":     demoAssetRecord(t, media, homeTourDemo+".png"),
+				"video":      demoAssetRecord(t, media, homeTourDemo+".webm"),
+				"transcript": demoAssetRecord(t, media, homeTourDemo+".txt"),
+			},
+		}, "zefs-config": map[string]any{
+			"release": "26.08.27",
+			"assets": map[string]any{
+				"cast":       demoAssetRecord(t, media, "zefs-config.cast"),
+				"transcript": demoAssetRecord(t, media, "zefs-config.txt"),
+			},
 		}},
 	})
+}
+
+// TestHomeManagementWalkthrough verifies that the homepage publishes the SSH
+// recording and its transcript from verified media, separate from the dashboard.
+func TestHomeManagementWalkthrough(t *testing.T) {
+	paths := homeFixture(t)
+	if _, err := renderHome(paths); err != nil {
+		t.Fatal(err)
+	}
+	page := readArtifact(t, paths.Output, homeDest)
+	for _, want := range []string{
+		`class="why-lead-copy"`,
+		`class="why-demo"`,
+		`data-cast-start="0:36"`,
+		`aria-label="Fixture SSH walkthrough"`,
+		`assets/demos/zefs-config.cast?v=`,
+		`assets/demos/zefs-config.txt?v=`,
+		`href="guides/quickstart/#fixture-ssh"`,
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("homepage lacks management walkthrough wiring %s", want)
+		}
+	}
+	if got := strings.Count(page, "data-terminal-demo-player"); got != 2 {
+		t.Errorf("homepage has %d terminal players, want SSH walkthrough and dashboard", got)
+	}
+	if err := os.WriteFile(filepath.Join(paths.Output, "assets", "demos", "zefs-config.cast"), []byte("corrupt"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := renderHome(paths); err == nil {
+		t.Error("homepage accepted a changed SSH recording with an invalid digest")
+	}
 }
 
 // renderHomeFixture builds the homepage and answers the page and its mirror.
@@ -512,11 +566,11 @@ func TestAHomepageInputNoPageCanBeMadeFromIsRefused(t *testing.T) {
 // lost leaves its content off the page with nothing to notice, which is the
 // shape of the defect this whole spec exists to fix.
 func TestTheTemplateAndTheProducerAgreeAboutEverySlot(t *testing.T) {
-	// The feature overview adds one generated inventory beside the original
-	// category navigation. The recording retains all five manifest slots.
+	// The original page's 19 slot occurrences remain. The SSH walkthrough
+	// adds five occurrences and the browser preview adds six.
 	names := homeSlotPattern.FindAllString(homeTemplate, -1)
-	if len(names) != 19 {
-		t.Errorf("the homepage template has %d slots, want 19: %v", len(names), names)
+	if len(names) != 30 {
+		t.Errorf("the homepage template has %d slots, want 30: %v", len(names), names)
 	}
 	pairs := make([]string, 0, 2*len(names))
 	for _, name := range names {
@@ -638,7 +692,7 @@ func TestTheHomepageCarriesTheShellAndItsMirror(t *testing.T) {
 // and its manifest-derived transcript remain on the page.
 func TestTheHomepageShowcaseKeepsItsImagesAndRecording(t *testing.T) {
 	page, mirror := renderHomeFixture(t)
-	for _, panel := range []string{"product-routes", "product-editor", "product-dashboard"} {
+	for _, panel := range []string{"product-routes", "product-web", "product-editor", "product-dashboard"} {
 		if !strings.Contains(page, `id="`+panel+`" data-product-panel>`) {
 			t.Errorf("the screenshot %s is absent or hidden before JavaScript runs", panel)
 		}
@@ -659,6 +713,32 @@ func TestTheHomepageShowcaseKeepsItsImagesAndRecording(t *testing.T) {
 		if !strings.Contains(page, phrase) || !strings.Contains(mirror, phrase) {
 			t.Errorf("the page and its mirror do not explain %q", phrase)
 		}
+	}
+}
+
+// TestHomeWebPreviewUsesVerifiedMedia proves the browser panel follows the
+// manifest and refuses corrupted media rather than publishing an old link.
+func TestHomeWebPreviewUsesVerifiedMedia(t *testing.T) {
+	page, _ := renderHomeFixture(t)
+	for _, want := range []string{
+		`>Web configuration</button>`,
+		`>CLI editor</button>`,
+		`<video controls playsinline preload="none"`,
+		`assets/demos/` + homeWebDemo + `.png?v=`,
+		`assets/demos/` + homeWebDemo + `.webm?v=`,
+		`assets/demos/` + homeWebDemo + `.txt?v=`,
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("the browser configuration preview does not carry %s", want)
+		}
+	}
+	paths := homeFixture(t)
+	video := filepath.Join(paths.Output, "assets", "demos", homeWebDemo+".webm")
+	if err := os.WriteFile(video, []byte("corrupted recording"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := renderHome(paths); err == nil {
+		t.Error("the homepage published a browser preview whose video disagreed with its manifest")
 	}
 }
 

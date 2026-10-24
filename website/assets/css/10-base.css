@@ -1275,40 +1275,18 @@ a.hl:hover {
     overflow: hidden;
     min-height: 12rem;
     padding: 1.25rem 1.15rem 1.05rem;
-    border: 2px solid var(--glass-border);
-    border-top: 0;
+    border: 1px solid var(--line);
     border-radius: 1rem;
-    background:
-        radial-gradient(circle at 100% 100%, var(--acc-chip), transparent 32%),
-        linear-gradient(180deg, var(--acc-tint), var(--glass-surface-strong) 38%, var(--panel));
-    box-shadow:
-        var(--clay),
-        0 1.1rem 2.3rem -1.25rem var(--acc-glow);
+    background: var(--panel);
+    box-shadow: var(--clay);
     transition:
         transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1),
         box-shadow 200ms ease;
 }
 
-.proof::before {
-    position: absolute;
-    top: 0;
-    right: 0;
-    left: 0;
-    height: 0.48rem;
-    background: linear-gradient(90deg, var(--acc), var(--acc-chip));
-    content: "";
-}
-
+.proof::before,
 .proof::after {
-    position: absolute;
-    right: -2.6rem;
-    bottom: -2.8rem;
-    width: 7.25rem;
-    height: 7.25rem;
-    border: 1.45rem solid var(--acc-chip);
-    border-radius: 999px;
-    opacity: 0.2;
-    content: "";
+    content: none;
 }
 
 .proof > * {
@@ -1318,7 +1296,7 @@ a.hl:hover {
 
 .proof:hover {
     transform: translateY(-3px);
-    box-shadow: var(--clay), 0 1.35rem 2.5rem -1rem var(--acc-glow);
+    box-shadow: var(--shadow-lifted);
 }
 
 .proof strong {
@@ -1344,7 +1322,7 @@ a.hl:hover {
 .proof ul {
     margin: 0;
     padding: 0.85rem 0 0;
-    border-top: 1px solid var(--acc-chip);
+    border-top: 1px solid var(--line);
     color: var(--muted);
     font-size: 0.88rem;
     line-height: 1.58;
@@ -1368,8 +1346,7 @@ a.hl:hover {
     width: 0.38rem;
     height: 0.38rem;
     border-radius: 999px;
-    background: var(--acc);
-    box-shadow: 0 0 0 0.16rem var(--acc-chip);
+    background: var(--muted);
     content: "";
 }
 
@@ -1651,18 +1628,17 @@ section[aria-labelledby="blog-teaser-title"] {
 }
 
 /*
- * Category cards use one accent for their label, border and metadata.
- * The title uses the shared text color. Uncategorized cards use neutral
- * accents, so a missing category never makes a false subject claim.
+ * Category color identifies titles and compact labels. Borders, surfaces
+ * and supporting content stay neutral. Uncategorized cards use neutral
+ * text, so a missing category never makes a false subject claim.
  */
 .card {
     position: relative;
     min-height: 12rem;
     padding: 1.4rem;
-    border: 1px solid var(--acc);
-    border-top: 3px solid var(--acc);
+    border: 1px solid var(--line);
     border-radius: 0.75rem;
-    background: linear-gradient(180deg, var(--acc-tint), var(--panel) 60%);
+    background: var(--panel);
     box-shadow: var(--clay);
     transition: border-color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
 }
@@ -1670,9 +1646,6 @@ section[aria-labelledby="blog-teaser-title"] {
 .card[class*="cat-"] {
     overflow: visible;
     padding-top: 1.4rem;
-    border-color: var(--acc);
-    border-top-color: var(--acc);
-    background: linear-gradient(180deg, var(--acc-tint), var(--panel) 60%);
 }
 
 .card[class*="cat-"]::before {
@@ -1682,17 +1655,13 @@ section[aria-labelledby="blog-teaser-title"] {
 /*
  * Hover affordance rule: a card lifts on hover ONLY if it links somewhere
  * (has an <a> -- a title/primary link that leads to a page). Purely
- * informational cards with no link get a flat accent-border cue and stay
+ * informational cards with no link get a neutral border cue and stay
  * put. Motion is reserved for "this tile leads somewhere", the same reason
  * the action buttons no longer lift. (Only the title is the click target
  * today; a stretched-link would make the whole tile clickable to match.)
  */
 .card:hover {
-    border-color: var(--card-hover-border);
-}
-
-.card[class*="cat-"]:hover {
-    border-color: var(--acc);
+    border-color: var(--line-strong);
 }
 
 .card:has(a):hover {
@@ -1702,31 +1671,23 @@ section[aria-labelledby="blog-teaser-title"] {
 
 /*
  * Blog "Ze weekly updates" cards (blog index + homepage teaser). Same base
- * card, but dressed as posts: the rotating category hue shows as a top
- * accent bar and a faint tinted wash, the date headline takes the accent
- * colour, and a "Read the update ->" affordance slides on hover. Re-enables
- * the hover lift that .card:has(a):hover cancels, since the whole tile reads
- * as one clickable post.
+ * card, with a subject-colored headline and a "Read the update ->"
+ * affordance that slides on hover. Surfaces and borders stay neutral.
  */
 .card-post {
     position: relative;
     display: flex;
     flex-direction: column;
-    border-top-color: var(--acc);
     background: var(--panel);
     overflow: hidden;
 }
 
 /*
- * Coloured "week" header, cleanly cut from a plain white body by an accent
- * divider: the date carries the category hue on a tinted band, the excerpt
- * stays on white so title and text read as two zones instead of blending.
+ * Give post headlines their own spacing without adding a colored band.
  */
 .card-post h3 {
     margin: 0 -1.25rem 0.95rem;
     padding: 0.8rem 1.25rem;
-    background: linear-gradient(180deg, var(--acc-tint), var(--panel-strong));
-    border-bottom: 2px solid var(--acc);
 }
 
 .card-post > h3:first-child {
@@ -1781,47 +1742,21 @@ section[aria-labelledby="blog-teaser-title"] {
 
 
 /*
- * Homepage update cards: quieter dispatch tickets. They still get the
- * homepage-only treatment, but the color is a top ribbon and soft wash rather
- * than a heavy poster rail.
+ * Homepage update cards share the neutral surface of other card types.
  */
 .card.home-update-card {
     min-height: 14.25rem;
     padding: 1.55rem 1.25rem 1.2rem;
-    border: 2px solid var(--glass-border);
-    border-top: 0;
+    border: 1px solid var(--line);
     border-radius: 1rem;
     overflow: hidden;
-    background:
-        radial-gradient(circle at 98% 96%, var(--acc-chip), transparent 30%),
-        linear-gradient(180deg, var(--acc-tint), var(--glass-surface-strong) 36%, var(--panel));
-    box-shadow:
-        var(--clay),
-        0 1.1rem 2.4rem -1.25rem var(--acc-glow);
+    background: var(--panel);
+    box-shadow: var(--clay);
 }
 
-.card.home-update-card::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    right: 0;
-    left: 0;
-    height: 0.48rem;
-    pointer-events: none;
-    background: linear-gradient(90deg, var(--acc), var(--acc-chip));
-}
-
+.card.home-update-card::before,
 .card.home-update-card::after {
-    content: "";
-    position: absolute;
-    right: -3.2rem;
-    bottom: -3.35rem;
-    width: 8.25rem;
-    height: 8.25rem;
-    border: 1.7rem solid var(--acc-chip);
-    border-radius: 999px;
-    opacity: 0.22;
-    pointer-events: none;
+    content: none;
 }
 
 .card.home-update-card > * {
@@ -1849,7 +1784,7 @@ section[aria-labelledby="blog-teaser-title"] {
     position: absolute;
     top: -0.3rem;
     right: 0;
-    color: var(--acc-deep);
+    color: var(--muted);
     font-family: Poppins, ui-sans-serif, system-ui, sans-serif;
     font-size: 3.2rem;
     font-weight: 800;
@@ -1863,10 +1798,10 @@ section[aria-labelledby="blog-teaser-title"] {
     flex: 0 0 auto;
     margin: 0 0 0.58rem;
     padding: 0.2rem 0.46rem;
-    border: 1px solid var(--acc-chip);
+    border: 1px solid var(--line);
     border-radius: 0.44rem;
-    background: var(--glass-surface);
-    color: var(--acc-deep);
+    background: var(--bg-soft);
+    color: var(--muted);
     font-family:
         ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
         "Liberation Mono", monospace;
@@ -1886,7 +1821,7 @@ section[aria-labelledby="blog-teaser-title"] {
 }
 
 .card.home-update-card h3 a {
-    color: var(--text);
+    color: inherit;
 }
 
 .card.home-update-card h3 a::after {
@@ -1903,9 +1838,9 @@ section[aria-labelledby="blog-teaser-title"] {
 
 .home-update-tag {
     padding: 0.14rem 0.5rem;
-    border: 1px solid var(--acc, var(--line));
+    border: 1px solid var(--line);
     border-radius: 999px;
-    background: var(--acc-tint, var(--bg-soft));
+    background: var(--bg-soft);
     color: var(--acc-deep, var(--muted));
     font-size: 0.68rem;
     font-weight: 700;
@@ -1976,8 +1911,9 @@ section[aria-labelledby="blog-teaser-title"] {
     --acc-glow: var(--teal-glow);
 }
 
-.card h3 {
-    color: var(--text);
+.card h3,
+.md-content .card h3 {
+    color: var(--acc-deep);
 }
 
 .card .cat {
@@ -1987,27 +1923,18 @@ section[aria-labelledby="blog-teaser-title"] {
     margin-bottom: 0.65rem;
     padding: 0.3rem 0.65rem;
     border-radius: 0.6rem;
-    background: var(--acc-chip);
+    border: 1px solid var(--line);
+    background: var(--bg-soft);
     color: var(--acc-deep);
     font-family: Poppins, ui-sans-serif, system-ui, sans-serif;
     font-size: 0.66rem;
     font-weight: 800;
     letter-spacing: 0.11em;
     text-transform: uppercase;
-    box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.75),
-        inset 0 -2px 3px rgba(0, 0, 0, 0.06);
 }
 
 .card .cat::before {
-    width: 0.5rem;
-    height: 0.5rem;
-    border-radius: 999px;
-    background: var(--acc);
-    box-shadow:
-        inset 0 -1px 1px rgba(0, 0, 0, 0.2),
-        inset 0 1px 1px rgba(255, 255, 255, 0.5);
-    content: "";
+    content: none;
 }
 
 .card[class*="cat-"] .cat {
@@ -2018,14 +1945,11 @@ section[aria-labelledby="blog-teaser-title"] {
     margin: 0;
     padding: 0.34rem 0.9rem;
     border-radius: 999px;
-    background: var(--acc-chip);
+    background: var(--panel);
     color: var(--acc-deep);
-    box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.42),
-        0 0.65rem 1.1rem -0.7rem var(--acc-glow);
     font-size: 0.68rem;
     line-height: 1;
-    transition: transform 160ms ease, box-shadow 160ms ease;
+    transition: transform 160ms ease;
 }
 
 .card[class*="cat-"]:hover .cat {
@@ -2046,46 +1970,36 @@ section[aria-labelledby="blog-teaser-title"] {
 .card .chips {
     padding: 0.5rem 0.55rem;
     margin: 0.15rem 0 1rem;
-    border: 1px solid var(--acc-chip);
+    border: 1px solid var(--line);
     border-radius: 0.65rem;
-    background:
-        linear-gradient(180deg, var(--acc-tint), var(--glass-surface-strong));
-    box-shadow:
-        inset 0 1px 0 var(--glass-highlight),
-        0 0.45rem 1rem -0.8rem var(--acc-glow);
+    background: var(--bg-soft);
 }
 
 .card .chips + ul {
     padding-top: 0.78rem;
-    border-top: 1px solid var(--acc-chip);
+    border-top: 1px solid var(--line);
 }
 
 .chip {
     padding: 0.24rem 0.55rem;
     border-radius: 0.4rem;
-    background: var(--glass-surface);
-    color: var(--acc-deep);
+    background: var(--panel);
+    color: var(--text);
     font-family:
         ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
         "Liberation Mono", monospace;
     font-size: 0.74rem;
     font-weight: 700;
-    box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.9),
-        0 1px 3px rgba(80, 30, 110, 0.08);
 }
 
 .chip.mode {
-    background: var(--acc-deep);
-    color: var(--accent-solid-foreground);
-    box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.25),
-        inset 0 -2px 4px rgba(0, 0, 0, 0.2);
+    background: var(--text);
+    color: var(--panel);
 }
 
 /*
- * Maturity tiers. Shipped cards are solid clay. Experimental cards keep
- * their tint but wear a dashed border and a status chip.
+ * Maturity tiers use explicit labels and border styles, independently of
+ * subject color. Experimental cards keep a dotted border and status chip.
  */
 .card .status {
     display: inline-flex;
@@ -2093,10 +2007,10 @@ section[aria-labelledby="blog-teaser-title"] {
     margin-bottom: 0.65rem;
     margin-left: 0.3rem;
     padding: 0.3rem 0.65rem;
-    border: 2px dashed var(--acc);
+    border: 2px dashed var(--line-strong);
     border-radius: 999px;
     background: var(--panel);
-    color: var(--acc-deep);
+    color: var(--muted);
     font-family: Poppins, ui-sans-serif, system-ui, sans-serif;
     font-size: 0.66rem;
     font-weight: 800;
@@ -2106,11 +2020,11 @@ section[aria-labelledby="blog-teaser-title"] {
 
 .card.experimental {
     border-style: dotted;
-    border-color: var(--acc);
+    border-color: var(--line-strong);
 }
 
 .card.experimental:hover {
-    border-color: var(--acc);
+    border-color: var(--line-strong);
 }
 
 .card p {
@@ -2139,7 +2053,7 @@ section[aria-labelledby="blog-teaser-title"] {
 
 .card li::marker {
     content: "\2022  ";
-    color: var(--acc);
+    color: var(--muted);
 }
 
 .card ul strong {
@@ -2150,23 +2064,20 @@ section[aria-labelledby="blog-teaser-title"] {
     padding: 0.05rem 0.3rem;
     border-radius: 0.3rem;
     background: var(--bg-soft);
-    color: var(--acc-deep);
+    color: var(--text);
     font-size: 0.85em;
 }
 
 .card-label {
     color: var(--acc-deep);
-    background: var(--acc-chip);
+    background: var(--bg-soft);
     display: inline-flex;
     width: fit-content;
     margin-bottom: 0.6rem;
     margin-right: 0.3rem;
     padding: 0.32rem 0.56rem;
-    border: 0;
+    border: 1px solid var(--line);
     border-radius: 999px;
-    box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.75),
-        inset 0 -2px 3px rgba(0, 0, 0, 0.06);
     font-family:
         ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
         "Liberation Mono", monospace;
@@ -2498,8 +2409,7 @@ pre {
 
 .audience-card:not(.card) {
     padding: 1.25rem;
-    border: 2px solid var(--glass-border);
-    border-left: 6px solid var(--acc);
+    border: 1px solid var(--line);
     border-radius: 0.75rem;
     background: var(--panel);
     box-shadow: var(--clay);
@@ -2510,7 +2420,11 @@ pre {
 }
 
 .audience-card:not(.card):hover {
-    border-color: var(--card-hover-border);
+    border-color: var(--line-strong);
+}
+
+.audience-card h3 {
+    color: var(--acc-deep);
 }
 
 .audience-card:not(.card):has(a):hover {
@@ -2531,12 +2445,9 @@ pre {
 }
 
 .card.audience-card .cat {
-    border: 1px solid var(--acc);
-    background: var(--acc-chip);
+    border: 1px solid var(--line);
+    background: var(--panel);
     color: var(--acc-deep);
-    box-shadow:
-        inset 0 1px 0 var(--glass-highlight),
-        0 0.55rem 1.1rem -0.9rem var(--acc-glow);
 }
 
 
@@ -3172,37 +3083,15 @@ footer {
 .blog-card {
     min-height: 18rem;
     padding: clamp(1.1rem, 2vw, 1.35rem);
-    border: 1px solid var(--glass-border);
-    border-top: 0;
+    border: 1px solid var(--line);
     border-radius: var(--radius-2xl);
-    background:
-        radial-gradient(circle at 92% 0%, var(--acc-tint), transparent 48%),
-        linear-gradient(180deg, var(--glass-surface-strong), var(--panel) 58%);
-    box-shadow:
-        var(--shadow-clay),
-        0 1.2rem 2.4rem -1.4rem var(--acc-glow);
+    background: var(--panel);
+    box-shadow: var(--shadow-clay);
 }
 
-.card.blog-card::before {
-    position: absolute;
-    inset: 0 0 auto;
-    height: 0.42rem;
-    border-radius: inherit;
-    background: linear-gradient(90deg, var(--acc), var(--acc-chip));
-    content: "";
-}
-
+.card.blog-card::before,
 .blog-card::after {
-    position: absolute;
-    right: 0;
-    bottom: 0;
-    width: 10rem;
-    height: 10rem;
-    border: 1.4rem solid var(--acc-chip);
-    border-radius: var(--radius-pill);
-    opacity: 0.12;
-    pointer-events: none;
-    content: "";
+    content: none;
 }
 
 .blog-card > * {
@@ -3267,7 +3156,7 @@ footer {
 }
 
 .blog-card h3 a {
-    color: var(--text);
+    color: inherit;
     text-decoration: none;
 }
 
@@ -3305,10 +3194,10 @@ footer {
     align-items: center;
     min-height: 1.55rem;
     padding: 0.22rem 0.55rem;
-    border: 1px solid var(--acc-chip);
+    border: 1px solid var(--line);
     border-radius: var(--radius-pill);
-    background: var(--glass-surface);
-    color: var(--acc-deep);
+    background: var(--bg-soft);
+    color: var(--muted);
     font-size: var(--type-micro);
     font-weight: 900;
     letter-spacing: 0.08em;
@@ -3369,12 +3258,7 @@ footer {
 }
 
 .blog-card .post-more::before {
-    width: 0.46rem;
-    height: 0.46rem;
-    border-radius: var(--radius-pill);
-    background: var(--acc);
-    box-shadow: 0 0 0 0.18rem var(--acc-chip);
-    content: "";
+    content: none;
 }
 
 .blog-article-shell {
@@ -4039,15 +3923,12 @@ footer {
     overflow: hidden;
     border: 1px solid var(--line);
     border-radius: 1rem;
-    background:
-        radial-gradient(circle at 92% 0%, var(--acc-tint, rgba(233, 245, 255, 0.9)), transparent 48%),
-        var(--panel);
-    box-shadow: var(--clay), 0 1.1rem 2.2rem -1.3rem var(--acc-glow, rgba(40, 20, 55, 0.18));
+    background: var(--panel);
+    box-shadow: var(--clay);
 }
 
 .contribute-route {
     padding: 1.1rem 1.15rem 1.2rem;
-    border-top: 4px solid var(--acc);
 }
 
 .contribute-route-kicker,
@@ -4057,7 +3938,7 @@ footer {
     margin-bottom: 0.7rem;
     padding: 0.28rem 0.55rem;
     border-radius: 999px;
-    background: var(--acc-chip, var(--neutral-chip));
+    background: var(--bg-soft);
     color: var(--acc-deep, var(--neutral-deep));
     font-family: Poppins, ui-sans-serif, system-ui, sans-serif;
     font-size: 0.68rem;
@@ -4070,7 +3951,7 @@ footer {
 .contribute-contract h3,
 .contribute-funding h3 {
     margin: 0 0 0.55rem;
-    color: var(--text);
+    color: var(--acc-deep);
     font-size: clamp(1.2rem, 2vw, 1.55rem);
     line-height: 1.16;
 }
@@ -4113,11 +3994,10 @@ footer {
     align-items: center;
     margin: 1rem 0 2rem;
     padding: 1.25rem;
-    border-left: 0.45rem solid var(--acc);
 }
 
 .contribute-funding-mark {
-    color: var(--acc-deep);
+    color: var(--muted);
     font-family: Poppins, ui-sans-serif, system-ui, sans-serif;
     font-size: clamp(2.6rem, 8vw, 6rem);
     font-weight: 900;
@@ -4132,7 +4012,6 @@ footer {
     padding: 1rem;
     color: inherit;
     text-decoration: none;
-    border-top: 4px solid var(--acc);
     transition:
         transform 180ms ease,
         border-color 180ms ease,
@@ -4142,8 +4021,8 @@ footer {
 .contribute-action:hover,
 .contribute-action:focus-visible {
     transform: translateY(-3px);
-    border-color: var(--acc);
-    box-shadow: var(--clay), 0 1.35rem 2.4rem -1rem var(--acc-glow);
+    border-color: var(--line-strong);
+    box-shadow: var(--shadow-lifted);
 }
 
 .contribute-action span {
@@ -4155,7 +4034,7 @@ footer {
 }
 
 .contribute-action strong {
-    color: var(--text);
+    color: var(--acc-deep);
     font-family: Poppins, ui-sans-serif, system-ui, sans-serif;
     font-size: 1.05rem;
     line-height: 1.2;
@@ -4169,11 +4048,6 @@ footer {
     padding: 1rem;
     color: inherit;
     text-decoration: none;
-    border: 1px solid var(--glass-border);
-    border-top: 4px solid var(--acc);
-    background:
-        radial-gradient(circle at 100% 0, var(--acc-tint), transparent 12rem),
-        linear-gradient(180deg, var(--glass-surface-strong), var(--panel));
     transition:
         border-color 160ms ease,
         box-shadow 160ms ease,
@@ -4182,8 +4056,8 @@ footer {
 
 .faq-index a:hover,
 .faq-index a:focus-visible {
-    border-color: var(--acc);
-    box-shadow: var(--clay), 0 1.35rem 2.4rem -1rem var(--acc-glow);
+    border-color: var(--line-strong);
+    box-shadow: var(--shadow-lifted);
     transform: translateY(-2px);
 }
 
@@ -4195,7 +4069,7 @@ footer {
 }
 
 .faq-index a strong {
-    color: var(--text);
+    color: var(--acc-deep);
     font-family: Poppins, ui-sans-serif, system-ui, sans-serif;
     font-size: 1.08rem;
     line-height: 1.2;
@@ -4215,12 +4089,10 @@ footer {
 
 .faq-group {
     padding: clamp(1rem, 2.6vw, 1.5rem);
-    border: 1px solid var(--glass-border);
+    border: 1px solid var(--line);
     border-radius: var(--radius-2xl);
-    background:
-        radial-gradient(circle at 100% 0, var(--acc-tint), transparent 18rem),
-        linear-gradient(180deg, var(--glass-surface-strong), var(--panel));
-    box-shadow: var(--shadow-clay), 0 1.2rem 2.6rem -2rem var(--acc-glow);
+    background: var(--panel);
+    box-shadow: var(--shadow-clay);
     scroll-margin-top: 5rem;
 }
 
@@ -4237,9 +4109,9 @@ footer {
     place-items: center;
     width: 2.75rem;
     height: 2.75rem;
-    border: 1px solid var(--acc-chip);
+    border: 1px solid var(--line);
     border-radius: var(--radius-pill);
-    background: var(--acc-tint);
+    background: var(--bg-soft);
     color: var(--acc-deep);
     font-family:
         ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
@@ -4254,7 +4126,7 @@ footer {
 
 .faq-group-head h2 {
     margin: 0;
-    color: var(--text);
+    color: var(--acc-deep);
     font-size: clamp(1.35rem, 2.5vw, 1.9rem);
     line-height: 1.15;
     letter-spacing: -0.03em;
@@ -4274,11 +4146,6 @@ footer {
 
 .faq-card {
     padding: 0;
-    border: 1px solid var(--glass-border);
-    border-left: 0.36rem solid var(--acc);
-    background:
-        radial-gradient(circle at 100% 0, var(--acc-tint), transparent 14rem),
-        linear-gradient(180deg, var(--glass-surface-strong), var(--panel));
     box-shadow: var(--shadow-clay);
     scroll-margin-top: 5rem;
     transition:
@@ -4287,8 +4154,8 @@ footer {
 }
 
 .faq-card[open] {
-    border-color: var(--acc);
-    box-shadow: var(--shadow-clay), 0 1rem 2rem -1.5rem var(--acc-glow);
+    border-color: var(--line-strong);
+    box-shadow: var(--shadow-clay);
 }
 
 .faq-card summary {
@@ -4297,7 +4164,7 @@ footer {
     justify-content: space-between;
     gap: 1rem;
     padding: 1rem 1.1rem;
-    color: var(--text);
+    color: var(--acc-deep);
     font-family: Poppins, ui-sans-serif, system-ui, sans-serif;
     font-size: clamp(1.05rem, 2vw, 1.32rem);
     font-weight: 900;
@@ -4309,7 +4176,7 @@ footer {
 .faq-card summary:hover,
 .faq-card summary:focus-visible {
     color: var(--acc-deep);
-    background: color-mix(in oklch, var(--acc-tint), transparent 54%);
+    background: var(--bg-soft);
 }
 
 .faq-card summary::-webkit-details-marker {
@@ -4320,8 +4187,8 @@ footer {
     flex: 0 0 auto;
     width: 0.7rem;
     height: 0.7rem;
-    border-right: 3px solid var(--acc);
-    border-bottom: 3px solid var(--acc);
+    border-right: 3px solid currentColor;
+    border-bottom: 3px solid currentColor;
     content: "";
     transform: rotate(45deg);
     transition: transform 180ms ease;
@@ -4593,22 +4460,7 @@ footer {
 }
 
 .compare-dispatch .card {
-    --dispatch-top: var(--acc-tint);
-    --dispatch-bottom: var(--panel);
-    --dispatch-line: var(--acc-chip);
-    --dispatch-line-soft: var(--acc-tint);
-    --dispatch-glow: var(--acc-glow);
     isolation: isolate;
-    border-color: var(--glass-border);
-    border-top-color: var(--acc);
-    background:
-        radial-gradient(circle at 18% 8%, var(--glass-surface-strong) 0 12%, transparent 33%),
-        radial-gradient(circle at 88% 4%, transparent 0 20%, var(--dispatch-line-soft) 21%, transparent 22% 34%, var(--dispatch-line) 35%, transparent 36%),
-        linear-gradient(145deg, var(--dispatch-top), var(--dispatch-bottom));
-    box-shadow:
-        var(--clay),
-        0 1.4rem 2.8rem -1rem var(--dispatch-glow),
-        inset 0 1px 0 var(--glass-highlight);
 }
 
 .compare-dispatch > a.card {
@@ -4621,7 +4473,7 @@ footer {
 .compare-dispatch > a.card:hover,
 .compare-dispatch > a.card:focus-visible {
     transform: translateY(-5px) scale(1.015);
-    box-shadow: var(--clay), 0 1.5rem 2.8rem -0.8rem var(--dispatch-glow);
+    box-shadow: var(--shadow-lifted);
 }
 
 .compare-dispatch > a.card:focus-visible {
@@ -4635,21 +4487,7 @@ footer {
 }
 
 .compare-dispatch .card::after {
-    position: absolute;
-    inset: auto 0.85rem 0.8rem auto;
-    z-index: 0;
-    width: min(7.25rem, 30vw);
-    height: min(7.25rem, 30vw);
-    border: 1px solid var(--dispatch-line);
-    border-radius: 999px;
-    background:
-        radial-gradient(circle, transparent 38%, var(--dispatch-line-soft) 39%, transparent 41%),
-        radial-gradient(circle, transparent 56%, var(--dispatch-line) 57%, transparent 59%),
-        radial-gradient(circle, transparent 72%, var(--dispatch-line-soft) 73%, transparent 75%);
-    transform: translate(18%, 22%);
-    opacity: 0.82;
-    content: "";
-    pointer-events: none;
+    content: none;
 }
 
 .compare-dispatch .card > * {
@@ -6098,15 +5936,11 @@ body.search-open {
     display: flex;
     flex-direction: column;
     min-height: 0;
-    border-top-color: var(--acc);
-    background:
-        linear-gradient(180deg, var(--acc-tint), var(--panel) 42%),
-        var(--panel);
 }
 
 .plugin-card h3 {
     margin: 0 0 0.6rem;
-    color: var(--text);
+    color: var(--acc-deep);
     font-size: 1.18rem;
     line-height: 1.18;
     letter-spacing: -0.025em;
@@ -6139,10 +5973,6 @@ body.search-open {
     display: flex;
     flex-direction: column;
     min-height: 0;
-    border-top-color: var(--acc);
-    background:
-        linear-gradient(180deg, var(--acc-tint), var(--panel) 42%),
-        var(--panel);
 }
 
 .card.feature-card.filtered-out {
@@ -6151,7 +5981,7 @@ body.search-open {
 
 .card.feature-card h3 {
     margin: 0 0 0.6rem;
-    color: var(--text);
+    color: var(--acc-deep);
     font-size: 1.18rem;
     line-height: 1.18;
     letter-spacing: -0.025em;
@@ -6169,7 +5999,7 @@ body.search-open {
 
 .card.feature-card.experimental {
     border-style: dotted;
-    border-color: var(--acc);
+    border-color: var(--line-strong);
 }
 
 .card.feature-card .status {

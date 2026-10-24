@@ -1975,7 +1975,11 @@ document.addEventListener("DOMContentLoaded", function () {
                 if (!src) {
                     return;
                 }
+                var chapter = mount.closest("[data-cast-start]");
                 AsciinemaPlayer.create(castVersion(manifest, src), mount, {
+                    startAt: chapter ? chapter.getAttribute("data-cast-start") : undefined,
+                    poster: chapter ? "npt:" + chapter.getAttribute("data-cast-start") : undefined,
+                    autoPlay: false,
                     fit: "both",
                     controls: true,
                     theme: "ze",
@@ -2027,12 +2031,20 @@ document.addEventListener("DOMContentLoaded", function () {
             function select(button) {
                 var target = button.getAttribute("data-product-target");
                 if (!panels.some(function (panel) { return panel.id === target; })) return;
-                panels.forEach(function (panel) { panel.hidden = panel.id !== target; });
+                panels.forEach(function (panel) {
+                    var selected = panel.id === target;
+                    panel.setAttribute("aria-hidden", selected ? "false" : "true");
+                    panel.inert = !selected;
+                    if (!selected) {
+                        slice(panel.querySelectorAll("video")).forEach(function (video) { video.pause(); });
+                    }
+                });
                 buttons.forEach(function (item) { item.setAttribute("aria-pressed", item === button ? "true" : "false"); });
             }
             buttons.forEach(function (button) {
                 button.addEventListener("click", function () { select(button); });
             });
+            showcase.setAttribute("data-enhanced", "true");
             select(buttons.filter(function (button) { return button.getAttribute("aria-pressed") === "true"; })[0] || buttons[0]);
             var controls = showcase.querySelector(".screen-tabs");
             if (controls) controls.hidden = false;

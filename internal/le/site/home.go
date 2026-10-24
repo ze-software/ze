@@ -30,7 +30,12 @@ const (
 	// pointing the homepage at another recording is this one edit.
 	homeHeroDemo = "cli-dashboard"
 	// homeTourDemo is the recording the hero's "Watch a demo" action opens.
-	homeTourDemo = "web-config"
+	homeTourDemo = homeWebDemo
+	// homeWebDemo supplies the hero's browser configuration preview and video.
+	homeWebDemo = "web-config"
+	// homeManagementDemo starts at the SSH introduction in the recorded session.
+	homeManagementDemo  = "zefs-config"
+	homeManagementStart = "0:36"
 )
 
 // The homepage's two data files, under website/data/.
@@ -204,11 +209,9 @@ func homeMirror(page string) (string, error) {
 	return htmlToMarkdown(main, pageCanonicalURL(homeDest))
 }
 
-// homeHeroSlots answers the hero's five slots, every one derived from
-// homeHeroDemo or homeTourDemo and its manifest entry: the player, the file
-// name in the frame's bar, the caption, the transcript link, and the link the
-// "Watch a demo" action follows. Each link is the recording's own page and
-// anchor, where its player and transcript are embedded.
+// homeHeroSlots answers the homepage's demonstration slots from the selected
+// recordings and their manifest entries. The management walkthrough keeps the
+// complete session available but opens at its SSH introduction.
 func homeHeroSlots(catalog *demoCatalog) ([]string, error) {
 	mount, err := catalog.heroMount(homeHeroDemo, homeRoot)
 	if err != nil {
@@ -226,12 +229,40 @@ func homeHeroSlots(catalog *demoCatalog) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	web, err := catalog.demo(homeWebDemo)
+	if err != nil {
+		return nil, err
+	}
+	if web.Kind != "browser" {
+		return nil, fmt.Errorf("homepage web preview %s is a %s recording, and needs a browser recording", homeWebDemo, web.Kind)
+	}
+	webEntry := catalog.built[homeWebDemo]
+	if _, err := catalog.verifyAssets(homeWebDemo, web.Kind, webEntry); err != nil {
+		return nil, err
+	}
+	management, err := catalog.heroMount(homeManagementDemo, homeRoot)
+	if err != nil {
+		return nil, err
+	}
+	managementGuide, err := catalog.demoHref(homeManagementDemo, homeRoot)
+	if err != nil {
+		return nil, err
+	}
+	managementTranscript := demoAssetURL(homeRoot, homeManagementDemo,
+		catalog.built[homeManagementDemo], demoTranscript)
 	return []string{
 		"{hero_demo}", mount,
 		"{hero_demo_file}", html.EscapeString(hero.ID + "." + hero.Kind),
 		"{hero_demo_title}", html.EscapeString(hero.Title),
 		"{hero_demo_transcript}", html.EscapeString(transcript),
 		"{tour_demo_href}", html.EscapeString(tour),
+		"{web_demo_poster}", html.EscapeString(demoAssetURL(homeRoot, homeWebDemo, webEntry, demoPoster)),
+		"{web_demo_video}", html.EscapeString(demoAssetURL(homeRoot, homeWebDemo, webEntry, demoVideo)),
+		"{web_demo_transcript}", html.EscapeString(demoAssetURL(homeRoot, homeWebDemo, webEntry, demoTranscript)),
+		"{management_demo}", management,
+		"{management_demo_start}", homeManagementStart,
+		"{management_demo_guide}", html.EscapeString(managementGuide),
+		"{management_demo_transcript}", html.EscapeString(managementTranscript),
 	}, nil
 }
 

@@ -347,8 +347,9 @@ rules. Apply it to proposals and implementation.
 The approved design uses logo blue for Ze's identity and seven distinct subject
 colors for related content. Follow the canonical [card color rules and live
 palette](style-guide/index.html#sg-category), including the neutral case and
-independent status colors. Keep category identity on matching cards, labels,
-chips and selection controls across both themes. Do not assign hues by position,
+independent status colors. Keep category identity on card titles, compact
+category labels and selection controls across both themes. Card borders,
+surfaces, technology chips and body text stay neutral. Do not assign hues by position,
 hash or presentation tone. White or light reading surfaces and dark navy heroes
 and terminal panels retain the approved layout. Poppins headings
 and Lato body text share the same hierarchy across the homepage, guides,
@@ -372,13 +373,28 @@ The homepage keeps all of its authored sections and data slots. Its primary
 actions reach the demo gallery and BGP quickstart directly. Product screenshots
 are individually linked to their full-size files and captioned with their
 capture provenance; every panel remains available without JavaScript. The
-selector only changes which screenshot is visible, and never replaces the
-manifest-derived replay or transcript. The category overview derives every
+selector reserves one shared media frame and the tallest caption, so switching
+interfaces never moves the hero. Inactive panels are invisible and inert, while
+all panels remain visible without JavaScript. The Web configuration tab replays
+the verified browser recording, with its manifest-derived poster, video and
+transcript links. Switching away pauses its video. The CLI editor and CLI
+dashboard remain genuine static captures with no player controls burned in.
+The selector never replaces the full manifest-derived replay or transcript.
+The category overview derives every
 feature link from `features.json`, alongside the existing category counts.
 Its management explanation states that Ze runs its own SSH service and CLI,
 without relying on a host SSH service or shell.
+The management section keeps that explanation, its compact interface map and
+both documentation links on the left. The right column reuses the verified
+recording selected by `homeManagementDemo`, with its full-session and transcript
+links. `homeManagementStart` opens playback at the SSH introduction; check that
+position against the cast when changing or re-recording the demonstration.
+The shared player reads the nearest `data-cast-start` value as its native
+`startAt` option and uses that recorded frame as its poster. It retains all
+controls and never autoplays. The columns stack at 960px.
 <!-- source: internal/le/site/homebody.go -- homeTemplate -->
 <!-- source: internal/le/site/home.go -- homeBody -->
+<!-- source: website/assets/js/site.js -- initTerminalDemoPlayers -->
 
 The homepage's weekly cards use the post's optional `home-summary:` front
 matter. Write one short summary of at most 108 characters. Without it,
