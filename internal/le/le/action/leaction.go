@@ -20,7 +20,22 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/le/human"
 )
+
+// admitWholeTree is the gate a WholeTree action passes before its body runs.
+// It is human.RequireTerminal; SetWholeTreeAdmission replaces it for a test.
+var admitWholeTree = human.RequireTerminal
+
+// SetWholeTreeAdmission replaces the terminal gate of every WholeTree action and
+// answers the function that restores it. It exists for tests, which run with no
+// terminal: a caller MUST call the restore function before the test ends. It is
+// a Go seam only, so no keyword, flag or environment variable reaches it.
+func SetWholeTreeAdmission(admit func(commandLine string) error) (restore func()) {
+	previous := admitWholeTree
+	admitWholeTree = admit
+	return func() { admitWholeTree = previous }
+}
 
 // Requirement says whether an action can run without one of its keywords. It
 // is a DECLARATION and not a check: the action's own body refuses a missing
@@ -137,6 +152,13 @@ type Action struct {
 	// action needs no such declaration: the rest of the line is its grammar, so
 	// a sweep already refuses it.
 	Alone bool
+	// WholeTree says this action starts a whole-tree verification, which is a
+	// release check only Thomas starts. Area refuses the line with exit 2,
+	// before the action's body runs and so before any admission, slot, worktree
+	// or container, unless stdin and stdout are both terminals
+	// (human.RequireTerminal). Declaring it here, where the verb registers, is
+	// what gates a new whole-tree verb; no list of gated verbs exists.
+	WholeTree bool
 	// Parameters declares the closed keyword grammar for an argument-aware
 	// action. Existing actions leave it empty and use Answer.
 	Parameters []Parameter
@@ -283,6 +305,9 @@ type Row struct {
 	// by typing the mistake. It is also what lets a test read the claim back:
 	// the refusal is the published table's own, so the table has to carry it.
 	Alone bool `json:"alone,omitempty"`
+	// WholeTree publishes that this verb refuses unless a person at a terminal
+	// started it (Action.WholeTree).
+	WholeTree bool `json:"whole-tree,omitempty"`
 	// Parameters is the action's whole keyword grammar, so a reader learns what
 	// an action takes without invoking it. A zero-argument action declares
 	// none, and the key is then absent rather than empty.
@@ -306,7 +331,7 @@ func (a Area) Actions() List {
 	list := List{Area: a.name, Actions: make([]Row, 0, len(a.actions))}
 	for _, act := range a.actions {
 		list.Actions = append(list.Actions, Row{
-			Verb: act.Verb, Writes: act.Writes, Why: act.Why, Alone: act.Alone,
+			Verb: act.Verb, Writes: act.Writes, Why: act.Why, Alone: act.Alone, WholeTree: act.WholeTree,
 			// Cloned: the listing is a payload a caller may hold and a renderer
 			// may sort, and the declaration behind it belongs to the area.
 			Parameters: slices.Clone(act.Parameters),
@@ -574,10 +599,16 @@ func (a Area) Answer(args []string) (any, int) {
 				ReportError(err)
 				return nil, 2
 			}
+			if code := a.admit(act, args); code != 0 {
+				return nil, code
+			}
 			return act.AnswerArgs(parsed)
 		}
 		if len(args) > 1 {
 			return nil, a.refuseValue(verb, args[1])
+		}
+		if code := a.admit(act, args); code != 0 {
+			return nil, code
 		}
 		return act.Answer()
 	}
@@ -865,6 +896,11 @@ func (a Area) Sweep(args []string, policy SweepPolicy) (any, int) {
 					Str(a.name).Byte(' ').Str(name).String()))
 				return nil, 2
 			}
+			// A whole-tree action is refused in a sweep exactly as on its own
+			// line, before any action of the sweep runs (Action.WholeTree).
+			if code := a.admit(act, args); code != 0 {
+				return nil, code
+			}
 			chosen = append(chosen, act)
 			found = true
 			break
@@ -892,6 +928,25 @@ func (a Area) Sweep(args []string, policy SweepPolicy) (any, int) {
 		}
 	}
 	return sweep, code
+}
+
+// admit answers 0 for an action that is not WholeTree, or one a person at a
+// terminal started. Otherwise it reports the refusal, which names the exact
+// command line for the agent to hand to Thomas, and answers 2.
+func (a Area) admit(act Action, args []string) int {
+	if !act.WholeTree {
+		return 0
+	}
+	var line textbuf.Buffer
+	line.Str("./le ").Str(a.name)
+	for _, word := range args {
+		line.Byte(' ').Str(word)
+	}
+	if err := admitWholeTree(line.String()); err != nil {
+		ReportError(err)
+		return 2
+	}
+	return 0
 }
 
 // AnswerOrSweep dispatches one command line through this table, for an area
