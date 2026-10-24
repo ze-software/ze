@@ -32,6 +32,7 @@ const (
 	leSpecCategoryIdea      = "idea"
 	leSpecCategoryOther     = "other" // The spec category, not an appliance name.
 	leSpecFieldBucket       = "bucket"
+	leSpecStatusSkeleton    = "skeleton"
 )
 
 type uiLeSpecStatusAnswersCommandAnswer struct {
@@ -368,12 +369,12 @@ func leSpecStatusTree(ctx context.Context, root string) ([]leSpecStatusCase, []s
 	expected := []leSpecStatusCase{
 		{"fixture-ready", "plan/release/fixes", leSpecBucketFixes, "ready", leSpecCategoryBacklog, committed, committed, false},
 		{"fixture-untracked", "plan/release/fixes", leSpecBucketFixes, "design", leSpecCategoryBacklog, "2001-02-03", "unknown", false},
-		{"fixture-fresh", "plan/post-release/engineering", leSpecBucketEngineering, "skeleton", leSpecCategoryIdea, time.Now().UTC().Format("2006-01-02"), committed, false},
-		{"fixture-stale", "plan/post-release/engineering", leSpecBucketEngineering, "skeleton", leSpecCategoryIdea, "2000-01-01", committed, true},
+		{"fixture-fresh", "plan/post-release/engineering", leSpecBucketEngineering, leSpecStatusSkeleton, leSpecCategoryIdea, time.Now().UTC().Format("2006-01-02"), committed, false},
+		{"fixture-stale", "plan/post-release/engineering", leSpecBucketEngineering, leSpecStatusSkeleton, leSpecCategoryIdea, "2000-01-01", committed, true},
 		{"fixture-blocked", "plan/release/validation", "validation", "blocked", leSpecCategoryOther, "2000-01-01", committed, false},
 		{"fixture-delivery", "plan/release/delivery", "delivery", "ready", leSpecCategoryBacklog, committed, committed, false},
 		{"fixture-feature", "plan/post-release/features", "features", "deferred", leSpecCategoryOther, committed, committed, false},
-		{"fixture-proposal", "plan/proposals", "proposals", "skeleton", leSpecCategoryIdea, time.Now().UTC().Format("2006-01-02"), committed, false},
+		{"fixture-proposal", "plan/proposals", "proposals", leSpecStatusSkeleton, leSpecCategoryIdea, time.Now().UTC().Format("2006-01-02"), committed, false},
 	}
 	if err := os.MkdirAll(root, 0o750); err != nil {
 		return nil, nil, err

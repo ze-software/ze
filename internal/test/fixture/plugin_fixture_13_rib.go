@@ -489,10 +489,14 @@ func ribGraphBest13(ctx context.Context, args []string) error {
 		a.status("inject", command13(ctx, plugin, "request bgp rib inject 10.0.0.1 ipv4/unicast 10.10.1.0/24 aspath 64501,64502"))
 		graph := command13(ctx, plugin, "show bgp rib best graph")
 		a.status("best-graph", graph)
-		a.graphIs("best-graph", graph, []uint32{64501, 64502}, []string{"64501>64502"})
+		a.graphIs("best-graph", graph, []uint32{64501, 64502}, []string{ribGraphEdge64501To64502})
 		return a.finish("best-graph")
 	})
 }
+
+// ribGraphEdge64501To64502 is the AS graph edge every injected path through
+// 64501 then 64502 draws.
+const ribGraphEdge64501To64502 = "64501>64502"
 
 func ribGraphFiltered13(ctx context.Context, args []string) error {
 	return observe13(ctx, "graph-filtered-test", func(ctx context.Context, plugin *sdk.Plugin) error {
@@ -505,7 +509,7 @@ func ribGraphFiltered13(ctx context.Context, args []string) error {
 		graph := command13(ctx, plugin, "show bgp rib received prefix 10.10 graph")
 		a.status("filtered-graph", graph)
 		// 64601 and 64602 ride only on the route the prefix filter excludes.
-		a.graphIs("filtered-graph", graph, []uint32{64501, 64502}, []string{"64501>64502"})
+		a.graphIs("filtered-graph", graph, []uint32{64501, 64502}, []string{ribGraphEdge64501To64502})
 		return a.finish("filtered-graph")
 	})
 }
@@ -520,7 +524,7 @@ func ribGraph13(ctx context.Context, args []string) error {
 		a.status("inject-2", command13(ctx, plugin, "request bgp rib inject 10.0.0.2 ipv4/unicast 10.10.2.0/24 aspath 64504,64502,64503"))
 		graph := command13(ctx, plugin, "show bgp rib received graph")
 		a.status("graph", graph)
-		a.graphIs("graph", graph, []uint32{64501, 64502, 64503, 64504}, []string{"64501>64502", "64502>64503", "64504>64502"})
+		a.graphIs("graph", graph, []uint32{64501, 64502, 64503, 64504}, []string{ribGraphEdge64501To64502, "64502>64503", "64504>64502"})
 		empty := command13(ctx, plugin, "show bgp rib received prefix 99.99.99.0/24 graph")
 		a.status("empty-graph", empty)
 		a.graphIs("empty-graph", empty, nil, nil)

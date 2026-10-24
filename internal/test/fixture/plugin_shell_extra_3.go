@@ -261,7 +261,7 @@ func sshCLIStatusExtra3(ctx context.Context, args []string) error {
 		command := exec.CommandContext(ctx, "ze", "cli", "-c", commandText) //nolint:gosec // the fixture chooses the program and its arguments
 		command.Env = environmentExtra3(map[string]string{
 			envConfigDir:   configDir,
-			envSSHHost:     "127.0.0.1",
+			envSSHHost:     addrLoopback,
 			envSSHPort:     port,
 			envSSHUsername: valueTestUser,
 			envSSHPassword: valueTestPassword,

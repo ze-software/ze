@@ -23,15 +23,19 @@ var policyFinalCases = []struct {
 	accept  bool
 	raw     bool
 }{
-	{name: "empty-accept", final: "accept", accept: true},
-	{name: "empty-reject", final: "reject"},
-	{name: "passing-reject", filters: "bgp-filter-path-asn:PASS", final: "reject"},
-	{name: "early-reject", filters: "bgp-filter-path-asn:DENY", final: "accept"},
-	{name: "delta-accept", filters: "bgp-filter-modify:MED", final: "accept", accept: true},
-	{name: "delta-reject", filters: "bgp-filter-modify:MED", final: "reject"},
-	{name: "raw-accept", filters: "bgp-filter-family:NoV6", final: "accept", accept: true, raw: true},
-	{name: "raw-reject", filters: "bgp-filter-family:NoV6", final: "reject", raw: true},
+	{name: "empty-accept", final: actionAccept, accept: true},
+	{name: "empty-reject", final: actionReject},
+	{name: "passing-reject", filters: "bgp-filter-path-asn:PASS", final: actionReject},
+	{name: "early-reject", filters: "bgp-filter-path-asn:DENY", final: actionAccept},
+	{name: "delta-accept", filters: policyFinalFilterMED, final: actionAccept, accept: true},
+	{name: "delta-reject", filters: policyFinalFilterMED, final: actionReject},
+	{name: "raw-accept", filters: "bgp-filter-family:NoV6", final: actionAccept, accept: true, raw: true},
+	{name: "raw-reject", filters: "bgp-filter-family:NoV6", final: actionReject, raw: true},
 }
+
+// policyFinalFilterMED is the filter chain that rewrites MED, so an accepted
+// route carries 77 rather than the 9 it was announced with.
+const policyFinalFilterMED = "bgp-filter-modify:MED"
 
 func policyFinalDriver(ctx context.Context, args []string) error {
 	if len(args) != 0 {
@@ -94,7 +98,7 @@ func policyFinalCase(ctx context.Context, plugin *sdk.Plugin, base *config.Tree,
 	if err := liveStagesRoute(ctx, plugin, "127.0.0.1 update text nhop 192.0.2.1 nlri add 192.168."+epoch+".0/24"); err != nil {
 		return err
 	}
-	if !waitPeerCounter03(ctx, plugin, "127.0.0.1", "updates-received", before+1, 80) {
+	if !waitPeerCounter03(ctx, plugin, "updates-received", before+1, 80) {
 		return errors.New("source did not send this epoch's UPDATE")
 	}
 	if err := quiesce03(ctx, plugin); err != nil {
@@ -136,7 +140,7 @@ func policyFinalCase(ctx context.Context, plugin *sdk.Plugin, base *config.Tree,
 	}
 	if row.accept {
 		med := byte(9)
-		if row.filters == "bgp-filter-modify:MED" {
+		if row.filters == policyFinalFilterMED {
 			med = 77
 		}
 		if err := policyFinalImportedAttributes(ctx, plugin, prefix, med); err != nil {

@@ -64,7 +64,7 @@ func leWeeklyAnswers(ctx context.Context) error {
 		}
 	}
 
-	env := childEnvironment(os.Environ(), map[string]string{"ZE_REPO_ROOT": fixture})
+	env := childEnvironment(os.Environ(), map[string]string{envRepoRoot: fixture})
 	run := func(args ...string) weeklyCommandResult {
 		productArgs := append([]string{"weekly"}, args...)
 		return runWeeklyCommand(ctx, here, env, binary, productArgs...)

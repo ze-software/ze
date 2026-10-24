@@ -118,7 +118,8 @@ const (
 	fieldMED                = "med"              // The MED attribute name in the filter and catalog protocols.
 	fieldMessage            = "message"
 	fieldMode               = "mode"
-	fieldName               = "name" // The field in a payload.
+	fieldOrigin             = "origin" // The ORIGIN attribute name in the filter text protocol.
+	fieldName               = "name"   // The field in a payload.
 	fieldPackages           = "packages"
 	fieldParallel           = "parallel"
 	fieldPassed             = "passed"
@@ -334,11 +335,13 @@ const (
 	fileGoMod                       = "go.mod"
 	fileSampleGo                    = "sample.go"
 	fileTriggersMD                  = "TRIGGERS.md"
+	gitBranchMain                   = "main" // The branch a scratch repository pushes.
 	gitCommitNoSign                 = "commit.gpgsign=false"
 	gitFixtureEmail                 = "fixture@example.invalid"
 	gitFixtureName                  = "Fixture"
 	gitInitFixtureBranch            = "--initial-branch=fixture"
 	gitInitNoTemplate               = "--template="
+	gitRemoteOrigin                 = "origin" // The git remote name, not the BGP attribute.
 	logBFDConfigured                = "bfd plugin configured"
 	logBFDPinnedSessionCreated      = "bfd pinned session created"
 	logBFDRunning                   = "bfd plugin running"

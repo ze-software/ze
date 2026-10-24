@@ -62,7 +62,7 @@ func leVendorWebAnswers(parent context.Context) error {
 	if err != nil {
 		return fmt.Errorf("FAIL: snapshot checkout before commands: %w", err)
 	}
-	productEnv := childEnvironment(os.Environ(), map[string]string{"ZE_REPO_ROOT": root})
+	productEnv := childEnvironment(os.Environ(), map[string]string{envRepoRoot: root})
 
 	// The read-only gate runs over the real checkout and must give a successful,
 	// human-readable verdict without writing diagnostics to stderr.
@@ -197,7 +197,7 @@ func leVendorWebAnswers(parent context.Context) error {
 
 	synced := make([]leVendorWebResult, 0, len(trees))
 	for _, tree := range trees {
-		result, err := leVendorWebRun(ctx, work, childEnvironment(os.Environ(), map[string]string{"ZE_REPO_ROOT": tree}), binary, "web", "vendor", "sync")
+		result, err := leVendorWebRun(ctx, work, childEnvironment(os.Environ(), map[string]string{envRepoRoot: tree}), binary, "web", "vendor", "sync")
 		if err != nil {
 			return err
 		}

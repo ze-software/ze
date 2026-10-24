@@ -18,7 +18,7 @@ import (
 // A route carrying all five is what test/plugin/filter-subject-names-every-
 // attribute.ci announces, so a name missing here is a name no policy can act on.
 var filterSubjectNames = []string{
-	"origin",
+	fieldOrigin,
 	fieldMED,
 	fieldLocalPreference,
 	"atomic-aggregate",

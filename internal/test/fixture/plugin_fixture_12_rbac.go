@@ -24,7 +24,7 @@ func p12WebRBAC(ctx context.Context, _ []string) error {
 	}
 	defer os.RemoveAll(configDir) //nolint:errcheck // best-effort fixture cleanup
 
-	env := childEnvironment(os.Environ(), map[string]string{"ZE_CONFIG_DIR": configDir})
+	env := childEnvironment(os.Environ(), map[string]string{envConfigDir: configDir})
 	if err := p12RunCommand(ctx, env, strings.NewReader("readonly\nreadonlypass\n127.0.0.1\n2222\n"), io.Discard, "init"); err != nil {
 		return fmt.Errorf("ze init: %w", err)
 	}

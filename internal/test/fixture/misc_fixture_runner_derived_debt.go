@@ -28,7 +28,9 @@ import (
 
 const (
 	derivedDebtAuthorisation = "fixture: the owner ordered this push"
-	derivedDebtBranchRef     = "refs/heads/main"
+	derivedDebtBranchRef     = "refs/heads/" + gitBranchMain
+	derivedDebtFormAll       = "all"  // The `le verify worktree` form that names every part.
+	derivedDebtFormPart      = "part" // The `le verify worktree` form that names one part.
 	derivedDebtSpecPath      = "plan/immediate/spec-derived-debt-fixture.md"
 	derivedDebtSpecStem      = "derived-debt-fixture"
 	derivedDebtSpecText      = "# Spec: a fixture\n\n| Field | Value |\n|-------|-------|\n" +
@@ -198,7 +200,8 @@ func verifyWorktreeCutSweepDriver(ctx context.Context, args []string) error {
 		return err
 	}
 	for _, form := range [][]string{
-		{"all", "part", "2", "of", "3"}, {"all"}, {"part", "2"}, {"part", "0", "of", "3"}, {"part", "4", "of", "3"},
+		{derivedDebtFormAll, derivedDebtFormPart, "2", "of", "3"}, {derivedDebtFormAll}, {derivedDebtFormPart, "2"},
+		{derivedDebtFormPart, "0", "of", "3"}, {derivedDebtFormPart, "4", "of", "3"},
 	} {
 		out, code, err := scratch.le(ctx, append([]string{"verify", "worktree"}, form...)...)
 		if err != nil {
@@ -207,7 +210,7 @@ func verifyWorktreeCutSweepDriver(ctx context.Context, args []string) error {
 		if code != 2 {
 			return fmt.Errorf("le verify worktree %s exit=%d, want 2: %s", strings.Join(form, " "), code, out)
 		}
-		if form[0] == "all" && !strings.Contains(out, "all of <m>") {
+		if form[0] == derivedDebtFormAll && !strings.Contains(out, "all of <m>") {
 			return fmt.Errorf("le verify worktree %s does not name the all of <m> form: %s", strings.Join(form, " "), out)
 		}
 	}
@@ -468,8 +471,8 @@ func newDerivedDebtScratch(ctx context.Context, args []string) (*derivedDebtScra
 	}
 	remote := repo + ".origin.git"
 	for _, step := range [][]string{
-		{"branch", "-M", "main"}, {argInit, "-q", "--bare", "--initial-branch=main", remote},
-		{"remote", "add", "origin", remote}, {"push", "-q", "-u", "origin", "main"},
+		{"branch", "-M", gitBranchMain}, {argInit, "-q", "--bare", "--initial-branch=" + gitBranchMain, remote},
+		{"remote", "add", gitRemoteOrigin, remote}, {"push", "-q", "-u", gitRemoteOrigin, gitBranchMain},
 	} {
 		if _, err := scratch.git(ctx, step...); err != nil {
 			scratch.remove()
@@ -575,7 +578,7 @@ func (s *derivedDebtScratch) preparePush(ctx context.Context) (string, error) {
 
 // upstreamIs answers nil when the bare upstream's main holds want.
 func (s *derivedDebtScratch) upstreamIs(ctx context.Context, want string) error {
-	out, err := s.git(ctx, "ls-remote", "origin", derivedDebtBranchRef)
+	out, err := s.git(ctx, "ls-remote", gitRemoteOrigin, derivedDebtBranchRef)
 	if err != nil {
 		return err
 	}

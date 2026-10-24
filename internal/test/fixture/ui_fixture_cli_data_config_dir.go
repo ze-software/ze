@@ -22,7 +22,7 @@ func runUIFixtureCLIDataConfigDir(ctx context.Context) error {
 	}
 	defer os.RemoveAll(initDir) //nolint:errcheck // fixture cleanup
 
-	env := childEnvironment(os.Environ(), map[string]string{"ZE_CONFIG_DIR": initDir})
+	env := childEnvironment(os.Environ(), map[string]string{envConfigDir: initDir})
 
 	// ze init writes the store through the env-honoring resolver.
 	initCmd := exec.CommandContext(ctx, "ze", "init")

@@ -133,7 +133,7 @@ func bgpRedistributeAnnounce03(ctx context.Context, p *sdk.Plugin) error {
 	if _, err := done03(ctx, p, "request fakeredist emit add ipv4/unicast 10.0.0.1/32"); err != nil {
 		return err
 	}
-	if !waitPeerCounter03(ctx, p, "127.0.0.1", "updates-sent", base+1, 40) {
+	if !waitPeerCounter03(ctx, p, "updates-sent", base+1, 40) {
 		return fmt.Errorf("redistribute UPDATE never counted as sent")
 	}
 	return nil
@@ -201,7 +201,7 @@ func bgpRedistributeMetrics03(ctx context.Context, p *sdk.Plugin) error {
 		if _, err := done03(ctx, p, step.command); err != nil {
 			return err
 		}
-		if step.sends && !waitPeerCounter03(ctx, p, "127.0.0.1", "updates-sent", base+1, 16) {
+		if step.sends && !waitPeerCounter03(ctx, p, "updates-sent", base+1, 16) {
 			return fmt.Errorf("%s: its UPDATE was never counted as sent", step.command)
 		}
 	}
@@ -243,7 +243,7 @@ func bgpRedistributeWithdraw03(ctx context.Context, p *sdk.Plugin) error {
 		if _, err := done03(ctx, p, command); err != nil {
 			return err
 		}
-		if !waitPeerCounter03(ctx, p, "127.0.0.1", "updates-sent", base+1, 24) {
+		if !waitPeerCounter03(ctx, p, "updates-sent", base+1, 24) {
 			return fmt.Errorf("%s: its UPDATE was never counted as sent", command)
 		}
 	}

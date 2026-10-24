@@ -13,6 +13,10 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
+// policyFinalAlternatePrefix is the route whose permitted, longer AS_PATH is the
+// destination's alternate behind a denied, preferred path.
+const policyFinalAlternatePrefix = "10.72.3.0/24"
+
 func policyFinalAlternate(ctx context.Context, plugin *sdk.Plugin, state *policyFinalWireState, accept, reject string) error {
 	// The permitted, longer AS_PATH arrives first and owns the destination's
 	// entry. The shorter preferred route arrives last but its ASN is denied.
@@ -21,7 +25,7 @@ func policyFinalAlternate(ctx context.Context, plugin *sdk.Plugin, state *policy
 	if err := liveStagesRoute(ctx, plugin, "127.0.0.3 update text nhop 192.0.2.1 nlri add 192.168.3.0/24"); err != nil {
 		return err
 	}
-	if err := state.wait(ctx, "permitted alternate installed", "10.72.1.0/24", "10.72.2.0/24", "10.72.3.0/24"); err != nil {
+	if err := state.wait(ctx, "permitted alternate installed", "10.72.1.0/24", "10.72.2.0/24", policyFinalAlternatePrefix); err != nil {
 		return err
 	}
 	state.mu.Lock()
@@ -30,9 +34,9 @@ func policyFinalAlternate(ctx context.Context, plugin *sdk.Plugin, state *policy
 	if err := liveStagesRoute(ctx, plugin, "127.0.0.1 update text nhop 192.0.2.1 nlri add 192.168.3.0/24"); err != nil {
 		return err
 	}
-	if err := state.wait(ctx, "preferred denied fence preserved alternate", "10.72.1.0/24", "10.72.2.0/24", "10.72.3.0/24", "10.72.253.0/24"); err != nil {
+	if err := state.wait(ctx, "preferred denied fence preserved alternate", "10.72.1.0/24", "10.72.2.0/24", policyFinalAlternatePrefix, "10.72.253.0/24"); err != nil {
 		peers, queryErr := peerRows03(ctx, plugin, "*")
-		return fmt.Errorf("%w; peer counters at failed fence=%v (query error=%v)", err, peers, queryErr)
+		return fmt.Errorf("%w; peer counters at failed fence=%v (query error=%w)", err, peers, queryErr)
 	}
 	if err := policyFinalPreferred(ctx, plugin); err != nil {
 		return err
@@ -53,14 +57,14 @@ func policyFinalAlternate(ctx context.Context, plugin *sdk.Plugin, state *policy
 	if err := policyFinalReload(ctx, plugin, accept, "applied"); err != nil {
 		return err
 	}
-	if err := state.wait(ctx, "restored permitted alternate behind rejected preferred", "10.72.1.0/24", "10.72.2.0/24", "10.72.3.0/24", "10.72.253.0/24"); err != nil {
+	if err := state.wait(ctx, "restored permitted alternate behind rejected preferred", "10.72.1.0/24", "10.72.2.0/24", policyFinalAlternatePrefix, "10.72.253.0/24"); err != nil {
 		return err
 	}
 	after, err := peerRows03(ctx, plugin, "*")
 	if err != nil {
 		return err
 	}
-	for _, peer := range []string{"127.0.0.1", "127.0.0.3"} {
+	for _, peer := range []string{addrLoopback, addrLoopbackThird} {
 		if number03(before[peer]["updates-received"]) != number03(after[peer]["updates-received"]) {
 			return fmt.Errorf("source %s sent an UPDATE during alternate reconciliation: before=%v after=%v", peer, before[peer], after[peer])
 		}
@@ -79,7 +83,7 @@ func policyFinalPreferred(ctx context.Context, plugin *sdk.Plugin) error {
 	if !Poll(ctx, 60, liveStagesPollDelay, func() bool {
 		var status string
 		best.Paths = nil
-		status, lastErr = Dispatch(ctx, plugin, "show bgp rib best prefix 10.72.3.0/24", &best)
+		status, lastErr = Dispatch(ctx, plugin, "show bgp rib best prefix "+policyFinalAlternatePrefix, &best)
 		if lastErr != nil {
 			return false
 		}
@@ -90,9 +94,9 @@ func policyFinalPreferred(ctx context.Context, plugin *sdk.Plugin) error {
 		if len(best.Paths) != 1 {
 			return false
 		}
-		return best.Paths[0].Prefix == "10.72.3.0/24" && best.Paths[0].Peer == "127.0.0.1"
+		return best.Paths[0].Prefix == policyFinalAlternatePrefix && best.Paths[0].Peer == addrLoopback
 	}) {
-		return fmt.Errorf("shorter denied path was not the preferred candidate: paths=%v error=%v", best.Paths, lastErr)
+		return fmt.Errorf("shorter denied path was not the preferred candidate: paths=%v error=%w", best.Paths, lastErr)
 	}
 	return nil
 }
@@ -159,14 +163,14 @@ func (state *policyFinalWireState) receive(event string) error {
 		for _, operation := range operations {
 			for _, prefix := range operation.NLRI {
 				switch prefix {
-				case "10.72.1.0/24", "10.72.2.0/24", "10.72.3.0/24", "10.72.253.0/24":
+				case "10.72.1.0/24", "10.72.2.0/24", policyFinalAlternatePrefix, "10.72.253.0/24":
 				default:
 					state.failure = fmt.Errorf("unexpected echoed prefix %s", prefix)
 					return nil
 				}
 				switch operation.Action {
 				case "del":
-					if state.protectAlternate && prefix == "10.72.3.0/24" {
+					if state.protectAlternate && prefix == policyFinalAlternatePrefix {
 						state.failure = fmt.Errorf("preferred rejection withdrew installed alternate %s", prefix)
 						return nil
 					}
@@ -197,7 +201,7 @@ func policyFinalWireAttributes(prefix string, attrs []byte) error {
 		attribute.AttrMED:       "00000009",
 		attribute.AttrCommunity: "fde90063",
 	}
-	if prefix == "10.72.3.0/24" {
+	if prefix == policyFinalAlternatePrefix {
 		want[attribute.AttrASPath] = "02030000fdeb0000fdeb0000fdeb"
 		want[attribute.AttrNextHop] = "c0000203"
 		want[attribute.AttrCommunity] = "fdeb0021"

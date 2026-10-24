@@ -184,9 +184,11 @@ func peerCounter03(ctx context.Context, p *sdk.Plugin, peer, counter string) (in
 	return 0, fmt.Errorf("peer %s not present", peer)
 }
 
-func waitPeerCounter03(ctx context.Context, p *sdk.Plugin, peer, counter string, want int64, attempts int) bool {
+// waitPeerCounter03 polls the counter of the loopback peer, the one peer every
+// caller's scenario configures, until it reaches want.
+func waitPeerCounter03(ctx context.Context, p *sdk.Plugin, counter string, want int64, attempts int) bool {
 	return Poll(ctx, attempts, 250*time.Millisecond, func() bool {
-		got, err := peerCounter03(ctx, p, peer, counter)
+		got, err := peerCounter03(ctx, p, addrLoopback, counter)
 		return err == nil && got >= want
 	})
 }

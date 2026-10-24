@@ -55,7 +55,7 @@ bgp { session { asn { local 65000; } } router-id 1.2.3.4; }
 	if err != nil {
 		return err
 	}
-	clientEnv := extra1Environment(map[string]string{"ZE_CONFIG_DIR": clientDir, "ZE_SSH_HOST": addrLoopback, "ZE_SSH_PORT": sshPort, "ZE_SSH_USERNAME": storageSeedUser, "ZE_SSH_PASSWORD": valueTestPassword, "TERM": "xterm", "NO_COLOR": "1"})
+	clientEnv := extra1Environment(map[string]string{envConfigDir: clientDir, "ZE_SSH_HOST": addrLoopback, "ZE_SSH_PORT": sshPort, "ZE_SSH_USERNAME": storageSeedUser, "ZE_SSH_PASSWORD": valueTestPassword, "TERM": "xterm", "NO_COLOR": "1"})
 	defer os.RemoveAll(clientDir) //nolint:errcheck // fixture cleanup
 	if _, err := runCommandProcess04(ctx, clientEnv, nil, "cli", "-c", "show version"); err != nil {
 		return fmt.Errorf("tree credentials did not authenticate: %w", err)
