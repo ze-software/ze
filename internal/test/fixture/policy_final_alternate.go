@@ -36,7 +36,10 @@ func policyFinalAlternate(ctx context.Context, plugin *sdk.Plugin, state *policy
 	}
 	if err := state.wait(ctx, "preferred denied fence preserved alternate", "10.72.1.0/24", "10.72.2.0/24", policyFinalAlternatePrefix, "10.72.253.0/24"); err != nil {
 		peers, queryErr := peerRows03(ctx, plugin, "*")
-		return fmt.Errorf("%w; peer counters at failed fence=%v (query error=%w)", err, peers, queryErr)
+		if queryErr != nil {
+			return fmt.Errorf("%w; peer counters at failed fence=%v (query error=%w)", err, peers, queryErr)
+		}
+		return fmt.Errorf("%w; peer counters at failed fence=%v", err, peers)
 	}
 	if err := policyFinalPreferred(ctx, plugin); err != nil {
 		return err
@@ -96,7 +99,10 @@ func policyFinalPreferred(ctx context.Context, plugin *sdk.Plugin) error {
 		}
 		return best.Paths[0].Prefix == policyFinalAlternatePrefix && best.Paths[0].Peer == addrLoopback
 	}) {
-		return fmt.Errorf("shorter denied path was not the preferred candidate: paths=%v error=%w", best.Paths, lastErr)
+		if lastErr != nil {
+			return fmt.Errorf("shorter denied path was not the preferred candidate: paths=%v error=%w", best.Paths, lastErr)
+		}
+		return fmt.Errorf("shorter denied path was not the preferred candidate: paths=%v", best.Paths)
 	}
 	return nil
 }
