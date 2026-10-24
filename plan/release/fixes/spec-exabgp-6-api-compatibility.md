@@ -71,6 +71,26 @@ on that assertion alone (line 76). The audit verdict for
 DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1 is owed an independent re-judge with
 `ze-rfc-audit`.
 
+Progress (2026-10-24, RFC2545 and MUP): the two RFC2545 records 79fa5db993
+staled are re-taken. `./le rfc discriminate-record` observed
+`TestSRPolicyConfigNextHopWire` go red under the `revert` break of
+`srpolicy/config.go::parseConfigRoute` for RFC2545-3-1 and RFC2545-3-2, and
+rewrote only those two entries' `producer-sha` (`3d5207e4ceb5c4de` to
+`7831c48b014c43db`). The MUP-SAFI disclosure of the -02 Type 1 ST read
+(98c1ca04a5, relayed in the current form since 1994b7c89a) is finished in
+`rfc/short/draft-ietf-bess-mup-safi.md`: the {partial} on
+DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-6 and the public Note agree, and the Note
+spells the 31 open rows. A drafts-section row must keep `Support remaining`
+at `-`, so the check could never read that disclosure: `rowsFrom`
+(`internal/le/rfc/meta.go`) now reads a four-column row's Note as its
+Remaining (`TestPartialDisclosedInFourColumnNote`, red without the change).
+`./le rfc check` no longer refuses the 3.1.3.1-6 status; it still refuses its
+audit verdict as STALE, because the partial scope changed, and that verdict is
+owed an independent `ze-rfc-audit` re-judge. The three changes land as three
+commits (the gate fix, the MUP disclosure, the RFC2545 records with this
+note) under the owner's `structural-red-ok` for the carried `arch tier/check`
+and `doc wiring` reds, which trace to other sessions' files. Closure is owed.
+
 ## Task
 
 Owner order (Thomas, ExaBGP's author, 2026-10-17): "Do the ExaBGP 6.0 work including
