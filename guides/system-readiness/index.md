@@ -50,6 +50,7 @@ remediation guidance.
 | `doctor-service-stop` | The stop settings systemd applies to the installed `ze.service` (`systemctl show -p TimeoutStopUSec -p KillMode`, drop-ins included) give ze its whole stop: a timeout of at least 90 s (60 s drain ceiling plus 30 s teardown) and `KillMode=mixed`. A host with no `systemctl` is told it does not run systemd and that the unit file is stale; any other failed query carries systemctl's own error <!-- source: internal/plugins/systemd/doctor.go -- checkServiceStop, stopQueryFailure --> |
 | `doctor-ssh-hostkey-missing` | SSH host key |
 | `doctor-listen-unavailable` | Port binding |
+| `doctor-listener-set-unknown` | The listen addresses to check cannot be derived: the YANG schema built into ze failed to load, so no web, SSH, gNMI or API listener was checked. An error, because it means an incomplete ze binary <!-- source: internal/component/doctor/checks_listener.go -- collectSchemaListeners, listenerSetUnknown --> |
 | `doctor-iface-missing` / `doctor-iface-down` | Interface existence and state |
 | `doctor-iface-selector-unmatched` / `doctor-iface-selector-ambiguous` | A `mac { match }` selector names no device, or several |
 | `doctor-iface-mac-override-by-name` | An ethernet overrides its MAC but binds by name, so the address lands on whichever device holds that name |

@@ -189,7 +189,7 @@ Use `.journey-hero` for the shared navy page opening. Two-choice dispatch pages,
 
 ### Hero pages
 
-A navy hero introduces the page with a clear title and useful context. Its background reaches the viewport edges while the content follows the shared page width.
+A navy hero introduces the page with a clear title and useful context. Interior-page hero backgrounds reach the viewport edges while their content follows the shared page width. The homepage hero and proof panels stay within that width, with inner padding and rounded edges. Leave a gap before Latest news and distribute the product links equally across their row, using fewer columns on smaller screens.
 
 ### Dispatch cards
 

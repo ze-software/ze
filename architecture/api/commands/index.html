@@ -173,6 +173,7 @@
 <li><a href="#the-declared-shape-refuses-an-operator-before-the-command-runs">The declared shape refuses an operator before the command runs</a></li>
 </ol></li>
 <li><a href="#display-and-fill-the-operators-own-answer">| display and | fill: the operator&#39;s own answer</a></li>
+<li><a href="#a-drawing-for-an-answer-the-registered-text-renderer">A drawing for an answer: the registered text renderer</a></li>
 <li><a href="#pipe-aliases-a-name-for-an-operator-chain">Pipe aliases: a name for an operator chain</a></li>
 <li><a href="#a-plugin-declares-a-pipe-alias-in-its-stage-1-message">A plugin declares a pipe alias in its Stage 1 message</a>
 <ol>
@@ -1502,7 +1503,7 @@ an API route (<code>docs/architecture/api/update-syntax.md</code>, "Watchdog Com
     source filters: received | advertised
     filters: peer &lt;selector&gt;, path &lt;pattern&gt;, prefix &lt;pattern&gt;, community &lt;value&gt;,
              family &lt;afi/safi&gt;
-    terminals: count, histogram, graph (AS topology box-drawing)
+    terminals: count, histogram, graph (AS topology as nodes and edges, drawn as boxes in text)
 show bgp rib best [filters...] [terminal]   # Best-path per prefix (RFC 4271 §9.1.2)
 show bgp rib status                         # RIB status (peer/route counts)
 clear bgp rib in &lt;selector&gt;                  # Clear Adj-RIB-In (* for all peers)
@@ -3233,6 +3234,23 @@ filters of its own, and nothing reported the loss.
 <!-- source: internal/component/command/pipe_filter.go -- RegisterPipeFilters, lookupPipeFilters -->
 <!-- source: internal/component/command/pipe_columns.go -- parseDisplay, parseFill, columnsInChain, applyDisplaySelect, selectFields -->
 <!-- source: internal/component/command/pipe_table.go -- tableStyle.orderKeys, fillKeys, bestColumnOrder -->
+<h3 id="a-drawing-for-an-answer-the-registered-text-renderer">A drawing for an answer: the registered text renderer</h3>
+<p>Some data reads only as a drawing. <code>show bgp rib ... graph</code> answers the AS
+topology as data, <code>{"graph":{"nodes":[{"asn":..,"name":..,"layer":..}],"edges":[{"from":..,"to":..}]}}</code>,
+and an operator wants the box diagram, not a table of nodes. The answer stays
+data, so <code>| json</code>, <code>| yaml</code> and every program read the structure, and its owner
+registers the drawing under the answer's envelope key with
+<code>command.MustRegisterTextRenderer</code> from its own <code>register.go</code> (<code>bgp-rib</code>
+registers <code>graph</code>). The <code>text</code> format, the default one or an explicit <code>| text</code>,
+draws an answer whose one envelope key has a renderer with it; the pipe
+metadata key beside the answer does not count. Every other answer is the
+generic text table. A renderer that cannot draw what it was given answers an
+error, and the operator reads it as a pipe error naming the key, never an empty
+screen. A topology past 100 ASes is refused by the command itself, with the
+filter that narrows it.</p>
+<!-- source: internal/component/command/text_renderer.go -- TextRenderer, RegisterTextRenderer, applyRegisteredText -->
+<!-- source: internal/component/command/pipe.go -- ApplyPipes pipeText -->
+<!-- source: internal/component/bgp/plugins/rib/rib_topology.go -- graphAnswer, renderGraphText, errGraphTooManyNodes -->
 <h3 id="pipe-aliases-a-name-for-an-operator-chain">Pipe aliases: a name for an operator chain</h3>
 <p>An alias is a name an operator types in the operator slot, standing for a chain
 they would otherwise retype. <code>show bgp | peers</code> says what
@@ -4066,7 +4084,7 @@ unconditionally, and the <code>ui://</code> asset it points at is readable by ev
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 06:03 UTC</span>
                 </div>
             </div>
         </footer>

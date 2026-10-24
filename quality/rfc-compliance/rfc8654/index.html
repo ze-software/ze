@@ -122,7 +122,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 12 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 12 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 12 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>43.8%</strong><b>28 of 64 tagged units, 0 escaped and 14 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>41.9%</strong><b>26 of 62 tagged units, 0 escaped and 14 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -226,16 +226,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>64</td>
+<td>62</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>64</td>
+<td>62</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>8</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>42</td>
+<td>40</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc8654.md</code></td>
@@ -311,14 +311,12 @@ Correction 2026-10-06: the earlier weak classification described incomplete test
 <td>MUST</td>
 <td>3 - BGP Extended Message Capability</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8654-3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L124" title="internal/component/bgp/message/rfc7606_structural_test.go" target="_blank" rel="noopener"><code>TestRFC7606MPReachNLRIConsistentWithAFISAFIAccepted</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go#L306" title="internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go" target="_blank" rel="noopener"><code>TestRFC8654ExtendedAttributeDiscard</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go#L381" title="internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go" target="_blank" rel="noopener"><code>TestRFC8654ExtendedDuplicateAttributes</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go#L449" title="internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go" target="_blank" rel="noopener"><code>TestRFC8654ExtendedDuplicateMPResets</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go#L248" title="internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go" target="_blank" rel="noopener"><code>TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_rib_recovery_test.go#L463" title="internal/component/bgp/reactor/rfc8654_rib_recovery_test.go" target="_blank" rel="noopener"><code>TestRFC8654ExtendedTwoFamilyWithdrawalRecovery</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_rib_recovery_test.go#L32" title="internal/component/bgp/reactor/rfc8654_rib_recovery_test.go" target="_blank" rel="noopener"><code>TestRFC8654TreatAsWithdrawRemovesInstalledRoutes</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L238" title="internal/component/bgp/message/rfc7606_structural_test.go" target="_blank" rel="noopener"><code>TestRFC7606AttributeLengthConflictTreatAsWithdraw</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go#L307" title="internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go" target="_blank" rel="noopener"><code>TestRFC8654ExtendedAttributeDiscard</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go#L382" title="internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go" target="_blank" rel="noopener"><code>TestRFC8654ExtendedDuplicateAttributes</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go#L450" title="internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go" target="_blank" rel="noopener"><code>TestRFC8654ExtendedDuplicateMPResets</code></a></span></div>
@@ -518,16 +516,11 @@ Correction 2026-10-06: the earlier weak classification described incomplete test
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
 <h3><a href="#rfc8654-3-1"><code>RFC8654-3-1</code></a></h3>
 <p>Peers that wish to use the BGP Extended Message Capability MUST support error handling for BGP UPDATE messages per [RFC7606]. (§3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606MPReachNLRIConsistentWithAFISAFIAccepted moved. Re-judged 2026-10-23 (independent auditor, after a59427f8c0). RFC 8654 Section 3: &#34;Peers that wish to use the BGP Extended Message Capability MUST support error handling for BGP UPDATE messages per [RFC7606].&#34; The only change to a tagged unit is a comment in TestRFC7606MPReachNLRIConsistentWithAFISAFIAccepted (validateMPReachAttr renamed validateMPNLRIField); its body, an IPv4 MP_REACH whose /8 ends flush with the attribute giving exact ActionNone through ValidateUpdateRFC7606, is unchanged and ran green. The extended-message session units in rfc_receive_session_dispatch_test.go and rfc8654_rib_recovery_test.go are unchanged and still prove the RFC 7606 actions (attribute discard, treat-as-withdraw with route removal, duplicate MP reset) apply on a session with extended messages. Verdict stands. Findings recorded outside this verdict: that unit&#39;s doc comment still says &#34;Untagged&#34; though it carries the RFC8654-3-1 positive tag, and the discrimination records on the rfc_receive_session_dispatch and rfc8654_rib_recovery units no longer verify (producer-changed applyRFC7606).</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-24 (independent auditor, after 66858fa127). RFC 8654 Section 3: &#34;Peers that wish to use the BGP Extended Message Capability MUST support error handling for BGP UPDATE messages per [RFC7606].&#34; The two message-level units (TestRFC7606MPReachNLRIConsistentWithAFISAFIAccepted, TestRFC7606AttributeLengthConflictTreatAsWithdraw) no longer carry this tag, which removes the over-claim the previous judgement named: they never involved Extended Message. Both polarities remain, carried only by session-level units on a session that negotiated Extended Message with UPDATEs over 4096 octets: TestRFC8654TreatAsWithdrawRemovesInstalledRoutes (valid 4097-octet UPDATE installs 3 routes in Adj-RIB-In, Loc-RIB and downstream; ORIGIN=3 alone removes all three from each and withdraws downstream; a later valid UPDATE reinstalls on the same Established session with no NOTIFICATION), TestRFC8654ExtendedTwoFamilyWithdrawalRecovery, TestRFC8654ExtendedAttributeDiscard (valid ATOMIC_AGGREGATE/AGGREGATOR kept byte-exact; malformed one absent, NLRI intact, Established, no NOTIFICATION, both readers), TestRFC8654ExtendedDuplicateAttributes (exact published attributes after keep-first), TestRFC8654ExtendedDuplicateMPResets (single MP processed; duplicate gives Idle, no extra dispatch) and TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling (malformed ORIGIN over 1100 routes: all withdrawn, Established, no NOTIFICATION; attribute section overrunning the message: 3/1, Idle, nothing dispatched). Each unit&#39;s tags sit on distinct subtests or phases, not one assertion in two hats. Claims match the bodies. FINDING (not verdict-changing): the positive tag on TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling names the malformed-ORIGIN subtest, which is an error input (RFC 7606&#39;s treat-as-withdraw outcome), so that unit is two negatives; the requirement&#39;s conforming positives come from the other units. Fix: retag that line as a second negative, or add a well-formed over-4096 subtest asserting the UPDATE is dispatched with attributes and NLRI intact and keep the positive tag on it. Verdict stands.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
-<tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L238" title="internal/component/bgp/message/rfc7606_structural_test.go" target="_blank" rel="noopener"><code>TestRFC7606AttributeLengthConflictTreatAsWithdraw</code></a></td>
-<td>unit/verify</td>
-<td>revert, verified</td>
-</tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_rib_recovery_test.go#L464" title="internal/component/bgp/reactor/rfc8654_rib_recovery_test.go" target="_blank" rel="noopener"><code>TestRFC8654ExtendedTwoFamilyWithdrawalRecovery</code></a></td>
 <td>unit/verify</td>
@@ -555,11 +548,6 @@ Correction 2026-10-06: the earlier weak classification described incomplete test
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go#L250" title="internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go" target="_blank" rel="noopener"><code>TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling</code></a></td>
-<td>unit/verify</td>
-<td>revert, verified</td>
-</tr>
-<tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L124" title="internal/component/bgp/message/rfc7606_structural_test.go" target="_blank" rel="noopener"><code>TestRFC7606MPReachNLRIConsistentWithAFISAFIAccepted</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1145,7 +1133,7 @@ Correction 2026-10-06: the earlier weak classification described incomplete test
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 05:23 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 06:15 UTC</span>
                 </div>
             </div>
         </footer>

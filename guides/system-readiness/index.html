@@ -156,6 +156,10 @@ remediation guidance.</p>
 <td>Port binding</td>
 </tr>
 <tr>
+<td><code>doctor-listener-set-unknown</code></td>
+<td>The listen addresses to check cannot be derived: the YANG schema built into ze failed to load, so no web, SSH, gNMI or API listener was checked. An error, because it means an incomplete ze binary <!-- source: internal/component/doctor/checks_listener.go -- collectSchemaListeners, listenerSetUnknown --></td>
+</tr>
+<tr>
 <td><code>doctor-iface-missing</code> / <code>doctor-iface-down</code></td>
 <td>Interface existence and state</td>
 </tr>
@@ -547,7 +551,7 @@ is present and emits the registered code.</li>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 06:03 UTC</span>
                 </div>
             </div>
         </footer>

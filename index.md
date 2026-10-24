@@ -1,11 +1,11 @@
 Ze, an OpenNOS
 
-# The network OS
-*you can program.*
+# A network OS.
+*A platform for immutable services.*
 
 Plugin extensible Appliance option ExaBGP compatible
 
-Routing, network services and operator tools. Connect directly to Ze’s own SSH server.
+Extend Ze with plugins for networking, automation and services of your own.
 
 Ze speaks [**BGP**](https://ze-software.net/guides/bgp-peering/), [**ISIS**](https://ze-software.net/guides/isis/), [**OSPF**](https://ze-software.net/guides/ospf/), manages [**interfaces**](https://ze-software.net/features/interfaces/) and tunnels ([**IPsec VPN**](https://ze-software.net/guides/ipsec/), [**WireGuard**](https://ze-software.net/features/interfaces/#wireguard-configuration)), programs the [**FIB**](https://ze-software.net/reference/plugins/fib-kernel/), and exposes one [**YANG**](https://ze-software.net/features/bgp-configuration/)-modeled configuration through its own built-in SSH server, a [**web**](https://ze-software.net/features/web-interface/) interface, [**APIs**](https://ze-software.net/features/api-commands/) ([**REST**](https://ze-software.net/guides/api/#rest-endpoints), [**gRPC**](https://ze-software.net/guides/api/#grpc-services), [**gNMI**](https://ze-software.net/guides/gnmi/)), [**CLI**](https://ze-software.net/features/cli-commands/), and [**MCP**](https://ze-software.net/features/mcp-integration/).
 

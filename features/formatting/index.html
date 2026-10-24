@@ -520,7 +520,7 @@ folded into the command itself rather than applying to its answer. <code>show bg
 </tr>
 <tr>
 <td><code>graph</code></td>
-<td>Render an AS-path topology graph (box-drawing)</td>
+<td>Answer the AS-path topology as <code>nodes</code> and <code>edges</code>; the text format draws it as a box diagram and <code>| json</code> shows the structure. More than 100 ASes is refused: narrow it with a filter first</td>
 </tr>
 <tr>
 <td><code>reason</code></td>
@@ -535,6 +535,7 @@ routes in the RIB iterator. It does not serialize every route and count the
 answer. Both kinds run in the daemon. A generic pipe filters what the command
 already produced. A command filter stops it being produced.</p>
 <!-- source: internal/component/bgp/plugins/cmd/rib/rib.go -- PipeFilter registrations -->
+<!-- source: internal/component/bgp/plugins/rib/rib_topology.go -- graphTerminal, renderGraphText -->
 <!-- source: internal/component/command/pipe.go -- foldFilters, lookupFilter, validateFilter -->
 </div>
 </div>
@@ -571,7 +572,7 @@ already produced. A command filter stops it being produced.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 06:03 UTC</span>
                 </div>
             </div>
         </footer>
