@@ -145,6 +145,10 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   [the website style guide](../website/style-guide/index.html#sg-design-principles),
   including its information-preservation map and owner approval for removals.
   This decision applies to the website only.
+- Completing approved website changes includes regenerating and checking the
+  canonical `../gh-pages` checkout with `./le site build` and `./le site check`.
+  A private preview is an intermediate review artifact. Local regeneration
+  does not authorize a push or deployment.
 
 ## How agents work
 

@@ -140,8 +140,14 @@ must follow, are in `terminal-demos.md`.
 
 `./le site build output <directory>` builds into another artifact root, and
 `./le site check output <directory>` judges that same root. Both default to
-`../gh-pages`, so a session verifying its own work builds into its scratch
-directory and checks there rather than writing over the published tree.
+`../gh-pages`. A private scratch directory is optional for previews and
+intermediate checks. To complete approved website changes, run `./le site build`
+and `./le site check` against the canonical `../gh-pages` checkout beside main.
+Use the native builder to preserve `.git` and generated media.
+<!-- source: internal/le/site/build.go -- Build, snapshotArtifact, seedArtifact, cleanArtifact -->
+
+Local regeneration does not authorize a push or deployment. Never push without
+owner instruction.
 
 Before it builds, `./le site build` warns on stderr, and lists under
 `stale-supported` in its report, every feature held at Supported whose recorded
