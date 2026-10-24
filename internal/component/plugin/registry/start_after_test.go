@@ -20,7 +20,7 @@ func TestStartAfterOrdersOnlySelectedPlugins(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	selected, err := ResolveDependencies([]string{"a"}, nil)
+	selected, err := ResolveDependencies([]string{"a"}, nil, holdsNoNeed)
 	if err != nil || !slices.Equal(selected, []string{"a"}) {
 		t.Fatalf("order-only target was activated: selected=%v err=%v", selected, err)
 	}
@@ -28,7 +28,7 @@ func TestStartAfterOrdersOnlySelectedPlugins(t *testing.T) {
 	if err != nil || len(tiers) != 1 || !slices.Equal(tiers[0], []string{"a"}) {
 		t.Fatalf("absent target constrained startup: tiers=%v err=%v", tiers, err)
 	}
-	if _, err := ResolveDependencies([]string{"a", "b"}, nil); !errors.Is(err, ErrCircularDependency) {
+	if _, err := ResolveDependencies([]string{"a", "b"}, nil, holdsNoNeed); !errors.Is(err, ErrCircularDependency) {
 		t.Fatalf("selected cycle accepted by dependency expansion: %v", err)
 	}
 	if _, err := TopologicalTiers([]string{"a", "b"}, nil); !errors.Is(err, ErrCircularDependency) {
@@ -36,7 +36,7 @@ func TestStartAfterOrdersOnlySelectedPlugins(t *testing.T) {
 	}
 	// A same-named external program does not inherit this binary's edge.
 	external := map[string]bool{"a": true}
-	selected, err = ResolveDependencies([]string{"a", "b"}, external)
+	selected, err = ResolveDependencies([]string{"a", "b"}, external, holdsNoNeed)
 	if err != nil {
 		t.Fatal(err)
 	}

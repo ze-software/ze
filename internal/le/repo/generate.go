@@ -7,6 +7,7 @@ import (
 	airules "github.com/ze-software/ze/internal/le/ai/rules"
 	aisync "github.com/ze-software/ze/internal/le/ai/sync"
 	docindex "github.com/ze-software/ze/internal/le/doc/index"
+	gatedtable "github.com/ze-software/ze/internal/le/plugin/gatedtable"
 	pluginimports "github.com/ze-software/ze/internal/le/plugin/imports"
 	repoarchmap "github.com/ze-software/ze/internal/le/repo/archmap"
 	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
@@ -55,6 +56,7 @@ type generationAction struct {
 
 var generationActions = []generationAction{
 	{area: "plugin imports", verb: verbWrite, answer: pluginimports.Answer},
+	{area: "plugin gated-table", verb: verbWrite, answer: gatedtable.Answer},
 	{area: "yang glue", verb: verbWrite, answer: yangglue.Answer},
 	{area: "feature-tags", verb: verbWrite, answer: repofeaturetags.Answer},
 	{area: "web assets", verb: verbWrite, answer: webassets.Answer},
@@ -73,6 +75,7 @@ var generationActions = []generationAction{
 
 var generationChecks = []generationAction{
 	{area: "plugin imports", verb: verbCheck, answer: pluginimports.Answer},
+	{area: "plugin gated-table", verb: verbCheck, answer: gatedtable.Answer},
 	{area: "yang glue", verb: verbCheck, answer: yangglue.Answer},
 	{area: "feature-tags", verb: verbCheck, answer: repofeaturetags.Answer},
 	{area: "web assets", verb: verbCheck, answer: webassets.Answer},

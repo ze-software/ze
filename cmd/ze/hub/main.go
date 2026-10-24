@@ -847,7 +847,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		// MRT bridges are self-registered by the MRT plugin's init() into the
 		// registry seam (registry.SetMRTMessageCallback / SetMRTPeerCallback) and
 		// read by bgp/config; the hub no longer imports internal/plugins/mrt, so
-		// //go:build ze_mrt can drop MRT from the binary.
+		// //go:build ze_bgp can drop MRT from the binary.
 	})
 
 	// Load the daemon's certificate authority, generating it on first start.
@@ -911,8 +911,12 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		// the lowering the reload path already hands the same reader, so both
 		// answer from one shape.
 		DataPlane: iface.BackendNameFromTree(loadResult.Tree.ToMap()),
-		Plugins:   explicitPlugins,
-		Hub:       hubConfig,
+		// Boot auto-load pulls an optional provider only when this config
+		// holds the need that names it, so the needs are answered from the
+		// same tree.
+		ConfigNeedHolds: zeconfig.ConfigNeedHolds(loadResult.Tree.ToMap()),
+		Plugins:         explicitPlugins,
+		Hub:             hubConfig,
 	}
 	apiServer, serverErr := pluginserver.NewServer(serverConfig, coordinator)
 	if serverErr != nil {

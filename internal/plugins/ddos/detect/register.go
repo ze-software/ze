@@ -19,6 +19,13 @@ import (
 
 var eventBusPtr atomic.Pointer[ze.EventBus]
 
+// The registration names of the two flow sources detection characterizes an
+// attack from (characterize.go). Either one meets the need.
+const (
+	flowExportPlugin   = "flow-export"
+	trafficUsagePlugin = "traffic-usage"
+)
+
 func loadBus() (ze.EventBus, error) {
 	p := eventBusPtr.Load()
 	if p == nil {
@@ -35,7 +42,21 @@ func init() {
 		YANG:         detectyang.ZeDdosDetectConfYANG,
 		ConfigRoots:  []string{configRoot},
 		Dependencies: []string{"interface"},
-		RunEngine:    runEngine,
+		// Detection with no flow source compiled in has nothing to
+		// characterize an attack from, so a build that carries neither refuses
+		// `ddos detect enabled true`. The need is about the build only:
+		// whether a source is configured stays the ddos-detect-flow-source
+		// doctor warning below. The need names two sources, so they are
+		// alternatives and the need pulls neither: the source the operator
+		// configured loads from its own config root (registry
+		// optionalProviderPulled).
+		OptionalDependencies: []string{flowExportPlugin, trafficUsagePlugin},
+		ConfigNeeds: []registry.ConfigNeed{{
+			Path:      []string{"ddos", "detect", "enabled"},
+			Value:     "true",
+			Providers: []string{flowExportPlugin, trafficUsagePlugin},
+		}},
+		RunEngine: runEngine,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},

@@ -42,12 +42,28 @@ func runZEStrippedNoBGP(ctx context.Context) error {
 		return fmt.Errorf("a bgp block was ACCEPTED by a binary built without ze_bgp: out=%q", bad.output)
 	}
 
+	// 3. The refusal names the build tag that carries the root, read from the
+	// generated gated-plugin table (config.TopLevelKeywordHint), so the operator
+	// learns why the keyword is unknown and how to get it. A plain "unknown
+	// top-level keyword" with no tag fails this step.
+	if !strings.Contains(bad.output, "build tag ze_bgp") {
+		return fmt.Errorf("the bgp refusal does not name the ze_bgp build tag: out=%q", bad.output)
+	}
+
 	_, err = fmt.Fprintln(os.Stdout, "ze-stripped: non-BGP surface valid, bgp rejected")
 	return err
 }
 
+// validateZEStrippedConfig runs `ze-stripped config validate path`.
 func validateZEStrippedConfig(ctx context.Context, path string) (validationResult, error) {
-	cmd := exec.CommandContext(ctx, "ze-stripped", "config", "validate", path) //nolint:gosec // the fixture chooses the program and its arguments
+	return validateStrippedConfig(ctx, "ze-stripped", path)
+}
+
+// validateStrippedConfig runs `<binary> config validate path` and answers its
+// exit code and combined output. binary is one of the stripped builds the
+// functional set holds (internal/le/test/functional/binaries.go).
+func validateStrippedConfig(ctx context.Context, binary, path string) (validationResult, error) {
+	cmd := exec.CommandContext(ctx, binary, "config", "validate", path) //nolint:gosec // the fixture chooses the program and its arguments
 	output, err := cmd.CombinedOutput()
 	result := validationResult{
 		exitCode: 0,
@@ -65,5 +81,5 @@ func validateZEStrippedConfig(ctx context.Context, path string) (validationResul
 		return result, nil
 	}
 
-	return validationResult{}, fmt.Errorf("start ze-stripped config validate %q: %w", path, err)
+	return validationResult{}, fmt.Errorf("start %s config validate %q: %w", binary, path, err)
 }

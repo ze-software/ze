@@ -40,7 +40,7 @@ table. Read the spec, not this summary.
 
 Dependencies:
 
-- Refuse-by-default depends on `plan/release/fixes/spec-plugin-optional-dependency-refusal.md`
+- Refuse-by-default depends on spec-plugin-optional-dependency-refusal (closed)
   (status `ready`). That spec owns the "feature not compiled in reads as not
   configured" rows. Reuse its refusal; do not duplicate it.
 - YANG source coordinates with `spec-config-yang-when-unique-choice.md` and

@@ -46,6 +46,7 @@ answer, and `TestOnlyOneShellFileParsesTheFeatureManifest` refuses a third.
 | `internal/le/go/toolchain` | Feature tags for native builds and tests | `repofeaturetags.DaemonTags` |
 | `internal/test/runner` `TestBuildTags` | Tags for the functional-test daemon | `repofeaturetags.DaemonTags` |
 | `internal/le/plugin/imports` | Gated composition imports | `repofeaturetags.Gates` |
+| `internal/le/plugin/gatedtable` | The always-compiled gated-plugin table | `pluginimports.GateIndex`, over `repofeaturetags.Gates` |
 | `internal/le/arch/tier` | Disable-able package import checks | `repofeaturetags.Gates` |
 | `internal/le/repo/changed` | Which gated packages a change reaches | `repofeaturetags.Gates` |
 | `internal/le/go/staticcheck` | The Staticcheck flavor matrix | `repofeaturetags.Gates` |
@@ -89,8 +90,10 @@ feature is gated after. The registry work is the easy half.
    `register_<x>.go`, or an `*_infra.go` seam plus gated registration. Each one
    carries `//go:build ze_<x>`. A feature-only helper lives inside a gated file,
    or a no-feature build flags it U1000-unused.
-5. **Run `./le repo generate`.** It emits `all_ze_<x>.go` and regenerates
-   the derived tag lists from the manifest. Then run `./le verify worktree`.
+5. **Run `./le repo generate`.** It emits `all_ze_<x>.go`, regenerates
+   the derived tag lists from the manifest, and gives each plugin the gate now
+   covers its row in the gated-plugin table (see "Naming a plugin the build
+   left out"). Then run `./le verify worktree`.
 6. **Write present and absent build-tag tests**:
    `cmd/ze/hub/build_tag_<x>_present_test.go` (`//go:build ze_<x>`) and
    `_absent_test.go` (`//go:build !ze_<x>`). The absent test asserts through
@@ -254,6 +257,194 @@ blank-importing it, a hub-local nil-able hook carries the construction:
 `bng_infra.go` `bngRegister`, filled by the gated `register_l2tp.go` `init()`.
 It is the ssh and gNMI seam shape, carrying only generic values across the
 boundary: config trees, the engine handle, portal entries.
+
+## Naming a plugin the build left out
+
+A binary cannot name a plugin it was built without, because the plugin's
+registration is compiled out with the plugin. A refusal that has to say "rebuild
+with `ze_bgp`" therefore cannot ask the registry. It reads a generated table
+that no build tag removes:
+`internal/component/plugin/registry/gated_plugins_gen.go`.
+
+The table maps every gated plugin name to the build tags that must all be set
+for a binary to carry it. A nested gate gives a compound row, in the order the
+composition root's `//go:build` line states it: the enclosing gates sorted,
+then the plugin's own gate. `bgp-bmp` reads `ze_bgp`, `ze_bmp`, and
+`l2tp-auth-radius` reads `ze_l2tp`, `ze_radius`. An ungated plugin has no row,
+because every build carries it.
+
+`registry.GatedPluginTags(name)` is the lookup. It answers the tags and
+`true` for a gated plugin. It answers no tag and `false` for any other name: an
+ungated plugin, which `registry.Lookup` finds, or a name no build of this tree
+registers, such as an external plugin or a typo. A caller tells those two apart
+with `Lookup` and never prints a tag for either.
+
+`./le plugin gated-table write` generates the table, and `./le repo generate`
+runs it after `./le plugin imports write`. It joins two facts that are each
+declared once. The name and the package come from the registrations
+(`repoinventory.Plugins`), which le can see in full because it is built with
+every feature tag. The tags come from the manifest, through
+`pluginimports.GateIndex`. That type answers from the same function that writes
+the composition root's `//go:build` lines, so the table cannot disagree with
+what actually links a plugin. No row is written by hand.
+
+`./le plugin gated-table check` refuses a table that disagrees with the
+manifest or the registrations: a gate added without regenerating, a plugin
+moved under a gate, a new gated plugin. It is a stage of `./le verify current`
+and of `./le repo generated-check`. The table comes from the registrations
+compiled into the running le, so a plugin added in the same run that rewrites
+the composition root reaches the table on the next run, once le has been
+rebuilt with it. `TestGatedPluginTableMatchesManifest` closes that gap from
+the other side: it walks every manifest package whose source calls
+`registry.Register` and refuses one with no row.
+
+### Refusing a root whose plugin is compiled out
+
+The generator gates a plugin's package and its `yang/` package together, so a
+build without the plugin has no schema node for the roots it owns. `mrt { }` in
+a build without `ze_bgp` fails at parse, before any plugin check runs. The
+refusal still names the tag, because the table carries a second map: every
+config root a gated plugin owns (`Registration.ConfigRoots`) to the gated
+plugins that own it, generated from the same registrations.
+
+```
+line 1: unknown top-level keyword: mrt
+  mrt is configured by a plugin this build of ze was compiled without, so the keyword is unknown here
+  fix: rebuild ze with build tag ze_bgp added to its -tags list, or remove the mrt block from the config
+```
+
+`registry.GatedConfigRootRequirements(root)` answers the tag sets that carry
+an owner of the root. A root several plugins own keeps only the smallest sets:
+`bgp` is owned by `bgp` (`ze_bgp`) and by `bgp-bmp` (`ze_bgp`, `ze_bmp`), so the
+answer is `ze_bgp` alone. Disjoint sets are printed as alternatives.
+`config.TopLevelKeywordHint` writes the hint for the brace parser's top-level
+refusal (`parseRoot`) and for the set parser's root fields
+(`SetParser.unknownFieldHint`). A name no gated plugin owns, a typo for
+instance, keeps the closest-key hint (`UnknownKeywordHint`), and no tag is
+guessed. Only the top level asks: a nested unknown field is a typo inside a
+module that is present.
+
+<!-- source: internal/component/config/compiled_out_root.go -- TopLevelKeywordHint -->
+<!-- source: internal/component/plugin/registry/gated_plugins.go -- GatedConfigRootRequirements -->
+<!-- source: internal/le/plugin/gatedtable/gatedtable.go -- renderConfigRoots -->
+
+### Refusing a setting whose provider is compiled out
+
+A plugin can depend softly on another one: the build without the provider
+still runs the owner, and refuses only the setting that needs the provider.
+The owner declares that setting as a `ConfigNeed` on its registration, beside
+the `OptionalDependencies` entry that names the provider
+(`plugin-system.md`, "Registration fields").
+
+The same need decides whether the provider is pulled where it is compiled in:
+`registry.ResolveDependencies` pulls an optional provider a need lists only
+when the config holds that need, judged by the same evaluator
+(`config.ConfigNeedHolds`). So one declaration drives the pull, the startup
+order and the refusal, and flow export with enrichment off never starts the
+BGP RIB (`plugin-system.md`, "Dependencies").
+
+A need's path may cross a YANG list: the list keyword is followed by
+`registry.AnyEntry` (`*`), and the need holds when any entry carries the value.
+The BGP-LS exporter uses it for `bgp-ls-export domain * source`, so a domain
+naming `isis` is refused in a build without `ze_isis`, and pulls IS-IS in a
+build with it, only while some domain names it.
+
+The config component judges every declared need in `refuseAbsentOptionalProviders`,
+and both doors a config passes call it: `LoadConfig` at boot and at every
+reload, and `VerifyPluginConfigMapTransition` at `ze config validate`, editor
+commit and API commit. The config is lowered for the check only when some
+compiled-in registration declares a need.
+
+When the setting is in the config and no provider of the need is registered,
+the config is refused before any plugin starts, with an error that unwraps to
+`ErrAbsentOptionalProvider`:
+
+```
+config: "flow-export enrichment bgp true" needs plugin bgp-rib, and this build does not include it
+  flow-export cannot act on this setting without it, so ze refuses the config rather than run a setting that does nothing
+  fix: rebuild ze with build tag ze_bgp added to its -tags list, or remove "flow-export enrichment bgp true" from the config
+```
+
+| Provider | What the fix line names |
+|----------|-------------------------|
+| One gated provider | Its tag, from `GatedPluginTags` |
+| A provider under a nested gate | Every tag it needs: `build tags ze_bgp and ze_bmp` |
+| Any-of providers | Each provider as an alternative with its own tag: `build tag ze_flowexport, or with build tag ze_trafficusage` |
+| A provider no gate names and the build does not register | No tag: a line says no build tag adds it, and the fix is to remove the setting |
+
+The check is about the build only. One provider of an any-of need compiled in
+meets it even when the config does not configure that provider: an
+unconfigured flow source stays the doctor warning it is today. An any-of need
+also pulls none of its providers when it holds: the providers are
+alternatives, and the one the operator configured loads from its own config
+root (`ConfigNeed.PullsProvider` in `internal/component/plugin/registry`). A node that is
+absent or of another shape means the need does not hold. A declared need with
+no config to judge refuses with `ErrConfigNeedUnevaluated` rather than pass.
+
+<!-- source: internal/component/config/optional_provider.go -- refuseAbsentOptionalProviders, appendHeldSettings, leafCarries, unmetNeedMessage -->
+<!-- source: internal/component/plugin/registry/config_need.go -- ConfigNeed.PullsProvider, optionalProviderPulled -->
+<!-- source: internal/le/plugin/gatedtable/gatedtable.go -- Derive, Check, Write -->
+<!-- source: internal/le/plugin/imports/pluginimports.go -- GateIndex, LoadGateIndex -->
+<!-- source: internal/component/plugin/registry/gated_plugins.go -- GatedPluginTags -->
+
+## Declaring a cross-gate coupling
+
+A plugin that consumes something only a plugin under another gate produces is
+coupled to it. A build without the producer's gate still runs the consumer,
+which then receives nothing and says nothing. Flow export's BGP enrichment was
+the case that found it: it subscribed to `ribevents.BestChange`, which only
+`bgp-rib` emits, and a build without `ze_bgp` left the AS fields empty with no
+log line.
+
+Every such coupling carries an edge on a registration, chosen by what config
+makes the consumer need:
+
+| The consumer | Edge | What a build without the producer does |
+|--------------|------|----------------------------------------|
+| Depends on the producer's output when a setting holds | `OptionalDependencies` plus a `ConfigNeeds` entry naming the setting | Refuses that setting, naming the tag (see "Refusing a setting whose provider is compiled out"); a full build pulls the provider only while the setting holds |
+| Only listens, and works without it | `StartAfter` | Runs; the edge orders the pair when both are selected and never loads the producer |
+| Cannot work at all without it | `Dependencies` | Refuses the consumer on every load path, naming the plugin, the dependency and the tag |
+
+There is no allowlist. A benign coupling declares `StartAfter`, which is the
+statement that the consumer works alone.
+
+`./le plugin coupling check` finds the couplings that carry no edge. It parses
+every shipped Go file under `cmd/`, `internal/` and `pkg/` (not `internal/le`,
+not `internal/test`, no `_test.go`), resolves each file's import aliases, and
+records four shapes:
+
+| Shape | Producer | Consumer |
+|-------|----------|----------|
+| `event` | `Handle.Emit` on a package-level handle from `events.Register` or `events.RegisterSignal` | `Handle.Subscribe` on the same handle |
+| `registration` | The caller of `pkg.Register*(key, ...)` or `pkg.MustRegister*(key, ...)` into a package a plugin owns | The plugin that owns that package, per key |
+| `subscription` | The plugin that owns the package | The caller of `pkg.Subscribe*` into it |
+| `seam` | The caller of `pkg.Set<X>` in a package no plugin owns | The caller of `pkg.Get<X>` in the same package |
+
+A use belongs to the plugin whose registering directory is the longest prefix
+of the file's directory. The use is a coupling when no producer of the same
+item needs only build tags the consumer's own build carries, and no producer
+is the consumer itself. Any declared edge between the consumer and one of the
+producing plugins satisfies it, in either direction: a relationship the
+producer already declares toward the consumer states the coupling and orders
+the pair, and a second edge back would be a cycle. Producing code outside every
+plugin's directory stands for each plugin built under exactly its gates, so the
+VPP backends under `internal/plugins/traffic/vpp` count as `vpp`.
+
+Two results do not fail the check, and the report lists both. A coupling whose
+producer is code outside every plugin, such as the L2TP subsystem emitting
+`l2tpevents.SessionUp`, is listed as a note: no edge can name a subsystem. A
+use taken by code outside every plugin's directory is unjudged, because no
+registration could declare its edge.
+
+The check reads what it can resolve statically. A text command dispatched as a
+string (the ExaBGP bridge's `send bgp ...`, the DDoS FlowSpec responder), a
+namespace subscribed by name, and a handle reached through a local variable are
+not seen; such couplings are declared from their own evidence. The stage runs
+in the native verification after `plugin gated-table check`.
+
+<!-- source: internal/le/plugin/coupling/coupling.go -- Check, judge, couplingOf, linked, providersOf -->
+<!-- source: internal/le/plugin/coupling/scan.go -- scanTree, recordHandleCall, recordPackageCall, recordSeamCall -->
+<!-- source: internal/le/verify/engine/stages.go -- fullStages -->
 
 ## What stays ungated on purpose
 

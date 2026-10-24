@@ -27,11 +27,15 @@ func init() {
 	coreCos.RegisterProfileParser(parseProfiles)
 
 	reg := registry.Registration{
-		Name:                    Name,
-		Description:             "802.1p class-of-service profile definitions",
-		Features:                "yang",
-		YANG:                    yang.ZeCosConfYANG,
-		ConfigRoots:             []string{configRootClassOfService},
+		Name:        Name,
+		Description: "802.1p class-of-service profile definitions",
+		Features:    "yang",
+		YANG:        yang.ZeCosConfYANG,
+		ConfigRoots: []string{configRootClassOfService},
+		// StartAfter, never a load: cos listens for the RADIUS CoS change
+		// l2tp-auth-radius emits, and applies its static profiles without it
+		// (./le plugin coupling check).
+		StartAfter:              []string{"l2tp-auth-radius"},
 		InProcessConfigVerifier: verifyCoSConfig,
 		RunEngine:               runPlugin,
 		Commands:                commandDecls(),

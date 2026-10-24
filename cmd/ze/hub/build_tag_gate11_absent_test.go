@@ -1,15 +1,15 @@
-// Design: ai/rules/plugins.md -- ze_bmp/ze_mrt symbol-drop + dependent-gate proof
+// Design: ai/rules/plugins.md -- ze_bgp/ze_bmp symbol-drop + dependent-gate proof
 
-//go:build ze_bmp && ze_mrt
+//go:build ze_bgp && ze_bmp
 
 package hub
 
 // VALIDATES: the full AC-2 tag matrix of spec feature-gate-11 -- for each build
 // in the matrix, `go tool nm` shows exactly the expected symbol groups:
-//   msgtype   present iff ze_bgp || ze_mrt (DCE on the shared leaf)
-//   internal/mrt (format library) present iff ze_mrt
+//   msgtype   present iff ze_bgp (DCE on the shared leaf)
+//   internal/mrt (format library) present iff ze_bgp
 //   bmp       present iff ze_bgp && ze_bmp (the DEPENDENT gate)
-//   mrt plugin present iff ze_mrt
+//   mrt plugin present iff ze_bgp (MRT is a BGP plugin with no tag of its own)
 //   bgp engine present iff ze_bgp (ze_bmp alone must NOT drag it in)
 // The all-on row asserts EVERY individual needle matches, so a renamed package
 // or a misspelled needle turns the test red instead of silently matching
@@ -21,16 +21,19 @@ package hub
 // requesting ze_bmp pulls in the whole internal/component/bgp subtree; or
 // where a needle typo defuses the absence assertions.
 //
-// The file is constrained to the full-tag unit pass (ze_bmp && ze_mrt via
-// ZE_FEATURES) so the six `go build` link jobs run once per verify, not again
+// The file is constrained to the full-tag unit pass (ze_bgp && ze_bmp via
+// ZE_FEATURES) so the five `go build` link jobs run once per verify, not again
 // in the bare-core pass. The binaries it builds get their tags from the table
 // below, independent of this file's own constraint.
 //
 // TestBuildTag_Gate11_AbsentBinaryDropsSymbols is renamed to
 // TestBuildTag_Gate11_SymbolMatrix and strictly strengthened: both of the old
 // builds and all their absence needles are retained (rows "bare ze_core" and
-// "ze_bmp without ze_bgp"), and four builds plus presence assertions are added
-// to cover the spec's full AC-2 matrix.
+// "ze_bmp without ze_bgp"), and builds plus presence assertions are added to
+// cover the spec's full AC-2 matrix. When MRT moved under ze_bgp (spec
+// plugin-optional-dependency-refusal), the "bgp-and-mrt" row became the
+// "bgp-only" row, and the "mrt-only" row became "retired-mrt-tag": the old
+// ze_mrt tag alone must link nothing of MRT or BGP.
 
 import (
 	"context"
@@ -58,10 +61,10 @@ func TestBuildTag_Gate11_SymbolMatrix(t *testing.T) {
 	// t.Skip(), and flags the parent as non-parallel while its subtests are.
 	t.Parallel()
 	// -short guard only; this test still runs in full verification
-	// (`./le verify current` passes no -short). It builds and links six
+	// (`./le verify current` passes no -short). It builds and links five
 	// ze binaries, so opt-in -short runs skip it for speed.
 	if testing.Short() {
-		t.Skip("builds six ze binaries (slow); skipped under -short")
+		t.Skip("builds five ze binaries (slow); skipped under -short")
 	}
 	// No meta-test guards the t-passing discipline below; the failure mode it
 	// prevents (parent Fatalf from a subtest goroutine skipping later rows)
@@ -112,8 +115,8 @@ func TestBuildTag_Gate11_SymbolMatrix(t *testing.T) {
 	}
 
 	// The AC-2 matrix (spec feature-gate-11), plus the AC-4 dependent-gate row.
-	// Row 1 uses the three gate tags directly rather than the full ZE_FEATURES
-	// set: the four symbol groups only depend on ze_bgp/ze_bmp/ze_mrt.
+	// Row 1 uses the two gate tags directly rather than the full ZE_FEATURES
+	// set: the symbol groups only depend on ze_bgp/ze_bmp.
 	matrix := []struct {
 		name        string
 		tags        string
@@ -126,33 +129,24 @@ func TestBuildTag_Gate11_SymbolMatrix(t *testing.T) {
 			// in this build (all five packages are linked), so a stale needle
 			// in a multi-needle group cannot hide behind its sibling.
 			name:        "all-on",
-			tags:        "ze_core,ze_bgp,ze_bmp,ze_mrt",
+			tags:        "ze_core,ze_bgp,ze_bmp",
 			present:     []string{"msgtype", "internal-mrt", "bmp", "mrt-plugin", "bgp-engine"},
 			needleGuard: true,
 		},
 		{
+			// MRT is a BGP plugin under ze_bgp: a BGP build carries it and
+			// its format library, and still drops the dependent BMP gate.
 			name:    "bgp-only",
 			tags:    "ze_core,ze_bgp",
-			present: []string{"msgtype", "bgp-engine"},
-			absent:  []string{"internal-mrt", "bmp", "mrt-plugin"},
-		},
-		{
-			name:    "bgp-and-mrt",
-			tags:    "ze_core,ze_bgp,ze_mrt",
 			present: []string{"msgtype", "internal-mrt", "mrt-plugin", "bgp-engine"},
 			absent:  []string{"bmp"},
 		},
 		{
-			// msgtype is deliberately in NEITHER list here: MRT uses only the
-			// MessageType type and the TypeUPDATE constant
-			// (internal/plugins/mrt/component.go), which inline away, so an
-			// mrt-only build links zero msgtype symbols. Presence of the group
-			// is still guarded by the all-on and bgp-only rows (the engine
-			// calls msgtype.MessageType.String()).
-			name:    "mrt-only",
-			tags:    "ze_core,ze_mrt",
-			present: []string{"internal-mrt", "mrt-plugin"},
-			absent:  []string{"bmp", "bgp-engine"},
+			// ze_mrt is no longer a gate: setting it without ze_bgp links
+			// neither MRT nor the engine whose data MRT records.
+			name:   "retired-mrt-tag",
+			tags:   "ze_core,ze_mrt",
+			absent: []string{"msgtype", "internal-mrt", "bmp", "mrt-plugin", "bgp-engine"},
 		},
 		{
 			name:   "bare-core",
@@ -170,7 +164,7 @@ func TestBuildTag_Gate11_SymbolMatrix(t *testing.T) {
 
 	for _, row := range matrix {
 		t.Run(row.name, func(t *testing.T) {
-			// The six builds are independent; run them concurrently so the
+			// The builds are independent; run them concurrently so the
 			// wall-clock cost is the slowest single link job, not the sum.
 			t.Parallel()
 			syms := symbols(t, build(t, row.tags, "ze-"+row.name))

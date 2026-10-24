@@ -339,19 +339,26 @@ func runValidation(input, path string) *validationResult {
 		}
 	}
 
-	// Generic plugin config verification.
+	// Generic plugin config verification. VerifyPluginConfig also runs the
+	// loader-level plugin extraction (ExtractPluginsFromTree), the same static
+	// structural checks the boot path enforces (internal plugin requires `use`,
+	// duplicate plugin names across internal/external, reserved underscore
+	// prefix, run/use mutual exclusion), and answers its failure once as a
+	// *config.PluginExtractionError, reported here under its own code. Skipping
+	// it gave false confidence: configs that fail at boot were passing
+	// validation. A failure relayed from the bgp section's extractor is skipped:
+	// it is the bgp tree failing to resolve, which the bgp block below reports
+	// from infra.ResolveBGPTree whenever a bgp {} block is present, the only
+	// case in which that extractor runs.
 	for _, verr := range config.VerifyPluginConfig(tree) {
-		result.addError("config-plugin-verify", verr.Error())
-	}
-
-	// Loader-level plugin extraction checks. ExtractPluginsFromTree runs the
-	// same static structural checks the boot path enforces (internal plugin
-	// requires `use`, duplicate plugin names across internal/external, reserved
-	// underscore prefix, run/use mutual exclusion). It operates only on the
-	// parsed tree (plus side-effect-free registered extractors), so it is safe
-	// to run offline without a booted runtime. Skipping it gave false
-	// confidence: configs that fail at boot were passing validation.
-	if _, extractErr := config.ExtractPluginsFromTree(tree); extractErr != nil {
+		var extractErr *config.PluginExtractionError
+		if !errors.As(verr, &extractErr) {
+			result.addError("config-plugin-verify", verr.Error())
+			continue
+		}
+		if extractErr.Section == string(config.ConfigTypeBGP) {
+			continue
+		}
 		result.addError("config-plugin-extract", extractErr.Error())
 	}
 

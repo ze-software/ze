@@ -109,6 +109,7 @@ ze-cmd:show-warnings
 ze-config:archive-trigger
 ze-config:data-backup
 ze-config:data-restore
+ze-config:show-config-running
 ze-crashes:show-crashes
 ze-ddos:show-flowspec
 ze-ddos:show-incidents

@@ -14,6 +14,8 @@
 #   - internal/le/plugin/imports gates each package and its YANG package
 #   - internal/le/arch/tier proves no always-on package imports a gated package
 #   - internal/le/repo/changed and internal/le/go/staticcheck scope the gates
+#   - internal/le/plugin/gatedtable writes the always-compiled table of gated
+#     plugin names and the tags that carry them
 # feature-tags is the shell one, for the bootstrap that has no le binary yet:
 # the root ze and le launchers and the two Docker images source it.
 #
@@ -25,9 +27,9 @@
 # their daemon tags through the same Go parser.
 #
 # To add a feature gate, add each package that must disappear below, create its
-# gated registration or seam, then run `./le repo feature-tags write` and
-# `./le plugin imports write`. The full procedure is in
-# ai/rules/feature-gate-registration.md.
+# gated registration or seam, then run `./le repo generate`, which rewrites the
+# derived tag lists, the composition root and the gated-plugin table. The full
+# procedure is in docs/architecture/plugin/feature-gates.md.
 #
 # Lines are "<tag> <pkg>"; '#' comments and blank lines are ignored. Reuse the
 # same tag for feature-owned sidecar packages such as command schema. The
@@ -168,8 +170,11 @@ ze_bfd     internal/component/bfd/cmd
 # per-plugin VPP backend (fib, firewall, iface, traffic, static) plus the IKE
 # IPsec vpp backend (source-tagged files in ike/dataplane and plugins/static;
 # registry fallbacks keep netlink/kernel/xfrm behavior identical). Dropping the
-# tag unlinks vendored govpp (~46k LOC) for netlink-only deployments; a config
-# selecting a vpp backend or the `vpp {}` component root is rejected.
+# tag unlinks vendored govpp (~46k LOC) for netlink-only deployments. Without
+# it the `vpp {}` component root fails at parse, and `backend vpp` under
+# `traffic control`, `interface` or `firewall` is refused at validate, commit
+# and boot, naming ze_vpp: each of those owners declares a config need on its
+# optional edge to the vpp component (registry.ConfigNeed).
 ze_vpp     internal/component/vpp
 ze_vpp     internal/plugins/fib/vpp
 ze_vpp     internal/plugins/firewall/vpp
@@ -224,14 +229,17 @@ ze_l2tp    internal/component/l2tp/plugins/shaper
 ze_radius  internal/component/radius
 ze_radius  internal/component/l2tp/plugins/authradius
 
-# ze_mrt -- MRT routing-information export (RFC 6396). A standalone top-level
-# plugin; nothing always-on imports it since its reactor bridges are
+# MRT routing-information export (RFC 6396) is a BGP plugin under ze_bgp, with
+# no tag of its own: every MRT stream is BGP data, and its TABLE_DUMP_V2 RIB
+# dump is filled only by bgp-rib (registry.SetRIBDumpCallback). A build without
+# BGP carries no MRT, so `mrt {}` there is refused at parse (an unknown
+# top-level keyword, as `bgp {}` is) rather than loading a recorder with nothing
+# to record. Its reactor bridges stay
 # self-registered into the plugin-registry seam (registry.SetMRTMessageCallback /
-# SetMRTPeerCallback) and read by bgp/config. Independent of ze_bgp: MRT loads
-# inert without a BGP source. Its msgtype / internal/mrt dependencies are pure
-# libraries dropped by dead-code elimination once neither MRT nor the BGP engine
-# references them (feature-gate-11).
-ze_mrt     internal/plugins/mrt
+# SetMRTPeerCallback) and read by bgp/config. Its msgtype / internal/mrt
+# dependencies are pure libraries dropped by dead-code elimination once the BGP
+# engine is compiled out (feature-gate-11).
+ze_bgp     internal/plugins/mrt
 
 # ze_bgp -- the BGP engine, codec and every BGP plugin. The largest gate: the
 # whole internal/component/bgp subtree plus flowspec-firewall, which translates

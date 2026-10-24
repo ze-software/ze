@@ -1,7 +1,7 @@
 # 23 Run the plugin optional-dependency refusal, so refuse-by-default can close
 
 Owner order (2026-10-24): implement
-`plan/release/fixes/spec-plugin-optional-dependency-refusal.md` (status `ready`)
+spec-plugin-optional-dependency-refusal (status `ready` then; now closed)
 in its own fresh session, now.
 
 ## Why it runs now
@@ -30,7 +30,7 @@ first two are refuse-by-default's: they call the refusal this spec provides.
 | Step | Action |
 |------|--------|
 | 1 | `git fetch`; `git rev-list --count HEAD..@{u}` must be 0 |
-| 2 | `./le spec claim spec plan/release/fixes/spec-plugin-optional-dependency-refusal.md`, then `/ze-implement` through subagents |
+| 2 | claim spec-plugin-optional-dependency-refusal, then `/ze-implement` through subagents |
 | 3 | Re-verify every producer at HEAD first: refuse-by-default changed nearby code, uncommitted at the time of writing |
 | 4 | When it lands, tell session 6b51c217 (or the session that closes refuse-by-default) the name of the not-built error, so `cos.Resolve` and `appendDataPlaneWriter` call it |
 

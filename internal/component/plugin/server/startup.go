@@ -99,7 +99,23 @@ func (s *Server) runPluginStartup() {
 	// Phase 1: Auto-load plugins for config paths (e.g., bgp, interface, fib).
 	// Config-path plugins run first because they establish infrastructure
 	// (like the BGP reactor) that explicit and family plugins depend on.
-	autoLoadConfigPaths := s.getConfigPathPlugins()
+	//
+	// Every boot auto-load set resolves its hard dependencies before the first
+	// plugin starts. A plugin whose Registration.Dependencies names a plugin
+	// this build lacks never works, so boot refuses with the plugin, the
+	// dependency and the build tag rather than starting it alone. The event and
+	// send type sets and the unclaimed families start after the explicit
+	// plugins, so they are resolved here too: a refusal found only in phase 3
+	// or later would leave the earlier phases' plugins running.
+	autoLoadConfigPaths, err := s.getConfigPathPlugins()
+	if err != nil {
+		s.refuseBootAutoLoad("config path", err)
+		return
+	}
+	if err := s.refuseUnresolvableDeferredAutoLoad(); err != nil {
+		s.refuseBootAutoLoad("family, custom event or send type", err)
+		return
+	}
 	autoCount := len(autoLoadConfigPaths)
 	configPhase, explicitPhase, err := startupSelectedPhases(autoLoadConfigPaths, s.config.Plugins)
 	if err != nil {
@@ -139,7 +155,11 @@ func (s *Server) runPluginStartup() {
 
 	// Phase 3: Auto-load plugins for unclaimed families
 	// Now registry has families from explicit plugins - use family-based check
-	autoLoadFamilies := s.getUnclaimedFamilyPlugins()
+	autoLoadFamilies, err := s.getUnclaimedFamilyPlugins()
+	if err != nil {
+		s.refuseBootAutoLoad("family", err)
+		return
+	}
 	if len(autoLoadFamilies) > 0 {
 		logger().Debug("auto-loading plugins for unclaimed families",
 			"count", len(autoLoadFamilies))
@@ -160,7 +180,11 @@ func (s *Server) runPluginStartup() {
 
 	// Phase 4: Auto-load plugins for custom event types
 	// Config has receive [ update-rpki ] but no explicit decorator plugin configured.
-	autoLoadEvents := s.getUnclaimedEventTypePlugins()
+	autoLoadEvents, err := s.getUnclaimedEventTypePlugins()
+	if err != nil {
+		s.refuseBootAutoLoad("custom event type", err)
+		return
+	}
 	if len(autoLoadEvents) > 0 {
 		logger().Debug("auto-loading plugins for custom event types",
 			"count", len(autoLoadEvents))
@@ -181,7 +205,11 @@ func (s *Server) runPluginStartup() {
 
 	// Phase 5: Auto-load plugins for custom send types
 	// Config has send [ enhanced-refresh ] but no explicit route-refresh plugin configured.
-	autoLoadSendTypes := s.getUnclaimedSendTypePlugins()
+	autoLoadSendTypes, err := s.getUnclaimedSendTypePlugins()
+	if err != nil {
+		s.refuseBootAutoLoad("custom send type", err)
+		return
+	}
 	if len(autoLoadSendTypes) > 0 {
 		logger().Debug("auto-loading plugins for custom send types",
 			"count", len(autoLoadSendTypes))
@@ -201,6 +229,19 @@ func (s *Server) runPluginStartup() {
 	}
 
 	// Signal that all plugin phases are complete
+	s.signalStartupComplete()
+}
+
+// refuseBootAutoLoad ends startup because the auto-load set for trigger (the
+// config path, a family, or a custom event or send type) cannot resolve its
+// dependencies. The error is the operator's message as ResolveDependencies
+// wrote it, so it is the startup error unwrapped: for a missing hard
+// dependency it already names the plugin, the dependency, the build tag and
+// the fix.
+func (s *Server) refuseBootAutoLoad(trigger string, err error) {
+	logger().Error("boot auto-load refused: its plugin dependencies do not resolve",
+		"trigger", trigger, "error", err)
+	s.startupErr = err
 	s.signalStartupComplete()
 }
 

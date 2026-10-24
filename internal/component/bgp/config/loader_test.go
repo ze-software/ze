@@ -1103,7 +1103,7 @@ func TestExpandDependencies(t *testing.T) {
 		{Name: "plugin-a", Internal: true, Encoder: "json"},
 	}
 
-	result, err := config.ExpandDependencies(plugins)
+	result, err := config.ExpandDependencies(plugins, config.ConfigNeedHolds(map[string]any{}))
 	require.NoError(t, err)
 	require.Len(t, result, 2)
 
@@ -1149,7 +1149,7 @@ func TestExpandDependencies_NoDuplicate(t *testing.T) {
 		{Name: "plugin-b", Internal: true, Encoder: "json"},
 	}
 
-	result, err := config.ExpandDependencies(plugins)
+	result, err := config.ExpandDependencies(plugins, config.ConfigNeedHolds(map[string]any{}))
 	require.NoError(t, err)
 	require.Len(t, result, 2, "should not duplicate plugin-b")
 }
@@ -1549,7 +1549,7 @@ func TestExpandDependenciesResolvesUseLabel(t *testing.T) {
 				{Name: "rs", Internal: true, Run: tt.run, Encoder: "json"},
 			}
 
-			result, err := config.ExpandDependencies(plugins)
+			result, err := config.ExpandDependencies(plugins, config.ConfigNeedHolds(map[string]any{}))
 			require.NoError(t, err)
 
 			names := make([]string, 0, len(result))

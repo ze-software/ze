@@ -102,4 +102,6 @@ import (
 	_ "github.com/ze-software/ze/internal/component/bgp/reactor/filter/yang"
 	_ "github.com/ze-software/ze/internal/component/bgp/yang"
 	_ "github.com/ze-software/ze/internal/plugins/flowspec-firewall"
+	_ "github.com/ze-software/ze/internal/plugins/mrt"
+	_ "github.com/ze-software/ze/internal/plugins/mrt/yang"
 )

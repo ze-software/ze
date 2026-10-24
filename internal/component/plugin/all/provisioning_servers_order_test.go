@@ -6,6 +6,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 )
 
@@ -34,7 +35,7 @@ func startupTierOf(tiers [][]string, name string) int {
 func TestProvisioningServersStartAfterInterface(t *testing.T) {
 	for _, server := range provisioningServers {
 		t.Run(server, func(t *testing.T) {
-			names, err := registry.ResolveDependencies([]string{server, "interface"}, nil)
+			names, err := registry.ResolveDependencies([]string{server, "interface"}, nil, config.ConfigNeedHolds(map[string]any{}))
 			if err != nil {
 				t.Fatalf("ResolveDependencies: %v", err)
 			}
@@ -63,7 +64,7 @@ func TestProvisioningServersStartAfterInterface(t *testing.T) {
 func TestProvisioningServersDoNotRequireInterface(t *testing.T) {
 	for _, server := range provisioningServers {
 		t.Run(server, func(t *testing.T) {
-			names, err := registry.ResolveDependencies([]string{server}, nil)
+			names, err := registry.ResolveDependencies([]string{server}, nil, config.ConfigNeedHolds(map[string]any{}))
 			if err != nil {
 				t.Fatalf("ResolveDependencies: %v", err)
 			}

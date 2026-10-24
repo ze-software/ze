@@ -25,7 +25,12 @@ func checkFeatureSource(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDiagno
 	if ad == nil {
 		return nil
 	}
-	if enabled, ok := ad.Get("enabled"); !ok || enabled != "true" {
+	enabled, ok := ad.Get(enabledLeaf)
+	// refuse-by-default: guards enabledLeaf -- an absent leaf holds its YANG default false (ze-anomaly-detect-conf.yang), detection off, which needs no flow source
+	if !ok {
+		return nil
+	}
+	if enabled != "true" {
 		return nil
 	}
 	if tree.GetContainerPath("traffic/usage") != nil || tree.GetContainer("flow-export") != nil {

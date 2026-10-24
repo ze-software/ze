@@ -664,7 +664,7 @@ func (s *zeConfigServiceImpl) requireWriteAccess(ctx context.Context, command st
 func (s *zeConfigServiceImpl) GetRunningConfig(ctx context.Context, _ *zepb.Empty) (*zepb.ConfigResponse, error) {
 	result, err := s.engine.Execute(ctx, &api.ExecuteRequest{
 		Caller:  callerIdentityFromContext(ctx),
-		Command: "show config dump",
+		Command: "show config running",
 	})
 	if errors.Is(err, api.ErrUnauthorized) {
 		return nil, status.Error(codes.PermissionDenied, result.Error)
@@ -672,19 +672,19 @@ func (s *zeConfigServiceImpl) GetRunningConfig(ctx context.Context, _ *zepb.Empt
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
+	// A refusal (no running configuration yet) carries no Data, and marshaling
+	// it would answer the config "null" with an OK status.
+	if result.Status == api.StatusError {
+		return nil, status.Error(codes.Unavailable, result.Error)
+	}
 	b, jsonErr := json.Marshal(result.Data)
 	if jsonErr != nil {
 		return nil, status.Error(codes.Internal, jsonErr.Error())
 	}
 	completeAfterGRPCPayload(ctx, result)
-	// The running config arrives as typed Data on the unified envelope. It may
-	// marshal to a bare JSON string literal (raw config text) or to a JSON
-	// object; unwrap the string literal so the config text is returned verbatim,
-	// matching the prior marshal-then-reparse behavior.
-	var str string
-	if json.Unmarshal(b, &str) == nil {
-		return &zepb.ConfigResponse{Config: str}, nil
-	}
+	// `show config running` answers the daemon's applied tree as one JSON
+	// object (config/cli handleShowConfigRunning), and that object is the
+	// config this RPC returns.
 	return &zepb.ConfigResponse{Config: string(b)}, nil
 }
 

@@ -91,8 +91,9 @@ const functionalWeb = "web"
 // on its basename, so these are what a test execs through PATH and what ZE_BIN
 // and ZE_STRIPPED_BIN name.
 const (
-	zeName         = "ze"
-	zeStrippedName = "ze-stripped"
+	zeName             = "ze"
+	zeStrippedName     = "ze-stripped"
+	zeStrippedFlowName = "ze-stripped-flow"
 )
 
 // The environment every child is given.
@@ -102,7 +103,10 @@ const (
 	inVMKey        = "ZE_QEMU"
 	zeBinKey       = "ZE_BIN"
 	strippedBinKey = "ZE_STRIPPED_BIN"
-	pathKey        = "PATH"
+	// strippedFlowBinKey names ze-stripped-flow, the third daemon
+	// testfunctional.PrepareGuest builds (the flow features without ze_bgp).
+	strippedFlowBinKey = "ZE_STRIPPED_FLOW_BIN"
+	pathKey            = "PATH"
 )
 
 // The needs-linux selection.
@@ -430,11 +434,12 @@ type allTestsRun struct {
 	Workspace string
 	// BinDir is the VM-local directory the binary shim is built in.
 	BinDir string
-	// The two daemon binaries, as the host named them. A relative path is
+	// The three daemon binaries, as the host named them. A relative path is
 	// resolved against the workspace, which is how the native host action
 	// passes them. The harness is this run's own le (guestLeLink).
-	ZeBin       string
-	StrippedBin string
+	ZeBin           string
+	StrippedBin     string
+	StrippedFlowBin string
 	// Skip names the suites this run must not start.
 	Skip []string
 	// LinuxOnly runs only the .ci tests marked `option=needs-linux`. It is the
@@ -473,16 +478,17 @@ type allTestsRun struct {
 // exports, and defaults the rest.
 func newAllTests() *allTestsRun {
 	return &allTestsRun{
-		Workspace:   GuestWorkspace,
-		BinDir:      guestBinDir,
-		ZeBin:       envOr(zeBinKey, "bin/ze"),
-		StrippedBin: envOr("ZE_STRIPPED_BIN", "bin/ze-stripped"),
-		Skip:        splitList(envOr("ZE_QEMU_SKIP_SUITES", defaultSkip)),
-		LinuxOnly:   os.Getenv(linuxOnlyKey) == linuxOnlyValue,
-		Parallel:    envOr("ZE_QEMU_PARALLEL", defaultParallel),
-		Timeout:     envOr("ZE_QEMU_SUITE_TIMEOUT", defaultTimeout),
-		BuildCache:  os.Getenv("GOCACHE"),
-		ModuleCache: os.Getenv("GOMODCACHE"),
+		Workspace:       GuestWorkspace,
+		BinDir:          guestBinDir,
+		ZeBin:           envOr(zeBinKey, "bin/ze"),
+		StrippedBin:     envOr("ZE_STRIPPED_BIN", "bin/ze-stripped"),
+		StrippedFlowBin: envOr(strippedFlowBinKey, "bin/"+zeStrippedFlowName),
+		Skip:            splitList(envOr("ZE_QEMU_SKIP_SUITES", defaultSkip)),
+		LinuxOnly:       os.Getenv(linuxOnlyKey) == linuxOnlyValue,
+		Parallel:        envOr("ZE_QEMU_PARALLEL", defaultParallel),
+		Timeout:         envOr("ZE_QEMU_SUITE_TIMEOUT", defaultTimeout),
+		BuildCache:      os.Getenv("GOCACHE"),
+		ModuleCache:     os.Getenv("GOMODCACHE"),
 	}
 }
 
@@ -626,7 +632,7 @@ func (a *allTestsRun) verify() error {
 		return errors.New(tb.Err(ErrNotMounted).Str(": ").Str(a.Workspace).String())
 	}
 
-	for _, bin := range []string{a.ZeBin, a.StrippedBin} {
+	for _, bin := range []string{a.ZeBin, a.StrippedBin, a.StrippedFlowBin} {
 		path := a.workspacePath(bin)
 		info, err := os.Stat(path)
 		if err != nil || info.IsDir() || info.Mode().Perm()&0o111 == 0 {
@@ -780,8 +786,9 @@ func (a *allTestsRun) shim() error {
 		return err
 	}
 	for name, target := range map[string]string{
-		zeName:         a.workspacePath(a.ZeBin),
-		zeStrippedName: a.workspacePath(a.StrippedBin),
+		zeName:             a.workspacePath(a.ZeBin),
+		zeStrippedName:     a.workspacePath(a.StrippedBin),
+		zeStrippedFlowName: a.workspacePath(a.StrippedFlowBin),
 	} {
 		link := filepath.Join(a.BinDir, name)
 		if err := os.Remove(link); err != nil && !errors.Is(err, os.ErrNotExist) {

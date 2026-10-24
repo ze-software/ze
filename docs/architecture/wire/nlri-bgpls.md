@@ -474,6 +474,49 @@ A replacement which gives an existing cross-domain NLRI different attributes is
 also refused before replacing accepted state. The operator can assign distinct
 Instance-IDs when two native domains describe different routing universes.
 
+The exporter subscribes to every namespace a compiled-in plugin registers
+(`linkstateevents.Sources`): IS-IS publishes `isis` and OSPF publishes `ospf`,
+each from its own plugin, gated by `ze_isis` and `ze_ospf`. A `domain` entry
+whose `source` names one of the two in a build that left it out is refused at
+validate, commit and boot, naming the entry and the build tag:
+
+```
+config: "bgp-ls-export domain core source isis" needs plugin isis, and this build does not include it
+  bgp-ls-export cannot act on this setting without it, so ze refuses the config rather than run a setting that does nothing
+  fix: rebuild ze with build tag ze_isis added to its -tags list, or remove "bgp-ls-export domain core source isis" from the config
+```
+
+The refusal is the exporter's config need on `bgp-ls-export domain * source`,
+one per IGP, which crosses the `domain` list and holds when any entry names
+that source (`docs/architecture/plugin/plugin-system.md`, `ConfigNeeds`). In a
+build that carries the IGP, the same need pulls its plugin and orders it before
+the exporter, and only when some domain names it: a pulled IGP with no root of
+its own stays idle (IS-IS with no `net`, OSPF with no `ospf` block). `bgp-epe`
+is its own source and needs no protocol beyond BGP.
+
+Any other `source` value names a namespace no plugin in this build publishes,
+and is refused at the same doors (daemon boot and SIGHUP reload through
+`LoadConfig`, `ze config validate`, the editor commit) by an original-tree
+validator the exporter registers, naming the entry and the sources the build
+does publish. RSVP-TE registers no BGP-LS namespace in any build, so
+`source rsvp-te` meets this refusal rather than a build tag:
+
+```
+config: "bgp-ls-export domain core source rsvp-te" names a BGP-LS source that no plugin in this build publishes
+  the domain would map no native snapshot and export nothing, so ze refuses the config
+  sources this build publishes: bgp-epe, isis, ospf
+  fix: set the source of bgp-ls-export domain core to one of them, or remove that domain from the config
+```
+
+The validator accepts the value of each exporter config need even when its IGP
+is compiled out, so that case keeps the refusal above, which names the tag.
+<!-- source: internal/component/bgp/plugins/ls_export/export_source.go -- verifyDomainSources, unpublishedSourceError -->
+<!-- source: internal/component/config/tree_validators.go -- RegisterTreeValidator -->
+<!-- source: internal/component/bgp/plugins/ls_export/register.go -- sourceNeed -->
+<!-- source: internal/core/linkstateevents/events.go -- Sources -->
+<!-- source: internal/component/bgp/plugins/ls_export/export_plugin.go -- runTopologyExporter, verifyExporterConfig -->
+<!-- source: internal/component/bgp/plugins/ls_export/export_config.go -- parseExportConfig -->
+
 `bgp-epe` is a separate native producer for configured PeerNode SIDs. Its `srgb`
 container names a locally assigned SRGB using inclusive lower and upper label
 bounds; each `peer` assigns a persistent `sid-index` and optional weight.

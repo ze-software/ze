@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
@@ -38,11 +39,17 @@ func (s *lifecycleTestSpawner) GetProcessManager() any {
 	return s.pm
 }
 
+// holdsForEmptyConfig is the boot ConfigNeedHolds of a config that sets no
+// leaf any ConfigNeed reads. The startup tests describe their config by its
+// paths, families and types rather than by a tree, and none of them turns a
+// need on.
+var holdsForEmptyConfig = config.ConfigNeedHolds(map[string]any{})
+
 func newLifecycleStartupServer(t *testing.T) (*Server, *lifecycleTestSpawner) {
 	t.Helper()
 
 	serverCtx, cancel := context.WithCancel(context.Background())
-	s, err := NewServer(&ServerConfig{}, &mockReactor{})
+	s, err := NewServer(&ServerConfig{ConfigNeedHolds: holdsForEmptyConfig}, &mockReactor{})
 	require.NoError(t, err)
 	s.ctx, s.cancel = context.WithCancel(serverCtx)
 	t.Cleanup(func() {

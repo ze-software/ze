@@ -19,6 +19,10 @@ import (
 
 var eventBusPtr atomic.Pointer[ze.EventBus]
 
+// bgpPlugin is the registration name of the BGP subsystem, the engine an
+// enforcing responder announces its FlowSpec rules through.
+const bgpPlugin = "bgp"
+
 // activeResponder publishes the live responder to the in-process show handler
 // (show.go). Nil when the plugin is not configured/running.
 var activeResponder atomic.Pointer[responder]
@@ -38,7 +42,17 @@ func init() {
 		Features:    "yang",
 		YANG:        flowspecyang.ZeDdosFlowspecConfYANG,
 		ConfigRoots: []string{configRoot},
-		RunEngine:   runEngine,
+		// `response-level enforce` announces FlowSpec rules through the BGP
+		// engine (sdkDispatcher), so a build without the BGP subsystem refuses
+		// it. `alert` announces nothing (responder.onCharacterized), so it
+		// needs no BGP and is accepted in every build.
+		OptionalDependencies: []string{bgpPlugin},
+		ConfigNeeds: []registry.ConfigNeed{{
+			Path:      []string{"ddos", "flowspec", "response-level"},
+			Value:     responseEnforce,
+			Providers: []string{bgpPlugin},
+		}},
+		RunEngine: runEngine,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},

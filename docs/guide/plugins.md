@@ -1374,8 +1374,15 @@ Dependencies are declared in the plugin's registration, not in config. The engin
 
 | Kind | Field | Behavior if missing |
 |------|-------|----------------------|
-| Hard | `Dependencies` | Startup fails with `ErrMissingDependency`. |
+| Hard | `Dependencies` | Ze refuses to start, before any plugin runs, at boot, at a config reload and for an explicit `plugin {}` block. `ze config validate` and a commit refuse the same config with the same message, so a config that validates is one the daemon can start. The message names the plugin, the dependency and the build tags to rebuild with (or says the name is unknown to this build), and ends with the fix on its own line. |
 | Optional | `OptionalDependencies` | Silently skipped. Plugin owner handles runtime absence (typically a one-shot WARN + feature disabled). |
+
+A block whose whole plugin was compiled out of the binary, such as `mrt { }`
+or `bgp { }` in a build without `ze_bgp`, fails at parse, because the build has
+no schema for it. The refusal says the keyword belongs to a plugin this build
+lacks and names the build tag to rebuild with, on a `fix:` line. A keyword no
+build knows (a typo) keeps the closest-keyword hint.
+<!-- source: internal/component/config/compiled_out_root.go -- TopLevelKeywordHint -->
 
 `StartAfter` is separate from either kind of dependency. It orders two plugins
 only when both are already selected and never activates its target. BFD starts

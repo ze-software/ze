@@ -1343,8 +1343,14 @@ single test  →  single package  →  component group  →  ./le verify current
 
 #### Test binaries are isolated from the development binary
 
-Every native functional action builds `ze`, `le test`, and `ze-stripped` into a
-session-owned temporary `bin/` directory. It sets the binary paths before the
+Every native functional action builds `ze`, `le test`, `ze-stripped` and
+`ze-stripped-flow` into a session-owned temporary `bin/` directory.
+`ze-stripped` carries `ze_core ze_ssh` only. `ze-stripped-flow` adds flow
+export, DDoS and anomaly detection (`ze_ddos ze_anomaly ze_flowexport`) and
+never `ze_bgp`, so a test can show a present plugin's setting refused because
+the BGP subsystem it needs is compiled out
+(`test/ui/ze-stripped-optional-provider.ci`). The QEMU guest builds the same
+three daemons (`PrepareGuest`) and links each into its `PATH` by that name. It sets the binary paths before the
 suite starts, freezes that set for the run, and removes it afterward. Editing
 or rebuilding `bin/ze` cannot change a suite already in flight.
 
@@ -1361,6 +1367,8 @@ prepends the isolated directory to `PATH`, so `.ci` fixtures continue to invoke
 the canonical bare names.
 
 <!-- source: internal/le/test/functional/binaries.go -- Prepare, Release, buildCommands -->
+<!-- source: internal/le/test/functional/binaries.go -- daemonBuildCommands, strippedFlowTags, PrepareGuest -->
+<!-- source: internal/le/test/qemu/alltests.go -- shim, zeStrippedFlowName -->
 <!-- source: internal/le/test/functional/suites.go -- Suite -->
 <!-- source: internal/test/runner/runner.go -- prebuilt binary environment -->
 <!-- source: internal/test/runner/runner_exec.go -- bare-name resolution -->

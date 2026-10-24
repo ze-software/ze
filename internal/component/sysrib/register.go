@@ -27,11 +27,15 @@ func init() {
 	)
 
 	reg := registry.Registration{
-		Name:                    configRootRIB,
-		Description:             "System RIB: selects best route across protocols by admin distance",
-		Features:                "yang",
-		YANG:                    sysribyang.ZeRibConfYANG,
-		ConfigRoots:             []string{configRootRIB},
+		Name:        configRootRIB,
+		Description: "System RIB: selects best route across protocols by admin distance",
+		Features:    "yang",
+		YANG:        sysribyang.ZeRibConfYANG,
+		ConfigRoots: []string{configRootRIB},
+		// StartAfter, never a load: the system RIB merges BGP's best changes
+		// with every other protocol's, and selects without them in a build or
+		// a config without BGP (./le plugin coupling check).
+		StartAfter:              []string{"bgp-rib"},
 		InProcessConfigVerifier: verifySysRIBConfig,
 		RunEngine:               runSysRIBPlugin,
 		Commands:                commandDecls(),

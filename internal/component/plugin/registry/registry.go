@@ -63,6 +63,11 @@ type Registration struct {
 	// absent at run time. Example: bgp-rs uses bgp-adj-rib-in for replay-on-
 	// peer-up; without it, replay is disabled but forwarding still works.
 	OptionalDependencies []string
+	// ConfigNeeds names the config values of this plugin's that need one of
+	// its OptionalDependencies (config_need.go, ConfigNeed). Register refuses
+	// a need whose provider is not in OptionalDependencies, so one edge names
+	// each provider.
+	ConfigNeeds []ConfigNeed
 	// StartAfter orders this plugin after each named plugin ONLY when both
 	// are selected for startup. It never loads a plugin, unlike either kind
 	// of dependency. Cycles among selected plugins are still refused.
@@ -429,7 +434,8 @@ var (
 	ErrEmptyDependency = errors.New("registry: empty dependency name")
 	// ErrCircularDependency is returned when dependency resolution detects a cycle.
 	ErrCircularDependency = errors.New("registry: circular dependency")
-	// ErrMissingDependency is returned when a registered plugin declares a dependency on an unknown name.
+	// ErrMissingDependency is the class of every MissingDependencyError: a
+	// registered plugin declares a hard dependency this build does not register.
 	ErrMissingDependency = errors.New("registry: missing dependency")
 	// ErrInvalidDoctorCheck is returned when a doctor check declaration is invalid.
 	ErrInvalidDoctorCheck = errors.New("registry: invalid doctor check")
@@ -558,6 +564,9 @@ func Register(reg Registration) error { //nolint:gocritic // hugeParam: Registra
 				return fmt.Errorf("%w: plugin %q", ErrSelfDependency, reg.Name)
 			}
 		}
+	}
+	if err := validateConfigNeeds(&reg); err != nil {
+		return err
 	}
 	// Filter types must be globally unique across plugins so chain refs
 	// like "prefix-list:CUSTOMERS" or plain "CUSTOMERS" can be resolved
@@ -980,6 +989,35 @@ func ConfigRootsMap() map[string][]string {
 		}
 	}
 	return m
+}
+
+// PluginsForConfigPaths answers, sorted, every registered plugin that owns a
+// config root (Registration.ConfigRoots) among paths, the container paths a
+// config holds (config.CollectContainerPaths). It is the one answer to "which
+// plugins does this config select by its roots": boot auto-load starts these
+// (plugin/server getConfigPathPlugins), and the validate and commit doors
+// resolve their dependencies (config.VerifyPluginConfig), so the two cannot
+// disagree about which plugins a config needs.
+//
+// A root a plugin only reads (ConfigReads) selects nothing.
+func PluginsForConfigPaths(paths []string) []string {
+	present := make(map[string]bool, len(paths))
+	for _, path := range paths {
+		present[path] = true
+	}
+
+	mu.RLock()
+	defer mu.RUnlock()
+
+	var selected []string
+	for _, reg := range plugins {
+		if slices.ContainsFunc(reg.ConfigRoots, func(root string) bool { return present[root] }) {
+			selected = append(selected, reg.Name)
+		}
+	}
+	slices.Sort(selected)
+
+	return selected
 }
 
 // ClaimsFor returns the exclusive runtime roles a registered plugin declares
@@ -1446,8 +1484,10 @@ func Restore(snap RegistrySnapshot) {
 
 // ResolveDependencies expands a list of plugin names by iteratively adding
 // dependencies declared in the registry. Returns the expanded list with no
-// duplicates. Returns ErrCircularDependency on cycles, ErrMissingDependency
-// when a registered plugin declares a dependency on an unregistered name.
+// duplicates. Returns ErrCircularDependency on cycles, and a
+// *MissingDependencyError (errors.Is ErrMissingDependency) naming the plugin, the
+// dependency and the build tags that carry it when a registered plugin declares
+// a hard dependency on an unregistered name.
 //
 // A name in external is kept and never expanded, WHETHER OR NOT this binary
 // carries a registration for it. An `external` config block names another
@@ -1461,7 +1501,20 @@ func Restore(snap RegistrySnapshot) {
 // external MAY be nil where no config block can reach the caller: the
 // auto-load paths exclude a configured plugin before they resolve
 // (hasConfiguredPlugin), so a name that arrives there is always the registry's.
-func ResolveDependencies(requested []string, external map[string]bool) ([]string, error) {
+//
+// needHolds answers, for the config being resolved, whether a declared
+// ConfigNeed holds. An optional dependency that some ConfigNeed of its owner
+// names is pulled only when one of those needs holds; an optional dependency
+// no need names is pulled whenever it is registered, as before. needHolds
+// MUST NOT be nil: a caller that has no config cannot know whether a need
+// holds, so a nil needHolds is refused with ErrConfigNeedsUnanswered rather
+// than resolved as though no need held. Callers MUST pass the predicate built
+// from the config they resolve for (config.ConfigNeedHolds).
+func ResolveDependencies(requested []string, external map[string]bool, needHolds NeedHolds) ([]string, error) {
+	if needHolds == nil {
+		return nil, ErrConfigNeedsUnanswered
+	}
+
 	mu.RLock()
 	defer mu.RUnlock()
 
@@ -1493,17 +1546,23 @@ func ResolveDependencies(requested []string, external map[string]bool) ([]string
 				continue
 			}
 			if _, depOK := plugins[dep]; !depOK {
-				return nil, fmt.Errorf("%w: plugin %q requires %q", ErrMissingDependency, name, dep)
+				return nil, newMissingDependencyError(name, dep)
 			}
 			seen[dep] = true
 			result = append(result, dep)
 		}
-		// Optional deps: include if registered, silently skip if not. No error.
+		// Optional deps: include if registered and pulled for this config.
+		// An unregistered one is skipped with no error here: a config that
+		// needs it is refused before resolution (config.LoadConfig and
+		// config.VerifyPluginConfigMapTransition), naming the build tag.
 		for _, dep := range reg.OptionalDependencies {
 			if seen[dep] {
 				continue
 			}
 			if _, depOK := plugins[dep]; !depOK {
+				continue
+			}
+			if !optionalProviderPulled(reg, dep, needHolds) {
 				continue
 			}
 			seen[dep] = true

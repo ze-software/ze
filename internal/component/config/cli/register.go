@@ -64,7 +64,7 @@ func init() {
 	// returned an exit code before, which is why
 	// `ze cli -c "show config dump x.conf | json"` answered `unknown command`.
 	command.MustRegisterLocalData("show config dump", dataDump, registry.Meta{
-		ShortHelp: "Show the fully resolved config tree. What you see is exactly what the daemon uses.",
+		ShortHelp: "Show the fully resolved config tree of a file, as the daemon would load it.",
 		Mode:      modeOffline,
 	}, command.RenderLocalAnswer)
 	command.MustRegisterLocalData("show config diff", dataDiff, registry.Meta{

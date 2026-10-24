@@ -160,6 +160,7 @@ The command registry, `DisplayValueAtPath` masking, the audit log, the editor co
 |------------|------|-----------------|
 | `command-waits-for-input-it-was-not-given` | 2026-09-07 | `cmdDecode` |
 | `dark-theme-cards-hide-their-text` | 2026-10-04 | generated BFD plugin page |
+| `declared-summary-without-its-explanation` | 2026-10-24 | `request`, `show policy` summary in a stripped build |
 | `declared-summary-without-its-explanation` | 2026-09-10 | `ze pipe json compact` |
 | `declared-summary-without-its-explanation` | 2026-09-07 | `TestEveryCommandNodeHasASummary` |
 | `field-carries-two-meanings` | 2026-08-19 | cli column selection |

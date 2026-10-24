@@ -1024,18 +1024,56 @@ func ancestorTagsOfImport(tags map[string]string, importPath, tag string) []stri
 // order with the group's own tag last, so the expression is deterministic and
 // closed under every ancestor.
 func constraintForImport(tags map[string]string, importPath, tag string) string {
-	ancestors := ancestorTagsOfImport(tags, importPath, tag)
-	if len(ancestors) == 0 {
-		return tag
-	}
-
 	var b textbuf.Buffer
-	for _, one := range ancestors {
-		b.Str(one).Str(" && ")
+	for i, one := range requirementOfImport(tags, importPath, tag) {
+		if i > 0 {
+			b.Str(" && ")
+		}
+		b.Str(one)
 	}
-	b.Str(tag)
 
 	return b.String()
+}
+
+// requirementOfImport answers every build tag that must be set for one import
+// of a tag's group to be linked: the ancestors in sorted order, then the tag
+// itself. It is the term list constraintForImport joins, kept apart so that
+// GateIndex answers the same tags the //go:build line of the group file states.
+func requirementOfImport(tags map[string]string, importPath, tag string) []string {
+	return append(ancestorTagsOfImport(tags, importPath, tag), tag)
+}
+
+// GateIndex is the manifest read once, answering which build tags link a
+// package into the composition root. Only LoadGateIndex builds one: the zero
+// value holds no manifest and would answer every package as ungated, so a
+// caller MUST obtain it from LoadGateIndex. Safe for concurrent use, because
+// nothing writes it after construction.
+type GateIndex struct {
+	tags map[string]string
+}
+
+// LoadGateIndex reads feature-gates.txt under root into a GateIndex.
+func LoadGateIndex(root string) (GateIndex, error) {
+	tags, err := loadFeatureTags(root)
+	if err != nil {
+		return GateIndex{}, err
+	}
+
+	return GateIndex{tags: tags}, nil
+}
+
+// Requirement answers the build tags that must all be set for the package pkg
+// (repository-relative, or a full import path) to be linked, in the order the
+// generated //go:build line states them: the enclosing gates sorted, the
+// package's own gate last. It answers nil for a package no manifest row gates,
+// which the universal all.go links into every build.
+func (g GateIndex) Requirement(pkg string) []string {
+	tag := tagFor(g.tags, pkg)
+	if tag == "" {
+		return nil
+	}
+
+	return requirementOfImport(g.tags, pkg, tag)
 }
 
 // constraintGroups splits a tag's imports by their per-import constraint, and

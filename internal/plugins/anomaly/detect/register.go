@@ -24,6 +24,17 @@ var (
 	loggerPtr   atomic.Pointer[slog.Logger]
 )
 
+// The registration names of the two flow sources that feed trafficfeature.
+// Either one meets the need.
+const (
+	flowExportPlugin   = "flow-export"
+	trafficUsagePlugin = "traffic-usage"
+)
+
+// enabledLeaf is the leaf under configRoot that turns detection on. The config
+// need and the feature-source doctor check read the same leaf.
+const enabledLeaf = "enabled"
+
 func setLogger(l *slog.Logger) {
 	if l != nil {
 		loggerPtr.Store(l)
@@ -52,7 +63,20 @@ func init() {
 		Features:    "yang",
 		YANG:        detectyang.ZeAnomalyDetectConfYANG,
 		ConfigRoots: []string{configRoot},
-		RunEngine:   runEngine,
+		// The trafficfeature layer the detector reads is fed by a flow source,
+		// so a build that carries neither refuses `anomaly detect enabled
+		// true`. The need is about the build only: whether a source is
+		// configured stays the anomaly-detect-feature-source doctor warning
+		// below. The need names two sources, so they are alternatives and the
+		// need pulls neither: the source the operator configured loads from
+		// its own config root (registry optionalProviderPulled).
+		OptionalDependencies: []string{flowExportPlugin, trafficUsagePlugin},
+		ConfigNeeds: []registry.ConfigNeed{{
+			Path:      []string{"anomaly", "detect", enabledLeaf},
+			Value:     "true",
+			Providers: []string{flowExportPlugin, trafficUsagePlugin},
+		}},
+		RunEngine: runEngine,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},

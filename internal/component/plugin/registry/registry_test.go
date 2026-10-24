@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/ze-software/ze/internal/core/metrics"
@@ -626,7 +627,7 @@ func TestResolveDependencies_NoDeps(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	result, err := ResolveDependencies([]string{"standalone"}, nil)
+	result, err := ResolveDependencies([]string{"standalone"}, nil, holdsNoNeed)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -653,7 +654,7 @@ func TestResolveDependencies_DirectDep(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	result, err := ResolveDependencies([]string{"a"}, nil)
+	result, err := ResolveDependencies([]string{"a"}, nil, holdsNoNeed)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -686,7 +687,7 @@ func TestResolveDependencies_TransitiveDep(t *testing.T) {
 		}
 	}
 
-	result, err := ResolveDependencies([]string{"a"}, nil)
+	result, err := ResolveDependencies([]string{"a"}, nil, holdsNoNeed)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -718,7 +719,7 @@ func TestResolveDependencies_AlreadyPresent(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	result, err := ResolveDependencies([]string{"a", "b"}, nil)
+	result, err := ResolveDependencies([]string{"a", "b"}, nil, holdsNoNeed)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -753,7 +754,7 @@ func TestResolveDependencies_CircularDep(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err := ResolveDependencies([]string{"a"}, nil)
+	_, err := ResolveDependencies([]string{"a"}, nil, holdsNoNeed)
 	if !errors.Is(err, ErrCircularDependency) {
 		t.Errorf("expected ErrCircularDependency, got %v", err)
 	}
@@ -773,7 +774,7 @@ func TestResolveDependencies_MissingDep(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err := ResolveDependencies([]string{"a"}, nil)
+	_, err := ResolveDependencies([]string{"a"}, nil, holdsNoNeed)
 	if !errors.Is(err, ErrMissingDependency) {
 		t.Errorf("expected ErrMissingDependency, got %v", err)
 	}
@@ -799,7 +800,7 @@ func TestResolveDependenciesOptionalPresent(t *testing.T) {
 		}
 	}
 
-	result, err := ResolveDependencies([]string{"a"}, nil)
+	result, err := ResolveDependencies([]string{"a"}, nil, holdsNoNeed)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -829,7 +830,7 @@ func TestResolveDependenciesOptionalAbsent(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	result, err := ResolveDependencies([]string{"a"}, nil)
+	result, err := ResolveDependencies([]string{"a"}, nil, holdsNoNeed)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -861,7 +862,7 @@ func TestResolveDependenciesMixedDeps(t *testing.T) {
 		}
 	}
 
-	result, err := ResolveDependencies([]string{"a"}, nil)
+	result, err := ResolveDependencies([]string{"a"}, nil, holdsNoNeed)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -954,7 +955,7 @@ func TestResolveDependenciesOptionalCycle(t *testing.T) {
 		}
 	}
 
-	_, err := ResolveDependencies([]string{"a"}, nil)
+	_, err := ResolveDependencies([]string{"a"}, nil, holdsNoNeed)
 	if !errors.Is(err, ErrCircularDependency) {
 		t.Errorf("expected ErrCircularDependency through optional edge, got %v", err)
 	}
@@ -1227,7 +1228,7 @@ func TestResolveDependencies_Diamond(t *testing.T) {
 		}
 	}
 
-	result, err := ResolveDependencies([]string{"a", "b"}, nil)
+	result, err := ResolveDependencies([]string{"a", "b"}, nil, holdsNoNeed)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1337,7 +1338,7 @@ func TestResolveDependenciesExternalNameIgnoresRegistration(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	external, err := ResolveDependencies([]string{"collides"}, map[string]bool{"collides": true})
+	external, err := ResolveDependencies([]string{"collides"}, map[string]bool{"collides": true}, holdsNoNeed)
 	if err != nil {
 		t.Fatalf("external resolution: %v", err)
 	}
@@ -1347,7 +1348,7 @@ func TestResolveDependenciesExternalNameIgnoresRegistration(t *testing.T) {
 
 	// The same name, NOT declared external, still resolves from the registry:
 	// the fix removes an inherited dependency, it does not remove the feature.
-	registered, err := ResolveDependencies([]string{"collides"}, nil)
+	registered, err := ResolveDependencies([]string{"collides"}, nil, holdsNoNeed)
 	if err != nil {
 		t.Fatalf("registry resolution: %v", err)
 	}
@@ -1392,4 +1393,270 @@ func TestTopologicalTiersExternalNameTakesNoEdge(t *testing.T) {
 	if len(ordered) != 2 {
 		t.Errorf("a registered plugin lost its ordering: %v", ordered)
 	}
+}
+
+// TestRegisterRefusesNeedOutsideOptionalDependencies proves Register refuses a
+// config need it could never honor, and accepts a well-formed one.
+//
+// VALIDATES: AC-15. A need whose provider is not in OptionalDependencies, a
+// need with an empty path or an empty path element, a need with no trigger
+// value and a need with no provider are each refused with ErrInvalidConfigNeed,
+// and the error names the plugin. A need whose providers are all optional
+// dependencies registers.
+// PREVENTS: a need that names a provider the owner never declared as an edge,
+// which would refuse a config for a plugin the resolver never pulls, and a need
+// whose empty path would never match any config, so it would refuse nothing.
+func TestRegisterRefusesNeedOutsideOptionalDependencies(t *testing.T) {
+	enrichment := []string{"flow-export", "enrichment", "bgp"}
+	cases := []struct {
+		name string
+		need ConfigNeed
+	}{
+		{name: "provider outside optional dependencies", need: ConfigNeed{Path: enrichment, Value: "true", Providers: []string{"bgp-adj-rib-in"}}},
+		{name: "one provider of two outside", need: ConfigNeed{Path: enrichment, Value: "true", Providers: []string{"bgp-rib", "bgp-adj-rib-in"}}},
+		{name: "empty path", need: ConfigNeed{Value: "true", Providers: []string{"bgp-rib"}}},
+		{name: "empty path element", need: ConfigNeed{Path: []string{"flow-export", "", "bgp"}, Value: "true", Providers: []string{"bgp-rib"}}},
+		{name: "no trigger value", need: ConfigNeed{Path: enrichment, Providers: []string{"bgp-rib"}}},
+		{name: "no provider", need: ConfigNeed{Path: enrichment, Value: "true"}},
+		{name: "list marker first", need: ConfigNeed{Path: []string{AnyEntry, "enrichment", "bgp"}, Value: "true", Providers: []string{"bgp-rib"}}},
+		{name: "list marker last", need: ConfigNeed{Path: []string{"flow-export", "enrichment", AnyEntry}, Value: "true", Providers: []string{"bgp-rib"}}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Cleanup(func() { Reset() })
+			reg := validReg("flow-export")
+			reg.OptionalDependencies = []string{"bgp-rib"}
+			reg.ConfigNeeds = []ConfigNeed{tc.need}
+			err := Register(reg)
+			if !errors.Is(err, ErrInvalidConfigNeed) {
+				t.Fatalf("expected ErrInvalidConfigNeed, got %v", err)
+			}
+			if !bytes.Contains([]byte(err.Error()), []byte(`"flow-export"`)) {
+				t.Errorf("refusal does not name the plugin: %v", err)
+			}
+			if Lookup("flow-export") != nil {
+				t.Error("a refused registration was stored")
+			}
+		})
+	}
+
+	t.Run("need through a list registers", func(t *testing.T) {
+		t.Cleanup(func() { Reset() })
+		reg := validReg("flow-export")
+		reg.OptionalDependencies = []string{"bgp-rib"}
+		reg.ConfigNeeds = []ConfigNeed{{Path: []string{"flow-export", "collector", AnyEntry, "bgp"}, Value: "true", Providers: []string{"bgp-rib"}}}
+		if err := Register(reg); err != nil {
+			t.Fatalf("a need crossing a list was refused: %v", err)
+		}
+	})
+
+	t.Run("well-formed need registers", func(t *testing.T) {
+		t.Cleanup(func() { Reset() })
+		reg := validReg("flow-export")
+		reg.OptionalDependencies = []string{"bgp-rib"}
+		reg.ConfigNeeds = []ConfigNeed{{Path: enrichment, Value: "true", Providers: []string{"bgp-rib"}}}
+		if err := Register(reg); err != nil {
+			t.Fatalf("a well-formed need was refused: %v", err)
+		}
+		stored := Lookup("flow-export")
+		if stored == nil {
+			t.Fatal("the registration was not stored")
+			return
+		}
+		if len(stored.ConfigNeeds) != 1 {
+			t.Errorf("the stored registration lost its need: %+v", stored.ConfigNeeds)
+		}
+	})
+}
+
+// TestMissingDependencyErrorNamesTag verifies the hard-edge refusal names the
+// plugin, the dependency and the build tags that carry it, with the fix on its
+// own line, and never guesses a tag for a name no build registers.
+//
+// VALIDATES: spec-plugin-optional-dependency-refusal AC-22 (the message every
+// load path shows names the tag from the generated table) and AC-23 (an
+// ungated, unregistered dependency is named as unknown to this build).
+// PREVENTS: an operator told only "missing dependency" with no way to know which
+// build carries it, and a refusal that invents a tag for a typo.
+// METHOD: resolve a plugin whose dependency is the real gated name bgp-bmp
+// (two nested tags in gated_plugins_gen.go), then one whose dependency no
+// build of this tree registers.
+func TestMissingDependencyErrorNamesTag(t *testing.T) {
+	cases := []struct {
+		name       string
+		dependency string
+		tags       []string
+		wantText   []string
+		wantFix    string
+	}{
+		{
+			name:       "gated dependency names its nested tags",
+			dependency: "bgp-bmp",
+			tags:       []string{"ze_bgp", "ze_bmp"},
+			wantText:   []string{`plugin "a" needs plugin "bgp-bmp"`, "this build of ze does not include it"},
+			wantFix:    `Fix: rebuild ze with the build tags ze_bgp ze_bmp added to -tags, or remove the configuration that loads "a".`,
+		},
+		{
+			name:       "unknown dependency names no tag",
+			dependency: "no-such-plugin",
+			tags:       nil,
+			wantText:   []string{`plugin "a" needs plugin "no-such-plugin"`, "unknown to this build"},
+			wantFix:    `Fix: remove the configuration that loads "a", and report the unknown dependency "no-such-plugin" to the ze developers.`,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Cleanup(func() { Reset() })
+
+			reg := validReg("a")
+			reg.Dependencies = []string{tc.dependency}
+			if err := Register(reg); err != nil {
+				t.Fatal(err)
+			}
+
+			_, err := ResolveDependencies([]string{"a"}, nil, holdsNoNeed)
+			if !errors.Is(err, ErrMissingDependency) {
+				t.Fatalf("errors.Is(err, ErrMissingDependency) = false, err = %v", err)
+			}
+			var missing *MissingDependencyError
+			if !errors.As(err, &missing) {
+				t.Fatalf("error is not a *MissingDependencyError: %T %v", err, err)
+			}
+			if missing.Plugin != "a" {
+				t.Errorf("Plugin = %q, want %q", missing.Plugin, "a")
+			}
+			if missing.Dependency != tc.dependency {
+				t.Errorf("Dependency = %q, want %q", missing.Dependency, tc.dependency)
+			}
+			if !slices.Equal(missing.Tags, tc.tags) {
+				t.Errorf("Tags = %v, want %v", missing.Tags, tc.tags)
+			}
+
+			text := err.Error()
+			for _, want := range tc.wantText {
+				if !strings.Contains(text, want) {
+					t.Errorf("message lacks %q:\n%s", want, text)
+				}
+			}
+			lines := strings.Split(text, "\n")
+			if lines[len(lines)-1] != tc.wantFix {
+				t.Errorf("last line = %q, want the fix on its own line %q", lines[len(lines)-1], tc.wantFix)
+			}
+			if len(tc.tags) == 0 && strings.Contains(text, "ze_") {
+				t.Errorf("message for an ungated dependency names a tag:\n%s", text)
+			}
+		})
+	}
+}
+
+// holdsNoNeed is the NeedHolds of a config that sets nothing. The tests that
+// pass it register no ConfigNeed, so it is never called there; it stands in
+// for the config those resolutions would have been given.
+func holdsNoNeed(string, ConfigNeed) bool { return false }
+
+// TestResolveDependenciesPullsNeededProviderOnlyWhenNeedHolds proves the
+// conditional pull.
+//
+// VALIDATES: an optional provider a ConfigNeed names is pulled only when the
+// config holds that need, and is then ordered before its owner (AC-5, AC-6);
+// an optional provider no need names is pulled whatever the config (AC-17);
+// the predicate is asked with the owner's name and its declared need; a nil
+// predicate is refused (R-5); a need naming more than one provider is a set
+// of alternatives and pulls none of them when it holds, although every one is
+// compiled in.
+// PREVENTS: flow export starting the BGP RIB with enrichment off, a caller
+// resolving with no config as though no need held, and anomaly or DDoS
+// detection starting every flow source (flow export, then interface) when the
+// operator configured one or none.
+func TestResolveDependenciesPullsNeededProviderOnlyWhenNeedHolds(t *testing.T) {
+	t.Cleanup(func() { Reset() })
+
+	need := ConfigNeed{Path: []string{"owner-root", "enrichment", "rib"}, Value: "true", Providers: []string{"needed-provider"}}
+	owner := validReg("need-owner")
+	owner.OptionalDependencies = []string{"needed-provider", "plain-provider"}
+	owner.ConfigNeeds = []ConfigNeed{need}
+	anyOfOwner := validReg("any-of-owner")
+	anyOfOwner.OptionalDependencies = []string{"source-a", "source-b"}
+	anyOfOwner.ConfigNeeds = []ConfigNeed{{
+		Path: []string{"detect-root", "enabled"}, Value: "true", Providers: []string{"source-a", "source-b"},
+	}}
+	registrations := []Registration{
+		owner, validReg("needed-provider"), validReg("plain-provider"),
+		anyOfOwner, validReg("source-a"), validReg("source-b"),
+	}
+	for _, reg := range registrations {
+		if err := Register(reg); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	t.Run("need does not hold", func(t *testing.T) {
+		var asked []string
+		holds := func(ownerName string, asking ConfigNeed) bool {
+			asked = append(asked, ownerName+" "+strings.Join(asking.Path, " ")+" "+asking.Value)
+			return false
+		}
+		resolved, err := ResolveDependencies([]string{"need-owner"}, nil, holds)
+		if err != nil {
+			t.Fatalf("ResolveDependencies: %v", err)
+		}
+		if slices.Contains(resolved, "needed-provider") {
+			t.Errorf("provider pulled although its need does not hold: %v", resolved)
+		}
+		if !slices.Contains(resolved, "plain-provider") {
+			t.Errorf("provider no need names was not pulled: %v", resolved)
+		}
+		if !slices.Equal(asked, []string{"need-owner owner-root enrichment rib true"}) {
+			t.Errorf("predicate asked %q, want the owner and its one need", asked)
+		}
+	})
+
+	t.Run("need holds", func(t *testing.T) {
+		holds := func(string, ConfigNeed) bool { return true }
+		resolved, err := ResolveDependencies([]string{"need-owner"}, nil, holds)
+		if err != nil {
+			t.Fatalf("ResolveDependencies: %v", err)
+		}
+		for _, provider := range []string{"needed-provider", "plain-provider"} {
+			if !slices.Contains(resolved, provider) {
+				t.Errorf("provider %s not pulled when the need holds: %v", provider, resolved)
+			}
+		}
+		tiers, err := TopologicalTiers(resolved, nil)
+		if err != nil {
+			t.Fatalf("TopologicalTiers: %v", err)
+		}
+		tierOf := make(map[string]int)
+		for index, tier := range tiers {
+			for _, name := range tier {
+				tierOf[name] = index
+			}
+		}
+		if tierOf["needed-provider"] >= tierOf["need-owner"] {
+			t.Errorf("needed provider not ordered before its owner: %v", tiers)
+		}
+	})
+
+	t.Run("any-of need holds", func(t *testing.T) {
+		holds := func(string, ConfigNeed) bool { return true }
+		resolved, err := ResolveDependencies([]string{"any-of-owner"}, nil, holds)
+		if err != nil {
+			t.Fatalf("ResolveDependencies: %v", err)
+		}
+		if !slices.Contains(resolved, "any-of-owner") {
+			t.Fatalf("owner missing from the resolved set: %v", resolved)
+		}
+		for _, provider := range []string{"source-a", "source-b"} {
+			if slices.Contains(resolved, provider) {
+				t.Errorf("alternative %s pulled by an any-of need: %v", provider, resolved)
+			}
+		}
+	})
+
+	t.Run("no config", func(t *testing.T) {
+		resolved, err := ResolveDependencies([]string{"need-owner"}, nil, nil)
+		if !errors.Is(err, ErrConfigNeedsUnanswered) {
+			t.Fatalf("nil NeedHolds answered %v, %v; want ErrConfigNeedsUnanswered", resolved, err)
+		}
+	})
 }

@@ -22,6 +22,10 @@ import (
 
 const configRootFlowExport = "flow-export"
 
+// bgpRIBPlugin is the registration name of the plugin that publishes the best
+// paths BGP enrichment consumes.
+const bgpRIBPlugin = "bgp-rib"
+
 var loggerPtr atomic.Pointer[slog.Logger]
 
 var activeExporter atomic.Pointer[exporter]
@@ -69,7 +73,19 @@ func init() {
 		// alone enough to start the tracker, so counter datagrams flow without
 		// the operator having to also add an interface section.
 		Dependencies: []string{"interface"},
-		RunEngine:    runEngine,
+		// BGP enrichment reads the best paths bgp-rib publishes as
+		// ribevents.BestChange (bgpEnrichBuilder). The edge is optional: a
+		// build without ze_bgp still runs flow export, and the config need
+		// refuses only `enrichment bgp true` there, naming the tag. The need
+		// also decides the pull, so the RIB starts on flow export's account
+		// only when enrichment is on.
+		OptionalDependencies: []string{bgpRIBPlugin},
+		ConfigNeeds: []registry.ConfigNeed{{
+			Path:      []string{configRootFlowExport, "enrichment", "bgp"},
+			Value:     "true",
+			Providers: []string{bgpRIBPlugin},
+		}},
+		RunEngine: runEngine,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},

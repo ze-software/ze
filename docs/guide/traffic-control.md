@@ -33,6 +33,24 @@ traffic {
 }
 ```
 
+`backend vpp` needs the VPP component, which only a build with the `ze_vpp`
+tag carries. Selecting it starts that component with the traffic plugin and
+orders traffic after it; `backend tc` does not start it. In a build without
+`ze_vpp`, `ze config validate`, a commit and daemon boot all refuse the config
+before anything is applied:
+
+```
+config: "traffic control backend vpp" needs plugin vpp, and this build does not include it
+  traffic cannot act on this setting without it, so ze refuses the config rather than run a setting that does nothing
+  fix: rebuild ze with build tag ze_vpp added to its -tags list, or remove "traffic control backend vpp" from the config
+```
+
+Before this check the config passed validation and failed at apply, with
+`unknown backend "vpp"` and no build tag named.
+
+<!-- source: internal/component/traffic/register.go -- vppPlugin, backendVPP, ConfigNeeds -->
+<!-- source: internal/component/config/optional_provider.go -- refuseAbsentOptionalProviders -->
+
 An interface entry with no `qdisc` block attaches no root discipline. Once a
 `qdisc` block is present, its `type` is required, and a config that omits it is
 refused naming `traffic/control/interface[<name>]/qdisc/type`.

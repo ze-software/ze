@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/configorder"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -57,7 +58,75 @@ func VerifyPluginConfig(tree *Tree) []error {
 	if tree == nil {
 		return nil
 	}
-	return VerifyPluginConfigMap(tree.ToPluginMap())
+	return verifyTree(nil, tree)
+}
+
+// verifyTree runs the dependency refusal over candidate, then the map door.
+// The refusal reads the tree rather than a lowered map because the producers
+// boot uses read the tree: ExtractPluginsFromTree for the `plugin { }` block and
+// CollectContainerPaths for the roots that auto-load a plugin.
+//
+// An extraction failure is reported here, once, as a *PluginExtractionError,
+// and the dependency refusal is then not asked: the set of plugins boot would
+// start is unknown, so it cannot answer, and the extraction failure already
+// refuses the config, as LoadConfig refuses it. A failure ExtractPluginsFromTree
+// produced in the `plugin { }` block carries no Section. Doors whose own check
+// of a section reports that section's failure skip the relayed copy by its
+// Section; every other door reports it from here.
+func verifyTree(previous map[string]any, candidate *Tree) []error {
+	errs := VerifyPluginConfigMapTransition(previous, candidate.ToPluginMap())
+	declared, err := ExtractPluginsFromTree(candidate)
+	if err != nil {
+		var extractErr *PluginExtractionError
+		if !errors.As(err, &extractErr) {
+			extractErr = &PluginExtractionError{Err: err}
+		}
+		return append([]error{extractErr}, errs...)
+	}
+	if err := refuseUnresolvableDependencies(candidate, declared); err != nil {
+		errs = append([]error{err}, errs...)
+	}
+	return errs
+}
+
+// refuseUnresolvableDependencies refuses a config whose plugins cannot all
+// start in this build, with the error boot refuses it with.
+//
+// It asks registry.ResolveDependencies for the set boot starts: the plugins
+// declared, which verifyTree extracted with ExtractPluginsFromTree from the
+// `plugin { }` block and the registered extractors (dependencyRequest, as
+// ExpandDependencies asks at LoadConfig) and the plugins the config's roots select
+// (registry.PluginsForConfigPaths, as boot auto-load asks in plugin/server
+// getConfigPathPlugins), less the declared ones, which boot also skips. A hard
+// dependency this build lacks answers *registry.MissingDependencyError, naming
+// the plugin, the dependency and the build tag, so `ze config validate`, the
+// editor and API commit, and doctor refuse what boot refuses, in the same
+// words. Without it they called a config valid that the daemon then refused to
+// start.
+//
+// Not covered: the FIB plugin boot adds for the configured data plane
+// (appendDataPlaneWriter), because the data plane is read by the iface
+// component, which config does not import.
+func refuseUnresolvableDependencies(tree *Tree, declared []plugin.PluginConfig) error {
+	names, external := dependencyRequest(declared)
+	configured := make(map[string]bool, len(declared))
+	for _, pc := range declared {
+		for _, name := range plugin.RegistryNames(pc) {
+			configured[name] = true
+		}
+	}
+	for _, name := range registry.PluginsForConfigPaths(CollectContainerPaths(tree)) {
+		if configured[name] {
+			continue
+		}
+		names = append(names, name)
+	}
+	if len(names) == 0 {
+		return nil
+	}
+
+	_, err := registry.ResolveDependencies(names, external, ConfigNeedHolds(tree.ToMap()))
+	return err
 }
 
 // VerifyPluginConfigTransition is VerifyPluginConfig with deletion awareness.
@@ -68,11 +137,10 @@ func VerifyPluginConfigTransition(previous, candidate *Tree) []error {
 	if previous != nil {
 		oldMap = previous.ToPluginMap()
 	}
-	var newMap map[string]any
-	if candidate != nil {
-		newMap = candidate.ToPluginMap()
+	if candidate == nil {
+		return nil
 	}
-	return VerifyPluginConfigMapTransition(oldMap, newMap)
+	return verifyTree(oldMap, candidate)
 }
 
 // VerifyPluginConfigMap is the map-form equivalent of VerifyPluginConfig.
@@ -88,6 +156,11 @@ func VerifyPluginConfigMapTransition(previousTree, configTree map[string]any) []
 	}
 
 	var errs []error
+	// The same check LoadConfig runs at boot and reload, so validate, commit
+	// and load agree on a config that needs a plugin this build lacks.
+	if err := refuseAbsentOptionalProviders(func() map[string]any { return configTree }); err != nil {
+		errs = append(errs, err)
+	}
 	for _, reg := range registry.All() {
 		if reg.InProcessConfigVerifier == nil || len(reg.ConfigRoots) == 0 {
 			continue

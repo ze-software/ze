@@ -100,8 +100,13 @@ func dataDump(validated command.ValidatedArgs) (any, int) {
 		}
 		configPath = arg
 	}
+	// No file is no answer: this command parses the file it is given, in this
+	// process, so it cannot say what a running daemon applied. The refusal
+	// names the daemon-side command that can.
 	if configPath == "" {
-		fmt.Fprintln(os.Stderr, "error: missing config file (use - for stdin)")
+		fmt.Fprintln(os.Stderr, "error: show config dump needs a config file to read (use - for stdin).")
+		fmt.Fprintln(os.Stderr, "To see the configuration the running daemon applied, run:")
+		fmt.Fprintln(os.Stderr, "  show config running")
 		return nil, 1
 	}
 

@@ -4,6 +4,8 @@
 package config
 
 import (
+	"errors"
+
 	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
@@ -38,7 +40,16 @@ func ValidateSemantics(tree *Tree) []diagnostic.Diagnostic {
 		}
 	}
 
+	// A failure relayed from the bgp section's plugin extractor is skipped: it
+	// is the bgp tree failing to resolve (ResolveBGPTree), which the bgp peer
+	// doctor check reports from the same resolver. That check is registered by
+	// the package that registers the bgp extractor, so whenever this copy can
+	// exist the other one is reported, and listing both told the operator about
+	// one fault twice.
 	for _, err := range VerifyPluginConfig(tree) {
+		if extractErr, isExtraction := errors.AsType[*PluginExtractionError](err); isExtraction && extractErr.Section == string(ConfigTypeBGP) {
+			continue
+		}
 		diags = append(diags, diagnostic.Diagnostic{
 			Code:     diagnostic.CodeConfigPluginVerify,
 			Severity: diagnostic.SeverityError,

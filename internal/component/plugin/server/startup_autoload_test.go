@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net"
+	"slices"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/commandtest"
+	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/component/plugin/process"
@@ -195,13 +197,15 @@ func TestGetUnclaimedEventTypePlugins(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			s := &Server{
 				config: &ServerConfig{
+					ConfigNeedHolds:        holdsForEmptyConfig,
 					ConfiguredCustomEvents: tt.customEvents,
 					Plugins:                tt.configuredPlugins,
 				},
 				registry: plugin.NewPluginRegistry(),
 			}
 
-			got := s.getUnclaimedEventTypePlugins()
+			got, err := s.getUnclaimedEventTypePlugins()
+			require.NoError(t, err)
 
 			if tt.wantNil {
 				assert.Nil(t, got)
@@ -230,13 +234,15 @@ func TestGetUnclaimedEventTypePlugins(t *testing.T) {
 func TestBGPPluginAutoLoads(t *testing.T) {
 	s := &Server{
 		config: &ServerConfig{
+			ConfigNeedHolds: holdsForEmptyConfig,
 			ConfiguredPaths: []string{"bgp"},
 		},
 		registry:      plugin.NewPluginRegistry(),
 		loadedPlugins: make(map[string]bool),
 	}
 
-	got := s.getConfigPathPlugins()
+	got, err := s.getConfigPathPlugins()
+	require.NoError(t, err)
 	require.NotNil(t, got, "should auto-load plugins for bgp config path")
 
 	var names []string
@@ -269,13 +275,15 @@ func TestEngineStartsWithoutBGP(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			s := &Server{
 				config: &ServerConfig{
+					ConfigNeedHolds: holdsForEmptyConfig,
 					ConfiguredPaths: tt.paths,
 				},
 				registry:      plugin.NewPluginRegistry(),
 				loadedPlugins: make(map[string]bool),
 			}
 
-			got := s.getConfigPathPlugins()
+			got, err := s.getConfigPathPlugins()
+			require.NoError(t, err)
 
 			for _, p := range got {
 				assert.NotEqual(t, "bgp", p.Name,
@@ -1226,11 +1234,11 @@ func TestReadRootDoesNotAutoLoadThePlugin(t *testing.T) {
 	require.NotNil(t, rpki, "bgp-rpki must be registered")
 	require.Contains(t, rpki.ConfigReads, "pki", "bgp-rpki must read the pki store")
 
-	names := autoLoadNames([]string{"pki"}, "")
+	names := autoLoadNames(t, []string{"pki"}, "")
 	assert.NotContains(t, names, "bgp-rpki", "a pki-only config must not load bgp-rpki")
 	assert.NotContains(t, names, "bgp", "a pki-only config must not load bgp")
 
-	names = autoLoadNames([]string{"bgp", "pki"}, "")
+	names = autoLoadNames(t, []string{"bgp", "pki"}, "")
 	assert.Contains(t, names, "bgp-rpki", "a bgp config still loads bgp-rpki")
 }
 
@@ -1252,6 +1260,197 @@ func TestAutoloadStartsNoCrashesEngine(t *testing.T) {
 	}
 	require.NotEmpty(t, everyRoot, "registered plugins declare config roots")
 
-	assert.NotContains(t, autoLoadNames(everyRoot, ""), "crashes",
+	assert.NotContains(t, autoLoadNames(t, everyRoot, ""), "crashes",
 		"a config with every section present and no plugin block must not start crashes")
+}
+
+// TestBootAutoLoadRefusesMissingHardDependency verifies boot refuses, before
+// any plugin starts, when a plugin it auto-loads declares a hard dependency the
+// build does not carry, on every boot auto-load path.
+//
+// VALIDATES: spec-plugin-optional-dependency-refusal AC-21 and part e. The
+// config-path set, the unclaimed family set and the custom event and send
+// type sets each refuse with the
+// *registry.MissingDependencyError naming the plugin, the dependency and the
+// build tag; the sound plugin configured beside them never starts.
+// PREVENTS: the old WARN fallback (`resolved = needed`), which started the
+// plugin without its dependency; a family set that never resolved its
+// dependencies at all; and a family or token refusal found only in phase 3 or
+// later, after the config-path plugins were already running.
+// METHOD: an isolated registry holding a sound config-path plugin that counts
+// its starts and a plugin whose hard dependency is the gated name bgp-bmp, which
+// this test binary does not link. runPluginStartup runs to completion and
+// WaitForStartupComplete answers the refusal.
+func TestBootAutoLoadRefusesMissingHardDependency(t *testing.T) {
+	const soundPlugin = "boot-sound"
+	const needsBMP = "boot-needs-bmp"
+
+	cases := []struct {
+		name      string
+		paths     []string
+		families  []string
+		events    []string
+		sendTypes []string
+		trigger   func(*registry.Registration)
+	}{
+		{
+			name:    "config path",
+			paths:   []string{"boot-sound-root", "boot-needs-bmp-root"},
+			trigger: func(r *registry.Registration) { r.ConfigRoots = []string{"boot-needs-bmp-root"} },
+		},
+		{
+			name:    "custom event type",
+			paths:   []string{"boot-sound-root"},
+			events:  []string{"boot-needs-bmp-event"},
+			trigger: func(r *registry.Registration) { r.EventTypes = []string{"boot-needs-bmp-event"} },
+		},
+		{
+			name:      "custom send type",
+			paths:     []string{"boot-sound-root"},
+			sendTypes: []string{"boot-needs-bmp-send"},
+			trigger:   func(r *registry.Registration) { r.SendTypes = []string{"boot-needs-bmp-send"} },
+		},
+		{
+			// The family set starts after the explicit plugins (phase 3),
+			// so this is the case a refusal found only at its own phase
+			// would leave half-started.
+			name:     "unclaimed family",
+			paths:    []string{"boot-sound-root"},
+			families: []string{"boot-needs-bmp/family"},
+			trigger:  func(r *registry.Registration) { r.Families = []string{"boot-needs-bmp/family"} },
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			snap := registry.Snapshot()
+			registry.Reset()
+			t.Cleanup(func() { registry.Restore(snap) })
+			require.Nil(t, registry.Lookup("bgp-bmp"), "bgp-bmp must be absent from this test binary")
+
+			var soundStarts atomic.Int32
+			require.NoError(t, registry.Register(registry.Registration{
+				Name:        soundPlugin,
+				Description: "boot auto-load plugin with no dependency",
+				ConfigRoots: []string{"boot-sound-root"},
+				RunEngine: func(conn net.Conn) int {
+					soundStarts.Add(1)
+					p := sdk.NewWithConn(soundPlugin, conn)
+					if err := p.Run(context.Background(), &sdk.Registration{}); err != nil {
+						return 1
+					}
+					return 0
+				},
+				CLIHandler: func([]string) int { return 0 },
+			}))
+			needy := registry.Registration{
+				Name:         needsBMP,
+				Description:  "boot auto-load plugin with a hard dependency this build lacks",
+				Dependencies: []string{"bgp-bmp"},
+				RunEngine:    func(net.Conn) int { return 1 },
+				CLIHandler:   func([]string) int { return 0 },
+			}
+			tc.trigger(&needy)
+			require.NoError(t, registry.Register(needy))
+
+			s, _ := newLifecycleStartupServer(t)
+			s.config.ConfiguredPaths = tc.paths
+			s.config.ConfiguredFamilies = tc.families
+			s.config.ConfiguredCustomEvents = tc.events
+			s.config.ConfiguredCustomSendTypes = tc.sendTypes
+
+			s.wg.Add(1)
+			s.runPluginStartup()
+
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			err := s.WaitForStartupComplete(ctx)
+
+			var missing *registry.MissingDependencyError
+			require.ErrorAs(t, err, &missing)
+			assert.True(t, errors.Is(err, registry.ErrMissingDependency))
+			assert.Equal(t, needsBMP, missing.Plugin)
+			assert.Equal(t, "bgp-bmp", missing.Dependency)
+			assert.Equal(t, []string{"ze_bgp", "ze_bmp"}, missing.Tags)
+			assert.Contains(t, err.Error(), "ze_bgp ze_bmp")
+			assert.Zero(t, soundStarts.Load(), "no plugin may start when boot refuses")
+		})
+	}
+}
+
+// TestReloadPullsTheProviderOfARunningOwnersNewNeed verifies the reload half
+// of the conditional pull.
+//
+// VALIDATES: spec-plugin-optional-dependency-refusal R-5. A reload that turns
+// on a ConfigNeed of a plugin already running adds no config root, yet
+// appendHeldNeedProviders adds the provider of the running owner's held need,
+// never the owner itself, so resolution does not restart the owner's closure;
+// the old tree adds nothing. A need held by an owner that is not running, and
+// a running plugin that declares no need, add nothing, and neither does a
+// running owner's held need naming alternatives.
+// PREVENTS: enrichment turned on by reload with the BGP RIB never started, and
+// a reload turning detection on starting every flow source.
+func TestReloadPullsTheProviderOfARunningOwnersNewNeed(t *testing.T) {
+	snap := registry.Snapshot()
+	registry.Reset()
+	t.Cleanup(func() { registry.Restore(snap) })
+
+	register := func(reg registry.Registration) {
+		t.Helper()
+		reg.Description = "reload need test plugin"
+		reg.RunEngine = func(net.Conn) int { return 0 }
+		reg.CLIHandler = func([]string) int { return 0 }
+		require.NoError(t, registry.Register(reg))
+	}
+	register(registry.Registration{
+		Name:                 "reload-need-owner",
+		OptionalDependencies: []string{"reload-provider"},
+		ConfigNeeds: []registry.ConfigNeed{{
+			Path: []string{"reload-root", "enrichment", "rib"}, Value: "true", Providers: []string{"reload-provider"},
+		}},
+	})
+	register(registry.Registration{Name: "reload-provider"})
+	register(registry.Registration{Name: "reload-plain"})
+	register(registry.Registration{
+		Name:                 "reload-idle-owner",
+		OptionalDependencies: []string{"reload-provider"},
+		ConfigNeeds: []registry.ConfigNeed{{
+			Path: []string{"reload-idle", "on"}, Value: "true", Providers: []string{"reload-provider"},
+		}},
+	})
+
+	// A running owner whose held need names two providers: they are
+	// alternatives, so reload pulls neither (registry.ConfigNeed.PullsProvider).
+	register(registry.Registration{
+		Name:                 "reload-any-of-owner",
+		OptionalDependencies: []string{"reload-alt-a", "reload-alt-b"},
+		ConfigNeeds: []registry.ConfigNeed{{
+			Path: []string{"reload-any", "on"}, Value: "true", Providers: []string{"reload-alt-a", "reload-alt-b"},
+		}},
+	})
+	register(registry.Registration{Name: "reload-alt-a"})
+	register(registry.Registration{Name: "reload-alt-b"})
+
+	running := func(name string) bool {
+		return slices.Contains([]string{"reload-need-owner", "reload-plain", "reload-any-of-owner"}, name)
+	}
+	before := map[string]any{"reload-root": map[string]any{"enrichment": map[string]any{"rib": "false"}}}
+	after := map[string]any{
+		"reload-root": map[string]any{"enrichment": map[string]any{"rib": "true"}},
+		"reload-idle": map[string]any{"on": "true"},
+		"reload-any":  map[string]any{"on": "true"},
+	}
+
+	assert.Empty(t, appendHeldNeedProviders(nil, map[string]bool{}, config.ConfigNeedHolds(before), running),
+		"the old tree holds no need, so nothing is pulled")
+
+	needed := appendHeldNeedProviders(nil, map[string]bool{}, config.ConfigNeedHolds(after), running)
+	require.Equal(t, []string{"reload-provider"}, needed,
+		"the running owner's held need pulls its provider; the owner itself, the idle owner, the plain plugin and the any-of owner's alternatives are not added")
+	require.Empty(t,
+		appendHeldNeedProviders(nil, map[string]bool{"reload-provider": true}, config.ConfigNeedHolds(after), running),
+		"a provider already in the set is not added twice")
+
+	resolved, err := registry.ResolveDependencies(needed, nil, config.ConfigNeedHolds(after))
+	require.NoError(t, err)
+	assert.Equal(t, []string{"reload-provider"}, resolved, "resolution starts the provider alone")
 }

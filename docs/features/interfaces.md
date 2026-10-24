@@ -140,7 +140,7 @@ JunOS-style two-layer model: physical interfaces with named logical units.
 | | Input validation (name, VLAN, MTU) | have | |
 | **Platform** | Pluggable backend interface | have | |
 | | Linux netlink backend (default) | have | |
-| | YANG `backend` leaf (config-driven selection) | have | |
+| | YANG `backend` leaf (config-driven selection) | have | `backend vpp` starts the VPP component with the interface plugin. A build without `ze_vpp` refuses it when the config is validated, committed or booted, naming the leaf and the tag, rather than at apply |
 | | VPP backend (ifacevpp, via GoVPP) | have | ResetCounters via sw_interface_clear_stats; ListKernelRoutes via ip_route_v2_dump; RouteLookup via IPRouteLookupV2 (VPP FIB is authoritative); ListNeighbors via ip_neighbor_dump; VXLAN/GRE/IPIP/LCP/stats-socket/mirror/STP pending third-party vendoring |
 | | macOS / Darwin | missing | lower |
 | | FreeBSD / OpenBSD | missing | lower |

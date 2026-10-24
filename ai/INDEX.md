@@ -263,6 +263,7 @@ Reach for one of these before inventing a new mechanism.
 | Command inventory | `./le cli list` |
 | Spec progress | `./le spec status` |
 | Generated plugin imports | `./le plugin imports check` |
+| Which build tag carries a plugin a binary was built without | `registry.GatedPluginTags` over the generated `internal/component/plugin/registry/gated_plugins_gen.go`; `./le plugin gated-table check` judges the table |
 | Whether the tree git holds compiles | `./le repo compiles check`. It runs in both full verification modes and is a structural gate in `internal/le/commit` |
 | Runtime readiness | `ze doctor --json` and `ze show diagnostic <diagnostic-code>` |
 
@@ -353,6 +354,7 @@ disagree, the manifest is right and the row is stale.
 | `./le go vet-platforms` | `internal/le/go/vetplatforms.Answer` | vet the host and interface trees against their Darwin and FreeBSD implementations |
 | `./le plugin boundary` | `internal/le/plugin/boundary.Answer` | no plugin reaches engine state through a plain in-process call, so moving that plugin to an external subprocess cannot silently disable it |
 | `./le plugin declarations` | `internal/le/plugin/declarations.Answer` | a plugin's two Registration literals declare the same commands and pipe aliases, field for field and in both directions, so the catalog built from the tree names what the daemon serves and nothing more |
+| `./le plugin gated-table` | `internal/le/plugin/gatedtable.Answer` | the generated table of gated plugins and their build tags: check it against feature-gates.txt and every registration, or write it |
 | `./le plugin imports` | `internal/le/plugin/imports.Answer` | the generated composition root: check that internal/component/plugin/all names every package the tree registers, or write it |
 | `./le rfc skeletons` | `internal/le/rfc/skeletons.Answer` | which protocol implementations are still a skeleton rather than a daemon, classified against ai/rules/protocol.md |
 | `./le repo arch-map` | `internal/le/repo/archmap.Answer` | the generated architecture lists in ai/INSTRUCTIONS.md: check them against the tree, or rewrite them |

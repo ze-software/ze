@@ -37,11 +37,20 @@ func init() {
 	loggerPtr.Store(slogutil.DiscardLogger())
 
 	reg := registry.Registration{
-		Name:                    bridge.PluginName,
-		Description:             "In-process ExaBGP compatibility bridge: runs an operator ExaBGP-format script as a subprocess and translates to/from ze events (RFC-agnostic transport shim)",
-		Features:                "yang",
-		YANG:                    bridgeyang.ZeExabgpBridgeConfYANG,
-		ConfigRoots:             []string{configRoot},
+		Name:        bridge.PluginName,
+		Description: "In-process ExaBGP compatibility bridge: runs an operator ExaBGP-format script as a subprocess and translates to/from ze events (RFC-agnostic transport shim)",
+		Features:    "yang",
+		YANG:        bridgeyang.ZeExabgpBridgeConfYANG,
+		ConfigRoots: []string{configRoot},
+		// Every line the script writes becomes a `send bgp ...` command for
+		// the BGP engine (bridge.TranslateLine), and every event it reads is a
+		// BGP event, so the bridge cannot run without `bgp`. The edge is hard:
+		// there is no bridge config that works without BGP, so no value leaf
+		// could carry a need. It also starts BGP before the script's first
+		// command, and refuses a build without ze_bgp naming that tag instead
+		// of answering every command Failed. The text dispatch is invisible to
+		// `./le plugin coupling check`, so this edge is declared by hand.
+		Dependencies:            []string{"bgp"},
 		InProcessConfigVerifier: verifyConfig,
 		RunEngine:               runInternalBridge,
 	}

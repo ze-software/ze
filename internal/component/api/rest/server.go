@@ -564,7 +564,7 @@ func (s *RESTServer) handleRIB(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *RESTServer) handleConfigRunning(w http.ResponseWriter, r *http.Request) {
-	result, execErr := s.engine.Execute(r.Context(), &api.ExecuteRequest{Caller: s.callerIdentity(r), Command: "show config dump"})
+	result, execErr := s.engine.Execute(r.Context(), &api.ExecuteRequest{Caller: s.callerIdentity(r), Command: "show config running"})
 	if errors.Is(execErr, api.ErrUnauthorized) {
 		writeError(w, http.StatusForbidden, result.Error)
 		return

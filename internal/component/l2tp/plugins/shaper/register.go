@@ -22,11 +22,15 @@ const configRootL2TP = "l2tp"
 func init() {
 	subscriber.RegisterShaperHandler(shaperInstance.handleSubscriberSessionUp)
 	reg := registry.Registration{
-		Name:                    Name,
-		Description:             "Traffic shaping for L2TP subscriber sessions",
-		Features:                "yang",
-		YANG:                    yang.ZeL2TPShaperConfYANG,
-		ConfigRoots:             []string{configRootL2TP},
+		Name:        Name,
+		Description: "Traffic shaping for L2TP subscriber sessions",
+		Features:    "yang",
+		YANG:        yang.ZeL2TPShaperConfYANG,
+		ConfigRoots: []string{configRootL2TP},
+		// StartAfter, never a load: the shaper listens for the RADIUS rate
+		// change l2tp-auth-radius emits, and shapes at the configured rate
+		// without it (./le plugin coupling check).
+		StartAfter:              []string{"l2tp-auth-radius"},
 		InProcessConfigVerifier: verifyShaperConfig,
 		RunEngine:               runPlugin,
 		Commands:                commandDecls(),

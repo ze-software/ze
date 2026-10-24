@@ -41,6 +41,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	bgpserver "github.com/ze-software/ze/internal/component/bgp/server"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
+	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/pkg/ze"
 
@@ -1544,8 +1545,11 @@ func (r *Reactor) startAPIServer() error {
 			ConfiguredFamilies:        r.config.ConfiguredFamilies,
 			ConfiguredCustomEvents:    r.config.ConfiguredCustomEvents,
 			ConfiguredCustomSendTypes: r.config.ConfiguredCustomSendTypes,
-			Hub:                       r.config.Hub,
-			MetricsRegistry:           r.metricsRegistry,
+			// The families and custom types auto-load with their optional
+			// providers judged against this reactor's own config tree.
+			ConfigNeedHolds: config.ConfigNeedHolds(r.config.ConfigTree),
+			Hub:             r.config.Hub,
+			MetricsRegistry: r.metricsRegistry,
 		}
 		// Clone plugins so WorkDir mutation below does not modify r.config.Plugins.
 		apiConfig.Plugins = slices.Clone(r.config.Plugins)

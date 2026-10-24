@@ -6,6 +6,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 )
 
@@ -26,7 +27,7 @@ func tierOf(tiers [][]string, name string) int {
 // OnStarted answering nil, and every static next-hop running without BFD
 // ("static: BFD service not available, running without BFD").
 func TestStaticStartsAfterBFD(t *testing.T) {
-	names, err := registry.ResolveDependencies([]string{"static", "bfd"}, nil)
+	names, err := registry.ResolveDependencies([]string{"static", "bfd"}, nil, config.ConfigNeedHolds(map[string]any{}))
 	if err != nil {
 		t.Fatalf("ResolveDependencies: %v", err)
 	}

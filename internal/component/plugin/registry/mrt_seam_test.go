@@ -4,7 +4,7 @@ import "testing"
 
 // VALIDATES: the MRT message/peer bridges reach the BGP reactor factory through
 // the registry seam (Set/Get MRTMessageCallback + MRTPeerCallback), so the
-// always-on hub no longer imports internal/plugins/mrt and //go:build ze_mrt can
+// always-on hub no longer imports internal/plugins/mrt and //go:build ze_bgp can
 // drop MRT from the binary.
 // PREVENTS: a regression that re-introduces a direct cmd/ze/hub -> plugins/mrt
 // import (which pins MRT into every binary), or a Set that clears a live bridge.

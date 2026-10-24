@@ -6,6 +6,7 @@ package server
 
 import (
 	plugin "github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/metrics"
 )
 
@@ -23,7 +24,15 @@ type ServerConfig struct {
 	// Empty means the tree named none and the build has no default, which is
 	// the non-Linux case: no writer is resolved and the producer's doctor check
 	// says so.
-	DataPlane       string
+	DataPlane string
+	// ConfigNeedHolds answers, for the startup config tree, whether a
+	// registry.ConfigNeed holds (config.ConfigNeedHolds over that tree). Boot
+	// auto-load resolves with it, so an optional provider a need names starts
+	// only when the config holds the need. Nil is no config at all: every boot
+	// resolution then refuses with registry.ErrConfigNeedsUnanswered rather
+	// than resolving as though no need held. A reload resolves with its own
+	// new tree, never with this one.
+	ConfigNeedHolds registry.NeedHolds
 	Hub             *plugin.HubConfig // TLS transport config (nil = no TLS listener)
 	MetricsRegistry metrics.Registry  // Prometheus metrics registry (nil = metrics disabled)
 }

@@ -124,6 +124,7 @@ import (
 	_ "github.com/ze-software/ze/internal/component/cmd/show"
 	_ "github.com/ze-software/ze/internal/component/cmd/subscribe"
 	_ "github.com/ze-software/ze/internal/component/config/archive/cmd"
+	_ "github.com/ze-software/ze/internal/component/config/cli"
 	_ "github.com/ze-software/ze/internal/component/config/schema/cli"
 	_ "github.com/ze-software/ze/internal/component/config/storage/cli"
 	_ "github.com/ze-software/ze/internal/component/doctor/cmd"
@@ -140,7 +141,6 @@ import (
 	_ "github.com/ze-software/ze/internal/component/trafficstat/cmd"
 
 	// CLI command packages -- command/registry registration.
-	_ "github.com/ze-software/ze/internal/component/config/cli"
 	_ "github.com/ze-software/ze/internal/component/doctor"
 	_ "github.com/ze-software/ze/internal/component/plugin"
 	_ "github.com/ze-software/ze/internal/component/plugin/cli"

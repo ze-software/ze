@@ -20,7 +20,7 @@ import (
 )
 
 func init() {
-	zeconfig.RegisterPluginExtractor(extractBGPInlinePlugins)
+	zeconfig.RegisterPluginExtractor(string(zeconfig.ConfigTypeBGP), extractBGPInlinePlugins)
 	if err := zeconfig.RegisterTreeValidator("bgp-filter-policy", validateFilterPolicies); err != nil {
 		panic("BUG: BGP filter policy validator registration failed: " + err.Error())
 	}
@@ -172,7 +172,7 @@ func createReactorFromCoordinator(coord registry.CoordinatorAccessor) (registry.
 
 	// MRT bridges come from the registry seam (MRT self-registers them from its
 	// init()), not from BGPBootstrap -- that is what keeps cmd/ze/hub free of an
-	// internal/plugins/mrt import so //go:build ze_mrt can drop MRT. nil when MRT
+	// internal/plugins/mrt import so //go:build ze_bgp can drop MRT. nil when MRT
 	// is compiled out.
 	if mcb := registry.GetMRTMessageCallback(); mcb != nil {
 		r.AddMessageCallback(mcb)

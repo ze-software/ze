@@ -146,7 +146,7 @@ func lifecycleRoutesReachTheRIB(ctx context.Context, plugin *sdk.Plugin) error {
 }
 
 // lifecycleFileUntouched holds AC-3: creating a peer writes nothing, so the
-// file is byte-identical and the resolved configuration names no such peer.
+// file is byte-identical, while the running configuration names the peer.
 func lifecycleFileUntouched(ctx context.Context, driver restLifecycle13, before []byte) error {
 	after, err := os.ReadFile(fileBGPConf)
 	if err != nil {
@@ -155,17 +155,21 @@ func lifecycleFileUntouched(ctx context.Context, driver restLifecycle13, before 
 	if !bytes.Equal(before, after) {
 		return fmt.Errorf("creating a peer changed the configuration file:\n%s", after)
 	}
-	// The running configuration is what `show config` prints. `show config
-	// dump` is a local CLI command no plugin can dispatch, so the read goes
-	// through the REST view of the same tree.
+	// The running configuration is what `show config running` answers, read
+	// here through its REST view. It DOES name the created peer: the reactor
+	// keeps a created peer in the running tree and carries it across a reload
+	// (reactorAPIAdapter.SetConfigTree, ReloadRunning), which is the set
+	// `update bgp config` writes out. Until 2026-10-24 this route dispatched
+	// `show config dump` with no file, which refuses, so the check that it
+	// named no such peer passed on an answer that held no configuration.
 	running, err := driver.request(ctx, http.MethodGet, "/config/running", nil)
 	if err != nil {
 		return err
 	}
-	if text := fmt.Sprint(running); strings.Contains(text, lifecycleCreatedPeer) {
-		return fmt.Errorf("the running configuration names the created peer: %.400s", text)
+	if text := fmt.Sprint(running); !strings.Contains(text, lifecycleCreatedPeer) {
+		return fmt.Errorf("the running configuration does not name the created peer %s: %.400s", lifecycleCreatedPeer, text)
 	}
-	fmt.Fprintln(os.Stderr, "OK: the configuration file and the running configuration name no created peer")
+	fmt.Fprintln(os.Stderr, "OK: the configuration file names no created peer, and the running configuration names it")
 	return nil
 }
 

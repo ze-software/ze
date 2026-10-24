@@ -58,6 +58,13 @@ const componentNameInterface = "interface"
 // error text so they know where to change the backend leaf.
 const backendLeafPath = "/interface/backend"
 
+// vppPlugin is the registration name of the VPP component
+// (internal/component/vpp), which the VPP interface backend drives. It is
+// pulled only when the backend leaf carries vppBackendName, and that value is
+// refused in a build without ze_vpp at validate, commit and boot, before
+// LoadBackend would fail at apply.
+const vppPlugin = "vpp"
+
 // backendGateSchema caches the config schema used by validateBackendGate.
 // Built lazily on first commit/verify to avoid paying YANG load cost at
 // daemon startup. Schema is immutable after build -- safe for concurrent
@@ -146,13 +153,19 @@ func init() {
 	loggerPtr.Store(d)
 
 	reg := registry.Registration{
-		Name:                    componentNameInterface,
-		Description:             "OS network interface monitoring and management",
-		Features:                "yang",
-		YANG:                    ifaceyang.ZeIfaceConfYANG,
-		ConfigRoots:             []string{configRootInterface},
-		ConfigReads:             []string{configRootClassOfService},
-		Dependencies:            []string{"sysctl"},
+		Name:                 componentNameInterface,
+		Description:          "OS network interface monitoring and management",
+		Features:             "yang",
+		YANG:                 ifaceyang.ZeIfaceConfYANG,
+		ConfigRoots:          []string{configRootInterface},
+		ConfigReads:          []string{configRootClassOfService},
+		Dependencies:         []string{"sysctl"},
+		OptionalDependencies: []string{vppPlugin},
+		ConfigNeeds: []registry.ConfigNeed{{
+			Path:      []string{"interface", "backend"},
+			Value:     vppBackendName,
+			Providers: []string{vppPlugin},
+		}},
 		InProcessConfigVerifier: verifyIfaceConfig,
 		RunEngine:               runEngine,
 		ConfigureEngineLogger: func(loggerName string) {

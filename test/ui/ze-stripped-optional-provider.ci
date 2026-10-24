@@ -1,0 +1,129 @@
+# Test: a build without an optional provider refuses the config that needs it,
+# at validate and at boot, naming the leaf and the build tag.
+# accept-only: the registered native fixture enforces this scenario's behavioral contract
+#
+# VALIDATES: spec-plugin-optional-dependency-refusal AC-7 at the validate door
+# (VerifyPluginConfigMapTransition) and the boot door (LoadConfig).
+# `traffic control backend vpp` needs the vpp component, which ze_vpp carries.
+# ze-stripped is built with "ze_core ze_ssh" (internal/le/test/functional/
+# binaries.go), so traffic is present and vpp is not.
+#
+# PREVENTS: the behavior before the spec. Validate accepted the config,
+# because the traffic verifier passes an unregistered backend, and boot reached
+# apply, which failed with `traffic: unknown backend "vpp"` and named no tag.
+#
+# The tc step proves the refusal is about the leaf value, not the traffic
+# root: without it, a binary that refused every traffic config would pass.
+
+tmpfs=traffic-vpp.conf:terminator=EOF_TRAFFIC_VPP
+traffic {
+    control {
+        backend vpp
+    }
+}
+EOF_TRAFFIC_VPP
+
+tmpfs=traffic-tc.conf:terminator=EOF_TRAFFIC_TC
+traffic {
+    control {
+        backend tc
+    }
+}
+EOF_TRAFFIC_TC
+
+cmd=foreground:seq=1:exec=le test fixture ui/ze-stripped-optional-provider:timeout=60s
+expect=exit:code=0
+expect=stdout:contains=absent optional provider refused at validate and boot
+
+# AC-8 and AC-9: the interface and firewall backend leaves, refused at validate
+# and boot with vpp and accepted with the always-built backend. Both roots are
+# ungated, so ze-stripped parses them; the vpp component and every VPP backend
+# leave the build with ze_vpp.
+
+tmpfs=interface-vpp.conf:terminator=EOF_INTERFACE_VPP
+interface {
+    backend vpp
+}
+EOF_INTERFACE_VPP
+
+tmpfs=interface-netlink.conf:terminator=EOF_INTERFACE_NETLINK
+interface {
+    backend netlink
+}
+EOF_INTERFACE_NETLINK
+
+tmpfs=firewall-vpp.conf:terminator=EOF_FIREWALL_VPP
+firewall {
+    backend vpp
+}
+EOF_FIREWALL_VPP
+
+tmpfs=firewall-nft.conf:terminator=EOF_FIREWALL_NFT
+firewall {
+    backend nft
+}
+EOF_FIREWALL_NFT
+
+# VALIDATES: spec-plugin-optional-dependency-refusal AC-1, AC-2, AC-3, AC-4 and
+# AC-12 on ze-stripped-flow, built "ze_core ze_ssh ze_ddos ze_anomaly
+# ze_flowexport" with no ze_bgp (internal/le/test/functional/binaries.go,
+# strippedFlowTags). `flow-export enrichment bgp true` needs bgp-rib and
+# `ddos flowspec response-level enforce` needs bgp: validate, boot and SIGHUP
+# reload refuse each naming the setting and ze_bgp, with the fix on its own
+# line, and the same roots with the setting off are accepted. The SIGHUP step
+# boots FlowSpec alert, is refused at enforce while the daemon keeps running,
+# and reloads back to alert. Flow export with enrichment off is proven at
+# validate only: it hard-depends on the interface component, which has no
+# backend on darwin, so its boot needs Linux.
+#
+# PREVENTS: the behavior before the spec. Enrichment subscribed to a RIB the
+# build did not hold and silently received nothing, and an enforcing FlowSpec
+# responder dispatched to a BGP engine that was not there.
+
+tmpfs=flow-enrich-on.conf:terminator=EOF_FLOW_ENRICH_ON
+flow-export {
+    collector c1 {
+        address 127.0.0.1
+        port 2055
+        protocol ipfix
+    }
+    enrichment {
+        bgp true
+    }
+}
+EOF_FLOW_ENRICH_ON
+
+tmpfs=flow-enrich-off.conf:terminator=EOF_FLOW_ENRICH_OFF
+flow-export {
+    collector c1 {
+        address 127.0.0.1
+        port 2055
+        protocol ipfix
+    }
+    enrichment {
+        bgp false
+    }
+}
+EOF_FLOW_ENRICH_OFF
+
+tmpfs=ddos-enforce.conf:terminator=EOF_DDOS_ENFORCE
+ddos {
+    flowspec {
+        response-level enforce
+        action discard
+    }
+}
+EOF_DDOS_ENFORCE
+
+tmpfs=ddos-alert.conf:terminator=EOF_DDOS_ALERT
+ddos {
+    flowspec {
+        response-level alert
+        action discard
+    }
+}
+EOF_DDOS_ALERT
+
+cmd=foreground:seq=2:exec=le test fixture ui/ze-stripped-flow-optional-provider:timeout=120s
+expect=exit:code=0
+expect=stdout:contains=BGP-needing settings refused at validate, boot and reload

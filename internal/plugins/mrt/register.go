@@ -113,7 +113,7 @@ func init() {
 	// Self-register the reactor bridges into the leaf registry seam. The BGP
 	// reactor factory (bgp/config) reads them via registry.GetMRTMessageCallback /
 	// GetMRTPeerCallback, so cmd/ze/hub no longer imports this package directly --
-	// which is what lets //go:build ze_mrt drop MRT from the binary.
+	// which is what lets //go:build ze_bgp drop MRT from the binary.
 	registry.SetMRTMessageCallback(MessageBridge)
 	registry.SetMRTPeerCallback(PeerBridge)
 }

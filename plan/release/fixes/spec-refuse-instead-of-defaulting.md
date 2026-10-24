@@ -6,7 +6,7 @@
 | Scope | protocol |
 | Priority | P1 |
 | Release reason | Shipped producers answer a default, a zero or a constant where they cannot answer, so operators and peers act on values Ze never measured; several rows are RFC defects in implemented capabilities (RADIUS, LDP, IS-IS, ADD-PATH, LLGR) |
-| Depends | `plan/release/fixes/spec-plugin-optional-dependency-refusal.md` (owns the "not built reads as not configured" rows of the 2026-10-20 dependency census; this spec reuses its refusal for the two build-gated rows it owns) |
+| Depends | spec-plugin-optional-dependency-refusal (closed; its refusal is `config.refuseAbsentOptionalProviders` and `registry.MissingDependencyError`, documented in `docs/architecture/plugin/feature-gates.md`; it owned the "not built reads as not configured" rows of the 2026-10-20 dependency census; this spec reuses its refusal for the two build-gated rows it owns) |
 | Phase | 7/7 |
 | Handoff | verify |
 | Updated | 2026-10-24 |
@@ -48,7 +48,7 @@ named as one").
 - [ ] `docs/architecture/testing/verify-freshness-scope.md` - the fixed verify stage population (`internal/le/verify/engine/stages.go`)
   → Decision: the new check is a change-set stage beside `arch enumeration` and `arch compound-guard`, so the tree's existing instances are reported, not a red on every commit
 - [ ] `docs/contributing/ze-go-style.md` - error and naming conventions for the new error types
-- [ ] `plan/release/fixes/spec-plugin-optional-dependency-refusal.md` - "Journal Rows This Spec Closes"
+- [ ] `docs/architecture/plugin/feature-gates.md` - the not-built refusal spec-plugin-optional-dependency-refusal (closed) delivered
   → Constraint: rows 5 to 8 of the census are owned there; do not duplicate its refusal, call it
 
 ### RFC Summaries (Scope: protocol)

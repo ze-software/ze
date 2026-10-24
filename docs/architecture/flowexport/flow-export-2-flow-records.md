@@ -61,6 +61,17 @@ the map has changed, a worker rebuilds an immutable radix tree at most once per
 tree. `BestChangeEntry` carries `OriginAS` and `ASPath`, so `ExportFlows` fills
 IPFIX IE 16 and IE 17 (`bgpSourceAsNumber`, `bgpDestinationAsNumber`).
 
+The publisher is `bgp-rib`, so flow export declares it as an optional
+dependency with a config need on `enrichment bgp` set to `true`. The need
+decides the pull: with enrichment on, the resolver starts `bgp-rib` and orders
+it before flow export; with enrichment off or absent, flow export does not
+start the RIB. A build without `ze_bgp` still runs flow export, and a config
+that turns enrichment on there is refused at load, validate and commit, naming
+the leaf and the tag (`docs/architecture/plugin/feature-gates.md`, "Refusing a
+setting whose provider is compiled out").
+
+<!-- source: internal/plugins/flowexport/register.go -- OptionalDependencies, ConfigNeeds, bgpRIBPlugin -->
+
 ## Worker teardown runs outside the exporter mutex
 
 <!-- source: internal/plugins/flowexport/exporter.go -- exporter.stop, exporter.addStopper -->

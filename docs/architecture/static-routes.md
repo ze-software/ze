@@ -258,10 +258,12 @@ the next apply.
 ## Startup ordering and emit rules
 
 The plugin loads when the config carries a `static { }` root. It declares
-`OptionalDependencies: ["interface"]`, so with an `interface` stanza present
-static is ordered into a later startup tier than the iface component and its
-next hops resolve against a loaded backend. With no `interface` stanza the
-optional dependency is inert.
+`OptionalDependencies: ["interface"]`, so static is ordered into a later
+startup tier than the iface component and its next hops resolve against a
+loaded backend. The edge declares no config need, so the resolver pulls the
+interface plugin whenever static loads, with or without an `interface` stanza;
+it is optional only in that a build without the interface plugin still runs
+static.
 
 Emit tracking uses a per-route `emitted` flag. A forward to non-forward
 replacement emits a remove for the old route. A forward to forward replacement

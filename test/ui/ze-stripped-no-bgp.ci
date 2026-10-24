@@ -14,17 +14,22 @@
 # in every default-on gate including ze_bgp, so it could never have detected the
 # non-BGP surface wrongly depending on BGP.
 #
+# ALSO VALIDATES: the bgp refusal names the build tag that carries the root
+# ("build tag ze_bgp", from the generated gated-plugin table read by
+# config.TopLevelKeywordHint), not a bare "unknown top-level keyword".
+#
 # Why ze-stripped: internal/le/test/functional/binaries.go builds it with tags
 # "ze_core ze_ssh", so ze_bgp is off. The runner puts that binary dir first on
 # PATH, which
 # is what lets this reach it by bare name, the same way ze-stripped-surface.ci
 # does. No new harness was needed; the spec assumed none existed.
 #
-# SCOPE, stated rather than implied: ze-stripped also drops ze_mrt and
-# ze_flowexport (both gated in feature-gates.txt), so this covers only the
-# ALWAYS-ON half of the claim -- fib and static routes. Proving the MRT and
-# flow-export half needs a binary built with the default feature set MINUS
-# ze_bgp, which the functional harness does not build today. That stays open.
+# SCOPE, stated rather than implied: ze-stripped also drops ze_flowexport
+# (gated in feature-gates.txt), so this covers only the ALWAYS-ON half of the
+# claim -- fib and static routes. MRT is a BGP plugin under ze_bgp, so it leaves
+# with BGP and has no half of its own. Proving the flow-export half needs a
+# binary built with the default feature set MINUS ze_bgp, which the functional
+# harness does not build today. That stays open.
 
 tmpfs=fib-static.conf:terminator=EOF_FIB
 fib {

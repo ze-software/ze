@@ -51,7 +51,7 @@ func vmFixture(t *testing.T) *allTestsRun {
 	workspace := t.TempDir()
 
 	writeFile(t, workspace, "feature-gates.txt", "ze_bgp on\nze_ssh on\nnot_a_tag on\nze_bgp on\n")
-	for _, bin := range []string{"bin/ze", "bin/ze-stripped"} {
+	for _, bin := range []string{"bin/ze", "bin/ze-stripped", "bin/ze-stripped-flow"} {
 		writeExecutable(t, workspace, bin)
 	}
 	for _, pkg := range integrationPackages {
@@ -61,17 +61,18 @@ func vmFixture(t *testing.T) *allTestsRun {
 	}
 
 	return &allTestsRun{
-		Workspace:   workspace,
-		Look:        func(name string) (string, error) { return "/usr/sbin/" + name, nil },
-		BinDir:      filepath.Join(t.TempDir(), "bin"),
-		ZeBin:       "bin/ze",
-		StrippedBin: "bin/ze-stripped",
-		Skip:        []string{functionalWeb},
-		Parallel:    "4",
-		Timeout:     "900s",
-		BuildCache:  filepath.Join(workspace, "cache", "go-build"),
-		ModuleCache: filepath.Join(workspace, "cache", "go-mod"),
-		Note:        func(string) {},
+		Workspace:       workspace,
+		Look:            func(name string) (string, error) { return "/usr/sbin/" + name, nil },
+		BinDir:          filepath.Join(t.TempDir(), "bin"),
+		ZeBin:           "bin/ze",
+		StrippedBin:     "bin/ze-stripped",
+		StrippedFlowBin: "bin/ze-stripped-flow",
+		Skip:            []string{functionalWeb},
+		Parallel:        "4",
+		Timeout:         "900s",
+		BuildCache:      filepath.Join(workspace, "cache", "go-build"),
+		ModuleCache:     filepath.Join(workspace, "cache", "go-mod"),
+		Note:            func(string) {},
 	}
 }
 
@@ -86,7 +87,7 @@ func writeFile(t *testing.T, root, rel, body string) {
 	}
 }
 
-// writeExecutable puts one of the run's three binaries in the workspace.
+// writeExecutable puts one of the run's daemon binaries in the workspace.
 //
 // It is a real static ELF, not a shell script: verify() reads the file's
 // PT_INTERP header and refuses a binary the musl guest cannot exec, so a
@@ -425,7 +426,7 @@ func TestTheBinaryShimIsBuiltBeforeTheSuitesRun(t *testing.T) {
 	run.Run = rec.run
 	run.Execute()
 
-	for _, name := range []string{"ze", "ze-stripped"} {
+	for _, name := range []string{"ze", "ze-stripped", "ze-stripped-flow"} {
 		link := filepath.Join(run.BinDir, name)
 		target, err := os.Readlink(link)
 		if err != nil {

@@ -77,6 +77,24 @@ rule. The coarse rule matches the destination prefix; characterization (below)
 then narrows it in place to the attack's protocol, ports, and TCP flags.
 <!-- source: internal/plugins/ddos/detect/characterize.go -- characterizeTarget fills the victim DstPrefix from traffic-usage -->
 
+The flow sources are the `traffic-usage` plugin (build tag `ze_trafficusage`)
+and `flow-export` (`ze_flowexport`). A build that carries neither refuses
+`ddos detect enabled true` at `ze config validate`, at commit, at daemon start
+and at SIGHUP reload, naming both tags as alternatives in its fix line. A build
+that carries either accepts it, and whether that source is configured stays the
+`doctor-ddos-detect-no-flow-source` warning of `ze doctor`. Enabling detection
+starts no flow source: the source you configure (`flow-export` or
+`traffic-usage`) starts from its own config block, and one you do not
+configure does not run.
+`anomaly detect enabled true` gets the same treatment, for the same two sources.
+
+`ddos flowspec response-level enforce` announces through the BGP subsystem, so a
+build without `ze_bgp` refuses it the same way, naming `ze_bgp`;
+`response-level alert` announces nothing and is accepted in every build.
+<!-- source: internal/plugins/ddos/detect/register.go -- ConfigNeeds -->
+<!-- source: internal/plugins/anomaly/detect/register.go -- ConfigNeeds -->
+<!-- source: internal/plugins/ddos/flowspec/register.go -- ConfigNeeds, bgpPlugin -->
+
 The drop rule is removed automatically when the attack stops (the detector
 observes RxPps falling below threshold, which works because nftables drops occur
 after the kernel NIC RX counter), when it reaches `max-mitigation-duration`, and

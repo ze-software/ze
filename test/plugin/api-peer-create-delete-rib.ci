@@ -2,7 +2,8 @@
 # VALIDATES: create bgp peer builds a peer that dials, establishes and puts its
 #            route in the Adj-RIB-In, the RIB and the best path; the route is
 #            forwarded to a configured peer; the configuration file is not
-#            written; an unrelated commit keeps the created peer on its session;
+#            written, and `show config running` (its REST view) names the
+#            created peer; an unrelated commit keeps the created peer on its session;
 #            delete bgp peer removes the peer, its route leaves the RIB, the
 #            configured peer receives the WITHDRAW and a subscribed plugin is
 #            told; deleting a configured peer leaves the file alone, a reload
@@ -138,7 +139,7 @@ cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=sourc
 cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=60s
 expect=stderr:contains=OK: the created peer is listed and established
 expect=stderr:contains=OK: the created peer's route is in the RIB and is the best path
-expect=stderr:contains=OK: the configuration file and the running configuration name no created peer
+expect=stderr:contains=OK: the configuration file names no created peer, and the running configuration names it
 expect=stderr:contains=OK: an unrelated commit keeps the created peer and its routes
 expect=stderr:contains=OK: a reload keeps the created peer and its routes
 expect=stderr:contains=OK: the deleted peer's route left the RIB and a plugin was told

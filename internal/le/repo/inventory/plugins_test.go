@@ -109,7 +109,11 @@ func TestRegisteredBFDOrdersOnlySelectedInterface(t *testing.T) {
 	}
 	for _, requested := range [][]string{{"bfd"}, {"bfd", "interface"}} {
 		t.Run(strings.Join(requested, "-"), func(t *testing.T) {
-			resolved, err := registry.ResolveDependencies(requested, nil)
+			// Neither bfd nor interface declares a ConfigNeed, so no config
+			// is consulted; the predicate is the answer of a config that
+			// sets nothing.
+			holdsNoNeed := func(string, registry.ConfigNeed) bool { return false }
+			resolved, err := registry.ResolveDependencies(requested, nil, holdsNoNeed)
 			if err != nil {
 				t.Fatal(err)
 			}

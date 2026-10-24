@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -85,7 +86,11 @@ func NewConfigValidator() (*ConfigValidator, error) {
 func (v *ConfigValidator) Validate(content string) ConfigValidationResult {
 	result, tree, parseErr := v.validateCore(content)
 	if parseErr == nil {
+		editorRefused := len(result.Errors) > 0
 		for _, err := range config.VerifyPluginConfig(tree) {
+			if !editorReportsPluginVerifyError(err, editorRefused) {
+				continue
+			}
 			result.Errors = append(result.Errors, ConfigValidationError{
 				Message:  err.Error(),
 				Severity: severityError,
@@ -105,15 +110,38 @@ func (v *ConfigValidator) ValidateTransition(previous, candidate string) ConfigV
 	if len(result.Errors) > 0 {
 		return result
 	}
-	if err := config.VerifyPluginConfigContentTransition(previous, candidate); err != nil {
+	// The engine's peer resolution reports a bgp tree that does not resolve, so
+	// the copy VerifyPluginConfigTransition relays from the bgp extractor is
+	// dropped when it did (editorReportsPluginVerifyError).
+	peerErrors := v.bgpPeerErrors(tree)
+	if err := pluginVerifyTransitionError(previous, candidate, len(peerErrors) > 0); err != nil {
 		result.Errors = append(result.Errors, ConfigValidationError{
 			Message:  err.Error(),
 			Severity: severityError,
 		})
 	}
-	result.Errors = append(result.Errors, v.bgpPeerErrors(tree)...)
+	result.Errors = append(result.Errors, peerErrors...)
 	result.Errors = append(result.Errors, v.sectionErrors(tree)...)
 	return result
+}
+
+// pluginVerifyTransitionError is config.VerifyPluginConfigContentTransition,
+// with the same parsing, less what editorReportsPluginVerifyError drops.
+func pluginVerifyTransitionError(previous, candidate string, editorRefused bool) error {
+	candidateTree, err := config.ParseTreeForValidation(candidate)
+	if err != nil {
+		return err
+	}
+	// A previous config that does not parse verifies as no previous config,
+	// as VerifyPluginConfigContentTransition treats it.
+	previousTree, _ := config.ParseTreeForValidation(previous)
+	var verifyErrors []error
+	for _, verifyErr := range config.VerifyPluginConfigTransition(previousTree, candidateTree) {
+		if editorReportsPluginVerifyError(verifyErr, editorRefused) {
+			verifyErrors = append(verifyErrors, verifyErr)
+		}
+	}
+	return config.JoinPluginConfigVerifyErrors(verifyErrors)
 }
 
 // sectionErrors runs config.ValidateCustomSections, the section walk LoadConfig
@@ -168,6 +196,28 @@ func editorReportsSectionFailure(f config.SectionValidationError) bool {
 		return true
 	}
 	return f.Err.Type == yang.ErrTypeReference
+}
+
+// editorReportsPluginVerifyError reports whether a VerifyPluginConfig error is
+// the editor's to add. A plugin extraction failure relayed from the bgp
+// section's extractor is a bgp tree that does not resolve (a duplicate remote
+// IP, a duplicate peer name), and validateWithYANG checks the bgp section
+// itself, once for each offending peer and with its line. So when the editor's
+// own pass already refused the config (editorRefused: validateWithYANG in
+// Validate, the engine's peer resolution in ValidateTransition), the relayed
+// copy is skipped: it repeats the first of those errors. When that pass found nothing,
+// the relayed copy is the only report of a bgp tree the daemon cannot load, so
+// it is added. Every other error, the `plugin { }` block's own extraction
+// failures included, is always added.
+func editorReportsPluginVerifyError(err error, editorRefused bool) bool {
+	var extractErr *config.PluginExtractionError
+	if !errors.As(err, &extractErr) {
+		return true
+	}
+	if extractErr.Section != string(config.ConfigTypeBGP) {
+		return true
+	}
+	return !editorRefused
 }
 
 // bgpPeerErrors runs the BGP engine's own peer resolution, the gate the daemon

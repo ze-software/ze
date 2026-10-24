@@ -431,7 +431,7 @@ No other wiring is needed. The engine discovers it through registry queries, the
 | `CapabilityMap()` | Wire decoder | Map capability codes to plugin names |
 | `DecodeNLRIByFamily(family, hex, addPath, withdraw)` | `ze bgp decode` | Fast-path NLRI decoding (no RPC) |
 | `YANGSchemas()` | YANG loader | All YANG schemas for CLI generation |
-| `ResolveDependencies()` | Engine startup | Expand dependency graph (with cycle detection) |
+| `ResolveDependencies()` | Engine startup, config load, reload | Expand dependency graph (with cycle detection). An optional dependency that a `ConfigNeeds` entry names is pulled only when the config being resolved holds that need, so every caller passes the `NeedHolds` of its config (`config.ConfigNeedHolds`); a nil one is refused |
 | `TopologicalTiers()` | Engine startup | Order plugins for startup (Kahn's algorithm) |
 | `SetupResults()` | `show plugin list` | Every plugin and the setup outcome it recorded |
 | `HardSetupFailures()` | `hub.run` first statement | The plugins whose recorded failure stops the daemon |

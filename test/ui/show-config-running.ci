@@ -1,0 +1,60 @@
+# Test: `show config running` answers the configuration the daemon applied,
+# over SSH, with every secret leaf masked, and `show config dump` with no file
+# names it.
+# VALIDATES: spec-plugin-optional-dependency-refusal AC-4 (the running-config
+# read the refused-reload proof relies on), through the real entry point: the
+# CLI dials the daemon's SSH server and dispatches ze-config:show-config-running
+# (handleShowConfigRunning, internal/component/config/cli/running_rpc.go).
+#   - a value: the SSH listener address the daemon was started with.
+#   - a secret: the user's bcrypt password answers /* SECRET-DATA */, never the
+#     hash, because the answer leaves the daemon.
+#   - `show config dump` is a local-data command that parses a file in the
+#     caller's process. With no file it refuses (exit 1) and names
+#     `show config running` (dataDump, config_data.go).
+# PREVENTS: a running-config read that answers nothing (REST and gRPC once
+# dispatched `show config dump` with no file, which refuses), and an answer
+# that carries a password hash off the box.
+# The refused-reload half (the daemon keeps the applied value while the file
+# holds the refused one) is test/ui/ze-stripped-optional-provider.ci, seq=2.
+#
+# Method: the daemon runs one SSH server on 127.0.0.1 $PORT, which the CLI dials.
+
+option=timeout:value=60s
+option=env:var=ZE_CONFIG_DIR:value=.
+option=env:var=XDG_DATA_HOME:value=.
+option=env:var=ze.ssh.password:value=testpass
+stdin=init-answers:terminator=EOF_INIT
+admin
+testpass
+127.0.0.1
+$PORT
+EOF_INIT
+tmpfs=running.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+EOF_CONF
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+cmd=background:seq=2:exec=ze start running.conf:name=daemon:ready=Ze running.
+cmd=foreground:seq=3:exec=ze cli -c "show config running | json":exit=0
+expect=stdout:contains="ip": "127.0.0.1"
+expect=stdout:contains="password": "/* SECRET-DATA */"
+reject=stdout:contains=$2a$04$
+cmd=foreground:seq=4:exec=ze cli -c "show config dump":exit=1
+expect=stderr:contains=show config dump needs a config file to read
+expect=stderr:contains=  show config running
+cmd=stop:seq=5:name=daemon:signal=term

@@ -1081,3 +1081,34 @@ func listCommandsForTest(t *testing.T, engine *api.APIEngine) []api.CommandMeta 
 	}
 	return cmds
 }
+
+// VALIDATES: GET /api/v1/config/running dispatches `show config running`, the
+// daemon-side read of the applied configuration, and answers its payload.
+// PREVENTS: the route dispatching `show config dump` with no file, a
+// caller-process command the daemon cannot answer, so the route always refused.
+func TestRESTConfigRunningDispatchesShowConfigRunning(t *testing.T) {
+	var asked string
+	exec := func(_ context.Context, _ api.CallerIdentity, command string) (*plugin.Response, error) {
+		asked = command
+		applied := plugin.Map{"ddos": map[string]any{"flowspec": map[string]any{"response-level": "alert"}}}
+		return plugin.NewResponse(api.StatusDone, applied), nil
+	}
+	cmds := func() ([]api.CommandMeta, error) {
+		return []api.CommandMeta{{Name: "show config running", ReadOnly: true}}, nil
+	}
+	engine := api.NewAPIEngine(exec, cmds, func(_, _ string) bool { return true }, nil)
+	srv, err := NewRESTServer(RESTConfig{ListenAddrs: []string{"127.0.0.1:0"}}, engine, nil, func() []byte { return nil })
+	require.NoError(t, err)
+
+	r := do(t, srv, "GET", "/api/v1/config/running", "")
+	require.Equal(t, http.StatusOK, r.Status, r.Body)
+	assert.Equal(t, "show config running", asked)
+
+	var result struct {
+		Status string                                  `json:"status"`
+		Data   map[string]map[string]map[string]string `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(r.Body), &result), r.Body)
+	assert.Equal(t, "done", result.Status)
+	assert.Equal(t, "alert", result.Data["ddos"]["flowspec"]["response-level"])
+}

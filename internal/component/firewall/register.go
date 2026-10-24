@@ -32,14 +32,33 @@ func getEventBusRef() ze.EventBus {
 	return eventBusRef
 }
 
+// vppPlugin is the registration name of the VPP component
+// (internal/component/vpp), which the VPP firewall backend
+// (internal/plugins/firewall/vpp) drives. backendVPP is the backend leaf value
+// that selects that backend. The two spellings match, but one names a plugin
+// and the other a value of the leaf. The optional edge orders firewall after
+// vpp whenever both run, as the StartAfter it replaces did, and the config
+// need pulls vpp only when the leaf selects it. In a build without ze_vpp that
+// value is refused at validate, commit and boot, before LoadBackend would fail
+// at apply.
+const (
+	vppPlugin  = "vpp"
+	backendVPP = "vpp"
+)
+
 func init() { //nolint:gochecknoinits // plugin registration
 	reg := registry.Registration{
-		Name:                    "firewall",
-		Description:             "Packet filter and NAT rules (nftables on Linux)",
-		Features:                "yang",
-		YANG:                    firewallyang.ZeFirewallConfYANG,
-		ConfigRoots:             []string{configRootFirewall},
-		StartAfter:              []string{"vpp"},
+		Name:                 "firewall",
+		Description:          "Packet filter and NAT rules (nftables on Linux)",
+		Features:             "yang",
+		YANG:                 firewallyang.ZeFirewallConfYANG,
+		ConfigRoots:          []string{configRootFirewall},
+		OptionalDependencies: []string{vppPlugin},
+		ConfigNeeds: []registry.ConfigNeed{{
+			Path:      []string{"firewall", "backend"},
+			Value:     backendVPP,
+			Providers: []string{vppPlugin},
+		}},
 		InProcessConfigVerifier: VerifyConfig,
 		RunEngine:               runEngine,
 		ConfigureEngineLogger: func(loggerName string) {

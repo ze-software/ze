@@ -433,8 +433,8 @@ func TestBuildCommandsCarryTheTagsTheRunnerBuildsWith(t *testing.T) {
 		t.Fatalf("load the toolchain: %v", err)
 	}
 	commands := buildCommands(tc, filepath.Join("out", "bin"))
-	if len(commands) != 3 {
-		t.Fatalf("a set builds ze, ze-stripped and le, got %d commands", len(commands))
+	if len(commands) != 4 {
+		t.Fatalf("a set builds ze, ze-stripped, ze-stripped-flow and le, got %d commands", len(commands))
 	}
 
 	dut := strings.Join(commands[0], " ")
@@ -449,7 +449,20 @@ func TestBuildCommandsCarryTheTagsTheRunnerBuildsWith(t *testing.T) {
 	if stripped := strings.Join(commands[1], " "); !strings.Contains(stripped, "ze_core ze_ssh") {
 		t.Errorf("the stripped build's tags moved: %s", stripped)
 	}
-	if harness := strings.Join(commands[2], " "); strings.Contains(harness, "-cover") {
+	// ze-stripped-flow carries the flow features and never BGP: its whole
+	// purpose is a present plugin whose setting needs the absent BGP subsystem
+	// (test/ui/ze-stripped-optional-provider.ci).
+	flow := strings.Join(commands[2], " ")
+	if !strings.Contains(flow, "ze_core ze_ssh ze_ddos ze_anomaly ze_flowexport") {
+		t.Errorf("the stripped flow build's tags moved: %s", flow)
+	}
+	if strings.Contains(flow, "ze_bgp") {
+		t.Errorf("the stripped flow build carries ze_bgp, so no refusal of a BGP-needing setting can be shown on it: %s", flow)
+	}
+	if !strings.HasSuffix(flow, "ze-stripped-flow ./cmd/ze") {
+		t.Errorf("the stripped flow build is not named ze-stripped-flow: %s", flow)
+	}
+	if harness := strings.Join(commands[3], " "); strings.Contains(harness, "-cover") {
 		t.Error("le was instrumented; it is the harness, not the subject")
 	}
 }

@@ -5,6 +5,7 @@ module ze-config-cli-cmd {
     // These handlers inspect, compare, and format configuration files through
     // the config backend. See ai/rules/plugin-self-containment.md.
     description "The show config command tree, owned by the config CLI.";
+    revision 2026-10-24 { description "Add show config running, the configuration the daemon applied, answered by the daemon."; }
     revision 2026-10-12 { description "Rename validate config to show config validation: the first word of a command is its verb."; }
     revision 2026-10-08 { description "Declare show config graph and validate config, which the config CLI already served."; }
     // Every command that enumerates a set now spells the verb the same way.
@@ -27,9 +28,20 @@ module ze-config-cli-cmd {
                 config false;
                 ze:command "ze-config-cli:show-config-dump";
                 description "Parses the config and outputs it after includes, defaults, and group
-inheritance have been applied. What you see here is exactly what the daemon is
-using.";
-                ze:help "Show the fully resolved configuration tree.";
+inheritance have been applied. It reads the file you name, so it shows what the
+daemon would load from it. To see what a running daemon applied, use
+show config running.";
+                ze:help "Show the fully resolved configuration tree of a file.";
+            }
+
+            container running {
+                config false;
+                ze:command "ze-config:show-config-running";
+                description "The running daemon answers with the configuration it applied, from
+memory, not from a file. A reload the daemon refused leaves this answer
+unchanged, while the config file already holds the refused text. Secret values
+are replaced with a placeholder.";
+                ze:help "Show the configuration the running daemon applied.";
             }
 
             container diff {

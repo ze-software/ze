@@ -191,7 +191,7 @@ refresh row gives the required generic Execute command instead.
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `GET` | `/api/v1/config/running` | Current running config |
+| `GET` | `/api/v1/config/running` | The configuration the daemon applied, from memory (`show config running`). After a refused reload it still answers the config in force, not the file. Secret values are replaced with a placeholder |
 | `POST` | `/api/v1/config/sessions` | Start a candidate session, returns `{"session-id": "..."}` |
 | `PUT` | `/api/v1/config/sessions/{id}` | Set a value: `{"path":"bgp.router-id","value":"10.0.0.1"}` |
 | `DELETE` | `/api/v1/config/sessions/{id}/{path}` | Delete a config path |
@@ -282,7 +282,7 @@ Typed config session management (same semantics as REST config sessions).
 
 | RPC | Purpose |
 |-----|---------|
-| `GetRunningConfig` | Current running config |
+| `GetRunningConfig` | The configuration the daemon applied, as one JSON object (`show config running`). A daemon with no running configuration yet answers `UNAVAILABLE` |
 | `EnterSession` | Start a candidate session |
 | `SetConfig` / `DeleteConfig` | Modify the candidate |
 | `DiffSession` | Preview pending changes |

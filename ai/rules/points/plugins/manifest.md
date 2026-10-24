@@ -13,3 +13,5 @@ directives ## Directives
   answer-a-declaration-without-activating
 registration-based-dispatch ## Registration-Based Dispatch
   dispatch-subcommands-by-registration-not-switch
+feature-gate-registration ## Feature-Gate Registration
+  declare-every-cross-gate-coupling

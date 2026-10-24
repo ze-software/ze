@@ -329,7 +329,7 @@ Runtime-level config manipulation that is not `set` / `del`.
 
 | Command (generic) | VyOS | Junos | Nokia | Arista | FRR | Ze command | Ze status | Backend | Notes |
 |-------------------|------|-------|-------|--------|-----|---------|-----------|---------|-------|
-| Show running config | `show configuration` | `show configuration` | `admin display-config` | `show running-config` | `show running-config` | `ze config dump` | shipped | config | |
+| Show running config | `show configuration` | `show configuration` | `admin display-config` | `show running-config` | `show running-config` | `show config running` | shipped | config | `ze config dump` parses a file, not what the daemon applied |
 | Show candidate config | - | `show \| compare` | `candidate view` | - | `show running-config differences` | editor dashboard | shipped | config | |
 | Validate config | - | `commit check` | `candidate check` | `show running-config \| section ...` | `configure terminal`+checks | `ze config validate` | shipped | config | |
 | Commit config | - | `commit` | `commit` | `commit` | `end` | editor `commit now` | shipped | config | |

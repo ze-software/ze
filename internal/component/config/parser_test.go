@@ -1111,3 +1111,41 @@ func TestParserSensitiveLeafStillDecodesSecret(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, plain, val, "Sensitive leaf must still decode $9$ to plaintext")
 }
+
+// TestCompiledOutRootNamesItsBuildTag proves a top-level keyword that only a
+// compiled-out plugin owns is refused naming the build tag that carries it,
+// while a typo keeps the closest-key hint. Method: the test schema holds no bgp
+// or mrt module, so both roots are unknown here, and the generated gated table
+// says ze_bgp carries each; `bgpp` is owned by nothing.
+func TestCompiledOutRootNamesItsBuildTag(t *testing.T) {
+	for _, root := range []string{"bgp", "mrt"} {
+		got := TopLevelKeywordHint(root, []string{"system"})
+		if !strings.Contains(got, root+" is configured by a plugin this build of ze was compiled without") {
+			t.Errorf("%s hint does not say why:\n%s", root, got)
+		}
+		if !strings.HasSuffix(got, "\n  fix: rebuild ze with build tag ze_bgp added to its -tags list, or remove the "+root+" block from the config") {
+			t.Errorf("%s hint does not end with the fix naming ze_bgp:\n%s", root, got)
+		}
+	}
+	if got, want := TopLevelKeywordHint("systen", []string{"system"}), UnknownKeywordHint("systen", []string{"system"}); got != want {
+		t.Errorf("typo hint = %q, want the unknown-keyword hint %q", got, want)
+	}
+}
+
+// TestParseRefusesCompiledOutRootWithItsTag proves the brace parser's top-level
+// refusal carries TopLevelKeywordHint, through the loader's own parse
+// (ParseTreeForValidation, the parse LoadConfig and `ze config validate` run).
+// Method: this package's test binary links no mrt module, so `mrt { }` is
+// unknown, exactly as in a build without ze_bgp.
+func TestParseRefusesCompiledOutRootWithItsTag(t *testing.T) {
+	_, err := ParseTreeForValidation("mrt {\n}\n")
+	if err == nil {
+		t.Fatal("mrt { } parsed in a build with no mrt module")
+	}
+	if !strings.Contains(err.Error(), "unknown top-level keyword: mrt\n") {
+		t.Errorf("refusal does not open with the unknown keyword:\n%v", err)
+	}
+	if !strings.Contains(err.Error(), "fix: rebuild ze with build tag ze_bgp") {
+		t.Errorf("refusal does not name ze_bgp:\n%v", err)
+	}
+}

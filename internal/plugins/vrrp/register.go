@@ -89,9 +89,14 @@ func registerVRRP() {
 		// `ze config validate`, the daemon's commit and SIGHUP reload alike
 		// (joinConfigReads, plugin/server/startup.go), and a config that holds
 		// only sysctl does not load this plugin.
-		ConfigRoots:             []string{configRoot},
-		ConfigReads:             []string{sysctlRoot},
-		Dependencies:            []string{"interface"},
+		ConfigRoots:  []string{configRoot},
+		ConfigReads:  []string{sysctlRoot},
+		Dependencies: []string{"interface"},
+		// StartAfter, never a load: vrrp registers its filter tables with the
+		// firewall component, and firewall.ApplyAll loads the OS default
+		// backend on demand when no firewall config did, so the firewall
+		// plugin is ordered first when both run (./le plugin coupling check).
+		StartAfter:              []string{"firewall"},
 		RFCs:                    []string{"9568", "3768"},
 		RunEngine:               runVRRPEngine,
 		Commands:                commandDecls(),

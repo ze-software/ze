@@ -26,7 +26,11 @@ func init() {
 		Features:    "yang",
 		YANG:        connectedyang.ZeConnectedConfYANG,
 		ConfigRoots: []string{pluginName},
-		RunEngine:   runConnectedPlugin,
+		// StartAfter, never a load: connected answers the BGP redistribute
+		// orchestrator's late-join replay request, and a build or config without
+		// BGP simply never asks (./le plugin coupling check).
+		StartAfter: []string{"redistribute-orchestrator"},
+		RunEngine:  runConnectedPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},

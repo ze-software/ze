@@ -111,7 +111,7 @@ var (
 // calls this from its own init(), so the BGP reactor factory
 // (bgp/config createReactorFromCoordinator) picks the bridge up via
 // GetMRTMessageCallback without the always-on hub importing internal/plugins/mrt
-// -- that import used to pin MRT into every binary and defeat //go:build ze_mrt.
+// -- that import used to pin MRT into every binary and defeat //go:build ze_bgp.
 // Nil is ignored so a caller cannot clear a live bridge.
 func SetMRTMessageCallback(cb MessageCallback) {
 	if cb == nil {
@@ -215,7 +215,7 @@ type BGPBootstrap struct {
 	// MRT message/peer bridges are NOT fields here: MRT self-registers them via
 	// registry.SetMRTMessageCallback / SetMRTPeerCallback from its own init(), and
 	// bgp/config reads them via the getters. Keeping them off BGPBootstrap is what
-	// lets cmd/ze/hub stop importing internal/plugins/mrt (so //go:build ze_mrt can
+	// lets cmd/ze/hub stop importing internal/plugins/mrt (so //go:build ze_bgp can
 	// drop MRT). Mirrors the RIB-dump provider seam above.
 }
 

@@ -39,6 +39,19 @@ const configRootTraffic = "traffic/control"
 // operators know where to change the backend leaf.
 const backendLeafPath = "/traffic/control/backend"
 
+// vppPlugin is the registration name of the VPP component
+// (internal/component/vpp), which the VPP traffic backend drives. backendVPP
+// is the backend leaf value that selects that backend
+// (internal/plugins/traffic/vpp). The two spellings match, but they are two
+// facts: one names a plugin, the other a value of the leaf. The config need
+// built from them pulls the component only when the leaf selects vpp, and
+// refuses that value in a build without ze_vpp at validate, commit and boot,
+// before LoadBackend would fail at apply.
+const (
+	vppPlugin  = "vpp"
+	backendVPP = "vpp"
+)
+
 // backendGateSchema caches the config schema used by validateBackendGate.
 // Built lazily on first commit/verify to avoid paying YANG load cost at
 // daemon startup. Schema is immutable after build -- safe for concurrent
@@ -140,12 +153,17 @@ func setLogger(l *slog.Logger) {
 
 func init() {
 	reg := registry.Registration{
-		Name:                    "traffic",
-		Description:             "Traffic control (tc) qdisc, class, and filter management",
-		Features:                "yang",
-		YANG:                    trafficyang.ZeTrafficControlConfYANG,
-		ConfigRoots:             []string{configRootTraffic},
-		OptionalDependencies:    []string{"vpp"},
+		Name:                 "traffic",
+		Description:          "Traffic control (tc) qdisc, class, and filter management",
+		Features:             "yang",
+		YANG:                 trafficyang.ZeTrafficControlConfYANG,
+		ConfigRoots:          []string{configRootTraffic},
+		OptionalDependencies: []string{vppPlugin},
+		ConfigNeeds: []registry.ConfigNeed{{
+			Path:      []string{"traffic", "control", "backend"},
+			Value:     backendVPP,
+			Providers: []string{vppPlugin},
+		}},
 		InProcessConfigVerifier: verifyTrafficConfig,
 		RunEngine:               runEngine,
 		ConfigureEngineLogger: func(loggerName string) {

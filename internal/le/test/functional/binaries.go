@@ -2,10 +2,11 @@
 // Detail: suites.go -- what each of those binaries is asked to run
 //
 // Each invocation builds an isolated throwaway binary set by default.
-// The set contains ze, ze-test, and ze-stripped under <scratch>/testbin-<suffix>/bin/.
+// The set contains ze, ze-test, ze-stripped and ze-stripped-flow under <scratch>/testbin-<suffix>/bin/.
 // A suite runs against this frozen set while the developer continues other builds and edits.
 //
-// The binaries use canonical names because .ci tests execute `ze` and `ze-stripped` by name.
+// The binaries use canonical names because .ci tests execute `ze`, `ze-stripped` and
+// `ze-stripped-flow` by name.
 // The binaries live in a bin/ subdirectory because ze derives its directories from its location.
 // Ze recognizes only a parent named bin or sbin (internal/core/paths/paths.go, isBinDir).
 // Without that parent, `ze config archive` answers "cannot determine database location".
@@ -210,8 +211,17 @@ func buildCommands(tc gotoolchain.Toolchain, binaries string) [][]string {
 		build(nil, tagString(tc, append([]string{repofeaturetags.LEBase}, tc.Features...)...), LE))
 }
 
-// daemonBuildCommands answers the builds of the two daemons a test runs
-// against, ze and ze-stripped, into binaries.
+// strippedFlowTags are the tags of ze-stripped-flow: the flow features (flow
+// export, DDoS, anomaly detection) on the stripped base, with no ze_bgp. It is
+// the one build where a present plugin's setting needs the absent BGP
+// subsystem, so test/ui/ze-stripped-optional-provider.ci proves on it that
+// `flow-export enrichment bgp true` and `ddos flowspec response-level enforce`
+// are refused naming ze_bgp. ze-stripped cannot: flow export and DDoS are
+// compiled out there, so their roots fail at parse.
+var strippedFlowTags = []string{"ze_core", "ze_ssh", "ze_ddos", "ze_anomaly", "ze_flowexport"}
+
+// daemonBuildCommands answers the builds of the three daemons a test runs
+// against, ze, ze-stripped and ze-stripped-flow, into binaries.
 func daemonBuildCommands(tc gotoolchain.Toolchain, binaries string, extra []string) [][]string {
 	build := func(tags, name string) []string {
 		argv := []string{"go", "build"}
@@ -222,11 +232,12 @@ func daemonBuildCommands(tc gotoolchain.Toolchain, binaries string, extra []stri
 	return [][]string{
 		build(tagString(tc, dutTags...), "ze"),
 		build(tagString(tc, "ze_core", "ze_ssh"), "ze-stripped"),
+		build(tagString(tc, strippedFlowTags...), "ze-stripped-flow"),
 	}
 }
 
-// PrepareGuest builds ze and ze-stripped for linux/goarch into binaries, the
-// pair a QEMU guest runs a test against; `le test qemu run` builds the guest le
+// PrepareGuest builds ze, ze-stripped and ze-stripped-flow for linux/goarch
+// into binaries, the set a QEMU guest runs a test against; `le test qemu run` builds the guest le
 // itself. The toolchain's environment turns CGO off, so the binaries carry no
 // dynamic loader the musl guest lacks.
 func PrepareGuest(tc gotoolchain.Toolchain, binaries, goarch string) error {

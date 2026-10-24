@@ -48,8 +48,9 @@ The BGP messages carried inside MRT records are decoded by standalone parsers in
 `internal/mrt/bgp.go` and `internal/mrt/bgp_attribute.go`, separate from the
 daemon's codec in `internal/component/bgp/message`. The separation is
 structural, not stylistic: `internal/component/bgp/message` is compiled out by
-the `ze_bgp` feature gate, while `internal/mrt` is always-on (the MRT recorder
-depends on it), so the offline parsers cannot import it.
+the `ze_bgp` feature gate, while `internal/mrt` carries no gate of its own (the
+MRT recorder is a BGP plugin, but the offline analysis tools in
+`internal/analyze` read it too), so the offline parsers cannot import it.
 <!-- source: feature-gates.txt — ze_bgp gates internal/component/bgp/message -->
 <!-- source: internal/mrt/bgp.go — ParseBGPMessage, UpdateAttributeBytes, ParsePrefixesAFI -->
 

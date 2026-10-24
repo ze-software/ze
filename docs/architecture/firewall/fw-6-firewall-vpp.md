@@ -29,13 +29,18 @@ leaf-level annotation, and the verifier handles per-expression rejection.
 
 ## Startup ordering
 
-The firewall declares `StartAfter: ["vpp"]`. When both components are selected,
-VPP completes its startup tier before firewall configuration applies ACLs.
+The firewall declares `vpp` as an optional dependency, with a config need on
+`firewall backend vpp`. Like the `StartAfter` edge it replaced, the edge orders
+the firewall after VPP whenever both components are selected, so VPP completes
+its startup tier before firewall configuration applies ACLs.
 The VPP manager starts from `OnStarted`; putting both components in one tier
 would make firewall configuration wait for a connection whose manager cannot
 start until that configuration returns.
 
-This ordering does not load VPP for an nft-only configuration. Connection
+This ordering does not load VPP for an nft-only configuration: the need holds
+only when the backend leaf is `vpp`, and then dependency resolution pulls the
+VPP component even with no `vpp {}` block. A build without `ze_vpp` refuses
+`firewall backend vpp` at validate, commit and boot, naming the tag. Connection
 failure still refuses the VPP firewall apply; no timeout or readiness check is
 relaxed.
 <!-- source: internal/component/firewall/register.go -- init -->

@@ -69,7 +69,7 @@ func (p *Parser) ParseAt(input string, contextPath []string) (*Tree, error) {
 	if parent, ok := p.schema.LookupTokenPath(context).(ChildProvider); ok {
 		known = parent.Children()
 	}
-	tree, err := p.parseBody("unknown keyword", known, func(name string) Node {
+	tree, err := p.parseBody("unknown keyword", UnknownKeywordHint, known, func(name string) Node {
 		return p.schema.LookupTokenPath(append(context, name))
 	})
 	if err != nil {
@@ -78,15 +78,19 @@ func (p *Parser) ParseAt(input string, contextPath []string) (*Tree, error) {
 	return tree, nil
 }
 
-// parseRoot parses the top level of the config.
+// parseRoot parses the top level of the config. An unknown top-level keyword
+// that a compiled-out plugin owns is refused naming the build tag that carries
+// it (TopLevelKeywordHint).
 func (p *Parser) parseRoot() (*Tree, error) {
-	return p.parseBody("unknown top-level keyword", p.schema.Children(), p.schema.Get)
+	return p.parseBody("unknown top-level keyword", TopLevelKeywordHint, p.schema.Children(), p.schema.Get)
 }
 
 // parseBody parses statements until EOF, resolving each keyword through
 // lookup: the schema root for a whole file, a context node for ParseAt. known
-// lists the keywords valid there, for the closest-key hint of a refusal.
-func (p *Parser) parseBody(unknown string, known []string, lookup func(name string) Node) (*Tree, error) {
+// lists the keywords valid there, and hint answers what a refusal of an unknown
+// keyword adds after its name (the closest key, a retired keyword's
+// replacement, or at the top level the build tag of a compiled-out plugin).
+func (p *Parser) parseBody(unknown string, hint func(name string, known []string) string, known []string, lookup func(name string) Node) (*Tree, error) {
 	tree := NewTree()
 
 	for {
@@ -119,7 +123,7 @@ func (p *Parser) parseBody(unknown string, known []string, lookup func(name stri
 
 		node := lookup(name)
 		if node == nil {
-			return nil, p.errorf(tok, "%s: %s%s", unknown, name, UnknownKeywordHint(name, known))
+			return nil, p.errorf(tok, "%s: %s%s", unknown, name, hint(name, known))
 		}
 
 		if markInactive {

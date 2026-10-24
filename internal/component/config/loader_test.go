@@ -293,3 +293,25 @@ func TestLoadConfigMergesCLIPluginsIntoAPluginOnlyConfig(t *testing.T) {
 	assert.True(t, names["demo"], "the plugin the config declares survives the merge, got %v", names)
 	assert.True(t, names["extra-demo"], "the plugin --plugin names is merged in, got %v", names)
 }
+
+// TestLoadConfigRefusesAbsentProvider proves AC-3 at the LoadConfig door, the
+// one boot and every reload pass through: a config that holds a need whose
+// provider this build lacks is refused before any plugin starts, with the
+// refusal that names the tag. The same config with the leaf at another value
+// loads, so the door judges the need and does not refuse every config.
+//
+// VALIDATES: LoadConfig calls refuseAbsentOptionalProviders over the parsed tree.
+// PREVENTS: a boot that accepts a setting whose provider is compiled out.
+func TestLoadConfigRefusesAbsentProvider(t *testing.T) {
+	isolateRegistry(t)
+	registerNeedOwner(t, []string{"system", "dns", "dnssec-validation"}, "permissive", "bgp-rib")
+	configPath := filepath.Join(t.TempDir(), "need.conf")
+
+	_, err := LoadConfig("system { dns { dnssec-validation permissive; } }\n", configPath, nil)
+	require.ErrorIs(t, err, ErrAbsentOptionalProvider, "a held need with its provider absent must not load")
+	assert.Contains(t, err.Error(), `"system dns dnssec-validation permissive" needs plugin bgp-rib`)
+	assert.Contains(t, err.Error(), "\n  fix: rebuild ze with build tag ze_bgp")
+
+	_, err = LoadConfig("system { dns { dnssec-validation off; } }\n", configPath, nil)
+	require.NoError(t, err, "the need does not hold at another value, so the config loads")
+}

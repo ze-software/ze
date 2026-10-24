@@ -69,7 +69,6 @@ run:
     - ze_ike
     - ze_l2tp
     - ze_radius
-    - ze_mrt
     - ze_bgp
     - ze_bmp
 

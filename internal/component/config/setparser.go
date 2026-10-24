@@ -252,7 +252,7 @@ func (p *SetParser) walkAndSet(tree *Tree, parent Node, tokens []string, lineNum
 			p.warnings = append(p.warnings, bw.Reset().Str("line ").Int(int64(lineNum)).Str(": unknown field: ").Str(name).Str(" (needs migration)").String())
 			return nil
 		}
-		return fmt.Errorf("line %d: unknown field: %s%s", lineNum, name, UnknownKeywordHint(name, schemaChildNames(p.schema, parent)))
+		return fmt.Errorf("line %d: unknown field: %s%s", lineNum, name, p.unknownFieldHint(name, parent))
 	}
 
 	//nolint:gocritic // if-else chain preferred over type switch for exhaustive node handling
@@ -598,7 +598,7 @@ func (p *SetParser) walkAndMarkInactive(tree *Tree, parent Node, tokens []string
 			p.warnings = append(p.warnings, bw.Reset().Str("line ").Int(int64(lineNum)).Str(": unknown field: ").Str(name).Str(" (needs migration)").String())
 			return nil
 		}
-		return fmt.Errorf("line %d: unknown field: %s%s", lineNum, name, UnknownKeywordHint(name, schemaChildNames(p.schema, parent)))
+		return fmt.Errorf("line %d: unknown field: %s%s", lineNum, name, p.unknownFieldHint(name, parent))
 	}
 
 	if _, ok := node.(*LeafNode); ok {
@@ -718,7 +718,7 @@ func (p *SetParser) walkAndDelete(tree *Tree, parent Node, tokens []string, line
 			p.warnings = append(p.warnings, bw.Reset().Str("line ").Int(int64(lineNum)).Str(": unknown field: ").Str(name).Str(" (needs migration)").String())
 			return nil
 		}
-		return fmt.Errorf("line %d: unknown field: %s%s", lineNum, name, UnknownKeywordHint(name, schemaChildNames(p.schema, parent)))
+		return fmt.Errorf("line %d: unknown field: %s%s", lineNum, name, p.unknownFieldHint(name, parent))
 	}
 
 	// Leaf-list member delete: `delete <path> <member>` removes one member, of
@@ -939,6 +939,22 @@ func resolveSchemaNode(schema *Schema, parent Node, name string) Node {
 		return il.Get(name)
 	}
 	return nil
+}
+
+// unknownFieldHint answers what the refusal of an unknown field adds after its
+// name. At the schema root (parent nil or the root container) the field is a
+// top-level keyword, so a root a compiled-out plugin owns names its build tag
+// (TopLevelKeywordHint); below it, the closest key or a retired keyword's
+// replacement (UnknownKeywordHint).
+func (p *SetParser) unknownFieldHint(name string, parent Node) string {
+	known := schemaChildNames(p.schema, parent)
+	if parent == nil {
+		return TopLevelKeywordHint(name, known)
+	}
+	if root, ok := parent.(*ContainerNode); ok && root == p.schema.root {
+		return TopLevelKeywordHint(name, known)
+	}
+	return UnknownKeywordHint(name, known)
 }
 
 // schemaChildNames lists the keys valid under parent (the schema root when

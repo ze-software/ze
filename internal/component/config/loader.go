@@ -66,6 +66,13 @@ func LoadConfig(input, configPath string, cliPlugins []string) (*LoadConfigResul
 	if err := refuseInvalidCustomSections(tree); err != nil {
 		return nil, err
 	}
+	// A config that needs a plugin this build lacks is refused here, before any
+	// plugin starts, by the same check the validate and commit doors run
+	// (VerifyPluginConfigMapTransition). The tree is lowered only when some
+	// registration declares a config need.
+	if err := refuseAbsentOptionalProviders(tree.ToPluginMap); err != nil {
+		return nil, err
+	}
 	// Validators use supplied values and registries, not candidate environment.
 	// Publish only after refusal is impossible at this validation boundary.
 	applyParsedEnvironment(tree)
@@ -108,7 +115,9 @@ func LoadConfig(input, configPath string, cliPlugins []string) (*LoadConfigResul
 		return nil, fmt.Errorf("resolve plugins: %w", err)
 	}
 
-	plugins, err = ExpandDependencies(plugins)
+	// The tree decides which optional providers are pulled: a provider that a
+	// ConfigNeed names loads only when this config holds that need.
+	plugins, err = ExpandDependencies(plugins, ConfigNeedHolds(tree.ToMap()))
 	if err != nil {
 		return nil, err
 	}
@@ -455,10 +464,10 @@ func ExtractPluginsFromTree(tree *Tree) ([]plugin.PluginConfig, error) {
 		explicit[p.Name] = true
 	}
 
-	for _, extract := range extractors {
-		inline, err := extract(tree)
+	for _, extractor := range extractors {
+		inline, err := extractor.extract(tree)
 		if err != nil {
-			return nil, err
+			return nil, &PluginExtractionError{Section: extractor.section, Err: err}
 		}
 		for _, ip := range inline {
 			if !explicit[ip.Name] {
@@ -474,17 +483,39 @@ func ExtractPluginsFromTree(tree *Tree) ([]plugin.PluginConfig, error) {
 // PluginExtractorFunc extracts additional plugin configs from a parsed tree.
 type PluginExtractorFunc func(tree *Tree) ([]plugin.PluginConfig, error)
 
+// PluginExtractionError is the refusal ExtractPluginsFromTree answers when a
+// registered extractor fails. Section names the config section that extractor
+// reads, so a door whose own check of that section already reports the
+// failure (the editor's bgp pass, `ze config validate`'s bgp resolve) can tell
+// the relayed copy from a failure nobody else reports.
+type PluginExtractionError struct {
+	Section string
+	Err     error
+}
+
+func (e *PluginExtractionError) Error() string { return e.Err.Error() }
+
+func (e *PluginExtractionError) Unwrap() error { return e.Err }
+
+// sectionExtractor is one registered extractor and the section it reads.
+type sectionExtractor struct {
+	section string
+	extract PluginExtractorFunc
+}
+
 var (
 	pluginExtractorMu sync.RWMutex
-	pluginExtractors  []PluginExtractorFunc
+	pluginExtractors  []sectionExtractor
 )
 
 // RegisterPluginExtractor registers a function that extracts inline plugin configs
-// from a parsed config tree. Called from init() in component packages.
-func RegisterPluginExtractor(fn PluginExtractorFunc) {
+// from the named section of a parsed config tree. Called from init() in
+// component packages. The section is carried on the extractor's failure
+// (PluginExtractionError) so the section's own check can own the report.
+func RegisterPluginExtractor(section string, fn PluginExtractorFunc) {
 	pluginExtractorMu.Lock()
 	defer pluginExtractorMu.Unlock()
-	pluginExtractors = append(pluginExtractors, fn)
+	pluginExtractors = append(pluginExtractors, sectionExtractor{section: section, extract: fn})
 }
 
 // MergeCliPlugins resolves CLI plugin strings and merges them with extracted plugins.
@@ -528,37 +559,17 @@ func MergeCliPlugins(plugins []plugin.PluginConfig, cliPlugins []string) ([]plug
 }
 
 // ExpandDependencies resolves plugin dependencies from the registry and adds
-// missing dependency plugins to the list.
-func ExpandDependencies(plugins []plugin.PluginConfig) ([]plugin.PluginConfig, error) {
-	names := make([]string, 0, len(plugins))
-	existing := make(map[string]bool, len(plugins))
-	external := make(map[string]bool, len(plugins))
-	for _, p := range plugins {
-		// Keyed on the registered name, not the operator's label, and
-		// plugin.RegistryName is the one rule that answers which registry row a
-		// process config names. ResolveDependencies treats a name it cannot find
-		// in the registry as an external plugin and skips expanding it, so keying
-		// on the label silently dropped both Dependencies and OptionalDependencies:
-		// a route server configured as `internal rs { use bgp-rs }` never pulled in
-		// bgp-adj-rib-in, and lost its peer-up replay with no error and no warning.
-		//
-		// Only the resolved name is marked as existing: marking the label too could
-		// suppress a genuine dependency that happens to share the operator's chosen
-		// label.
-		name := plugin.RegistryName(p)
-		names = append(names, name)
+// missing dependency plugins to the list. needHolds answers the config needs
+// for the config the plugins come from (ConfigNeedHolds over its tree); it
+// MUST NOT be nil, and registry.ResolveDependencies refuses a nil one.
+func ExpandDependencies(plugins []plugin.PluginConfig, needHolds registry.NeedHolds) ([]plugin.PluginConfig, error) {
+	names, external := dependencyRequest(plugins)
+	existing := make(map[string]bool, len(names))
+	for _, name := range names {
 		existing[name] = true
-		// An `external` block names a PROGRAM, and that program declares its own
-		// dependencies over the protocol. Where this binary also carries a plugin
-		// of that name, the registration is NOT this block's: expanding it starts
-		// plugins the program never asked for, and the operator sees a plugin they
-		// did not configure fail on a platform they never named.
-		if p.RunsExternalProgram() {
-			external[name] = true
-		}
 	}
 
-	resolved, err := registry.ResolveDependencies(names, external)
+	resolved, err := registry.ResolveDependencies(names, external, needHolds)
 	if err != nil {
 		return nil, fmt.Errorf("expand dependencies: %w", err)
 	}
@@ -577,6 +588,42 @@ func ExpandDependencies(plugins []plugin.PluginConfig) ([]plugin.PluginConfig, e
 	}
 
 	return plugins, nil
+}
+
+// dependencyRequest answers what registry.ResolveDependencies is asked for the
+// plugins a config declares in its `plugin { }` block: each one's registered
+// name, and the names an `external` block runs as another program. Boot
+// (ExpandDependencies) and the validate and commit doors
+// (refuseUnresolvableDependencies) both ask through it, so they resolve the
+// same set.
+func dependencyRequest(plugins []plugin.PluginConfig) (names []string, external map[string]bool) {
+	names = make([]string, 0, len(plugins))
+	external = make(map[string]bool, len(plugins))
+	for _, p := range plugins {
+		// Keyed on the registered name, not the operator's label, and
+		// plugin.RegistryName is the one rule that answers which registry row a
+		// process config names. ResolveDependencies treats a name it cannot find
+		// in the registry as an external plugin and skips expanding it, so keying
+		// on the label silently dropped both Dependencies and OptionalDependencies:
+		// a route server configured as `internal rs { use bgp-rs }` never pulled in
+		// bgp-adj-rib-in, and lost its peer-up replay with no error and no warning.
+		//
+		// Only the resolved name is requested: requesting the label too could
+		// suppress a genuine dependency that happens to share the operator's chosen
+		// label.
+		name := plugin.RegistryName(p)
+		names = append(names, name)
+		// An `external` block names a PROGRAM, and that program declares its own
+		// dependencies over the protocol. Where this binary also carries a plugin
+		// of that name, the registration is NOT this block's: expanding it starts
+		// plugins the program never asked for, and the operator sees a plugin they
+		// did not configure fail on a platform they never named.
+		if p.RunsExternalProgram() {
+			external[name] = true
+		}
+	}
+
+	return names, external
 }
 
 // MarkInternalPlugin sets Internal=true if Run resolves to an internal plugin.

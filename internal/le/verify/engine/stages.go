@@ -129,6 +129,12 @@ func fullStages() []Stage {
 		stage("doc check", "retired-commands"),
 		stage("repo", "tree-check"),
 		stage("plugin imports", "check"),
+		// The gated-plugin table is generated from the same manifest and the
+		// registrations, so a gate added without regenerating it reddens here.
+		stage("plugin gated-table", "check"),
+		// A plugin that consumes what only another gate's plugin produces, with
+		// no declared edge, runs silently empty in a build without that gate.
+		stage("plugin coupling", "check"),
 		stage("plugin declarations", "check"),
 		// arch enumeration judges the CHANGE SET rather than the tree: the copies
 		// already in the tree are `le arch enumeration report`, and this stage's red

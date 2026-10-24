@@ -2,6 +2,7 @@ package grpc
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net"
 	"slices"
@@ -691,14 +692,14 @@ func TestGRPCExecutePermissionDenied(t *testing.T) {
 	assert.Equal(t, codes.PermissionDenied, status.Code(execErr))
 }
 
-// VALIDATES: GetRunningConfig maps denied "show config dump" execution to PermissionDenied.
+// VALIDATES: GetRunningConfig maps denied "show config running" execution to PermissionDenied.
 // PREVENTS: authorization denials being exposed as Internal gRPC failures.
 func TestGRPCGetRunningConfigPermissionDenied(t *testing.T) {
 	exec := func(_ context.Context, _ api.CallerIdentity, _ string) (*plugin.Response, error) {
 		return nil, errors.New("should not reach")
 	}
 	cmds := func() ([]api.CommandMeta, error) {
-		return []api.CommandMeta{{Name: "show config dump", ReadOnly: true}}, nil
+		return []api.CommandMeta{{Name: "show config running", ReadOnly: true}}, nil
 	}
 	var authorizedCommand string
 	auth := func(_, command string) bool {
@@ -712,7 +713,51 @@ func TestGRPCGetRunningConfigPermissionDenied(t *testing.T) {
 
 	require.Error(t, err)
 	assert.Equal(t, codes.PermissionDenied, status.Code(err))
-	assert.Equal(t, "show config dump", authorizedCommand)
+	assert.Equal(t, "show config running", authorizedCommand)
+}
+
+// runningConfigEngine is an engine whose only command is `show config running`,
+// answered by answer. It records the command it was asked to run.
+func runningConfigEngine(answer *plugin.Response, asked *string) *api.APIEngine {
+	exec := func(_ context.Context, _ api.CallerIdentity, command string) (*plugin.Response, error) {
+		*asked = command
+		return answer, nil
+	}
+	cmds := func() ([]api.CommandMeta, error) {
+		return []api.CommandMeta{{Name: "show config running", ReadOnly: true}}, nil
+	}
+	return api.NewAPIEngine(exec, cmds, func(_, _ string) bool { return true }, nil)
+}
+
+// VALIDATES: GetRunningConfig dispatches `show config running` and returns the
+// applied tree it answers as one JSON object.
+// PREVENTS: the RPC dispatching `show config dump` with no file, which the
+// daemon cannot answer, so the RPC never returned a configuration.
+func TestGRPCGetRunningConfigAnswersTheAppliedTree(t *testing.T) {
+	var asked string
+	applied := plugin.Map{"ddos": map[string]any{"flowspec": map[string]any{"response-level": "alert"}}}
+	_, cfg := startTestServerWithEngine(t, "", runningConfigEngine(plugin.NewResponse(api.StatusDone, applied), &asked))
+
+	resp, err := cfg.GetRunningConfig(t.Context(), &zepb.Empty{})
+	require.NoError(t, err)
+	assert.Equal(t, "show config running", asked)
+	var tree map[string]map[string]map[string]string
+	require.NoError(t, json.Unmarshal([]byte(resp.Config), &tree), resp.Config)
+	assert.Equal(t, "alert", tree["ddos"]["flowspec"]["response-level"])
+}
+
+// VALIDATES: a refused `show config running` reaches the gRPC caller as an
+// error carrying the refusal.
+// PREVENTS: a refusal (no Data) marshaled to the config "null" with an OK status.
+func TestGRPCGetRunningConfigRefusalIsAnError(t *testing.T) {
+	var asked string
+	refusal := &plugin.Response{Status: api.StatusError, Error: "show config running: this daemon holds no running configuration yet."}
+	_, cfg := startTestServerWithEngine(t, "", runningConfigEngine(refusal, &asked))
+
+	_, err := cfg.GetRunningConfig(t.Context(), &zepb.Empty{})
+	require.Error(t, err)
+	assert.Equal(t, codes.Unavailable, status.Code(err))
+	assert.Contains(t, status.Convert(err).Message(), "no running configuration")
 }
 
 // VALIDATES: TLS cert/key mismatch rejected at construction.

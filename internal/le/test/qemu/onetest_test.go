@@ -11,6 +11,7 @@ import "testing"
 func TestOneCICommand(t *testing.T) {
 	got := OneCICommand("tmp/qemu/x/linux-amd64/bin", "test/plugin/gated.ci", ArchAMD64)
 	want := "ZE_BIN=tmp/qemu/x/linux-amd64/bin/ze ZE_STRIPPED_BIN=tmp/qemu/x/linux-amd64/bin/ze-stripped" +
+		" ZE_STRIPPED_FLOW_BIN=tmp/qemu/x/linux-amd64/bin/ze-stripped-flow" +
 		" tmp/qemu/linux-amd64/le test qemu all-tests test test/plugin/gated.ci"
 	if got != want {
 		t.Errorf("OneCICommand\n got %q\nwant %q", got, want)

@@ -113,11 +113,15 @@ func init() {
 	registerAS112Sources()
 
 	reg := registry.Registration{
-		Name:                    "as112",
-		Description:             "AS112 anycast DNS node: authoritative sink for misdirected RFC 1918 / link-local reverse-DNS queries (RFC 7534, RFC 7535)",
-		Features:                "yang",
-		YANG:                    as112yang.ZeAs112ConfYANG,
-		ConfigRoots:             []string{configRootService},
+		Name:        "as112",
+		Description: "AS112 anycast DNS node: authoritative sink for misdirected RFC 1918 / link-local reverse-DNS queries (RFC 7534, RFC 7535)",
+		Features:    "yang",
+		YANG:        as112yang.ZeAs112ConfYANG,
+		ConfigRoots: []string{configRootService},
+		// StartAfter, never a load: as112 answers the BGP redistribute
+		// orchestrator's late-join replay request, and a build or config without
+		// BGP simply never asks (./le plugin coupling check).
+		StartAfter:              []string{"redistribute-orchestrator"},
 		InProcessConfigVerifier: verifyAS112Config,
 		RunEngine:               runAS112Plugin,
 	}

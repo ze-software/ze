@@ -1297,3 +1297,16 @@ nothing: a candidate verify accepted is one the running bridge already serves.
 The settings nest under a top-level `exabgp` root, on an owner decision of
 2026-07-09, so the root stays available for later ExaBGP-related
 configuration. The registry plugin name stays `exabgp-bridge`.
+
+The `exabgp` root auto-loads the bridge, and the bridge declares a hard
+dependency on the `bgp` plugin (`Dependencies: {"bgp"}`), because every line a
+script writes becomes a `send bgp ...` command and every event it reads is a BGP
+event. The resolver therefore starts BGP first. A config with the bridge and no
+`bgp {}` block fails at boot ("missing required bgp { } block"), and a build
+with `ze_exabgp` but without `ze_bgp` refuses to boot the bridge, naming
+`ze_bgp`. `ze config validate` does not yet resolve hard dependencies, so it
+still accepts that second config (`plan/journal/gate-excludes-part-of-its-population.md`,
+2026-10-24). The text dispatch is invisible to `./le plugin coupling check`,
+which is why the edge is declared by hand.
+<!-- source: internal/plugins/exabgp/bridgeplugin/register.go -- Dependencies -->
+<!-- source: internal/component/plugin/server/startup_autoload.go -- getConfigPathPlugins -->

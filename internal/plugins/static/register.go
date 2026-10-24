@@ -131,15 +131,21 @@ func init() {
 		// `interface` stanza is present, so the iface backend is loaded before
 		// static applies a route whose next-hop names an interface. Without it
 		// both plugins land in the same startup tier and static's resolve races
-		// LoadBackend (spec-fixit-static-interface-nexthops A-1c). Optional, so
-		// a config with no `interface` stanza leaves static unconstrained.
+		// LoadBackend (spec-fixit-static-interface-nexthops A-1c). The edge
+		// declares no ConfigNeed, so registry.ResolveDependencies pulls the
+		// interface plugin whenever static loads, with or without an
+		// `interface` stanza; it is optional only in that a build without the
+		// interface plugin still runs static.
 		OptionalDependencies: []string{"interface"},
 		// StartAfter orders static after bfd when both are selected, so the
 		// BFD service bfd publishes in its OnStarted exists when static's
 		// OnStarted asks for it, once (runStaticPlugin). In one tier static
 		// started first and every next-hop ran without BFD. Order only: it
 		// never loads bfd, so a config or a build without BFD is unaffected.
-		StartAfter:              []string{"bfd"},
+		// redistribute-orchestrator is order only for the same reason: static
+		// answers its late-join replay request, and a build or config without
+		// BGP never asks (./le plugin coupling check).
+		StartAfter:              []string{"bfd", "redistribute-orchestrator"},
 		InProcessConfigVerifier: verifyStaticConfig,
 		DoctorChecks:            staticDoctorChecks(),
 		RunEngine:               runStaticPlugin,

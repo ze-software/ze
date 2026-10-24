@@ -1580,6 +1580,9 @@ the engine automatically loads the internal plugin for that family (if one exist
 4. **Phase 4:** The engine checks which custom event types are referenced in peer `receive` config but not produced by any running plugin. Producing plugins and their transitive dependencies are auto-loaded. For example, `receive [ update-rpki ]` auto-loads `bgp-rpki-decorator` and its dependency `bgp-rpki`.
 5. **Phase 5:** The engine checks which custom send types are referenced in peer `send` config but not enabled by any running plugin. Enabling plugins and their transitive dependencies are auto-loaded. For example, `send [ enhanced-refresh ]` auto-loads `bgp-route-refresh`.
 
+Before Phase 1 starts any plugin, the engine resolves the dependencies of the Phase 1, 3, 4 and 5 auto-load sets. A plugin whose `Dependencies` names a plugin this build does not register refuses startup, naming the plugin, the dependency and the build tags that carry it; no plugin starts. It is never loaded without its dependency. Every resolution judges the startup config's needs: an optional dependency that a `ConfigNeeds` entry names is auto-loaded only when the config holds that need, so flow export with `enrichment bgp` off does not start `bgp-rib`.
+<!-- source: internal/component/plugin/server/startup.go -- runPluginStartup, refuseBootAutoLoad -->
+
 **Family auto-loading** (Phase 3) is **prevented** when:
 1. An explicit plugin declares `decode` for the family (family-based check)
 2. `--plugin <name>` is passed on command line (prevents auto-load for that plugin)

@@ -4,6 +4,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 )
 
@@ -14,7 +15,8 @@ import (
 // PREVENTS: the ordering edge turning into a dependency, which would load BFD
 // for every static config or refuse static in a build with no BFD plugin.
 func TestStaticDoesNotRequireBFD(t *testing.T) {
-	names, err := registry.ResolveDependencies([]string{"static"}, nil)
+	// A config that sets nothing: static declares no ConfigNeed.
+	names, err := registry.ResolveDependencies([]string{"static"}, nil, config.ConfigNeedHolds(map[string]any{}))
 	if err != nil {
 		t.Fatalf("ResolveDependencies: %v", err)
 	}

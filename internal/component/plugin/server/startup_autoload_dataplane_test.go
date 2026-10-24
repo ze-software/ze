@@ -17,10 +17,14 @@ import (
 )
 
 // autoLoadNames runs the config-path auto-load for the given paths and data
-// plane and returns the plugin names it would start.
-func autoLoadNames(configuredPaths []string, dataPlane string) []string {
+// plane and returns the plugin names it would start. A resolution refusal fails
+// the test: every caller expects a set that resolves.
+func autoLoadNames(t *testing.T, configuredPaths []string, dataPlane string) []string {
+	t.Helper()
+
 	s := &Server{
 		config: &ServerConfig{
+			ConfigNeedHolds: holdsForEmptyConfig,
 			ConfiguredPaths: configuredPaths,
 			DataPlane:       dataPlane,
 		},
@@ -28,8 +32,11 @@ func autoLoadNames(configuredPaths []string, dataPlane string) []string {
 		loadedPlugins: make(map[string]bool),
 	}
 
+	got, err := s.getConfigPathPlugins()
+	require.NoError(t, err)
+
 	var names []string
-	for _, p := range s.getConfigPathPlugins() {
+	for _, p := range got {
 		names = append(names, p.Name)
 	}
 	return names
@@ -55,7 +62,7 @@ func TestStaticWithNoFIBBlockAutoLoadsTheWriterForTheDataPlane(t *testing.T) {
 	writer, ok := registry.PluginForDataPlane("netlink")
 	require.True(t, ok, "no plugin declares the netlink data plane")
 
-	names := autoLoadNames([]string{"static"}, "netlink")
+	names := autoLoadNames(t, []string{"static"}, "netlink")
 
 	assert.Contains(t, names, "static", "the static config path must still load static")
 	assert.Contains(t, names, writer,
@@ -66,7 +73,7 @@ func TestStaticWithNoFIBBlockAutoLoadsTheWriterForTheDataPlane(t *testing.T) {
 // driven by the producer's declaration and not by the config path: a config with
 // no plugin declaring NeedsDataPlane loads no FIB plugin.
 func TestStaticNeedsNoWriterWhenNothingNeedsADataPlane(t *testing.T) {
-	names := autoLoadNames([]string{"interface"}, "netlink")
+	names := autoLoadNames(t, []string{"interface"}, "netlink")
 
 	for _, writer := range dataPlaneWriterNames() {
 		assert.NotContains(t, names, writer,
@@ -81,7 +88,7 @@ func TestStaticNeedsNoWriterWhenNothingNeedsADataPlane(t *testing.T) {
 func TestExplicitFIBBlockIsNotOverriddenByTheAutoLoad(t *testing.T) {
 	require.NotNil(t, registry.Lookup("fib-p4"), "fib-p4 is not registered")
 
-	names := autoLoadNames([]string{"static", "fib/p4"}, "netlink")
+	names := autoLoadNames(t, []string{"static", "fib/p4"}, "netlink")
 
 	assert.Contains(t, names, "fib-p4", "the operator's explicit fib { p4 { } } block must load")
 	writer, ok := registry.PluginForDataPlane("netlink")
@@ -97,7 +104,7 @@ func TestNoWriterForTheSelectedDataPlaneLoadsNoFIBPlugin(t *testing.T) {
 	_, ok := registry.PluginForDataPlane("p4-runtime")
 	require.False(t, ok, "p4-runtime must declare no writer for this test to mean anything")
 
-	names := autoLoadNames([]string{"static"}, "p4-runtime")
+	names := autoLoadNames(t, []string{"static"}, "p4-runtime")
 
 	assert.Contains(t, names, "static")
 	for _, writer := range dataPlaneWriterNames() {

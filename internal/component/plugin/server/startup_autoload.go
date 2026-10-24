@@ -21,11 +21,25 @@ import (
 const encoderJSON = "json"
 
 // getUnclaimedFamilyPlugins returns plugins to auto-load for configured families
-// that are NOT claimed by any explicit plugin.
+// that are NOT claimed by any explicit plugin, with their dependencies.
 // Uses registry.LookupFamily for family-based detection (not name-based).
-func (s *Server) getUnclaimedFamilyPlugins() []plugin.PluginConfig {
+//
+// An error is a dependency the set cannot resolve (a
+// *registry.MissingDependencyError or a cycle): the caller MUST refuse startup
+// on it and MUST NOT start the set without the dependency.
+func (s *Server) getUnclaimedFamilyPlugins() ([]plugin.PluginConfig, error) {
+	needed := s.unclaimedFamilyPlugins()
+	if len(needed) == 0 {
+		return nil, nil
+	}
+	return s.resolveAutoLoad(needed, "family")
+}
+
+// unclaimedFamilyPlugins answers the internal plugin names that decode a
+// configured family no explicit plugin has claimed yet.
+func (s *Server) unclaimedFamilyPlugins() []string {
 	seen := make(map[string]bool)
-	var plugins []plugin.PluginConfig
+	var needed []string
 
 	for _, fam := range s.config.ConfiguredFamilies {
 		// Family-based check: skip if already claimed by explicit plugin
@@ -49,29 +63,24 @@ func (s *Server) getUnclaimedFamilyPlugins() []plugin.PluginConfig {
 
 		logger().Debug("auto-loading plugin for unclaimed fam",
 			"plugin", pluginName, "family", fam)
-
-		plugins = append(plugins, plugin.PluginConfig{
-			Name:     pluginName,
-			Encoder:  encoderJSON,
-			Internal: true,
-		})
+		needed = append(needed, pluginName)
 	}
 
-	return plugins
+	return needed
 }
 
 // getUnclaimedEventTypePlugins returns plugins to auto-load for custom event types
 // referenced in peer process receive config but not produced by any explicitly configured plugin.
 // For example, receive [ update-rpki ] triggers auto-loading bgp-rpki-decorator and its
 // dependency bgp-rpki. Dependencies are resolved transitively via registry.ResolveDependencies.
-func (s *Server) getUnclaimedEventTypePlugins() []plugin.PluginConfig {
+func (s *Server) getUnclaimedEventTypePlugins() ([]plugin.PluginConfig, error) {
 	return s.getUnclaimedPluginsForTokens(s.config.ConfiguredCustomEvents, plugin.GetPluginForEventType, "event type")
 }
 
 // getUnclaimedSendTypePlugins returns plugins to auto-load for custom send types
 // referenced in peer process send config but not enabled by any explicitly configured plugin.
 // For example, send [ enhanced-refresh ] triggers auto-loading bgp-route-refresh.
-func (s *Server) getUnclaimedSendTypePlugins() []plugin.PluginConfig {
+func (s *Server) getUnclaimedSendTypePlugins() ([]plugin.PluginConfig, error) {
 	return s.getUnclaimedPluginsForTokens(s.config.ConfiguredCustomSendTypes, plugin.GetPluginForSendType, "send type")
 }
 
@@ -80,55 +89,52 @@ func (s *Server) getUnclaimedSendTypePlugins() []plugin.PluginConfig {
 // by registered plugins. Paths on both sides use the config package's PathSep ("/").
 // A plugin with ConfigRoots: ["fib/kernel"] loads when the config has
 // fib { kernel { } }.
-func (s *Server) getConfigPathPlugins() []plugin.PluginConfig {
+//
+// An error is a hard dependency the set cannot resolve (a
+// *registry.MissingDependencyError or a cycle): the caller MUST refuse startup
+// on it and MUST NOT start any plugin of the set.
+func (s *Server) getConfigPathPlugins() ([]plugin.PluginConfig, error) {
 	if len(s.config.ConfiguredPaths) == 0 {
-		return nil
+		return nil, nil
 	}
 
-	// Build set of present paths for fast lookup.
-	presentPaths := make(map[string]bool, len(s.config.ConfiguredPaths))
-	for _, p := range s.config.ConfiguredPaths {
-		presentPaths[p] = true
-	}
-
-	// Find plugins whose ConfigRoots match a present path.
-	configRootsMap := registry.ConfigRootsMap()
+	// The plugins the config's roots select, from the one registry answer the
+	// validate and commit doors also resolve (config.VerifyPluginConfig).
+	pm := s.procManager.Load()
 	var needed []string
-	seen := make(map[string]bool)
-
-	for pluginName, roots := range configRootsMap {
-		for _, root := range roots {
-			if !presentPaths[root] {
-				continue
-			}
-
-			pm := s.procManager.Load()
-			if s.isPluginLoaded(pluginName) || s.hasConfiguredPlugin(pluginName) || (pm != nil && pm.GetProcess(pluginName) != nil) {
-				continue
-			}
-
-			if !seen[pluginName] {
-				seen[pluginName] = true
-				needed = append(needed, pluginName)
-				logger().Debug("auto-loading plugin for config path",
-					"plugin", pluginName, "path", root)
-			}
+	for _, pluginName := range registry.PluginsForConfigPaths(s.config.ConfiguredPaths) {
+		if s.isPluginLoaded(pluginName) {
+			continue
 		}
+		if s.hasConfiguredPlugin(pluginName) {
+			continue
+		}
+		if pm != nil && pm.GetProcess(pluginName) != nil {
+			continue
+		}
+		needed = append(needed, pluginName)
+		logger().Debug("auto-loading plugin for config path", "plugin", pluginName)
 	}
 
 	if len(needed) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	needed = s.appendDataPlaneWriter(needed, s.config.DataPlane)
 
 	// nil: hasConfiguredPlugin above excluded every configured name, so nothing
 	// here was declared by an `external` block.
-	resolved, err := registry.ResolveDependencies(needed, nil)
+	//
+	// A failed resolution refuses the boot. Starting the plugins without their
+	// hard dependency is a daemon that looks up and does not work: the
+	// dependency is a Registration.Dependencies edge precisely because the
+	// plugin cannot run alone (*registry.MissingDependencyError says which tag).
+	//
+	// ConfigNeedHolds answers for the boot config, so an optional provider is
+	// pulled only when the config holds the need that names it.
+	resolved, err := registry.ResolveDependencies(needed, nil, s.config.ConfigNeedHolds)
 	if err != nil {
-		logger().Warn("config-path auto-load: dependency resolution failed",
-			"plugins", needed, "error", err)
-		resolved = needed
+		return nil, err
 	}
 
 	var plugins []plugin.PluginConfig
@@ -144,7 +150,7 @@ func (s *Server) getConfigPathPlugins() []plugin.PluginConfig {
 		})
 	}
 
-	return plugins
+	return plugins, nil
 }
 
 // appendDataPlaneWriter returns needed plus the plugin that programs the
@@ -226,41 +232,40 @@ func (s *Server) autoLoadForNewConfigPaths(ctx context.Context, newTree map[stri
 		}
 	}
 
-	// Match against ConfigRoots from registered plugins.
-	presentPaths := make(map[string]bool, len(newPaths))
-	for _, p := range newPaths {
-		presentPaths[p] = true
-	}
-
-	configRootsMap := registry.ConfigRootsMap()
+	// Match against ConfigRoots from registered plugins: the same registry
+	// answer boot auto-load and the validate and commit doors use.
 	pm := s.procManager.Load()
 	var needed []string
 	seen := make(map[string]bool)
-
-	for pluginName, roots := range configRootsMap {
-		for _, root := range roots {
-			if !presentPaths[root] {
-				continue
-			}
-			if s.hasConfiguredPlugin(pluginName) || (pm != nil && pm.GetProcess(pluginName) != nil) {
-				continue
-			}
-			if !seen[pluginName] {
-				seen[pluginName] = true
-				needed = append(needed, pluginName)
-				logger().Info("config reload: auto-loading plugin for new config path",
-					"plugin", pluginName, "path", root)
-			}
+	for _, pluginName := range registry.PluginsForConfigPaths(newPaths) {
+		if s.hasConfiguredPlugin(pluginName) {
+			continue
 		}
+		if pm != nil && pm.GetProcess(pluginName) != nil {
+			continue
+		}
+		seen[pluginName] = true
+		needed = append(needed, pluginName)
+		logger().Info("config reload: auto-loading plugin for new config path", "plugin", pluginName)
 	}
 
 	needed = s.appendDataPlaneWriter(needed, iface.BackendNameFromTree(newTree))
+	// The new tree decides the optional providers: a need it now holds pulls
+	// its provider, including for an owner that was already running. A nil
+	// answer adds nothing here and is refused by ResolveDependencies below
+	// whenever anything is needed.
+	needHolds := config.ConfigNeedHolds(newTree)
+	if needHolds != nil {
+		needed = appendHeldNeedProviders(needed, seen, needHolds, func(name string) bool {
+			return !s.hasConfiguredPlugin(name) && pm != nil && pm.GetProcess(name) != nil
+		})
+	}
 
 	if len(needed) == 0 {
 		return nil, nil
 	}
 
-	resolved, err := registry.ResolveDependencies(needed, nil)
+	resolved, err := registry.ResolveDependencies(needed, nil, needHolds)
 	if err != nil {
 		logger().Error("config reload: dependency resolution failed, aborting auto-load",
 			"plugins", needed, "error", err)
@@ -544,7 +549,61 @@ func parentRemoved(path string, removed map[string]bool) bool {
 // getUnclaimedPluginsForTokens is the shared implementation for auto-loading plugins
 // based on token-to-plugin lookup (event types, send types). The lookupFn maps a token
 // to the plugin name that provides it. The kind string is used in log messages.
-func (s *Server) getUnclaimedPluginsForTokens(tokens []string, lookupFn func(string) string, kind string) []plugin.PluginConfig {
+// An error is a hard dependency the set cannot resolve; the caller MUST refuse
+// startup on it and MUST NOT start the set without the dependency.
+func (s *Server) getUnclaimedPluginsForTokens(tokens []string, lookupFn func(string) string, kind string) ([]plugin.PluginConfig, error) {
+	needed := s.unclaimedPluginsForTokens(tokens, lookupFn, kind)
+	if len(needed) == 0 {
+		return nil, nil
+	}
+
+	return s.resolveAutoLoad(needed, "custom "+kind)
+}
+
+// resolveAutoLoad expands needed with its dependencies for the boot config and
+// answers the configs of the plugins to start: every resolved name that is not
+// loaded, configured or running. kind names the trigger in log lines.
+//
+// nil external: every configured name was excluded before this point. A
+// failed resolution refuses, never starts the plugins without their
+// dependency. refuseUnresolvableDeferredAutoLoad already ran this resolution
+// before the first plugin started; this one covers the set as it stands now.
+func (s *Server) resolveAutoLoad(needed []string, kind string) ([]plugin.PluginConfig, error) {
+	resolved, err := registry.ResolveDependencies(needed, nil, s.config.ConfigNeedHolds)
+	if err != nil {
+		return nil, err
+	}
+
+	// Build plugin configs for all resolved names not already running.
+	var plugins []plugin.PluginConfig
+	pm2 := s.procManager.Load()
+	for _, name := range resolved {
+		if s.isPluginLoaded(name) {
+			continue
+		}
+		if s.hasConfiguredPlugin(name) {
+			continue
+		}
+		if pm2 != nil && pm2.GetProcess(name) != nil {
+			continue
+		}
+
+		logger().Debug("auto-loading plugin for "+kind,
+			"plugin", name)
+
+		plugins = append(plugins, plugin.PluginConfig{
+			Name:     name,
+			Encoder:  encoderJSON,
+			Internal: true,
+		})
+	}
+
+	return plugins, nil
+}
+
+// unclaimedPluginsForTokens answers the plugin names that provide tokens of
+// kind (event type or send type) and are neither configured nor running.
+func (s *Server) unclaimedPluginsForTokens(tokens []string, lookupFn func(string) string, kind string) []string {
 	var needed []string
 	seen := make(map[string]bool)
 
@@ -569,35 +628,81 @@ func (s *Server) getUnclaimedPluginsForTokens(tokens []string, lookupFn func(str
 		}
 	}
 
-	if len(needed) == 0 {
-		return nil
-	}
+	return needed
+}
 
-	// nil: every configured name was excluded before this point.
-	resolved, err := registry.ResolveDependencies(needed, nil)
-	if err != nil {
-		logger().Warn(kind+" auto-load: dependency resolution failed, loading without dependencies",
-			"plugins", needed, "error", err)
-		resolved = needed
+// refuseUnresolvableDeferredAutoLoad resolves the dependencies of every plugin
+// the unclaimed families and the custom event and send types will auto-load,
+// before boot starts any plugin. Those sets start in startup phases 3 to 5,
+// after the config-path and explicit plugins are already running, so a refusal
+// found only there would leave a half-started daemon. The answer is the first
+// *registry.MissingDependencyError (or cycle) found; nil means every set
+// resolves.
+//
+// No explicit plugin has declared its families yet, so the family set here is
+// every configured family's internal plugin. An external plugin that claims a
+// family at Stage 1 could make phase 3 skip a plugin this check resolved; that
+// plugin is compiled into this build, and a hard dependency of it missing from
+// the same build is refused here anyway, because the build cannot run it.
+func (s *Server) refuseUnresolvableDeferredAutoLoad() error {
+	deferredSets := [][]string{
+		s.unclaimedFamilyPlugins(),
+		s.unclaimedPluginsForTokens(s.config.ConfiguredCustomEvents, plugin.GetPluginForEventType, "event type"),
+		s.unclaimedPluginsForTokens(s.config.ConfiguredCustomSendTypes, plugin.GetPluginForSendType, "send type"),
 	}
-
-	// Build plugin configs for all resolved names not already running.
-	var plugins []plugin.PluginConfig
-	pm2 := s.procManager.Load()
-	for _, name := range resolved {
-		if s.isPluginLoaded(name) || s.hasConfiguredPlugin(name) || (pm2 != nil && pm2.GetProcess(name) != nil) {
+	for _, needed := range deferredSets {
+		if len(needed) == 0 {
 			continue
 		}
-
-		logger().Debug("auto-loading plugin for custom "+kind,
-			"plugin", name)
-
-		plugins = append(plugins, plugin.PluginConfig{
-			Name:     name,
-			Encoder:  encoderJSON,
-			Internal: true,
-		})
+		// nil external: every configured name was excluded while collecting.
+		if _, err := registry.ResolveDependencies(needed, nil, s.config.ConfigNeedHolds); err != nil {
+			return err
+		}
 	}
 
-	return plugins
+	return nil
+}
+
+// appendHeldNeedProviders adds to needed each registered provider of a
+// ConfigNeed that pulls its provider (registry.ConfigNeed.PullsProvider: a
+// need of alternatives pulls none) and that needHolds answers true for,
+// declared by a plugin running
+// answers as running. A reload can turn on a need of an owner that is already
+// running (enrichment set to true under a running flow export), and no config
+// root is added for it, so the provider the need now names is what reload
+// must start. Only the providers are added, never the owner: resolving the
+// running owner again would also pull every member of its closure that is not
+// running, which reload never asked for. A provider this build does not
+// register adds nothing, because the refusal at verify
+// (config.refuseAbsentOptionalProviders) already refused a config holding a
+// need with no registered provider. seen holds the names already in needed.
+// needHolds MUST NOT be nil.
+func appendHeldNeedProviders(needed []string, seen map[string]bool, needHolds registry.NeedHolds, running func(string) bool) []string {
+	for _, reg := range registry.All() {
+		if len(reg.ConfigNeeds) == 0 {
+			continue
+		}
+		if !running(reg.Name) {
+			continue
+		}
+		for _, need := range reg.ConfigNeeds {
+			if !need.PullsProvider() {
+				continue
+			}
+			if !needHolds(reg.Name, need) {
+				continue
+			}
+			for _, provider := range need.Providers {
+				if seen[provider] {
+					continue
+				}
+				if registry.Lookup(provider) == nil {
+					continue
+				}
+				seen[provider] = true
+				needed = append(needed, provider)
+			}
+		}
+	}
+	return needed
 }

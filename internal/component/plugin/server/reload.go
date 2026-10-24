@@ -324,8 +324,12 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) (resu
 	// Auto-load plugins for newly added config sections.
 	// When a user adds fib { kernel { } } to their config, the fib-kernel plugin
 	// needs to start before we can send it config.
+	//
+	// A changed leaf auto-loads too: turning on a ConfigNeed of a running
+	// plugin (flow-export enrichment bgp from false to true) adds no config
+	// section, yet the provider the need names must start.
 	var autoLoaded []string
-	if len(diff.Added) > 0 {
+	if len(diff.Added) > 0 || len(diff.Changed) > 0 {
 		addedKeys := make([]string, 0, len(diff.Added))
 		for k := range diff.Added {
 			addedKeys = append(addedKeys, k)

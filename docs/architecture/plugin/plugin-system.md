@@ -46,8 +46,9 @@ Optional metadata:
 | `CapabilityCodes` | `[]uint8` | Capability codes this plugin decodes |
 | `ConfigRoots` | `[]string` | Config roots the plugin owns. A present root auto-loads the plugin |
 | `ConfigReads` | `[]string` | Config roots the plugin reads but does not own. Its config verifier and its schema receive them, and they never auto-load it. `ze config validate` hands them to an in-process verifier, and the daemon's server joins them into the roots it delivers at a commit and a SIGHUP reload, where a change to any of the plugin's roots delivers all of them whole. The server finds the entry through the implementation the process runs (`use bgp-rpki` under a block named `rpki` still gets `pki`). A read root is delivered and never owned: the transaction lists it as the participant's `WantsConfig`, so it reaches verify and a coarse section apply, and the operation coverage guard never counts it as the reader's (`docs/architecture/config/transaction-protocol.md`). `bgp-rpki` reads `pki` this way, so a `pki`-only config does not start BGP |
-| `Dependencies` | `[]string` | Plugin names that must also load. A missing name gives `ErrMissingDependency` |
-| `OptionalDependencies` | `[]string` | Plugin names the owner uses when present. A missing name is skipped in silence |
+| `Dependencies` | `[]string` | Plugin names that must also load. A name this build does not register gives a `*MissingDependencyError` (`errors.Is` `ErrMissingDependency`) and refuses the load (see Dependencies) |
+| `OptionalDependencies` | `[]string` | Plugin names the owner uses when present. A missing name is skipped in silence. A name a single-provider `ConfigNeeds` entry lists is pulled only when the config holds that need; a name only a need of several providers lists is never pulled; any other is pulled whenever it is registered |
+| `ConfigNeeds` | `[]ConfigNeed` | Config values of the owner's that need one of its `OptionalDependencies`. Each need names a leaf `Path` as the operator writes it, the `Value` that needs a provider, and the `Providers`, any one of which meets it. `Register` refuses a need with an empty path or path element, no value, no provider, or a provider outside `OptionalDependencies`, naming the plugin. The config component judges the needs at load (`LoadConfig`) and at validate and commit (`VerifyPluginConfigMapTransition`) through one check, `refuseAbsentOptionalProviders`. A need holds when the leaf at `Path`, reached through containers in the `ToPluginMap` form, carries `Value` (a leaf-list holds it when `Value` is a member); an absent node or a node of another shape means it does not hold. A path crosses a YANG list by following the list keyword with `registry.AnyEntry` (`*`), and then holds when any entry carries `Value` at the rest of the path; the refusal names each such entry (`bgp-ls-export domain core source isis`). `Register` refuses `*` as the first or last element, and each owner's `TestConfigNeedPathsExistInSchema` (`configneedtest.PathFault`) refuses a list not followed by it. A held need whose providers are none of them registered in this build is refused with `ErrAbsentOptionalProvider`, naming the setting and the build tag of each provider (see `feature-gates.md`, "Naming a plugin the build left out"). The verdict is about the build only, never whether a provider is configured. The same evaluator, `config.ConfigNeedHolds`, decides the pull: `ResolveDependencies` pulls the provider of a need that names one provider only when the config holds that need. A need that names several providers names alternatives and pulls none of them, even when it holds: the source the operator configured loads from its own config root (`ConfigNeed.PullsProvider`, see Dependencies). Flow export declares one: `flow-export enrichment bgp` set to `true` needs `bgp-rib`; the BGP-LS exporter declares `bgp-ls-export domain * source` set to `isis` or `ospf`, needing that IGP |
 | `StartAfter` | `[]string` | Order-only prerequisites when both plugins are selected. Never auto-loads a plugin |
 | `EventTypes` | `[]string` | Event types this plugin produces. Registered at startup |
 | `SendTypes` | `[]string` | Send types this plugin enables, such as `enhanced-refresh` |
@@ -226,14 +227,99 @@ the file names no plugin.
 <!-- source: internal/component/plugin/process/exitwait_linux.go -- newPluginShell -->
 <!-- source: internal/core/env/env.go -- InNamespace -->
 <!-- source: internal/component/config/register_plugin_declarations.go -- readConfiguredPlugins -->
+<!-- source: internal/component/plugin/registry/config_need.go -- ConfigNeed, validateConfigNeeds -->
+<!-- source: internal/component/config/optional_provider.go -- refuseAbsentOptionalProviders -->
 
 ## Dependencies
 
 | Field | Semantics |
 |-------|-----------|
-| `Dependencies` | Hard. `ResolveDependencies` returns `ErrMissingDependency` when the named plugin is not registered, and startup fails |
-| `OptionalDependencies` | Soft. The resolver pulls the plugin in when it is registered and skips it in silence when it is not |
+| `Dependencies` | Hard. `ResolveDependencies` returns a `*MissingDependencyError` when the named plugin is not registered, and every load path refuses: boot (config-path, family, and custom event or send type auto-load), a config reload, and an explicit `plugin {}` block. The plugin is never started without its dependency. `ze config validate`, editor and API commit, and doctor refuse the same config with the same error |
+| `OptionalDependencies` | Soft. The resolver skips the plugin in silence when it is not registered. When it is registered, it is pulled unless a `ConfigNeeds` entry of the owner lists it: then it is pulled only when the config holds one of those needs that names it alone. A need naming several providers is a set of alternatives and pulls none (anomaly and DDoS detection name flow export and traffic usage), because pulling every alternative would start sources nobody configured, each with its own hard dependencies. A config that holds a need whose provider is absent is refused before resolution, at load, validate and commit |
 | `StartAfter` | Order only. Never expands the selected set; orders the owner after a named plugin only when both are selected |
+
+The refusal is written for the operator. It names the plugin, the dependency
+and the build tags that carry the dependency, read from the generated
+gated-plugin table (`registry.GatedPluginTags`, see
+`docs/architecture/plugin/feature-gates.md`, "Naming a plugin the build left
+out"), and puts the fix on its own last line:
+
+```
+plugin "a" needs plugin "bgp-bmp", and this build of ze does not include it.
+"a" does not work without "bgp-bmp", so ze refuses to start it.
+Fix: rebuild ze with the build tags ze_bgp ze_bmp added to -tags, or remove the configuration that loads "a".
+```
+
+A dependency that no gate covers and no build registers (an external name, a
+typo) is named as unknown to this build, with no tag: the fix line then says to
+remove the configuration that loads the plugin and to report the name.
+
+Boot resolves every auto-load set before the first plugin starts. The family
+set and the custom event and send type sets load after the explicit plugins, so
+`refuseUnresolvableDeferredAutoLoad` resolves them up front: a refusal found
+only then would leave the earlier phases' plugins running. No explicit plugin
+has declared its families at that point, so the family set it resolves is every
+configured family's internal plugin.
+
+Resolution needs the config it resolves for, because a `ConfigNeeds` entry
+decides whether its provider is pulled. Every caller passes a
+`registry.NeedHolds` built by `config.ConfigNeedHolds` from that config:
+`config.ExpandDependencies` from the tree `LoadConfig` parsed, boot auto-load
+from `ServerConfig.ConfigNeedHolds` (the startup tree), and reload auto-load
+from the new tree. A nil `NeedHolds` is refused with
+`registry.ErrConfigNeedsUnanswered`, never read as "no need holds". A reload
+that only changes a leaf still auto-loads: for a running plugin whose
+registration declares a need, each registered provider of a need the new tree
+holds is resolved and started (`appendHeldNeedProviders`), under the same single-provider rule (`ConfigNeed.PullsProvider`), so turning
+`enrichment bgp` on under a running flow export starts `bgp-rib`. The owner
+itself is not resolved again, because that would also start every member of
+its closure that is not running.
+
+<!-- source: internal/component/plugin/registry/config_need.go -- NeedHolds, ErrConfigNeedsUnanswered, optionalProviderPulled, ConfigNeed.PullsProvider -->
+<!-- source: internal/component/config/optional_provider.go -- ConfigNeedHolds, configHoldsNeed -->
+<!-- source: internal/component/plugin/server/startup_autoload.go -- refuseUnresolvableDeferredAutoLoad, getUnclaimedFamilyPlugins, appendHeldNeedProviders -->
+
+`ze config validate`, the editor and API commit, and doctor refuse the same
+config with the same error, before any daemon runs. They resolve the set boot
+starts (`config.refuseUnresolvableDependencies`, called from
+`VerifyPluginConfig` and `VerifyPluginConfigTransition`): the plugins the
+`plugin { }` block declares, asked through `dependencyRequest` exactly as
+`ExpandDependencies` asks, and the plugins the config's roots select. Boot
+auto-load, reload auto-load and these doors read that selection from one
+answer, `registry.PluginsForConfigPaths`, so a config the doors call valid is
+one boot can resolve. A `ze_core ze_exabgp` build validating an `exabgp { }`
+config is refused naming `ze_bgp`, as its boot is. The FIB plugin boot adds
+for the configured data plane is the one member these doors do not resolve,
+because the data plane is read by the `iface` component, which `config` does
+not import.
+
+The set those doors resolve starts from `ExtractPluginsFromTree`. When that
+extraction fails, the set is unknown, so the dependency refusal is not asked:
+`verifyTree` reports the extraction failure once, as a
+`*config.PluginExtractionError`, and that failure refuses the config as
+`LoadConfig` refuses it. A failure from a registered extractor carries the
+section it reads (`RegisterPluginExtractor`): the bgp extractor fails when the
+bgp tree does not resolve, and a door that checks the bgp section itself
+drops the relayed copy rather than list one failure twice. `ze config
+validate` drops it because its bgp check reports the same `ResolveBGPTree`
+failure; the editor drops it when its own pass (or, at commit, the engine's
+peer resolution) already refused the config, and adds it otherwise. `ze
+doctor` drops it from its `config-semantics` check, because its bgp peer check
+(`doctor-config-bgp-peer`) reports the same `ResolveBGPTree` failure and is
+registered by the package that registers the bgp extractor. A failure
+in the `plugin { }` block itself carries no section and is always reported,
+under `config-plugin-extract` in `ze config validate`.
+
+<!-- source: internal/component/config/loader.go -- PluginExtractionError, RegisterPluginExtractor, ExtractPluginsFromTree -->
+<!-- source: internal/component/config/validate_semantic.go -- ValidateSemantics -->
+<!-- source: internal/component/cli/validator.go -- editorReportsPluginVerifyError, pluginVerifyTransitionError -->
+<!-- source: internal/component/config/cli/cmd_validate.go -- runValidation -->
+<!-- source: internal/component/plugin/registry/missing_dependency.go -- MissingDependencyError, newMissingDependencyError -->
+<!-- source: internal/component/plugin/registry/registry.go -- ResolveDependencies, PluginsForConfigPaths -->
+<!-- source: internal/component/config/plugin_verify.go -- refuseUnresolvableDependencies, verifyTree -->
+<!-- source: internal/component/config/loader.go -- dependencyRequest, ExpandDependencies -->
+<!-- source: internal/component/plugin/server/startup.go -- runPluginStartup, refuseBootAutoLoad -->
+<!-- source: internal/component/plugin/server/startup_autoload.go -- getConfigPathPlugins, refuseUnresolvableDeferredAutoLoad, getUnclaimedPluginsForTokens -->
 
 All three fields reject empty strings and self-edges at registration. Cycle
 detection and `TopologicalTiers` walk every edge whose endpoints are both in the
@@ -307,7 +393,10 @@ is owned by its plugin's `types.go`.
 Stages 1 to 5 of the handshake run per phase. The engine loads plugins across up
 to five phases in series: config-path auto-load, explicit, family, event-type,
 send-type. A plugin's `OnStarted` therefore fires after its own handshake, and
-before the plugins of a later phase are loaded.
+before the plugins of a later phase are loaded. Before the first phase starts,
+the engine resolves the dependencies of the config-path, family, event-type
+and send-type sets, and refuses startup when one names a plugin this build
+lacks (see Dependencies).
 
 The config-path phase also resolves the FIB writer. When a plugin it is about to
 load declares `NeedsDataPlane`, and no `ProgramsFIB` plugin is configured or
