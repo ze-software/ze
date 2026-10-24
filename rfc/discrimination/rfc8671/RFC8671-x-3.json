@@ -14,7 +14,7 @@
     "rid": "RFC8671-x-3",
     "polarity": "positive",
     "unit": "internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go::TestRFC8671PeerDownDoesNotDependOnTheMonitoredRIB",
-    "unit-sha": "05a5c0c533b87ae1",
+    "unit-sha": "96f4b6fa518b975d",
     "claim-sha": "6e18b4aa30dd77a9",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/bmp/bmp_events.go::handleSenderState",

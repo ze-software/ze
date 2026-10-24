@@ -18,7 +18,7 @@
     "claim-sha": "efbef0bd1299c77b",
     "route": "revert",
     "producer": "internal/component/bgp/message/rfc7606_bgpls.go::validateBGPLSAttr",
-    "producer-sha": "9b44d8df35e9c475",
+    "producer-sha": "d9a4f8119494d761",
     "break": "body of validateBGPLSAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   },
   {
@@ -29,7 +29,7 @@
     "claim-sha": "c7e61e8845261348",
     "route": "revert",
     "producer": "internal/component/bgp/message/rfc7606_bgpls.go::validateBGPLSAttr",
-    "producer-sha": "9b44d8df35e9c475",
+    "producer-sha": "d9a4f8119494d761",
     "break": "body of validateBGPLSAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   }
 ]

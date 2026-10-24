@@ -7,7 +7,7 @@
     "claim-sha": "c75a187dd4b6569f",
     "route": "revert",
     "producer": "internal/component/bgp/message/rfc7606.go::validateLocalPrefAttr",
-    "producer-sha": "1290fc47b435870d",
+    "producer-sha": "2caa5e33b0604156",
     "break": "body of validateLocalPrefAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   },
   {
@@ -18,7 +18,7 @@
     "claim-sha": "7ac268582f547add",
     "route": "revert",
     "producer": "internal/component/bgp/message/rfc7606.go::validateLocalPrefAttr",
-    "producer-sha": "1290fc47b435870d",
+    "producer-sha": "2caa5e33b0604156",
     "break": "body of validateLocalPrefAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   },
   {
@@ -29,7 +29,7 @@
     "claim-sha": "19731f121e60ee18",
     "route": "revert",
     "producer": "internal/component/bgp/message/rfc7606.go::validateAggregatorAttr",
-    "producer-sha": "a7693aa88c6e45f2",
+    "producer-sha": "75c46c179e096984",
     "break": "body of validateAggregatorAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   },
   {
@@ -40,7 +40,7 @@
     "claim-sha": "4219b854d5db00cb",
     "route": "revert",
     "producer": "internal/component/bgp/message/rfc7606.go::validateAggregatorAttr",
-    "producer-sha": "a7693aa88c6e45f2",
+    "producer-sha": "75c46c179e096984",
     "break": "body of validateAggregatorAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   },
   {
@@ -51,7 +51,7 @@
     "claim-sha": "02340b5bebcf5397",
     "route": "revert",
     "producer": "internal/component/bgp/message/rfc7606.go::validateNextHopAttr",
-    "producer-sha": "9be9cba53edf248c",
+    "producer-sha": "4c5aa4e6c9f4b4d2",
     "break": "body of validateNextHopAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   },
   {
@@ -62,7 +62,7 @@
     "claim-sha": "9e880409af587de1",
     "route": "revert",
     "producer": "internal/component/bgp/message/rfc7606.go::validateNextHopAttr",
-    "producer-sha": "9be9cba53edf248c",
+    "producer-sha": "4c5aa4e6c9f4b4d2",
     "break": "body of validateNextHopAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   }
 ]

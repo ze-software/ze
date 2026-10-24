@@ -3,18 +3,18 @@
     "rid": "RFC8277-2.4-1",
     "polarity": "positive",
     "unit": "internal/component/bgp/format/rfc8277_vpn_consumer_test.go::TestVPNWithdrawalJSONConsumersIgnoreCompatibility",
-    "unit-sha": "e320033e3fc519c8",
+    "unit-sha": "b1d8470c05211718",
     "claim-sha": "c1a59812f48bfaf5",
     "route": "revert",
     "producer": "internal/component/bgp/format/text_json.go::appendNLRIJSONValue",
-    "producer-sha": "11455f911c23707c",
+    "producer-sha": "cd11933374e22401",
     "break": "body of appendNLRIJSONValue replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC8277-2.4-1",
     "polarity": "negative",
     "unit": "internal/component/bgp/format/rfc8277_vpn_consumer_test.go::TestVPNWithdrawalJSONConsumersIgnoreCompatibility",
-    "unit-sha": "e320033e3fc519c8",
+    "unit-sha": "b1d8470c05211718",
     "claim-sha": "06da8e35c4f2de8e",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/nlri/vpn/types.go::parseVPN",
@@ -51,7 +51,7 @@
     "claim-sha": "5e6c20c5f8ac48ae",
     "route": "revert",
     "producer": "internal/component/bgp/format/text_json.go::appendNLRIJSONValue",
-    "producer-sha": "11455f911c23707c",
+    "producer-sha": "cd11933374e22401",
     "break": "body of appendNLRIJSONValue replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   },
   {

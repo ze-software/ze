@@ -7,7 +7,7 @@
     "claim-sha": "1457c35a7a8247db",
     "route": "revert",
     "producer": "internal/component/bgp/message/rfc7606.go::validateLargeCommunityAttr",
-    "producer-sha": "0b3890a8f14078ec",
+    "producer-sha": "ed1c049ebecae928",
     "break": "body of validateLargeCommunityAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   },
   {
@@ -18,7 +18,7 @@
     "claim-sha": "3bd3825a17fb72d6",
     "route": "revert",
     "producer": "internal/component/bgp/message/rfc7606.go::validateLargeCommunityAttr",
-    "producer-sha": "0b3890a8f14078ec",
+    "producer-sha": "ed1c049ebecae928",
     "break": "body of validateLargeCommunityAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   }
 ]

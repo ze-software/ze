@@ -117,7 +117,7 @@
     "claim-sha": "cd8bc30b03aa18d0",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/reactor_notify.go::notifyMessageReceiver",
-    "producer-sha": "0d22727a4db29f29",
+    "producer-sha": "0a634dd83b9d7149",
     "break": "body of notifyMessageReceiver replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   },
   {
@@ -128,7 +128,7 @@
     "claim-sha": "5d56b5993f6c9059",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/reactor_notify.go::notifyMessageReceiver",
-    "producer-sha": "0d22727a4db29f29",
+    "producer-sha": "0a634dd83b9d7149",
     "break": "body of notifyMessageReceiver replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   },
   {
