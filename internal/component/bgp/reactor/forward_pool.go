@@ -368,6 +368,59 @@ func fwdBatchHandler(key fwdKey, items []fwdItem) {
 	}
 }
 
+// fwdPool manages per-destination-peer worker goroutines for async UPDATE forwarding.
+// Workers are created lazily on first Dispatch and exit after idle timeout.
+// Each key has exactly one worker goroutine — FIFO ordering is preserved per key.
+//
+// Unlike bgp-rs/workerPool (single-goroutine caller), fwdPool supports concurrent
+// Dispatch and Stop from different goroutines (RPC workers vs reactor shutdown).
+type fwdPool struct {
+	mu      sync.RWMutex
+	workers map[fwdKey]*fwdWorker
+	handler func(key fwdKey, items []fwdItem)
+	cfg     fwdPoolConfig
+	clock   clock.Clock
+	stopped bool
+
+	// stopCh is closed by Stop() to unblock any Dispatch goroutine
+	// that is blocked on a full channel send.
+	stopCh chan struct{}
+
+	// dispatchWG tracks in-flight Dispatch calls. Stop waits for all
+	// Dispatches to exit the select before closing worker channels.
+	// This prevents the race between w.ch<-item and close(w.ch).
+	dispatchWG sync.WaitGroup
+
+	// count tracks active workers for WorkerCount() without holding mu.
+	count atomic.Int32
+
+	// Congestion callbacks — fire on transitions only (not every item).
+	// Called from the TryDispatch caller goroutine (onCongested) or the
+	// worker goroutine (onResumed). Must not block.
+	onCongested func(peerAddr netip.AddrPort) // Called on false->true transition
+	onResumed   func(peerAddr netip.AddrPort) // Called on true->false transition
+
+	// overflowMux is the shared mixed-size overflow pool (fwd-auto-sizing).
+	// 64K blocks subdivisible to 16 x 4K slices, byte-budgeted.
+	overflowMux *MixedBufMux
+
+	// outgoingPools tracks Outgoing Peer Pools for egress modification.
+	// Used by buildModifiedPayload when egress filters need to modify the
+	// payload for a destination peer (copy-on-modify). 64 pre-allocated
+	// buffers at the peer's negotiated message size. Created at peer
+	// registration, destroyed on session teardown. Protected by mu.
+	outgoingPools map[fwdKey]*peerPool
+
+	// congestion is the two-threshold enforcement controller (Phase 5).
+	// Nil when congestion control is not configured.
+	congestion *congestionController
+
+	// Per-source-peer dispatch counters for AC-16 overflow ratio.
+	// Key: source peer address. Updated atomically in ForwardUpdate path.
+	srcStatsMu sync.Mutex
+	srcStats   map[netip.Addr]*fwdSourceStats
+}
+
 // requeuePolicyReplay returns pre-admitted live work to the existing overflow
 // while a final-policy replay holds the destination. Caller MUST hold writeMu;
 // reconciliation raises its hold under that same lock. Moved items transfer all
@@ -628,59 +681,6 @@ func (w *fwdWorker) policyParkedEnd() int {
 		}
 	}
 	return len(w.overflow)
-}
-
-// fwdPool manages per-destination-peer worker goroutines for async UPDATE forwarding.
-// Workers are created lazily on first Dispatch and exit after idle timeout.
-// Each key has exactly one worker goroutine — FIFO ordering is preserved per key.
-//
-// Unlike bgp-rs/workerPool (single-goroutine caller), fwdPool supports concurrent
-// Dispatch and Stop from different goroutines (RPC workers vs reactor shutdown).
-type fwdPool struct {
-	mu      sync.RWMutex
-	workers map[fwdKey]*fwdWorker
-	handler func(key fwdKey, items []fwdItem)
-	cfg     fwdPoolConfig
-	clock   clock.Clock
-	stopped bool
-
-	// stopCh is closed by Stop() to unblock any Dispatch goroutine
-	// that is blocked on a full channel send.
-	stopCh chan struct{}
-
-	// dispatchWG tracks in-flight Dispatch calls. Stop waits for all
-	// Dispatches to exit the select before closing worker channels.
-	// This prevents the race between w.ch<-item and close(w.ch).
-	dispatchWG sync.WaitGroup
-
-	// count tracks active workers for WorkerCount() without holding mu.
-	count atomic.Int32
-
-	// Congestion callbacks — fire on transitions only (not every item).
-	// Called from the TryDispatch caller goroutine (onCongested) or the
-	// worker goroutine (onResumed). Must not block.
-	onCongested func(peerAddr netip.AddrPort) // Called on false->true transition
-	onResumed   func(peerAddr netip.AddrPort) // Called on true->false transition
-
-	// overflowMux is the shared mixed-size overflow pool (fwd-auto-sizing).
-	// 64K blocks subdivisible to 16 x 4K slices, byte-budgeted.
-	overflowMux *MixedBufMux
-
-	// outgoingPools tracks Outgoing Peer Pools for egress modification.
-	// Used by buildModifiedPayload when egress filters need to modify the
-	// payload for a destination peer (copy-on-modify). 64 pre-allocated
-	// buffers at the peer's negotiated message size. Created at peer
-	// registration, destroyed on session teardown. Protected by mu.
-	outgoingPools map[fwdKey]*peerPool
-
-	// congestion is the two-threshold enforcement controller (Phase 5).
-	// Nil when congestion control is not configured.
-	congestion *congestionController
-
-	// Per-source-peer dispatch counters for AC-16 overflow ratio.
-	// Key: source peer address. Updated atomically in ForwardUpdate path.
-	srcStatsMu sync.Mutex
-	srcStats   map[netip.Addr]*fwdSourceStats
 }
 
 // fwdSourceStats tracks forwarded vs overflowed counts for one source peer.

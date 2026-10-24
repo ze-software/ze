@@ -13,7 +13,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
-	"github.com/ze-software/ze/internal/core/bgp/capability"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/bgp/wire"
@@ -639,7 +638,7 @@ func (w *adjOutWrite) section(dst, data []byte, fam family.Family, withdraw, mul
 	// negotiateCapabilities publishes this immutable pointer under writeMu;
 	// no reverse Session.mu acquisition or duplicate capability fact is needed.
 	if negotiated := w.session.negotiated; !w.raw && negotiated != nil &&
-		!negotiated.SupportsFamily(capability.Family{AFI: capability.AFI(fam.AFI), SAFI: capability.SAFI(fam.SAFI)}) {
+		!negotiated.SupportsFamily(fam) {
 		w.removed++
 		return 0, nil
 	}

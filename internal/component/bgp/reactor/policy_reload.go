@@ -49,8 +49,9 @@ func (p *Peer) reconcileExportFinal() error {
 		// The pool barrier does not cover direct API writers. They hold writeMu
 		// from their final decision through ownership admission, so joining it
 		// after publication closes that window without taking p.mu under it.
+		// Nothing runs under the lock: acquiring it is the whole barrier.
 		session.writeMu.Lock()
-		session.writeMu.Unlock()
+		session.writeMu.Unlock() //nolint:gocritic,staticcheck // badLock, SA2001: the empty critical section is the barrier
 		_, err := adapter.withdrawPeerAdvertised(ctx, p, family.Family{}, plugin.OperatorSender())
 		return err
 	}
