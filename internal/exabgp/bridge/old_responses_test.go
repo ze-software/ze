@@ -152,6 +152,12 @@ var oldResponsesAllowed = []oldResponseRow{
 		`the pre-RFC 9252 SRv6 L3 Service TLV of 4.2, as in JSON: RFC 9252 Section 7, "The treat-as-withdraw action `+
 			`[RFC7606] MUST be performed when at least one malformed SRv6 Service TLV is present in the BGP Prefix-SID `+
 			`attribute", so ze writes no announced line for it`),
+	oldResponseAllow("5.0", "text", `^update \S+ \S*800E[0-9A-F]{2}000[12]55[0-9A-F]*010003(17|2F)`, `.`,
+		`5.0 packed a Type 1 ST route with no source address in the draft-mpmz-bess-mup-safi-02 form, ending at its `+
+			`Endpoint Address with no Source Address Length octet (Type1SessionTransformedRoute._pack). `+
+			`draft-ietf-bess-mup-safi Section 3.1.3.1: "The Source Address Length has a fixed length of 1 octet.", and a `+
+			`route whose mandatory fields exceed its Length "is malformed; MUST be treated as Treat-as-withdraw." `+
+			`So ze writes no announced line for it (docs/exabgp/exabgp-differences.md)`),
 	// A member ExaBGP 6.0 writes and the release did not. The pin's own judge
 	// has no row for these because it never looks at a key the release did not
 	// write (qa/bin/test_old_responses, differences: "A key this tree adds is
