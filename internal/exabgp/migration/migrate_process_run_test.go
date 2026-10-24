@@ -24,6 +24,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/exabgp/bridge"
+
 	// The config modules of the roots the migrated config writes, so ze's
 	// parser can read it back: bgp (which imports hub), plugin, and the
 	// bridge's exabgp root.

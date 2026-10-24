@@ -41,7 +41,7 @@ func needsQuotedValue(v string) bool {
 // writeQuotedValue writes v in double quotes, escaping the two characters ze's
 // tokenizer reads as escapes there: a backslash and a double quote. A migrated
 // `run` line carries backslashes (bridge.JoinCommandLine writes an apostrophe
-// as `'\''`), and ze would read an unescaped one as an escape and drop it.
+// as `'\”`), and ze would read an unescaped one as an escape and drop it.
 func writeQuotedValue(buf *textbuf.Buffer, v string) {
 	buf.Byte('"')
 	for i := range len(v) {
