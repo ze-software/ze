@@ -15,8 +15,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-The 2026-10-23 journal sweep (`tmp/session/2026-10-23-895e52ca-087b-4d00-9f7b-24de74193df6/scratch/journal-root-causes.md`)
-grouped 1,350 open rows into thirteen root-cause specs (S1 to S7, T1 to T6) and
+The 2026-10-23 journal sweep grouped 1,350 open rows into thirteen root-cause specs (S1 to S7, T1 to T6) and
 left about 265 genuine one-offs: single defects whose mechanism belongs to no
 root cause. This spec owns the 67 BGP ones: the reactor, the wire codecs, the
 RIB, the route server relay, MRT, BMP's dedup memo and the BGP CLI decoders.

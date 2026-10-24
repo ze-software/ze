@@ -95,6 +95,5 @@ commit B is refused.
 - About 46 open rows cite deleted scripts (`scripts/dev/`, `mk/`,
   `.claude/hooks/*.py`). Each belongs to a spec, which judges it on
   implementation.
-- The root-cause analysis is in
-  `tmp/session/2026-10-23-895e52ca-087b-4d00-9f7b-24de74193df6/scratch/journal-root-causes.md`
-  (session scratch, not durable). The specs carry everything that matters.
+- The root-cause analysis was session scratch and is deleted; the specs carry
+  everything that mattered from it.
