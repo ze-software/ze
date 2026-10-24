@@ -1,9 +1,9 @@
 {
-  "note": "Re-judged 2026-10-23 (independent auditor, after a59427f8c0). RFC 8654 Section 3: \"Peers that wish to use the BGP Extended Message Capability MUST support error handling for BGP UPDATE messages per [RFC7606].\" The only change to a tagged unit is a comment in TestRFC7606MPReachNLRIConsistentWithAFISAFIAccepted (validateMPReachAttr renamed validateMPNLRIField); its body, an IPv4 MP_REACH whose /8 ends flush with the attribute giving exact ActionNone through ValidateUpdateRFC7606, is unchanged and ran green. The extended-message session units in rfc_receive_session_dispatch_test.go and rfc8654_rib_recovery_test.go are unchanged and still prove the RFC 7606 actions (attribute discard, treat-as-withdraw with route removal, duplicate MP reset) apply on a session with extended messages. Verdict stands. Findings recorded outside this verdict: that unit's doc comment still says \"Untagged\" though it carries the RFC8654-3-1 positive tag, and the discrimination records on the rfc_receive_session_dispatch and rfc8654_rib_recovery units no longer verify (producer-changed applyRFC7606).",
+  "note": "Re-judged 2026-10-24 (independent auditor, after 8a340e018a). RFC 8654 Section 3: \"Peers that wish to use the BGP Extended Message Capability MUST support error handling for BGP UPDATE messages per [RFC7606].\" The only changed unit is TestRFC7606MPReachNLRIConsistentWithAFISAFIAccepted: its doc comment dropped the stale word \"Untagged\" (the finding the previous re-judgement recorded); body unchanged, an IPv4 MP_REACH whose /8 ends flush with the attribute gives exact ActionNone through ValidateUpdateRFC7606, ran green. That message-level positive (and its sibling negative TestRFC7606AttributeLengthConflictTreatAsWithdraw) proves only the RFC 7606 classifier and carries no Extended Message context; the requirement's proof rests on the unchanged session-level pairs in rfc_receive_session_dispatch_test.go and rfc8654_rib_recovery_test.go, which on a session that negotiated Extended Message and with UPDATEs over 4096 octets assert the exact RFC 7606 outcomes (attribute discard, duplicate removal, duplicate-MP 3/1 reset, treat-as-withdraw removing installed routes from Adj-RIB-In and Loc-RIB) with conforming positives. Verdict stands.",
   "requirement_sha": "58d67f2664ef1bc5",
   "tests": {
-    "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606AttributeLengthConflictTreatAsWithdraw": "049a1019ca9db875",
-    "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606MPReachNLRIConsistentWithAFISAFIAccepted": "049a1019ca9db875",
+    "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606AttributeLengthConflictTreatAsWithdraw": "f5b8bd82514f3d77",
+    "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606MPReachNLRIConsistentWithAFISAFIAccepted": "f5b8bd82514f3d77",
     "internal/component/bgp/reactor/rfc8654_rib_recovery_test.go::TestRFC8654ExtendedTwoFamilyWithdrawalRecovery": "610d0686eb8443b5",
     "internal/component/bgp/reactor/rfc8654_rib_recovery_test.go::TestRFC8654ExtendedTwoFamilyWithdrawalRecovery#2": "610d0686eb8443b5",
     "internal/component/bgp/reactor/rfc8654_rib_recovery_test.go::TestRFC8654TreatAsWithdrawRemovesInstalledRoutes": "610d0686eb8443b5",
@@ -19,7 +19,7 @@
   },
   "units": {
     "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606AttributeLengthConflictTreatAsWithdraw": "6215492127a94045",
-    "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606MPReachNLRIConsistentWithAFISAFIAccepted": "ca7ed1de25ab2413",
+    "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606MPReachNLRIConsistentWithAFISAFIAccepted": "536666e7db998c47",
     "internal/component/bgp/reactor/rfc8654_rib_recovery_test.go::TestRFC8654ExtendedTwoFamilyWithdrawalRecovery": "4119cce75f3d57e2",
     "internal/component/bgp/reactor/rfc8654_rib_recovery_test.go::TestRFC8654ExtendedTwoFamilyWithdrawalRecovery#2": "4119cce75f3d57e2",
     "internal/component/bgp/reactor/rfc8654_rib_recovery_test.go::TestRFC8654TreatAsWithdrawRemovesInstalledRoutes": "3a71ac28df9123fb",
