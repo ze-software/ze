@@ -127,6 +127,12 @@ func TestRFC9774ReceiveASSetTreatAsWithdraw(t *testing.T) {
 // a set in AS4_PATH is treat-as-withdraw on a two-octet session, where the AS4_PATH is
 // consumed, and on a four-octet session too, where RFC 6793 would have it ignored (owner
 // decision Q-2 (a): Section 3 names AS4_PATH without a condition).
+//
+// RFC requirement: RFC9774-3-2 positive -- an UPDATE whose AS_PATH holds sequence segments only
+// and whose AS4_PATH holds an AS_SET or AS_CONFED_SET draws treat-as-withdraw from
+// Session.enforceRFC7606 without a session error, on a two-octet and on a four-octet eBGP session.
+// RFC requirement: RFC9774-3-2 negative -- the same UPDATE with an AS4_PATH of AS_SEQUENCE
+// segments only draws no RFC 7606 action on either session.
 func TestRFC9774ReceiveAS4PathSetTreatAsWithdraw(t *testing.T) {
 	ebgp4 := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65001, 65002, 0x01020301)
 	s4, _ := firstASSession(t, ebgp4, []capability.Capability{&capability.ASN4{ASN: 65002}}, nil)

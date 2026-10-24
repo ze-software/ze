@@ -111,24 +111,24 @@
   },
   {
     "rid": "RFC8654-3-1",
-    "polarity": "negative",
+    "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling",
-    "unit-sha": "c29a2181ac8eee72",
-    "claim-sha": "32396e4f9a54c9de",
-    "route": "revert",
-    "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
-    "producer-sha": "58b04127b9658cea",
-    "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "unit-sha": "5d66c430dd89fc19",
+    "claim-sha": "c666441c54ab1833",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_read.go::readAndProcessMessage",
+    "producer-sha": "84cd05f1ccd745aa",
+    "break": "line 110: \"s.extendedMessage\" -\u003e \"false\""
   },
   {
     "rid": "RFC8654-3-1",
-    "polarity": "positive",
+    "polarity": "negative",
     "unit": "internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling",
-    "unit-sha": "c29a2181ac8eee72",
-    "claim-sha": "983e1eb9bd353b6d",
-    "route": "revert",
+    "unit-sha": "5d66c430dd89fc19",
+    "claim-sha": "79f3a53f4dd70760",
+    "route": "mutant",
     "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
     "producer-sha": "58b04127b9658cea",
-    "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "line 260: \"message.RFC7606ActionTreatAsWithdraw\" -\u003e \"message.RFC7606ActionNone\""
   }
 ]

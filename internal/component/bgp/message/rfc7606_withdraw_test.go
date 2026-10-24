@@ -238,8 +238,13 @@ func TestRFC7606MPReachNLRIOverrunsAttribute(t *testing.T) {
 	require.NotNil(t, result)
 	require.Equal(t, RFC7606ActionSessionReset, result.Action,
 		"an unparseable MP NLRI cannot be treated as withdraw: §3(j) requires session reset")
-	require.Contains(t, result.Description, "overrun",
+	// The exact description names the NLRI overrun and its byte counts (a /128 needs 16
+	// octets, 2 remain), so a next-hop or ADD-PATH overrun, whose descriptions also say
+	// "overrun", cannot pass in its place.
+	require.Equal(t, "RFC 7606 Section 5.3/3(j): NLRI overrun (need 16 bytes, have 2)", result.Description,
 		"must fail on the NLRI overrun, not a neighboring rule")
+	require.Equal(t, attrCodeMPReachNLRI, result.AttrCode,
+		"the error must be attributed to MP_REACH_NLRI (type code 14)")
 }
 
 // VALIDATES: an MP_REACH whose flags contradict RFC 4760 is incorrect (§5.3), which

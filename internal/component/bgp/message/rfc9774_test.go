@@ -117,6 +117,10 @@ func TestValidateASPathStructureBeforeSet(t *testing.T) {
 // without a set still earns attribute discard; a misframed AS4_PATH holding a set is not
 // judged by the set scan (A-7). Method: call validateAS4PathAttr directly, once with each
 // asn4 value, since the verdict does not depend on it (owner Q-2 (a)).
+//
+// RFC requirement: RFC9774-3-2 positive -- an AS_SET or AS_CONFED_SET segment in a
+// well-framed AS4_PATH, with four-octet AS support negotiated or not, is treat-as-withdraw on
+// attribute code 17 with the RFC 9774 Section 3 description, also when the AS4_PATH holds AS 0.
 func TestValidateAS4PathRejectsSetSegments(t *testing.T) {
 	seq := asPathSegment(asPathTypeASSequence, 4, 65001, 4200000000)
 	set := asPathSegment(asPathTypeASSet, 4, 65010, 65011)

@@ -2,6 +2,17 @@
   {
     "rid": "RFC9774-3-2",
     "polarity": "positive",
+    "unit": "internal/component/bgp/message/rfc9774_test.go::TestValidateAS4PathRejectsSetSegments",
+    "unit-sha": "7b9b99d4656a8d84",
+    "claim-sha": "c0e1517e5ba78df2",
+    "route": "mutant",
+    "producer": "internal/component/bgp/message/rfc7607.go::validateAS4PathPolicy",
+    "producer-sha": "1b94c71df87e3788",
+    "break": "line 69: \"!acceptASSet\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC9774-3-2",
+    "polarity": "positive",
     "unit": "internal/component/bgp/message/rfc9774_test.go::TestValidateASPathRejectsSetSegments",
     "unit-sha": "4b566b767e962696",
     "claim-sha": "88a5111359e55467",
@@ -31,6 +42,28 @@
     "producer": "internal/component/bgp/message/rfc7606.go::validateASPathPolicy",
     "producer-sha": "962ce246b0a79ae2",
     "break": "body of validateASPathPolicy replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC9774-3-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc9774_receive_test.go::TestRFC9774ReceiveAS4PathSetTreatAsWithdraw",
+    "unit-sha": "c618fa07e557d84c",
+    "claim-sha": "c57bbe4d0f604f0f",
+    "route": "mutant",
+    "producer": "internal/component/bgp/message/rfc7607.go::validateAS4PathPolicy",
+    "producer-sha": "1b94c71df87e3788",
+    "break": "line 69: \"!acceptASSet\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC9774-3-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc9774_receive_test.go::TestRFC9774ReceiveAS4PathSetTreatAsWithdraw",
+    "unit-sha": "c618fa07e557d84c",
+    "claim-sha": "558a67fe97cdfbe7",
+    "route": "mutant",
+    "producer": "internal/component/bgp/message/rfc9774.go::ASPathSetSegment",
+    "producer-sha": "72c02bda4fd3b039",
+    "break": "line 88: \"current == asPathTypeASSet\" -\u003e \"current != asPathTypeASSet\""
   },
   {
     "rid": "RFC9774-3-2",

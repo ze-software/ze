@@ -235,24 +235,54 @@ func TestRFC4271LocalPrefFromExternalPeerNeverReachesTheRIB(t *testing.T) {
 // longer than 4096 octets on a session that negotiated Extended Message and
 // asserts RFC 7606 decides the outcome.
 //
-// VALIDATES: an extended UPDATE of 1100 /24 routes whose ORIGIN is malformed is
-// treat-as-withdraw: no error, session Established, no NOTIFICATION, and the
-// consumers receive every one of the 1100 routes as withdrawn with no
-// attributes. An extended UPDATE whose declared attribute section runs past the
-// message end is the RFC 7606 Section 3 session-reset case: NOTIFICATION UPDATE
-// Message Error / Malformed Attribute List, session Idle, nothing dispatched.
+// VALIDATES: a well-formed extended UPDATE of 1100 /24 routes is accepted: no
+// error, session Established, no NOTIFICATION, and the consumers receive its
+// attribute section and its 1100 routes byte for byte, with nothing withdrawn.
+// The same UPDATE with a malformed ORIGIN is treat-as-withdraw: no error,
+// session Established, no NOTIFICATION, and the consumers receive every one of
+// the 1100 routes as withdrawn with no attributes. An extended UPDATE whose
+// declared attribute section runs past the message end is the RFC 7606
+// Section 3 session-reset case: NOTIFICATION UPDATE Message Error / Malformed
+// Attribute List, session Idle, nothing dispatched.
 // PREVENTS: the extended-message receive path bypassing RFC 7606, so a
 // malformed attribute in a large UPDATE resets the session, or a malformed
-// UPDATE is installed.
+// UPDATE is installed; and error handling that refuses or rewrites a large
+// UPDATE that carries no error.
 //
 // RFC requirement: RFC8654-3-1 positive -- on a session that negotiated Extended Message, a
-// malformed attribute in an UPDATE over 4096 octets is treat-as-withdraw and the session stays up.
-// RFC requirement: RFC8654-3-1 negative -- on the same session, an over-4096-octet UPDATE whose
-// attribute section overruns the message is refused with NOTIFICATION 3/1 and nothing is dispatched.
+// well-formed UPDATE over 4096 octets is dispatched with its attributes and NLRI intact, nothing
+// withdrawn, the session up and no NOTIFICATION sent.
+// RFC requirement: RFC8654-3-1 negative -- on the same session, an over-4096-octet UPDATE with a
+// malformed ORIGIN is dispatched with every route withdrawn and no attributes, the session up and
+// no NOTIFICATION sent, and one whose attribute section overruns the message is refused with
+// NOTIFICATION 3/1, the session Idle and nothing dispatched.
 func TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling(t *testing.T) {
 	nlri := ipv4Slash24s(1100)
 	aspath := []byte{0x40, 0x02, 0x06, 0x02, 0x01, 0x00, 0x00, 0xFD, 0xEA}
 	nexthop := []byte{0x40, 0x03, 0x04, 192, 0, 2, 254}
+
+	t.Run("well-formed", func(t *testing.T) {
+		session, client, capture, cleanup := setupCapturingSession(t, 65002, true, true)
+		defer cleanup()
+		attrs := append(append([]byte{0x40, 0x01, 0x01, 0x00}, aspath...), nexthop...)
+		msg := buildUpdateMsg(receivedUpdateBody(attrs, nlri))
+		require.Greater(t, len(msg), 4096, "the UPDATE must need Extended Message")
+		answer := make(chan []byte, 1)
+		go func() {
+			_, _ = client.Write(msg)
+			answer <- readOnce(client, 200*time.Millisecond)
+		}()
+
+		require.NoError(t, session.ReadAndProcess(), "a well-formed UPDATE does not end the read")
+		require.Equal(t, fsm.StateEstablished, session.State(), "the session stays up")
+		got := capture.all()
+		require.Len(t, got, 1)
+		withdrawn, gotAttrs, gotNLRI := payloadSections(t, got[0])
+		assert.Empty(t, withdrawn, "nothing is withdrawn")
+		assert.Equal(t, attrs, gotAttrs, "the attribute section arrives unchanged")
+		assert.Equal(t, nlri, gotNLRI, "every route of the UPDATE is announced")
+		assert.Empty(t, <-answer, "a well-formed UPDATE draws no NOTIFICATION")
+	})
 
 	t.Run("treat-as-withdraw", func(t *testing.T) {
 		session, client, capture, cleanup := setupCapturingSession(t, 65002, true, true)

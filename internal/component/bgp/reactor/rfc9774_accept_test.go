@@ -79,7 +79,8 @@ func TestRFC9774ReceiveASSetAcceptedByOperator(t *testing.T) {
 			assert.Equal(t, want, action, "policy %q: %s", tc.policy, name)
 		}
 
-		// AS4_PATH reaches its validator only on a 2-octet session.
+		// AS4_PATH reaches its validator on every session; this row drives a 2-octet one,
+		// where the AS4_PATH is consumed rather than ignored.
 		s2 := rfc7607Session()
 		s2.settings.AcceptASSet = ps.AcceptASSet
 		asPath := rfc9774Segment(rfc9774SegSequence, 2, 65002, 23456)

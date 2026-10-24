@@ -9,5 +9,16 @@
     "producer": "internal/component/bgp/message/rfc7606.go::ValidateNLRISyntaxAddPath",
     "producer-sha": "84e76bbdd6408f86",
     "break": "body of ValidateNLRISyntaxAddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7606-5.3-4",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/message/rfc7606_withdraw_test.go::TestRFC7606MPReachNLRIOverrunsAttribute",
+    "unit-sha": "b8c983223a35a6dc",
+    "claim-sha": "8ba54432a3f0d4f9",
+    "route": "mutant",
+    "producer": "internal/component/bgp/message/rfc7606.go::ValidateNLRISyntaxAddPath",
+    "producer-sha": "84e76bbdd6408f86",
+    "break": "line 1477: \"pos+prefixBytes \u003e len(nlri)\" -\u003e \"false\""
   }
 ]
