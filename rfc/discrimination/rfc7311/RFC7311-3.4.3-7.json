@@ -29,7 +29,7 @@
     "claim-sha": "aa2baaad6947741e",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/aigp_readvertise.go::replayAIGP",
-    "producer-sha": "6025b4f0eac194c9",
+    "producer-sha": "ed3d2ca62e4caccc",
     "break": "body of replayAIGP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   },
   {
@@ -40,7 +40,7 @@
     "claim-sha": "9cdb643f8ad9972f",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/aigp_readvertise.go::replayAIGP",
-    "producer-sha": "6025b4f0eac194c9",
+    "producer-sha": "ed3d2ca62e4caccc",
     "break": "body of replayAIGP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   },
   {

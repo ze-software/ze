@@ -1,24 +1,24 @@
 [
   {
     "rid": "RFC8654-5-1",
-    "polarity": "negative",
-    "unit": "internal/component/bgp/reactor/rfc8654_directional_session_test.go::TestRFC8654ReceiveLimitFollowsLocalOPEN",
-    "unit-sha": "a262f2c0fdbf879a",
-    "claim-sha": "930acc323a18f0ea",
-    "route": "revert",
-    "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
-    "producer-sha": "7d637b6d32bc44a0",
-    "break": "body of Negotiate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-  },
-  {
-    "rid": "RFC8654-5-1",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc8654_directional_session_test.go::TestRFC8654ReceiveLimitFollowsLocalOPEN",
     "unit-sha": "a262f2c0fdbf879a",
     "claim-sha": "db37753a398c3b61",
     "route": "revert",
     "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
-    "producer-sha": "7d637b6d32bc44a0",
+    "producer-sha": "f5de8d610f57837f",
+    "break": "body of Negotiate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC8654-5-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc8654_directional_session_test.go::TestRFC8654ReceiveLimitFollowsLocalOPEN",
+    "unit-sha": "a262f2c0fdbf879a",
+    "claim-sha": "930acc323a18f0ea",
+    "route": "revert",
+    "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
+    "producer-sha": "f5de8d610f57837f",
     "break": "body of Negotiate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   },
   {
@@ -29,7 +29,7 @@
     "claim-sha": "120b499e6bba4d51",
     "route": "revert",
     "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
-    "producer-sha": "7d637b6d32bc44a0",
+    "producer-sha": "f5de8d610f57837f",
     "break": "body of Negotiate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
     "citation": "1"
   },
@@ -41,7 +41,7 @@
     "claim-sha": "1a45b2cb54d4fcfd",
     "route": "revert",
     "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
-    "producer-sha": "7d637b6d32bc44a0",
+    "producer-sha": "f5de8d610f57837f",
     "break": "body of Negotiate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
     "citation": "1"
   }
