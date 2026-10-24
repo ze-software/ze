@@ -118,6 +118,11 @@ can you change "Deploy and Configure" to "Setup"</p>
                     <blockquote>
                         <p>The card in Run it as a lab, Use the color of When is a demon for the three cards again, having the same colors.</p>
                     </blockquote>
+                    <p>Thomas revised the treatment on 24 October 2026: keep the category colors behind card names, with neutral text.</p>
+                    <blockquote>
+                        <p>We need colors per service. I think we need to either not make it as prominent. So can you try to do that? Keep the colors, because the card, if the card name is not colorful in the background of the color, it's not clear. So perhaps only using background colors and not for the text may be the way to go.</p>
+                        <p>Not for the full card. Your system to read my voice don't work.</p>
+                    </blockquote>
                     <ol>
                         <li>
                             <h3>Preserve useful information</h3>
@@ -268,7 +273,7 @@ can you change "Deploy and Configure" to "Setup"</p>
             <section aria-labelledby="sg-palette">
                 <div class="section-head reveal">
                     <h2 id="sg-palette">Palette: brand, subjects and status</h2>
-                    <p>Logo blue identifies Ze. All seven subject categories share teal, and visible category names identify their content.</p>
+                    <p>Logo blue identifies Ze. Soft category colors sit behind card names; the text and card bodies stay neutral.</p>
                 </div>
                 <div class="section-note reveal">
                     <p>
@@ -284,23 +289,20 @@ can you change "Deploy and Configure" to "Setup"</p>
                         on light surfaces use the darker blue.
                     </p>
                     <p>
-                        All seven <code>cat-*</code> subject classes use the
-                        existing <code>--teal-*</code> family. Cards use
-                        <code>--acc-deep</code> for readable titles
-                        and compact category labels on neutral surfaces.
-                        Selection controls use <code>--acc</code>,
-                        <code>--acc-chip</code> and <code>--acc-tint</code> to
-                        express their active state. Despite its name,
-                        <code>--acc-deep</code> becomes lighter in the dark theme.
-                        Do not put white text on a bright accent without checking
-                        contrast. Normal text needs at least 4.5:1 in both themes.
+                        The <code>cat-*</code> classes select a shared color family.
+                        Use its soft tint only behind the card's primary name,
+                        with neutral <code>--text</code> lettering. Keep the
+                        colored area compact; do not fill the card body or color
+                        its border. Selection controls use the matching soft
+                        background with neutral text and a visible selected state.
+                        Normal text needs at least 4.5:1 in both themes.
                     </p>
                     <p>
-                        Operate, Routing, Services, Automate, Observe, Secure and
-                        Setup share one teal accent in both themes. Their visible
-                        names identify the subject. Broad project updates and
-                        cross-topic evidence remain neutral. Status colors stay
-                        independent of the shared category accent.
+                        Operate uses blue, Routing indigo, Services violet,
+                        Automate magenta, Observe gray, Secure pink and Setup teal.
+                        Visible names identify each subject as well as its color.
+                        Broad project updates and cross-topic evidence remain
+                        neutral. Status colors stay independent of category colors.
                     </p>
                     <p>
                         The homepage's "Run reproducible labs", "Run as a daemon"
@@ -310,9 +312,10 @@ can you change "Deploy and Configure" to "Setup"</p>
                         It does not change the general category mapping.
                     </p>
                     <p>
-                        Small category labels use <code>--panel</code>, including
-                        hover and focus states. Keep card surfaces and borders
-                        neutral. Check each selected-control fill against its text
+                        Secondary category labels, technology chips, card bodies
+                        and borders stay neutral. Do not repeat the title tint
+                        across several parts of the same card.
+                        Check each name and selected-control fill against its text
                         in light and dark themes; normal text needs at least 4.5:1.
                         Plugin totals and status labels keep their independent
                         neutral and status roles.
@@ -320,11 +323,17 @@ can you change "Deploy and Configure" to "Setup"</p>
                 </div>
                 <div class="md-content">
                     <table data-column-controls="off">
-                        <caption>Approved shared accents, 24 October 2026</caption>
-                        <thead><tr><th scope="col">Use</th><th scope="col">Light</th><th scope="col">Dark</th></tr></thead>
+                        <caption>Card-name background families, 24 October 2026</caption>
+                        <thead><tr><th scope="col">Use</th><th scope="col">Color family</th><th scope="col">Shared tokens</th></tr></thead>
                         <tbody>
-                            <tr><th scope="row">All seven subject categories: teal</th><td><code>#0f766e</code></td><td><code>#5eead4</code></td></tr>
-                            <tr><th scope="row">Three homepage run-path cards: daemon blue</th><td><code>#0069b4</code></td><td><code>#66bfff</code></td></tr>
+                            <tr><th scope="row">Operate</th><td>Blue</td><td><code>--sky-*</code></td></tr>
+                            <tr><th scope="row">Routing</th><td>Indigo</td><td><code>--lemon-*</code></td></tr>
+                            <tr><th scope="row">Services</th><td>Violet</td><td><code>--gold-*</code></td></tr>
+                            <tr><th scope="row">Automate</th><td>Magenta</td><td><code>--grape-*</code></td></tr>
+                            <tr><th scope="row">Observe</th><td>Gray</td><td><code>--mint-*</code></td></tr>
+                            <tr><th scope="row">Secure</th><td>Pink</td><td><code>--pink-*</code></td></tr>
+                            <tr><th scope="row">Setup</th><td>Teal</td><td><code>--teal-*</code></td></tr>
+                            <tr><th scope="row">Three homepage run-path cards</th><td>Blue</td><td><code>--sky-*</code></td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -341,38 +350,38 @@ can you change "Deploy and Configure" to "Setup"</p>
                 <div class="cards reveal">
                     <article class="card cat-operate" id="sg-palette-operate">
                         <span class="cat">Operate</span>
-                        <h3>Teal</h3>
-                        <div class="chips"><span class="chip">--teal-*</span></div>
+                        <h3>Blue</h3>
+                        <div class="chips"><span class="chip">--sky-*</span></div>
                         <p>Operator surfaces: SSH CLI, YANG configuration, web workbench, looking glass.</p>
                     </article>
                     <article class="card cat-routing" id="sg-palette-routing">
                         <span class="cat">Routing</span>
-                        <h3>Teal</h3>
-                        <div class="chips"><span class="chip">--teal-*</span></div>
+                        <h3>Indigo</h3>
+                        <div class="chips"><span class="chip">--lemon-*</span></div>
                         <p>Control plane: BGP engine, static routes, BFD, MRT, RPKI, MPLS signaling.</p>
                     </article>
                     <article class="card cat-services" id="sg-palette-services">
                         <span class="cat">Services</span>
-                        <h3>Teal</h3>
-                        <div class="chips"><span class="chip">--teal-*</span></div>
+                        <h3>Violet</h3>
+                        <div class="chips"><span class="chip">--gold-*</span></div>
                         <p>Network services and dataplane: IPsec, BNG, firewall, interfaces, VPP, DNS.</p>
                     </article>
                     <article class="card cat-automate" id="sg-palette-automate">
                         <span class="cat">Automate</span>
-                        <h3>Teal</h3>
-                        <div class="chips"><span class="chip">--teal-*</span></div>
+                        <h3>Magenta</h3>
+                        <div class="chips"><span class="chip">--grape-*</span></div>
                         <p>Programmability: plugins, APIs, MCP, ExaBGP migration, fleet management.</p>
                     </article>
                     <article class="card cat-observe" id="sg-palette-observe">
                         <span class="cat">Observe</span>
-                        <h3>Teal</h3>
-                        <div class="chips"><span class="chip">--teal-*</span></div>
+                        <h3>Gray</h3>
+                        <div class="chips"><span class="chip">--mint-*</span></div>
                         <p>Visibility: telemetry, health and diagnostics.</p>
                     </article>
                     <article class="card cat-secure" id="sg-palette-secure">
                         <span class="cat">Secure</span>
-                        <h3>Teal</h3>
-                        <div class="chips"><span class="chip">--teal-*</span></div>
+                        <h3>Pink</h3>
+                        <div class="chips"><span class="chip">--pink-*</span></div>
                         <p>Security: SSH authentication, access control, TACACS+, audit trail and PKI store.</p>
                     </article>
                     <article class="card cat-platform" id="sg-palette-platform">
@@ -392,16 +401,16 @@ can you change "Deploy and Configure" to "Setup"</p>
 
             <section aria-labelledby="sg-category">
                 <div class="section-head reveal">
-                    <h2 id="sg-category">One accent, visible category names</h2>
+                    <h2 id="sg-category">Color behind the card name</h2>
                     <p>
-                        All seven subjects share teal. Visible category names
-                        identify the subject; color does not distinguish them.
+                        Give each category a soft background behind its card names.
+                        Keep the lettering neutral and the rest of each card plain.
                     </p>
                 </div>
                 <div class="section-note reveal">
                     <p>
-                        A <code>cat-*</code> class sets the shared teal accent for
-                        titles and compact category labels. Borders, surfaces,
+                        A <code>cat-*</code> class selects the tint behind a card's
+                        primary name. Secondary labels, borders, body surfaces,
                         technology chips, body text and bullet markers stay neutral.
                         The same rules cover homepage, feature, documentation,
                         article, plugin, comparison, FAQ and evidence cards.
@@ -417,8 +426,8 @@ can you change "Deploy and Configure" to "Setup"</p>
                     <li>Pass authored categories through the shared generator
                         vocabulary. Unknown values are errors, not permission
                         to choose an arbitrary color.</li>
-                    <li>Use <code>--acc-deep</code> for title and category-label
-                        text so it stays readable in both themes.
+                    <li>Use neutral <code>--text</code> on the compact colored
+                        name background so it stays readable in both themes.
                         Keep the shared mapping across pages and themes, with
                         only the approved homepage run-path exception above.
                         Do not assign hues by position, hash or presentation tone.</li>
@@ -426,11 +435,11 @@ can you change "Deploy and Configure" to "Setup"</p>
                         and a thin <code>--line</code> border on all sides.
                         Hover borders use <code>--line-strong</code>.
                         Keep shadows neutral and restrained. Do not add colored
-                        top bars, edge stripes, tinted washes, rings or glows.</li>
+                        edge stripes, body washes, rings or glows.</li>
                     <li>Category labels use neutral <code>--panel</code>
                         backgrounds. Keep technology and
-                        mode chips neutral; reserve stronger control color for
-                        selected filters and visible keyboard focus.</li>
+                        mode chips neutral. Match filter backgrounds to their
+                        category and show selection and keyboard focus clearly.</li>
                     <li>Keep status independent. Success, warning and failure
                         use <code>--green</code>, <code>--amber</code> and
                         <code>--danger-deep</code>, with words explaining the
@@ -710,7 +719,7 @@ can you change "Deploy and Configure" to "Setup"</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 13:11 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 13:29 UTC</span>
                 </div>
             </div>
         </footer>

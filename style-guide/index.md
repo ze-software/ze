@@ -55,6 +55,14 @@ Thomas kept the daemon card's blue for all three run-path cards on 24 October 20
 
 > The card in Run it as a lab, Use the color of When is a demon for the three cards again, having the same colors.
 
+Thomas revised the treatment on 24 October 2026: keep the category colors behind card names, with neutral text.
+
+> We need colors per service. I think we need to either not make it as prominent. So can you try to do that? Keep the colors, because the card, if the card name is not colorful in the background of the color, it's not clear. So perhaps only using background colors and not for the text may be the way to go.
+>
+>
+>
+> Not for the full card. Your system to read my voice don't work.
+
 1. ### Preserve useful information
 
  Start with an inventory of existing capabilities, differentiators, demonstrations, evidence, deployment options, use cases, updates and release status. Give every item an explicit place in the proposal. Explain each move or reduction in detail. Removing useful information requires the owner's agreement.
@@ -96,70 +104,76 @@ For each section, identify the reader's purpose, the evidence or example it pres
 
 ## Palette: brand, subjects and status
 
-Logo blue identifies Ze. All seven subject categories share teal, and visible category names identify their content.
+Logo blue identifies Ze. Soft category colors sit behind card names; the text and card bodies stay neutral.
 
 `assets/css/00-tokens.css` owns the palette for both themes. `--brand` is the logo blue (#0069b4), `--brand-bright` is cyan (#009ee2), and `--brand-indigo` is indigo (#312782). Navy heroes use `--hero-bg`; body surfaces use `--bg`, `--panel` and `--bg-soft`. Text and controls use semantic tokens so the same content remains readable in either theme. Cyan is an accent on dark surfaces; small links on light surfaces use the darker blue.
 
-All seven `cat-*` subject classes use the existing `--teal-*` family. Cards use `--acc-deep` for readable titles and compact category labels on neutral surfaces. Selection controls use `--acc`, `--acc-chip` and `--acc-tint` to express their active state. Despite its name, `--acc-deep` becomes lighter in the dark theme. Do not put white text on a bright accent without checking contrast. Normal text needs at least 4.5:1 in both themes.
+The `cat-*` classes select a shared color family. Use its soft tint only behind the card's primary name, with neutral `--text` lettering. Keep the colored area compact; do not fill the card body or color its border. Selection controls use the matching soft background with neutral text and a visible selected state. Normal text needs at least 4.5:1 in both themes.
 
-Operate, Routing, Services, Automate, Observe, Secure and Setup share one teal accent in both themes. Their visible names identify the subject. Broad project updates and cross-topic evidence remain neutral. Status colors stay independent of the shared category accent.
+Operate uses blue, Routing indigo, Services violet, Automate magenta, Observe gray, Secure pink and Setup teal. Visible names identify each subject as well as its color. Broad project updates and cross-topic evidence remain neutral. Status colors stay independent of category colors.
 
 The homepage's "Run reproducible labs", "Run as a daemon" and "Run as an appliance" cards share the existing daemon blue from `--sky-*`. This approved section exception keeps their category names, metadata and links. It does not change the general category mapping.
 
-Small category labels use `--panel`, including hover and focus states. Keep card surfaces and borders neutral. Check each selected-control fill against its text in light and dark themes; normal text needs at least 4.5:1. Plugin totals and status labels keep their independent neutral and status roles.
+Secondary category labels, technology chips, card bodies and borders stay neutral. Do not repeat the title tint across several parts of the same card. Check each name and selected-control fill against its text in light and dark themes; normal text needs at least 4.5:1. Plugin totals and status labels keep their independent neutral and status roles.
 
-| Use | Light | Dark |
+| Use | Color family | Shared tokens |
 | --- | --- | --- |
-| All seven subject categories: teal | `#0f766e` | `#5eead4` |
-| Three homepage run-path cards: daemon blue | `#0069b4` | `#66bfff` |
+| Operate | Blue | `--sky-*` |
+| Routing | Indigo | `--lemon-*` |
+| Services | Violet | `--gold-*` |
+| Automate | Magenta | `--grape-*` |
+| Observe | Gray | `--mint-*` |
+| Secure | Pink | `--pink-*` |
+| Setup | Teal | `--teal-*` |
+| Three homepage run-path cards | Blue | `--sky-*` |
 
  Operate Routing Services Automate Observe Secure Setup Neutral
 
 **Operate**
 
-### Teal
+### Blue
 
-`--teal-*`
+`--sky-*`
 
 Operator surfaces: SSH CLI, YANG configuration, web workbench, looking glass.
 
 **Routing**
 
-### Teal
+### Indigo
 
-`--teal-*`
+`--lemon-*`
 
 Control plane: BGP engine, static routes, BFD, MRT, RPKI, MPLS signaling.
 
 **Services**
 
-### Teal
+### Violet
 
-`--teal-*`
+`--gold-*`
 
 Network services and dataplane: IPsec, BNG, firewall, interfaces, VPP, DNS.
 
 **Automate**
 
-### Teal
+### Magenta
 
-`--teal-*`
+`--grape-*`
 
 Programmability: plugins, APIs, MCP, ExaBGP migration, fleet management.
 
 **Observe**
 
-### Teal
+### Gray
 
-`--teal-*`
+`--mint-*`
 
 Visibility: telemetry, health and diagnostics.
 
 **Secure**
 
-### Teal
+### Pink
 
-`--teal-*`
+`--pink-*`
 
 Security: SSH authentication, access control, TACACS+, audit trail and PKI store.
 
@@ -179,18 +193,18 @@ Runtime and lifecycle: performance engineering, appliance and daemon targets, in
 
 A pale blue-gray page with white surfaces and navy text in the light theme; deep navy surfaces and pale text in the dark theme. Blue links and primary actions identify a destination. Uncategorized cards use the shared neutral surface.
 
-## One accent, visible category names
+## Color behind the card name
 
-All seven subjects share teal. Visible category names identify the subject; color does not distinguish them.
+Give each category a soft background behind its card names. Keep the lettering neutral and the rest of each card plain.
 
-A `cat-*` class sets the shared teal accent for titles and compact category labels. Borders, surfaces, technology chips, body text and bullet markers stay neutral. The same rules cover homepage, feature, documentation, article, plugin, comparison, FAQ and evidence cards.
+A `cat-*` class selects the tint behind a card's primary name. Secondary labels, borders, body surfaces, technology chips, body text and bullet markers stay neutral. The same rules cover homepage, feature, documentation, article, plugin, comparison, FAQ and evidence cards.
 
 1. Choose the existing category that describes the card's primary subject. Keep it in the source record or an explicit semantic classification, not in a styling loop.
 2. Use `cat-meta` for cross-topic content with no primary subject. Unclassified cards use the same neutral roles. Do not invent a category to create variety.
 3. Pass authored categories through the shared generator vocabulary. Unknown values are errors, not permission to choose an arbitrary color.
-4. Use `--acc-deep` for title and category-label text so it stays readable in both themes. Keep the shared mapping across pages and themes, with only the approved homepage run-path exception above. Do not assign hues by position, hash or presentation tone.
-5. Every subject card uses the shared `--panel` surface and a thin `--line` border on all sides. Hover borders use `--line-strong`. Keep shadows neutral and restrained. Do not add colored top bars, edge stripes, tinted washes, rings or glows.
-6. Category labels use neutral `--panel` backgrounds. Keep technology and mode chips neutral; reserve stronger control color for selected filters and visible keyboard focus.
+4. Use neutral `--text` on the compact colored name background so it stays readable in both themes. Keep the shared mapping across pages and themes, with only the approved homepage run-path exception above. Do not assign hues by position, hash or presentation tone.
+5. Every subject card uses the shared `--panel` surface and a thin `--line` border on all sides. Hover borders use `--line-strong`. Keep shadows neutral and restrained. Do not add colored edge stripes, body washes, rings or glows.
+6. Category labels use neutral `--panel` backgrounds. Keep technology and mode chips neutral. Match filter backgrounds to their category and show selection and keyboard focus clearly.
 7. Keep status independent. Success, warning and failure use `--green`, `--amber` and `--danger-deep`, with words explaining the result. Neutral evidence measures make no verdict. Maturity keeps its explicit labels and border treatment.
 
 **Routing**
