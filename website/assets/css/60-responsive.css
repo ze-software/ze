@@ -59,7 +59,7 @@
 .feature-catalog[data-enhanced="true"] .feature-filters { position: sticky; top: 5.6rem; }
 .feature-catalog[data-enhanced="true"] .feature-filters .legend { display: grid; grid-template-columns: 1fr; gap: 0.35rem; margin: 1rem 0; }
 .feature-catalog[data-enhanced="true"] .feature-filters .legend button { display: flex; justify-content: space-between; width: 100%; padding: 0.65rem 0.75rem; border: 1px solid transparent; border-radius: var(--radius-md); background: transparent; box-shadow: none; color: var(--muted); font-size: 0.8rem; }
-.feature-catalog[data-enhanced="true"] .feature-filters .legend button[aria-pressed="true"] { background: color-mix(in srgb, var(--acc) 18%, var(--panel)); border-color: var(--acc-deep); color: var(--text); }
+.feature-catalog[data-enhanced="true"] .feature-filters .legend button[aria-pressed="true"] { background: color-mix(in srgb, var(--acc) var(--badge-accent-share), var(--panel)); border-color: var(--acc-deep); color: var(--text); }
 .feature-catalog[data-enhanced="true"] .feature-filters .legend button[aria-pressed="true"] .legend-count { color: var(--text); background: transparent; }
 .feature-catalog[data-enhanced="true"] .feature-filters .legend button::before { box-shadow: none; }
 

@@ -2109,7 +2109,7 @@ section[aria-labelledby="blog-teaser-title"] {
     padding: 0.5rem 0.78rem 0.5rem 0.62rem;
     border: 1px solid var(--acc);
     border-radius: 999px;
-    background-color: color-mix(in srgb, var(--acc) 18%, var(--panel));
+    background-color: color-mix(in srgb, var(--acc) var(--badge-accent-share), var(--panel));
     color: var(--text);
     font-family: Poppins, ui-sans-serif, system-ui, sans-serif;
     font-size: 0.72rem;
@@ -2156,7 +2156,7 @@ section[aria-labelledby="blog-teaser-title"] {
 
 .legend button[aria-pressed="true"] {
     border-color: var(--acc-deep);
-    background-color: color-mix(in srgb, var(--acc) 18%, var(--panel));
+    background-color: color-mix(in srgb, var(--acc) var(--badge-accent-share), var(--panel));
     color: var(--text);
     box-shadow:
         0 0 0 2px var(--acc-deep),

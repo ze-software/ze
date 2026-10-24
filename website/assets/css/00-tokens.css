@@ -68,15 +68,15 @@
     --pink: #ff64ab;
     --gold: #e2a01a;
     --danger-deep: #c1121f;
-    --bg: #f3f9fe;
-    --bg-soft: #e7f4fc;
+    --bg: #edf6ff;
+    --bg-soft: #e3f0ff;
     --panel: #fff;
     --panel-strong: #fff;
     --line: #d8e3ec;
     --line-strong: #a8bfd1;
     --text: #173247;
     --muted: #4d6579;
-    --dim: #587185;
+    --dim: #516b80;
     --shadow: rgba(15, 49, 78, 0.12);
     --max: 1240px;
     --term-bg: #091e36;
@@ -95,8 +95,8 @@
     --link-bg: var(--panel);
     --audience-bg: var(--panel);
     --btn-bg: var(--panel);
-    --body-bg-1: #f3f9fe;
-    --body-bg-2: #e7f4fc;
+    --body-bg-1: #edf6ff;
+    --body-bg-2: #e3f0ff;
     --page-title-descender-room: 0.16em;
     --page-title-max-width: min(100%, 32ch);
     --page-title-copy-max-width: min(100%, 92ch);
@@ -146,9 +146,10 @@
     --accent-solid-foreground: #fff;
     --brand: #0069b4;
     --brand-bright: #009ee2;
-    --brand-surface: #e5f3ff;
-    --brand-surface-end: #edfafe;
+    --brand-surface: #d9ebff;
+    --brand-surface-end: #e1f6ff;
     --brand-section-gradient: linear-gradient(120deg, var(--brand-surface), var(--brand-surface-end));
+    --badge-accent-share: 24%;
     --concept-software: var(--gold-base);
     --concept-evidence: var(--teal-base);
     --brand-indigo: #312782;
@@ -284,6 +285,7 @@
     --journey-title-gradient: linear-gradient(#fff, #fff);
     --brand-surface: #123d60;
     --brand-surface-end: #164858;
+    --badge-accent-share: 18%;
     --accent-solid-foreground: #091b2e;
 }
 
@@ -408,6 +410,7 @@
         --journey-title-gradient: linear-gradient(#fff, #fff);
         --brand-surface: #123d60;
         --brand-surface-end: #164858;
+        --badge-accent-share: 18%;
         --accent-solid-foreground: #091b2e;
     }
 }

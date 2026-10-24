@@ -355,8 +355,9 @@ use the matching tint and neutral text across both themes. The homepage's
 share the existing daemon blue as an approved section exception; their category
 metadata stays unchanged. Card borders, body surfaces and body text stay neutral.
 Explicit compact software labels use `concept-software` (violet); evidence,
-benchmark and test-layer labels use `concept-evidence` (teal). Both mix 18% of
-that concept's semantic accent into `--panel`, with neutral `--text` lettering.
+benchmark and test-layer labels use `concept-evidence` (teal). Category and
+concept badges use `--badge-accent-share`: 24% accent in light mode and 18%
+in dark mode, mixed into `--panel`, with neutral `--text` lettering.
 Apply these classes to the small chip, badge or inline name itself, never to a
 heading or card. Software examples include FRR, BIRD, GoBGP, Docker and QEMU;
 protocols, deployment modes and commands remain neutral. Evidence color identifies
@@ -370,7 +371,8 @@ evidence claims. Typed dependency and vendor labels emit their roles directly;
 authored HTML uses explicit concept classes.
 
 The shared blue page surfaces carry Ze's identity beyond the hero. Light pages
-use pale blue and white; dark pages use richer navy panels. The management,
+use a blue-washed foundation, stronger blue section surfaces and white reading
+cards; dark pages keep their approved richer navy panels. The management,
 evidence and run sections use `--brand-section-gradient`, and supporting notes,
 reading takeaways and navigation selection use `--brand-surface`. Key reading
 and action links use accessible `--blue`. Choose these surfaces by their reader

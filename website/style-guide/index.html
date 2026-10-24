@@ -136,6 +136,10 @@ But: Decision</p>
                         <p>Yes, apply this across the site, add the colour rules to the design guide, and regenerate in ../gh-pages so I can review it.</p>
                         <p>Also we have a blue theme for the hero and try to use it more so there is more of it across the page. The page is a bit dark and dull and unattractive.</p>
                     </blockquote>
+                    <p>Thomas approved dark mode and requested more color in light mode on 24 October 2026:</p>
+                    <blockquote>
+                        <p>The dark mode is now nice, the white mode need a bit more colours</p>
+                    </blockquote>
                     <ol>
                         <li>
                             <h3>Preserve useful information</h3>
@@ -435,7 +439,9 @@ But: Decision</p>
                     <p>
                         The semantic tokens <code>--concept-software</code> and
                         <code>--concept-evidence</code> reuse the existing violet
-                        and teal bases. Both backgrounds mix 18% accent with 82%
+                        and teal bases. Category and concept backgrounds use
+                        <code>--badge-accent-share</code>: 24% accent in light
+                        mode and 18% in dark mode, mixed into
                         <code>--panel</code>, under neutral <code>--text</code>.
                         Put the class on the chip, badge or short inline name,
                         including <code>.hl</code> names. Never put it on a heading,
@@ -467,9 +473,12 @@ But: Decision</p>
                 </div>
                 <div class="section-note reveal">
                     <p>
-                        Light pages use pale-blue foundations with white cards;
-                        dark pages use richer navy foundations and lighter navy
-                        panels. The management explanation, evidence section and
+                        Light pages use a blue-washed foundation, stronger blue
+                        section surfaces and white reading cards. Their compact
+                        badges carry a stronger tint while keeping the same color
+                        meanings. Dark pages retain their approved richer navy
+                        foundations and lighter navy panels. The management
+                        explanation, evidence section and
                         run choices use <code>--brand-section-gradient</code>, a
                         gentle blue-to-cyan surface. Supporting notes, reading
                         takeaways and selected navigation use

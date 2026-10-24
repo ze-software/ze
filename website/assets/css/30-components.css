@@ -1421,7 +1421,7 @@ body:has(.site-home) .footer-bottom { border-top: 0; }
 .card[class*="cat-"] .cat,
 .card.audience-card .cat,
 .contribute-route-kicker {
-    background: color-mix(in srgb, var(--acc, var(--neutral-base)) 18%, var(--panel));
+    background: color-mix(in srgb, var(--acc, var(--neutral-base)) var(--badge-accent-share), var(--panel));
     color: var(--text);
 }
 
@@ -1438,7 +1438,7 @@ body:has(.site-home) .footer-bottom { border-top: 0; }
     padding: 0.12em 0.35em;
     border-radius: var(--radius-sm);
     border-color: var(--line);
-    background: color-mix(in srgb, var(--concept-accent) 18%, var(--panel));
+    background: color-mix(in srgb, var(--concept-accent) var(--badge-accent-share), var(--panel));
     color: var(--text);
     -webkit-box-decoration-break: clone;
     box-decoration-break: clone;
