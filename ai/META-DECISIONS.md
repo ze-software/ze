@@ -44,8 +44,10 @@ tests) is not a rule: it goes in the spec or commit it applies to.
 - Compatibility means the same command produces a valid BGP message with the
   same effect on the remote router, not a byte-for-byte copy.
 - AS_SET: a route from an ExaBGP script through the bridge may carry one, and a
-  received one is accepted only on a peer migrated from an ExaBGP config. Ze's
-  own API and plugins never originate one.
+  received one is accepted on a peer whose `session as-set accept` the operator
+  set; `ze exabgp migrate` writes it for an ExaBGP `as-set accept` peer, and the
+  leaf stays available to any operator. Ze's own API and plugins never
+  originate one.
 - Ze does not support the BGP OPERATIONAL message or BGP multi-session. An
   ExaBGP test that depends on either meets a documented difference, which is not
   owed work.
