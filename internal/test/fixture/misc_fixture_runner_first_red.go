@@ -29,7 +29,8 @@ func verifyFirstRedRefusesACutDriver(ctx context.Context, args []string) error {
 	}
 	defer os.RemoveAll(repo) //nolint:errcheck // fixture cleanup
 
-	out, code, err := rawCommand(ctx, repo, envRootedAt(repo), le,
+	// A whole-tree verb, so it runs at a terminal, as Thomas runs it.
+	out, code, err := terminalCommand(ctx, repo, envRootedAt(repo), le,
 		"verify", "worktree", "part", "1", "of", "2", "first-red")
 	if err != nil {
 		return fmt.Errorf("run le verify worktree: %w", err)
@@ -101,7 +102,8 @@ func verifyFirstRedStopsDriver(ctx context.Context, args []string) error {
 	fmt.Fprintln(os.Stdout, "cheap-red-stage-seeded") //nolint:errcheck // progress output
 
 	stop := "stopped at " + firstRedCheapRedStage + ", " + strconv.Itoa(len(stages)-1) + " stages not run"
-	out, code, err := run("verify", "current", "fast", "first-red")
+	// A whole-tree verb, so it runs at a terminal, as Thomas runs it.
+	out, code, err := terminalCommand(ctx, repo, envRootedAt(repo), le, "verify", "current", "fast", "first-red")
 	if err != nil {
 		return fmt.Errorf("run le verify current fast first-red: %w", err)
 	}

@@ -22,8 +22,9 @@ var actions = leaction.New(area,
 	leaction.Action{
 		Verb: "release-candidate",
 		Why: "run verification over a clean checkout in a container, so developer-tree " +
-			"state cannot make it pass",
-		Answer: runReleaseCandidateHere,
+			"state cannot make it pass; a release check only Thomas starts, refused unless stdin and stdout are terminals",
+		WholeTree: true,
+		Answer:    runReleaseCandidateHere,
 	},
 )
 

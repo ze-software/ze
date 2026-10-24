@@ -203,7 +203,10 @@ func verifyWorktreeCutSweepDriver(ctx context.Context, args []string) error {
 		{derivedDebtFormAll, derivedDebtFormPart, "2", "of", "3"}, {derivedDebtFormAll}, {derivedDebtFormPart, "2"},
 		{derivedDebtFormPart, "0", "of", "3"}, {derivedDebtFormPart, "4", "of", "3"},
 	} {
-		out, code, err := scratch.le(ctx, append([]string{"verify", "worktree"}, form...)...)
+		// A whole-tree verb, so it runs at a terminal, as Thomas runs it: the
+		// cut refusal is the body's, which the terminal gate admits it to.
+		out, code, err := terminalCommand(ctx, scratch.repo, scratch.env, scratch.leBinary,
+			append([]string{"verify", "worktree"}, form...)...)
 		if err != nil {
 			return err
 		}

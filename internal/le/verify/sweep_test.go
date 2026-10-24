@@ -261,3 +261,18 @@ func TestWorktreeSweepGreenFromPartsFailureNamesItsLine(t *testing.T) {
 		t.Errorf("the verdict is %q, want it to name the one line printed above it", verdict)
 	}
 }
+
+// VALIDATES: AC-8 for the cut: `le verify worktree part <i> of <m>` and
+// `all of <m>` are refused as a tool call before Sweep or one piece starts.
+// PREVENTS: a sweep, which runs every piece in turn, escaping the gate the
+// single run carries.
+func TestSweepRefusesWithoutTerminal(t *testing.T) {
+	for _, line := range [][]string{
+		{actionName, keywordPart, "2", keywordOf, "6"},
+		{actionName, keywordAll, keywordOf, "6"},
+	} {
+		t.Run(strings.Join(line, "_"), func(t *testing.T) {
+			assertRefusedAsAToolCall(t, line)
+		})
+	}
+}

@@ -794,6 +794,20 @@ Docker refuse the start; the run then answers an error naming the node and the
 host command that creates it (`sudo modprobe ppp_generic` for `/dev/ppp`)
 rather than a bare exit code.
 
+The run is a release check only Thomas starts. The verb declares
+`leaction.Action.WholeTree`, so before its body runs, and so before the
+clean-tree check, the kernel probe or any docker command, the dispatcher
+refuses it with exit 2 unless stdin and stdout are both terminals
+(`human.RequireTerminal`). An agent's tool call reaches le through pipes, so it
+is refused, and the refusal gives the exact line to hand Thomas and
+`./le verify changed` for the agent's own evidence. The container is started
+with `docker run -t`, which gives the inner `./le verify current`, itself a
+whole-tree verb, a pseudo-terminal on stdin and stdout: the host side already
+proved a person started the run, and the terminal carries that fact in without
+an override keyword another caller could type.
+<!-- source: internal/le/le/action/leaction.go -- Area.admit, Action.WholeTree -->
+<!-- source: internal/le/verify/evidence/evidence.go -- Runner.container, ContainerScript -->
+
 The container is a `Docker.RunOneShot`, so it carries the owner labels and a
 name, and runs under a four-hour bound (owner D-1, 2026-10-19): the gate takes
 25 to 53 minutes, so the bound never ends a normal run and only stops a wedged

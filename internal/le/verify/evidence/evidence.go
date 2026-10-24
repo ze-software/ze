@@ -93,6 +93,13 @@ var platformEntry = env.MustRegister(env.EnvEntry{
 // build in place would write into the developer's tree, and a gate reading its
 // own artifacts is not a gate.
 //
+// The run inside is the same `./le verify current` Thomas would run, and that
+// verb refuses unless its stdin and stdout are terminals. container passes
+// docker `-t`, which gives the inner process a pseudo-terminal: the host side
+// of release-candidate already passed the same gate, so a person started this
+// run, and the terminal carries that fact in without an override keyword any
+// other caller could type.
+//
 // The firewall and web suites are skipped because neither can run in this
 // container: the firewall suite needs the host's own nftables, and the web
 // suite needs a browser.
@@ -366,6 +373,9 @@ func (r *Runner) container() (interoplab.OneShotContainer, error) {
 		args = append(args, "--device", device)
 	}
 	args = append(args,
+		// The inner `./le verify current` is a whole-tree verb, refused without
+		// a terminal on stdin and stdout; see ContainerScript.
+		"-t",
 		"--platform", r.Platform,
 		"-v", mount,
 		// The three named volumes are caches. They survive between runs, which

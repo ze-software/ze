@@ -34,8 +34,10 @@ var actions = leaction.New(area,
 		Verb: actionName,
 		Why: "run the full native verification population against a fixed commit in a fresh detached worktree; " +
 			"commit defaults to HEAD and keep leaves the worktree; part <i> of <m> runs one piece of a cut, " +
-			"all of <m> runs every piece not yet proven over the commit; a green full run writes the green record",
-		Writes: false,
+			"all of <m> runs every piece not yet proven over the commit; a green full run writes the green record; " +
+			"a release check only Thomas starts, refused unless stdin and stdout are terminals",
+		Writes:    false,
+		WholeTree: true,
 		Parameters: []leaction.Parameter{
 			{Keyword: commitKeyword, Value: "revision", Requirement: leaction.Optional},
 			{Keyword: "keep"},
@@ -48,8 +50,9 @@ var actions = leaction.New(area,
 	},
 	leaction.Action{
 		Verb:       "current",
-		Why:        "verify the tree: full (the default) runs the full population in a fresh detached worktree at HEAD, as worktree does; fast runs the changed-files population in place over the shared checkout",
+		Why:        "verify the tree: full (the default) runs the full population in a fresh detached worktree at HEAD, as worktree does; fast runs the changed-files population in place over the shared checkout; both are release checks only Thomas starts, refused unless stdin and stdout are terminals",
 		Writes:     true,
+		WholeTree:  true,
 		Parameters: []leaction.Parameter{{Keyword: keywordFull}, {Keyword: keywordFast}, {Keyword: keywordFirstRed}},
 		AnswerArgs: currentHere,
 	},

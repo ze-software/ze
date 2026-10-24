@@ -7,12 +7,16 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"os"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/ze-software/ze/internal/le/interoplab"
 	"github.com/ze-software/ze/internal/le/interoplab/grantcheck"
+	leaction "github.com/ze-software/ze/internal/le/le/action"
+	"github.com/ze-software/ze/internal/le/le/human"
 )
 
 // recorder is a Runner whose two outside effects are captured rather than made:
@@ -367,5 +371,76 @@ func TestAnInterruptedRunRemovesTheContainerAndKeepsTheCaches(t *testing.T) {
 		if strings.Contains(strings.Join(argv, " "), "volume") {
 			t.Errorf("a command touched a volume: %v", argv)
 		}
+	}
+}
+
+// VALIDATES: AC-8 for the host side of `le verify evidence release-candidate`:
+// with no terminal on stdin or stdout the verb is refused with exit 2 before
+// its body runs, so no docker command, kernel probe or container starts. The
+// only text on stderr is the gate's refusal.
+// PREVENTS: an agent's tool call starting the hour-long container run.
+func TestEvidenceRefusesBeforeDockerWithoutTerminal(t *testing.T) {
+	var asked []string
+	restore := leaction.SetWholeTreeAdmission(func(line string) error {
+		asked = append(asked, line)
+		return human.Check(func(*os.File) (bool, error) { return false, nil }, os.Stdin, os.Stdout, line)
+	})
+	defer restore()
+
+	read, write, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	saved := os.Stderr
+	os.Stderr = write
+	_, code := Answer([]string{"release-candidate"})
+	os.Stderr = saved
+	if err := write.Close(); err != nil {
+		t.Fatal(err)
+	}
+	captured, err := io.ReadAll(read)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stderr := string(captured)
+
+	const given = "./le verify evidence release-candidate"
+	if code != 2 {
+		t.Fatalf("release-candidate answered %d, want 2; stderr:\n%s", code, stderr)
+	}
+	if len(asked) != 1 || asked[0] != given {
+		t.Fatalf("the gate was asked about %q, want exactly %q", asked, given)
+	}
+	for _, want := range []string{"a release check only Thomas starts", "\n    " + given + "\n", human.ScopedCommand} {
+		if !strings.Contains(stderr, want) {
+			t.Errorf("refusal does not carry %q:\n%s", want, stderr)
+		}
+	}
+	for _, body := range []string{"docker", "container", "kernel", "dirty"} {
+		if strings.Contains(stderr, body) {
+			t.Errorf("refusal carries %q, so the body ran:\n%s", body, stderr)
+		}
+	}
+}
+
+// VALIDATES: A-7 -- the container is started with `-t`, so the inner
+// `./le verify current`, itself a whole-tree verb, meets a terminal on stdin and
+// stdout and passes the gate the host side already passed.
+// PREVENTS: the release-candidate run being refused inside its own container.
+func TestEvidenceContainerHasTerminal(t *testing.T) {
+	rec := &recorder{}
+	if _, err := rec.runner().Run(t.Context()); err != nil {
+		t.Fatalf("a clean tree answered an error: %v", err)
+	}
+	if len(rec.started) != 1 {
+		t.Fatalf("the run started %d containers, want 1", len(rec.started))
+	}
+	argv := rec.started[0]
+	image := slices.Index(argv, "golang:1.27")
+	if image < 0 {
+		t.Fatalf("the docker argv names no image:\n%s", strings.Join(argv, " "))
+	}
+	if !slices.Contains(argv[:image], "-t") {
+		t.Errorf("the docker argv carries no -t before the image:\n%s", strings.Join(argv, " "))
 	}
 }

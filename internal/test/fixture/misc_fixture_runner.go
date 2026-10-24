@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+
+	"github.com/creack/pty"
 )
 
 func init() {
@@ -106,6 +108,39 @@ func rawCommand(ctx context.Context, dir string, env []string, name string, args
 		return string(output), exit.ExitCode(), nil
 	}
 	return string(output), -1, err
+}
+
+// terminalCommand is rawCommand with a pseudo-terminal on the program's stdin,
+// stdout and stderr. A whole-tree verify verb (`le verify worktree`,
+// `le verify current`) refuses unless stdin and stdout are terminals, because
+// it is a release check only Thomas starts at his own terminal; a fixture that
+// drives one stands where Thomas stands, so it gives the program the terminal
+// his shell would. The terminal writes CRLF, so the answer carries LF only, as
+// rawCommand's does.
+func terminalCommand(ctx context.Context, dir string, env []string, name string, args ...string) (string, int, error) {
+	command := exec.CommandContext(ctx, name, args...) //nolint:gosec // the fixture chooses the program and its arguments
+	command.Dir = dir
+	command.Env = env
+
+	terminal, err := pty.Start(command)
+	if err != nil {
+		return "", -1, err
+	}
+	defer terminal.Close() //nolint:errcheck // the program has exited; the terminal holds nothing more
+
+	var output bytes.Buffer
+	// The read ends when the program and every child holding the terminal have
+	// closed it: Linux answers EIO there and macOS EOF, and neither is a failure.
+	_, _ = output.ReadFrom(terminal) //nolint:errcheck // EIO or EOF is the end of the program's output
+	answer := strings.ReplaceAll(output.String(), "\r\n", "\n")
+	err = command.Wait()
+	if err == nil {
+		return answer, 0, nil
+	}
+	if exit, ok := errors.AsType[*exec.ExitError](err); ok {
+		return answer, exit.ExitCode(), nil
+	}
+	return answer, -1, err
 }
 
 func rawCommandStreams(ctx context.Context, dir string, env []string, name string, args ...string) (string, string, int, error) {
