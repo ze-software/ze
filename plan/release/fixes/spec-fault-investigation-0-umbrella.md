@@ -9,7 +9,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-24 |
+| Updated | 2026-10-25 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -99,6 +99,13 @@ Facts below were reported by research agents and the load-bearing ones re-read a
 | Build identity | Appliance builds pass no ldflags, so version reads `dev`; `vcs.revision` likely absent in gok builds (I); image manifest in `/perm` never read by crash headers (A) |
 | Supporting live inputs | Log ring (512, message only), event and FSM history, health, goroutine dump, pprof, kernel log: all live-daemon only (A) |
 
+| Recording I/O at fault time | State |
+|-----------------------------|-------|
+| Kernel record | Written by the kernel to reserved RAM (pstore ramoops); no disk at fault time (A) |
+| Runtime fatal | Runtime writes to a file opened at start; the write itself can block on a wedged disk and the record is lost (V: `armCrashOutput`) |
+| `HandlePanic` | Builds the report, then `os.WriteFile` synchronously on the faulting goroutine; a write error returns silently, so the record vanishes with no trace (V: `HandlePanic`, `writeCrashFile`) |
+| Kernel config | `CONFIG_PSTORE` and `CONFIG_PSTORE_RAM` set; `CONFIG_PSTORE_PMSG` not set (V: `gokrazy/kernel/runtime.config`) |
+
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
@@ -144,6 +151,9 @@ Process boundary (dead process to next start), boot boundary (kernel record), pl
 | R-7 | The read-time parser misreads truncated or interleaved runtime output and presents a wrong faulting goroutine | Parser fixtures from real truncated dumps fail | Parser refuses what it cannot parse and returns the raw section with a stated reason, never a guess |
 | R-9 | Hang restart drops every BGP session on a false positive | Hang records on a loaded but healthy box | Threshold several times the heartbeat tick and tied to observed stall; scheduler latency only warns |
 | R-10 | The external prober itself wedges or kills a healthy ze | Prober-initiated SIGQUIT records with healthy loops in the dump | Prober uses a long timeout (watchfrr default 90s) and requires consecutive misses |
+| R-11 | The recorder pipe fills while the recorder is stalled, and the dying runtime blocks writing into it | Runtime dump truncated in a test with a paused recorder | Recorder reads into preallocated memory continuously and never does I/O on its read loop; pipe enlarged to the system maximum |
+| R-12 | The recorder process dies or is never started, so records go nowhere | Doctor check; records missing after a forced recorder kill | ze detects the closed pipe and falls back to the pre-opened crash file; doctor check and diagnostic code for an absent recorder |
+| R-13 | pmsg shares the ramoops reservation with kernel records, so one starves the other | Kernel record truncated after a pmsg write | Explicit split of the reserved region, sized in child 1 |
 | R-8 | Renaming `show crashes` breaks callers (support bundle module, docs, functional tests, completion) | grep for `show crashes` / `ze-crashes` after the rename | Rename is one child-1 change with every consumer in the same commit (no alias, no-layering) |
 
 ## Blast Radius
@@ -186,6 +196,9 @@ The umbrella owns no code; each row is delivered by the named child, whose spec 
 | AC-10 | Many Go panics after a kernel panic | The kernel record survives (per-kind retention) |
 | AC-12 | The whole ze process freezes (no goroutine runs) | The external prober's SIGQUIT produces a runtime dump record of every goroutine, and gokrazy restarts ze |
 | AC-13 | A leak record is written | Ze keeps running; no restart |
+| AC-14 | The crash directory's disk blocks every write | A fault is still recorded (in reserved RAM) and readable after the next boot; no ze goroutine waits on the disk |
+| AC-15 | Recorded faults arrive faster than the recorder can write | Callers never block; the drop count is itself recorded and shown |
+| AC-16 | The recorder process is dead | ze records to the pre-opened crash file and doctor reports the recorder missing |
 | AC-11 | Any read surface | Secrets that the support sanitizer removes are absent from the answer |
 
 ## End-to-End User Stories
@@ -246,7 +259,7 @@ N-A: no wire-visible protocol change.
 | Functional test for new RPC/API | Yes | see Functional Tests |
 | Pipe completeness | Yes | faults output through `ApplyPipes` (child 1) |
 | Env var registration | Yes | `ze.crash.*` renamed with the concept if child 1 decides so; thresholds |
-| Doctor check for runtime dependencies | Yes | `/dev/kmsg` read at start (child 2), watchdog device if used (child 5) |
+| Doctor check for runtime dependencies | Yes | recorder process alive and pmsg device present (child 1), `/dev/kmsg` read at start (child 2) |
 | Prometheus counters/metrics | Yes | recovered panics by site, faults by kind (children 1, 4) |
 | BGP family surface (new SAFI / capability / attribute) | N-A | no BGP family change |
 
@@ -275,11 +288,11 @@ N-A: no wire-visible protocol change.
 
 Each child is specced through `/ze-spec` in its own session, then implemented. Children 2-6 depend on child 1.
 
-1. **Child 1: `spec-fault-investigation-1-record`** -- build identity stamped into appliance images (first, proven on a built image); declared record grammar and one read-time parser for every kind; lossy-spot fixes; ring keeps attributes; per-kind retention; `show faults` replacing `show crashes` with structured, paged, sanitized answers, offline included; MCP output paging and offline reach.
+1. **Child 1: `spec-fault-investigation-1-record`** -- the recorder first (amended 2026-10-25): a separate recorder process started with ze, holding preallocated memory, receiving every record over a pipe ze opens at start (the runtime crash output included, via `debug.SetCrashOutput` on the pipe, pipe enlarged with `F_SETPIPE_SZ`), writing to the crash directory when the disk allows and to pstore pmsg in the reserved RAM region when it does not (enable `CONFIG_PSTORE_PMSG`, split the reservation, harvest pmsg on next boot like kernel records); inside ze, recording only enqueues into a bounded preallocated queue drained by one goroutine, never blocks the caller, and counts drops; if the recorder is gone, ze falls back to the pre-opened crash file. The recorder process is also the child 5 prober. Then: build identity stamped into appliance images (first, proven on a built image); declared record grammar and one read-time parser for every kind; lossy-spot fixes; ring keeps attributes; per-kind retention; `show faults` replacing `show crashes` with structured, paged, sanitized answers, offline included; MCP output paging and offline reach.
 2. **Child 2: `spec-fault-investigation-2-abnormal-exit`** -- clean-exit marker at the `main` choke point and the four side exits; killed and oom kinds with boot id and kmsg evidence; non-zero exit and stop-reason record on plugin-fatal stop.
 3. **Child 3: `spec-fault-investigation-3-child-process`** -- plugin child and VPP exit status and trace become records, independent of the relay setting.
 4. **Child 4: `spec-fault-investigation-4-recovered-panic`** -- one shared recovery helper for all 48 sites, dedup by stack signature and rate limit, per-site metric; the silently swallowed bfd site fixed.
-5. **Child 5: `spec-fault-investigation-5-hang`** -- per-loop progress heartbeats checked by one in-process watchdog goroutine; first loops: `Reactor.metricsUpdateLoop` (canary for `r.mu`), dispatcher entry/exit, commit coordinator `runTxCoordinator`, plugin server `ManagedServer.serve`. On a stall past threshold: full goroutine dump into the crash directory as a hang record, then non-zero exit so gokrazy restarts. `/health` gains a per-check timeout. Scheduler-latency signals warn only (FRR `event_call` model). An external prober (separate gokrazy package, watchfrr model) probes liveness and sends SIGQUIT on no answer, so a whole-process freeze is dumped by the armed crash output file. Appliance sets full traceback so every fatal records every goroutine. Thresholds set in the child spec.
+5. **Child 5: `spec-fault-investigation-5-hang`** -- per-loop progress heartbeats checked by one in-process watchdog goroutine; first loops: `Reactor.metricsUpdateLoop` (canary for `r.mu`), dispatcher entry/exit, commit coordinator `runTxCoordinator`, plugin server `ManagedServer.serve`. On a stall past threshold: full goroutine dump into the crash directory as a hang record, then non-zero exit so gokrazy restarts. `/health` gains a per-check timeout. Scheduler-latency signals warn only (FRR `event_call` model). The child 1 recorder process acts as the external prober (watchfrr model): it probes liveness and sends SIGQUIT on no answer, so a whole-process freeze is dumped by the armed crash output file. Appliance sets full traceback so every fatal records every goroutine. Thresholds set in the child spec.
 6. **Child 6: `spec-fault-investigation-6-leak`** -- in-process sampler ring of per-resource ratios against load (goroutines per established peer plus running plugin, heap per route, fds per peer plus listener); a ratio rising over N consecutive windows with a flat denominator writes a leak record (goroutine profile grouped by stack, compressed heap profile, categorised `/proc/self/fd`, the triggering ratios) and Ze keeps running.
 
 ### Critical Review Checklist
@@ -314,6 +327,7 @@ Each child is specced through `/ze-spec` in its own session, then implemented. C
 | Hang detection: in-process per-loop heartbeats plus an external prober (owner, 2026-10-24) | In-process only; hardware watchdog | gokrazy `runWatchdog` (init) holds `/dev/watchdog` and pets it independently of ze, so it never sees a wedged ze; the in-process checker misses a whole-process freeze, which the prober (watchfrr `wakeup_no_answer` model) catches via SIGQUIT into the armed crash file |
 | Leak: record a snapshot, never restart (owner, 2026-10-24) | Restart past a ceiling | A leak degrades slowly and a restart erases the evidence |
 | Leak signal is a load-normalised ratio rising over N windows, not a fixed threshold | Fixed thresholds | Goroutines scale with peers and heap with routes, so a fixed number is wrong on every deployment but one |
+| Every record goes through an out-of-process recorder with preallocated memory, disk first, pstore pmsg in reserved RAM when the disk fails; part of child 1, and the same process is the child 5 prober (owner, 2026-10-25) | In-process writer goroutine only; a separate recorder child | A faulting process must never wait on a disk: a hang may itself be a wedged disk, and a recovered panic on a hot path must not stall behind I/O. A separate process survives ze's death and keeps writing; reserved RAM survives a warm reboot when no disk write is possible |
 | Appliance runs with full traceback | Default single-goroutine traceback | The goal is debugging every fault; a user panic otherwise records one goroutine |
 
 ## Known Limitations
