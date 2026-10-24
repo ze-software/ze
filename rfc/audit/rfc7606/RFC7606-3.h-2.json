@@ -2,7 +2,7 @@
   "note": "TestRFC7606MultipleErrorsStrongest (rfc7606_test.go:1369) combines ATOMIC_AGG discard (weaker) with COMMUNITY TAW (stronger) and asserts require.Equal(TreatAsWithdraw) AttrCode 8 \u2014 fails if the weaker action wins or if it over-escalates to SessionReset. The {single-polarity,negative} annotation holds (premise is that errors exist). The stronger boundary (TAW vs SessionReset) is separately pinned by 2-6. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quoted sentence states the same obligation the paraphrase did, and no clause is new. Verdict unchanged.",
   "requirement_sha": "9656e4f2463c24cc",
   "tests": {
-    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MultipleErrorsStrongest": "54f63ffca6a2c672"
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MultipleErrorsStrongest": "9582b83dd8b96bf0"
   },
   "units": {
     "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MultipleErrorsStrongest": "302d5b3fc3419dcd"

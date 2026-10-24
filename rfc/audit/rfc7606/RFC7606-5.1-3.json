@@ -9,7 +9,7 @@
     "internal/component/bgp/message/rfc7606_section51_receive_test.go::TestRFC7606Section51AcceptsMPUnreachAfterOtherAttributes": "b2618235905384c1",
     "internal/component/bgp/message/rfc7606_section51_receive_test.go::TestRFC7606Section51AcceptsMPUnreachWithLegacyNLRI": "b2618235905384c1",
     "internal/component/bgp/message/rfc7606_section51_receive_test.go::TestRFC7606Section51AcceptsReachAndUnreachTogether": "b2618235905384c1",
-    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachIPv4NextHopValid": "54f63ffca6a2c672",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachIPv4NextHopValid": "9582b83dd8b96bf0",
     "internal/le/interoplab/bgp/check_rfc.go::checkRFC7606MixedUpdate": "49a47285ee4a16ca",
     "test/plugin/rfc7606-receive-combinations.ci": "eb4533acb6353793",
     "test/plugin/rfc7606-relay-one-field.ci": "67bb2a200311d324"

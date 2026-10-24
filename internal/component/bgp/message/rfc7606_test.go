@@ -1416,12 +1416,14 @@ func TestRFC7606ASPath4ByteASN(t *testing.T) {
 
 // TestRFC7606MPUnreachTooShort verifies RFC 7606 Section 5.3.
 //
-// VALIDATES: MP_UNREACH_NLRI with length < 3 triggers session-reset.
+// VALIDATES: MP_UNREACH_NLRI with length 2 triggers session-reset, attributed to the
+// Section 5.3 minimum-length rule by its exact description.
 // PREVENTS: Accepting truncated MP_UNREACH that can't contain AFI+SAFI.
-// BOUNDARY: 2 (invalid, minimum is 3), 3 (valid).
+// BOUNDARY: 2, the last invalid value below the minimum of 3. The valid side, length 3,
+// is TestRFC7606MPUnreachMinValid and TestRFC7606MPMinimumLengthsAccepted.
 //
 // RFC requirement: RFC7606-3.j-1 negative — an MP_UNREACH too short to parse escalates to session reset.
-// RFC requirement: RFC7606-5.3-6 negative — an MP_UNREACH_NLRI of length 2, below the minimum of 3, is classified as session reset for attribute code 15 with a Section 5.3 description.
+// RFC requirement: RFC7606-5.3-6 negative — an MP_UNREACH_NLRI of length 2, below the minimum of 3, is classified as session reset for attribute code 15 with the exact description "RFC 7606 Section 5.3: MP_UNREACH_NLRI length 2 < 3".
 func TestRFC7606MPUnreachTooShort(t *testing.T) {
 	// MP_UNREACH_NLRI with length 2 (needs at least 3: AFI=2 + SAFI=1)
 	pathAttrs := []byte{
@@ -1435,7 +1437,8 @@ func TestRFC7606MPUnreachTooShort(t *testing.T) {
 	result := ValidateUpdateRFC7606(pathAttrs, false, false, false)
 	require.Equal(t, RFC7606ActionSessionReset, result.Action)
 	require.Equal(t, uint8(15), result.AttrCode)
-	require.Contains(t, result.Description, "5.3")
+	require.Equal(t, "RFC 7606 Section 5.3: MP_UNREACH_NLRI length 2 < 3", result.Description,
+		"the minimum-length rule itself must reject the boundary below three")
 }
 
 // TestRFC7606MPUnreachMinValid verifies MP_UNREACH_NLRI with length exactly 3 is valid.

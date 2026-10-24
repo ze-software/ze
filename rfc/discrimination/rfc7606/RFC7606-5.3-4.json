@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC7606-5.3-4",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606MPReachNLRIConsistentWithAFISAFIAccepted",
+    "unit-sha": "80bdca4aa8c50eaf",
+    "claim-sha": "b20f475465b6de3a",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/rfc7606.go::ValidateNLRISyntaxAddPath",
+    "producer-sha": "84e76bbdd6408f86",
+    "break": "body of ValidateNLRISyntaxAddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  }
+]

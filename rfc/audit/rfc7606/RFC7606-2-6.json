@@ -2,8 +2,8 @@
   "note": "TestRFC7606StrongestActionWins (rfc7606_structural_test.go:324) has two require.Equal cases: ATOMIC_AGG(discard)+COMMUNITY(TAW) => TreatAsWithdraw AttrCode 8, and COMMUNITY(TAW)+MP_REACH IPv6 5-byte-NH => SessionReset AttrCode 14. Positive TestRFC7606EqualStrengthErrorsDoNotEscalate (:378) requires two discard errors to yield EXACTLY AttributeDiscard (both DiscardEntries present), which only require.Equal can enforce against escalation. Buffers isolate the intended errors with controlled ordering. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The row now quotes the Section 2 ordering sentence (\"listed in order, from the one with the strongest action to the one with the weakest\"). Ze implements three of the four approaches (RFC7606Action: AttributeDiscard, TreatAsWithdraw, SessionReset; AFI/SAFI disable is the MAY of RFC7606-2-4 that ze does not take), and the tagged units pin discard < treat-as-withdraw < session reset with require.Equal, so the order among the approaches ze can select is proven. Verdict unchanged.",
   "requirement_sha": "d4bf780dc938201e",
   "tests": {
-    "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606EqualStrengthErrorsDoNotEscalate": "f5b8bd82514f3d77",
-    "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606StrongestActionWins": "f5b8bd82514f3d77"
+    "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606EqualStrengthErrorsDoNotEscalate": "967945e3e7f8b25f",
+    "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606StrongestActionWins": "967945e3e7f8b25f"
   },
   "units": {
     "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606EqualStrengthErrorsDoNotEscalate": "3e21c9c499ad64d7",

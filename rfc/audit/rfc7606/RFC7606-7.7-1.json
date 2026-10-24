@@ -3,10 +3,10 @@
   "requirement_sha": "59d3a534cda7c029",
   "tests": {
     "internal/component/bgp/message/rfc7606_attr_discard_test.go::TestRFC7606DiscardEntryReasonCodes": "c6ef70edfa51afe7",
-    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606AggregatorLen6NoASN4": "54f63ffca6a2c672",
-    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606AggregatorLen6WithASN4Invalid": "54f63ffca6a2c672",
-    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606AggregatorLen8NoASN4Invalid": "54f63ffca6a2c672",
-    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606AggregatorLen8WithASN4": "54f63ffca6a2c672",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606AggregatorLen6NoASN4": "9582b83dd8b96bf0",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606AggregatorLen6WithASN4Invalid": "9582b83dd8b96bf0",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606AggregatorLen8NoASN4Invalid": "9582b83dd8b96bf0",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606AggregatorLen8WithASN4": "9582b83dd8b96bf0",
     "internal/component/bgp/reactor/rfc7606_aggregator_relay_test.go::TestForwardDiscardsMalformedAggregatorAtMatchingWidth": "ec40e05c3ba8c587",
     "internal/component/bgp/reactor/rfc7606_aggregator_relay_test.go::TestForwardRelaysWellFormedAggregatorAtMatchingWidth": "ec40e05c3ba8c587"
   },

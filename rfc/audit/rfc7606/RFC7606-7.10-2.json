@@ -4,8 +4,8 @@
   "tests": {
     "internal/component/bgp/message/rfc7606_clause_test.go::TestRFC7606ClusterListIBGPNonMultipleOf4IsMalformed": "a8996fb398de9acf",
     "internal/component/bgp/message/rfc7606_clause_test.go::TestRFC7606ClusterListIBGPNonMultipleOf4IsMalformed#2": "a8996fb398de9acf",
-    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ClusterListIBGPInvalid": "54f63ffca6a2c672",
-    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ClusterListIBGPValid": "54f63ffca6a2c672"
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ClusterListIBGPInvalid": "9582b83dd8b96bf0",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ClusterListIBGPValid": "9582b83dd8b96bf0"
   },
   "units": {
     "internal/component/bgp/message/rfc7606_clause_test.go::TestRFC7606ClusterListIBGPNonMultipleOf4IsMalformed": "be0aa9b6ab82b57b",

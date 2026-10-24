@@ -112,18 +112,20 @@ func TestRFC7606MPNLRILengthConsistentWithAFIAccepted(t *testing.T) {
 // VALIDATES: an MP_REACH whose NLRI parses cleanly within the attribute is accepted.
 // PREVENTS: rejecting a well-formed multiprotocol announcement.
 //
-// This is an IPv4 well-formed guard. validateMPNLRIField (rfc7606.go) now parses
-// the NLRI carried inside the attribute (validateMPNLRISyntax -> ValidateNLRISyntax), so a
-// last NLRI that overruns, or an IPv4 length greater than 32, is a session reset per §3(j).
-// The §5.3-3 and §5.3-4 coverage tags live on the IPv6 production-path pair in
+// RFC 7606 Section 5.3 makes the attribute incorrect when, "When parsing NLRI contained in
+// the attribute, the length of the last NLRI found exceeds the amount of unconsumed data
+// remaining in the attribute." validateMPNLRIField (rfc7606.go) parses the NLRI carried
+// inside the attribute (validateMPNLRISyntax -> ValidateNLRISyntax), so a last NLRI that
+// overruns, or an IPv4 length greater than 32, is a session reset per §3(j). This case is
+// the exact boundary of the overrun rule for IPv4: the last NLRI needs exactly the octets
+// that remain, which is not "exceeds", so the attribute is correct. The IPv6 pair is in
 // rfc7606_withdraw_test.go (TestRFC7606MPReachWellFormedAccepted positive,
-// TestRFC7606MPReachNLRIOverrunsAttribute / TestRFC7606NLRIPrefixLengthTooLongIPv6
-// negatives). This case remains as a guard that the new NLRI check does not reject a
-// well-formed IPv4 MP_REACH, whose /8 fits the attribute exactly.
+// TestRFC7606MPReachNLRIOverrunsAttribute negative).
 //
-// RFC requirement: RFC8654-3-1 positive -- extended-message peers require RFC 7606 UPDATE error
-// handling; ze runs every UPDATE through ValidateUpdateRFC7606, and a well-formed UPDATE is accepted
-// with action None (rfc7606.go ValidateUpdateRFC7606).
+// The test calls ValidateUpdateRFC7606, the wrapper that runs
+// ValidateUpdateRFC7606AddPath with no ADD-PATH family and no Link-Local Next Hop.
+//
+// RFC requirement: RFC7606-5.3-4 positive -- an IPv4 MP_REACH_NLRI whose last NLRI, 10.0.0.0/8, needs exactly the one octet remaining in the attribute is accepted by ValidateUpdateRFC7606 with action None.
 func TestRFC7606MPReachNLRIConsistentWithAFISAFIAccepted(t *testing.T) {
 	// MP_REACH: AFI=1 SAFI=1 NHLen=4 NH=192.0.2.1 Reserved=0, then 10.0.0.0/8.
 	// The /8 needs 1 prefix octet and exactly 1 remains, so the NLRI ends flush with the
@@ -234,10 +236,13 @@ func TestRFC7606MPAttributeFlagsPerRFC4760Accepted(t *testing.T) {
 // extlen/COMMUNITY_inflate_to_8 case covers the same shape with a severity floor, which
 // cannot fail on escalation; this asserts the action exactly.
 //
-// RFC requirement: RFC7606-4-1 negative — an attribute length exceeding the data remaining is treat-as-withdraw, not a session reset.
-// RFC requirement: RFC8654-3-1 negative -- the same RFC 7606 machinery treats a malformed UPDATE
-// attribute as withdraw rather than resetting the session, the revised error handling 8654 requires
-// of extended-message peers (rfc7606.go ValidateUpdateRFC7606).
+// RFC 7606 Section 4: "In either of these cases, an error condition exists and the
+// "treat- as-withdraw" approach MUST be used (unless some other, more severe error is
+// encountered dictating a stronger approach)". The first case is "the length of the last
+// encountered path attribute would cause the Total Attribute Length to be exceeded when
+// parsing the enclosed path attributes."
+//
+// RFC requirement: RFC7606-4-1 negative — a COMMUNITY whose declared length of 8 exceeds the 4 octets remaining in the path attributes is classified by ValidateUpdateRFC7606 as treat-as-withdraw, not session reset, for attribute code 8 with a description naming Section 4.
 func TestRFC7606AttributeLengthConflictTreatAsWithdraw(t *testing.T) {
 	pathAttrs := sJoin(sOrigin, sASPath, sNextHop,
 		// COMMUNITY declares 8 octets but only 4 follow: §4's "attribute length ...

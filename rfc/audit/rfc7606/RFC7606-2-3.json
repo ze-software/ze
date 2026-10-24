@@ -2,8 +2,8 @@
   "note": "TestRFC7606RouteSelectionAttributesNeverDiscarded (rfc7606_structural_test.go:426) enumerates ORIGIN/AS_PATH/NEXT_HOP/MED/LOCAL_PREF(iBGP) and asserts NotEqual(AttributeDiscard) AND NotEqual(None) AND DiscardEntries empty with AttrCode pinned per case \u2014 a two-sided exclusion that fails if any route-selection attr is discarded or silently accepted. Positive TestRFC7606NonRouteSelectionAttributesAreDiscarded (:497) shows ATOMIC_AGGREGATE/AGGREGATOR ARE discarded, so the MUST NOT is not trivially satisfied by never discarding. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quote reads \"except in the case of an attribute that has no effect on route selection or installation\", the paraphrase's scope. Verdict unchanged.",
   "requirement_sha": "e44883988778f7a4",
   "tests": {
-    "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606NonRouteSelectionAttributesAreDiscarded": "f5b8bd82514f3d77",
-    "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606RouteSelectionAttributesNeverDiscarded": "f5b8bd82514f3d77"
+    "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606NonRouteSelectionAttributesAreDiscarded": "967945e3e7f8b25f",
+    "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606RouteSelectionAttributesNeverDiscarded": "967945e3e7f8b25f"
   },
   "units": {
     "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606NonRouteSelectionAttributesAreDiscarded": "328a8ce921ee1e35",

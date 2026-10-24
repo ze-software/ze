@@ -2,6 +2,17 @@
   {
     "rid": "RFC7606-3.j-1",
     "polarity": "negative",
+    "unit": "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPUnreachTooShort",
+    "unit-sha": "87cdc26b63abfbba",
+    "claim-sha": "bfbd3b852f2750e0",
+    "route": "revert",
+    "producer": "internal/component/bgp/message/rfc7606.go::validateMPAttrLength",
+    "producer-sha": "dbb4f2073ee8f0dc",
+    "break": "body of validateMPAttrLength replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC7606-3.j-1",
+    "polarity": "negative",
     "unit": "test/plugin/rfc7606-reset.ci",
     "unit-sha": "b75a3908a82544b8",
     "claim-sha": "1cdc2c16bff1787d",

@@ -7,9 +7,9 @@
     "internal/component/bgp/message/rfc7606_flags_optional_test.go::TestRFC7606FlagsOptionalAttributeConflict": "60359f14a91ec4e9",
     "internal/component/bgp/message/rfc7606_flags_plugin_test.go::TestRFC7606FlagsPluginAttributeAsSpecifiedAccepted": "3c00bdc455473898",
     "internal/component/bgp/message/rfc7606_flags_plugin_test.go::TestRFC7606FlagsPluginAttributeConflict": "3c00bdc455473898",
-    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606FlagsOptionalAttributeValid": "54f63ffca6a2c672",
-    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606FlagsWellKnownMarkedOptional": "54f63ffca6a2c672",
-    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606FlagsWellKnownNotTransitive": "54f63ffca6a2c672",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606FlagsOptionalAttributeValid": "9582b83dd8b96bf0",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606FlagsWellKnownMarkedOptional": "9582b83dd8b96bf0",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606FlagsWellKnownNotTransitive": "9582b83dd8b96bf0",
     "internal/component/bgp/reactor/rfc7606_attribute_envelope_test.go::TestRFC7606AttributeEnvelopeSession": "7f12ec998cbec524"
   },
   "units": {

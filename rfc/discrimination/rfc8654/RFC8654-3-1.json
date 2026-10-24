@@ -2,28 +2,6 @@
   {
     "rid": "RFC8654-3-1",
     "polarity": "negative",
-    "unit": "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606AttributeLengthConflictTreatAsWithdraw",
-    "unit-sha": "d9367cfa8bc07ddb",
-    "claim-sha": "6197807020d1fea1",
-    "route": "revert",
-    "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606AddPath",
-    "producer-sha": "826126729e221442",
-    "break": "body of ValidateUpdateRFC7606AddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-  },
-  {
-    "rid": "RFC8654-3-1",
-    "polarity": "positive",
-    "unit": "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606MPReachNLRIConsistentWithAFISAFIAccepted",
-    "unit-sha": "80bdca4aa8c50eaf",
-    "claim-sha": "522fb9f84bda05b8",
-    "route": "revert",
-    "producer": "internal/component/bgp/message/rfc7606.go::ValidateUpdateRFC7606AddPath",
-    "producer-sha": "826126729e221442",
-    "break": "body of ValidateUpdateRFC7606AddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-  },
-  {
-    "rid": "RFC8654-3-1",
-    "polarity": "negative",
     "unit": "internal/component/bgp/reactor/rfc8654_rib_recovery_test.go::TestRFC8654ExtendedTwoFamilyWithdrawalRecovery",
     "unit-sha": "e5bf11614768cdea",
     "claim-sha": "9c11306801f3d499",
