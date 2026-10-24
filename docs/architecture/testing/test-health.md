@@ -123,95 +123,82 @@ record in the change that adds it, and the standing corpus is grandfathered.
 
 ## The per-commit weakening record
 
-A third gate, on a different failure: a test that stopped proving something with
-a written excuse attached.
+A third gate, on a different failure: a test that stopped proving something.
 
 The compiled weakening detector in `internal/le/test/weakened` refuses an edit that
 deletes assertions, adds a `t.Skip`, drops an `expect=`, or introduces an
-assertion that cannot fail. Its escape hatch is a row naming the test the edit
-weakens, written in the ledger shard your own commit session owns. The owner's
-approval of an RFC-tagged test change is not a shard: `./le rfc approve` writes
-it under `tmp/` and the commit carries it as an `RFC-approved:` trailer
-(`docs/contributing/rfc-implementation-guide.md`).
+assertion that cannot fail. Only Thomas can let such an edit through, and he is
+asked before the edit. His answer is recorded with
+`./le test weakened approve unit <package>.<TestName> reason "<his words>"`,
+which writes one row to `tmp/commit-weakening-approved-<session>.md`. git never
+reads that file. The commit that uses the row carries it as a
+`Weakening-approved: <package>.<TestName>: <his words>` trailer, and that commit
+is the record. The owner's approval of an RFC-tagged test change works the same
+way through `./le rfc approve` and an `RFC-approved:` trailer
+(`docs/contributing/rfc-implementation-guide.md`), and an `RFC-approved:` row for
+a unit also accepts that unit's weakening, so one test never needs two answers.
 
 | | |
 |---|---|
 | Refused at edit time by | `internal/le/hookruntime` calling `internal/le/test/weakened` |
-| Refused at commit time by | `weakened_problems` (`internal/le/commit.Answer`) |
-| Reads | `test/weakened/<session>.md` + the HEAD content of the paths the commit names |
-| Source | `internal/le/test/weakened.Answer`, called by both gates |
-| Parse gate | `./le test weakened check`, in `./le verify current` both modes |
-<!-- source: internal/le/verify/engine/run.go -- RunMode, RunPart -->
+| Refused at commit time by | `checkSourceGates` (`internal/le/commit/prepare.go`), which runs `testweakened.Check` |
+| Reads | `tmp/commit-weakening-approved-<session>.md`, `tmp/commit-rfc-approved-<session>.md`, and the HEAD content of the paths the commit names |
+| Source | `internal/le/test/weakened.Check`, called by both gates |
+| Reviewed afterwards by | `./le commit audit`, which reads the audited commit's own `Weakening-approved:` and `RFC-approved:` lines. Either line admits a unit's weakening; only an `RFC-approved:` line admits a change to an RFC-tagged unit |
+<!-- source: internal/le/test/weakened/testweakened.go -- Check, loadApprovalFile, claimFinding -->
 
-### The shard is named after your commit session
+### One approval names one test
 
-The ledger is a directory, and each session writes one file in it:
-`test/weakened/<session>.md`, where `<session>` is the eight hex characters
-`./le commit session` prints. That is the same identity that names your commit
-script and your commit message, and
-`internal/le/le/path.CommitSession` is the only thing that derives it.
+The unit is `<package>.<TestName>`: the name of the directory holding the file,
+then the enclosing top-level `func TestXxx`, or the file stem for a `.ci`, an
+`.et`, or a Go weakening sitting outside every func. `internal/le/rfc/tags.go` resolves each
+one, so the edit-time hook and the commit gate name the same unit. A bare name, a
+path, a tree or a file scope is refused by the writer: one approval covers one
+test, and nothing wider. A row of another shape written by hand into an approval
+file is refused by every reader of that file: the hook, the commit gate and the
+audit's worktree pass all read it through one loader, which fails closed on it
+and prints the approve command. A commit message line of another shape approves
+nothing: the audit skips it and still reports every weakening it might have
+named, because a pushed message cannot be corrected and a prose sentence that
+opens with `Weakening-approved:` must not block every later audit. The same
+loader marks a row whose trailer a landed commit already carries, so the hook
+refuses a second edit under it and names that commit, as the commit gate does.
 
-Two authors therefore never resolve to one path, so neither can replace the
-other's rows. Assembling the population is the GATE's job: the commit gate reads
-your shard, `./le test weakened check` reads every shard and prints whose rows
-are in each, and `./le test weakened audit` reads the shards each audited commit
-carried. A commit that names another session's shard is refused, because
-carrying it would publish that author's justification under your subject.
+The unit keeps only the base name of its directory, so a test `TestX` in
+`a/cmd` and one in `b/cmd` are both `cmd.TestX`. When one commit changes that
+unit in more than one directory, whether as a weakening or as an RFC-tagged
+change, no approval of it can say which test Thomas approved. The commit gate
+refuses the commit before it judges any approval or `rfc-change-ok` admission,
+naming the directories and telling the author to split the commit so each
+carries one of them. The audit lets no approval line admit either test, and each
+finding names the directories. The edit hook judges one file per edit, so the
+case never arises there.
+<!-- source: internal/le/test/weakened/approve.go -- Approve, ApprovalPath -->
+<!-- source: internal/le/test/weakened/ledger.go -- LoadApprovals, SharedUnits, SharedUnitProblems -->
+<!-- source: internal/le/test/weakened/audit.go -- acceptedRows, auditFile -->
+<!-- source: internal/le/commit/prepare.go -- checkSourceGates -->
 
-`./le test weakened check` is how you see the population without preparing a
-commit. It names your shard even when it holds nothing.
+The file is keyed on the main thread's commit namespace (`./le commit session`
+in the main thread), not on the agent that makes the edit. Thomas answers the
+main thread, so a subagent's edit sees the approval its parent recorded.
+<!-- source: internal/le/hookruntime/writeedit.go -- writeWeakening -->
 
-The shard holds two columns, under the exact header the parser anchors on:
+### A row is used once
 
-```
-# Test weakenings this commit accepts
+`./le commit create` admits each weakened unit against a live row, writes that
+row's trailer into the message, and stages nothing for it. The generated script
+removes every used row from the approval file only after `git commit` succeeds,
+so a failed commit keeps the approval for the retry, and a row nothing used stays
+because it is still Thomas's live answer. A row whose trailer git history
+already carries approves nothing further: a second weakening of the same test is
+refused, naming the commit that used the first approval.
+<!-- source: internal/le/commit/script.go -- renderApprovalPrune -->
+<!-- source: internal/le/rfc/approve.go -- TrailerLanded -->
 
-| Test | Reason |
-|------|--------|
-| TestName | <what left the suite, and why the commit is correct without it> |
-```
-
-The name is the enclosing top-level `func TestXxx` for Go, and the file stem for
-a `.ci`, an `.et`, or a Go weakening sitting outside every func.
-`internal/le/rfc/tags.go` resolves each one, so the edit-time hook and the commit
-gate name the same unit. A bare name is accepted when it resolves to exactly one
-weakened test in the commit; write `package.TestName` when it does not.
-
-The row is written BEFORE the edit. The detector reads the file from disk, so a
-row written after a refusal buys nothing until the edit is retried, and a row
-naming another test opens nothing.
-
-**The shard carries the rows of one commit, and the GATE keeps it that way.**
-Write the rows this commit owes. `./le commit create` drops every other row your
-shard holds whose text git already has at HEAD, because a row whose commit
-landed explains a diff history holds: it accepts nothing further, and it must
-not refuse the commit in front of it. A row that matches nothing and has NOT
-landed is still refused, because that one is a mistake rather than a record.
-The gate never deletes a row that has not landed, even from a commit that
-weakens nothing, because its writer may still owe the commit it explains. The
-prune matches rows by their text, so a row written after the check read the
-shard survives it.
-<!-- source: internal/le/test/weakened/shard.go -- PruneLanded -->
-
-Each subagent owns its commit session, and so its shard, apart from its
-parent and its siblings (`docs/contributing/running-commands.md`, "Session
-identity, and what each agent owns"). A main thread that commits a subagent's
-work names that subagent's shard. The gate accepts it, judges the weakening
-against the rows of every shard the commit carries, and prunes each of them.
-A shard of any other session is still refused as foreign.
-<!-- source: internal/le/test/weakened/shard.go -- ForeignShardProblems, CarriedShards -->
-
-Deleting a landed row by hand was the old contract, and it failed in one
-specific way often enough to be measured: a row left behind blocks the next
-author, who then has to prove at HEAD that the work it describes landed before
-clearing somebody else's evidence. Three sessions did that repair by hand
-(`plan/journal/concurrent-session-corruption.md`). The gate performs the same
-proof now, from the git objects.
-
-**The commit must CARRY the shard**, not merely have the row in the working
-tree. `internal/le/commit.Answer` refuses a weakening when
-`test/weakened/<session>.md` is not one of the repeated `file <path>` values
-passed to `./le commit create`.
+Until 2026-10-24 the row lived in a tracked ledger, one shard file per commit
+session. The agent wrote the row, made the edit and committed
+both, so the owner never saw the weakening, and the shard recorded nothing the
+commit did not already show.
 
 **The commit gate judges the paths the commit NAMES, never the working tree**,
 which is where it differs from the sensitivity ratchet above. Several sessions

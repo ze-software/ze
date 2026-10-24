@@ -123,5 +123,5 @@ launcher, and the test trees it runs. Here "outside" does not mean a customer. I
 | `./le cli grammar` | le's namespaces obey the command grammar |
 | `./le repo bootstraps`, `./le repo compiles` | le builds from what git holds. The tree compiles in every shipped flavor |
 | `./le go vet-platforms darwin` | The shipped tree still compiles on the owner's Mac |
-| `./le test weakened check` | No test weakening without its ledger row |
+| `./le test weakened selftest` | The weakening detector refuses an unapproved weakening and accepts it once the owner's approval is recorded (`./le test weakened approve`) |
 | `./le doc check verify` | Pages and source anchors after a doc edit |

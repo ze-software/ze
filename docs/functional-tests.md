@@ -494,14 +494,14 @@ needle, or inverts a `reject=` is a weakening.
 `internal/le/test/weakened` detects it, and a whole `.ci` file is one test, named by
 its file stem.
 
-Write the row in `test/weakened/<session>.md` BEFORE the edit, then make the
-edit, then name that shard in the commit. The shard is the one your own commit
-session owns, no other session reads it, and the gate drops each row once the
-commit carrying it lands. The full route, and what a reason has to say, is in
-`docs/contributing/testing.md`, "When a test must be weakened".
+Ask Thomas BEFORE the edit. His answer is recorded with
+`./le test weakened approve unit <dir>.<stem> reason "<his words>"`, the edit is
+made, and the commit carries one `Weakening-approved:` line for the test. The
+full route is in `docs/contributing/testing.md`, "When a test must be weakened".
 
-An RFC-tagged test is stricter still: any behavior change to it needs the user's
-own approval, and no weakening row satisfies that. See "RFC Requirement Tags"
+An RFC-tagged test is stricter still: any behavior change to it needs the
+owner's approval through `./le rfc approve`, and that approval also accepts the
+test's weakening. See "RFC Requirement Tags"
 below.
 
 ---

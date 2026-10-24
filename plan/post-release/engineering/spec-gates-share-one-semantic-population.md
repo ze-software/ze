@@ -320,10 +320,7 @@ with the reason, instead of being matched or missed by a pattern.
 | check-cannot-see-the-change-it-looks-for | 2026-09-05 | `./le verify reds file <path>`, `latestRun` (`internal/le/verify/reds.go`) |
 | check-cannot-see-the-change-it-looks-for | 2026-09-04 | `TestReservedPeerNamesSyncWithRPCs` (`internal/component/bgp/config/loader_test.go`) |
 | check-cannot-see-the-change-it-looks-for | 2026-09-26 | `retiredIDs` (`internal/le/rfc/check_ratchets.go`), read by `checkIDAllocation` |
-| check-cannot-see-the-change-it-looks-for | 2026-10-03 | `auditDiff` (`internal/le/test/weakened/audit.go`), run by `./le commit audit` |
 | check-cannot-see-the-change-it-looks-for | 2026-10-09 | `coverPackages` (`internal/le/rfc/discriminate_observe.go`) |
-| check-cannot-see-the-change-it-looks-for | 2026-10-11 | `Audit` and `auditDiff`, run by `./le commit audit base origin/main` |
-| check-cannot-see-the-change-it-looks-for | 2026-10-15 | `auditDiff`, run by `./le commit audit base 224b0ef514~1` |
 | guard-enumerates-instead-of-subtracting | 2026-10-04 | `docs/` row of `nonGoPathRules` (`internal/le/repo/changed/selector.go`) |
 | guard-enumerates-instead-of-subtracting | 2026-09-02 | `heavyArea` (`internal/le/hookruntime/bash.go`) |
 | guard-enumerates-instead-of-subtracting | 2026-08-28 | `validateSpec` (`internal/le/hookruntime/lifecycle.go`), the Current Behavior check |

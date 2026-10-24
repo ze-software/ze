@@ -273,41 +273,46 @@ A red test means the CODE is wrong by default. Fix the code. When the coverage i
 genuinely gone, because the feature it proved was removed or another test now
 proves it, the removal is recorded rather than silent.
 
-The record is `test/weakened/<session>.md`, the ledger shard your own commit
-session owns, where `<session>` is the eight hex characters `./le commit
-session` prints. It holds one row per weakened test, `| Test | Reason |`. No
-other session reads your shard and none can write it, so nobody has to be
-careful about anybody else's rows.
-
-Write the rows this commit owes and leave the rest to the gate: `./le commit
-create` drops every row your shard holds whose text git already has at HEAD,
-because a row whose commit landed explains a diff history holds. Git history is
-where past rows are read, so `git log -p -- test/weakened/` shows each one
-beside the change it accepted.
+Only Thomas approves a test weakening, and he is asked BEFORE the edit. Agents
+never record their own excuse: the edit hook refuses the weakening, names the
+test, and prints the command that records his answer.
 
 The route, in order:
 
-1. Write the row first. The native write-edit hook reads the shard from disk, so
-   a row added after the edit takes effect only after the edit is retried.
-2. Make the edit.
-3. Name `test/weakened/<session>.md` in the commit. `internal/le/commit.Answer`
-   refuses a commit that weakens a test and leaves the row in the working tree.
+1. Ask Thomas, naming the test and what leaves the suite.
+2. Record his words, for one test at a time:
+   `./le test weakened approve unit <package>.<TestName> reason "<his words>"`.
+   The row goes to `tmp/commit-weakening-approved-<session>.md`, keyed on the
+   main thread's commit namespace, so a subagent's edit sees it too. git never
+   reads that file.
+3. Make the edit.
+4. Commit with `./le commit create` as usual. The message gains one
+   `Weakening-approved: <package>.<TestName>: <his words>` line per test, and
+   the script drops each used row once the commit lands. A row a landed commit
+   already used approves nothing further.
 
-`./le test weakened check` prints every session's shard and the rows in it, and
-names yours. Read it when you want to know what the ledger holds without
-preparing a commit.
+The unit is the name of the directory holding the file, a dot, then the
+enclosing top-level `func TestXxx`, or the file stem for a `.ci` or a `.et`. A bare name, a path or a
+directory is refused: one approval names one test. An `RFC-approved:` row for a
+unit (`./le rfc approve`) also accepts that unit's weakening. Because the unit
+keeps only the directory's base name, a commit that changes `cmd.TestX` in both
+`a/cmd` and `b/cmd` is refused: split it so each commit carries one of them.
 
-The test name is the enclosing top-level `func TestXxx` for Go, and the file stem
-for a `.ci` or a `.et`. Write `package.TestName` when the bare name matches two
-weakened tests in one commit.
+Known limit: two kinds of unit cannot be approved at all, because the unit must match
+`<package>.<TestName>` with one dot and no empty side. A `.ci` or `.et` file
+whose stem holds a dot (`x.y.ci` is `suite.x.y`), and a test file at the
+repository root (its package side is empty), are refused by the approve writer
+and by every reader.
 
-An edit that only lowers a COUNT lands with a notice and no row: consolidating
-three cases into one table lowers a count exactly as deleting a check does. The
-COMMIT still needs a row for it, and that row is where you say which of the two
-happened.
+An edit that only lowers a COUNT lands with a notice and no approval:
+consolidating three cases into one table lowers a count exactly as deleting a
+check does. The COMMIT still needs an approval for it, and Thomas's words are
+where the commit says which of the two happened.
 
-`./le test weakened check` runs the checker over the file and is a stage of
-`./le verify current` in both modes. The rule is `ai/rules/testing.md`, and the design is
+Git history is where past approvals are read: `git log --grep
+'^Weakening-approved:'` lists each one beside the change it accepted, and
+`./le commit audit` reads the same lines when it reviews a commit. The rule is
+`ai/rules/testing.md`, and the design is
 `docs/architecture/testing/test-health.md`.
 
 ## How `./le verify current` works

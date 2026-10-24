@@ -719,10 +719,8 @@ never sums the two, because a nightly tier is not merge-gate proof.
 
 ### The owner's approval lives in the commit
 
-An author cannot approve their own change. A weakening row in
-`test/weakened/<session>.md` is the author's own justification, and a reviewer
-reads it to judge the author; it approves nothing here. Once the owner has
-answered, record his words, once:
+An author cannot approve their own change. Once the owner has answered, record
+his words, once:
 
 ```
 ./le rfc approve unit <package>.<TestName> reason "<the owner's words>"
@@ -738,13 +736,15 @@ each row it used into the commit message as one trailer line,
 the used rows from the file once the commit succeeds. The commit that changed
 the test is the record, where a reader looks first: `git log --grep
 RFC-approved:` lists every approval. A row whose whole trailer line a commit
-already carries approves nothing further: `trailerLanded`
-(`internal/le/commit/rfcchange.go`) compares each message line to the trailer,
+already carries approves nothing further: `TrailerLanded`
+(`internal/le/rfc/approve.go`) compares each message line to the trailer,
 and the refusal names that commit by short hash and subject. A row with no
 answer from the owner behind
 it is a forgery, not a shortcut, so the reason names what the owner approved
 and why the tagged requirement is still proven after the change, quoting the
-requirement id.
+requirement id. The row also accepts a weakening of the same unit, so a tagged
+test the owner approved needs no second `./le test weakened approve` answer
+(`docs/contributing/testing.md`, "When a test must be weakened").
 
 When the owner has not answered yet, `rfc-change-ok "<reason>"` on
 `./le commit create` admits the commit anyway and writes one trailer per

@@ -64,6 +64,10 @@ type Prepared struct {
 	// RFCApprovals is what the commit carries as RFC-approved: trailers and
 	// what its script drops from the session's approval file once it lands.
 	RFCApprovals RFCApprovals `json:"rfc-approvals"`
+	// WeakeningApprovals is what the commit carries as Weakening-approved:
+	// trailers and what its script drops from the session's weakening
+	// approval file once it lands.
+	WeakeningApprovals testweakened.Approvals `json:"weakening-approvals"`
 	// Trailers is the record of each admission a gate granted this commit:
 	// `Review-owed:` and `RFC-approval-owed:`, which the push derivation reads
 	// as owed person acts, and the audit-only `Structural-red-ok:` and
@@ -136,9 +140,9 @@ func Create(root string, options *Options) (Prepared, error) {
 	// is skipped: the path validation above, the message contract and the
 	// private index the generated script commits from.
 	// The commit session is resolved before the gates rather than after,
-	// because the ledger shards those gates read are named after it. One
-	// identity names the script, the message and the two ledger shards, so a
-	// second author cannot reach any of them.
+	// because a caller that names its session names the namespace its owner
+	// approvals are under too (checkSourceGates). One identity names the script
+	// and the message, so a second author cannot reach either.
 	session, err := lepath.CommitSession(root, options.Session)
 	if err != nil {
 		return result, err
@@ -175,9 +179,9 @@ func Create(root string, options *Options) (Prepared, error) {
 		}
 		result.Trailers = append(result.Trailers, carried...)
 		// The message is composed once every gate has answered which
-		// trailers it carries: the RFC approvals it uses, then the record of
-		// each admission the gates granted.
-		trailers := slices.Concat(result.RFCApprovals.Trailers, result.Trailers)
+		// trailers it carries: the owner approvals it uses, RFC then
+		// weakening, then the record of each admission the gates granted.
+		trailers := slices.Concat(result.RFCApprovals.Trailers, result.WeakeningApprovals.Trailers, result.Trailers)
 		message, err = Message(options.Subject, options.Body, trailers)
 		if err != nil {
 			return result, err
@@ -236,7 +240,10 @@ func Create(root string, options *Options) (Prepared, error) {
 		Tag: tag, Subject: strings.TrimSpace(options.Subject), Paths: paths, Removed: removed,
 		PreparedHead: strings.TrimSpace(preparedHead),
 		IndexEntries: entries, MessagePath: messagePath, ReviewCheck: reviewCheck,
-		ApprovalsPath: result.RFCApprovals.Path, ApprovalsDropped: result.RFCApprovals.Dropped,
+		Approvals: []approvalPrune{
+			{Path: result.RFCApprovals.Path, Dropped: result.RFCApprovals.Dropped},
+			{Path: result.WeakeningApprovals.Path, Dropped: result.WeakeningApprovals.Dropped},
+		},
 	}
 	if options.Replace && existing != "" {
 		if err := refuseForeignReplace(existing, append(paths, removed...)); err != nil {
@@ -277,42 +284,50 @@ func Create(root string, options *Options) (Prepared, error) {
 // obligation. Each one reads a file only the Ze checkout holds, so Create runs
 // this over that checkout alone.
 func checkSourceGates(root string, options *Options, result *Prepared, paths, removed []string, session string) error {
-	// A main thread commits the work its subagents did, so their shards are
-	// its to carry; every other session's shard is foreign. Each subagent owns
-	// its commit namespace (lepath.CommitSession keys it on ZE_AGENT_ID).
-	children, err := lepath.ChildCommitSessions(root)
-	if err != nil {
-		return fmt.Errorf("resolve this session's subagent commit namespaces: %w", err)
-	}
-	if problems := testweakened.ForeignShardProblems(session, children, slices.Concat(paths, removed)); len(problems) != 0 {
-		return errors.New(strings.Join(problems, "\n\n"))
-	}
 	prospective, problems := testweakened.ProspectiveCommit(root, paths, removed)
 	if len(problems) != 0 {
 		return errors.New(strings.Join(problems, "\n"))
 	}
-	carried := testweakened.CarriedShards(session, children, paths)
-	weakening := testweakened.CheckCommit(testweakened.Request{
-		Root: root, Session: session, Children: children, Paths: paths, Removed: removed,
+	// An owner approval, of a weakening or of an RFC-tagged change, is keyed
+	// on the main thread's namespace, not on the agent's
+	// (lepath.SessionCommitSession): Thomas answers the main thread. A caller
+	// that named its session named the namespace its approvals are under too.
+	approvalSession := session
+	if options.Session == "" {
+		var err error
+		approvalSession, err = lepath.SessionCommitSession(root)
+		if err != nil {
+			return fmt.Errorf("resolve this session's owner approval namespace: %w", err)
+		}
+	}
+	weakening := testweakened.Check(testweakened.Request{
+		Root: root, ApprovalSession: approvalSession, Paths: paths, Removed: removed,
 		RenamePairs: prospective.RenamePairs,
-	}, len(carried) != 0)
+	})
 	result.Weakened = weakening.Findings
+	rfcChanges, rfcApprovals, rfcProblems := rfcChangeProblems(root, approvalSession, prospective)
+	result.RFCChanges = rfcChanges
+	// A unit names its directory by base name only, so one approval of a
+	// unit this commit changes in two such directories cannot say which test
+	// Thomas approved. That holds for a weakening row, an RFC row and an owed
+	// admission alike, so the refusal comes before any of them is judged.
+	sites := make([]testweakened.UnitSite, 0, len(weakening.Findings)+len(rfcChanges))
+	for _, finding := range weakening.Findings {
+		sites = append(sites, testweakened.UnitSite{Unit: finding.Unit(), Path: finding.Path})
+	}
+	for index := range rfcChanges {
+		sites = append(sites, testweakened.UnitSite{Unit: rfcChanges[index].unit(), Path: rfcChanges[index].Path})
+	}
+	if problems := testweakened.SharedUnitProblems(sites); len(problems) != 0 {
+		return errors.New(strings.Join(problems, "\n\n"))
+	}
 	if len(weakening.Problems) != 0 {
 		return errors.New(strings.Join(weakening.Problems, "\n\n"))
 	}
-	// An RFC approval is keyed on the main thread's namespace, not on the
-	// agent's (lepath.SessionCommitSession). A caller that named its session
-	// named the namespace its approvals are under too.
-	approvalSession := session
-	if options.Session == "" {
-		approvalSession, err = lepath.SessionCommitSession(root)
-		if err != nil {
-			return fmt.Errorf("resolve this session's RFC approval namespace: %w", err)
-		}
-	}
-	rfcChanges, rfcApprovals, rfcProblems := rfcChangeProblems(root, approvalSession, prospective)
-	result.RFCChanges = rfcChanges
-	result.RFCApprovals = rfcApprovals
+	result.WeakeningApprovals = weakening.Approvals
+	// An RFC approval row that admitted a weakening is carried as its
+	// RFC-approved: trailer too, once, whichever gate used it.
+	result.RFCApprovals = mergeRFCApprovals(rfcApprovals, weakening.RFCApprovals)
 	if len(rfcProblems) != 0 && strings.TrimSpace(options.RFCChangeOK) == "" {
 		return errors.New(strings.Join(rfcProblems, "\n\n"))
 	}
@@ -332,29 +347,28 @@ func checkSourceGates(root string, options *Options, result *Prepared, paths, re
 			result.Trailers = append(result.Trailers, trailer)
 		}
 	}
-	// Each shard this commit carries holds the rows this commit uses. Every
-	// other row in it that git holds at HEAD is one an earlier commit
-	// landed, and the gate drops it here rather than asking the author to. A
-	// row that has not landed stays: its writer, a subagent whose shard this
-	// main thread carries among them, may not have committed it yet. That
-	// deletion by hand is what made a stale row block three commits it had
-	// nothing to do with (plan/journal/concurrent-session-corruption.md). The
-	// RFC approval rows are pruned by the SCRIPT instead, after the commit
-	// that carries their trailers succeeds (renderApprovalPrune).
-	if !options.DryRun {
-		for _, shard := range carried {
-			if err := testweakened.PruneLanded(root, shard, weakening.Keep[shard]); err != nil {
-				return fmt.Errorf("prune landed rows from %s: %w", shard, err)
-			}
-		}
-	}
-
 	if problems := testCoverageProblems(root, paths); len(problems) != 0 &&
 		strings.TrimSpace(options.NoTest) == "" {
 		return fmt.Errorf("%s\n  or name no-test with a truthful reason",
 			strings.Join(problems, "\n"))
 	}
 	return nil
+}
+
+// mergeRFCApprovals adds to the RFC gate's approvals the rows the weakening
+// gate used from the same file, each trailer and each dropped line once.
+func mergeRFCApprovals(approvals RFCApprovals, weakening testweakened.Approvals) RFCApprovals {
+	for _, trailer := range weakening.Trailers {
+		if !slices.Contains(approvals.Trailers, trailer) {
+			approvals.Trailers = append(approvals.Trailers, trailer)
+		}
+	}
+	for _, line := range weakening.Dropped {
+		if !slices.Contains(approvals.Dropped, line) {
+			approvals.Dropped = append(approvals.Dropped, line)
+		}
+	}
+	return approvals
 }
 
 // checkVerificationGates judges the commit against the native verification

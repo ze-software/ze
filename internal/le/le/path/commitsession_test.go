@@ -3,7 +3,6 @@ package lepath
 
 import (
 	"path/filepath"
-	"slices"
 	"testing"
 
 	"github.com/ze-software/ze/internal/core/env"
@@ -32,8 +31,8 @@ func commitSessionAs(t *testing.T, root, session, agent string) string {
 // VALIDATES: two subagents of one parent each get a commit namespace of their
 // own, distinct from the parent's and from each other's, and the same agent
 // keeps its namespace across calls.
-// PREVENTS: siblings sharing one weakened-test shard and one debt file, which
-// let one sibling's commit prune or be refused by another's rows
+// PREVENTS: siblings sharing one commit namespace and one debt file, which
+// let one sibling's commit prune or be refused by another's state
 // (plan/journal/concurrent-session-corruption.md, 2026-10-10).
 func TestSiblingAgentsGetDistinctCommitSessions(t *testing.T) {
 	root := t.TempDir()
@@ -49,38 +48,6 @@ func TestSiblingAgentsGetDistinctCommitSessions(t *testing.T) {
 	named, err := CommitSessionFor(root, "parent-sid", "agent-two")
 	if err != nil || named != second {
 		t.Fatalf("CommitSessionFor(agent-two) = %q, %v; want %s", named, err, second)
-	}
-}
-
-// VALIDATES: a main thread answers exactly the namespaces of its own
-// subagents, an unrelated session's agents are not among them, and a subagent
-// answers none, so it can carry no sibling's shard and no parent's.
-// PREVENTS: the parent being refused its own subagent's shard, and that
-// allowance opening to an unrelated session.
-func TestChildCommitSessionsAreThisMainThreadsAgentsOnly(t *testing.T) {
-	root := t.TempDir()
-	first := commitSessionAs(t, root, "parent-sid", "agent-one")
-	second := commitSessionAs(t, root, "parent-sid", "agent-two")
-	foreign := commitSessionAs(t, root, "other-sid", "agent-one")
-	commitSessionAs(t, root, "parent-sid", "")
-
-	children, err := ChildCommitSessions(root)
-	if err != nil {
-		t.Fatalf("ChildCommitSessions: %v", err)
-	}
-	want := []string{first, second}
-	slices.Sort(want)
-	if !slices.Equal(children, want) {
-		t.Fatalf("children = %v, want %v", children, want)
-	}
-	if slices.Contains(children, foreign) {
-		t.Fatalf("children %v carry the unrelated session's agent %s", children, foreign)
-	}
-
-	runAs(t, "parent-sid", "agent-one")
-	children, err = ChildCommitSessions(root)
-	if err != nil || len(children) != 0 {
-		t.Fatalf("ChildCommitSessions under an agent = %v, %v; want none", children, err)
 	}
 }
 
@@ -104,14 +71,12 @@ func TestCommitSessionRefusesUnsafeAgentIdentity(t *testing.T) {
 
 // VALIDATES: the (session, agent) encoding is injective. Session P-agent with
 // agent x and session P with agent agent-x get distinct namespaces and distinct
-// spec claim markers, and P's main thread does not count session P-agent's
-// agents, or P-agent's own namespace, among its children.
+// spec claim markers.
 // PREVENTS: the round-1 defect of the "-agent-" separator, where both pairs
-// encoded to P-agent-agent-x and P's child glob matched P-agent's files.
+// encoded to P-agent-agent-x.
 func TestAgentIdentityEncodingIsInjective(t *testing.T) {
 	root := t.TempDir()
 	lookalike := commitSessionAs(t, root, "P-agent", "x")
-	lookalikeMain := commitSessionAs(t, root, "P-agent", "")
 	own := commitSessionAs(t, root, "P", "agent-x")
 	if lookalike == own {
 		t.Fatalf("P-agent/x and P/agent-x share namespace %s", own)
@@ -126,14 +91,6 @@ func TestAgentIdentityEncodingIsInjective(t *testing.T) {
 	}
 	if first == second {
 		t.Fatalf("P-agent/x and P/agent-x share spec claim marker %s", first)
-	}
-	commitSessionAs(t, root, "P", "")
-	children, err := ChildCommitSessions(root)
-	if err != nil {
-		t.Fatalf("ChildCommitSessions: %v", err)
-	}
-	if !slices.Equal(children, []string{own}) {
-		t.Fatalf("P's children = %v, want only %s (not P-agent's %s or %s)", children, own, lookalike, lookalikeMain)
 	}
 }
 

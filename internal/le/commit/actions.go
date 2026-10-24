@@ -74,6 +74,7 @@ var declaredTrailers = []struct {
 	{trailerStructuralRedOK, `create ... ` + keywordStructuralRedOK + ` "<reason>"`},
 	{trailerBrokenHeadFix, `create ... ` + keywordBrokenHeadFix + ` "<reason>"`},
 	{rfc.ApprovalTrailer, "create from ./le rfc approve"},
+	{testweakened.ApprovalTrailer, "create from ./le test weakened approve"},
 }
 
 var commandVerbs = []struct {

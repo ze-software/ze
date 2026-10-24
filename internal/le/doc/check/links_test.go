@@ -270,22 +270,16 @@ func runGit(t *testing.T, root string, args ...string) {
 // TestRecordTreesAreExcludedFromCitationPolicing pins which trees hold RECORDS
 // rather than live prose.
 //
-// The two under test/ and the site fixtures are the ones with no reachable
+// The one under test/ and the site fixtures are the ones with no reachable
 // repair, which is what separates them from a stale path in a live page. A
 // site fixture is a frozen publication a byte comparison pins, so a marker
 // fails the test and a rewrite claims a publication that never happened.
-// The test-weakening ledger closes the same way. Its shard is named for
-// its commit session, ForeignShardProblems refuses a commit carrying another
-// session's shard, and every commit gets a fresh session id, so a row in a
-// closed session's shard can never be edited by anyone. Policing it reports a
-// line nobody in the repository is permitted to touch.
 func TestRecordTreesAreExcludedFromCitationPolicing(t *testing.T) {
 	cases := []struct {
 		path     string
 		excluded bool
 		why      string
 	}{
-		{"test/weakened/8c4ad6c3.md", true, "a weakened row names the test a commit deleted"},
 		{"plan/journal/removal-leaves-the-file-on-disk.md", true, "already a record before this change"},
 		{"internal/le/site/testdata/published-plugins-index.md", true,
 			"a frozen publication a byte comparison forbids anyone to edit"},

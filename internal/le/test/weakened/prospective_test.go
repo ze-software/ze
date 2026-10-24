@@ -15,7 +15,6 @@ func TestProspectiveCommitPreservesSharedIndexAndPairsRenameWithSpaces(t *testin
 	newPath := "new tools/shared/a test_test.go"
 	baseline := "package shared\nfunc TestA(t *testing.T) {\n\trequire.NoError(t, err)\n\trequire.Equal(t, 1, got)\n}\n"
 	writeProspectiveFile(t, root, oldPath, baseline)
-	writeProspectiveFile(t, root, fixtureShard, fixtureLedgerHeader)
 	writeProspectiveFile(t, root, "foreign.txt", "baseline\n")
 	runProspectiveGit(t, root, "init", "-q")
 	runProspectiveGit(t, root, "add", "-A")
@@ -47,7 +46,7 @@ func TestProspectiveCommitPreservesSharedIndexAndPairsRenameWithSpaces(t *testin
 		t.Fatalf("shared index changed by prospective audit: %q", staged)
 	}
 
-	result := CheckCommit(Request{Root: root, Paths: []string{newPath}, Removed: []string{oldPath}, RenamePairs: prospective.RenamePairs}, false)
+	result := Check(Request{Root: root, ApprovalSession: fixtureSession, Paths: []string{newPath}, Removed: []string{oldPath}, RenamePairs: prospective.RenamePairs})
 	if result.ExitCode() != 1 || len(result.Findings) != 1 || result.Findings[0].Path != newPath || result.Findings[0].Name != "TestA" {
 		t.Fatalf("rename weakening = code %d, findings %#v, problems %q", result.ExitCode(), result.Findings, result.Problems)
 	}
@@ -59,7 +58,6 @@ func TestProspectiveCommitIgnoresUnrelatedWorktreeTests(t *testing.T) {
 	writeProspectiveFile(t, root, "pkg/a_test.go", baseline)
 	writeProspectiveFile(t, root, "pkg/unrelated_test.go", baseline)
 	writeProspectiveFile(t, root, "docs/note.txt", "old\n")
-	writeProspectiveFile(t, root, fixtureShard, fixtureLedgerHeader)
 	runProspectiveGit(t, root, "init", "-q")
 	runProspectiveGit(t, root, "add", "-A")
 	runProspectiveGit(t, root, "-c", "user.email=t@t", "-c", "user.name=t", "-c", "commit.gpgsign=false", "commit", "-q", "-m", "baseline")
@@ -70,7 +68,7 @@ func TestProspectiveCommitIgnoresUnrelatedWorktreeTests(t *testing.T) {
 	if len(problems) != 0 || len(prospective.RenamePairs) != 0 {
 		t.Fatalf("ProspectiveCommit = %#v, %q", prospective, problems)
 	}
-	result := CheckCommit(Request{Root: root, Paths: prospective.Paths}, false)
+	result := Check(Request{Root: root, ApprovalSession: fixtureSession, Paths: prospective.Paths})
 	if result.ExitCode() != 0 || len(result.Findings) != 0 {
 		t.Fatalf("unrelated worktree test entered population: %#v", result)
 	}

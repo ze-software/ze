@@ -60,6 +60,16 @@ generated script drops the used rows from that file after `git commit`
 succeeds, so the trailer in the commit is the only record
 (`docs/contributing/rfc-implementation-guide.md`).
 
+An owner-approved test weakening is carried the same way, after the RFC
+approvals: one `Weakening-approved: <package>.<TestName>: <the owner's words>`
+line per weakened test, never wrapped. `./le test weakened approve unit
+<package>.<TestName> reason "<the owner's words>"` writes the approval into
+`tmp/commit-weakening-approved-<session>.md`, and the script drops each used row
+after `git commit` succeeds (`docs/contributing/testing.md`, "When a test must be
+weakened"). A weakening no approval names refuses the commit, and no keyword
+admits it.
+<!-- source: internal/le/commit/prepare.go -- checkSourceGates, mergeRFCApprovals -->
+
 Each admission the gates grant is recorded the same way, as one trailer line
 after the approvals (`Prepared.Trailers`):
 

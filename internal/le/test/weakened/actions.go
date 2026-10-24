@@ -1,11 +1,10 @@
 // Design: docs/architecture/testing/test-health.md -- weakened-test gate declarations
-// Related: testweakened.go -- the live check; selftest.go -- the fixture proof.
+// Related: approve.go -- the owner approval writer; selftest.go -- the fixture proof.
 package testweakened
 
 import (
 	"os"
 
-	"github.com/ze-software/ze/internal/core/textbuf"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
@@ -13,11 +12,6 @@ import (
 const area = "test weakened"
 
 var actions = leaction.New(area,
-	leaction.Action{Verb: "check", Why: "every ledger shard under test/weakened/ still parses for the commit " +
-		"gate, and the population is printed so an author sees whose rows are in " +
-		"the ledger without preparing a commit. Whether a commit is covered is a " +
-		"question about THAT commit's paths and a verify stage has none",
-		Answer: checkAnswer},
 	leaction.Action{Verb: "selftest", Why: "on a fixture repository whose answer is known, the checker still refuses a " +
 		"weakening with no row and accepts the same weakening once a row names it",
 		Answer: selftestAnswer},
@@ -27,9 +21,22 @@ var actions = leaction.New(area,
 		Writes: false,
 		Answer: proposedAnswer,
 	},
+	leaction.Action{
+		Verb: "approve",
+		Why: "record the OWNER's approval of one test weakening, as one row in this commit " +
+			"session's tmp/commit-weakening-approved-<session>.md. The edit hook and `./le commit " +
+			"create` read that file; the commit carries each row it used as a `Weakening-approved:` " +
+			"trailer line and drops it from the file once the commit lands. A second call for the " +
+			"same unit replaces the reason. Ask Thomas BEFORE the edit and quote his words as the " +
+			"reason: the reason is never the author's own reasoning about why the weakening is fine",
+		Writes: true,
+		Parameters: []leaction.Parameter{
+			{Keyword: keyUnit, Value: "<package>.<TestName>", Requirement: leaction.Required},
+			{Keyword: keyReason, Value: keyReason, Requirement: leaction.Required},
+		},
+		AnswerArgs: approveAnswer,
+	},
 )
-
-// Gates answers the exact gate names claimed by this area.
 
 // Actions answers the root action area as structured data.
 func Actions() leaction.List { return actions.Actions() }
@@ -39,20 +46,6 @@ func Subs() string { return actions.Subs() }
 
 // Answer dispatches one weakened-test action.
 func Answer(args []string) (any, int) { return actions.Answer(args) }
-
-func checkAnswer() (any, int) {
-	root, err := lepath.Root()
-	var text textbuf.Buffer
-	if err != nil {
-		result := Result{
-			Contract: WeakenedDir,
-			Problems: []string{text.Str(cannotRunPrefix).Err(err).String()},
-		}
-		return result, result.ExitCode()
-	}
-	result := Check(Request{Root: root})
-	return result, result.ExitCode()
-}
 
 func selftestAnswer() (any, int) {
 	report := SelfTest()

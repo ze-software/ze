@@ -15,7 +15,7 @@ import (
 const fixtureLedgerHeader = "| Test | Reason |\n|------|--------|\n"
 
 // selfTestSession is the commit namespace the fixture repository writes its
-// ledger shard under. Every Check call below names it, so the fixture proves
+// owner approvals under. Every Check call below names it, so the fixture proves
 // the same path derivation the live gate uses rather than a fixed file name.
 const selfTestSession = "5e1f7e57"
 
@@ -60,7 +60,7 @@ func (r SelfTestReport) Text() string {
 }
 
 // SelfTest drives every detector verdict, clean negative fixtures, pairing,
-// malformed and absent ledgers, and an unresolved baseline through Check.
+// malformed and absent approval files, and an unresolved baseline through Check.
 func SelfTest() SelfTestReport {
 	positive := positiveFixtures()
 	negative := negativeFixtures()
@@ -73,7 +73,7 @@ func SelfTest() SelfTestReport {
 		}
 	}
 
-	selfTestShard := ShardPath(WeakenedDir, selfTestSession)
+	selfTestApprovals := ApprovalPath(selfTestSession)
 	root, err := os.MkdirTemp("", "ze-weakened-selftest-")
 	if err != nil {
 		check(false, text.Str("create fixture repository: ").Err(err).String())
@@ -81,8 +81,6 @@ func SelfTest() SelfTestReport {
 	}
 	defer func() { _ = os.RemoveAll(root) }()
 	check(runSelfTestGit(root, "init", "-q"), "initialize fixture repository")
-	check(writeSelfTestFile(root, selfTestShard, fixtureLedgerHeader) == nil,
-		"write the fixture ledger")
 	for _, fixture := range appendCopyFixtures(positive, negative) {
 		if fixture.added {
 			continue
@@ -102,7 +100,7 @@ func SelfTest() SelfTestReport {
 			text.Reset().Str("write worktree ").Str(fixture.path).String())
 		paths = append(paths, fixture.path)
 	}
-	missing := Check(Request{Root: root, Session: selfTestSession, Paths: paths})
+	missing := Check(Request{Root: root, ApprovalSession: selfTestSession, Paths: paths})
 	check(missing.ExitCode() == 1, "unrecorded weakenings must be refused")
 	for _, fixture := range positive {
 		finding, found := findingForPath(missing.Findings, fixture.path)
@@ -118,53 +116,53 @@ func SelfTest() SelfTestReport {
 	check(len(missing.Findings) >= len(positive),
 		"finding population must cover every positive fixture")
 
-	text.Reset().Str(fixtureLedgerHeader)
+	check(containsProblem(missing.Problems, "./le test weakened approve unit "),
+		"the refusal must print the command that records the owner's approval")
+
+	text.Reset().Str(approvalHeader)
 	for _, finding := range missing.Findings {
-		text.Str("| ").Str(finding.Name).Str(" | fixture accepts this weakening |\n")
+		text.Str("| ").Str(finding.Unit()).Str(" | fixture: the owner approves this weakening |\n")
 	}
-	check(writeSelfTestFile(root, selfTestShard, text.String()) == nil,
-		"write accepted fixture ledger")
-	accepted := Check(Request{Root: root, Session: selfTestSession, Paths: paths})
-	check(accepted.ExitCode() == 0, "one matching row for every weakening must be accepted")
+	check(writeSelfTestFile(root, selfTestApprovals, text.String()) == nil,
+		"write the fixture approval file")
+	accepted := Check(Request{Root: root, ApprovalSession: selfTestSession, Paths: paths})
+	check(accepted.ExitCode() == 0, "one owner approval for every weakening must be accepted")
 	check(len(accepted.Findings) == len(missing.Findings),
 		"accepted check must judge the same finding population")
+	check(len(accepted.Approvals.Trailers) == len(missing.Findings),
+		"every used approval must become one Weakening-approved trailer")
 
-	check(writeSelfTestFile(root, selfTestShard,
-		text.Reset().Str(fixtureLedgerHeader).Str("| TestGone | stale |\n").String()) == nil,
-		"write stale fixture ledger")
-	stale := Check(Request{Root: root, Session: selfTestSession, Paths: paths})
-	check(stale.ExitCode() == 1 && containsProblem(stale.Problems, "does not weaken"),
-		"a stale row must be refused")
+	check(writeSelfTestFile(root, selfTestApprovals,
+		text.Reset().Str(approvalHeader).Str("| pkg.TestGone | an approval for another test |\n").String()) == nil,
+		"write an approval naming another test")
+	other := Check(Request{Root: root, ApprovalSession: selfTestSession, Paths: paths})
+	check(other.ExitCode() == 1 && containsProblem(other.Problems, "no owner approval names it"),
+		"an approval for another test must not admit a weakening")
 
-	check(writeSelfTestFile(root, selfTestShard, "# Tests\n\nno table\n") == nil,
-		"write malformed fixture ledger")
-	malformed := Check(Request{Root: root, Session: selfTestSession})
+	check(writeSelfTestFile(root, selfTestApprovals, "# Tests\n\nno table\n") == nil,
+		"write malformed fixture approval file")
+	malformed := Check(Request{Root: root, ApprovalSession: selfTestSession, Paths: paths})
 	check(malformed.ExitCode() == 1 && containsProblem(malformed.Problems, "has no `| Test | Reason |`"),
-		"a malformed ledger must fail closed")
+		"a malformed approval file must fail closed")
 
-	check(os.Remove(filepath.Join(root, filepath.FromSlash(selfTestShard))) == nil,
-		"remove fixture ledger")
-	// A session that holds no shard holds no rows, which is the state a
-	// checkout is in between commits and is not a problem of its own. The
-	// fail-closed contract sits where the absence decides something: a commit
-	// that weakens a test and has no shard is refused, and the refusal carries
-	// the header and the row to write.
-	absent := Check(Request{Root: root, Session: selfTestSession})
-	check(absent.ExitCode() == 0 && len(absent.Problems) == 0,
-		"an absent shard must read as a session holding no rows")
-	absentWithWeakening := Check(Request{Root: root, Session: selfTestSession, Paths: paths})
-	check(absentWithWeakening.ExitCode() == 1 &&
-		containsProblem(absentWithWeakening.Problems, "does not exist, and this commit weakens"),
-		"an absent shard must refuse a commit that weakens a test")
-	check(containsProblem(absentWithWeakening.Problems, "| Test | Reason |"),
-		"the absent-shard refusal must carry the header an author writes first")
+	check(os.Remove(filepath.Join(root, filepath.FromSlash(selfTestApprovals))) == nil,
+		"remove fixture approval file")
+	absent := Check(Request{Root: root, ApprovalSession: selfTestSession, Paths: paths})
+	check(absent.ExitCode() == 1 && containsProblem(absent.Problems, "no owner approval names it"),
+		"an absent approval file must refuse a commit that weakens a test")
 
-	cleanWithoutLedger := Check(Request{Root: root, Session: selfTestSession, Paths: []string{negative[0].path}})
+	// A malformed file would fail closed if it were read, so a clean verdict
+	// beside one proves a change that weakens nothing never reads it.
+	check(writeSelfTestFile(root, selfTestApprovals, "# Tests\n\nno table\n") == nil,
+		"write a malformed approval file beside a change that weakens nothing")
+	cleanWithoutLedger := Check(Request{Root: root, ApprovalSession: selfTestSession, Paths: []string{negative[0].path}})
 	check(cleanWithoutLedger.ExitCode() == 0,
-		"a change that weakens nothing must not read an absent ledger")
+		"a change that weakens nothing must not read the approval file, even a malformed one")
+	check(os.Remove(filepath.Join(root, filepath.FromSlash(selfTestApprovals))) == nil,
+		"remove the malformed fixture approval file")
 
 	invalidAnchor := Check(Request{
-		Root: root, Paths: []string{positive[0].path}, Anchor: "NO-SUCH-ANCHOR",
+		Root: root, ApprovalSession: selfTestSession, Paths: []string{positive[0].path}, Anchor: "NO-SUCH-ANCHOR",
 	})
 	check(invalidAnchor.ExitCode() == 2 &&
 		containsProblem(invalidAnchor.Problems, "does not resolve to a commit"),

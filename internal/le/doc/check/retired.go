@@ -48,7 +48,6 @@ var retiredRecords = [...]retiredRecord{
 	{path: "plan/learned/", why: "closed-spec summaries record the commands of their day"},
 	{path: "plan/handover/", why: "handovers are frozen session state"},
 	{path: "plan/audits/", why: "audits record the commands they ran"},
-	{path: "test/weakened/", why: "weakening records quote the commit and the command they judged"},
 	{path: "website/blog/", why: "published posts are the owner's authored prose"},
 	{path: "website/changes/posts/", why: "published change posts are the owner's authored prose"},
 	{path: "website/changes/discord/2026-08-03-weekly.md", why: "a published weekly update"},

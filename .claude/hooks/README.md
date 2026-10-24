@@ -98,7 +98,7 @@ check's row cannot survive it.
 | `writeDesignDoorsRead` | `architecture.md` | A Go (tests included), YANG or templ Write, Edit or MultiEdit from a session, or a subagent, with no record of a whole read of `ai/doors/system.md` and of every door covering the file. The covering doors are those whose `<!-- door-base: ... -->` header names the longest whole-component prefix of the file's path, all of them on a tie; the headers are parsed at call time, so a new door joins by its header. The refusal lists each unread door. Records and fail-closed identity are shared with `writeStyleGuideRead`; a missing `ai/doors/` or a header that does not close is refused, never read as "no door". |
 | `writeGoPatterns` | `architecture.md`, `cli.md`, `go-standards.md`, `performance.md`, `quality.md`, `plugins.md`, `goroutine-lifecycle.md` | The Go patterns the rules ban, file by file: handlers, panic, legacy logging, allocating formatting, nolint, init registration, switch dispatch, anonymous goroutines, and fake buffer handles. |
 | `writeFilePatterns` | `architecture.md`, `commands.md`, `config.md`, `quality.md`, `testing.md` | The file-level patterns the rules ban, by path: path shape, package name, scratch location, lint exclusion, config version, and CI observers. |
-| `writeWeakening` | `testing.md` | A proposed edit that lowers what a test proves. |
+| `writeWeakening` | `testing.md` | A proposed edit that lowers what a test proves, unless the owner's approval for that test is recorded. |
 | `writeCISleep` | `testing.md` | A pause in a `.ci` test that names no justification marker. |
 | `writeYangDescription` | `writing.md` | A proposed YANG `ze:help` past 96 characters or 25 words. Also one carrying a semicolon or no full stop, and a `description` that repeats the `ze:help` beside it. It judges the statements that render on a one-line row, and a `leaf` or `leaf-list` only in a config module. It reports the summaries whose owner it did not find, it warns rather than blocks, and `./le doc yang-contract help-shape` is the gate. |
 
@@ -175,7 +175,7 @@ the shared staging area. A refused gate writes no script.
 
 | Gate | Producer | Override keyword |
 |---|---|---|
-| test-weakening | `testweakened.ProspectiveCommit`, `testweakened.CheckCommit` | none |
+| test-weakening | `testweakened.ProspectiveCommit`, `testweakened.Check`, reading `tmp/commit-weakening-approved-<session>.md` and writing the `Weakening-approved:` trailer | none: only the owner's recorded approval (`./le test weakened approve`) admits a weakening |
 | rfc-approval | `rfcChangeProblems` (`rfcchange.go`), reading `tmp/commit-rfc-approved-<session>.md` and writing the `RFC-approved:` trailer | `rfc-change-ok` |
 | test-coverage | `testCoverageProblems` (`prepare.go`) | `no-test` |
 | verify-status | `verificationState` (`verification.go`) | none: it never refuses a commit, because a missing verification is owed before a push |

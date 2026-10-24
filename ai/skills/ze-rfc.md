@@ -561,11 +561,11 @@ is the only thing standing between a regression and a shipped protocol violation
 | The RFC text itself was misquoted | Fix the summary line (keep the ID), then re-run `/ze-rfc-audit` |
 | Refactor/rename/format only | Allowed — behavior must be unchanged |
 
-A weakening row in `test/weakened/<session>.md` does **not** authorize changing a
-tagged test. It is self-service: you would be writing your own approval. Only
-the user can approve, and their answer is recorded with `./le rfc approve unit
-<package>.<TestName> reason "<the owner's words>"`, which the commit carries as
-an `RFC-approved:` trailer.
+Only the user can approve a change to a tagged test, and an agent never records
+an approval the user did not give. Their answer is recorded with `./le rfc
+approve unit <package>.<TestName> reason "<the owner's words>"`, which the
+commit carries as an `RFC-approved:` trailer. That row also accepts a weakening
+of the same test, so no second `./le test weakened approve` answer is owed.
 
 ### Error Handling
 | Condition | Detect How | Response | Code/Subcode |

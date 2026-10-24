@@ -62,7 +62,6 @@ var portedProducers = []portedProducer{
 	{Target: "ze-port-defaults-check", Area: "config ports", Verb: "check"},
 	{Target: "ze-yang-leaf-mentions-report", Area: "config unread-leaves", Verb: "report"},
 	{Target: "ze-test-sensitivity-check", Area: "test sensitivity", Verb: "check"},
-	{Target: "ze-test-weakened-check", Area: "test weakened", Verb: "check"},
 	{Target: "ze-staticcheck-feature-matrix-check", Area: "go staticcheck", Verb: "check"},
 	{Target: "ze-repository-tracked-build-check", Area: "repo compiles", Verb: "check"},
 	{Target: "ze-repository-check", Area: "repo", Verb: "check"},
@@ -320,6 +319,10 @@ var portedProducers = []portedProducer{
 // retiredProducers is the deliberate not-ported list. Each row states what
 // happened to the job, not that nobody had time for it.
 var retiredProducers = []retiredProducer{
+	{
+		Target: "ze-test-weakened-check",
+		Reason: "the subject is gone: the target parsed the tracked test/weakened ledger, which is removed. An owner approval in the session's untracked tmp/ file admits a weakening, and the edit hook (testweakened.Proposed) and the commit gate (testweakened.Check) read it when it is used",
+	},
 	{
 		Target: "ze-discovery-index-check",
 		Reason: "the subject is gone: the target compared ai/PACKAGE-MAP.md against a re-render of the tree, and the map is no longer tracked. A write to a file that feeds it removes it (hookruntime.postInvalidateDerived) and a command that names it rebuilds it (hookruntime.preMaterializeDerived), so there is no committed copy for a comparison to judge",

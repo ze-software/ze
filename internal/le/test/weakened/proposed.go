@@ -30,14 +30,11 @@ const (
 type ProposedRequest struct {
 	Path string `json:"path"`
 	Tool string `json:"tool"`
-	// Session is the commit namespace whose ledger shards authorize this
-	// edit. The hook passes the identity it was called with, so the row the
-	// author writes and the row the commit gate reads are one file.
-	Session string `json:"session,omitempty"`
-	// ApprovalSession is the commit namespace whose RFC approvals authorize
-	// this edit: the main thread's, which an agent's Session is not
-	// (lepath.SessionCommitSession). Empty takes Session when Session is
-	// named, and otherwise resolves the running harness's main thread.
+	// ApprovalSession is the commit namespace whose owner approvals, of a
+	// weakening and of an RFC-tagged change, authorize this edit: the main
+	// thread's, because Thomas answers the main thread even when a subagent
+	// makes the edit (lepath.SessionCommitSession). Empty resolves the running
+	// harness's main thread.
 	ApprovalSession string            `json:"approval-session,omitempty"`
 	Exists          *bool             `json:"exists,omitempty"`
 	ToolInput       ProposedToolInput `json:"tool-input"`
@@ -70,18 +67,30 @@ type ProposedRFCChange struct {
 	Tags []string `json:"tags"`
 }
 
-// ProposedLedger reports exactly which names one on-disk hatch accepts.
-// Owner marks the RFC approval file, whose rows only `./le rfc approve`
-// writes; Package qualifies the unit the command names.
+// ProposedLedger reports exactly which names one owner approval file accepts.
+// Owner marks the RFC approval file, whose rows `./le rfc approve` writes;
+// otherwise it is the weakening approval file, whose rows
+// `./le test weakened approve` writes. Package qualifies the unit the command
+// names.
 type ProposedLedger struct {
-	Path     string   `json:"path"`
-	Owner    bool     `json:"owner,omitempty"`
-	Package  string   `json:"package,omitempty"`
-	Rows     int      `json:"rows"`
-	Names    []string `json:"names"`
-	Missing  []string `json:"missing,omitempty"`
-	Matched  []Row    `json:"matched,omitempty"`
-	Problems []string `json:"problems,omitempty"`
+	Path    string   `json:"path"`
+	Owner   bool     `json:"owner,omitempty"`
+	Package string   `json:"package,omitempty"`
+	Rows    int      `json:"rows"`
+	Names   []string `json:"names"`
+	Missing []string `json:"missing,omitempty"`
+	Matched []Row    `json:"matched,omitempty"`
+	// Spent is each name a row covers whose trailer a landed commit already
+	// carries. Such a row approves nothing further, so the name is in
+	// Missing too, and the refusal names the commit that used it.
+	Spent    []ProposedSpent `json:"spent,omitempty"`
+	Problems []string        `json:"problems,omitempty"`
+}
+
+// ProposedSpent is one name whose approval row a landed commit already used.
+type ProposedSpent struct {
+	Name    string `json:"name"`
+	Carrier string `json:"carrier"`
 }
 
 // ProposedReport is the structured pre-write verdict.
@@ -119,24 +128,26 @@ func (r ProposedReport) Text() string {
 	for _, message := range r.Messages {
 		text.Str("  ").Str(message).Byte('\n')
 	}
-	for _, ledger := range r.Ledgers {
+	for index := range r.Ledgers {
+		ledger := &r.Ledgers[index]
 		for _, problem := range ledger.Problems {
 			text.Str("  ").Str(problem).Byte('\n')
 		}
 		for _, name := range ledger.Missing {
+			command := ApproveCommand(ledger.Package + "." + name)
 			if ledger.Owner {
-				text.Str("  once the owner has approved, run: ").
-					Str(rfc.ApproveCommand(ledger.Package + "." + name)).Byte('\n')
-				continue
+				command = rfc.ApproveCommand(ledger.Package + "." + name)
 			}
-			text.Str("  add first to ").Str(ledger.Path).Str(": | ").Str(name).
-				Str(" | <what was approved or removed, and why> |\n")
+			if carrier := ledger.spentBy(name); carrier != "" {
+				text.Str("  the approval naming ").Str(ledger.Package).Byte('.').Str(name).
+					Str(" was already used by commit ").Str(carrier).Str(", so it approves nothing further\n")
+			}
+			text.Str("  ask Thomas first; once he has approved, run: ").Str(command).Byte('\n')
 		}
 	}
 	if r.Blocking {
-		text.Str("  Fix the code by default. A ").Str(WeakenedDir).
-			Str(" row is self-service; it never substitutes for the owner's approval, ").
-			Str("which only `./le rfc approve` records.\n")
+		text.Str("  Fix the code by default. Only Thomas approves a test weakening or a change to an ").
+			Str("RFC-tagged test, and he is asked BEFORE the edit; the command records his words, never yours.\n")
 	}
 	return text.String()
 }
@@ -197,9 +208,13 @@ func Proposed(root string, input io.Reader) (ProposedReport, error) {
 	if err := validProposedSessions(request); err != nil {
 		return ProposedReport{}, err
 	}
-	session, weakenedShard, problem := sessionShard(root, WeakenedDir, request.Session)
-	if problem != "" {
-		return ProposedReport{}, errors.New(problem)
+	session := request.ApprovalSession
+	if session == "" {
+		resolved, err := lepath.SessionCommitSession(root)
+		if err != nil {
+			return ProposedReport{}, err
+		}
+		session = resolved
 	}
 
 	var rfcChanges []ProposedRFCChange
@@ -216,11 +231,7 @@ func Proposed(root string, input io.Reader) (ProposedReport, error) {
 			report.Messages = append(report.Messages,
 				"RFC-TAGGED test changed: "+change.Name+" ("+strings.Join(change.Tags, ", ")+")")
 		}
-		approvalSession, err := proposedApprovalSession(root, request, session)
-		if err != nil {
-			return ProposedReport{}, err
-		}
-		ledger := proposedApprovals(root, rfc.ApprovalPath(approvalSession), path, packageName, names)
+		ledger := proposedApprovals(root, session, path, packageName, names, true)
 		report.Ledgers = append(report.Ledgers, ledger)
 		if len(ledger.Missing) != 0 || len(ledger.Problems) != 0 {
 			report.Blocking = true
@@ -238,7 +249,17 @@ func Proposed(root string, input io.Reader) (ProposedReport, error) {
 		if len(names) == 0 {
 			names = []string{strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))}
 		}
-		ledger := proposedLedger(root, weakenedShard, path, packageName, names)
+		// An owner who approved a change to a tagged unit approved its
+		// weakening too, so a name the weakening file misses is looked up in
+		// the RFC approval file before it is refused.
+		ledger := proposedApprovals(root, session, path, packageName, names, false)
+		if len(ledger.Missing) != 0 && len(ledger.Problems) == 0 {
+			owner := proposedApprovals(root, session, path, packageName, ledger.Missing, true)
+			ledger.Missing = owner.Missing
+			ledger.Matched = append(ledger.Matched, owner.Matched...)
+			ledger.Spent = append(ledger.Spent, owner.Spent...)
+			ledger.Problems = owner.Problems
+		}
 		report.Ledgers = append(report.Ledgers, ledger)
 		if len(ledger.Missing) != 0 || len(ledger.Problems) != 0 {
 			report.Blocking = true
@@ -570,82 +591,54 @@ func proposedTagOutsideFunction(path, content string) bool {
 	return false
 }
 
-// proposedLedger checks names, the findings of the file at findingPath,
-// against this session's shard of the weakening ledger.
-func proposedLedger(root, path, findingPath, packageName string, names []string) ProposedLedger {
-	ledger := ProposedLedger{Path: path, Names: append([]string(nil), names...)}
-	content, readErr := proposedLedgerFile(root, path)
-	if readErr != nil {
-		ledger.Problems = []string{path + " is yours to write, and it does not exist yet: " +
-			"open it with `# Test weakenings this commit accepts`, a blank line, " +
-			"`| Test | Reason |` and `|------|--------|`, then the row below (" + readErr.Error() + ")"}
-		return ledger
+// proposedApprovals checks the units an edit changes against one owner
+// approval file: the RFC one when owner is set, the weakening one otherwise.
+// It reads the file through LoadApprovals, the loader the commit gate uses,
+// so a row a landed commit already carries admits nothing here either: the
+// unit stays missing and Spent names that commit.
+func proposedApprovals(root, session, findingPath, packageName string, names []string, owner bool) ProposedLedger {
+	source := WeakeningApprovals(session)
+	if owner {
+		source = RFCApprovals(session)
 	}
-	return proposedLedgerRows(ledger, content, findingPath, packageName, names)
-}
-
-// proposedApprovals checks the RFC-tagged units an edit changes against the
-// approval file this session's `./le rfc approve` writes. An absent file is a
-// file holding no row: every unit is then missing, and the report names the
-// command that records the owner's answer.
-func proposedApprovals(root, path, findingPath, packageName string, names []string) ProposedLedger {
-	ledger := ProposedLedger{Path: path, Owner: true, Package: packageName, Names: append([]string(nil), names...)}
-	content, readErr := proposedLedgerFile(root, path)
-	if errors.Is(readErr, os.ErrNotExist) {
-		ledger.Missing = append([]string(nil), names...)
-		return ledger
-	}
-	if readErr != nil {
-		ledger.Problems = []string{"cannot read " + path + ": " + readErr.Error()}
-		return ledger
-	}
-	return proposedLedgerRows(ledger, content, findingPath, packageName, names)
-}
-
-// proposedLedgerFile reads one ledger file under the checkout root.
-func proposedLedgerFile(root, path string) ([]byte, error) {
-	repository, err := os.OpenRoot(root)
-	if err != nil {
-		return nil, errors.New("cannot open checkout to read " + path + ": " + err.Error())
-	}
-	content, readErr := repository.ReadFile(filepath.FromSlash(path))
-	closeErr := repository.Close()
-	if readErr != nil {
-		return nil, readErr
-	}
-	if closeErr != nil {
-		return nil, errors.New("cannot close checkout after reading " + path + ": " + closeErr.Error())
-	}
-	return content, nil
-}
-
-// proposedLedgerRows matches names against the rows content holds.
-// Matching goes through rowMatches directly, not the exported RowMatches, so
-// a path-scoped row (scopedRowMatches in testweakened.go) is honored here too:
-// an edit inside a tree a scoped row already covers must not be reported as
-// missing a row of its own.
-func proposedLedgerRows(ledger ProposedLedger, content []byte, findingPath, packageName string, names []string) ProposedLedger {
-	path := ledger.Path
-	rows, problems := parseLedger(validUTF8(content), path)
+	ledger := ProposedLedger{Path: source.Path, Owner: owner, Package: packageName, Names: append([]string(nil), names...)}
+	// A problem blocks the edit on its own; the names are still matched
+	// against the rows that did parse, so the refusal also names what each
+	// unit needs.
+	rows, problems := LoadApprovals(root, source)
 	ledger.Rows = len(rows)
 	ledger.Problems = problems
-	if len(problems) != 0 {
-		return ledger
-	}
 	for _, name := range names {
+		finding := Finding{Path: findingPath, Package: packageName, Name: name}
 		matched := false
 		for _, row := range rows {
-			if rowMatches(row.Name, Finding{Path: findingPath, Package: packageName, Name: name}) {
-				ledger.Matched = append(ledger.Matched, row)
-				matched = true
-				break
+			if !rowMatches(row.Name, finding) {
+				continue
 			}
+			if row.Carrier != "" {
+				ledger.Spent = append(ledger.Spent, ProposedSpent{Name: name, Carrier: row.Carrier})
+				continue
+			}
+			ledger.Matched = append(ledger.Matched, row.Row)
+			matched = true
+			break
 		}
 		if !matched {
 			ledger.Missing = append(ledger.Missing, name)
 		}
 	}
 	return ledger
+}
+
+// spentBy answers the commit that already used an approval naming name, or
+// empty when no spent row names it.
+func (l ProposedLedger) spentBy(name string) string {
+	for _, spent := range l.Spent {
+		if spent.Name == name {
+			return spent.Carrier
+		}
+	}
+	return ""
 }
 
 func appendUniqueName(names []string, name string) []string {
@@ -655,24 +648,9 @@ func appendUniqueName(names []string, name string) []string {
 	return append(names, name)
 }
 
-// proposedApprovalSession answers the namespace whose RFC approval file
-// authorizes request, as ProposedRequest.ApprovalSession describes.
-func proposedApprovalSession(root string, request ProposedRequest, session string) (string, error) {
-	if request.ApprovalSession != "" {
-		return request.ApprovalSession, nil
-	}
-	if request.Session != "" {
-		return session, nil
-	}
-	return lepath.SessionCommitSession(root)
-}
-
-// validProposedSessions refuses a stdin-named namespace that is not one, before
-// ShardPath or rfc.ApprovalPath names a file under tmp/ after it.
+// validProposedSessions refuses a stdin-named namespace that is not one,
+// before ApprovalPath or rfc.ApprovalPath names a file under tmp/ after it.
 func validProposedSessions(request ProposedRequest) error {
-	if request.Session != "" && !lepath.ValidCommitSession(request.Session) {
-		return fmt.Errorf("proposed edit: session %q is not a commit namespace (8 lowercase hexadecimal characters)", request.Session)
-	}
 	if request.ApprovalSession != "" && !lepath.ValidCommitSession(request.ApprovalSession) {
 		return fmt.Errorf("proposed edit: approval-session %q is not a commit namespace (8 lowercase hexadecimal characters)", request.ApprovalSession)
 	}

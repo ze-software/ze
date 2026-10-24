@@ -70,7 +70,7 @@ func TestBashRuntimePrefixesOnlySafeForkIdentity(t *testing.T) {
 // that cannot name a file blocks the call (exit 2, no updated input) with a
 // message naming the cause and the next step.
 // PREVENTS: sibling subagents resolving one identity, which made them share a
-// commit namespace, a weakened-test shard and a spec claim
+// commit namespace and a spec claim
 // (plan/journal/concurrent-session-corruption.md), and an unsafe agent id
 // running the call silently as the main thread.
 func TestBashRuntimeExportsTheAgentIdentity(t *testing.T) {
@@ -140,8 +140,8 @@ func TestBashRuntimeBlocksAnAgentWithNoSessionID(t *testing.T) {
 // VALIDATES: an Edit from a subagent whose payload names an agent but carries
 // an absent or unsafe session_id is refused by the weakening check (exit 2)
 // with a message naming the cause and the next step.
-// PREVENTS: the weakening check judging a subagent's edit against the main
-// thread's ambient shard.
+// PREVENTS: the weakening check judging a subagent's edit against another
+// main thread's owner approvals.
 func TestWriteRuntimeWeakeningRefusesAnAgentWithNoSessionID(t *testing.T) {
 	root := t.TempDir()
 	for _, payload := range []map[string]any{
@@ -152,7 +152,7 @@ func TestWriteRuntimeWeakeningRefusesAnAgentWithNoSessionID(t *testing.T) {
 		if code != 2 {
 			t.Fatalf("session_id %v: code=%d message=%q, want exit 2", payload["session_id"], code, errOutput)
 		}
-		if !strings.Contains(errOutput, "weakening check cannot name this subagent's shard") || !strings.Contains(errOutput, "main thread's shard") || !strings.Contains(errOutput, "Next:") {
+		if !strings.Contains(errOutput, "weakening check cannot name the owner approval namespace of this subagent's edit") || !strings.Contains(errOutput, "another main thread's approvals") || !strings.Contains(errOutput, "Next:") {
 			t.Fatalf("session_id %v: message %q lacks what, why or next step", payload["session_id"], errOutput)
 		}
 	}

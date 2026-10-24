@@ -1,15 +1,15 @@
 // Design: docs/contributing/running-commands.md -- session identity, and what each agent owns
 //
 // The eight-hex namespace names every artifact one session prepares: its commit
-// script, its commit message and its two test ledger shards. It lives here, beside ResolveSession, because the commit gate
-// and the pre-write hook both derive a path from it and neither may import the
-// other.
+// script, its commit message and its owner approval files. It lives here,
+// beside ResolveSession, because the commit gate and the pre-write hook both
+// derive a path from it and neither may import the other.
 //
 // A subagent shares its parent's harness session id, so the namespace is keyed
 // on the AGENT as well: tmp/commit-session-id-<session>+<agent>, where a main
-// thread keeps tmp/commit-session-id-<session>. That file name is also the
-// parent relation, which is how a main thread finds the namespaces of its own
-// subagents (ChildCommitSessions) and nobody else's.
+// thread keeps tmp/commit-session-id-<session>. An owner approval is keyed on
+// the main thread's namespace (SessionCommitSession), because Thomas answers the
+// main thread.
 package lepath
 
 import (
@@ -20,7 +20,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/env"
@@ -134,58 +133,14 @@ func SessionCommitSession(root string) (string, error) {
 // ("" for the main thread), to its commit namespace, for a caller that was
 // handed the identity rather than running under it. A hook payload names the
 // session and agent whose edit it judges, and the namespace it resolves has
-// to be the one that agent's shard is named after.
+// to be the one that agent's commit artifacts, or its main thread's owner
+// approvals with agent "", are named after.
 func CommitSessionFor(root, harness, agent string) (string, error) {
 	fingerprint, err := AgentFingerprint(harness, agent)
 	if err != nil {
 		return "", err
 	}
 	return commitSessionFor(root, "", fingerprint)
-}
-
-// ChildCommitSessions answers the commit namespaces of the subagents of the
-// running main thread, sorted. A subagent answers none: it carries its own
-// shard and no sibling's or parent's.
-//
-// The answer is what lets a main thread commit work a subagent did, shard
-// included, while a shard of an unrelated session stays foreign: only a file
-// named for THIS harness session's agents is read, and only a namespace that
-// file already holds is answered. Nothing is minted here.
-func ChildCommitSessions(root string) ([]string, error) {
-	agent, err := Agent()
-	if err != nil {
-		return nil, err
-	}
-	if agent != "" {
-		return []string{}, nil
-	}
-	session, err := ResolveSession(root, false)
-	if err != nil {
-		return nil, err
-	}
-	if _, err := AgentFingerprint(session.ID, ""); err != nil {
-		return nil, err
-	}
-	// The session id passed safeSessionID in AgentFingerprint, which admits no
-	// glob metacharacter and no agentSeparator.
-	matches, err := filepath.Glob(filepath.Join(root, "tmp", commitSessionPrefix+session.ID+agentSeparator+"*"))
-	if err != nil {
-		return nil, fmt.Errorf("list subagent commit sessions: %w", err)
-	}
-	children := make([]string, 0, len(matches))
-	for _, path := range matches {
-		content, err := os.ReadFile(path) //nolint:gosec // the path is this session's commit artifact under the checkout root
-		if err != nil {
-			return nil, fmt.Errorf("read subagent commit session: %w", err)
-		}
-		namespace := strings.TrimSpace(string(content))
-		if !commitSessionPattern.MatchString(namespace) {
-			return nil, fmt.Errorf("subagent commit session %s is not 8 lowercase hexadecimal characters", filepath.Base(path))
-		}
-		children = append(children, namespace)
-	}
-	slices.Sort(children)
-	return slices.Compact(children), nil
 }
 
 func commitSessionFor(root, requested, fingerprint string) (string, error) {

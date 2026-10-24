@@ -12,7 +12,7 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupGate, Answer, registry.Meta{
-		ShortHelp: "detect committed and proposed test weakenings and enforce their ledgers",
+		ShortHelp: "detect committed and proposed test weakenings and record the owner approvals that admit them",
 		Mode:      "offline",
 		Section:   registry.SectionTest,
 		SubsFunc:  Subs,

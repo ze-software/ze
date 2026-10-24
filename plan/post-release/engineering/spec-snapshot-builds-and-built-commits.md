@@ -65,7 +65,6 @@ Verified at the producer on 2026-10-23.
 - [ ] `internal/le/commit/snapshot.go` - `snapshotIndexEntries` hashes the named paths' blobs at prepare time into a temp directory.
 - [ ] `internal/le/verify/dispatch/dispatch.go` - `stageExecutable` answers `/proc/self/exe` or `os.Executable()`: every verify stage runs the binary that launched the run, built from the runner's tree, not from the commit under test.
 - [ ] `le` (root launcher) - `warn_when_stale` compares mtimes (`le_is_stale`, `committed_change_is_newer`), warns one call in sixteen, and never refuses.
-- [ ] `internal/le/test/weakened/shard.go` - `PruneLanded` reads the shard, filters, and rewrites it with `os.WriteFile`, no lock.
 - [ ] `.github/workflows/qemu-nightly.yml` - the runtime-kernel cache key hashes `internal/appliance/kernel.version`, `gokrazy/kernel/**`, `tools/kernel-builder/**`, and omits `internal/appliance/kernelbuilder/**`, which `kernelCacheVariantFor` (`internal/appliance/cache.go`) hashes.
 - [ ] `internal/le/verify/lifecycle.go` - `git worktree add --detach <sha>`: the existing materialiser of a commit into a throwaway tree.
 
@@ -126,10 +125,12 @@ le to git (private index, object store, never the shared index or HEAD); le to t
 | AC-5 | `./le <action>` with `bin/le` built from sources whose committed digest differs from HEAD's | refuses and names `./le --update` (subject to A-3); never a silent run of the old code |
 | AC-6 | the verify failure index | records the tree id it judged; `structuralGateReds` refuses a missing, unparsable or mismatched index instead of reading it as clean |
 | AC-7 | the runtime-kernel cache key, the golangci-lint cache, the terminal-demo renderer image tag, job admission's share key | each is derived from the builder's declared input set (`kernelbuilder` files, ruleguard rules, the Dockerfile, every parameter); the nightly workflow takes its key from `./le`, not a hand list |
-| AC-8 | `PruneLanded`, verify artifact paths, the hook's derived-artifact rebuild | write under a lock with an atomic rename; two concurrent writers never lose a row or a file |
+| AC-8 | verify artifact paths, the hook's derived-artifact rebuild | write under a lock with an atomic rename; two concurrent writers never lose a row or a file |
 | AC-9 | discrimination breaks the producer | in a snapshot; the shared index and working tree are untouched |
 | AC-10 | every row in "Owned journal rows" | re-checked after the change: fixed, or still red with a cause that is not the live tree, an unbuilt commit, or an unkeyed artifact |
 | AC-11 | the post-commit shared-index sync meets `.git/index.lock` that no live process holds (an empty file left by a killed git, seen twice on 2026-10-23) | the sync tells a dead lock from a held one, says which it found, and either repairs the index or prints the exact repair; a held lock is retried with bounded backoff, as the 2026-10-23 concurrent-session-corruption row asks |
+
+AC-8 holds no weakening ledger: `spec-weakening-approval-lives-in-the-commit` removes the tracked ledger and its unlocked rewrite (`PruneLanded`), and owns the 2026-10-14 concurrent-session-corruption row that named it.
 
 ## 🧪 TDD Test Plan
 
@@ -142,7 +143,6 @@ le to git (private index, object store, never the shared index or HEAD); le to t
 | `TestGatesJudgeTheSnapshotBlobs` | `internal/le/commit/prepare_test.go` | AC-3 |
 | `TestStageExecutableIsTheCommitsLe` | `internal/le/verify/dispatch/dispatch_test.go` | AC-4 |
 | `TestStructuralRedsRefusesAStaleIndex` | `internal/le/commit/verification_test.go` | AC-6 |
-| `TestPruneLandedKeepsAConcurrentRow` | `internal/le/test/weakened/shard_test.go` | AC-8 |
 
 ### Functional Tests
 | Test | Proves |
@@ -153,7 +153,6 @@ le to git (private index, object store, never the shared index or HEAD); le to t
 - `internal/le/commit/prepare.go`, `verification.go`, `snapshot.go`
 - `internal/le/verify/dispatch/dispatch.go`, `internal/le/verify/lifecycle.go`
 - `internal/le/interoplab/zebuild.go`, `internal/le/verify/evidence/evidence.go`
-- `internal/le/test/weakened/shard.go`
 - `internal/le/hookruntime/bash.go` (derived rebuild)
 - `internal/appliance/cache.go`, `.github/workflows/qemu-nightly.yml`
 - `le` (launcher)
@@ -213,7 +212,6 @@ le to git (private index, object store, never the shared index or HEAD); le to t
 | concurrent-session-corruption.md | 2026-10-23 | ./le test qemu docker-lab, building the docker-host image over the live che |
 | concurrent-session-corruption.md | 2026-10-21 | stageBinaries (internal/le/interoplab/zebuild.go) in the docker-lab guest, |
 | concurrent-session-corruption.md | 2026-10-18 | ./le commit create gates, closureStem (internal/le/commit/prepare.go) |
-| concurrent-session-corruption.md | 2026-10-14 | testweakened.PruneLanded (internal/le/test/weakened/shard.go) |
 | concurrent-session-corruption.md | 2026-10-05 | internal/le/go/lint/verifylint.go, Runner.plan |
 | concurrent-session-corruption.md | 2026-09-06 | main at HEAD, over internal/component/ike/engine/fsm.go |
 | concurrent-session-corruption.md | 2026-09-04 | ./le functional plugin over the shared checkout, and the three producers a |

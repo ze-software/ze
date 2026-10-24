@@ -285,7 +285,6 @@ that keeps the copy in step. Named deletions are in Key Design Decisions.
 | reference-checked-claim-unchecked | 2026-09-08 | `internal/component/bgp/plugins/cmd/peer/create.go`, `internal/component/bgp/plugins/adj_rib_in/relay_chunk.go`, ... |
 | closure-deletes-a-cited-document | 2026-10-07 | `TestEveryLinkedPathExistsInTheTree` (`internal/le/site/rfcdetail_test.go`) |
 | closure-deletes-a-cited-document | 2026-09-13 | RFC ledger prose links on the published site, `rfcProseLinksHTML` (`internal/le/site/rfcprose.go`) |
-| closure-deletes-a-cited-document | 2026-09-07 | `test/weakened/8c4ad6c3.md`, against the tracked-file sweep in `trackedSweep` |
 | closure-deletes-a-cited-document | 2026-09-06 | source anchors in `docs/`, against `checkAnchors` |
 | closure-deletes-a-cited-document | 2026-09-03 | YANG module comments |
 | closure-deletes-a-cited-document | 2026-08-23 | `./le doc check links`, and `./le doc check verify` through it |

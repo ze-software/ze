@@ -2,19 +2,17 @@
 package testweakened
 
 import (
-	"os"
-	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
 )
 
-// The commit namespace every fixture in this package writes its ledger shard
-// under. Naming it once keeps the tests over the SAME derivation the live gate
-// uses: a shard is ShardPath(dir, session) and nothing else names it.
+// The commit namespace every fixture in this package records its owner
+// approvals under. Naming it once keeps the tests over the SAME derivation the
+// live gate uses: the file is ApprovalPath(session) and nothing else names it.
 const fixtureSession = "0f1e2d3c"
 
-var fixtureShard = ShardPath(WeakenedDir, fixtureSession)
+var fixtureApproval = ApprovalPath(fixtureSession)
 
 func TestSelfTestCoversEveryDetectorVerdictThroughCheck(t *testing.T) {
 	t.Parallel()
@@ -41,9 +39,8 @@ func TestCheckMatchesProducerDiagnosticsAndExitCodes(t *testing.T) {
 	t.Setenv("NO_COLOR", "1")
 
 	root := newParityRepository(t)
-	live := Check(Request{Root: root, Session: fixtureSession})
-	wantLive := "Weakened-test check: test/weakened parses (1 session(s), 0 row(s)).\n" +
-		"  test/weakened/0f1e2d3c.md holds 0 row(s), and is yours\n"
+	live := Check(Request{Root: root, ApprovalSession: fixtureSession})
+	wantLive := "Weakened-test check: no path given, nothing compared.\n"
 	if live.ExitCode() != 0 || live.Text() != wantLive {
 		t.Fatalf("live shape = code %d, text %q", live.ExitCode(), live.Text())
 	}
@@ -51,13 +48,14 @@ func TestCheckMatchesProducerDiagnosticsAndExitCodes(t *testing.T) {
 	writeParityFile(t, root, path, "package a\nfunc TestA(t *testing.T) {\n"+
 		"\tt.Skip(\"later\")\n\trequire.Equal(t, 1, got)\n}\n")
 
-	missing := Check(Request{Root: root, Session: fixtureSession, Paths: []string{path}})
-	wantProblem := "pkg/a_test.go weakens TestA and test/weakened/0f1e2d3c.md has no row for it:\n" +
+	missing := Check(Request{Root: root, ApprovalSession: fixtureSession, Paths: []string{path}})
+	wantProblem := "pkg/a_test.go weakens pkg.TestA, and no owner approval names it:\n" +
 		"    - adding t.Skip (0 -> 1); the test stops running\n" +
-		"    Add the row, then commit the file with the change:\n" +
-		"    | TestA | <what left the suite, and why the commit is correct without it> |"
+		"    Fix the code by default. Only Thomas approves a test weakening, and he is asked BEFORE the edit.\n" +
+		"    Once he has answered, record his words and retry:\n" +
+		"    ./le test weakened approve unit pkg.TestA reason \"<the owner's words>\""
 	if missing.ExitCode() != 1 || !slices.Equal(missing.Problems, []string{wantProblem}) {
-		t.Fatalf("missing row = code %d, problems %q", missing.ExitCode(), missing.Problems)
+		t.Fatalf("missing approval = code %d, problems %q", missing.ExitCode(), missing.Problems)
 	}
 	wantText := "Weakened-test check: 1 problem(s).\n\n" +
 		"  " + wantProblem + "\n"
@@ -65,11 +63,16 @@ func TestCheckMatchesProducerDiagnosticsAndExitCodes(t *testing.T) {
 		t.Fatalf("missing.Text() = %q, want %q", missing.Text(), wantText)
 	}
 
-	writeParityFile(t, root, fixtureShard,
-		fixtureLedgerHeader+"| TestA | the feature it drove is gone |\n")
-	accepted := Check(Request{Root: root, Session: fixtureSession, Paths: []string{path}})
+	if _, err := Approve(root, fixtureSession, "pkg.TestA", "the feature it drove is gone"); err != nil {
+		t.Fatal(err)
+	}
+	accepted := Check(Request{Root: root, ApprovalSession: fixtureSession, Paths: []string{path}})
 	if accepted.ExitCode() != 0 || len(accepted.Problems) != 0 {
-		t.Fatalf("accepted row = code %d, problems %q", accepted.ExitCode(), accepted.Problems)
+		t.Fatalf("accepted approval = code %d, problems %q", accepted.ExitCode(), accepted.Problems)
+	}
+	wantTrailers := []string{"Weakening-approved: pkg.TestA: the feature it drove is gone"}
+	if !slices.Equal(accepted.Approvals.Trailers, wantTrailers) {
+		t.Fatalf("accepted.Approvals.Trailers = %q, want %q", accepted.Approvals.Trailers, wantTrailers)
 	}
 	wantAccepted := "Weakened-test check: clean (1 of 1 path(s) are tests, " +
 		"judged against HEAD).\n"
@@ -77,7 +80,7 @@ func TestCheckMatchesProducerDiagnosticsAndExitCodes(t *testing.T) {
 		t.Fatalf("accepted.Text() = %q, want %q", accepted.Text(), wantAccepted)
 	}
 
-	cannotRun := Check(Request{Root: root, Session: fixtureSession, Paths: []string{path}, Anchor: "MISSING"})
+	cannotRun := Check(Request{Root: root, ApprovalSession: fixtureSession, Paths: []string{path}, Anchor: "MISSING"})
 	wantCannotRun := "check could not run: MISSING does not resolve to a commit, so nothing was compared"
 	if cannotRun.ExitCode() != 2 || !slices.Equal(cannotRun.Problems, []string{wantCannotRun}) {
 		t.Fatalf("invalid anchor = code %d, problems %q", cannotRun.ExitCode(), cannotRun.Problems)
@@ -100,120 +103,79 @@ func TestCheckFailsClosedForEveryLedgerShape(t *testing.T) {
 		{
 			name:    "no header",
 			content: "# Tests\n\nno table\n",
-			problem: "test/weakened/0f1e2d3c.md has no `| Test | Reason |` table header, so no row in it can be read",
+			problem: "tmp/commit-weakening-approved-0f1e2d3c.md has no `| Test | Reason |` table header, so no row in it can be read",
 		},
 		{
 			name:    "three cells",
 			content: fixtureLedgerHeader + "| TestA | reason | extra |\n",
-			problem: "test/weakened/0f1e2d3c.md:3 has 3 cells; a row is `| Test | Reason |`",
+			problem: "tmp/commit-weakening-approved-0f1e2d3c.md:3 has 3 cells; a row is `| Test | Reason |`",
 		},
 		{
 			name:    "empty name",
 			content: fixtureLedgerHeader + "| | reason |\n",
-			problem: "test/weakened/0f1e2d3c.md:3 names no test",
+			problem: "tmp/commit-weakening-approved-0f1e2d3c.md:3 names no test",
 		},
 		{
 			name:    "empty reason",
 			content: fixtureLedgerHeader + "| TestA | |\n",
-			problem: "test/weakened/0f1e2d3c.md:3 gives no reason for TestA; a row with no reason accepts nothing",
+			problem: "tmp/commit-weakening-approved-0f1e2d3c.md:3 gives no reason for TestA; a row with no reason accepts nothing",
 		},
 		{
 			name: "duplicate",
 			content: fixtureLedgerHeader + "| TestA | first |\n" +
 				"| TestA | second |\n",
-			problem: "test/weakened/0f1e2d3c.md:4 names TestA again (already on line 3); one test, one reason",
+			problem: "tmp/commit-weakening-approved-0f1e2d3c.md:4 names TestA again (already on line 3); one test, one reason",
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			root := t.TempDir()
-			writeParityFile(t, root, fixtureShard, tc.content)
-			result := Check(Request{Root: root, Session: fixtureSession})
+			root := newParityRepository(t)
+			writeParityFile(t, root, fixtureApproval, tc.content)
+			writeParityFile(t, root, "pkg/a_test.go", parityWeakening)
+			result := Check(Request{Root: root, ApprovalSession: fixtureSession, Paths: []string{"pkg/a_test.go"}})
 			if result.ExitCode() != 1 || !slices.Contains(result.Problems, tc.problem) {
 				t.Fatalf("Check() = code %d, problems %q; want %q", result.ExitCode(), result.Problems, tc.problem)
 			}
 		})
 	}
 
-	// A session holding no shard holds no rows, and that is the state a
-	// checkout is in between commits rather than a problem of its own. The
-	// fail-closed contract moved to where the absence decides something: a
-	// commit that weakens a test with no shard is refused, and the refusal
-	// carries the header and the row to write.
+	// A session holding no approval file holds no approval, and that is the
+	// state a checkout is in between commits rather than a problem of its own.
+	// The fail-closed contract sits where the absence decides something: a
+	// weakening with no approval is refused, and the refusal carries the
+	// command that records the owner's answer.
 	root := newParityRepository(t)
-	if err := os.Remove(filepath.Join(root, filepath.FromSlash(fixtureShard))); err != nil {
-		t.Fatal(err)
-	}
-	absent := Check(Request{Root: root, Session: fixtureSession})
+	absent := Check(Request{Root: root, ApprovalSession: fixtureSession})
 	if absent.ExitCode() != 0 || len(absent.Problems) != 0 {
-		t.Fatalf("absent shard = code %d, problems %q", absent.ExitCode(), absent.Problems)
+		t.Fatalf("absent approval file = code %d, problems %q", absent.ExitCode(), absent.Problems)
 	}
-	writeParityFile(t, root, "pkg/a_test.go",
-		"package a\nfunc TestA(t *testing.T) {\n\tt.Skip(\"later\")\n\trequire.Equal(t, 1, got)\n}\n")
-	weakening := Check(Request{Root: root, Session: fixtureSession, Paths: []string{"pkg/a_test.go"}})
+	writeParityFile(t, root, "pkg/a_test.go", parityWeakening)
+	weakening := Check(Request{Root: root, ApprovalSession: fixtureSession, Paths: []string{"pkg/a_test.go"}})
 	if weakening.ExitCode() != 1 || len(weakening.Problems) != 1 {
-		t.Fatalf("absent shard with a weakening = code %d, problems %q",
+		t.Fatalf("absent approval file with a weakening = code %d, problems %q",
 			weakening.ExitCode(), weakening.Problems)
 	}
-	if !strings.Contains(weakening.Problems[0], fixtureShard+" does not exist") ||
-		!strings.Contains(weakening.Problems[0], "| Test | Reason |") {
-		t.Fatalf("absent-shard refusal = %q, want the shard named and the header to write",
+	if !strings.Contains(weakening.Problems[0], "no owner approval names it") ||
+		!strings.Contains(weakening.Problems[0], ApproveCommand("pkg.TestA")) {
+		t.Fatalf("absent-approval refusal = %q, want the unit refused and the approve command",
 			weakening.Problems[0])
 	}
 }
 
-// TestCheckPrintsEveryShardAndItsRows proves the answer `./le test weakened
-// check` gives to "whose rows are in the ledger": every session's shard, each
-// row it holds, and the mark on this session's own shard only.
-//
-// The method is a population of two shards, a peer's holding two rows and this
-// session's holding one, read through Check with no paths, which is the
-// branch the verb runs. The single-shard fixture above cannot tell a renderer
-// that prints only the author's own shard from one that prints them all.
-//
-// VALIDATES: ReadShards reads every shard and shardPopulation renders each one
-// with its rows, marking only the shard ShardPath names for this session.
-// PREVENTS: a check that hides a peer's pending rows, which is the population
-// an author needs to see before committing next to that peer.
-func TestCheckPrintsEveryShardAndItsRows(t *testing.T) {
-	t.Setenv("NO_COLOR", "1")
-
-	root := newParityRepository(t)
-	const peerSession = "a0b1c2d3"
-	peerShard := ShardPath(WeakenedDir, peerSession)
-	writeParityFile(t, root, peerShard, fixtureLedgerHeader+
-		"| TestPeerOne | the peer's first reason |\n"+
-		"| TestPeerTwo | the peer's second reason |\n")
-	writeParityFile(t, root, fixtureShard, fixtureLedgerHeader+
-		"| TestMine | this session's reason |\n")
-
-	population := Check(Request{Root: root, Session: fixtureSession})
-	want := "Weakened-test check: test/weakened parses (2 session(s), 3 row(s)).\n" +
-		"  " + fixtureShard + " holds 1 row(s), and is yours\n" +
-		"    | TestMine |\n" +
-		"  " + peerShard + " holds 2 row(s)\n" +
-		"    | TestPeerOne |\n" +
-		"    | TestPeerTwo |\n"
-	if population.ExitCode() != 0 || population.Text() != want {
-		t.Fatalf("population = code %d, text %q, want %q",
-			population.ExitCode(), population.Text(), want)
-	}
-	if len(population.Shards) != 2 || population.Shards[1].Mine {
-		t.Fatalf("population.Shards = %+v, want the peer's shard read and not marked as this session's",
-			population.Shards)
-	}
-}
+// parityWeakening is pkg/a_test.go with a skip added: one weakening of pkg.TestA
+// against the baseline newParityRepository commits.
+const parityWeakening = "package a\nfunc TestA(t *testing.T) {\n\tt.Skip(\"later\")\n\trequire.Equal(t, 1, got)\n}\n"
 
 func TestCheckDoesNotReadLedgerWhenPopulationIsClean(t *testing.T) {
 	t.Setenv("NO_COLOR", "1")
 
+	// The approval file is malformed, so a check that read it would fail
+	// closed: a clean verdict proves a clean population never reads it.
 	root := newParityRepository(t)
-	if err := os.Remove(filepath.Join(root, filepath.FromSlash(fixtureShard))); err != nil {
-		t.Fatal(err)
-	}
-	result := Check(Request{Root: root, Session: fixtureSession, Paths: []string{"pkg/a_test.go", "docs/note.md"}})
+	writeParityFile(t, root, fixtureApproval, "# Tests\n\nno table\n")
+	result := Check(Request{Root: root, ApprovalSession: fixtureSession, Paths: []string{"pkg/a_test.go", "docs/note.md"}})
 	if result.ExitCode() != 0 {
 		t.Fatalf("Check() = code %d, problems %q", result.ExitCode(), result.Problems)
 	}
@@ -224,47 +186,6 @@ func TestCheckDoesNotReadLedgerWhenPopulationIsClean(t *testing.T) {
 	}
 }
 
-func TestCheckQualifiesAmbiguousRemovedUnits(t *testing.T) {
-	t.Parallel()
-
-	root := t.TempDir()
-	const baseline = "package a\nfunc TestSame(t *testing.T) { require.Equal(t, 1, got) }\n"
-	paths := []string{"alpha/same_test.go", "beta/same_test.go"}
-	for _, path := range paths {
-		writeParityFile(t, root, path, baseline)
-	}
-	writeParityFile(t, root, fixtureShard,
-		fixtureLedgerHeader+"| TestSame | removed coverage |\n")
-	if !runSelfTestGit(root, "init", "-q") || !runSelfTestGit(root, "add", "-A") ||
-		!runSelfTestGit(root,
-			"-c", "user.email=t@t", "-c", "user.name=t", "-c", "commit.gpgsign=false",
-			"commit", "-q", "-m", "baseline") {
-		t.Fatal("initialize ambiguity repository")
-	}
-	for _, path := range paths {
-		if err := os.Remove(filepath.Join(root, filepath.FromSlash(path))); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	ambiguous := Check(Request{Root: root, Session: fixtureSession, Removed: paths})
-	if ambiguous.ExitCode() != 1 || len(ambiguous.Problems) != 1 ||
-		!strings.Contains(ambiguous.Problems[0], "weakens in 2 packages: alpha") ||
-		!strings.Contains(ambiguous.Problems[0], "| beta.TestSame |") {
-		t.Fatalf("ambiguous removed units = code %d, problems %q",
-			ambiguous.ExitCode(), ambiguous.Problems)
-	}
-
-	writeParityFile(t, root, fixtureShard, fixtureLedgerHeader+
-		"| alpha.TestSame | removed alpha coverage |\n"+
-		"| beta.TestSame | removed beta coverage |\n")
-	accepted := Check(Request{Root: root, Session: fixtureSession, Removed: paths})
-	if accepted.ExitCode() != 0 || len(accepted.Findings) != 2 {
-		t.Fatalf("qualified removed units = code %d, findings %#v, problems %q",
-			accepted.ExitCode(), accepted.Findings, accepted.Problems)
-	}
-}
-
 func TestWeakenedAreaPublishesNativeActions(t *testing.T) {
 	t.Parallel()
 
@@ -272,9 +193,10 @@ func TestWeakenedAreaPublishesNativeActions(t *testing.T) {
 	if list.Area != "test weakened" || len(list.Actions) != 3 {
 		t.Fatalf("Actions() = %#v", list)
 	}
-	wantVerbs := []string{"check", "selftest", "proposed"}
+	wantVerbs := []string{"selftest", "proposed", "approve"}
+	wantWrites := []bool{false, false, true}
 	for index, row := range list.Actions {
-		if row.Verb != wantVerbs[index] || row.Why == "" || row.Writes {
+		if row.Verb != wantVerbs[index] || row.Why == "" || row.Writes != wantWrites[index] {
 			t.Fatalf("Actions()[%d] = %#v", index, row)
 		}
 	}
@@ -285,7 +207,6 @@ func newParityRepository(t *testing.T) string {
 	root := t.TempDir()
 	writeParityFile(t, root, "pkg/a_test.go",
 		"package a\nfunc TestA(t *testing.T) { require.Equal(t, 1, got) }\n")
-	writeParityFile(t, root, fixtureShard, fixtureLedgerHeader)
 	if !runSelfTestGit(root, "init", "-q") || !runSelfTestGit(root, "add", "-A") ||
 		!runSelfTestGit(root,
 			"-c", "user.email=t@t", "-c", "user.name=t", "-c", "commit.gpgsign=false",

@@ -72,14 +72,15 @@ func changedTaggedUnits(root string, facts commitFacts) ([]string, error) {
 		if problem != "" {
 			return nil, errors.New(problem)
 		}
-		if oldText == "" || !rfcTagPattern.MatchString(oldText) {
+		if oldText == "" || !rfc.HasRequirementTag(oldText) {
 			continue
 		}
 		newText, _, problem := committedText(root, facts.SHA, path)
 		if problem != "" {
 			return nil, errors.New(problem)
 		}
-		for _, change := range changedRFCUnits(path, oldText, newText) {
+		for _, unit := range rfc.ChangedUnits(path, oldText, newText) {
+			change := RFCChange(unit)
 			names = append(names, change.unit())
 		}
 	}

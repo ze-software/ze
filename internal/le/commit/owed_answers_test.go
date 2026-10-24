@@ -23,7 +23,7 @@ const reviewGateArtifact = "| Artifact | `tmp/review/fixture.md` (3 files pinned
 // rfcTagRequirement is the requirement id the fixture's tag names.
 //
 // The tag text is ASSEMBLED from this constant at run time, so no line of THIS
-// file matches rfcTagPattern. A literal tag here would make the file its own
+// file matches rfc.HasRequirementTag. A literal tag here would make the file its own
 // tag carrier, and the owner-approval gate would then refuse every later edit
 // to the tests that prove that gate.
 const rfcTagRequirement = "rfc9999-1 positive"

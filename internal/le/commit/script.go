@@ -45,12 +45,18 @@ type commitBlock struct {
 	IndexEntries []string
 	MessagePath  string
 	ReviewCheck  string
-	// ApprovalsPath is the session's RFC approval file and ApprovalsDropped
-	// the exact lines the block removes from it once its commit succeeds:
-	// the rows the commit carries as trailers, and any row a landed commit
-	// already carried. renderApprovalPrune writes it.
-	ApprovalsPath    string
-	ApprovalsDropped []string
+	// Approvals is each owner approval file of the session, RFC and test
+	// weakening, with the exact lines the block removes from it once its
+	// commit succeeds: the rows the commit carries as trailers, and any row a
+	// landed commit already carried. renderApprovalPrune writes one step per
+	// file that drops a line.
+	Approvals []approvalPrune
+}
+
+// approvalPrune is one approval file and the lines a block drops from it.
+type approvalPrune struct {
+	Path    string
+	Dropped []string
 }
 
 // indexLockWaitSecondsMax bounds how long a block's shared-index repair waits
@@ -97,8 +103,10 @@ func renderBlock(block commitBlock, scriptPath string) string {
 	if len(block.Removed) != 0 {
 		lines = append(lines, renderWorkingTreeRemoval(block.Removed))
 	}
-	if len(block.ApprovalsDropped) != 0 {
-		lines = append(lines, renderApprovalPrune(block))
+	for _, approvals := range block.Approvals {
+		if len(approvals.Dropped) != 0 {
+			lines = append(lines, renderApprovalPrune(approvals))
+		}
 	}
 	// The shared-index repair is the block's last step: it is the one step that
 	// waits on another process, and when it gives up, everything else this
@@ -107,18 +115,18 @@ func renderBlock(block commitBlock, scriptPath string) string {
 	return strings.Join(lines, "\n") + "\n"
 }
 
-// renderApprovalPrune emits the step that drops the used RFC approval rows
-// from the session file. It sits after the publish under `set -e`, so it
+// renderApprovalPrune emits the step that drops the used owner approval rows
+// from one session approval file. It sits after the publish under `set -e`, so it
 // runs only once the branch holds the trailers: a row removed before that would be
 // an approval lost with nothing to show for it. `grep -v` answers 1 when no
 // line is left to print, which is not a failure here.
-func renderApprovalPrune(block commitBlock) string {
+func renderApprovalPrune(approvals approvalPrune) string {
 	var page textbuf.Buffer
-	page.Str("# RFC approvals this commit carries as trailers, dropped now that git holds them.\n")
-	page.Str("_ze_approved=").Str(shellQuote(block.ApprovalsPath)).Byte('\n')
+	page.Str("# Owner approvals this commit carries as trailers, dropped now that git holds them.\n")
+	page.Str("_ze_approved=").Str(shellQuote(approvals.Path)).Byte('\n')
 	page.Str(`if [ -f "$_ze_approved" ]; then`).Byte('\n')
 	page.Str("  grep -v -x -F")
-	for _, line := range block.ApprovalsDropped {
+	for _, line := range approvals.Dropped {
 		page.Str(" -e ").Str(shellQuote(line))
 	}
 	page.Str(` -- "$_ze_approved" > "$_ze_approved.pruned" || [ "$?" -eq 1 ]`).Byte('\n')

@@ -8,10 +8,14 @@
 package hookruntime
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	docste "github.com/ze-software/ze/internal/le/doc/ste"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
+	testweakened "github.com/ze-software/ze/internal/le/test/weakened"
 )
 
 // yangModulePath is a module that does not exist on disk, which is the state of
@@ -293,5 +297,65 @@ func TestWriteEditJudgesALeafInsideAGrouping(t *testing.T) {
 	}
 	if strings.Contains(message, "grouping peer-state") {
 		t.Errorf("the grouping description was judged: %s", message)
+	}
+}
+
+// TestWeakeningApprovalReachesASubagentEdit proves the approval Thomas gave
+// the main thread admits the same weakening when a subagent of that main
+// thread makes the edit (AC-5, A-1).
+//
+// The method drives writeWeakening with a subagent's payload, before and after
+// the approval is recorded under the main thread's commit namespace, and once
+// with the approval recorded under the subagent's own namespace.
+//
+// VALIDATES: the hook keys the approval on the main thread's namespace, never
+// on the agent's.
+// PREVENTS: an approved weakening refused because a subagent made the edit,
+// and an agent admitting its own weakening through a file named after it.
+func TestWeakeningApprovalReachesASubagentEdit(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "pkg", "a_test.go")
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	body := "package pkg\nfunc TestA(t *testing.T) {\n\trequire.NoError(t, err)\n}\n"
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	derivedDebtGit(t, root, "init", "-q")
+	derivedDebtGit(t, root, "add", "--", "pkg/a_test.go")
+	derivedDebtGit(t, root, "-c", "user.email=t@t", "-c", "user.name=t", "-c", "commit.gpgsign=false",
+		"commit", "-q", "-m", "baseline")
+	edit := context{
+		root: root, tool: "Edit", path: path,
+		input:   map[string]any{"file_path": path, "old_string": "\trequire.NoError", "new_string": "\tt.Skip(\"later\")\n\trequire.NoError"},
+		payload: Payload{SessionID: "parent-sid", AgentID: "agent-1"},
+	}
+	if refused := writeWeakening(edit); refused == nil || refused.code != 2 ||
+		!strings.Contains(refused.message, "not authorized") || !strings.Contains(refused.message, "pkg.TestA") {
+		t.Fatalf("unapproved subagent weakening = %#v, want the weakening refused", refused)
+	}
+
+	agent, err := lepath.CommitSessionFor(root, "parent-sid", "agent-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := testweakened.Approve(root, agent, "pkg.TestA", "recorded under the agent, not the owner's thread"); err != nil {
+		t.Fatal(err)
+	}
+	if refused := writeWeakening(edit); refused == nil || refused.code != 2 ||
+		!strings.Contains(refused.message, "not authorized") {
+		t.Fatalf("an approval under the agent's own namespace admitted the edit: %#v", refused)
+	}
+
+	main, err := lepath.CommitSessionFor(root, "parent-sid", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := testweakened.Approve(root, main, "pkg.TestA", "Thomas approved the skip"); err != nil {
+		t.Fatal(err)
+	}
+	if admitted := writeWeakening(edit); admitted != nil {
+		t.Fatalf("the main thread's approval did not reach the subagent's edit: %#v", admitted)
 	}
 }

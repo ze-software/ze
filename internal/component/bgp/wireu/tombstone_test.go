@@ -114,7 +114,7 @@ func TestWriteTombstone_MinimalValue(t *testing.T) {
 // 252 and cleared its Transitive bit, and did not recognize the retired 253. That
 // half went when Thomas retired the Section 5.3 support on 2026-09-09, because
 // nothing recognizes a tombstone on egress any more, so there is no reader left
-// for a code point to be unified FOR (test/weakened/49b0956f.md).
+// for a code point to be unified FOR (commit 23b5895c50).
 //
 // VALIDATES: AC-1 -- one code point. WriteTombstone is now the only producer that
 // names one, so it is the only place the unification can be observed.

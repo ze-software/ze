@@ -286,7 +286,7 @@ func nftCounterPackets(t *testing.T, family, table string) uint64 {
 // no commit since gave it a caller, so nothing it checked ever ran. Every test
 // in this file builds a table with one counter and reads it with
 // nftCounterPackets above. None needs label matching. The record of the removal
-// is test/weakened.md, in the commit that made it.
+// is the commit that made it.
 
 // ── tests ───────────────────────────────────────────────────────────────────
 

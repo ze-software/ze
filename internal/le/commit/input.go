@@ -272,7 +272,7 @@ func wrapBody(chunks []string) (string, error) {
 	}
 	// The refusal reads the lines the commit will carry, after the wrap: a
 	// key that sits past the wrap column of an input line lands at the start
-	// of the emitted line, where trailerLanded would read it as the record.
+	// of the emitted line, where rfc.TrailerLanded would read it as the record.
 	for _, line := range lines {
 		if err := refuseHandWrittenTrailer(line); err != nil {
 			return "", err

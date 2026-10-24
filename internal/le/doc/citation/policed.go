@@ -78,23 +78,8 @@ func excludes() []string {
 		"plan/learned/",
 		"plan/audits/",
 		"plan/records/",
-		// The two test ledgers are records of the same kind, and they are the
-		// only ones that live outside plan/. A weakened row exists to name a
-		// test that was DELETED and the spec that deleted it, so a path inside
-		// one is a fact about that commit rather than a claim about the tree
-		// today, and the spec it names is usually closed by the time anyone
-		// reads the row.
-		//
-		// They also have no reachable repair, which the plan trees do. A shard
-		// is named for its session, ForeignShardProblems
-		// (internal/le/test/weakened/shard.go) refuses a commit that carries
-		// another session's, and every commit gets a fresh session id. So the
-		// only author who could edit the row is one that will never exist
-		// again, and the gate reported a line nobody in the repository is
-		// permitted to touch.
-		"test/weakened/",
 		// The site fixtures are FROZEN PUBLICATIONS, and they have no
-		// reachable repair either. published-plugin-registry.json is the
+		// reachable repair. published-plugin-registry.json is the
 		// registry as gh-pages 2fa8fa2ad published it, and the .md and .html
 		// beside it are what the renderer must turn that input into, compared
 		// byte for byte (internal/le/site/plugins_test.go). A marker fails that

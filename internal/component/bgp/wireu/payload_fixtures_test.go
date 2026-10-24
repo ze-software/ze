@@ -8,7 +8,7 @@
 // whole-payload rewrite that day, along with its
 // draft-mangin-idr-attr-tombstone-00 Section 5.3 support, and every behavioral
 // test moved to rfc4271_aspath_slot_test.go against ASPathEdit.Record, the rail an EBGP
-// prepend really takes; test/weakened/49b0956f.md maps each one. The file was
+// prepend really takes; the weakening record commit 23b5895c50 carried maps each one. The file was
 // renamed for what it holds now, at his instruction.
 
 package wireu

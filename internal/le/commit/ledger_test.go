@@ -1,4 +1,4 @@
-// Design: docs/architecture/testing/test-health.md -- one ledger shard per commit session
+// Design: docs/architecture/testing/test-health.md -- owner approval of a test weakening
 package commit
 
 import (
@@ -7,8 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/core/env"
-	lepath "github.com/ze-software/ze/internal/le/le/path"
+	"github.com/ze-software/ze/internal/le/rfc"
 	testweakened "github.com/ze-software/ze/internal/le/test/weakened"
 )
 
@@ -19,221 +18,394 @@ const (
 	sessionTwo = "bbbbbbbb"
 )
 
-const ledgerHeader = "# Test weakenings this commit accepts\n\n| Test | Reason |\n|------|--------|\n"
+// ledgerHeader opens a weakening approval file a fixture writes by hand, in
+// the row grammar the approve writer produces.
+const ledgerHeader = "# Test weakenings the owner approved\n\n| Test | Reason |\n|------|--------|\n"
 
-// TestTwoSessionsKeepTheirOwnLedgerRowsThroughCreate is the whole defect, run
-// as it happened: two authors preparing a commit from one checkout at the same
-// time, each writing the rows their own weakening owes.
+// TestCreateRefusesAnUnapprovedWeakening proves the commit gate refuses a
+// weakening no owner approval of this session names (AC-6).
 //
-// It is driven through Create rather than through a path helper on purpose.
-// The failure was that two writers resolved to ONE file, so a test over either
-// writer alone cannot see it: only the second author's write, landing while
-// the first still needs its rows, shows whether the rows survived.
+// The method is one weakened test, prepared three times: with no approval
+// file, with the approval recorded under another session, and with the
+// approval under this session.
 //
-// The last assertion is the one with no other tell. A commit that names
-// another session's shard publishes that session's justification under its own
-// subject, and both the file and the row count look right afterwards, so
-// nothing downstream can find it.
-func TestTwoSessionsKeepTheirOwnLedgerRowsThroughCreate(t *testing.T) {
+// VALIDATES: the refusal names the unit and the approve command; another
+// session's approval admits nothing; this session's approval admits it.
+// PREVENTS: a weakening committed with no approval Thomas gave this session.
+func TestCreateRefusesAnUnapprovedWeakening(t *testing.T) {
 	root := newLedgerRepository(t)
-	shardOne := testweakened.ShardPath(testweakened.WeakenedDir, sessionOne)
-	shardTwo := testweakened.ShardPath(testweakened.WeakenedDir, sessionTwo)
-
 	weakenLedgerTest(t, root, "pkg/one_test.go", "TestOne")
-	writeCommitFixture(t, root, shardOne,
-		ledgerHeader+"| TestOne | session one accepts the skip |\n")
-	if _, err := ledgerCreate(t, root, sessionOne, "pkg/one_test.go", shardOne); err != nil {
-		t.Fatalf("session one refused: %v", err)
+
+	_, err := ledgerCreate(t, root, "pkg/one_test.go")
+	if err == nil || !strings.Contains(err.Error(), "pkg.TestOne") ||
+		!strings.Contains(err.Error(), testweakened.ApproveCommand("pkg.TestOne")) {
+		t.Fatalf("Create with no approval = %v, want the unit and the approve command", err)
 	}
 
-	// Session two arrives while session one still holds its rows, and writes
-	// its own rows exactly as its own gate tells it to.
-	weakenLedgerTest(t, root, "pkg/two_test.go", "TestTwo")
-	writeCommitFixture(t, root, shardTwo,
-		ledgerHeader+"| TestTwo | session two accepts the skip |\n")
-	if _, err := ledgerCreate(t, root, sessionTwo, "pkg/two_test.go", shardTwo); err != nil {
-		t.Fatalf("session two refused: %v", err)
+	if _, err := testweakened.Approve(root, sessionTwo, "pkg.TestOne", "a peer's approval"); err != nil {
+		t.Fatal(err)
+	}
+	_, err = ledgerCreate(t, root, "pkg/one_test.go")
+	if err == nil || !strings.Contains(err.Error(), "no owner approval names it") {
+		t.Fatalf("Create reading a peer's approval = %v, want the weakening still refused", err)
 	}
 
-	if got := readLedgerFile(t, root, shardOne); !strings.Contains(got, "| TestOne |") ||
-		strings.Contains(got, "| TestTwo |") {
-		t.Fatalf("session one's shard after session two wrote = %q", got)
+	if _, err := testweakened.Approve(root, sessionOne, "pkg.TestOne", "Thomas accepts the skip"); err != nil {
+		t.Fatal(err)
 	}
-	if got := readLedgerFile(t, root, shardTwo); !strings.Contains(got, "| TestTwo |") ||
-		strings.Contains(got, "| TestOne |") {
-		t.Fatalf("session two's shard = %q", got)
-	}
-
-	// Session one prepared again, now naming session two's shard. Nothing
-	// about the rows is wrong; the writer is.
-	_, err := ledgerCreate(t, root, sessionOne, "pkg/one_test.go", shardOne, shardTwo)
-	if err == nil || !strings.Contains(err.Error(), "is session bbbbbbbb's ledger shard") {
-		t.Fatalf("Create carrying another session's shard = %v", err)
+	if _, err := ledgerCreate(t, root, "pkg/one_test.go"); err != nil {
+		t.Fatalf("Create with this session's approval = %v", err)
 	}
 }
 
-// TestCreateStillRefusesAWeakeningItsOwnShardDoesNotName is the other
-// polarity. The namespace must not have bought isolation by letting a
-// weakening through: the gate that refuses an unjustified weakening is
-// unchanged, and a row in ANOTHER session's shard buys nothing at all.
-func TestCreateStillRefusesAWeakeningItsOwnShardDoesNotName(t *testing.T) {
+// TestCreateCarriesWeakeningApprovedTrailer proves an approved weakening is
+// recorded in the commit message and nowhere else (AC-7).
+//
+// VALIDATES: the message ends with the unwrapped `Weakening-approved:` line,
+// the commit carries it, and the commit changes only the named test file.
+// PREVENTS: a tracked ledger file riding along with the weakening.
+func TestCreateCarriesWeakeningApprovedTrailer(t *testing.T) {
 	root := newLedgerRepository(t)
-	shardOne := testweakened.ShardPath(testweakened.WeakenedDir, sessionOne)
-	shardTwo := testweakened.ShardPath(testweakened.WeakenedDir, sessionTwo)
-
 	weakenLedgerTest(t, root, "pkg/one_test.go", "TestOne")
-
-	// No shard at all: refused, and the refusal names the shard to write.
-	_, err := ledgerCreate(t, root, sessionOne, "pkg/one_test.go")
-	if err == nil || !strings.Contains(err.Error(), shardOne) {
-		t.Fatalf("Create with no shard = %v, want the refusal naming %s", err, shardOne)
+	reason := "Thomas accepts the skip until the fixture returns, which is a long reason that must never be wrapped"
+	if _, err := testweakened.Approve(root, sessionOne, "pkg.TestOne", reason); err != nil {
+		t.Fatal(err)
 	}
 
-	// A peer holding the row that would justify it: still refused, because a
-	// shard records what its own author justified.
-	writeCommitFixture(t, root, shardTwo,
-		ledgerHeader+"| TestOne | a peer's justification for my weakening |\n")
-	_, err = ledgerCreate(t, root, sessionOne, "pkg/one_test.go")
-	if err == nil || !strings.Contains(err.Error(), "has no row for it") {
-		t.Fatalf("Create reading a peer's row = %v, want the weakening still refused", err)
+	prepared, err := ledgerCreate(t, root, "pkg/one_test.go")
+	if err != nil {
+		t.Fatalf("an approved weakening was refused: %v", err)
+	}
+	trailer := testweakened.ApprovalTrailerLine("pkg.TestOne", reason)
+	message := readLedgerFile(t, root, prepared.Message)
+	if !strings.HasSuffix(message, "\n"+trailer+"\n") {
+		t.Fatalf("the message does not end with the trailer line:\n%s", message)
 	}
 
-	// The author's own row, in the author's own shard, still opens it.
-	writeCommitFixture(t, root, shardOne,
-		ledgerHeader+"| TestOne | session one accepts the skip |\n")
-	if _, err := ledgerCreate(t, root, sessionOne, "pkg/one_test.go", shardOne); err != nil {
-		t.Fatalf("Create with the author's own row = %v", err)
+	output := runCommitScript(t, root, prepared.Script)
+	body := runCommitGitOutput(t, root, "log", "-1", "--format=%B")
+	if !strings.Contains(body, "\n"+trailer+"\n") {
+		t.Fatalf("the commit does not carry the trailer:\n%s\n%s", body, output)
+	}
+	files := strings.TrimSpace(runCommitGitOutput(t, root, "show", "--name-only", "--format=", "HEAD"))
+	if files != "pkg/one_test.go" {
+		t.Fatalf("the commit changed %q, want only pkg/one_test.go", files)
 	}
 }
 
-// TestALandedRowIsDroppedRatherThanBlockingTheNextCommit pins the rule that
-// replaces "delete the rows of the last commit". A row whose commit is at HEAD
-// explains a diff git already holds: it accepts nothing further, so the gate
-// drops it from the shard instead of refusing the next commit for holding it.
+// TestOneRFCApprovalCarriesOneTrailerForATaggedWeakening proves a weakened
+// RFC-tagged unit that one `./le rfc approve` row names is admitted by both
+// gates through that one row, and the commit carries its trailer once.
 //
-// Reaching into a ledger to clear a landed row cost three sessions a hand
-// repair each (plan/journal/concurrent-session-corruption.md), and each repair
-// verified the same thing this function verifies from the git objects.
-func TestALandedRowIsDroppedRatherThanBlockingTheNextCommit(t *testing.T) {
+// The method commits a tagged test, weakens it, records one RFC approval and
+// no weakening approval, prepares the commit and runs its script.
+//
+// VALIDATES: the message holds exactly one `RFC-approved:` line and no
+// `Weakening-approved:` line; the script drops the used row.
+// PREVENTS: the RFC gate and the weakening gate each emitting the same
+// trailer, and a used RFC row left to approve a second change.
+func TestOneRFCApprovalCarriesOneTrailerForATaggedWeakening(t *testing.T) {
 	root := newLedgerRepository(t)
-	shard := testweakened.ShardPath(testweakened.WeakenedDir, sessionOne)
-
-	weakenLedgerTest(t, root, "pkg/one_test.go", "TestOne")
-	writeCommitFixture(t, root, shard, ledgerHeader+"| TestOne | the landed reason |\n")
-	runCommitGit(t, root, "add", "--", "pkg/one_test.go", shard)
+	path := "pkg/tagged_test.go"
+	writeCommitFixture(t, root, path, "package pkg\n\n// RFC requirement: RFC2119-1-1 positive\n"+
+		"func TestTagged(t *testing.T) {\n\trequire.Equal(t, 1, got)\n}\n")
+	runCommitGit(t, root, "add", "--", path)
 	runCommitGit(t, root, "-c", "user.email=t@t", "-c", "user.name=t",
-		"-c", "commit.gpgsign=false", "commit", "-q", "-m", "session one's first commit")
+		"-c", "commit.gpgsign=false", "commit", "-q", "-m", "tagged baseline")
+	writeCommitFixture(t, root, path, "package pkg\n\n// RFC requirement: RFC2119-1-1 positive\n"+
+		"func TestTagged(t *testing.T) {\n\tt.Skip(\"later\")\n\trequire.Equal(t, 1, got)\n}\n")
+	reason := "Thomas approved the skip of the tagged test"
+	if _, err := rfc.Approve(root, sessionOne, "pkg.TestTagged", reason); err != nil {
+		t.Fatal(err)
+	}
 
-	// The next commit of the SAME session, weakening a different test. Its
-	// shard still holds the landed row, which is exactly the state that
-	// refused a commit three times.
+	prepared, err := ledgerCreate(t, root, path)
+	if err != nil {
+		t.Fatalf("a tagged weakening with its RFC approval was refused: %v", err)
+	}
+	message := readLedgerFile(t, root, prepared.Message)
+	if got := strings.Count(message, rfc.ApprovalTrailer); got != 1 ||
+		!strings.Contains(message, "\n"+rfc.ApprovalTrailerLine("pkg.TestTagged", reason)+"\n") {
+		t.Fatalf("the message carries %d RFC-approved lines, want exactly the one row's:\n%s", got, message)
+	}
+	if strings.Contains(message, testweakened.ApprovalTrailer) {
+		t.Fatalf("the message carries a Weakening-approved line no weakening row produced:\n%s", message)
+	}
+
+	output := runCommitScript(t, root, prepared.Script)
+	approvals := rfc.ApprovalPath(sessionOne)
+	if after, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(approvals))); err == nil &&
+		strings.Contains(string(after), "| pkg.TestTagged |") {
+		t.Fatalf("the used RFC row survived the commit:\n%s\n%s", after, output)
+	}
+}
+
+// TestCreateRefusesAnApprovalNamingTwoDirectoriesUnits proves the commit gate
+// refuses a commit whose one approval would name tests in two directories that
+// share a base name: `cmd.TestOne` names both x/cmd and y/cmd, so the trailer
+// could not say which test Thomas approved.
+//
+// The method commits a same-named test in x/cmd and y/cmd, then changes both
+// under one approval of `cmd.<Test>`: once weakened under a weakening
+// approval, once as an RFC-tagged change under an RFC approval.
+//
+// VALIDATES: each commit is refused, naming both directories and telling the
+// author to split the commit.
+// PREVENTS: one approval silently admitting every same-named test in every
+// same-named directory one commit touches.
+func TestCreateRefusesAnApprovalNamingTwoDirectoriesUnits(t *testing.T) {
+	for _, shape := range []struct {
+		name    string
+		before  string
+		after   string
+		approve func(root string) error
+	}{
+		{
+			name:   "weakening",
+			before: "package cmd\n\nfunc TestOne(t *testing.T) {\n\trequire.Equal(t, 1, got)\n}\n",
+			after:  "package cmd\n\nfunc TestOne(t *testing.T) {\n\tt.Skip(\"later\")\n\trequire.Equal(t, 1, got)\n}\n",
+			approve: func(root string) error {
+				_, err := testweakened.Approve(root, sessionOne, "cmd.TestOne", "Thomas accepts the skip")
+				return err
+			},
+		},
+		{
+			name: "rfc",
+			before: "package cmd\n\n// RFC requirement: RFC2119-1-1 positive\n" +
+				"func TestOne(t *testing.T) {\n\trequire.Equal(t, 1, got)\n}\n",
+			after: "package cmd\n\n// RFC requirement: RFC2119-1-1 positive\n" +
+				"func TestOne(t *testing.T) {\n\trequire.Equal(t, 2, got)\n}\n",
+			approve: func(root string) error {
+				_, err := rfc.Approve(root, sessionOne, "cmd.TestOne", "Thomas approved the new value")
+				return err
+			},
+		},
+	} {
+		root := newLedgerRepository(t)
+		paths := []string{"x/cmd/one_test.go", "y/cmd/one_test.go"}
+		for _, path := range paths {
+			writeCommitFixture(t, root, path, shape.before)
+		}
+		runCommitGit(t, root, append([]string{"add", "--"}, paths...)...)
+		runCommitGit(t, root, "-c", "user.email=t@t", "-c", "user.name=t",
+			"-c", "commit.gpgsign=false", "commit", "-q", "-m", "two cmd directories")
+		for _, path := range paths {
+			writeCommitFixture(t, root, path, shape.after)
+		}
+		if err := shape.approve(root); err != nil {
+			t.Fatal(err)
+		}
+
+		_, err := ledgerCreate(t, root, paths...)
+		if err == nil {
+			t.Fatalf("%s: Create admitted one cmd.TestOne approval over x/cmd and y/cmd", shape.name)
+		}
+		for _, want := range []string{"cmd.TestOne", "x/cmd", "y/cmd", "split the commit"} {
+			if !strings.Contains(err.Error(), want) {
+				t.Fatalf("%s: Create refusal lacks %q:\n%v", shape.name, want, err)
+			}
+		}
+	}
+}
+
+// TestRFCChangeOKAdmitsNoUnitInTwoDirectories proves the owed-admission
+// keyword is refused the same way an approval row is when the RFC-tagged
+// unit it would record sits in two directories of one commit.
+//
+// The method commits one RFC-tagged cmd.TestOne in x/cmd and in y/cmd,
+// changes both, records no approval, and prepares the commit with
+// rfc-change-ok set.
+//
+// VALIDATES: Create is refused, naming the unit, both directories and the
+// split.
+// PREVENTS: an `RFC-approval-owed:` trailer naming a unit that cannot say
+// which of the two tests Thomas still owes an answer for.
+func TestRFCChangeOKAdmitsNoUnitInTwoDirectories(t *testing.T) {
+	root := newLedgerRepository(t)
+	paths := []string{"x/cmd/one_test.go", "y/cmd/one_test.go"}
+	for _, path := range paths {
+		writeCommitFixture(t, root, path, "package cmd\n\n// RFC requirement: RFC2119-1-1 positive\n"+
+			"func TestOne(t *testing.T) {\n\trequire.Equal(t, 1, got)\n}\n")
+	}
+	runCommitGit(t, root, append([]string{"add", "--"}, paths...)...)
+	runCommitGit(t, root, "-c", "user.email=t@t", "-c", "user.name=t",
+		"-c", "commit.gpgsign=false", "commit", "-q", "-m", "two cmd directories")
+	for _, path := range paths {
+		writeCommitFixture(t, root, path, "package cmd\n\n// RFC requirement: RFC2119-1-1 positive\n"+
+			"func TestOne(t *testing.T) {\n\trequire.Equal(t, 2, got)\n}\n")
+	}
+
+	_, err := Create(root, &Options{
+		Session:     sessionOne,
+		Subject:     "ledger fixture for session " + sessionOne,
+		Files:       paths,
+		NoTest:      "the fixture carries tests only",
+		RFCChangeOK: "Thomas is away and answers on his return",
+	})
+	if err == nil {
+		t.Fatal("Create admitted rfc-change-ok for one cmd.TestOne over x/cmd and y/cmd")
+	}
+	for _, want := range []string{"cmd.TestOne", "x/cmd", "y/cmd", "split the commit"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("Create refusal lacks %q:\n%v", want, err)
+		}
+	}
+}
+
+// TestAMovedWeakenedTestIsOneSite proves a weakened test moved from one
+// directory to another is one site, so its one approval admits it.
+//
+// The method commits cmd.TestOne in a/cmd, then moves it to b/cmd with a
+// t.Skip added and records one approval: the new path is named as a file and
+// the old one as a remove path, as `./le commit create` takes a move.
+//
+// VALIDATES: Create admits the move, every weakening finding sits in b/cmd,
+// and the message carries the one `Weakening-approved:` trailer.
+// PREVENTS: the two-directory refusal reading a rename's old and new path as
+// two tests, which would make a weakened test impossible to move.
+func TestAMovedWeakenedTestIsOneSite(t *testing.T) {
+	root := newLedgerRepository(t)
+	writeCommitFixture(t, root, "a/cmd/one_test.go",
+		"package cmd\n\nfunc TestOne(t *testing.T) {\n\trequire.Equal(t, 1, got)\n}\n")
+	runCommitGit(t, root, "add", "--", "a/cmd/one_test.go")
+	runCommitGit(t, root, "-c", "user.email=t@t", "-c", "user.name=t",
+		"-c", "commit.gpgsign=false", "commit", "-q", "-m", "one cmd directory")
+	writeCommitFixture(t, root, "b/cmd/one_test.go",
+		"package cmd\n\nfunc TestOne(t *testing.T) {\n\tt.Skip(\"later\")\n\trequire.Equal(t, 1, got)\n}\n")
+	reason := "Thomas accepts the skip in its new home"
+	if _, err := testweakened.Approve(root, sessionOne, "cmd.TestOne", reason); err != nil {
+		t.Fatal(err)
+	}
+
+	prepared, err := Create(root, &Options{
+		Session: sessionOne,
+		Subject: "ledger fixture for session " + sessionOne,
+		Files:   []string{"b/cmd/one_test.go"},
+		Remove:  []string{"a/cmd/one_test.go"},
+		NoTest:  "the fixture carries tests only",
+	})
+	if err != nil {
+		t.Fatalf("a moved weakened test with one approval was refused: %v", err)
+	}
+	if len(prepared.Weakened) == 0 {
+		t.Fatal("the move reported no weakening, so the approval was never judged")
+	}
+	for _, finding := range prepared.Weakened {
+		if finding.Path != "b/cmd/one_test.go" {
+			t.Fatalf("finding at %q, want every finding at the new path b/cmd/one_test.go", finding.Path)
+		}
+	}
+	message := readLedgerFile(t, root, prepared.Message)
+	if trailer := testweakened.ApprovalTrailerLine("cmd.TestOne", reason); !strings.Contains(message, "\n"+trailer+"\n") {
+		t.Fatalf("the message does not carry the trailer:\n%s", message)
+	}
+}
+
+// TestScriptPrunesUsedWeakeningApprovals proves the generated script drops the
+// row the commit used, only after the commit, and keeps every other row (AC-8).
+//
+// VALIDATES: the row is still present after Create and gone after the script;
+// a row for another unit survives.
+// PREVENTS: an approval consumed by a commit that never landed, and a prune
+// that drops the owner's approval of a later weakening.
+func TestScriptPrunesUsedWeakeningApprovals(t *testing.T) {
+	root := newLedgerRepository(t)
+	weakenLedgerTest(t, root, "pkg/one_test.go", "TestOne")
+	if _, err := testweakened.Approve(root, sessionOne, "pkg.TestOne", "Thomas accepts the skip"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := testweakened.Approve(root, sessionOne, "pkg.TestLater", "an approval for a later commit"); err != nil {
+		t.Fatal(err)
+	}
+	approvals := testweakened.ApprovalPath(sessionOne)
+
+	prepared, err := ledgerCreate(t, root, "pkg/one_test.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := readLedgerFile(t, root, approvals); !strings.Contains(got, "| pkg.TestOne |") {
+		t.Fatalf("preparing the commit dropped the row before the commit was made:\n%s", got)
+	}
+	runCommitScript(t, root, prepared.Script)
+	after := readLedgerFile(t, root, approvals)
+	if strings.Contains(after, "| pkg.TestOne |") {
+		t.Fatalf("the used row survived the commit:\n%s", after)
+	}
+	if !strings.Contains(after, "| pkg.TestLater | an approval for a later commit |") ||
+		!strings.Contains(after, "| Test | Reason |") {
+		t.Fatalf("the unused row or the header did not survive the commit:\n%s", after)
+	}
+}
+
+// TestALandedWeakeningApprovalApprovesNothingFurther proves a row whose
+// trailer a commit already carries approves no second weakening (AC-9, R-4),
+// and does not block a commit that another approval admits.
+//
+// The method lands one approved weakening, writes the same row back as a
+// failed prune would leave it, and prepares a second weakening of the same
+// test, then a weakening of another test.
+//
+// VALIDATES: the second weakening is refused naming the carrier commit; the
+// other weakening is admitted, and its script drops the landed row too.
+// PREVENTS: one owner approval spent twice.
+func TestALandedWeakeningApprovalApprovesNothingFurther(t *testing.T) {
+	root := newLedgerRepository(t)
+	approvals := testweakened.ApprovalPath(sessionOne)
+	weakenLedgerTest(t, root, "pkg/one_test.go", "TestOne")
+	if _, err := testweakened.Approve(root, sessionOne, "pkg.TestOne", "the landed reason"); err != nil {
+		t.Fatal(err)
+	}
+	prepared, err := ledgerCreate(t, root, "pkg/one_test.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	runCommitScript(t, root, prepared.Script)
+	landed := strings.TrimSpace(runCommitGitOutput(t, root, "rev-parse", "--short", "HEAD"))
+
+	// The prune failed: the file holds the used row again.
+	if _, err := testweakened.Approve(root, sessionOne, "pkg.TestOne", "the landed reason"); err != nil {
+		t.Fatal(err)
+	}
+	writeCommitFixture(t, root, "pkg/one_test.go", "package pkg\n\nfunc TestOne(t *testing.T) {\n\tt.Skip(\"later\")\n}\n")
+	_, err = ledgerCreate(t, root, "pkg/one_test.go")
+	if err == nil || !strings.Contains(err.Error(), "pkg.TestOne") || !strings.Contains(err.Error(), landed) {
+		t.Fatalf("Create reusing a landed approval = %v, want it refused naming commit %s", err, landed)
+	}
+
+	writeCommitFixture(t, root, "pkg/one_test.go", "package pkg\n\nfunc TestOne(t *testing.T) {\n\tt.Skip(\"later\")\n\trequire.Equal(t, 1, got)\n}\n")
 	weakenLedgerTest(t, root, "pkg/two_test.go", "TestTwo")
-	writeCommitFixture(t, root, shard, ledgerHeader+
-		"| TestOne | the landed reason |\n"+
-		"| TestTwo | the reason for this commit |\n")
-	if _, err := ledgerCreate(t, root, sessionOne, "pkg/two_test.go", shard); err != nil {
+	if _, err := testweakened.Approve(root, sessionOne, "pkg.TestTwo", "the reason for this commit"); err != nil {
+		t.Fatal(err)
+	}
+	prepared, err = ledgerCreate(t, root, "pkg/two_test.go")
+	if err != nil {
 		t.Fatalf("Create with a landed row present = %v", err)
 	}
-	after := readLedgerFile(t, root, shard)
-	if strings.Contains(after, "| TestOne |") {
-		t.Fatalf("shard after Create = %q, want the landed row dropped by the gate", after)
-	}
-	if !strings.Contains(after, "| TestTwo |") || !strings.Contains(after, "| Test | Reason |") {
-		t.Fatalf("shard after Create = %q, want this commit's row under the header", after)
-	}
-
-	// The discrimination: an UNLANDED row that explains nothing is still a
-	// refusal. Only the proof that git holds it makes a row harmless.
-	writeCommitFixture(t, root, shard, ledgerHeader+
-		"| TestGone | a row for a test this commit does not weaken |\n"+
-		"| TestTwo | the reason for this commit |\n")
-	_, err := ledgerCreate(t, root, sessionOne, "pkg/two_test.go", shard)
-	if err == nil || !strings.Contains(err.Error(), "TestGone") {
-		t.Fatalf("Create with an unlanded stale row = %v, want it refused", err)
+	runCommitScript(t, root, prepared.Script)
+	if after := readLedgerFile(t, root, approvals); strings.Contains(after, "| pkg.TestOne |") ||
+		strings.Contains(after, "| pkg.TestTwo |") {
+		t.Fatalf("approval file after the second commit = %q, want the landed and the used rows dropped", after)
 	}
 }
 
-// TestANoFindingsCommitKeepsASiblingsUnlandedRow is evidence commit
-// 8bd1742581, run through Create. Two subagents of one parent share one commit
-// session, so they share one shard. One of them commits a change that weakens
-// nothing and names the shard only to drop its landed row. The other's row is
-// in the working tree, not at HEAD, and it MUST survive: the gate proves a row
-// landed before it removes it, and an unlanded row has no such proof.
+// TestANoFindingsCommitKeepsASiblingsUnlandedRow proves an approval row that a
+// commit does not use survives that commit's script. Two subagents of one
+// parent share the parent's approval namespace, so one's commit that weakens
+// nothing MUST leave the other's recorded approval in place.
 func TestANoFindingsCommitKeepsASiblingsUnlandedRow(t *testing.T) {
 	root := newLedgerRepository(t)
-	shard := testweakened.ShardPath(testweakened.WeakenedDir, sessionOne)
+	approvals := testweakened.ApprovalPath(sessionOne)
+	writeCommitFixture(t, root, approvals, ledgerHeader+
+		"| pkg.TestTwo | the sibling's approval, not yet used |\n")
 
-	weakenLedgerTest(t, root, "pkg/one_test.go", "TestOne")
-	writeCommitFixture(t, root, shard, ledgerHeader+"| TestOne | the landed reason |\n")
-	runCommitGit(t, root, "add", "--", "pkg/one_test.go", shard)
-	runCommitGit(t, root, "-c", "user.email=t@t", "-c", "user.name=t",
-		"-c", "commit.gpgsign=false", "commit", "-q", "-m", "session one's first commit")
-
-	writeCommitFixture(t, root, shard, ledgerHeader+
-		"| TestOne | the landed reason |\n"+
-		"| TestTwo | the sibling's reason, not yet committed |\n")
 	writeCommitFixture(t, root, "pkg/three_test.go", ledgerTestBody("TestThree"))
-	if _, err := ledgerCreate(t, root, sessionOne, "pkg/three_test.go", shard); err != nil {
+	prepared, err := ledgerCreate(t, root, "pkg/three_test.go")
+	if err != nil {
 		t.Fatalf("Create of a commit that weakens nothing = %v", err)
 	}
-	after := readLedgerFile(t, root, shard)
-	if strings.Contains(after, "| TestOne |") {
-		t.Fatalf("shard after Create = %q, want the landed row dropped", after)
-	}
-	if !strings.Contains(after, "| TestTwo |") {
-		t.Fatalf("shard after Create = %q, want the sibling's unlanded row kept", after)
-	}
-}
-
-// TestTheParentCommitsItsSubagentsShardAndNoOneElses drives the main thread
-// committing work a subagent did. Each subagent owns its commit namespace, so
-// its justification row is in a shard named for it rather than for the
-// parent. The parent's commit carries that shard and is accepted, the
-// weakening is judged against the child's row, and the child's row is kept in
-// the commit. A shard of an unrelated session's subagent stays foreign.
-func TestTheParentCommitsItsSubagentsShardAndNoOneElses(t *testing.T) {
-	root := newLedgerRepository(t)
-	namespaceAs := func(session, agent string) string {
-		t.Helper()
-		t.Setenv("CLAUDE_CODE_SESSION_ID", session)
-		t.Setenv("ZE_AGENT_ID", agent)
-		env.ResetCache()
-		namespace, err := lepath.CommitSession(root, "")
-		if err != nil {
-			t.Fatalf("CommitSession(%s, %s) = %v", session, agent, err)
-		}
-		return namespace
-	}
-	t.Cleanup(env.ResetCache)
-	child := namespaceAs("parent-sid", "agent-one")
-	sibling := namespaceAs("parent-sid", "agent-two")
-	foreign := namespaceAs("other-sid", "agent-one")
-	parent := namespaceAs("parent-sid", "")
-	if child == sibling {
-		t.Fatalf("two sibling agents share commit namespace %s", child)
-	}
-	childShard := testweakened.ShardPath(testweakened.WeakenedDir, child)
-	foreignShard := testweakened.ShardPath(testweakened.WeakenedDir, foreign)
-
-	weakenLedgerTest(t, root, "pkg/one_test.go", "TestOne")
-	writeCommitFixture(t, root, childShard, ledgerHeader+"| TestOne | the subagent accepts the skip |\n")
-	writeCommitFixture(t, root, foreignShard, ledgerHeader+"| TestOne | an unrelated agent's reason |\n")
-
-	_, err := ledgerCreate(t, root, parent, "pkg/one_test.go", foreignShard)
-	if err == nil || !strings.Contains(err.Error(), "is session "+foreign+"'s ledger shard") {
-		t.Fatalf("parent carrying an unrelated session's agent shard = %v", err)
-	}
-	if _, err := ledgerCreate(t, root, parent, "pkg/one_test.go", childShard); err != nil {
-		t.Fatalf("parent carrying its own subagent's shard = %v", err)
-	}
-	if got := readLedgerFile(t, root, childShard); !strings.Contains(got, "| TestOne |") {
-		t.Fatalf("child shard after the parent's Create = %q, want its used row kept", got)
-	}
-
-	namespaceAs("parent-sid", "agent-two")
-	_, err = ledgerCreate(t, root, sibling, "pkg/one_test.go", childShard)
-	if err == nil || !strings.Contains(err.Error(), "is session "+child+"'s ledger shard") {
-		t.Fatalf("a sibling carrying another sibling's shard = %v", err)
+	runCommitScript(t, root, prepared.Script)
+	if after := readLedgerFile(t, root, approvals); !strings.Contains(after, "| pkg.TestTwo |") {
+		t.Fatalf("approval file after the commit = %q, want the sibling's unused row kept", after)
 	}
 }
 
@@ -262,14 +434,15 @@ func weakenLedgerTest(t *testing.T, root, path, name string) {
 		"(t *testing.T) {\n\tt.Skip(\"later\")\n\trequire.Equal(t, 1, got)\n}\n")
 }
 
-// ledgerCreate prepares one commit for one session over the named paths. The
+// ledgerCreate prepares one commit for sessionOne, the session every approval
+// these tests expect to admit is recorded under, over the named paths. The
 // overrides name the gates a throwaway repository cannot satisfy and that this
 // file does not judge.
-func ledgerCreate(t *testing.T, root, session string, paths ...string) (Prepared, error) {
+func ledgerCreate(t *testing.T, root string, paths ...string) (Prepared, error) {
 	t.Helper()
 	return Create(root, &Options{
-		Session: session,
-		Subject: "ledger fixture for session " + session,
+		Session: sessionOne,
+		Subject: "ledger fixture for session " + sessionOne,
 		Files:   paths,
 		NoTest:  "the fixture carries tests only",
 	})

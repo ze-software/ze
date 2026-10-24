@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Priority | P2 |
 | Release reason | Tooling only: the shipped binary is unchanged. Owner decision ccf8a56009 |
 | Depends | - |
-| Phase | - |
+| Phase | 7/7 |
 | Handoff | - |
 | Updated | 2026-10-24 |
 
@@ -137,10 +137,10 @@ edit. A test not in that table is not edited.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Keying approvals on the main thread namespace lets a subagent's edit see Thomas's approval | `writeWeakening` passes `ApprovalSession` from `CommitSessionFor(id, "")`; `rfc.approveAnswer` keys on `SessionCommitSession` | a subagent's weakening is refused though approved | `TestWeakeningApprovalReachesASubagentEdit` | unvalidated |
-| A-2 | No `.ci` or `.et` exercises `test weakened check` or `commit audit` | research grep: only a comment in `test/reload/signal-stop-cease.ci` | a functional test breaks | grep of `test/` at implementation | unvalidated |
-| A-3 | Plan records citing `test/weakened/<shard>.md` are not policed for dead links | `citation.excludePrefixes` covers `plan/handover/`, `plan/journal/`, `plan/learned/`, `plan/records/`, every spec bucket | `./le doc check links` turns red | `./le doc check links` after the removal | unvalidated |
-| A-4 | Moving `changedRFCUnits` into `rfc` creates no import cycle | `rfc` imports neither `commit` nor `testweakened` | the move fails to compile | `go build ./internal/le/...` | unvalidated |
+| A-1 | Keying approvals on the main thread namespace lets a subagent's edit see Thomas's approval | `writeWeakening` passes `ApprovalSession` from `CommitSessionFor(id, "")`; `rfc.approveAnswer` keys on `SessionCommitSession` | a subagent's weakening is refused though approved | `TestWeakeningApprovalReachesASubagentEdit` | confirmed: `TestWeakeningApprovalReachesASubagentEdit` (`internal/le/hookruntime/writeedit_test.go`) passes; `writeWeakening` keys `ApprovalSession` on `lepath.CommitSessionFor(root, id, "")`, and an approval under the agent's own namespace admits nothing |
+| A-2 | No `.ci` or `.et` exercises `test weakened check` or `commit audit` | research grep: only a comment in `test/reload/signal-stop-cease.ci` | a functional test breaks | grep of `test/` at implementation | confirmed: no `.ci` or `.et` under `test/` names `weakened check`, `weakened/check` or `commit audit` (2026-10-24) |
+| A-3 | Plan records citing `test/weakened/<shard>.md` are not policed for dead links | `citation.excludePrefixes` covers `plan/handover/`, `plan/journal/`, `plan/learned/`, `plan/records/`, every spec bucket | `./le doc check links` turns red | `./le doc check links` after the removal | confirmed by source, run owed with the new binary: every tracked file citing a `test/weakened/<8 hex>.md` path (`git grep`, 2026-10-24) sits under `plan/handover/`, `plan/journal/`, `plan/records/` or a bucket `spec-` prefix, all in `excludes()` (`internal/le/doc/citation/policed.go`); `./le doc check links` with the OLD bin/le, before the removal, flags no file this spec touched (its 10 dead references are `rfc/audit/` and `rfc/discrimination/` JSON paths) |
+| A-4 | Moving `changedRFCUnits` into `rfc` creates no import cycle | `rfc` imports neither `commit` nor `testweakened` | the move fails to compile | `go build ./internal/le/...` | confirmed: `rfc.ChangedUnits` in `internal/le/rfc/changedunits.go`; `go vet ./internal/le/rfc/` clean, `gopls check` clean on `commit/rfcchange.go`, `commit/owed_answers.go`, `test/weakened/audit.go` |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -210,6 +210,12 @@ edit. A test not in that table is not edited.
 | `TestMessageRefusesDeclaredTrailerInBody` (existing, iterates `declaredTrailers`, unchanged) | `internal/le/commit/input_test.go` | AC-10 | |
 | `TestAuditHonoursApprovalTrailersOfTheAuditedCommit` | `internal/le/test/weakened/audit_test.go` | AC-11, AC-12 | |
 | `TestAuditWorktreePassReadsLiveApprovals` | `internal/le/test/weakened/audit_test.go` | AC-13 | |
+| `TestAuditReadsPastAProseLineThatStartsWithATrailerKey` | `internal/le/test/weakened/approval_unit_test.go` | AC-11 (a message line naming no unit approves nothing and blocks nothing) | second review, issue 1 |
+| `TestAuditRefusesAnApprovalNamingTwoDirectoriesUnits` | `internal/le/test/weakened/approval_unit_test.go` | AC-11 (one unit in two directories is admitted by no line) | second review, issue 2 |
+| `TestCreateRefusesAnApprovalNamingTwoDirectoriesUnits` | `internal/le/commit/ledger_test.go` | AC-6 (weakening and RFC rows: one unit in two directories is refused) | second review, issue 2 |
+| `TestRFCChangeOKAdmitsNoUnitInTwoDirectories` | `internal/le/commit/ledger_test.go` | AC-6 (`rfc-change-ok` admits no unit changed in two directories) | third review |
+| `TestAMovedWeakenedTestIsOneSite` | `internal/le/commit/ledger_test.go` | AC-6, AC-7 (a weakened test moved between directories is one site and its one approval admits it) | third review |
+| `TestTrailerLandedAnswersOnlyWhatGitCanAnswer` | `internal/le/rfc/trailerlanded_test.go` | AC-9, R-4 (only "no repository" and "no commit" answer not landed; any other git failure is a problem) | third review |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -234,6 +240,17 @@ Owner approval: Thomas approved this table as written on 2026-10-24, at the
 write gate. It covers exactly these rows and changes; any other existing test
 stops the work for a new question. At the same gate he approved R-1's handling:
 shards holding other sessions' uncommitted rows stay on disk and are reported.
+
+Later approvals by Thomas on 2026-10-24, each for exactly the change stated:
+
+| Test | Change approved |
+|------|-----------------|
+| `commit` comment in `owed_answers_test.go` | the stale `rfcTagPattern` name becomes `rfc.HasRequirementTag` |
+| `commit.TestACarriedRedNamesTheRunThatClearsIt` | the fixture derives, from the verify engine's part dealing, a part that does not hold the stage under test and publishes that part green, instead of the hard-coded part 3 of 3; the assertions stay unchanged |
+| `ai/hooks` `hookSourcesDigest` | re-sealed with `fixtureSiteDigest` and `fixtureCatalogDigest` |
+| `ai/hooks` `probeLedgerRows` (`fixtures.go`) and `weakened.TestRowMatchesExactAndQualifiedFormsAreUnaffectedByScope` | the probe row names `<pkg>.TestLedgered`; the "plain name must still match" case is removed, because bare names are refused (review issue 1) |
+| `weakened` helper `newParityRepository` (`parity_test.go`) | its incidental shard write is removed; no assertion involved |
+| `weakened.TestCheckDoesNotReadLedgerWhenPopulationIsClean` | writes a malformed approval file instead of none, so a check that read the file would fail (stricter) |
 
 ### `internal/le/test/weakened`
 | Test | Change | Why |
@@ -446,6 +463,8 @@ shards holding other sessions' uncommitted rows stay on disk and are reported.
 ## Known Limitations
 - A worktree agent cannot see the main checkout's `tmp/` approval file, as for RFC approvals today; worktree agents never commit to main.
 - `create ... session <ns>` naming an agent namespace reads that namespace's approval file, as for RFC today.
+- A unit keeps only its directory's base name, so `cmd.TestX` names `TestX` in every `cmd` directory. A commit that changes one unit in more than one directory is refused by the commit gate, which names the directories and asks for the commit to be split; the audit lets no approval line admit either test. The owner grammar stays `<package>.<TestName>`.
+- Two kinds of test cannot be approved at all: a `.ci` or `.et` file whose stem holds a dot (the unit then has two dots), and a test file at the repository root (its package side is empty). `approvalUnitPattern` (`internal/le/rfc/approve.go`) refuses both, at the writer and at every reader.
 
 ## Checklist
 

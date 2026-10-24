@@ -251,14 +251,14 @@ func TestRenameRewritesCitationsAndListsPlainMentions(t *testing.T) {
 	}
 }
 
-// VALIDATES: AC-6 -- a record tree the link sweep exempts (a weakened shard, a
-// journal row) keeps the old path byte for byte and is neither listed as a
+// VALIDATES: AC-6 -- a record tree the link sweep exempts (a journal row)
+// keeps the old path byte for byte and is neither listed as a
 // citation nor as a mention, while a policed doc beside them is rewritten.
-// PREVENTS: a rename editing another session's weakened shard, which
-// `./le commit create` refuses to carry, or a journal row past its length cap.
+// PREVENTS: a rename editing a record another session owns, or a journal row
+// past its length cap.
 func TestRenameLeavesUnpolicedRecordsUntouched(t *testing.T) {
 	root := renameFixture(t)
-	records := []string{"test/weakened/x.md", "plan/journal/y.md"}
+	records := []string{"plan/journal/x.md", "plan/journal/y.md"}
 	writeFixtureFiles(t, root, map[string]string{records[0]: renameDocBody, records[1]: renameDocBody})
 	commitFixture(t, root, "records")
 

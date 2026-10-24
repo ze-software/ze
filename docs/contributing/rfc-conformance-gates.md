@@ -1476,8 +1476,8 @@ the old path in a tracked file the link sweep polices, by the sweep's own
 grammar (`Paths` in `internal/le/doc/citation`), and lists every other line of
 such a file that mentions the file's base name, for a reader to judge. The
 sweep's exemptions decide which files those are (`Policed` in the same
-package): a record tree such as `plan/journal/`, `plan/learned/`, a spec, or
-`test/weakened/` keeps the old path byte for byte and is not listed, because a
+package): a record tree such as `plan/journal/`, `plan/learned/` or a spec
+keeps the old path byte for byte and is not listed, because a
 path in a record is a fact about the day it was written. The learned indexes
 and the other live files under those trees stay policed and are rewritten. A citation the grammar expands from
 braces holds no literal path to rewrite, so a line that still cites the old
@@ -1616,8 +1616,7 @@ tag says has nothing for them to compare against. That is the hole
 count of tags that carry one is published in `ai/RFC-REQUIREMENTS.md`, under
 "Claim discrimination", beside the backlog that does not.
 
-A weakening row in `test/weakened/<session>.md` is self-service, and it does NOT
-authorize weakening an RFC-tagged test. The owner's approval is recorded by
+An RFC-tagged test changes only with the owner's approval, recorded by
 `./le rfc approve unit <package>.<TestName> reason "<the owner's words>"` and
 carried by the commit as an `RFC-approved:` trailer;
 `docs/contributing/rfc-implementation-guide.md` says what the reason names.

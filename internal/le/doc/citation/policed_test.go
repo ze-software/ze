@@ -26,7 +26,6 @@ func TestPolicedKeepsCorpusFilesUnderRecordTrees(t *testing.T) {
 		{"plan/records/knowledge-routing-plan.md", false},
 		{"plan/release/fixes/spec-open.md", false},
 		{"plan/proposals/spec-idea.md", false},
-		{"test/weakened/8c4ad6c3.md", false},
 		{"vendor/example.com/x/README.md", false},
 	}
 	for _, tc := range cases {

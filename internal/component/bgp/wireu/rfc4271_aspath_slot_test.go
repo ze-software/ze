@@ -346,7 +346,7 @@ func TestASPathSlotEmptyPrependIsRefused(t *testing.T) {
 
 // The tests below moved here from aspath_rewrite_test.go when the whole-payload
 // rewrite was deleted on 2026-09-09. Each asserts the same property over the
-// rail that performs it now (test/weakened/49b0956f.md). Their fixtures gained
+// rail that performs it now (commit 23b5895c50). Their fixtures gained
 // probeAdvertisedNLRI, because RFC 4271 Section 5.1.2 b conditions the prepend
 // on a route being advertised and the old rail did not check.
 

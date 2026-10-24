@@ -481,31 +481,25 @@ func writeWeakening(ctx context) *verdict {
 	request := testweakened.ProposedRequest{Path: ctx.path, Tool: ctx.tool, ToolInput: testweakened.ProposedToolInput{
 		FilePath: ctx.path, Content: stringInput(ctx.input, "content"), OldString: stringInput(ctx.input, "old_string"), NewString: stringInput(ctx.input, "new_string"),
 	}}
-	// The ledger shards are named after the commit namespace, so the hook
-	// judges the edit against the shard the SAME agent writes: a subagent's
-	// payload names its agent, and its shard is its own.
-	// The payload identity wins over ambient process state for the same reason
-	// it does everywhere else in this package.
-	// A subagent with no usable payload session id would leave the request
-	// unnamed, and Proposed would judge it against the ambient namespace,
-	// which is the main thread's: refuse rather than share that shard.
+	// An owner approval is keyed on the main thread's commit namespace,
+	// because Thomas answers the main thread: a subagent's edit is judged
+	// against the approvals its main thread recorded. The payload identity
+	// wins over ambient process state for the same reason it does everywhere
+	// else in this package. A subagent with no usable payload session id would
+	// leave the request unnamed, and Proposed would judge it against the
+	// ambient namespace, which may belong to another main thread: refuse.
 	id, _ := payloadSessionID(ctx.payload)
 	if id == "" && ctx.payload.AgentID != "" {
-		return &verdict{2, red + bold + "BLOCKED: native weakening check cannot name this subagent's shard" + reset +
-			"\n  agent " + strconv.Quote(ctx.payload.AgentID) + " arrived with a session_id that is absent or not a file name, so its commit namespace is unknown." +
-			"\n  Judged without it, the edit would be checked against the main thread's shard." +
+		return &verdict{2, red + bold + "BLOCKED: native weakening check cannot name the owner approval namespace of this subagent's edit" + reset +
+			"\n  agent " + strconv.Quote(ctx.payload.AgentID) + " arrived with a session_id that is absent or not a file name, so its main thread is unknown." +
+			"\n  Judged without it, the edit would be checked against another main thread's approvals." +
 			"\n  Next: stop and report the payload's session_id to the main thread."}
 	}
 	if id != "" {
-		session, err := lepath.CommitSessionFor(ctx.root, id, ctx.payload.AgentID)
-		if err != nil {
-			return &verdict{2, red + bold + "BLOCKED: native weakening check could not resolve the commit namespace" + reset + "\n  " + err.Error()}
-		}
 		approval, err := lepath.CommitSessionFor(ctx.root, id, "")
 		if err != nil {
-			return &verdict{2, red + bold + "BLOCKED: native weakening check could not resolve the RFC approval namespace" + reset + "\n  " + err.Error()}
+			return &verdict{2, red + bold + "BLOCKED: native weakening check could not resolve the owner approval namespace" + reset + "\n  " + err.Error()}
 		}
-		request.Session = session
 		request.ApprovalSession = approval
 	}
 	if value, ok := ctx.input["replace_all"].(bool); ok {

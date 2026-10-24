@@ -3,8 +3,6 @@
 
 package aihooks
 
-import testweakened "github.com/ze-software/ze/internal/le/test/weakened"
-
 // fixtureSites contains one typed row per Results.check callsite in category order.
 // Loop-backed callsites carry a generator whose labels expand to concrete runtime names.
 var fixtureSites = [...]fixtureSite{
@@ -253,12 +251,12 @@ var fixtureSites = [...]fixtureSite{
 	{category: categoryRFCTestGuard, name: "rfc-guard-one-line-func-neighbor-still-blocks", expectedExit: -1},
 	{category: categoryRFCTestGuard, name: "rfc-guard-unlocatable-hunk-fails-closed", expectedExit: -1},
 	{category: categoryRFCTestGuard, name: "rfc-guard-untagged-file-unaffected", expectedExit: 0},
-	{category: categoryWeakenedHatch, name: "weakened-missing-row-refuses-the-edit", expectedExit: 2, messages: []fixtureMessage{{match: matchContains, text: ribHoldsRow}, {match: matchContains, text: testweakened.WeakenedDir + "/"}, {match: matchContains, text: "WRITE THE ROW FIRST"}}},
+	{category: categoryWeakenedHatch, name: "weakened-missing-row-refuses-the-edit", expectedExit: 2, messages: []fixtureMessage{{match: matchContains, text: ribHoldsApproval}, {match: matchContains, text: "./le test weakened approve unit "}, {match: matchContains, text: "ask Thomas first"}}},
 	{category: categoryWeakenedHatch, name: "weakened-row-opens-the-hatch", expectedExit: 0},
-	{category: categoryWeakenedHatch, name: "weakened-row-for-another-test-buys-nothing", expectedExit: 2, messages: []fixtureMessage{{match: matchContains, text: ribHoldsRow}}},
+	{category: categoryWeakenedHatch, name: "weakened-row-for-another-test-buys-nothing", expectedExit: 2, messages: []fixtureMessage{{match: matchContains, text: ribHoldsApproval}}},
 	{category: categoryWeakenedHatch, name: "weakened-qualified-row-opens-the-hatch", expectedExit: 0},
 	{category: categoryWeakenedHatch, name: "weakened-wrong-package-qualifier-buys-nothing", expectedExit: 2},
-	{category: categoryWeakenedHatch, name: "weakened-write-overwrite-needs-a-row", expectedExit: 2, messages: []fixtureMessage{{match: matchContains, text: ribHoldsRow}}},
+	{category: categoryWeakenedHatch, name: "weakened-write-overwrite-needs-a-row", expectedExit: 2, messages: []fixtureMessage{{match: matchContains, text: ribHoldsApproval}}},
 	{category: categoryWeakenedHatch, name: "weakened-write-overwrite-row-opens-the-hatch", expectedExit: 0},
 	{category: categoryWeakenedHatch, name: "weakened-row-does-not-authorize-an-rfc-tagged-test", expectedExit: 2, messages: []fixtureMessage{{match: matchContains, text: "RFC-tagged test"}}},
 	{category: categoryWeakenedHatch, name: "weakened-count-drop-still-only-notices", expectedExit: 0, messages: []fixtureMessage{{match: matchContains, text: "removing assertions"}}},

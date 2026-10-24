@@ -10,22 +10,15 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	"github.com/ze-software/ze/internal/le/rfc"
 	testweakened "github.com/ze-software/ze/internal/le/test/weakened"
 )
 
-var rfcTagPattern = regexp.MustCompile(`RFC requirement:\s*[A-Za-z0-9][A-Za-z0-9._/-]*(?:\s+(?:positive|negative))?`)
-
-// RFCChange is one changed RFC-tagged test unit requiring owner approval.
-type RFCChange struct {
-	Path    string   `json:"path"`
-	Package string   `json:"package"`
-	Name    string   `json:"name"`
-	Tags    []string `json:"tags"`
-}
+// RFCChange is one changed RFC-tagged test unit requiring owner approval, as
+// rfc.ChangedUnits splits a file into units.
+type RFCChange rfc.UnitChange
 
 // RFCApprovals is what the gate learned from this session's approval file:
 // the trailer line for each row the commit uses, and the exact file lines the
@@ -85,7 +78,7 @@ func rfcChangeProblems(
 		if problem != "" {
 			return nil, approvals, []string{"RFC-tagged change gate could not run: " + problem}
 		}
-		if oldText == "" || !rfcTagPattern.MatchString(oldText) {
+		if oldText == "" || !rfc.HasRequirementTag(oldText) {
 			continue
 		}
 		newText := ""
@@ -96,40 +89,29 @@ func rfcChangeProblems(
 			}
 			newText = string(content)
 		}
-		changes = append(changes, changedRFCUnits(newPathOrOld(newPath, oldPath), oldText, newText)...)
-	}
-	content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(approvals.Path))) //nolint:gosec // the path is this session's own tmp/ file under the checkout root
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return changes, approvals, []string{"cannot read " + approvals.Path + ": " + err.Error()}
-	}
-	rows := []testweakened.Row(nil)
-	lines := []string(nil)
-	if err == nil {
-		var problems []string
-		rows, problems = testweakened.ParseLedger(string(content), approvals.Path)
-		if len(problems) != 0 {
-			return changes, approvals, problems
+		for _, unit := range rfc.ChangedUnits(newPathOrOld(newPath, oldPath), oldText, newText) {
+			changes = append(changes, RFCChange(unit))
 		}
-		lines = strings.Split(string(content), "\n")
+	}
+	// The one loader the edit hook and the weakening gate read this file
+	// with: it refuses a malformed row and a bare unit, and marks each row a
+	// landed commit already carries.
+	rows, problems := testweakened.LoadApprovals(root, testweakened.RFCApprovals(session))
+	if len(problems) != 0 {
+		return changes, approvals, problems
 	}
 	claimed := make([]bool, len(changes))
 	landedBy := make([]string, len(changes))
 	for _, row := range rows {
-		line := lines[row.Line-1]
-		trailer := rfc.ApprovalTrailerLine(row.Name, row.Reason)
-		carrier, landed, problem := trailerLanded(root, trailer)
-		if problem != "" {
-			return changes, approvals, []string{"RFC-tagged change gate could not run: " + problem}
-		}
-		if landed {
+		if row.Carrier != "" {
 			// A commit already carries this trailer, so the row did its work
 			// and the prune that should have removed it did not run. It
 			// approves nothing further and leaves with this commit; the
 			// refusal for a unit it names says which commit used it.
-			approvals.Dropped = append(approvals.Dropped, line)
+			approvals.Dropped = append(approvals.Dropped, row.Text)
 			for index, change := range changes {
 				if testweakened.RowMatches(row.Name, change.Package, change.Name) {
-					landedBy[index] = carrier
+					landedBy[index] = row.Carrier
 				}
 			}
 			continue
@@ -142,11 +124,11 @@ func rfcChangeProblems(
 			}
 		}
 		if used {
-			approvals.Trailers = append(approvals.Trailers, trailer)
-			approvals.Dropped = append(approvals.Dropped, line)
+			approvals.Trailers = append(approvals.Trailers, row.Trailer)
+			approvals.Dropped = append(approvals.Dropped, row.Text)
 		}
 	}
-	problems := make([]string, 0)
+	problems = make([]string, 0)
 	for index, change := range changes {
 		if claimed[index] {
 			continue
@@ -164,97 +146,11 @@ func rfcChangeProblems(
 	return changes, approvals, problems
 }
 
-// trailerLanded reports whether a commit in this repository already carries
-// one trailer line, which is how the gate knows a row was used, and names
-// that commit as `<short hash> <subject>` for the refusal.
-//
-// `git log --grep` matches a substring, so a landed trailer whose reason
-// EXTENDS this one would answer for it. It only narrows the candidates: the
-// verdict is a whole message line equal to the trailer.
-func trailerLanded(root, trailer string) (carrier string, landed bool, problem string) {
-	command := exec.CommandContext(context.Background(), "git", "log", "--fixed-strings", "--grep="+trailer, "--format=%x1e%h %s%x1f%B") // #nosec G204 -- fixed Git query; the trailer is one argv operand.
-	command.Dir = root
-	var stdout bytes.Buffer
-	var complaint bytes.Buffer
-	command.Stdout = &stdout
-	command.Stderr = &complaint
-	if err := command.Run(); err != nil {
-		if _, ok := errors.AsType[*exec.ExitError](err); ok && strings.Contains(complaint.String(), "does not have any commits") {
-			return "", false, ""
-		}
-		return "", false, "git log --grep failed: " + strings.TrimSpace(complaint.String())
-	}
-	for record := range strings.SplitSeq(stdout.String(), "\x1e") {
-		name, body, found := strings.Cut(record, "\x1f")
-		if !found {
-			continue
-		}
-		for line := range strings.SplitSeq(body, "\n") {
-			if strings.TrimSpace(line) == trailer {
-				return strings.TrimSpace(name), true, ""
-			}
-		}
-	}
-	return "", false, ""
-}
-
-func changedRFCUnits(path, oldText, newText string) []RFCChange {
-	packageName := filepath.Base(filepath.Dir(path))
-	if filepath.Dir(path) == "." {
-		packageName = ""
-	}
-	if rfc.ScopeReader(path) != rfc.ScopeGo || tagFallsOutsideFunction(path, oldText) {
-		if tags := rfc.ChangedTags(path, oldText, newText); len(tags) != 0 {
-			return []RFCChange{{Path: path, Package: packageName, Name: fileStem(path), Tags: tags}}
-		}
-		return nil
-	}
-	newByName := make(map[string][]string)
-	for _, unit := range rfc.FunctionUnits(newText) {
-		newByName[unit.Name] = append(newByName[unit.Name], unit.Text)
-	}
-	changes := make([]RFCChange, 0)
-	for _, unit := range rfc.FunctionUnits(oldText) {
-		if !rfcTagPattern.MatchString(unit.Text) {
-			continue
-		}
-		newUnit := ""
-		if len(newByName[unit.Name]) == 1 {
-			newUnit = newByName[unit.Name][0]
-		}
-		tags := rfc.ChangedTags(path, unit.Text, newUnit)
-		if len(tags) == 0 {
-			continue
-		}
-		name := unit.Name
-		if name == "" {
-			name = fileStem(path)
-		}
-		changes = append(changes, RFCChange{Path: path, Package: packageName, Name: name, Tags: tags})
-	}
-	return changes
-}
-
-func tagFallsOutsideFunction(path, content string) bool {
-	for _, location := range rfcTagPattern.FindAllStringIndex(content, -1) {
-		line := 1 + strings.Count(content[:location[0]], "\n")
-		if rfc.UnitAt(path, content, line).Scope == rfc.ScopeFile {
-			return true
-		}
-	}
-	return false
-}
-
 func newPathOrOld(newPath, oldPath string) string {
 	if newPath != "" {
 		return newPath
 	}
 	return oldPath
-}
-
-func fileStem(path string) string {
-	name := filepath.Base(path)
-	return strings.TrimSuffix(name, filepath.Ext(name))
 }
 
 // committedText answers a path's bytes at a revision, whether the revision

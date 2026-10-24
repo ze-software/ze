@@ -1172,7 +1172,7 @@ func TestOrchestratorRollbackReverseTier(t *testing.T) {
 //
 // It replaces TestOrchestratorDependencyGraphDeadline, which asserted 13s for
 // the same participants. That answer was correct for a tier applied
-// concurrently, and nothing applies concurrently (test/weakened/4c26aef3.md).
+// concurrently, and nothing applies concurrently (commit 5d49ea61c1).
 //
 // VALIDATES: I-1 -- the apply and verify deadlines cover every participant in sequence.
 // PREVENTS: a reload that four plugins each take their declared budget to
@@ -1210,7 +1210,7 @@ func TestApplyDeadlineSumsEveryParticipantBudget(t *testing.T) {
 //
 // The other half went with its mechanism. That test made tierFn return an
 // error to reach the flat-max fallback branch, and the deadline no longer
-// calls tierFn at all (test/weakened/4c26aef3.md).
+// calls tierFn at all (commit 5d49ea61c1).
 //
 // VALIDATES: a participant set declaring no budget still gets a usable deadline.
 // PREVENTS: a zero deadline timing out the apply before the first plugin answers.

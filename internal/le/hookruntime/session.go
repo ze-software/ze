@@ -49,9 +49,9 @@ func runSessionID(ctx context, out, _ io.Writer) int {
 // writeParentSessionPrefix makes a subagent's Bash call resolve the identity
 // the harness gave it: the parent's session id, which keeps the session's
 // directory and scratch shared, and the agent's own id, which keys everything
-// one agent must own alone (its commit namespace, its weakened-test shard, its
-// debt file and its spec claim, in internal/le/le/path). Without the agent id
-// every sibling resolved one identity and shared all four
+// one agent must own alone (its commit namespace, its debt file and its spec
+// claim, in internal/le/le/path). Without the agent id every sibling resolved
+// one identity and shared all three
 // (plan/journal/concurrent-session-corruption.md). An agent id that cannot
 // name a file refuses the call with exit 2, because running it unprefixed
 // would run it as the main thread, which is the sharing this exists to end.
@@ -71,7 +71,7 @@ func writeParentSessionPrefix(ctx context, out, errOut io.Writer) int {
 		}
 		fmt.Fprintln(errOut, red+bold+"BLOCKED: this subagent's hook payload carries no usable session id"+reset+ //nolint:errcheck // hook protocol
 			"\n  agent "+strconv.Quote(agent)+" arrived with a session_id that is absent or not a file name."+
-			"\n  Run unprefixed, the command would act as the main thread and share its commit namespace, weakened-test shard and spec claim."+
+			"\n  Run unprefixed, the command would act as the main thread and share its commit namespace and spec claim."+
 			"\n  Next: stop and report the payload's session_id to the main thread. An id holds only letters, digits, '.', '_' and '-'.")
 		return 2
 	}
@@ -84,7 +84,7 @@ func writeParentSessionPrefix(ctx context, out, errOut io.Writer) int {
 		if _, err := lepath.AgentFingerprint(id, agent); err != nil {
 			fmt.Fprintln(errOut, red+bold+"BLOCKED: this subagent's identity cannot name its own files"+reset+ //nolint:errcheck // hook protocol
 				"\n  "+err.Error()+
-				"\n  Run unprefixed, the command would act as the main thread and share its commit namespace, weakened-test shard and spec claim."+
+				"\n  Run unprefixed, the command would act as the main thread and share its commit namespace and spec claim."+
 				"\n  Next: stop and report the agent id to the main thread. An id holds only letters, digits, '.', '_' and '-'.")
 			return 2
 		}

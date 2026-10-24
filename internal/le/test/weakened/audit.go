@@ -15,6 +15,10 @@ import (
 type AuditRequest struct {
 	Root string `json:"root"`
 	Base string `json:"base"`
+	// ApprovalSession is the namespace whose live approval files admit the
+	// worktree pass, as Request.ApprovalSession describes. Empty resolves the
+	// running harness's main thread.
+	ApprovalSession string `json:"approval-session,omitempty"`
 }
 
 // AuditFinding is one unexplained weakening in one parent-to-child comparison.
@@ -128,7 +132,14 @@ func Audit(request AuditRequest) AuditReport {
 		report.Findings = append(report.Findings, findings...)
 		report.Examined += examined
 	}
-	findings, examined, problem := auditDiff(request.Root, headRevision, "", nil)
+	// The worktree is not a commit, so no message carries its approvals: the
+	// live approval files do, as they do for the commit that will carry it.
+	live, problem := liveApprovalRows(request.Root, request.ApprovalSession)
+	if problem != "" {
+		report.Problem = problem
+		return report
+	}
+	findings, examined, problem := auditDiff(request.Root, headRevision, "", live)
 	if problem != "" {
 		report.Problem = problem
 		return report
@@ -155,7 +166,17 @@ type changedPath struct {
 	newPath string
 }
 
-func auditDiff(root, oldRevision, newRevision string, accepted []Row) ([]AuditFinding, int, string) {
+// auditApprovals is what admits a change in one audited diff. Weakening is
+// every unit whose weakening the owner approved, under either key: an RFC
+// approval of a unit approves its weakening too. RFC is only the units whose
+// RFC-tagged change he approved, so a Weakening-approved line never admits a
+// change to a tagged unit's requirement.
+type auditApprovals struct {
+	weakening []Row
+	rfc       []Row
+}
+
+func auditDiff(root, oldRevision, newRevision string, accepted auditApprovals) ([]AuditFinding, int, string) {
 	args := []string{"diff", "--name-status", "-M", oldRevision}
 	if newRevision != "" {
 		args = append(args, newRevision)
@@ -166,8 +187,8 @@ func auditDiff(root, oldRevision, newRevision string, accepted []Row) ([]AuditFi
 		return nil, 0, "git diff failed, so nothing was compared: " + strings.TrimSpace(stderr)
 	}
 	changes := parseChangedPaths(stdout)
-	findings := make([]AuditFinding, 0)
-	examined := 0
+	files := make([]auditFile, 0, len(changes))
+	sites := make([]UnitSite, 0)
 	for _, change := range changes {
 		if change.status == "A" {
 			continue
@@ -175,7 +196,6 @@ func auditDiff(root, oldRevision, newRevision string, accepted []Row) ([]AuditFi
 		if !isTestPath(change.oldPath) && !isTestPath(change.newPath) {
 			continue
 		}
-		examined++
 		oldText, problem := revisionText(root, oldRevision, change.oldPath)
 		if problem != "" {
 			return nil, 0, problem
@@ -203,47 +223,110 @@ func auditDiff(root, oldRevision, newRevision string, accepted []Row) ([]AuditFi
 		if filepath.Dir(path) == "." {
 			packageName = ""
 		}
-		rfcTags := rfc.ChangedTags(path, oldText, newText)
-		rfcDetails := make([]string, 0, 2)
-		if len(rfcTags) != 0 {
-			rfcDetails = append(rfcDetails,
-				"RFC-TAGGED test changed: "+strings.Join(rfcTags, ", "),
-				"only the OWNER approves this, and the approval is recorded with `./le rfc approve unit <package>.<TestName> reason \"<the owner's words>\"`, which the commit carries as an RFC-approved: trailer",
-			)
+		file := auditFile{
+			status: change.status, path: path, packageName: packageName,
+			verdicts: weakenedUnits(path, oldText, newText),
+			// Each tagged unit the change touched is judged on its own, with
+			// the splitter the commit gate uses, so an approved unit does not
+			// hide an unapproved one beside it in the same file.
+			rfcUnits: rfc.ChangedUnits(path, oldText, newText),
 		}
-		rfcReported := false
-		for _, verdict := range weakenedUnits(path, oldText, newText) {
-			if acceptedBy(accepted, path, packageName, verdict.name) {
-				continue
-			}
-			details := slices.Clone(verdict.details)
-			if strings.HasPrefix(change.status, "R") {
-				details = append([]string{"renamed file"}, details...)
-			}
-			if !rfcReported && len(rfcDetails) != 0 {
-				details = append(details, rfcDetails...)
-				rfcReported = true
-			}
-			kind := "WEAKENED"
-			if change.status == "D" {
-				kind = "DELETED"
-			}
-			findings = append(findings, AuditFinding{
-				Kind: kind, Path: path, Package: packageName, Name: verdict.name, Details: details,
-			})
+		for _, verdict := range file.verdicts {
+			sites = append(sites, UnitSite{Unit: packageName + "." + verdict.name, Path: path})
 		}
-		if len(rfcDetails) != 0 && !rfcReported {
-			details := slices.Clone(rfcDetails)
-			if strings.HasPrefix(change.status, "R") {
-				details = append([]string{"renamed file"}, details...)
-			}
-			findings = append(findings, AuditFinding{
-				Kind: "WEAKENED", Path: path, Package: packageName,
-				Name: strings.TrimSuffix(filepath.Base(path), filepath.Ext(path)), Details: details,
-			})
+		for _, unit := range file.rfcUnits {
+			sites = append(sites, UnitSite{Unit: packageName + "." + unit.Name, Path: path})
 		}
+		files = append(files, file)
 	}
-	return findings, examined, ""
+	// A unit the diff carries from two directories with one base name is
+	// named by no approval: the line cannot say which test Thomas approved.
+	shared := SharedUnits(sites)
+	findings := make([]AuditFinding, 0)
+	for _, file := range files {
+		findings = append(findings, file.judge(accepted, shared)...)
+	}
+	return findings, len(files), ""
+}
+
+// auditFile is one changed test file of an audited diff: what the detector
+// and the RFC splitter found in it, before any approval is applied.
+type auditFile struct {
+	status      string
+	path        string
+	packageName string
+	verdicts    []namedVerdict
+	rfcUnits    []rfc.UnitChange
+}
+
+// judge answers the findings of one file no approval admits. An approval of a
+// unit in shared admits nothing, and the finding says why.
+func (file *auditFile) judge(accepted auditApprovals, shared map[string][]string) []AuditFinding {
+	findings := make([]AuditFinding, 0)
+	admits := func(rows []Row, name string) bool {
+		if shared[file.packageName+"."+name] != nil {
+			return false
+		}
+		return acceptedBy(rows, file.packageName, name)
+	}
+	sharedDetail := func(details []string, name string) []string {
+		unit := file.packageName + "." + name
+		if directories := shared[unit]; directories != nil {
+			return append(details, SharedUnitProblem(unit, directories))
+		}
+		return details
+	}
+	status, path, packageName := file.status, file.path, file.packageName
+	rfcTags := make(map[string][]string)
+	for _, unit := range file.rfcUnits {
+		rfcTags[unit.Name] = unit.Tags
+	}
+	rfcUnits := file.rfcUnits
+	reported := make(map[string]bool)
+	for _, verdict := range file.verdicts {
+		if admits(accepted.weakening, verdict.name) {
+			continue
+		}
+		details := slices.Clone(verdict.details)
+		if strings.HasPrefix(status, "R") {
+			details = append([]string{"renamed file"}, details...)
+		}
+		if tags, tagged := rfcTags[verdict.name]; tagged {
+			details = append(details, rfcDetails(tags)...)
+			reported[verdict.name] = true
+		}
+		kind := "WEAKENED"
+		if status == "D" {
+			kind = "DELETED"
+		}
+		findings = append(findings, AuditFinding{
+			Kind: kind, Path: path, Package: packageName, Name: verdict.name,
+			Details: sharedDetail(details, verdict.name),
+		})
+	}
+	for _, unit := range rfcUnits {
+		if reported[unit.Name] || admits(accepted.rfc, unit.Name) {
+			continue
+		}
+		details := rfcDetails(unit.Tags)
+		if strings.HasPrefix(status, "R") {
+			details = append([]string{"renamed file"}, details...)
+		}
+		findings = append(findings, AuditFinding{
+			Kind: "WEAKENED", Path: path, Package: packageName, Name: unit.Name,
+			Details: sharedDetail(details, unit.Name),
+		})
+	}
+	return findings
+}
+
+// rfcDetails is what the audit says about one changed tagged unit no approval
+// names.
+func rfcDetails(tags []string) []string {
+	return []string{
+		"RFC-TAGGED test changed: " + strings.Join(tags, ", "),
+		"only the OWNER approves this, and the approval is recorded with `./le rfc approve unit <package>.<TestName> reason \"<the owner's words>\"`, which the commit carries as an RFC-approved: trailer",
+	}
 }
 
 func parseChangedPaths(output string) []changedPath {
@@ -262,51 +345,70 @@ func parseChangedPaths(output string) []changedPath {
 	return changes
 }
 
-// acceptedRows answers the weakening rows one commit carried.
-//
-// The ledger is one shard per commit session, so the commit names its own
-// rows: the shards it changed are the shards its author wrote. Concatenating
-// them is this reader's job, which is what makes a shard nobody else reads
-// safe to write.
-func acceptedRows(root, commit string) ([]Row, string) {
-	changed, stderr, code, started := gitCapture(root, "diff", "--name-only",
-		commit+"^", commit, "--", WeakenedDir)
+// acceptedRows answers the units one commit's owner approvals name: one row
+// per `Weakening-approved:` or `RFC-approved:` line of its message. The commit
+// is the record of what Thomas approved, so a later audit reads it there. A
+// line whose unit is not `<package>.<TestName>` approves nothing and is
+// skipped: it is never read as a bare test name, and the findings it might
+// have named are still reported. It cannot refuse the commit, because a
+// pushed message is history, and a prose sentence that opens with a trailer
+// key would then block every later audit over that commit.
+func acceptedRows(root, commit string) (auditApprovals, string) {
+	accepted := auditApprovals{}
+	message, stderr, code, started := gitCapture(root, "show", "-s", "--format=%B", commit)
 	if !started || code != 0 {
-		return nil, "git could not inspect accepted weakening rows from commit " +
+		return accepted, "git could not read the message of commit " +
 			shortRevision(commit) + ": " + strings.TrimSpace(stderr)
 	}
-	rows := make([]Row, 0)
-	for line := range strings.SplitSeq(strings.TrimSpace(changed), "\n") {
-		shard := strings.TrimSpace(line)
-		if shard == "" {
-			continue
+	for line := range strings.SplitSeq(message, "\n") {
+		for _, key := range []string{ApprovalTrailer, rfc.ApprovalTrailer} {
+			rest, found := strings.CutPrefix(strings.TrimSpace(line), key)
+			if !found {
+				continue
+			}
+			unit, reason, named := strings.Cut(rest, ": ")
+			if !named {
+				continue
+			}
+			if !rfc.ValidApprovalUnit(unit) {
+				continue
+			}
+			row := Row{Name: unit, Reason: reason}
+			accepted.weakening = append(accepted.weakening, row)
+			if key == rfc.ApprovalTrailer {
+				accepted.rfc = append(accepted.rfc, row)
+			}
 		}
-		if _, isShard := ShardSession(WeakenedDir, shard); !isShard {
-			continue
-		}
-		_, stderr, code, started := gitCapture(root, "cat-file", "-e", commit+":"+shard)
-		if !started {
-			return nil, "git could not inspect accepted weakening rows"
-		}
-		if code == 1 {
-			continue
-		}
-		if code != 0 {
-			return nil, "git could not read accepted weakening rows from commit " +
-				shortRevision(commit) + ": " + strings.TrimSpace(stderr)
-		}
-		content, problem := revisionText(root, commit, shard)
-		if problem != "" {
-			return nil, problem
-		}
-		parsed, problems := parseLedger(content, shard)
-		if len(problems) != 0 {
-			return nil, "cannot read accepted rows from commit " + shortRevision(commit) +
-				": " + strings.Join(problems, "; ")
-		}
-		rows = append(rows, parsed...)
 	}
-	return rows, ""
+	return accepted, ""
+}
+
+// liveApprovalRows answers the live rows of the session's two approval files,
+// which admit what the worktree weakens, split as acceptedRows splits a
+// commit's lines. LoadApprovals refuses a malformed row, and a row whose
+// trailer already landed approves nothing further, so it is left out.
+func liveApprovalRows(root, namespace string) (auditApprovals, string) {
+	accepted := auditApprovals{}
+	session, problem := approvalSession(Request{Root: root, ApprovalSession: namespace})
+	if problem != "" {
+		return accepted, problem
+	}
+	for _, source := range []ApprovalSource{WeakeningApprovals(session), RFCApprovals(session)} {
+		rows, problems := LoadApprovals(root, source)
+		if len(problems) != 0 {
+			return auditApprovals{}, strings.Join(problems, "; ")
+		}
+		for _, row := range rows {
+			if row.Carrier != "" {
+				continue
+			}
+			accepted.weakening = append(accepted.weakening, row.Row)
+			if source.Path == rfc.ApprovalPath(session) {
+				accepted.rfc = append(accepted.rfc, row.Row)
+			}
+		}
+	}
+	return accepted, ""
 }
 
 func revisionText(root, revision, path string) (string, string) {
@@ -320,12 +422,9 @@ func revisionText(root, revision, path string) (string, string) {
 	return stdout, ""
 }
 
-// acceptedBy checks path-scoped rows too, unlike the exported RowMatches: a
-// migration commit that retires a whole tree with one scoped row (see
-// scopedRowMatches in testweakened.go) must still read as explained when a later
-// audit walks that commit's own diff.
-func acceptedBy(rows []Row, path, packageName, name string) bool {
-	finding := Finding{Path: path, Package: packageName, Name: name}
+// acceptedBy reports whether an approval row names the unit.
+func acceptedBy(rows []Row, packageName, name string) bool {
+	finding := Finding{Package: packageName, Name: name}
 	for _, row := range rows {
 		if rowMatches(row.Name, finding) {
 			return true

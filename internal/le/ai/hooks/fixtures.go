@@ -43,11 +43,14 @@ var (
 	// Re-sealed 2026-10-23: the spec validator asks for any `./le test` or
 	// `./le verify` command rather than `./le verify worktree`, and the site
 	// validate-spec-verify-current-fast-accepted names the targeted form.
+	// Re-sealed 2026-10-24 for spec-weakening-approval-lives-in-the-commit: the
+	// weakened-hatch sites expect the `./le test weakened approve` command in
+	// place of a ledger shard row.
 	fixtureSiteDigest = [sha256.Size]byte{
-		0x87, 0x55, 0xa1, 0xc5, 0x0c, 0x08, 0x69, 0x1c,
-		0x3b, 0x4e, 0x71, 0xd2, 0x03, 0xac, 0x4e, 0x7a,
-		0xf0, 0xc5, 0xb8, 0x65, 0x2f, 0x8a, 0x12, 0x0d,
-		0x01, 0x90, 0xce, 0x02, 0x0e, 0x07, 0xb8, 0x52,
+		0x21, 0x14, 0x1e, 0x5d, 0xb2, 0xa2, 0x35, 0x6f,
+		0x4c, 0xac, 0xce, 0xc2, 0xe9, 0x7c, 0x2b, 0xb0,
+		0x18, 0xe0, 0xe9, 0xd4, 0x50, 0xb1, 0xd7, 0xf6,
+		0xc2, 0x44, 0xef, 0x64, 0x5d, 0x61, 0x6f, 0x8f,
 	}
 	// Re-sealed 2026-09-25 for the same spec, Phase 2: it hashes the site and
 	// category text above, which name the subject-first commands.
@@ -58,11 +61,14 @@ var (
 	// delegation fixture carries the same relocated spec path as its site.
 	// Re-sealed 2026-10-23: the expanded catalog carries the new
 	// validate-spec-verify-current-fast-accepted fixture.
+	// Re-sealed 2026-10-24 for spec-weakening-approval-lives-in-the-commit: the
+	// weakened-hatch fixture tree writes the owner's approval file under the
+	// main thread's commit namespace instead of a ledger shard.
 	fixtureCatalogDigest = [sha256.Size]byte{
-		0x35, 0x60, 0xc4, 0x56, 0xb5, 0x77, 0x03, 0xc9,
-		0xbc, 0xd7, 0xd8, 0xea, 0xa9, 0x1a, 0x5e, 0x79,
-		0xcf, 0x03, 0xd0, 0x39, 0x37, 0xb4, 0x9d, 0x31,
-		0x1b, 0x07, 0x27, 0x88, 0xca, 0x16, 0x0d, 0xd6,
+		0x88, 0xbc, 0x2e, 0x47, 0x0a, 0x1e, 0xf7, 0x54,
+		0xfb, 0x82, 0xac, 0x08, 0x60, 0x5a, 0x5f, 0x1b,
+		0x67, 0xc2, 0xa1, 0x04, 0x7a, 0x87, 0x1b, 0xcc,
+		0x86, 0x9d, 0xb6, 0xd9, 0xb1, 0xff, 0xee, 0x49,
 	}
 	// Re-sealed 2026-09-24 for spec-le-subject-first-command-tree:
 	// the design-ref producer moved from internal/le/consistency to
@@ -224,11 +230,20 @@ var (
 	// Re-sealed 2026-10-23 (spec-verification-debt-derived, review round 2):
 	// the reportDerivedDebt comment now defers to derivedDebt.owed and names
 	// the warning for a covered HEAD whose push is refused. Comment only.
+	// Re-sealed 2026-10-24 for spec-weakening-approval-lives-in-the-commit:
+	// writeWeakening keys the approval on the main thread's commit namespace,
+	// and the session-start text no longer names ledger shards. Re-sealed
+	// again for its review: the hook reads approvals through the shared
+	// LoadApprovals, which refuses a bare unit and a row a landed commit used.
+	// Re-sealed again for its second review: the audit skips a message line
+	// whose unit is malformed, the shared approval code refuses one unit
+	// changed in two directories (SharedUnits), and rfc.TrailerLanded exempts
+	// only git's exact "not a git repository" message.
 	hookSourcesDigest = [sha256.Size]byte{
-		0x32, 0x13, 0x70, 0xda, 0x35, 0x83, 0x47, 0xb8,
-		0xba, 0xac, 0x1e, 0xb5, 0x96, 0x04, 0xe0, 0x53,
-		0xe4, 0x0d, 0x04, 0x3c, 0x96, 0xb7, 0xdd, 0x39,
-		0xa0, 0xbb, 0x5b, 0x8d, 0x34, 0xbc, 0x8a, 0xaf,
+		0xd2, 0x9c, 0x5e, 0xdc, 0xc4, 0xb7, 0x5e, 0x9f,
+		0x67, 0x31, 0x21, 0xd6, 0x15, 0x3f, 0x87, 0xf4,
+		0x40, 0xb2, 0xfa, 0x9a, 0xe8, 0x8b, 0xe9, 0x54,
+		0x10, 0x5e, 0x46, 0x5a, 0x37, 0xbb, 0xc8, 0x5c,
 	}
 )
 
@@ -868,10 +883,10 @@ func TestUnledgered(t *testing.T) {
 `
 )
 
-// probeLedgerRows is a ledger holding one row, naming TestLedgered. The
+// probeLedgerRows is a ledger holding one row, naming probe.TestLedgered. The
 // weakening ledger and the session's RFC approval file parse through the
 // same table grammar, so one body serves both.
-const probeLedgerRows = "| Test | Reason |\n| --- | --- |\n| TestLedgered | the row the probe authorizes |\n"
+const probeLedgerRows = "| Test | Reason |\n| --- | --- |\n| probe.TestLedgered | the row the probe authorizes |\n"
 
 // rfcGuardTree builds a checkout holding the tagged test as it stands and no
 // RFC approval file, so an edit that changes what the tagged unit proves has
@@ -886,20 +901,18 @@ func rfcApprovalTree(string) (string, error) {
 	return probeLedgerTree("rfc-approval", probeTwoTaggedTests, lepath.SessionCommitSession, rfc.ApprovalPath)
 }
 
-// weakenedHatchTree adds the weakening ledger to two untagged units, one of
-// which a row names.
+// weakenedHatchTree adds the owner's weakening approval file to two untagged
+// units, one of which a row names.
 func weakenedHatchTree(string) (string, error) {
-	return probeLedgerTree("weakened-hatch", probeUntaggedTests, commitSessionOf, func(session string) string {
-		return testweakened.ShardPath(testweakened.WeakenedDir, session)
-	})
+	return probeLedgerTree("weakened-hatch", probeUntaggedTests, lepath.SessionCommitSession, testweakened.ApprovalPath)
 }
 
 // probeLedgerTree writes the ledger rows at the path THIS tree resolves for
 // the running session, rather than at a fixed file name. The hook derives the
 // same path from the same identity, so the fixture proves the derivation as
 // well as the row matching: a file written anywhere else would read as absent.
-// namespace is the resolver the reader keys the file on: the running agent's
-// own namespace for a weakening shard, the main thread's for an RFC approval.
+// namespace is the resolver the reader keys the file on: the main thread's,
+// for a weakening approval and an RFC approval alike.
 func probeLedgerTree(name, test string, namespace func(root string) (string, error), ledgerPath func(session string) string) (string, error) {
 	root, err := committedProbeTree(name, map[string]string{probeTestPath: test})
 	if err != nil {
@@ -1384,7 +1397,7 @@ const (
 // The remaining producer files and repeated fixture strings.
 const (
 	labelDotDot             = "dot-dot"
-	ribHoldsRow             = "| TestRibHolds |"
+	ribHoldsApproval        = ".TestRibHolds reason \""
 	hookWriteEditFile       = "internal/le/hookruntime/writeedit.go"
 	hookBashFile            = "internal/le/hookruntime/bash.go"
 	hookPostWriteFile       = "internal/le/hookruntime/postwrite.go"
@@ -1401,9 +1414,3 @@ const proposedVerbAnchor = `Verb:   "proposed"`
 const (
 	labelTrailingNewline = "trailing-newline"
 )
-
-// commitSessionOf is the running process's own commit namespace, agent
-// included, which is the one a weakening shard is named after.
-func commitSessionOf(root string) (string, error) {
-	return lepath.CommitSession(root, "")
-}

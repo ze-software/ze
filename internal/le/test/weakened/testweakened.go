@@ -1,5 +1,5 @@
 // Design: docs/architecture/testing/test-health.md -- HEAD/worktree comparison and pairing
-// Related: ledger.go -- the fail-closed contract reader.
+// Related: ledger.go -- the fail-closed approval row reader; approve.go -- the approval writer.
 // Related: detector.go, scope.go -- verdict production and unit naming.
 package testweakened
 
@@ -32,19 +32,16 @@ type RenamePair struct {
 // come from one commit, not from a scan of the shared worktree.
 type Request struct {
 	Root string `json:"root"`
-	// Session is the commit namespace whose ledger shard this request reads.
-	// Empty resolves the running harness's own, which is what every live
-	// caller wants; a test names two sessions to drive two authors.
-	Session string `json:"session,omitempty"`
-	// Children is the commit namespaces of the subagents of the main thread
-	// that owns Session, whose shards a commit of Session may carry: the main
-	// thread commits work a subagent did, row included. Empty with an empty
-	// Session resolves the running harness's own (lepath.ChildCommitSessions).
-	Children    []string     `json:"children,omitempty"`
-	Paths       []string     `json:"paths,omitempty"`
-	Removed     []string     `json:"removed,omitempty"`
-	RenamePairs []RenamePair `json:"rename-pairs,omitempty"`
-	Anchor      string       `json:"anchor,omitempty"`
+	// ApprovalSession is the commit namespace whose owner approvals admit this
+	// request's weakenings: the main thread's, because Thomas answers the main
+	// thread and a subagent's edit is the main thread's work
+	// (lepath.SessionCommitSession). Empty resolves the running harness's main
+	// thread; a test names it to drive a fixture.
+	ApprovalSession string       `json:"approval-session,omitempty"`
+	Paths           []string     `json:"paths,omitempty"`
+	Removed         []string     `json:"removed,omitempty"`
+	RenamePairs     []RenamePair `json:"rename-pairs,omitempty"`
+	Anchor          string       `json:"anchor,omitempty"`
 }
 
 // Finding is one weakened unit and the ordered detector verdicts for it.
@@ -55,8 +52,27 @@ type Finding struct {
 	Details []string `json:"details"`
 }
 
+// Unit names the finding the way an owner approval and its trailer do,
+// `<package>.<TestName>`.
+func (f Finding) Unit() string {
+	return f.Package + "." + f.Name
+}
+
+// Approvals is what the check learned from one owner approval file: the
+// trailer line for each row the commit uses, and the exact file lines the
+// generated commit script drops once the commit lands. Dropped holds the used
+// rows and every row whose trailer git already carries: a row a landed commit
+// used approves nothing further, even when the prune that should have removed
+// it did not run.
+type Approvals struct {
+	Path     string   `json:"path"`
+	Trailers []string `json:"trailers,omitempty"`
+	Dropped  []string `json:"dropped,omitempty"`
+}
+
 // Result is the structured answer from Check.
 type Result struct {
+	// Contract is the weakening approval file the check read.
 	Contract    string    `json:"contract"`
 	Anchor      string    `json:"anchor,omitempty"`
 	Rows        int       `json:"rows"`
@@ -65,32 +81,20 @@ type Result struct {
 	Findings    []Finding `json:"findings,omitempty"`
 	Problems    []string  `json:"problems,omitempty"`
 	Comparison  bool      `json:"comparison"`
-	// Shards is the whole ledger population, one entry per session holding
-	// rows. The live shape check answers it, so an author reads whose rows
-	// are in the ledger without preparing a commit.
-	Shards []Shard `json:"shards,omitempty"`
-	// Keep is, for each shard the commit under test carries, the rows of it
-	// that commit uses. PruneLanded removes every other row git already holds
-	// at HEAD, and leaves a row that has not landed for the writer who has
-	// yet to commit it.
-	Keep map[string][]Row `json:"keep,omitempty"`
-	// Landed counts the rows ignored because git holds them at HEAD.
-	Landed int `json:"landed,omitempty"`
+	// Approvals is what the commit carries from the weakening approval file.
+	Approvals Approvals `json:"approvals"`
+	// RFCApprovals is each RFC approval row that admitted a weakening: an
+	// owner who approved a change to a tagged unit approved its weakening too,
+	// so the commit carries that row's `RFC-approved:` trailer.
+	RFCApprovals Approvals `json:"rfc-approvals"`
 }
 
-// Check performs either the live no-path shape check or one exact HEAD/worktree
-// comparison. Every fixture and the command action use this function.
+// Check judges one exact HEAD/worktree comparison: every unit the change
+// weakens must be named by a live owner approval row, in the session's
+// weakening approval file or its RFC approval file. A request that names no
+// path compares nothing. The selftest, the fixtures and the commit gate use
+// this function; the edit hook reads the same files through Proposed.
 func Check(request Request) Result {
-	return check(request, true)
-}
-
-// CheckCommit judges a prospective commit. When ledgerCarried is false, rows
-// present only in the shared worktree cannot accept the commit's weakening.
-func CheckCommit(request Request, ledgerCarried bool) Result {
-	return check(request, ledgerCarried)
-}
-
-func check(request Request, ledgerCarried bool) Result {
 	var result Result
 	if request.Root == "" {
 		var text textbuf.Buffer
@@ -103,30 +107,13 @@ func check(request Request, ledgerCarried bool) Result {
 		result.Problems = []string{text.Str(cannotRunPrefix).Err(err).String()}
 		return result
 	}
-	session, shard, problem := sessionShard(request.Root, WeakenedDir, request.Session)
+	session, problem := approvalSession(request)
 	if problem != "" {
 		result.Problems = []string{problem}
 		return result
 	}
-	children, problem := requestChildren(request)
-	if problem != "" {
-		result.Problems = []string{problem}
-		return result
-	}
-	result.Contract = shard
+	result.Contract = ApprovalPath(session)
 	if len(request.Paths) == 0 && len(request.Removed) == 0 {
-		shards, err := ReadShards(request.Root, WeakenedDir, session)
-		if err != nil {
-			var text textbuf.Buffer
-			result.Problems = []string{text.Str(cannotRunPrefix).Str("cannot read ").
-				Str(WeakenedDir).Str(": ").Err(err).String()}
-			return result
-		}
-		result.Shards = shards
-		for _, held := range shards {
-			result.Rows += len(held.Rows)
-			result.Problems = append(result.Problems, held.Problems...)
-		}
 		return result
 	}
 
@@ -154,75 +141,118 @@ func check(request Request, ledgerCarried bool) Result {
 		return result
 	}
 
-	if !ledgerCarried {
-		result.Problems = unmatchedProblems(shard, nil, findings)
-		var text textbuf.Buffer
-		result.Problems = append(result.Problems, text.Str("this commit weakens ").
-			Int(int64(len(findings))).Str(" test(s) and does not carry ").
-			Str(shard).Str(". The row is in the working tree only, so git history ").
-			Str("would hold the weakening with no reason beside it. Name the file too:\n    file ").
-			Str(shard).String())
+	weakening, problems := loadApprovalFile(request.Root, WeakeningApprovals(session))
+	if len(problems) != 0 {
+		result.Problems = problems
 		return result
 	}
-	// The rows that may accept this commit are those of the shards it
-	// carries, its own and its subagents'. A check that names no shard (the
-	// live action) reads this session's own.
-	carried := CarriedShards(session, children, request.Paths)
-	if len(carried) == 0 {
-		carried = []string{shard}
-	}
-	ledgers := make([]ledger, 0, len(carried))
-	for _, path := range carried {
-		rows, exists, readProblem := loadLedger(request.Root, path)
-		if readProblem != "" {
-			result.Problems = []string{readProblem}
-			return result
-		}
-		if !exists {
-			continue
-		}
-		parsed, parseProblems := parseLedger(rows, path)
-		result.Rows += len(parsed)
-		result.Problems = slices.Concat(result.Problems, parseProblems,
-			liveScopeProblems(path, request.Removed, parsed, findings))
-		ledgers = append(ledgers, ledger{path: path, rows: parsed, landed: LandedRows(request.Root, path)})
-	}
-	if len(ledgers) == 0 {
-		result.Problems = []string{writeTheShard(shard, findings)}
+	owner, problems := loadApprovalFile(request.Root, RFCApprovals(session))
+	if len(problems) != 0 {
+		result.Problems = problems
 		return result
 	}
-	result.Problems = append(result.Problems, unmatchedProblems(shard, ledgers, findings)...)
-	result.Keep = make(map[string][]Row, len(ledgers))
-	for _, held := range ledgers {
-		keep, landed := keptRows(held.rows, findings)
-		result.Keep[held.path] = keep
-		result.Landed += landed
+	result.Rows = len(weakening.rows)
+	result.Approvals.Path = weakening.path
+	result.RFCApprovals.Path = owner.path
+	// Every landed weakening row leaves with this commit: it already did its
+	// work. The RFC approval file's landed rows are its own gate's to drop.
+	for _, row := range weakening.rows {
+		if row.Carrier != "" {
+			result.Approvals.Dropped = append(result.Approvals.Dropped, row.Text)
+		}
+	}
+	for _, finding := range findings {
+		claimed, carrier := claimFinding(&result.Approvals, &weakening, finding)
+		if !claimed {
+			var fromOwner string
+			claimed, fromOwner = claimFinding(&result.RFCApprovals, &owner, finding)
+			if carrier == "" {
+				carrier = fromOwner
+			}
+		}
+		if !claimed {
+			result.Problems = append(result.Problems, unapprovedProblem(finding, carrier))
+		}
 	}
 	return result
 }
 
-// ledger is one carried shard as the check reads it: its rows and the rows git
-// already holds for it at HEAD.
-type ledger struct {
-	path   string
-	rows   []Row
-	landed map[string]bool
+// approvalSession answers the namespace whose approval files admit request,
+// as Request.ApprovalSession describes, refusing one that is not a namespace
+// before it names a file under tmp/.
+func approvalSession(request Request) (string, string) {
+	var text textbuf.Buffer
+	if request.ApprovalSession != "" {
+		if !lepath.ValidCommitSession(request.ApprovalSession) {
+			return "", text.Str(cannotRunPrefix).Str("approval session ").Str(request.ApprovalSession).
+				Str(" is not a commit namespace (8 lowercase hexadecimal characters)").String()
+		}
+		return request.ApprovalSession, ""
+	}
+	session, err := lepath.SessionCommitSession(request.Root)
+	if err != nil {
+		return "", text.Str(cannotRunPrefix).
+			Str("cannot resolve this session's approval namespace: ").Err(err).String()
+	}
+	return session, ""
 }
 
-// requestChildren answers the subagent namespaces whose shards this request's
-// commit may carry. A request naming its session names its children too, so a
-// test drives a parent and its agents without the ambient identity.
-func requestChildren(request Request) ([]string, string) {
-	if request.Session != "" {
-		return request.Children, ""
+// approvalFile is one owner approval file as the check reads it. used marks
+// the rows this commit claimed, so each row's trailer is carried once.
+type approvalFile struct {
+	path string
+	rows []ApprovalRow
+	used map[int]bool
+}
+
+// loadApprovalFile reads one approval file through LoadApprovals, the loader
+// the edit hook and the audit share.
+func loadApprovalFile(root string, source ApprovalSource) (approvalFile, []string) {
+	rows, problems := LoadApprovals(root, source)
+	return approvalFile{path: source.Path, rows: rows, used: make(map[int]bool)}, problems
+}
+
+// claimFinding marks the first live row of file that names finding as used,
+// recording its trailer and file line in approvals once. It answers whether a
+// live row claimed the finding and, when none did, the commit that already
+// used a row naming it.
+func claimFinding(approvals *Approvals, file *approvalFile, finding Finding) (bool, string) {
+	carrier := ""
+	for index, row := range file.rows {
+		if !rowMatches(row.Name, finding) {
+			continue
+		}
+		if row.Carrier != "" {
+			carrier = row.Carrier
+			continue
+		}
+		if !file.used[index] {
+			file.used[index] = true
+			approvals.Trailers = append(approvals.Trailers, row.Trailer)
+			approvals.Dropped = append(approvals.Dropped, row.Text)
+		}
+		return true, ""
 	}
-	children, err := lepath.ChildCommitSessions(request.Root)
-	if err != nil {
-		var text textbuf.Buffer
-		return nil, text.Str(cannotRunPrefix).
-			Str("cannot resolve this session's subagent commit namespaces: ").Err(err).String()
+	return false, carrier
+}
+
+// unapprovedProblem is the refusal for one weakened unit no live approval
+// names. It says who decides, and the exact command that records his answer.
+func unapprovedProblem(finding Finding, carrier string) string {
+	var text textbuf.Buffer
+	text.Str(finding.Path).Str(" weakens ").Str(finding.Unit())
+	if carrier == "" {
+		text.Str(", and no owner approval names it:\n")
+	} else {
+		text.Str(", and the approval naming it was already used by commit ").Str(carrier).
+			Str(", so it approves nothing further:\n")
 	}
-	return children, ""
+	for _, detail := range finding.Details {
+		text.Str("    - ").Str(detail).Byte('\n')
+	}
+	text.Str("    Fix the code by default. Only Thomas approves a test weakening, and he is asked BEFORE the edit.\n").
+		Str("    Once he has answered, record his words and retry:\n    ").Str(ApproveCommand(finding.Unit()))
+	return text.String()
 }
 
 func normalizeRequestPaths(request *Request) error {
@@ -264,86 +294,6 @@ func normalizeRequestPaths(request *Request) error {
 	return nil
 }
 
-// writeTheShard is the refusal an author meets before they have a shard. It
-// carries the whole contract, because the file used to carry it in a header
-// and the gate is now the only place a first-time author reads it.
-func writeTheShard(shard string, findings []Finding) string {
-	var page textbuf.Buffer
-	page.Str(shard).Str(" does not exist, and this commit weakens ").
-		Int(int64(len(findings))).Str(" test(s). Write it, header first:\n")
-	page.Str("    # Test weakenings this commit accepts\n")
-	page.Str("    \n")
-	page.Str("    | Test | Reason |\n")
-	page.Str("    |------|--------|")
-	for _, finding := range findings {
-		page.Byte('\n').Str("    ").Str(rowToWrite(finding, false))
-	}
-	page.Str("\n    This shard is yours: no other session reads it, and the gate drops ")
-	page.Str("each row once the commit carrying it lands.")
-	return page.String()
-}
-
-// keptRows answers the rows the commit under test uses, which is what its
-// shard carries into git history. Every other row it holds is one an earlier
-// commit of this session already landed.
-func keptRows(rows []Row, findings []Finding) ([]Row, int) {
-	keep := make([]Row, 0, len(rows))
-	for _, row := range rows {
-		used := false
-		for _, finding := range findings {
-			if rowMatches(row.Name, finding) {
-				used = true
-				break
-			}
-		}
-		if used {
-			keep = append(keep, row)
-		}
-	}
-	return keep, len(rows) - len(keep)
-}
-
-// liveScopeProblems refuses a path scope that covers a path this commit keeps.
-//
-// A scoped row states one reason for every finding under a path, which is
-// honest only when the commit RETIRES that path: `scripts/**` covers a tree
-// this commit deletes, so nothing can be weakened there again. Over a live
-// tree the same row is an escape hatch. `internal/le/**` would parse, match
-// every finding under the tooling tree, and accept each one silently, and no
-// leftover-row pressure would remove it because it keeps matching.
-//
-// The test is the commit's own removal list rather than the filesystem: a
-// retired tree still has a directory on disk until git prunes it, and a
-// finding for a file this commit merely edits is exactly what must not be
-// swallowed.
-func liveScopeProblems(shard string, removed []string, rows []Row, findings []Finding) []string {
-	retired := make(map[string]bool, len(removed))
-	for _, path := range removed {
-		retired[path] = true
-	}
-	problems := make([]string, 0)
-	var text textbuf.Buffer
-	for _, row := range rows {
-		if !isScopedRowName(row.Name) {
-			continue
-		}
-		for _, finding := range findings {
-			scoped, matches := scopedRowMatches(row.Name, finding)
-			if !scoped || !matches || retired[finding.Path] {
-				continue
-			}
-			problems = append(problems, text.Reset().Str(shard).Byte(':').
-				Int(int64(row.Line)).Str(" scopes ").Str(row.Name).
-				Str(", which covers ").Str(finding.Path).
-				Str(", a path this commit keeps. A path scope states one reason for every ").
-				Str("finding under it, which is honest only for a path the commit retires. ").
-				Str("Name that test instead.").String())
-			break
-		}
-	}
-	return problems
-}
-
 // ExitCode preserves the producer's three-way verdict: clean, problem, or no
 // comparison. A cannot-run result is never interpreted as a clean population.
 func (r Result) ExitCode() int {
@@ -365,10 +315,8 @@ func (r Result) Text() string {
 	switch r.ExitCode() {
 	case 0:
 		if !r.Comparison {
-			page.Colored(color.BrightGreen).Str("Weakened-test check: ").Str(WeakenedDir).
-				Str(" parses (").Int(int64(len(r.Shards))).Str(" session(s), ").
-				Int(int64(r.Rows)).Str(" row(s)).").Colored(color.Reset).Byte('\n')
-			page.Str(shardPopulation(r.Shards, r.Contract))
+			page.Colored(color.BrightGreen).Str("Weakened-test check: no path given, nothing compared.").
+				Colored(color.Reset).Byte('\n')
 			return page.String()
 		}
 		page.Colored(color.BrightGreen).Str("Weakened-test check: clean (").
@@ -511,19 +459,6 @@ func worktreeText(root, path string) string {
 	return string(content)
 }
 
-func loadLedger(root, shard string) (string, bool, string) {
-	content, err := readRepositoryFile(root, shard)
-	if err == nil {
-		return string(content), true, ""
-	}
-	if errors.Is(err, os.ErrNotExist) {
-		return "", false, ""
-	}
-	var text textbuf.Buffer
-	return "", false, text.Str(cannotRunPrefix).Str("cannot read ").Str(shard).
-		Str(": ").Err(err).String()
-}
-
 func readRepositoryFile(root, path string) ([]byte, error) {
 	repository, err := os.OpenRoot(root)
 	if err != nil {
@@ -540,167 +475,11 @@ func readRepositoryFile(root, path string) ([]byte, error) {
 	return content, nil
 }
 
-// distinctPackages counts the package names among the findings a row hit.
-//
-// It decides whether the ambiguity the caller found is one the OPERATOR can
-// answer. A qualified row names package.Test, so it separates two findings
-// only when their packages are named differently. Two packages can share a
-// name (internal/component/iface/cli and internal/component/tacacs/cli are
-// both `cli`), and then no row text separates them: parseLedger refuses a
-// second row under the same name ("one test, one reason"), and a path scope
-// is accepted only for a path the commit RETIRES, which a surviving test file
-// is not. Demanding a row per package there is a demand nothing can meet, so
-// one row answers both occurrences and its reason covers them.
-func distinctPackages(findings []Finding, hits []int) int {
-	seen := make(map[string]bool, len(hits))
-	for _, hit := range hits {
-		seen[findings[hit].Package] = true
-	}
-	return len(seen)
-}
-
-// unmatchedProblems judges every row of every carried ledger against the
-// findings as one population, so a finding a subagent's row accepts is
-// claimed whichever shard holds the row. shard is this session's own, the one
-// an unclaimed finding is told to add its row to.
-func unmatchedProblems(shard string, ledgers []ledger, findings []Finding) []string {
-	problems := make([]string, 0)
-	claimed := make([]bool, len(findings))
-	for _, held := range ledgers {
-		problems = append(problems, ledgerRowProblems(held, findings, claimed)...)
-	}
-	var text textbuf.Buffer
-	for index, finding := range findings {
-		if claimed[index] {
-			continue
-		}
-		text.Reset().Str(finding.Path).Str(" weakens ").Str(finding.Name).Str(" and ").
-			Str(shard).Str(" has no row for it:\n")
-		for _, detail := range finding.Details {
-			text.Str("    - ").Str(detail).Byte('\n')
-		}
-		qualify := findingNameCount(findings, finding.Name) > 1
-		text.Str("    Add the row, then commit the file with the change:\n    ").
-			Str(rowToWrite(finding, qualify))
-		problems = append(problems, text.String())
-	}
-	return problems
-}
-
-// ledgerRowProblems judges one carried ledger's rows against the findings,
-// marking in claimed each finding a row accepts, and answers the refusals its
-// rows earn. Each message names the shard that holds the row.
-func ledgerRowProblems(held ledger, findings []Finding, claimed []bool) []string {
-	problems := make([]string, 0)
-	var text textbuf.Buffer
-	for _, row := range held.rows {
-		hits := make([]int, 0, 1)
-		for index, finding := range findings {
-			if rowMatches(row.Name, finding) {
-				hits = append(hits, index)
-			}
-		}
-		if len(hits) == 0 {
-			// A row this session already committed is not a leftover the
-			// author has to clear: git holds it, it accepts nothing more,
-			// and PruneLanded drops it from the shard this commit carries.
-			if held.landed[row.Key()] {
-				continue
-			}
-			problems = append(problems, text.Reset().Str(held.path).Byte(':').Int(int64(row.Line)).
-				Str(" names ").Str(row.Name).
-				Str(", which this commit does not weaken. Delete the row, or name the file it explains.").
-				String())
-			continue
-		}
-		// A scoped row matching many findings is the feature, not an
-		// ambiguity: that is what lets one row explain a whole retired tree.
-		// Only an exact-name row matching more than one finding is a
-		// collision (the same test name in two packages), and only that
-		// shape needs the operator to write one qualified row per package.
-		if len(hits) > 1 && !isScopedRowName(row.Name) && distinctPackages(findings, hits) > 1 {
-			text.Reset().Str(held.path).Byte(':').Int(int64(row.Line)).
-				Str(" names ").Str(row.Name).
-				Str(", which this commit weakens in ").Int(int64(len(hits))).Str(" packages: ")
-			for index, hit := range hits {
-				if index != 0 {
-					text.Str(", ")
-				}
-				finding := findings[hit]
-				text.Str(finding.Package).Str(" (").Str(finding.Path).Byte(')')
-			}
-			text.Str(".\n    Write package.TestName, one row each:")
-			for _, hit := range hits {
-				text.Str("\n    ").Str(rowToWrite(findings[hit], true))
-			}
-			problems = append(problems, text.String())
-		}
-		// A finding claimed by both a scoped row and an exact row is not an
-		// error: each row's hits are computed independently over the full
-		// finding population, so neither row can be made to look empty (and
-		// so fail the leftover-row check) by the other row's existence, and
-		// the finding is simply claimed twice, which claimed[] treats as one.
-		for _, hit := range hits {
-			claimed[hit] = true
-		}
-	}
-	return problems
-}
-
+// rowMatches reports whether an approval row's name covers one finding: the
+// row names exactly `<package>.<TestName>`. LoadApprovals refuses a row of
+// any other shape, so no bare name reaches this comparison.
 func rowMatches(rowName string, finding Finding) bool {
-	if scoped, matches := scopedRowMatches(rowName, finding); scoped {
-		return matches
-	}
-	pkg, name, found := strings.CutLast(rowName, ".")
-	if !found {
-		return finding.Name == rowName
-	}
-	return finding.Name == name && finding.Package == pkg
-}
-
-// scopedRowMatches reports whether rowName is a path-scoped row and, if it
-// is, whether it covers finding.Path. A row Name containing a slash is
-// always a path scope, never a test name: a Go test identifier can never
-// contain one, and a package-qualified name (pkg.Name) never does either, so
-// the two grammars cannot collide. Two forms: a bare path
-// ("internal/le/pylint/pylint_test.go") matches that one file exactly, for a
-// migration that retires a whole file's worth of findings under one honest
-// reason; a path ending "/**" ("scripts/**") matches every finding whose
-// Path sits inside that tree, for a migration that retires the tree itself.
-func scopedRowMatches(rowName string, finding Finding) (scoped, matches bool) {
-	if !strings.Contains(rowName, "/") {
-		return false, false
-	}
-	if tree, isTree := strings.CutSuffix(rowName, "/**"); isTree {
-		return true, strings.HasPrefix(finding.Path, tree+"/")
-	}
-	return true, finding.Path == rowName
-}
-
-// isScopedRowName reports whether name uses the path-scope grammar rather
-// than the exact test-name grammar. See scopedRowMatches.
-func isScopedRowName(name string) bool {
-	return strings.Contains(name, "/")
-}
-
-func rowToWrite(finding Finding, qualify bool) string {
-	var text textbuf.Buffer
-	text.Str("| ")
-	if qualify {
-		text.Str(finding.Package).Byte('.')
-	}
-	return text.Str(finding.Name).
-		Str(" | <what left the suite, and why the commit is correct without it> |").String()
-}
-
-func findingNameCount(findings []Finding, name string) int {
-	count := 0
-	for _, finding := range findings {
-		if finding.Name == name {
-			count++
-		}
-	}
-	return count
+	return rowName == finding.Unit()
 }
 
 func isTestPath(path string) bool {

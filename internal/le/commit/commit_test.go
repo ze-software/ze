@@ -241,6 +241,32 @@ func TestAnUnreachedStructuralStageIsCharged(t *testing.T) {
 	}
 }
 
+// partWithout answers a piece of the full population cut in three that does
+// not hold stage, read from the engine's own dealing.
+//
+// A hard-coded piece goes stale whenever a stage is added to or removed from
+// the population, because the dealing is by position: the piece then holds
+// the stage under test and publishes it green, and the carried red is cleared
+// before the assertion reads it.
+func partWithout(t *testing.T, stage string) verifyengine.Part {
+	t.Helper()
+	const pieces = 3
+	for index := 1; index <= pieces; index++ {
+		part := verifyengine.Part{Index: index, Of: pieces}
+		stages, err := verifyengine.Dealt(verifyengine.Mode, part)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !slices.ContainsFunc(stages, func(dealt verifyengine.Stage) bool {
+			return dealt.Identity.Name == stage
+		}) {
+			return part
+		}
+	}
+	t.Fatalf("every piece of the full population cut in %d holds %s", pieces, stage)
+	return verifyengine.Part{}
+}
+
 // publishRun runs one verification through the engine in a throwaway worktree
 // and publishes its failure index into root, the way a worktree run does.
 func publishRun(t *testing.T, root, commit string, part verifyengine.Part, red string) {
@@ -298,8 +324,8 @@ func TestAPieceKeepsAnEarlierStructuralRedCharged(t *testing.T) {
 // refusing every commit.
 //
 // Method: publish a full run red at `go lint/run` (in the fast population)
-// and at `verify deps/evidence-vet` (full population only), then a piece that
-// holds neither, and require each refusal line to name the diagnosing rerun
+// and at `verify deps/evidence-vet` (full population only), then a piece the
+// engine's dealing gives no copy of the stage under test, and require each refusal line to name the diagnosing rerun
 // and the verify runs that clear it, with `le verify current fast` named for
 // lint only. The diagnosing rerun is pinned to the group's own rerun string,
 // so a refusal that fell back to the full run would go red.
@@ -317,7 +343,7 @@ func TestACarriedRedNamesTheRunThatClearsIt(t *testing.T) {
 			t.Setenv("CLAUDE_CODE_SESSION_ID", "carried-clear-fixture")
 			writeCommitFixture(t, root, "mine.txt", "mine\n")
 			publishRun(t, root, "aaa", verifyengine.Uncut(), tc.stage)
-			publishRun(t, root, "bbb", verifyengine.Part{Index: 3, Of: 3}, "")
+			publishRun(t, root, "bbb", partWithout(t, tc.stage), "")
 			reds := structuralGateReds(root, []string{"mine.txt"})
 			cause := ""
 			for index, charged := range reds.Charged {
@@ -861,7 +887,7 @@ func TestCreateJudgesAnAppendedClosureAgainstItsEarlierBlocks(t *testing.T) {
 
 // TestCommitSessionIsStableAndExplicitlyReplaceable drives the namespace every
 // artifact of a prepared commit is named after: the script, the message and
-// the two test-ledger shards. The producer is
+// the two owner approval files. The producer is
 // lepath.CommitSession, which both this package and the pre-write hook read,
 // and the assertions are unchanged from when it lived here.
 func TestCommitSessionIsStableAndExplicitlyReplaceable(t *testing.T) {
