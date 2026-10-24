@@ -26,6 +26,7 @@ import (
 // PREVENTS: a route short of a mandatory field being held in the Adj-RIB-In or relayed,
 // in its received form or rewritten.
 func TestMUPT1ST02TreatAsWithdraw(t *testing.T) {
+	// RFC requirement: DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-6 positive -- a T1ST whose Length ends at its Endpoint Address with no Source Address Length octet, received after a well-formed generation of the same route was held, leaves MP_REACH_NLRI and is withdrawn in MP_UNREACH_NLRI by that generation's bytes, its well-formed sibling is kept byte for byte, and the action is not a session reset
 	old := mupWireNLRI(3, t1stBody(2)...)
 	k0 := mupWireNLRI(3, t1stBody(2, 0x00)...)
 	sibling := mupWireNLRI(3, t1stBody(1, 0x00, 0xf0, 0x02, 0xaa, 0xbb)...)
