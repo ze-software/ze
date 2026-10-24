@@ -89,6 +89,14 @@ Thomas approved dark mode and requested more color in light mode on 24 October 2
 
 > The dark mode is now nice, the white mode need a bit more colours
 
+Thomas requested clearer test descriptions and more color variety on 24 October 2026:
+
+> Can you review the wording on the other Regression prevention cards too, so each one clearly explains what is tested?
+>
+>
+>
+> Also the theme is still very mono-chromatic can you please improve it
+
 1. ### Preserve useful information
 
  Start with an inventory of existing capabilities, differentiators, demonstrations, evidence, deployment options, use cases, updates and release status. Give every item an explicit place in the proposal. Explain each move or reduction in detail. Removing useful information requires the owner's agreement.
@@ -231,13 +239,13 @@ BGP, OSPF and other protocols, deployment modes and command syntax remain neutra
 
 `FRR` `Docker` `BGP benchmark` `Release evidence` `BGP` `Daemon only`
 
-## Carry the blue identity through the page
+## Blue, teal and lavender have distinct roles
 
-Blue surfaces connect decisions and evidence to the hero without adding more subject colors.
+Use a small set of section colors to separate operating, testing and reading. Keep each card's text and body neutral.
 
-Light pages use a blue-washed foundation, stronger blue section surfaces and white reading cards. Their compact badges carry a stronger tint while keeping the same color meanings. Dark pages retain their approved richer navy foundations and lighter navy panels. The management explanation, evidence section and run choices use `--brand-section-gradient`, a gentle blue-to-cyan surface. Supporting notes, reading takeaways and selected navigation use `--brand-surface`. Key action and reading links use the accessible `--blue` token.
+Blue remains the brand color for the hero, management explanation and run choices. The latter two use `--brand-section-gradient`. Testing sections use the teal `--evidence-section-gradient`: the homepage proof section and the quality overview. References and reading use the lavender `--reference-section-gradient`: the homepage documentation section, documentation route grid and article takeaways. Supporting notes and selected navigation use `--brand-surface`. Key action and reading links use the accessible `--blue` token.
 
-Pick a blue surface for a named reader purpose, not a section's position. Preserve the existing hero gradient, terminal imagery, plain headings and restrained neutral card borders. Test text, muted labels, links, statuses and concept badges against their actual surfaces in both themes; ordinary text must retain at least 4.5:1 contrast. Keep section padding when the layout stacks on mobile.
+Light pages use a neutral foundation, colored section surfaces and white cards. Dark pages keep the approved navy foundations and cards, with deeper teal and lavender section surfaces. Keep category and concept badge meanings unchanged. Pick a surface for a named reader purpose, never a section's position. Preserve the existing hero gradient, terminal imagery, plain headings and restrained neutral card borders. Test text, muted labels, links, statuses and concept badges against their actual surfaces in both themes; ordinary text must retain at least 4.5:1 contrast. Keep section padding when the layout stacks on mobile.
 
 ## Color the badge, keep the heading plain
 
@@ -307,7 +315,7 @@ Separate standard homepage sections with spacing and no horizontal rules, and om
 
 Keep homepage section containers, including Latest news, shadowless. Cards within them retain their component shadows.
 
-Proof cards share heading, detail and evidence rows. Align every evidence divider and the first line of its text to the same row boundary, even when another card's evidence wraps. Emphasise the generated figures with 2.2rem, tabular blue numerals; keep their labels neutral. Preserve the complete evidence wording.
+Proof cards share heading, detail and evidence rows. Align every evidence divider and the first line of its text to the same row boundary, even when another card's evidence wraps. Emphasise the generated figures with 2.2rem, tabular blue numerals; keep their labels neutral. Each description says what the tests do and check. Use plain terms such as state transitions and expected results. Label counts by their population: Go tests, end-to-end scenarios, fuzz targets and interop test images. These describe the test inventory; links explain the methods and scope. Preserve every metric and its destination.
 
 Place Regression prevention directly after Latest news. Explain how the test layers help catch changes that break existing behavior. Counts show the scale of the test suite; the linked evidence explains its coverage. The RFC card leads with the percentage of tracked MUST requirements tested, shows the tested and total counts together, and links to the requirement ledger. It does not present the RFC count as proof of full support. In the management panel's left column, put Why Ze first, followed by Manage Ze directly and the explanation of Ze's own SSH service. Do not add a Self-contained management badge or another standalone Why Ze section. Keep the architectural argument cards below the panel.
 

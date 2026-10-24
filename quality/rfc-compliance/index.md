@@ -204,17 +204,17 @@ These 13 sentences are NOT scope. Each is an obligation Ze owes and has not buil
 
 ## How this is checked
 
-This gate runs before a commit is verified: ./le rfc check is 1 stage of the 58 that ./le verify current runs.
+This gate runs before a commit is verified: ./le rfc check is 1 stage of the 57 that ./le verify current runs.
 
 | Input | Producer | What it answered here |
 |---|---|---|
-| Reproduce it | `./le rfc check` | 1 of 58 full-mode verify stages run it |
+| Reproduce it | `./le rfc check` | 1 of 57 full-mode verify stages run it |
 | Requirement source | `rfc/short/*.md` | 4,292 gated MUST-level requirements |
 | Enrolment | `rfc/short/*.md`, the `\| Enrolment \|` Meta row | 177 enrolled RFCs |
 | Test tags | `internal/`, `pkg/`, `test/` | 9,153 resolved tags |
 | Public ledger | `rfc/short/*.md`, the `\| Support \|` Meta row | 74 RFCs with gaps, 2 Supported with Remaining |
 | Semantic audits | `rfc/audit/*/*.json` | 2,270 fresh, 0 shifted, 2 stale, 2,020 missing |
-| Pre-commit verification | `internal/le/verify/engine/stages.go` | ./le rfc check, 1 of 58 full-mode stages |
+| Pre-commit verification | `internal/le/verify/engine/stages.go` | ./le rfc check, 1 of 57 full-mode stages |
 | Published artifacts | `data/rfc-compliance.json`, `data/rfc-requirements.json` | the same answers this page renders, machine-readable |
 
 ## Check results

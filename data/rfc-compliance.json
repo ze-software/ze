@@ -260,7 +260,7 @@
   },
   "verify": {
     "command": "./le rfc check",
-    "stages": 58,
+    "stages": 57,
     "gate-stages": 1
   }
 }

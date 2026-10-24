@@ -72,21 +72,21 @@ One page per RFC, naming each requirement, the test evidence behind it, and the 
 
 ## Regression prevention
 
-Tests help catch changes that break existing behavior. Unit tests, end-to-end scenarios, protocol checks, fuzzing and interoperability tests cover different failure modes. Each figure links to the evidence and current coverage.
+Tests help catch changes that break existing behavior. Go tests, end-to-end scenarios, protocol checks, fuzzing and interoperability tests cover different failure modes. The figures describe the test suite and its coverage. Each card explains what is checked and links to how those checks work.
 
- [Read the evidence map](https://ze-software.net/quality/) [Watch product demos](https://ze-software.net/demos/terminal/) [**38,300+ unit tests**
+ [Read the evidence map](https://ze-software.net/quality/) [Watch product demos](https://ze-software.net/demos/terminal/) [**38,400+ Go tests**
 
-- Wire encoding, parsing
-- Config, FSM, plugins
-- gomu mutates code to check assertions
+- Check encoded bytes and parsed values.
+- Verify config, state transitions and plugins.
+- gomu checks whether tests catch code changes.
 
- Local test, fuzz, and mutation evidence.](https://ze-software.net/quality/unit-fuzz-mutation/) [**2,500+ end to end tests**
+ Go tests and mutation checks.](https://ze-software.net/quality/unit-fuzz-mutation/) [**2,500+ end-to-end tests**
 
-- Peering, sessions, updates
-- Editor, commits, reloads
-- Commands checked as operators run them
+- Start sessions and exchange route updates.
+- Run editor commands, commits and reloads.
+- Check output, errors and saved state.
 
- Functional transcript format and rerun path.](https://ze-software.net/quality/functional-ci/) [**66.3% RFC MUSTs tested**
+ Scenarios and expected results.](https://ze-software.net/quality/functional-ci/) [**66.3% RFC MUSTs tested**
 
 - 2,758 of 4,163 tracked MUSTs
 - Across 154 RFCs
@@ -94,17 +94,17 @@ Tests help catch changes that break existing behavior. Unit tests, end-to-end sc
 
  RFC requirement ledger.](https://ze-software.net/quality/rfc-compliance/) [**91 fuzz targets**
 
-- Parsers, external inputs
-- Wire formats, config files
-- Saved crashes become regression cases
+- Generate inputs for parsers and decoders.
+- Probe packets and config text for crashes.
+- Replay saved failures as regression cases.
 
- Fuzz crashes kept as regression cases.](https://ze-software.net/quality/unit-fuzz-mutation/#fuzz-targets-are-still-tests) [**11 interop targets**
+ Fuzz inputs and regression cases.](https://ze-software.net/quality/unit-fuzz-mutation/#fuzz-targets-are-still-tests) [**11 interop test images**
 
-- BGP, OSPF, IS-IS, BFD, BMP, RPKI, VRRP
-- IPsec, L2TP, PPPoE, RADIUS
-- Real daemons in Docker, checked by peer CLIs
+- Peer CLIs check sessions and route exchange.
+- BGP, OSPF, IS-IS, BFD, BMP, RPKI, VRRP.
+- Separate labs: IPsec, L2TP, PPPoE, RADIUS.
 
- Docker interop peer list.](https://ze-software.net/quality/qemu-interop-release/#docker-interop) Tested against **BGP**[FRR](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[BIRD](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[GoBGP](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[OpenBGPd](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[FreeRtr](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[RustyBGP](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[rustbgpd](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[ExaBGP](https://ze-software.net/features/exabgp-compatibility/) **BGP support**[StayRTR](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[pmacct](https://ze-software.net/quality/qemu-interop-release/#docker-interop) **VPN**[strongSwan](https://ze-software.net/quality/qemu-interop-release/#docker-interop) **Access**[accel-ppp](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[xl2tpd](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[FreeRADIUS](https://ze-software.net/quality/qemu-interop-release/#docker-interop) **Redundancy**[keepalived](https://ze-software.net/quality/qemu-interop-release/#docker-interop)
+ Docker scenarios and peer checks.](https://ze-software.net/quality/qemu-interop-release/#docker-interop) Tested against **BGP**[FRR](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[BIRD](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[GoBGP](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[OpenBGPd](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[FreeRtr](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[RustyBGP](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[rustbgpd](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[ExaBGP](https://ze-software.net/features/exabgp-compatibility/) **BGP support**[StayRTR](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[pmacct](https://ze-software.net/quality/qemu-interop-release/#docker-interop) **VPN**[strongSwan](https://ze-software.net/quality/qemu-interop-release/#docker-interop) **Access**[accel-ppp](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[xl2tpd](https://ze-software.net/quality/qemu-interop-release/#docker-interop)[FreeRADIUS](https://ze-software.net/quality/qemu-interop-release/#docker-interop) **Redundancy**[keepalived](https://ze-software.net/quality/qemu-interop-release/#docker-interop)
 
 ## Why Ze?
 
