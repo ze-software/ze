@@ -224,6 +224,25 @@ its RIB until then. `withdraw` on a route with no watchdog changes nothing in
 ExaBGP and is not carried.
 <!-- source: internal/exabgp/migration/migrate_routes.go -- convertRouteToUpdate -->
 
+#### ExaBGP 6.0 receive policy: as-set and tunnel-encapsulation
+
+ExaBGP 6.0 added two neighbor leaves that decide what happens to a received
+route; ExaBGP 4.2 and 5.0 know neither. Ze has no leaf for either, so the
+migration writes nothing for a value whose effect Ze already gives, and refuses
+the config, naming the leaf, for a value it cannot reproduce.
+
+| ExaBGP line | Migration | Why |
+|-------------|-----------|-----|
+| `as-set withdraw` (ExaBGP's default) | accepted, nothing written | Ze treats every received route whose AS_PATH or AS4_PATH holds an AS_SET or AS_CONFED_SET as withdrawn (RFC 9774 Section 3) |
+| `as-set accept` | refused | Ze has no setting that keeps such a route yet |
+| `tunnel-encapsulation accept` | accepted, nothing written | Ze keeps a received Tunnel Encapsulation attribute on every session |
+| `tunnel-encapsulation auto` (ExaBGP's default) | accepted, nothing written | Same as an ExaBGP config without the line. On an external neighbor ExaBGP drops the attribute and Ze does not yet: that is Ze's RFC 9012 Section 11 gap (`rfc/short/rfc9012.md`, RFC9012-11-5), with or without the line |
+| `tunnel-encapsulation filter` | refused | Ze cannot yet drop the attribute from one peer |
+
+Removing a refused line migrates the peer with Ze's behavior, which the refusal
+names.
+<!-- source: internal/exabgp/migration/migrate_receive_policy.go -- checkASSetPolicy, checkTunnelEncapsulationPolicy -->
+
 ### Running ExaBGP Plugins
 
 Use `ze exabgp plugin` to run existing ExaBGP plugins with Ze:

@@ -80,6 +80,12 @@ module exabgp {
         leaf manual-eor { type boolean; default false; }
         // ExaBGP peer.py: `Notify(6, 2) if neighbor.shutdown`, the peer starts disabled.
         leaf shutdown { type boolean; default false; }
+        // ExaBGP 6.0 receive policy (f9bfb853b, grammar/tree/neighbor.py):
+        // as-set withdraw|accept, tunnel-encapsulation auto|filter|accept.
+        // migrate_receive_policy.go accepts the values ze reproduces and
+        // refuses the rest.
+        leaf as-set { type string; }
+        leaf tunnel-encapsulation { type string; }
 
         // Family block (ExaBGP uses space: "ipv4 unicast")
         container family {

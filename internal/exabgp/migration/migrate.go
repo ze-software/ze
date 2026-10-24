@@ -615,6 +615,7 @@ func expandInheritance(neighbor *config.Tree, templates map[string]*config.Tree)
 		"description", "router-id", "local-address", "local-link-local", "local-as", "peer-as",
 		"hold-time", "passive", "listen", "connect", "ttl-security",
 		"md5-password", "md5-base64", "group-updates", "manual-eor", "shutdown",
+		"as-set", "tunnel-encapsulation",
 	}
 	for _, key := range leafFields {
 		if v, ok := neighbor.Get(key); ok {
@@ -1376,6 +1377,11 @@ func migrateSingleNeighbor(neighborTree *config.Tree, peerName string, result *M
 	// RFC 8950 Section 4: ask for the Extended Next Hop Encoding the migrated
 	// IPv4 routes with an IPv6 next hop need, as ExaBGP does at load.
 	if err := addExtendedNextHopEntries(neighborTree, peer, peerName, result); err != nil {
+		return nil, err
+	}
+
+	// ExaBGP 6.0 receive policy: refuse a value ze cannot reproduce.
+	if err := checkReceivePolicy(neighborTree); err != nil {
 		return nil, err
 	}
 
