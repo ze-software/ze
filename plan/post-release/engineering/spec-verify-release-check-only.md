@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Scope | tooling |
 | Priority | P3 |
 | Release reason | Release-independent tooling: the development loop must stop running the whole-tree verification day to day, which loads the shared machine and blocks every other session. No shipped behavior changes. |
