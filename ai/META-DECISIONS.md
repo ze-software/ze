@@ -69,6 +69,13 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   release (tac_plus-ng, freeRtr) is built from source, first updated to
   upstream's latest when the source in use is more than a month old.
 
+## Test weakening
+
+- Weakening a test needs Thomas's approval, asked before the edit. His words
+  are recorded in an untracked file the edit hook and the commit gate read,
+  and the commit carries one `Weakening-approved:` line per test. No tracked
+  ledger of weakenings is kept in the repository.
+
 ## Code and dependencies
 
 - A change Ze needs in a third-party Go module is kept here as a diff against
