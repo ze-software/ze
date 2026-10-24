@@ -19,7 +19,15 @@ Inspect prefixes, AS paths and peers through a read-only BGP interface.
 
 Captured for the June 2026 LINX talk.
 
-**Ze / Configuration editor**[Open full size ↗](https://ze-software.net/assets/product-editor.jpg) [![Ze configuration editor showing a transit peer, a pending remote ASN edit and contextual connection completions](https://ze-software.net/assets/product-editor.jpg)](https://ze-software.net/assets/product-editor.jpg) **Edit the configuration with context.**
+**Ze / Web configuration**[Open full size ↗](https://ze-software.net/assets/demos/web-config.png?v=0562bbf22f) [Download the browser recording](https://ze-software.net/assets/demos/web-config.webm?v=e49e84d93c). **Configure Ze in your browser.**
+
+Edit a setting, review its diff, commit the draft and verify the active value.
+
+ [Explore the web interface →](https://ze-software.net/features/web-interface/#browser-configuration-workflow)
+
+A real session with an isolated local Ze lab. [Read the transcript.](https://ze-software.net/assets/demos/web-config.txt?v=a614767cf2)
+
+**Ze / CLI configuration editor**[Open full size ↗](https://ze-software.net/assets/product-editor.jpg) [![Ze configuration editor showing a transit peer, a pending remote ASN edit and contextual connection completions](https://ze-software.net/assets/product-editor.jpg)](https://ze-software.net/assets/product-editor.jpg) **Edit the configuration with context.**
 
 Review the pending change and explore the settings available at the current configuration path.
 
@@ -73,6 +81,19 @@ Ze is a network operating system, and more: a routing daemon, appliance runtime,
 Ze runs its own SSH server, CLI and configuration editor. Connect directly to Ze to configure and operate it, without a host SSH service or shell. Its web interface, REST, gRPC, gNMI and MCP expose the same YANG-modeled configuration.
 
  Ze SSH + CLIWebAPIs + MCP **YANG-modeled configuration** Routing · Interfaces · Network services [See the browser workflow →](https://ze-software.net/features/web-interface/) [Explore CLI interaction →](https://ze-software.net/features/cli-commands/)
+
+#### From connection to configuration
+
+Change a setting through Ze’s SSH editor, review the diff, commit it and check the result.
+
+1. Connect
+2. Edit
+3. Review
+4. Commit
+
+Playback starts at the SSH introduction (0:36) in the full recorded session. Use full screen for a closer look.
+
+ [Full recording and quickstart →](https://ze-software.net/guides/quickstart/#initialize) [Read transcript →](https://ze-software.net/assets/demos/zefs-config.txt?v=586e5c6ada)
 
 **Decision**
 

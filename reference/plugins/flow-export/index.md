@@ -18,7 +18,7 @@ sFlow, NetFlow v9, and IPFIX counter export
 ## Dependencies
 
 - Required: [`interface`](../interface/index.md)
-- Optional: None
+- Optional: [`bgp-rib`](../bgp-rib/index.md)
 
 ## Used by
 

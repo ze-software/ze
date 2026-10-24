@@ -122,7 +122,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 7 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 7 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 7 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>52.2%</strong><b>12 of 23 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>34.8%</strong><b>8 of 23 tagged units, 0 escaped and 4 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 <article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>7</strong><b>of 7 gated MUSTs judged</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
@@ -522,7 +522,7 @@ LARGE_COMMUNITY parsing, validation, duplicate removal, JSON, and RFC 7606 lengt
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8092_error_handling_test.go#L30" title="internal/component/bgp/message/rfc8092_error_handling_test.go" target="_blank" rel="noopener"><code>TestRFC8092LargeCommunityAnyGlobalAdministratorIsWellFormed</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8092_test.go#L41" title="internal/component/bgp/message/rfc8092_test.go" target="_blank" rel="noopener"><code>TestRFC8092LargeCommunityValidReservedASN</code></a></td>
@@ -542,7 +542,7 @@ LARGE_COMMUNITY parsing, validation, duplicate removal, JSON, and RFC 7606 lengt
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8092_error_handling_test.go#L77" title="internal/component/bgp/message/rfc8092_error_handling_test.go" target="_blank" rel="noopener"><code>TestRFC8092LargeCommunityNonZeroMultipleOf12IsNotMalformed</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8092_test.go#L37" title="internal/component/bgp/message/rfc8092_test.go" target="_blank" rel="noopener"><code>TestRFC8092LargeCommunityValidReservedASN</code></a></td>
@@ -552,7 +552,7 @@ LARGE_COMMUNITY parsing, validation, duplicate removal, JSON, and RFC 7606 lengt
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8092_error_handling_test.go#L62" title="internal/component/bgp/message/rfc8092_error_handling_test.go" target="_blank" rel="noopener"><code>TestRFC8092LargeCommunityLengthNotANonZeroMultipleOf12IsMalformed</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8092_test.go#L17" title="internal/component/bgp/message/rfc8092_test.go" target="_blank" rel="noopener"><code>TestRFC8092LargeCommunityMalformedLength</code></a></td>
@@ -597,7 +597,7 @@ LARGE_COMMUNITY parsing, validation, duplicate removal, JSON, and RFC 7606 lengt
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8092_treat_as_withdraw_test.go#L65" title="internal/component/bgp/reactor/rfc8092_treat_as_withdraw_test.go" target="_blank" rel="noopener"><code>TestRFC8092WellFormedLargeCommunityKeepsTheRoutes</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8092_test.go#L19" title="internal/component/bgp/message/rfc8092_test.go" target="_blank" rel="noopener"><code>TestRFC8092LargeCommunityMalformedLength</code></a></td>
@@ -766,7 +766,7 @@ LARGE_COMMUNITY parsing, validation, duplicate removal, JSON, and RFC 7606 lengt
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 08:58 UTC</span>
                 </div>
             </div>
         </footer>

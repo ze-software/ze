@@ -2676,10 +2676,10 @@
                     "type": "boolean"
                   },
                   {
-                    "description": "RFC 9774 Section 3 treats an UPDATE whose AS_PATH or AS4_PATH holds an AS_SET or\nAS_CONFED_SET as withdrawn, unless the operator configures otherwise during a transition.\naccept is that transition for a peer migrated from ExaBGP: ze exabgp migrate writes it for a\nneighbor whose ExaBGP config said as-set accept, and nothing else writes it. Every other\ncheck of the path still runs, and Ze still never advertises a set to this peer.",
+                    "description": "RFC 9774 Section 3 treats an UPDATE whose AS_PATH or AS4_PATH holds an AS_SET or\nAS_CONFED_SET as withdrawn, unless explicitly configured otherwise by a network operator.\naccept is that operator configuration: the operator sets it on a peer that must keep such\nroutes, and ze exabgp migrate writes it for a neighbor whose ExaBGP config said as-set\naccept. Every other check of the path still runs, and Ze still never advertises a set to\nthis peer.",
                     "kind": "leaf",
                     "name": "as-set",
-                    "short-help": "Received AS_SET handling; accept is written only by ze exabgp migrate.",
+                    "short-help": "Received AS_SET handling; accept keeps such a route, as the operator configured.",
                     "source": "config",
                     "type": "enumeration",
                     "values": [
@@ -4088,10 +4088,10 @@
                 "type": "boolean"
               },
               {
-                "description": "RFC 9774 Section 3 treats an UPDATE whose AS_PATH or AS4_PATH holds an AS_SET or\nAS_CONFED_SET as withdrawn, unless the operator configures otherwise during a transition.\naccept is that transition for a peer migrated from ExaBGP: ze exabgp migrate writes it for a\nneighbor whose ExaBGP config said as-set accept, and nothing else writes it. Every other\ncheck of the path still runs, and Ze still never advertises a set to this peer.",
+                "description": "RFC 9774 Section 3 treats an UPDATE whose AS_PATH or AS4_PATH holds an AS_SET or\nAS_CONFED_SET as withdrawn, unless explicitly configured otherwise by a network operator.\naccept is that operator configuration: the operator sets it on a peer that must keep such\nroutes, and ze exabgp migrate writes it for a neighbor whose ExaBGP config said as-set\naccept. Every other check of the path still runs, and Ze still never advertises a set to\nthis peer.",
                 "kind": "leaf",
                 "name": "as-set",
-                "short-help": "Received AS_SET handling; accept is written only by ze exabgp migrate.",
+                "short-help": "Received AS_SET handling; accept keeps such a route, as the operator configured.",
                 "source": "config",
                 "type": "enumeration",
                 "values": [
@@ -6383,10 +6383,10 @@
                 "type": "boolean"
               },
               {
-                "description": "RFC 9774 Section 3 treats an UPDATE whose AS_PATH or AS4_PATH holds an AS_SET or\nAS_CONFED_SET as withdrawn, unless the operator configures otherwise during a transition.\naccept is that transition for a peer migrated from ExaBGP: ze exabgp migrate writes it for a\nneighbor whose ExaBGP config said as-set accept, and nothing else writes it. Every other\ncheck of the path still runs, and Ze still never advertises a set to this peer.",
+                "description": "RFC 9774 Section 3 treats an UPDATE whose AS_PATH or AS4_PATH holds an AS_SET or\nAS_CONFED_SET as withdrawn, unless explicitly configured otherwise by a network operator.\naccept is that operator configuration: the operator sets it on a peer that must keep such\nroutes, and ze exabgp migrate writes it for a neighbor whose ExaBGP config said as-set\naccept. Every other check of the path still runs, and Ze still never advertises a set to\nthis peer.",
                 "kind": "leaf",
                 "name": "as-set",
-                "short-help": "Received AS_SET handling; accept is written only by ze exabgp migrate.",
+                "short-help": "Received AS_SET handling; accept keeps such a route, as the operator configured.",
                 "source": "config",
                 "type": "enumeration",
                 "values": [

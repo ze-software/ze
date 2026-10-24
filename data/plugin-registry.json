@@ -919,7 +919,9 @@
     "dependencies": [
       "interface"
     ],
-    "optional_dependencies": [],
+    "optional_dependencies": [
+      "bgp-rib"
+    ],
     "start_after": [],
     "source_dir": "internal/plugins/flowexport",
     "yang_files": [

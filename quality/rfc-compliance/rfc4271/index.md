@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 1.5% | 2 of 133 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 133 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 133 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 46.7% | 213 of 456 tagged units, 0 escaped and 19 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 48.5% | 221 of 456 tagged units, 0 escaped and 11 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -35,7 +35,7 @@ what Ze owes
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
 | No test at all | 9.0% | 12 of 133 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Audit verdicts | 94 | of 133 gated MUSTs judged | 2 weak, wrong or unimplemented, 3 no longer current. Each is named below under its own requirement id |
+| Audit verdicts | 94 | of 133 gated MUSTs judged | 2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 The 8 shares marked as a part above are the whole of the 133 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -512,9 +512,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestBuildUnicastRefusesIPv4RouteWithNoUsableNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_ipv4_route_ipv6_nexthop_test.go#L30) | unit/verify | revert, verified |
-| negative | [`TestRFC4271UpdateWithNLRICarriesTheMandatoryAttributes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_mandatory_send_test.go#L26) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC4271UpdateWithNLRICarriesTheMandatoryAttributes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_mandatory_send_test.go#L26) | unit/verify | revert, verified |
 | negative | [`TestRFC4271WellKnownAttributeErrorsAreCaught`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L498) | unit/verify | unproven |
-| positive | [`TestRFC4271UpdateWithNLRICarriesTheMandatoryAttributes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_mandatory_send_test.go#L23) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC4271UpdateWithNLRICarriesTheMandatoryAttributes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_mandatory_send_test.go#L23) | unit/verify | revert, verified |
 | positive | [`TestRFC4271WellKnownAttributesAreRecognized`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_test.go#L467) | unit/verify | unproven |
 
 ### [`RFC4271-5-3`](#rfc4271-5-3)
@@ -689,13 +689,13 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 
 LOCAL_PREF is a well-known attribute that SHALL be included in all UPDATE messages that a given BGP speaker sends to other internal peers. (§5.1.5)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/reactor/rfc4271_reactor_api_origin_test.go::TestAnnounceStripsLocalPrefTowardExternalPeer moved. Re-judged 2026-10-01 (BGP c17 judge): TestRFC4271LocalPrefOmittedForExternalPeers changed only by losing its RFC4271-9.1.1-2 tag lines (D-15); its body and its 5.1.5-1 negative claim are unchanged. SHALL include LOCAL_PREF in all UPDATEs to internal peers. Originated rails: WriteAnnounceUpdate, batch and queued API units (existing). Forward rails: TestRFC4271ForwardAddsLocalPrefTowardInternalPeer relays an eBGP-learned route with no LOCAL_PREF on the general rail and the route-server rail and asserts the internal destination is sent exactly 00000064 while the external destination in the same fan-out is sent none, so a blanket add or a blanket strip each go red. Producer applyFactsLocalPref adds 100 only when the base carries none and no egress mod set one. Observed-red records on applyFactsLocalPref both polarities, and on buildRIBRouteUpdate. The negative's external half overlaps RFC4271-5.1.5-2; it is kept because it is what shows the add follows the internal classification.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-24 (independent auditor, authored none of the change). RFC 4271 Section 5.1.5: "LOCAL_PREF is a well-known attribute that SHALL be included in all UPDATE messages that a given BGP speaker sends to other internal peers." 238bdb62e9 (spec-refuse-instead-of-defaulting) changed nlri.NewINET to take an explicit has-path-id flag; the unit passes false where it passed path id 0, which already meant no ADD-PATH identifier, so the input, the route and every assertion are byte-for-byte the same (TestAnnounceStripsLocalPrefTowardExternalPeer, the withdrawal NLRI). The LOCAL_PREF presence assertion toward the internal peer is untouched. Verdict unchanged: enforced. Earlier judgement follows. Re-judged 2026-10-01 (BGP c17 judge): TestRFC4271LocalPrefOmittedForExternalPeers changed only by losing its RFC4271-9.1.1-2 tag lines (D-15); its body and its 5.1.5-1 negative claim are unchanged. SHALL include LOCAL_PREF in all UPDATEs to internal peers. Originated rails: WriteAnnounceUpdate, batch and queued API units (existing). Forward rails: TestRFC4271ForwardAddsLocalPrefTowardInternalPeer relays an eBGP-learned route with no LOCAL_PREF on the general rail and the route-server rail and asserts the internal destination is sent exactly 00000064 while the external destination in the same fan-out is sent none, so a blanket add or a blanket strip each go red. Producer applyFactsLocalPref adds 100 only when the base carries none and no egress mod set one. Observed-red records on applyFactsLocalPref both polarities, and on buildRIBRouteUpdate. The negative's external half overlaps RFC4271-5.1.5-2; it is kept because it is what shows the add follows the internal classification.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestForwardLocalPrefStrippedToExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_local_pref_test.go#L45) | unit/verify | unproven |
 | negative | [`TestRFC4271ForwardAddsLocalPrefTowardInternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go#L51) | unit/verify | revert, verified |
-| negative | [`TestAnnounceStripsLocalPrefTowardExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_reactor_api_origin_test.go#L307) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestAnnounceStripsLocalPrefTowardExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_reactor_api_origin_test.go#L307) | unit/verify | revert, verified |
 | negative | [`TestRFC4271LocalPrefOmittedForExternalPeers`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L107) | unit/verify | unproven |
 | positive | [`TestRFC4271ForwardAddsLocalPrefTowardInternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_reactor_a2_forward_test.go#L50) | unit/verify | revert, verified |
 | positive | [`TestRFC4271LocalPrefIncludedForInternalPeers`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L81) | unit/verify | unproven |
@@ -704,7 +704,7 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 
 A BGP speaker MUST NOT include this attribute in UPDATE messages it sends to external peers, except in the case of BGP Confederations [RFC3065]. (§5.1.5)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/reactor/rfc4271_reactor_api_origin_test.go::TestAnnounceStripsLocalPrefTowardExternalPeer moved. Re-judged 2026-10-01 (BGP c17 judge): TestRFC4271LocalPrefOmittedForExternalPeers changed only by losing its RFC4271-9.1.1-2 tag lines (D-15); its 5.1.5-2 positive claim and body are unchanged. Announce (WriteAnnounceUpdate), API batch and queued rails, forward rail and local-pref-strip-ebgp.ci assert no attribute 5 toward an external peer, including over a filter Set; ze has no confederation surface, so the exception is unreachable.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-24 (independent auditor, authored none of the change). RFC 4271 Section 5.1.5: "A BGP speaker MUST NOT include this attribute in UPDATE messages it sends to external peers, except in the case of BGP Confederations [RFC3065]." 238bdb62e9 (spec-refuse-instead-of-defaulting) changed nlri.NewINET to take an explicit has-path-id flag; the unit passes false where it passed path id 0, which already meant no ADD-PATH identifier, so the input, the route and every assertion are byte-for-byte the same (TestAnnounceStripsLocalPrefTowardExternalPeer, the withdrawal NLRI). The absence assertion toward the external peer and the interop carrier checkLocalPrefStrip (byte-identical) are unchanged. Verdict unchanged: enforced. Earlier judgement follows. Re-judged 2026-10-01 (BGP c17 judge): TestRFC4271LocalPrefOmittedForExternalPeers changed only by losing its RFC4271-9.1.1-2 tag lines (D-15); its 5.1.5-2 positive claim and body are unchanged. Announce (WriteAnnounceUpdate), API batch and queued rails, forward rail and local-pref-strip-ebgp.ci assert no attribute 5 toward an external peer, including over a filter Set; ze has no confederation surface, so the exception is unreachable.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -713,7 +713,7 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 | negative | [`local-pref-strip-ebgp.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/local-pref-strip-ebgp.ci#L19) | functional/verify | unproven |
 | positive | [`TestForwardLocalPrefStripBeatsAFilterSet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_local_pref_test.go#L113) | unit/verify | unproven |
 | positive | [`TestForwardLocalPrefStrippedToExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_local_pref_test.go#L41) | unit/verify | unproven |
-| positive | [`TestAnnounceStripsLocalPrefTowardExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_reactor_api_origin_test.go#L305) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestAnnounceStripsLocalPrefTowardExternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_reactor_api_origin_test.go#L305) | unit/verify | revert, verified |
 | positive | [`TestRFC4271LocalPrefOmittedForExternalPeers`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L104) | unit/verify | unproven |
 | positive | [`checkLocalPrefStrip`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L94) | interop/nightly | unproven |
 | positive | [`local-pref-strip-ebgp.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/local-pref-strip-ebgp.ci#L14) | functional/verify | unproven |
@@ -953,12 +953,12 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Afte
 
 or an AutomaticStart event (Event 3), the local system: - initializes all BGP resources for the peer connection, - sets ConnectRetryCounter to zero (§8.2.2)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/reactor/peer_run.go::runOnce moved. RFC 4271 Section 8.2.2 (Idle), rfc/full/rfc4271.txt:2947-2962: "In response to a ManualStart event (Event 1) or an AutomaticStart event (Event 3), the local system: - initializes all BGP resources for the peer connection, - sets ConnectRetryCounter to zero, - starts the ConnectRetryTimer with the initial value, - initiates a TCP connection to the other BGP peer, - listens for a connection that may be initiated by the remote BGP peer, and - changes its state to Connect." Independently read all five tagged carriers in fsm/rfc4271_connect_retry_test.go and reactor/rfc4271_automatic_start_peer_test.go, plus fsm.go::handleIdle and peer_run.go::runOnce. Implemented-tested: Idle Event 3 resets a seeded counter from 7 to exactly 0 in active/passive modes; Event 6 and non-Idle starts retain the counter. Live peer fixtures create sessions, exchange OPEN/KEEPALIVE, reach Established, end by Cease or hold expiry, and require 1 after failure then 0 on the next dial. A subsequent OpenSent failure must retain 1, discriminating a stale established flag. runOnce creates fresh session resources, supplies the peer-owned counter, consumes cycleReachedEstablished with Swap(false), and selects automatic versus damped start before dialing; the new export-final callback does not alter these steps. Resource initialization is observed through successful real session establishment, not inferred from reset alone; Section 8.2.1.5 leaves its details implementation-dependent. This row does not separately certify every timer/listener obligation in the full Idle action list. No new execution or discrimination observation; semantic source rejudgment only.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-24 (independent auditor, authored none of the change). RFC 4271 Section 8.2.2: "or an AutomaticStart event (Event 3), the local system: - initializes all BGP resources for the peer connection, - sets ConnectRetryCounter to zero" 238bdb62e9 changed the producer peer_run.go::runOnce only to pass rpc.RemoteASOf(settings.PeerAS) into the published peer info; the Idle ManualStart/AutomaticStart handling, resource initialisation and the ConnectRetryCounter reset (fsm.go::handleIdle, byte-identical) are untouched, and the tagged carriers are unchanged, so both clauses stay proven. The re-stamp inside 238bdb62e9 recorded a runOnce fingerprint that does not match HEAD; this judgement re-reads runOnce at HEAD. Verdict unchanged: enforced. Earlier judgement follows. RFC 4271 Section 8.2.2 (Idle), rfc/full/rfc4271.txt:2947-2962: "In response to a ManualStart event (Event 1) or an AutomaticStart event (Event 3), the local system: - initializes all BGP resources for the peer connection, - sets ConnectRetryCounter to zero, - starts the ConnectRetryTimer with the initial value, - initiates a TCP connection to the other BGP peer, - listens for a connection that may be initiated by the remote BGP peer, and - changes its state to Connect." Independently read all five tagged carriers in fsm/rfc4271_connect_retry_test.go and reactor/rfc4271_automatic_start_peer_test.go, plus fsm.go::handleIdle and peer_run.go::runOnce. Implemented-tested: Idle Event 3 resets a seeded counter from 7 to exactly 0 in active/passive modes; Event 6 and non-Idle starts retain the counter. Live peer fixtures create sessions, exchange OPEN/KEEPALIVE, reach Established, end by Cease or hold expiry, and require 1 after failure then 0 on the next dial. A subsequent OpenSent failure must retain 1, discriminating a stale established flag. runOnce creates fresh session resources, supplies the peer-owned counter, consumes cycleReachedEstablished with Swap(false), and selects automatic versus damped start before dialing; the new export-final callback does not alter these steps. Resource initialization is observed through successful real session establishment, not inferred from reset alone; Section 8.2.1.5 leaves its details implementation-dependent. This row does not separately certify every timer/listener obligation in the full Idle action list. No new execution or discrimination observation; semantic source rejudgment only.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC4271AutomaticStartZeroesOnlyFromIdle`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L702) | unit/verify | revert, verified |
-| negative | [`TestRFC4271FailedCycleAfterEstablishedKeepsCounter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go#L244) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC4271FailedCycleAfterEstablishedKeepsCounter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go#L244) | unit/verify | revert, verified |
 | negative | [`TestRFC4271FailedCycleRestartKeepsCounter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go#L191) | unit/verify | revert, verified |
 | positive | [`TestRFC4271AutomaticStartZeroesConnectRetryCounter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L673) | unit/verify | revert, verified |
 | positive | [`TestRFC4271AutomaticStartEvent3ZeroesCounter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_automatic_start_peer_test.go#L141) | unit/verify | revert, verified |
@@ -1028,7 +1028,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Peer
 | negative | [`TestRFC4271ConnectRetryCounterQuietOnVersionErrorInOpenStates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L342) | unit/verify | unproven |
 | negative | [`TestRFC4271EstablishedGoodMessagesKeepTheConnection`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go#L157) | unit/verify | revert, verified |
 | positive | [`TestRFC4271ConnectRetryCounterOnVersionErrorPerState`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L318) | unit/verify | unproven |
-| positive | [`TestRFC4760PeerDownDeletesOnlyThatNeighborsRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4760_peer_down_test.go#L51) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC4760PeerDownDeletesOnlyThatNeighborsRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4760_peer_down_test.go#L51) | unit/verify | revert, verified |
 | positive | [`TestRFC4271EstablishedNotificationOrTCPFailureReleasesTheConnection`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go#L85) | unit/verify | revert, verified |
 
 ### [`RFC4271-8.2.2-13`](#rfc4271-8.2.2-13)
@@ -1050,7 +1050,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Peer
 | negative | [`TestRFC4271ConnectRetryCounterQuietOnGoodUpdate`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L442) | unit/verify | unproven |
 | negative | [`TestRFC4271EstablishedGoodMessagesKeepTheConnection`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go#L158) | unit/verify | revert, verified |
 | positive | [`TestRFC4271ConnectRetryCounterIncrementsOnUpdateError`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/rfc4271_connect_retry_test.go#L422) | unit/verify | unproven |
-| positive | [`TestRFC4760PeerDownDeletesOnlyThatNeighborsRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4760_peer_down_test.go#L55) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC4760PeerDownDeletesOnlyThatNeighborsRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4760_peer_down_test.go#L55) | unit/verify | revert, verified |
 | positive | [`TestRFC4271EstablishedUpdateErrorReleasesTheConnection`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_established_teardown_peer_test.go#L129) | unit/verify | revert, verified |
 
 ### [`RFC4271-8.2.2-15`](#rfc4271-8.2.2-15)
@@ -1282,7 +1282,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC4271ReceivedMEDAlteredBeforeTheDecisionProcess`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_med_ingress_test.go#L43) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC4271ReceivedMEDAlteredBeforeTheDecisionProcess`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_med_ingress_test.go#L43) | unit/verify | revert, verified |
 | positive | [`TestRFC4271MEDAlterationHappensAtIngress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_test.go#L455) | unit/verify | unproven |
 
 ### [`RFC4271-5.1.5-5`](#rfc4271-5.1.5-5)
@@ -1377,9 +1377,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. No u
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC4271AdjRIBInUpdateThatDisplacesTheBestReselects`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go#L214) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC4271AdjRIBInUpdateThatDisplacesTheBestReselects`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go#L214) | unit/verify | revert, verified |
 | negative | [`TestRIBBestChangeNoPublishSameBest`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go#L668) | unit/verify | unproven |
-| positive | [`TestRFC4271AdjRIBInUpdateRunsTheDecisionProcess`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go#L194) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC4271AdjRIBInUpdateRunsTheDecisionProcess`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go#L194) | unit/verify | revert, verified |
 | positive | [`TestRIBBestChangeWithdraw`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go#L704) | unit/verify | unproven |
 
 ### [`RFC4271-9.1.1-1`](#rfc4271-9.1.1-1)
@@ -1481,7 +1481,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 | positive | [`TestBestPathStepFComparesThePeerBGPIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_bgp_identifier_test.go#L88) | unit/verify | revert, verified |
 | positive | [`TestRFC4271AdjacentCriteriaApplyInTheOrderSpecified`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_criteria_order_test.go#L44) | unit/verify | revert, verified |
 | positive | [`TestRFC4271WholeSetMEDBeforeLaterCriteria`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_whole_set_med_test.go#L44) | unit/verify | revert, verified |
-| positive | [`TestRFC4271WholeSetMEDRIBBestChange`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_whole_set_med_test.go#L188) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC4271WholeSetMEDRIBBestChange`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_whole_set_med_test.go#L188) | unit/verify | revert, verified |
 
 ### [`RFC4271-9.1.2.2-2`](#rfc4271-9.1.2.2-2)
 
@@ -1541,10 +1541,10 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC4271OverlappingRouteArrivalDisplacesNeither`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go#L318) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC4271OverlappingRouteArrivalDisplacesNeither`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go#L318) | unit/verify | revert, verified |
 | negative | [`TestRFC4271OverlappingRouteRejectedByPolicyIsNotConsidered`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_overlap_acceptance_test.go#L122) | unit/verify | revert, verified |
-| positive | [`TestRFC4271OverlappingReceivedRoutesAreBothInstalled`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go#L291) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC4271OverlappingRoutesAcceptedByPolicyBothReachTheDecisionProcess`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_overlap_acceptance_test.go#L99) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC4271OverlappingReceivedRoutesAreBothInstalled`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go#L291) | unit/verify | revert, verified |
+| positive | [`TestRFC4271OverlappingRoutesAcceptedByPolicyBothReachTheDecisionProcess`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_overlap_acceptance_test.go#L99) | unit/verify | revert, verified |
 
 ### [`RFC4271-9.2-5`](#rfc4271-9.2-5)
 
@@ -1822,12 +1822,12 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Revi
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC4271LocalPrefLengthFromInternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_reactor_a_local_pref_length_test.go#L32) | unit/verify | revert, verified |
-| negative | [`TestRFC4271RecognizedAttributeErrorsBeyondTheFirst`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go#L55) | unit/verify | revert, verified |
-| negative | [`TestSessionRFC4271RevisedAttributeErrors`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_session_core4271_test.go#L105) | unit/verify | revert, verified |
-| positive | [`TestRFC4271LocalPrefLengthFromInternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_reactor_a_local_pref_length_test.go#L31) | unit/verify | revert, verified |
-| positive | [`TestRFC4271RecognizedAttributeErrorsBeyondTheFirst`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go#L54) | unit/verify | revert, verified |
-| positive | [`TestSessionRFC4271RevisedAttributeErrors`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_session_core4271_test.go#L104) | unit/verify | revert, verified |
+| negative | [`TestRFC4271LocalPrefLengthFromInternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_reactor_a_local_pref_length_test.go#L32) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC4271RecognizedAttributeErrorsBeyondTheFirst`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go#L55) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestSessionRFC4271RevisedAttributeErrors`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_session_core4271_test.go#L105) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC4271LocalPrefLengthFromInternalPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_reactor_a_local_pref_length_test.go#L31) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC4271RecognizedAttributeErrorsBeyondTheFirst`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go#L54) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestSessionRFC4271RevisedAttributeErrors`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_session_core4271_test.go#L104) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC4271-6.3-7`](#rfc4271-6.3-7)
 
@@ -1920,9 +1920,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Revi
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC4271RecognizedAttributeErrorsBeyondTheFirst`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go#L57) | unit/verify | revert, verified |
+| negative | [`TestRFC4271RecognizedAttributeErrorsBeyondTheFirst`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go#L57) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | negative | [`TestSessionRFC4271RevisedAttributeErrors`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_session_core4271_test.go#L115) | unit/verify | unproven |
-| positive | [`TestRFC4271RecognizedAttributeErrorsBeyondTheFirst`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go#L56) | unit/verify | revert, verified |
+| positive | [`TestRFC4271RecognizedAttributeErrorsBeyondTheFirst`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go#L56) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestSessionRFC4271RevisedAttributeErrors`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_session_core4271_test.go#L114) | unit/verify | unproven |
 
 ### [`RFC4271-6.3-15`](#rfc4271-6.3-15)
@@ -1933,9 +1933,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Revi
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC4271UpdateMalformedAttributeList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_session_update_error_test.go#L61) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC4271UpdateMalformedAttributeList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_session_update_error_test.go#L59) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestSessionRFC7606DuplicateMPUnreachNotificationOnTheWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_dupmp_unreach_wire_test.go#L31) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC4271UpdateMalformedAttributeList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_session_update_error_test.go#L61) | unit/verify | revert, producer-gone (the producer the break was applied to is no longer in the tree) |
+| positive | [`TestRFC4271UpdateMalformedAttributeList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_session_update_error_test.go#L59) | unit/verify | revert, producer-gone (the producer the break was applied to is no longer in the tree) |
+| positive | [`TestSessionRFC7606DuplicateMPUnreachNotificationOnTheWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_dupmp_unreach_wire_test.go#L31) | unit/verify | revert, producer-gone (the producer the break was applied to is no longer in the tree) |
 
 ### [`RFC4271-6.3-16`](#rfc4271-6.3-16)
 
@@ -1978,8 +1978,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC4271AdjRIBInPlacesNewRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rfc4271_rib_test.go#L44) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC4271AdjRIBInPlacesNewRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rfc4271_rib_test.go#L41) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC4271AdjRIBInPlacesNewRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rfc4271_rib_test.go#L44) | unit/verify | revert, verified |
+| positive | [`TestRFC4271AdjRIBInPlacesNewRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rfc4271_rib_test.go#L41) | unit/verify | revert, verified |
 
 ### [`RFC4271-10-4`](#rfc4271-10-4)
 

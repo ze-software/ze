@@ -18,6 +18,14 @@ Thomas approved implementation on 23 October 2026:
 
 > This looks good. Please apply this style across the GitHub Pages website, keeping all the existing information and functionality.
 
+Thomas approved the management walkthrough layout on 24 October 2026:
+
+> Yes, put the SSH walkthrough on the right and make the existing content more compact on the left. Regenerate the site in ../gh-pages so I can review it.
+
+Thomas refined the card color rule on 24 October 2026:
+
+> It's very nice to have different cards with different colors, but the excessive colors on the card make it look less professional. Perhaps the border shouldn't be colored, only the title should have a color. The color brings differentiation, but it should be a bit more subdued.
+
 1. ### Preserve useful information
 
  Start with an inventory of existing capabilities, differentiators, demonstrations, evidence, deployment options, use cases, updates and release status. Give every item an explicit place in the proposal. Explain each move or reduction in detail. Removing useful information requires the owner's agreement.
@@ -63,7 +71,7 @@ Logo blue identifies Ze. Seven distinct subject colors connect related content a
 
 `assets/css/00-tokens.css` owns the palette for both themes. `--brand` is the logo blue (#0069b4), `--brand-bright` is cyan (#009ee2), and `--brand-indigo` is indigo (#312782). Navy heroes use `--hero-bg`; body surfaces use `--bg`, `--panel` and `--bg-soft`. Text and controls use semantic tokens so the same content remains readable in either theme. Cyan is an accent on dark surfaces; small links on light surfaces use the darker blue.
 
-Category tokens retain their existing names for authored pages. `-base` supplies vivid borders and markers; `-mid` supplies a secondary accent. `-deep` is readable text on `-chip` labels and `-tint` surfaces. Despite its name, `-deep` becomes lighter in the dark theme. Labels, selected filters and cards use these same roles. Do not put white text on a bright accent without checking contrast. Normal text needs at least 4.5:1 in both themes.
+Category tokens retain their existing names for authored pages. Cards use `-deep` for readable titles and compact category labels on neutral surfaces. Selection controls can use `-base`, `-chip` and `-tint` to express their category and active state. Despite its name, `-deep` becomes lighter in the dark theme. Do not put white text on a bright accent without checking contrast. Normal text needs at least 4.5:1 in both themes.
 
 The category identities are fixed: Operate is blue, Routing amber, Services orange, Automate violet, Observe green, Secure magenta and Deploy & configure teal. Broad project updates and cross-topic evidence are neutral. Keep these identities in explicit and automatic dark mode. Status colors remain independent of this subject palette.
 
@@ -137,14 +145,15 @@ A pale blue-gray page with white surfaces and navy text in the light theme; deep
 
 A subject keeps the same color wherever it appears.
 
-A `cat-*` class sets the subject color for labels, borders, technology chips, links and bullet markers. Titles use the shared text color for readability. The same rules cover homepage, feature, documentation, article, plugin, comparison, FAQ and evidence cards.
+A `cat-*` class sets the subject color for titles and compact category labels. Borders, surfaces, technology chips, body text and bullet markers stay neutral. The same rules cover homepage, feature, documentation, article, plugin, comparison, FAQ and evidence cards.
 
 1. Choose the existing category that describes the card's primary subject. Keep it in the source record or an explicit semantic classification, not in a styling loop.
 2. Use `cat-meta` for cross-topic content with no primary subject. Unclassified cards use the same neutral roles. Do not invent a category to create variety.
 3. Pass authored categories through the shared generator vocabulary. Unknown values are errors, not permission to choose an arbitrary color.
-4. Use shared `--acc`, `--acc-deep`, `--acc-chip` and `--acc-tint` roles. Do not assign hues by position, hash or presentation tone, or override them for a page or theme.
-5. Standard category cards fade from the subject tint at the top to the reading surface below. The tint stays equal at matching heights on the left and right. Use `--acc` for every outer edge: a thin outline with a stronger top border. The border color stays solid as the background fades. Neutral cards follow the same rule with their neutral tokens.
-6. Keep status independent. Success, warning and failure use `--green`, `--amber` and `--danger-deep`, with words explaining the result. Neutral evidence measures make no verdict. Maturity keeps its explicit labels and border treatment.
+4. Use `--acc-deep` for title and category-label text so it stays readable in both themes. Do not assign hues by position, hash or presentation tone, or override them for a page or theme.
+5. Every subject card uses the shared `--panel` surface and a thin `--line` border on all sides. Hover borders use `--line-strong`. Keep shadows neutral and restrained. Do not add colored top bars, edge stripes, tinted washes, rings or glows.
+6. Category labels use neutral `--panel` or `--bg-soft` backgrounds. Keep technology and mode chips neutral; reserve stronger control color for selected filters and visible keyboard focus.
+7. Keep status independent. Success, warning and failure use `--green`, `--amber` and `--danger-deep`, with words explaining the result. Neutral evidence measures make no verdict. Maturity keeps its explicit labels and border treatment.
 
 **Routing**
 
@@ -152,7 +161,7 @@ A `cat-*` class sets the subject color for labels, borders, technology chips, li
 
 `RFC 0000` `Tech`
 
-- One hue, **every element**
+- Subject color in **titles and labels**
 - Chips name **technologies**
 - Bullets state **facts**
 
@@ -200,9 +209,13 @@ Separate standard homepage sections with spacing and no horizontal rules, and om
 
 Keep homepage section containers, including Latest news, shadowless. Cards within them retain their component shadows.
 
+Proof cards share heading, detail and evidence rows. Align every evidence divider and the first line of its text to the same row boundary, even when another card's evidence wraps. Preserve the complete evidence wording.
+
+The management section uses two equal columns: compact explanation, interface map and documentation links on the left; a real SSH recording on the right. Keep readable step labels beside the player, show its SSH introduction as the preview, start there on demand, and retain full-screen controls, the full session and the transcript. Stack the columns at widths of 960px or less.
+
 ### Dispatch cards
 
-Use one accent palette per choice and a light circle-line ornament. Do not use filled decorative balls.
+Use the subject color on each choice's title and compact category label. Keep the panel and border neutral, without decorative colored shapes.
 
 ### Generated pages
 
@@ -222,7 +235,7 @@ Feature search combines category and maturity filters. The command reference com
 
 ### Product screenshots
 
-The homepage groups authentic screenshots with captions, provenance and full-size links. Native buttons select the interface and expose their pressed state. All screenshots remain visible when JavaScript is unavailable. Recordings retain their controls and transcript links.
+The homepage groups authentic interfaces with captions, provenance and full-size links. Native buttons select the interface and expose their pressed state. Keep one shared media ratio and reserve the tallest caption so switching views never moves the hero. Inactive panels are invisible and inert. All panels remain visible when JavaScript is unavailable. Distinguish Web configuration from the CLI editor; the web tab carries a genuine recording with controls and a transcript and pauses when another tab is selected. Static CLI captures contain no player controls or play button.
 
 ### .status-panel / .status-table
 

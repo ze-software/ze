@@ -1374,7 +1374,7 @@ Dependencies are declared in the plugin's registration, not in config. The engin
 
 | Kind | Field | Behavior if missing |
 |------|-------|----------------------|
-| Hard | `Dependencies` | Startup fails with `ErrMissingDependency`. |
+| Hard | `Dependencies` | Ze refuses to start, before any plugin runs, at boot, at a config reload and for an explicit `plugin {}` block. The message names the plugin, the dependency and the build tags to rebuild with (or says the name is unknown to this build), and ends with the fix on its own line. |
 | Optional | `OptionalDependencies` | Silently skipped. Plugin owner handles runtime absence (typically a one-shot WARN + feature disabled). |
 
 `StartAfter` is separate from either kind of dependency. It orders two plugins

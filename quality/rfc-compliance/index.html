@@ -126,7 +126,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>56.0%</strong><b>2,331 of 4,163 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>10.2%</strong><b>426 of 4,163 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 4,163 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>65.0%</strong><b>5,750 of 8,843 tagged units in enrolled RFCs, 4 escaped and 184 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>65.5%</strong><b>5,793 of 8,843 tagged units in enrolled RFCs, 4 escaped and 141 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -134,14 +134,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>16.0%</strong><b>668 of 4,163 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>1.1%</strong><b>44 of 4,163 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>1.2%</strong><b>52 of 4,163 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Semantic verdicts</span><strong>2,236</strong><b>3 shifted, 32 stale, 2,021 missing</b><p>requirements a reader has judged and whose judgement is still current. A missing verdict is not claimed, and the shifted and stale ones are named on their own RFC&#39;s page</p></article>
+<article class="rfc-card rfc-neutral"><span>Semantic verdicts</span><strong>2,228</strong><b>36 shifted, 7 stale, 2,021 missing</b><p>requirements a reader has judged and whose judgement is still current. A missing verdict is not claimed, and the shifted and stale ones are named on their own RFC&#39;s page</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>Partial proof; remaining gap</span><strong>0.4%</strong><b>15 of 4,163 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-bad"><span>No test at all</span><strong>15.1%</strong><b>627 of 4,163 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-bad"><span>Gate verdict</span><strong>RED</strong><b>273 open gate issues</b><p>whether ./le rfc check passes over this tree</p></article>
+<article class="rfc-card rfc-bad"><span>Gate verdict</span><strong>RED</strong><b>136 open gate issues</b><p>whether ./le rfc check passes over this tree</p></article>
 </div>
 <p>The 8 shares marked as a part above are the whole of the 4,163 gated MUSTs: they add to 100%. Proven by test is the first two of them added together, so it is not a part of its own. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -212,8 +212,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </details>
 <div class="rfc-verdict rfc-bad">
 <p><span>Gate verdict</span><strong>RED</strong></p>
-<p>273 open gate issues. Check results below names them, up to the 25 this page inlines.</p>
-<p>Reproduce it with <code>./le rfc check</code>. The gate's own line reads <code>rfc-requirements: 273 violation(s)</code>.</p>
+<p>136 open gate issues. Check results below names them, up to the 25 this page inlines.</p>
+<p>Reproduce it with <code>./le rfc check</code>. The gate's own line reads <code>rfc-requirements: 136 violation(s)</code>.</p>
 </div>
 <section><h2>Who implements each document</h2>
 <p>The ledger counts what Ze implements in its own Go. A document another layer performs leaves the gated population and names what performs it, and where Ze can observe the behavior the requirement still carries a test over the state Ze installs.</p>
@@ -564,7 +564,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Semantic audits</td>
 <td><code>rfc/audit/*/*.json</code></td>
-<td>2,236 fresh, 3 shifted, 32 stale, 2,021 missing</td>
+<td>2,228 fresh, 36 shifted, 7 stale, 2,021 missing</td>
 </tr>
 <tr><td>Pre-commit verification</td>
 <td><code>internal/le/verify/engine/stages.go</code></td>
@@ -592,151 +592,151 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>-</td>
 <td><code>-</code></td>
 <td>-</td>
-<td>internal/component/bgp/plugins/bmp: `go vet` cannot type-check this package, so the 68 RFC requirement(s) tagged in it are not evidence: no test here can run. Tagged here: RFC7854-3.2-1, RFC7854-3.2-2, RFC7854-3.3-1, RFC7854-4.1-1, .... go vet said: internal/component/bgp/plugins/bmp/doctor.go:18:2: could not import github.com/ze-software/ze/internal/component/config (open /Users/thomas/Unix/cache/ze/go-cache/01/013684e10db1627d7e5d367e3f8adea5deed53e6aad9ded713e55ef22fc482eb-d: no such file or directory). Fix the package so `./le verify deps unit-cached` compiles it, then re-run `./le rfc check`</td>
+<td>DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-6 is annotated {partial: tested &#34;mandatory fields exceed the declared Lengt} but its public row says draft-ietf-bess-mup-safi is &#39;Partial&#39; with &#39;&#39;. A known unmet MUST cannot be advertised as clean support -- correct `Support status` or `Support remaining` in the summary&#39;s own Meta table, then run ./le rfc index-update. A hand edit to docs/features/rfc-status.md is destroyed by the next run</td>
 <td>-</td>
 </tr>
 <tr><td>-</td>
 <td><code>-</code></td>
 <td>-</td>
-<td>internal/component/bgp/plugins/rib: `go vet` cannot type-check this package, so the 59 RFC requirement(s) tagged in it are not evidence: no test here can run. Tagged here: DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.6-1, RFC2918-4-3, RFC4271-4.3-5, RFC4271-4.3-7, .... go vet said: internal/component/bgp/plugins/rib/rib_topology.go:12:2: could not import github.com/ze-software/ze/internal/graph (open /Users/thomas/Unix/cache/ze/go-cache/03/039b6ef1f5e9f424993c9dddf054f556334c2fd6ff1b25916f6fcbc2ab6880b6-d: no such file or directory). Fix the package so `./le verify deps unit-cached` compiles it, then re-run `./le rfc check`</td>
+<td>RFC2545-3-3 partial scope needs a current verified mutant/revert for negative internal/component/bgp/reactor/rfc2545_peer_send_test.go::TestSendAnnounceOmitsLinkLocalWhenPeerOffLink</td>
 <td>-</td>
 </tr>
 <tr><td>-</td>
 <td><code>-</code></td>
 <td>-</td>
-<td>internal/component/bgp/plugins/rpki: `go vet` cannot type-check this package, so the 58 RFC requirement(s) tagged in it are not evidence: no test here can run. Tagged here: DRAFT-IETF-SIDROPS-8210BIS-5.12-1, DRAFT-IETF-SIDROPS-8210BIS-5.12-3, DRAFT-IETF-SIDROPS-8210BIS-5.12-4, DRAFT-IETF-SIDROPS-8210BIS-5.12-5, .... go vet said: internal/component/bgp/plugins/rpki/doctor.go:17:2: could not import github.com/ze-software/ze/internal/component/config (open /Users/thomas/Unix/cache/ze/go-cache/01/013684e10db1627d7e5d367e3f8adea5deed53e6aad9ded713e55ef22fc482eb-d: no such file or directory). Fix the package so `./le verify deps unit-cached` compiles it, then re-run `./le rfc check`</td>
+<td>RFC2545-3-3 partial scope needs a current verified mutant/revert for positive internal/component/bgp/reactor/rfc2545_peer_send_test.go::TestSendAnnounceAppendsLinkLocalWhenSection3Holds</td>
 <td>-</td>
 </tr>
 <tr><td>-</td>
 <td><code>-</code></td>
 <td>-</td>
-<td>internal/component/cli: `go vet` cannot type-check this package, and a package holding RFC requirement tags depends on it, so those tests cannot run either. go vet said: internal/component/cli/completer.go:19:2: could not import github.com/ze-software/ze/internal/component/config (open /Users/thomas/Unix/cache/ze/go-cache/01/013684e10db1627d7e5d367e3f8adea5deed53e6aad9ded713e55ef22fc482eb-d: no such file or directory). Fix the package so `./le verify deps unit-cached` compiles it, then re-run `./le rfc check`</td>
+<td>rfc/short/draft-abraitis-bgp-version-capability.md:94: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1 has a STALE audit verdict -- what it judged changed: internal/core/bgp/capability/negotiated.go::Negotiate (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read draft-abraitis-bgp-version-capability with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
 <td>-</td>
 </tr>
 <tr><td>-</td>
 <td><code>-</code></td>
 <td>-</td>
-<td>internal/component/config/archive/cmd: `go vet` cannot type-check this package, and a package holding RFC requirement tags depends on it, so those tests cannot run either. go vet said: internal/component/config/archive/cmd/archive.go:9:10: could not import github.com/ze-software/ze/internal/component/config (open /Users/thomas/Unix/cache/ze/go-cache/01/013684e10db1627d7e5d367e3f8adea5deed53e6aad9ded713e55ef22fc482eb-d: no such file or directory). Fix the package so `./le verify deps unit-cached` compiles it, then re-run `./le rfc check`</td>
+<td>rfc/short/draft-ietf-idr-linklocal-capability.md:129: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1 has a STALE audit verdict -- what it judged changed: internal/component/bgp/message/draft_ietf_idr_linklocal_capability_malformed_test.go::TestLinkLocalCapabilityMalformedThirtyTwoOctet (func-scoped), internal/component/bgp/message/draft_ietf_idr_linklocal_capability_malformed_test.go::TestLinkLocalCapabilityWellFormedThirtyTwoOctet (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read draft-ietf-idr-linklocal-capability with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
 <td>-</td>
 </tr>
 <tr><td>-</td>
 <td><code>-</code></td>
 <td>-</td>
-<td>internal/component/config/cli: `go vet` cannot type-check this package, so the 1 RFC requirement(s) tagged in it are not evidence: no test here can run. Tagged here: RFC5301-3-7. go vet said: internal/component/config/cli/cmd_completion.go:13:2: could not import github.com/ze-software/ze/internal/component/config (open /Users/thomas/Unix/cache/ze/go-cache/01/013684e10db1627d7e5d367e3f8adea5deed53e6aad9ded713e55ef22fc482eb-d: no such file or directory). Fix the package so `./le verify deps unit-cached` compiles it, then re-run `./le rfc check`</td>
+<td>rfc/short/rfc3948.md:216: RFC3948-2.1-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/ike/engine/rfc3948_rebind_test.go::TestRFC3948RebindMigratesTunnelChildSAs, internal/component/ike/engine/rfc3948_rebind_test.go::TestRFC3948RebindNotRunWithoutAnAdoptedMove, internal/component/ike/engine/rfc3948_rebind_test.go::TestRFC3948RebindRekeysTransportChildSA, internal/component/ike/engine/rfc3948_rebind_test.go::TestRFC3948RebindRekeysWithoutAMigrator), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal</td>
 <td>-</td>
 </tr>
 <tr><td>-</td>
 <td><code>-</code></td>
 <td>-</td>
-<td>internal/component/config/infra: `go vet` cannot type-check this package, and a package holding RFC requirement tags depends on it, so those tests cannot run either. go vet said: internal/component/config/infra/authz.go:15:2: could not import github.com/ze-software/ze/internal/component/config (open /Users/thomas/Unix/cache/ze/go-cache/01/013684e10db1627d7e5d367e3f8adea5deed53e6aad9ded713e55ef22fc482eb-d: no such file or directory). Fix the package so `./le verify deps unit-cached` compiles it, then re-run `./le rfc check`</td>
+<td>rfc/short/rfc3948.md:217: RFC3948-3.1.2-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/le/interoplab/ipsec/checkers.go::checkNATTTransportInnerChecksum, internal/le/interoplab/ipsec/checkers.go::checkNATTTunnelInnerChecksum), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal</td>
 <td>-</td>
 </tr>
 <tr><td>-</td>
 <td><code>-</code></td>
 <td>-</td>
-<td>internal/component/config/storage/cli: `go vet` cannot type-check this package, and a package holding RFC requirement tags depends on it, so those tests cannot run either. go vet said: internal/component/config/storage/cli/cmd_restore.go:10:2: could not import path/filepath (open /Users/thomas/Unix/cache/ze/go-cache/01/01962f83c299175d07b8244c2071aaab137d03b29d38c662579bfede7413b2c8-d: no such file or directory). Fix the package so `./le verify deps unit-cached` compiles it, then re-run `./le rfc check`</td>
+<td>rfc/short/rfc7296.md:491: RFC7296-2.7-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/le/interoplab/ipsec/checkers.go::checkESNBothOffered, internal/le/interoplab/ipsec/checkers.go::checkESNExtendedOnlyRefused), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal</td>
 <td>-</td>
 </tr>
 <tr><td>-</td>
 <td><code>-</code></td>
 <td>-</td>
-<td>internal/component/doctor: `go vet` cannot type-check this package, and a package holding RFC requirement tags depends on it, so those tests cannot run either. go vet said: internal/component/doctor/checks_as112_coordination.go:28:2: could not import github.com/ze-software/ze/internal/component/config (open /Users/thomas/Unix/cache/ze/go-cache/01/013684e10db1627d7e5d367e3f8adea5deed53e6aad9ded713e55ef22fc482eb-d: no such file or directory). Fix the package so `./le verify deps unit-cached` compiles it, then re-run `./le rfc check`</td>
+<td>rfc/short/rfc7296.md:623: RFC7296-2.21.4-8 has a STALE audit verdict -- what it judged changed: internal/component/ike/engine/established.go::maintainSA (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7296 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
 <td>-</td>
 </tr>
 <tr><td>-</td>
 <td><code>-</code></td>
 <td>-</td>
-<td>internal/component/firewall/plugins/domain: `go vet` cannot type-check this package, and a package holding RFC requirement tags depends on it, so those tests cannot run either. go vet said: internal/component/firewall/plugins/domain/changelog.go:29:2: could not import path/filepath (open /Users/thomas/Unix/cache/ze/go-cache/01/01962f83c299175d07b8244c2071aaab137d03b29d38c662579bfede7413b2c8-d: no such file or directory). Fix the package so `./le verify deps unit-cached` compiles it, then re-run `./le rfc check`</td>
+<td>rfc/short/rfc7606.md:328: RFC7606-3.c-1 has a STALE audit verdict -- what it judged changed: internal/component/bgp/message/rfc7606_attribute_envelope_test.go::TestRFC7606ImplementedAttributeFlagConflicts (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7606 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
 <td>-</td>
 </tr>
 <tr><td>-</td>
 <td><code>-</code></td>
 <td>-</td>
-<td>internal/component/firewall/plugins/irr: `go vet` cannot type-check this package, and a package holding RFC requirement tags depends on it, so those tests cannot run either. go vet said: internal/component/firewall/plugins/irr/doctor.go:16:2: could not import github.com/ze-software/ze/internal/component/config (open /Users/thomas/Unix/cache/ze/go-cache/01/013684e10db1627d7e5d367e3f8adea5deed53e6aad9ded713e55ef22fc482eb-d: no such file or directory). Fix the package so `./le verify deps unit-cached` compiles it, then re-run `./le rfc check`</td>
+<td>rfc/short/rfc7606.md:329: RFC7606-3.d-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/message/rfc7606_test.go::TestRFC7606MissingASPath, internal/component/bgp/message/rfc7606_test.go::TestRFC7606MissingOrigin, internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption, internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption#2, internal/component/bgp/message/rfc7606_test.go::TestRFC7606ValidUpdate), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal</td>
 <td>-</td>
 </tr>
 <tr><td>-</td>
 <td><code>-</code></td>
 <td>-</td>
-<td>internal/component/firewall: `go vet` cannot type-check this package, and a package holding RFC requirement tags depends on it, so those tests cannot run either. go vet said: internal/component/firewall/engine.go:20:2: could not import github.com/ze-software/ze/internal/component/config (open /Users/thomas/Unix/cache/ze/go-cache/01/013684e10db1627d7e5d367e3f8adea5deed53e6aad9ded713e55ef22fc482eb-d: no such file or directory). Fix the package so `./le verify deps unit-cached` compiles it, then re-run `./le rfc check`</td>
+<td>rfc/short/rfc7606.md:330: RFC7606-3.e-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPathUnrecognizedSegmentType, internal/component/bgp/message/rfc7606_test.go::TestRFC7606LocalPrefIBGPInvalid, internal/component/bgp/message/rfc7606_test.go::TestRFC7606MalformedOriginLength, internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal</td>
 <td>-</td>
 </tr>
 <tr><td>-</td>
 <td><code>-</code></td>
 <td>-</td>
-<td>internal/component/gnmi: `go vet` cannot type-check this package, and a package holding RFC requirement tags depends on it, so those tests cannot run either. go vet said: internal/component/gnmi/get.go:17:11: could not import github.com/ze-software/ze/internal/component/config (open /Users/thomas/Unix/cache/ze/go-cache/01/013684e10db1627d7e5d367e3f8adea5deed53e6aad9ded713e55ef22fc482eb-d: no such file or directory). Fix the package so `./le verify deps unit-cached` compiles it, then re-run `./le rfc check`</td>
+<td>rfc/short/rfc7606.md:331: RFC7606-3.f-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/message/rfc7606_test.go::TestRFC7606AggregatorLen8NoASN4Invalid, internal/component/bgp/message/rfc7606_test.go::TestRFC7606MalformedAtomicAggregate, internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal</td>
 <td>-</td>
 </tr>
 <tr><td>-</td>
 <td><code>-</code></td>
 <td>-</td>
-<td>internal/component/ike/engine: `go vet` cannot type-check this package, so the 271 RFC requirement(s) tagged in it are not evidence: no test here can run. Tagged here: RFC3748-4-1, RFC3748-4-5, RFC3748-4.1-3, RFC3748-7.10-5, .... go vet said: internal/component/ike/engine/apply.go:17:2: could not import github.com/ze-software/ze/internal/core/eap (open /Users/thomas/Unix/cache/ze/go-cache/02/0290777dc018d01d9ff440f2a2ac8bca63aba8533b1287acf2e7048980d33cc8-d: no such file or directory). Fix the package so `./le verify deps unit-cached` compiles it, then re-run `./le rfc check`</td>
+<td>rfc/short/rfc7606.md:332: RFC7606-3.g-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachIPv4NextHopValid, internal/component/bgp/message/rfc7606_test.go::TestRFC7606MultipleMPReach, internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal</td>
 <td>-</td>
 </tr>
 <tr><td>-</td>
 <td><code>-</code></td>
 <td>-</td>
-<td>internal/component/ike/ipsec: `go vet` cannot type-check this package, so the 16 RFC requirement(s) tagged in it are not evidence: no test here can run. Tagged here: RFC4301-4.4.1-11, RFC4301-4.4.1-12, RFC4301-4.4.1-4, RFC4301-4.4.1-6, .... go vet said: internal/component/ike/ipsec/config.go:16:2: could not import github.com/ze-software/ze/internal/component/config (open /Users/thomas/Unix/cache/ze/go-cache/01/013684e10db1627d7e5d367e3f8adea5deed53e6aad9ded713e55ef22fc482eb-d: no such file or directory). Fix the package so `./le verify deps unit-cached` compiles it, then re-run `./le rfc check`</td>
+<td>rfc/short/rfc7606.md:333: RFC7606-3.h-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/message/rfc7606_test.go::TestRFC7606CollectAllErrors), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal</td>
 <td>-</td>
 </tr>
 <tr><td>-</td>
 <td><code>-</code></td>
 <td>-</td>
-<td>internal/component/l2tp/plugins/authradius: `go vet` cannot type-check this package, so the 54 RFC requirement(s) tagged in it are not evidence: no test here can run. Tagged here: RFC2865-1.1-2, RFC2865-4.1-1, RFC2865-4.1-2, RFC2865-4.1-3, .... go vet said: internal/component/l2tp/plugins/authradius/doctor.go:13:2: could not import github.com/ze-software/ze/internal/component/config (open /Users/thomas/Unix/cache/ze/go-cache/01/013684e10db1627d7e5d367e3f8adea5deed53e6aad9ded713e55ef22fc482eb-d: no such file or directory). Fix the package so `./le verify deps unit-cached` compiles it, then re-run `./le rfc check`</td>
+<td>rfc/short/rfc7606.md:334: RFC7606-3.h-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/message/rfc7606_test.go::TestRFC7606MultipleErrorsStrongest), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal</td>
 <td>-</td>
 </tr>
 <tr><td>-</td>
 <td><code>-</code></td>
 <td>-</td>
-<td>internal/component/l2tp: `go vet` cannot type-check this package, so the 86 RFC requirement(s) tagged in it are not evidence: no test here can run. Tagged here: RFC2661-10-1, RFC2661-10-2, RFC2661-3.1-1, RFC2661-3.1-2, .... go vet said: internal/component/l2tp/config.go:14:2: could not import github.com/ze-software/ze/internal/component/config (open /Users/thomas/Unix/cache/ze/go-cache/01/013684e10db1627d7e5d367e3f8adea5deed53e6aad9ded713e55ef22fc482eb-d: no such file or directory). Fix the package so `./le verify deps unit-cached` compiles it, then re-run `./le rfc check`</td>
+<td>rfc/short/rfc7606.md:336: RFC7606-3.j-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachTooShort, internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPUnreachTooShort, internal/component/bgp/message/rfc7606_test.go::TestRFC7606NLRIOverrun, internal/component/bgp/message/rfc7606_test.go::TestRFC7606NLRIPrefixLengthTooLongIPv4, internal/component/bgp/message/rfc7606_test.go::TestRFC7606NLRIPrefixLengthTooLongIPv6, internal/component/bgp/message/rfc7606_test.go::TestRFC7606NLRIPrefixLengthValidIPv4, internal/component/bgp/message/rfc7606_test.go::TestRFC7606NLRIPrefixLengthValidIPv6), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal</td>
 <td>-</td>
 </tr>
 <tr><td>-</td>
 <td><code>-</code></td>
 <td>-</td>
-<td>internal/component/pki: `go vet` cannot type-check this package, and a package holding RFC requirement tags depends on it, so those tests cannot run either. go vet said: internal/component/pki/ca.go:13:2: could not import crypto/tls (open /Users/thomas/Unix/cache/ze/go-cache/06/06001d2a7785dc21b774449ad1d12a52c67a189151d9d7df3206e6418d87e08b-d: no such file or directory). Fix the package so `./le verify deps unit-cached` compiles it, then re-run `./le rfc check`</td>
+<td>rfc/short/rfc7606.md:337: RFC7606-4-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal</td>
 <td>-</td>
 </tr>
 <tr><td>-</td>
 <td><code>-</code></td>
 <td>-</td>
-<td>internal/component/plugin/cli: `go vet` cannot type-check this package, and a package holding RFC requirement tags depends on it, so those tests cannot run either. go vet said: internal/component/plugin/cli/test_cmd.go:11:2: could not import github.com/ze-software/ze/internal/component/config (open /Users/thomas/Unix/cache/ze/go-cache/01/013684e10db1627d7e5d367e3f8adea5deed53e6aad9ded713e55ef22fc482eb-d: no such file or directory). Fix the package so `./le verify deps unit-cached` compiles it, then re-run `./le rfc check`</td>
+<td>rfc/short/rfc7606.md:340: RFC7606-5.1-3 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachIPv4NextHopValid), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal</td>
 <td>-</td>
 </tr>
 <tr><td>-</td>
 <td><code>-</code></td>
 <td>-</td>
-<td>internal/component/resolve/cmd: `go vet` cannot type-check this package, and a package holding RFC requirement tags depends on it, so those tests cannot run either. go vet said: internal/component/resolve/cmd/doctor_rir.go:29:2: could not import github.com/ze-software/ze/internal/component/config (open /Users/thomas/Unix/cache/ze/go-cache/01/013684e10db1627d7e5d367e3f8adea5deed53e6aad9ded713e55ef22fc482eb-d: no such file or directory). Fix the package so `./le verify deps unit-cached` compiles it, then re-run `./le rfc check`</td>
+<td>rfc/short/rfc7606.md:341: RFC7606-5.2-1 has a STALE audit verdict -- what it judged changed: internal/component/bgp/message/rfc7606_attribute_envelope_test.go::TestRFC7606EmptyMPReachEscalatesToReset (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7606 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</td>
 <td>-</td>
 </tr>
 <tr><td>-</td>
 <td><code>-</code></td>
 <td>-</td>
-<td>internal/component/storage: `go vet` cannot type-check this package, and a package holding RFC requirement tags depends on it, so those tests cannot run either. go vet said: internal/component/storage/manager.go:11:2: could not import github.com/ze-software/ze/internal/core/report (open /Users/thomas/Unix/cache/ze/go-cache/0a/0a3d932e8a175cbe290cfd896606c10757d8ba6ecd0b0901dead35f220814b75-d: no such file or directory). Fix the package so `./le verify deps unit-cached` compiles it, then re-run `./le rfc check`</td>
+<td>rfc/short/rfc7606.md:343: RFC7606-7.1-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/message/rfc7606_test.go::TestRFC7606MalformedOriginLength, internal/component/bgp/message/rfc7606_test.go::TestRFC7606OriginValueEGP, internal/component/bgp/message/rfc7606_test.go::TestRFC7606OriginValueIGP, internal/component/bgp/message/rfc7606_test.go::TestRFC7606OriginValueIncomplete, internal/component/bgp/message/rfc7606_test.go::TestRFC7606OriginValueInvalid), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal</td>
 <td>-</td>
 </tr>
 <tr><td>-</td>
 <td><code>-</code></td>
 <td>-</td>
-<td>internal/component/sysctl: `go vet` cannot type-check this package, and a package holding RFC requirement tags depends on it, so those tests cannot run either. go vet said: internal/component/sysctl/doctor.go:13:2: could not import github.com/ze-software/ze/internal/component/config (open /Users/thomas/Unix/cache/ze/go-cache/01/013684e10db1627d7e5d367e3f8adea5deed53e6aad9ded713e55ef22fc482eb-d: no such file or directory). Fix the package so `./le verify deps unit-cached` compiles it, then re-run `./le rfc check`</td>
+<td>rfc/short/rfc7606.md:344: RFC7606-7.2-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPath4ByteASN, internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPath4ByteASNOverrun, internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPathSegmentOverrun, internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPathSegmentUnderrun, internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPathUnrecognizedSegmentType, internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPathValidSequence, internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPathValidSet, internal/component/bgp/message/rfc7606_test.go::TestRFC7606ASPathZeroSegmentLength), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal</td>
 <td>-</td>
 </tr>
 <tr><td>-</td>
 <td><code>-</code></td>
 <td>-</td>
-<td>internal/component/sysrib: `go vet` cannot type-check this package, so the 4 RFC requirement(s) tagged in it are not evidence: no test here can run. Tagged here: RFC4271-9.1.2.1-1, RFC7311-3.4.3-2, RFC7311-3.4.3-4, RFC7311-3.4.3-7. go vet said: internal/component/sysrib/sysrib.go:24:2: could not import github.com/ze-software/ze/internal/component/config (open /Users/thomas/Unix/cache/ze/go-cache/01/013684e10db1627d7e5d367e3f8adea5deed53e6aad9ded713e55ef22fc482eb-d: no such file or directory). Fix the package so `./le verify deps unit-cached` compiles it, then re-run `./le rfc check`</td>
+<td>rfc/short/rfc7606.md:345: RFC7606-7.3-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption, internal/component/bgp/message/rfc7606_test.go::TestRFC7606ValidUpdate), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal</td>
 <td>-</td>
 </tr>
 <tr><td>-</td>
 <td><code>-</code></td>
 <td>-</td>
-<td>internal/component/vpp: `go vet` cannot type-check this package, and a package holding RFC requirement tags depends on it, so those tests cannot run either. go vet said: internal/component/vpp/cpuset.go:19:2: could not import path/filepath (open /Users/thomas/Unix/cache/ze/go-cache/01/01962f83c299175d07b8244c2071aaab137d03b29d38c662579bfede7413b2c8-d: no such file or directory). Fix the package so `./le verify deps unit-cached` compiles it, then re-run `./le rfc check`</td>
+<td>rfc/short/rfc7606.md:346: RFC7606-7.4-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/bgp/message/rfc7606_test.go::TestRFC7606FlagsOptionalAttributeValid, internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal</td>
 <td>-</td>
 </tr>
 </tbody>
 </table>
 </div>
-<p>248 further findings not shown here. The whole list is in data/rfc-compliance.json, and each one is on its own RFC&#39;s page under the requirement it names.</p>
+<p>111 further findings not shown here. The whole list is in data/rfc-compliance.json, and each one is on its own RFC&#39;s page under the requirement it names.</p>
 </section>
 <section><h2>Enrolled RFCs</h2>
 <div class="rfc-table-wrap">
@@ -2144,7 +2144,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 08:35 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 09:22 UTC</span>
                 </div>
             </div>
         </footer>

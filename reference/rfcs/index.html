@@ -249,7 +249,7 @@
 <td>Supported</td>
 <td>2 gated: 2 proven, 0 annotated (0 partial subset), 0 untested</td>
 <td>(<code>ASPathSetSegment</code>), (<code>validateASPath</code>), (<code>validateAS4PathAttr</code>), (<code>transmittedPathHoldsSet</code>, <code>writeUpdateAsWithdrawal</code>), (<code>writeUpdateBody</code>). <span class="ev-src"><span class="ev-ref"><code>internal/component/bgp/message/rfc9774.go</code></span><span class="ev-ref"><code>internal/component/bgp/message/rfc7606.go</code></span><span class="ev-ref"><code>internal/component/bgp/message/rfc7607.go</code></span><span class="ev-ref"><code>internal/component/bgp/reactor/session_rfc9774.go</code></span><span class="ev-ref"><code>internal/component/bgp/reactor/session_write.go</code></span></span></td>
-<td>Both Section 3 MUST-level requirements implemented, each with a positive and a negative test tag. One operator override, on receive only: the peer leaf <code>session as-set accept</code>, written only by <code>ze exabgp migrate</code>, keeps a received set (see "Owner-approved deviation"; not counted as conformant). The <code>send bgp &lt;peer&gt; raw</code> test instrument writes operator bytes as given. Route aggregation (Sections 5, 5.2, 6.1, 6.2) is not implemented, so its obligations are an implementation gap outside the conformance count.</td>
+<td>Both Section 3 MUST-level requirements implemented, each with a positive and a negative test tag. One operator override, on receive only: the peer leaf <code>session as-set accept</code>, set by the operator (and written by <code>ze exabgp migrate</code> for an ExaBGP <code>as-set accept</code> neighbor), keeps a received set (see "Owner-approved deviation"; not counted as conformant). The <code>send bgp &lt;peer&gt; raw</code> test instrument writes operator bytes as given. Route aggregation (Sections 5, 5.2, 6.1, 6.2) is not implemented, so its obligations are an implementation gap outside the conformance count.</td>
 </tr>
 <tr>
 <td>RFC 9687</td>
@@ -1569,7 +1569,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 07:41 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 09:22 UTC</span>
                 </div>
             </div>
         </footer>

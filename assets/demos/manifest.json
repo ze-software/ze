@@ -291,9 +291,9 @@
     "web-config": {
       "assets": {
         "poster": {
-          "bytes": 40231,
+          "bytes": 46436,
           "path": "web-config.png",
-          "sha256": "278fbab3feef6eefcfd71c8fb2611a46ae2b13096f60ea0fbcf5ec70d59c199b"
+          "sha256": "0562bbf22fa7e95397cd68a9517c27991b49bb3ee70f46ad29313ef696c55f94"
         },
         "transcript": {
           "bytes": 501,
@@ -301,15 +301,15 @@
           "sha256": "a614767cf2f7f626f3ed9d48b63a1e1a8ef1276b2c19535a08dcb456ce3f7cbf"
         },
         "video": {
-          "bytes": 344538,
+          "bytes": 339191,
           "path": "web-config.webm",
-          "sha256": "1fd02a9a4df5daa23098665d9a8735595b5bc9686b9201447283321a42d69ede"
+          "sha256": "e49e84d93c213d9db31a0a771319c62603cd788e395ca91fb0151880815a5914"
         }
       },
-      "binary-sha256": "a279d67087cb040c4a51e20d3ac5b7f64d937ca9f709f3678b2c05651fbfcb1c",
+      "binary-sha256": "a239e83ce727bfbb9cabb6c61bb24d2ace6f79c995a054f4c3f683ee0beb6f6c",
       "definition-sha256": "2b4a8b942aa53c2e9e3a2858452e05e803195161ee2a9ed1eacf27736e4c6ceb",
-      "release": "26.10.09",
-      "source-sha256": "b0aefca7ddc807137664e54a4c5d97020868f110891dd19570d05c2b7c3723c3"
+      "release": "26.10.24",
+      "source-sha256": "cc56f36643c54beea0c28074373e6cb5aa42962ce0a7b4bece8a38bc1ead3f9a"
     },
     "zefs-config": {
       "assets": {

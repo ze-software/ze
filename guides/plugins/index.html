@@ -1911,7 +1911,7 @@ command argument, which expands the chain in the client process and answers
 <tr>
 <td>Hard</td>
 <td><code>Dependencies</code></td>
-<td>Startup fails with <code>ErrMissingDependency</code>.</td>
+<td>Ze refuses to start, before any plugin runs, at boot, at a config reload and for an explicit <code>plugin {}</code> block. The message names the plugin, the dependency and the build tags to rebuild with (or says the name is unknown to this build), and ends with the fix on its own line.</td>
 </tr>
 <tr>
 <td>Optional</td>
@@ -2059,7 +2059,7 @@ backend. Cycles among selected plugins are refused for order-only edges too.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 06:34 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 08:58 UTC</span>
                 </div>
             </div>
         </footer>

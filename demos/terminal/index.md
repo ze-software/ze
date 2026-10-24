@@ -145,9 +145,9 @@ The destination and router live in an isolated Linux network-namespace lab. Ze s
 
 Change a YANG-backed setting, review the generated diff, commit the draft, and verify the active value.
 
-[Play the WebM recording](../../assets/demos/web-config.webm?v=1fd02a9a4d) · [View the poster](../../assets/demos/web-config.png?v=278fbab3fe) · [Plain-text transcript](../../assets/demos/web-config.txt?v=a614767cf2)
+[Play the WebM recording](../../assets/demos/web-config.webm?v=e49e84d93c) · [View the poster](../../assets/demos/web-config.png?v=0562bbf22f) · [Plain-text transcript](../../assets/demos/web-config.txt?v=a614767cf2)
 
-Recorded with Ze 26.10.09 on macOS and Linux using Playwright 1.55.0. Duration: 58 seconds.
+Recorded with Ze 26.10.24 on macOS and Linux using Playwright 1.55.0. Duration: 58 seconds.
 
 ```console
 Ze web configuration demo

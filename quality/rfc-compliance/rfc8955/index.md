@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 20.7% | 6 of 29 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 29 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | No test at all | 0.0% | 0 of 29 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 50.9% | 54 of 106 tagged units, 0 escaped and 9 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 57.5% | 61 of 106 tagged units, 0 escaped and 2 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -288,8 +288,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestFlowSpecNumericReservedAndEightOctetOperand`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/compare_rfc8955_test.go#L43) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestFlowSpecNumericReservedAndEightOctetOperand`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/compare_rfc8955_test.go#L42) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestFlowSpecNumericReservedAndEightOctetOperand`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/compare_rfc8955_test.go#L43) | unit/verify | revert, verified |
+| positive | [`TestFlowSpecNumericReservedAndEightOctetOperand`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/compare_rfc8955_test.go#L42) | unit/verify | revert, verified |
 
 ### [`RFC8955-4.2.1.2-1`](#rfc8955-4.2.1.2-1)
 
@@ -468,8 +468,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC8955VPNNLRIStructure`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/rfc8955_vpn_test.go#L28) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC8955VPNNLRIStructure`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/rfc8955_vpn_test.go#L27) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC8955VPNNLRIStructure`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/rfc8955_vpn_test.go#L28) | unit/verify | revert, verified |
+| positive | [`TestRFC8955VPNNLRIStructure`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/rfc8955_vpn_test.go#L27) | unit/verify | revert, verified |
 
 ### [`RFC8955-8-2`](#rfc8955-8-2)
 
@@ -479,8 +479,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC8955VPNLengthCoversRD`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/rfc8955_vpn_test.go#L57) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC8955VPNLengthCoversRD`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/rfc8955_vpn_test.go#L56) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC8955VPNLengthCoversRD`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/rfc8955_vpn_test.go#L57) | unit/verify | revert, verified |
+| positive | [`TestRFC8955VPNLengthCoversRD`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/rfc8955_vpn_test.go#L56) | unit/verify | revert, verified |
 
 ### [`RFC8955-3-1`](#rfc8955-3-1)
 
@@ -504,7 +504,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. posi
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC8955FlowSpecLosingPathIsNeverPublished`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8955_flowspec_bestchange_test.go#L159) | unit/verify | revert, verified |
-| positive | [`TestRFC8955FlowSpecPathSelectionPicksOneSetOfAttributes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8955_flowspec_bestchange_test.go#L79) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC8955FlowSpecPathSelectionPicksOneSetOfAttributes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8955_flowspec_bestchange_test.go#L79) | unit/verify | revert, verified |
 
 ### [`RFC8955-7.3-2`](#rfc8955-7.3-2)
 

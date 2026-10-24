@@ -73,6 +73,7 @@ directives, fuzz target list), see <code>docs/functional-tests.md</code>.</p>
 <ol>
 <li><a href="#the-builds-the-linter-reads">The builds the linter reads</a></li>
 <li><a href="#waiting-for-the-linters-own-lock">Waiting for the linter&#39;s own lock</a></li>
+<li><a href="#the-post-edit-lint-takes-no-index-lock">The post-edit lint takes no index lock</a></li>
 <li><a href="#the-slot-a-lint-holds">The slot a lint holds</a></li>
 <li><a href="#the-accounting-every-gate-owes-its-population">The accounting every gate owes its population</a></li>
 <li><a href="#the-exemptions-are-a-population-too">The exemptions are a population too</a></li>
@@ -570,6 +571,19 @@ the child gives up after five seconds and exits <code>parallel golangci-lint is 
 <p>A pass that waits prints nothing while it waits. A whole-tree pass holds the
 lock for about ten minutes on this workstation, so a pass behind one can stay
 silent for that long. That is the linter in a queue, not a hang.</p>
+<h3 id="the-post-edit-lint-takes-no-index-lock">The post-edit lint takes no index lock</h3>
+<!-- source: internal/le/hookruntime/postwrite.go -- postLintCommand -->
+<!-- source: internal/le/gitenv/gitenv.go -- ReadOnly, ReadOnlyPatch -->
+<p>After each Go edit the post-write hook lints the edited package with
+<code>--new-from-rev=HEAD --timeout=30s</code>. For <code>--new-from-rev</code>, golangci-lint runs
+<code>git status</code> and <code>git diff</code> itself, and its timeout SIGKILLs them. A git killed
+while it refreshed the index left an empty <code>.git/index.lock</code> that no process
+held, and every session's next git write failed until someone removed it. The
+hook therefore runs the linter with <code>GIT_OPTIONAL_LOCKS=0</code>, which stops
+<code>git status</code> refreshing the index, and <code>diff.autoRefreshIndex=false</code>, which
+stops <code>git diff</code> writing the refresh back. The patch the linter reads is the
+same either way. le's other <code>git status</code> queries under a deadline carry the
+first setting through <code>gitenv.ReadOnly</code>.</p>
 <h3 id="the-slot-a-lint-holds">The slot a lint holds</h3>
 <!-- source: internal/le/go/lint/actions.go -- runHere, jobArgv -->
 <!-- source: internal/le/job/registry.go -- shares, reportBusy -->
@@ -928,7 +942,7 @@ negotiated link-local address pair.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 09:22 UTC</span>
                 </div>
             </div>
         </footer>
