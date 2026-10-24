@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0.0% | 0 of 12 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 12 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 12 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 41.9% | 26 of 62 tagged units, 0 escaped and 14 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 46.8% | 29 of 62 tagged units, 0 escaped and 11 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -249,11 +249,11 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestValidateLengthWithMax`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L259) | unit/verify | unproven |
-| negative | [`TestRFC8654ReceiveLimitFollowsLocalOPEN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_directional_session_test.go#L30) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| negative | [`checkExtendedNeitherRejectFRR`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_extended_message_scenarios.go#L76) | interop/nightly | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC8654ReceiveLimitFollowsLocalOPEN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_directional_session_test.go#L30) | unit/verify | revert, verified |
+| negative | [`checkExtendedNeitherRejectFRR`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_extended_message_scenarios.go#L76) | interop/nightly | revert, verified |
 | negative | [`checkExtendedRemoteOnlyRejectFRR`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_extended_message_scenarios.go#L58) | interop/nightly | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestValidateLengthWithMax`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L267) | unit/verify | unproven |
-| positive | [`TestRFC8654ReceiveLimitFollowsLocalOPEN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_directional_session_test.go#L29) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC8654ReceiveLimitFollowsLocalOPEN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_directional_session_test.go#L29) | unit/verify | revert, verified |
 
 ### [`RFC8654-5-2`](#rfc8654-5-2)
 

@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 1.5% | 2 of 133 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 133 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 133 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 46.5% | 212 of 456 tagged units, 0 escaped and 20 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 46.7% | 213 of 456 tagged units, 0 escaped and 19 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -1266,7 +1266,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 |---|---|---|---|
 | negative | [`TestEstablishedAnnounce_ExplicitASPath_IBGPVerbatim`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_reactor_batch_test.go#L567) | unit/verify | unproven |
 | negative | [`TestASPathSlotPrependOnlyWhenAdvertising`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc4271_advertise_test.go#L99) | unit/verify | unproven |
-| negative | [`checkRelayWithdrawalShape`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L430) | interop/nightly | mutant, solo-owed (the record pairs breaks and carries no solo runs, so no break is shown to be needed for the red. Re-take it with `./le rfc discriminate-record`, which runs each break alone) |
+| negative | [`checkRelayWithdrawalShape`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L430) | interop/nightly | mutant, verified |
 | positive | [`TestForwardPresentEmptyASPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_aspath_empty_test.go#L23) | unit/verify | revert, verified |
 | positive | [`TestEstablishedAnnounce_ExplicitASPath_PrependsLocalAS`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_reactor_batch_test.go#L543) | unit/verify | unproven |
 | positive | [`TestASPathSlotPrependOnlyWhenAdvertising`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc4271_advertise_test.go#L97) | unit/verify | unproven |

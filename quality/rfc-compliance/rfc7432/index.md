@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 1.0% | 1 of 103 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 103 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 103 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 69.0% | 29 of 42 tagged units, 0 escaped and 9 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 73.8% | 31 of 42 tagged units, 0 escaped and 7 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -389,9 +389,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestConfiguredEVPNRefusesInvalidPerESRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go#L54) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestConfiguredEVPNRefusesInvalidPerESRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go#L54) | unit/verify | revert, verified |
 | negative | [`TestOriginEthernetADPerESRefusesLabelStack`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go#L69) | unit/verify | revert, verified |
-| positive | [`TestConfiguredEVPNPerESRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go#L35) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestConfiguredEVPNPerESRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go#L35) | unit/verify | revert, verified |
 | positive | [`TestOriginEthernetADPerESUsesTypeOneRD`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go#L14) | unit/verify | revert, verified |
 
 ### [`RFC7432-8.2.1-3`](#rfc7432-8.2.1-3)
