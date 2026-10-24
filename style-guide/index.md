@@ -39,6 +39,14 @@ Thomas kept the current colors and renamed the category on 24 October 2026:
 > keep the color for the time being.
 > can you change "Deploy and Configure" to "Setup"
 
+Thomas requested neutral gray for Observe on 24 October 2026:
+
+> Still not nice for Observe, a Grey would be better
+
+Thomas approved the resulting palette on 24 October 2026:
+
+> good change
+
 1. ### Preserve useful information
 
  Start with an inventory of existing capabilities, differentiators, demonstrations, evidence, deployment options, use cases, updates and release status. Give every item an explicit place in the proposal. Explain each move or reduction in detail. Removing useful information requires the owner's agreement.
@@ -86,9 +94,21 @@ Logo blue identifies Ze. Seven distinct subject colors connect related content a
 
 Category tokens retain their existing names for authored pages. Cards use `-deep` for readable titles and compact category labels on neutral surfaces. Selection controls can use `-base`, `-chip` and `-tint` to express their category and active state. Despite its name, `-deep` becomes lighter in the dark theme. Do not put white text on a bright accent without checking contrast. Normal text needs at least 4.5:1 in both themes.
 
-The category identities are fixed: Operate is blue, Routing indigo, Services rust, Automate plum, Observe moss, Secure rose and Setup teal. Broad project updates and cross-topic evidence are neutral. Keep these identities in explicit and automatic dark mode. Status colors remain independent of this subject palette.
+The category identities are fixed: Operate is blue, Routing indigo, Services violet, Automate magenta, Observe gray, Secure pink and Setup teal. Broad project updates and cross-topic evidence are neutral. Keep these identities in explicit and automatic dark mode. Status colors remain independent of this subject palette.
 
-Plum separates Automate from Routing's indigo; yellow-green moss separates Observe from Setup's teal. Rust and rose give Services and Secure distinct warm hues. Keep accent saturation restrained and text shades similar in visual weight. Selected controls use subtle fills from the same family. Review the complete palette together in light and dark themes before changing a category color.
+Services uses violet and Automate uses magenta. Observe uses neutral gray so it stays distinct from Setup's teal. Keep the approved text colors on neutral panel surfaces; selected controls use subtle fills from the same family. Review the complete palette together in light and dark themes before changing a category color.
+
+Small category labels use `--panel`, including hover and focus states. The approved gray and pink do not reach 4.5:1 on the light `--bg-soft` surface. Use a panel backing instead of darkening the approved text. Check each selected-control fill against its text; the light gray and pink fills stay close to white. Plugin totals and status labels keep their independent neutral and status roles.
+
+| Category | Light | Dark |
+| --- | --- | --- |
+| Operate | `#0069b4` | `#66bfff` |
+| Routing | `#4f46e5` | `#a5b4fc` |
+| Services | `#9333ea` | `#d8b4fe` |
+| Automate | `#b322a0` | `#f5a1e6` |
+| Observe | `#737373` | `#c4c4c4` |
+| Secure | `#db2777` | `#f9a8d4` |
+| Setup | `#0f766e` | `#5eead4` |
 
  Operate Routing Services Automate Observe Secure Setup Neutral
 
@@ -110,7 +130,7 @@ Control plane: BGP engine, static routes, BFD, MRT, RPKI, MPLS signaling.
 
 **Services**
 
-### Rust
+### Violet
 
 `--gold-*`
 
@@ -118,7 +138,7 @@ Network services and dataplane: IPsec, BNG, firewall, interfaces, VPP, DNS.
 
 **Automate**
 
-### Plum
+### Magenta
 
 `--grape-*`
 
@@ -126,7 +146,7 @@ Programmability: plugins, APIs, MCP, ExaBGP migration, fleet management.
 
 **Observe**
 
-### Moss
+### Gray
 
 `--mint-*`
 
@@ -134,7 +154,7 @@ Visibility: telemetry, health and diagnostics.
 
 **Secure**
 
-### Rose
+### Pink
 
 `--pink-*`
 
@@ -167,7 +187,7 @@ A `cat-*` class sets the subject color for titles and compact category labels. B
 3. Pass authored categories through the shared generator vocabulary. Unknown values are errors, not permission to choose an arbitrary color.
 4. Use `--acc-deep` for title and category-label text so it stays readable in both themes. Do not assign hues by position, hash or presentation tone, or override them for a page or theme.
 5. Every subject card uses the shared `--panel` surface and a thin `--line` border on all sides. Hover borders use `--line-strong`. Keep shadows neutral and restrained. Do not add colored top bars, edge stripes, tinted washes, rings or glows.
-6. Category labels use neutral `--panel` or `--bg-soft` backgrounds. Keep technology and mode chips neutral; reserve stronger control color for selected filters and visible keyboard focus.
+6. Category labels use neutral `--panel` backgrounds. Keep technology and mode chips neutral; reserve stronger control color for selected filters and visible keyboard focus.
 7. Keep status independent. Success, warning and failure use `--green`, `--amber` and `--danger-deep`, with words explaining the result. Neutral evidence measures make no verdict. Maturity keeps its explicit labels and border treatment.
 
 **Routing**
