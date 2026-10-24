@@ -1447,6 +1447,7 @@ body:has(.site-home) .footer-bottom { border-top: 0; }
 /* Repeat the hero's blue identity at reader decisions and evidence, not by
    alternating arbitrary sections or recoloring subject cards. */
 .site-home .home-section-panel-run {
+    margin-bottom: var(--space-6);
     padding: 2rem clamp(1rem, 3vw, 2.5rem);
     border-radius: var(--radius-xl);
     background: var(--brand-section-gradient);
