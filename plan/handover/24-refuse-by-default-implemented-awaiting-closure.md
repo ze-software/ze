@@ -31,6 +31,7 @@ claimed by 6b51c217).
 | Owner approvals to record in the spec | 2026-10-24: delete doctor's fallback and `TestDoctorGnmiListenerIsProbed` (AC-19 of `spec-daemon-runtime-one-off-defects.md` covered here); the three rib-graph tests assert a structured payload |
 | Foreign hunks | About 15 files hold this spec's renames next to other sessions' hunks. Judge each against HEAD per `ai/rules/git-safety.md` before carrying |
 | Testing | No whole-tree testing on this machine (`ai/META-DECISIONS.md`, "Test selectively"): scoped package tests, named functional tests, scoped lint only. The full verify runs on another host |
+| Pipeline parse-error row | Fix the 2026-10-24 `zero-value-as-valid-answer.md` row (`showPipeline`, `bestPipeline`) together with the two not-built rows (`cos.Resolve`, `appendDataPlaneWriter`): each pipeline's parse error returns a `pipelineRefusal`, so it answers an error status through the existing `commandAnswer` refusal path the graph change added (red-first test each) |
 
 ## Owed elsewhere (cannot run on this Mac)
 
