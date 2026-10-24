@@ -202,6 +202,9 @@ tests) is not a rule: it goes in the spec or commit it applies to.
 - Many sessions share one Docker daemon: never run a host-wide destructive
   Docker command (`prune`, or `rm`/`rmi` of anything your run did not create).
   Remove only what your own run created, by name.
+- A session stops, signals or deletes only the processes and files it created
+  itself, its own agents' included. Another session's process, file or lock is
+  never touched, however stuck or stale it looks: report it instead.
 - `sudo` is allowed only for the stress harness (`./le test integration
   stress`): one root run at a time, alone on the host, removing what it
   created, and leaving anything in a shared location usable by the owner's
