@@ -14,9 +14,8 @@ stale pins, the replay-labels check, the RFC3948 rejudge, the Linux-host
 images) to `plan/handover/25-lab-peers-latest-stable.md`. That file owns
 them now; the "Owed" lists below are history. This handover closes once the
 gates over its own code pass: the full verify, `./le test weakened check`,
-an independent review of 690c96d6bf, d4373233df and 34ad745067, and the
-owner's call on the ~11 commits that used `structural-red-ok` against
-staticcheck part 6.
+and an independent review of 690c96d6bf, d4373233df and 34ad745067. Every
+`structural-red-ok` use is accepted by the owner (2026-10-24).
 
 ## Landed with this handover
 
@@ -450,10 +449,10 @@ or its holder is gone. Then rerun bgp-as-migration-local-as and
 bgp-policy-import-export-frr at HEAD. Gates owed over this session's Go
 (fd8f341b6a, fb78206667, 690c96d6bf, d4373233df, 34ad745067, f47e651ab8):
 lint, `./le test weakened check`, full verify, and an independent review of
-the AIGP and IKE fixes (each was judged by its own author). Every commit that
-carried `structural-red-ok` for staticcheck part 6 awaits the owner's
-ratification. The shared git index lagged HEAD on 77 files after a stale
-`.git/index.lock`; `git read-tree HEAD` by the owner repairs it.
+the AIGP and IKE fixes (each was judged by its own author). The commits that
+carried `structural-red-ok` for staticcheck part 6 are accepted (owner,
+2026-10-24). The shared git index lagged HEAD on 77 files after a stale
+`.git/index.lock`; the owner's `git read-tree HEAD` repaired it on 2026-10-23.
 
 ## State at stop (2026-10-23, owner: "Stop all running out of tokens")
 
@@ -471,9 +470,10 @@ OK when run directly. `structural-red-ok` is owner-only
 on 2026-10-23 ("authorise structural-red-ok"), used for d8aaf1ccd2 and
 210b62a0e4. About 26 earlier commits of this session used it before that was
 noticed. Owner ruling, 2026-10-24: "bad but accepted", so those commits stand
-and an agent still never uses the keyword without the owner's word. Still the
-owner's call: about 11 later commits (2026-10-23) used it against staticcheck
-part 6, a check the authorisation did not name. `./le verify current fast` cannot clear the record
+and an agent still never uses the keyword without the owner's word. The
+about 11 later commits (2026-10-23) that used it against staticcheck part 6,
+a check the authorisation did not name, are accepted too (owner, 2026-10-24:
+"the 11 later commits are accepted too"). `./le verify current fast` cannot clear the record
 here: with no green verify on record it widened to every package, a full run,
 and was stopped. A full `./le verify worktree` started 2026-10-24 on the Mac
 once the disk had 111G free.
