@@ -690,7 +690,10 @@ func (s *Session) writeUpdateBody(body []byte, raw bool) (opaque bool, result er
 	// re-advertises it. The filter below drops the withdrawal of a key this
 	// recipient was never advertised (RFC 4271 Section 3.1), so the recovery
 	// record is taken from the unfiltered withdrawal, whether or not any of it
-	// reaches the wire. flushWrites commits it, a failed write discards it.
+	// reaches the wire. flushWrites commits it, a failed write discards it,
+	// and the commit never lets it replace another source's live record for
+	// the key, as when the filter drops it because the recipient holds that
+	// source's route (commitAIGPWrites).
 	if !raw && s.sentAIGPCostWithheld {
 		s.noteAIGPWrite(body, true)
 	}

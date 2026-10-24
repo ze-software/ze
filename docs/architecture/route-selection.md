@@ -239,11 +239,14 @@ but every recipient it was withheld from is retained with the received
 generation, and is announced the route once a distance becomes available. A
 failed write discards that record, as it does for an announcement, and a
 withdrawal that decides nothing about AIGP, such as a relay recovery's
-withdrawal of an obsolete owner, leaves it in place. A resolved
-recursive sum may be zero; it remains an announcement with the computed AIGP. A source withdrawal, replacement or
-disconnect still invalidates the generation. A recursive BGP next hop with no
-AIGP is different: RFC 7311 Section 3.4.3 explicitly requires removal of the
-attribute in that case.
+withdrawal of an obsolete owner, leaves it in place. Without ADD-PATH every
+source shares the recipient's key, so a withdrawal from one source, withheld or
+written, never replaces another source's live record: the recipient may hold
+that source's route, and its own distance changes must still re-advertise it.
+A resolved recursive sum may be zero; it remains an announcement with the
+computed AIGP. A source withdrawal, replacement or disconnect still invalidates
+the generation. A recursive BGP next hop with no AIGP is different: RFC 7311
+Section 3.4.3 explicitly requires removal of the attribute in that case.
 <!-- source: internal/component/bgp/reactor/forward_aigp.go -- applyFactsAIGP -->
 <!-- source: internal/component/bgp/reactor/aigp_readvertise.go -- noteAIGPWrite, commitAIGPWrites, replayAIGP -->
 <!-- source: internal/component/bgp/reactor/session_write.go -- writeUpdateBody -->

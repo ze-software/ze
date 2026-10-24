@@ -237,6 +237,7 @@ Each AC is met when its test is red against HEAD before the fix and green after.
 | `derived-flags-overwrite-what-the-wire-carried` | 2026-09-20 | `Flags()` |
 | `derived-flags-overwrite-what-the-wire-carried` | 2026-09-20 | `validateAttributeFlags` |
 | `error-answered-with-another-errors-code` | 2026-10-05 | `handleOpenSent` |
+| `error-path-discards-data-already-received` | 2026-10-24 | `fwdBatchHandler` AIGP receipt discard |
 | `escape-hatch-scoped-wider-than-its-justification` | 2026-10-04 | `peerOnLink` |
 | `field-carries-two-meanings` | 2026-10-20 | GoBGP `pkg/apiutil/attribute.go` |
 | `fixture-encodes-an-impossible-state` | 2026-10-05 | `rfc9012_tunnel_encap_carry_test.go` |

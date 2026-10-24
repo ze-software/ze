@@ -5,8 +5,14 @@ import (
 	"net/netip"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/internal/core/bgp/wire"
+	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // TestAIGPCostWithheldBeforeFirstAdvertisementRecovers pins the recovery of a
@@ -202,4 +208,152 @@ func TestAIGPRecoveryWithdrawalKeepsCostWithheldRecord(t *testing.T) {
 	if metric, present := aigpReceivedMetric(t, last); !present || metric != 107 {
 		t.Fatalf("recovered metric=%d present=%v, want 107", metric, present)
 	}
+}
+
+// addSource registers a second source peer on the fixture's reactor, set up as
+// the fixture sets up its own source: AIGP enabled, next-hop-self, the shared
+// encoding context.
+func (f *aigpReplayFixture) addSource(t *testing.T, address string) *Peer {
+	t.Helper()
+	peer, _ := newAnnouncePeer(t, address)
+	peer.settings.AIGPSession = new(true)
+	peer.settings.GlobalLocalAS = 65000
+	peer.settings.LocalAddress = netip.MustParseAddr("10.0.0.254")
+	peer.settings.NextHopMode = NextHopSelf
+	peer.settings.ProcessBindings = []ProcessBinding{{PluginName: "aigp-forwarder", SendAll: true}}
+	negotiateForwardTestFamilies(peer, family.IPv4Unicast)
+	peer.sendCtx.Store(bgpctx.Registry.Get(f.ctxID))
+	peer.sendCtxID, peer.recvCtxID = f.ctxID, f.ctxID
+	peer.session.sendCtxID = f.ctxID
+	peer.refreshForwardFacts()
+	f.r.mu.Lock()
+	f.r.peers[peer.Settings().PeerKey()] = peer
+	f.r.mu.Unlock()
+	return peer
+}
+
+// receiveFrom delivers an UPDATE of 10.20.0.0/24 with the given received AIGP
+// from source, its NEXT_HOP set to that source's address.
+func (f *aigpReplayFixture) receiveFrom(t *testing.T, source *Peer, metric uint64) uint64 {
+	t.Helper()
+	body := aigpTestBody(metric)
+	sections, err := wire.ParseUpdateSections(body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _, nh, found := attribute.AttrFind(sections.Attrs(body), attribute.AttrNextHop)
+	if !found {
+		t.Fatal("test body has no NEXT_HOP")
+	}
+	copy(nh, source.Settings().Address.AsSlice())
+	wu := wireu.NewWireUpdate(body, f.ctxID)
+	wu.SetSourceID(source.SourceID())
+	if !f.r.notifyMessageReceiver(source.Settings().Address, msgtype.TypeUPDATE, body, wu, f.ctxID, rpc.DirectionReceived, BufHandle{ID: noPoolBufID, Buf: body}, nil, "", 0) {
+		t.Fatal("UPDATE not delivered")
+	}
+	f.ids = append(f.ids, wu.MessageID())
+	return wu.MessageID()
+}
+
+// lastAnnounces fails unless the last socket UPDATE announces prefix with the
+// given AIGP metric and withdraws nothing.
+func lastAnnounces(t *testing.T, bodies [][]byte, prefix []byte, metric uint64) {
+	t.Helper()
+	last := bodies[len(bodies)-1]
+	sections, err := wire.ParseUpdateSections(last)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(sections.NLRI(last), prefix) || len(sections.Withdrawn(last)) != 0 {
+		t.Fatalf("last UPDATE does not announce %x alone: %x", prefix, last)
+	}
+	if got, present := aigpReceivedMetric(t, last); !present || got != metric {
+		t.Fatalf("announced metric=%d present=%v, want %d", got, present, metric)
+	}
+}
+
+// TestAIGPWithheldWithdrawalKeepsAnotherSourcesRecord pins one recipient key
+// shared by two sources without ADD-PATH. The recipient holds source B's
+// route with a tracked AIGP record when source A's route of the same prefix
+// is withheld for an unknown cost. A's withdrawal is rightly dropped, since
+// the recipient holds B's route, and its cost-withheld record once replaced
+// B's: B's later distance change then never re-advertised, and the recipient
+// kept a stale AIGP. RFC 7311 Section 3.4.3: "R1 MUST increase the value of
+// the AIGP TLV by adding to A the distance from R1 to R2." Method: advertise
+// B at distance 7, forward A's route with no distance for A, assert a silent
+// socket, install distance 11 for B, and assert one re-advertisement of B
+// with AIGP 111.
+func TestAIGPWithheldWithdrawalKeepsAnotherSourcesRecord(t *testing.T) {
+	prefix := []byte{24, 10, 20, 0}
+	f := newAIGPReplayFixture(t, nil)
+	other := f.addSource(t, "198.18.233.3")
+	f.metric(7)
+	f.forward(t, f.receive(t, f.body(t, 100)))
+	forwardSocketBarrier(t, f.r)
+	bodies := aigpSocketBodies(t, f.conn)
+	if len(bodies) != 1 {
+		t.Fatalf("initial UPDATE count=%d, want 1", len(bodies))
+	}
+	lastAnnounces(t, bodies, prefix, 107)
+	f.forward(t, f.receiveFrom(t, other, 50))
+	forwardSocketBarrier(t, f.r)
+	if bodies = aigpSocketBodies(t, f.conn); len(bodies) != 1 {
+		t.Fatalf("UPDATE count=%d after the other source's withheld route, want 1: %x", len(bodies), bodies)
+	}
+	f.metric(11)
+	f.r.readvertiseAIGP()
+	forwardSocketBarrier(t, f.r)
+	bodies = aigpSocketBodies(t, f.conn)
+	if len(bodies) != 2 {
+		t.Fatalf("UPDATE count=%d, want B's re-advertisement; A's withheld withdrawal replaced B's record", len(bodies))
+	}
+	lastAnnounces(t, bodies, prefix, 111)
+}
+
+// TestAIGPRecoveryWithdrawalRemovesDecidedRecords pins the other side of
+// TestAIGPRecoveryWithdrawalKeepsCostWithheldRecord: the skip for a
+// withdrawal with no AIGP origin covers only a live cost-withheld record. An
+// announcement record goes, because the recipient no longer holds the route,
+// and so does a cost-withheld record whose received route is gone. Method:
+// drive the receipt of a bare withdrawal with no origin over each record, as
+// writeUpdateBody and flushWrites drive it, and assert the record is removed.
+func TestAIGPRecoveryWithdrawalRemovesDecidedRecords(t *testing.T) {
+	prefix := []byte{24, 10, 20, 0}
+	withdrawal := append([]byte{0, byte(len(prefix))}, prefix...)
+	withdrawal = append(withdrawal, 0, 0)
+	commit := func(f *aigpReplayFixture) int {
+		session := f.destination.session
+		session.writeMu.Lock()
+		session.noteAIGPWrite(withdrawal, false)
+		session.commitAIGPWrites(true)
+		session.writeMu.Unlock()
+		f.r.aigp.mu.Lock()
+		defer f.r.aigp.mu.Unlock()
+		return len(f.r.aigp.advertised)
+	}
+	t.Run("announcement", func(t *testing.T) {
+		f := newAIGPReplayFixture(t, nil)
+		f.metric(7)
+		f.forward(t, f.receive(t, f.body(t, 100)))
+		forwardSocketBarrier(t, f.r)
+		if n := commit(f); n != 0 {
+			t.Fatalf("records=%d after a withdrawal of an advertised route, want 0", n)
+		}
+	})
+	t.Run("route-gone", func(t *testing.T) {
+		f := newAIGPReplayFixture(t, nil)
+		body := f.body(t, 100)
+		f.forward(t, f.receive(t, body))
+		forwardSocketBarrier(t, f.r)
+		f.r.aigp.mu.Lock()
+		withheld := len(f.r.aigp.advertised)
+		f.r.aigp.mu.Unlock()
+		if withheld != 1 {
+			t.Fatalf("records=%d after the withheld route, want its cost-withheld record", withheld)
+		}
+		f.r.invalidateAIGPReceived(f.source.Settings().Address, wireu.NewWireUpdate(body, f.ctxID))
+		if n := commit(f); n != 0 {
+			t.Fatalf("records=%d after a withdrawal over a record whose route is gone, want 0", n)
+		}
+	})
 }

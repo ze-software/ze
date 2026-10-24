@@ -54,6 +54,10 @@ type aigpAdvertisement struct {
 	revision  uint64
 	metric    uint64
 	hasMetric bool
+	// source is the peer whose route the write carried, invalid for a write
+	// with no source. withdrawal marks a write that took the key back.
+	source     netip.Addr
+	withdrawal bool
 	// A cost-withheld withdrawal retains this recipient for recovery, whether
 	// or not the adj-out filter let it reach the wire (writeUpdateBody).
 	costWithheld bool
@@ -80,7 +84,9 @@ type aigpOutcome struct {
 // dispatch serializes receive invalidation and replay enqueueing. mu protects
 // only retained generations and write receipts; it never enters the reactor,
 // RIB or session write locks.
-// State is bounded by live received paths and actual advertised destinations.
+// State is bounded by live received paths, and per recipient by the keys
+// written to it: an advertisement, or a cost-withheld withdrawal that may
+// never have reached the wire.
 type aigpState struct {
 	dispatch   sync.Mutex
 	mu         sync.Mutex
@@ -216,11 +222,12 @@ func aigpRevision() uint64 {
 
 // noteAIGPWrite records the final, policy-filtered body. With withheldOnly it
 // records a cost-withheld withdrawal before the adj-out filter drops the keys
-// this recipient was never advertised, and keeps only the entries that retain a
-// route, so a key that never reaches the wire never removes a record. A
+// this recipient was never advertised, and keeps only the entries that retain
+// a route, so a key that never reaches the wire never removes a record. A
 // withdrawal written with no AIGP origin never removes a cost-withheld record
-// either (aigpAdvertisement.undecided). The pending entries MUST be committed only after flush succeeds;
-// failed flushes MUST discard them.
+// either (aigpAdvertisement.undecided), and no withdrawal removes another
+// source's live record (commitAIGPWrites). The pending entries MUST be
+// committed only after flush succeeds; failed flushes MUST discard them.
 func (s *Session) noteAIGPWrite(body []byte, withheldOnly bool) {
 	if s.aigpReactor == nil || s.aigpPeer == nil {
 		return
@@ -272,6 +279,7 @@ func (s *Session) noteAIGPWrite(body []byte, withheldOnly bool) {
 	out := wireu.NewWireUpdate(body, s.sendCtxID)
 	walkAIGPNLRI(out, func(key aigpNLRI, _, nextHop []byte, withdrawn bool) {
 		entry := aigpAdvertisement{key: aigpRecipientKey{peer: s.aigpPeer, nlri: key}, session: s, sender: s.sentAIGPOrigin.sender, revision: s.sentAIGPRevision, metric: metric, hasMetric: hasMetric}
+		entry.source, entry.withdrawal = sourcePeer, withdrawn
 		entry.costWithheld = withdrawn && s.sentAIGPCostWithheld
 		track := !withdrawn && localNextHop
 		if entry.costWithheld {
@@ -302,9 +310,20 @@ func (s *Session) commitAIGPWrites(ok bool) {
 	state.mu.Lock()
 	if ok && s.State() == fsm.StateEstablished {
 		for _, sent := range s.aigpPending {
+			current := state.advertised[sent.key]
+			live := current != nil && state.routes[current.route.key] == current.route
 			// RFC 7311 Section 3.4.3: the withheld route stays owed until a
 			// write that decides its AIGP replaces the record.
-			if current := state.advertised[sent.key]; sent.undecided && current != nil && current.costWithheld && state.routes[current.route.key] == current.route {
+			if sent.undecided && live && current.costWithheld {
+				continue
+			}
+			// RFC 7311 Section 3.4.3: "R1 MUST increase the value of the AIGP
+			// TLV by adding to A the distance from R1 to R2." Without ADD-PATH
+			// every source shares the recipient's key, so a withdrawal from
+			// one source, withheld or written, decides nothing about the live
+			// record of another: replacing it would stop that route's
+			// re-advertisement when its own distance changes.
+			if sent.withdrawal && live && sent.source.IsValid() && current.route.key.peer != sent.source {
 				continue
 			}
 			delete(state.advertised, sent.key)
