@@ -122,6 +122,23 @@ Ze authenticates as `alice` with CHAP-MD5. IPCP assigns `10.11.0.2` with
 point-to-point address, a route through it, ICMP to the peer, an accel-ppp
 session for `alice`, and removal of that session after Ze stops.
 
+The checker also reads accel-ppp's verbose trace and requires, in order, its
+LCP Configure-Request with `<auth CHAP-md5>`, Ze's Configure-Ack carrying that
+option, a CHAP Challenge, Ze's Response naming `alice`, and a CHAP Success.
+A PAP exchange is refused even if IPCP and ping succeed. The shared session
+checks remain the same for the PAP scenario; each scenario checks its own
+authentication evidence.
+
+These spellings come from accel-ppp 1.14.0's
+[`ppp_lcp.c`](https://github.com/accel-ppp/accel-ppp/blob/1.14.0/accel-pppd/ppp/ppp_lcp.c),
+[`auth_print`](https://github.com/accel-ppp/accel-ppp/blob/1.14.0/accel-pppd/ppp/ppp_auth.c),
+and [CHAP-MD5 handler](https://github.com/accel-ppp/accel-ppp/blob/1.14.0/accel-pppd/auth/auth_chap_md5.c),
+not from Ze's configured method. Both client fixtures set `[log] copy=1`:
+accel-ppp's
+[`general_log`](https://github.com/accel-ppp/accel-ppp/blob/1.14.0/accel-pppd/logs/log_file.c)
+otherwise discards session messages from the general log exposed by Docker.
+<!-- source: internal/le/interoplab/pppoe/check_client.go -- checkZeClient, checkZeClientSession, accelCHAPEvidence -->
+
 ### 02-ze-ac-pppd-client
 
 The independent pppd client requests service `internet`, authenticates as
@@ -198,8 +215,8 @@ over scripted replies.
 Ze dials accel-ppp as in `01-pppoe-chap-ipv4`, but accel-ppp loads `auth_pap`
 and no CHAP module, so the session comes up only if Ze's client authenticates
 with PAP (`internal/component/l2tp/pppoeclient/session.go`, `runClientAuth`).
-The checker runs the whole `01-pppoe-chap-ipv4` proof (link, address, route,
-accel-ppp session, ICMP, removal after Ze stops), then reads accel-ppp's own
+The checker runs the shared session proof (link, address, route, accel-ppp
+session, ICMP, removal after Ze stops), then reads accel-ppp's own
 trace and requires `recv [PAP AuthReq` and `send [PAP AuthAck`, with no CHAP.
 The lab cannot lose a frame on demand, so the retry itself stays proven by the
 discriminated unit tests in `pppoeclient`; this scenario proves the PAP path

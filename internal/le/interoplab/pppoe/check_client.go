@@ -25,7 +25,28 @@ type accelSessions struct {
 	count int
 }
 
-func checkZeClient(ctx context.Context, check *interoplab.CheckContext) (err error) {
+// checkZeClient MUST measure CHAP-MD5 authentication in addition to the
+// shared session proof, which deliberately does not choose an auth method.
+func checkZeClient(ctx context.Context, check *interoplab.CheckContext) error {
+	if err := checkZeClientSession(ctx, check); err != nil {
+		return err
+	}
+	logs, err := check.Lab.Logs(ctx, accelImageName, accelTraceLines)
+	if err != nil {
+		return fmt.Errorf("read accel-ppp trace: %w", err)
+	}
+	if !logs.Available {
+		return errors.New("accel-ppp trace unavailable: CHAP-MD5 authentication was not measured")
+	}
+	if err := accelCHAPEvidence(logs.Text); err != nil {
+		return appendDiagnostics(ctx, check.Lab, err, accelImageName)
+	}
+	return nil
+}
+
+// checkZeClientSession proves the shared session, dataplane and teardown
+// contract. Each caller MUST additionally check its authentication evidence.
+func checkZeClientSession(ctx context.Context, check *interoplab.CheckContext) (err error) {
 	if check == nil || check.Lab == nil {
 		return errors.New("PPPoE Ze-client checker has no lab")
 	}
@@ -175,11 +196,11 @@ func waitAccelSessions(
 	return returnValue, err
 }
 
-// checkZeClientPAP runs checkZeClient against an accel-ppp that loads only
-// auth_pap, then reads accel-ppp's own trace for the PAP exchange: the session
-// coming up proves Ze authenticated, and the trace proves the method was PAP.
+// checkZeClientPAP runs the shared session proof against a PAP-only accel-ppp.
+// It MUST additionally measure the PAP exchange, not the CHAP-MD5 exchange
+// required by checkZeClient.
 func checkZeClientPAP(ctx context.Context, check *interoplab.CheckContext) error {
-	if err := checkZeClient(ctx, check); err != nil {
+	if err := checkZeClientSession(ctx, check); err != nil {
 		return err
 	}
 	logs, err := check.Lab.Logs(ctx, accelImageName, accelTraceLines)
@@ -193,6 +214,43 @@ func checkZeClientPAP(ctx context.Context, check *interoplab.CheckContext) error
 		return appendDiagnostics(ctx, check.Lab, err, accelImageName)
 	}
 	return nil
+}
+
+// accelCHAPEvidence requires the ordered negotiation and successful exchange
+// from the independent peer, never just the configured authentication module.
+// accel-ppp 1.14.0 producers: ppp/ppp_lcp.c (send_conf_req, lcp_recv_conf_ack),
+// ppp/ppp_auth.c (auth_print), and auth/auth_chap_md5.c (chap_send_challenge,
+// chap_recv_response, chap_send_success).
+// https://github.com/accel-ppp/accel-ppp/tree/1.14.0/accel-pppd
+func accelCHAPEvidence(trace string) error {
+	if strings.Contains(trace, "PAP") {
+		return interoplab.WithSearchedOutput(errors.New("auth: PAP appeared in the CHAP-MD5 session"), trace)
+	}
+	steps := [...]struct {
+		packet  string
+		detail  string
+		missing string
+	}{
+		{"send [LCP ConfReq ", "<auth CHAP-md5>", "LCP: accel-ppp sent no CHAP-MD5 Configure-Request"},
+		{"recv [LCP ConfAck ", "<auth CHAP-md5>", "LCP: Ze sent no CHAP-MD5 Configure-Ack"},
+		{"send [CHAP Challenge ", "", "auth: accel-ppp sent no CHAP Challenge"},
+		{"recv [CHAP Response ", `name="` + pppdUsername + `"`, "auth: accel-ppp received no named CHAP Response from Ze"},
+		{"send [CHAP Success ", `"Authentication succeeded"`, "auth: accel-ppp sent no CHAP Success"},
+	}
+	next := 0
+	for line := range strings.SplitSeq(trace, "\n") {
+		if !strings.Contains(line, steps[next].packet) {
+			continue
+		}
+		if !strings.Contains(line, steps[next].detail) {
+			continue
+		}
+		next++
+		if next == len(steps) {
+			return nil
+		}
+	}
+	return interoplab.WithSearchedOutput(errors.New(steps[next].missing), trace)
 }
 
 // accelPAPEvidence proves from accel-ppp's verbose PPP trace that Ze sent a

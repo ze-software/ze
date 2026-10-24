@@ -12,6 +12,15 @@ import (
 	"github.com/ze-software/ze/internal/le/interoplab"
 )
 
+// accelCHAPTrace uses accel-ppp 1.14.0's verbose PPP packet spelling,
+// including the general log's timestamp and interface prefix.
+const accelCHAPTrace = `[2026-10-23 10:00:00]:  info: ppp0: send [LCP ConfReq id=1 <auth CHAP-md5> <magic 12345678>]
+[2026-10-23 10:00:00]:  info: ppp0: recv [LCP ConfAck id=1 <auth CHAP-md5> <magic 12345678>]
+[2026-10-23 10:00:00]:  info: ppp0: send [CHAP Challenge id=1 <123456789abcdef> name="accel-ppp"]
+[2026-10-23 10:00:00]:  info: ppp0: recv [CHAP Response id=1 <fedcba987654321>, name="alice"]
+[2026-10-23 10:00:00]:  info: ppp0: send [CHAP Success id=1 "Authentication succeeded"]
+`
+
 type fakeLab struct {
 	execFn        func(string, []string) (interoplab.CommandResult, error)
 	detachedFn    func(string, []string) error
@@ -137,6 +146,9 @@ func TestZeClientScenarioProvesAccelAndDataplane(t *testing.T) {
 		}
 		return "ifname | username\nppp0 | alice\n", nil
 	}
+	lab.logsFn = func(string, int) (interoplab.LogResult, error) {
+		return interoplab.LogResult{Text: accelCHAPTrace, Available: true}, nil
+	}
 	lab.stopFn = func(peer string, grace int) error {
 		stopped = true
 		return nil
@@ -154,6 +166,80 @@ func TestZeClientScenarioProvesAccelAndDataplane(t *testing.T) {
 	}
 	if len(lab.queryCalls) < 2 {
 		t.Fatalf("accel session queries = %d, want active and gone", len(lab.queryCalls))
+	}
+}
+
+func TestAccelCHAPEvidenceRequiresCompletedMD5Exchange(t *testing.T) {
+	// VALIDATES: Actual CHAP-MD5 negotiation and a completed challenge/response
+	// pass; PAP success or an incomplete CHAP exchange cannot satisfy the oracle.
+	// PREVENTS: A live PPP/IPCP session standing in for measured CHAP authentication.
+	pap := "recv [PAP AuthReq id=1 <alice>]\nsend [PAP AuthAck id=1 \"Authentication succeeded\"]"
+	tests := []struct {
+		name  string
+		trace string
+		want  string
+	}{
+		{"complete CHAP-MD5", accelCHAPTrace, ""},
+		{"empty", "", "Configure-Request"},
+		{"PAP success", pap, "PAP appeared"},
+		{
+			"CHAP offered then PAP succeeds",
+			"send [LCP ConfReq id=1 <auth CHAP-md5>]\n" + pap,
+			"PAP appeared",
+		},
+		{
+			"wrong algorithm",
+			strings.ReplaceAll(accelCHAPTrace, "<auth CHAP-md5>", "<auth MSCHAP-v2>"),
+			"Configure-Request",
+		},
+		{
+			"unacknowledged offer",
+			strings.Replace(accelCHAPTrace, "recv [LCP ConfAck", "recv [LCP ConfNak", 1),
+			"Configure-Ack",
+		},
+		{
+			"no challenge",
+			strings.Replace(accelCHAPTrace, "send [CHAP Challenge", "send [CHAP Failure", 1),
+			"Challenge",
+		},
+		{
+			"no response",
+			strings.Replace(accelCHAPTrace, "recv [CHAP Response", "recv [CHAP Failure", 1),
+			"Response",
+		},
+		{
+			"wrong subscriber",
+			strings.Replace(accelCHAPTrace, `name="alice"`, `name="bob"`, 1),
+			"Response",
+		},
+		{
+			"authentication rejected",
+			strings.Replace(accelCHAPTrace, "send [CHAP Success", "send [CHAP Failure", 1),
+			"Success",
+		},
+		{
+			"success precedes exchange",
+			"send [CHAP Success id=1 \"Authentication succeeded\"]\n" +
+				strings.Replace(accelCHAPTrace, "send [CHAP Success", "send [CHAP Failure", 1),
+			"Success",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := accelCHAPEvidence(test.trace)
+			if test.want == "" {
+				if err != nil {
+					t.Fatalf("completed CHAP-MD5 exchange refused: %v", err)
+				}
+				return
+			}
+			if err == nil {
+				t.Fatal("incomplete or non-MD5 authentication accepted")
+			}
+			if !strings.Contains(err.Error(), test.want) {
+				t.Fatalf("error = %v, want %q", err, test.want)
+			}
+		})
 	}
 }
 
