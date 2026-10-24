@@ -162,7 +162,10 @@ parent) and its text equals the removed spec's text at the parent with every
 occurrence of the old stem replaced by the new stem, and the pairing is one to
 one. Any other edit leaves the removal a closure, because the failure the rule
 guards is a real closure passing as a rename. A prepared commit reads HEAD and
-the working tree; the push derivation reads the commit's parent and the commit, through
+the working tree, except that a `hunks` path is read from its selected blob, and
+the review artifact must pin that blob's digest
+(`docs/contributing/committing.md`, "Committing some hunks of a shared file");
+the push derivation reads the commit's parent and the commit, through
 the same `closedSpecStem`. One commit closes one spec, and `oneStem` refuses a
 second.
 <!-- source: internal/le/commit/review.go -- closedSpecStem, renamedSpecs -->

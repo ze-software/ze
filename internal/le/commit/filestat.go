@@ -9,6 +9,8 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+
+	"github.com/ze-software/ze/internal/le/commit/hunks"
 )
 
 // FileStat is how much of one file a prospective commit carries, measured
@@ -47,12 +49,30 @@ const statUnavailable = -1
 // fileStats measures each path against HEAD, in the order given. A path git
 // cannot describe still gets a row: silence about a file is what this exists to
 // remove, so an unmeasurable file says so rather than being dropped.
-func fileStats(root string, paths []string) []FileStat {
+func fileStats(root string, paths []string, selection hunks.Selection) []FileStat {
 	stats := make([]FileStat, 0, len(paths))
 	for _, path := range paths {
+		if blob, selected := selection.Blob(path); selected {
+			stats = append(stats, selectedFileStat(root, path, blob))
+			continue
+		}
 		stats = append(stats, fileStat(root, path))
 	}
 	return stats
+}
+
+// selectedFileStat is fileStat for a hunks path: the selected blob against
+// HEAD's, since the working-tree file holds hunks the commit leaves behind. A
+// path HEAD does not hold has no blob to compare, so its counts are unavailable.
+func selectedFileStat(root, path, blob string) FileStat {
+	command := exec.CommandContext(context.Background(), "git", "diff", "--numstat", "HEAD:"+path, blob) // #nosec G204 -- fixed Git query; path and blob are argv operands.
+	command.Dir = root
+	out, err := command.Output()
+	fields := strings.Fields(string(out))
+	if err != nil || len(fields) < 2 {
+		return FileStat{Path: path, Added: statUnavailable, Deleted: statUnavailable}
+	}
+	return FileStat{Path: path, Added: countOrUnavailable(fields[0]), Deleted: countOrUnavailable(fields[1])}
 }
 
 func fileStat(root, path string) FileStat {

@@ -16,6 +16,8 @@ import (
 	"github.com/ze-software/ze/internal/le/spec"
 	specjournal "github.com/ze-software/ze/internal/le/spec/journal"
 	specpath "github.com/ze-software/ze/internal/le/spec/path"
+
+	"github.com/ze-software/ze/internal/le/commit/hunks"
 )
 
 var (
@@ -123,6 +125,12 @@ func relocatedSpecs(paths, removed []string) map[string]bool {
 // its own, and HEAD under the earlier blocks for a block appended to a script
 // (scriptBase), because the appended block lands after them.
 func closureStem(root string, paths, removed []string, base specjournal.Base) (string, error) {
+	return closureStemSelected(root, paths, removed, base, nil)
+}
+
+// closureStemSelected is closureStem over a commit whose hunks paths carry
+// the selected blob: the spec sides read a selected path through selection.
+func closureStemSelected(root string, paths, removed []string, base specjournal.Base, selection hunks.Selection) (string, error) {
 	for _, path := range paths {
 		if !strings.HasPrefix(path, "plan/journal/") {
 			continue
@@ -149,7 +157,7 @@ func closureStem(root string, paths, removed []string, base specjournal.Base) (s
 		return "", errors.New(strings.TrimSuffix(specjournal.UnownedText(unowned), "\n"))
 	}
 
-	return closedSpecStem(paths, removed, workingTreeSides(root))
+	return closedSpecStem(paths, removed, workingTreeSides(root, selection))
 }
 
 // appendBase answers the tree a prepared commit lands on, for the journal
@@ -301,17 +309,17 @@ type specSides struct {
 
 // workingTreeSides judges a commit being PREPARED: HEAD is its parent, and the
 // working tree holds the content the snapshot is about to take.
-func workingTreeSides(root string) specSides {
+func workingTreeSides(root string, selection hunks.Selection) specSides {
 	return specSides{
 		before: func(path string) (string, bool, string) { return committedText(root, "HEAD", path) },
-		after:  func(path string) (string, bool, string) { return workingText(root, path) },
+		after:  func(path string) (string, bool, string) { return workingText(root, path, selection) },
 	}
 }
 
 // workingText answers a path's bytes in the working tree, in the shape of
 // committedText.
-func workingText(root, path string) (text string, present bool, problem string) {
-	content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(path))) //nolint:gosec // the path is a spec the commit names, under the checkout root
+func workingText(root, path string, selection hunks.Selection) (text string, present bool, problem string) {
+	content, err := selection.Read(root, path)
 	if errors.Is(err, os.ErrNotExist) {
 		return "", false, ""
 	}
@@ -450,6 +458,13 @@ func oneStem(stems map[string]bool) (string, error) {
 // session, this read asked for the eight-hex commit namespace, and no closure
 // could satisfy the gate (spec.ReviewArtifactPath).
 func CheckReview(root, stem string, paths []string) ReviewResult {
+	return checkReviewSelected(root, stem, paths, nil)
+}
+
+// checkReviewSelected is CheckReview over a commit whose hunks paths carry the
+// selected blob: the review must have pinned that content, not the
+// working-tree file, which holds hunks the commit leaves behind.
+func checkReviewSelected(root, stem string, paths []string, selection hunks.Selection) ReviewResult {
 	artifact, err := spec.ReviewArtifactPath(root, stem)
 	if err != nil {
 		return ReviewResult{Spec: stem, Problems: []string{"resolve review artifact path: " + err.Error()}}
@@ -461,6 +476,9 @@ func CheckReview(root, stem string, paths []string) ReviewResult {
 		return result
 	}
 	judgeReviewCoverage(&result, string(content), paths, func(path string) string {
+		if _, selected := selection.Blob(path); selected {
+			return selectedReviewHash(root, path, selection)
+		}
 		return reviewHash(filepath.Join(root, filepath.FromSlash(path)))
 	})
 	return result
@@ -528,8 +546,20 @@ func countedPaths(count int, what string, paths []string) string {
 	return text.String()
 }
 
+// selectedReviewHash is reviewHash over the selected blob of a hunks path.
+func selectedReviewHash(root, path string, selection hunks.Selection) string {
+	content, err := selection.Read(root, path)
+	return reviewDigest(content, err)
+}
+
 func reviewHash(path string) string {
 	content, err := os.ReadFile(path) //nolint:gosec // the path is this session's commit artifact or a tracked file under the checkout root
+	return reviewDigest(content, err)
+}
+
+// reviewDigest answers the review pin of content read with err: DELETED for
+// an absent file, UNREADABLE for any other failure, else its SHA-256.
+func reviewDigest(content []byte, err error) string {
 	if errors.Is(err, os.ErrNotExist) {
 		return "DELETED"
 	}

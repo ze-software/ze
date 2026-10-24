@@ -14,6 +14,9 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/commit/hunks"
 )
 
 // Prospective describes the exact add/remove population as Git would record it.
@@ -25,9 +28,12 @@ type Prospective struct {
 
 // ProspectiveCommit builds an isolated Git index and derives safe test rename
 // pairs without touching the shared staging area.
-func ProspectiveCommit(root string, paths, removed []string) (Prospective, []string) {
+//
+// A path selection holds is staged from its selected blob rather than the
+// working tree, which holds hunks the commit leaves behind.
+func ProspectiveCommit(root string, paths, removed []string, selection hunks.Selection) (Prospective, []string) {
 	result := Prospective{Paths: slices.Clone(paths), Removed: slices.Clone(removed)}
-	raw, problem := prospectiveDiff(root, paths, removed,
+	raw, problem := prospectiveDiff(root, paths, removed, selection,
 		"--name-status", "-z", "--find-renames=1%", "-l0", "--diff-filter=R")
 	if problem != "" {
 		return result, []string{cannotRunPrefix + problem + ", so no rename was compared"}
@@ -48,7 +54,7 @@ func ProspectiveCommit(root string, paths, removed []string) (Prospective, []str
 	return result, nil
 }
 
-func prospectiveDiff(root string, paths, removed []string, diffArgs ...string) ([]byte, string) {
+func prospectiveDiff(root string, paths, removed []string, selection hunks.Selection, diffArgs ...string) ([]byte, string) {
 	tmp := filepath.Join(root, "tmp")
 	if err := os.MkdirAll(tmp, 0o750); err != nil {
 		return nil, fmt.Sprintf("create prospective-index directory: %v", err)
@@ -68,10 +74,11 @@ func prospectiveDiff(root string, paths, removed []string, diffArgs ...string) (
 	defer os.Remove(index + ".lock") //nolint:errcheck // interrupted Git scratch lock
 
 	environment := append(os.Environ(), "GIT_INDEX_FILE="+index)
-	run := func(args ...string) ([]byte, int, error) {
+	runInput := func(input string, args ...string) ([]byte, int, error) {
 		command := exec.CommandContext(context.Background(), "git", args...) // #nosec G204 -- Git and every subcommand are closed; paths remain argv.
 		command.Dir = root
 		command.Env = environment
+		command.Stdin = strings.NewReader(input)
 		var stdout bytes.Buffer
 		var stderr bytes.Buffer
 		command.Stdout = &stdout
@@ -85,6 +92,7 @@ func prospectiveDiff(root string, paths, removed []string, diffArgs ...string) (
 		}
 		return stderr.Bytes(), -1, runErr
 	}
+	run := func(args ...string) ([]byte, int, error) { return runInput("", args...) }
 
 	_, code, runErr := run("rev-parse", "--verify", "-q", headRevision)
 	if runErr != nil {
@@ -99,7 +107,16 @@ func prospectiveDiff(root string, paths, removed []string, diffArgs ...string) (
 			return nil, "git read-tree HEAD failed for the prospective commit: " + strings.TrimSpace(string(output))
 		}
 	}
-	if len(paths) != 0 {
+	if entries := selectedEntries(selection); entries != "" {
+		output, code, err := runInput(entries, "update-index", "--index-info")
+		if err != nil {
+			return nil, fmt.Sprintf("git update-index --index-info: %v", err)
+		}
+		if code != 0 {
+			return nil, "git update-index --index-info failed for the prospective commit: " + strings.TrimSpace(string(output))
+		}
+	}
+	if paths := worktreePaths(paths, selection); len(paths) != 0 {
 		args := append([]string{"update-index", "--add", "--remove", "--"}, paths...)
 		output, updateCode, updateErr := run(args...)
 		if updateErr != nil {
@@ -311,4 +328,26 @@ func groupAtDepth(paths []string, depth int) map[string][]string {
 		groups[component] = append(groups[component], path)
 	}
 	return groups
+}
+
+// selectedEntries answers the `git ls-files -s` lines of a selection, one per
+// line, in path order, for `git update-index --index-info`.
+func selectedEntries(selection hunks.Selection) string {
+	var text textbuf.Buffer
+	for _, path := range selection.Paths() {
+		text.Str(selection[path]).Byte('\n')
+	}
+	return text.String()
+}
+
+// worktreePaths answers paths with every selected path left out: those are
+// staged from their selected blob, never from the working tree.
+func worktreePaths(paths []string, selection hunks.Selection) []string {
+	kept := make([]string, 0, len(paths))
+	for _, path := range paths {
+		if _, selected := selection.Blob(path); !selected {
+			kept = append(kept, path)
+		}
+	}
+	return kept
 }

@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/ze-software/ze/internal/le/commit/hunks"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 	testweakened "github.com/ze-software/ze/internal/le/test/weakened"
 )
@@ -22,21 +23,24 @@ const notCheckoutDetail = "root is not the Ze checkout, so no native gate judges
 // Options is the callable commit-preparation contract. Paths and removals are
 // explicit and repeatable; no option broadens them to a directory or whole tree.
 type Options struct {
-	Session         string   `json:"session,omitempty"`
-	Tag             string   `json:"tag,omitempty"`
-	Subject         string   `json:"subject"`
-	Body            []string `json:"body,omitempty"`
-	Files           []string `json:"files,omitempty"`
-	Remove          []string `json:"remove,omitempty"`
-	Script          string   `json:"script,omitempty"`
-	Append          bool     `json:"append"`
-	Replace         bool     `json:"replace"`
-	NoTest          string   `json:"no-test,omitempty"`
-	StructuralRedOK string   `json:"structural-red-ok,omitempty"`
-	ReviewOverride  string   `json:"review-override,omitempty"`
-	BrokenHeadFix   string   `json:"broken-head-fix,omitempty"`
-	RFCChangeOK     string   `json:"rfc-change-ok,omitempty"`
-	DryRun          bool     `json:"dry-run"`
+	Session string   `json:"session,omitempty"`
+	Tag     string   `json:"tag,omitempty"`
+	Subject string   `json:"subject"`
+	Body    []string `json:"body,omitempty"`
+	Files   []string `json:"files,omitempty"`
+	// Hunks is each `hunks <path> <patch-file>` pair: a path whose commit
+	// carries HEAD's blob with only that patch's hunks applied.
+	Hunks           []HunkSelection `json:"hunks,omitempty"`
+	Remove          []string        `json:"remove,omitempty"`
+	Script          string          `json:"script,omitempty"`
+	Append          bool            `json:"append"`
+	Replace         bool            `json:"replace"`
+	NoTest          string          `json:"no-test,omitempty"`
+	StructuralRedOK string          `json:"structural-red-ok,omitempty"`
+	ReviewOverride  string          `json:"review-override,omitempty"`
+	BrokenHeadFix   string          `json:"broken-head-fix,omitempty"`
+	RFCChangeOK     string          `json:"rfc-change-ok,omitempty"`
+	DryRun          bool            `json:"dry-run"`
 	// Attest is the commit an attestation answers and AttestWords the owner's
 	// words. An attestation names no file and no remove path (D-7).
 	Attest      string `json:"attest,omitempty"`
@@ -98,7 +102,7 @@ func Create(root string, options *Options) (Prepared, error) {
 		return result, err
 	}
 	attesting := options.Attest != ""
-	if attesting && len(slices.Concat(paths, removed)) != 0 {
+	if attesting && len(slices.Concat(paths, removed))+len(options.Hunks) != 0 {
 		return result, errors.New("attest refused with a file or remove path: an attestation must not change the tree, " +
 			"because a changed tree moves HEAD off the green tree and owes the full verify the attestation exists to spare; " +
 			"prepare the attestation alone with ./le commit create subject \"<subject>\" attest <commit> \"<owner words>\", " +
@@ -109,7 +113,7 @@ func Create(root string, options *Options) (Prepared, error) {
 			return result, err
 		}
 	}
-	if !attesting && len(paths) == 0 && len(removed) == 0 {
+	if !attesting && len(paths) == 0 && len(removed) == 0 && len(options.Hunks) == 0 {
 		return result, errors.New("at least one file or remove path is required, unless the commit is an attestation: " +
 			`attest <commit> "<owner words>"`)
 	}
@@ -149,6 +153,28 @@ func Create(root string, options *Options) (Prepared, error) {
 	}
 	result.Session = session
 
+	// HEAD is read BEFORE any content is taken: the hunks blobs below and the
+	// snapshot further down. A peer commit landing after this read is then one
+	// the script refuses over, if it touched a named path, even when the
+	// snapshot already holds it: a refusal that costs a re-run. Read after,
+	// the same commit would be in the recorded HEAD and missing from the
+	// content, and the script would write over it in silence. A hunks patch
+	// applies to this same HEAD, so the script's refusal covers its base too.
+	preparedHead, err := gitOutput(root, "rev-parse", "--verify", "HEAD^{commit}")
+	if err != nil {
+		return result, fmt.Errorf("read the HEAD this commit is prepared against: %w", err)
+	}
+	preparedHead = strings.TrimSpace(preparedHead)
+	// The selected blobs are built before any gate runs, so every gate judges
+	// what the commit carries for a hunks path rather than its working-tree
+	// file, which holds hunks the commit leaves behind.
+	wholePaths := paths
+	hunkPaths, selection, err := selectHunks(root, preparedHead, wholePaths, options.Hunks)
+	if err != nil {
+		return result, err
+	}
+	paths = slices.Concat(wholePaths, hunkPaths)
+
 	native := lepath.IsCheckout(root)
 	reviewCheck := ""
 	switch {
@@ -166,10 +192,10 @@ func Create(root string, options *Options) (Prepared, error) {
 			return result, err
 		}
 	case native:
-		if err := checkSourceGates(root, options, &result, paths, removed, session); err != nil {
+		if err := checkSourceGates(root, options, &result, paths, removed, session, selection); err != nil {
 			return result, err
 		}
-		reviewCheck, err = checkVerificationGates(root, options, &result, paths, removed)
+		reviewCheck, err = checkVerificationGates(root, options, &result, paths, removed, selection)
 		if err != nil {
 			return result, err
 		}
@@ -221,24 +247,20 @@ func Create(root string, options *Options) (Prepared, error) {
 	if err != nil {
 		return result, err
 	}
-	// HEAD is read BEFORE the snapshot. A peer commit landing between the two
-	// is then one the script refuses over, if it touched a named path, even
-	// though the snapshot may already hold it: a refusal that costs a re-run.
-	// Read after, the same commit would be in the recorded HEAD and missing
-	// from the snapshot, and the script would write over it in silence.
-	preparedHead, err := gitOutput(root, "rev-parse", "--verify", "HEAD^{commit}")
-	if err != nil {
-		return result, fmt.Errorf("read the HEAD this commit is prepared against: %w", err)
-	}
 	// The snapshot is taken HERE, after every gate has judged these paths, so
-	// what the script commits is what the gates read.
-	entries, err := snapshotIndexEntries(root, paths)
+	// what the script commits is what the gates read. A hunks path carries
+	// the entry selectHunks built, which the gates read through selection.
+	entries, err := snapshotIndexEntries(root, wholePaths)
 	if err != nil {
 		return result, err
 	}
+	for _, path := range hunkPaths {
+		entries = append(entries, selection[path])
+	}
 	block := commitBlock{
 		Tag: tag, Subject: strings.TrimSpace(options.Subject), Paths: paths, Removed: removed,
-		PreparedHead: strings.TrimSpace(preparedHead),
+		Selected:     hunkPaths,
+		PreparedHead: preparedHead,
 		IndexEntries: entries, MessagePath: messagePath, ReviewCheck: reviewCheck,
 		Approvals: []approvalPrune{
 			{Path: result.RFCApprovals.Path, Dropped: result.RFCApprovals.Dropped},
@@ -258,7 +280,7 @@ func Create(root string, options *Options) (Prepared, error) {
 	result.Script = scriptPath
 	result.DryRun = options.DryRun
 	result.Added = paths
-	result.Stats = fileStats(root, paths)
+	result.Stats = fileStats(root, paths, selection)
 	result.Removed = removed
 	if options.DryRun {
 		result.MessageText = message
@@ -283,8 +305,10 @@ func Create(root string, options *Options) (Prepared, error) {
 // ledger, the RFC-tagged tests, the discovery index and the test-coverage
 // obligation. Each one reads a file only the Ze checkout holds, so Create runs
 // this over that checkout alone.
-func checkSourceGates(root string, options *Options, result *Prepared, paths, removed []string, session string) error {
-	prospective, problems := testweakened.ProspectiveCommit(root, paths, removed)
+func checkSourceGates(root string, options *Options, result *Prepared, paths, removed []string, session string,
+	selection hunks.Selection,
+) error {
+	prospective, problems := testweakened.ProspectiveCommit(root, paths, removed, selection)
 	if len(problems) != 0 {
 		return errors.New(strings.Join(problems, "\n"))
 	}
@@ -302,10 +326,10 @@ func checkSourceGates(root string, options *Options, result *Prepared, paths, re
 	}
 	weakening := testweakened.Check(testweakened.Request{
 		Root: root, ApprovalSession: approvalSession, Paths: paths, Removed: removed,
-		RenamePairs: prospective.RenamePairs,
+		RenamePairs: prospective.RenamePairs, Selected: selection,
 	})
 	result.Weakened = weakening.Findings
-	rfcChanges, rfcApprovals, rfcProblems := rfcChangeProblems(root, approvalSession, prospective)
+	rfcChanges, rfcApprovals, rfcProblems := rfcChangeProblems(root, approvalSession, prospective, selection)
 	result.RFCChanges = rfcChanges
 	// A unit names its directory by base name only, so one approval of a
 	// unit this commit changes in two such directories cannot say which test
@@ -347,7 +371,7 @@ func checkSourceGates(root string, options *Options, result *Prepared, paths, re
 			result.Trailers = append(result.Trailers, trailer)
 		}
 	}
-	if problems := testCoverageProblems(root, paths); len(problems) != 0 &&
+	if problems := testCoverageProblemsSelected(root, paths, selection); len(problems) != 0 &&
 		strings.TrimSpace(options.NoTest) == "" {
 		return fmt.Errorf("%s\n  or name no-test with a truthful reason",
 			strings.Join(problems, "\n"))
@@ -377,9 +401,17 @@ func mergeRFCApprovals(approvals RFCApprovals, weakening testweakened.Approvals)
 // closure with no clean review and no override, and answers the review
 // re-check line the script runs. It never refuses for a missing verification:
 // that is owed before a push, and the push derives it.
-func checkVerificationGates(root string, options *Options, result *Prepared, paths, removed []string) (string, error) {
+func checkVerificationGates(root string, options *Options, result *Prepared, paths, removed []string,
+	selection hunks.Selection,
+) (string, error) {
 	all := append(append([]string{}, paths...), removed...)
 	result.Verify = verificationState(root, all)
+	if len(selection) != 0 {
+		// The manifest hashes each path's working-tree file, and a hunks path's
+		// file holds hunks this commit leaves behind, so FRESH would vouch for
+		// content the commit does not carry.
+		result.Verify = VerificationState{State: "stale", Detail: hunkSelectedDetail}
+	}
 	if result.Verify.State != verifyFresh {
 		reds := structuralGateReds(root, all)
 		charged := append([]string(nil), reds.Charged...)
@@ -421,14 +453,14 @@ func checkVerificationGates(root string, options *Options, result *Prepared, pat
 	if err != nil {
 		return "", err
 	}
-	stem, err := closureStem(root, paths, removed, base)
+	stem, err := closureStemSelected(root, paths, removed, base, selection)
 	if err != nil {
 		return "", err
 	}
 	if stem == "" {
 		return "", nil
 	}
-	review := CheckReview(root, stem, paths)
+	review := checkReviewSelected(root, stem, paths, selection)
 	result.Review = &review
 	if !review.Clean && strings.TrimSpace(options.ReviewOverride) == "" {
 		return "", errors.New(strings.Join(review.Problems, "\n"))
@@ -441,7 +473,9 @@ func checkVerificationGates(root string, options *Options, result *Prepared, pat
 		result.Trailers = append(result.Trailers, trailer)
 		return "", nil
 	}
-	return reviewCheckCommand(stem, paths), nil
+	// A hunks path is pinned by its blob and was judged above; the script's
+	// re-check hashes the working tree, which holds hunks the commit leaves.
+	return reviewCheckCommand(stem, withoutSelected(paths, selection)), nil
 }
 
 // admissionTrailer renders the record of one admission: `<key><subject>:
@@ -476,6 +510,12 @@ func normalizePaths(root string, raw []string, validate func(string, string) err
 }
 
 func testCoverageProblems(root string, paths []string) []string {
+	return testCoverageProblemsSelected(root, paths, nil)
+}
+
+// testCoverageProblemsSelected is testCoverageProblems over a commit whose
+// hunks paths carry the selected blob.
+func testCoverageProblemsSelected(root string, paths []string, selection hunks.Selection) []string {
 	owing := make([]string, 0)
 	hasTest := false
 	for _, path := range paths {
@@ -485,7 +525,7 @@ func testCoverageProblems(root string, paths []string) []string {
 		if !testCoverageRequired(path) {
 			continue
 		}
-		content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(path))) //nolint:gosec // the path is this session's commit artifact or a tracked file under the checkout root
+		content, err := selection.Read(root, path)
 		if err != nil {
 			continue
 		}

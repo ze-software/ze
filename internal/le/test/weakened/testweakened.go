@@ -15,6 +15,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/commit/hunks"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
@@ -42,6 +43,10 @@ type Request struct {
 	Removed         []string     `json:"removed,omitempty"`
 	RenamePairs     []RenamePair `json:"rename-pairs,omitempty"`
 	Anchor          string       `json:"anchor,omitempty"`
+	// Selected is the content a commit carries for each hunks path. The
+	// comparison reads such a path's new side from it, never from the
+	// working tree, which holds hunks the commit leaves behind.
+	Selected hunks.Selection `json:"-"`
 }
 
 // Finding is one weakened unit and the ordered detector verdicts for it.
@@ -130,7 +135,7 @@ func Check(request Request) Result {
 		}
 	}
 	findings, errors := weakenedTests(
-		request.Root, request.Paths, request.Removed, request.RenamePairs, result.Anchor,
+		request.Root, request.Paths, request.Removed, request.RenamePairs, result.Anchor, request.Selected,
 	)
 	result.Findings = findings
 	if len(errors) != 0 {
@@ -344,6 +349,7 @@ func weakenedTests(
 	paths, removed []string,
 	renamePairs []RenamePair,
 	anchor string,
+	selection hunks.Selection,
 ) ([]Finding, []string) {
 	findings := make([]Finding, 0)
 	problems := make([]string, 0)
@@ -361,7 +367,7 @@ func weakenedTests(
 		}
 		seen[pair.OldPath] = true
 		seen[pair.NewPath] = true
-		pairFindings, problem := comparePath(root, pair.OldPath, pair.NewPath, anchor)
+		pairFindings, problem := comparePath(root, pair.OldPath, pair.NewPath, anchor, selection)
 		if problem != "" {
 			problems = append(problems, text.Reset().Str(cannotRunPrefix).Str(problem).String())
 			continue
@@ -377,7 +383,7 @@ func weakenedTests(
 		if removedSet[path] {
 			newPath = ""
 		}
-		pathFindings, problem := comparePath(root, path, newPath, anchor)
+		pathFindings, problem := comparePath(root, path, newPath, anchor, selection)
 		if problem != "" {
 			problems = append(problems, text.Reset().Str(cannotRunPrefix).Str(problem).String())
 			continue
@@ -387,7 +393,7 @@ func weakenedTests(
 	return findings, problems
 }
 
-func comparePath(root, oldPath, newPath, anchor string) ([]Finding, string) {
+func comparePath(root, oldPath, newPath, anchor string, selection hunks.Selection) ([]Finding, string) {
 	oldText, problem := baselineText(root, oldPath, anchor)
 	if problem != "" {
 		return nil, problem
@@ -399,7 +405,7 @@ func comparePath(root, oldPath, newPath, anchor string) ([]Finding, string) {
 	path := oldPath
 	if newPath != "" {
 		path = newPath
-		newText = worktreeText(root, newPath)
+		newText = worktreeText(root, newPath, selection)
 	}
 	packageDir := filepath.Dir(path)
 	packageName := filepath.Base(packageDir)
@@ -451,8 +457,8 @@ func baselineText(root, path, anchor string) (string, string) {
 	return stdout, ""
 }
 
-func worktreeText(root, path string) string {
-	content, err := readRepositoryFile(root, path)
+func worktreeText(root, path string, selection hunks.Selection) string {
+	content, err := selection.Read(root, path)
 	if err != nil {
 		return ""
 	}

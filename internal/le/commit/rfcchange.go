@@ -9,11 +9,12 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 
 	"github.com/ze-software/ze/internal/le/rfc"
 	testweakened "github.com/ze-software/ze/internal/le/test/weakened"
+
+	"github.com/ze-software/ze/internal/le/commit/hunks"
 )
 
 // RFCChange is one changed RFC-tagged test unit requiring owner approval, as
@@ -48,7 +49,7 @@ func (c *RFCChange) unit() string {
 // A changed unit no live row names is a problem naming the command; a row
 // the commit does not use stays in the file for a later commit.
 func rfcChangeProblems(
-	root, session string, prospective testweakened.Prospective,
+	root, session string, prospective testweakened.Prospective, selection hunks.Selection,
 ) ([]RFCChange, RFCApprovals, []string) {
 	approvals := RFCApprovals{Path: rfc.ApprovalPath(session)}
 	pairsByOld := make(map[string]testweakened.RenamePair)
@@ -83,7 +84,7 @@ func rfcChangeProblems(
 		}
 		newText := ""
 		if newPath != "" {
-			content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(newPath))) //nolint:gosec // the path is this session's commit artifact or a tracked file under the checkout root
+			content, err := selection.Read(root, newPath)
 			if err != nil && !errors.Is(err, os.ErrNotExist) {
 				return nil, approvals, []string{"RFC-tagged change gate could not read " + newPath + ": " + err.Error()}
 			}

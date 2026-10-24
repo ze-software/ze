@@ -175,6 +175,11 @@ func TestAttestRefusalDerivesFromKeywordTable(t *testing.T) {
 			}
 			args = append(args, value)
 		}
+		// A Pair keyword takes two values; hunks is the one that refuses an
+		// attestation.
+		if rule.Pair {
+			args = append(args, "tracked.txt", "a.patch")
+		}
 		options, err := parseCreate(args)
 		if err != nil {
 			t.Fatalf("%s: parse %q: %v", keyword, args, err)

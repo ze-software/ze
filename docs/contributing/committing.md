@@ -37,6 +37,7 @@ to an author who had been warned about those exact files minutes beforehand.
 | `body` | yes | One body chunk, wrapped to 72 characters without breaking a word. Two chunks run together, so a paragraph break is an empty `body ""` between them |
 | `file` | yes | One explicit file to stage. Never a directory |
 | `file-list` | yes | A file holding one path to stage per line. Blank lines and `#` comments are skipped |
+| `hunks` | yes | Two values, `hunks <path> <patch-file>`: commit HEAD's blob of `<path>` with only the hunks in `<patch-file>` applied, and leave the working-tree file as it is. See "Committing some hunks of a shared file" below. Refused with `attest`, and for a path also named by `file` or by `hunks` twice |
 | `remove` | yes | One tracked file to delete, named exactly: a directory or a glob is refused at create time, because the script removes one index entry by its literal name. The commit removes it from Git, then the script deletes the working-tree copy when that copy is what the commit removed. Leave the file in place: no `rm` beforehand |
 | `remove-list` | yes | A file holding one tracked path to delete per line, each handled as `remove` handles one |
 | `replace` | no | Start a fresh script. Use it for the first commit of a session |
@@ -86,6 +87,47 @@ starts with any declared trailer key (`declaredTrailers` in
 `internal/le/commit/actions.go`, which also lists `Owner-attested:` and
 `Ledger-carried:`), naming the line and the one route that writes it: a
 trailer is a record the derivation reads back, never the author's prose.
+
+## Committing some hunks of a shared file
+
+Sessions share one checkout, so one file can hold hunks from two sessions, each
+of which compiles only with its own session's other files. Neither session can
+commit the whole file, and neither may take the other's hunks out of the
+working tree. `hunks` commits yours alone:
+
+```bash
+dir=$(./le session scratch ensure)
+git diff -- internal/le/verify/lifecycle.go > "$dir/lifecycle.patch"
+# Delete the other session's hunks from the patch, then:
+./le commit create subject "<subject>" file <your other files> \
+  hunks internal/le/verify/lifecycle.go "$dir/lifecycle.patch"
+```
+
+`create` reads HEAD once, before it takes any content, and applies the patch to
+that HEAD's blob in a private index with `git apply --cached`. The working tree
+and the shared index are never written. That HEAD is the block's recorded
+`PreparedHead`, so the script's existing check refuses the commit when a peer
+changed the path after the blob was built. The blob is in the object database
+from then on, and the script commits its `git ls-files -s` line as it commits a
+`file` snapshot.
+
+The patch is refused, naming the path and the fix, when it does not apply to
+HEAD's blob, changes nothing, changes another path as well, or deletes the
+path (a deletion is `remove`).
+
+Every gate judges the selected blob, never the working-tree file:
+`hunks.Selection.Read` answers a hunks path's content to the weakening gate
+and the prospective index it renames from, the RFC-tagged change gate, the
+test-coverage gate, the spec-closure sides and the review pin. The
+verification state is reported stale, because the certificate's manifest hashes
+the working-tree file, which holds hunks the commit does not carry. The drift
+note and the script's review re-check leave a hunks path out: its working tree
+differs from the commit by design, and its content was judged at create time.
+`./le repo compiles check` after the script judges what the commit holds, as
+for any commit.
+<!-- source: internal/le/commit/hunks/hunks.go -- Apply, Selection -->
+<!-- source: internal/le/commit/hunks_select.go -- selectHunks -->
+<!-- source: internal/le/commit/prepare.go -- Create, checkVerificationGates -->
 
 ## What the command refuses
 
@@ -308,7 +350,8 @@ them. One commit block holds, in order:
    quoted once as a whole, so no character in it is shell syntax.
    The landed commit is printed as `[<short-sha>] <subject>` with its stat.
 7. A drift note, then the message file is deleted. The note stages the working
-   tree into a throwaway index and reports any named path whose content, mode,
+   tree into a throwaway index and reports any named path, other than a `hunks`
+   path, whose content, mode,
    or existence moved since preparation. It never refuses: the commit is safe,
    and the difference is still in the working tree. `git update-index
    --refresh` looks like the tool for this and is not, twice over: it rewrites

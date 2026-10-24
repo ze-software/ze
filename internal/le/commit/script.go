@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -43,8 +44,12 @@ type commitBlock struct {
 	// Create's gates judged rather than whatever the working tree holds when
 	// the script runs. snapshotIndexEntries writes it.
 	IndexEntries []string
-	MessagePath  string
-	ReviewCheck  string
+	// Selected is each path whose entry selectHunks built from HEAD's blob
+	// and a patch. Its working-tree file holds hunks the commit leaves behind
+	// by design, so the drift note does not report it.
+	Selected    []string
+	MessagePath string
+	ReviewCheck string
 	// Approvals is each owner approval file of the session, RFC and test
 	// weakening, with the exact lines the block removes from it once its
 	// commit succeeds: the rows the commit carries as trailers, and any row a
@@ -92,8 +97,10 @@ func renderBlock(block commitBlock, scriptPath string) string {
 		lines = append(lines, "# critical-review gate re-check", block.ReviewCheck)
 	}
 	lines = append(lines, renderPublish(block, scriptPath))
-	if len(block.Paths) != 0 {
-		lines = append(lines, renderDriftNote(block.Paths))
+	// An empty list must not reach renderDriftNote: ls-files with no pathspec
+	// lists the whole index.
+	if drifting := withoutSelectedPaths(block.Paths, block.Selected); len(drifting) != 0 {
+		lines = append(lines, renderDriftNote(drifting))
 	}
 	// The message is deleted once git holds it. A message file is what holds
 	// its tag (nextTag), so a landed commit that kept it would never free the
@@ -827,4 +834,15 @@ func parseShellWords(raw string) []string {
 		words = append(words, word.String())
 	}
 	return words
+}
+
+// withoutSelectedPaths answers paths with every selected path left out.
+func withoutSelectedPaths(paths, selected []string) []string {
+	kept := make([]string, 0, len(paths))
+	for _, path := range paths {
+		if !slices.Contains(selected, path) {
+			kept = append(kept, path)
+		}
+	}
+	return kept
 }

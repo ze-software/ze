@@ -30,7 +30,7 @@ func TestProspectiveCommitPreservesSharedIndexAndPairsRenameWithSpaces(t *testin
 	writeProspectiveFile(t, root, "foreign.txt", "staged by another session\n")
 	runProspectiveGit(t, root, "add", "--", "foreign.txt")
 
-	prospective, problems := ProspectiveCommit(root, []string{newPath}, []string{oldPath})
+	prospective, problems := ProspectiveCommit(root, []string{newPath}, []string{oldPath}, nil)
 	if len(problems) != 0 {
 		t.Fatalf("ProspectiveCommit problems = %q", problems)
 	}
@@ -64,7 +64,7 @@ func TestProspectiveCommitIgnoresUnrelatedWorktreeTests(t *testing.T) {
 	writeProspectiveFile(t, root, "pkg/unrelated_test.go", "package p\nfunc TestA(t *testing.T) { t.Skip() }\n")
 	writeProspectiveFile(t, root, "docs/note.txt", "new\n")
 
-	prospective, problems := ProspectiveCommit(root, []string{"docs/note.txt"}, nil)
+	prospective, problems := ProspectiveCommit(root, []string{"docs/note.txt"}, nil, nil)
 	if len(problems) != 0 || len(prospective.RenamePairs) != 0 {
 		t.Fatalf("ProspectiveCommit = %#v, %q", prospective, problems)
 	}

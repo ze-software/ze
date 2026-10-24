@@ -257,12 +257,14 @@ type keywordRule struct {
 // createKeywords is the closed keyword table of `le commit create`: what each
 // keyword takes, how Options holds it, and whether an attestation admits it.
 var createKeywords = map[string]keywordRule{
-	keywordSession:         {Value: true, Given: givenText(func(o *Options) string { return o.Session }), WithAttest: true},
-	"tag":                  {Value: true, Given: givenText(func(o *Options) string { return o.Tag }), WithAttest: true},
-	"subject":              {Value: true, Given: givenText(func(o *Options) string { return o.Subject }), WithAttest: true},
-	"body":                 {Value: true, Repeat: true, Given: func(o *Options) bool { return len(o.Body) != 0 }, WithAttest: true},
-	"file":                 {Value: true, Repeat: true, Given: givenFiles},
-	"file-list":            {Value: true, Repeat: true, Given: givenFiles},
+	keywordSession: {Value: true, Given: givenText(func(o *Options) string { return o.Session }), WithAttest: true},
+	"tag":          {Value: true, Given: givenText(func(o *Options) string { return o.Tag }), WithAttest: true},
+	"subject":      {Value: true, Given: givenText(func(o *Options) string { return o.Subject }), WithAttest: true},
+	"body":         {Value: true, Repeat: true, Given: func(o *Options) bool { return len(o.Body) != 0 }, WithAttest: true},
+	"file":         {Value: true, Repeat: true, Given: givenFiles},
+	"file-list":    {Value: true, Repeat: true, Given: givenFiles},
+	keywordHunks: {Pair: true, Repeat: true, Usage: keywordHunks + " <path> <patch-file>",
+		Given: func(o *Options) bool { return len(o.Hunks) != 0 }},
 	"remove":               {Value: true, Repeat: true, Given: givenRemove},
 	"remove-list":          {Value: true, Repeat: true, Given: givenRemove},
 	"script":               {Value: true, Given: givenText(func(o *Options) string { return o.Script }), WithAttest: true},
@@ -361,7 +363,7 @@ func parseCreate(args []string) (Options, error) {
 	attest := pairValues(values[keywordAttest])
 	return Options{
 		Session: values.one(keywordSession), Tag: values.one("tag"), Subject: values.one("subject"),
-		Body: values["body"], Files: files, Remove: removed, Script: values.one("script"),
+		Body: values["body"], Files: files, Hunks: hunkSelections(values[keywordHunks]), Remove: removed, Script: values.one("script"),
 		Append: values.has("append"), Replace: values.has("replace"),
 		NoTest:          values.one("no-test"),
 		StructuralRedOK: values.one(keywordStructuralRedOK),
