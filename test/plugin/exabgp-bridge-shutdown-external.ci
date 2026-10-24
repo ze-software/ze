@@ -9,6 +9,11 @@
 #           (Processes.terminate, src/exabgp/reactor/api/processes.py)
 # The helper waits for the neighbor's `up` state, sends `shutdown` (the bridge
 # translates it to `request shutdown`), and fails unless the shutdown line follows.
+# Linux only: the line reaches the script because a stop lets an external
+# plugin exit on its own before its group is killed (pluginExitGrace), which
+# needs waitid with WNOWAIT (exitwait_linux.go). Elsewhere the stop kills the
+# group at once (exitwait_other.go), so the bridge rarely writes the line first.
+option=needs-linux
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
