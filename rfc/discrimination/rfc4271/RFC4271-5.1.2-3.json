@@ -43,5 +43,24 @@
     "producer-sha": "2f371da5a96ab9b7",
     "break": "body of recordPrepend replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
     "citation": "2"
+  },
+  {
+    "rid": "RFC4271-5.1.2-3",
+    "polarity": "negative",
+    "unit": "internal/le/interoplab/bgp/check_rfc.go::checkRelayWithdrawalShape",
+    "unit-sha": "172de98371e3bc35",
+    "claim-sha": "8b57a04291fe552b",
+    "route": "mutant",
+    "producer": "internal/component/bgp/wireu/aspath_slot.go::Record",
+    "producer-sha": "d998d54b8bd9f829",
+    "break": "line 159: \"!PayloadAdvertisesNLRI(payload)\" -\u003e \"false\"",
+    "citation": "6",
+    "paired": [
+      {
+        "producer": "internal/component/bgp/reactor/forward_build.go::planAttr",
+        "producer-sha": "dd422598bfe92228",
+        "break": "line 562: \"!gate.advertises()\" -\u003e \"!gate.advertises() \u0026\u0026 (len(gate.payload) \u003c 2 || gate.payload[0]|gate.payload[1] == 0)\""
+      }
+    ]
   }
 ]
