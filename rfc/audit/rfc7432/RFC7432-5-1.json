@@ -1,17 +1,17 @@
 {
-  "note": "row now quotes the \u00a78.1.1 sentence that the ESI MUST be the 10-octet value of \u00a75 (the extraction maps 8.1.1:2 here). types_test.go::TestEVPNESIIsTenOctets decodes and re-encodes a 10-octet ESI on the Ethernet Segment and Ethernet A-D routes and asserts the following field starts after octet ten; the negatives cut the ESI to nine octets and assert ErrEVPNTruncated. ESI is a [10]byte, so no origination path can produce another width",
+  "note": "Re-judged 2026-10-24 (independent auditor, authored none of the change). RFC 7432 Section 8.1.1: \"The Ethernet Segment Identifier (ESI) MUST be set to the 10-octet value described in Section 5.\" 238bdb62e9 unexported the EVPN route types; TestEVPNESIIsTenOctets now asserts the parsed type is *evpnType4 where it asserted *EVPNType4, the same type renamed. The ten-octet ESI length and value assertions are unchanged. Verdict unchanged: enforced. Earlier judgement follows. row now quotes the \u00a78.1.1 sentence that the ESI MUST be the 10-octet value of \u00a75 (the extraction maps 8.1.1:2 here). types_test.go::TestEVPNESIIsTenOctets decodes and re-encodes a 10-octet ESI on the Ethernet Segment and Ethernet A-D routes and asserts the following field starts after octet ten; the negatives cut the ESI to nine octets and assert ErrEVPNTruncated. ESI is a [10]byte, so no origination path can produce another width",
   "requirement_sha": "eca82697be9a41ea",
   "tests": {
-    "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNESIIsTenOctets": "e95f85b8a1869210",
-    "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNESIIsTenOctets#2": "e95f85b8a1869210",
-    "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNESIIsTenOctets#3": "e95f85b8a1869210",
-    "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNESIIsTenOctets#4": "e95f85b8a1869210"
+    "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNESIIsTenOctets": "9064f27b3962feb7",
+    "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNESIIsTenOctets#2": "9064f27b3962feb7",
+    "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNESIIsTenOctets#3": "9064f27b3962feb7",
+    "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNESIIsTenOctets#4": "9064f27b3962feb7"
   },
   "units": {
-    "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNESIIsTenOctets": "44f4933ba7b1e873",
-    "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNESIIsTenOctets#2": "44f4933ba7b1e873",
-    "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNESIIsTenOctets#3": "44f4933ba7b1e873",
-    "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNESIIsTenOctets#4": "44f4933ba7b1e873"
+    "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNESIIsTenOctets": "2dae9b7229ad4f90",
+    "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNESIIsTenOctets#2": "2dae9b7229ad4f90",
+    "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNESIIsTenOctets#3": "2dae9b7229ad4f90",
+    "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNESIIsTenOctets#4": "2dae9b7229ad4f90"
   },
   "verdict": "enforced"
 }
