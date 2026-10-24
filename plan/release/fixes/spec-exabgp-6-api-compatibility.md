@@ -837,7 +837,7 @@ refusal names RFC 7911 Section 3.
 | R2-N2 | NOTE | AC-42 tests missing from the TDD, Functional and Wiring tables | this spec | three unit rows, the `rfc9774-as-set-accept-migrated` functional row and the `session as-set accept` wiring row added |
 | R2-N3 | NOTE | TDD File cells named the wrong file for four tests | this spec | corrected after grep: `bridgerun/version_test.go`, `bridge_version_test.go`, `migrate_process_leaves_test.go`, `bridge_script_version_test.go` |
 | R2-N4 | NOTE | No Goal Validation row for item J | this spec | row added naming `TestExaBGPStageClearsPythonPath` and the `Net` comment in `bridge_batch.go` |
-| R2-N5 | NOTE | recorded by the round 2 reviewer | this spec | noted |
+| R2-N5 | NOTE | interop `bgp-as-set-accept-frr` assertion 6 looks for set member 65101 anywhere in Ze's RIB output, not on the 10.98.0.0/16 route; sound today because only that route carries 65101 | `internal/le/interoplab/bgp/checkers.go` | noted, no change |
 
 ## Pre-Commit Verification
 

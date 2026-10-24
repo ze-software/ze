@@ -7,7 +7,42 @@ Linux host. The long running log is `03-session-2026-10-18-linux-continue.md`
 Claimed spec: `plan/release/fixes/spec-exabgp-6-api-compatibility.md` (Phase 7
 in progress). Claim it with `./le spec claim spec <file>`.
 
-## START HERE: end of Mac session eaf85631 (2026-10-23)
+## START HERE: end of Mac session ae4c40fd (2026-10-24)
+
+Supersedes every section below. The spec is complete except for the full gate:
+every AC (AC-1..AC-42) is met at HEAD, review rounds 1 and 2 are resolved, and
+the closure sections are filled. Owner decision 2026-10-24: leave the spec open
+until the single full verification runs (he skipped it this session); do not
+close it without that run.
+
+Owed, in order:
+1. `./le verify current` once over the final commit, on a quiet Mac or another
+   host (never the Linux host). Green: record it, then `./le spec review record`
+   and close with `/ze-close` (commits A and B). Push stays refused until green.
+2. Review round 3 over 29545c31ad (the two round-2 doc fixes only).
+3. `docs/architecture/api/commands.md`: the R2-I2 single-peer paragraph (names
+   `raw`, anchored on `ResolveSinglePeer` callers) sits uncommitted beside
+   session d3d51937's `show config running` hunk, whose files are not in HEAD.
+   Land it once that session commits, or with its commit.
+4. Scoped lint never ran cleanly (other sessions kept editing): run
+   `./le go lint run scope` over internal/exabgp/..., internal/plugins/exabgp/...,
+   bgp/message, bgp/reactor, internal/exabgp/migration, internal/test/fixture.
+5. Shared index: many commits landed while `.git/index.lock` was held, so
+   committed paths read as staged reverts. `tmp/delete-ae4c40fd.sh` repoints
+   only paths whose working file equals HEAD; owner runs it.
+
+Moved out (owner 2026-10-24): the AS_SET send half (bridge-originated AS_SET)
+is AC-11 of `plan/release/fixes/spec-exabgp-bridge-refuses-untranslated.md`,
+blocked on another session's uncommitted plugin-registry work.
+
+Closed this session: `spec-rfc-verdict-fix-bgp` (3c417fdab2). Landed: auto-flush
+dropped on migration, multi-word `run`, 3/9 for every incorrect MP attribute,
+bridge family order and full-format subscription, Prefix-SID repeat, non-blocking
+peer event delivery, forked bgp-gr/rr/rs refused, `session as-set accept` with
+migration and interop, ATTR_SET-included AS_SET kept (FRR/BIRD), exabgp-test
+green on 5.0.15 and f9bfb853b (375613b8a4).
+
+## Earlier: end of Mac session eaf85631 (2026-10-23)
 
 Supersedes "Owner decisions still open" and items 4 and 5 of "Remaining work"
 below. Claim the spec, read its "Open Owner Decisions" (OD-1, OD-2), then
