@@ -40,6 +40,7 @@ const (
 	VerbEvidenceVet     = "evidence-vet"
 	VerbVulnerability   = "vulnerability"
 	VerbUnitCached      = "unit-cached"
+	VerbUnitChanged     = "unit-changed"
 	VerbUnitRaceChanged = "unit-race-changed"
 	VerbAlloc           = "alloc"
 
@@ -50,6 +51,7 @@ const (
 	actionEvidenceVet     = Area + "/" + VerbEvidenceVet
 	actionVulnerability   = Area + "/" + VerbVulnerability
 	actionUnitCached      = Area + "/" + VerbUnitCached
+	actionUnitChanged     = Area + "/" + VerbUnitChanged
 	actionUnitRaceChanged = Area + "/" + VerbUnitRaceChanged
 	actionAlloc           = Area + "/" + VerbAlloc
 )
@@ -250,6 +252,8 @@ func dispatch(ctx context.Context, root, verb string, part verifyengine.Part, de
 		gaterun.Note("Running govulncheck (SCA: module deps vs vuln.go.dev)...")
 	case VerbUnitCached:
 		return runUnitCached(ctx, plan, report, deps.execute)
+	case VerbUnitChanged:
+		return runUnitChanged(ctx, plan, report, deps.execute)
 	case VerbUnitRaceChanged:
 		return runUnitRaceChanged(ctx, plan, report, deps.execute)
 	case VerbAlloc:
@@ -502,6 +506,8 @@ func planFor(ctx context.Context, root, verb string, part verifyengine.Part, dep
 		return planVulnerability(chain, plan, deps.lookPath)
 	case VerbUnitCached:
 		return planUnitCached(ctx, root, chain, plan, deps)
+	case VerbUnitChanged:
+		return planUnitChanged(root, chain, plan)
 	case VerbUnitRaceChanged:
 		return planUnitRaceChanged(ctx, root, chain, plan, deps)
 	case VerbAlloc:
@@ -544,6 +550,55 @@ func planVulnerability(chain gotoolchain.Toolchain, plan Plan, lookPath func(str
 		gotoolchain.EnvOptions{GOOS: "linux", GOARCH: "amd64"},
 	)}
 	return plan, nil, 0, nil
+}
+
+// planUnitChanged plans the unit pass of `./le verify changed`: the packages
+// the change set reaches, tested and vetted under the manifest's test tags,
+// and the bare ze_core compile-out. The packages are the scope the verify run
+// published (repochanged.Packages), so the pass judges what the run's other
+// stages judge. The test tags hold every tag the scope reaches, so each scope
+// package builds under the tags it needs.
+//
+// A change set that reaches no Go package plans no command, and the pass says
+// so: an empty package list handed to go test would test the current
+// directory, which judges something nobody asked about.
+func planUnitChanged(root string, chain gotoolchain.Toolchain, plan Plan) (Plan, []ChildReport, int, error) {
+	answer, code := repochanged.Packages(root)
+	if code != 0 {
+		return plan, nil, code, fmt.Errorf("the change set could not be selected (exit %d); "+
+			"le repo changed scope print packages names why", code)
+	}
+	plan.Packages = answer.Packages
+	if len(answer.Packages) == 0 {
+		return plan, nil, 0, nil
+	}
+	options := gotoolchain.EnvOptions{Test: true, Procs: true}
+	plan.Commands = []CommandPlan{
+		commandPlan(planName(actionUnitChanged, "test"), chain.GoTest(gotoolchain.TestOptions{}, answer.Packages...), chain, options),
+		commandPlan(planName(actionUnitChanged, "vet"), chain.GoVet(gotoolchain.TestOptions{}, answer.Packages...), chain, options),
+		commandPlan(planName(actionUnitChanged, "core"), chain.GoTest(gotoolchain.TestOptions{Core: true}, "./cmd/ze/hub"), chain, options),
+	}
+	return plan, nil, 0, nil
+}
+
+// runUnitChanged runs every command planUnitChanged planned, each one even
+// after a red, and answers the first red's code.
+func runUnitChanged(ctx context.Context, plan Plan, report Report, execute commandExecutor) (Report, int) {
+	if len(plan.Commands) == 0 {
+		gaterun.Note("Unit tests: the change set reaches no Go package, so there is nothing to test")
+		report.Code = 0
+		return report, 0
+	}
+	report.Code = 0
+	for _, command := range plan.Commands {
+		gaterun.Note("Unit tests over the change set: " + command.Name + "...")
+		_, child := execute(ctx, command, os.Stdout)
+		report.Children = append(report.Children, child)
+		if report.Code == 0 {
+			report.Code = child.Code
+		}
+	}
+	return report, report.Code
 }
 
 func planUnitCached(ctx context.Context, root string, chain gotoolchain.Toolchain, plan Plan, deps dependencies) (Plan, []ChildReport, int, error) {
@@ -845,6 +900,8 @@ func actionForVerb(verb string) (string, error) {
 		return actionVulnerability, nil
 	case VerbUnitCached:
 		return actionUnitCached, nil
+	case VerbUnitChanged:
+		return actionUnitChanged, nil
 	case VerbUnitRaceChanged:
 		return actionUnitRaceChanged, nil
 	case VerbAlloc:

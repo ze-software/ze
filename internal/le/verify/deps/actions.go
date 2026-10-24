@@ -37,6 +37,11 @@ func actionTable(run actionRunner) leaction.Area {
 			Answer: actionAnswer(VerbUnitCached, run),
 		},
 		leaction.Action{
+			Verb:   VerbUnitChanged,
+			Why:    "test and vet the packages the change set reaches and run the bare-core compile-out check",
+			Answer: actionAnswer(VerbUnitChanged, run),
+		},
+		leaction.Action{
 			Verb: VerbUnitRaceChanged,
 			Why: "derive changed Go groups and run them plus bare-core checks with race and cgo; " +
 				"part <index> of <count> runs one piece of the packages, and the pieces together run every package; " +

@@ -123,6 +123,21 @@ func WriteScopePackages(path, root string, packages []string) error {
 	return nil
 }
 
+// WholeTree answers the scope of a release check over the checkout at root:
+// every package and every feature tag the manifest declares. It reads no
+// change set, because the release check judges the whole tree whatever the
+// change set holds. A manifest it cannot read is an error, never a smaller tag
+// set: an invented tag set would leave matrix rows unjudged with nothing
+// saying so.
+func WholeTree(root string) (ScopeReport, error) {
+	gates, err := loadFeatureGates(canonicalRoot(root))
+	if err != nil {
+		return ScopeReport{}, err
+	}
+	whole := failOpen(manifestTags(gates))
+	return ScopeReport{Packages: whole.packages, Tags: whole.tags, Print: "both"}, nil
+}
+
 // Scope resolves the change set for one checkout.
 type Scope struct {
 	// Root is the checkout the answer is about.

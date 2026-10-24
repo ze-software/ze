@@ -56,7 +56,6 @@ func TestStageLogNamesFollowTheCommandName(t *testing.T) {
 		"ai rules/lint":                           "ai-rules-lint.log",
 		"ai hooks/unit":                           "ai-hooks-unit.log",
 		"test sensitivity/check":                  "test-sensitivity-check.log",
-		"test weakened/check":                     "test-weakened-check.log",
 		"test health/check":                       "test-health-check.log",
 		"test functional/gating":                  "test-functional-gating.log",
 		"test functional/exabgp-test":             "test-functional-exabgp-test.log",

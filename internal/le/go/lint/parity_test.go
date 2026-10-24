@@ -156,12 +156,12 @@ func TestVerifyLintRunActionGrammarRefusesMalformedScope(t *testing.T) {
 		{
 			name: "unquoted package list",
 			args: []string{"run", "scope", "./cmd/ze", "./internal/le"},
-			want: "error: le go lint run takes no argument keyword \"./internal/le\"; use one of: le go lint run scope <packages>\n",
+			want: "error: le go lint run takes no argument keyword \"./internal/le\"; use one of: le go lint run scope <packages>, le go lint run changed\n",
 		},
 		{
 			name: "undeclared positional",
 			args: []string{"run", "./cmd/ze"},
-			want: "error: le go lint run takes no argument keyword \"./cmd/ze\"; use one of: le go lint run scope <packages>\n",
+			want: "error: le go lint run takes no argument keyword \"./cmd/ze\"; use one of: le go lint run scope <packages>, le go lint run changed\n",
 		},
 	}
 	for _, test := range tests {
@@ -263,7 +263,7 @@ func TestPlanPinsEveryArgvEnvironmentScopeAndOrder(t *testing.T) {
 		}
 		wantOverrides := []string{
 			"GOCACHE=" + filepath.Join(root, "cache", "go-cache"),
-			"GOLANGCI_LINT_CACHE=" + filepath.Join(root, "tmp", "golangci-lint-cache"),
+			"GOLANGCI_LINT_CACHE=" + filepath.Join(root, "cache", "golangci-lint-cache"),
 			"CGO_ENABLED=0", "GOMEMLIMIT=9GiB",
 		}
 		if pass.GOOS != "" {
@@ -289,7 +289,7 @@ func TestPlanPinsEveryArgvEnvironmentScopeAndOrder(t *testing.T) {
 		}
 		wantOverrides := []string{
 			"GOCACHE=" + filepath.Join(root, "cache", "go-cache"),
-			"GOLANGCI_LINT_CACHE=" + filepath.Join(root, "tmp", "golangci-lint-cache"),
+			"GOLANGCI_LINT_CACHE=" + filepath.Join(root, "cache", "golangci-lint-cache"),
 			"CGO_ENABLED=0", "GOMEMLIMIT=9GiB",
 		}
 		if index == 1 || index == 19 {
@@ -303,7 +303,7 @@ func TestPlanPinsEveryArgvEnvironmentScopeAndOrder(t *testing.T) {
 	}
 	wantTrackedOverrides := []string{
 		"GOCACHE=" + filepath.Join(root, "cache", "go-cache"),
-		"GOLANGCI_LINT_CACHE=" + filepath.Join(root, "tmp", "golangci-lint-cache"),
+		"GOLANGCI_LINT_CACHE=" + filepath.Join(root, "cache", "golangci-lint-cache"),
 		"CGO_ENABLED=0", "GOMEMLIMIT=9GiB",
 	}
 	toolchaintest.CheckEnvironmentTail(t, "tracked population environment", trackedCall.environment, wantTrackedOverrides, root)

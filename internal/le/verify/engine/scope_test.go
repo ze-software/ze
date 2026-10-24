@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -83,9 +84,14 @@ func commitVerifyScopeFixture(t *testing.T, root string) {
 	}
 }
 
-// runWatchingScope runs one verify over root and answers what each stage could
-// read about the change set.
-func runWatchingScope(t *testing.T, root string) (Report, []scopeSeenByStage) {
+// runWatchingScope runs one verify of mode's population over root and answers
+// what each stage could read about the change set.
+//
+// The tests of the change-set publication pass FastMode. The full population is
+// the release check and publishes the whole tree whatever the change set holds
+// (TestFullModePublishesWholeTree), so the change-set publication they judge is
+// the one every other population reads.
+func runWatchingScope(t *testing.T, root, mode string) (Report, []scopeSeenByStage) {
 	t.Helper()
 	var seen []scopeSeenByStage
 	runner := func(_ context.Context, _ string, identity Identity) ActionResult {
@@ -95,7 +101,7 @@ func runWatchingScope(t *testing.T, root string) (Report, []scopeSeenByStage) {
 		})
 		return ActionResult{Identity: identity, Registered: true, Completed: true}
 	}
-	report := RunMode(context.Background(), root, "abc", Mode, Plan{}, runner, Slot{})
+	report := RunMode(context.Background(), root, "abc", mode, Plan{}, runner, Slot{})
 	if len(seen) == 0 {
 		t.Fatal("the run started no stage")
 	}
@@ -122,7 +128,7 @@ func TestVerifyRunNamesTheFeatureScopeToEveryStage(t *testing.T) {
 	root := writeVerifyScopeFixture(t)
 	commitVerifyScopeFixture(t, root)
 
-	report, seen := runWatchingScope(t, root)
+	report, seen := runWatchingScope(t, root, FastMode)
 
 	first := seen[0]
 	if first.packagesPath == "" || first.tagsPath == "" {
@@ -146,8 +152,8 @@ func TestVerifyRunPublishesTheChangeSetPerRun(t *testing.T) {
 	root := writeVerifyScopeFixture(t)
 	commitVerifyScopeFixture(t, root)
 
-	_, firstRun := runWatchingScope(t, root)
-	_, secondRun := runWatchingScope(t, root)
+	_, firstRun := runWatchingScope(t, root, FastMode)
+	_, secondRun := runWatchingScope(t, root, FastMode)
 
 	if firstRun[0].packagesPath == secondRun[0].packagesPath {
 		t.Errorf("both runs published their package answer at %s", firstRun[0].packagesPath)
@@ -171,7 +177,7 @@ func TestVerifyRunRestoresTheChangeScopeItNamed(t *testing.T) {
 		}
 	}
 
-	runWatchingScope(t, root)
+	runWatchingScope(t, root, FastMode)
 
 	for _, key := range []string{repochanged.ScopeFileKey, repochanged.ScopeTagsKey} {
 		if got := env.Get(key); got != "/outer/"+filepath.Base(key) {
@@ -196,7 +202,7 @@ func TestVerifyRunWidensWhenTheChangeSetCannotBeSelected(t *testing.T) {
 		tagsPath:     env.Get(repochanged.ScopeTagsKey),
 	}
 
-	_, seen := runWatchingScope(t, root)
+	_, seen := runWatchingScope(t, root, FastMode)
 
 	if seen[0] != ambient {
 		t.Fatalf("a refused selection published %#v, want the %#v this process already held", seen[0], ambient)
@@ -211,7 +217,7 @@ func TestVerifyRunPublishesTheScopedAnswerAGatedChangeProduces(t *testing.T) {
 		t.Fatalf("edit the gated fixture file: %v", err)
 	}
 
-	_, seen := runWatchingScope(t, root)
+	_, seen := runWatchingScope(t, root, FastMode)
 
 	tags := readAnswerLines(t, seen[0].tagsPath)
 	if len(tags) != 1 || tags[0] != "ze_ssh" {
@@ -232,5 +238,69 @@ func TestVerifyRunPublishesTheScopedAnswerAGatedChangeProduces(t *testing.T) {
 	elsewhere, code := (repochanged.Scope{Root: t.TempDir(), File: seen[0].packagesPath}).Resolve(nil)
 	if code == 0 && len(elsewhere.Packages) == 1 && elsewhere.Packages[0] == "./ssh" {
 		t.Error("a caller asking about another checkout was handed this run's answer")
+	}
+}
+
+// TestFullModePublishesWholeTree proves the release check judges the whole
+// tree: over a checkout whose change set is empty (HEAD at its upstream), the
+// full population publishes `./...` and every manifest tag, while the fast and
+// changed populations publish the empty change set (AC-12).
+func TestFullModePublishesWholeTree(t *testing.T) {
+	root := writeVerifyScopeFixture(t)
+	commitVerifyScopeFixture(t, root)
+
+	_, full := runWatchingScope(t, root, Mode)
+	// The first line names the checkout the answer is about.
+	if got := readAnswerLines(t, full[0].packagesPath); len(got) != 2 || got[1] != "./..." {
+		t.Errorf("the full population published packages %q, want the whole tree ./...", got)
+	}
+	if got := readAnswerLines(t, full[0].tagsPath); !slices.Equal(got, []string{"ze_bgp", "ze_ssh"}) {
+		t.Errorf("the full population published tags %q, want every manifest tag [ze_bgp ze_ssh]", got)
+	}
+
+	for _, mode := range []string{FastMode, ChangedMode} {
+		_, scoped := runWatchingScope(t, root, mode)
+		if got := readAnswerLines(t, scoped[0].packagesPath); len(got) != 1 {
+			t.Errorf("the %s population published packages %q over an empty change set, want none", mode, got)
+		}
+		if got := readAnswerLines(t, scoped[0].tagsPath); len(got) != 0 {
+			t.Errorf("the %s population published tags %q over an empty change set, want none", mode, got)
+		}
+	}
+}
+
+// TestChangedPopulationReadsScope proves the changed population holds only
+// stages that read the published scope, and none of the release check's
+// whole-tree stages (AC-13).
+func TestChangedPopulationReadsScope(t *testing.T) {
+	readsScope := func(name string) bool {
+		switch {
+		case name == "go lint/run/changed", name == "verify deps/unit-changed",
+			name == FunctionalCommand+"/gating",
+			strings.HasPrefix(name, "go staticcheck/check/part/"),
+			strings.HasPrefix(name, "verify deps/unit-race-changed/part/"):
+			return true
+		default:
+			return false
+		}
+	}
+	population := StagesForMode(ChangedMode)
+	if len(population) == 0 {
+		t.Fatal("the changed mode names no population")
+	}
+	for _, current := range population {
+		if !readsScope(current.Identity.Name) {
+			t.Errorf("the changed population holds %s, which does not read the published scope", current.Identity.Name)
+		}
+	}
+	for _, wholeTree := range []string{"go lint/run", "repo compiles/check", "verify deps/unit-cached", "verify deps/alloc"} {
+		for _, current := range population {
+			if current.Identity.Name == wholeTree {
+				t.Errorf("the changed population holds the whole-tree stage %s", wholeTree)
+			}
+		}
+	}
+	if !Structural(ChangedMode)["go lint/run/changed"] {
+		t.Error("the changed lint is not structural, so its red would not say the tree is broken")
 	}
 }

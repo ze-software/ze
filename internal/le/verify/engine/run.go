@@ -26,6 +26,10 @@ const (
 	// FastMode is the status identity for the scoped native population, the one
 	// `./le verify current fast` runs in place over the working tree.
 	FastMode = "fast"
+	// ChangedMode is the status identity for the scoped population
+	// `./le verify changed` runs in a throwaway worktree at one commit: the
+	// tests of what the change set reaches, and the evidence a push owes.
+	ChangedMode = "changed"
 	// Interrupted is the shell-compatible status for an interrupt signal.
 	Interrupted = 130
 	// Unjudged is the status of a run that reached no verdict about the tree.
@@ -345,7 +349,7 @@ func runMode(ctx context.Context, root, commit, mode string, part Part, plan Pla
 	// The change set is selected once, here, and named to every stage below.
 	// Selecting it per stage would let two stages of one run judge two
 	// different trees (scope.go).
-	restoreScope := publishChangeScope(root, logDir)
+	restoreScope := publishChangeScope(root, logDir, mode)
 	defer restoreScope()
 
 	// Every stage below runs inside this run's slot rather than queueing behind

@@ -294,3 +294,24 @@ func TestAStoppedRunIsStaleForEveryPathList(t *testing.T) {
 		}
 	}
 }
+
+// TestCheckCertificateKnowsChangedMode proves a green `verify changed`
+// certificate is judged as the changed population it names, never refused as
+// a population no mode declares (AC-14).
+func TestCheckCertificateKnowsChangedMode(t *testing.T) {
+	root := statusFixture(t)
+	start := job.SnapshotTree(root)
+	at := time.Date(2026, 10, 24, 11, 12, 13, 0, time.UTC)
+	if _, err := WriteCertificate(root, WriteRequest{
+		Exit: 0, Mode: ChangedMode, GitSHA: job.Head(root), Start: start, At: at,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	got := CheckCertificate(root, nil)
+	if !got.Fresh || got.Mode != ChangedMode {
+		t.Fatalf("changed certificate check = %#v, want fresh in mode %s", got, ChangedMode)
+	}
+	if strings.Contains(got.Reason, "not a whole verification") {
+		t.Fatalf("changed certificate read as an unknown population: %s", got.Reason)
+	}
+}

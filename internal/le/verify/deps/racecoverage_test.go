@@ -4,10 +4,13 @@ package verifydeps
 import (
 	"context"
 	"io"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/core/env"
+	repochanged "github.com/ze-software/ze/internal/le/repo/changed"
 	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
 )
 
@@ -181,5 +184,57 @@ func TestRaceChangedRefusesAnUnreadableCommittedRange(t *testing.T) {
 	report, code := run(context.Background(), root, VerbUnitRaceChanged, verifyengine.Uncut(), deps)
 	if code != 7 || report.Skipped || report.Error == "" {
 		t.Fatalf("unreadable history answered code=%d report=%+v", code, report)
+	}
+}
+
+// publishScope publishes packages as the run's package answer for root.
+func publishScope(t *testing.T, root string, packages ...string) {
+	t.Helper()
+	path := filepath.Join(root, "tmp", "scope-packages.txt")
+	if err := repochanged.WriteScopePackages(path, root, packages); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv(repochanged.ScopeFileKey, path)
+	env.ResetCache()
+}
+
+// TestUnitChangedTestsAndVetsThePublishedScope proves the scoped unit pass
+// tests and vets exactly the packages the run published, then compiles the
+// bare core, and that an empty scope runs no command at all: an empty package
+// list handed to go test would test the current directory (AC-13).
+func TestUnitChangedTestsAndVetsThePublishedScope(t *testing.T) {
+	root := t.TempDir()
+	anchoredCheckout(t, root)
+	publishScope(t, root, "./internal/le/verify")
+	deps := fakeDependencies(root)
+	var executed [][]string
+	deps.execute = func(_ context.Context, plan CommandPlan, _ io.Writer) (string, ChildReport) {
+		executed = append(executed, plan.Command)
+		return "", childFrom(plan, 0)
+	}
+	report, code := run(context.Background(), root, VerbUnitChanged, verifyengine.Uncut(), deps)
+	if code != 0 {
+		t.Fatalf("unit-changed exited %d: %#v", code, report)
+	}
+	if len(executed) != 3 {
+		t.Fatalf("executed %v, want test, vet and the core compile-out", executed)
+	}
+	for index, verb := range []string{"test", "vet"} {
+		if !slices.Contains(executed[index], verb) || !slices.Contains(executed[index], "./internal/le/verify") ||
+			slices.Contains(executed[index], "./...") {
+			t.Errorf("command %d is %v, want go %s over the published package only", index, executed[index], verb)
+		}
+	}
+	if !slices.Contains(executed[2], "./cmd/ze/hub") {
+		t.Errorf("compile-out command is %v", executed[2])
+	}
+
+	publishScope(t, root)
+	executed = nil
+	if _, code := run(context.Background(), root, VerbUnitChanged, verifyengine.Uncut(), deps); code != 0 {
+		t.Fatalf("unit-changed over an empty scope exited %d", code)
+	}
+	if len(executed) != 0 {
+		t.Errorf("an empty scope executed %v, want nothing", executed)
 	}
 }

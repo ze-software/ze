@@ -4,6 +4,8 @@ package golint
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"io"
 	"os"
 	"os/signal"
@@ -13,6 +15,7 @@ import (
 	"github.com/ze-software/ze/internal/le/job"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
+	repochanged "github.com/ze-software/ze/internal/le/repo/changed"
 )
 
 // jobLabel is the name this stage claims in the shared job registry. Every lint
@@ -28,9 +31,10 @@ const jobLabel = job.LintLabel
 
 var actions = leaction.New(area, leaction.Action{
 	Verb: actionRun,
-	Why:  "lint the full tree or a declared package scope through the host, Linux integration, platform, capability, personality, and compile-out builds",
+	Why:  "lint the full tree, a declared package scope, or the packages the change set reaches (changed) through the host, Linux integration, platform, capability, personality, and compile-out builds",
 	Parameters: []leaction.Parameter{
 		{Keyword: "scope", Value: "packages", Requirement: leaction.Optional},
+		{Keyword: keywordChanged},
 	},
 	AnswerArgs: runHere,
 })
@@ -44,6 +48,33 @@ func Subs() string { return actions.Subs() }
 // Answer is the `le go lint` command.
 func Answer(args []string) (any, int) { return actions.Answer(args) }
 
+// keywordChanged lints the packages the change set reaches: the scope a verify
+// run published, or the selector's answer for this checkout when none is.
+const keywordChanged = "changed"
+
+// changedScope translates `changed` into the `scope` the rest of the action
+// reads, so a scoped lint and a changed lint are one plan. It answers false
+// when the change set reaches no package: an empty scope would plan the whole
+// tree, which is the opposite of what an empty change set asks for.
+func changedScope(root string, arguments leaction.Arguments) (leaction.Arguments, bool, error) {
+	if !arguments.Has(keywordChanged) {
+		return arguments, true, nil
+	}
+	if arguments.Has("scope") {
+		return nil, false, errors.New("lint: changed and scope each name the packages to lint; give one of them, " +
+			"as in: le go lint run changed")
+	}
+	answer, code := repochanged.Packages(root)
+	if code != 0 {
+		return nil, false, fmt.Errorf("lint: the change set could not be selected (exit %d); "+
+			"le repo changed scope print packages names why", code)
+	}
+	if len(answer.Packages) == 0 {
+		return nil, false, nil
+	}
+	return leaction.Arguments{"scope": {strings.Join(answer.Packages, " ")}}, true, nil
+}
+
 // runHere admits this lint through the shared job registry and then runs it.
 //
 // Several sessions work one checkout, and each lint uses cores allocated for
@@ -56,6 +87,17 @@ func runHere(arguments leaction.Arguments) (any, int) {
 	if err != nil {
 		leaction.ReportError(err)
 		return Report{Code: cannotPlan, Error: err.Error()}, cannotPlan
+	}
+	arguments, reaches, err := changedScope(root, arguments)
+	if err != nil {
+		leaction.ReportError(err)
+		return Report{Code: cannotPlan, Error: err.Error()}, cannotPlan
+	}
+	if !reaches {
+		if writeErr := writeLintf(os.Stderr, "lint: the change set reaches no Go package, so there is nothing to lint\n"); writeErr != nil {
+			leaction.ReportError(writeErr)
+		}
+		return Report{}, 0
 	}
 	admission, err := job.NewIn(root)
 	if err != nil {

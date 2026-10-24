@@ -34,6 +34,7 @@ func TestTheActionTableIsComplete(t *testing.T) {
 		VerbEvidenceVet,
 		VerbVulnerability,
 		VerbUnitCached,
+		VerbUnitChanged,
 		VerbUnitRaceChanged,
 		VerbAlloc,
 	}

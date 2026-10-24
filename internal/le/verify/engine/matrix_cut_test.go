@@ -30,7 +30,7 @@ func TestTheAnswerARunPublishesScopesTheMatrixAndIsDealtWhole(t *testing.T) {
 		t.Fatalf("edit the gated fixture file: %v", err)
 	}
 
-	_, seen := runWatchingScope(t, root)
+	_, seen := runWatchingScope(t, root, FastMode)
 
 	// The fixture manifest declares two features, so the whole matrix is four
 	// rows: all_features, core_only, and one omission row per tag.

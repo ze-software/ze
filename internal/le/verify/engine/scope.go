@@ -50,13 +50,20 @@ type changeScopeAnswer struct {
 	tagsPath     string
 }
 
-// publishChangeScope selects the change set for root, writes both answers under
-// logDir, and names each one to every stage this run starts. It answers the
-// restore that puts the previous values back when the run ends.
+// publishChangeScope selects the scope mode's population judges for root,
+// writes both answers under logDir, and names each one to every stage this run
+// starts. It answers the restore that puts the previous values back when the
+// run ends.
+//
+// The full population is the release check, and it judges the whole tree: its
+// answer is `./...` and every feature tag whatever the change set holds. The
+// change set is anchored on the upstream, so over a clean pushed tree it holds
+// almost nothing, and a release check narrowed from it would judge almost
+// nothing. Every other population judges the change set.
 //
 // The returned function is never nil, so the caller defers it unconditionally.
-func publishChangeScope(root, logDir string) func() {
-	answer, err := selectChangeSet(root, logDir)
+func publishChangeScope(root, logDir, mode string) func() {
+	answer, err := selectChangeSet(root, logDir, mode)
 	if err != nil {
 		gaterun.Note("verify: the change set was not published (" + err.Error() +
 			"), so every stage judges the whole tree")
@@ -70,16 +77,17 @@ func publishChangeScope(root, logDir string) func() {
 	}
 }
 
-// selectChangeSet runs the selector once and writes the two answers it gives.
+// selectChangeSet answers the scope of mode's population once and writes the
+// two answers it gives.
 //
 // A widened answer is a real answer and is published as it stands: the selector
 // says `./...` and every tag, which is what a stage reading it must then judge.
 // Only a selector that refused the checkout leaves the run with nothing to
 // publish.
-func selectChangeSet(root, logDir string) (changeScopeAnswer, error) {
-	report, code := (repochanged.Scope{Root: root}).Resolve([]string{"--print=both"})
-	if code != 0 {
-		return changeScopeAnswer{}, errors.New("the selector refused this checkout")
+func selectChangeSet(root, logDir, mode string) (changeScopeAnswer, error) {
+	report, err := scopeFor(root, mode)
+	if err != nil {
+		return changeScopeAnswer{}, err
 	}
 	answer := changeScopeAnswer{
 		packagesPath: filepath.Join(logDir, scopePackagesFile),
@@ -94,6 +102,19 @@ func selectChangeSet(root, logDir string) (changeScopeAnswer, error) {
 		return changeScopeAnswer{}, err
 	}
 	return answer, nil
+}
+
+// scopeFor answers the scope mode's population judges: the whole tree for the
+// release check, the change set the selector answers for every other mode.
+func scopeFor(root, mode string) (repochanged.ScopeReport, error) {
+	if mode == Mode {
+		return repochanged.WholeTree(root)
+	}
+	report, code := (repochanged.Scope{Root: root}).Resolve([]string{"--print=both"})
+	if code != 0 {
+		return repochanged.ScopeReport{}, errors.New("the selector refused this checkout")
+	}
+	return report, nil
 }
 
 // writeChangeScopeAnswer writes the TAG answer, one line per entry. An empty
