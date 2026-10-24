@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>show config dump - Command Equivalents - Ze</title>
-        <meta name="description" content="Show the fully resolved configuration tree." />
+        <meta name="description" content="Show the fully resolved configuration tree of a file." />
         <meta property="og:title" content="show config dump - Command Equivalents - Ze" />
-        <meta property="og:description" content="Show the fully resolved configuration tree." />
+        <meta property="og:description" content="Show the fully resolved configuration tree of a file." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="show config dump - Command Equivalents - Ze" />
-        <meta name="twitter:description" content="Show the fully resolved configuration tree." />
+        <meta name="twitter:description" content="Show the fully resolved configuration tree of a file." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -48,7 +48,7 @@
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Command map</span>
     <h1 id="command-equivalent-detail-title">show config dump</h1>
-    <p>Show the fully resolved configuration tree.</p>
+    <p>Show the fully resolved configuration tree of a file.</p>
 </div>
 <div class="cmd-detail-grid">
 <article class="cmd-detail-card cmd-detail-ze"><h2>Ze command</h2>
@@ -65,7 +65,7 @@
 <div><dt>Pipes, local process only</dt><dd>save</dd></div>
 <div><dt>Answer shape</dt><dd>doc</dd></div>
 </dl>
-<h3>Description</h3><p>Parses the config and outputs it after includes, defaults, and group<br>inheritance have been applied. What you see here is exactly what the daemon is<br>using.</p>
+<h3>Description</h3><p>Parses the config and outputs it after includes, defaults, and group<br>inheritance have been applied. It reads the file you name, so it shows what the<br>daemon would load from it. To see what a running daemon applied, use<br>show config running.</p>
 <h3>Arguments</h3>
 <p>No command-specific arguments listed.</p>
 </article>
@@ -137,7 +137,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 12:05 UTC</span>
                 </div>
             </div>
         </footer>

@@ -49,7 +49,7 @@
     <h1 id="plugin-catalog-title">Plugin catalog</h1>
     <p>Ze features are composed from plugins. This catalog is generated from the live registry and explains what each plugin is for, what it configures, and which other plugins it relies on. Click any plugin to open a local detail page.</p>
 </div>
-                <p class="plugin-summary">Generated from 91 registry entries: 91 runtime plugins. Among runtime plugins, 73 declare configuration roots, 48 declare dependencies, and 77 ship YANG modules.</p>
+                <p class="plugin-summary">Generated from 91 registry entries: 91 runtime plugins. Among runtime plugins, 73 declare configuration roots, 49 declare dependencies, and 77 ship YANG modules.</p>
                 <div class="plugin-console" role="search" aria-label="Search plugins">
                     <label for="plugin-search">Search by feature, protocol, config root, dependency, or source path</label>
                     <input id="plugin-search" type="search" autocomplete="off" placeholder="Try RPKI, FlowSpec, FIB, DHCP, DDoS, l2tp, bgp-filter..." />
@@ -884,15 +884,16 @@
                     <p>Generated group for registry entries mapped to the Exabgp area. Config roots: <code>exabgp</code>. Source area: <code>internal/plugins/exabgp</code>.</p>
                     <div class="cards plugin-grid">
 
-                    <article class="card plugin-card cat-automate" id="plugin-exabgp-bridge" data-plugin-card data-family="exabgp" data-category="routing" data-search="exabgp-bridge In-process ExaBGP compatibility bridge: runs an operator ExaBGP-format script as a subprocess and translates to/from ze events (RFC-agnostic transport shim) In-process ExaBGP compatibility bridge: runs an operator ExaBGP-format script as a subprocess and translates to/from ze events (RFC-agnostic transport shim) internal/plugins/exabgp/bridgeplugin Exabgp   exabgp    internal/plugins/exabgp/bridgeplugin/yang/ze-exabgp-bridge-conf.yang">
+                    <article class="card plugin-card cat-automate" id="plugin-exabgp-bridge" data-plugin-card data-family="exabgp" data-category="routing" data-search="exabgp-bridge In-process ExaBGP compatibility bridge: runs an operator ExaBGP-format script as a subprocess and translates to/from ze events (RFC-agnostic transport shim) In-process ExaBGP compatibility bridge: runs an operator ExaBGP-format script as a subprocess and translates to/from ze events (RFC-agnostic transport shim) internal/plugins/exabgp/bridgeplugin Exabgp   exabgp bgp   internal/plugins/exabgp/bridgeplugin/yang/ze-exabgp-bridge-conf.yang">
                         <span class="cat">Exabgp</span>
                         <h3><a href="exabgp-bridge/"><code>exabgp-bridge</code></a></h3>
                         <p class="plugin-desc">In-process ExaBGP compatibility bridge: runs an operator ExaBGP-format script as a subprocess and translates to/from ze events (RFC-agnostic transport shim)</p>
                         <div class="chips">
                             <span class="chip mode">config:exabgp</span>
+                            <span class="chip">needs:bgp</span>
                             <span class="chip">YANG:1</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>exabgp</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>exabgp</code></dd></div><div><dt>Needs</dt><dd><code>bgp</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
                     </article>
                     </div>
                 </section>
@@ -1638,7 +1639,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 11:16 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 12:05 UTC</span>
                 </div>
             </div>
         </footer>

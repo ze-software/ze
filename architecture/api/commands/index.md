@@ -599,6 +599,7 @@ request reload           # Reload the configuration
 request data backup path <file> [spare <n>] [force]   # Back up the store to a file on the daemon host
 request data restore path <file> config [name <n>]    # Restore the config from a backup through the reload
 show reload-status       # Show how many config reloads have been processed
+show config running      # Show the configuration the daemon applied
 ```
 
 #### show reload-status (the reload fence)
@@ -633,6 +634,32 @@ cannot change what a reload accepts or rejects.
 <!-- source: internal/component/plugin/server/reload_generation.go -- counter state, outcome vocabulary -->
 <!-- source: cmd/ze/hub/main_reload.go -- doReloadContext, the increment site, after engine.Reload -->
 <!-- source: internal/component/cmd/show/reload_status.go -- ze-cmd:show-reload-status handler + JSON shape -->
+
+#### show config running (the applied configuration)
+
+`show config running` answers the configuration the daemon is running, as a
+tree. The daemon reads it from its running tree, not from the config file. Only
+a reload whose transaction committed replaces that tree, so after a refused
+reload this command still shows the configuration in force, while the file
+already holds the text the daemon refused.
+
+Every secret leaf (`ze:sensitive` or `ze:bcrypt`) is replaced with
+`/* SECRET-DATA */`. The answer leaves the daemon over SSH, REST and gRPC, so it
+never carries the reversible `$9$` form that `show config dump` writes. A daemon
+that holds no running tree yet refuses the command and says so. It never
+answers an empty tree.
+
+`show config dump` is a different command. It is a local-data command: it parses
+the file it is given in the caller's own process, so it cannot say what a daemon
+applied. Given no file, it refuses and names `show config running`. REST
+`GET /api/v1/config/running` and gRPC `GetRunningConfig` dispatch
+`show config running`.
+
+<!-- source: internal/component/config/cli/running_rpc.go -- handleShowConfigRunning, runningConfigView, errNoRunningConfig -->
+<!-- source: internal/component/config/cli/register_running_rpc.go -- ze-config:show-config-running registration -->
+<!-- source: internal/component/config/cli/config_data.go -- dataDump, the no-file refusal -->
+<!-- source: internal/component/api/rest/server.go -- handleConfigRunning -->
+<!-- source: internal/component/api/grpc/server.go -- GetRunningConfig -->
 
 ### Peer Commands
 
@@ -754,6 +781,22 @@ send bgp !upstream1 cached 12345
 
 > **Note:** Filter selectors (`[local-as ...]`, `[peer-as ...]`) from ExaBGP multi-session
 > draft are not supported — the draft never became an RFC.
+
+Not every command takes every selector. A command whose handler resolves its
+selector through `ResolveSinglePeer` acts on one peer: the selector must resolve
+to exactly one, and `*`, an exclusion or a selector matching several peers is
+refused. The handlers that call it are the list, so grep for the function rather
+than trusting a copy here; the source anchors below name each caller (among them
+`teardown`, `notify`, `disable`, `enable`, `pause`, `resume`, `clear soft`,
+`delete bgp peer` and `raw`). The YANG `selector` leaf of `ze-peer-cmd.yang` says
+which commands act on every peer it matches.
+<!-- source: internal/component/plugin/server/command.go -- ResolveSinglePeer -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- teardown, remove, peerFlowControl -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/admin.go -- disable, enable -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/notify.go -- notify -->
+<!-- source: internal/component/bgp/plugins/cmd/raw/raw.go -- handleRaw -->
+<!-- source: internal/component/bgp/plugins/route_refresh/handler/clear_soft.go -- clear soft -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang -- selector -->
 
 ### Route Commands (update text)
 

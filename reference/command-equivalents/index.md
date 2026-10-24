@@ -1,6 +1,6 @@
 # Command Equivalents
 
-487 live Ze commands. 46 have vendor CLI today. 98 have been reviewed for migration intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.
+488 live Ze commands. 46 have vendor CLI today. 98 have been reviewed for migration intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.
 
 ## Commands with vendor CLI
 
@@ -352,6 +352,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show config graph` | Read-only | - | - | - | - | [details](show-config-graph/) |
 | `show config history` | Read-only | - | - | - | `compare`<br>`show configuration` | [details](show-config-history/) |
 | `show config list` | Read-only | - | - | - | - | [details](show-config-list/) |
+| `show config running` | Read-only | - | - | - | - | [details](show-config-running/) |
 | `show config validation` | Read-only | - | - | - | - | [details](show-config-validation/) |
 | `show crashes` | Read-only | - | - | - | - | [details](show-crashes/) |
 | `show data cat` | Read-only | - | - | - | - | [details](show-data-cat/) |

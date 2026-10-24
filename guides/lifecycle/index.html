@@ -119,7 +119,14 @@ ze start ze.conf
 <li>Commit.</li>
 <li>Verify live state and health.</li>
 </ol>
-<p>Use <code>show config dump</code> for the fully resolved configuration and <code>show config diff</code> before rollback or commit.</p>
+<p>Use <code>show config dump &lt;file&gt;</code> for the fully resolved configuration of a file and <code>show config diff</code> before rollback or commit.</p>
+<p><code>show config running</code> asks the daemon for the configuration it applied, from
+memory. A reload the daemon refused leaves that answer unchanged, while the
+config file already holds the refused text, so this is the command that says
+what is in force. Secret values are replaced with a placeholder. REST
+(<code>GET /api/v1/config/running</code>) and gRPC (<code>GetRunningConfig</code>) answer the same
+command.</p>
+<!-- source: internal/component/config/cli/running_rpc.go -- handleShowConfigRunning, runningConfigView -->
 <h2 id="archive-and-rollback">Archive and rollback</h2>
 <p>Ze stores configuration revisions in the configured storage backend. The archive guide covers revision pointers, named archive destinations, schema evolution, and recovery.</p>
 <p>Useful commands include:</p>
@@ -222,7 +229,7 @@ ze cli -c "show health"
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 12:05 UTC</span>
                 </div>
             </div>
         </footer>

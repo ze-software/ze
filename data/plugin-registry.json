@@ -818,7 +818,9 @@
     "config_roots": [
       "exabgp"
     ],
-    "dependencies": [],
+    "dependencies": [
+      "bgp"
+    ],
     "optional_dependencies": [],
     "start_after": [],
     "source_dir": "internal/plugins/exabgp/bridgeplugin",

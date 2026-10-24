@@ -325,7 +325,7 @@ refresh row gives the required generic Execute command instead.</p>
 <tr>
 <td><code>GET</code></td>
 <td><code>/api/v1/config/running</code></td>
-<td>Current running config</td>
+<td>The configuration the daemon applied, from memory (<code>show config running</code>). After a refused reload it still answers the config in force, not the file. Secret values are replaced with a placeholder</td>
 </tr>
 <tr>
 <td><code>POST</code></td>
@@ -472,7 +472,7 @@ must be authenticated and must configure TLS with both <code>tls-cert</code> and
 <tbody>
 <tr>
 <td><code>GetRunningConfig</code></td>
-<td>Current running config</td>
+<td>The configuration the daemon applied, as one JSON object (<code>show config running</code>). A daemon with no running configuration yet answers <code>UNAVAILABLE</code></td>
 </tr>
 <tr>
 <td><code>EnterSession</code></td>
@@ -674,7 +674,7 @@ dispatcher command strings.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 12:05 UTC</span>
                 </div>
             </div>
         </footer>

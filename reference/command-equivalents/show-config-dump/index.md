@@ -1,6 +1,6 @@
 # `show config dump`
 
-Show the fully resolved configuration tree\.
+Show the fully resolved configuration tree of a file\.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ Show the fully resolved configuration tree\.
 - Command pipes: none
 - Pipe aliases: none
 
-Parses the config and outputs it after includes\, defaults\, and group inheritance have been applied\. What you see here is exactly what the daemon is using\.
+Parses the config and outputs it after includes\, defaults\, and group inheritance have been applied\. It reads the file you name\, so it shows what the daemon would load from it\. To see what a running daemon applied\, use show config running\.
 
 ## Arguments
 

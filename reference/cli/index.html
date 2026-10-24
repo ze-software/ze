@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>CLI Reference - Ze</title>
-        <meta name="description" content="Every ze command, generated live from the binary&#39;s own command registry -- 487 commands across 45 groups." />
+        <meta name="description" content="Every ze command, generated live from the binary&#39;s own command registry -- 488 commands across 45 groups." />
         <meta property="og:title" content="CLI Reference - Ze" />
-        <meta property="og:description" content="Every ze command, generated live from the binary&#39;s own command registry -- 487 commands across 45 groups." />
+        <meta property="og:description" content="Every ze command, generated live from the binary&#39;s own command registry -- 488 commands across 45 groups." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="CLI Reference - Ze" />
-        <meta name="twitter:description" content="Every ze command, generated live from the binary&#39;s own command registry -- 487 commands across 45 groups." />
+        <meta name="twitter:description" content="Every ze command, generated live from the binary&#39;s own command registry -- 488 commands across 45 groups." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../assets/vendor/fonts/fonts.css" />
@@ -48,7 +48,7 @@
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Reference</span>
     <h1 id="cli-title">CLI Reference</h1>
-    <p>487 commands across 45 groups, generated straight from <code>ze help command --json</code> -- the same live command registry the binary itself uses, including the pipe operators available to each command. Full machine-readable list: <a href="../../data/cli-commands.json">data/cli-commands.json</a>.</p>
+    <p>488 commands across 45 groups, generated straight from <code>ze help command --json</code> -- the same live command registry the binary itself uses, including the pipe operators available to each command. Full machine-readable list: <a href="../../data/cli-commands.json">data/cli-commands.json</a>.</p>
 </div>
 <div class="cli-reference-layout">
 <aside class="cli-group-nav"><details open><summary>Command groups</summary><nav aria-label="Command groups">
@@ -72,7 +72,7 @@
 <a href="#cli-group-show-bfd">show bfd <span>4</span></a>
 <a href="#cli-group-show-bgp">show bgp <span>37</span></a>
 <a href="#cli-group-show-bmp">show bmp <span>4</span></a>
-<a href="#cli-group-show-config">show config <span>8</span></a>
+<a href="#cli-group-show-config">show config <span>9</span></a>
 <a href="#cli-group-show-ddos">show ddos <span>4</span></a>
 <a href="#cli-group-show-dns">show dns <span>4</span></a>
 <a href="#cli-group-show-event">show event <span>4</span></a>
@@ -730,16 +730,17 @@ name the protocol registry does not hold and names the registered ones.</span></
 <tr id="cmd-show-bmp-sessions"><td><code>show bmp sessions</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show active BMP receiver sessions.<br><code>show bmp sessions</code></td><td><details class="cli-pipes"><summary>15 operators</summary><div class="cli-pipe-detail"><p><span>Always</span><code>json · ndjson · table · text · yaml · raw · no-more · save</code></p><p><span>With rows</span><code>match · count · first · last · display · fill</code></p><p><span>While streaming</span><code>log</code></p><p><span>Local process only</span><code>save</code></p></div></details></td></tr>
 </tbody></table></details>
 <details class="cli-group" id="cli-group-show-config" open>
-<summary>show config <span class="cli-group-count">8</span></summary>
+<summary>show config <span class="cli-group-count">9</span></summary>
 <table><thead><tr><th>Command</th><th>Mode</th><th>Description</th><th>Pipes</th></tr></thead><tbody>
 <tr id="cmd-show-config-cat"><td><code>show config cat</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Print the full text of a stored configuration snapshot.<br><code>show config cat &lt;id&gt;</code><details class="cli-command-facts"><summary>Arguments and execution</summary><div><p><span>Arguments</span><code>id</code> string, required: yes, any value of this type: Stored configuration snapshot id. <span class="cmd-arg-help">The value is a key that show config list prints. Ze reads that file from
 the configuration store and writes its bytes unchanged.</span></p></div></details></td><td><span class="cli-pipe-none">None</span></td></tr>
 <tr id="cmd-show-config-diff"><td><code>show config diff</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Compare two configuration versions side by side.<br><code>show config diff</code></td><td><details class="cli-pipes"><summary>9 operators · answer: doc</summary><div class="cli-pipe-detail"><p><span>Answer shape</span><code>doc</code></p><p><span>Always</span><code>json · ndjson · table · text · yaml · raw · no-more · save</code></p><p><span>While streaming</span><code>log</code></p><p><span>Local process only</span><code>save</code></p></div></details></td></tr>
-<tr id="cmd-show-config-dump"><td><code>show config dump</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show the fully resolved configuration tree.<br><code>show config dump</code></td><td><details class="cli-pipes"><summary>9 operators · answer: doc</summary><div class="cli-pipe-detail"><p><span>Answer shape</span><code>doc</code></p><p><span>Always</span><code>json · ndjson · table · text · yaml · raw · no-more · save</code></p><p><span>While streaming</span><code>log</code></p><p><span>Local process only</span><code>save</code></p></div></details></td></tr>
+<tr id="cmd-show-config-dump"><td><code>show config dump</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show the fully resolved configuration tree of a file.<br><code>show config dump</code></td><td><details class="cli-pipes"><summary>9 operators · answer: doc</summary><div class="cli-pipe-detail"><p><span>Answer shape</span><code>doc</code></p><p><span>Always</span><code>json · ndjson · table · text · yaml · raw · no-more · save</code></p><p><span>While streaming</span><code>log</code></p><p><span>Local process only</span><code>save</code></p></div></details></td></tr>
 <tr id="cmd-show-config-fmt"><td><code>show config fmt</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Pretty-print the configuration with consistent formatting.<br><code>show config fmt</code></td><td><span class="cli-pipe-none">None</span></td></tr>
 <tr id="cmd-show-config-graph"><td><code>show config graph</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show how components and peers depend on each other, as JSON.<br><code>show config graph &lt;file&gt;</code><details class="cli-command-facts"><summary>Arguments and execution</summary><div><p><span>Arguments</span><code>file</code> string, required: yes, any value of this type: Config file path, or - for stdin. <span class="cmd-arg-help">The config file to read, or - to read it on stdin.</span></p></div></details></td><td><span class="cli-pipe-none">None</span></td></tr>
 <tr id="cmd-show-config-history"><td><code>show config history</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>List available configuration rollback points.<br><code>show config history</code></td><td><details class="cli-pipes"><summary>15 operators · answer: tab · 1 column order</summary><div class="cli-pipe-detail"><p><span>Answer shape</span><code>tab</code></p><p><span>Column order</span><code>revision, timestamp, path, state</code></p><p><span>Always</span><code>json · ndjson · table · text · yaml · raw · no-more · save · match · count · first · last · display · fill</code></p><p><span>While streaming</span><code>log</code></p><p><span>Local process only</span><code>save</code></p></div></details></td></tr>
 <tr id="cmd-show-config-list"><td><code>show config list</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>List all configuration files stored in the database.<br><code>show config list</code></td><td><details class="cli-pipes"><summary>15 operators · answer: tab · 1 column order</summary><div class="cli-pipe-detail"><p><span>Answer shape</span><code>tab</code></p><p><span>Column order</span><code>source, path</code></p><p><span>Always</span><code>json · ndjson · table · text · yaml · raw · no-more · save · match · count · first · last · display · fill</code></p><p><span>While streaming</span><code>log</code></p><p><span>Local process only</span><code>save</code></p></div></details></td></tr>
+<tr id="cmd-show-config-running"><td><code>show config running</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Show the configuration the running daemon applied.<br><code>show config running</code></td><td><details class="cli-pipes"><summary>15 operators</summary><div class="cli-pipe-detail"><p><span>Always</span><code>json · ndjson · table · text · yaml · raw · no-more · save</code></p><p><span>With rows</span><code>match · count · first · last · display · fill</code></p><p><span>While streaming</span><code>log</code></p><p><span>Local process only</span><code>save</code></p></div></details></td></tr>
 <tr id="cmd-show-config-validation"><td><code>show config validation</code></td><td><span class="cli-mode cli-mode-read-only">Read-only</span></td><td>Check a config for errors without applying it.<br><code>show config validation &lt;file&gt;</code><details class="cli-command-facts"><summary>Arguments and execution</summary><div><p><span>Arguments</span><code>file</code> string, required: yes, any value of this type: Config file path, or - for stdin. <span class="cmd-arg-help">The config file to check, or - to read it on stdin.</span></p></div></details></td><td><details class="cli-pipes"><summary>9 operators · answer: doc</summary><div class="cli-pipe-detail"><p><span>Answer shape</span><code>doc</code></p><p><span>Always</span><code>json · ndjson · table · text · yaml · raw · no-more · save</code></p><p><span>While streaming</span><code>log</code></p><p><span>Local process only</span><code>save</code></p></div></details></td></tr>
 </tbody></table></details>
 <details class="cli-group" id="cli-group-show-ddos" open>
@@ -1294,7 +1295,7 @@ The cache key is the decimal spelling with an AS prefix, so 1.10 and 65546 name 
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 12:05 UTC</span>
                 </div>
             </div>
         </footer>

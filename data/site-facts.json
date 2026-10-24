@@ -19,7 +19,7 @@
   },
   "blog_articles": 6,
   "changes": 44,
-  "cli_commands": 487,
+  "cli_commands": 488,
   "config_sections": 38,
   "dependencies": 52,
   "features": {
@@ -34,9 +34,9 @@
     "target_display": "11",
     "targets": 11
   },
-  "published_at": "2026-10-24T11:14:20Z",
+  "published_at": "2026-10-24T12:03:40Z",
   "repo": {
-    "design_comments": 7127,
+    "design_comments": 7128,
     "design_comments_display": "7,100+",
     "detail_comments": 7171,
     "detail_comments_display": "7,100+",
@@ -71,7 +71,7 @@
     "editor_display": "170+",
     "fuzz": 91,
     "fuzz_display": "91",
-    "unit": 38351,
+    "unit": 38366,
     "unit_display": "38,300+"
   }
 }

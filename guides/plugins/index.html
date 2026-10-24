@@ -1911,7 +1911,7 @@ command argument, which expands the chain in the client process and answers
 <tr>
 <td>Hard</td>
 <td><code>Dependencies</code></td>
-<td>Ze refuses to start, before any plugin runs, at boot, at a config reload and for an explicit <code>plugin {}</code> block. The message names the plugin, the dependency and the build tags to rebuild with (or says the name is unknown to this build), and ends with the fix on its own line.</td>
+<td>Ze refuses to start, before any plugin runs, at boot, at a config reload and for an explicit <code>plugin {}</code> block. <code>ze config validate</code> and a commit refuse the same config with the same message, so a config that validates is one the daemon can start. The message names the plugin, the dependency and the build tags to rebuild with (or says the name is unknown to this build), and ends with the fix on its own line.</td>
 </tr>
 <tr>
 <td>Optional</td>
@@ -1920,6 +1920,12 @@ command argument, which expands the chain in the client process and answers
 </tr>
 </tbody>
 </table>
+<p>A block whose whole plugin was compiled out of the binary, such as <code>mrt { }</code>
+or <code>bgp { }</code> in a build without <code>ze_bgp</code>, fails at parse, because the build has
+no schema for it. The refusal says the keyword belongs to a plugin this build
+lacks and names the build tag to rebuild with, on a <code>fix:</code> line. A keyword no
+build knows (a typo) keeps the closest-keyword hint.</p>
+<!-- source: internal/component/config/compiled_out_root.go -- TopLevelKeywordHint -->
 <p><code>StartAfter</code> is separate from either kind of dependency. It orders two plugins
 only when both are already selected and never activates its target. BFD starts
 after <code>interface</code> when interface configuration is present, so its logical names
@@ -2059,7 +2065,7 @@ backend. Cycles among selected plugins are refused for order-only edges too.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 08:58 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 12:05 UTC</span>
                 </div>
             </div>
         </footer>

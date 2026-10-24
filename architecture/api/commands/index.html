@@ -89,6 +89,7 @@
 <li><a href="#process-lifecycle-commands_1">Process Lifecycle Commands</a>
 <ol>
 <li><a href="#show-reload-status-the-reload-fence">show reload-status (the reload fence)</a></li>
+<li><a href="#show-config-running-the-applied-configuration">show config running (the applied configuration)</a></li>
 </ol></li>
 <li><a href="#peer-commands">Peer Commands</a></li>
 <li><a href="#cache-commands-ze">Cache Commands (Ze)</a>
@@ -1228,6 +1229,7 @@ request reload           # Reload the configuration
 request data backup path &lt;file&gt; [spare &lt;n&gt;] [force]   # Back up the store to a file on the daemon host
 request data restore path &lt;file&gt; config [name &lt;n&gt;]    # Restore the config from a backup through the reload
 show reload-status       # Show how many config reloads have been processed
+show config running      # Show the configuration the daemon applied
 </code></pre>
 <h4 id="show-reload-status-the-reload-fence">show reload-status (the reload fence)</h4>
 <p>Returns the reload generation counter as JSON:</p>
@@ -1270,6 +1272,27 @@ cannot change what a reload accepts or rejects.</p>
 <!-- source: internal/component/plugin/server/reload_generation.go -- counter state, outcome vocabulary -->
 <!-- source: cmd/ze/hub/main_reload.go -- doReloadContext, the increment site, after engine.Reload -->
 <!-- source: internal/component/cmd/show/reload_status.go -- ze-cmd:show-reload-status handler + JSON shape -->
+<h4 id="show-config-running-the-applied-configuration">show config running (the applied configuration)</h4>
+<p><code>show config running</code> answers the configuration the daemon is running, as a
+tree. The daemon reads it from its running tree, not from the config file. Only
+a reload whose transaction committed replaces that tree, so after a refused
+reload this command still shows the configuration in force, while the file
+already holds the text the daemon refused.</p>
+<p>Every secret leaf (<code>ze:sensitive</code> or <code>ze:bcrypt</code>) is replaced with
+<code>/* SECRET-DATA */</code>. The answer leaves the daemon over SSH, REST and gRPC, so it
+never carries the reversible <code>$9$</code> form that <code>show config dump</code> writes. A daemon
+that holds no running tree yet refuses the command and says so. It never
+answers an empty tree.</p>
+<p><code>show config dump</code> is a different command. It is a local-data command: it parses
+the file it is given in the caller's own process, so it cannot say what a daemon
+applied. Given no file, it refuses and names <code>show config running</code>. REST
+<code>GET /api/v1/config/running</code> and gRPC <code>GetRunningConfig</code> dispatch
+<code>show config running</code>.</p>
+<!-- source: internal/component/config/cli/running_rpc.go -- handleShowConfigRunning, runningConfigView, errNoRunningConfig -->
+<!-- source: internal/component/config/cli/register_running_rpc.go -- ze-config:show-config-running registration -->
+<!-- source: internal/component/config/cli/config_data.go -- dataDump, the no-file refusal -->
+<!-- source: internal/component/api/rest/server.go -- handleConfigRunning -->
+<!-- source: internal/component/api/grpc/server.go -- GetRunningConfig -->
 <h3 id="peer-commands">Peer Commands</h3>
 <pre><code>show bgp peer list                    # List all peers
 show bgp peer &lt;selector&gt; detail       # Show specific peer detail
@@ -1365,6 +1388,21 @@ send bgp !upstream1 cached 12345
 <p><strong>Note:</strong> Filter selectors (<code>[local-as ...]</code>, <code>[peer-as ...]</code>) from ExaBGP multi-session
 draft are not supported — the draft never became an RFC.</p>
 </blockquote>
+<p>Not every command takes every selector. A command whose handler resolves its
+selector through <code>ResolveSinglePeer</code> acts on one peer: the selector must resolve
+to exactly one, and <code>*</code>, an exclusion or a selector matching several peers is
+refused. The handlers that call it are the list, so grep for the function rather
+than trusting a copy here; the source anchors below name each caller (among them
+<code>teardown</code>, <code>notify</code>, <code>disable</code>, <code>enable</code>, <code>pause</code>, <code>resume</code>, <code>clear soft</code>,
+<code>delete bgp peer</code> and <code>raw</code>). The YANG <code>selector</code> leaf of <code>ze-peer-cmd.yang</code> says
+which commands act on every peer it matches.</p>
+<!-- source: internal/component/plugin/server/command.go -- ResolveSinglePeer -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- teardown, remove, peerFlowControl -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/admin.go -- disable, enable -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/notify.go -- notify -->
+<!-- source: internal/component/bgp/plugins/cmd/raw/raw.go -- handleRaw -->
+<!-- source: internal/component/bgp/plugins/route_refresh/handler/clear_soft.go -- clear soft -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang -- selector -->
 <h3 id="route-commands-update-text">Route Commands (update text)</h3>
 <p>All route operations use unified <code>update text</code> syntax with flat attribute declarations
 (no <code>set</code> keyword) and keyword aliases (short forms accepted, see Keyword Aliases below):</p>
@@ -4084,7 +4122,7 @@ unconditionally, and the <code>ui://</code> asset it points at is readable by ev
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 06:03 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 12:05 UTC</span>
                 </div>
             </div>
         </footer>

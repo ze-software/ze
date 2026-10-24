@@ -1,28 +1,22 @@
 {
   "gate": {
     "ok": false,
-    "error-count": 57,
+    "error-count": 51,
     "gated-must": 4292,
     "enrolled-rfcs": 177,
     "test-tags": 9149,
-    "message": "rfc-requirements: 57 violation(s)",
+    "message": "rfc-requirements: 51 violation(s)",
     "violations": [
       "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-6 is annotated {partial: tested \"mandatory fields exceed the declared Lengt} but its public row says draft-ietf-bess-mup-safi is 'Partial' with ''. A known unmet MUST cannot be advertised as clean support -- correct `Support status` or `Support remaining` in the summary's own Meta table, then run ./le rfc index-update. A hand edit to docs/features/rfc-status.md is destroyed by the next run",
       "RFC2545-3-3 partial scope needs a current verified mutant/revert for negative internal/component/bgp/reactor/rfc2545_peer_send_test.go::TestSendAnnounceOmitsLinkLocalWhenPeerOffLink",
       "RFC2545-3-3 partial scope needs a current verified mutant/revert for positive internal/component/bgp/reactor/rfc2545_peer_send_test.go::TestSendAnnounceAppendsLinkLocalWhenSection3Holds",
       "rfc/short/draft-abraitis-bgp-version-capability.md:94: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1 has a STALE audit verdict -- what it judged changed: internal/core/bgp/capability/negotiated.go::Negotiate (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read draft-abraitis-bgp-version-capability with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
-      "rfc/short/draft-ietf-idr-linklocal-capability.md:129: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1 has a STALE audit verdict -- what it judged changed: internal/component/bgp/message/draft_ietf_idr_linklocal_capability_malformed_test.go::TestLinkLocalCapabilityMalformedThirtyTwoOctet (func-scoped), internal/component/bgp/message/draft_ietf_idr_linklocal_capability_malformed_test.go::TestLinkLocalCapabilityWellFormedThirtyTwoOctet (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read draft-ietf-idr-linklocal-capability with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
       "rfc/short/rfc3948.md:216: RFC3948-2.1-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/ike/engine/rfc3948_rebind_test.go::TestRFC3948RebindMigratesTunnelChildSAs, internal/component/ike/engine/rfc3948_rebind_test.go::TestRFC3948RebindNotRunWithoutAnAdoptedMove, internal/component/ike/engine/rfc3948_rebind_test.go::TestRFC3948RebindRekeysTransportChildSA, internal/component/ike/engine/rfc3948_rebind_test.go::TestRFC3948RebindRekeysWithoutAMigrator), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal",
       "rfc/short/rfc3948.md:217: RFC3948-3.1.2-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/le/interoplab/ipsec/checkers.go::checkNATTTransportInnerChecksum, internal/le/interoplab/ipsec/checkers.go::checkNATTTunnelInnerChecksum), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal",
-      "rfc/short/rfc6286.md:111: RFC6286-2.1-1 has a STALE audit verdict -- what it judged changed: internal/component/bgp/reactor/config.go::parsePeerSettings (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc6286 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
       "rfc/short/rfc7296.md:491: RFC7296-2.7-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/le/interoplab/ipsec/checkers.go::checkESNBothOffered, internal/le/interoplab/ipsec/checkers.go::checkESNExtendedOnlyRefused), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal",
       "rfc/short/rfc7296.md:623: RFC7296-2.21.4-8 has a STALE audit verdict -- what it judged changed: internal/component/ike/engine/established.go::maintainSA (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7296 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
-      "rfc/short/rfc7606.md:342: RFC7606-5.4-1 has a STALE audit verdict -- what it judged changed: internal/component/bgp/reactor/session_validation_nlritype_bypass_test.go::TestRFC7606Section54FiltersWhenTheAttributeWalkIsAbandoned (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7606 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
-      "rfc/short/rfc7606.md:380: RFC7606-5.3-4 has a STALE audit verdict -- what it judged changed: internal/component/bgp/message/rfc7606_withdraw_test.go::TestRFC7606MPReachNLRIOverrunsAttribute (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7606 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
       "rfc/short/rfc7950.md:316: RFC7950-7.6.5-1 has a STALE audit verdict -- the REQUIREMENT TEXT or declared partial scope changed since it was judged, so every judgement under it is void. Re-read rfc7950 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
       "rfc/short/rfc7950.md:352: RFC7950-7.9.4-1 has a STALE audit verdict -- the REQUIREMENT TEXT or declared partial scope changed since it was judged, so every judgement under it is void. Re-read rfc7950 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
-      "rfc/short/rfc8654.md:269: RFC8654-3-1 has a STALE audit verdict -- what it judged changed: internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling (func-scoped), internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc8654 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
-      "rfc/short/rfc9774.md:117: RFC9774-3-2 has a STALE audit verdict -- what it judged changed: internal/component/bgp/message/rfc9774_test.go::TestValidateAS4PathRejectsSetSegments (func-scoped), internal/component/bgp/reactor/rfc9774_accept_test.go::TestRFC9774ReceiveASSetAcceptedByOperator (func-scoped), internal/component/bgp/reactor/rfc9774_receive_test.go::TestRFC9774ReceiveAS4PathSetTreatAsWithdraw (func-scoped), internal/component/bgp/reactor/rfc9774_receive_test.go::TestRFC9774ReceiveAS4PathSetTreatAsWithdraw#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc9774 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
       "rfc/discrimination/draft-abraitis-bgp-version-capability/DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1.json: the revert record for DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1 negative at internal/core/bgp/capability/draft_abraitis_bgp_version_capability_softver_test.go::TestSoftwareVersionCapabilityDecidesNothing no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of Negotiate replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/core/bgp/capability/negotiated.go::Negotiate. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
       "rfc/discrimination/draft-abraitis-bgp-version-capability/DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1.json: the revert record for DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1 positive at internal/core/bgp/capability/draft_abraitis_bgp_version_capability_softver_test.go::TestSoftwareVersionCapabilityIsRecordedForDisplay no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of Negotiate replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/core/bgp/capability/negotiated.go::Negotiate. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
       "rfc/discrimination/rfc2545/RFC2545-3-1.json: the revert record for RFC2545-3-1 positive at internal/component/bgp/plugins/nlri/srpolicy/rfc2545_next_hop_wire_test.go::TestSRPolicyConfigNextHopWire no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of parseConfigRoute replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/bgp/plugins/nlri/srpolicy/config.go::parseConfigRoute. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
@@ -79,16 +73,10 @@
         "message": "rfc/short/draft-abraitis-bgp-version-capability.md:94: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1 has a STALE audit verdict -- what it judged changed: internal/core/bgp/capability/negotiated.go::Negotiate (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read draft-abraitis-bgp-version-capability with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)"
       },
       {
-        "message": "rfc/short/draft-ietf-idr-linklocal-capability.md:129: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1 has a STALE audit verdict -- what it judged changed: internal/component/bgp/message/draft_ietf_idr_linklocal_capability_malformed_test.go::TestLinkLocalCapabilityMalformedThirtyTwoOctet (func-scoped), internal/component/bgp/message/draft_ietf_idr_linklocal_capability_malformed_test.go::TestLinkLocalCapabilityWellFormedThirtyTwoOctet (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read draft-ietf-idr-linklocal-capability with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)"
-      },
-      {
         "message": "rfc/short/rfc3948.md:216: RFC3948-2.1-2 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/component/ike/engine/rfc3948_rebind_test.go::TestRFC3948RebindMigratesTunnelChildSAs, internal/component/ike/engine/rfc3948_rebind_test.go::TestRFC3948RebindNotRunWithoutAnAdoptedMove, internal/component/ike/engine/rfc3948_rebind_test.go::TestRFC3948RebindRekeysTransportChildSA, internal/component/ike/engine/rfc3948_rebind_test.go::TestRFC3948RebindRekeysWithoutAMigrator), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal"
       },
       {
         "message": "rfc/short/rfc3948.md:217: RFC3948-3.1.2-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/le/interoplab/ipsec/checkers.go::checkNATTTransportInnerChecksum, internal/le/interoplab/ipsec/checkers.go::checkNATTTunnelInnerChecksum), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal"
-      },
-      {
-        "message": "rfc/short/rfc6286.md:111: RFC6286-2.1-1 has a STALE audit verdict -- what it judged changed: internal/component/bgp/reactor/config.go::parsePeerSettings (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc6286 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)"
       },
       {
         "message": "rfc/short/rfc7296.md:491: RFC7296-2.7-1 has a SHIFTED audit verdict -- the tagged unit is byte-identical and only the file around it moved (internal/le/interoplab/ipsec/checkers.go::checkESNBothOffered, internal/le/interoplab/ipsec/checkers.go::checkESNExtendedOnlyRefused), so nothing was re-judged. Re-stamp it mechanically: ./le rfc reseal"
@@ -97,22 +85,10 @@
         "message": "rfc/short/rfc7296.md:623: RFC7296-2.21.4-8 has a STALE audit verdict -- what it judged changed: internal/component/ike/engine/established.go::maintainSA (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7296 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)"
       },
       {
-        "message": "rfc/short/rfc7606.md:342: RFC7606-5.4-1 has a STALE audit verdict -- what it judged changed: internal/component/bgp/reactor/session_validation_nlritype_bypass_test.go::TestRFC7606Section54FiltersWhenTheAttributeWalkIsAbandoned (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7606 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)"
-      },
-      {
-        "message": "rfc/short/rfc7606.md:380: RFC7606-5.3-4 has a STALE audit verdict -- what it judged changed: internal/component/bgp/message/rfc7606_withdraw_test.go::TestRFC7606MPReachNLRIOverrunsAttribute (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7606 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)"
-      },
-      {
         "message": "rfc/short/rfc7950.md:316: RFC7950-7.6.5-1 has a STALE audit verdict -- the REQUIREMENT TEXT or declared partial scope changed since it was judged, so every judgement under it is void. Re-read rfc7950 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)"
       },
       {
         "message": "rfc/short/rfc7950.md:352: RFC7950-7.9.4-1 has a STALE audit verdict -- the REQUIREMENT TEXT or declared partial scope changed since it was judged, so every judgement under it is void. Re-read rfc7950 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)"
-      },
-      {
-        "message": "rfc/short/rfc8654.md:269: RFC8654-3-1 has a STALE audit verdict -- what it judged changed: internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling (func-scoped), internal/component/bgp/reactor/rfc_receive_session_dispatch_test.go::TestRFC8654ExtendedMessageSessionUsesRFC7606ErrorHandling#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc8654 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)"
-      },
-      {
-        "message": "rfc/short/rfc9774.md:117: RFC9774-3-2 has a STALE audit verdict -- what it judged changed: internal/component/bgp/message/rfc9774_test.go::TestValidateAS4PathRejectsSetSegments (func-scoped), internal/component/bgp/reactor/rfc9774_accept_test.go::TestRFC9774ReceiveASSetAcceptedByOperator (func-scoped), internal/component/bgp/reactor/rfc9774_receive_test.go::TestRFC9774ReceiveAS4PathSetTreatAsWithdraw (func-scoped), internal/component/bgp/reactor/rfc9774_receive_test.go::TestRFC9774ReceiveAS4PathSetTreatAsWithdraw#2 (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc9774 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)"
       },
       {
         "message": "rfc/discrimination/draft-abraitis-bgp-version-capability/DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1.json: the revert record for DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1 negative at internal/core/bgp/capability/draft_abraitis_bgp_version_capability_softver_test.go::TestSoftwareVersionCapabilityDecidesNothing no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of Negotiate replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/core/bgp/capability/negotiated.go::Negotiate. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
@@ -381,9 +357,9 @@
   },
   "audit": {
     "verdicts": 2272,
-    "fresh": 2260,
+    "fresh": 2266,
     "shifted": 3,
-    "stale": 9,
+    "stale": 3,
     "missing": 2020
   },
   "verify": {

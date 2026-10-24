@@ -14,7 +14,7 @@ This file is intentionally denormalized for AI use. It includes the high-signal 
 - Dataplane: Linux netlink, nftables, eBPF, AF_PACKET, psample, optional VPP integrations, and namespace-aware testing.
 - Release state: pre-release, main-branch builds, no tagged stable release yet.
 - License and repos: AGPLv3. Canonical repository: https://github.com/ze-software/ze. Discord: https://discord.gg/T8s7CjPDne.
-- Current generated counts: 52 shipped or experimental feature cards, 487 CLI commands, 38 config sections, 91 plugin registrations, 52 direct Go dependencies, 44 weekly change entries.
+- Current generated counts: 52 shipped or experimental feature cards, 488 CLI commands, 38 config sections, 91 plugin registrations, 52 direct Go dependencies, 44 weekly change entries.
 - Test evidence counts: 38,300+ unit tests, 91 fuzz targets, 2,500+ end-to-end transcript steps, 209 interop scenarios across 11 target implementations.
 - Classified planning inventory (not release-readiness proof): [roadmap](https://ze-software.net/project/roadmap/index.md), [snapshot JSON](https://ze-software.net/data/release-roadmap.json).
 - Generated date: 2026-10-24.
@@ -205,7 +205,7 @@ Each registration comes from the Go runtime registry. Config roots come from plu
 - `ddos-local`: DDoS local responder: on-host nft drop on attack detection Config roots: ddos/local. Dependencies: firewall. Optional: none. Start after (order only): none. YANG files: 1. Source: `internal/plugins/ddos/local`.
 - `ddos-observe`: DDoS observability: incident store and show ddos status/incidents CLI Config roots: ddos/observe. Dependencies: none. Optional: none. Start after (order only): none. YANG files: 1. Source: `internal/plugins/ddos/observe`.
 - `dhcpserver`: DHCP server: address assignment for LAN clients (RFC 2131) Config roots: service. Dependencies: none. Optional: none. Start after (order only): interface. YANG files: 1. Source: `internal/plugins/dhcpserver`.
-- `exabgp-bridge`: In-process ExaBGP compatibility bridge: runs an operator ExaBGP-format script as a subprocess and translates to/from ze events (RFC-agnostic transport shim) Config roots: exabgp. Dependencies: none. Optional: none. Start after (order only): none. YANG files: 1. Source: `internal/plugins/exabgp/bridgeplugin`.
+- `exabgp-bridge`: In-process ExaBGP compatibility bridge: runs an operator ExaBGP-format script as a subprocess and translates to/from ze events (RFC-agnostic transport shim) Config roots: exabgp. Dependencies: bgp. Optional: none. Start after (order only): none. YANG files: 1. Source: `internal/plugins/exabgp/bridgeplugin`.
 - `fib-kernel`: FIB kernel: programs OS routes from system RIB via netlink/route socket Config roots: fib/kernel. Dependencies: rib, sysctl. Optional: none. Start after (order only): none. YANG files: 1. Source: `internal/plugins/fib/kernel`.
 - `fib-p4`: FIB P4: programs P4 switch forwarding entries from system RIB via gRPC/P4Runtime Config roots: fib/p4. Dependencies: rib. Optional: none. Start after (order only): none. YANG files: 1. Source: `internal/plugins/fib/p4`.
 - `fib-vpp`: FIB VPP: programs VPP FIB entries from system RIB via GoVPP binary API Config roots: fib/vpp. Dependencies: rib, vpp. Optional: none. Start after (order only): none. YANG files: 1. Source: `internal/plugins/fib/vpp`.
@@ -244,7 +244,7 @@ Each registration comes from the Go runtime registry. Config roots come from plu
 
 ## CLI command surface
 
-The command catalog is generated from `ze help command --json`, not hand-written. Modes: 142 daemon, 4 offline, 341 read-only.
+The command catalog is generated from `ze help command --json`, not hand-written. Modes: 142 daemon, 4 offline, 342 read-only.
 `daemon` commands require a running Ze daemon. `read-only` commands query state. `offline` commands can run without daemon state. `pipes` groups operators as `always`, `with-rows`, `when-streaming`, or `local-only`; these qualifiers are part of the contract. An operator absent from those groups is refused by name.
 
 ### `clear` commands (31)
@@ -431,7 +431,7 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `set sysctl` (daemon; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `set sysctl <key> <value>`): Set a transient sysctl value
 - `set system file-descriptors` (daemon; wire ze-host:set-system-file-descriptors; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args limit:union; usage `set system file-descriptors [limit <limit|max>]`): Raise the file descriptor limit for the daemon process\.
 
-### `show` commands (303)
+### `show` commands (304)
 - `show aaa accounting` (read-only; wire ze-aaa:show-accounting; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `show aaa accounting`): Show AAA accounting counters and any dropped records\.
 - `show announcements` (read-only; wire ze-bgp:show-announcements; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args tag:string, selector:string, family:string; usage `show announcements [tag <tag>] [selector <selector>] [family <family>]`): List active on\-demand announcements\.
 - `show anomaly detect` (read-only; wire ze-anomaly:show-anomaly; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `show anomaly detect`): Show the recent behavioral anomaly incidents\.
@@ -495,11 +495,12 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `show command list` (read-only; wire ze-meta:bgp-command-list; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `show command list`): List every command the daemon knows about\.
 - `show config cat` (read-only; wire ze-config-cli:show-config-cat; args id:string; usage `show config cat <id>`): Print the full text of a stored configuration snapshot\.
 - `show config diff` (read-only; wire ze-config-cli:show-config-diff; pipes always: json ndjson table text yaml raw no-more save, when-streaming: log, local-only: save; shape doc; usage `show config diff`): Compare two configuration versions side by side\.
-- `show config dump` (read-only; wire ze-config-cli:show-config-dump; pipes always: json ndjson table text yaml raw no-more save, when-streaming: log, local-only: save; shape doc; usage `show config dump`): Show the fully resolved configuration tree\.
+- `show config dump` (read-only; wire ze-config-cli:show-config-dump; pipes always: json ndjson table text yaml raw no-more save, when-streaming: log, local-only: save; shape doc; usage `show config dump`): Show the fully resolved configuration tree of a file\.
 - `show config fmt` (read-only; wire ze-config-cli:show-config-fmt; usage `show config fmt`): Pretty\-print the configuration with consistent formatting\.
 - `show config graph` (read-only; wire ze-config-cli:show-config-graph; args file:string; usage `show config graph <file>`): Show how components and peers depend on each other\, as JSON\.
 - `show config history` (read-only; wire ze-config-cli:show-config-history; pipes always: json ndjson table text yaml raw no-more save match count first last display fill, when-streaming: log, local-only: save; shape tab; usage `show config history`): List available configuration rollback points\.
 - `show config list` (read-only; wire ze-config-cli:show-config-list; pipes always: json ndjson table text yaml raw no-more save match count first last display fill, when-streaming: log, local-only: save; shape tab; usage `show config list`): List all configuration files stored in the database\.
+- `show config running` (read-only; wire ze-config:show-config-running; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `show config running`): Show the configuration the running daemon applied\.
 - `show config validation` (read-only; wire ze-config-cli:show-config-validation; pipes always: json ndjson table text yaml raw no-more save, when-streaming: log, local-only: save; shape doc; args file:string; usage `show config validation <file>`): Check a config for errors without applying it\.
 - `show crashes` (read-only; wire ze-crashes:show-crashes; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args name:string; usage `show crashes [name <name>]`): View saved crash reports\, and whether kernel capture is armed\.
 - `show data cat` (read-only; wire ze-config-storage:show-data-cat; args key:string; usage `show data cat <key>`): Print the value of a storage key\.
@@ -1082,7 +1083,7 @@ Every link points to the page Markdown mirror first. The web URL is the human-re
 
 ### Live system
 - [Reference index](https://ze-software.net/reference/index.md): Commands, configuration, plugins, standards, and feature status (web: https://ze-software.net/reference/)
-- [CLI reference](https://ze-software.net/reference/cli/index.md): 487 commands, generated from the live binary (web: https://ze-software.net/reference/cli/)
+- [CLI reference](https://ze-software.net/reference/cli/index.md): 488 commands, generated from the live binary (web: https://ze-software.net/reference/cli/)
 - [Configuration reference](https://ze-software.net/reference/configuration/index.md): %(config_sections)s sections, indexed from live YANG (web: https://ze-software.net/reference/configuration/)
 - [Plugin catalogue](https://ze-software.net/reference/plugins/index.md): Find runtime plugins by purpose, config, or dependency (web: https://ze-software.net/reference/plugins/)
 ### Standards and lookup

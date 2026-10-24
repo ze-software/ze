@@ -1,6 +1,6 @@
 # CLI Reference
 
-487 commands across 45 groups, generated straight from `ze help command --json` -- the same live command registry the binary itself uses, so this list cannot drift from what the binary actually supports. Full machine-readable list (path, mode, description, pipe operators, command pipes, and aliases for every command): [data/cli-commands.json](https://ze-software.net/data/cli-commands.json).
+488 commands across 45 groups, generated straight from `ze help command --json` -- the same live command registry the binary itself uses, so this list cannot drift from what the binary actually supports. Full machine-readable list (path, mode, description, pipe operators, command pipes, and aliases for every command): [data/cli-commands.json](https://ze-software.net/data/cli-commands.json).
 
 ## Pipe operators (17)
 
@@ -331,17 +331,18 @@ Each command row names the operators it accepts after `|`.
 | `show bmp rib` | Read-only | Show routes received via BMP monitoring sessions\.<br>`show bmp rib` | Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`<br>With rows: `match`, `count`, `first`, `last`, `display`, `fill`<br>While streaming: `log`<br>Local process only: `save` |
 | `show bmp sessions` | Read-only | Show active BMP receiver sessions\.<br>`show bmp sessions` | Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`<br>With rows: `match`, `count`, `first`, `last`, `display`, `fill`<br>While streaming: `log`<br>Local process only: `save` |
 
-## show config (8)
+## show config (9)
 
 | Command | Mode | Description | Pipes |
 | --- | --- | --- | --- |
 | `show config cat` | Read-only | Print the full text of a stored configuration snapshot\.<br>`show config cat <id>`<br>Arguments: `id` string, required: yes, any value of this type: Stored configuration snapshot id\. The value is a key that show config list prints\. Ze reads that file from the configuration store and writes its bytes unchanged\. | None |
 | `show config diff` | Read-only | Compare two configuration versions side by side\.<br>`show config diff` | Answer shape: `doc`<br>Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`<br>While streaming: `log`<br>Local process only: `save` |
-| `show config dump` | Read-only | Show the fully resolved configuration tree\.<br>`show config dump` | Answer shape: `doc`<br>Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`<br>While streaming: `log`<br>Local process only: `save` |
+| `show config dump` | Read-only | Show the fully resolved configuration tree of a file\.<br>`show config dump` | Answer shape: `doc`<br>Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`<br>While streaming: `log`<br>Local process only: `save` |
 | `show config fmt` | Read-only | Pretty\-print the configuration with consistent formatting\.<br>`show config fmt` | None |
 | `show config graph` | Read-only | Show how components and peers depend on each other\, as JSON\.<br>`show config graph <file>`<br>Arguments: `file` string, required: yes, any value of this type: Config file path\, or \- for stdin\. The config file to read\, or \- to read it on stdin\. | None |
 | `show config history` | Read-only | List available configuration rollback points\.<br>`show config history` | Answer shape: `tab`<br>Column order: `revision, timestamp, path, state`<br>Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`, `match`, `count`, `first`, `last`, `display`, `fill`<br>While streaming: `log`<br>Local process only: `save` |
 | `show config list` | Read-only | List all configuration files stored in the database\.<br>`show config list` | Answer shape: `tab`<br>Column order: `source, path`<br>Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`, `match`, `count`, `first`, `last`, `display`, `fill`<br>While streaming: `log`<br>Local process only: `save` |
+| `show config running` | Read-only | Show the configuration the running daemon applied\.<br>`show config running` | Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`<br>With rows: `match`, `count`, `first`, `last`, `display`, `fill`<br>While streaming: `log`<br>Local process only: `save` |
 | `show config validation` | Read-only | Check a config for errors without applying it\.<br>`show config validation <file>`<br>Arguments: `file` string, required: yes, any value of this type: Config file path\, or \- for stdin\. The config file to check\, or \- to read it on stdin\. | Answer shape: `doc`<br>Always: `json`, `ndjson`, `table`, `text`, `yaml`, `raw`, `no-more`, `save`<br>While streaming: `log`<br>Local process only: `save` |
 
 ## show ddos (4)

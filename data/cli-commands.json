@@ -27241,8 +27241,8 @@
   },
   {
     "path": "show config dump",
-    "short-help": "Show the fully resolved configuration tree.",
-    "description": "Parses the config and outputs it after includes, defaults, and group\ninheritance have been applied. What you see here is exactly what the daemon is\nusing.",
+    "short-help": "Show the fully resolved configuration tree of a file.",
+    "description": "Parses the config and outputs it after includes, defaults, and group\ninheritance have been applied. It reads the file you name, so it shows what the\ndaemon would load from it. To see what a running daemon applied, use\nshow config running.",
     "mode": "read-only",
     "wire-method": "ze-config-cli:show-config-dump",
     "usage": "show config dump",
@@ -27620,6 +27620,121 @@
         "source",
         "path"
       ]
+    ]
+  },
+  {
+    "path": "show config running",
+    "short-help": "Show the configuration the running daemon applied.",
+    "description": "The running daemon answers with the configuration it applied, from\nmemory, not from a file. A reload the daemon refused leaves this answer\nunchanged, while the config file already holds the refused text. Secret values\nare replaced with a placeholder.",
+    "mode": "read-only",
+    "wire-method": "ze-config:show-config-running",
+    "usage": "show config running",
+    "grammar": [
+      {
+        "text": "show",
+        "kind": "keyword"
+      },
+      {
+        "text": "config",
+        "kind": "keyword"
+      },
+      {
+        "text": "running",
+        "kind": "keyword"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
+      }
     ]
   },
   {

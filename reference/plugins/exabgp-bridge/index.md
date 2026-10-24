@@ -17,7 +17,7 @@ In-process ExaBGP compatibility bridge: runs an operator ExaBGP-format script as
 
 ## Dependencies
 
-- Required: None
+- Required: [`bgp`](../bgp/index.md)
 - Optional: None
 
 ## Used by

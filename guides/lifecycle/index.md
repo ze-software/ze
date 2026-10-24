@@ -36,7 +36,15 @@ The CLI and web editor maintain a candidate separate from the active configurati
 4. Commit.
 5. Verify live state and health.
 
-Use `show config dump` for the fully resolved configuration and `show config diff` before rollback or commit.
+Use `show config dump <file>` for the fully resolved configuration of a file and `show config diff` before rollback or commit.
+
+`show config running` asks the daemon for the configuration it applied, from
+memory. A reload the daemon refused leaves that answer unchanged, while the
+config file already holds the refused text, so this is the command that says
+what is in force. Secret values are replaced with a placeholder. REST
+(`GET /api/v1/config/running`) and gRPC (`GetRunningConfig`) answer the same
+command.
+<!-- source: internal/component/config/cli/running_rpc.go -- handleShowConfigRunning, runningConfigView -->
 
 ## Archive and rollback
 

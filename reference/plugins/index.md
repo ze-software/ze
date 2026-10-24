@@ -154,7 +154,7 @@ Generated group for registry entries mapped to the Exabgp area. Config roots: `e
 
 | Plugin | Used for | Config | Depends on | Source path |
 |--------|----------|--------|------------|-------------|
-| [`exabgp-bridge`](exabgp-bridge/index.md) | In-process ExaBGP compatibility bridge: runs an operator ExaBGP-format script as a subprocess and translates to/from ze events (RFC-agnostic transport shim) | `exabgp` | None | `internal/plugins/exabgp/bridgeplugin` |
+| [`exabgp-bridge`](exabgp-bridge/index.md) | In-process ExaBGP compatibility bridge: runs an operator ExaBGP-format script as a subprocess and translates to/from ze events (RFC-agnostic transport shim) | `exabgp` | `bgp` | `internal/plugins/exabgp/bridgeplugin` |
 
 ## FIB
 
