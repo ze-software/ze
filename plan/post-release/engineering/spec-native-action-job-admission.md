@@ -237,3 +237,9 @@ N/A - Scope is tooling; no wire-visible behavior changes.
 - [ ] `/ze-review` gate clean, recorded via `internal/le/spec/session/review.go`
 - [ ] **Commit A:** code + tests + docs + spec
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+## Owned journal rows
+
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+| lifetime-ends-before-its-last-reader.md | 2026-10-24 | verify slot entry in the job registry |

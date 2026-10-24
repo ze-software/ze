@@ -775,6 +775,14 @@ func (a *Admission) runDir(dir string) string {
 // The entry path is absolute because a stage can run outside the checkout root.
 // Registry paths are relative to the root. If a nested job cannot find its
 // parent's entry, it enters the queue. A job behind its own parent cannot start.
+//
+// Every spelling of ParentKey the caller's environment carries is removed, not
+// only ParentVariable. env.Get prefers a dotted spelling to an undotted one, and
+// a verify run names its slot as `ze.run.job` (nameJobParent), so a child that
+// kept that value beside this entry would read its grandparent instead. When
+// the grandparent's entry is gone, the child queues, finds this job running
+// over its own inputs, and attaches to it: the parent waits for its child and
+// the child follows its parent's log until the budget kills both.
 func (a *Admission) childEnviron(environ []string, ticket *Ticket) []string {
 	if environ == nil {
 		environ = os.Environ()
@@ -782,18 +790,7 @@ func (a *Admission) childEnviron(environ []string, ticket *Ticket) []string {
 
 	var tb textbuf.Buffer
 	named := tb.Str(ParentVariable).Byte('=').Str(a.abs(ticket.Entry)).String()
-
-	tb.Reset()
-	inherited := tb.Str(ParentVariable).Byte('=').String()
-
-	out := make([]string, 0, len(environ)+1)
-	for _, pair := range environ {
-		if strings.HasPrefix(pair, inherited) {
-			continue
-		}
-		out = append(out, pair)
-	}
-	return append(out, named)
+	return append(env.Without(environ, ParentKey), named)
 }
 
 // ParentVariable is the environment spelling of ParentKey. The child is

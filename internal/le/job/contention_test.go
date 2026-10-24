@@ -599,6 +599,55 @@ func TestDetachRestoresTheParentSpellingOrder(t *testing.T) {
 	}
 }
 
+// VALIDATES: the child a claimed job starts reads that job's own entry as its
+// parent, whatever spelling of ParentKey the caller's environment already
+// carries.
+// METHOD: the caller's environment names an earlier parent under the dotted
+// spelling, which env.Get prefers to ZE_RUN_JOB: once an entry that is gone
+// (a finished or reaped job), once a live one (the grandparent). The child's
+// environment is installed as this process's, and insideParent must answer
+// the claimed job's own label in both cases.
+// PREVENTS: the verify-worktree functional deadlock, where every suite's
+// re-executed child read the inherited dotted value instead of its parent's
+// entry, found no parent, queued, and attached to its own parent's run, which
+// waited for that child for its whole budget.
+func TestAClaimedJobsChildRunsInsideThatJob(t *testing.T) {
+	cases := []struct {
+		name string
+		// earlier answers the entry the caller's environment already names.
+		earlier func(t *testing.T, root string) string
+	}{
+		{"gone", func(_ *testing.T, root string) string {
+			return filepath.Join(root, JobsDir, entryName("verify", 1, entrySuffix))
+		}},
+		{"live", func(t *testing.T, root string) string {
+			return writeEntry(t, root, "verify", "LABEL=verify\n")
+		}},
+	}
+	for _, step := range cases {
+		t.Run(step.name, func(t *testing.T) {
+			unset(t, ParentKey)
+			root := t.TempDir()
+			adm := admission(t, root)
+			own := writeEntry(t, root, "suite", "LABEL=suite\n")
+			ticket := &Ticket{Label: "suite", Kind: KindClaimed, Entry: adm.rel(own)}
+			inherited := []string{"PATH=/bin", ParentKey + "=" + step.earlier(t, root)}
+
+			for _, pair := range adm.childEnviron(inherited, ticket) {
+				if len(env.Without([]string{pair}, ParentKey)) == 0 {
+					name, value, _ := strings.Cut(pair, "=")
+					t.Setenv(name, value)
+				}
+			}
+			env.ResetCache()
+
+			if label, nested := adm.insideParent(); !nested || label != "suite" {
+				t.Errorf("the child's parent is (%q, %v), want the claimed suite", label, nested)
+			}
+		})
+	}
+}
+
 // admission answers an admission over one fixture tree, polling fast enough
 // for a test.
 func admission(t *testing.T, root string) *Admission {

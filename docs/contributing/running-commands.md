@@ -1229,11 +1229,15 @@ last verify's verdict.
 Raw heavy work that no registered action owns is admitted with
 `./le job run label <label> command <argv...>`. One job runs and its peers queue
 or attach; the child's exit status is preserved, so the command inside remains the
-command being judged. A cheap subcommand of a heavy tool needs no admission:
+command being judged. The child runs inside that job's slot: its environment names
+the job's entry as `ZE_RUN_JOB`, with every other spelling of `ze.run.job` the
+caller carried removed, because `env.Get` prefers a dotted spelling and a child
+that read an older parent would queue behind its own (`childEnviron`). A cheap subcommand of a heavy tool needs no admission:
 `golangci-lint config verify` runs no analysis. A one-off that must not queue
 states its reason in the command, as `ZE_ADMIT_RAW="<reason>"`. An empty reason
 admits nothing, and the reason that is there lands in the transcript, which is
 what makes the escape auditable by reading the session.
+<!-- source: internal/le/job/job.go -- Admission.childEnviron -->
 
 ## The Bash guard matches your command text
 
