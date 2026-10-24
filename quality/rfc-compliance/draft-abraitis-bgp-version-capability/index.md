@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0.0% | 0 of 11 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 11 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 11 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 86.4% | 19 of 22 tagged units, 0 escaped and 2 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 95.5% | 21 of 22 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -28,6 +28,14 @@ measures that are neither good news nor bad
 | Not applicable | 0.0% | 0 of 11 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 0.0% | 0 of 11 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 11 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+
+### Negative
+
+what Ze owes
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| Audit verdicts | 11 | of 11 gated MUSTs judged | 1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 The 8 shares marked as a part above are the whole of the 11 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -46,7 +54,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -234,12 +242,12 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 The Software Version Capability MUST only be used for displaying the version of a BGP speaker's router daemon to make troubleshooting easier. (§4)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/core/bgp/capability/negotiated.go::Negotiate moved. Prior independent current judgment retained after evidence-scope comparison only. The complete Section 4 use restriction, both TestSoftwareVersionCapabilityDecidesNothing and TestSoftwareVersionCapabilityIsRecordedForDisplay units, and the inspected parseCapability/Negotiate/buildSubComponents producers have no scoped patch changes. The earlier judgment remains limited to opaque code-75 diagnostic retention and no negotiated protocol decision, not actual operator rendering or optional receive-feature implementation. No hashes were manufactured; native audit-stamp remains the sole fingerprint writer, and no new execution or foreign proof is claimed.
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Rejudged after 1dbfd1d7b7 changed Negotiate to record the peer's Multiprotocol order and Families to answer it. Draft Section 4: "The Software Version Capability MUST only be used for displaying the version of a BGP speaker's router daemon to make troubleshooting easier." Producers at HEAD conform: parseCapability keeps code 75 as an opaque Unknown, Negotiate's remote loop only marks peerCodes for it, and remoteOrder takes Multiprotocol entries alone, so code 75 cannot reach the family order. The positive is sound: exact Unknown code and bytes, and PeerAdvertised(75). The negative is weak: it claims an OPEN with code 75 negotiates exactly what the same OPEN without it does, yet compares a field subset. Families() now has a session-visible order (negotiated event, ADD-PATH lists, ExaBGP bridge) and the test compares it with ElementsMatch, a multiset check; Encoding.Families is re-sorted in buildSubComponents, so no assertion sees that order. Session.LinkLocalNextHop, Session.HoldTime and Identity are not compared either. A break that lets code 75 reorder Families() or set LinkLocalNextHop or HoldTime leaves the test green, which breaks the 'decides nothing' claim. The recorded discrimination breaks replace all of Negotiate with a panic, so they show the units call Negotiate, not that they catch code 75 changing a decision. Fix: in TestSoftwareVersionCapabilityDecidesNothing, assert.Equal on Families() (order-sensitive) and on Session and Identity, or compare the whole Negotiated with peerCodes cleared; put the code-75 Unknown between the two Multiprotocol entries in softverSessionCaps so a position-sensitive break shows; record a discrimination break that makes code 75 change negotiated state (e.g. reorder families) rather than panicking Negotiate.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestSoftwareVersionCapabilityDecidesNothing`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/draft_abraitis_bgp_version_capability_softver_test.go#L34) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestSoftwareVersionCapabilityIsRecordedForDisplay`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/draft_abraitis_bgp_version_capability_softver_test.go#L58) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestSoftwareVersionCapabilityDecidesNothing`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/draft_abraitis_bgp_version_capability_softver_test.go#L34) | unit/verify | revert, verified |
+| positive | [`TestSoftwareVersionCapabilityIsRecordedForDisplay`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/draft_abraitis_bgp_version_capability_softver_test.go#L58) | unit/verify | revert, verified |
 
 ### [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-2`](#draft-abraitis-bgp-version-capability-4-2)
 

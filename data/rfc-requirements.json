@@ -37,7 +37,7 @@
         "audited": 11,
         "discrimination-records": 21,
         "escapes": 0,
-        "stale-records": 2
+        "stale-records": 0
       },
       "requirements": [
         {
@@ -561,7 +561,7 @@
           "gated": true,
           "positive-test": "`internal/core/bgp/capability/draft_abraitis_bgp_version_capability_softver_test.go` `TestSoftwareVersionCapabilityIsRecordedForDisplay` (unit/verify)",
           "negative-test": "`internal/core/bgp/capability/draft_abraitis_bgp_version_capability_softver_test.go` `TestSoftwareVersionCapabilityDecidesNothing` (unit/verify)",
-          "note": "**audit: enforced, stale-unit**",
+          "note": "**audit: weak**",
           "nightly-only": false,
           "covers": [
             {
@@ -574,11 +574,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
                 "break": "body of Negotiate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             },
@@ -592,23 +591,19 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
                 "break": "body of Negotiate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             }
           ],
           "audit": {
-            "verdict": "enforced",
-            "meaning": "the tests do what the requirement demands",
-            "note": "Prior independent current judgment retained after evidence-scope comparison only. The complete Section 4 use restriction, both TestSoftwareVersionCapabilityDecidesNothing and TestSoftwareVersionCapabilityIsRecordedForDisplay units, and the inspected parseCapability/Negotiate/buildSubComponents producers have no scoped patch changes. The earlier judgment remains limited to opaque code-75 diagnostic retention and no negotiated protocol decision, not actual operator rendering or optional receive-feature implementation. No hashes were manufactured; native audit-stamp remains the sole fingerprint writer, and no new execution or foreign proof is claimed.",
-            "freshness": "stale-unit",
-            "moved": [
-              "internal/core/bgp/capability/negotiated.go::Negotiate"
-            ]
+            "verdict": "weak",
+            "meaning": "the tests pass over code that does not enforce the requirement",
+            "note": "Rejudged after 1dbfd1d7b7 changed Negotiate to record the peer's Multiprotocol order and Families to answer it. Draft Section 4: \"The Software Version Capability MUST only be used for displaying the version of a BGP speaker's router daemon to make troubleshooting easier.\" Producers at HEAD conform: parseCapability keeps code 75 as an opaque Unknown, Negotiate's remote loop only marks peerCodes for it, and remoteOrder takes Multiprotocol entries alone, so code 75 cannot reach the family order. The positive is sound: exact Unknown code and bytes, and PeerAdvertised(75). The negative is weak: it claims an OPEN with code 75 negotiates exactly what the same OPEN without it does, yet compares a field subset. Families() now has a session-visible order (negotiated event, ADD-PATH lists, ExaBGP bridge) and the test compares it with ElementsMatch, a multiset check; Encoding.Families is re-sorted in buildSubComponents, so no assertion sees that order. Session.LinkLocalNextHop, Session.HoldTime and Identity are not compared either. A break that lets code 75 reorder Families() or set LinkLocalNextHop or HoldTime leaves the test green, which breaks the 'decides nothing' claim. The recorded discrimination breaks replace all of Negotiate with a panic, so they show the units call Negotiate, not that they catch code 75 changing a decision. Fix: in TestSoftwareVersionCapabilityDecidesNothing, assert.Equal on Families() (order-sensitive) and on Session and Identity, or compare the whole Negotiated with peerCodes cleared; put the code-75 Unknown between the two Multiprotocol entries in softverSessionCaps so a position-sensitive break shows; record a discrimination break that makes code 75 change negotiated state (e.g. reorder families) rather than panicking Negotiate.",
+            "freshness": "fresh"
           }
         },
         {

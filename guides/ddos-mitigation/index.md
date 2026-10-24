@@ -82,8 +82,10 @@ and `flow-export` (`ze_flowexport`). A build that carries neither refuses
 `ddos detect enabled true` at `ze config validate`, at commit, at daemon start
 and at SIGHUP reload, naming both tags as alternatives in its fix line. A build
 that carries either accepts it, and whether that source is configured stays the
-`doctor-ddos-detect-no-flow-source` warning of `ze doctor`. With detection
-enabled, both compiled-in sources are started; one with no config stays idle.
+`doctor-ddos-detect-no-flow-source` warning of `ze doctor`. Enabling detection
+starts no flow source: the source you configure (`flow-export` or
+`traffic-usage`) starts from its own config block, and one you do not
+configure does not run.
 `anomaly detect enabled true` gets the same treatment, for the same two sources.
 
 `ddos flowspec response-level enforce` announces through the BGP subsystem, so a

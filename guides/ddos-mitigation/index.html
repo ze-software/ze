@@ -170,8 +170,10 @@ and <code>flow-export</code> (<code>ze_flowexport</code>). A build that carries 
 <code>ddos detect enabled true</code> at <code>ze config validate</code>, at commit, at daemon start
 and at SIGHUP reload, naming both tags as alternatives in its fix line. A build
 that carries either accepts it, and whether that source is configured stays the
-<code>doctor-ddos-detect-no-flow-source</code> warning of <code>ze doctor</code>. With detection
-enabled, both compiled-in sources are started; one with no config stays idle.
+<code>doctor-ddos-detect-no-flow-source</code> warning of <code>ze doctor</code>. Enabling detection
+starts no flow source: the source you configure (<code>flow-export</code> or
+<code>traffic-usage</code>) starts from its own config block, and one you do not
+configure does not run.
 <code>anomaly detect enabled true</code> gets the same treatment, for the same two sources.</p>
 <p><code>ddos flowspec response-level enforce</code> announces through the BGP subsystem, so a
 build without <code>ze_bgp</code> refuses it the same way, naming <code>ze_bgp</code>;
@@ -974,7 +976,7 @@ degrades to a coarse generic-flood drop.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 24 October 2026 09:38 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 13:11 UTC</span>
                 </div>
             </div>
         </footer>
