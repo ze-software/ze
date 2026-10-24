@@ -49,7 +49,8 @@
     <h1 id="route-server-at-an-ixp">Route Server at an IXP</h1>
     <p>Use Ze as an RFC 7947 route server when each member should maintain one eBGP session and receive eligible routes from the other members without next-hop rewriting.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#topology">Topology</a></li>
 <li><a href="#components">Components</a></li>
 <li><a href="#complete-lab-configuration">Complete lab configuration</a></li>
@@ -58,7 +59,7 @@
 <li><a href="#verification">Verification</a></li>
 <li><a href="#member-visibility">Member visibility</a></li>
 <li><a href="#operational-risks">Operational risks</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <h2 id="topology">Topology</h2>
 <pre><code class="language-text">                         Ze route server
                          AS 65000
@@ -294,7 +295,8 @@ ze cli -c "show errors"
 <li>Route-server role compatibility must be checked before enabling strict enforcement.</li>
 </ul>
 <p>Monitor peer state, route counts, policy failures, forwarding-pool utilisation, and replay duration during every maintenance window.</p>
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Use case</p>
@@ -328,7 +330,7 @@ ze cli -c "show errors"
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

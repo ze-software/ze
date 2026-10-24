@@ -49,7 +49,8 @@
     <h1 id="config-archive">Config Archive</h1>
     <p>Ze archives configuration files to local or remote destinations. Archives can be triggered manually from the CLI, automatically on every editor commit, or on a schedule.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#configuration">Configuration</a>
 <ol>
 <li><a href="#fields">Fields</a></li>
@@ -74,7 +75,7 @@
 <li><a href="#multiple-destinations">Multiple destinations</a></li>
 <li><a href="#http-receiver">HTTP receiver</a></li>
 </ol></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <!-- source: internal/component/config/archive/archive.go -- archive core logic -->
 <!-- source: internal/component/config/system/yang/ze-system-conf.yang -- system and archive YANG schema -->
 <h2 id="configuration">Configuration</h2>
@@ -458,7 +459,8 @@ file you name in the same shape, such as <code>20260101.conf</code> beside the f
 </tbody>
 </table>
 <p>The body is the raw config file content. Any HTTP 2xx response is treated as success.</p>
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -500,7 +502,7 @@ file you name in the same shape, such as <code>20260101.conf</code> beside the f
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

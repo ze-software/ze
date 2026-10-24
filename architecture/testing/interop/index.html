@@ -51,7 +51,8 @@
 live session interop tests (Docker containers running real daemons) and byte-level wire format
 validation against ExaBGP (Ze's predecessor, a BGP implementation in Python).</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#the-suites-one-per-protocol-area">The suites, one per protocol area</a></li>
 <li><a href="#tested-daemons">Tested Daemons</a></li>
 <li><a href="#prerequisites">Prerequisites</a></li>
@@ -110,7 +111,7 @@ validation against ExaBGP (Ze's predecessor, a BGP implementation in Python).</p
 <li><a href="#current-scope">Current Scope</a></li>
 <li><a href="#known-vendor-limitations">Known Vendor Limitations</a></li>
 <li><a href="#related-documents">Related Documents</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <p>For BGP terminology used in this document, see <a href="../../../features/bgp-protocol/">BGP protocol</a>.</p>
 <p><code>ai/rules/interop-and-goal-validation.md</code> states when an interop test is owed.
 This page is the infrastructure it is owed against.</p>
@@ -233,7 +234,7 @@ as a scenario selector, and specs, journal rows and code comments cite it.</p>
 <tr>
 <td>BIRD</td>
 <td>3.4.0</td>
-<td>Built from the upstream <code>v3.4.0</code> tag on Debian trixie (which refuses a tag moved off the pinned commit). BIRD 3 line only (owner decision M14); Alpine 3.24 packages 3.2.4, and 3.4.0 built on Alpine 3.24.3 dies with SIGILL in <code>rte_announce_to</code> on the first route it imports. <span class="ev-src"><span class="ev-ref"><code>test/interop/Dockerfile.bird</code></span></span></td>
+<td>Built from the upstream <code>v3.4.0</code> tag on Debian trixie (which refuses a tag moved off the pinned commit). BIRD 3 line only; Alpine 3.24 packages 3.2.4, and 3.4.0 built on Alpine 3.24.3 dies with SIGILL in <code>rte_announce_to</code> on the first route it imports. <span class="ev-src"><span class="ev-ref"><code>test/interop/Dockerfile.bird</code></span><span class="ev-ref"><code>ai/META-DECISIONS.md</code></span></span></td>
 <td>birdc</td>
 <td>eBGP, route exchange, triangle topologies</td>
 </tr>
@@ -241,7 +242,7 @@ as a scenario selector, and specs, journal rows and code comments cite it.</p>
 <td>GoBGP</td>
 <td>4.10.0</td>
 <td>Go builder. <span class="ev-src"><span class="ev-ref"><code>golang:1.25-alpine</code></span><span class="ev-ref"><code>test/interop/Dockerfile.gobgp</code></span></span></td>
-<td>gobgp CLI, and <code>gobgp-paths</code> (a gRPC ListPath reader) for the families the CLI cannot name</td>
+<td>gobgp CLI, and <code>gobgp-paths</code> (a gRPC ListPath reader) for the families the CLI cannot name; it prints each attribute through GoBGP's <code>String()</code>, and an Extended Communities attribute also through its <code>MarshalJSON</code>, because <code>String()</code> writes an IPv4-address-specific Route Target and Route Origin alike</td>
 <td>eBGP, route injection and verification</td>
 </tr>
 <tr>
@@ -1010,7 +1011,7 @@ removed: they are what keeps a second run minutes long.</p>
 <!-- source: internal/test/runner/caps.go -- capsRequired, capDockerName, capsAltersHost, ContainerCapsDockerNames -->
 <!-- source: internal/test/runner/devices.go -- containerDevices, ContainerDevicePaths, DeviceHostModule -->
 <p>On macOS the daemon in hand is the <code>ze</code> Colima profile's, which boots Ze's
-docker-host image (owner decision M10). With DOCKER_HOST unset or empty, every
+docker-host image (<code>ai/META-DECISIONS.md</code>). With DOCKER_HOST unset or empty, every
 docker command le runs for a lab, the kernel check included, carries
 <code>DOCKER_HOST=unix://&lt;colima home&gt;/ze/docker.sock</code>, where the Colima home is
 resolved as Colima resolves it (<code>$HOME/.colima</code> by default, <code>COLIMA_HOME</code> or
@@ -1502,7 +1503,7 @@ than the suite's, or when the scenario must not follow an <code>FRR_IMAGE</code>
 release here that negotiates the Link-Local Next Hop capability (77), because
 without it a different gate withholds the route and the scenario cannot go red.
 The five scenarios that carry one pin the same release as the suite,
-<code>interoplab.FRRImage</code> (owner decision M14), so a run with <code>FRR_IMAGE</code> naming an
+<code>interoplab.FRRImage</code> (every lab peer runs its latest stable release), so a run with <code>FRR_IMAGE</code> naming an
 older FRR still starts them from 10.7.1. A file naming no image, or two, is an
 error.</p>
 <!-- source: internal/le/interoplab/bgp/prepare.go -- scenarioFRRImage, scenarioFRRReference -->
@@ -2003,7 +2004,9 @@ plugin is absent, and two other plugins register the algorithm instead: on an
 x86-64 host <code>swanctl --list-algs</code> in the image answers <code>AES_CCM_16[aesni]</code>,
 <code>AES_CCM_12[aesni]</code> and <code>AES_CCM_8[aesni]</code>, and with aesni not loaded it answers
 <code>AES_CCM_16[openssl]</code>, <code>AES_CCM_12[openssl]</code> and <code>AES_CCM_8[openssl]</code> (measured
-2026-10-22). The absent FILE is not an absent
+2026-10-22). The aesni plugin is built only on x86, because its sources need
+<code>-maes</code>, <code>-mpclmul</code> and <code>-mssse3</code>, which gcc refuses on arm64; there openssl is
+the only provider. The absent FILE is not an absent
 capability, and a source build of the ccm plugin would add a second provider of
 one algorithm and nothing else.</p>
 <!-- source: test/interop-ipsec/scenarios/ike-aes-ccm16/ -- the AES CCM fixtures -->
@@ -2083,8 +2086,45 @@ than one request.</p>
 <td>The same, with <code>auth-method eap-mschapv2</code>. Ze answers the EAP conversation itself from the operator's password, Naks the server's MD5-Challenge toward MSCHAPv2, and returns the State on every later round</td>
 <td><code>verdict=state-echo</code> for at least one round carrying the State the server issued, then <code>verdict=accept</code>, both with an EAP-Message present and NEITHER password attribute beside it</td>
 </tr>
+<tr>
+<td><code>radius-admin-eap-unsigned-freeradius</code></td>
+<td>The EAP login through the relay twice. With the relay passing the answers, the login completes and <code>ze_radius_unsigned_eap_discards_total</code> reads 0. With the relay removing the Message-Authenticator, the login fails, ze logs <code>radius: discarding the answer</code> with the RFC 3579 Section 3.1 reason, and the counter is above 0</td>
+<td><code>verdict=state-echo</code> and <code>verdict=accept</code> for the passed login. The relay's own log records each answer it carried: an Access-Accept with the signature <code>present</code>, then an Access-Challenge with an EAP-Message and the signature <code>stripped</code></td>
+</tr>
 </tbody>
 </table>
+<p>The unsigned scenario needs an answer FreeRADIUS will not send. RFC 3579
+Section 3.1:</p>
+<blockquote>
+<p>Access-Challenge, Access-Accept, or Access-Reject packets including
+EAP-Message attribute(s) without a Message-Authenticator attribute SHOULD be
+silently discarded by the NAS.</p>
+</blockquote>
+<p>FreeRADIUS 3.2.10 writes a Message-Authenticator as the first attribute of
+every Access-Accept, Access-Reject and Access-Challenge it sends over UDP:
+<code>rad_encode</code> in <code>src/lib/radius.c</code> decides it from its <code>code2ma</code> table, which no
+configuration item reaches, so neither an unlang <code>update reply</code> nor a proxy
+server removes it. The lab therefore mounts <code>test/interop-radius/unsigned-relay.pl</code>
+into the server's container, and the checker starts it there on port 1912, the
+port the scenario's <code>ze.conf</code> names. The relay forwards each Access-Request
+unchanged to FreeRADIUS on 1812 and each answer back to ze. In <code>strip</code> mode it
+removes the Message-Authenticator and nothing else; in both modes it recomputes
+the Response Authenticator (RFC 2865 Section 3). The mode is a file the checker
+writes, and a missing or unknown mode forwards nothing. The image carries Perl
+and its <code>Digest::MD5</code>, and no other program that speaks UDP and MD5, which is
+why the relay is Perl.</p>
+<p>The <code>pass</code> login is the control for the three ways the refusal could be read
+wrongly. It proves the relay carries the conversation, that its recomputed
+Response Authenticator is right (a wrong one would fail it, since <code>pass</code> mode
+recomputes too), and that the counter starts at 0. The <code>strip</code> login then
+differs from it by the missing attribute alone. The counter is read from ze's
+Prometheus endpoint on loopback, and a series the exposition does not carry is
+an error, never a zero.</p>
+<p>The scenario passed on 2026-10-23 and discriminates: with
+<code>verifyResponseMessageAuthenticator</code> answering <code>responseIntegrityAccepted</code> for
+an unsigned EAP answer, as it did before the discard, and ze rebuilt, it fails
+with "assertion 6: ze completed an EAP login for radiusop through answers whose
+Message-Authenticator the relay removed".</p>
 <p>The third scenario is the one that proves <code>docs/guide/radius.md</code> is telling the
 truth. RFC 2865 Section 2.2:</p>
 <blockquote>
@@ -2108,6 +2148,8 @@ as evidence.</p>
 <!-- source: internal/le/interoplab/radius/radius.go -- the suite, its pinned image, its peers and its probes -->
 <!-- source: internal/le/interoplab/radius/checkers.go -- every observation, on ze's side and on the server's -->
 <!-- source: test/interop-radius/mods-ze-request-log -- the linelog module the server's record comes from -->
+<!-- source: internal/le/interoplab/radius/check_unsigned_eap.go -- checkEAPUnsigned, startRelay, unsignedDiscardCount -->
+<!-- source: test/interop-radius/unsigned-relay.pl -- the relay that removes the server's Message-Authenticator -->
 <h3 id="the-freeradius-subscriber-suite">The FreeRADIUS subscriber suite</h3>
 <p><code>./le test integration interop-radius-subscriber</code> puts FreeRADIUS 3.2.10, the
 release the admin-login suite pins, in front of ze's subscriber RADIUS surface:
@@ -2303,6 +2345,33 @@ reads the whole table with <code>birdc show route</code>, and never <code>show r
 not found", and birdc exits 1. A lookup therefore fails in the exact state the
 assertion exists to observe, and the failure is not absence. Ask a question the
 peer answers in both states, then read the absence out of the answer.</p>
+<p>A checker that reads a BGP attribute from BIRD reads BIRD 3's spelling. <code>birdc show route ... all</code> prints each attribute on its own line as a tab, the
+attribute's name, a colon, a space and the value (<code>ea_show</code>, <code>nest/rt-attr.c</code> at
+v3.4.0), and the names are <code>proto/bgp/attrs.c</code>'s <code>bgp_origin</code>, <code>bgp_path</code>,
+<code>bgp_next_hop</code>, <code>bgp_med</code>, <code>bgp_local_pref</code>, <code>bgp_community</code>,
+<code>bgp_large_community</code>, <code>bgp_originator_id</code> and <code>bgp_cluster_list</code>. BIRD 2's
+<code>BGP.as_path</code> family and its <code>Type: BGP univ</code> line are gone; BIRD 3 prints
+<code>preference:</code>, <code>from:</code> and <code>source:</code> lines instead, and closes each route with
+<code>Internal route handling values:</code>. An AS path is space-separated ASNs and a
+community list is <code>(65001,100) (65001,200)</code>, as in BIRD 2. Captured from the lab
+image on 2026-10-23, for an iBGP route reflected once:</p>
+<pre><code>10.77.0.0/24         unicast [b 17:15:20.935 from 10.99.0.3] * (100) [AS65020i]
+	via 10.99.0.2 on eth0
+	preference: 100
+	from: 10.99.0.3
+	source: BGP
+	bgp_origin: IGP
+	bgp_path: 65010 65020
+	bgp_next_hop: 10.99.0.2
+	bgp_med: 77
+	bgp_local_pref: 250
+	bgp_community: (65001,100) (65001,200)
+	bgp_originator_id: 10.99.0.2
+	bgp_cluster_list: 10.99.0.3
+	bgp_large_community: (65001, 0, 1) (65001, 2, 3)
+	Internal route handling values: 0L 2G 0S id 1
+</code></pre>
+<!-- source: internal/le/interoplab/bgp/check_rfc_predicate.go -- birdASPathAttribute -->
 <p>Scenarios with non-linear behavior register a bespoke checker in
 <code>specialCheckers</code> (<code>check_special.go</code>). Each one owes a named subtest in
 <code>TestBespokeCheckerBranches</code> that drives its predicate in BOTH polarities: the
@@ -2972,6 +3041,12 @@ is not packet-forwarding evidence.</p>
 <td>ze's LDP KeepAlive Timer expires after an <code>ldplab</code> nft table in ze's container rewrites the TCP window ze advertises on the session to zero, so FRR can send ze no PDU while its kernel still acknowledges ze's segments (a drop of FRR's segments would also drop the ACKs they carry and stall ze's own stream); FRR logs <code>msg[in]: notification: ... status KeepAlive Timer Expired (fatal error)</code> (RFC 5036 Section 3.5.1.2.3) and leaves OPERATIONAL. Red with the send reverted: FRR logs only <code>connection closed by remote end</code>. Ships its own <code>daemons</code> (<code>ldpd=yes</code>) and gives ze transport address 172.30.0.250 so ze is the active LSR</td>
 </tr>
 <tr>
+<td>53</td>
+<td>ldp-init-unknown-tlv-frr</td>
+<td>Ze, FRR ldpd</td>
+<td>RFC 5036 Section 3.3 on ze's receive side: "if U is clear (=0), a notification MUST be returned to the message originator and the entire message MUST be ignored". FRR cannot send an unknown TLV, so an <code>ldplab</code> nft rule in ze's container rewrites the type of the first Capability TLV in FRR's real Initialization (0x8506, the Dynamic Capability Announcement ldpd's <code>send_init</code> writes at LDP offset 36) to 0x3f00, U and F clear, and counts each match. FRR, the originator, logs <code>msg[in]: notification: ... status Unknown TLV</code>, and stays short of OPERATIONAL for 10 s because ze never answers the ignored Initialization with a KeepAlive. With the rule removed the same peers reach OPERATIONAL, the positive control. FRR proves the Notification reached the originator and decodes as Unknown TLV; the rule's counter proves ze was shown the TLV. Red with <code>skipTLV</code> returning nil for every TLV: FRR logs no received <code>status Unknown TLV</code> Notification. Shares the <code>daemons</code> and the 172.30.0.250 transport address of <code>ldp-keepalive-expiry-frr</code></td>
+</tr>
+<tr>
 <td>40</td>
 <td>bgp-attr-flags-low-nibble-gobgp</td>
 <td>Ze, GoBGP, raw injector</td>
@@ -3005,7 +3080,7 @@ is not packet-forwarding evidence.</p>
 <td>45</td>
 <td>bgp-sr-policy-gobgp</td>
 <td>Ze, GoBGP</td>
-<td>RFC 9830: GoBGP's RIB, read through <code>gobgp-paths</code> (<code>Dockerfile.gobgp</code>, a gRPC ListPath reader, because no gobgp CLI release names an SR Policy family), holds Ze's configured IPv4 and IPv6 SR Policies with their distinguisher, color and endpoint, Binding SID label 1048575 and Type A segment labels 16 and 1048575, and a third IPv4 policy (color 300) whose SRv6 BSID 2001:db8::b5 rides the type-13 Binding SID sub-TLV at Length 18 (RFC 9830 Section 2.4.2), which GoBGP prints through its type-13 decoder with no B-Flag. Goal validation for origination: in-range labels never reach the 20-bit range check, so no revert turns the label checks red</td>
+<td>RFC 9830: GoBGP's RIB, read through <code>gobgp-paths</code> (<code>Dockerfile.gobgp</code>, a gRPC ListPath reader, because no gobgp CLI release names an SR Policy family), holds Ze's configured IPv4 and IPv6 SR Policies with their distinguisher, color and endpoint, Binding SID label 1048575 and Type A segment labels 16 and 1048575, and a third IPv4 policy (color 300) whose SRv6 BSID 2001:db8::b5 rides the type-13 Binding SID sub-TLV at Length 18 (RFC 9830 Section 2.4.2), which GoBGP prints through its type-13 decoder with no B-Flag. Every policy must also carry the configured Route Target as GoBGP types it, (RFC 9830 Section 1, RFC 4360 Section 4). Red with <code>parseConfigRoute</code> writing sub-type 3 (Route Origin) into the community it appends: GoBGP still holds every policy and <code>String</code> still prints. Removing the append is not a red for this assertion, because the config parser then refuses the configured extended community and Ze never starts. Goal validation for origination: in-range labels never reach the 20-bit range check, so no revert turns the label checks red. <span class="ev-src"><span class="ev-ref"><code>{"type":1,"subtype":2,"value":"172.30.0.5:0"}</code></span><span class="ev-ref"><code>[172.30.0.5:0]</code></span></span></td>
 </tr>
 <tr>
 <td>46</td>
@@ -3029,7 +3104,7 @@ is not packet-forwarding evidence.</p>
 <td>49</td>
 <td>bgp-exabgp-bridge-sr-policy-gobgp</td>
 <td>Ze (exabgp bridge), GoBGP</td>
-<td>RFC 9830: an ExaBGP API script writes <code>announce ipv4 sr-policy ... preference 300</code> with two Type A segment lists and a Route Target; the bridge hands it to <code>update text</code>, whose sr-policy section reaches the registered config-route parser, and GoBGP's RIB (through <code>gobgp-paths</code>) holds the NLRI (color 300, endpoint 10.0.0.3), the Preference sub-TLV and labels 16001 and 16002. Red with the sr-policy registration's <code>NLRISectionCarriesAttributes</code> set false, which stops the hand-off</td>
+<td>RFC 9830: an ExaBGP API script writes <code>announce ipv4 sr-policy ... preference 300</code> with two Type A segment lists and a Route Target; the bridge hands it to <code>update text</code>, whose sr-policy section reaches the registered config-route parser, and GoBGP's RIB (through <code>gobgp-paths</code>) holds the NLRI (color 300, endpoint 10.0.0.3), the Preference sub-TLV, labels 16001 and 16002, and the Route Target typed as sub-type 2. Red with the sr-policy registration's <code>NLRISectionCarriesAttributes</code> set false, which stops the hand-off. The Route Target on this path comes from <code>update text</code>'s own attribute block, not from <code>parseConfigRoute</code>: red with the <code>extended-community</code> case of <code>update_text.go</code> writing sub-type 3, and green with the same change made in <code>parseConfigRoute</code></td>
 </tr>
 <tr>
 <td>50</td>
@@ -3052,6 +3127,7 @@ is not packet-forwarding evidence.</p>
 </tbody>
 </table>
 <!-- source: test/interop/scenarios/ -- scenario directories -->
+<!-- source: internal/le/interoplab/bgp/check_ldp_init_unknown_tlv.go -- checkLDPInitUnknownTLV, ldpInitRewrite -->
 <h3 id="running">Running</h3>
 <pre><code class="language-bash">./le test integration interop
 INTEROP_SCENARIO=bgp-ebgp-ipv4-frr ./le test integration interop
@@ -3117,7 +3193,7 @@ suite takes roughly 5-10 minutes depending on session establishment times.</p>
 <!-- source: internal/le/interoplab/docker.go -- dockerBuildTimeoutDefault, buildTimeout -->
 <!-- source: internal/le/interoplab/zebuild.go -- StageBinaries, LabBinary -->
 <h3 id="source-built-peers">Source-built peers</h3>
-<p>Owner decision M14: every third-party lab peer runs its latest stable upstream
+<p>Owner decision (<code>ai/META-DECISIONS.md</code>): every third-party lab peer runs its latest stable upstream
 release. A peer that publishes no stable release is built from source, and only
 from source less than one month old. Two do today: tac_plus-ng
 (<code>test/interop-tacacs/Dockerfile.tacplusng</code>, used by
@@ -3542,7 +3618,8 @@ ExaBGP compat covers wire encoding for all supported address families.</p>
 <li><a href="https://github.com/ze-software/ze/blob/main/docs/comparison.md" target="_blank" rel="noopener">BGP implementation comparison</a> -- feature matrix comparing Ze with FRR, BIRD, GoBGP, ExaBGP, and others</li>
 <li><a href="https://github.com/ze-software/ze/blob/main/docs/exabgp/exabgp-comparison-report.md" target="_blank" rel="noopener">ExaBGP comparison report</a> -- detailed implementation differences between Ze and ExaBGP</li>
 </ul>
-
+</div>
+</div>
             </section>
         </main>
 
@@ -3552,7 +3629,7 @@ ExaBGP compat covers wire encoding for all supported address families.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

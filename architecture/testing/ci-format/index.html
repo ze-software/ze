@@ -49,7 +49,8 @@
     <h1 id="ci-test-file-format">.ci Test File Format</h1>
     <p>The <code>.ci</code> format is used by Ze's test runner to define functional tests. It supports embedded files (Tmpfs), test options, expectations, and commands.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#syntax-overview">Syntax Overview</a></li>
 <li><a href="#key-concepts">Key Concepts</a>
 <ol>
@@ -172,7 +173,7 @@
 <li><a href="#example_4">Example</a></li>
 <li><a href="#test-categories">Test Categories</a></li>
 </ol></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <blockquote>
 <p>For the execution architecture (how tests are scheduled and run concurrently) and the web <code>.wb</code> format, see <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/testing/runner-architecture.md" target="_blank" rel="noopener"><code>runner-architecture.md</code></a>.</p>
 </blockquote>
@@ -435,6 +436,15 @@ close. A hardcoded number in a <code>.ci</code> file takes part in neither step,
 why the rule above is a rule.</p>
 <!-- source: internal/test/runner/ports.go -- LeaseTestPorts -->
 <!-- source: internal/test/runner/runner_exec.go -- runTest leases before any $PORT expansion -->
+<p>There is no <code>$PORT3</code> placeholder. A compiled fixture that starts additional
+listeners MUST reserve their ports with <code>runner.ReservePorts</code> or
+<code>runner.LeaseTestPorts</code>, and MUST retain the reservation until every child using
+those ports has stopped and been reaped. An offset from <code>$PORT</code> or <code>$PORT2</code> is
+only a preferred allocation address, never a reservation.</p>
+<p>The live managed-client restore fixture uses the runner's pair for the hub's
+SSH and plugin listeners and reserves a third port for its managed listener.
+Its hub and client configs declare no BGP peers or dynamic groups, so they bind
+no BGP listeners and need no BGP port offsets.</p>
 <h2 id="stdin-blocks">Stdin Blocks</h2>
 <p>A stdin block embeds content the runner pipes to a process's standard input.
 Two commands take it as a FILE instead, and the table under "Where the block
@@ -900,7 +910,10 @@ sets one variable in the environment of the daemon under test, ze and
 <code>--dut exabgp</code> alike, appended after the runner's own variables so a case can
 override one: <code>api-version-env.ci</code> writes <code>option=env:exabgp.api.version=4</code> to
 hold every script to API 4 from its start. A line naming no key or no <code>=</code> is
-refused at discovery. Those populations are chosen
+refused at discovery. A helper a configuration runs as <code>le ...</code> (conf-watchdog)
+reaches the le that runs the suite: that le's directory is first on the daemon's
+PATH, then the ze under test's, and <code>ZE_LE_BUILD_NAME</code> is removed, so the named
+build of <code>./le --name &lt;name&gt;</code> accepts the call. Those populations are chosen
 by their execution owners, not by tolerating parser errors. Native scenarios
 that intentionally submit invalid Ze configuration remain in the gate: their
 <code>.ci</code> itself must still parse.
@@ -3295,7 +3308,8 @@ expect=completion:contains=router-id,local-as,peer
 <!-- source: internal/component/cli/testing/parser.go -- editor test file parsing -->
 <!-- source: internal/component/cli/testing/session_test.go -- editor session tests -->
 <p>Full format specification: <code>plan/spec-editor-testing-framework.md</code></p>
-
+</div>
+</div>
             </section>
         </main>
 
@@ -3305,7 +3319,7 @@ expect=completion:contains=router-id,local-as,peer
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

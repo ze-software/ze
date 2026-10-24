@@ -49,7 +49,8 @@
     <h1 id="open-source-network-os-comparison">Open Source Network OS comparison</h1>
     <p>A source-backed comparison of Ze, VyOS, and freeRtr as router operating systems rather than only BGP implementations.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#status-legend">Status legend</a></li>
 <li><a href="#executive-conclusion">Executive conclusion</a></li>
 <li><a href="#feature-matrices-by-category">Feature matrices by category</a></li>
@@ -107,7 +108,7 @@
 <li><a href="#concrete-implications">Concrete implications</a></li>
 <li><a href="#gaps-and-unclear-items_6">Gaps and unclear items</a></li>
 </ol></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <blockquote>
 <p><strong>Scope and evidence:</strong> this page summarises the local research artefact produced from the checked-out Ze, VyOS <code>vyos-1x</code>, and freeRtr sources. Runtime protocol daemons external to <code>vyos-1x</code> are intentionally labelled that way, and VyOS rows may cite FRR or other integrated projects when those projects own the runtime behaviour. <code>Not found</code> means not found in the inspected source roots after targeted searches, not a universal upstream absence claim. The inline code paths link to upstream source where the site can map them.</p>
 </blockquote>
@@ -3549,7 +3550,8 @@ about non-BGP router OS breadth.</p>
 <li>Ze full generated-protobuf outputs: proto schema is at <code>api/proto/ze.proto:1-40</code> (defines <code>ZeService</code> and <code>ZeConfigService</code>); generated <code>.pb.go</code> outputs are out of scope here.</li>
 <li>Runtime behavior of VyOS configd itself is only indirectly evidenced here through generated include JSON and guards such as <code>is_systemd_service_running('vyos-configd.service')</code> in <code>protocols_bgp.py:596-601</code>; the configd daemon implementation itself is out of scope here.</li>
 </ul>
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">NOS comparison</p>
@@ -3621,7 +3623,7 @@ about non-BGP router OS breadth.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

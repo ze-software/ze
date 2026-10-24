@@ -520,6 +520,10 @@ other looking glass frontends.
 
 ## Limitations
 
-- **Loc-RIB Route Monitoring** (RFC 9069) omits communities and LOCAL_PREF:
-  the best-change feed it is built from does not carry them, and RFC 9069
-  forbids a RIB back-door for the full attribute set.
+- **Loc-RIB Route Monitoring** (RFC 9069) carries the best path's own stored
+  attributes (ORIGIN, LOCAL_PREF, MED, communities and the rest), which
+  bgp-rib publishes on each best change, with the AS_PATH in four-octet form
+  and the resolved next hop. A best change that arrives without its attribute
+  set is not sent: a Warn log names the prefix, rather than a route with an
+  invented ORIGIN. A change of attributes alone, with the same winning path,
+  next hop and metrics, publishes no best change and so sends no update.

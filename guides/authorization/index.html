@@ -53,7 +53,8 @@ configuration alongside user accounts. Each user is assigned one or more
 profiles; each profile contains ordered rules that allow or deny
 commands.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#concepts">Concepts</a>
 <ol>
 <li><a href="#profiles">Profiles</a></li>
@@ -91,7 +92,7 @@ commands.</p>
 <li><a href="#validation">Validation</a></li>
 <li><a href="#things-that-do-not-work">Things that do NOT work</a></li>
 <li><a href="#reference">Reference</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <p>Authorization is separate from authentication. Authentication (covered
 in <code>authentication.md</code>) decides <em>who the user is</em>. Authorization decides
 <em>what they can do</em>.</p>
@@ -637,7 +638,8 @@ profile "test" run: entry 10: invalid regex "[broken": error parsing regexp: mis
 <!-- source: internal/component/authz/register.go -- StoreAuthorizer -->
 <!-- source: internal/component/aaa/command_args.go -- CanonicalCommand -->
 <!-- source: internal/component/plugin/server/command.go -- IsReadOnlyPath, isAuthorized -->
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -679,7 +681,7 @@ profile "test" run: entry 10: invalid regex "[broken": error parsing regexp: mis
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

@@ -45,17 +45,21 @@
 
         <main id="top" class="site-main-wide" tabindex="-1">
             <section class="blog-article-shell has-visual" aria-labelledby="post-title">
+                <div class="blog-article-heading">
 <div class="journey-hero blog-article-hero reveal">
     <span class="journey-eyebrow">Article</span>
     <h1 id="post-title">The repository is half the AI harness</h1>
     <p>Writing Ze with AI also means writing instructions for how the AI develops Ze. Those instructions must define success and help the agent recognise when its work falls short.</p>
 </div>
                 <div class="blog-article-meta"><time datetime="2026-08-09">2026-08-09</time><span>by Thomas Mangin</span></div>
+                </div>
 <figure class="blog-theme-image has-dark blog-article-visual reveal" role="img" aria-label="Diagram showing an agent using coding tools and project instructions, then using check results to correct its change."><img class="blog-theme-image-light" src="../../assets/blog/the-repository-is-the-ai-harness.svg" alt="" loading="eager" decoding="async" /><img class="blog-theme-image-dark" src="../../assets/blog/the-repository-is-the-ai-harness-dark.svg" alt="" loading="eager" decoding="async" /></figure>
-                <p class="post-back"><a href="../">&larr; All articles</a></p>
             </section>
+            <div class="blog-reading-layout">
+                <aside class="blog-reading-rail" aria-label="Article navigation">
             <nav class="blog-article-toc reveal" aria-label="Article sections">
-                <p class="blog-article-toc-label">In this article</p>
+                <details class="reading-outline" open>
+                <summary class="blog-article-toc-label">In this article</summary>
                 <ol>
                     <li><a href="#make-the-design-part-of-the-objective">Make the design part of the objective</a></li>
                     <li><a href="#give-the-agent-useful-feedback">Give the agent useful feedback</a></li>
@@ -64,7 +68,15 @@
                     <li><a href="#keep-a-failed-check-useful">Keep a failed check useful</a></li>
                     <li><a href="#treat-the-rules-as-part-of-development">Treat the rules as part of development</a></li>
                 </ol>
+                </details>
             </nav>
+                    <nav class="blog-related-links" aria-label="Related links">
+                        <p class="post-back"><a href="../">&larr; All articles</a></p>
+                        <a href="../feed.xml">Subscribe to the blog</a>
+                        <a href="../../docs/">Explore the documentation</a>
+                    </nav>
+                </aside>
+                <div class="blog-reading-body">
             <section class="md-content blog-article-content reveal" data-table-columns="off" data-code-copy="off">
 <p>When I ask Claude to add a feature to Ze, much of what I expect can go unsaid. The code must fit the architecture, handle invalid input and avoid wasting memory, as well as produce the requested result. Those expectations are familiar to me from developing a routing daemon, but leaving them out of the request gives the agent an incomplete account of what it has to achieve.</p>
 <p>I have therefore been recording the requirements and providing ways to check them. An agent implementing a command can find the design it must follow, then run checks which expose some of the ways its code could fail. When a check reports a problem, the agent can correct the implementation before presenting it as finished. This depends on the checks testing the qualities we care about and explaining their failures well enough to guide the next edit.</p>
@@ -107,6 +119,8 @@
 <p>Claude has been contributing vocabulary as well as code. I called valid and invalid cases positive and negative tests; apparently we now have two polarities. Important decisions keep becoming load-bearing, and I expect the larger ones to become load-banging if this continues.</p>
 <p><em>Last updated: 21 September 2026. The history of this article is available in the <a href="https://github.com/ze-software/ze/commits/main/website/blog/posts/the-repository-is-the-ai-harness.md" target="_blank" rel="noopener">project's Git repository</a>.</em></p>
             </section>
+                </div>
+            </div>
         </main>
 
         <script src="../../assets/site.js" defer></script>
@@ -115,7 +129,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:22 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

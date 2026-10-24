@@ -49,7 +49,8 @@
     <h1 id="as112-anycast-dns-inside-a-network">AS112 anycast DNS inside a network</h1>
     <p>Run Ze as the AS112 sink for RFC 1918 and link-local reverse DNS, then learn the four AS112 covering prefixes from Ze over BGP.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#topology">Topology</a></li>
 <li><a href="#ze-config">Ze config</a></li>
 <li><a href="#frr-core-router">FRR core router</a></li>
@@ -59,7 +60,7 @@
 <li><a href="#cisco-ios-xr-core-router">Cisco IOS XR core router</a></li>
 <li><a href="#verifying-the-ze-node">Verifying the Ze node</a></li>
 <li><a href="#lab-evidence">Lab evidence</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <p>This is a local-network deployment shape. If you intend to advertise an AS112 node to public Internet peers, coordinate it first as RFC 7534 expects, and keep the import and export filters below. The software cannot do that human coordination for you.</p>
 <h2 id="topology">Topology</h2>
 <table>
@@ -488,7 +489,8 @@ INTEROP_SCENARIO=as112-redistribute-origin-frr ./le test integration interop
 INTEROP_SCENARIO=as112-redistribute-community-frr ./le test integration interop
 </code></pre>
 <p>The AS112 feature reference remains at <a href="../../guides/as112/">docs/guide/as112</a> for every configuration leaf, CLI command, and RFC compliance note.</p>
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Use case</p>
@@ -522,7 +524,7 @@ INTEROP_SCENARIO=as112-redistribute-community-frr ./le test integration interop
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

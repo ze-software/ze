@@ -49,7 +49,8 @@
     <h1 id="l2tp-pppncp-docker-interop-lab">L2TP PPP/NCP Docker Interop Lab</h1>
     <p>Peer-isolated Docker lab for full L2TP PPP/NCP/kernel dataplane evidence.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#overview">Overview</a></li>
 <li><a href="#layout">Layout</a></li>
 <li><a href="#prerequisites">Prerequisites</a></li>
@@ -63,7 +64,7 @@
 </ol></li>
 <li><a href="#relationship-to-other-evidence">Relationship to Other Evidence</a></li>
 <li><a href="#design-pattern">Design Pattern</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <h2 id="overview">Overview</h2>
 <p>The lab runs Ze as an LNS, a real <code>xl2tpd</code>/<code>pppd</code> LAC, and optionally FRR
 as a BGP peer in separate Docker containers on an isolated bridge
@@ -233,7 +234,8 @@ configuration, a per-run Docker network with a unique suffix, fixed peer
 addresses, typed lifecycle plans, and typed assertions. L2TP keeps its own
 package because its peer roles, image mounts, RADIUS server, and PPP checks are
 specific to this protocol.</p>
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">L2TP lab</p>
@@ -263,7 +265,7 @@ specific to this protocol.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

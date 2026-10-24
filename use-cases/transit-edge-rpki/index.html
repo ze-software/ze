@@ -49,7 +49,8 @@
     <h1 id="transit-edge-with-rpki">Transit Edge with RPKI</h1>
     <p>This deployment shape uses Ze at an Internet edge with two transit sessions, origin validation, explicit import policy, and local preference for deterministic failover.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#topology">Topology</a></li>
 <li><a href="#complete-edge-configuration">Complete edge configuration</a></li>
 <li><a href="#add-origin-validation">Add origin validation</a></li>
@@ -57,7 +58,7 @@
 <li><a href="#failure-behaviour">Failure behaviour</a></li>
 <li><a href="#verification">Verification</a></li>
 <li><a href="#what-to-watch">What to watch</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <h2 id="topology">Topology</h2>
 <pre><code class="language-text">                 Transit A AS 64496
                          |
@@ -274,7 +275,8 @@ preference returns without stale paths.</p>
 <li>Memory and convergence time for the actual table size</li>
 </ul>
 <p>Do not treat an Established BGP session as proof that validation and failover work. Exercise the route state transitions directly.</p>
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Use case</p>
@@ -308,7 +310,7 @@ preference returns without stale paths.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

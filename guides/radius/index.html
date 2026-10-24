@@ -52,7 +52,8 @@
 bcrypt users keep working as the fallback so an unreachable server cannot lock
 you out of the device.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#what-it-does">What it does</a></li>
 <li><a href="#minimal-config">Minimal config</a></li>
 <li><a href="#authentication-flow">Authentication flow</a></li>
@@ -66,9 +67,10 @@ you out of the device.</p>
 <li><a href="#a-config-the-chain-cannot-build">A config the chain cannot build</a></li>
 <li><a href="#readiness-check">Readiness check</a></li>
 <li><a href="#verification">Verification</a></li>
+<li><a href="#metrics">Metrics</a></li>
 <li><a href="#operational-notes">Operational notes</a></li>
 <li><a href="#rfc-reference">RFC reference</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <p>MCP is not on this path. The MCP server authenticates a request against a
 bearer-token digest or an OAuth JWT and never builds an AAA request, so a
 RADIUS operator cannot log in to it.</p>
@@ -353,7 +355,11 @@ Ze signs each request with HMAC-MD5 over the whole packet, keyed with the shared
 secret and with the signature field taken as sixteen zero octets (§3.2). A reply
 whose Message-Authenticator does not verify is <strong>silently discarded</strong>, not
 rejected: the Access-Request stays outstanding and the client retransmits, so a
-forged packet cannot end a login. If the conversation then runs out of retries
+forged packet cannot end a login. A reply that carries an EAP-Message and no
+Message-Authenticator at all is discarded the same way (RFC 3579 §3.1), logged
+with that reason and counted on <code>ze_radius_unsigned_eap_discards_total</code> (see
+<a href="#metrics">Metrics</a>); a
+reply with neither attribute is still accepted, as RFC 2869 §5.14 allows. If the conversation then runs out of retries
 the login fails as an infrastructure error and the chain tries the next backend.</p>
 <p><strong>The EAP header is checked in both directions</strong> (RFC 3579 §2.2). A packet from
 the server whose Length does not fit the octets carried, or an Access-Challenge
@@ -520,6 +526,10 @@ proofs runs the same paths against a real FreeRADIUS server at a pinned tag:</p>
 <td><code>radius-admin-eap-freeradius</code></td>
 <td><code>auth-method eap-mschapv2</code> completes against a server ze did not write: FreeRADIUS computes the Message-Authenticator, the MS-CHAPv2 challenge and the authenticator response from its own code, and its record shows an EAP-Message with neither password attribute beside it and at least one round that carried the State back</td>
 </tr>
+<tr>
+<td><code>radius-admin-eap-unsigned-freeradius</code></td>
+<td>An EAP answer without a Message-Authenticator is discarded (RFC 3579 §3.1). FreeRADIUS always signs, so a relay in its container removes the attribute from its real answers: with the attribute left in place the same login completes, with it removed ze discards the Access-Challenge, logs the reason, steps <code>ze_radius_unsigned_eap_discards_total</code>, and the login fails</td>
+</tr>
 </tbody>
 </table>
 <p>Run them with <code>./le test integration interop-radius</code>, or one at a time with
@@ -539,6 +549,19 @@ bcrypt user accepted the credentials.</p>
 <!-- source: internal/test/mock/radius/eap.go -- the mock's EAP branch: buildEAPResponse, verifyRequestSignature -->
 <!-- source: internal/le/interoplab/radius/checkers.go -- what each FreeRADIUS scenario asserts -->
 <!-- source: test/interop-radius/scenarios/ -- the four interop scenario directories -->
+<h2 id="metrics">Metrics</h2>
+<ul>
+<li><code>ze_radius_unsigned_eap_discards_total</code> -- answers that carried an
+EAP-Message and no Message-Authenticator, discarded under RFC 3579
+Section 3.1. One series serves every RADIUS client in the daemon, the admin
+login backend and the subscriber authentication plugin alike. A discard
+sends nothing to the server, so the client retransmits and the login
+eventually fails as an infrastructure error; this counter and the
+<code>radius: discarding the answer</code> warning are how an operator tells that
+apart from an unreachable server. The series appears once telemetry is
+enabled.</li>
+</ul>
+<!-- source: internal/component/radius/metrics.go -- bindRadiusMetrics, countUnsignedEAPDiscard -->
 <h2 id="operational-notes">Operational notes</h2>
 <ul>
 <li><strong>Shared secrets</strong> are stored as <code>$9$</code>-encoded ciphertext, never as
@@ -561,7 +584,8 @@ authenticate and you are never locked out.</li>
 <li>RFC 2865 -- Remote Authentication Dial In User Service (RADIUS).
 Local summary: <code>rfc/short/rfc2865.md</code>.</li>
 </ul>
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -603,7 +627,7 @@ Local summary: <code>rfc/short/rfc2865.md</code>.</li>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

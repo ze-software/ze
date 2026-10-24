@@ -63,9 +63,9 @@
 .rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
 .rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
 .rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
-.rfc-ok { border-left: 7px solid var(--teal-base); }
+.rfc-ok { border-left: 7px solid var(--green); }
 .rfc-neutral { border-left: 7px solid var(--line-strong); }
-.rfc-warn { border-left: 7px solid var(--gold-base); }
+.rfc-warn { border-left: 7px solid var(--amber); }
 .rfc-bad { border-left: 7px solid var(--danger-deep); }
 .rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
 .rfc-tape span { width: var(--w); min-width: 0; display: block; }
@@ -80,11 +80,11 @@
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-partial-scope { background: var(--danger-deep); }
-.rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
+.rfc-tape-one_polarity_unexcused { background: var(--amber); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
-.rfc-swatch.rfc-ok { background: var(--teal-base); }
+.rfc-swatch.rfc-ok { background: var(--green); }
 .rfc-swatch.rfc-neutral { background: var(--line-strong); }
-.rfc-swatch.rfc-warn { background: var(--gold-base); }
+.rfc-swatch.rfc-warn { background: var(--amber); }
 .rfc-swatch.rfc-bad { background: var(--danger-deep); }
 .rfc-total td { border-top: 2px solid var(--line-strong); }
 .rfc-prose { max-width: 46rem; }
@@ -110,7 +110,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 .rfc-note-box { margin: 1rem 0; padding: 1rem 1.2rem; border-radius: 16px; background: var(--gold-tint); border: 1px solid var(--gold-chip); }
 .rfc-note-box h3 { margin-top: 0; }
 .rfc-note-box ul { margin-bottom: 0; }
-.rfc-check-ok strong { color: var(--teal-deep); }
+.rfc-check-ok strong { color: var(--green); }
 .rfc-check-bad strong { color: var(--danger-deep); }
 </style>
 <section><h2>Overview</h2>
@@ -121,7 +121,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>1.0%</strong><b>1 of 103 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 103 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 103 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>90.5%</strong><b>38 of 42 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>69.0%</strong><b>29 of 42 tagged units, 0 escaped and 9 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -1802,7 +1802,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>No test carries RFC7432-7.9-3, so no unit is bound to it.</p>
 <h3><a href="#rfc7432-5-1"><code>RFC7432-5-1</code></a></h3>
 <p>The Ethernet Segment Identifier (ESI) MUST be set to the 10-octet value described in Section 5. (§8.1.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. row now quotes the §8.1.1 sentence that the ESI MUST be the 10-octet value of §5 (the extraction maps 8.1.1:2 here). types_test.go::TestEVPNESIIsTenOctets decodes and re-encodes a 10-octet ESI on the Ethernet Segment and Ethernet A-D routes and asserts the following field starts after octet ten; the negatives cut the ESI to nine octets and assert ErrEVPNTruncated. ESI is a [10]byte, so no origination path can produce another width</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNESIIsTenOctets, internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNESIIsTenOctets#2, internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNESIIsTenOctets#3, internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNESIIsTenOctets#4 moved. row now quotes the §8.1.1 sentence that the ESI MUST be the 10-octet value of §5 (the extraction maps 8.1.1:2 here). types_test.go::TestEVPNESIIsTenOctets decodes and re-encodes a 10-octet ESI on the Ethernet Segment and Ethernet A-D routes and asserts the following field starts after octet ten; the negatives cut the ESI to nine octets and assert ErrEVPNTruncated. ESI is a [10]byte, so no origination path can produce another width</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1826,7 +1826,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>No test carries RFC7432-8.2.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc7432-8.2.1-2"><code>RFC7432-8.2.1-2</code></a></h3>
 <p>The MPLS label in the NLRI MUST be set to 0. (§8.2.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-18 (independent auditor, after 0411b53e91). RFC 7432 Section 8.2.1: &#34;The MPLS label in the NLRI MUST be set to 0.&#34; Stale only because 0411b53e91 replaced the redundancy-mode argument with a routeIntent struct (redundancyMode plus overlayIndex) through parseL2VPNArgs, l2vpnRouteToEVPNParams, parseConfigRoute and EncodeRoute; the new overlay-index guard refuses only a named selector on a non-ip-prefix route and never touches the Ethernet A-D path. The tagged test units did not change. The zero-label check in ValidateEVPNOriginationMode (nlris[24]|nlris[25]|nlris[26] != 0 on MAX-ET Type 1) is unchanged and both producers still call it. Fresh overlay mutant disabling that check reddens TestConfiguredEVPNRefusesInvalidPerESRoute and TestOriginEthernetADPerESRefusesLabelStack while the positives TestConfiguredEVPNPerESRoute and TestOriginEthernetADPerESUsesTypeOneRD stay green and still compare the three zero label octets byte for byte.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/plugins/nlri/evpn/config.go::parseConfigRoute moved. Re-judged 2026-10-18 (independent auditor, after 0411b53e91). RFC 7432 Section 8.2.1: &#34;The MPLS label in the NLRI MUST be set to 0.&#34; Stale only because 0411b53e91 replaced the redundancy-mode argument with a routeIntent struct (redundancyMode plus overlayIndex) through parseL2VPNArgs, l2vpnRouteToEVPNParams, parseConfigRoute and EncodeRoute; the new overlay-index guard refuses only a named selector on a non-ip-prefix route and never touches the Ethernet A-D path. The tagged test units did not change. The zero-label check in ValidateEVPNOriginationMode (nlris[24]|nlris[25]|nlris[26] != 0 on MAX-ET Type 1) is unchanged and both producers still call it. Fresh overlay mutant disabling that check reddens TestConfiguredEVPNRefusesInvalidPerESRoute and TestOriginEthernetADPerESRefusesLabelStack while the positives TestConfiguredEVPNPerESRoute and TestOriginEthernetADPerESUsesTypeOneRD stay green and still compare the three zero label octets byte for byte.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1834,7 +1834,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go#L54" title="internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go" target="_blank" rel="noopener"><code>TestConfiguredEVPNRefusesInvalidPerESRoute</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go#L69" title="internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go" target="_blank" rel="noopener"><code>TestOriginEthernetADPerESRefusesLabelStack</code></a></td>
@@ -1844,7 +1844,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go#L35" title="internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go" target="_blank" rel="noopener"><code>TestConfiguredEVPNPerESRoute</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go#L14" title="internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go" target="_blank" rel="noopener"><code>TestOriginEthernetADPerESUsesTypeOneRD</code></a></td>
@@ -1860,7 +1860,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>No test carries RFC7432-8.2.1-3, so no unit is bound to it.</p>
 <h3><a href="#rfc7432-8.2.1-4"><code>RFC7432-8.2.1-4</code></a></h3>
 <p>If All-Active redundancy mode is desired, then the &#34;Single-Active&#34; bit in the flags of the ESI Label extended community MUST be set to 0 and the MPLS label in that Extended Community MUST be set to a valid MPLS label value. (§8.2.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-18 (independent auditor, after 0411b53e91). RFC 7432 Section 8.2.1: &#34;If All-Active redundancy mode is desired, then the &#34;Single-Active&#34; bit in the flags of the ESI Label extended community MUST be set to 0 and the MPLS label in that Extended Community MUST be set to a valid MPLS label value.&#34; Stale only because 0411b53e91 replaced the redundancy-mode argument with a routeIntent struct (redundancyMode plus overlayIndex) through parseL2VPNArgs, l2vpnRouteToEVPNParams, parseConfigRoute and EncodeRoute; the new overlay-index guard refuses only a named selector on a non-ip-prefix route and never touches the Ethernet A-D path. The tagged test units did not change. Both clauses stay proven as before (flag and valid-label refusals with exact text, flag-0 bytes and labels 16/1048575 accepted). Fresh overlay mutants (tags ze_core ze_bgp): parseConfigRoute passing an intent without the mode reddens TestConfiguredEVPNRefusesPerESRedundancyMismatch; EncodeRoute passing an intent without the mode reddens TestOriginPerESRedundancyModeRefused; l2vpnRouteToEVPNParams dropping intent.redundancyMode reddens both; parseL2VPNArgs mapping single-active to all-active reddens TestOriginPerESRedundancyModeAccepted, TestOriginPerESRedundancyModeRefused and TestConfiguredEVPNRefusesPerESRedundancyMismatch. The message-package tests (TestRFC7432ESILabelRedundancyAccepted/Refused) are untouched by the change. Earlier open item unchanged: the config-path positive is only the untagged test/encode/evpn-per-es-redundancy-mode.ci, and the bgp-evpn-gobgp interop still owes its red proof.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/plugins/nlri/evpn/config.go::parseConfigRoute, internal/component/bgp/plugins/nlri/evpn/encode.go::l2vpnRouteToEVPNParams moved. Re-judged 2026-10-18 (independent auditor, after 0411b53e91). RFC 7432 Section 8.2.1: &#34;If All-Active redundancy mode is desired, then the &#34;Single-Active&#34; bit in the flags of the ESI Label extended community MUST be set to 0 and the MPLS label in that Extended Community MUST be set to a valid MPLS label value.&#34; Stale only because 0411b53e91 replaced the redundancy-mode argument with a routeIntent struct (redundancyMode plus overlayIndex) through parseL2VPNArgs, l2vpnRouteToEVPNParams, parseConfigRoute and EncodeRoute; the new overlay-index guard refuses only a named selector on a non-ip-prefix route and never touches the Ethernet A-D path. The tagged test units did not change. Both clauses stay proven as before (flag and valid-label refusals with exact text, flag-0 bytes and labels 16/1048575 accepted). Fresh overlay mutants (tags ze_core ze_bgp): parseConfigRoute passing an intent without the mode reddens TestConfiguredEVPNRefusesPerESRedundancyMismatch; EncodeRoute passing an intent without the mode reddens TestOriginPerESRedundancyModeRefused; l2vpnRouteToEVPNParams dropping intent.redundancyMode reddens both; parseL2VPNArgs mapping single-active to all-active reddens TestOriginPerESRedundancyModeAccepted, TestOriginPerESRedundancyModeRefused and TestConfiguredEVPNRefusesPerESRedundancyMismatch. The message-package tests (TestRFC7432ESILabelRedundancyAccepted/Refused) are untouched by the change. Earlier open item unchanged: the config-path positive is only the untagged test/encode/evpn-per-es-redundancy-mode.ci, and the bgp-evpn-gobgp interop still owes its red proof.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1873,7 +1873,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_redundancy_mode_test.go#L84" title="internal/component/bgp/plugins/nlri/evpn/rfc7432_redundancy_mode_test.go" target="_blank" rel="noopener"><code>TestConfiguredEVPNRefusesPerESRedundancyMismatch</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_redundancy_mode_test.go#L53" title="internal/component/bgp/plugins/nlri/evpn/rfc7432_redundancy_mode_test.go" target="_blank" rel="noopener"><code>TestOriginPerESRedundancyModeRefused</code></a></td>
@@ -1907,7 +1907,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>No test carries RFC7432-8.2.1-6, so no unit is bound to it.</p>
 <h3><a href="#rfc7432-8.2.1-7"><code>RFC7432-8.2.1-7</code></a></h3>
 <p>If Single-Active redundancy mode is desired, then the &#34;Single-Active&#34; bit in the flags of the ESI Label extended community MUST be set to 1 (§8.2.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-18 (independent auditor, after 0411b53e91). RFC 7432 Section 8.2.1: &#34;If Single-Active redundancy mode is desired, then the &#34;Single-Active&#34; bit in the flags of the ESI Label extended community MUST be set to 1 and the ESI label SHOULD be set to a valid MPLS label value.&#34; Only the MUST is the row. Stale only because 0411b53e91 replaced the redundancy-mode argument with a routeIntent struct (redundancyMode plus overlayIndex) through parseL2VPNArgs, l2vpnRouteToEVPNParams, parseConfigRoute and EncodeRoute; the new overlay-index guard refuses only a named selector on a non-ip-prefix route and never touches the Ethernet A-D path. The tagged test units did not change. Fresh overlay mutants (tags ze_core ze_bgp): parseConfigRoute passing an intent without the mode reddens TestConfiguredEVPNRefusesPerESRedundancyMismatch; EncodeRoute passing an intent without the mode reddens TestOriginPerESRedundancyModeRefused; l2vpnRouteToEVPNParams dropping intent.redundancyMode reddens both; parseL2VPNArgs mapping single-active to all-active reddens TestOriginPerESRedundancyModeAccepted, TestOriginPerESRedundancyModeRefused and TestConfiguredEVPNRefusesPerESRedundancyMismatch. The message-package tests (TestRFC7432ESILabelRedundancyAccepted/Refused) are untouched by the change. Earlier open item unchanged: the config-path positive is only the untagged test/encode/evpn-per-es-redundancy-mode.ci, and the bgp-evpn-gobgp interop still owes its red proof.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/plugins/nlri/evpn/config.go::parseConfigRoute, internal/component/bgp/plugins/nlri/evpn/encode.go::l2vpnRouteToEVPNParams moved. Re-judged 2026-10-18 (independent auditor, after 0411b53e91). RFC 7432 Section 8.2.1: &#34;If Single-Active redundancy mode is desired, then the &#34;Single-Active&#34; bit in the flags of the ESI Label extended community MUST be set to 1 and the ESI label SHOULD be set to a valid MPLS label value.&#34; Only the MUST is the row. Stale only because 0411b53e91 replaced the redundancy-mode argument with a routeIntent struct (redundancyMode plus overlayIndex) through parseL2VPNArgs, l2vpnRouteToEVPNParams, parseConfigRoute and EncodeRoute; the new overlay-index guard refuses only a named selector on a non-ip-prefix route and never touches the Ethernet A-D path. The tagged test units did not change. Fresh overlay mutants (tags ze_core ze_bgp): parseConfigRoute passing an intent without the mode reddens TestConfiguredEVPNRefusesPerESRedundancyMismatch; EncodeRoute passing an intent without the mode reddens TestOriginPerESRedundancyModeRefused; l2vpnRouteToEVPNParams dropping intent.redundancyMode reddens both; parseL2VPNArgs mapping single-active to all-active reddens TestOriginPerESRedundancyModeAccepted, TestOriginPerESRedundancyModeRefused and TestConfiguredEVPNRefusesPerESRedundancyMismatch. The message-package tests (TestRFC7432ESILabelRedundancyAccepted/Refused) are untouched by the change. Earlier open item unchanged: the config-path positive is only the untagged test/encode/evpn-per-es-redundancy-mode.ci, and the bgp-evpn-gobgp interop still owes its red proof.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1920,7 +1920,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_redundancy_mode_test.go#L86" title="internal/component/bgp/plugins/nlri/evpn/rfc7432_redundancy_mode_test.go" target="_blank" rel="noopener"><code>TestConfiguredEVPNRefusesPerESRedundancyMismatch</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_redundancy_mode_test.go#L56" title="internal/component/bgp/plugins/nlri/evpn/rfc7432_redundancy_mode_test.go" target="_blank" rel="noopener"><code>TestOriginPerESRedundancyModeRefused</code></a></td>
@@ -2008,7 +2008,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>No test carries RFC7432-11-1, so no unit is bound to it.</p>
 <h3><a href="#rfc7432-9.2.1-1"><code>RFC7432-9.2.1-1</code></a></h3>
 <p>The encoding of a MAC address MUST be the 6-octet MAC address specified by [802.1Q] and [802.1D-REV]. (§9.2.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 7432 §9.2.1: &#34;The MAC Address Length field is in bits, and it is set to 48. MAC address length values other than 48 bits are outside the scope of this document. The encoding of a MAC address MUST be the 6-octet MAC address specified by [802.1Q] and [802.1D-REV].&#34; Read its sole tagged carrier internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNMACAddressLength and repaired shared helper evpnT2Body. The positive now supplies a complete Type-2 MAC-only route including mandatory Label1 00 01 01, requires decoded MAC 00:11:22:33:44:55, then independently pins the output length octet to 48 and the exact six MAC octets. The negative cases change only MAC length to 0/32/47/49/64/255 and require ErrEVPNInvalidAddress, preserving a valid zero-length optional IP field and label. types.go::parseEVPNType2 checks 48 before copying six bytes, and EVPNType2.WriteTo always emits 48 and the six-byte MAC. Thus the assertions implement the RFC&#39;s six-octet format, fail on altered width/content, isolate the MAC rule after the label repair, and cover the whole selected encoding obligation. One positive and one negative tag refer to distinct subcases, not the same assertion twice. Rejecting out-of-scope widths is a local validation boundary, not an invented RFC requirement for future MAC formats. Prior enforced judgment remains enforced after independent semantic rereading; no runtime execution or new discrimination record is claimed.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNMACAddressLength, internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNMACAddressLength#2 moved. RFC 7432 §9.2.1: &#34;The MAC Address Length field is in bits, and it is set to 48. MAC address length values other than 48 bits are outside the scope of this document. The encoding of a MAC address MUST be the 6-octet MAC address specified by [802.1Q] and [802.1D-REV].&#34; Read its sole tagged carrier internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNMACAddressLength and repaired shared helper evpnT2Body. The positive now supplies a complete Type-2 MAC-only route including mandatory Label1 00 01 01, requires decoded MAC 00:11:22:33:44:55, then independently pins the output length octet to 48 and the exact six MAC octets. The negative cases change only MAC length to 0/32/47/49/64/255 and require ErrEVPNInvalidAddress, preserving a valid zero-length optional IP field and label. types.go::parseEVPNType2 checks 48 before copying six bytes, and EVPNType2.WriteTo always emits 48 and the six-byte MAC. Thus the assertions implement the RFC&#39;s six-octet format, fail on altered width/content, isolate the MAC rule after the label repair, and cover the whole selected encoding obligation. One positive and one negative tag refer to distinct subcases, not the same assertion twice. Rejecting out-of-scope widths is a local validation boundary, not an invented RFC requirement for future MAC formats. Prior enforced judgment remains enforced after independent semantic rereading; no runtime execution or new discrimination record is claimed.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -2048,7 +2048,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>No test carries RFC7432-8.4.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc7432-10-1"><code>RFC7432-10-1</code></a></h3>
 <p>For ARP and ND purposes, the IP Address Length field MUST be set to 32 for an IPv4 address or 128 for an IPv6 address. (§10)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 7432 §10: &#34;For ARP and ND purposes, the IP Address Length field MUST be set to 32 for an IPv4 address or 128 for an IPv6 address.&#34; Independently reread both current tagged carriers after the parent repaired their shared fixture. internal/component/bgp/plugins/nlri/evpn/rfc7432_ip_length_send_test.go::TestRFC7432MACIPSenderUsesBitLengths pins the sender&#39;s raw octet 31 to 32/128, exact IPv4/IPv6 address octets, complete length and mandatory Label1=100 bytes. types_test.go::TestEVPNIPAddressLength separately accepts literal IPv4/IPv6 layouts with the exact decoded address and refuses non-0/32/128 lengths with ErrEVPNInvalidAddress. Its evpnT2Body now includes valid mandatory Label1 bytes 00 01 01 after the IP field; the former missing-label confound is gone. The absent-IP control is permitted by §9.2.1, not an exception to §10&#39;s present-IP obligation. Producers types.go::NewEVPNType2/EVPNType2.WriteTo choose bit lengths independently of parseEVPNType2&#39;s literal 0/32/128 branches. Exact raw sender expectations distinguish bits from octets, while parser negatives vary the tested length and retain valid surrounding fields. Current tags are two positive and one negative, backed by distinct conforming and invalid-length cases. The entire selected length obligation is now enforced at source level; no new runtime success or observed producer-break red is asserted. This fixture repair does not authorize EVPN forwarding or label-allocation features.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNIPAddressLength, internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNIPAddressLength#2 moved. RFC 7432 §10: &#34;For ARP and ND purposes, the IP Address Length field MUST be set to 32 for an IPv4 address or 128 for an IPv6 address.&#34; Independently reread both current tagged carriers after the parent repaired their shared fixture. internal/component/bgp/plugins/nlri/evpn/rfc7432_ip_length_send_test.go::TestRFC7432MACIPSenderUsesBitLengths pins the sender&#39;s raw octet 31 to 32/128, exact IPv4/IPv6 address octets, complete length and mandatory Label1=100 bytes. types_test.go::TestEVPNIPAddressLength separately accepts literal IPv4/IPv6 layouts with the exact decoded address and refuses non-0/32/128 lengths with ErrEVPNInvalidAddress. Its evpnT2Body now includes valid mandatory Label1 bytes 00 01 01 after the IP field; the former missing-label confound is gone. The absent-IP control is permitted by §9.2.1, not an exception to §10&#39;s present-IP obligation. Producers types.go::NewEVPNType2/EVPNType2.WriteTo choose bit lengths independently of parseEVPNType2&#39;s literal 0/32/128 branches. Exact raw sender expectations distinguish bits from octets, while parser negatives vary the tested length and retain valid surrounding fields. Current tags are two positive and one negative, backed by distinct conforming and invalid-length cases. The entire selected length obligation is now enforced at source level; no new runtime success or observed producer-break red is asserted. This fixture repair does not authorize EVPN forwarding or label-allocation features.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -2321,7 +2321,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go#L34" title="internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go" target="_blank" rel="noopener"><code>TestConfiguredEVPNPerESRoute</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go#L13" title="internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go" target="_blank" rel="noopener"><code>TestOriginEthernetADPerESUsesTypeOneRD</code></a></td>
@@ -2346,7 +2346,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go#L55" title="internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go" target="_blank" rel="noopener"><code>TestConfiguredEVPNRefusesInvalidPerESRoute</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go#L34" title="internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go" target="_blank" rel="noopener"><code>TestOriginEthernetADPerESRefusesASTypeRD</code></a></td>
@@ -2356,7 +2356,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go#L36" title="internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go" target="_blank" rel="noopener"><code>TestConfiguredEVPNPerESRoute</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go#L15" title="internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go" target="_blank" rel="noopener"><code>TestOriginEthernetADPerESUsesTypeOneRD</code></a></td>
@@ -2444,7 +2444,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go#L83" title="internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go" target="_blank" rel="noopener"><code>TestConfiguredEVPNIMETRefusesMissingRouteTarget</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go#L59" title="internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go" target="_blank" rel="noopener"><code>TestOriginInclusiveMulticastRefusesMissingRouteTarget</code></a></td>
@@ -2454,7 +2454,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go#L66" title="internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go" target="_blank" rel="noopener"><code>TestConfiguredEVPNIMETOriginatorIsNotNextHop</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go#L47" title="internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go" target="_blank" rel="noopener"><code>TestOriginInclusiveMulticastIncludesRouteTarget</code></a></td>
@@ -3166,7 +3166,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

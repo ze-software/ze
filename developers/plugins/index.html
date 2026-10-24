@@ -49,12 +49,13 @@
     <h1 id="plugin-development">Plugin Development</h1>
     <p>Ze plugins receive events, add configuration and commands, validate or apply configuration changes, implement address families and capabilities, and call the shared command dispatcher. External and in-process plugins use the same five-stage registration model.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#start-here">Start here</a></li>
 <li><a href="#guide-set">Guide set</a></li>
 <li><a href="#security-model">Security model</a></li>
 <li><a href="#development-workflow">Development workflow</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <h2 id="start-here">Start here</h2>
 <p>The public Go SDK is <code>pkg/plugin/sdk</code>. An external plugin normally:</p>
 <ol>
@@ -146,7 +147,8 @@ func main() {
 <li>Check command discovery, YANG registration, events, shutdown, and reload.</li>
 </ol>
 <p>Do not invent a private configuration parser, command transport, or metrics server. Register with the shared engine so the same surface remains available through CLI, web, REST, gRPC, and MCP.</p>
-
+</div>
+</div>
             </section>
         </main>
 
@@ -156,7 +158,7 @@ func main() {
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

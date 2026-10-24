@@ -51,7 +51,8 @@
 <strong>offline doctor checks</strong> (pre-start readiness) and <strong>runtime health monitoring</strong>
 (continuous anomaly detection during operation).</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#offline-ze-doctor">Offline: ze doctor</a>
 <ol>
 <li><a href="#checks">Checks</a></li>
@@ -71,7 +72,7 @@
 <li><a href="#external-plugins-rpc">External plugins (RPC)</a></li>
 <li><a href="#requirements">Requirements</a></li>
 </ol></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <h2 id="offline-ze-doctor">Offline: <code>ze doctor</code></h2>
 <p>Run <code>ze doctor</code> before starting the daemon to verify the environment is ready.
 Add <code>--json</code> for machine-readable output with stable diagnostic codes.</p>
@@ -263,7 +264,7 @@ when any component is <code>down</code>.</p>
 </tr>
 <tr>
 <td><code>vpp</code></td>
-<td>VPP API socket reachability (when present)</td>
+<td>Present only while <code>interface { backend vpp; }</code> is the loaded backend. Down, with the socket path and <code>ze doctor</code> as the next step, when the vpp component is not running, the configured <code>vpp { api-socket }</code> does not exist, or it refuses connections <!-- source: internal/plugins/iface/vpp/health.go -- checkVPPHealth, vppHealthApplies --></td>
 </tr>
 <tr>
 <td><code>ipsec</code></td>
@@ -275,7 +276,7 @@ when any component is <code>down</code>.</p>
 </tr>
 <tr>
 <td><code>l2tp</code></td>
-<td>L2TP subsystem availability</td>
+<td>L2TP subsystem running, and every listener programming sessions into the kernel data plane. Degraded, with the reason and <code>ze doctor</code> to check the kernel modules, when the l2tp generic netlink family could not be resolved, <code>ze.l2tp.disable-kernel-dataplane</code> is set, or the platform is not Linux <!-- source: internal/component/l2tp/health.go -- checkHealth, dataPlaneHealth --></td>
 </tr>
 <tr>
 <td><code>flow-export</code></td>
@@ -289,7 +290,11 @@ when any component is <code>down</code>.</p>
 </table>
 <!-- source: internal/plugins/flowexport/health.go -- RegisterHealthCheck, checkFlowExportHealth; internal/core/report/register.go -- init -->
 <p>Each check completes within 1 second. Components report <code>healthy</code>, <code>degraded</code>,
-or <code>down</code>. The overall status is the worst of all components.</p>
+or <code>down</code>. The overall status is the worst of all components. A component that
+has nothing to measure on this host, such as <code>vpp</code> when another interface
+backend is loaded, has no row at all rather than a <code>healthy</code> row nobody
+measured.</p>
+<!-- source: internal/core/health/registry.go -- RegisterWhen, invokeCheck -->
 <!-- The health-reports demo is not embedded while its recording is wrong. The
      tape drives an SSH session whose commands the CLI answers with a completion
      listing rather than a result, so the recording shows the intro card, a
@@ -499,7 +504,8 @@ one fact, and <code>./le arch enumeration check</code> refuses it.</li>
 <li>Include a unit test proving the check fires when the relevant config
 is present and emits the registered code.</li>
 </ol>
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -541,7 +547,7 @@ is present and emits the registered code.</li>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

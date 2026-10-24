@@ -91,16 +91,20 @@ when any component is `down`.
 | `firewall` | Stale ze_* tables, chain drift vs config, a ze_* table the kernel lost, and an audit that could not read the kernel |
 | `iface` | RX/TX error counter increases |
 | `plugins` | Plugin crashes and disabled-by-respawn-limit |
-| `vpp` | VPP API socket reachability (when present) |
+| `vpp` | Present only while `interface { backend vpp; }` is the loaded backend. Down, with the socket path and `ze doctor` as the next step, when the vpp component is not running, the configured `vpp { api-socket }` does not exist, or it refuses connections <!-- source: internal/plugins/iface/vpp/health.go -- checkVPPHealth, vppHealthApplies --> |
 | `ipsec` | IPsec SA state |
 | `pki` | Certificate expiry |
-| `l2tp` | L2TP subsystem availability |
+| `l2tp` | L2TP subsystem running, and every listener programming sessions into the kernel data plane. Degraded, with the reason and `ze doctor` to check the kernel modules, when the l2tp generic netlink family could not be resolved, `ze.l2tp.disable-kernel-dataplane` is set, or the platform is not Linux <!-- source: internal/component/l2tp/health.go -- checkHealth, dataPlaneHealth --> |
 | `flow-export` | Exporter state and collector send errors |
 | `report-bus` | Report bus registration |
 
 <!-- source: internal/plugins/flowexport/health.go -- RegisterHealthCheck, checkFlowExportHealth; internal/core/report/register.go -- init -->
 Each check completes within 1 second. Components report `healthy`, `degraded`,
-or `down`. The overall status is the worst of all components.
+or `down`. The overall status is the worst of all components. A component that
+has nothing to measure on this host, such as `vpp` when another interface
+backend is loaded, has no row at all rather than a `healthy` row nobody
+measured.
+<!-- source: internal/core/health/registry.go -- RegisterWhen, invokeCheck -->
 
 <!-- The health-reports demo is not embedded while its recording is wrong. The
      tape drives an SSH session whose commands the CLI answers with a completion

@@ -49,7 +49,8 @@
     <h1 id="as112">AS112</h1>
     <p>Ze's <code>as112</code> plugin runs an AS112 anycast DNS node: an authoritative sink for misdirected RFC 1918 and link-local reverse-DNS queries (RFC 7534), plus the EMPTY.AS112.ARPA DNAME-redirection sink (RFC 7535). It answers on four fixed anycast host addresses, so the plugin config never needs an operator-supplied service IP.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#quick-start">Quick Start</a></li>
 <li><a href="#configuration-reference">Configuration Reference</a></li>
 <li><a href="#answer-policy">Answer Policy</a>
@@ -67,7 +68,7 @@
 </ol></li>
 <li><a href="#rfc-compliance-mapping">RFC Compliance Mapping</a></li>
 <li><a href="#known-limitations">Known Limitations</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <!-- source: internal/plugins/as112/register.go -- as112 registration -->
 <h2 id="quick-start">Quick Start</h2>
 <pre><code>service {
@@ -553,7 +554,8 @@ bgp {
 <li>This plugin ships no executable BGP integration code. Operators hand-author the <code>healthcheck</code>/<code>update</code> composition from the worked example above; there is no single turnkey <code>as112 { bgp { ... } }</code> config block.</li>
 <li>Two RFC 7534 SHOULDs cannot be enforced in software (RFC Compliance Mapping #5 and #14 above): dedicating the host to AS112 purpose, and community notification before installing a globally-reachable node. These are deployment/process responsibilities, documented here rather than coded.</li>
 </ul>
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -595,7 +597,7 @@ bgp {
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

@@ -52,7 +52,8 @@
     <p>Ze commands fall into two categories: <strong>shell commands</strong> that run locally
 and <strong>runtime commands</strong> sent to the running daemon via SSH.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#conventions">Conventions</a></li>
 <li><a href="#shell-commands">Shell Commands</a>
 <ol>
@@ -189,7 +190,7 @@ and <strong>runtime commands</strong> sent to the running daemon via SSH.</p>
 <ol>
 <li><a href="#ai-integration-flags">AI Integration Flags</a></li>
 </ol></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <!-- source: cmd/ze/main.go -- main dispatch -->
 <p>This page explains the command model. For a live list of every command, run
 <code>ze help command</code>. <code>./le cli catalog update file &lt;destination&gt;</code> writes the
@@ -390,7 +391,7 @@ rejected with one error per offending YANG path, matching the diagnostic
 the running daemon produces on reload. See
 <a href="../configuration-model/#backend-capability-errors">Backend Capability Errors</a>.</p>
 <!-- source: internal/component/config/cli/cmd_validate.go -- cmdValidate, backend-gate loop -->
-<!-- source: internal/component/config/backend_gate.go -- ValidateBackendFeatures -->
+<!-- source: internal/component/config/backend_gate.go -- validateBackendFeatures -->
 <h3 id="ze-config">ze config</h3>
 <p>Configuration management.</p>
 <p><strong>Editing:</strong></p>
@@ -1100,7 +1101,7 @@ the JSON shapes are identical either way.</p>
 </tr>
 <tr>
 <td><code>thermal</code></td>
-<td><code>sensors[]</code> (hwmon: <code>name</code>, <code>device</code>, <code>temp-mc</code>, <code>alarm</code>), <code>throttle[]</code> (per-CPU <code>core-throttle-count</code>, <code>package-throttle-count</code>)</td>
+<td><code>sensors[]</code> (hwmon: <code>name</code>, <code>device</code>, <code>temp-mc</code>, <code>alarm</code>; a reading of 0 is listed as 0), <code>throttle[]</code> (per-CPU <code>core-throttle-count</code>, <code>package-throttle-count</code>), <code>errors[]</code> (<code>path</code>, <code>error</code>: a hwmon channel whose value could not be read, so it has no entry in <code>sensors[]</code>)</td>
 </tr>
 <tr>
 <td><code>storage</code></td>
@@ -2601,6 +2602,7 @@ ze delete debug profile name &lt;name&gt;              # Delete a named profile
 ze clear debug                                   # Clear the default profile
 ze set debug timeout &lt;duration&gt;                  # Auto-disable timer (e.g. 30m, 1h, 90s; 0=off)
 </code></pre>
+<p>Each command sets or removes one option. A word after that option is refused with an error naming it (<code>set debug module m level debug flag x</code> names <code>flag</code>), so run one command per option.</p>
 <p>Hierarchical prefixes work: <code>ze set debug module bgp</code> covers all bgp.* subsystems.
 Not auto-applied on reboot (safety). Use <code>ze set debug active name &lt;name&gt;</code> after restart.
 Each plugin declares valid flags via the debug YANG registry; invalid flags are rejected.
@@ -3322,7 +3324,7 @@ format is rendered in the configured default, the <code>environment cli format d
 <tr>
 <td><code>show bgp peer list</code></td>
 <td>read-only</td>
-<td>List all peers (IP, ASN, state, uptime)</td>
+<td>List all peers (IP, ASN, state, uptime). A dynamic peer whose OPEN has not arrived has no AS yet, so its row carries no <code>remote-as</code> rather than AS 0; <code>show bgp</code>, <code>show bgp peer &lt;sel&gt; detail</code> and the <code>as</code> of <code>show bgp health</code> do the same <!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- setRemoteAS; internal/component/bgp/plugins/cmd/peer/health.go -- handleShowBGPHealth --></td>
 </tr>
 <tr>
 <td><code>show bgp peer &lt;sel&gt; detail</code></td>
@@ -4677,7 +4679,8 @@ reaches, where the daemon expands the chain.</p>
 ./le chaos run --ai-help                           # Print tool schemas
 </code></pre>
 <!-- source: internal/chaos/orchestrator/cli.go -- CLI flags -->
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -4719,7 +4722,7 @@ reaches, where the daemon expands the chain.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

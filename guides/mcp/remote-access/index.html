@@ -52,7 +52,8 @@
     <p>Ze's MCP server defaults to loopback binding (<code>127.0.0.1</code>). Two patterns make
 it reachable from other machines:</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#option-1-tunnel-based-loopback-binding">Option 1: Tunnel-based (loopback binding)</a></li>
 <li><a href="#starting-the-mcp-server">Starting the MCP Server</a></li>
 <li><a href="#ssh-port-forwarding">SSH Port Forwarding</a>
@@ -75,7 +76,7 @@ it reachable from other machines:</p>
 <li><a href="#config-verify-rejects-unsafe-combinations">Config verify rejects unsafe combinations</a></li>
 </ol></li>
 <li><a href="#security-notes">Security Notes</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <ol>
 <li><strong>Tunnel-based</strong> (recommended for dev): keep MCP on loopback, use SSH or
 WireGuard as the encrypted transport. Operator does not have to manage
@@ -392,7 +393,8 @@ Rejected bearer credentials do not become audit actor names.</li>
 <li>JWKS refresh is rate-limited to 30 s minimum interval; an unknown-kid
 spray cannot trigger a JWKS-fetch flood against the AS.</li>
 </ul>
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -434,7 +436,7 @@ spray cannot trigger a JWKS-fetch flood against the AS.</li>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

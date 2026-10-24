@@ -63,9 +63,9 @@
 .rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
 .rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
 .rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
-.rfc-ok { border-left: 7px solid var(--teal-base); }
+.rfc-ok { border-left: 7px solid var(--green); }
 .rfc-neutral { border-left: 7px solid var(--line-strong); }
-.rfc-warn { border-left: 7px solid var(--gold-base); }
+.rfc-warn { border-left: 7px solid var(--amber); }
 .rfc-bad { border-left: 7px solid var(--danger-deep); }
 .rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
 .rfc-tape span { width: var(--w); min-width: 0; display: block; }
@@ -80,11 +80,11 @@
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-partial-scope { background: var(--danger-deep); }
-.rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
+.rfc-tape-one_polarity_unexcused { background: var(--amber); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
-.rfc-swatch.rfc-ok { background: var(--teal-base); }
+.rfc-swatch.rfc-ok { background: var(--green); }
 .rfc-swatch.rfc-neutral { background: var(--line-strong); }
-.rfc-swatch.rfc-warn { background: var(--gold-base); }
+.rfc-swatch.rfc-warn { background: var(--amber); }
 .rfc-swatch.rfc-bad { background: var(--danger-deep); }
 .rfc-total td { border-top: 2px solid var(--line-strong); }
 .rfc-prose { max-width: 46rem; }
@@ -110,7 +110,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 .rfc-note-box { margin: 1rem 0; padding: 1rem 1.2rem; border-radius: 16px; background: var(--gold-tint); border: 1px solid var(--gold-chip); }
 .rfc-note-box h3 { margin-top: 0; }
 .rfc-note-box ul { margin-bottom: 0; }
-.rfc-check-ok strong { color: var(--teal-deep); }
+.rfc-check-ok strong { color: var(--green); }
 .rfc-check-bad strong { color: var(--danger-deep); }
 </style>
 <section><h2>Overview</h2>
@@ -121,7 +121,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>11.1%</strong><b>1 of 9 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>55.2%</strong><b>16 of 29 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>48.3%</strong><b>14 of 29 tagged units, 0 escaped and 2 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -637,7 +637,7 @@ RFC 8955 and RFC 9117 supply the current validation rules. The native codec, ret
 </div>
 <h3><a href="#rfc5575-4-8"><code>RFC5575-4-8</code></a></h3>
 <p>Whenever the corresponding application does not require Next-Hop information, this shall be encoded as a 0-octet length Next Hop in the MP_REACH_NLRI attribute and ignored on receipt. (§4)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 5575 Section 4: &#34;Whenever the corresponding application does not require Next-Hop information, this shall be encoded as a 0-octet length Next Hop in the MP_REACH_NLRI attribute and ignored on receipt.&#34; Both clauses remain covered. Producers message/update_build_plugin.go::MPReachCarriesNextHop and reactor/forward_next_hop.go::applyNextHopFamily force zero hop for non-redirect FlowSpec; payloadNextHop does not use the received FlowSpec address as a forwarding gate. plugins/rib/rib_bestchange.go::entryNextHopAddr returns no forwarding address for FlowSpec; rib_flowspec_validation_test.go::TestRFC8955NextHopIgnoredForFlowSpec feeds empty, self and non-address MP bytes alongside a legacy self NEXT_HOP, then requires eligible retained candidates and exactly the same selected NLRI/action event. The legacy condition matters: draft-simpson-idr-flowspec-redirect-02 Section 3 identifies the redirect action target in MP_REACH, so an application requiring that address is outside RFC 5575 zero-hop antecedent. RFC 8955 Section 4 instead says &#34;When advertising Flow Specifications, the Length of the Next-Hop Network Address MUST be set to 0.&#34; and separately &#34;The Network Address of the Next-Hop field MUST be ignored.&#34; Its unconditional transmit rule is stronger; the legacy superseded relationship is navigation, not permission to import the old exception into RFC 8955. No whole-successor-conformance claim follows from this enforced legacy row. Independently read every tag carrier: message/flowspec_wire_contract_test.go::TestFlowSpecUpdateIgnoresConfiguredNextHop, reactor/flowspec_origin_wire_test.go::TestFlowSpecOriginationOmitsConfiguredNextHop, reactor/flowspec_forward_wire_test.go::TestFlowSpecForwardingOmitsNextHop and protected reactor/flowspec_rs_wire_test.go::TestFlowSpecRouteServerOmitsNextHop. The changed forward fixture calls negotiateForwardTestFamilies, which uses capability.Negotiate on explicit MP capabilities and publishes the same negotiated intersection to peer.session and peer.negotiated; it no longer seeds only the peer facade. forwardViaRIB sends non-FlowSpec sections live and relays individual FlowSpec StoredRoute values through reactorAPIAdapter.RelayStoredRoute to forwardUpdateCore. Exact recipient MP_REACH equals AFI/SAFI/zero length/reserved/NLRI, with exact traffic-rate bytes, no substituted withdrawal and the expected message count, for all four families, four rewrite modes and empty/IPv4/IPv6 received fields. Config, API batch and both queued origination writers compare whole TCP frames, including RD/NLRI/actions, with absent/IPv4/IPv6 configured addresses. The protected route-server carrier drives real RIB authorization and recipient TCP and remains unchanged. Native freshness inputs identify pending forward-carrier renewals; this source rejudgment does not claim they have run or passed. Parent must renew applicable proofs and stamp only after integration.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestRFC8955NextHopIgnoredForFlowSpec, internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestRFC8955NextHopIgnoredForFlowSpec#2 moved. RFC 5575 Section 4: &#34;Whenever the corresponding application does not require Next-Hop information, this shall be encoded as a 0-octet length Next Hop in the MP_REACH_NLRI attribute and ignored on receipt.&#34; Both clauses remain covered. Producers message/update_build_plugin.go::MPReachCarriesNextHop and reactor/forward_next_hop.go::applyNextHopFamily force zero hop for non-redirect FlowSpec; payloadNextHop does not use the received FlowSpec address as a forwarding gate. plugins/rib/rib_bestchange.go::entryNextHopAddr returns no forwarding address for FlowSpec; rib_flowspec_validation_test.go::TestRFC8955NextHopIgnoredForFlowSpec feeds empty, self and non-address MP bytes alongside a legacy self NEXT_HOP, then requires eligible retained candidates and exactly the same selected NLRI/action event. The legacy condition matters: draft-simpson-idr-flowspec-redirect-02 Section 3 identifies the redirect action target in MP_REACH, so an application requiring that address is outside RFC 5575 zero-hop antecedent. RFC 8955 Section 4 instead says &#34;When advertising Flow Specifications, the Length of the Next-Hop Network Address MUST be set to 0.&#34; and separately &#34;The Network Address of the Next-Hop field MUST be ignored.&#34; Its unconditional transmit rule is stronger; the legacy superseded relationship is navigation, not permission to import the old exception into RFC 8955. No whole-successor-conformance claim follows from this enforced legacy row. Independently read every tag carrier: message/flowspec_wire_contract_test.go::TestFlowSpecUpdateIgnoresConfiguredNextHop, reactor/flowspec_origin_wire_test.go::TestFlowSpecOriginationOmitsConfiguredNextHop, reactor/flowspec_forward_wire_test.go::TestFlowSpecForwardingOmitsNextHop and protected reactor/flowspec_rs_wire_test.go::TestFlowSpecRouteServerOmitsNextHop. The changed forward fixture calls negotiateForwardTestFamilies, which uses capability.Negotiate on explicit MP capabilities and publishes the same negotiated intersection to peer.session and peer.negotiated; it no longer seeds only the peer facade. forwardViaRIB sends non-FlowSpec sections live and relays individual FlowSpec StoredRoute values through reactorAPIAdapter.RelayStoredRoute to forwardUpdateCore. Exact recipient MP_REACH equals AFI/SAFI/zero length/reserved/NLRI, with exact traffic-rate bytes, no substituted withdrawal and the expected message count, for all four families, four rewrite modes and empty/IPv4/IPv6 received fields. Config, API batch and both queued origination writers compare whole TCP frames, including RD/NLRI/actions, with absent/IPv4/IPv6 configured addresses. The protected route-server carrier drives real RIB authorization and recipient TCP and remains unchanged. Native freshness inputs identify pending forward-carrier renewals; this source rejudgment does not claim they have run or passed. Parent must renew applicable proofs and stamp only after integration.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -650,7 +650,7 @@ RFC 8955 and RFC 9117 supply the current validation rules. The native codec, ret
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L515" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestRFC8955NextHopIgnoredForFlowSpec</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_forward_wire_test.go#L34" title="internal/component/bgp/reactor/flowspec_forward_wire_test.go" target="_blank" rel="noopener"><code>TestFlowSpecForwardingOmitsNextHop</code></a></td>
@@ -675,7 +675,7 @@ RFC 8955 and RFC 9117 supply the current validation rules. The native codec, ret
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L514" title="internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go" target="_blank" rel="noopener"><code>TestRFC8955NextHopIgnoredForFlowSpec</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_forward_wire_test.go#L33" title="internal/component/bgp/reactor/flowspec_forward_wire_test.go" target="_blank" rel="noopener"><code>TestFlowSpecForwardingOmitsNextHop</code></a></td>
@@ -1050,7 +1050,7 @@ RFC 8955 and RFC 9117 supply the current validation rules. The native codec, ret
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

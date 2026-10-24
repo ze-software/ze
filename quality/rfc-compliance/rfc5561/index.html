@@ -63,9 +63,9 @@
 .rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
 .rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
 .rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
-.rfc-ok { border-left: 7px solid var(--teal-base); }
+.rfc-ok { border-left: 7px solid var(--green); }
 .rfc-neutral { border-left: 7px solid var(--line-strong); }
-.rfc-warn { border-left: 7px solid var(--gold-base); }
+.rfc-warn { border-left: 7px solid var(--amber); }
 .rfc-bad { border-left: 7px solid var(--danger-deep); }
 .rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
 .rfc-tape span { width: var(--w); min-width: 0; display: block; }
@@ -80,11 +80,11 @@
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-partial-scope { background: var(--danger-deep); }
-.rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
+.rfc-tape-one_polarity_unexcused { background: var(--amber); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
-.rfc-swatch.rfc-ok { background: var(--teal-base); }
+.rfc-swatch.rfc-ok { background: var(--green); }
 .rfc-swatch.rfc-neutral { background: var(--line-strong); }
-.rfc-swatch.rfc-warn { background: var(--gold-base); }
+.rfc-swatch.rfc-warn { background: var(--amber); }
 .rfc-swatch.rfc-bad { background: var(--danger-deep); }
 .rfc-total td { border-top: 2px solid var(--line-strong); }
 .rfc-prose { max-width: 46rem; }
@@ -110,7 +110,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 .rfc-note-box { margin: 1rem 0; padding: 1rem 1.2rem; border-radius: 16px; background: var(--gold-tint); border: 1px solid var(--gold-chip); }
 .rfc-note-box h3 { margin-top: 0; }
 .rfc-note-box ul { margin-bottom: 0; }
-.rfc-check-ok strong { color: var(--teal-deep); }
+.rfc-check-ok strong { color: var(--green); }
 .rfc-check-bad strong { color: var(--danger-deep); }
 </style>
 <section><h2>Overview</h2>
@@ -255,7 +255,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: ze implements base LDP (RFC 5036) only and has no RFC 5561 capability mechanism. 17 MUST-level rows stand after the 2026-09-21 extraction walk. On 2026-09-21 the owner ruled that every MUST is a requirement until he declines it, so all 17 carry {gap} naming one of two skeleton specs, plan/spec-ldp-capability-advertisement.md and plan/spec-ldp-capability-status-codes.md. Four of them read {not-applicable} against the absent code path until that ruling: RFC5561-3-1 (the F-bit of a Capability Parameter TLV MUST be 0), RFC5561-3-2 (MUST NOT include two instances of one Capability Parameter), RFC5561-4-1 (Backward Compatibility TLVs MUST NOT be included in Capability messages) and RFC5561-4-2 (MUST NOT send a Capability message to a peer that did not advertise Dynamic Capability Announcement). Each cites the absence of any capability-TLV or Capability-message code path in internal/plugins/ldp/wire.go (EncodeInit:293, EncodeTLV:166, DecodeTLV:174, DecodeInit:324) and internal/plugins/ldp/session.go:419 (no 0x0202 encoder; no 0x0506 capability constant exists). The other 13 rows the walk added from §3, §6, §8, §9 and §10, and none carries a test. Three rows the walk deleted because RFC 5561 states no such rule: RFC5561-x-1 (reserved bits zero; the document describes no Reserved field), RFC5561-4-3 (SHOULD support the capability) and RFC5561-3-3 (MAY tear the session down). The two earlier claims this reason made are corrected by the document&#39;s own text: §3 sets the F-bit to 0, not 1, and leaves the U-bit to each capability document, and the Dynamic Capability Announcement Parameter is a MAY in §9, now RFC5561-9-4.</p>
+<p>Enrolled: ze implements base LDP (RFC 5036) only and has no RFC 5561 capability mechanism. 17 MUST-level rows stand after the 2026-09-21 extraction walk. On 2026-09-21 the owner ruled that every MUST is a requirement until he declines it, so all 17 carry {gap} naming one of two skeleton specs, plan/post-release/features/spec-ldp-capability-advertisement.md and plan/release/fixes/spec-ldp-capability-status-codes.md. Four of them read {not-applicable} against the absent code path until that ruling: RFC5561-3-1 (the F-bit of a Capability Parameter TLV MUST be 0), RFC5561-3-2 (MUST NOT include two instances of one Capability Parameter), RFC5561-4-1 (Backward Compatibility TLVs MUST NOT be included in Capability messages) and RFC5561-4-2 (MUST NOT send a Capability message to a peer that did not advertise Dynamic Capability Announcement). Each cites the absence of any capability-TLV or Capability-message code path in internal/plugins/ldp/wire.go (EncodeInit:293, EncodeTLV:166, DecodeTLV:174, DecodeInit:324) and internal/plugins/ldp/session.go:419 (no 0x0202 encoder; no 0x0506 capability constant exists). The other 13 rows the walk added from §3, §6, §8, §9 and §10, and none carries a test. Three rows the walk deleted because RFC 5561 states no such rule: RFC5561-x-1 (reserved bits zero; the document describes no Reserved field), RFC5561-4-3 (SHOULD support the capability) and RFC5561-3-3 (MAY tear the session down). The two earlier claims this reason made are corrected by the document&#39;s own text: §3 sets the F-bit to 0, not 1, and leaves the U-bit to each capability document, and the Dynamic Capability Announcement Parameter is a MAY in §9, now RFC5561-9-4.</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p><strong>Status:</strong> Partial</p>
@@ -263,7 +263,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 None of the document&#39;s behavior exists yet. Ze speaks base LDP (RFC 5036) only: <code>EncodeInit</code> in <a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/wire.go" target="_blank" rel="noopener"><code>internal/plugins/ldp/wire.go</code></a> writes no Capability Parameter TLV, <code>DecodeTLV</code> recognizes no capability code point, and no Capability message (0x0202) encoder or decoder exists in <a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/session.go" target="_blank" rel="noopener"><code>internal/plugins/ldp/session.go</code></a>. The row is here so the 17 gated MUSTs are disclosed rather than hidden behind an absent row.
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-Every one of the 17 MUST-level rows is a <code>{gap}</code> scheduled by one of two specs. Capability advertisement (<a href="https://github.com/ze-software/ze/blob/main/plan/spec-ldp-capability-advertisement.md" target="_blank" rel="noopener"><code>plan/spec-ldp-capability-advertisement.md</code></a>) owes the send side: the Capability Parameter TLV with its U-bit, F-bit, S-bit and length rules (<a href="#rfc5561-3-1"><code>RFC5561-3-1</code></a>, 3-2, 6-1, 6-3, 9-1, 9-2), the Capability message and the Dynamic Capability Announcement gate on it (<a href="#rfc5561-4-1"><code>RFC5561-4-1</code></a>, 4-2, 9-3), and the IPv4 label distribution default (<a href="#rfc5561-10-1"><code>RFC5561-10-1</code></a>). Capability status codes (<a href="https://github.com/ze-software/ze/blob/main/plan/spec-ldp-capability-status-codes.md" target="_blank" rel="noopener"><code>plan/spec-ldp-capability-status-codes.md</code></a>) owes the receive side: the Malformed TLV Value and Unsupported Capability status codes, the E-bit of 0 on that Notification, and the Returned TLVs TLV that carries the offending Capability Parameter or the unknown TLV (<a href="#rfc5561-3-5"><code>RFC5561-3-5</code></a>, 6-2, 8-1, 8-2, 8-3, 8-4).
+Every one of the 17 MUST-level rows is a <code>{gap}</code> scheduled by one of two specs. Capability advertisement (<a href="https://github.com/ze-software/ze/blob/main/plan/post-release/features/spec-ldp-capability-advertisement.md" target="_blank" rel="noopener"><code>plan/post-release/features/spec-ldp-capability-advertisement.md</code></a>) owes the send side: the Capability Parameter TLV with its U-bit, F-bit, S-bit and length rules (<a href="#rfc5561-3-1"><code>RFC5561-3-1</code></a>, 3-2, 6-1, 6-3, 9-1, 9-2), the Capability message and the Dynamic Capability Announcement gate on it (<a href="#rfc5561-4-1"><code>RFC5561-4-1</code></a>, 4-2, 9-3), and the IPv4 label distribution default (<a href="#rfc5561-10-1"><code>RFC5561-10-1</code></a>). Capability status codes (<a href="https://github.com/ze-software/ze/blob/main/plan/release/fixes/spec-ldp-capability-status-codes.md" target="_blank" rel="noopener"><code>plan/release/fixes/spec-ldp-capability-status-codes.md</code></a>) owes the receive side: the Malformed TLV Value and Unsupported Capability status codes, the E-bit of 0 on that Notification, and the Returned TLVs TLV that carries the offending Capability Parameter or the unknown TLV (<a href="#rfc5561-3-5"><code>RFC5561-3-5</code></a>, 6-2, 8-1, 8-2, 8-3, 8-4).
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -318,7 +318,7 @@ Every one of the 17 MUST-level rows is a <code>{gap}</code> scheduled by one of 
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5561-3-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze advertises no capability, so the send-side capability path is absent; plan/spec-ldp-capability-advertisement.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze advertises no capability, so the send-side capability path is absent; plan/post-release/features/spec-ldp-capability-advertisement.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5561-9-4">RFC5561-9-4</code></td><td colspan="3"><span class="rfc-subject">The Dynamic Capability Announcement Parameter MAY be included by an LDP speaker in an Initialization message to signal its peer that the speaker is capable of processing Capability messages. (§9)</span></td></tr>
 <tr><td></td>
@@ -345,7 +345,7 @@ Every one of the 17 MUST-level rows is a <code>{gap}</code> scheduled by one of 
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5561-4-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze advertises no capability, so the send-side capability path is absent; plan/spec-ldp-capability-advertisement.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze advertises no capability, so the send-side capability path is absent; plan/post-release/features/spec-ldp-capability-advertisement.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5561-3-2">RFC5561-3-2</code></td><td colspan="3"><span class="rfc-subject">An LDP speaker MUST NOT include more than one instance of a Capability Parameter (as identified by the same TLV code point) in an Initialization or Capability message. (§3)</span></td></tr>
 <tr><td></td>
@@ -354,7 +354,7 @@ Every one of the 17 MUST-level rows is a <code>{gap}</code> scheduled by one of 
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5561-3-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze advertises no capability, so the send-side capability path is absent; plan/spec-ldp-capability-advertisement.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze advertises no capability, so the send-side capability path is absent; plan/post-release/features/spec-ldp-capability-advertisement.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5561-3-5">RFC5561-3-5</code></td><td colspan="3"><span class="rfc-subject">If an LDP speaker receives more than one instance of the same Capability Parameter type in a message, it SHOULD send a Notification message to the peer before terminating the session with the peer. The Status Code in the Status TLV of the Notification message MUST be Malformed TLV value, and the message SHOULD contain the second Capability Parameter TLV of the same type (code point) that is received in the message. (§3)</span></td></tr>
 <tr><td></td>
@@ -363,7 +363,7 @@ Every one of the 17 MUST-level rows is a <code>{gap}</code> scheduled by one of 
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5561-3-5">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze parses no Capability Parameter, so the capability error status codes and the Returned TLVs TLV are absent; plan/spec-ldp-capability-status-codes.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze parses no Capability Parameter, so the capability error status codes and the Returned TLVs TLV are absent; plan/release/fixes/spec-ldp-capability-status-codes.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5561-4-1">RFC5561-4-1</code></td><td colspan="3"><span class="rfc-subject">Note that Backward Compatibility TLVs (see Section 3.1) MUST NOT be included in Capability messages. (§4)</span></td></tr>
 <tr><td></td>
@@ -372,7 +372,7 @@ Every one of the 17 MUST-level rows is a <code>{gap}</code> scheduled by one of 
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5561-4-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze advertises no capability, so the send-side capability path is absent; plan/spec-ldp-capability-advertisement.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze advertises no capability, so the send-side capability path is absent; plan/post-release/features/spec-ldp-capability-advertisement.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5561-6-1">RFC5561-6-1</code></td><td colspan="3"><span class="rfc-subject">The S-bit of a Capability Parameter in an Initialization message MUST be 1 and SHOULD be ignored on receipt. (§6)</span></td></tr>
 <tr><td></td>
@@ -381,7 +381,7 @@ Every one of the 17 MUST-level rows is a <code>{gap}</code> scheduled by one of 
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5561-6-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze advertises no capability, so the send-side capability path is absent; plan/spec-ldp-capability-advertisement.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze advertises no capability, so the send-side capability path is absent; plan/post-release/features/spec-ldp-capability-advertisement.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5561-6-2">RFC5561-6-2</code></td><td colspan="3"><span class="rfc-subject">The Status Code in the Status TLV of the Notification message MUST be Unsupported Capability, and the message SHOULD contain the unsupported capability (see Section 8 for more details). (§6)</span></td></tr>
 <tr><td></td>
@@ -390,7 +390,7 @@ Every one of the 17 MUST-level rows is a <code>{gap}</code> scheduled by one of 
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5561-6-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze parses no Capability Parameter, so the capability error status codes and the Returned TLVs TLV are absent; plan/spec-ldp-capability-status-codes.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze parses no Capability Parameter, so the capability error status codes and the Returned TLVs TLV are absent; plan/release/fixes/spec-ldp-capability-status-codes.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5561-6-3">RFC5561-6-3</code></td><td colspan="3"><span class="rfc-subject">An LDP speaker that supports capability advertisement and includes a Capability Parameter in its Initialization message MUST set the TLV U-bit to 0 or 1, as specified by Capability document. (§6)</span></td></tr>
 <tr><td></td>
@@ -399,7 +399,7 @@ Every one of the 17 MUST-level rows is a <code>{gap}</code> scheduled by one of 
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5561-6-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze advertises no capability, so the send-side capability path is absent; plan/spec-ldp-capability-advertisement.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze advertises no capability, so the send-side capability path is absent; plan/post-release/features/spec-ldp-capability-advertisement.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5561-8-1">RFC5561-8-1</code></td><td colspan="3"><span class="rfc-subject">The E-bit of the Status TLV carried in a Notification message that includes this status code MUST be set to 0. (§8, Unsupported Capability)</span></td></tr>
 <tr><td></td>
@@ -408,7 +408,7 @@ Every one of the 17 MUST-level rows is a <code>{gap}</code> scheduled by one of 
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5561-8-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze parses no Capability Parameter, so the capability error status codes and the Returned TLVs TLV are absent; plan/spec-ldp-capability-status-codes.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze parses no Capability Parameter, so the capability error status codes and the Returned TLVs TLV are absent; plan/release/fixes/spec-ldp-capability-status-codes.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5561-8-2">RFC5561-8-2</code></td><td colspan="3"><span class="rfc-subject">When the Notification message specifies the unsupported capabilities, it MUST include a Returned TLVs TLV. (§8)</span></td></tr>
 <tr><td></td>
@@ -417,7 +417,7 @@ Every one of the 17 MUST-level rows is a <code>{gap}</code> scheduled by one of 
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5561-8-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze parses no Capability Parameter, so the capability error status codes and the Returned TLVs TLV are absent; plan/spec-ldp-capability-status-codes.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze parses no Capability Parameter, so the capability error status codes and the Returned TLVs TLV are absent; plan/release/fixes/spec-ldp-capability-status-codes.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5561-8-3">RFC5561-8-3</code></td><td colspan="3"><span class="rfc-subject">The Returned TLVs TLV MUST include only the Capability Parameters for unsupported capabilities, and the Capability Parameter for each such capability SHOULD be encoded as received from the peer. (§8)</span></td></tr>
 <tr><td></td>
@@ -426,7 +426,7 @@ Every one of the 17 MUST-level rows is a <code>{gap}</code> scheduled by one of 
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5561-8-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze parses no Capability Parameter, so the capability error status codes and the Returned TLVs TLV are absent; plan/spec-ldp-capability-status-codes.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze parses no Capability Parameter, so the capability error status codes and the Returned TLVs TLV are absent; plan/release/fixes/spec-ldp-capability-status-codes.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5561-8-4">RFC5561-8-4</code></td><td colspan="3"><span class="rfc-subject">When the Notification message specifies the TLV that was unknown, it MUST include the unknown TLV in a Returned TLVs TLV. (§8)</span></td></tr>
 <tr><td></td>
@@ -435,7 +435,7 @@ Every one of the 17 MUST-level rows is a <code>{gap}</code> scheduled by one of 
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5561-8-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze parses no Capability Parameter, so the capability error status codes and the Returned TLVs TLV are absent; plan/spec-ldp-capability-status-codes.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze parses no Capability Parameter, so the capability error status codes and the Returned TLVs TLV are absent; plan/release/fixes/spec-ldp-capability-status-codes.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5561-9-1">RFC5561-9-1</code></td><td colspan="3"><span class="rfc-subject">(0x0506) | Length (1) | +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ |1| Reserved | +-+-+-+-+-+-+-+-+ The value of the U-bit for the Dynamic Capability Announcement Parameter TLV MUST be set to 1 so that a receiver MUST silently ignore this TLV if unknown to it, and continue processing the rest of the message. (§9)</span></td></tr>
 <tr><td></td>
@@ -444,7 +444,7 @@ Every one of the 17 MUST-level rows is a <code>{gap}</code> scheduled by one of 
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5561-9-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze advertises no capability, so the send-side capability path is absent; plan/spec-ldp-capability-advertisement.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze advertises no capability, so the send-side capability path is absent; plan/post-release/features/spec-ldp-capability-advertisement.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5561-9-2">RFC5561-9-2</code></td><td colspan="3"><span class="rfc-subject">There is no &#34;Capability Data&#34; associated with this TLV and hence the TLV length MUST be set to 1. (§9)</span></td></tr>
 <tr><td></td>
@@ -453,7 +453,7 @@ Every one of the 17 MUST-level rows is a <code>{gap}</code> scheduled by one of 
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5561-9-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze advertises no capability, so the send-side capability path is absent; plan/spec-ldp-capability-advertisement.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze advertises no capability, so the send-side capability path is absent; plan/post-release/features/spec-ldp-capability-advertisement.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5561-9-3">RFC5561-9-3</code></td><td colspan="3"><span class="rfc-subject">An LDP speaker MUST NOT include the Dynamic Capability Announcement Parameter in Capability messages sent to its peers. (§9)</span></td></tr>
 <tr><td></td>
@@ -462,7 +462,7 @@ Every one of the 17 MUST-level rows is a <code>{gap}</code> scheduled by one of 
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5561-9-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze advertises no capability, so the send-side capability path is absent; plan/spec-ldp-capability-advertisement.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze advertises no capability, so the send-side capability path is absent; plan/post-release/features/spec-ldp-capability-advertisement.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5561-10-1">RFC5561-10-1</code></td><td colspan="3"><span class="rfc-subject">To ensure compatibility with an [RFC5036]-compliant peer, LDP implementations that support capability advertisement have label distribution for IPv4 enabled until it is explicitly disabled and MUST assume that their peers do as well. (§10)</span></td></tr>
 <tr><td></td>
@@ -471,7 +471,7 @@ Every one of the 17 MUST-level rows is a <code>{gap}</code> scheduled by one of 
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5561-10-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze advertises no capability, so the send-side capability path is absent; plan/spec-ldp-capability-advertisement.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze advertises no capability, so the send-side capability path is absent; plan/post-release/features/spec-ldp-capability-advertisement.md</p></td>
 </tr>
 </tbody>
 </table>
@@ -484,67 +484,67 @@ Every one of the 17 MUST-level rows is a <code>{gap}</code> scheduled by one of 
 <tbody>
 <tr><td><a href="#rfc5561-3-1"><code>RFC5561-3-1</code></a> F-bit: Forward unknown TLV bit, as described in [RFC5036]. The value of this bit MUST be 0 since a Capability Parameter TLV is sent only in Initialization and Capability messages, which are not forwarded. (§3)</td>
 <td>{gap}, no test</td>
-<td>ze advertises no capability, so the send-side capability path is absent; plan/spec-ldp-capability-advertisement.md</td>
+<td>ze advertises no capability, so the send-side capability path is absent; plan/post-release/features/spec-ldp-capability-advertisement.md</td>
 </tr>
 <tr><td><a href="#rfc5561-4-2"><code>RFC5561-4-2</code></a> An LDP speaker MUST NOT send a Capability message to a peer unless its peer advertised the Dynamic Capability Announcement capability in its session Initialization message. (§7)</td>
 <td>{gap}, no test</td>
-<td>ze advertises no capability, so the send-side capability path is absent; plan/spec-ldp-capability-advertisement.md</td>
+<td>ze advertises no capability, so the send-side capability path is absent; plan/post-release/features/spec-ldp-capability-advertisement.md</td>
 </tr>
 <tr><td><a href="#rfc5561-3-2"><code>RFC5561-3-2</code></a> An LDP speaker MUST NOT include more than one instance of a Capability Parameter (as identified by the same TLV code point) in an Initialization or Capability message. (§3)</td>
 <td>{gap}, no test</td>
-<td>ze advertises no capability, so the send-side capability path is absent; plan/spec-ldp-capability-advertisement.md</td>
+<td>ze advertises no capability, so the send-side capability path is absent; plan/post-release/features/spec-ldp-capability-advertisement.md</td>
 </tr>
 <tr><td><a href="#rfc5561-3-5"><code>RFC5561-3-5</code></a> If an LDP speaker receives more than one instance of the same Capability Parameter type in a message, it SHOULD send a Notification message to the peer before terminating the session with the peer. The Status Code in the Status TLV of the Notification message MUST be Malformed TLV value, and the message SHOULD contain the second Capability Parameter TLV of the same type (code point) that is received in the message. (§3)</td>
 <td>{gap}, no test</td>
-<td>ze parses no Capability Parameter, so the capability error status codes and the Returned TLVs TLV are absent; plan/spec-ldp-capability-status-codes.md</td>
+<td>ze parses no Capability Parameter, so the capability error status codes and the Returned TLVs TLV are absent; plan/release/fixes/spec-ldp-capability-status-codes.md</td>
 </tr>
 <tr><td><a href="#rfc5561-4-1"><code>RFC5561-4-1</code></a> Note that Backward Compatibility TLVs (see Section 3.1) MUST NOT be included in Capability messages. (§4)</td>
 <td>{gap}, no test</td>
-<td>ze advertises no capability, so the send-side capability path is absent; plan/spec-ldp-capability-advertisement.md</td>
+<td>ze advertises no capability, so the send-side capability path is absent; plan/post-release/features/spec-ldp-capability-advertisement.md</td>
 </tr>
 <tr><td><a href="#rfc5561-6-1"><code>RFC5561-6-1</code></a> The S-bit of a Capability Parameter in an Initialization message MUST be 1 and SHOULD be ignored on receipt. (§6)</td>
 <td>{gap}, no test</td>
-<td>ze advertises no capability, so the send-side capability path is absent; plan/spec-ldp-capability-advertisement.md</td>
+<td>ze advertises no capability, so the send-side capability path is absent; plan/post-release/features/spec-ldp-capability-advertisement.md</td>
 </tr>
 <tr><td><a href="#rfc5561-6-2"><code>RFC5561-6-2</code></a> The Status Code in the Status TLV of the Notification message MUST be Unsupported Capability, and the message SHOULD contain the unsupported capability (see Section 8 for more details). (§6)</td>
 <td>{gap}, no test</td>
-<td>ze parses no Capability Parameter, so the capability error status codes and the Returned TLVs TLV are absent; plan/spec-ldp-capability-status-codes.md</td>
+<td>ze parses no Capability Parameter, so the capability error status codes and the Returned TLVs TLV are absent; plan/release/fixes/spec-ldp-capability-status-codes.md</td>
 </tr>
 <tr><td><a href="#rfc5561-6-3"><code>RFC5561-6-3</code></a> An LDP speaker that supports capability advertisement and includes a Capability Parameter in its Initialization message MUST set the TLV U-bit to 0 or 1, as specified by Capability document. (§6)</td>
 <td>{gap}, no test</td>
-<td>ze advertises no capability, so the send-side capability path is absent; plan/spec-ldp-capability-advertisement.md</td>
+<td>ze advertises no capability, so the send-side capability path is absent; plan/post-release/features/spec-ldp-capability-advertisement.md</td>
 </tr>
 <tr><td><a href="#rfc5561-8-1"><code>RFC5561-8-1</code></a> The E-bit of the Status TLV carried in a Notification message that includes this status code MUST be set to 0. (§8, Unsupported Capability)</td>
 <td>{gap}, no test</td>
-<td>ze parses no Capability Parameter, so the capability error status codes and the Returned TLVs TLV are absent; plan/spec-ldp-capability-status-codes.md</td>
+<td>ze parses no Capability Parameter, so the capability error status codes and the Returned TLVs TLV are absent; plan/release/fixes/spec-ldp-capability-status-codes.md</td>
 </tr>
 <tr><td><a href="#rfc5561-8-2"><code>RFC5561-8-2</code></a> When the Notification message specifies the unsupported capabilities, it MUST include a Returned TLVs TLV. (§8)</td>
 <td>{gap}, no test</td>
-<td>ze parses no Capability Parameter, so the capability error status codes and the Returned TLVs TLV are absent; plan/spec-ldp-capability-status-codes.md</td>
+<td>ze parses no Capability Parameter, so the capability error status codes and the Returned TLVs TLV are absent; plan/release/fixes/spec-ldp-capability-status-codes.md</td>
 </tr>
 <tr><td><a href="#rfc5561-8-3"><code>RFC5561-8-3</code></a> The Returned TLVs TLV MUST include only the Capability Parameters for unsupported capabilities, and the Capability Parameter for each such capability SHOULD be encoded as received from the peer. (§8)</td>
 <td>{gap}, no test</td>
-<td>ze parses no Capability Parameter, so the capability error status codes and the Returned TLVs TLV are absent; plan/spec-ldp-capability-status-codes.md</td>
+<td>ze parses no Capability Parameter, so the capability error status codes and the Returned TLVs TLV are absent; plan/release/fixes/spec-ldp-capability-status-codes.md</td>
 </tr>
 <tr><td><a href="#rfc5561-8-4"><code>RFC5561-8-4</code></a> When the Notification message specifies the TLV that was unknown, it MUST include the unknown TLV in a Returned TLVs TLV. (§8)</td>
 <td>{gap}, no test</td>
-<td>ze parses no Capability Parameter, so the capability error status codes and the Returned TLVs TLV are absent; plan/spec-ldp-capability-status-codes.md</td>
+<td>ze parses no Capability Parameter, so the capability error status codes and the Returned TLVs TLV are absent; plan/release/fixes/spec-ldp-capability-status-codes.md</td>
 </tr>
 <tr><td><a href="#rfc5561-9-1"><code>RFC5561-9-1</code></a> (0x0506) | Length (1) | +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ |1| Reserved | +-+-+-+-+-+-+-+-+ The value of the U-bit for the Dynamic Capability Announcement Parameter TLV MUST be set to 1 so that a receiver MUST silently ignore this TLV if unknown to it, and continue processing the rest of the message. (§9)</td>
 <td>{gap}, no test</td>
-<td>ze advertises no capability, so the send-side capability path is absent; plan/spec-ldp-capability-advertisement.md</td>
+<td>ze advertises no capability, so the send-side capability path is absent; plan/post-release/features/spec-ldp-capability-advertisement.md</td>
 </tr>
 <tr><td><a href="#rfc5561-9-2"><code>RFC5561-9-2</code></a> There is no &#34;Capability Data&#34; associated with this TLV and hence the TLV length MUST be set to 1. (§9)</td>
 <td>{gap}, no test</td>
-<td>ze advertises no capability, so the send-side capability path is absent; plan/spec-ldp-capability-advertisement.md</td>
+<td>ze advertises no capability, so the send-side capability path is absent; plan/post-release/features/spec-ldp-capability-advertisement.md</td>
 </tr>
 <tr><td><a href="#rfc5561-9-3"><code>RFC5561-9-3</code></a> An LDP speaker MUST NOT include the Dynamic Capability Announcement Parameter in Capability messages sent to its peers. (§9)</td>
 <td>{gap}, no test</td>
-<td>ze advertises no capability, so the send-side capability path is absent; plan/spec-ldp-capability-advertisement.md</td>
+<td>ze advertises no capability, so the send-side capability path is absent; plan/post-release/features/spec-ldp-capability-advertisement.md</td>
 </tr>
 <tr><td><a href="#rfc5561-10-1"><code>RFC5561-10-1</code></a> To ensure compatibility with an [RFC5036]-compliant peer, LDP implementations that support capability advertisement have label distribution for IPv4 enabled until it is explicitly disabled and MUST assume that their peers do as well. (§10)</td>
 <td>{gap}, no test</td>
-<td>ze advertises no capability, so the send-side capability path is absent; plan/spec-ldp-capability-advertisement.md</td>
+<td>ze advertises no capability, so the send-side capability path is absent; plan/post-release/features/spec-ldp-capability-advertisement.md</td>
 </tr>
 </tbody>
 </table>
@@ -864,7 +864,7 @@ Every one of the 17 MUST-level rows is a <code>{gap}</code> scheduled by one of 
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:32 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

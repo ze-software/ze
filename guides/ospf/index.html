@@ -51,7 +51,8 @@
     <h1 id="ospf">OSPF</h1>
     <p>Ze includes an experimental native OSPF engine under the <code>ospf</code> config root. The same engine drives OSPFv2 for IPv4 and OSPFv3 for the <code>address-family ipv6</code> subsection: interface and neighbor state, LSDB flooding, SPF, ABR/NSSA policy, redistribution, and route installation are shared; the wire codec, raw transport, and prefix strategy are address-family specific.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#interface-network-types">Interface network types</a></li>
 <li><a href="#unnumbered-point-to-point-interfaces">Unnumbered point-to-point interfaces</a></li>
 <li><a href="#interface-cost">Interface cost</a></li>
@@ -72,7 +73,7 @@
 <li><a href="#authentication">Authentication</a></li>
 <li><a href="#ospfv3-ipsec-rfc-4552">OSPFv3 IPsec (RFC 4552)</a></li>
 <li><a href="#operational-commands">Operational Commands</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <!-- source: internal/plugins/ospf/register.go -- registerOSPF -->
 <!-- source: internal/plugins/ospf/yang/ze-ospf-conf.yang -- ospf config root -->
 <!-- source: internal/plugins/ospf/codec_v6.go -- v6Codec -->
@@ -714,7 +715,8 @@ The recording uses `ze cli` directly. No output wrapper or synthetic summary sit
 <!-- source: internal/plugins/ospf/spf/computer.go -- SPFSnapshot -->
 <!-- source: internal/plugins/ospf/spf/route.go -- Snapshot -->
 <!-- source: internal/plugins/ospf/spf/interarea.go -- BorderRouterSnapshot -->
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -756,7 +758,7 @@ The recording uses `ze cli` directly. No output wrapper or synthetic summary sit
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

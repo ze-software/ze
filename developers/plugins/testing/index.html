@@ -49,7 +49,8 @@
     <h1 id="testing-your-plugin">Testing Your Plugin</h1>
     <p>This guide covers testing strategies for ze plugins using the SDK (<code>pkg/plugin/sdk</code>).</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#unit-testing-with-netpipe">Unit Testing with net.Pipe</a></li>
 <li><a href="#testing-event-handlers">Testing Event Handlers</a></li>
 <li><a href="#simulating-the-5-stage-startup">Simulating the 5-Stage Startup</a></li>
@@ -59,7 +60,7 @@
 <li><a href="#ci-integration">CI Integration</a></li>
 <li><a href="#coverage">Coverage</a></li>
 <li><a href="#debugging">Debugging</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <h2 id="unit-testing-with-netpipe">Unit Testing with <code>net.Pipe</code></h2>
 <p>The SDK is designed for testability. Use <code>net.Pipe()</code> to create a connected pair of
 connections, then use <code>sdk.NewWithConn()</code> on one end and simulate the engine on the other.</p>
@@ -417,7 +418,8 @@ p.OnEvent(func(event string) error {
     return nil
 })
 </code></pre>
-
+</div>
+</div>
             </section>
         </main>
 
@@ -427,7 +429,7 @@ p.OnEvent(func(event string) error {
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

@@ -51,7 +51,8 @@
 interpret their output. For the full technical reference (<code>.ci</code> format spec, <code>.et</code>
 directives, fuzz target list), see <code>docs/functional-tests.md</code>.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#first-time-setup">First-time setup</a></li>
 <li><a href="#the-escalation-ladder">The escalation ladder</a>
 <ol>
@@ -86,9 +87,10 @@ directives, fuzz target list), see <code>docs/functional-tests.md</code>.</p>
 </ol></li>
 <li><a href="#a-test-that-exists-is-not-a-test-that-gates">A test that exists is not a test that gates</a></li>
 <li><a href="#boundary-values-for-common-ranges">Boundary values for common ranges</a></li>
+<li><a href="#schema-driven-web-tests">Schema-driven web tests</a></li>
 <li><a href="#flake-shapes-seen-in-this-repository">Flake shapes seen in this repository</a></li>
 <li><a href="#cheat-sheet">Cheat sheet</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <h2 id="first-time-setup">First-time setup</h2>
 <pre><code class="language-sh">./le setup install
 ./le verify current
@@ -139,11 +141,17 @@ changes tracked state.</p>
 <tr>
 <td>5</td>
 <td><code>./le verify current</code></td>
-<td>The full gate over the last commit</td>
+<td>The full gate, once per piece of work, over its final commit</td>
 <td>minutes</td>
 </tr>
 </tbody>
 </table>
+<p>Steps 1 to 4 are development: run the ones that cover what you changed, and
+<code>./le repo changed scope print both</code> names them
+(<code>running-commands.md</code>, "The changed-set selector"). Step 5 never runs between
+phases, review rounds or fixes, because it judges HEAD and the work is not in
+HEAD until its final commit. A red it finds gets a fix commit; it does not hold
+the commit it judged.</p>
 <p><code>./le verify current</code> is the full gate. It runs every stage in a fresh
 detached worktree at HEAD, through the same lifecycle as <code>./le verify worktree</code>,
 so it judges the last commit and never the working tree: an edit made while it
@@ -216,6 +224,13 @@ round-trip.</p>
 ./le job run label parse-origin command go test ./internal/... -run TestParseOrigin
 ./le verify current
 </code></pre>
+<p>Dynamic-group coverage exercises each plugin's real configuration boundary:
+capability declarations, policy lookups, validation, and command output. Opposite
+group and peer values expose lost inheritance; same-name peers and groups expose
+namespace collisions. A list of caller filenames or helper names proves neither.
+For example, the redirect tests pass plugin JSON through the RIB parser before
+querying the session's effective setting.</p>
+<!-- source: internal/component/bgp/plugins/rib/rib_flowspec_redirect_config_test.go -- TestFlowSpecRedirectDynamicGroupLookup, TestFlowSpecRedirectDynamicGroupRejectsInvalidSwitch -->
 <h4 id="fixture-environment-isolation">Fixture environment isolation</h4>
 <p>Native Go test commands remove the launching le's <code>ze.repo.root</code> and
 <code>ze.le.build.name</code> values under every case/dot/underscore spelling. The test
@@ -733,7 +748,7 @@ confirm the test flips to red, and revert.</p>
 <code>./le rfc discriminate-record ... route revert producer &lt;path&gt;::&lt;Func&gt;</code> disables
 the named function, runs ONE <code>.ci</code> or ONE interop scenario, requires the red, and
 puts the producer back byte for byte. What it writes is a
-<code>rfc/discrimination/&lt;stem&gt;.json</code> record that <code>./le rfc check</code> re-verifies on every
+<code>rfc/discrimination/&lt;stem&gt;/&lt;requirement-id&gt;.json</code> record that <code>./le rfc check</code> re-verifies on every
 run, so the red is remembered rather than done once and forgotten. An untagged
 <code>.ci</code> still owes the walk by hand.</p>
 <p>When a behavior genuinely cannot be made to fail under mutation because it is
@@ -780,6 +795,13 @@ invalid value below, and the first invalid value above.</p>
 </tr>
 </tbody>
 </table>
+<h2 id="schema-driven-web-tests">Schema-driven web tests</h2>
+<p>Finder tests check rendered navigation against the live schema and peer rows
+against the configured tree, rather than pinning the whole page's HTML. They
+exercise authentication, edit permissions, full-page and HTMX responses, links,
+CLI context and escaped field values. A newly registered schema container must
+not require a snapshot rewrite; omitting a configured peer must still fail.</p>
+<!-- source: internal/component/web/handler_finder_behavior_test.go -- TestWebFinderHandlerBehavior, TestWebFinderEscapesFieldValues -->
 <h2 id="flake-shapes-seen-in-this-repository">Flake shapes seen in this repository</h2>
 <p>Check each of these against the test before investigating a new race or
 isolation flake: locked-write with unlocked-read, subscribe-before-broadcast,
@@ -811,8 +833,13 @@ behind an <code>SO_REUSEPORT</code> gate, and colliding test-fake pool IDs.</p>
 </tr>
 </tbody>
 </table>
-<p>A darwin <code>FAIL</code> caused by a <code>_other.go</code> stub returning <code>ErrUnsupported</code> is a
-test-setup bug rather than a real failure. Keep the failure list meaningful.</p>
+<p>Keep portable protocol assertions running on every platform. An unsupported
+platform service is not a reason to skip authentication or lifecycle checks.
+The PPP NCP lifetime fixtures require the authenticated principal, negotiated
+address and address-before-session-up ordering everywhere. They require no
+IPv6 backend call from the non-Linux stub; Linux additionally requires the
+negotiated link-local address pair.</p>
+<!-- source: internal/component/l2tp/ppp/lcp_lifecycle_test.go -- assertLifecycleNCPPublished -->
 <p>Reproducing a load-dependent flake is
 <code>../architecture/testing/runner-architecture.md</code>.</p>
 <h2 id="cheat-sheet">Cheat sheet</h2>
@@ -841,7 +868,11 @@ test-setup bug rather than a real failure. Keep the failure list meaningful.</p>
 <td><code>./le test unit bgp</code></td>
 </tr>
 <tr>
-<td>Run the pre-commit check</td>
+<td>Check the working tree before a commit</td>
+<td><code>./le verify current fast</code></td>
+</tr>
+<tr>
+<td>Run the full gate, once, after the final commit of a piece of work</td>
 <td><code>./le verify current</code></td>
 </tr>
 <tr>
@@ -886,7 +917,8 @@ test-setup bug rather than a real failure. Keep the failure list meaningful.</p>
 </tr>
 </tbody>
 </table>
-
+</div>
+</div>
             </section>
         </main>
 
@@ -896,7 +928,7 @@ test-setup bug rather than a real failure. Keep the failure list meaningful.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

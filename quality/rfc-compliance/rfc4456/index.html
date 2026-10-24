@@ -63,9 +63,9 @@
 .rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
 .rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
 .rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
-.rfc-ok { border-left: 7px solid var(--teal-base); }
+.rfc-ok { border-left: 7px solid var(--green); }
 .rfc-neutral { border-left: 7px solid var(--line-strong); }
-.rfc-warn { border-left: 7px solid var(--gold-base); }
+.rfc-warn { border-left: 7px solid var(--amber); }
 .rfc-bad { border-left: 7px solid var(--danger-deep); }
 .rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
 .rfc-tape span { width: var(--w); min-width: 0; display: block; }
@@ -80,11 +80,11 @@
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-partial-scope { background: var(--danger-deep); }
-.rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
+.rfc-tape-one_polarity_unexcused { background: var(--amber); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
-.rfc-swatch.rfc-ok { background: var(--teal-base); }
+.rfc-swatch.rfc-ok { background: var(--green); }
 .rfc-swatch.rfc-neutral { background: var(--line-strong); }
-.rfc-swatch.rfc-warn { background: var(--gold-base); }
+.rfc-swatch.rfc-warn { background: var(--amber); }
 .rfc-swatch.rfc-bad { background: var(--danger-deep); }
 .rfc-total td { border-top: 2px solid var(--line-strong); }
 .rfc-prose { max-width: 46rem; }
@@ -110,7 +110,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 .rfc-note-box { margin: 1rem 0; padding: 1rem 1.2rem; border-radius: 16px; background: var(--gold-tint); border: 1px solid var(--gold-chip); }
 .rfc-note-box h3 { margin-top: 0; }
 .rfc-note-box ul { margin-bottom: 0; }
-.rfc-check-ok strong { color: var(--teal-deep); }
+.rfc-check-ok strong { color: var(--green); }
 .rfc-check-bad strong { color: var(--danger-deep); }
 </style>
 <section><h2>Overview</h2>
@@ -322,8 +322,8 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L170" title="internal/component/bgp/reactor/forward_rr_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRRInjects</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4456_forward_build_withdraw_shape_test.go#L436" title="internal/component/bgp/reactor/rfc4456_forward_build_withdraw_shape_test.go" target="_blank" rel="noopener"><code>TestForwardReflectionLeavesAWithdrawalUntouched</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L201" title="internal/component/bgp/reactor/forward_rr_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRRPreservesOriginator</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L276" title="internal/le/interoplab/bgp/check_special.go" target="_blank" rel="noopener"><code>checkReflectorWithdrawal</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L277" title="internal/le/interoplab/bgp/check_special.go" target="_blank" rel="noopener"><code>checkReflectorWithdrawal</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L277" title="internal/le/interoplab/bgp/check_special.go" target="_blank" rel="noopener"><code>checkReflectorWithdrawal</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L278" title="internal/le/interoplab/bgp/check_special.go" target="_blank" rel="noopener"><code>checkReflectorWithdrawal</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4456-8-2">RFC4456-8-2</code></td><td colspan="3"><span class="rfc-subject">When an RR reflects a route, it MUST prepend the local CLUSTER_ID to the CLUSTER_LIST.  If the CLUSTER_LIST is empty, it MUST create a new one. (§8)</span></td></tr>
@@ -333,8 +333,8 @@ No tracked gap in current source anchors.
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4456-8-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L172" title="internal/component/bgp/reactor/forward_rr_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRRInjects</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L205" title="internal/component/bgp/reactor/forward_rr_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRRPreservesOriginator</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L278" title="internal/le/interoplab/bgp/check_special.go" target="_blank" rel="noopener"><code>checkReflectorWithdrawal</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L279" title="internal/le/interoplab/bgp/check_special.go" target="_blank" rel="noopener"><code>checkReflectorWithdrawal</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L279" title="internal/le/interoplab/bgp/check_special.go" target="_blank" rel="noopener"><code>checkReflectorWithdrawal</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L280" title="internal/le/interoplab/bgp/check_special.go" target="_blank" rel="noopener"><code>checkReflectorWithdrawal</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4456-8-3">RFC4456-8-3</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker SHOULD NOT create an ORIGINATOR_ID attribute if one already exists. (§8)</span></td></tr>
@@ -392,7 +392,7 @@ No tracked gap in current source anchors.
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L1219" title="internal/component/bgp/plugins/rib/bestpath_test.go" target="_blank" rel="noopener"><code>TestBestPath_ClusterListLength</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L1314" title="internal/component/bgp/plugins/rib/bestpath_test.go" target="_blank" rel="noopener"><code>TestClusterListEntries</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/bestpath_test.go#L1225" title="internal/component/bgp/plugins/rib/bestpath_test.go" target="_blank" rel="noopener"><code>TestBestPath_ClusterListLength</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc4456.go#L47" title="internal/le/interoplab/bgp/check_rfc4456.go" target="_blank" rel="noopener"><code>checkClusterListLengthTieBreak</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc4456.go#L48" title="internal/le/interoplab/bgp/check_rfc4456.go" target="_blank" rel="noopener"><code>checkClusterListLengthTieBreak</code></a></span></div>
 </div></td>
 </tr>
 </tbody>
@@ -437,7 +437,7 @@ No tracked gap in current source anchors.
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L277" title="internal/le/interoplab/bgp/check_special.go" target="_blank" rel="noopener"><code>checkReflectorWithdrawal</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L278" title="internal/le/interoplab/bgp/check_special.go" target="_blank" rel="noopener"><code>checkReflectorWithdrawal</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
@@ -447,7 +447,7 @@ No tracked gap in current source anchors.
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L276" title="internal/le/interoplab/bgp/check_special.go" target="_blank" rel="noopener"><code>checkReflectorWithdrawal</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L277" title="internal/le/interoplab/bgp/check_special.go" target="_blank" rel="noopener"><code>checkReflectorWithdrawal</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
@@ -467,7 +467,7 @@ No tracked gap in current source anchors.
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L279" title="internal/le/interoplab/bgp/check_special.go" target="_blank" rel="noopener"><code>checkReflectorWithdrawal</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L280" title="internal/le/interoplab/bgp/check_special.go" target="_blank" rel="noopener"><code>checkReflectorWithdrawal</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
@@ -477,7 +477,7 @@ No tracked gap in current source anchors.
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L278" title="internal/le/interoplab/bgp/check_special.go" target="_blank" rel="noopener"><code>checkReflectorWithdrawal</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_special.go#L279" title="internal/le/interoplab/bgp/check_special.go" target="_blank" rel="noopener"><code>checkReflectorWithdrawal</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
@@ -577,7 +577,7 @@ No tracked gap in current source anchors.
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc4456.go#L47" title="internal/le/interoplab/bgp/check_rfc4456.go" target="_blank" rel="noopener"><code>checkClusterListLengthTieBreak</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc4456.go#L48" title="internal/le/interoplab/bgp/check_rfc4456.go" target="_blank" rel="noopener"><code>checkClusterListLengthTieBreak</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
@@ -836,7 +836,7 @@ No tracked gap in current source anchors.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

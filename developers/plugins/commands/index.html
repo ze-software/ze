@@ -49,7 +49,8 @@
     <h1 id="adding-commands">Adding Commands</h1>
     <p>Plugins can expose commands for runtime interaction via the ze API.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#declaring-commands">Declaring Commands</a></li>
 <li><a href="#handling-commands">Handling Commands</a></li>
 <li><a href="#wire-format">Wire Format</a>
@@ -74,7 +75,7 @@
 <li><a href="#complex-responses">Complex Responses</a></li>
 <li><a href="#dispatching-commands-to-other-plugins">Dispatching Commands to Other Plugins</a></li>
 <li><a href="#help-text">Help Text</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <h2 id="declaring-commands">Declaring Commands</h2>
 <p>Commands are declared in the <code>Registration</code> struct passed to <code>Run</code>. The engine learns about them during Stage 1 (declare-registration).</p>
 <!-- source: pkg/plugin/rpc/types.go -- CommandDecl, DeclareRegistrationInput -->
@@ -639,7 +640,8 @@ if command == "my-plugin help" {
 </code></pre>
 <!-- source: pkg/plugin/sdk/sdk_types.go -- CommandDecl -->
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnExecuteCommand -->
-
+</div>
+</div>
             </section>
         </main>
 
@@ -649,7 +651,7 @@ if command == "my-plugin help" {
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

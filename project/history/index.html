@@ -49,13 +49,14 @@
     <h1 id="project-history">Project History</h1>
     <p>Ze grew from the operational lessons of ExaBGP. ExaBGP made BGP programmable by treating routes and protocol events as input and output for ordinary processes. That model proved that a routing tool did not need to imitate a traditional router CLI to be useful.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#from-exabgp-to-ze">From ExaBGP to Ze</a></li>
 <li><a href="#the-first-development-period">The first development period</a></li>
 <li><a href="#what-remained-familiar">What remained familiar</a></li>
 <li><a href="#why-the-architecture-changed">Why the architecture changed</a></li>
 <li><a href="#current-state">Current state</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <h2 id="from-exabgp-to-ze">From ExaBGP to Ze</h2>
 <p>ExaBGP remained deliberately focused on BGP and process integration. Over time, operators needed the surrounding system as well: a validated configuration model, route storage, policy, interface and FIB management, health, telemetry, secure operator access, and a consistent way to expose every command to automation.</p>
 <p>Ze keeps the programmable event model and builds those surrounding responsibilities into one system. Its native BGP engine, YANG configuration, plugin registry, CLI, web interface, APIs, MCP server, Looking Glass, telemetry, and optional dataplane integrations share the same runtime state and command dispatcher.</p>
@@ -74,7 +75,8 @@
 <p>The shared registration model also keeps operator surfaces aligned. A command registered by a component can be discovered and dispatched through the CLI, web interface, REST, gRPC, and MCP without each surface building a separate implementation.</p>
 <h2 id="current-state">Current state</h2>
 <p>Ze remains pre-release. Capability and maturity claims are generated from current source and evidence where possible. Use the <a href="https://ze-software.net/features/">feature inventory</a>, <a href="../../reference/rfcs/">RFC status</a>, <a href="https://ze-software.net/quality/">quality evidence</a>, and <a href="https://ze-software.net/project/roadmap/">roadmap</a> for current decisions rather than treating this history as a readiness statement.</p>
-
+</div>
+</div>
             </section>
         </main>
 
@@ -84,7 +86,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

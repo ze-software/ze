@@ -63,9 +63,9 @@
 .rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
 .rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
 .rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
-.rfc-ok { border-left: 7px solid var(--teal-base); }
+.rfc-ok { border-left: 7px solid var(--green); }
 .rfc-neutral { border-left: 7px solid var(--line-strong); }
-.rfc-warn { border-left: 7px solid var(--gold-base); }
+.rfc-warn { border-left: 7px solid var(--amber); }
 .rfc-bad { border-left: 7px solid var(--danger-deep); }
 .rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
 .rfc-tape span { width: var(--w); min-width: 0; display: block; }
@@ -80,11 +80,11 @@
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-partial-scope { background: var(--danger-deep); }
-.rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
+.rfc-tape-one_polarity_unexcused { background: var(--amber); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
-.rfc-swatch.rfc-ok { background: var(--teal-base); }
+.rfc-swatch.rfc-ok { background: var(--green); }
 .rfc-swatch.rfc-neutral { background: var(--line-strong); }
-.rfc-swatch.rfc-warn { background: var(--gold-base); }
+.rfc-swatch.rfc-warn { background: var(--amber); }
 .rfc-swatch.rfc-bad { background: var(--danger-deep); }
 .rfc-total td { border-top: 2px solid var(--line-strong); }
 .rfc-prose { max-width: 46rem; }
@@ -110,7 +110,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 .rfc-note-box { margin: 1rem 0; padding: 1rem 1.2rem; border-radius: 16px; background: var(--gold-tint); border: 1px solid var(--gold-chip); }
 .rfc-note-box h3 { margin-top: 0; }
 .rfc-note-box ul { margin-bottom: 0; }
-.rfc-check-ok strong { color: var(--teal-deep); }
+.rfc-check-ok strong { color: var(--green); }
 .rfc-check-bad strong { color: var(--danger-deep); }
 </style>
 <section><h2>Overview</h2>
@@ -269,7 +269,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
 <p><a href="#rfc5216-2.4-5"><code>RFC5216-2.4-5</code></a>, the mandatory TLS_RSA_WITH_3DES_EDE_CBC_SHA ciphersuite, is not offered (TLS 1.2+ Go defaults exclude insecure 3DES). The 15 rows the 2026-09-21 extraction walk added were classified the same day under the owner ruling that every MUST is a requirement. Five TLS handshake obligations crypto/tls performs on the tls.Config Ze installs (the resumption ciphersuite, the server_certificate flight, the peer&#39;s full and resumed flights, and the server&#39;s resumed flight) are proven at that boundary in rfc5216_tls_config_test.go; the server_key_exchange (<a href="#rfc5216-2.1.1-7"><code>RFC5216-2.1.1-7</code></a>) is decided by the crypto/tls default suites and carries a lower-layer annotation. <a href="#rfc5216-2.1.1-4"><code>RFC5216-2.1.1-4</code></a> is enforced: on a TLS 1.2 full handshake the server chooses a non-empty session_id for the new session and issues no TLS 1.2 ticket (56e67411be), proven in both polarities in rfc5216_session_id_test.go (internal/core/eap). Eight are gaps.</p>
-<p class="rfc-prose"><strong>Seven are scheduled:</strong> TLS 1.0 support (<a href="#rfc5216-2.4-7"><code>RFC5216-2.4-7</code></a>, which RFC 8996 forbids, <a href="https://github.com/ze-software/ze/blob/main/plan/spec-eap-tls-tls10.md" target="_blank" rel="noopener"><code>plan/spec-eap-tls-tls10.md</code></a>, the owner decides which document governs); the Peer-Id and Server-Id derivation and authorization (<a href="#rfc5216-5.2-1"><code>RFC5216-5.2-1</code></a>, <a href="#rfc5216-5.3-2"><code>RFC5216-5.3-2</code></a>, <a href="#rfc5216-5.3-3"><code>RFC5216-5.3-3</code></a>, <a href="https://github.com/ze-software/ze/blob/main/plan/immediate/spec-eap-tls-identity-authorization.md" target="_blank" rel="noopener"><code>plan/immediate/spec-eap-tls-identity-authorization.md</code></a>); and the certificate naming profile on issuers and verifiers (<a href="#rfc5216-5.2-2"><code>RFC5216-5.2-2</code></a>, <a href="#rfc5216-5.2-3"><code>RFC5216-5.2-3</code></a>, <a href="#rfc5216-5.2-4"><code>RFC5216-5.2-4</code></a>, <a href="https://github.com/ze-software/ze/blob/main/plan/spec-eap-tls-certificate-profile.md" target="_blank" rel="noopener"><code>plan/spec-eap-tls-certificate-profile.md</code></a>). <a href="#rfc5216-5.2-5"><code>RFC5216-5.2-5</code></a> is structural in crypto/x509 and carries a lower-layer annotation. The 12 rows the same walk added that are now proven in both polarities are the Section 2.1.1 Start and first Response, the six Section 2.1.5 fragment-ACK and Identifier obligations, and the four Section 3 packet-field obligations (rfc5216_flight_rules_test.go and rfc5216_fragment_ack_test.go, internal/core/eap). <a href="#rfc5216-5.4-2"><code>RFC5216-5.4-2</code></a> is no longer among them: the peer re-checks the revocation status of the authenticator certificate once the CHILD_SA gives it a network, over https, and closes the SA when the responder reports it revoked (startServerCertRecheck, <a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/postauth_revocation.go" target="_blank" rel="noopener"><code>internal/component/ike/engine/postauth_revocation.go</code></a>, reached from runEstablished). It runs whichever TLS version the exchange negotiated, which is what this RFC asks for, and the chain it re-reads is the one the peer accepted (eap.PeerSession.ServerChains). <a href="#rfc5216-5.4-1"><code>RFC5216-5.4-1</code></a> is no longer among them either: checkChainRevocation (<a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/revocation.go" target="_blank" rel="noopener"><code>internal/core/eap/revocation.go</code></a>) checks every certificate on each verified chain except the trust anchor against the crl leaf-list its CA publishes, on the authenticator through tls.Config.VerifyConnection and on the peer through serverChainCheck.verifyConnection, and it is proven in both polarities on TLS 1.2, which is the version this RFC governs. The eighth is <a href="#rfc5216-5.3-5"><code>RFC5216-5.3-5</code></a>: Section 5.3 asks the server to retrieve the intermediate certificates a path needs (RFC 3280 Section 4.2.2.1, Authority Information Access), and Ze performs no such fetch. What Ze implements is the fallback the same section names for a server unable to retrieve them: the authenticator completes the client chain from the intermediate-certificate list the operator configures (PKI ca entries, never trust anchors) beside the intermediates the peer sends (clientChainVerifier, <a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/client_chain.go" target="_blank" rel="noopener"><code>internal/core/eap/client_chain.go</code></a>).</p>
+<p class="rfc-prose"><strong>Seven are scheduled:</strong> TLS 1.0 support (<a href="#rfc5216-2.4-7"><code>RFC5216-2.4-7</code></a>, which RFC 8996 forbids, <a href="https://github.com/ze-software/ze/blob/main/plan/proposals/spec-eap-tls-tls10.md" target="_blank" rel="noopener"><code>plan/proposals/spec-eap-tls-tls10.md</code></a>, the owner decides which document governs); the Peer-Id and Server-Id derivation and authorization (<a href="#rfc5216-5.2-1"><code>RFC5216-5.2-1</code></a>, <a href="#rfc5216-5.3-2"><code>RFC5216-5.3-2</code></a>, <a href="#rfc5216-5.3-3"><code>RFC5216-5.3-3</code></a>, <a href="https://github.com/ze-software/ze/blob/main/plan/release/fixes/spec-eap-tls-identity-authorization.md" target="_blank" rel="noopener"><code>plan/release/fixes/spec-eap-tls-identity-authorization.md</code></a>); and the certificate naming profile on issuers and verifiers (<a href="#rfc5216-5.2-2"><code>RFC5216-5.2-2</code></a>, <a href="#rfc5216-5.2-3"><code>RFC5216-5.2-3</code></a>, <a href="#rfc5216-5.2-4"><code>RFC5216-5.2-4</code></a>, <a href="https://github.com/ze-software/ze/blob/main/plan/post-release/features/spec-eap-tls-certificate-profile.md" target="_blank" rel="noopener"><code>plan/post-release/features/spec-eap-tls-certificate-profile.md</code></a>). <a href="#rfc5216-5.2-5"><code>RFC5216-5.2-5</code></a> is structural in crypto/x509 and carries a lower-layer annotation. The 12 rows the same walk added that are now proven in both polarities are the Section 2.1.1 Start and first Response, the six Section 2.1.5 fragment-ACK and Identifier obligations, and the four Section 3 packet-field obligations (rfc5216_flight_rules_test.go and rfc5216_fragment_ack_test.go, internal/core/eap). <a href="#rfc5216-5.4-2"><code>RFC5216-5.4-2</code></a> is no longer among them: the peer re-checks the revocation status of the authenticator certificate once the CHILD_SA gives it a network, over https, and closes the SA when the responder reports it revoked (startServerCertRecheck, <a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/postauth_revocation.go" target="_blank" rel="noopener"><code>internal/component/ike/engine/postauth_revocation.go</code></a>, reached from runEstablished). It runs whichever TLS version the exchange negotiated, which is what this RFC asks for, and the chain it re-reads is the one the peer accepted (eap.PeerSession.ServerChains). <a href="#rfc5216-5.4-1"><code>RFC5216-5.4-1</code></a> is no longer among them either: checkChainRevocation (<a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/revocation.go" target="_blank" rel="noopener"><code>internal/core/eap/revocation.go</code></a>) checks every certificate on each verified chain except the trust anchor against the crl leaf-list its CA publishes, on the authenticator through tls.Config.VerifyConnection and on the peer through serverChainCheck.verifyConnection, and it is proven in both polarities on TLS 1.2, which is the version this RFC governs. The eighth is <a href="#rfc5216-5.3-5"><code>RFC5216-5.3-5</code></a>: Section 5.3 asks the server to retrieve the intermediate certificates a path needs (RFC 3280 Section 4.2.2.1, Authority Information Access), and Ze performs no such fetch. What Ze implements is the fallback the same section names for a server unable to retrieve them: the authenticator completes the client chain from the intermediate-certificate list the operator configures (PKI ca entries, never trust anchors) beside the intermediates the peer sends (clientChainVerifier, <a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/client_chain.go" target="_blank" rel="noopener"><code>internal/core/eap/client_chain.go</code></a>).</p>
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -692,7 +692,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-2.4-7">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> both roles set MinVersion TLS 1.2 and RFC 8996 forbids TLS 1.0, so the owner decides which document governs; plan/spec-eap-tls-tls10.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> both roles set MinVersion TLS 1.2 and RFC 8996 forbids TLS 1.0, so the owner decides which document governs; plan/proposals/spec-eap-tls-tls10.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-3-3">RFC5216-3-3</code></td><td colspan="3"><span class="rfc-subject">The Identifier field MUST be changed on each Request packet. (§3)</span></td></tr>
 <tr><td></td>
@@ -738,7 +738,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-5.2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> eapTLSPeerName reads the subject and never the subjectAltName, and no Server-Id is exported; plan/immediate/spec-eap-tls-identity-authorization.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> eapTLSPeerName reads the subject and never the subjectAltName, and no Server-Id is exported; plan/release/fixes/spec-eap-tls-identity-authorization.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-5.2-2">RFC5216-5.2-2</code></td><td colspan="3"><span class="rfc-subject">If subject naming information is present only in the subjectAltName extension of a peer or server certificate, then the subject field MUST be an empty sequence and the subjectAltName extension MUST be critical. (§5.2)</span></td></tr>
 <tr><td></td>
@@ -747,7 +747,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-5.2-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> no verifier refuses an empty-subject leaf whose subjectAltName is not critical; plan/spec-eap-tls-certificate-profile.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> no verifier refuses an empty-subject leaf whose subjectAltName is not critical; plan/post-release/features/spec-eap-tls-certificate-profile.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-5.2-3">RFC5216-5.2-3</code></td><td colspan="3"><span class="rfc-subject">Conforming implementations generating new certificates with Network Access Identifiers (NAIs) MUST use the rfc822Name in the subject alternative name field to describe such identities. (§5.2)</span></td></tr>
 <tr><td></td>
@@ -756,7 +756,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-5.2-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> no Ze issuer takes an NAI to write as an rfc822Name; plan/spec-eap-tls-certificate-profile.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> no Ze issuer takes an NAI to write as an rfc822Name; plan/post-release/features/spec-eap-tls-certificate-profile.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-5.2-4">RFC5216-5.2-4</code></td><td colspan="3"><span class="rfc-subject">The use of the subject name field to contain an emailAddress Relative Distinguished Name (RDN) is deprecated, and MUST NOT be used. (§5.2)</span></td></tr>
 <tr><td></td>
@@ -765,7 +765,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-5.2-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> no verifier refuses a subject carrying an emailAddress RDN; plan/spec-eap-tls-certificate-profile.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> no verifier refuses a subject carrying an emailAddress RDN; plan/post-release/features/spec-eap-tls-certificate-profile.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-5.2-5">RFC5216-5.2-5</code></td><td colspan="3"><span class="rfc-subject">Where it is non-empty, the subject name field MUST contain an X.500 distinguished name (DN). (§5.2)</span></td></tr>
 <tr><td></td>
@@ -783,7 +783,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-5.3-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> neither role authorizes the Peer-Id or Server-Id against configuration; plan/immediate/spec-eap-tls-identity-authorization.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> neither role authorizes the Peer-Id or Server-Id against configuration; plan/release/fixes/spec-eap-tls-identity-authorization.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-5.3-3">RFC5216-5.3-3</code></td><td colspan="3"><span class="rfc-subject">When performing this comparison, implementations MUST follow the validation rules specified in Section 3.1 of [RFC2818]. (§5.3)</span></td></tr>
 <tr><td></td>
@@ -792,7 +792,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5216-5.3-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> the peer sets no expected server identity, so no RFC 2818 Section 3.1 comparison runs; plan/immediate/spec-eap-tls-identity-authorization.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> the peer sets no expected server identity, so no RFC 2818 Section 3.1 comparison runs; plan/release/fixes/spec-eap-tls-identity-authorization.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5216-5.4-3">RFC5216-5.4-3</code></td><td colspan="3"><span class="rfc-subject">EAP-TLS peer and server implementations SHOULD also support the Online Certificate Status Protocol (OCSP) (§5.4)</span></td></tr>
 <tr><td></td>
@@ -853,23 +853,23 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td><a href="#rfc5216-2.4-7"><code>RFC5216-2.4-7</code></a> EAP-TLS implementations MUST support TLS v1.0. (§2.4)</td>
 <td>{gap}, no test</td>
-<td>both roles set MinVersion TLS 1.2 and RFC 8996 forbids TLS 1.0, so the owner decides which document governs; plan/spec-eap-tls-tls10.md</td>
+<td>both roles set MinVersion TLS 1.2 and RFC 8996 forbids TLS 1.0, so the owner decides which document governs; plan/proposals/spec-eap-tls-tls10.md</td>
 </tr>
 <tr><td><a href="#rfc5216-5.2-1"><code>RFC5216-5.2-1</code></a> Where the subjectAltName field is present in the peer or server certificate, the Peer-Id or Server-Id MUST be set to the contents of the subjectAltName. (§5.2)</td>
 <td>{gap}, no test</td>
-<td>eapTLSPeerName reads the subject and never the subjectAltName, and no Server-Id is exported; plan/immediate/spec-eap-tls-identity-authorization.md</td>
+<td>eapTLSPeerName reads the subject and never the subjectAltName, and no Server-Id is exported; plan/release/fixes/spec-eap-tls-identity-authorization.md</td>
 </tr>
 <tr><td><a href="#rfc5216-5.2-2"><code>RFC5216-5.2-2</code></a> If subject naming information is present only in the subjectAltName extension of a peer or server certificate, then the subject field MUST be an empty sequence and the subjectAltName extension MUST be critical. (§5.2)</td>
 <td>{gap}, no test</td>
-<td>no verifier refuses an empty-subject leaf whose subjectAltName is not critical; plan/spec-eap-tls-certificate-profile.md</td>
+<td>no verifier refuses an empty-subject leaf whose subjectAltName is not critical; plan/post-release/features/spec-eap-tls-certificate-profile.md</td>
 </tr>
 <tr><td><a href="#rfc5216-5.2-3"><code>RFC5216-5.2-3</code></a> Conforming implementations generating new certificates with Network Access Identifiers (NAIs) MUST use the rfc822Name in the subject alternative name field to describe such identities. (§5.2)</td>
 <td>{gap}, no test</td>
-<td>no Ze issuer takes an NAI to write as an rfc822Name; plan/spec-eap-tls-certificate-profile.md</td>
+<td>no Ze issuer takes an NAI to write as an rfc822Name; plan/post-release/features/spec-eap-tls-certificate-profile.md</td>
 </tr>
 <tr><td><a href="#rfc5216-5.2-4"><code>RFC5216-5.2-4</code></a> The use of the subject name field to contain an emailAddress Relative Distinguished Name (RDN) is deprecated, and MUST NOT be used. (§5.2)</td>
 <td>{gap}, no test</td>
-<td>no verifier refuses a subject carrying an emailAddress RDN; plan/spec-eap-tls-certificate-profile.md</td>
+<td>no verifier refuses a subject carrying an emailAddress RDN; plan/post-release/features/spec-eap-tls-certificate-profile.md</td>
 </tr>
 <tr><td><a href="#rfc5216-5.2-5"><code>RFC5216-5.2-5</code></a> Where it is non-empty, the subject name field MUST contain an X.500 distinguished name (DN). (§5.2)</td>
 <td>no test</td>
@@ -877,11 +877,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td><a href="#rfc5216-5.3-2"><code>RFC5216-5.3-2</code></a> Once a TLS session is established, EAP-TLS peer and server implementations MUST validate that the identities represented in the certificate are appropriate and authorized for use with EAP-TLS. (§5.3)</td>
 <td>{gap}, no test</td>
-<td>neither role authorizes the Peer-Id or Server-Id against configuration; plan/immediate/spec-eap-tls-identity-authorization.md</td>
+<td>neither role authorizes the Peer-Id or Server-Id against configuration; plan/release/fixes/spec-eap-tls-identity-authorization.md</td>
 </tr>
 <tr><td><a href="#rfc5216-5.3-3"><code>RFC5216-5.3-3</code></a> When performing this comparison, implementations MUST follow the validation rules specified in Section 3.1 of [RFC2818]. (§5.3)</td>
 <td>{gap}, no test</td>
-<td>the peer sets no expected server identity, so no RFC 2818 Section 3.1 comparison runs; plan/immediate/spec-eap-tls-identity-authorization.md</td>
+<td>the peer sets no expected server identity, so no RFC 2818 Section 3.1 comparison runs; plan/release/fixes/spec-eap-tls-identity-authorization.md</td>
 </tr>
 </tbody>
 </table>
@@ -2118,7 +2118,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

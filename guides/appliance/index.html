@@ -49,7 +49,8 @@
     <h1 id="vm-appliance">VM Appliance</h1>
     <p>Build a bootable VM image with Ze baked in using <a href="https://gokrazy.org/" target="_blank" rel="noopener">gokrazy</a>. The default target is x86_64, and <code>image.arch</code> in <code>appliance.json</code> selects another architecture for <code>ze appliance build</code>. At runtime, the appliance is minimal: Linux kernel, gokrazy init, and Ze as the only application, with no package manager, no general shell (except authenticated emergency serial console), no unused distro daemons, and automatic process supervision.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#whats-in-the-image">What&#39;s in the image</a></li>
 <li><a href="#prerequisites">Prerequisites</a></li>
 <li><a href="#first-time-setup">First-time setup</a></li>
@@ -100,7 +101,7 @@
 <li><a href="#batch-init">Batch init</a></li>
 <li><a href="#disaster-recovery-exportimport">Disaster recovery (export/import)</a></li>
 </ol></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <p>Suitable for N100-class mini PCs, Proxmox VMs, or QEMU testing.</p>
 <!-- source: gokrazy/ze/config.json -- Packages, KernelPackage, Environment -->
 <h2 id="whats-in-the-image">What's in the image</h2>
@@ -995,7 +996,8 @@ config was saved. If the window completes, the active config hash is written to
 <p>Archives are always encrypted using the same Argon2id + XChaCha20-Poly1305 scheme as secrets at rest. The archive passphrase can differ when provided separately from the secrets passphrase. <code>import --force</code> overwrites files present in the archive, but it does not delete extra files already present in existing appliance directories.</p>
 <!-- source: internal/appliance/crypto.go -- Encrypt, Decrypt -->
 <!-- source: internal/appliance/cmd_import.go -- importArchive, extractTar -->
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -1037,7 +1039,7 @@ config was saved. If the window completes, the active config hash is written to
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

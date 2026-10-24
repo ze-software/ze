@@ -51,13 +51,14 @@
 tuning. Config-backed keys have matching paths under <code>environment { }</code>.
 Bootstrap, safety, and test keys can be environment-only.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#priority-for-config-backed-keys">Priority for Config-Backed Keys</a></li>
 <li><a href="#common-variables">Common Variables</a></li>
 <li><a href="#config-block-syntax">Config Block Syntax</a></li>
 <li><a href="#discoverability">Discoverability</a></li>
 <li><a href="#changes-in-2026-04">Changes in 2026-04</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <!-- source: internal/component/config/environment.go -- env var registrations; internal/core/paths/paths.go -- ze.config.dir registration -->
 <p>See <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/config/environment.md" target="_blank" rel="noopener">environment.md</a> for the
 authoritative list.</p>
@@ -233,7 +234,8 @@ a YANG leaf to a new env key:</p>
 <p>The <code>ze exabgp migrate --env</code> tool converts surviving keys to Ze YANG
 blocks and emits <code># &lt;key&gt; -- no longer supported</code> comments for dropped
 ones so an operator can audit an ExaBGP env file before commit.</p>
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -275,7 +277,7 @@ ones so an operator can audit an ExaBGP env file before commit.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

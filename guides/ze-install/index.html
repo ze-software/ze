@@ -49,7 +49,8 @@
     <h1 id="installation">Installation</h1>
     <p>Ze provides commands for local installation, remote PXE provisioning, and appliance ISO installer media.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#local-installation">Local Installation</a>
 <ol>
 <li><a href="#quick-start">Quick Start</a></li>
@@ -107,7 +108,7 @@
 <li><a href="#environment-knobs">Environment Knobs</a></li>
 <li><a href="#qemu-networking-note">QEMU Networking Note</a></li>
 </ol></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <h2 id="local-installation">Local Installation</h2>
 <p><code>ze install local</code> copies the ze binary to a standard system location
 and creates the config directory.</p>
@@ -1112,7 +1113,8 @@ only the first guest connection, which stalls the installer's second and third
 downloads (image, zefs); the gateway handles the sequential connections the
 installer makes. This is only a test-harness concern; real PXE installs use a
 real network and <code>ze install remote</code> on port 80.</p>
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -1154,7 +1156,7 @@ real network and <code>ze install remote</code> on port 80.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

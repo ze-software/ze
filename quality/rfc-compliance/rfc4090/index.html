@@ -63,9 +63,9 @@
 .rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
 .rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
 .rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
-.rfc-ok { border-left: 7px solid var(--teal-base); }
+.rfc-ok { border-left: 7px solid var(--green); }
 .rfc-neutral { border-left: 7px solid var(--line-strong); }
-.rfc-warn { border-left: 7px solid var(--gold-base); }
+.rfc-warn { border-left: 7px solid var(--amber); }
 .rfc-bad { border-left: 7px solid var(--danger-deep); }
 .rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
 .rfc-tape span { width: var(--w); min-width: 0; display: block; }
@@ -80,11 +80,11 @@
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-partial-scope { background: var(--danger-deep); }
-.rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
+.rfc-tape-one_polarity_unexcused { background: var(--amber); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
-.rfc-swatch.rfc-ok { background: var(--teal-base); }
+.rfc-swatch.rfc-ok { background: var(--green); }
 .rfc-swatch.rfc-neutral { background: var(--line-strong); }
-.rfc-swatch.rfc-warn { background: var(--gold-base); }
+.rfc-swatch.rfc-warn { background: var(--amber); }
 .rfc-swatch.rfc-bad { background: var(--danger-deep); }
 .rfc-total td { border-top: 2px solid var(--line-strong); }
 .rfc-prose { max-width: 46rem; }
@@ -110,7 +110,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 .rfc-note-box { margin: 1rem 0; padding: 1rem 1.2rem; border-radius: 16px; background: var(--gold-tint); border: 1px solid var(--gold-chip); }
 .rfc-note-box h3 { margin-top: 0; }
 .rfc-note-box ul { margin-bottom: 0; }
-.rfc-check-ok strong { color: var(--teal-deep); }
+.rfc-check-ok strong { color: var(--green); }
 .rfc-check-bad strong { color: var(--danger-deep); }
 </style>
 <section><h2>Overview</h2>
@@ -264,7 +264,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 Facility backup behavior. A PATH carrying a DETOUR object is rejected with a PathErr, as Section 4.2 requires of an LSR without one-to-one backup. A Ze PLR&#39;s backup PATH (<a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr.go" target="_blank" rel="noopener"><code>internal/plugins/rsvpte/frr.go</code></a> <code>backupPath</code>, sent by <code>tryLocalRepair</code>) crosses the bypass to a freeRtr merge point, which answers it with labelled RESVs that the PLR accepts (interop scenario <code>plr-backup-path-to-egress-merge-point</code>, 2026-10-09).
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-PLRs now signal and refresh the protected PATH through the bypass, and an MP merges it into matching protected state (Sections 6.4.3, 6.4.4, 7.1.1). A head-end PLR uses a distinct assigned local sender address and a two-label ingress push (Section 6.1.1). Each of those six requirements carries a discrimination record in both polarities (<a href="https://github.com/ze-software/ze/blob/main/rfc/discrimination/rfc4090.json" target="_blank" rel="noopener"><code>rfc/discrimination/rfc4090.json</code></a>, completed 2026-10-08). One-to-one detours remain absent; Section 6 states &#34;A PLR MAY support the DETOUR object&#34;. A bandwidth-guaranteed bypass is also absent (<a href="https://github.com/ze-software/ze/blob/main/plan/post-release/features/spec-rsvpte-bypass-bandwidth-protection.md" target="_blank" rel="noopener"><code>plan/post-release/features/spec-rsvpte-bypass-bandwidth-protection.md</code></a>). Those optional feature records require a scope decision and do not authorize implementation.
+PLRs now signal and refresh the protected PATH through the bypass, and an MP merges it into matching protected state (Sections 6.4.3, 6.4.4, 7.1.1). A head-end PLR uses a distinct assigned local sender address and a two-label ingress push (Section 6.1.1). Each of those six requirements carries a discrimination record in both polarities (<a href="https://github.com/ze-software/ze/blob/main/rfc/discrimination/rfc4090/RFC4090-6.1-1.json" target="_blank" rel="noopener"><code>rfc/discrimination/rfc4090/RFC4090-6.1-1.json</code></a>, <a href="https://github.com/ze-software/ze/blob/main/rfc/discrimination/rfc4090/RFC4090-6.4-1.json" target="_blank" rel="noopener"><code>rfc/discrimination/rfc4090/RFC4090-6.4-1.json</code></a>, <a href="https://github.com/ze-software/ze/blob/main/rfc/discrimination/rfc4090/RFC4090-6.4-2.json" target="_blank" rel="noopener"><code>rfc/discrimination/rfc4090/RFC4090-6.4-2.json</code></a>, <a href="https://github.com/ze-software/ze/blob/main/rfc/discrimination/rfc4090/RFC4090-6.4-3.json" target="_blank" rel="noopener"><code>rfc/discrimination/rfc4090/RFC4090-6.4-3.json</code></a>, <a href="https://github.com/ze-software/ze/blob/main/rfc/discrimination/rfc4090/RFC4090-7.1-1.json" target="_blank" rel="noopener"><code>rfc/discrimination/rfc4090/RFC4090-7.1-1.json</code></a>, <a href="https://github.com/ze-software/ze/blob/main/rfc/discrimination/rfc4090/RFC4090-7.1-2.json" target="_blank" rel="noopener"><code>rfc/discrimination/rfc4090/RFC4090-7.1-2.json</code></a>; completed 2026-10-08). One-to-one detours remain absent; Section 6 states &#34;A PLR MAY support the DETOUR object&#34;. A bandwidth-guaranteed bypass is also absent (<a href="https://github.com/ze-software/ze/blob/main/plan/post-release/features/spec-rsvpte-bypass-bandwidth-protection.md" target="_blank" rel="noopener"><code>plan/post-release/features/spec-rsvpte-bypass-bandwidth-protection.md</code></a>). Those optional feature records require a scope decision and do not authorize implementation.
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -2023,7 +2023,7 @@ PLRs now signal and refresh the protected PATH through the bypass, and an MP mer
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

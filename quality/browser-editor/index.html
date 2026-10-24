@@ -49,7 +49,8 @@
     <h1 id="browser-wb-and-editor-et-tests">Browser <code>.wb</code> and Editor <code>.et</code> Tests</h1>
     <p>Ze has two UI functional formats. <code>.wb</code> drives the web interface through a real browser session. <code>.et</code> drives the interactive configuration editor through the CLI testing harness. Use them when the contract is what a person sees or types, not a helper function hidden under that interface.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#browser-tests">Browser tests</a>
 <ol>
 <li><a href="#browser-syntax">Browser syntax</a></li>
@@ -59,7 +60,7 @@
 <li><a href="#editor-syntax">Editor syntax</a></li>
 </ol></li>
 <li><a href="#failure-reading">Failure reading</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <!-- source: ../main/docs/architecture/testing/runner-architecture.md -- web runner architecture -->
 <!-- source: ../main/internal/component/web/testing/parser.go -- web parser -->
 <!-- source: ../main/internal/component/web/testing/runner.go -- web runner -->
@@ -120,7 +121,8 @@
 ZE_TEST_KEEP_TMP=1 ./le test editor completion-basic -v
 </code></pre>
 <p>For web failures, read the snapshot before changing selectors. For editor failures, read the prompt, context, and buffered text before changing parser code. Most flaky UI tests come from checking too early; prefer an observable wait such as URL, element text, validation state, or command completion.</p>
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Debugging</p>
@@ -150,7 +152,7 @@ ZE_TEST_KEEP_TMP=1 ./le test editor completion-basic -v
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

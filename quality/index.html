@@ -49,14 +49,15 @@
     <h1 id="code-quality">Code Quality</h1>
     <p>Ze's quality work has one rule: when something fails, the output should show what broke and what to run next. This page follows that path from a small Go test to the full release evidence.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#the-flow">The flow</a></li>
 <li><a href="#local-tests-are-one-layer">Local tests are one layer</a></li>
 <li><a href="#which-guide-to-open">Which guide to open</a></li>
 <li><a href="#commands-that-matter">Commands that matter</a></li>
 <li><a href="#how-a-failure-becomes-useful">How a failure becomes useful</a></li>
 <li><a href="#file-formats">File formats</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <!-- source: ../main/internal/le/testunit/actions.go -- unit and race actions -->
 <!-- source: ../main/internal/le/functional/actions.go -- functional suite actions -->
 <!-- source: ../main/docs/architecture/testing/ci-format.md -- .ci and .et formats -->
@@ -168,7 +169,8 @@ go run github.com/sivchari/gomu/cmd/gomu run --incremental --base-branch=main --
 </div>
 <h2 id="file-formats">File formats</h2>
 <p>Ze currently has three functional formats. Use <code>.ci</code> for process, protocol, command, HTTP, syslog, file, and daemon behavior. Use <code>.wb</code> for rendered browser behavior. Use <code>.et</code> for the headless interactive editor. There is no <code>.wt</code> parser in the current tree; notes using that extension should be read as web tests only if a new parser is later added.</p>
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Debugging</p>
@@ -214,7 +216,7 @@ go run github.com/sivchari/gomu/cmd/gomu run --incremental --base-branch=main --
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

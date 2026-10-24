@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 62.7% | 79 of 126 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 126 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 126 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 100.0% | 91 of 91 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 97.8% | 89 of 91 tagged units, 0 escaped and 2 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -1128,8 +1128,8 @@ Audit verdict: not audited: no reader has judged these tests
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC9915Section182101UniqueAddressKept`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_attach_linux_test.go#L183) | unit/verify | revert, verified |
-| positive | [`TestRFC9915DuplicateAddressDeclinedOnTheLink`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc9915_dhcp_v6_dad_integration_linux_test.go#L35) | unit/verify | revert, verified |
-| positive | [`TestRFC9915Section182101DuplicateAddressDeclined`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_attach_linux_test.go#L97) | unit/verify | revert, verified |
+| positive | [`TestRFC9915DuplicateAddressDeclinedOnTheLink`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc9915_dhcp_v6_dad_integration_linux_test.go#L35) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC9915Section182101DuplicateAddressDeclined`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_attach_linux_test.go#L97) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC9915-18.2.10.1-3`](#rfc9915-18.2.10.1-3)
 

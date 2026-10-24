@@ -63,9 +63,9 @@
 .rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
 .rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
 .rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
-.rfc-ok { border-left: 7px solid var(--teal-base); }
+.rfc-ok { border-left: 7px solid var(--green); }
 .rfc-neutral { border-left: 7px solid var(--line-strong); }
-.rfc-warn { border-left: 7px solid var(--gold-base); }
+.rfc-warn { border-left: 7px solid var(--amber); }
 .rfc-bad { border-left: 7px solid var(--danger-deep); }
 .rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
 .rfc-tape span { width: var(--w); min-width: 0; display: block; }
@@ -80,11 +80,11 @@
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-partial-scope { background: var(--danger-deep); }
-.rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
+.rfc-tape-one_polarity_unexcused { background: var(--amber); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
-.rfc-swatch.rfc-ok { background: var(--teal-base); }
+.rfc-swatch.rfc-ok { background: var(--green); }
 .rfc-swatch.rfc-neutral { background: var(--line-strong); }
-.rfc-swatch.rfc-warn { background: var(--gold-base); }
+.rfc-swatch.rfc-warn { background: var(--amber); }
 .rfc-swatch.rfc-bad { background: var(--danger-deep); }
 .rfc-total td { border-top: 2px solid var(--line-strong); }
 .rfc-prose { max-width: 46rem; }
@@ -110,7 +110,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 .rfc-note-box { margin: 1rem 0; padding: 1rem 1.2rem; border-radius: 16px; background: var(--gold-tint); border: 1px solid var(--gold-chip); }
 .rfc-note-box h3 { margin-top: 0; }
 .rfc-note-box ul { margin-bottom: 0; }
-.rfc-check-ok strong { color: var(--teal-deep); }
+.rfc-check-ok strong { color: var(--green); }
 .rfc-check-bad strong { color: var(--danger-deep); }
 </style>
 <section><h2>Overview</h2>
@@ -121,7 +121,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>3.1%</strong><b>3 of 97 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 97 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 97 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>50.7%</strong><b>116 of 229 tagged units, 0 escaped and 36 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>64.6%</strong><b>148 of 229 tagged units, 0 escaped and 4 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -1074,8 +1074,8 @@ Full RFC support is not established. SID-structure length-sum validation and ori
 <td>MUST</td>
 <td>4.2.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9830-4.2.1-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_nlri_receive_test.go#L162" title="internal/component/bgp/reactor/rfc9830_nlri_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9830NLRILengthReceiveVerdicts</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_nlri_receive_test.go#L173" title="internal/component/bgp/reactor/rfc9830_nlri_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9830NLRILengthReceiveVerdicts</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_nlri_receive_test.go#L185" title="internal/component/bgp/reactor/rfc9830_nlri_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9830NLRILengthReceiveVerdicts</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_nlri_receive_test.go#L196" title="internal/component/bgp/reactor/rfc9830_nlri_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9830NLRILengthReceiveVerdicts</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9830-4.2.1-3">RFC9830-4.2.1-3</code></td><td colspan="3"><span class="rfc-subject">the length of the NLRI MUST be either 12 or 24 octets (depending on the address family of the Endpoint). (§4.2.1)</span></td></tr>
@@ -1083,8 +1083,8 @@ Full RFC support is not established. SID-structure length-sum validation and ori
 <td>MUST</td>
 <td>4.2.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9830-4.2.1-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_nlri_receive_test.go#L163" title="internal/component/bgp/reactor/rfc9830_nlri_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9830NLRILengthReceiveVerdicts</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_nlri_receive_test.go#L174" title="internal/component/bgp/reactor/rfc9830_nlri_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9830NLRILengthReceiveVerdicts</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_nlri_receive_test.go#L186" title="internal/component/bgp/reactor/rfc9830_nlri_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9830NLRILengthReceiveVerdicts</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_nlri_receive_test.go#L197" title="internal/component/bgp/reactor/rfc9830_nlri_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9830NLRILengthReceiveVerdicts</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9830-4.2.1-4">RFC9830-4.2.1-4</code></td><td colspan="3"><span class="rfc-subject">* The SR Policy update MUST have either the NO_ADVERTISE community, at least one Route Target extended community in IPv4-address format, or both. (§4.2.1)</span></td></tr>
@@ -1202,8 +1202,8 @@ Full RFC support is not established. SID-structure length-sum validation and ori
 <td>MUST</td>
 <td>5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9830-5-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_nlri_receive_test.go#L164" title="internal/component/bgp/reactor/rfc9830_nlri_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9830NLRILengthReceiveVerdicts</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_nlri_receive_test.go#L175" title="internal/component/bgp/reactor/rfc9830_nlri_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9830NLRILengthReceiveVerdicts</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_nlri_receive_test.go#L187" title="internal/component/bgp/reactor/rfc9830_nlri_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9830NLRILengthReceiveVerdicts</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_nlri_receive_test.go#L198" title="internal/component/bgp/reactor/rfc9830_nlri_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9830NLRILengthReceiveVerdicts</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9830-5-2">RFC9830-5-2</code></td><td colspan="3"><span class="rfc-subject">When the error determined allows for the router to skip the malformed NLRI(s) and continue the processing of the rest of the BGP UPDATE message, then it MUST handle such malformed NLRIs as &#39;treat-as- withdraw&#39;. (§5)</span></td></tr>
@@ -1212,8 +1212,8 @@ Full RFC support is not established. SID-structure length-sum validation and ori
 <td>5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9830-5-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_mpunreach_only_test.go#L49" title="internal/component/bgp/message/rfc7606_mpunreach_only_test.go" target="_blank" rel="noopener"><code>TestRFC7606Section52MPUnreachOnlyNotEscalated</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_nlri_receive_test.go#L177" title="internal/component/bgp/reactor/rfc9830_nlri_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9830NLRILengthReceiveVerdicts</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_nlri_receive_test.go#L191" title="internal/component/bgp/reactor/rfc9830_nlri_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9830NLRILengthReceiveVerdicts</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_nlri_receive_test.go#L200" title="internal/component/bgp/reactor/rfc9830_nlri_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9830NLRILengthReceiveVerdicts</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_nlri_receive_test.go#L214" title="internal/component/bgp/reactor/rfc9830_nlri_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9830NLRILengthReceiveVerdicts</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9830-5-4">RFC9830-5-4</code></td><td colspan="3"><span class="rfc-subject">Alternately, the router MUST perform &#34;session reset&#34; when the session is only being used for SR Policy or when a &#34;AFI/SAFI disable&#34; action is not possible. (§5)</span></td></tr>
@@ -1221,8 +1221,8 @@ Full RFC support is not established. SID-structure length-sum validation and ori
 <td>MUST</td>
 <td>5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9830-5-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_nlri_receive_test.go#L190" title="internal/component/bgp/reactor/rfc9830_nlri_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9830NLRILengthReceiveVerdicts</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_nlri_receive_test.go#L176" title="internal/component/bgp/reactor/rfc9830_nlri_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9830NLRILengthReceiveVerdicts</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_nlri_receive_test.go#L213" title="internal/component/bgp/reactor/rfc9830_nlri_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9830NLRILengthReceiveVerdicts</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_nlri_receive_test.go#L199" title="internal/component/bgp/reactor/rfc9830_nlri_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9830NLRILengthReceiveVerdicts</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9830-5-5">RFC9830-5-5</code></td><td colspan="3"><span class="rfc-subject">The validation of the TLVs/sub-TLVs introduced in this document and defined in their respective subsections of Section 2.4 MUST be performed to determine if they are malformed or invalid. (§5)</span></td></tr>
@@ -1800,12 +1800,12 @@ Full RFC support is not established. SID-structure length-sum validation and ori
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L185" title="internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go" target="_blank" rel="noopener"><code>TestRFC9830UpdateCarriesMandatoryAttributes</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_update_attrs_test.go#L90" title="internal/component/bgp/plugins/nlri/srpolicy/rfc9830_update_attrs_test.go" target="_blank" rel="noopener"><code>TestRFC9830SRPolicyIBGPAnnounceKeepsAnEmptyASPath</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_reactor_a_withdraw_attrs_test.go#L39" title="internal/component/bgp/reactor/rfc9830_reactor_a_withdraw_attrs_test.go" target="_blank" rel="noopener"><code>TestRFC9830SRPolicyWithdrawalCarriesMandatoryAttributes</code></a></td>
@@ -1815,12 +1815,12 @@ Full RFC support is not established. SID-structure length-sum validation and ori
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L179" title="internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go" target="_blank" rel="noopener"><code>TestRFC9830UpdateCarriesMandatoryAttributes</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_update_attrs_test.go#L47" title="internal/component/bgp/plugins/nlri/srpolicy/rfc9830_update_attrs_test.go" target="_blank" rel="noopener"><code>TestRFC9830SRPolicyAnnounceCarriesMandatoryAttributes</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_reactor_a_withdraw_attrs_test.go#L38" title="internal/component/bgp/reactor/rfc9830_reactor_a_withdraw_attrs_test.go" target="_blank" rel="noopener"><code>TestRFC9830SRPolicyWithdrawalCarriesMandatoryAttributes</code></a></td>
@@ -2060,7 +2060,7 @@ Full RFC support is not established. SID-structure length-sum validation and ori
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L444" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReservedFieldsIgnoredOnReceipt</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L265" title="internal/core/bgp/attribute/rfc9830_test.go" target="_blank" rel="noopener"><code>TestRFC9830PreferenceFlagsAndReservedIgnored</code></a></td>
@@ -2075,7 +2075,7 @@ Full RFC support is not established. SID-structure length-sum validation and ori
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L443" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReservedFieldsIgnoredOnReceipt</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L255" title="internal/core/bgp/attribute/rfc9830_test.go" target="_blank" rel="noopener"><code>TestRFC9830PreferenceFlagsAndReservedIgnored</code></a></td>
@@ -2120,7 +2120,7 @@ Full RFC support is not established. SID-structure length-sum validation and ori
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L446" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReservedFieldsIgnoredOnReceipt</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L266" title="internal/core/bgp/attribute/rfc9830_test.go" target="_blank" rel="noopener"><code>TestRFC9830PreferenceFlagsAndReservedIgnored</code></a></td>
@@ -2135,7 +2135,7 @@ Full RFC support is not established. SID-structure length-sum validation and ori
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L445" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReservedFieldsIgnoredOnReceipt</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L260" title="internal/core/bgp/attribute/rfc9830_test.go" target="_blank" rel="noopener"><code>TestRFC9830PreferenceFlagsAndReservedIgnored</code></a></td>
@@ -2300,7 +2300,7 @@ Full RFC support is not established. SID-structure length-sum validation and ori
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L448" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReservedFieldsIgnoredOnReceipt</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L206" title="internal/core/bgp/attribute/rfc9830_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReceivedFieldsAreIgnoredNotRead</code></a></td>
@@ -2315,7 +2315,7 @@ Full RFC support is not established. SID-structure length-sum validation and ori
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L447" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReservedFieldsIgnoredOnReceipt</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L120" title="internal/core/bgp/attribute/rfc9830_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReceivedFieldsAreIgnoredNotRead</code></a></td>
@@ -2360,7 +2360,7 @@ Full RFC support is not established. SID-structure length-sum validation and ori
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L450" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReservedFieldsIgnoredOnReceipt</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L207" title="internal/core/bgp/attribute/rfc9830_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReceivedFieldsAreIgnoredNotRead</code></a></td>
@@ -2375,7 +2375,7 @@ Full RFC support is not established. SID-structure length-sum validation and ori
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L449" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReservedFieldsIgnoredOnReceipt</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L122" title="internal/core/bgp/attribute/rfc9830_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReceivedFieldsAreIgnoredNotRead</code></a></td>
@@ -2455,7 +2455,7 @@ Full RFC support is not established. SID-structure length-sum validation and ori
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L452" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReservedFieldsIgnoredOnReceipt</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L208" title="internal/core/bgp/attribute/rfc9830_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReceivedFieldsAreIgnoredNotRead</code></a></td>
@@ -2470,7 +2470,7 @@ Full RFC support is not established. SID-structure length-sum validation and ori
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L451" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReservedFieldsIgnoredOnReceipt</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L124" title="internal/core/bgp/attribute/rfc9830_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReceivedFieldsAreIgnoredNotRead</code></a></td>
@@ -2515,7 +2515,7 @@ Full RFC support is not established. SID-structure length-sum validation and ori
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L454" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReservedFieldsIgnoredOnReceipt</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L209" title="internal/core/bgp/attribute/rfc9830_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReceivedFieldsAreIgnoredNotRead</code></a></td>
@@ -2530,7 +2530,7 @@ Full RFC support is not established. SID-structure length-sum validation and ori
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L453" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReservedFieldsIgnoredOnReceipt</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L128" title="internal/core/bgp/attribute/rfc9830_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReceivedFieldsAreIgnoredNotRead</code></a></td>
@@ -2590,7 +2590,7 @@ Full RFC support is not established. SID-structure length-sum validation and ori
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L456" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReservedFieldsIgnoredOnReceipt</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L210" title="internal/core/bgp/attribute/rfc9830_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReceivedFieldsAreIgnoredNotRead</code></a></td>
@@ -2605,7 +2605,7 @@ Full RFC support is not established. SID-structure length-sum validation and ori
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L455" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReservedFieldsIgnoredOnReceipt</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L130" title="internal/core/bgp/attribute/rfc9830_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReceivedFieldsAreIgnoredNotRead</code></a></td>
@@ -2690,7 +2690,7 @@ Full RFC support is not established. SID-structure length-sum validation and ori
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L458" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReservedFieldsIgnoredOnReceipt</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L211" title="internal/core/bgp/attribute/rfc9830_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReceivedFieldsAreIgnoredNotRead</code></a></td>
@@ -2705,7 +2705,7 @@ Full RFC support is not established. SID-structure length-sum validation and ori
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L457" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReservedFieldsIgnoredOnReceipt</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L134" title="internal/core/bgp/attribute/rfc9830_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReceivedFieldsAreIgnoredNotRead</code></a></td>
@@ -2750,7 +2750,7 @@ Full RFC support is not established. SID-structure length-sum validation and ori
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L460" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReservedFieldsIgnoredOnReceipt</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L212" title="internal/core/bgp/attribute/rfc9830_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReceivedFieldsAreIgnoredNotRead</code></a></td>
@@ -2765,7 +2765,7 @@ Full RFC support is not established. SID-structure length-sum validation and ori
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L459" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReservedFieldsIgnoredOnReceipt</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L138" title="internal/core/bgp/attribute/rfc9830_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReceivedFieldsAreIgnoredNotRead</code></a></td>
@@ -2830,7 +2830,7 @@ Full RFC support is not established. SID-structure length-sum validation and ori
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L462" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReservedFieldsIgnoredOnReceipt</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L213" title="internal/core/bgp/attribute/rfc9830_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReceivedFieldsAreIgnoredNotRead</code></a></td>
@@ -2845,7 +2845,7 @@ Full RFC support is not established. SID-structure length-sum validation and ori
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L461" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReservedFieldsIgnoredOnReceipt</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L142" title="internal/core/bgp/attribute/rfc9830_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReceivedFieldsAreIgnoredNotRead</code></a></td>
@@ -2890,7 +2890,7 @@ Full RFC support is not established. SID-structure length-sum validation and ori
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L464" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReservedFieldsIgnoredOnReceipt</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L214" title="internal/core/bgp/attribute/rfc9830_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReceivedFieldsAreIgnoredNotRead</code></a></td>
@@ -2905,7 +2905,7 @@ Full RFC support is not established. SID-structure length-sum validation and ori
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L463" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReservedFieldsIgnoredOnReceipt</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L146" title="internal/core/bgp/attribute/rfc9830_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReceivedFieldsAreIgnoredNotRead</code></a></td>
@@ -2970,7 +2970,7 @@ Full RFC support is not established. SID-structure length-sum validation and ori
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L466" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReservedFieldsIgnoredOnReceipt</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L215" title="internal/core/bgp/attribute/rfc9830_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReceivedFieldsAreIgnoredNotRead</code></a></td>
@@ -2985,7 +2985,7 @@ Full RFC support is not established. SID-structure length-sum validation and ori
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L465" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReservedFieldsIgnoredOnReceipt</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L161" title="internal/core/bgp/attribute/rfc9830_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReceivedFieldsAreIgnoredNotRead</code></a></td>
@@ -3055,7 +3055,7 @@ Full RFC support is not established. SID-structure length-sum validation and ori
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L468" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReservedFieldsIgnoredOnReceipt</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L216" title="internal/core/bgp/attribute/rfc9830_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReceivedFieldsAreIgnoredNotRead</code></a></td>
@@ -3070,7 +3070,7 @@ Full RFC support is not established. SID-structure length-sum validation and ori
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L467" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReservedFieldsIgnoredOnReceipt</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L150" title="internal/core/bgp/attribute/rfc9830_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReceivedFieldsAreIgnoredNotRead</code></a></td>
@@ -3090,7 +3090,7 @@ Full RFC support is not established. SID-structure length-sum validation and ori
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L470" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReservedFieldsIgnoredOnReceipt</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L217" title="internal/core/bgp/attribute/rfc9830_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReceivedFieldsAreIgnoredNotRead</code></a></td>
@@ -3100,7 +3100,7 @@ Full RFC support is not established. SID-structure length-sum validation and ori
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L469" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReservedFieldsIgnoredOnReceipt</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L157" title="internal/core/bgp/attribute/rfc9830_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReceivedFieldsAreIgnoredNotRead</code></a></td>
@@ -3149,7 +3149,7 @@ Full RFC support is not established. SID-structure length-sum validation and ori
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L472" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReservedFieldsIgnoredOnReceipt</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L218" title="internal/core/bgp/attribute/rfc9830_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReceivedFieldsAreIgnoredNotRead</code></a></td>
@@ -3164,7 +3164,7 @@ Full RFC support is not established. SID-structure length-sum validation and ori
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L471" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReservedFieldsIgnoredOnReceipt</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L165" title="internal/core/bgp/attribute/rfc9830_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReceivedFieldsAreIgnoredNotRead</code></a></td>
@@ -3281,7 +3281,7 @@ Full RFC support is not established. SID-structure length-sum validation and ori
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L474" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReservedFieldsIgnoredOnReceipt</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L219" title="internal/core/bgp/attribute/rfc9830_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReceivedFieldsAreIgnoredNotRead</code></a></td>
@@ -3296,7 +3296,7 @@ Full RFC support is not established. SID-structure length-sum validation and ori
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L473" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReservedFieldsIgnoredOnReceipt</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L169" title="internal/core/bgp/attribute/rfc9830_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReceivedFieldsAreIgnoredNotRead</code></a></td>
@@ -3363,7 +3363,7 @@ Full RFC support is not established. SID-structure length-sum validation and ori
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L476" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReservedFieldsIgnoredOnReceipt</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L220" title="internal/core/bgp/attribute/rfc9830_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReceivedFieldsAreIgnoredNotRead</code></a></td>
@@ -3378,7 +3378,7 @@ Full RFC support is not established. SID-structure length-sum validation and ori
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L475" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReservedFieldsIgnoredOnReceipt</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L171" title="internal/core/bgp/attribute/rfc9830_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReceivedFieldsAreIgnoredNotRead</code></a></td>
@@ -3445,7 +3445,7 @@ Full RFC support is not established. SID-structure length-sum validation and ori
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L478" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReservedFieldsIgnoredOnReceipt</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L221" title="internal/core/bgp/attribute/rfc9830_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReceivedFieldsAreIgnoredNotRead</code></a></td>
@@ -3460,7 +3460,7 @@ Full RFC support is not established. SID-structure length-sum validation and ori
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L477" title="internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReservedFieldsIgnoredOnReceipt</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L173" title="internal/core/bgp/attribute/rfc9830_test.go" target="_blank" rel="noopener"><code>TestRFC9830ReceivedFieldsAreIgnoredNotRead</code></a></td>
@@ -3484,18 +3484,18 @@ Full RFC support is not established. SID-structure length-sum validation and ori
 <p>No test carries RFC9830-4.2.1-1, so no unit is bound to it.</p>
 <h3><a href="#rfc9830-4.2.1-2"><code>RFC9830-4.2.1-2</code></a></h3>
 <p>The SR Policy NLRI MUST include a distinguisher, Color, and Endpoint field (§4.2.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-18 (independent auditor, after e5724325c1). Section 4.2.1: &#34;The SR Policy NLRI MUST include a distinguisher, Color, and Endpoint field that implies that the length of the NLRI MUST be either 12 or 24 octets (depending on the address family of the Endpoint).&#34; TestRFC9830NLRILengthReceiveVerdicts changed only in its MP_UNREACH-alone block, which bears the RFC9830-5-2 and RFC7606-5.2-1 claims, not this row&#39;s. The two RFC9830-4.2.1-2 blocks are identical: positive, 12 octets under AFI 1 and 24 under AFI 2 accepted through processMessage with nothing written and dispatched byte-identical (srRequireKept); negative, 13 and 24 octets under AFI 1, 12 and 25 under AFI 2, a 13-octet NLRI beside a good one and in MP_UNREACH beside reachable NLRI are treat-as-withdraw with the session Established and the received body never dispatched (srRequireWithdrawn). Producer: srpolicy/split.go judgeSRPolicySection; a receiver accepting any byte-aligned length reddens the negative, and 12 octets under AFI 2 is the missing-field case.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-23 (independent auditor, after 5d4afb0c4e and 9242dcd57b). RFC 9830 Section 4.2.1: &#34;The SR Policy NLRI MUST include a distinguisher, Color, and Endpoint field that implies that the length of the NLRI MUST be either 12 or 24 octets (depending on the address family of the Endpoint).&#34; TestRFC9830NLRILengthReceiveVerdicts changed only in what its unwalkable and Section 5.2 cases expect on the wire (3/9 with the MP attribute, via srMPAttrError and srRequireReset with an exact want), not in the two tags of this row: the positive still requires 12 octets under AFI 1 and 24 under AFI 2, with and without ADD-PATH, accepted through processMessage with no RFC 7606 action and dispatched byte-identical; the negative still requires 13 and 24 octets under AFI 1 and 12 and 25 under AFI 2 (too long, or too short to hold an IPv6 Endpoint), alone or beside a well-formed NLRI, to be treated as withdrawn with the session Established, nothing written, and the received body never dispatched. Producer: the registered srpolicy nlrisyntax Judge reached from rfc7606.go validateMPNLRISyntax. Ran green. Verdict stands.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_nlri_receive_test.go#L173" title="internal/component/bgp/reactor/rfc9830_nlri_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9830NLRILengthReceiveVerdicts</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_nlri_receive_test.go#L196" title="internal/component/bgp/reactor/rfc9830_nlri_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9830NLRILengthReceiveVerdicts</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_nlri_receive_test.go#L162" title="internal/component/bgp/reactor/rfc9830_nlri_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9830NLRILengthReceiveVerdicts</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_nlri_receive_test.go#L185" title="internal/component/bgp/reactor/rfc9830_nlri_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9830NLRILengthReceiveVerdicts</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -3510,12 +3510,12 @@ Full RFC support is not established. SID-structure length-sum validation and ori
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_nlri_receive_test.go#L174" title="internal/component/bgp/reactor/rfc9830_nlri_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9830NLRILengthReceiveVerdicts</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_nlri_receive_test.go#L197" title="internal/component/bgp/reactor/rfc9830_nlri_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9830NLRILengthReceiveVerdicts</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_nlri_receive_test.go#L163" title="internal/component/bgp/reactor/rfc9830_nlri_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9830NLRILengthReceiveVerdicts</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_nlri_receive_test.go#L186" title="internal/component/bgp/reactor/rfc9830_nlri_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9830NLRILengthReceiveVerdicts</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -3636,12 +3636,12 @@ Full RFC support is not established. SID-structure length-sum validation and ori
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_nlri_receive_test.go#L175" title="internal/component/bgp/reactor/rfc9830_nlri_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9830NLRILengthReceiveVerdicts</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_nlri_receive_test.go#L198" title="internal/component/bgp/reactor/rfc9830_nlri_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9830NLRILengthReceiveVerdicts</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_nlri_receive_test.go#L164" title="internal/component/bgp/reactor/rfc9830_nlri_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9830NLRILengthReceiveVerdicts</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_nlri_receive_test.go#L187" title="internal/component/bgp/reactor/rfc9830_nlri_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9830NLRILengthReceiveVerdicts</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -3656,7 +3656,7 @@ Full RFC support is not established. SID-structure length-sum validation and ori
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_nlri_receive_test.go#L191" title="internal/component/bgp/reactor/rfc9830_nlri_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9830NLRILengthReceiveVerdicts</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_nlri_receive_test.go#L214" title="internal/component/bgp/reactor/rfc9830_nlri_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9830NLRILengthReceiveVerdicts</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -3666,7 +3666,7 @@ Full RFC support is not established. SID-structure length-sum validation and ori
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_nlri_receive_test.go#L177" title="internal/component/bgp/reactor/rfc9830_nlri_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9830NLRILengthReceiveVerdicts</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_nlri_receive_test.go#L200" title="internal/component/bgp/reactor/rfc9830_nlri_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9830NLRILengthReceiveVerdicts</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -3681,12 +3681,12 @@ Full RFC support is not established. SID-structure length-sum validation and ori
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_nlri_receive_test.go#L176" title="internal/component/bgp/reactor/rfc9830_nlri_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9830NLRILengthReceiveVerdicts</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_nlri_receive_test.go#L199" title="internal/component/bgp/reactor/rfc9830_nlri_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9830NLRILengthReceiveVerdicts</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_nlri_receive_test.go#L190" title="internal/component/bgp/reactor/rfc9830_nlri_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9830NLRILengthReceiveVerdicts</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_nlri_receive_test.go#L213" title="internal/component/bgp/reactor/rfc9830_nlri_receive_test.go" target="_blank" rel="noopener"><code>TestRFC9830NLRILengthReceiveVerdicts</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -4118,7 +4118,7 @@ Full RFC support is not established. SID-structure length-sum validation and ori
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

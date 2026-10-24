@@ -63,7 +63,8 @@ using a distinct local binding SID (BSID), not the advertised egress Service SID
 Static route configuration and <code>update text</code> can advertise an explicit Service
 SID. Ze does not allocate egress Service SIDs or install endpoint behaviors.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#configuration">Configuration</a>
 <ol>
 <li><a href="#explicit-service-sid-advertisement">Explicit Service SID advertisement</a></li>
@@ -85,7 +86,7 @@ SID. Ze does not allocate egress Service SIDs or install endpoint behaviors.</p>
 <li><a href="#rfc-9252-srv6-overlay-services">RFC 9252 (SRv6 Overlay Services)</a></li>
 </ol></li>
 <li><a href="#limitations">Limitations</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <!-- source: internal/plugins/fib/vpp/srv6.go -- acquirePolicy, addSRv6Steer -->
 <table>
 <thead>
@@ -554,7 +555,8 @@ propagates without negotiation. Ze does not signal SRv6 support via capabilities
 (multi-hop SR paths) are not supported.</p>
 </li>
 </ul>
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Feature doc</p>
@@ -588,7 +590,7 @@ propagates without negotiation. Ze does not signal SRv6 support via capabilities
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

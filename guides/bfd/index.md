@@ -864,6 +864,14 @@ zone and the link in `interface`. A global IPv6 or an IPv4 peer needs no
 `interface`.
 <!-- source: internal/component/bfd/config.go -- parseSingleHopSession -->
 
+Any IPv6 peer also needs `bfd { bind-v6 true; }`. The leaf defaults to false,
+and then each session loop holds only an IPv4 socket. A protocol that asks for
+a session to an IPv6 neighbour (OSPFv3, a BGP peer over IPv6) is then refused
+with an error that names the leaf, rather than given a session that can never
+send. An IPv4-mapped address (`::ffff:192.0.2.1`) travels on the IPv4 socket
+and needs no IPv6 one.
+<!-- source: internal/component/bfd/bfd.go -- pluginService.EnsureSession, newTransport -->
+
 Single-hop pinned sessions may specify an `interface` leaf. When every
 pinned session in the same `(vrf, single-hop)` pair names the same
 interface, the plugin binds the socket to that interface via

@@ -51,7 +51,8 @@
     <h1 id="rpki-origin-validation">RPKI Origin Validation</h1>
     <p>Ze validates received BGP routes against RPKI ROA data. By default, Invalid routes remain in Adj-RIB-In with their received attributes but are ineligible for selection and export. The feature connects to RTR cache servers (RFC 8210), downloads Validated ROA Payloads (VRPs), and applies the RFC 6811 origin validation algorithm to each received prefix.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#configuration">Configuration</a>
 <ol>
 <li><a href="#rtr-protocol-versions">RTR Protocol Versions</a></li>
@@ -88,7 +89,7 @@
 <li><a href="#testing-rpki-locally">Testing RPKI Locally</a></li>
 <li><a href="#without-rpki">Without RPKI</a></li>
 <li><a href="#troubleshooting">Troubleshooting</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <!-- source: internal/component/bgp/plugins/rpki/register.go -- bgp-rpki registration, RFCs 6811/8210 -->
 <h2 id="configuration">Configuration</h2>
 <p>Add the <code>bgp-rpki</code> and <code>bgp-adj-rib-in</code> plugins, then configure one or more RTR cache servers under <code>bgp { rpki { ... } }</code>.</p>
@@ -920,7 +921,8 @@ The local RTR cache classifies 9.43.0.0/24 as Valid, 10.43.0.0/24 as Invalid, an
 </tr>
 </tbody>
 </table>
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -962,7 +964,7 @@ The local RTR cache classifies 9.43.0.0/24 as Valid, 10.43.0.0/24 as Invalid, an
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

@@ -1085,14 +1085,6 @@
           {
             "children": [
               {
-                "description": "When the leaf is disabled, a route stays until it is withdrawn explicitly, or until the hold timer\nexpires. This is a legacy ExaBGP option, kept for migration.",
-                "kind": "leaf",
-                "name": "auto-flush",
-                "short-help": "Withdraw every route advertised to this peer when the session goes down.",
-                "source": "config",
-                "type": "boolean"
-              },
-              {
                 "description": "Packing reduces the number of UPDATE messages from O(routes) to O(unique-attribute-sets). Disable it\nfor a peer that requires one prefix per UPDATE.",
                 "kind": "leaf",
                 "name": "group-updates",
@@ -1763,14 +1755,6 @@
               },
               {
                 "children": [
-                  {
-                    "description": "When the leaf is disabled, a route stays until it is withdrawn explicitly, or until the hold timer\nexpires. This is a legacy ExaBGP option, kept for migration.",
-                    "kind": "leaf",
-                    "name": "auto-flush",
-                    "short-help": "Withdraw every route advertised to this peer when the session goes down.",
-                    "source": "config",
-                    "type": "boolean"
-                  },
                   {
                     "description": "Packing reduces the number of UPDATE messages from O(routes) to O(unique-attribute-sets). Disable it\nfor a peer that requires one prefix per UPDATE.",
                     "kind": "leaf",
@@ -5442,14 +5426,6 @@
           },
           {
             "children": [
-              {
-                "description": "When the leaf is disabled, a route stays until it is withdrawn explicitly, or until the hold timer\nexpires. This is a legacy ExaBGP option, kept for migration.",
-                "kind": "leaf",
-                "name": "auto-flush",
-                "short-help": "Withdraw every route advertised to this peer when the session goes down.",
-                "source": "config",
-                "type": "boolean"
-              },
               {
                 "description": "Packing reduces the number of UPDATE messages from O(routes) to O(unique-attribute-sets). Disable it\nfor a peer that requires one prefix per UPDATE.",
                 "kind": "leaf",
@@ -10635,7 +10611,7 @@
                 "type": "boolean"
               },
               {
-                "description": "Two examples are './plugin.py' and 'python3 /opt/plugin.py'. Ze\nsplits the line on whitespace. The first token is the executable, and the rest are its\narguments. A block with no run command is refused.",
+                "description": "Two examples are './plugin.py' and 'python3 /opt/plugin.py'. Ze\nsplits the line into words as a POSIX shell does, with no expansion: blanks separate\nwords, and single or double quotes group them, so a quoted argument holding a space\nreaches the script as one argument. The first word is the executable, and the rest are\nits arguments. A block with no run command, or with an unclosed quote, is refused.",
                 "kind": "leaf",
                 "name": "run",
                 "short-help": "Command line of the script.",

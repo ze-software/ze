@@ -53,7 +53,8 @@
 deprecation lifecycle for old config versions, and Ze does not promise a
 numbered generation ladder for config syntax.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#compatibility-rules">Compatibility rules</a></li>
 <li><a href="#older-shapes-the-migrator-recognizes">Older shapes the migrator recognizes</a>
 <ol>
@@ -63,7 +64,7 @@ numbered generation ladder for config syntax.</p>
 </ol></li>
 <li><a href="#unsupported-exabgp-extensions">Unsupported ExaBGP extensions</a></li>
 <li><a href="#commands">Commands</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <p>Config compatibility is date-based. A config file records the schema stamp that
 wrote it, and recovery chooses the newest rollback file that the running binary
 can parse. For pre-release files or old examples, <code>ze config migrate</code> converts
@@ -266,7 +267,8 @@ ze config migrate -o config-current.conf config.conf
 ze config migrate --list
 </code></pre>
 <p>See <a href="https://github.com/ze-software/ze/blob/main/docs/config-migration.md" target="_blank" rel="noopener">Configuration Migration</a> for command details.</p>
-
+</div>
+</div>
             </section>
         </main>
 
@@ -276,7 +278,7 @@ ze config migrate --list
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

@@ -49,14 +49,15 @@
     <h1 id="public-looking-glass">Public looking glass</h1>
     <p>Use this when you want a read-only HTTP looking glass for BGP peers, route lookup, prefix search, and AS-path graphs.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#1-start-from-an-installed-ze-node">1. Start from an installed Ze node</a></li>
 <li><a href="#2-update-the-active-stored-config">2. Update the active stored config</a></li>
 <li><a href="#3-open-the-ui">3. Open the UI</a></li>
 <li><a href="#4-birdwatcher-compatible-api-paths">4. Birdwatcher-compatible API paths</a></li>
 <li><a href="#5-publish-it-safely">5. Publish it safely</a></li>
 <li><a href="#6-operations">6. Operations</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <p>The service is read-only, and open by default because a looking glass is a public surface. Put it on an address where that is acceptable, or publish it through a reverse proxy that provides the access control you need. To gate it yourself, set <code>environment looking-glass token &lt;secret&gt;</code>: every <code>/api/</code> and <code>/lg/</code> route then needs <code>Authorization: Bearer &lt;secret&gt;</code>, and a request without it gets <code>401</code>.</p>
 <!-- source: internal/component/lg/yang/ze-lg-conf.yang -- environment looking-glass config -->
 <!-- source: internal/component/lg/server.go -- looking glass HTTP routes -->
@@ -273,7 +274,8 @@ Sections 7.2 and 7.3.</p>
 journalctl -u ze.service -n 100 --no-pager
 </code></pre>
 <p>If the UI is empty, check that BGP peers are established and that the relevant families are configured. The looking glass can only show routes Ze has learned or originated.</p>
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -315,7 +317,7 @@ journalctl -u ze.service -n 100 --no-pager
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 9 October 2026 10:57 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

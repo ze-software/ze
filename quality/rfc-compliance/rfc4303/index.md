@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0.0% | 0 of 23 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 23 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 23 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 56.1% | 23 of 41 tagged units, 0 escaped and 8 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 75.6% | 31 of 41 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -199,7 +199,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC4303IntegrityOnlyESPOnTheWireIsNotAH`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4303_esp_probe_linux_test.go#L195) | unit/verify | revert, verified |
-| positive | [`TestRFC4301ChildSAIsInstalledAsESP`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_esp_test.go#L20) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC4301ChildSAIsInstalledAsESP`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_esp_test.go#L20) | unit/verify | revert, verified |
 | positive | [`TestIPsecSAProtocolNumber`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L362) | unit/verify | revert, verified |
 | positive | [`TestRFC4303ESPPacketOnTheWireCarriesProtocol50`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4303_esp_probe_linux_test.go#L175) | unit/verify | revert, verified |
 
@@ -212,16 +212,16 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestGenerateESPSPI`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L270) | unit/verify | unproven |
-| negative | [`TestChildRekeyRequestRefusesPeerSPIZero`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L291) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| negative | [`TestChildRekeyResponseRefusesPeerSPIZero`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L345) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestChildRekeyRequestRefusesPeerSPIZero`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L291) | unit/verify | revert, verified |
+| negative | [`TestChildRekeyResponseRefusesPeerSPIZero`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L345) | unit/verify | revert, verified |
 | negative | [`TestInitiatorRefusesPeerSPIZero`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L120) | unit/verify | revert, verified |
 | negative | [`TestResponderRefusesPeerSPIZero`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L191) | unit/verify | revert, verified |
 | negative | [`TestGenerateESPSPISkipsTheReservedZero`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_spi_test.go#L36) | unit/verify | mutant, verified |
 | negative | [`TestIPsecSPIBoundary`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L183) | unit/verify | unproven |
 | negative | [`TestIPsecSPIZeroRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4303_spi_test.go#L20) | unit/verify | mutant, verified |
 | positive | [`TestGenerateESPSPI`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L256) | unit/verify | unproven |
-| positive | [`TestChildRekeyRequestUsesPeerSPI`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L317) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestChildRekeyResponseUsesPeerSPI`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L373) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestChildRekeyRequestUsesPeerSPI`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L317) | unit/verify | revert, verified |
+| positive | [`TestChildRekeyResponseUsesPeerSPI`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L373) | unit/verify | revert, verified |
 | positive | [`TestInitiatorUsesPeerSPI`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L149) | unit/verify | revert, verified |
 | positive | [`TestResponderUsesPeerSPI`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L227) | unit/verify | revert, verified |
 | positive | [`TestGenerateESPSPISkipsTheReservedZero`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_spi_test.go#L37) | unit/verify | revert, verified |
@@ -236,9 +236,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC4303InboundESPToAnotherLocalAddressMapsToNoSA`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_inbound_key_linux_test.go#L59) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC4303InboundESPToAnotherLocalAddressMapsToNoSA`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_inbound_key_linux_test.go#L59) | unit/verify | revert, verified |
 | negative | [`TestRFC4303InboundESPToUnconfiguredDestinationMapsToNoSA`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4303_esp_probe_linux_test.go#L244) | unit/verify | revert, verified |
-| positive | [`TestRFC4303InboundChildSAKeyedOnNegotiatedSPIAndLocalAddress`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_inbound_key_test.go#L24) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC4303InboundChildSAKeyedOnNegotiatedSPIAndLocalAddress`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_inbound_key_test.go#L24) | unit/verify | revert, verified |
 | positive | [`TestRFC4303InboundESPMapsByConfiguredDestination`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4303_esp_probe_linux_test.go#L214) | unit/verify | revert, verified |
 | positive | [`TestRFC4303InboundESPSAKeyedOnConfiguredDestination`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4303_esp_test.go#L148) | unit/verify | revert, verified |
 
@@ -345,7 +345,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC4303ESPReplayWindowWithoutIntegrityIsRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4303_esp_test.go#L98) | unit/verify | revert, verified |
-| positive | [`TestChildSAReplayRequiresIntegrity`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L357) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestChildSAReplayRequiresIntegrity`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L357) | unit/verify | revert, verified |
 | positive | [`TestRFC4303ESPReplayWindowCarriesIntegrity`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4303_esp_test.go#L70) | unit/verify | revert, verified |
 
 ### [`RFC4303-3.4.3-3`](#rfc4303-3.4.3-3)

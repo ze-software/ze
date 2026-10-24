@@ -49,7 +49,8 @@
     <h1 id="bgp-resilience">BGP Resilience</h1>
     <p>BGP resilience is a set of separate mechanisms. Route Refresh reapplies policy without dropping the session. Graceful Restart retains forwarding during a restart. The RIB keeps eligible sent history in process memory for peer reconnects. Route reflection distributes iBGP routes without a full mesh. Use only the mechanisms the topology requires.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#route-refresh">Route Refresh</a></li>
 <li><a href="#graceful-restart">Graceful Restart</a></li>
 <li><a href="#restarting-ze">Restarting Ze</a></li>
@@ -58,7 +59,7 @@
 <li><a href="#add-path-and-multipath">ADD-PATH and multipath</a></li>
 <li><a href="#failure-checklist">Failure checklist</a></li>
 <li><a href="#related-guides">Related guides</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <h2 id="route-refresh">Route Refresh</h2>
 <p>When both peers negotiate Route Refresh, request a new advertisement without tearing down TCP:</p>
 <pre><code class="language-console">ze cli -c "request peer transit-a refresh ipv4/unicast"
@@ -98,7 +99,7 @@ bgp {
 }
 </code></pre>
 <p>Long-Lived Graceful Restart extends the stale period and deprioritises stale routes. It is active only when both peers negotiate it. Routes carrying <code>NO_LLGR</code> are removed rather than retained.</p>
-<p>Load <code>bgp-gr</code> with <code>internal &lt;name&gt; { use bgp-gr }</code>, as the example above does. <code>run "ze plugin bgp-gr"</code> starts the plugin engine in a child process, and RFC 9494's egress filter in the daemon then reads no peer capability state. The filter fails closed for every peer. It withdraws stale routes from external peers, and it attaches <code>NO_EXPORT</code> with <code>LOCAL_PREF</code> 0 to the routes it sends to internal peers. <code>ze doctor</code> reports the arrangement as <code>doctor-bgp-gr-out-of-process</code>.</p>
+<p>Load <code>bgp-gr</code> with <code>internal &lt;name&gt; { use bgp-gr }</code>, as the example above does. <code>run "ze plugin bgp-gr"</code> would start the plugin engine in a child process, where RFC 9494's egress filter and the route reflector's retention decision in the daemon could not read its state, so the engine refuses to start that way and the daemon does not start. <code>ze doctor</code> reports the arrangement from the config as <code>doctor-bgp-gr-out-of-process</code>.</p>
 <p>See <a href="../graceful-restart/">Graceful Restart</a> for timers, stale levels, communities, and failure handling.</p>
 <h2 id="restarting-ze">Restarting Ze</h2>
 <p>Use the restart path when peers should see a planned Graceful Restart:</p>
@@ -165,7 +166,8 @@ attempts finished, not that every historical route was delivered.</p>
 <li><a href="../add-path/">ADD-PATH</a></li>
 <li><a href="../lifecycle/">Lifecycle and rollback</a></li>
 </ul>
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -207,7 +209,7 @@ attempts finished, not that every historical route was delivered.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

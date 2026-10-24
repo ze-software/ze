@@ -63,9 +63,9 @@
 .rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
 .rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
 .rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
-.rfc-ok { border-left: 7px solid var(--teal-base); }
+.rfc-ok { border-left: 7px solid var(--green); }
 .rfc-neutral { border-left: 7px solid var(--line-strong); }
-.rfc-warn { border-left: 7px solid var(--gold-base); }
+.rfc-warn { border-left: 7px solid var(--amber); }
 .rfc-bad { border-left: 7px solid var(--danger-deep); }
 .rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
 .rfc-tape span { width: var(--w); min-width: 0; display: block; }
@@ -80,11 +80,11 @@
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-partial-scope { background: var(--danger-deep); }
-.rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
+.rfc-tape-one_polarity_unexcused { background: var(--amber); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
-.rfc-swatch.rfc-ok { background: var(--teal-base); }
+.rfc-swatch.rfc-ok { background: var(--green); }
 .rfc-swatch.rfc-neutral { background: var(--line-strong); }
-.rfc-swatch.rfc-warn { background: var(--gold-base); }
+.rfc-swatch.rfc-warn { background: var(--amber); }
 .rfc-swatch.rfc-bad { background: var(--danger-deep); }
 .rfc-total td { border-top: 2px solid var(--line-strong); }
 .rfc-prose { max-width: 46rem; }
@@ -110,7 +110,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 .rfc-note-box { margin: 1rem 0; padding: 1rem 1.2rem; border-radius: 16px; background: var(--gold-tint); border: 1px solid var(--gold-chip); }
 .rfc-note-box h3 { margin-top: 0; }
 .rfc-note-box ul { margin-bottom: 0; }
-.rfc-check-ok strong { color: var(--teal-deep); }
+.rfc-check-ok strong { color: var(--green); }
 .rfc-check-bad strong { color: var(--danger-deep); }
 </style>
 <section><h2>Overview</h2>
@@ -268,7 +268,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </ul>
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-Full RFC support is not established; each canonical verdict and discrimination record bounds its own clause. Per-session outgoing attribute-23 filtering now has production cache, session-writer and downstream-receive unit proof through configured export policy, using a simulated external-plugin transport rather than a live daemon. This mechanism, configured exact-value community removal and whole-attribute egress suppression do not implement the missing default EBGP filtering of attribute 23 or the Encapsulation Extended Community. Other Section 11 scope obligations retain their checklist dispositions. Extraction site 13:7 maps to <a href="#rfc9012-13-21"><code>RFC9012-13-21</code></a>, an explicit first-occurrence consumer gap; the historical RFC9012-13-7 identity remains retired. Attribute-driven tunnel selection/feasibility, encapsulation-header construction, recursive resolution, label handling, first-occurrence and type-specific sub-TLV interpretation, Router&#39;s MAC precedence and participating-router traffic filtering remain unimplemented consumer behavior, owned by [the separate tunnel-consumption spec](../../<a href="https://github.com/ze-software/ze/blob/main/plan/spec-bgp-tunnel-encapsulation-consumption.md" target="_blank" rel="noopener"><code>plan/spec-bgp-tunnel-encapsulation-consumption.md</code></a>). In particular, signaling acceptance/propagation does not prove <a href="#rfc9012-13-16"><code>RFC9012-13-16</code></a>/-17/-21. The optional Section 3.1.1 origin-AS procedure is not commissioned. Tag presence and producer-dependence records alone do not establish whole-requirement conformance.
+Full RFC support is not established; each canonical verdict and discrimination record bounds its own clause. Per-session outgoing attribute-23 filtering now has production cache, session-writer and downstream-receive unit proof through configured export policy, using a simulated external-plugin transport rather than a live daemon. This mechanism, configured exact-value community removal and whole-attribute egress suppression do not implement the missing default EBGP filtering of attribute 23 or the Encapsulation Extended Community. Other Section 11 scope obligations retain their checklist dispositions. Extraction site 13:7 maps to <a href="#rfc9012-13-21"><code>RFC9012-13-21</code></a>, an explicit first-occurrence consumer gap; the historical RFC9012-13-7 identity remains retired. Attribute-driven tunnel selection/feasibility, encapsulation-header construction, recursive resolution, label handling, first-occurrence and type-specific sub-TLV interpretation, Router&#39;s MAC precedence and participating-router traffic filtering remain unimplemented consumer behavior, owned by [the separate tunnel-consumption spec](../../<a href="https://github.com/ze-software/ze/blob/main/plan/post-release/features/spec-bgp-tunnel-encapsulation-consumption.md" target="_blank" rel="noopener"><code>plan/post-release/features/spec-bgp-tunnel-encapsulation-consumption.md</code></a>). In particular, signaling acceptance/propagation does not prove <a href="#rfc9012-13-16"><code>RFC9012-13-16</code></a>/-17/-21. The optional Section 3.1.1 origin-AS procedure is not commissioned. Tag presence and producer-dependence records alone do not establish whole-requirement conformance.
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -635,7 +635,7 @@ Full RFC support is not established; each canonical verdict and discrimination r
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9012-3.7-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> opaque attribute receipt is not family-conditioned interpretation of the Prefix-SID sub-TLV; the absent attribute-driven consumer is owned by plan/spec-bgp-tunnel-encapsulation-consumption.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> opaque attribute receipt is not family-conditioned interpretation of the Prefix-SID sub-TLV; the absent attribute-driven consumer is owned by plan/post-release/features/spec-bgp-tunnel-encapsulation-consumption.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-3.7-3">RFC9012-3.7-3</code></td><td colspan="3"><span class="rfc-subject">If an Originator SRGB is specified in the sub-TLV, that SRGB MUST be interpreted to be the SRGB used by the tunnel&#39;s egress endpoint. (§3.7)</span></td></tr>
 <tr><td></td>
@@ -689,7 +689,7 @@ Full RFC support is not established; each canonical verdict and discrimination r
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9012-4.2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> the two received opaque values can disagree even without a decoder; ParseTunnelEncap/SubTLVs and extended-community byte preservation do not implement MAC precedence. The absent consumer is owned by plan/spec-bgp-tunnel-encapsulation-consumption.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> the two received opaque values can disagree even without a decoder; ParseTunnelEncap/SubTLVs and extended-community byte preservation do not implement MAC precedence. The absent consumer is owned by plan/post-release/features/spec-bgp-tunnel-encapsulation-consumption.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-4.3-1">RFC9012-4.3-1</code></td><td colspan="3"><span class="rfc-subject">No flags are defined in this document; this field MUST be set to zero by the originator and ignored by the receiver (§4.3)</span></td></tr>
 <tr><td></td>
@@ -866,7 +866,7 @@ Full RFC support is not established; each canonical verdict and discrimination r
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9012-13-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> the attribute-driven tunnel consumer is absent, so opaque carriage of an unknown tunnel type does not prove its exclusion from tunnel selection or header construction. applyTunnelEncap in internal/component/bgp/reactor/session_tunnel_encap.go validates framing and endpoints, and separately enforces RFC9830 tunnel-type constraints on SR Policy carriers; those receive checks are not the absent RFC9012 consumer. Owner: plan/spec-bgp-tunnel-encapsulation-consumption.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> the attribute-driven tunnel consumer is absent, so opaque carriage of an unknown tunnel type does not prove its exclusion from tunnel selection or header construction. applyTunnelEncap in internal/component/bgp/reactor/session_tunnel_encap.go validates framing and endpoints, and separately enforces RFC9830 tunnel-type constraints on SR Policy carriers; those receive checks are not the absent RFC9012 consumer. Owner: plan/post-release/features/spec-bgp-tunnel-encapsulation-consumption.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-13-5">RFC9012-13-5</code></td><td colspan="3"><span class="rfc-subject">If the route carrying the Tunnel Encapsulation attribute is propagated with the attribute, the unrecognized TLV MUST remain in the attribute. (§13)</span></td></tr>
 <tr><td></td>
@@ -987,7 +987,7 @@ Full RFC support is not established; each canonical verdict and discrimination r
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9012-13-16">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> no attribute-driven encapsulation consumer applies the type-specific disregard rule; signaling acceptance and unchanged propagation do not prove it. Owner: plan/spec-bgp-tunnel-encapsulation-consumption.md; owner ruling 2026-10-08: retain opaque carry/non-malformed tests under RFC9012-13-18/-19 and existing RFC9830 identities; the absent attribute-driven consumer remains owned by plan/spec-bgp-tunnel-encapsulation-consumption.md.</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> no attribute-driven encapsulation consumer applies the type-specific disregard rule; signaling acceptance and unchanged propagation do not prove it. Owner: plan/post-release/features/spec-bgp-tunnel-encapsulation-consumption.md; owner ruling 2026-10-08: retain opaque carry/non-malformed tests under RFC9012-13-18/-19 and existing RFC9830 identities; the absent attribute-driven consumer remains owned by plan/post-release/features/spec-bgp-tunnel-encapsulation-consumption.md.</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-13-17">RFC9012-13-17</code></td><td colspan="3"><span class="rfc-subject">That is, they MUST NOT affect the creation of the encapsulation header. (§13)</span></td></tr>
 <tr><td></td>
@@ -996,7 +996,7 @@ Full RFC support is not established; each canonical verdict and discrimination r
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9012-13-17">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> Ze creates no encapsulation header from attribute 23, so this conditional header-construction behavior is unimplemented, not proven by propagating opaque bytes. Owner: plan/spec-bgp-tunnel-encapsulation-consumption.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> Ze creates no encapsulation header from attribute 23, so this conditional header-construction behavior is unimplemented, not proven by propagating opaque bytes. Owner: plan/post-release/features/spec-bgp-tunnel-encapsulation-consumption.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-13-18">RFC9012-13-18</code></td><td colspan="3"><span class="rfc-subject">However, the sub-TLV MUST NOT be considered to be malformed (§13)</span></td></tr>
 <tr><td></td>
@@ -1027,7 +1027,7 @@ Full RFC support is not established; each canonical verdict and discrimination r
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9012-13-21">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> the absent attribute-driven consumer does not implement first-occurrence interpretation for Encapsulation, DS, UDP Destination Port, Embedded Label Handling, MPLS Label Stack or Prefix-SID. internal/core/bgp/attribute/tunnel_encap.go TunnelTLV.SubTLVs preserves every occurrence; TunnelTLV.Preference concerns a different RFC 9830 sub-TLV and does not prove this rule. On Section 6 carriers, the separate exactly-one Tunnel Egress Endpoint exception is enforced by tunnelTLVLayout and applyTunnelEncap in internal/component/bgp/reactor/session_tunnel_encap.go and remains accounted for by RFC9012-13-13/-14/-15. Owner: plan/spec-bgp-tunnel-encapsulation-consumption.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> the absent attribute-driven consumer does not implement first-occurrence interpretation for Encapsulation, DS, UDP Destination Port, Embedded Label Handling, MPLS Label Stack or Prefix-SID. internal/core/bgp/attribute/tunnel_encap.go TunnelTLV.SubTLVs preserves every occurrence; TunnelTLV.Preference concerns a different RFC 9830 sub-TLV and does not prove this rule. On Section 6 carriers, the separate exactly-one Tunnel Egress Endpoint exception is enforced by tunnelTLVLayout and applyTunnelEncap in internal/component/bgp/reactor/session_tunnel_encap.go and remains accounted for by RFC9012-13-13/-14/-15. Owner: plan/post-release/features/spec-bgp-tunnel-encapsulation-consumption.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-15-1">RFC9012-15-1</code></td><td colspan="3"><span class="rfc-subject">RFC 8402 specifies that &#34;SR domain boundary routers MUST filter any external traffic&#34; ([RFC8402], Section 8.1). For these purposes, traffic introduced into an SR domain using the Prefix-SID sub-TLV lies within the SR domain, even though the Prefix-SIDs used by the routers at the two ends of the tunnel may be different, as discussed in Section 3.7. This implies that the duty to filter external traffic extends to all routers participating in such tunnels. (§15)</span></td></tr>
 <tr><td></td>
@@ -1036,7 +1036,7 @@ Full RFC support is not established; each canonical verdict and discrimination r
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9012-15-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> the absent attribute-driven Prefix-SID tunnel consumer does not install this participating-router traffic filter; attribute-23 ingress/egress filtering is a different behavior. Owner: plan/spec-bgp-tunnel-encapsulation-consumption.md</p></td>
+</div><p class="rfc-mark"><strong>{gap}:</strong> the absent attribute-driven Prefix-SID tunnel consumer does not install this participating-router traffic filter; attribute-23 ingress/egress filtering is a different behavior. Owner: plan/post-release/features/spec-bgp-tunnel-encapsulation-consumption.md</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9012-3.1-1">RFC9012-3.1-1</code></td><td colspan="3"><span class="rfc-subject">The Reserved subfield SHOULD be originated as zero. (§3.1)</span></td></tr>
 <tr><td></td>
@@ -1351,7 +1351,7 @@ Full RFC support is not established; each canonical verdict and discrimination r
 </tr>
 <tr><td><a href="#rfc9012-3.7-2"><code>RFC9012-3.7-2</code></a> [RFC8669] only defines behavior when the BGP Prefix-SID attribute is attached to routes of type IPv4/IPv6 Labeled Unicast [RFC4760][RFC8277], and it only defines values of the BGP Prefix-SID attribute for those cases. Therefore, similar limitations exist for the Prefix-SID sub-TLV: it SHOULD only be included in a BGP UPDATE message for one of the address families for which [RFC8669] has a defined behavior, namely BGP IPv4/IPv6 Labeled Unicast [RFC4760] [RFC8277]. If included in a BGP UPDATE for any other address family, it MUST be ignored. (§3.7)</td>
 <td>{gap}, no test</td>
-<td>opaque attribute receipt is not family-conditioned interpretation of the Prefix-SID sub-TLV; the absent attribute-driven consumer is owned by plan/spec-bgp-tunnel-encapsulation-consumption.md</td>
+<td>opaque attribute receipt is not family-conditioned interpretation of the Prefix-SID sub-TLV; the absent attribute-driven consumer is owned by plan/post-release/features/spec-bgp-tunnel-encapsulation-consumption.md</td>
 </tr>
 <tr><td><a href="#rfc9012-3.7-3"><code>RFC9012-3.7-3</code></a> If an Originator SRGB is specified in the sub-TLV, that SRGB MUST be interpreted to be the SRGB used by the tunnel&#39;s egress endpoint. (§3.7)</td>
 <td>{gap}, no test</td>
@@ -1375,7 +1375,7 @@ Full RFC support is not established; each canonical verdict and discrimination r
 </tr>
 <tr><td><a href="#rfc9012-4.2-1"><code>RFC9012-4.2-1</code></a> [EVPN-INTER-SUBNET] defines a router&#39;s MAC Extended Community. This extended community, as its name implies, carries the MAC address of the advertising router. Since the VXLAN and NVGRE Encapsulation sub-TLVs can also optionally carry a router&#39;s MAC, a conflict can arise if both the Router&#39;s MAC Extended Community and such an Encapsulation sub-TLV are present at the same time but have different values. In case of such a conflict, the information in the Router&#39;s MAC Extended Community MUST be used. (§4.2)</td>
 <td>{gap}, no test</td>
-<td>the two received opaque values can disagree even without a decoder; ParseTunnelEncap/SubTLVs and extended-community byte preservation do not implement MAC precedence. The absent consumer is owned by plan/spec-bgp-tunnel-encapsulation-consumption.md</td>
+<td>the two received opaque values can disagree even without a decoder; ParseTunnelEncap/SubTLVs and extended-community byte preservation do not implement MAC precedence. The absent consumer is owned by plan/post-release/features/spec-bgp-tunnel-encapsulation-consumption.md</td>
 </tr>
 <tr><td><a href="#rfc9012-4.3-1"><code>RFC9012-4.3-1</code></a> No flags are defined in this document; this field MUST be set to zero by the originator and ignored by the receiver (§4.3)</td>
 <td>no test</td>
@@ -1427,7 +1427,7 @@ Full RFC support is not established; each canonical verdict and discrimination r
 </tr>
 <tr><td><a href="#rfc9012-13-4"><code>RFC9012-13-4</code></a> Rather, it MUST interpret the attribute as if that TLV had not been present. (§13)</td>
 <td>{gap}, no test</td>
-<td>the attribute-driven tunnel consumer is absent, so opaque carriage of an unknown tunnel type does not prove its exclusion from tunnel selection or header construction. applyTunnelEncap in internal/component/bgp/reactor/session_tunnel_encap.go validates framing and endpoints, and separately enforces RFC9830 tunnel-type constraints on SR Policy carriers; those receive checks are not the absent RFC9012 consumer. Owner: plan/spec-bgp-tunnel-encapsulation-consumption.md</td>
+<td>the attribute-driven tunnel consumer is absent, so opaque carriage of an unknown tunnel type does not prove its exclusion from tunnel selection or header construction. applyTunnelEncap in internal/component/bgp/reactor/session_tunnel_encap.go validates framing and endpoints, and separately enforces RFC9830 tunnel-type constraints on SR Policy carriers; those receive checks are not the absent RFC9012 consumer. Owner: plan/post-release/features/spec-bgp-tunnel-encapsulation-consumption.md</td>
 </tr>
 <tr><td><a href="#rfc9012-13-6"><code>RFC9012-13-6</code></a> The following sub-TLVs defined in this document MUST NOT occur more than once in a given Tunnel TLV: Tunnel Egress Endpoint (discussed below), Encapsulation, DS, UDP Destination Port, Embedded Label Handling, MPLS Label Stack, and Prefix-SID. (§13)</td>
 <td>no test</td>
@@ -1435,19 +1435,19 @@ Full RFC support is not established; each canonical verdict and discrimination r
 </tr>
 <tr><td><a href="#rfc9012-13-16"><code>RFC9012-13-16</code></a> A TLV identifying a particular tunnel type may contain a sub-TLV that is meaningless for that tunnel type. For example, perhaps the TLV contains a UDP Destination Port sub-TLV, but the identified tunnel type does not use UDP encapsulation at all, or a tunnel of the form &#34;X-in-Y&#34; contains a Protocol Type sub-TLV that specifies something other than &#34;X&#34;. Sub-TLVs of this sort MUST be disregarded. (§13)</td>
 <td>{gap}, no test</td>
-<td>no attribute-driven encapsulation consumer applies the type-specific disregard rule; signaling acceptance and unchanged propagation do not prove it. Owner: plan/spec-bgp-tunnel-encapsulation-consumption.md; owner ruling 2026-10-08: retain opaque carry/non-malformed tests under RFC9012-13-18/-19 and existing RFC9830 identities; the absent attribute-driven consumer remains owned by plan/spec-bgp-tunnel-encapsulation-consumption.md.</td>
+<td>no attribute-driven encapsulation consumer applies the type-specific disregard rule; signaling acceptance and unchanged propagation do not prove it. Owner: plan/post-release/features/spec-bgp-tunnel-encapsulation-consumption.md; owner ruling 2026-10-08: retain opaque carry/non-malformed tests under RFC9012-13-18/-19 and existing RFC9830 identities; the absent attribute-driven consumer remains owned by plan/post-release/features/spec-bgp-tunnel-encapsulation-consumption.md.</td>
 </tr>
 <tr><td><a href="#rfc9012-13-17"><code>RFC9012-13-17</code></a> That is, they MUST NOT affect the creation of the encapsulation header. (§13)</td>
 <td>{gap}, no test</td>
-<td>Ze creates no encapsulation header from attribute 23, so this conditional header-construction behavior is unimplemented, not proven by propagating opaque bytes. Owner: plan/spec-bgp-tunnel-encapsulation-consumption.md</td>
+<td>Ze creates no encapsulation header from attribute 23, so this conditional header-construction behavior is unimplemented, not proven by propagating opaque bytes. Owner: plan/post-release/features/spec-bgp-tunnel-encapsulation-consumption.md</td>
 </tr>
 <tr><td><a href="#rfc9012-13-21"><code>RFC9012-13-21</code></a> If a Tunnel TLV has more than one of any of these sub-TLVs, all but the first occurrence of each such sub-TLV type MUST be disregarded. (§13)</td>
 <td>{gap}, no test</td>
-<td>the absent attribute-driven consumer does not implement first-occurrence interpretation for Encapsulation, DS, UDP Destination Port, Embedded Label Handling, MPLS Label Stack or Prefix-SID. internal/core/bgp/attribute/tunnel_encap.go TunnelTLV.SubTLVs preserves every occurrence; TunnelTLV.Preference concerns a different RFC 9830 sub-TLV and does not prove this rule. On Section 6 carriers, the separate exactly-one Tunnel Egress Endpoint exception is enforced by tunnelTLVLayout and applyTunnelEncap in internal/component/bgp/reactor/session_tunnel_encap.go and remains accounted for by RFC9012-13-13/-14/-15. Owner: plan/spec-bgp-tunnel-encapsulation-consumption.md</td>
+<td>the absent attribute-driven consumer does not implement first-occurrence interpretation for Encapsulation, DS, UDP Destination Port, Embedded Label Handling, MPLS Label Stack or Prefix-SID. internal/core/bgp/attribute/tunnel_encap.go TunnelTLV.SubTLVs preserves every occurrence; TunnelTLV.Preference concerns a different RFC 9830 sub-TLV and does not prove this rule. On Section 6 carriers, the separate exactly-one Tunnel Egress Endpoint exception is enforced by tunnelTLVLayout and applyTunnelEncap in internal/component/bgp/reactor/session_tunnel_encap.go and remains accounted for by RFC9012-13-13/-14/-15. Owner: plan/post-release/features/spec-bgp-tunnel-encapsulation-consumption.md</td>
 </tr>
 <tr><td><a href="#rfc9012-15-1"><code>RFC9012-15-1</code></a> RFC 8402 specifies that &#34;SR domain boundary routers MUST filter any external traffic&#34; ([RFC8402], Section 8.1). For these purposes, traffic introduced into an SR domain using the Prefix-SID sub-TLV lies within the SR domain, even though the Prefix-SIDs used by the routers at the two ends of the tunnel may be different, as discussed in Section 3.7. This implies that the duty to filter external traffic extends to all routers participating in such tunnels. (§15)</td>
 <td>{gap}, no test</td>
-<td>the absent attribute-driven Prefix-SID tunnel consumer does not install this participating-router traffic filter; attribute-23 ingress/egress filtering is a different behavior. Owner: plan/spec-bgp-tunnel-encapsulation-consumption.md</td>
+<td>the absent attribute-driven Prefix-SID tunnel consumer does not install this participating-router traffic filter; attribute-23 ingress/egress filtering is a different behavior. Owner: plan/post-release/features/spec-bgp-tunnel-encapsulation-consumption.md</td>
 </tr>
 </tbody>
 </table>
@@ -1751,7 +1751,7 @@ Full RFC support is not established; each canonical verdict and discrimination r
 <p>No test carries RFC9012-3.6-13, so no unit is bound to it.</p>
 <h3><a href="#rfc9012-3.7-2"><code>RFC9012-3.7-2</code></a></h3>
 <p>[RFC8669] only defines behavior when the BGP Prefix-SID attribute is attached to routes of type IPv4/IPv6 Labeled Unicast [RFC4760][RFC8277], and it only defines values of the BGP Prefix-SID attribute for those cases. Therefore, similar limitations exist for the Prefix-SID sub-TLV: it SHOULD only be included in a BGP UPDATE message for one of the address families for which [RFC8669] has a defined behavior, namely BGP IPv4/IPv6 Labeled Unicast [RFC4760] [RFC8277]. If included in a BGP UPDATE for any other address family, it MUST be ignored. (§3.7)</p>
-<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), stale-unit: internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange moved. RFC 9012 Section 3.7 limits Prefix-SID sub-TLV inclusion to address families defined by RFC8669, namely IPv4/IPv6 labeled unicast, and states: &#34;If included in a BGP UPDATE for any other address family, it MUST be ignored.&#34; The subject is type11 inside attribute23, not standalone attribute40. SubTLVs preserves its opaque bytes; tunnelTLVLayout processes framing, carriers and endpoints but does not implement Prefix-SID family-conditioned consumer semantics. checkRouteBestChange obtains labeled-unicast labels from the winning NLRI and SRv6 information from attribute40, not attribute23. Opaque receipt and propagation are not evidence of the missing consumer. Retain the gap under plan/spec-bgp-tunnel-encapsulation-consumption.md without an exclusion or new implementation authorization.</p>
+<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), stale-unit: internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange moved. RFC 9012 Section 3.7, rfc/full/rfc9012.txt:1070-1099: &#34;If included in a BGP UPDATE for any other address family, it MUST be ignored.&#34; Its subject is the Prefix-SID sub-TLV (type 11) in attribute 23; RFC8669-defined IPv4/IPv6 labeled-unicast behavior supplies the preceding context. No tagged carriers exist for this row. Independently read SubTLVs, tunnelTLVLayout and checkRouteBestChange. The first preserves opaque sub-TLV values, the second checks framing/endpoints but performs no family-conditioned Prefix-SID interpretation, and the election exports NLRI labels or attribute-40 SRv6 metadata rather than attribute-23 tunnel consumption. Targeted FIB/sysrib/RIB searches found no attribute-23 consumer. Opaque signaling is implemented, but is not proof of the absent family-conditioned tunnel consumer. Preserve the unimplemented gap under plan/post-release/features/spec-bgp-tunnel-encapsulation-consumption.md and all three guard keys; do not misclassify the conditional obligation as not-applicable. No checks run.</p>
 <p>No test carries RFC9012-3.7-2, so no unit is bound to it.</p>
 <h3><a href="#rfc9012-3.7-3"><code>RFC9012-3.7-3</code></a></h3>
 <p>If an Originator SRGB is specified in the sub-TLV, that SRGB MUST be interpreted to be the SRGB used by the tunnel&#39;s egress endpoint. (§3.7)</p>
@@ -1775,7 +1775,7 @@ Full RFC support is not established; each canonical verdict and discrimination r
 <p>No test carries RFC9012-4.1-3, so no unit is bound to it.</p>
 <h3><a href="#rfc9012-4.2-1"><code>RFC9012-4.2-1</code></a></h3>
 <p>[EVPN-INTER-SUBNET] defines a router&#39;s MAC Extended Community. This extended community, as its name implies, carries the MAC address of the advertising router. Since the VXLAN and NVGRE Encapsulation sub-TLVs can also optionally carry a router&#39;s MAC, a conflict can arise if both the Router&#39;s MAC Extended Community and such an Encapsulation sub-TLV are present at the same time but have different values. In case of such a conflict, the information in the Router&#39;s MAC Extended Community MUST be used. (§4.2)</p>
-<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), stale-unit: internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange moved. RFC 9012 Section 4.2 states: &#34;In case of such a conflict, the information in the Router&#39;s MAC Extended Community MUST be used.&#34; The conflict is between that community and a different router MAC in a VXLAN/NVGRE Encapsulation sub-TLV. Received values can disagree even when stored opaquely. SubTLVs retains tunnel bytes, and the receive/forwarding boundary does not compare or select these MAC sources. checkRouteBestChange exports next-hop, metrics, NLRI labels and attribute40 SRv6 information, not an attribute23-derived encapsulation MAC. This is an absent consumer, not an impossible input or another role. Preserve the explicit gap under plan/spec-bgp-tunnel-encapsulation-consumption.md AC-3/AC-6; no opaque-propagation test establishes selected forwarding MAC or packet headers.</p>
+<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), stale-unit: internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange moved. RFC 9012 Section 4.2, rfc/full/rfc9012.txt:1181-1190: &#34;In case of such a conflict, the information in the Router&#39;s MAC Extended Community MUST be used.&#34; The preceding sentence describes differing router MAC values in that community and a VXLAN/NVGRE Encapsulation sub-TLV. No tagged carriers exist for this row. Independently read SubTLVs and checkRouteBestChange: opaque values can coexist and conflict, but neither producer compares these MAC sources or chooses the community&#39;s MAC for encapsulation. Election exports next hop, metrics, NLRI labels and attribute-40 SRv6 metadata, not an attribute-23-derived encapsulation MAC; scoped FIB/sysrib/RIB search reveals no such consumer. Opaque receipt is implemented, selected-MAC behavior remains absent, and no tagged test verifies it. Retain unimplemented and both guard keys under plan/post-release/features/spec-bgp-tunnel-encapsulation-consumption.md; conflicting legal input is possible, so not-applicable would be unjustified. No checks run.</p>
 <p>No test carries RFC9012-4.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc9012-4.3-1"><code>RFC9012-4.3-1</code></a></h3>
 <p>No flags are defined in this document; this field MUST be set to zero by the originator and ignored by the receiver (§4.3)</p>
@@ -2270,7 +2270,7 @@ Full RFC support is not established; each canonical verdict and discrimination r
 </div>
 <h3><a href="#rfc9012-13-16"><code>RFC9012-13-16</code></a></h3>
 <p>A TLV identifying a particular tunnel type may contain a sub-TLV that is meaningless for that tunnel type. For example, perhaps the TLV contains a UDP Destination Port sub-TLV, but the identified tunnel type does not use UDP encapsulation at all, or a tunnel of the form &#34;X-in-Y&#34; contains a Protocol Type sub-TLV that specifies something other than &#34;X&#34;. Sub-TLVs of this sort MUST be disregarded. (§13)</p>
-<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), stale-unit: internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange moved. Section 13 defines disregard of tunnel-type-meaningless sub-TLVs in terms of encapsulation-header construction. Existing opaque carry and Preference-readback tests do not observe that consumer. checkRouteBestChange exports no attribute-23 tunnel parameters; the absent consumer remains owned by plan/spec-bgp-tunnel-encapsulation-consumption.md AC-2/AC-6. The applied owner-ruling annotation and removal of the four obsolete 13-16 carry tags preserve their assertions and existing 13-18/-19/RFC9830 identities. Preserve the complete quote and MUST applicability, with no whole-requirement credit.</p>
+<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), stale-unit: internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange moved. RFC 9012 Section 13, rfc/full/rfc9012.txt:1695-1705: &#34;Sub-TLVs of this sort MUST be disregarded.&#34; The deciding clarification is also a whole sentence: &#34;That is, they MUST NOT affect the creation of the encapsulation header.&#34; The antecedent is a sub-TLV meaningless for the containing tunnel type, such as a UDP port for a non-UDP tunnel or a mismatched Protocol Type. No tagged carriers exist for this row. Independently read checkRouteBestChange and the supporting SubTLVs/tunnelTLVLayout boundaries: opaque signaling and endpoint/framing validation exist, but election exports no attribute-23 encapsulation parameters and no type-specific encapsulation consumer is present in the scoped FIB/sysrib/RIB search. Thus unchanged propagation/non-malformed treatment cannot establish this header-construction disregard rule. Retain unimplemented, the checkRouteBestChange guard and the declared plan/post-release/features/spec-bgp-tunnel-encapsulation-consumption.md boundary. Existing 13-18/-19 and RFC9830 assertions/claims remain untouched and are not credited to 13-16. No checks run.</p>
 <p>No test carries RFC9012-13-16, so no unit is bound to it.</p>
 <h3><a href="#rfc9012-13-17"><code>RFC9012-13-17</code></a></h3>
 <p>That is, they MUST NOT affect the creation of the encapsulation header. (§13)</p>
@@ -2866,7 +2866,7 @@ Full RFC support is not established; each canonical verdict and discrimination r
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

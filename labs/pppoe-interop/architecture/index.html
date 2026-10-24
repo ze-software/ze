@@ -52,7 +52,8 @@ implementations. Ze acts as a client against
 <a href="https://accel-ppp.org/" target="_blank" rel="noopener">accel-ppp</a>, then as an access concentrator against
 <code>pppd</code> with the <code>rp-pppoe</code> plugin.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#overview">Overview</a></li>
 <li><a href="#layout">Layout</a></li>
 <li><a href="#prerequisites">Prerequisites</a></li>
@@ -68,7 +69,7 @@ implementations. Ze acts as a client against
 <li><a href="#ipv6cp-zero-identifier-and-ipv6cp-missing-option">ipv6cp-zero-identifier and ipv6cp-missing-option</a></li>
 </ol></li>
 <li><a href="#relationship-to-other-evidence">Relationship to other evidence</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <h2 id="overview">Overview</h2>
 <p>Each scenario runs its containers on an isolated bridge because PPPoE uses
 Ethernet discovery and session frames (EtherTypes 0x8863 and 0x8864). No
@@ -159,6 +160,21 @@ suite carries both roles.</p>
 <code>10.11.0.1</code> as its peer. The checker requires one Ze <code>pppN</code> interface with that
 point-to-point address, a route through it, ICMP to the peer, an accel-ppp
 session for <code>alice</code>, and removal of that session after Ze stops.</p>
+<p>The checker also reads accel-ppp's verbose trace and requires, in order, its
+LCP Configure-Request with <code>&lt;auth CHAP-md5&gt;</code>, Ze's Configure-Ack carrying that
+option, a CHAP Challenge, Ze's Response naming <code>alice</code>, and a CHAP Success.
+A PAP exchange is refused even if IPCP and ping succeed. The shared session
+checks remain the same for the PAP scenario; each scenario checks its own
+authentication evidence.</p>
+<p>These spellings come from accel-ppp 1.14.0's
+<a href="https://github.com/accel-ppp/accel-ppp/blob/1.14.0/accel-pppd/ppp/ppp_lcp.c" target="_blank" rel="noopener"><code>ppp_lcp.c</code></a>,
+<a href="https://github.com/accel-ppp/accel-ppp/blob/1.14.0/accel-pppd/ppp/ppp_auth.c" target="_blank" rel="noopener"><code>auth_print</code></a>,
+and <a href="https://github.com/accel-ppp/accel-ppp/blob/1.14.0/accel-pppd/auth/auth_chap_md5.c" target="_blank" rel="noopener">CHAP-MD5 handler</a>,
+not from Ze's configured method. Both client fixtures set <code>[log] copy=1</code>:
+accel-ppp's
+<a href="https://github.com/accel-ppp/accel-ppp/blob/1.14.0/accel-pppd/logs/log_file.c" target="_blank" rel="noopener"><code>general_log</code></a>
+otherwise discards session messages from the general log exposed by Docker.</p>
+<!-- source: internal/le/interoplab/pppoe/check_client.go -- checkZeClient, checkZeClientSession, accelCHAPEvidence -->
 <h3 id="02-ze-ac-pppd-client">02-ze-ac-pppd-client</h3>
 <p>The independent pppd client requests service <code>internet</code>, authenticates as
 <code>alice</code>, negotiates IPCP, and pings Ze through its PPP interface. The checker
@@ -225,8 +241,8 @@ over scripted replies.
 <p>Ze dials accel-ppp as in <code>01-pppoe-chap-ipv4</code>, but accel-ppp loads <code>auth_pap</code>
 and no CHAP module, so the session comes up only if Ze's client authenticates
 with PAP (<code>internal/component/l2tp/pppoeclient/session.go</code>, <code>runClientAuth</code>).
-The checker runs the whole <code>01-pppoe-chap-ipv4</code> proof (link, address, route,
-accel-ppp session, ICMP, removal after Ze stops), then reads accel-ppp's own
+The checker runs the shared session proof (link, address, route, accel-ppp
+session, ICMP, removal after Ze stops), then reads accel-ppp's own
 trace and requires <code>recv [PAP AuthReq</code> and <code>send [PAP AuthAck</code>, with no CHAP.
 The lab cannot lose a frame on demand, so the retry itself stays proven by the
 discriminated unit tests in <code>pppoeclient</code>; this scenario proves the PAP path
@@ -294,7 +310,8 @@ missing wire evidence rather than passing vacuously.
 </tr>
 </tbody>
 </table>
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">PPPoE lab</p>
@@ -324,7 +341,7 @@ missing wire evidence rather than passing vacuously.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

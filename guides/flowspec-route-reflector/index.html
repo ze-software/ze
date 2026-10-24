@@ -49,14 +49,15 @@
     <h1 id="flowspec-route-reflector">FlowSpec route reflector</h1>
     <p>Use this when you want one Ze node to receive FlowSpec routes from mitigation systems or edge routers and reflect them to iBGP clients.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#1-start-from-an-installed-ze-node">1. Start from an installed Ze node</a></li>
 <li><a href="#2-update-the-active-stored-config">2. Update the active stored config</a></li>
 <li><a href="#3-verify-sessions-and-reflector-state">3. Verify sessions and reflector state</a></li>
 <li><a href="#4-inject-a-test-flowspec-rule">4. Inject a test FlowSpec rule</a></li>
 <li><a href="#5-router-side-shape">5. Router-side shape</a></li>
 <li><a href="#6-operations">6. Operations</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <p>The example is a single AS with one Ze route reflector, one upstream FlowSpec receiver, and two edge clients. It enables the <code>bgp-rr</code> runtime plugin, negotiates <code>ipv4/flow</code>, marks the edge peers as route-reflector clients, and binds the peers to the reflector plugin.</p>
 <!-- source: internal/component/bgp/plugins/rr/register.go -- bgp-rr plugin name and dependency -->
 <!-- source: internal/component/bgp/plugins/rr/rr.go -- subscriptions and forwarding behavior -->
@@ -266,7 +267,8 @@ address-family ipv4 flowspec
 </tr>
 </tbody>
 </table>
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -308,7 +310,7 @@ address-family ipv4 flowspec
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

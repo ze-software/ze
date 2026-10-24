@@ -49,7 +49,8 @@
     <h1 id="chaos-testing">Chaos Testing</h1>
     <p>Ze includes a chaos testing mode that injects faults during operation to verify the daemon handles failures correctly. This is useful for validating configuration changes, testing plugin resilience, and finding edge cases before production.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#quick-start">Quick Start</a></li>
 <li><a href="#flags">Flags</a></li>
 <li><a href="#chaos-tool">Chaos Tool</a>
@@ -66,7 +67,7 @@
 <li><a href="#deterministic-replay">Deterministic Replay</a></li>
 <li><a href="#native-commands">Native Commands</a></li>
 <li><a href="#when-to-use">When to Use</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <h2 id="quick-start">Quick Start</h2>
 <pre><code class="language-bash"># Run the native chaos unit suites.
 ./le chaos selftest unit
@@ -296,7 +297,8 @@ ze --chaos-seed 42 --chaos-rate 0.1 config.conf
 <li><strong>Benchmarking:</strong> Measure convergence time under fault conditions</li>
 </ul>
 <!-- source: internal/chaos/orchestrator/cli.go -- the chaos tool; test/ -- chaos functional tests -->
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -338,7 +340,7 @@ ze --chaos-seed 42 --chaos-rate 0.1 config.conf
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

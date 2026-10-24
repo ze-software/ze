@@ -4,15 +4,74 @@ Design system
 
 The palette, components, and content rules this site follows -- so new pages stay consistent without re-deriving them from scratch.
 
-## Palette: vivid candy claymation
+## Design principles
 
-Seven candy hues on a calm blush base.
+Preserve what helps readers understand Ze, and make it easier to explore.
 
-Each hue ships four tones in `assets/site.css`: `-base` (the vivid candy color), `-deep` (text-safe dark), `-chip` (pill background), and `-tint` (card surface), plus a `-glow` for hue-tinted shadows. Never mix tones across hues on one component.
+Thomas approved these principles on 23 October 2026 and gave this instruction:
+
+> Yes, put these rules into the website design guide, then use them to produce a new mockup. Keep the useful information from the current site and show me how the new design presents it better.
+
+Apply these principles to website proposals and implementation. The palette and component sections below describe the blue design Thomas approved on 23 October 2026 after reviewing the homepage and representative inner pages. Later proposals need review against these principles before implementation. The guide changes with the implementation it describes.
+
+Thomas approved implementation on 23 October 2026:
+
+> This looks good. Please apply this style across the GitHub Pages website, keeping all the existing information and functionality.
+
+1. ### Preserve useful information
+
+ Start with an inventory of existing capabilities, differentiators, demonstrations, evidence, deployment options, use cases, updates and release status. Give every item an explicit place in the proposal. Explain each move or reduction in detail. Removing useful information requires the owner's agreement.
+2. ### Make the product and its value immediately clear
+
+ The opening explains what Ze is, who it serves and why an operator would investigate it. Support a memorable headline with concrete information. A generic slogan does not explain the product's value.
+3. ### Explain advantages through their consequences
+
+ Connect each technical capability to what the reader can accomplish. Explain the practical value of shared configuration, external plugins and ExaBGP migration with examples and their limitations. A protocol list establishes breadth, but cannot carry the whole argument.
+4. ### Show the product doing useful work
+
+ Use authentic interfaces, readable configuration examples, demonstrations and explanatory diagrams. Each visual makes a clear point and has enough space to show it. A terminal thumbnail that cannot be read provides little evidence. Choose useful preview frames, explain them with captions and provide access to the full recording.
+5. ### Create hierarchy without emptying the page
+
+ Let readers understand the proposition at a glance, scan the reasons to explore, then examine the details. Use scale, grouping, alignment, contrast and spacing to distinguish these levels. A long page is useful when each section gives readers a reason to continue.
+6. ### Use visual richness deliberately
+
+ Color, gradients, shadows, layered surfaces and illustration can give the site character and depth. Use them consistently to establish emphasis and relationships. Give demonstrations, evidence, feature comparisons and articles compositions suited to their content instead of putting everything into identical cards. Use white space to aid comprehension, rather than merely enlarge the page.
+7. ### Give every section a reader purpose and a useful next step
+
+ Each section helps readers understand Ze, assess its fit, inspect evidence or choose how to try it. Keep documentation, migration, appliance, developer and community paths discoverable. Label links with the destination or the action they offer.
+8. ### Make credibility visible and specific
+
+ Retain meaningful statistics, interoperability evidence, source links and updates. Explain what the numbers measure and distinguish capabilities from test evidence and production maturity. Keep the pre-release status clear. Place evidence with the claim it supports, rather than using counters as decoration.
+9. ### Use a coherent, accessible system
+
+ Share typography, spacing, color roles, elevation, controls and interaction states. Adapt layouts to homepages, references, documentation and articles while preserving Ze's identity. Check keyboard access, contrast, zoom, mobile layouts and reduced motion. Use meaningful headings and document structure.
+10. ### Judge each proposal against these principles
+
+ Compare the proposal with the current site using the same content and viewport sizes. Include an information-preservation map and explain material changes. An unfamiliar reader must be able to explain what Ze offers, identify concrete reasons to evaluate it, find evidence and choose a next step. Visual polish alone is insufficient.
+
+### Review before design approval
+
+Record each inventory item's source and current location, its proposed location and any change in detail. Explain why each material change improves the reader's understanding. Identify any proposed removal explicitly so the owner can decide it.
+
+Show the same pages at matching desktop and mobile sizes, with equivalent content available in both versions. Include representative documentation, an article and a dense reference or comparison alongside the homepage. Inspect light and dark themes, keyboard controls, zoom, reduced motion and content without JavaScript. Record which views and interactions the prototype demonstrates and which still need review.
+
+For each section, identify the reader's purpose, the evidence or example it presents and the next useful destination. Check that the reader can understand Ze's offer, reasons to evaluate it, supporting evidence and next steps before judging the visual finish.
+
+## Palette: brand, subjects and status
+
+Logo blue identifies Ze. Seven distinct subject colors connect related content across the website.
+
+`assets/css/00-tokens.css` owns the palette for both themes. `--brand` is the logo blue (#0069b4), `--brand-bright` is cyan (#009ee2), and `--brand-indigo` is indigo (#312782). Navy heroes use `--hero-bg`; body surfaces use `--bg`, `--panel` and `--bg-soft`. Text and controls use semantic tokens so the same content remains readable in either theme. Cyan is an accent on dark surfaces; small links on light surfaces use the darker blue.
+
+Category tokens retain their existing names for authored pages. `-base` supplies vivid borders and markers; `-mid` supplies a secondary accent. `-deep` is readable text on `-chip` labels and `-tint` surfaces. Despite its name, `-deep` becomes lighter in the dark theme. Labels, selected filters and cards use these same roles. Do not put white text on a bright accent without checking contrast. Normal text needs at least 4.5:1 in both themes.
+
+The category identities are fixed: Operate is blue, Routing amber, Services orange, Automate violet, Observe green, Secure magenta and Platform teal. Broad project updates and cross-topic evidence are neutral. Keep these identities in explicit and automatic dark mode. Status colors remain independent of this subject palette.
+
+ Operate Routing Services Automate Observe Secure Platform Neutral
 
 **Operate**
 
-### Sky
+### Blue
 
 `--sky-*`
 
@@ -20,23 +79,23 @@ Operator surfaces: SSH CLI, YANG configuration, web workbench, looking glass.
 
 **Routing**
 
-### Tangerine
+### Amber
 
-`--tangerine-*`
+`--lemon-*`
 
-Control plane: BGP engine, static routes, BFD, MRT, MPLS signaling.
+Control plane: BGP engine, static routes, BFD, MRT, RPKI, MPLS signaling.
 
 **Services**
 
-### Teal
+### Orange
 
-`--teal-*`
+`--gold-*`
 
-Network services and data plane: VPN, BNG, firewall, interfaces, VPP, DNS.
+Network services and dataplane: IPsec, BNG, firewall, interfaces, VPP, DNS.
 
 **Automate**
 
-### Grape
+### Violet
 
 `--grape-*`
 
@@ -44,39 +103,47 @@ Programmability: plugins, APIs, MCP, ExaBGP migration, fleet management.
 
 **Observe**
 
-### Mint
+### Green
 
 `--mint-*`
 
-Visibility and evidence: telemetry, health, diagnostics, testing proof.
+Visibility: telemetry, health and diagnostics.
 
 **Secure**
 
-### Pink
+### Magenta
 
 `--pink-*`
 
-Security: SSH and RBAC, RPKI, TACACS+, audit trail, PKI store.
+Security: SSH authentication, access control, TACACS+, audit trail and PKI store.
 
 **Platform**
 
-### Lemon
+### Teal
 
-`--lemon-*`
+`--teal-*`
 
-Packaging and lifecycle: appliance and daemon targets, install, Docker, tunables.
+Runtime and lifecycle: performance engineering, appliance and daemon targets, install, Docker, tunables.
 
-### Neutrals and brand
+**Neutral**
 
-`--bg / --text / --purple`
+### Cross-topic content
 
-A flat dimmed-blush page background, deep plum text, grape-violet headings. Surfaces stay lighter than the page so cards float. Cards without a category stay blush-white.
+`--neutral-*`
+
+A pale blue-gray page with white surfaces and navy text in the light theme; deep navy surfaces and pale text in the dark theme. Blue links and primary actions identify a destination. Uncategorized cards use the shared neutral surface.
 
 ## Color means category
 
-On feature cards, color is information, never decoration.
+A subject keeps the same color wherever it appears.
 
-A `cat-*` class on the card sets one accent hue for everything on it: the category chip, the title, the tech chips, the bullet markers, the bold words, and the hover glow. Do not color cards by position (`nth-child` cycling is banned for cards) and do not mix hues within one card. Decorative variety is fine only where order carries no meaning -- the homepage proof strip and audience trio.
+A `cat-*` class sets the subject color for labels, borders, technology chips, links and bullet markers. Titles use the shared text color for readability. The same rules cover homepage, feature, documentation, article, plugin, comparison, FAQ and evidence cards.
+
+1. Choose the existing category that describes the card's primary subject. Keep it in the source record or an explicit semantic classification, not in a styling loop.
+2. Use `cat-meta` for cross-topic content with no primary subject. Unclassified cards use the same neutral roles. Do not invent a category to create variety.
+3. Pass authored categories through the shared generator vocabulary. Unknown values are errors, not permission to choose an arbitrary color.
+4. Use shared `--acc`, `--acc-deep`, `--acc-chip` and `--acc-tint` roles. Do not assign hues by position, hash or presentation tone, or override them for a page or theme.
+5. Keep status independent. Success, warning and failure use `--green`, `--amber` and `--danger-deep`, with words explaining the result. Neutral evidence measures make no verdict. Maturity keeps its explicit labels and border treatment.
 
 **Routing**
 
@@ -96,33 +163,33 @@ A `cat-*` class on the card sets one accent hue for everything on it: the catego
 
 Features run in both daemon and appliance modes by default; a solid mode chip flags the exception. No "Both" pill on every card.
 
-## The clay look
+## Surfaces and elevation
 
-Molded, not just rounded with a drop shadow.
+Borders group content; restrained shadows distinguish interactive and raised surfaces.
 
-Every card-like surface (`.card`, `.button`, `.proof`, `.audience-card`, `.bird-card`, `.status-panel`, `.terminal-note`, `.closing`, the `.eyebrow` badge) carries `box-shadow: var(--clay)` plus a 2px white "sugar coat" border: an inset top highlight, a soft inset bottom shade, and a diffuse outer shadow. Hovers lift with a bouncy cubic-bezier and a hue-tinted glow. Add all of it to any new card-like component; don't invent a one-off shadow.
+Cards use `var(--panel)`, a thin `var(--line)` border and the shared radius. `--clay` remains the compatibility token for the subtle card shadow. `--shadow-lifted` marks a linked card on hover, and `--shadow-panel` separates a product image or dropdown from its surroundings. Informational cards remain still. Keyboard focus remains visible without depending on hover or color alone.
 
-### With clay
+### Raised surface
 
-This card. Notice the white coat, soft top highlight, and bottom depth even before hover.
+The shared card surface uses a fine border and a small shadow to separate it from the page.
 
-### Without clay
+### Inset surface
 
-Flat by comparison -- a plain bordered rectangle, no material feel.
+A muted surface groups supporting information without adding another raised card.
 
 ## Page and card ornaments
 
-Light linework, candy washes, and clay depth.
+Navy heroes, restrained blue light and distinct content layouts.
 
-Page heroes and dispatch cards share one ornament language: translucent candy radial washes behind the content, thin concentric circle lines in an open corner, and optional masked grid lines for large hero surfaces. Keep ornaments low contrast and behind the text. Avoid filled balls, opaque blobs, heavy badges, or one-off shapes that fight the content.
+Page heroes and dispatch cards share one ornament language: subtle blue gradients behind the content, thin concentric circle lines in an open corner, and optional masked grid lines for large hero surfaces. Keep ornaments low contrast and behind the text. Avoid filled balls, opaque blobs, heavy badges, or one-off shapes that fight the content.
 
 Wide product comparison tables must keep the existing page filter and add product column controls so readers can hide projects they are not comparing. Keep those controls visible, keyboard-accessible, and honest: hiding a column changes the view only, never the source evidence or generated text.
 
-Reuse `.journey-hero::before` for masked grid texture and `.journey-hero::after` for circle line treatment. Two-choice dispatch pages, including Compare, use `.compare-dispatch` cards with page-specific accent classes and the same concentric ring language.
+Use `.journey-hero` for the shared navy page opening. Two-choice dispatch pages, including Compare, use `.compare-dispatch` cards with subject category classes and restrained line decoration.
 
 ### Hero pages
 
-Use a soft candy wash, a masked grid, one ring ornament, and clay shadow. The content owns the foreground.
+A navy hero introduces the page with a clear title and useful context. Its background reaches the viewport edges while the content follows the shared page width.
 
 ### Dispatch cards
 
@@ -136,13 +203,25 @@ Start from existing components before adding CSS. If a page needs a new surface,
 
 Don't invent new components for new pages -- these cover almost everything.
 
+### Guide and article layouts
+
+The navy `.journey-hero` introduces a guide. `.doc-layout` keeps its outline beside the complete source content. Articles use `.blog-article-shell` for the opening and `.blog-reading-layout` for a narrower reading column. On small screens, native outline disclosures start collapsed after JavaScript loads and related links follow the article outline. Without JavaScript, outlines remain open. Readers can expand or collapse them at every screen size.
+
+### Catalog controls
+
+Feature search combines category and maturity filters. The command reference combines text and group filters, preserves suggestions and command links, and offers expand, collapse and column controls. Reset restores the complete inventory. Without JavaScript, every card and command remains available, including category counts, arguments and pipe details.
+
+### Product screenshots
+
+The homepage groups authentic screenshots with captions, provenance and full-size links. Native buttons select the interface and expose their pressed state. All screenshots remain visible when JavaScript is unavailable. Recordings retain their controls and transcript links.
+
 ### .status-panel / .status-table
 
 Two-column fact panel: prose on the left, labeled rows on the right. Used for lab pages' "Proves / Requires / Source" facts.
 
 ### .terminal-panel
 
-Terminal (exact commands, candy traffic-light dots) + terminal-note (prerequisites, links) side by side. Used on every lab page and the homepage Try section.
+Terminal (exact commands and familiar traffic-light dots) + terminal-note (prerequisites, links) side by side. Used on every lab page and the homepage Try section.
 
 ### .cards / .card + cat-*
 
@@ -158,11 +237,11 @@ Full-width prose under a section head for anything longer than a sentence or two
 
 ### Maturity tiers on cards
 
-Shipped cards are solid clay. .card.experimental adds a dashed border and an "Experimental" status chip. Remaining release work items are listed on the [generated roadmap](https://ze-software.net/project/roadmap/), an inventory preview pending owner classification.
+Shipped cards have a solid border. .card.experimental adds a dashed border and an "Experimental" status chip. Remaining release work items are listed on the [generated roadmap](https://ze-software.net/project/roadmap/), an inventory preview pending owner classification.
 
 ### .doc-diagram
 
-Full-width documentation figure with a clay frame, caption, and horizontal overflow that keeps detailed diagrams readable on narrow screens. Link the image to its standalone asset and keep a text equivalent below it.
+Full-width documentation figure with a shared surface and border, caption, and horizontal overflow that keeps detailed diagrams readable on narrow screens. Link the image to its standalone asset and keep a text equivalent below it.
 
 ### .md-content
 
@@ -170,9 +249,9 @@ Wraps Markdown rendered by the native `./le site build` pipeline: headings, tabl
 
 ## Navigation rules
 
-Top menu and right menu come from shared data; footer is a license line.
+The menu and related links come from shared data. The footer retains the license and publication stamp.
 
-Use navigation to explain where the reader should go next, not as a dump of every page. The top mega-menu is the global map from `data/nav.json`. The right page menu is the local guide from `data/page-links.json`. The footer is the shared license line and publication stamp from `sitelib.footer_html`. Do not hand-code equivalent link lists in page bodies.
+Use navigation to explain where the reader should go next, not as a dump of every page. The top mega-menu is the global map from `data/nav.json`. The right page menu is the local guide from `data/page-links.json`. The footer is the shared license line and publication stamp from `internal/le/site/footer.go`'s `footerHTML`. Do not hand-code equivalent link lists in page bodies.
 
 ### Top mega-menu
 
@@ -180,7 +259,7 @@ Every multi-column dropdown must have a label at the top of each column. Group t
 
 ### Right menu
 
-Use `.page-sidebar` for nearby choices, related evidence, and next steps. Add entries to `data/page-links.json`; `sitelib.patch_page_sidebar` injects the menu and the mobile layout.
+Use `.page-sidebar` for nearby choices, related evidence, and next steps. Add entries to `data/page-links.json`. The `pageSidebar` function in `internal/le/site/nav.go` renders the menu, and the shared stylesheet controls its mobile layout.
 
 ### Reader path first
 
@@ -192,7 +271,7 @@ Every external link opens with `target="_blank"` and `rel="noopener"`. Never use
 
 ### Easy scanning
 
-Prefer short labels, one-line descriptions, grouped links, and search boxes over long index pages. If a page becomes a catalogue, move details to per-item pages and keep the index as a route.
+Prefer short labels, one-line descriptions, grouped links, and search boxes over long index pages. If a page becomes a catalog, move details to per-item pages and keep the index as a route.
 
 ## Source and evidence rules
 
@@ -204,7 +283,7 @@ Every claim about a feature, protocol, lab, benchmark, command, dependency, plug
 
 ### Generated data first
 
-Do not hand-maintain lists that can come from Markdown or structured data. Use `data/*.json`, `../main/docs/*.md`, `go.mod`, registry extraction, YANG extraction, or live `bin/ze` output.
+Do not hand-maintain lists that can come from Markdown or structured data. Use website `data/*.json`, repository `docs/*.md`, `go.mod`, registry extraction, YANG extraction, or output from the daemon compiled by the site build.
 
 ### Markdown mirrors
 

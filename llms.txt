@@ -15,16 +15,16 @@ This file is intentionally denormalized for AI use. It includes the high-signal 
 - Release state: pre-release, main-branch builds, no tagged stable release yet.
 - License and repos: AGPLv3. Canonical repository: https://github.com/ze-software/ze. Discord: https://discord.gg/T8s7CjPDne.
 - Current generated counts: 52 shipped or experimental feature cards, 487 CLI commands, 38 config sections, 91 plugin registrations, 52 direct Go dependencies, 44 weekly change entries.
-- Test evidence counts: 38,000+ unit tests, 90 fuzz targets, 2,500+ end-to-end transcript steps, 207 interop scenarios across 11 target implementations.
+- Test evidence counts: 38,200+ unit tests, 91 fuzz targets, 2,500+ end-to-end transcript steps, 207 interop scenarios across 11 target implementations.
 - Classified planning inventory (not release-readiness proof): [roadmap](https://ze-software.net/project/roadmap/index.md), [snapshot JSON](https://ze-software.net/data/release-roadmap.json).
-- Generated date: 2026-10-23.
+- Generated date: 2026-10-24.
 
 ## Quality and verification model
 
 Ze uses layered proof because bugs appear at different boundaries.
 
-- Local Go tests: package behavior, parser rules, encoders, state transitions, validation paths, and error shapes. Current scale: 38,000+ unit tests.
-- Race, coverage, and fuzz: fuzz targets are normal Go tests with generated input. Current scale: 90 fuzz targets.
+- Local Go tests: package behavior, parser rules, encoders, state transitions, validation paths, and error shapes. Current scale: 38,200+ unit tests.
+- Race, coverage, and fuzz: fuzz targets are normal Go tests with generated input. Current scale: 91 fuzz targets.
 - gomu mutation checks: mutate production Go code and rerun tests to find weak assertions. gomu is advisory, not the default CI gate.
 - Functional `.ci` transcripts: drive processes, CLI commands, files, HTTP, syslog, peers, daemons, exits, and BGP wire expectations. BGP failures are decoded structurally, not shown as raw hex only.
 - Browser `.wb` transcripts: drive the rendered web UI through real browser flows.
@@ -194,7 +194,7 @@ Each registration comes from the Go runtime registry. Config roots come from plu
 - `bgp-rr`: Route Reflector Config roots: none. Dependencies: bgp-adj-rib-in, bgp-rib. Optional: none. Start after (order only): none. YANG files: 1. Source: `internal/component/bgp/plugins/rr`.
 - `bgp-rs`: Route Server Config roots: bgp. Dependencies: bgp-rib. Optional: bgp-adj-rib-in. Start after (order only): none. YANG files: 1. Source: `internal/component/bgp/plugins/rs`.
 - `bgp-softver`: Software Version capability (code 75) Config roots: bgp. Dependencies: bgp. Optional: none. Start after (order only): none. YANG files: 1. Source: `internal/component/bgp/plugins/softver`.
-- `bgp-watchdog`: Watchdog route management plugin Config roots: bgp. Dependencies: bgp. Optional: none. Start after (order only): none. YANG files: 0. Source: `internal/component/bgp/plugins/watchdog`.
+- `bgp-watchdog`: Watchdog route management plugin Config roots: bgp. Dependencies: bgp. Optional: none. Start after (order only): none. YANG files: 1. Source: `internal/component/bgp/plugins/watchdog`.
 - `connected`: Connected routes: redistribute directly connected interface prefixes Config roots: connected. Dependencies: none. Optional: none. Start after (order only): none. YANG files: 1. Source: `internal/plugins/connected`.
 - `copp`: Control-plane policing: rate-limit new TCP connections to BGP listen port Config roots: control-plane-protection. Dependencies: firewall. Optional: none. Start after (order only): none. YANG files: 1. Source: `internal/plugins/copp`.
 - `cos`: 802.1p class-of-service profile definitions Config roots: class-of-service. Dependencies: none. Optional: none. Start after (order only): none. YANG files: 1. Source: `internal/plugins/cos`.
@@ -357,10 +357,10 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `request bgp rib withdraw-protocol` (daemon; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `request bgp rib withdraw-protocol`): Withdraw all routes for a peer under a protocol
 - `request bgp rib withdraw-router` (daemon; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `request bgp rib withdraw-router`): Withdraw all routes for a router under a protocol
 - `request bgp rpki validate` (daemon; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `request bgp rpki validate <prefix> <origin-asn>`): Validate a prefix against the ROA cache
-- `request bgp watchdog announce` (daemon; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `request bgp watchdog announce`): Announce routes in watchdog group
-- `request bgp watchdog forget` (daemon; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `request bgp watchdog forget`): Withdraw and forget the routes an owner gave watchdog groups
-- `request bgp watchdog give` (daemon; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `request bgp watchdog give`): Give a route to a watchdog group\, sent now or held
-- `request bgp watchdog withdraw` (daemon; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `request bgp watchdog withdraw`): Withdraw routes in watchdog group
+- `request bgp watchdog announce` (daemon; wire ze-bgp:watchdog-announce; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args name:string, med:uint, peer:string; usage `request bgp watchdog announce <name> [med <med>] [peer <peer>]`): Announce the routes of a watchdog\.
+- `request bgp watchdog forget` (daemon; wire ze-bgp:watchdog-forget; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args owner:string; usage `request bgp watchdog forget <owner>`): Withdraw and forget the routes an owner gave watchdogs\.
+- `request bgp watchdog give` (daemon; wire ze-bgp:watchdog-give; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args name:string, owner:string; usage `request bgp watchdog give <name> <owner>`): Give a route to a watchdog\, sent now or held\.
+- `request bgp watchdog withdraw` (daemon; wire ze-bgp:watchdog-withdraw; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args name:string, peer:string; usage `request bgp watchdog withdraw <name> [peer <peer>]`): Withdraw the routes of a watchdog\.
 - `request cache expire` (daemon; wire ze-bgp:cache-expire; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args id:string; usage `request cache expire <id>`): Remove a cached message immediately\.
 - `request cache release` (daemon; wire ze-bgp:cache-release; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args id:string; usage `request cache release <id>`): Ack without forwarding \(cache consumer\) or undo retain \(API\)\.
 - `request cache retain` (daemon; wire ze-bgp:cache-retain; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args id:string; usage `request cache retain <id>`): Prevent eviction of a cached message\.

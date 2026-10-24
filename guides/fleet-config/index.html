@@ -49,7 +49,8 @@
     <h1 id="fleet-configuration">Fleet Configuration</h1>
     <p>Ze supports centralized configuration management for multi-node deployments. A central hub serves configuration to remote ze instances over TLS.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#architecture">Architecture</a></li>
 <li><a href="#bootstrap">Bootstrap</a>
 <ol>
@@ -60,7 +61,7 @@
 <li><a href="#config-management">Config Management</a></li>
 <li><a href="#resilience">Resilience</a></li>
 <li><a href="#cli-overrides">CLI Overrides</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <!-- source: cmd/ze/hub/managed_server.go -- fleet hub server; internal/component/managed/ -- managed client and fleet protocol -->
 <blockquote>
 <p><strong>Status:</strong> Implemented. Named hub blocks, per-client auth, managed client lifecycle (fetch, reconnect, heartbeat), and <code>ze start</code> managed mode are functional.</p>
@@ -184,7 +185,8 @@ request data restore path /var/backups/fleet.zefs config name edge-01.conf clien
 </tbody>
 </table>
 <!-- source: internal/component/managed/ -- fleet TLS and client auth -->
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -226,7 +228,7 @@ request data restore path /var/backups/fleet.zefs config name edge-01.conf clien
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 06:03 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

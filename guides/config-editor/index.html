@@ -51,7 +51,8 @@
     <h1 id="configuration-editor">Configuration Editor</h1>
     <p>Ze includes an interactive configuration editor with YANG-driven tab completion, rollback history, and live validation.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#usage">Usage</a></li>
 <li><a href="#editor-commands">Editor Commands</a>
 <ol>
@@ -66,7 +67,7 @@
 <li><a href="#rollback">Rollback</a></li>
 <li><a href="#exit-codes">Exit Codes</a></li>
 <li><a href="#example-workflow">Example Workflow</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <!-- source: internal/component/config/cli/cmd_edit.go -- cmdEditWithStorage; internal/component/cli/ -- editor model -->
 <h2 id="usage">Usage</h2>
 <pre><code class="language-bash">ze config edit                      # Edit default config
@@ -801,7 +802,8 @@ ze config diff 3 config.conf       # Compare with revision 3
 ze config rollback 3 config.conf   # Restore revision 3
 ze config archive prod config.conf # Archive to named destination
 </code></pre>
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -843,7 +845,7 @@ ze config archive prod config.conf # Archive to named destination
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0.0% | 0 of 223 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 223 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 223 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 31.2% | 220 of 704 tagged units, 0 escaped and 19 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 33.1% | 233 of 704 tagged units, 0 escaped and 6 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -387,7 +387,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. The 
 
 The responder MUST accept a single proposal or reject them all and return an error. The error is given in a notification of type NO_PROPOSAL_CHOSEN. Each IPsec protocol proposal contains one or more transforms. Each transform contains a Transform Type. The accepted cryptographic suite MUST contain exactly one transform of each type included in the proposal. (§2.7)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/le/interoplab/ipsec/checkers.go::checkESNBothOffered, internal/le/interoplab/ipsec/checkers.go::checkESNExtendedOnlyRefused moved. RFC 7296 Section 2.7 (rfc/full/rfc7296.txt): "The responder MUST accept a single proposal or reject them all and return an error. The error is given in a notification of type NO_PROPOSAL_CHOSEN." and "The accepted cryptographic suite MUST contain exactly one transform of each type included in the proposal." NegotiateIKE picks one proposal or returns ErrNoProposalChosen (TestProposalNegotiationFirstMatch/NoMatch); TestEsnResponderAnswersOnlyAValueTheOfferCarried asserts SAr2 carries one proposal with exactly one ESN transform of a value the offer carried and maps refusal to NO_PROPOSAL_CHOSEN. Interop: checkESNExtendedOnlyRefused isolates the ESN type (aes256gcm16-esn alone) and asserts ze reached NO_PROPOSAL_CHOSEN (logged by buildChildlessAuthResponse as it builds the refusal notify) with no CHILD_SA on strongSwan and zero XFRM states on both ends, recorded red with the espProposalMatches ESN comparison reverted; checkESNBothOffered asserts both ends keyed, strongSwan's state carries no esn, and traffic crosses, so both ends selected the same single ESN value. Limitation, not a defect: the interop negative reads ze's log, not strongSwan's receipt of the notify; the wire mapping is held by the engine unit test. Re-judged 2026-10-10 (independent judge, mode rejudge): every tagged unit, and the helpers they call (waitLog, listSAs, checkXFRMCount, establish, waitXFRM, xfrmState, verifyTunnelTraffic), is byte-identical between 35c3b0b699 and HEAD; the diff touches the scenarioCheckers registry shape (both ESN scenarios still map to these checkers) and the childless-IKE-SA checkers, and the producer change adds only a fix field to the refusal log line, so the verdict stands.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 7296 Section 2.7 (rfc/full/rfc7296.txt): "The responder MUST accept a single proposal or reject them all and return an error. The error is given in a notification of type NO_PROPOSAL_CHOSEN." and "The accepted cryptographic suite MUST contain exactly one transform of each type included in the proposal." NegotiateIKE picks one proposal or returns ErrNoProposalChosen (TestProposalNegotiationFirstMatch/NoMatch); TestEsnResponderAnswersOnlyAValueTheOfferCarried asserts SAr2 carries one proposal with exactly one ESN transform of a value the offer carried and maps refusal to NO_PROPOSAL_CHOSEN. Interop: checkESNExtendedOnlyRefused isolates the ESN type (aes256gcm16-esn alone) and asserts ze reached NO_PROPOSAL_CHOSEN (logged by buildChildlessAuthResponse as it builds the refusal notify) with no CHILD_SA on strongSwan and zero XFRM states on both ends, recorded red with the espProposalMatches ESN comparison reverted; checkESNBothOffered asserts both ends keyed, strongSwan's state carries no esn, and traffic crosses, so both ends selected the same single ESN value. Limitation, not a defect: the interop negative reads ze's log, not strongSwan's receipt of the notify; the wire mapping is held by the engine unit test. Re-judged 2026-10-10 (independent judge, mode rejudge): every tagged unit, and the helpers they call (waitLog, listSAs, checkXFRMCount, establish, waitXFRM, xfrmState, verifyTunnelTraffic), is byte-identical between 35c3b0b699 and HEAD; the diff touches the scenarioCheckers registry shape (both ESN scenarios still map to these checkers) and the childless-IKE-SA checkers, and the producer change adds only a fix field to the refusal log line, so the verdict stands.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -468,10 +468,10 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Posi
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRekeyWithoutTrafficSelectorsIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_rekey_collision_test.go#L338) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| negative | [`TestRFC7296ChildRekeyRequestMissingAPayloadIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_rekey_payloads_test.go#L96) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRekeyWithoutTrafficSelectorsIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_rekey_collision_test.go#L344) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC7296ChildRekeyRequestCarriesTheOfferNonceAndSelectors`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_rekey_payloads_test.go#L57) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRekeyWithoutTrafficSelectorsIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_rekey_collision_test.go#L338) | unit/verify | revert, verified |
+| negative | [`TestRFC7296ChildRekeyRequestMissingAPayloadIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_rekey_payloads_test.go#L96) | unit/verify | revert, verified |
+| positive | [`TestRekeyWithoutTrafficSelectorsIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_rekey_collision_test.go#L344) | unit/verify | revert, verified |
+| positive | [`TestRFC7296ChildRekeyRequestCarriesTheOfferNonceAndSelectors`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_rekey_payloads_test.go#L57) | unit/verify | revert, verified |
 
 ### [`RFC7296-1.3.3-4`](#rfc7296-1.3.3-4)
 
@@ -481,9 +481,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Test
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestChildRekeyAnswerWithoutTrafficSelectorsIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_child_rekey_initiator_answer_test.go#L281) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestChildRekeyAnswerWithoutTrafficSelectorsIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_child_rekey_initiator_answer_test.go#L286) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC7296ChildRekeyResponseCarriesTheSelectorsAndMayNarrow`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_rekey_payloads_test.go#L157) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestChildRekeyAnswerWithoutTrafficSelectorsIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_child_rekey_initiator_answer_test.go#L281) | unit/verify | revert, verified |
+| positive | [`TestChildRekeyAnswerWithoutTrafficSelectorsIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_child_rekey_initiator_answer_test.go#L286) | unit/verify | revert, verified |
+| positive | [`TestRFC7296ChildRekeyResponseCarriesTheSelectorsAndMayNarrow`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_rekey_payloads_test.go#L157) | unit/verify | revert, verified |
 
 ### [`RFC7296-2.9-1`](#rfc7296-2.9-1)
 
@@ -663,8 +663,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestChildSANoNATNoEncap`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_test.go#L276) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestChildSANATTEncapPorts`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L288) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestChildSANoNATNoEncap`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_test.go#L276) | unit/verify | revert, verified |
+| positive | [`TestChildSANATTEncapPorts`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L288) | unit/verify | revert, verified |
 
 ### [`RFC7296-2.23-3`](#rfc7296-2.23-3)
 
@@ -988,8 +988,8 @@ Audit verdict: not audited: no reader has judged these tests
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestBfmBareESPKeptForUnfloatedSA`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_natt_bothforms_test.go#L143) | unit/verify | unproven |
-| positive | [`TestBfmEncapsulatedESPAcceptedWithoutNAT`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_natt_bothforms_test.go#L66) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestBfmEncapsulatedESPSentWhenNATDetected`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_natt_bothforms_test.go#L117) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestBfmEncapsulatedESPAcceptedWithoutNAT`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_natt_bothforms_test.go#L66) | unit/verify | revert, verified |
+| positive | [`TestBfmEncapsulatedESPSentWhenNATDetected`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_natt_bothforms_test.go#L117) | unit/verify | revert, verified |
 
 ### [`RFC7296-2.23-12`](#rfc7296-2.23-12)
 
@@ -1263,13 +1263,13 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 When an SA is closed, both members of the pair MUST be closed (that is, deleted). Each endpoint MUST close its incoming SAs and allow the other endpoint to close the other SA in each pair (§1.4.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/ike/engine/inbound.go::handleCreateChildSAOwned moved. Re-judged 2026-10-20 (independent judge, after 967dbf7883, 5450fa29e9, b87fdb0b43; HEAD 6dce69a77c). Section 1.4.1: "ESP and AH SAs always exist in pairs, with one SA in each direction. When an SA is closed, both members of the pair MUST be closed (that is, deleted). Each endpoint MUST close its incoming SAs and allow the other endpoint to close the other SA in each pair." No prior audit entry. 5450fa29e9 closes the last path found: a CREATE_CHILD_SA rekey answer with no error notify (so the peer installed its half) that Ze refused for a reason outside the named arms used to only log in the default arm of handleCreateChildSAOwned (inbound.go); it now calls sendDeleteESP with p.newInboundSPI, as the errChildEncapPort arm already did, and keeps the old Child SA. Arms that carry an error notify (TEMPORARY_FAILURE, NO_ADDITIONAL_SAS, CHILD_SA_NOT_FOUND, other refusals) correctly send nothing, because the peer created no SA. A refused IKE_AUTH answer tears the IKE SA down, which RFC 7296 Section 1.4.1 says "implicitly closes any remaining Child SAs". The retirement path deletes both halves and names the inbound SPI (cleanupChild -> removeChildSA). TestRFC7296RefusedRekeyAnswerDeletesTheNewPair (Delete lists the new inbound SPI, never the in-use SPI, nothing installed) and TestLcyClosingAChildSAClosesBothHalvesAndDeletesOurInbound PASS at HEAD; the new unit's claim states what it asserts. Discrimination recorded with the Delete removed (rfc/discrimination/rfc7296.json).
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Independently re-judged against committed a617f53893dab242be088ea985b9baae7e66c430. RFC 7296 Section 1.4.1 states: "When an SA is closed, both members of the pair MUST be closed (that is, deleted)." It also states: "Each endpoint MUST close its incoming SAs and allow the other endpoint to close the other SA in each pair." handleCreateChildSAOwned deletes a locally refused successful Child rekey answer with sendDeleteESP(p.newInboundSPI), retaining the current child. Error-notify refusals remain distinct because they created no replacement pair. TestRFC7296RefusedRekeyAnswerDeletesTheNewPair exercises the missing-Nr refusal through the authenticated-response relay, asserting no new installation, preservation of the old child and an authenticated ESP Delete naming the new inbound SPI; this relay is not a full owner-loop dispatch test. TestLcyClosingAChildSAClosesBothHalvesAndDeletesOurInbound drives retirement through handleOwnedInbound, distinguishes inbound from outbound SPI and asserts removal of both states on cleanup. cleanupChild/removeChildSAExcept preserve surviving shared policies without retaining the closed pair. Verdict retained from source review; no new execution result is claimed by this rejudgment.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestLcyClosingAChildSAClosesBothHalvesAndDeletesOurInbound`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_lifecycle_test.go#L236) | unit/verify | unproven |
 | positive | [`TestLcyClosingAChildSAClosesBothHalvesAndDeletesOurInbound`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_lifecycle_test.go#L232) | unit/verify | unproven |
-| positive | [`TestRFC7296RefusedRekeyAnswerDeletesTheNewPair`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_rekey_refused_delete_test.go#L22) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC7296RefusedRekeyAnswerDeletesTheNewPair`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_rekey_refused_delete_test.go#L22) | unit/verify | mutant, verified |
 
 ### [`RFC7296-1.4.1-4`](#rfc7296-1.4.1-4)
 
@@ -1588,8 +1588,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRkyIKERekeyDeleteIsTheLastRequestOnTheOldSA`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_rekey_test.go#L306) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRkyIKERekeyDeleteIsTheLastRequestOnTheOldSA`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_rekey_test.go#L303) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRkyIKERekeyDeleteIsTheLastRequestOnTheOldSA`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_rekey_test.go#L306) | unit/verify | revert, verified |
+| positive | [`TestRkyIKERekeyDeleteIsTheLastRequestOnTheOldSA`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_rekey_test.go#L303) | unit/verify | revert, verified |
 
 ### [`RFC7296-2.8-7`](#rfc7296-2.8-7)
 
@@ -1599,8 +1599,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRkyResponderInstallsTheNewChildBeforeItAnswers`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_rekey_test.go#L415) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRkyResponderInstallsTheNewChildBeforeItAnswers`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_rekey_test.go#L412) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRkyResponderInstallsTheNewChildBeforeItAnswers`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_rekey_test.go#L415) | unit/verify | revert, verified |
+| positive | [`TestRkyResponderInstallsTheNewChildBeforeItAnswers`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_rekey_test.go#L412) | unit/verify | revert, verified |
 
 ### [`RFC7296-2.8.1-1`](#rfc7296-2.8.1-1)
 
@@ -2004,14 +2004,14 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestErrProtectedInformationalNotifyChangesNoState`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_notify_error_test.go#L410) | unit/verify | revert, verified |
-| positive | [`TestErrProtectedInformationalNotifyChangesNoState`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_notify_error_test.go#L403) | unit/verify | revert, verified |
+| negative | [`TestErrProtectedInformationalNotifyChangesNoState`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_notify_error_test.go#L410) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestErrProtectedInformationalNotifyChangesNoState`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_notify_error_test.go#L403) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC7296-2.21.4-8`](#rfc7296-2.21.4-8)
 
 A node receiving a suspicious message from an IP address (and port, if NAT traversal is used) with which it has an IKE SA SHOULD send an IKE Notify payload in an IKE INFORMATIONAL exchange over that SA. (§2.21.4)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/ike/engine/established.go::maintainSA moved. Re-judged 2026-10-20 (independent judge 15, after e8e3ea3f6e). Section 2.21.4: "A node receiving a suspicious message from an IP address (and port, if NAT traversal is used) with which it has an IKE SA SHOULD send an IKE Notify payload in an IKE INFORMATIONAL exchange over that SA." The only judged-unit change is the new positive TestSusOwnerLoopPublishesMovedEndpoint, which closes judge 14's finding that no test ran maintainSA's publish. It runs the real maintainSA with the configured remote moved to 127.0.0.9 and sa.peerEndpoint at the peer's address, waits for the loop to publish (fatal if it never does) and asserts the published IP/port equal the SA's endpoint, hands an out-of-SA INFORMATIONAL request from that endpoint to noteSuspicious, and asserts one datagram that is INFORMATIONAL, not marked response, carries the SA's two SPIs, decrypts and authenticates under the peer's copy of the SA keys, holds exactly one payload, a Notify of type INVALID_IKE_SPI; after closing stopCh and joining the loop, a drain proves no second datagram, saEndpoint is nil, and the same packet is not queued to ps.suspicious. Claim matches the body; 'queued to no session' is asserted on the one registered session's queue, which is the only session in activePeersMap here. The post-exit check discriminates the new defer ps.saEndpoint.Store(nil): the test calls maintainSA directly, so ownedSA (cleared by runEstablished, not maintainSA) stays set from susRegister and only the withdrawn endpoint stops the match. Mutant record present and verified by ./le rfc check (no violation listed): established.go::maintainSA line 274 'ps.publishSAEndpoint(sa)' -> '_ = sa', producer sha f52db92f225348aa, consistent with the deleted call making susAwaitPublished fail. The four earlier Sus units are unchanged; negative polarity carriers unchanged. All five TestSus tests PASS at HEAD under -race. Judge 14's remaining minor notes (first map-order match only; remoteUDPAddr udp4 for IPv6 configured remote, journaled as IPv4-only IKE transport) stand with no verdict effect.
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/ike/engine/established.go::maintainSA moved. Independently re-judged against committed a617f53893dab242be088ea985b9baae7e66c430. RFC 7296 Section 2.21.4 states: "A node receiving a suspicious message from an IP address (and port, if NAT traversal is used) with which it has an IKE SA SHOULD send an IKE Notify payload in an IKE INFORMATIONAL exchange over that SA." Both unknown-SA dispatch paths reach noteSuspicious. maintainSA publishes the current endpoint, consumes the suspicious queue through informSuspicious and withdraws the endpoint on exit. The five tagged TestSus units assert protected INFORMATIONAL notification over the existing SA, endpoint and NAT-T-port discrimination, response/SA_INIT exclusion, bounded nonzero rate-limited output and notification from a moved endpoint through the actual owner loop. That loop test also asserts endpoint withdrawal and no subsequent enqueue to its registered session. The separate uncommitted reestablishment-goodbye change was not used as evidence. Verdict retained from source review; no new execution result is claimed by this rejudgment.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -2338,10 +2338,10 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Test
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestResponseBitMatchesDirection`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_header_test.go#L374) | unit/verify | revert, verified |
-| negative | [`TestNrsInformationalHandlerRefusesAResponse`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_noresponse_test.go#L257) | unit/verify | revert, verified |
-| negative | [`TestNrsResponseNeverDrawsAResponse`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_noresponse_test.go#L56) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestNrsInformationalHandlerRefusesAResponse`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_noresponse_test.go#L252) | unit/verify | revert, verified |
-| positive | [`TestNrsResponseNeverDrawsAResponse`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_noresponse_test.go#L46) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestNrsInformationalHandlerRefusesAResponse`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_noresponse_test.go#L257) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestNrsResponseNeverDrawsAResponse`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_noresponse_test.go#L56) | unit/verify | revert, verified |
+| positive | [`TestNrsInformationalHandlerRefusesAResponse`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_noresponse_test.go#L252) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestNrsResponseNeverDrawsAResponse`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_noresponse_test.go#L46) | unit/verify | revert, verified |
 
 ### [`RFC7296-3.2-2`](#rfc7296-3.2-2)
 
@@ -2918,7 +2918,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | negative | [`TestRteUnownedEstablishedSATrustsNothing`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_routing_test.go#L47) | unit/verify | revert, verified |
 | positive | [`TestRFC7296ICMPUnreachableDoesNotFailTheSA`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_icmp_linux_test.go#L67) | unit/verify | revert, verified |
 | positive | [`TestResponderAcceptsReinitAfterStaleSA`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_responder_test.go#L695) | unit/verify | revert, verified |
-| positive | [`TestRteUnownedEstablishedSATrustsNothing`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_routing_test.go#L53) | unit/verify | revert, verified |
+| positive | [`TestRteUnownedEstablishedSATrustsNothing`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_routing_test.go#L53) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC7296-2.4-4`](#rfc7296-2.4-4)
 

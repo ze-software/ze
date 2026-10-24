@@ -49,7 +49,8 @@
     <h1 id="rfc-implementation-guide-for-ze">RFC Implementation Guide for Ze</h1>
     <p>This guide provides a step-by-step checklist for implementing an RFC in Ze. Use it alongside <code>planning.md</code> to ensure complete implementations.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#overview">Overview</a></li>
 <li><a href="#phase-0-preparation">Phase 0: Preparation</a>
 <ol>
@@ -143,7 +144,7 @@
 <li><a href="#test-pattern">Test Pattern</a></li>
 </ol></li>
 <li><a href="#rfc-implementation-examples">RFC Implementation Examples</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <p>The implementation boundary is the owner's agreed capability scope. Completing
 started code includes its callers, error paths and documentation; it does not
 commission every absent feature in the RFC. Keep unimplemented requirements
@@ -781,7 +782,7 @@ must agree with the summary's <code>{gap}</code> plus <code>{partial}</code> row
 <p><strong>Audit letter and spirit with <code>/ze-rfc-audit &lt;rfc&gt;</code>.</strong> The gate proves a link
 exists, but it cannot read the test. The audit reads the RFC itself and each
 tagged test. It then judges whether the test would fail if the code stopped
-complying, and records a per-requirement verdict in <code>rfc/audit/&lt;rfc&gt;.json</code>.
+complying, and records a per-requirement verdict in <code>rfc/audit/&lt;rfc&gt;/&lt;requirement-id&gt;.json</code>.
 The verdict uses the closed vocabulary the gate reads:</p>
 <ul>
 <li><code>enforced</code> is the only one that means whole-requirement proof.</li>
@@ -862,6 +863,15 @@ answer from the owner behind
 it is a forgery, not a shortcut, so the reason names what the owner approved
 and why the tagged requirement is still proven after the change, quoting the
 requirement id.</p>
+<p>When the owner has not answered yet, <code>rfc-change-ok "&lt;reason&gt;"</code> on
+<code>./le commit create</code> admits the commit anyway and writes one trailer per
+unapproved unit, <code>RFC-approval-owed: &lt;package&gt;.&lt;TestName&gt;: &lt;reason&gt;</code>. The
+commit lands, and the push is refused while the trailer is open: a later commit
+carrying <code>RFC-approved:</code> for the same unit answers it, and so does the owner's
+attestation, <code>./le commit create subject "&lt;subject&gt;" attest &lt;commit&gt; "&lt;owner words&gt;"</code>, an empty commit carrying <code>Owner-attested: &lt;stable patch-id&gt;: &lt;owner words&gt;</code>. Nothing outside the commits records either
+(<code>docs/architecture/testing/verify-freshness-scope.md</code>).</p>
+<!-- source: internal/le/commit/prepare.go -- admissionTrailer -->
+<!-- source: internal/le/commit/owed_trailers.go -- readPersonActs -->
 <!-- source: internal/le/test/weakened/proposed.go -- RFC-tagged carrier approval -->
 <!-- source: ai/skills/ze-rfc.md -- requirement id allocation and annotations -->
 <p>Full rules: <code>ai/skills/ze-rfc.md</code>; audit method: <code>ai/skills/ze-rfc-audit.md</code>.</p>
@@ -1046,7 +1056,8 @@ func (n *MyNLRI) SupportsAddPath() bool { return true }
 <!-- source: internal/core/bgp/capability/session.go -- GR capability -->
 <!-- source: internal/core/bgp/capability/encoding.go -- ADD-PATH capability -->
 <!-- source: internal/core/bgp/attribute/mpnlri.go -- MP_REACH/MP_UNREACH attributes -->
-
+</div>
+</div>
             </section>
         </main>
 
@@ -1056,7 +1067,7 @@ func (n *MyNLRI) SupportsAddPath() bool { return true }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 12 October 2026 10:25 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

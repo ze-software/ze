@@ -30,7 +30,14 @@ Use the narrowest test that covers your change. Escalate only when needed.
 | 2 | `./le test unit bgp` | Checking one component group | 10s to 1:30 |
 | 3 | `./le test functional plugin` | Checking the user-visible path | varies |
 | 4 | `./le verify current fast` | Checking the working tree before a commit | about 2 minutes |
-| 5 | `./le verify current` | The full gate over the last commit | minutes |
+| 5 | `./le verify current` | The full gate, once per piece of work, over its final commit | minutes |
+
+Steps 1 to 4 are development: run the ones that cover what you changed, and
+`./le repo changed scope print both` names them
+(`running-commands.md`, "The changed-set selector"). Step 5 never runs between
+phases, review rounds or fixes, because it judges HEAD and the work is not in
+HEAD until its final commit. A red it finds gets a fix commit; it does not hold
+the commit it judged.
 
 `./le verify current` is the full gate. It runs every stage in a fresh
 detached worktree at HEAD, through the same lifecycle as `./le verify worktree`,
@@ -77,6 +84,14 @@ round-trip.
 ./le job run label parse-origin command go test ./internal/... -run TestParseOrigin
 ./le verify current
 ```
+
+Dynamic-group coverage exercises each plugin's real configuration boundary:
+capability declarations, policy lookups, validation, and command output. Opposite
+group and peer values expose lost inheritance; same-name peers and groups expose
+namespace collisions. A list of caller filenames or helper names proves neither.
+For example, the redirect tests pass plugin JSON through the RIB parser before
+querying the session's effective setting.
+<!-- source: internal/component/bgp/plugins/rib/rib_flowspec_redirect_config_test.go -- TestFlowSpecRedirectDynamicGroupLookup, TestFlowSpecRedirectDynamicGroupRejectsInvalidSwitch -->
 
 #### Fixture environment isolation
 
@@ -579,7 +594,7 @@ For an RFC-tagged carrier that walk now has a runner and a record.
 `./le rfc discriminate-record ... route revert producer <path>::<Func>` disables
 the named function, runs ONE `.ci` or ONE interop scenario, requires the red, and
 puts the producer back byte for byte. What it writes is a
-`rfc/discrimination/<stem>.json` record that `./le rfc check` re-verifies on every
+`rfc/discrimination/<stem>/<requirement-id>.json` record that `./le rfc check` re-verifies on every
 run, so the red is remembered rather than done once and forgotten. An untagged
 `.ci` still owes the walk by hand.
 
@@ -601,6 +616,15 @@ invalid value below, and the first invalid value above.
 | Prefix IPv4 0-32 | 32 | none | 33 |
 | Message length 19-4096 | 4096 | 18 | 4097 |
 
+## Schema-driven web tests
+
+Finder tests check rendered navigation against the live schema and peer rows
+against the configured tree, rather than pinning the whole page's HTML. They
+exercise authentication, edit permissions, full-page and HTMX responses, links,
+CLI context and escaped field values. A newly registered schema container must
+not require a snapshot rewrite; omitting a configured peer must still fail.
+<!-- source: internal/component/web/handler_finder_behavior_test.go -- TestWebFinderHandlerBehavior, TestWebFinderEscapesFieldValues -->
+
 ## Flake shapes seen in this repository
 
 Check each of these against the test before investigating a new race or
@@ -614,8 +638,13 @@ behind an `SO_REUSEPORT` gate, and colliding test-fake pool IDs.
 | Completion test fails intermittently | A real bug, not a flake | Check `completeShowPath` includes YANG schema children |
 | Inter-message timing in plugin tests | Sleep too tight under load | Increase the inter-message delay, or synchronize |
 
-A darwin `FAIL` caused by a `_other.go` stub returning `ErrUnsupported` is a
-test-setup bug rather than a real failure. Keep the failure list meaningful.
+Keep portable protocol assertions running on every platform. An unsupported
+platform service is not a reason to skip authentication or lifecycle checks.
+The PPP NCP lifetime fixtures require the authenticated principal, negotiated
+address and address-before-session-up ordering everywhere. They require no
+IPv6 backend call from the non-Linux stub; Linux additionally requires the
+negotiated link-local address pair.
+<!-- source: internal/component/l2tp/ppp/lcp_lifecycle_test.go -- assertLifecycleNCPPublished -->
 
 Reproducing a load-dependent flake is
 `../architecture/testing/runner-architecture.md`.
@@ -628,7 +657,8 @@ Reproducing a load-dependent flake is
 | Run one Go test | `./le job run label one-test command go test ./pkg/... -run TestName` |
 | Run one functional test | `./le job run label plugin-42 command bin/le test bgp plugin 42` |
 | Run a component group | `./le test unit bgp` |
-| Run the pre-commit check | `./le verify current` |
+| Check the working tree before a commit | `./le verify current fast` |
+| Run the full gate, once, after the final commit of a piece of work | `./le verify current` |
 | Type-check every supported feature combination | `./le go staticcheck check` |
 | List native test actions | `./le help` |
 | List functional tests | `./le job run label encode-list command bin/le test bgp encode --list` |

@@ -50,7 +50,8 @@
     <p>Handlers process engine-initiated callbacks during startup and at runtime.
 They are registered on the <code>sdk.Plugin</code> before calling <code>Run()</code>.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#registration">Registration</a></li>
 <li><a href="#handler-reference">Handler Reference</a>
 <ol>
@@ -84,7 +85,7 @@ They are registered on the <code>sdk.Plugin</code> before calling <code>Run()</c
 <li><a href="#decodeupdate">DecodeUpdate</a></li>
 </ol></li>
 <li><a href="#error-handling">Error Handling</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- all On* methods -->
 <h2 id="registration">Registration</h2>
 <p>Register handlers before calling <code>Run()</code>:</p>
@@ -731,7 +732,8 @@ return fmt.Errorf("validation failed")
 <!-- source: pkg/plugin/sdk/sdk_dispatch.go -- eventLoop, bridgeEventLoop -->
 <pre><code>#5 error {"code":"error","message":"unknown method: ze-plugin-callback:foo"}
 </code></pre>
-
+</div>
+</div>
             </section>
         </main>
 
@@ -741,7 +743,7 @@ return fmt.Errorf("validation failed")
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

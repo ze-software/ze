@@ -49,7 +49,8 @@
     <h1 id="add-path-and-paths-limit">ADD-PATH and PATHS-LIMIT</h1>
     <p>ADD-PATH (RFC 7911) allows multiple paths per prefix by including a Path Identifier with each NLRI. Route servers use it to forward all available paths rather than one best path.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#configuration">Configuration</a>
 <ol>
 <li><a href="#default-direction-and-limit">Default Direction and Limit</a></li>
@@ -69,7 +70,7 @@
 <li><a href="#ze-generates-its-own-path-identifiers">Ze Generates Its Own Path Identifiers</a></li>
 </ol></li>
 <li><a href="#interaction-with-route-reflection">Interaction with Route Reflection</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <p>PATHS-LIMIT (draft-abraitis-idr-addpath-paths-limit-04) lets a receiver request a maximum number of paths per prefix per family. Ze enforces the peer's negotiated limit on outbound routes.</p>
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- add-path capability config -->
 <h2 id="configuration">Configuration</h2>
@@ -304,7 +305,8 @@
 <h2 id="interaction-with-route-reflection">Interaction with Route Reflection</h2>
 <p>ADD-PATH fits the route server plugin (<code>bgp-rs</code>). Without ADD-PATH, the route server can only forward one path per prefix to each peer. With ADD-PATH, it forwards received paths within each destination's negotiated PATHS-LIMIT. Downstream routers make their own best-path decisions.</p>
 <!-- source: internal/component/bgp/plugins/rs/ -- route server ADD-PATH forwarding -->
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -346,7 +348,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

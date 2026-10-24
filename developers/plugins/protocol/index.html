@@ -51,7 +51,8 @@
 bidirectional connection. Internal plugins use <code>net.Pipe()</code> for startup; external
 plugins connect back via TLS.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#wire-format">Wire Format</a></li>
 <li><a href="#protocol-stages">Protocol Stages</a>
 <ol>
@@ -75,7 +76,7 @@ plugins connect back via TLS.</p>
 <li><a href="#message-flow-example">Message Flow Example</a></li>
 <li><a href="#error-handling">Error Handling</a></li>
 <li><a href="#batched-event-delivery">Batched Event Delivery</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <!-- source: pkg/plugin/sdk/sdk.go -- NewWithConn, NewFromTLSEnv -->
 <p>All messages use newline-delimited framing with the wire format <code>#&lt;id&gt; &lt;verb&gt; [&lt;json&gt;]\n</code>.</p>
 <!-- source: pkg/plugin/rpc/conn.go -- Conn doc comment -->
@@ -234,6 +235,10 @@ from what the terminator carries:</p>
 </tr>
 </tbody>
 </table>
+<p>When the engine cannot build the answer to a <code>dispatch-command</code>, for example
+because the command's payload is not a JSON object or array, it still writes a
+head and a terminator whose message names the reason. Your plugin reads
+<code>error</code> with that message rather than waiting for its timeout.</p>
 <p><a href="https://github.com/ze-software/ze/blob/main/docs/architecture/api/ipc_protocol.md" target="_blank" rel="noopener">ipc_protocol.md</a>, "Answer Protocol",
 carries the same grammar with the buffering threshold and the failure cases
 beside it.</p>
@@ -1062,6 +1067,17 @@ each wire method to its registered handler.</p>
 </tr>
 </tbody>
 </table>
+<p>A peer's AS is not always known when an event is written. A dynamic peer's AS
+comes from its OPEN, so the OPEN Ze sends, a NOTIFICATION Ze sends in
+OpenSent and the FSM changes before OpenConfirm carry none. The JSON peer
+object then omits <code>remote.as</code>, a text line says <code>remote as unknown</code>, and
+<code>StructuredEvent.PeerAS</code> is the zero <code>rpc.RemoteAS</code>, which means "not yet
+known" and never AS 0. Read it with <code>PeerAS.ASN()</code>, which answers
+<code>(uint32, bool)</code>, and branch on the bool. An UPDATE always names the AS.
+Rendered without a branch, it writes the number or <code>unknown</code> through <code>%v</code>, <code>%s</code>
+and <code>log/slog</code>, and the number or <code>null</code> through <code>encoding/json</code>, where a field
+tagged <code>omitzero</code> is omitted while the AS is unknown.</p>
+<!-- source: pkg/plugin/rpc/remote_as.go -- RemoteAS, ASN, MarshalJSON, IsZero, String, LogValue -->
 <h3 id="the-filter-text-an-onfilterupdate-handler-reads">The Filter Text an <code>OnFilterUpdate</code> Handler Reads</h3>
 <p><code>FilterUpdateInput.Update</code> is the UPDATE as text: <code>&lt;name&gt; &lt;value&gt;</code> attribute
 pairs, then one NLRI block for each section the UPDATE carries.</p>
@@ -1327,7 +1343,8 @@ channel entirely: <code>bridge.DeliverEvents(events)</code> calls the <code>onEv
 (hot path). The callback channel is only used for non-event callbacks (execute-command,
 config-verify, etc.) and bye.</p>
 <!-- source: pkg/plugin/sdk/sdk.go -- Run, bridge activation -->
-
+</div>
+</div>
             </section>
         </main>
 
@@ -1337,7 +1354,7 @@ config-verify, etc.) and bye.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

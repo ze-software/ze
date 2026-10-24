@@ -51,7 +51,8 @@
 subscriber access. PPPoE is the alternative to L2TP: subscribers connect
 over Ethernet to the BNG without an intermediate LAC/LNS tunnel.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#architecture">Architecture</a></li>
 <li><a href="#configuration">Configuration</a>
 <ol>
@@ -62,7 +63,7 @@ over Ethernet to the BNG without an intermediate LAC/LNS tunnel.</p>
 <li><a href="#security">Security</a></li>
 <li><a href="#metrics">Metrics</a></li>
 <li><a href="#concurrent-operation">Concurrent Operation</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <h2 id="architecture">Architecture</h2>
 <p>PPPoE uses the same transport-agnostic PPP Driver as L2TP. The PPPoE
 component handles discovery (PADI/PADO/PADR/PADS/PADT) and creates
@@ -330,7 +331,8 @@ ID for L2TP) and SessionID.</p>
 <!-- source: internal/component/l2tp/pppoe/discovery.go -->
 <!-- source: internal/component/l2tp/pppoe/metrics.go -->
 <!-- source: internal/component/l2tp/ppp/metrics.go -- initPPPMetrics, countIdentifierRefusal -->
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -372,7 +374,7 @@ ID for L2TP) and SessionID.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

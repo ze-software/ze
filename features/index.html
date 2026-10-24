@@ -52,6 +52,13 @@
                 <div class="section-note reveal">
                     <p>Each card&#39;s color is its category: how the feature fits into the system. Solid cards are shipped and dashed cards are experimental. Everything shipped runs in both daemon and appliance modes unless a card says otherwise. Click a category to filter, click again to show everything.</p>
                 </div>
+            </section>
+<div class="feature-catalog"><aside class="feature-filters" aria-label="Feature filters">
+<div class="feature-filter-controls" hidden>
+<div><label for="feature-search">Find a feature</label><input id="feature-search" type="search" placeholder="Search capabilities…" />
+<label for="feature-maturity">Maturity</label><select id="feature-maturity"><option value="all">All statuses</option><option value="supported">Shipped in current code</option><option value="experimental">Experimental</option></select></div>
+<div><button type="button" data-reset-features>Reset filters</button></div>
+</div>
                 <div class="legend reveal" role="group" aria-label="Filter features by category">
                     <button class="cat-operate" data-cat="operate" aria-pressed="false" aria-label="Filter features by Operate, 6 features">Operate <span class="legend-count" aria-hidden="true">6</span></button>
                     <button class="cat-routing" data-cat="routing" aria-pressed="false" aria-label="Filter features by Routing, 9 features">Routing <span class="legend-count" aria-hidden="true">9</span></button>
@@ -61,17 +68,18 @@
                     <button class="cat-secure" data-cat="secure" aria-pressed="false" aria-label="Filter features by Secure, 6 features">Secure <span class="legend-count" aria-hidden="true">6</span></button>
                     <button class="cat-platform" data-cat="platform" aria-pressed="false" aria-label="Filter features by Platform, 6 features">Platform <span class="legend-count" aria-hidden="true">6</span></button>
                 </div>
+</aside>
+<div class="feature-results">
                 <p id="feature-filter-status" class="feature-filter-status search-status" aria-live="polite"></p>
-            </section>
-
             <section id="core" aria-labelledby="core-title" data-cards>
                 <div class="section-head reveal">
                     <h2 id="core-title">Built for demanding operators.</h2>
                     <p>Ze starts with a configuration and protocol engine. The shipped network operating system adds BGP, interface management, FIB programming, plugins, operator tools, a minimal appliance runtime, and diagnostics as one product.</p>
                 </div>
                 <div class="cards feature-grid reveal">
-                    <article class="card feature-card cat-services" data-cat="services">
+                    <article class="card feature-card cat-services" data-cat="services" data-maturity="supported">
                     <span class="cat">Services</span>
+                    <span class="status">Shipped in current code</span>
                     <h3><a href="../guides/policy-routing/">Policy Routing</a></h3>
                     <div class="chips">
                     <span class="chip">nftables</span>
@@ -95,7 +103,7 @@
                     <p>These still need deployment evidence, hardening, or a named part implemented or proven before production claims. The feature status page lists the status of each. Configuration may change.</p>
                 </div>
                 <div class="cards feature-grid reveal">
-                    <article class="card feature-card experimental cat-operate" data-cat="operate">
+                    <article class="card feature-card experimental cat-operate" data-cat="operate" data-maturity="experimental">
                     <span class="cat">Operate</span>
                     <span class="status">Experimental</span>
                     <h3><a href="../features/formatting/">Output Formatting</a></h3>
@@ -110,7 +118,7 @@
                     <li><strong>Every command</strong>, no rendering flags</li>
                     </ul>
                     </article>
-                    <article class="card feature-card experimental cat-operate" data-cat="operate">
+                    <article class="card feature-card experimental cat-operate" data-cat="operate" data-maturity="experimental">
                     <span class="cat">Operate</span>
                     <span class="status">Experimental</span>
                     <h3><a href="../features/web-interface/">Web Workbench</a></h3>
@@ -124,7 +132,7 @@
                     <li><strong>Live updates</strong> via SSE</li>
                     </ul>
                     </article>
-                    <article class="card feature-card experimental cat-operate" data-cat="operate">
+                    <article class="card feature-card experimental cat-operate" data-cat="operate" data-maturity="experimental">
                     <span class="cat">Operate</span>
                     <span class="status">Experimental</span>
                     <h3><a href="../features/looking-glass/">Looking Glass</a></h3>
@@ -139,7 +147,7 @@
                     <li>SSE streaming for <strong>live state</strong></li>
                     </ul>
                     </article>
-                    <article class="card feature-card experimental cat-observe" data-cat="observe">
+                    <article class="card feature-card experimental cat-observe" data-cat="observe" data-maturity="experimental">
                     <span class="cat">Observe</span>
                     <span class="status">Experimental</span>
                     <h3><a href="../project/activity/">Development Activity</a></h3>
@@ -153,7 +161,7 @@
                     <li>Current Go code composition</li>
                     </ul>
                     </article>
-                    <article class="card feature-card experimental cat-observe" data-cat="observe">
+                    <article class="card feature-card experimental cat-observe" data-cat="observe" data-maturity="experimental">
                     <span class="cat">Observe</span>
                     <span class="status">Experimental</span>
                     <h3><a href="../features/">Tech-Support Bundle</a></h3>
@@ -167,7 +175,7 @@
                     <li>Privacy-by-default, <strong>gokrazy</strong>-safe</li>
                     </ul>
                     </article>
-                    <article class="card feature-card experimental cat-secure" data-cat="secure">
+                    <article class="card feature-card experimental cat-secure" data-cat="secure" data-maturity="experimental">
                     <span class="cat">Secure</span>
                     <span class="status">Experimental</span>
                     <h3><a href="../guides/audit/">Audit Trail</a></h3>
@@ -181,7 +189,7 @@
                     <li>Filter by action, actor, and <strong>time</strong></li>
                     </ul>
                     </article>
-                    <article class="card feature-card experimental cat-secure" data-cat="secure">
+                    <article class="card feature-card experimental cat-secure" data-cat="secure" data-maturity="experimental">
                     <span class="cat">Secure</span>
                     <span class="status">Experimental</span>
                     <h3><a href="../features/">PKI Store</a></h3>
@@ -196,7 +204,7 @@
                     <li><strong>Local CA</strong> issues 24-hour certs to Ze&#39;s components</li>
                     </ul>
                     </article>
-                    <article class="card feature-card experimental cat-services" data-cat="services">
+                    <article class="card feature-card experimental cat-services" data-cat="services" data-maturity="experimental">
                     <span class="cat">Services</span>
                     <span class="status">Experimental</span>
                     <h3><a href="../features/">IPsec VPN</a></h3>
@@ -212,7 +220,7 @@
                     <li><strong>CRL</strong> and OCSP revocation checks on EAP-TLS</li>
                     </ul>
                     </article>
-                    <article class="card feature-card experimental cat-services" data-cat="services">
+                    <article class="card feature-card experimental cat-services" data-cat="services" data-maturity="experimental">
                     <span class="cat">Services</span>
                     <span class="status">Experimental</span>
                     <h3><a href="../guides/l2tp/">L2TPv2 BNG</a></h3>
@@ -227,7 +235,7 @@
                     <li>CQM monitoring, <strong>shaping</strong>, web UI</li>
                     </ul>
                     </article>
-                    <article class="card feature-card experimental cat-services" data-cat="services">
+                    <article class="card feature-card experimental cat-services" data-cat="services" data-maturity="experimental">
                     <span class="cat">Services</span>
                     <span class="status">Experimental</span>
                     <h3><a href="../guides/pppoe/">PPPoE Access</a></h3>
@@ -241,7 +249,7 @@
                     <li><strong>PAP</strong>, <strong>CHAP-MD5</strong>, and <strong>MS-CHAPv2</strong> authentication</li>
                     </ul>
                     </article>
-                    <article class="card feature-card experimental cat-services" data-cat="services">
+                    <article class="card feature-card experimental cat-services" data-cat="services" data-maturity="experimental">
                     <span class="cat">Services</span>
                     <span class="status">Experimental</span>
                     <h3><a href="../features/interfaces/">Interface Management</a></h3>
@@ -256,7 +264,7 @@
                     <li><strong>IPv6 Router Advertisements</strong>, the radvd role</li>
                     </ul>
                     </article>
-                    <article class="card feature-card experimental cat-services" data-cat="services">
+                    <article class="card feature-card experimental cat-services" data-cat="services" data-maturity="experimental">
                     <span class="cat">Services</span>
                     <span class="status">Experimental</span>
                     <h3><a href="../guides/firewall/">Firewall</a></h3>
@@ -271,7 +279,7 @@
                     <li><strong>DNS-sourced</strong> address groups, TTL-tracked</li>
                     </ul>
                     </article>
-                    <article class="card feature-card experimental cat-services" data-cat="services">
+                    <article class="card feature-card experimental cat-services" data-cat="services" data-maturity="experimental">
                     <span class="cat">Services</span>
                     <span class="status">Experimental</span>
                     <h3><a href="../guides/vpp/">VPP Data Plane</a></h3>
@@ -285,7 +293,7 @@
                     <li>Per-interface <strong>Prometheus</strong> metrics</li>
                     </ul>
                     </article>
-                    <article class="card feature-card experimental cat-routing" data-cat="routing">
+                    <article class="card feature-card experimental cat-routing" data-cat="routing" data-maturity="experimental">
                     <span class="cat">Routing</span>
                     <span class="status">Experimental</span>
                     <h3><a href="../features/">MPLS / LDP / RSVP-TE</a></h3>
@@ -299,7 +307,7 @@
                     <li>RSVP-TE <strong>ERO</strong>, bandwidth admission</li>
                     </ul>
                     </article>
-                    <article class="card feature-card experimental cat-routing" data-cat="routing">
+                    <article class="card feature-card experimental cat-routing" data-cat="routing" data-maturity="experimental">
                     <span class="cat">Routing</span>
                     <span class="status">Experimental</span>
                     <h3><a href="../guides/ospf/">OSPFv2 / OSPFv3</a></h3>
@@ -315,7 +323,7 @@
                     <li>Interface cost priced from <strong>link speed</strong></li>
                     </ul>
                     </article>
-                    <article class="card feature-card experimental cat-routing" data-cat="routing">
+                    <article class="card feature-card experimental cat-routing" data-cat="routing" data-maturity="experimental">
                     <span class="cat">Routing</span>
                     <span class="status">Experimental</span>
                     <h3><a href="../guides/isis/">IS-IS</a></h3>
@@ -329,7 +337,7 @@
                     <li>Dual-stack <strong>IPv6</strong>, redistributes with BGP</li>
                     </ul>
                     </article>
-                    <article class="card feature-card experimental cat-routing" data-cat="routing">
+                    <article class="card feature-card experimental cat-routing" data-cat="routing" data-maturity="experimental">
                     <span class="cat">Routing</span>
                     <span class="status">Experimental</span>
                     <h3><a href="../guides/vrrp/">VRRP</a></h3>
@@ -345,7 +353,7 @@
                     <li><strong>Interface tracking</strong>, accept-mode</li>
                     </ul>
                     </article>
-                    <article class="card feature-card experimental cat-observe" data-cat="observe">
+                    <article class="card feature-card experimental cat-observe" data-cat="observe" data-maturity="experimental">
                     <span class="cat">Observe</span>
                     <span class="status">Experimental</span>
                     <h3><a href="../guides/flow-export/">Flow Export</a></h3>
@@ -360,7 +368,7 @@
                     <li>BGP <strong>next-hop</strong> enrichment</li>
                     </ul>
                     </article>
-                    <article class="card feature-card experimental cat-secure" data-cat="secure">
+                    <article class="card feature-card experimental cat-secure" data-cat="secure" data-maturity="experimental">
                     <span class="cat">Secure</span>
                     <span class="status">Experimental</span>
                     <h3><a href="../guides/anomaly/">DDoS and Anomaly Detection</a></h3>
@@ -375,7 +383,7 @@
                     <li>Local and upstream <strong>auto-mitigation</strong></li>
                     </ul>
                     </article>
-                    <article class="card feature-card experimental cat-platform" data-cat="platform">
+                    <article class="card feature-card experimental cat-platform" data-cat="platform" data-maturity="experimental">
                     <span class="cat">Platform</span>
                     <span class="status">Experimental</span>
                     <h3><a href="../guides/ze-install/">ISO and PXE Install</a></h3>
@@ -389,7 +397,7 @@
                     <li>Local <strong>systemd</strong> install and uninstall</li>
                     </ul>
                     </article>
-                    <article class="card feature-card experimental cat-platform" data-cat="platform">
+                    <article class="card feature-card experimental cat-platform" data-cat="platform" data-maturity="experimental">
                     <span class="cat">Platform</span>
                     <span class="status">Experimental</span>
                     <h3><a href="../features/">Kernel Tunables</a></h3>
@@ -403,7 +411,7 @@
                     <li>Originals <strong>restored</strong> on stop</li>
                     </ul>
                     </article>
-                    <article class="card feature-card experimental cat-services" data-cat="services">
+                    <article class="card feature-card experimental cat-services" data-cat="services" data-maturity="experimental">
                     <span class="cat">Services</span>
                     <span class="status">Experimental</span>
                     <h3><a href="../guides/as112/">AS112 Anycast DNS</a></h3>
@@ -417,7 +425,7 @@
                     <li>Anycast IPs bound on <strong>lo</strong> automatically, never operator-typed</li>
                     </ul>
                     </article>
-                    <article class="card feature-card experimental cat-routing" data-cat="routing">
+                    <article class="card feature-card experimental cat-routing" data-cat="routing" data-maturity="experimental">
                     <span class="cat">Routing</span>
                     <span class="status">Experimental</span>
                     <h3><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy" target="_blank" rel="noopener">Segment Routing</a></h3>
@@ -431,7 +439,7 @@
                     <li><strong>ExaBGP bridge</strong> for SR-Policy migration</li>
                     </ul>
                     </article>
-                    <article class="card feature-card experimental cat-automate" data-cat="automate">
+                    <article class="card feature-card experimental cat-automate" data-cat="automate" data-maturity="experimental">
                     <span class="cat">Automate</span>
                     <span class="status">Experimental</span>
                     <h3><a href="../guides/fleet-config/">Fleet Management</a></h3>
@@ -445,7 +453,7 @@
                     <li>Version hashing and <strong>two-phase</strong> fetch</li>
                     </ul>
                     </article>
-                    <article class="card feature-card experimental cat-secure" data-cat="secure">
+                    <article class="card feature-card experimental cat-secure" data-cat="secure" data-maturity="experimental">
                     <span class="cat">Secure</span>
                     <span class="status">Experimental</span>
                     <h3><a href="../guides/irr-filtering/">IRR Route Filtering</a></h3>
@@ -459,7 +467,7 @@
                     <li>Opt-in per peer, group or <strong>global filter chain</strong></li>
                     </ul>
                     </article>
-                    <article class="card feature-card experimental cat-automate" data-cat="automate">
+                    <article class="card feature-card experimental cat-automate" data-cat="automate" data-maturity="experimental">
                     <span class="cat">Automate</span>
                     <span class="status">Experimental</span>
                     <h3><a href="../features/ai-first/">AI Tool Interfaces</a></h3>
@@ -474,7 +482,7 @@
                     <li>Plugins expose <strong>discoverable tools</strong></li>
                     </ul>
                     </article>
-                    <article class="card feature-card experimental cat-operate" data-cat="operate">
+                    <article class="card feature-card experimental cat-operate" data-cat="operate" data-maturity="experimental">
                     <span class="cat">Operate</span>
                     <span class="status">Experimental</span>
                     <h3><a href="../features/cli-commands/">SSH CLI</a></h3>
@@ -488,7 +496,7 @@
                     <li><strong>commit</strong>, rollback, diff, completion</li>
                     </ul>
                     </article>
-                    <article class="card feature-card experimental cat-operate" data-cat="operate">
+                    <article class="card feature-card experimental cat-operate" data-cat="operate" data-maturity="experimental">
                     <span class="cat">Operate</span>
                     <span class="status">Experimental</span>
                     <h3><a href="../features/bgp-configuration/">YANG Configuration</a></h3>
@@ -502,7 +510,7 @@
                     <li><strong>Plugin</strong> defined config and commands</li>
                     </ul>
                     </article>
-                    <article class="card feature-card experimental cat-operate" data-cat="operate">
+                    <article class="card feature-card experimental cat-operate" data-cat="operate" data-maturity="experimental">
                     <span class="cat">Operate</span>
                     <span class="status">Experimental</span>
                     <h3><a href="../guides/production-diagnostics/">System Readiness</a></h3>
@@ -516,7 +524,7 @@
                     <li>Structured <strong>remediation</strong> with <code>ze show diagnostic</code></li>
                     </ul>
                     </article>
-                    <article class="card feature-card experimental cat-routing" data-cat="routing">
+                    <article class="card feature-card experimental cat-routing" data-cat="routing" data-maturity="experimental">
                     <span class="cat">Routing</span>
                     <span class="status">Experimental</span>
                     <h3><a href="../features/bgp-protocol/">Native BGP Engine</a></h3>
@@ -531,7 +539,7 @@
                     <li>Negotiated <strong>capabilities</strong></li>
                     </ul>
                     </article>
-                    <article class="card feature-card experimental cat-routing" data-cat="routing">
+                    <article class="card feature-card experimental cat-routing" data-cat="routing" data-maturity="experimental">
                     <span class="cat">Routing</span>
                     <span class="status">Experimental</span>
                     <h3><a href="../guides/static-routes/">Static Routes</a></h3>
@@ -546,7 +554,7 @@
                     <li>Multi-path <strong>ECMP</strong> groups</li>
                     </ul>
                     </article>
-                    <article class="card feature-card experimental cat-routing" data-cat="routing">
+                    <article class="card feature-card experimental cat-routing" data-cat="routing" data-maturity="experimental">
                     <span class="cat">Routing</span>
                     <span class="status">Experimental</span>
                     <h3><a href="../features/bgp-protocol/">BFD</a></h3>
@@ -561,7 +569,7 @@
                     <li><strong>Strict mode</strong> holds a BGP peer down until BFD is up</li>
                     </ul>
                     </article>
-                    <article class="card feature-card experimental cat-routing" data-cat="routing">
+                    <article class="card feature-card experimental cat-routing" data-cat="routing" data-maturity="experimental">
                     <span class="cat">Routing</span>
                     <span class="status">Experimental</span>
                     <h3><a href="../guides/mrt-analysis/">MRT Recording</a></h3>
@@ -575,7 +583,7 @@
                     <li>Show, inject, replay, <strong>filter</strong></li>
                     </ul>
                     </article>
-                    <article class="card feature-card experimental cat-services" data-cat="services">
+                    <article class="card feature-card experimental cat-services" data-cat="services" data-maturity="experimental">
                     <span class="cat">Services</span>
                     <span class="status">Experimental</span>
                     <h3><a href="../features/dns-resolver/">DNS Resolver</a></h3>
@@ -589,7 +597,7 @@
                     <li>No external <strong>daemon</strong> needed</li>
                     </ul>
                     </article>
-                    <article class="card feature-card experimental cat-automate" data-cat="automate">
+                    <article class="card feature-card experimental cat-automate" data-cat="automate" data-maturity="experimental">
                     <span class="cat">Automate</span>
                     <span class="status">Experimental</span>
                     <h3><a href="../reference/plugins/">Plugin System</a></h3>
@@ -605,7 +613,7 @@
                     <li>Each plugin declares what its <strong>failure</strong> means</li>
                     </ul>
                     </article>
-                    <article class="card feature-card experimental cat-automate" data-cat="automate">
+                    <article class="card feature-card experimental cat-automate" data-cat="automate" data-maturity="experimental">
                     <span class="cat">Automate</span>
                     <span class="status">Experimental</span>
                     <h3><a href="../features/api-commands/">Programmable</a></h3>
@@ -620,7 +628,7 @@
                     <li>Automate from <strong>any language</strong></li>
                     </ul>
                     </article>
-                    <article class="card feature-card experimental cat-automate" data-cat="automate">
+                    <article class="card feature-card experimental cat-automate" data-cat="automate" data-maturity="experimental">
                     <span class="cat">Automate</span>
                     <span class="status">Experimental</span>
                     <h3><a href="../features/ai-first/">AI-First Design</a></h3>
@@ -634,7 +642,7 @@
                     <li>Structured <strong>diagnostics</strong> and repair plans</li>
                     </ul>
                     </article>
-                    <article class="card feature-card experimental cat-automate" data-cat="automate">
+                    <article class="card feature-card experimental cat-automate" data-cat="automate" data-maturity="experimental">
                     <span class="cat">Automate</span>
                     <span class="status">Experimental</span>
                     <h3><a href="../features/mcp-integration/">MCP Integration</a></h3>
@@ -648,7 +656,7 @@
                     <li><strong>MCP Apps UI</strong> with embedded panels</li>
                     </ul>
                     </article>
-                    <article class="card feature-card experimental cat-automate" data-cat="automate">
+                    <article class="card feature-card experimental cat-automate" data-cat="automate" data-maturity="experimental">
                     <span class="cat">Automate</span>
                     <span class="status">Experimental</span>
                     <h3><a href="../features/exabgp-compatibility/">ExaBGP Compatibility</a></h3>
@@ -662,7 +670,7 @@
                     <li>Migration path for existing scripts</li>
                     </ul>
                     </article>
-                    <article class="card feature-card experimental cat-observe" data-cat="observe">
+                    <article class="card feature-card experimental cat-observe" data-cat="observe" data-maturity="experimental">
                     <span class="cat">Observe</span>
                     <span class="status">Experimental</span>
                     <h3><a href="../features/interoperability-testing/">Evidence Over Claims</a></h3>
@@ -677,7 +685,7 @@
                     <li><strong>Interop</strong> vs FRR, BIRD, GoBGP</li>
                     </ul>
                     </article>
-                    <article class="card feature-card experimental cat-observe" data-cat="observe">
+                    <article class="card feature-card experimental cat-observe" data-cat="observe" data-maturity="experimental">
                     <span class="cat">Observe</span>
                     <span class="status">Experimental</span>
                     <h3><a href="../guides/monitoring/">Prometheus Telemetry</a></h3>
@@ -691,7 +699,7 @@
                     <li>Built for existing <strong>Grafana</strong> dashboards</li>
                     </ul>
                     </article>
-                    <article class="card feature-card experimental cat-observe" data-cat="observe">
+                    <article class="card feature-card experimental cat-observe" data-cat="observe" data-maturity="experimental">
                     <span class="cat">Observe</span>
                     <span class="status">Experimental</span>
                     <h3><a href="../features/">Health Registry</a></h3>
@@ -705,7 +713,7 @@
                     <li>BGP, FIB, IPsec, L2TP, <strong>VPP</strong></li>
                     </ul>
                     </article>
-                    <article class="card feature-card experimental cat-observe" data-cat="observe">
+                    <article class="card feature-card experimental cat-observe" data-cat="observe" data-maturity="experimental">
                     <span class="cat">Observe</span>
                     <span class="status">Experimental</span>
                     <h3><a href="../features/">Host Inventory</a></h3>
@@ -720,7 +728,7 @@
                     <li><strong>JSON</strong> output for pipelines</li>
                     </ul>
                     </article>
-                    <article class="card feature-card experimental cat-observe" data-cat="observe">
+                    <article class="card feature-card experimental cat-observe" data-cat="observe" data-maturity="experimental">
                     <span class="cat">Observe</span>
                     <span class="status">Experimental</span>
                     <h3><a href="../features/">Crash Capture</a></h3>
@@ -734,7 +742,7 @@
                     <li><strong>show crashes</strong> CLI command</li>
                     </ul>
                     </article>
-                    <article class="card feature-card experimental cat-observe" data-cat="observe">
+                    <article class="card feature-card experimental cat-observe" data-cat="observe" data-maturity="experimental">
                     <span class="cat">Observe</span>
                     <span class="status">Experimental</span>
                     <h3><a href="../guides/production-diagnostics/">Production Diagnostics</a></h3>
@@ -748,7 +756,7 @@
                     <li>All exposed via <strong>MCP</strong> for AI debugging</li>
                     </ul>
                     </article>
-                    <article class="card feature-card experimental cat-secure" data-cat="secure">
+                    <article class="card feature-card experimental cat-secure" data-cat="secure" data-maturity="experimental">
                     <span class="cat">Secure</span>
                     <span class="status">Experimental</span>
                     <h3><a href="../reference/plugins/">Secure by Default</a></h3>
@@ -764,7 +772,7 @@
                     <li>No <strong>other daemons</strong> needed</li>
                     </ul>
                     </article>
-                    <article class="card feature-card experimental cat-secure" data-cat="secure">
+                    <article class="card feature-card experimental cat-secure" data-cat="secure" data-maturity="experimental">
                     <span class="cat">Secure</span>
                     <span class="status">Experimental</span>
                     <h3><a href="../guides/tacacs/">TACACS+ AAA</a></h3>
@@ -778,7 +786,7 @@
                     <li>Server failover, <strong>local</strong> fallback</li>
                     </ul>
                     </article>
-                    <article class="card feature-card experimental cat-platform" data-cat="platform">
+                    <article class="card feature-card experimental cat-platform" data-cat="platform" data-maturity="experimental">
                     <span class="cat">Platform</span>
                     <span class="status">Experimental</span>
                     <h3><a href="../guides/appliance/">Minimal Appliance Mode</a></h3>
@@ -793,7 +801,7 @@
                     <li>Linux server with <strong>systemd</strong></li>
                     </ul>
                     </article>
-                    <article class="card feature-card experimental cat-platform" data-cat="platform">
+                    <article class="card feature-card experimental cat-platform" data-cat="platform" data-maturity="experimental">
                     <span class="cat">Platform</span>
                     <span class="status">Experimental</span>
                     <h3><a href="../features/introspection/">Runs Itself</a></h3>
@@ -807,7 +815,7 @@
                     <li>No <strong>orchestrator</strong> needed</li>
                     </ul>
                     </article>
-                    <article class="card feature-card experimental cat-platform" data-cat="platform">
+                    <article class="card feature-card experimental cat-platform" data-cat="platform" data-maturity="experimental">
                     <span class="cat">Platform</span>
                     <span class="status">Experimental</span>
                     <h3><a href="../features/">Docker Support</a></h3>
@@ -822,7 +830,7 @@
                     <li>Optional <strong>build tags</strong></li>
                     </ul>
                     </article>
-                    <article class="card feature-card experimental cat-platform" data-cat="platform">
+                    <article class="card feature-card experimental cat-platform" data-cat="platform" data-maturity="experimental">
                     <span class="cat">Platform</span>
                     <span class="status">Experimental</span>
                     <h3><a href="../guides/quickstart/">Feature Gates</a></h3>
@@ -839,10 +847,12 @@
                 </div>
             </section>
 
+<div id="feature-empty" class="catalog-empty" hidden><h2>No matching features</h2><p>Try another term, category or maturity.</p><button type="button" data-reset-features>Reset filters</button></div>
             <section id="roadmap" aria-labelledby="roadmap-title">
                 <h2 id="roadmap-title">Release roadmap</h2>
                 <p>The <a href="../project/roadmap/">release inventory</a> lists remaining release work, post-release work, and proposals from committed specs. Classification is not release-readiness proof.</p>
             </section>
+</div></div>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Research</p>
                 <nav class="page-sidebar-nav" aria-label="Related links">
@@ -875,7 +885,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

@@ -59,7 +59,8 @@ are exported as Prometheus metrics and viewed with <code>show traffic usage</cod
 <code>trafficusage</code> plugin loads only when a <code>traffic { usage { } }</code> section is present in
 the config.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#how-it-works">How It Works</a>
 <ol>
 <li><a href="#pure-go-ebpf">Pure-Go eBPF</a></li>
@@ -69,7 +70,7 @@ the config.</p>
 <li><a href="#prometheus-metrics">Prometheus Metrics</a></li>
 <li><a href="#doctor-check">Doctor Check</a></li>
 <li><a href="#limitations">Limitations</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <p>Traffic usage is <strong>monitoring only</strong>. The eBPF programs read packet headers and
 update counters; they never drop, redirect, or modify traffic. Accounting is
 IPv4 only. The plugin is Linux only and is a no-op on other platforms.</p>
@@ -360,7 +361,8 @@ feature.</li>
 are deleted, and each map is an LRU capped at <code>max-entries</code>; under high key
 churn only the current top talkers are retained.</li>
 </ul>
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -402,7 +404,7 @@ churn only the current top talkers are retained.</li>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 9 October 2026 10:57 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

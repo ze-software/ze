@@ -27,7 +27,7 @@ The daemon closes this sending process\'s share of the peer\'s live\-forward rep
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `selector` | string | yes | any value of this type | \* for every peer\, or an address\, a peer name or an AS pattern | The value is an IP address\, a peer name\, an AS pattern such as as65001\, a glob\, or \* for every peer\. \'pause\' and \'resume\' refuse a selector that matches more than one peer\, and the other commands act on each peer it matches\. |
+| `selector` | string | yes | any value of this type | An address or peer name\; \* or a pattern for refresh\, borr\, eorr and flush | The value is an IP address\, a peer name\, an AS pattern such as as65001\, a glob\, or \* for every peer\. \'refresh\'\, \'borr\'\, \'eorr\' and \'flush\' act on every peer it matches\. \'teardown\'\, \'notify\'\, \'disable\'\, \'enable\'\, \'pause\'\, \'resume\' and \'clear soft\' act on one session\: they refuse \*\, an exclusion such as \!edge1\, and a selector that matches more than one peer\, and they accept a pattern or glob that matches exactly one peer\. |
 | `session` | string | no | any value of this type | Captured peer\-UP initial\-replay token\. | The opaque nonzero uint64 initial\-replay token captured from the peer\-UP event whose replay this process finished\. Never fetch a new token to finish old replay work\. |
 
 ## Mapping intents

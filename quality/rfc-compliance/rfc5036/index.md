@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 3.3% | 3 of 91 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 91 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 91 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 88.9% | 56 of 63 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 87.5% | 56 of 64 tagged units, 0 escaped and 1 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -69,10 +69,10 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 63 |
-| Tagged units | 63 |
+| Test tags | 64 |
+| Tagged units | 64 |
 | Recorded audit verdicts | 26 |
-| Discrimination records | 56 |
+| Discrimination records | 57 |
 | Summary | `rfc/short/rfc5036.md` |
 | Requirement shard | `rfc/requirements/rfc5036.md` |
 | RFC text | `rfc/full/rfc5036.txt` |
@@ -168,7 +168,7 @@ The 2026-09-21 extraction walk read all 87 normative sites in [`rfc/full/rfc5036
 | `RFC5036-2.8.2-12` | - If the Label Mapping message is not being sent to propagate a received message upstream, the Label Mapping message MUST include a Path Vector of length 1 containing R's LSR Id. (§2.8.2) | MUST | 2.8.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** loop detection is not configurable and its Path Vector procedures are unimplemented; plan/spec-ldp-loop-detection.md |
 | `RFC5036-2.8.2-13` | When R detects a loop, it MUST stop using the label for forwarding, drop the Label Mapping message, and signal Loop Detected status to the source of the Label Mapping message. (§2.8.2) | MUST | 2.8.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** loop detection is not configurable and its Path Vector procedures are unimplemented; plan/spec-ldp-loop-detection.md |
 | `RFC5036-3.1-1` | The first four octets identify the LSR and MUST be a globally unique value. (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestRFC5036DistinctLSRIDFormsAdjacency`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L373). **negative:** `unit/verify` [`TestRFC5036OwnLSRIDFormsNoAdjacency`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L439) |
-| `RFC5036-3.3-1` | Upon receipt of an unknown TLV, if U is clear (=0), a notification MUST be returned to the message originator and the entire message MUST be ignored; if U is set (=1), the unknown TLV MUST be silently ignored and the rest of the message processed as if the unknown TLV did not exist. (§3.3) | MUST | 3.3 | **positive:** `unit/verify` [`TestRFC5036UnknownTLVWithUBitSetIsSkipped`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L99). **negative:** `unit/verify` [`TestRFC5036UnknownTLVWithUBitClearIsRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L128) |
+| `RFC5036-3.3-1` | Upon receipt of an unknown TLV, if U is clear (=0), a notification MUST be returned to the message originator and the entire message MUST be ignored; if U is set (=1), the unknown TLV MUST be silently ignored and the rest of the message processed as if the unknown TLV did not exist. (§3.3) | MUST | 3.3 | **positive:** `unit/verify` [`TestRFC5036UnknownTLVWithUBitSetIsSkipped`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L99). **negative:** `unit/verify` [`TestLDPInitUnknownTLVUClearNotifies`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_init_unknown_tlv_test.go#L26). **negative:** `unit/verify` [`TestRFC5036UnknownTLVWithUBitClearIsRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L128) |
 | `RFC5036-3.4.2.2-1` | It MUST be set to zero on transmission and MUST be ignored on receipt. (§3.4.2.2) | MUST | 3.4.2.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze runs LDP over IP links only, so no ATM or Frame Relay label range or session parameter exists; plan/spec-ldp-atm-frame-relay.md |
 | `RFC5036-3.4.2.2-2` | If the VCI is less than 16-bits, it SHOULD be right justified in the field and the preceding bits MUST be set to 0. (§3.4.2.2) | MUST | 3.4.2.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze runs LDP over IP links only, so no ATM or Frame Relay label range or session parameter exists; plan/spec-ldp-atm-frame-relay.md |
 | `RFC5036-3.4.2.2-3` | If Virtual Path switching is indicated in the V-bits field, then this field MUST be ignored by the receiver and set to 0 by the sender. (§3.4.2.2) | MUST | 3.4.2.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze runs LDP over IP links only, so no ATM or Frame Relay label range or session parameter exists; plan/spec-ldp-atm-frame-relay.md |
@@ -549,12 +549,12 @@ Audit verdict: not audited: no reader has judged these tests
 
 For each FEC for which the LSR is not the egress and no mapping exists, the LSR MUST wait until a label from a downstream LSR is received before mapping the FEC and passing corresponding labels to upstream LSRs. (§2.6.1.2)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 under ruling R40. Forbidden: mapping a non-egress FEC with no existing mapping, and passing its label upstream, before a label from the downstream LSR arrives. TestRFC5036NonEgressFECNotMappedBeforeDownstreamLabel holds the negative: a non-egress FEC with only a third-party binding is not mapped and no label is sent upstream. TestRFC5036EgressFECMappedWithoutWaiting is the positive: the wait binds only non-egress FECs, so the egress FEC is mapped at once, and an implementation that refused every mapping goes red. The sentence is a prohibition; mapping a transit FEC once the downstream label arrives is not an obligation of this sentence, and transit mapping remains a Support-remaining gap of rfc5036.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 under ruling R40. Forbidden: mapping a non-egress FEC with no existing mapping, and passing its label upstream, before a label from the downstream LSR arrives. TestRFC5036NonEgressFECNotMappedBeforeDownstreamLabel holds the negative: a non-egress FEC with only a third-party binding is not mapped and no label is sent upstream. TestRFC5036EgressFECMappedWithoutWaiting is the positive: the wait binds only non-egress FECs, so the egress FEC is mapped at once, and an implementation that refused every mapping goes red. The sentence is a prohibition; mapping a transit FEC once the downstream label arrives is not an obligation of this sentence, and transit mapping remains a Support-remaining gap of rfc5036. Re-read 2026-10-23: the positive unit now binds the egress FEC through mustEnsureLocal because LIB.EnsureLocal returns an error on label exhaustion; the assertions are unchanged.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC5036NonEgressFECNotMappedBeforeDownstreamLabel`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L498) | unit/verify | revert, verified |
-| positive | [`TestRFC5036EgressFECMappedWithoutWaiting`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L469) | unit/verify | revert, verified |
+| positive | [`TestRFC5036EgressFECMappedWithoutWaiting`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L469) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
 
 ### [`RFC5036-2.8.1-1`](#rfc5036-2.8.1-1)
 
@@ -731,10 +731,11 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Glob
 
 Upon receipt of an unknown TLV, if U is clear (=0), a notification MUST be returned to the message originator and the entire message MUST be ignored; if U is set (=1), the unknown TLV MUST be silently ignored and the rest of the message processed as if the unknown TLV did not exist. (§3.3)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC5036UnknownTLVWithUBitSetIsSkipped checks an unknown TLV with U=1 is skipped, the mapping is applied and nothing is written; TestRFC5036UnknownTLVWithUBitClearIsRefused checks U=0 draws the Unknown TLV Notification referring to the Label Mapping, the mapping is not applied and the session stays up.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC5036UnknownTLVWithUBitSetIsSkipped checks an unknown TLV with U=1 is skipped, the mapping is applied and nothing is written; TestRFC5036UnknownTLVWithUBitClearIsRefused checks U=0 draws the Unknown TLV Notification referring to the Label Mapping, the mapping is not applied and the session stays up. TestLDPInitUnknownTLVUClearNotifies (rfc5036_init_unknown_tlv_test.go) checks the same U=0 half for an Initialization: DecodeInit refuses with unknownTLVError, Session.ignoreUnknownTLV answers an Unknown TLV Notification referring to message 7 of type Initialization, processMessages returns nil and the session stays in OpenSent, so the whole message is ignored.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
+| negative | [`TestLDPInitUnknownTLVUClearNotifies`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_init_unknown_tlv_test.go#L26) | unit/verify | revert, verified |
 | negative | [`TestRFC5036UnknownTLVWithUBitClearIsRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L128) | unit/verify | revert, verified |
 | positive | [`TestRFC5036UnknownTLVWithUBitSetIsSkipped`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L99) | unit/verify | revert, verified |
 

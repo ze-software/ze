@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0.0% | 0 of 8 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 8 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 8 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 55.0% | 11 of 20 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 35.0% | 7 of 20 tagged units, 0 escaped and 4 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -211,10 +211,10 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. All 
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC2869RejectAndChallengeWithWrongMessageAuthenticatorAreDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_message_authenticator_codes_test.go#L89) | unit/verify | revert, verified |
-| negative | [`TestRFC2869AccessAcceptWithWrongMessageAuthenticatorIsDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_message_authenticator_test.go#L185) | unit/verify | revert, verified |
-| positive | [`TestRFC2869RejectAndChallengeWithValidMessageAuthenticatorAreDelivered`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_message_authenticator_codes_test.go#L54) | unit/verify | revert, verified |
-| positive | [`TestRFC2869AccessAcceptWithValidMessageAuthenticatorIsAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_message_authenticator_test.go#L153) | unit/verify | revert, verified |
+| negative | [`TestRFC2869RejectAndChallengeWithWrongMessageAuthenticatorAreDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_message_authenticator_codes_test.go#L89) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC2869AccessAcceptWithWrongMessageAuthenticatorIsDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_message_authenticator_test.go#L185) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC2869RejectAndChallengeWithValidMessageAuthenticatorAreDelivered`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_message_authenticator_codes_test.go#L54) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC2869AccessAcceptWithValidMessageAuthenticatorIsAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_message_authenticator_test.go#L153) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ## Extraction sign-off
 

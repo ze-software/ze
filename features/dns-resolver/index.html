@@ -53,13 +53,14 @@
     <p>Built-in DNS resolver component providing cached DNS queries to all Ze components.
 Uses <code>github.com/miekg/dns</code> (the library CoreDNS is built on).</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#configuration">Configuration</a></li>
 <li><a href="#dhcp-interaction">DHCP interaction</a></li>
 <li><a href="#cache-management">Cache management</a></li>
 <li><a href="#pipe-operators">Pipe operators</a></li>
 <li><a href="#reload-behavior">Reload behavior</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <p>This is the client side: Ze asking somebody else. Ze also answers queries, from
 two authoritative plugins that share one server harness
 (<code>internal/core/dnsserver</code>): <code>as112</code> (see
@@ -246,7 +247,8 @@ resolver. resolv.conf follows a reload: a reload that changes or removes
 <code>name-server</code> rewrites it, and removing every static server hands it back to
 the DHCP leases.</p>
 <!-- source: cmd/ze/hub/main_system.go -- applyResolvConf -->
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Feature doc</p>
@@ -280,7 +282,7 @@ the DHCP leases.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

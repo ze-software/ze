@@ -49,9 +49,10 @@
     <h1 id="looking-glass">Looking Glass</h1>
     <p>Ze includes a built-in looking glass that exposes BGP session state and route information via both an HTMX web UI and a birdwatcher-compatible REST API. The looking glass runs as a separate HTTP server on its own port (default 8443). It is read-only and open by default, because a looking glass is a public surface. It serves TLS by default, with a self-signed certificate unless the <code>certificate</code> leaf names an entry in the PKI store. An optional bearer <code>token</code> gates every route when you set one.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#as-path-topology-graph">AS Path Topology Graph</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <table>
 <thead>
 <tr>
@@ -167,7 +168,8 @@
 <!-- source: internal/graph/graph.go -- BuildGraphFromPaths, DeduplicateASPath -->
 <!-- source: internal/component/lg/layout.go -- computeLayout, renderGraphSVG -->
 <!-- source: internal/component/lg/handler_graph.go -- handleGraph endpoint -->
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Feature doc</p>
@@ -201,7 +203,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

@@ -49,14 +49,15 @@
     <h1 id="functional-ci-tests">Functional <code>.ci</code> Tests</h1>
     <p><code>.ci</code> is Ze's process and protocol test format. Use it when correctness is visible through a real command, daemon, socket, HTTP request, syslog line, file artifact, process exit, or BGP wire message.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#where-it-belongs">Where it belongs</a></li>
 <li><a href="#execution-model">Execution model</a></li>
 <li><a href="#minimal-shape">Minimal shape</a></li>
 <li><a href="#expectations">Expectations</a></li>
 <li><a href="#linux-behavior">Linux behavior</a></li>
 <li><a href="#failure-reading">Failure reading</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <!-- source: ../main/docs/architecture/testing/ci-format.md -- format reference -->
 <!-- source: ../main/internal/test/runner/record_parse.go -- parser -->
 <!-- source: ../main/internal/test/runner/runner_exec.go -- process orchestration -->
@@ -120,7 +121,8 @@ ZE_TEST_KEEP_TMP=1 ./le test bgp plugin 42 -v
 ze.log.bgp.reactor.peer=debug ./le test bgp plugin 42 -v
 </code></pre>
 <p>If the failure only reproduces under Linux, rerun it through <code>./le test qemu run</code> rather than adding sleeps or Darwin-only skips.</p>
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Debugging</p>
@@ -150,7 +152,7 @@ ze.log.bgp.reactor.peer=debug ./le test bgp plugin 42 -v
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

@@ -54,7 +54,8 @@ whether you're poking around interactively or scripting against ze. One operator
 set, three ways to use it: set a persistent default, pipe it inline, or apply it
 offline to already-captured output.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#the-simple-way-set-a-default-once">The simple way: set a default once</a></li>
 <li><a href="#piping-inline">Piping inline</a></li>
 <li><a href="#scripting-against-the-daemon-raw">Scripting against the daemon: | raw</a></li>
@@ -66,7 +67,7 @@ offline to already-captured output.</p>
 <li><a href="#choosing-the-columns-display-and-fill">Choosing the columns: | display and | fill</a></li>
 <li><a href="#a-name-for-a-chain-pipe-aliases">A name for a chain: pipe aliases</a></li>
 <li><a href="#command-specific-filters">Command-specific filters</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <p>Which operators a given command owes is a property of that command, not of the
 language: <code>ze help command --json</code> publishes the list per command, and an
 operator the command's answer cannot support is refused by name rather than
@@ -535,7 +536,8 @@ answer. Both kinds run in the daemon. A generic pipe filters what the command
 already produced. A command filter stops it being produced.</p>
 <!-- source: internal/component/bgp/plugins/cmd/rib/rib.go -- PipeFilter registrations -->
 <!-- source: internal/component/command/pipe.go -- foldFilters, lookupFilter, validateFilter -->
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Feature doc</p>
@@ -569,7 +571,7 @@ already produced. A command filter stops it being produced.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 9 October 2026 10:57 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

@@ -45,17 +45,21 @@
 
         <main id="top" class="site-main-wide" tabindex="-1">
             <section class="blog-article-shell has-visual" aria-labelledby="post-title">
+                <div class="blog-article-heading">
 <div class="journey-hero blog-article-hero reveal">
     <span class="journey-eyebrow">Article</span>
     <h1 id="post-title">How Ze reuses memory for BGP UPDATEs</h1>
     <p>A garbage collector reclaims unused memory. We can still avoid creating much of that temporary data in the first place.</p>
 </div>
                 <div class="blog-article-meta"><time datetime="2026-08-04">2026-08-04</time><span>by Thomas Mangin</span></div>
+                </div>
 <figure class="blog-theme-image has-dark blog-article-visual reveal" role="img" aria-label="Readers share a received BGP UPDATE while it remains in the cache. Changed messages and routes kept in the RIB use separate storage."><img class="blog-theme-image-light" src="../../assets/blog/how-ze-manages-memory.svg" alt="" loading="eager" decoding="async" /><img class="blog-theme-image-dark" src="../../assets/blog/how-ze-manages-memory-dark.svg" alt="" loading="eager" decoding="async" /></figure>
-                <p class="post-back"><a href="../">&larr; All articles</a></p>
             </section>
+            <div class="blog-reading-layout">
+                <aside class="blog-reading-rail" aria-label="Article navigation">
             <nav class="blog-article-toc reveal" aria-label="Article sections">
-                <p class="blog-article-toc-label">In this article</p>
+                <details class="reading-outline" open>
+                <summary class="blog-article-toc-label">In this article</summary>
                 <ol>
                     <li><a href="#use-the-data-we-already-have">Use the data we already have</a></li>
                     <li><a href="#reuse-needs-a-clear-stopping-point">Reuse needs a clear stopping point</a></li>
@@ -63,7 +67,15 @@
                     <li><a href="#apply-the-same-approach-to-text">Apply the same approach to text</a></li>
                     <li><a href="#check-that-the-intended-saving-exists">Check that the intended saving exists</a></li>
                 </ol>
+                </details>
             </nav>
+                    <nav class="blog-related-links" aria-label="Related links">
+                        <p class="post-back"><a href="../">&larr; All articles</a></p>
+                        <a href="../feed.xml">Subscribe to the blog</a>
+                        <a href="../../docs/">Explore the documentation</a>
+                    </nav>
+                </aside>
+                <div class="blog-reading-body">
             <section class="md-content blog-article-content reveal" data-table-columns="off" data-code-copy="off">
 <p>When I wrote <a href="https://github.com/Exa-Networks/exabgp" target="_blank" rel="noopener">ExaBGP</a>, I wanted an ordinary program to be able to announce routes without implementing BGP itself. ExaBGP handled the protocol and converted received messages into text or JSON for the application. This made BGP available to those programs, but processing a full routing table involved creating Python objects for attributes repeated across many routes.</p>
 <p>I paid attention to performance in ExaBGP, and moving to Go gave me an opportunity to reconsider how much data Ze would create and copy. Translating the same approach into a compiled language would still leave those repeated operations in place. Go's garbage collector reclaims memory the program no longer uses, but allocating temporary objects and later collecting them takes processing time too.</p>
@@ -129,6 +141,8 @@
 <p>Reuse also adds development work: we have to define who owns the storage and when a reader must stop using it, as well as limit the capacity retained between uses. For a rarely used operation, that bookkeeping can cost more effort than the saving justifies. On a path repeated for each route, it lets us remove the same unnecessary work from every repetition.</p>
 <p><em>Last updated: 21 September 2026. The history of this article is available in the <a href="https://github.com/ze-software/ze/commits/main/website/blog/posts/how-ze-manages-memory.md" target="_blank" rel="noopener">project's Git repository</a>.</em></p>
             </section>
+                </div>
+            </div>
         </main>
 
         <script src="../../assets/site.js" defer></script>
@@ -137,7 +151,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:22 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

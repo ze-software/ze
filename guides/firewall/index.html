@@ -51,7 +51,8 @@
 section. The abstract data model describes matches (from) and actions (then);
 the nft backend lowers them to nftables kernel expressions.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#backend">Backend</a>
 <ol>
 <li><a href="#clean-shutdown-teardown">Clean-shutdown teardown</a></li>
@@ -96,7 +97,7 @@ the nft backend lowers them to nftables kernel expressions.</p>
 </ol></li>
 <li><a href="#cli">CLI</a></li>
 <li><a href="#lifecycle">Lifecycle</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <!-- source: internal/component/firewall/model.go -- Match and Action type definitions -->
 <!-- source: internal/component/firewall/config.go -- parseFromBlock, parseThenBlock -->
 <!-- source: internal/component/firewall/engine.go -- runEngine, OnConfigure, OnConfigApply -->
@@ -1114,7 +1115,8 @@ it is the single actor that performs this teardown -- plugins that register
 tables (<code>control-plane-protection</code>, <code>policy-routes</code>, <code>ddos-local</code>) do not run
 their own shutdown withdrawal, so table removal never races the backend close.
 A crash bypasses this path entirely, leaving tables in place.</p>
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -1156,7 +1158,7 @@ A crash bypasses this path entirely, leaving tables in place.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

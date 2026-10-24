@@ -50,7 +50,8 @@
     <p>Plugins that have observable runtime state register their own Prometheus metrics
 via the existing <code>ConfigureMetrics</code> callback in the <code>Registration</code> struct.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#implementation-pattern">Implementation Pattern</a></li>
 <li><a href="#naming-policy">Naming Policy</a>
 <ol>
@@ -65,7 +66,7 @@ via the existing <code>ConfigureMetrics</code> callback in the <code>Registratio
 <li><a href="#nopregistry-fallback">NopRegistry Fallback</a></li>
 <li><a href="#which-plugins-need-metrics">Which Plugins Need Metrics</a></li>
 <li><a href="#reference-implementation">Reference Implementation</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <!-- source: internal/component/plugin/registry/registry.go -- Registration.ConfigureMetrics -->
 <h2 id="implementation-pattern">Implementation Pattern</h2>
 <p>Each plugin follows the same three-step pattern used by bgp-rib and bgp-gr:</p>
@@ -988,6 +989,12 @@ in the same scope: <code>installed</code>, <code>active</code>, <code>up</code>,
 <td>interface</td>
 <td>iface-ra</td>
 </tr>
+<tr>
+<td><code>ze_radius_unsigned_eap_discards_total</code></td>
+<td>Counter</td>
+<td></td>
+<td>radius (client)</td>
+</tr>
 </tbody>
 </table>
 <p>The three iface link-event counters answer the same question from different
@@ -1203,7 +1210,8 @@ series count with the session count.</p>
 <p>The bgp-rib plugin (<code>internal/component/bgp/plugins/rib/</code>) is the reference
 implementation. It demonstrates all aspects: registration callback, metrics struct,
 atomic pointer, periodic update loop, and per-peer label cleanup.</p>
-
+</div>
+</div>
             </section>
         </main>
 
@@ -1213,7 +1221,7 @@ atomic pointer, periodic update loop, and per-peer label cleanup.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 8 October 2026 18:55 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

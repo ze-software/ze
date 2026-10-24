@@ -51,7 +51,8 @@
 failover, blackhole, and reject. Routes are grouped under named tables for
 policy-based routing support.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#configuration">Configuration</a>
 <ol>
 <li><a href="#named-routing-tables">Named routing tables</a></li>
@@ -68,7 +69,7 @@ policy-based routing support.</p>
 <li><a href="#route-programming">Route programming</a></li>
 <li><a href="#administrative-distance">Administrative distance</a></li>
 <li><a href="#redistribute">Redistribute</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <p>A route in the MAIN table is ranked against every other protocol that offers the
 same prefix, and the winner is programmed by the FIB plugin. A route in a NAMED
 table is programmed directly, through netlink or through VPP, because a named
@@ -348,7 +349,8 @@ framework. BGP redistribute can import static routes:</p>
     }
 }
 </code></pre>
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -390,7 +392,7 @@ framework. BGP redistribute can import static routes:</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

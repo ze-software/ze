@@ -9,7 +9,7 @@ Watchdog route management plugin
 | Registry area | BGP |
 | Kind | Runtime plugin |
 | Source path | `internal/component/bgp/plugins/watchdog` |
-| YANG modules | 0 |
+| YANG modules | 1 |
 
 ## Configuration
 
@@ -29,5 +29,5 @@ Watchdog route management plugin
 
 Package: `internal/component/bgp/plugins/watchdog`
 
-YANG files: None
+YANG files: `internal/component/bgp/plugins/watchdog/yang/ze-watchdog-cmd.yang`
 Metadata source: `Registration`

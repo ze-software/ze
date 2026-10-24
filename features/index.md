@@ -8,7 +8,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 
 ### Policy Routing
 
-*services* -- `nftables` `PBR`
+*services / Shipped in current code* -- `nftables` `PBR`
 
 - **L3/L4 match** criteria
 - Table steering, **next-hop** actions

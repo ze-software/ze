@@ -45,24 +45,36 @@
 
         <main id="top" class="site-main-wide" tabindex="-1">
             <section class="blog-article-shell has-visual" aria-labelledby="post-title">
+                <div class="blog-article-heading">
 <div class="journey-hero blog-article-hero reveal">
     <span class="journey-eyebrow">Article</span>
     <h1 id="post-title">Keeping documentation in step with the code</h1>
     <p>Shared command metadata supplies both the program and its reference pages, so keeping them consistent becomes part of the documentation build.</p>
 </div>
                 <div class="blog-article-meta"><time datetime="2026-08-22">2026-08-22</time><span>by Thomas Mangin</span></div>
+                </div>
 <figure class="blog-theme-image has-dark blog-article-visual reveal" role="img" aria-label="Command definitions supply the reference pages, with links from the documentation back to the source."><img class="blog-theme-image-light" src="../../assets/blog/reference-from-the-system.svg" alt="" loading="eager" decoding="async" /><img class="blog-theme-image-dark" src="../../assets/blog/reference-from-the-system-dark.svg" alt="" loading="eager" decoding="async" /></figure>
-                <p class="post-back"><a href="../">&larr; All articles</a></p>
             </section>
+            <div class="blog-reading-layout">
+                <aside class="blog-reading-rail" aria-label="Article navigation">
             <nav class="blog-article-toc reveal" aria-label="Article sections">
-                <p class="blog-article-toc-label">In this article</p>
+                <details class="reading-outline" open>
+                <summary class="blog-article-toc-label">In this article</summary>
                 <ol>
                     <li><a href="#from-a-command-definition-to-its-reference-page">From a command definition to its reference page</a></li>
                     <li><a href="#include-the-configuration-supplied-by-plugins">Include the configuration supplied by plugins</a></li>
                     <li><a href="#publish-the-support-records-we-use-during-development">Publish the support records we use during development</a></li>
                     <li><a href="#keep-the-explanations-alongside-the-generated-facts">Keep the explanations alongside the generated facts</a></li>
                 </ol>
+                </details>
             </nav>
+                    <nav class="blog-related-links" aria-label="Related links">
+                        <p class="post-back"><a href="../">&larr; All articles</a></p>
+                        <a href="../feed.xml">Subscribe to the blog</a>
+                        <a href="../../docs/">Explore the documentation</a>
+                    </nav>
+                </aside>
+                <div class="blog-reading-body">
             <section class="md-content blog-article-content reveal" data-table-columns="off" data-code-copy="off">
 <p>When a command reference is written separately from the code, keeping it accurate depends on someone remembering to update it each time the command changes. The code can be changed and tested while the website still describes the old syntax, leaving a reader to follow instructions that no longer work. The documentation was correct when written; it became misleading because maintaining it required a separate edit that was missed.</p>
 <p>In Ze, we address this by using shared command metadata to generate the reference pages. That metadata describes the arguments and their help text for use in the program, so it also provides the information needed to document them. An argument change is then recorded in one place and appears in the reference on the next documentation build. Keeping the two consistent becomes part of how we build the software and its documentation, instead of something a developer has to remember afterwards.</p>
@@ -89,6 +101,8 @@
 <p>For Ze, keeping the public website in step with the published code is a requirement. Generating the reference removes the separate manual description, but the resulting pages still have to be rebuilt and published with the corresponding changes. Otherwise we would have correct documentation in the build directory and outdated instructions in front of the reader.</p>
 <p><em>Originally written: 22 August 2026. Last updated: 21 September 2026. The history of this article is available in the <a href="https://github.com/ze-software/ze/commits/main/website/blog/posts/reference-from-the-system.md" target="_blank" rel="noopener">project's Git repository</a>.</em></p>
             </section>
+                </div>
+            </div>
         </main>
 
         <script src="../../assets/site.js" defer></script>
@@ -97,7 +111,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:22 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

@@ -52,7 +52,8 @@ revision <code>2026-07-28</code> it does so through
 <a href="https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/mrtr" target="_blank" rel="noopener">Multi Round-Trip Requests</a>
 (MRTR): the server does not send the client a request, it <strong>returns</strong> one.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#the-round-trip">The round trip</a></li>
 <li><a href="#declaring-the-capability">Declaring the capability</a></li>
 <li><a href="#what-ze-returns">What Ze returns</a></li>
@@ -61,7 +62,7 @@ revision <code>2026-07-28</code> it does so through
 <li><a href="#limits">Limits</a></li>
 <li><a href="#trying-it">Trying it</a></li>
 <li><a href="#related">Related</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <p>The single place this happens is the <code>ze_execute</code> tool called without a
 <code>command</code> argument.</p>
 <!-- source: internal/component/mcp/mrtr.go -- newInputRequiredResult, inputRequiredForMissingCommand -->
@@ -319,7 +320,8 @@ empty <code>inputResponses</code>, which drives the re-ask path).</p>
 <li><a href="https://github.com/ze-software/ze/blob/main/docs/architecture/mcp/overview.md" target="_blank" rel="noopener">MCP Architecture</a> -- internals</li>
 <li><a href="../../../architecture/api/commands/#mcp-methods">MCP API Methods</a> -- the method table</li>
 </ul>
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -361,7 +363,7 @@ empty <code>inputResponses</code>, which drives the re-ask path).</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

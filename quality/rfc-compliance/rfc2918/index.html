@@ -63,9 +63,9 @@
 .rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
 .rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
 .rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
-.rfc-ok { border-left: 7px solid var(--teal-base); }
+.rfc-ok { border-left: 7px solid var(--green); }
 .rfc-neutral { border-left: 7px solid var(--line-strong); }
-.rfc-warn { border-left: 7px solid var(--gold-base); }
+.rfc-warn { border-left: 7px solid var(--amber); }
 .rfc-bad { border-left: 7px solid var(--danger-deep); }
 .rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
 .rfc-tape span { width: var(--w); min-width: 0; display: block; }
@@ -80,11 +80,11 @@
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-partial-scope { background: var(--danger-deep); }
-.rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
+.rfc-tape-one_polarity_unexcused { background: var(--amber); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
-.rfc-swatch.rfc-ok { background: var(--teal-base); }
+.rfc-swatch.rfc-ok { background: var(--green); }
 .rfc-swatch.rfc-neutral { background: var(--line-strong); }
-.rfc-swatch.rfc-warn { background: var(--gold-base); }
+.rfc-swatch.rfc-warn { background: var(--amber); }
 .rfc-swatch.rfc-bad { background: var(--danger-deep); }
 .rfc-total td { border-top: 2px solid var(--line-strong); }
 .rfc-prose { max-width: 46rem; }
@@ -110,7 +110,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 .rfc-note-box { margin: 1rem 0; padding: 1rem 1.2rem; border-radius: 16px; background: var(--gold-tint); border: 1px solid var(--gold-chip); }
 .rfc-note-box h3 { margin-top: 0; }
 .rfc-note-box ul { margin-bottom: 0; }
-.rfc-check-ok strong { color: var(--teal-deep); }
+.rfc-check-ok strong { color: var(--green); }
 .rfc-check-bad strong { color: var(--danger-deep); }
 </style>
 <section><h2>Overview</h2>
@@ -122,8 +122,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>40.7%</strong><b>11 of 27 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
-<article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>7</strong><b>of 6 gated MUSTs judged</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>37.0%</strong><b>10 of 27 tagged units, 0 escaped and 1 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -186,7 +185,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -361,11 +360,11 @@ No tracked gap in current source anchors.
 <td>MUST</td>
 <td>4 - Operation</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2918-4-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L1008" title="internal/component/bgp/plugins/rib/rib_test.go" target="_blank" rel="noopener"><code>TestHandleRefresh_InternalState</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L1011" title="internal/component/bgp/plugins/rib/rib_test.go" target="_blank" rel="noopener"><code>TestHandleRefresh_InternalState</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc2918_config_static_test.go#L19" title="internal/component/bgp/plugins/rib/rfc2918_config_static_test.go" target="_blank" rel="noopener"><code>TestRFC2918ConfigStaticRetainedForRefresh</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_replay_feedback_test.go#L69" title="internal/component/bgp/reactor/rfc2918_replay_feedback_test.go" target="_blank" rel="noopener"><code>TestRFC2918RefreshRunsCurrentExportPolicy</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_replay_feedback_test.go#L33" title="internal/component/bgp/reactor/rfc2918_replay_feedback_test.go" target="_blank" rel="noopener"><code>TestRefreshSentFeedbackRetainsReplayOrigin</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L1081" title="internal/component/bgp/plugins/rib/rib_test.go" target="_blank" rel="noopener"><code>TestHandleRefresh_PeerNotUp</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L1084" title="internal/component/bgp/plugins/rib/rib_test.go" target="_blank" rel="noopener"><code>TestHandleRefresh_PeerNotUp</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc2918_config_static_test.go#L87" title="internal/component/bgp/plugins/rib/rfc2918_config_static_test.go" target="_blank" rel="noopener"><code>TestRFC2918RefreshDoesNotSendToDownPeer</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_replay_feedback_test.go#L70" title="internal/component/bgp/reactor/rfc2918_replay_feedback_test.go" target="_blank" rel="noopener"><code>TestRFC2918RefreshRunsCurrentExportPolicy</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/refresh-config-static.ci#L10" title="test/plugin/refresh-config-static.ci" target="_blank" rel="noopener"><code>refresh-config-static.ci</code></a></span></div>
@@ -558,7 +557,7 @@ No tracked gap in current source anchors.
 </div>
 <h3><a href="#rfc2918-4-3"><code>RFC2918-4-3</code></a></h3>
 <p>Otherwise, the BGP speaker shall re- advertise to that peer the Adj-RIB-Out of the &lt;AFI, SAFI&gt; carried in the message, based on its outbound route filtering policy. (S4)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independently rejudged 2026-10-22; no execution or stamping. RFC 2918 Section 4: &#34;Otherwise, the BGP speaker shall re-advertise to that peer the Adj-RIB-Out of the &lt;AFI, SAFI&gt; carried in the message, based on its outbound route filtering policy.&#34; Read every tagged carrier: internal/component/bgp/plugins/rib/rfc2918_config_static_test.go::TestRFC2918ConfigStaticRetainedForRefresh and TestRFC2918RefreshDoesNotSendToDownPeer; rib/rib_test.go::TestHandleRefresh_InternalState and TestHandleRefresh_PeerNotUp; reactor/rfc2918_replay_feedback_test.go::TestRefreshSentFeedbackRetainsReplayOrigin and TestRFC2918RefreshRunsCurrentExportPolicy; test/plugin/refresh-config-static.ci. The changed policy setup constructs ExportPolicy with the same refresh-policy reference and explicit FinalAccept, then republishes forwarding facts. The accepted replay must grow the wire output and call the policy once; changing only the policy response to reject must call it again and leave wire bytes identical. Both polarities isolate current export policy rather than final exhaustion. The immediate/queued replay test asserts sent-feedback replay flags [true,false], and storage tests consume emitted commands through the real UPDATE parser, require exact requested-family route identities and configured attributes, retain config-static ownership on refresh and transfer it on an ordinary plugin replacement. The functional carrier pins the exact configured IPv4 UPDATE before and after an actual AFI 1/SAFI 1 refresh, bracketed by BoRR/EoRR. Producer/consumer read: rib_structured.go::dispatchStructured routes refresh to handleRefreshStructured, which checks subtype and established peer then collects only the requested Adj-RIB-Out family; rib_commands.go::sendRoutes supplies replay metadata; reactor/egress_inject_filter.go::exportFilterForBody reads the current export Policy and rejects before transmission. TestHandleRefresh_PeerNotUp alone asserts only the unchanged down state and is not evidence of no output; the separate TestRFC2918RefreshDoesNotSendToDownPeer explicitly fails on either route or marker emission, so the whole row retains its existing enforced verdict without inflating that older carrier. Native renewal inputs are freshness observations, not this semantic verdict.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/reactor/rfc2918_replay_feedback_test.go::TestRefreshSentFeedbackRetainsReplayOrigin moved. Independently rejudged 2026-10-22; no execution or stamping. RFC 2918 Section 4: &#34;Otherwise, the BGP speaker shall re-advertise to that peer the Adj-RIB-Out of the &lt;AFI, SAFI&gt; carried in the message, based on its outbound route filtering policy.&#34; Read every tagged carrier: internal/component/bgp/plugins/rib/rfc2918_config_static_test.go::TestRFC2918ConfigStaticRetainedForRefresh and TestRFC2918RefreshDoesNotSendToDownPeer; rib/rib_test.go::TestHandleRefresh_InternalState and TestHandleRefresh_PeerNotUp; reactor/rfc2918_replay_feedback_test.go::TestRefreshSentFeedbackRetainsReplayOrigin and TestRFC2918RefreshRunsCurrentExportPolicy; test/plugin/refresh-config-static.ci. The changed policy setup constructs ExportPolicy with the same refresh-policy reference and explicit FinalAccept, then republishes forwarding facts. The accepted replay must grow the wire output and call the policy once; changing only the policy response to reject must call it again and leave wire bytes identical. Both polarities isolate current export policy rather than final exhaustion. The immediate/queued replay test asserts sent-feedback replay flags [true,false], and storage tests consume emitted commands through the real UPDATE parser, require exact requested-family route identities and configured attributes, retain config-static ownership on refresh and transfer it on an ordinary plugin replacement. The functional carrier pins the exact configured IPv4 UPDATE before and after an actual AFI 1/SAFI 1 refresh, bracketed by BoRR/EoRR. Producer/consumer read: rib_structured.go::dispatchStructured routes refresh to handleRefreshStructured, which checks subtype and established peer then collects only the requested Adj-RIB-Out family; rib_commands.go::sendRoutes supplies replay metadata; reactor/egress_inject_filter.go::exportFilterForBody reads the current export Policy and rejects before transmission. TestHandleRefresh_PeerNotUp alone asserts only the unchanged down state and is not evidence of no output; the separate TestRFC2918RefreshDoesNotSendToDownPeer explicitly fails on either route or marker emission, so the whole row retains its existing enforced verdict without inflating that older carrier. Native renewal inputs are freshness observations, not this semantic verdict.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -569,7 +568,7 @@ No tracked gap in current source anchors.
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L1081" title="internal/component/bgp/plugins/rib/rib_test.go" target="_blank" rel="noopener"><code>TestHandleRefresh_PeerNotUp</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L1084" title="internal/component/bgp/plugins/rib/rib_test.go" target="_blank" rel="noopener"><code>TestHandleRefresh_PeerNotUp</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -584,7 +583,7 @@ No tracked gap in current source anchors.
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L1008" title="internal/component/bgp/plugins/rib/rib_test.go" target="_blank" rel="noopener"><code>TestHandleRefresh_InternalState</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_test.go#L1011" title="internal/component/bgp/plugins/rib/rib_test.go" target="_blank" rel="noopener"><code>TestHandleRefresh_InternalState</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -596,7 +595,7 @@ No tracked gap in current source anchors.
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc2918_replay_feedback_test.go#L33" title="internal/component/bgp/reactor/rfc2918_replay_feedback_test.go" target="_blank" rel="noopener"><code>TestRefreshSentFeedbackRetainsReplayOrigin</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/refresh-config-static.ci#L10" title="test/plugin/refresh-config-static.ci" target="_blank" rel="noopener"><code>refresh-config-static.ci</code></a></td>
@@ -794,7 +793,7 @@ No tracked gap in current source anchors.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

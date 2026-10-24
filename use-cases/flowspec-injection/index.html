@@ -49,14 +49,15 @@
     <h1 id="flowspec-injection">FlowSpec Injection</h1>
     <p>Use Ze to inject or relay BGP FlowSpec rules when an automation system must distribute traffic filters to routers. Keep the route source, policy, and withdrawal path explicit because a stale FlowSpec rule can affect live traffic.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#choose-the-deployment-shape">Choose the deployment shape</a></li>
 <li><a href="#complete-injection-lab">Complete injection lab</a></li>
 <li><a href="#use-an-atomic-window">Use an atomic window</a></li>
 <li><a href="#authorisation-and-policy">Authorisation and policy</a></li>
 <li><a href="#verification">Verification</a></li>
 <li><a href="#failure-cases">Failure cases</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <h2 id="choose-the-deployment-shape">Choose the deployment shape</h2>
 <p>Two common shapes are:</p>
 <ol>
@@ -148,7 +149,8 @@ ze cli -c "show errors"
 <li>The BGP withdrawal succeeded but local firewall cleanup failed.</li>
 </ul>
 <p>Monitor both BGP state and the enforcement backend. One without the other is incomplete evidence.</p>
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Use case</p>
@@ -182,7 +184,7 @@ ze cli -c "show errors"
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

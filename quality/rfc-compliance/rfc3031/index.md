@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 0.0% | 0 of 10 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 10 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 10 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 100.0% | 4 of 4 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 60.0% | 3 of 5 tagged units, 0 escaped and 2 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -68,10 +68,10 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 4 |
 | Nightly-only evidence | 0 |
-| Test tags | 4 |
-| Tagged units | 4 |
+| Test tags | 5 |
+| Tagged units | 5 |
 | Recorded audit verdicts | 0 |
-| Discrimination records | 4 |
+| Discrimination records | 5 |
 | Summary | `rfc/short/rfc3031.md` |
 | Requirement shard | `rfc/requirements/rfc3031.md` |
 | RFC text | `rfc/full/rfc3031.txt` |
@@ -108,11 +108,11 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
 | `RFC3031-3.8-1` | The "Next Hop Label Forwarding Entry" (NHLFE) is used when forwarding a labeled packet. (§3.10) | MUST | 3.10 - The NHLFE | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze is an MPLS control plane that programs the incoming-label-to-NHLFE mapping as kernel AF_MPLS routes (internal/plugins/fib/kernel/mplsentry_linux.go:21 addMPLSSwap) and VPP entries (internal/plugins/fib/vpp/mpls.go); the NHLFE lookup on a forwarded packet is executed by the kernel/VPP dataplane, and ze has no in-process MPLS packet-forwarding path |
-| `RFC3031-3.14-1` | In all other cases, Rd MUST NOT distribute to Ru bindings of the same label value to two different FECs (S3.14) | MUST | 3.14 | **positive:** `unit/verify` [`TestRFC3031LocalFECsGetDistinctLabels`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc3031_label_test.go#L59). **negative:** `unit/verify` [`TestRFC3031WrappedAllocatorNeverReissuesALabel`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc3031_label_test.go#L92) |
+| `RFC3031-3.14-1` | In all other cases, Rd MUST NOT distribute to Ru bindings of the same label value to two different FECs (S3.14) | MUST | 3.14 | **positive:** `unit/verify` [`TestRFC3031LocalFECsGetDistinctLabels`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc3031_label_test.go#L60). **negative:** `unit/verify` [`TestLDPLabelExhaustionRefusesSecondBinding`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc3031_label_test.go#L195). **negative:** `unit/verify` [`TestRFC3031WrappedAllocatorNeverReissuesALabel`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc3031_label_test.go#L93) |
 | `RFC3031-3.10-1` | If the packet's "next hop" is the current LSR, then the label stack operation MUST be to "pop the stack" (S3.10) | MUST | 3.10 - The NHLFE | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the NHLFE label stack operation is executed on a forwarded packet by the kernel AF_MPLS or VPP dataplane; ze programs the pop disposition as a route (internal/plugins/fib/kernel/mplsentry_linux.go:44-56) and has no in-process MPLS packet-forwarding path |
 | `RFC3031-3.10-2` | The processing is always based on the top label, without regard for the possibility that some number of other labels may have been "above it" in the past, or that some number of other labels may be below it at present. (§3.9) | MUST | 3.9 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze keys each programmed swap entry on the top/incoming label (internal/plugins/fib/kernel/mplsentry_linux.go:24 MPLSDst), but the top-label-only forwarding decision on a packet is executed by the kernel dataplane; ze has no in-process forwarding path |
 | `RFC3031-x-1` | Therefore, when a labeled packet is received with an invalid incoming label, it MUST be discarded, UNLESS it is determined by some means (not within the scope of the current document) that forwarding it unlabeled cannot cause any harm. (§3.18) | MUST | 3.18 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** discarding a packet whose top label has no ILM entry is executed by the kernel/VPP dataplane on a lookup miss; ze programs the entries and has no MPLS packet-forwarding path that could observe an unknown-label miss |
-| `RFC3031-3.16-1` | An LSR which is capable of popping the label stack at all MUST do penultimate hop popping when so requested by its downstream label distribution peer (S3.16) | MUST | 3.16 | **positive:** `unit/verify` [`TestApplyRemoteBindingImplicitNull`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc3031_label_test.go#L170). **negative:** `unit/verify` [`TestApplyRemoteBindingRealLabel`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc3031_label_test.go#L153) |
+| `RFC3031-3.16-1` | An LSR which is capable of popping the label stack at all MUST do penultimate hop popping when so requested by its downstream label distribution peer (S3.16) | MUST | 3.16 | **positive:** `unit/verify` [`TestApplyRemoteBindingImplicitNull`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc3031_label_test.go#L171). **negative:** `unit/verify` [`TestApplyRemoteBindingRealLabel`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc3031_label_test.go#L154) |
 | `RFC3031-3.16-2` | Initial label distribution protocol negotiations MUST allow each LSR to determine whether its neighboring LSRS are capable of popping the label stack. (S3.16) | MUST | 3.16 | **positive:** no positive test. **negative:** no negative test |
 | `RFC3031-3.16-3` | A LSR MUST NOT request a label distribution peer to pop the label stack unless it is capable of doing so (S3.16) | MUST | 3.16 | **positive:** no positive test. **negative:** no negative test |
 | `RFC3031-3.23-1` | If the label values are encoded in a "shim" that sits between the data link and network layer headers, then this shim MUST have a TTL field that SHOULD be initially loaded from the network layer header TTL field, SHOULD be decremented at each LSR-hop, and SHOULD be copied into the network layer header TTL field when the packet emerges from its LSP (S3.23) | MUST | 3.23 | **positive:** no positive test. **negative:** no negative test |
@@ -153,8 +153,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC3031WrappedAllocatorNeverReissuesALabel`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc3031_label_test.go#L92) | unit/verify | mutant, verified |
-| positive | [`TestRFC3031LocalFECsGetDistinctLabels`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc3031_label_test.go#L59) | unit/verify | mutant, verified |
+| negative | [`TestLDPLabelExhaustionRefusesSecondBinding`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc3031_label_test.go#L195) | unit/verify | revert, verified |
+| negative | [`TestRFC3031WrappedAllocatorNeverReissuesALabel`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc3031_label_test.go#L93) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestRFC3031LocalFECsGetDistinctLabels`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc3031_label_test.go#L60) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
 
 ### [`RFC3031-3.10-1`](#rfc3031-3.10-1)
 
@@ -188,8 +189,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestApplyRemoteBindingRealLabel`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc3031_label_test.go#L153) | unit/verify | mutant, verified |
-| positive | [`TestApplyRemoteBindingImplicitNull`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc3031_label_test.go#L170) | unit/verify | mutant, verified |
+| negative | [`TestApplyRemoteBindingRealLabel`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc3031_label_test.go#L154) | unit/verify | mutant, verified |
+| positive | [`TestApplyRemoteBindingImplicitNull`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc3031_label_test.go#L171) | unit/verify | mutant, verified |
 
 ### [`RFC3031-3.16-2`](#rfc3031-3.16-2)
 

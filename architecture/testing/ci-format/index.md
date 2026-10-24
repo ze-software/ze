@@ -174,6 +174,17 @@ why the rule above is a rule.
 <!-- source: internal/test/runner/ports.go -- LeaseTestPorts -->
 <!-- source: internal/test/runner/runner_exec.go -- runTest leases before any $PORT expansion -->
 
+There is no `$PORT3` placeholder. A compiled fixture that starts additional
+listeners MUST reserve their ports with `runner.ReservePorts` or
+`runner.LeaseTestPorts`, and MUST retain the reservation until every child using
+those ports has stopped and been reaped. An offset from `$PORT` or `$PORT2` is
+only a preferred allocation address, never a reservation.
+
+The live managed-client restore fixture uses the runner's pair for the hub's
+SSH and plugin listeners and reserves a third port for its managed listener.
+Its hub and client configs declare no BGP peers or dynamic groups, so they bind
+no BGP listeners and need no BGP port offsets.
+
 
 ## Stdin Blocks
 
@@ -484,7 +495,10 @@ sets one variable in the environment of the daemon under test, ze and
 `--dut exabgp` alike, appended after the runner's own variables so a case can
 override one: `api-version-env.ci` writes `option=env:exabgp.api.version=4` to
 hold every script to API 4 from its start. A line naming no key or no `=` is
-refused at discovery. Those populations are chosen
+refused at discovery. A helper a configuration runs as `le ...` (conf-watchdog)
+reaches the le that runs the suite: that le's directory is first on the daemon's
+PATH, then the ze under test's, and `ZE_LE_BUILD_NAME` is removed, so the named
+build of `./le --name <name>` accepts the call. Those populations are chosen
 by their execution owners, not by tolerating parser errors. Native scenarios
 that intentionally submit invalid Ze configuration remain in the gate: their
 `.ci` itself must still parse.

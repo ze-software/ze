@@ -51,7 +51,8 @@
     <h1 id="operator-access-with-ssh-and-rbac">Operator access with SSH and RBAC</h1>
     <p>Use this when the box already has Ze installed and <code>ze init</code> has created the <code>database/</code> store, and you want real operator accounts instead of a single bootstrap admin.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#1-start-from-the-ubuntu-install-page">1. Start from the Ubuntu install page</a></li>
 <li><a href="#2-decide-the-profiles">2. Decide the profiles</a></li>
 <li><a href="#3-build-and-load-a-set-format-update">3. Build and load a set-format update</a></li>
@@ -64,7 +65,7 @@
 <li><a href="#6-add-tacacs-later">6. Add TACACS+ later</a></li>
 <li><a href="#7-operational-checks">7. Operational checks</a></li>
 <li><a href="#8-remove-an-operator">8. Remove an operator</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <p>The example keeps <code>admin</code> as a recovery account, adds a read-only NOC user, adds an operator user, enables SSH on TCP/2222, and applies profile-based command authorization.</p>
 <p>Ze SSH is an application management plane. The daemon terminates SSH itself and
 starts a Ze command session, so a successful login grants access to Ze commands
@@ -352,7 +353,8 @@ list, which never authenticated it.</p>
 <!-- source: cmd/ze/hub/aaa_lifecycle.go -- liveAcceptedLocalUsers -->
 <!-- source: internal/component/web/auth.go -- SessionStore.validateToken, webSession -->
 <!-- source: internal/component/ssh/pubkey.go -- authenticatePublicKeyResult -->
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -390,7 +392,7 @@ list, which never authenticated it.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

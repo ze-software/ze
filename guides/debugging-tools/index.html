@@ -49,7 +49,8 @@
     <h1 id="zebgp-debugging-tools">ZeBGP Debugging Tools</h1>
     <p>This document describes the debugging tools available in ZeBGP for troubleshooting config parsing, BGP message encoding, and session issues.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#quick-reference">Quick Reference</a></li>
 <li><a href="#1-config-dump-command">1. Config Dump Command</a>
 <ol>
@@ -92,7 +93,7 @@
 </ol></li>
 <li><a href="#adding-new-logging">Adding New Logging</a></li>
 <li><a href="#file-locations">File Locations</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <h2 id="quick-reference">Quick Reference</h2>
 <table>
 <thead>
@@ -510,7 +511,8 @@ myLogger.Warn("unexpected state", "state", state, "expected", expected)
 <!-- source: internal/test/runner/decode.go -- BGP message decoder -->
 <!-- source: internal/component/config/cli/cmd_dump.go -- config-dump command -->
 <!-- source: internal/test/cli/cmd_peer.go -- le test peer subcommand -->
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -552,7 +554,7 @@ myLogger.Warn("unexpected state", "state", state, "expected", expected)
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

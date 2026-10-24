@@ -27,7 +27,7 @@ Tears down the TCP session and deletes the peer from the running configuration\.
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `selector` | string | yes | any value of this type | \* for every peer\, or an address\, a peer name or an AS pattern | The value is an IP address\, a peer name\, an AS pattern such as as65001\, a glob\, or \* for every peer\. Ze tears down and deletes each peer it matches\. |
+| `selector` | string | yes | any value of this type | One peer\: its address or peer name | The value is an IP address\, a peer name\, an AS pattern such as as65001\, a glob\. It names one peer\: \*\, an exclusion such as \!edge1\, and a selector that matches more than one peer are refused\, and a pattern or glob that matches exactly one peer is accepted\. Ze tears down and deletes that peer\. |
 
 ## Mapping intents
 

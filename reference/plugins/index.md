@@ -1,6 +1,6 @@
 # Plugin catalog
 
-91 runtime plugins generated from `data/plugin-registry.json`. 73 runtime plugins declare configuration roots and 76 ship YANG modules.
+91 runtime plugins generated from `data/plugin-registry.json`. 73 runtime plugins declare configuration roots and 77 ship YANG modules.
 
 The HTML page includes browser-side search across name, purpose, config roots, dependencies, YANG files, and source directories. Clicking a plugin opens its generated local detail page.
 

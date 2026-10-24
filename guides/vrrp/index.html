@@ -54,7 +54,8 @@ it. Two or more routers share a virtual IP; one is Active (Master) and answers
 for it, the others wait. If the Active router dies, a Backup takes the address
 over, and the hosts on the segment never change their default gateway.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#ipv4-forwarding-and-redirects">IPv4 forwarding and redirects</a></li>
 <li><a href="#configuration">Configuration</a>
 <ol>
@@ -69,7 +70,7 @@ over, and the hosts on the segment never change their default gateway.</p>
 <li><a href="#operating">Operating</a></li>
 <li><a href="#requirements-and-limits">Requirements and limits</a></li>
 <li><a href="#diagnostics">Diagnostics</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <p>Ze implements <a href="https://www.rfc-editor.org/rfc/rfc9568.html" target="_blank" rel="noopener">RFC 9568</a> (VRRPv3,
 IPv4 and IPv6) by default, and <a href="https://www.rfc-editor.org/rfc/rfc3768.html" target="_blank" rel="noopener">RFC 3768</a>
 (VRRPv2, IPv4 only) as a per-group opt-in for talking to older equipment.</p>
@@ -696,7 +697,8 @@ filters link-local multicast will break the election.</p>
 <!-- test: test/vrrp/vrrp-config.ci -- every valid shape shown above validates -->
 <!-- test: test/vrrp/vrrp-config-invalid.ci -- every rejection rule described above -->
 <!-- test: test/vrrp/vrrp-doctor.ci -- the diagnostic codes are explainable -->
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -738,7 +740,7 @@ filters link-local multicast will break the election.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

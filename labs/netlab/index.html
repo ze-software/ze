@@ -52,7 +52,8 @@ under containerlab. Ze runs as one of those nodes. netlab calls this the daemon 
 one YAML file and one directory of Jinja2 templates, with no Ansible task lists and no
 Vagrant box.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#what-you-need">What you need</a></li>
 <li><a href="#step-1-build-the-image">Step 1: build the image</a></li>
 <li><a href="#step-2-give-netlab-the-daemon-definition">Step 2: give netlab the daemon definition</a></li>
@@ -61,7 +62,7 @@ Vagrant box.</p>
 <li><a href="#the-lab-login">The lab login</a></li>
 <li><a href="#what-is-proven-and-what-is-not">What is proven, and what is not</a></li>
 <li><a href="#keeping-the-templates-from-drifting">Keeping the templates from drifting</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <p>The ze side of that integration lives in <code>contrib/netlab/</code>. <strong><code>contrib/netlab/README.md</code>
 is the source of truth for the artifacts.</strong> This page explains how to run them.</p>
 <h2 id="what-you-need">What you need</h2>
@@ -203,7 +204,8 @@ missing netlab is an error exit, never a skip. Use
 <code>test/plugin/netlab-lab-profile.ci</code> is the other half and needs no netlab: it
 starts a daemon from a golden file and parses the show command output.</p>
 <!-- source: internal/le/test/netlab/actions.go -- Actions -->
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Lab evidence</p>
@@ -233,7 +235,7 @@ starts a daemon from a golden file and parses the show command output.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

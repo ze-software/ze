@@ -53,7 +53,8 @@ programs routes from ze's system RIB directly into VPP's FIB via the
 GoVPP binary API, and the stats segment is polled for per-interface,
 per-node and system-wide Prometheus metrics.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#why-vpp-is-in-ze">Why VPP is in Ze</a></li>
 <li><a href="#how-the-two-halves-fit-together">How the two halves fit together</a></li>
 <li><a href="#what-ze-does-for-you">What ze does for you</a></li>
@@ -68,7 +69,7 @@ per-node and system-wide Prometheus metrics.</p>
 <li><a href="#observing-what-vpp-is-doing">Observing what VPP is doing</a></li>
 <li><a href="#implementation-status">Implementation status</a></li>
 <li><a href="#references-and-further-reading">References and further reading</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <!-- source: internal/component/vpp/vpp.go -- VPPManager lifecycle -->
 <!-- source: internal/plugins/fib/vpp/fibvpp.go -- processEvent installs, updates, withdraws -->
 <!-- source: internal/component/vpp/telemetry.go -- stats poller -->
@@ -529,10 +530,13 @@ defaults do not fit the workload.</p>
 </tbody>
 </table>
 <p><code>fib-vpp</code> depends on the <code>vpp</code> subsystem and on the RIB plugin. If VPP
-is disabled or the GoVPP channel fails to open, the plugin falls back to
-a noop backend and logs a warning instead of blocking the rest of ze.</p>
+is disabled or the GoVPP channel fails to open, the plugin programs no
+route and logs an ERROR naming the cause; the rest of ze keeps running.
+When VPP connects, the plugin opens its writer and asks the system RIB to
+replay every route. Until then <code>show fib vpp</code> answers the cause as an
+error, never an empty route list.</p>
 <!-- source: internal/plugins/fib/vpp/register.go -- Dependencies: ["rib", "vpp"] -->
-<!-- source: internal/plugins/fib/vpp/register.go -- mockBackend fallback when connector is nil -->
+<!-- source: internal/plugins/fib/vpp/register.go -- openFibVPPWriter, answerShowFibVPP -->
 <h3 id="srv6-service-routes">SRv6 service routes</h3>
 <p>The received egress Service SID is the policy's segment. Ze allocates a separate
 local BSID for steering and shares the policy across prefixes using that SID.
@@ -636,9 +640,12 @@ interval is configurable via <code>vpp.stats.poll-interval</code>.</li>
 <!-- source: internal/component/vpp/telemetry.go -- newVPPMetrics, poller.run -->
 <ol start="2">
 <li><strong>The <code>show fib vpp</code> command.</strong> Dumps the routes <code>fib-vpp</code> believes
-it has installed in VPP, as JSON <code>[{"prefix": ..., "next-hop": ...}, ...]</code>.</li>
+it has installed in VPP, as JSON <code>[{"prefix": ..., "next-hop": ...}, ...]</code>.
+Before the plugin has started, or while it has no VPP connection, it
+answers an error saying why instead.</li>
 </ol>
 <!-- source: internal/plugins/fib/vpp/fibvpp.go -- showInstalled -->
+<!-- source: internal/plugins/fib/vpp/register.go -- answerShowFibVPP -->
 <p>Direct VPP introspection (<code>vppctl show int</code>, <code>vppctl show ip fib</code>) is
 still available through the CLI socket ze writes to <code>/run/vpp/cli.sock</code>.</p>
 <!-- source: internal/component/vpp/startupconf.go -- unix cli-listen -->
@@ -732,7 +739,8 @@ and converging sub-second on a full table.</p>
 </tr>
 </tbody>
 </table>
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -774,7 +782,7 @@ and converging sub-second on a full table.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

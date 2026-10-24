@@ -87,7 +87,7 @@ Enrolled: PPPoE access-concentrator and client roles: discovery framing and tags
 **What the ledger says is covered**
 
 - Access concentrator (PADI/PADO/PADR/PADS/PADT discovery, AC-Cookie, session tables, AF_PPPOX kernel sessions) and PPPoE client/Host dialer share PPP codecs and option validation. The AC uses the PPP driver
-- the client runs its own negotiation loop. Requirement bindings are derived from the tagged tests. The PADT lifetime and prohibited-option regressions pass and carry discrimination records in [`rfc/discrimination/rfc2516.json`](https://github.com/ze-software/ze/blob/main/rfc/discrimination/rfc2516.json) (2026-10-09).
+- the client runs its own negotiation loop. Requirement bindings are derived from the tagged tests. The PADT lifetime and prohibited-option regressions pass and carry discrimination records in [`rfc/discrimination/rfc2516/RFC2516-5.5-4.json`](https://github.com/ze-software/ze/blob/main/rfc/discrimination/rfc2516/RFC2516-5.5-4.json) and [`rfc/discrimination/rfc2516/RFC2516-7-2.json`](https://github.com/ze-software/ze/blob/main/rfc/discrimination/rfc2516/RFC2516-7-2.json) (2026-10-09).
 
 
 **What the ledger says remains**

@@ -21,7 +21,7 @@ This page answers **is our testing correct**, not *is our testing large*. Those 
 
 ### Tests with no reachable failure call
 
-**114 / 38056 (floor 114)** (ok)
+**113 / 38211 (floor 114)** (ok)
 
 These execute code and pass unconditionally. Breaking the code under test would not turn them red.
 
@@ -36,9 +36,9 @@ These execute code and pass unconditionally. Breaking the code under test would 
 | internal/component/bfd/metrics_test.go | TestRefreshSessionsGauge |
 | internal/component/bgp/plugins/bmp/route_action_test.go | TestProcessRouteMonitoring_MonitorMode_StoresInBMPRIB |
 | internal/component/bgp/plugins/bmp/route_action_test.go | TestProcessRouteMonitoring_ShortUpdate_Skipped |
-| internal/component/bgp/plugins/filter_irr/filter_irr_test.go | TestRefreshSwapsAtomically |
 | internal/component/bgp/plugins/filter_irr/filter_irr_test.go | TestRefreshASNStoreFieldRace |
 | internal/component/bgp/plugins/healthcheck/hooks_test.go | TestHookFailureNoEffect |
+| internal/component/bgp/plugins/nlri/evpn/plugin_test.go | TestSetEVPNLogger |
 
 ### time.sleep() calls in .ci tests
 
@@ -62,9 +62,9 @@ Enrolled and gate-green, but no requirement is proven by BOTH polarities. Some o
 
 ### RFC MUST requirements proven by test, over the RFCs ze implements
 
-**2758 / 4163** (ok)
+**2757 / 4163** (ok)
 
-66.3% of the 4163 gated MUSTs the 154 RFCs ze implements carry are proven by a tagged test: both polarities, or one polarity whose annotation records that no input drives the other side. The gate holds a wider set -- 4292 gated MUSTs across 173 enrolled RFCs -- and of the 1926 of those not proven in both polarities: 739 not-applicable (recorded as not binding ze; the owner ruling of 2026-08-31 presumes most of these need re-homing, so they stay inside the denominator above rather than being subtracted from it), 644 known gap (unimplemented, genuinely untested), 14 partial (scoped evidence with a remaining gap; subset of annotated, zero whole-requirement credit), 430 single-polarity -- those DO have a passing tagged test, just one side of the pair, and the RFC gate fails if that test is missing -- 44 met by a layer under ze on state ze installs, which the annotation names with the producer that installs it: those are MET and are not proven by ze, so they count in the denominator above and never in the share, 55 conditional on an optional feature ze does not offer, each quoting the RFC sentence that makes it optional: the condition is false, so nothing is owed, and 0 with no test and no annotation at all, which is what `./le rfc check` is red about. Only the gap column and that last one are untested work. Apart from every figure above, 8 rows carry {rollup}: each derives its state from rows already counted here, and none is in the denominator.
+66.2% of the 4163 gated MUSTs the 154 RFCs ze implements carry are proven by a tagged test: both polarities, or one polarity whose annotation records that no input drives the other side. The gate holds a wider set -- 4292 gated MUSTs across 173 enrolled RFCs -- and of the 1927 of those not proven in both polarities: 739 not-applicable (recorded as not binding ze; the owner ruling of 2026-08-31 presumes most of these need re-homing, so they stay inside the denominator above rather than being subtracted from it), 644 known gap (unimplemented, genuinely untested), 15 partial (scoped evidence with a remaining gap; subset of annotated, zero whole-requirement credit), 430 single-polarity -- those DO have a passing tagged test, just one side of the pair, and the RFC gate fails if that test is missing -- 44 met by a layer under ze on state ze installs, which the annotation names with the producer that installs it: those are MET and are not proven by ze, so they count in the denominator above and never in the share, 55 conditional on an optional feature ze does not offer, each quoting the RFC sentence that makes it optional: the condition is false, so nothing is owed, and 0 with no test and no annotation at all, which is what `./le rfc check` is red about. Only the gap column and that last one are untested work. Apart from every figure above, 8 rows carry {rollup}: each derives its state from rows already counted here, and none is in the denominator.
 
 *Action if this degrades:* Write a test for a {gap} requirement, or for one carrying no test and no annotation. A single-polarity requirement is already counted as proven, and not-applicable needs no test.
 
@@ -83,15 +83,15 @@ Enrolled and gate-green, but no requirement is proven by BOTH polarities. Some o
 
 ### In-repo test inventory
 
-**38096 test functions** (ok)
+**38251 test functions** (ok)
 
-6442 Go test files, 90 fuzz targets, 152 benchmarks, 2542 .ci scenarios, 179 .et editor tests. Counts cover internal, cmd, pkg, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.
+6475 Go test files, 91 fuzz targets, 153 benchmarks, 2554 .ci scenarios, 179 .et editor tests. Counts cover internal, cmd, pkg, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.
 
 *Action if this degrades:* This is volume, not health. It is here to state the counting boundary, because a count that silently includes vendored tests inflates by ~6x.
 
 ### Test files that expect a specific error
 
-**2372 / 6442** (ok)
+**2395 / 6475** (ok)
 
 Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, ...), with comments stripped. Setup guards of the form `if err != nil { t.Fatal(err) }` are deliberately NOT counted: those assert the happy path. Blind spot: expecting *an* error is weaker than pinning the right one.
 

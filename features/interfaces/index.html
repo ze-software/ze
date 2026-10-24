@@ -50,7 +50,8 @@
     <p>Ze manages Linux network interfaces via pure netlink (no iproute2 shell-outs).
 JunOS-style two-layer model: physical interfaces with named logical units.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#capability-table">Capability Table</a>
 <ol>
 <li><a href="#creating-a-device">Creating a device</a></li>
@@ -94,7 +95,7 @@ JunOS-style two-layer model: physical interfaces with named logical units.</p>
 <li><a href="#vpp-opt-in-via-govpp">VPP (opt-in, via GoVPP)</a></li>
 <li><a href="#stub-non-linux">Stub (non-Linux)</a></li>
 </ol></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang — interface container -->
 <!-- source: internal/component/iface/register.go — registration -->
 <h2 id="capability-table">Capability Table</h2>
@@ -950,7 +951,7 @@ JunOS-style two-layer model: physical interfaces with named logical units.</p>
 <!-- source: internal/component/sysctl/backend_linux.go -- per-interface sysctl writes -->
 <!-- source: internal/plugins/iface/netlink/mirror_linux.go — traffic mirroring via tc -->
 <!-- source: internal/plugins/iface/vpp/ifacevpp.go — VPP Backend implementation (lazy GoVPP channel) -->
-<!-- source: internal/plugins/iface/vpp/query.go — ListInterfaces/GetInterface/Get/SetMACAddress via SwInterfaceDump and SwInterfaceSetMacAddress -->
+<!-- source: internal/plugins/iface/vpp/query.go — ListInterfaces/GetInterface/Get/SetMACAddress via SwInterfaceDump, IPAddressDump and SwInterfaceSetMacAddress -->
 <!-- source: internal/plugins/iface/vpp/monitor.go — StartMonitor via WantInterfaceEvents + SubscribeNotification -->
 <!-- source: internal/plugins/iface/vpp/naming.go — ze short name <-> VPP SwIfIndex bidirectional map -->
 <!-- source: internal/plugins/iface/vpp/fib.go — RouteLookup via IPRouteLookupV2; ListKernelRoutes via ip_route_v2_dump over both v4 and v6 tables -->
@@ -962,7 +963,11 @@ JunOS-style two-layer model: physical interfaces with named logical units.</p>
 wireguard, xfrm, and the VLAN of each unit with a <code>vlan-id</code>. Whether a device
 exists is read before its create, never after, and it is read from the link
 alone (<code>GetLink</code>), as are the MTU and admin state the undo puts back: a failed
-address read cannot make a present device read as absent. A device that existed is kept,
+address read cannot make a present device read as absent. Only the backend's
+"no such device" answer is absence: a link read that fails (a socket that does
+not open, ENOBUFS, a dump interrupted on every retry) fails the commit, naming
+the device and <code>ze show interface &lt;name&gt;</code>, rather than reading as absent and
+creating a present device again. A device that existed is kept,
 and the undo of a failed apply leaves it in place. A create that fails for a
 device that did not exist fails the commit, even when the backend left a
 partial device behind, and the undo deletes only the devices the apply created.</p>
@@ -1199,9 +1204,10 @@ device the kernel reports down deleted the address with the link, so nothing is
 declined, and the next up counts as a move. When the backend reports a link state
 that is neither up nor down, the client declines nothing, logs one Warn for each such
 state naming it and the interface, and reads again at the next DAD poll. A read that
-fails declines nothing either. The VPP backend does not report interface addresses,
-so on it the client cannot read a DAD outcome: it declines nothing and logs one Warn
-saying so. When the bound device goes down and comes back up, the client may
+fails declines nothing either. The VPP backend reports interface addresses but not
+their DAD outcome, because VPP's address dump carries no DAD state. On it the client
+cannot read a DAD outcome, so it does not take an unflagged address as unique: it
+declines nothing and logs one Warn saying so. When the bound device goes down and comes back up, the client may
 have moved to a new link: with a delegated prefix held it sends a Rebind for every
 lease, on the Confirm timers (RFC 9915 Section 18.2.12), at most once every 30 s,
 and it installs every leased address again with what is left of its lifetimes,
@@ -1670,7 +1676,7 @@ tap, the kernel waits, and no address appears.</p>
 names the unit. This matches the refusal the <code>dhcp</code>, <code>dhcpv6</code> and
 <code>router-advertisement</code> containers already carry.</p>
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- leaf autoconf, leaf accept-ra -->
-<!-- source: internal/component/config/backend_gate.go -- ValidateBackendFeatures, backendAnnotation -->
+<!-- source: internal/component/config/backend_gate.go -- validateBackendFeatures, backendAnnotation -->
 <!-- source: internal/component/iface/config_sysctl.go -- applySysctl emits the two keys -->
 <h3 id="container-leaves">Container leaves</h3>
 <table>
@@ -2360,22 +2366,22 @@ underlying mechanism. Cells with a footnote carry a caveat.</p>
 <td><strong>Query</strong></td>
 <td><code>ListInterfaces</code></td>
 <td>real</td>
-<td>real (SwInterfaceDump)</td>
+<td>real (SwInterfaceDump, IPAddressDump per family; no DAD state)</td>
 <td>real (net.Interfaces)</td>
 </tr>
 <tr>
 <td></td>
 <td><code>GetInterface</code></td>
 <td>real</td>
-<td>real (SwInterfaceDump)</td>
+<td>real (SwInterfaceDump, IPAddressDump per family; no DAD state)</td>
 <td>real (net.InterfaceByName)</td>
 </tr>
 <tr>
 <td></td>
 <td><code>GetLink</code></td>
-<td>real (no address dump)</td>
-<td>real (SwInterfaceDump)</td>
-<td>real (net.InterfaceByName)</td>
+<td>real (no address dump; ENODEV is not-found)</td>
+<td>real (SwInterfaceDump, no address dump)</td>
+<td>real (net.Interfaces)</td>
 </tr>
 <tr>
 <td></td>
@@ -2570,7 +2576,7 @@ describes.</p>
 Routes, stats, counter reset, neighbour table, mirrors, and STP are the
 main gaps against feature parity.</p>
 <!-- source: internal/plugins/iface/vpp/ifacevpp.go -- full Backend implementation, errNotSupported reasons per method -->
-<!-- source: internal/plugins/iface/vpp/query.go -- ListInterfaces/GetInterface/GetMACAddress/SetMACAddress via SwInterfaceDump, SwInterfaceSetMacAddress -->
+<!-- source: internal/plugins/iface/vpp/query.go -- ListInterfaces/GetInterface/GetMACAddress/SetMACAddress via SwInterfaceDump, IPAddressDump (fillAddresses), SwInterfaceSetMacAddress -->
 <!-- source: internal/plugins/iface/vpp/monitor.go -- StartMonitor/StopMonitor via WantInterfaceEvents + SubscribeNotification -->
 <!-- source: internal/plugins/iface/vpp/naming.go -- ze short name <-> VPP SwIfIndex map -->
 <h3 id="stub-non-linux">Stub (non-Linux)</h3>
@@ -2590,7 +2596,8 @@ creates, addresses or changes one sees the explicit error and rejects
 under exact-or-reject.</p>
 <!-- source: internal/plugins/iface/netlink/backend_other.go -- stubBackend, unsupported() returning "not supported on <GOOS>" -->
 <!-- source: internal/plugins/iface/netlink/show_other.go -- ListInterfaces/GetInterface/GetLink via net.Interfaces -->
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Feature doc</p>
@@ -2624,7 +2631,7 @@ under exact-or-reject.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

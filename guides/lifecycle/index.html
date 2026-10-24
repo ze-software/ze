@@ -49,7 +49,8 @@
     <h1 id="lifecycle-rollback-and-recovery">Lifecycle, Rollback, and Recovery</h1>
     <p>Use this guide for routine daemon control and configuration recovery. Ze separates configuration reload, process restart, and host reboot because they have different routing consequences.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#before-first-start">Before first start</a></li>
 <li><a href="#choose-the-right-action">Choose the right action</a></li>
 <li><a href="#review-and-commit-configuration">Review and commit configuration</a></li>
@@ -58,7 +59,7 @@
 <li><a href="#software-updates">Software updates</a></li>
 <li><a href="#recovery-order">Recovery order</a></li>
 <li><a href="#related-guides">Related guides</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <h2 id="before-first-start">Before first start</h2>
 <pre><code class="language-console">ze init
 ze config validate ze.conf
@@ -178,7 +179,8 @@ ze cli -c "show health"
 <li><a href="../bgp-resilience/">BGP resilience</a></li>
 <li><a href="../production-diagnostics/">Production diagnostics</a></li>
 </ul>
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -220,7 +222,7 @@ ze cli -c "show health"
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

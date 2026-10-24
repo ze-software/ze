@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 12.0% | 12 of 100 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 100 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 100 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 85.0% | 142 of 167 tagged units, 0 escaped and 8 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 88.6% | 148 of 167 tagged units, 0 escaped and 2 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -369,12 +369,12 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_sad_selector_linux_test.go#L403) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_sad_selector_linux_test.go#L403) | unit/verify | revert, verified |
 | negative | [`TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_sad_selector_linux_test.go#L348) | unit/verify | revert, verified |
 | positive | [`TestChildSAInboundPolicyUsesNegotiatedTS`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L428) | unit/verify | revert, verified |
-| positive | [`TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_sad_selector_linux_test.go#L401) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_sad_selector_linux_test.go#L401) | unit/verify | revert, verified |
 | positive | [`TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_sad_selector_linux_test.go#L345) | unit/verify | revert, verified |
-| positive | [`TestRFC4301InboundSADEntryCarriesTheNegotiatedSelectors`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_sad_selector_test.go#L60) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC4301InboundSADEntryCarriesTheNegotiatedSelectors`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_sad_selector_test.go#L60) | unit/verify | revert, verified |
 | positive | [`TestNarrowedSelectorsReachTheInstalledPolicy`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/ts_narrow_test.go#L424) | unit/verify | revert, verified |
 
 ### [`RFC4301-4.4.2-2`](#rfc4301-4.4.2-2)
@@ -424,11 +424,11 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC4301BoundarySPDEntryIsRefusedRatherThanWidened`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4301_boundary_linux_test.go#L191) | unit/verify | revert, verified |
-| negative | [`TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_sad_selector_linux_test.go#L408) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_sad_selector_linux_test.go#L408) | unit/verify | revert, verified |
 | negative | [`TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_sad_selector_linux_test.go#L353) | unit/verify | revert, verified |
 | positive | [`TestRFC4301BoundarySPDEntryCarriesSelectorDirectionOrderAndTemplate`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc4301_boundary_linux_test.go#L130) | unit/verify | revert, verified |
 | positive | [`TestRFC4301TransportStateSelectorIsTheNegotiatedPair`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_child_multi_pair_test.go#L135) | unit/verify | mutant, verified |
-| positive | [`TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_sad_selector_linux_test.go#L406) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_sad_selector_linux_test.go#L406) | unit/verify | revert, verified |
 | positive | [`TestRFC4301TunnelModeInboundSelectorsAreEnforcedByTheRequirePolicy`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_sad_selector_linux_test.go#L351) | unit/verify | revert, verified |
 
 ### [`RFC4301-4.1-6`](#rfc4301-4.1-6)
@@ -549,7 +549,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC4301ChildSAIsInstalledAsESP`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_esp_test.go#L19) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC4301ChildSAIsInstalledAsESP`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_esp_test.go#L19) | unit/verify | revert, verified |
 
 ### [`RFC4301-4-1`](#rfc4301-4-1)
 

@@ -51,7 +51,8 @@
 routes (RFC 8277) received from peers are programmed into the kernel MPLS FIB as
 label-push entries, so Ze forwards labeled traffic without VPP.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#enabling-mpls">Enabling MPLS</a></li>
 <li><a href="#inspecting-the-forwarding-table">Inspecting the forwarding table</a></li>
 <li><a href="#metrics">Metrics</a></li>
@@ -59,7 +60,7 @@ label-push entries, so Ze forwards labeled traffic without VPP.</p>
 <ol>
 <li><a href="#ldp-configuration">LDP configuration</a></li>
 </ol></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <h2 id="enabling-mpls">Enabling MPLS</h2>
 <p>MPLS label processing is per-interface. Enable it on each interface that should
 accept labeled packets:</p>
@@ -173,7 +174,8 @@ neighbor.</p>
 <!-- source: internal/plugins/fib/kernel/nexthop_linux.go -- buildMPLSEncap (push) -->
 <!-- source: internal/component/iface/config_sysctl.go -- net.mpls.conf.<iface>.input -->
 <!-- source: internal/component/mpls/show_forwarding.go -- show mpls forwarding -->
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -215,7 +217,7 @@ neighbor.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

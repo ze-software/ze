@@ -57,7 +57,8 @@ UDP. The <code>flowexport</code> component is a registered component: it loads o
 the interface rate tracker's snapshot callback; per-flow records come from
 packet sampling and from periodic conntrack table dumps.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#configuration">Configuration</a>
 <ol>
 <li><a href="#collectors">Collectors</a></li>
@@ -70,7 +71,7 @@ packet sampling and from periodic conntrack table dumps.</p>
 <li><a href="#limitations">Limitations</a></li>
 <li><a href="#scale-conntrack-vs-sampling">Scale: conntrack vs sampling</a></li>
 <li><a href="#security">Security</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <p>Because counter export consumes the interface rate tracker, configuring
 <code>flow-export { }</code> automatically pulls in the interface plugin (a registered
 dependency). You do not need to add a separate <code>interface { }</code> section just to
@@ -507,7 +508,8 @@ exact accounting where flow rates are modest.</p>
 <p>The export protocols (sFlow, NetFlow v9, IPFIX) are unencrypted UDP and carry
 no authentication. Run flow export over a dedicated management VLAN, and keep
 the collector endpoints off any untrusted path.</p>
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -549,7 +551,7 @@ the collector endpoints off any untrusted path.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

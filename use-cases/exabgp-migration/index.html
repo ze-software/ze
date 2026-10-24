@@ -49,7 +49,8 @@
     <h1 id="exabgp-migration">ExaBGP Migration</h1>
     <p>Ze provides tools for converting ExaBGP configurations and running existing ExaBGP plugins with ze as the BGP engine.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#config-migration">Config Migration</a>
 <ol>
 <li><a href="#what-gets-converted">What Gets Converted</a></li>
@@ -67,7 +68,7 @@
 <li><a href="#cutover-checklist">Cutover checklist</a></li>
 </ol></li>
 <li><a href="#when-to-port-plugins">When to Port Plugins</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <!-- source: internal/plugins/exabgp/main.go -- Run; internal/exabgp/migration/ -- config conversion; internal/exabgp/bridge/ -- plugin bridge -->
 <h2 id="config-migration">Config Migration</h2>
 <p>Convert an ExaBGP configuration file to ze-native format:</p>
@@ -321,7 +322,8 @@ rewrite.</p>
 <li>You want to use the Go SDK for direct in-process execution</li>
 </ul>
 <!-- source: internal/exabgp/bridge/ -- bidirectional translation; internal/exabgp/migration/ -- config converter -->
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Use case</p>
@@ -355,7 +357,7 @@ rewrite.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

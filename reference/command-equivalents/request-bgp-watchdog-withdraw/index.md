@@ -1,13 +1,13 @@
 # `request bgp watchdog withdraw`
 
-Withdraw routes in watchdog group
+Withdraw the routes of a watchdog\.
 
 ## Ze command
 
 - Registry path: `request bgp watchdog withdraw`
-- Usage: `request bgp watchdog withdraw`
+- Usage: `request bgp watchdog withdraw <name> [peer <peer>]`
 - Mode: Daemon
-- Wire method: `not listed`
+- Wire method: `ze-bgp:watchdog-withdraw`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
@@ -21,9 +21,14 @@ Withdraw routes in watchdog group
 - Command pipes: none
 - Pipe aliases: none
 
+Ze withdraws every route of the watchdog from each peer that carries it\, and holds them withdrawn across a reconnect until the next announce\.
+
 ## Arguments
 
-No command-specific arguments listed.
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `name` | string | yes | any value of this type | Watchdog name | The watchdog\'s name\. med is refused as a name\. |
+| `peer` | string | no | any value of this type | Peer address\, or \* for every peer | The peer the routes are withdrawn from\, or \* for every peer that carries the watchdog\. Absent\, the peer the command was sent for\. |
 
 ## Mapping intents
 

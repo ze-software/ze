@@ -49,7 +49,8 @@
     <h1 id="monitoring">Monitoring</h1>
     <p>Ze provides real-time BGP event monitoring and a live peer dashboard through the CLI. Commands follow verb-first syntax: <code>monitor &lt;module&gt;</code>.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#live-peer-dashboard">Live Peer Dashboard</a></li>
 <li><a href="#event-streaming">Event Streaming</a>
 <ol>
@@ -85,7 +86,7 @@
 </ol></li>
 </ol></li>
 <li><a href="#single-command">Single Command</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <!-- source: internal/component/bgp/plugins/cmd/monitor/ -- monitor streaming RPCs -->
 <h2 id="live-peer-dashboard">Live Peer Dashboard</h2>
 <pre><code>ze cli -c "monitor bgp"
@@ -1124,7 +1125,8 @@ ze cli -c "show bgp rib received"
 ze cli -c "show bgp rpki status"
 </code></pre>
 <!-- source: internal/component/cli/client/main.go -- Run, Execute, StreamMonitor -->
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -1166,7 +1168,7 @@ ze cli -c "show bgp rpki status"
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

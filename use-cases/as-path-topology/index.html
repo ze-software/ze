@@ -49,7 +49,8 @@
     <h1 id="as-path-topology">AS-Path Topology</h1>
     <p>Use the built-in Looking Glass to turn the AS paths for a prefix into a topology view. The graph is an operational aid for comparing what different peers advertise, not a complete map of the Internet.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#what-the-graph-shows">What the graph shows</a></li>
 <li><a href="#deploy-a-complete-lab">Deploy a complete lab</a></li>
 <li><a href="#interpret-the-result">Interpret the result</a></li>
@@ -61,7 +62,7 @@
 <li><a href="#validate-route-server-visibility">Validate route-server visibility</a></li>
 </ol></li>
 <li><a href="#limits">Limits</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <h2 id="what-the-graph-shows">What the graph shows</h2>
 <p>For one prefix, Ze collects eligible paths visible through the Looking Glass and builds a directed AS graph. Nodes are AS numbers and edges are observed AS-path adjacencies. Multiple peers may contribute the same edge or different paths to the same origin.</p>
 <p>The graph helps answer:</p>
@@ -150,7 +151,8 @@ graph engine or external topology service.</p>
 <li>A public graph can expose routing information the operator considers sensitive.</li>
 </ul>
 <p>Apply the same exposure policy and rate limits as the rest of the public Looking Glass.</p>
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Use case</p>
@@ -184,7 +186,7 @@ graph engine or external topology service.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

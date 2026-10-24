@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 0.0% | 0 of 31 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 31 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 31 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 95.7% | 45 of 47 tagged units, 2 escaped and 0 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 91.7% | 44 of 48 tagged units, 2 escaped and 2 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -68,10 +68,10 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Declared gaps a test demonstrates | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 47 |
-| Tagged units | 47 |
+| Test tags | 48 |
+| Tagged units | 48 |
 | Recorded audit verdicts | 18 |
-| Discrimination records | 47 |
+| Discrimination records | 48 |
 | Summary | `rfc/short/rfc3579.md` |
 | Requirement shard | `rfc/requirements/rfc3579.md` |
 | RFC text | `rfc/full/rfc3579.txt` |
@@ -86,7 +86,7 @@ Enrolled: RADIUS/EAP, ze in the NAS (RADIUS client) role: 31 MUST-level requirem
 
 **What the ledger says is covered**
 
-Ze is the NAS and runs the RADIUS/EAP conversation for operator login, with `auth-method eap-md5` or `eap-mschapv2`. It encapsulates one EAP packet per RADIUS packet in consecutive EAP-Message attributes split at 253 octets (`appendEAPMessage`, `eapPacketFrom`, [`internal/component/radius/eap.go`](https://github.com/ze-software/ze/blob/main/internal/component/radius/eap.go)), signs every EAP-bearing Access-Request (`SignMessageAuthenticator`, [`internal/component/radius/packet.go`](https://github.com/ze-software/ze/blob/main/internal/component/radius/packet.go)), silently discards a reply whose Message-Authenticator does not verify (`(*Client).dispatchResponse`, [`internal/component/radius/client.go`](https://github.com/ze-software/ze/blob/main/internal/component/radius/client.go)), and answers each Access-Challenge with the peer's EAP-Response and the challenge's State unmodified (`authenticateEAP`, [`internal/component/radius/authenticator_eap.go`](https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap.go)). It copies the peer's own EAP-Response/Identity Type-Data into User-Name on every request of the conversation, validates each server EAP header before the peer sees it, processes the EAP-Message attributes before it reads the reply code, and never offers a password credential in place of the configured EAP method. Ze answers EAP itself, as the peer, rather than passing frames through.
+Ze is the NAS and runs the RADIUS/EAP conversation for operator login, with `auth-method eap-md5` or `eap-mschapv2`. It encapsulates one EAP packet per RADIUS packet in consecutive EAP-Message attributes split at 253 octets (`appendEAPMessage`, `eapPacketFrom`, [`internal/component/radius/eap.go`](https://github.com/ze-software/ze/blob/main/internal/component/radius/eap.go)), signs every EAP-bearing Access-Request (`SignMessageAuthenticator`, [`internal/component/radius/packet.go`](https://github.com/ze-software/ze/blob/main/internal/component/radius/packet.go)), silently discards a reply whose Message-Authenticator does not verify, and a reply that carries an EAP-Message with no Message-Authenticator, counting the latter on `ze_radius_unsigned_eap_discards_total` (`(*Client).dispatchResponse`, [`internal/component/radius/client.go`](https://github.com/ze-software/ze/blob/main/internal/component/radius/client.go)), and answers each Access-Challenge with the peer's EAP-Response and the challenge's State unmodified (`authenticateEAP`, [`internal/component/radius/authenticator_eap.go`](https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap.go)). It copies the peer's own EAP-Response/Identity Type-Data into User-Name on every request of the conversation, validates each server EAP header before the peer sees it, processes the EAP-Message attributes before it reads the reply code, and never offers a password credential in place of the configured EAP method. Ze answers EAP itself, as the peer, rather than passing frames through.
 
 **What the ledger says remains**
 
@@ -154,7 +154,7 @@ Fourteen MUST requirements are unproven, unreached or unmet, none of which chang
 | `RFC3579-2.6.5-2` | To avoid these problems, a NAS receiving a Reply-Message attribute from the RADIUS server SHOULD silently discard the attribute, rather than attempting to translate it to an EAP Notification Request. (§2.6.5) | SHOULD | 2.6.5 - Displayable Messages | **positive:** no positive test. **negative:** no negative test |
 | `RFC3579-3-2` | The NAS-Port or NAS-Port-Id attributes SHOULD be included by the NAS in Access-Request packets (§3) | SHOULD | 3 - Attributes | **positive:** `unit/verify` [`TestRadiusAdminEapAccessRequestNamesThePort`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_nas_obligations_test.go#L617). **positive:** `unit/verify` [`TestRadiusAdminPapAccessRequestNamesThePort`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_nas_obligations_test.go#L656). **negative:** `unit/verify` [`TestRadiusAdminEapAccessRequestNamesThePort`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_nas_obligations_test.go#L621). **positive:** `functional/verify` [`aaa-radius-admin.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/aaa-radius-admin.ci#L5) |
 | `RFC3579-3.1-5` | When RADIUS is used to enable EAP authentication, Access-Request, Access-Challenge, Access-Accept, and Access-Reject packets SHOULD contain one or more EAP-Message attributes. (§3.1) | SHOULD | 3.1 - EAP-Message | **positive:** no positive test. **negative:** no negative test |
-| `RFC3579-3.1-6` | Access-Challenge, Access-Accept, or Access-Reject packets including EAP-Message attribute(s) without a Message-Authenticator attribute SHOULD be silently discarded by the NAS. (§3.1) | SHOULD | 3.1 - EAP-Message | **positive:** no positive test. **negative:** no negative test |
+| `RFC3579-3.1-6` | Access-Challenge, Access-Accept, or Access-Reject packets including EAP-Message attribute(s) without a Message-Authenticator attribute SHOULD be silently discarded by the NAS. (§3.1) | SHOULD | 3.1 - EAP-Message | **positive:** no positive test. **negative:** `unit/verify` [`TestRadiusDiscardsEAPAnswerWithoutMessageAuthenticator`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_client_test.go#L75) |
 | `RFC3579-4.2-4` | To address the security vulnerabilities of RADIUS/EAP, implementations of this specification SHOULD support IPsec [RFC2401] along with IKE [RFC2409] for key management. IPsec ESP [RFC2406] with non-null transform SHOULD be supported, and IPsec ESP with a non-null encryption transform and authentication support SHOULD be used to provide per-packet confidentiality, authentication, integrity and replay protection. (§4.2) | SHOULD | 4.2 - Security Protocol | **positive:** no positive test. **negative:** no negative test |
 | `RFC3579-4.2-5` | AES-CBC SHOULD be supported. AES-CBC SHOULD be offered as a preferred encryption transform if supported. HMAC-SHA1-96 MUST be supported as an authentication transform. DES-CBC SHOULD NOT be used as the encryption transform. (§4.2) | SHOULD | 4.2 - Security Protocol | **positive:** no positive test. **negative:** no negative test |
 | `RFC3579-4.3.2-1` | As a result, the Message-Authenticator attribute SHOULD be used in Access-Request packets that do not have a User-Password attribute, in order to establish the identity of the NAS sending the request. (§4.3.2) | SHOULD | 4.3.2 - Spoofing and Hijacking | **positive:** no positive test. **negative:** no negative test |
@@ -382,8 +382,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. a fo
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRadiusAdminEapDiscardsUnauthenticatedChallenge`](https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L501) | unit/verify | revert, verified |
-| positive | [`TestRadiusAdminEapVerifiedChallengeIsAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L915) | unit/verify | revert, verified |
+| negative | [`TestRadiusAdminEapDiscardsUnauthenticatedChallenge`](https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L501) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRadiusAdminEapVerifiedChallengeIsAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L915) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC3579-3.2-1`](#rfc3579-3.2-1)
 
@@ -507,6 +507,16 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | positive | [`TestRadiusAdminEapAccessRequestNamesThePort`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_nas_obligations_test.go#L617) | unit/verify | revert, verified |
 | positive | [`TestRadiusAdminPapAccessRequestNamesThePort`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_nas_obligations_test.go#L656) | unit/verify | revert, verified |
 | positive | [`aaa-radius-admin.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/aaa-radius-admin.ci#L5) | functional/verify | revert, verified |
+
+### [`RFC3579-3.1-6`](#rfc3579-3.1-6)
+
+Access-Challenge, Access-Accept, or Access-Reject packets including EAP-Message attribute(s) without a Message-Authenticator attribute SHOULD be silently discarded by the NAS. (§3.1)
+
+Audit verdict: not audited: no reader has judged these tests
+
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRadiusDiscardsEAPAnswerWithoutMessageAuthenticator`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_client_test.go#L75) | unit/verify | revert, verified |
 
 ## Extraction sign-off
 

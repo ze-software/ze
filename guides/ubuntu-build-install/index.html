@@ -49,7 +49,8 @@
     <h1 id="build-and-install-ze-on-ubuntu">Build and install Ze on Ubuntu</h1>
     <p>This page starts from a blank Ubuntu server and leaves you with an installed <code>ze</code> binary, a private <code>database/</code> store, an SSH listener, a systemd service, and one place to add Ze features.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#1-install-build-tools">1. Install build tools</a></li>
 <li><a href="#2-build-ze">2. Build Ze</a></li>
 <li><a href="#3-install-the-binary">3. Install the binary</a></li>
@@ -59,7 +60,7 @@
 <li><a href="#7-test-ssh-login-and-rbac">7. Test SSH login and RBAC</a></li>
 <li><a href="#8-add-features">8. Add features</a></li>
 <li><a href="#9-stop-or-roll-back">9. Stop or roll back</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <p>The commands assume Ubuntu 24.04 or newer, <code>sudo</code>, and an <code>amd64</code> or <code>arm64</code> host. Replace <code>edge-01</code> and every password before running them on a real box.</p>
 <!-- source: internal/le/setup/actions.go -- Answer -->
 <!-- source: internal/le/setup/actions.go -- Answer -->
@@ -297,7 +298,8 @@ sudo /usr/local/bin/ze uninstall systemd
 sudo /usr/local/bin/ze uninstall local
 </code></pre>
 <p>Use <code>--purge</code> only when you want to remove <code>/etc/ze</code> and its <code>database/</code> tree.</p>
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -335,7 +337,7 @@ sudo /usr/local/bin/ze uninstall local
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 12 October 2026 10:25 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

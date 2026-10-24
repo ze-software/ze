@@ -49,13 +49,14 @@
     <h1 id="glossary">Glossary</h1>
     <p>Terms used in Ze documentation and operator output.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#bgp-and-routing">BGP and routing</a></li>
 <li><a href="#resilience-and-policy">Resilience and policy</a></li>
 <li><a href="#ze-configuration-and-operation">Ze configuration and operation</a></li>
 <li><a href="#operator-surfaces">Operator surfaces</a></li>
 <li><a href="#testing">Testing</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <h2 id="bgp-and-routing">BGP and routing</h2>
 <p><strong>Adj-RIB-In</strong><br>
 Routes accepted from a peer and retained before or alongside local best-path selection. Ze does not keep every import-rejected route unless a component explicitly records it.</p>
@@ -139,7 +140,8 @@ A scenario that runs Ze against another real implementation such as FRR, BIRD, G
 An invariant checked across a scenario, such as convergence, route isolation, or state consistency.</p>
 <p><strong>Shrink</strong><br>
 Reduction of a recorded chaos event sequence to the smallest sequence that still reproduces a failure.</p>
-
+</div>
+</div>
             </section>
         </main>
 
@@ -149,7 +151,7 @@ Reduction of a recorded chaos event sequence to the smallest sequence that still
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

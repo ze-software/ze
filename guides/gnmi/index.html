@@ -49,7 +49,8 @@
     <h1 id="gnmi-guide">gNMI Guide</h1>
     <p>Ze includes a gNMI (gRPC Network Management Interface) server that exposes YANG-modeled configuration over the industry-standard gNMI protocol. This allows management by tools like gnmic, Ansible, and network controllers that speak gNMI.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#enabling-gnmi">Enabling gNMI</a></li>
 <li><a href="#authentication">Authentication</a></li>
 <li><a href="#tls">TLS</a></li>
@@ -58,7 +59,7 @@
 <li><a href="#prometheus-metrics">Prometheus Metrics</a></li>
 <li><a href="#usage-with-gnmic">Usage with gnmic</a></li>
 <li><a href="#limitations">Limitations</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <p>Default feature-tag lists include <code>ze_gnmi</code>. A custom minimal build that needs
 gNMI must include <code>-tags "ze_core ze_gnmi"</code>.</p>
 <!-- source: feature-gates.txt -- ze_gnmi -->
@@ -114,7 +115,7 @@ ze.gnmi.tls.key=/path/to/key.pem
 <tbody>
 <tr>
 <td>Capabilities</td>
-<td>Returns supported YANG models, encodings (JSON_IETF), and gNMI version</td>
+<td>Returns supported YANG models, encodings (JSON and JSON_IETF), and gNMI version</td>
 </tr>
 <tr>
 <td>Get</td>
@@ -187,7 +188,8 @@ ze.gnmi.tls.key=/path/to/key.pem
 <li>TLS certificates are loaded at startup only; no hot rotation</li>
 <li>External config commits (web/CLI) send a generic config-changed notification, not per-path diffs</li>
 </ul>
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -229,7 +231,7 @@ ze.gnmi.tls.key=/path/to/key.pem
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

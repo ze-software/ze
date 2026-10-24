@@ -52,7 +52,8 @@ routing tables or next-hops based on L3/L4 match criteria. This is used
 for content filtering (Surfprotect), split tunneling, and traffic
 engineering scenarios where destination-based routing is insufficient.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#configuration">Configuration</a></li>
 <li><a href="#interface-binding">Interface binding</a></li>
 <li><a href="#match-criteria-from-block">Match criteria (from block)</a></li>
@@ -66,7 +67,7 @@ engineering scenarios where destination-based routing is insufficient.</p>
 <li><a href="#cli">CLI</a></li>
 <li><a href="#nftables-internals">nftables internals</a></li>
 <li><a href="#dependencies">Dependencies</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <p>Under the hood, ze uses nftables packet marking with kernel ip rules.
 Each matching packet gets an fwmark; a kernel ip rule maps that mark to
 the target routing table.</p>
@@ -365,7 +366,8 @@ available for policy routing to function. The firewall backend (nft) is
 loaded by the firewall plugin; policy routing registers its tables with
 the shared firewall table registry.</p>
 <p>Auto-managed routes use protocol <code>ze-policy-route</code> (RTPROT 252).</p>
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -407,7 +409,7 @@ the shared firewall table registry.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 10:04 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

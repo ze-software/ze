@@ -63,9 +63,9 @@
 .rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
 .rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
 .rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
-.rfc-ok { border-left: 7px solid var(--teal-base); }
+.rfc-ok { border-left: 7px solid var(--green); }
 .rfc-neutral { border-left: 7px solid var(--line-strong); }
-.rfc-warn { border-left: 7px solid var(--gold-base); }
+.rfc-warn { border-left: 7px solid var(--amber); }
 .rfc-bad { border-left: 7px solid var(--danger-deep); }
 .rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
 .rfc-tape span { width: var(--w); min-width: 0; display: block; }
@@ -80,11 +80,11 @@
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-partial-scope { background: var(--danger-deep); }
-.rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
+.rfc-tape-one_polarity_unexcused { background: var(--amber); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
-.rfc-swatch.rfc-ok { background: var(--teal-base); }
+.rfc-swatch.rfc-ok { background: var(--green); }
 .rfc-swatch.rfc-neutral { background: var(--line-strong); }
-.rfc-swatch.rfc-warn { background: var(--gold-base); }
+.rfc-swatch.rfc-warn { background: var(--amber); }
 .rfc-swatch.rfc-bad { background: var(--danger-deep); }
 .rfc-total td { border-top: 2px solid var(--line-strong); }
 .rfc-prose { max-width: 46rem; }
@@ -110,7 +110,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 .rfc-note-box { margin: 1rem 0; padding: 1rem 1.2rem; border-radius: 16px; background: var(--gold-tint); border: 1px solid var(--gold-chip); }
 .rfc-note-box h3 { margin-top: 0; }
 .rfc-note-box ul { margin-bottom: 0; }
-.rfc-check-ok strong { color: var(--teal-deep); }
+.rfc-check-ok strong { color: var(--green); }
 .rfc-check-bad strong { color: var(--danger-deep); }
 </style>
 <section><h2>Overview</h2>
@@ -121,7 +121,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>7.7%</strong><b>2 of 26 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 26 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 26 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>55.9%</strong><b>19 of 34 tagged units, 0 escaped and 4 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>64.7%</strong><b>22 of 34 tagged units, 0 escaped and 1 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -513,9 +513,9 @@ Historical requirement lineage is recorded by the per-row supersession annotatio
 <td>6.2.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7752-6.2.2-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc7752_test.go#L136" title="internal/component/bgp/plugins/nlri/ls/rfc7752_test.go" target="_blank" rel="noopener"><code>TestRFC7752AttrSyntacticChecks</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7752_length_sums_test.go#L96" title="internal/component/bgp/reactor/rfc7752_length_sums_test.go" target="_blank" rel="noopener"><code>TestRFC7752AttributeLengthSumsOnReceive</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7752_length_sums_test.go#L100" title="internal/component/bgp/reactor/rfc7752_length_sums_test.go" target="_blank" rel="noopener"><code>TestRFC7752AttributeLengthSumsOnReceive</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7752_length_sums_test.go#L25" title="internal/component/bgp/reactor/rfc7752_length_sums_test.go" target="_blank" rel="noopener"><code>TestRFC7752LinkStateLengthSumsOnReceive</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7752_length_sums_test.go#L97" title="internal/component/bgp/reactor/rfc7752_length_sums_test.go" target="_blank" rel="noopener"><code>TestRFC7752AttributeLengthSumsOnReceive</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7752_length_sums_test.go#L101" title="internal/component/bgp/reactor/rfc7752_length_sums_test.go" target="_blank" rel="noopener"><code>TestRFC7752AttributeLengthSumsOnReceive</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7752_length_sums_test.go#L26" title="internal/component/bgp/reactor/rfc7752_length_sums_test.go" target="_blank" rel="noopener"><code>TestRFC7752LinkStateLengthSumsOnReceive</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc7752_test.go#L104" title="internal/component/bgp/plugins/nlri/ls/rfc7752_test.go" target="_blank" rel="noopener"><code>TestRFC7752MalformedTLVNotPreserved</code></a></span></div>
 </div></td>
@@ -963,7 +963,7 @@ Historical requirement lineage is recorded by the per-row supersession annotatio
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc7752_bgpls_test.go#L62" title="internal/core/bgp/capability/rfc7752_bgpls_test.go" target="_blank" rel="noopener"><code>TestRFC7752BGPLSCapabilityNotNegotiatedWhenPeerSilent</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_capability_test.go#L55" title="internal/component/bgp/reactor/rfc9552_capability_test.go" target="_blank" rel="noopener"><code>TestRFC9552LinkStateSentToCapablePeer</code></a></td>
@@ -1107,7 +1107,7 @@ Historical requirement lineage is recorded by the per-row supersession annotatio
 <p>No test carries RFC7752-6.2.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc7752-6.2.2-2"><code>RFC7752-6.2.2-2</code></a></h3>
 <p>An implementation of BGP-LS MUST perform the following syntactic checks for determining if a message is malformed. o Does the sum of all TLVs found in the BGP-LS attribute correspond to the BGP-LS path attribute length? o Does the sum of all TLVs found in the BGP MP_REACH_NLRI attribute correspond to the BGP MP_REACH_NLRI length? o Does the sum of all TLVs found in the BGP MP_UNREACH_NLRI attribute correspond to the BGP MP_UNREACH_NLRI length? o Does the sum of all TLVs found in a Node, Link or Prefix Descriptor NLRI attribute correspond to the Total NLRI Length field of the Node, Link, or Prefix Descriptors? o Does any fixed-length TLV correspond to the TLV Length field in this document? (Section 6.2.2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV-&gt;WriteTLV and field-export renames (TLV code constants verified unchanged). RFC 7752 Section 6.2.2: &#34;An implementation of BGP-LS MUST perform the following syntactic checks for determining if a message is malformed.&#34; Whole list carried by the reactor TestRFC7752 length-sum units (MP_REACH/MP_UNREACH outer and descriptor sums, code29 TLV sums, both polarities, unchanged). The ls units now assert bgpls.ErrBGPLSTruncated for the TLV-sum overrun and the 3-octet Router-ID fixed-length TLV; exact-sum walk positive unchanged.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-23 (independent auditor, after 5d4afb0c4e). RFC 7752 Section 6.2.2: &#34;An implementation of BGP-LS MUST perform the following syntactic checks for determining if a message is malformed.&#34; followed by the five length-sum questions (BGP-LS attribute, MP_REACH_NLRI, MP_UNREACH_NLRI, descriptor Total NLRI Length, fixed-length TLVs). TestRFC7752LinkStateLengthSumsOnReceive changed only the NOTIFICATION it requires for the outer NLRI overrun: across NLRI types 1, 2 and 3, in MP_REACH_NLRI and MP_UNREACH_NLRI, an NLRI length one octet too long must give SessionReset with the RFC 9552 Section 8.2.2 length-sum error and the exact frame 3/9 whose Data is the MP attribute alone (mpAttr = attrs[7:] after the 4-octet ORIGIN and 3-octet empty AS_PATH of mpReachAttrs, or the whole of mpUnreachAttrs, checked against both helpers), leaving the session Idle with nothing dispatched; descriptor over and underruns still discard exactly one NLRI with the diagnostic and no NOTIFICATION; exact-sum controls are dispatched unchanged. The assertion is as exact as before; only the expected subcode and Data moved, per RFC 4760 Section 7. TestRFC7752AttributeLengthSumsOnReceive and the ls plugin units are unchanged. Ran green. Verdict stands. Finding recorded outside this verdict: the four discrimination records on these reactor units no longer verify (producer-changed applyRFC7606, and unit-changed for TestRFC7752LinkStateLengthSumsOnReceive).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1118,14 +1118,14 @@ Historical requirement lineage is recorded by the per-row supersession annotatio
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7752_length_sums_test.go#L97" title="internal/component/bgp/reactor/rfc7752_length_sums_test.go" target="_blank" rel="noopener"><code>TestRFC7752AttributeLengthSumsOnReceive</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7752_length_sums_test.go#L101" title="internal/component/bgp/reactor/rfc7752_length_sums_test.go" target="_blank" rel="noopener"><code>TestRFC7752AttributeLengthSumsOnReceive</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7752_length_sums_test.go#L26" title="internal/component/bgp/reactor/rfc7752_length_sums_test.go" target="_blank" rel="noopener"><code>TestRFC7752LinkStateLengthSumsOnReceive</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc7752_test.go#L136" title="internal/component/bgp/plugins/nlri/ls/rfc7752_test.go" target="_blank" rel="noopener"><code>TestRFC7752AttrSyntacticChecks</code></a></td>
@@ -1133,14 +1133,14 @@ Historical requirement lineage is recorded by the per-row supersession annotatio
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7752_length_sums_test.go#L96" title="internal/component/bgp/reactor/rfc7752_length_sums_test.go" target="_blank" rel="noopener"><code>TestRFC7752AttributeLengthSumsOnReceive</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7752_length_sums_test.go#L100" title="internal/component/bgp/reactor/rfc7752_length_sums_test.go" target="_blank" rel="noopener"><code>TestRFC7752AttributeLengthSumsOnReceive</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7752_length_sums_test.go#L25" title="internal/component/bgp/reactor/rfc7752_length_sums_test.go" target="_blank" rel="noopener"><code>TestRFC7752LinkStateLengthSumsOnReceive</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1998,7 +1998,7 @@ Historical requirement lineage is recorded by the per-row supersession annotatio
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

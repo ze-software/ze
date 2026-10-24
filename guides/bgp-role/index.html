@@ -49,7 +49,8 @@
     <h1 id="bgp-role-rfc-9234">BGP Role (RFC 9234)</h1>
     <p>BGP Role enables route leak prevention by declaring the relationship between peers. When configured, ze adds the Only To Customer (OTC) path attribute to enforce proper route propagation based on the business relationship.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#configuration">Configuration</a>
 <ol>
 <li><a href="#config-reference">Config Reference</a></li>
@@ -71,7 +72,7 @@
 <li><a href="#strict-mode">Strict Mode</a></li>
 <li><a href="#a-declared-role-carries-a-config-obligation">A Declared Role Carries a Config Obligation</a></li>
 <li><a href="#without-role">Without Role</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <!-- source: internal/component/bgp/plugins/role/register.go -- role registration, RFC 9234, OTC attribute -->
 <h2 id="configuration">Configuration</h2>
 <pre><code>bgp {
@@ -489,7 +490,8 @@ RFC 9234; a reject-asn list works against any peer and needs nothing from it.</p
 <p>A dynamic group is named with the peers. Its members' AS arrives in the OPEN (RFC 4271 Section 4.2), so ze cannot know a listen range is eBGP, and an IXP route-server range that declares no role is exactly what the report is for. An iBGP peer is left out: a role describes an eBGP relationship, so a route reflector's sessions owe none.</p>
 <!-- source: internal/component/bgp/plugins/role/ -- role plugin implementation -->
 <!-- source: internal/component/bgp/config/peers.go -- rolelessPeers, warnPeersWithoutRole -->
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -531,7 +533,7 @@ RFC 9234; a reject-asn list works against any peer and needs nothing from it.</p
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

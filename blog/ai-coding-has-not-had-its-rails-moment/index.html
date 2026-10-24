@@ -45,17 +45,21 @@
 
         <main id="top" class="site-main-wide" tabindex="-1">
             <section class="blog-article-shell has-visual" aria-labelledby="post-title">
+                <div class="blog-article-heading">
 <div class="journey-hero blog-article-hero reveal">
     <span class="journey-eyebrow">Article</span>
     <h1 id="post-title">AI coding has not had its Rails moment</h1>
     <p>Keeping a design document beside the code does not ensure an agent follows it. We need a structure that connects the two and keeps them consistent as the software changes.</p>
 </div>
                 <div class="blog-article-meta"><time datetime="2026-08-10">2026-08-10</time><span>by Thomas Mangin</span></div>
+                </div>
 <figure class="blog-theme-image has-dark blog-article-visual reveal" role="img" aria-label="Comparison of a repository with predictable locations for designs, rules and tests, and one without a common organisation."><img class="blog-theme-image-light" src="../../assets/blog/ai-coding-has-not-had-its-rails-moment.svg" alt="" loading="eager" decoding="async" /><img class="blog-theme-image-dark" src="../../assets/blog/ai-coding-has-not-had-its-rails-moment-dark.svg" alt="" loading="eager" decoding="async" /></figure>
-                <p class="post-back"><a href="../">&larr; All articles</a></p>
             </section>
+            <div class="blog-reading-layout">
+                <aside class="blog-reading-rail" aria-label="Article navigation">
             <nav class="blog-article-toc reveal" aria-label="Article sections">
-                <p class="blog-article-toc-label">In this article</p>
+                <details class="reading-outline" open>
+                <summary class="blog-article-toc-label">In this article</summary>
                 <ol>
                     <li><a href="#connect-the-decision-to-the-implementation">Connect the decision to the implementation</a></li>
                     <li><a href="#use-the-documents-when-authoring-the-code">Use the documents when authoring the code</a></li>
@@ -64,7 +68,15 @@
                     <li><a href="#other-projects-are-connecting-the-same-pieces">Other projects are connecting the same pieces</a></li>
                     <li><a href="#a-convention-needs-something-people-can-copy">A convention needs something people can copy</a></li>
                 </ol>
+                </details>
             </nav>
+                    <nav class="blog-related-links" aria-label="Related links">
+                        <p class="post-back"><a href="../">&larr; All articles</a></p>
+                        <a href="../feed.xml">Subscribe to the blog</a>
+                        <a href="../../docs/">Explore the documentation</a>
+                    </nav>
+                </aside>
+                <div class="blog-reading-body">
             <section class="md-content blog-article-content reveal" data-table-columns="off" data-code-copy="off">
 <p>When I began building Ze, a network operating system, Claude could write Go, but a feature request did not give it all the design decisions I had made for the project. It could produce code that worked on its own but contradicted those decisions. Training in the language could not supply the reasons I had chosen one approach over another.</p>
 <p>Writing those reasons down gave me something to refer to, but a document only helps a coding session if the agent finds it before choosing an implementation. The document must also identify which code the decision applies to, so the agent can check whether its changes follow that decision. Keeping a design somewhere in the repository leaves too much of this relationship to chance.</p>
@@ -104,6 +116,8 @@
 <p>Ze has a local version built through months of development. I would like to begin the next project by writing its first design decision and having an established place for it, with the connection to its future implementation already defined. That would leave more time to write the router.</p>
 <p><em>Last updated: 21 September 2026. The history of this article is available in the <a href="https://github.com/ze-software/ze/commits/main/website/blog/posts/ai-coding-has-not-had-its-rails-moment.md" target="_blank" rel="noopener">project's Git repository</a>.</em></p>
             </section>
+                </div>
+            </div>
         </main>
 
         <script src="../../assets/site.js" defer></script>
@@ -112,7 +126,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:22 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

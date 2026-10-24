@@ -63,9 +63,9 @@
 .rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
 .rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
 .rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
-.rfc-ok { border-left: 7px solid var(--teal-base); }
+.rfc-ok { border-left: 7px solid var(--green); }
 .rfc-neutral { border-left: 7px solid var(--line-strong); }
-.rfc-warn { border-left: 7px solid var(--gold-base); }
+.rfc-warn { border-left: 7px solid var(--amber); }
 .rfc-bad { border-left: 7px solid var(--danger-deep); }
 .rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
 .rfc-tape span { width: var(--w); min-width: 0; display: block; }
@@ -80,11 +80,11 @@
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-partial-scope { background: var(--danger-deep); }
-.rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
+.rfc-tape-one_polarity_unexcused { background: var(--amber); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
-.rfc-swatch.rfc-ok { background: var(--teal-base); }
+.rfc-swatch.rfc-ok { background: var(--green); }
 .rfc-swatch.rfc-neutral { background: var(--line-strong); }
-.rfc-swatch.rfc-warn { background: var(--gold-base); }
+.rfc-swatch.rfc-warn { background: var(--amber); }
 .rfc-swatch.rfc-bad { background: var(--danger-deep); }
 .rfc-total td { border-top: 2px solid var(--line-strong); }
 .rfc-prose { max-width: 46rem; }
@@ -110,7 +110,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 .rfc-note-box { margin: 1rem 0; padding: 1rem 1.2rem; border-radius: 16px; background: var(--gold-tint); border: 1px solid var(--gold-chip); }
 .rfc-note-box h3 { margin-top: 0; }
 .rfc-note-box ul { margin-bottom: 0; }
-.rfc-check-ok strong { color: var(--teal-deep); }
+.rfc-check-ok strong { color: var(--green); }
 .rfc-check-bad strong { color: var(--danger-deep); }
 </style>
 <section><h2>Overview</h2>
@@ -122,8 +122,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 39 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 39 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 39 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>53.5%</strong><b>53 of 99 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
-<article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>43</strong><b>of 39 gated MUSTs judged</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>46.5%</strong><b>46 of 99 tagged units, 0 escaped and 7 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -186,7 +185,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
 </tr>
 </tbody>
@@ -360,8 +359,8 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <td>MUST</td>
 <td>4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-x-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L385" title="internal/component/bgp/plugins/bmp/event_test.go" target="_blank" rel="noopener"><code>TestParseIPIntoIPv4</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L399" title="internal/component/bgp/plugins/bmp/event_test.go" target="_blank" rel="noopener"><code>TestParseIPIntoIPv6</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L386" title="internal/component/bgp/plugins/bmp/event_test.go" target="_blank" rel="noopener"><code>TestParseIPIntoIPv4</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L400" title="internal/component/bgp/plugins/bmp/event_test.go" target="_blank" rel="noopener"><code>TestParseIPIntoIPv6</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7854-x-6">RFC7854-x-6</code></td><td colspan="3"><span class="rfc-subject">An initiation message MUST be sent as the first message after the TCP session comes up. (§4.3, Initiation Message)</span></td></tr>
@@ -388,7 +387,7 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <td>4.10</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-x-8">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_sender_test.go#L211" title="internal/component/bgp/plugins/bmp/rfc7854_sender_test.go" target="_blank" rel="noopener"><code>TestBMPSenderPeerUp</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L138" title="internal/component/bgp/plugins/bmp/event_test.go" target="_blank" rel="noopener"><code>TestHandleSenderStatePeerUp</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L139" title="internal/component/bgp/plugins/bmp/event_test.go" target="_blank" rel="noopener"><code>TestHandleSenderStatePeerUp</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_peerup_openless_test.go#L43" title="internal/component/bgp/plugins/bmp/rfc7854_peerup_openless_test.go" target="_blank" rel="noopener"><code>TestPeerUpOnCacheMissNeverReachesTheCollector</code></a></span></div>
 </div></td>
 </tr>
@@ -407,7 +406,7 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <td>4.9</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-x-10">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_sender_test.go#L248" title="internal/component/bgp/plugins/bmp/rfc7854_sender_test.go" target="_blank" rel="noopener"><code>TestBMPSenderPeerDown</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L271" title="internal/component/bgp/plugins/bmp/event_test.go" target="_blank" rel="noopener"><code>TestHandleSenderStatePeerDown</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L272" title="internal/component/bgp/plugins/bmp/event_test.go" target="_blank" rel="noopener"><code>TestHandleSenderStatePeerDown</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_close_test.go#L104" title="internal/component/bgp/reactor/peer_close_test.go" target="_blank" rel="noopener"><code>TestPeerCloseNamesTheCongestionTeardownLocal</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_close_test.go#L77" title="internal/component/bgp/reactor/peer_close_test.go" target="_blank" rel="noopener"><code>TestPeerCloseNamesTheTransportLoss</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_peerdown_cause_test.go#L24" title="internal/component/bgp/plugins/bmp/rfc7854_peerdown_cause_test.go" target="_blank" rel="noopener"><code>TestRFC7854PeerDownTransportLossIsReason4</code></a></span></div>
@@ -420,7 +419,7 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <td>3.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-x-11">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_sender_test.go#L363" title="internal/component/bgp/plugins/bmp/rfc7854_sender_test.go" target="_blank" rel="noopener"><code>TestBMPSenderTermination</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_sender_queue_test.go#L561" title="internal/component/bgp/plugins/bmp/rfc7854_sender_queue_test.go" target="_blank" rel="noopener"><code>TestSenderStopSendsTerminationToCollector</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_sender_queue_test.go#L562" title="internal/component/bgp/plugins/bmp/rfc7854_sender_queue_test.go" target="_blank" rel="noopener"><code>TestSenderStopSendsTerminationToCollector</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> Termination is produced unconditionally when the session is torn down, so there is no valid shutdown that omits it to reject</p></td>
 </tr>
@@ -653,7 +652,7 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <td>4.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-4.5-5">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_termination_absent_test.go#L74" title="internal/component/bgp/plugins/bmp/rfc7854_termination_absent_test.go" target="_blank" rel="noopener"><code>TestBMPReceiverEndsTheSessionWhenTheRouterLeavesWithoutTermination</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_sender_queue_test.go#L568" title="internal/component/bgp/plugins/bmp/rfc7854_sender_queue_test.go" target="_blank" rel="noopener"><code>TestSenderStopSendsTerminationToCollector</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_sender_queue_test.go#L569" title="internal/component/bgp/plugins/bmp/rfc7854_sender_queue_test.go" target="_blank" rel="noopener"><code>TestSenderStopSendsTerminationToCollector</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> a router that closes with no Termination message sends no non-compliant input, because the sentence permits exactly that close, so the station has nothing to refuse. TestBMPReceiverEndsTheSessionWhenTheRouterLeavesWithoutTermination proves the station clause and TestSenderStopSendsTerminationToCollector proves the RECOMMENDED clause on the router side</p></td>
 </tr>
@@ -893,12 +892,12 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L399" title="internal/component/bgp/plugins/bmp/event_test.go" target="_blank" rel="noopener"><code>TestParseIPIntoIPv6</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L400" title="internal/component/bgp/plugins/bmp/event_test.go" target="_blank" rel="noopener"><code>TestParseIPIntoIPv6</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L385" title="internal/component/bgp/plugins/bmp/event_test.go" target="_blank" rel="noopener"><code>TestParseIPIntoIPv4</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L386" title="internal/component/bgp/plugins/bmp/event_test.go" target="_blank" rel="noopener"><code>TestParseIPIntoIPv4</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -937,7 +936,7 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 </div>
 <h3><a href="#rfc7854-x-8"><code>RFC7854-x-8</code></a></h3>
 <p>Sent OPEN Message: The full OPEN message transmitted by the monitored router to its peer. o Received OPEN Message: The full OPEN message received by the monitored router from its peer. (§4.10, Peer Up Notification)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-13 after the RFC 7854 Section 3.3 guard (no Peer Down for a peer never reported up). Positives unchanged: TestHandleSenderStatePeerUp and TestBMPSenderPeerUp echo both cached OPENs byte for byte. Negative TestPeerUpOnCacheMissNeverReachesTheCollector: up event with no OPEN cached, down event, then a Route Monitoring sentinel on the same FIFO queue; the first message read must be the sentinel, and a Peer Up is a named failure. Owner-approved marker change (sentinel replaces the Peer Down, which Section 3.3 no longer owes). Reviewer observed red with the guard removed (first message became the Peer Down), so the test still sees the whole queue head; a Peer Up emitted without both OPENs would be read first and fail.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/plugins/bmp/event_test.go::TestHandleSenderStatePeerUp, internal/component/bgp/plugins/bmp/rfc7854_peerup_openless_test.go::TestPeerUpOnCacheMissNeverReachesTheCollector moved. Re-judged 2026-10-13 after the RFC 7854 Section 3.3 guard (no Peer Down for a peer never reported up). Positives unchanged: TestHandleSenderStatePeerUp and TestBMPSenderPeerUp echo both cached OPENs byte for byte. Negative TestPeerUpOnCacheMissNeverReachesTheCollector: up event with no OPEN cached, down event, then a Route Monitoring sentinel on the same FIFO queue; the first message read must be the sentinel, and a Peer Up is a named failure. Owner-approved marker change (sentinel replaces the Peer Down, which Section 3.3 no longer owes). Reviewer observed red with the guard removed (first message became the Peer Down), so the test still sees the whole queue head; a Peer Up emitted without both OPENs would be read first and fail.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -948,7 +947,7 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L138" title="internal/component/bgp/plugins/bmp/event_test.go" target="_blank" rel="noopener"><code>TestHandleSenderStatePeerUp</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L139" title="internal/component/bgp/plugins/bmp/event_test.go" target="_blank" rel="noopener"><code>TestHandleSenderStatePeerUp</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -977,13 +976,13 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 </div>
 <h3><a href="#rfc7854-x-10"><code>RFC7854-x-10</code></a></h3>
 <p>Reason indicates why the session was closed. (§4.9, Peer Down Notification)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-18 (independent auditor, after 4ef90497c6). Section 4.9: &#34;Reason indicates why the session was closed.&#34; The earlier finding (no unit tied a Reason to the cause, and peerDownFor never emitted reason 4) is fixed and now proven at both decision points. Reactor: TestPeerCloseNamesTheTransportLoss drops TCP under a running Peer and asserts rpc.ReasonTCPFailure with Event 18; TestPeerCloseNamesTheCongestionTeardownLocal drives congestionTeardownPeer and asserts rpc.ReasonLocalClose with Event 18, so ze closing the transport itself is not reported as the remote doing it. BMP: TestRFC7854PeerDownTransportLossIsReason4 asserts Reason 4 (&#34;This includes any unexpected termination of the transport session&#34;) with no Data for rpc.ReasonTCPFailure. TestHandleSenderStatePeerDown (reason 2 for a NOTIFICATION close with no cached PDU) and TestBMPSenderPeerDown (round-trips a chosen byte) remain weak on their own. Seam not covered by a tagged unit: apiStateObserver.OnPeerClosed and server/events.go copying the reason and CloseFSMEvent into the StructuredEvent. Single-polarity annotation holds: every Peer Down is written with a reason byte.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/plugins/bmp/event_test.go::TestHandleSenderStatePeerDown moved. Re-judged 2026-10-18 (independent auditor, after 4ef90497c6). Section 4.9: &#34;Reason indicates why the session was closed.&#34; The earlier finding (no unit tied a Reason to the cause, and peerDownFor never emitted reason 4) is fixed and now proven at both decision points. Reactor: TestPeerCloseNamesTheTransportLoss drops TCP under a running Peer and asserts rpc.ReasonTCPFailure with Event 18; TestPeerCloseNamesTheCongestionTeardownLocal drives congestionTeardownPeer and asserts rpc.ReasonLocalClose with Event 18, so ze closing the transport itself is not reported as the remote doing it. BMP: TestRFC7854PeerDownTransportLossIsReason4 asserts Reason 4 (&#34;This includes any unexpected termination of the transport session&#34;) with no Data for rpc.ReasonTCPFailure. TestHandleSenderStatePeerDown (reason 2 for a NOTIFICATION close with no cached PDU) and TestBMPSenderPeerDown (round-trips a chosen byte) remain weak on their own. Seam not covered by a tagged unit: apiStateObserver.OnPeerClosed and server/events.go copying the reason and CloseFSMEvent into the StructuredEvent. Single-polarity annotation holds: every Peer Down is written with a reason byte.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L271" title="internal/component/bgp/plugins/bmp/event_test.go" target="_blank" rel="noopener"><code>TestHandleSenderStatePeerDown</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L272" title="internal/component/bgp/plugins/bmp/event_test.go" target="_blank" rel="noopener"><code>TestHandleSenderStatePeerDown</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1018,7 +1017,7 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_sender_queue_test.go#L561" title="internal/component/bgp/plugins/bmp/rfc7854_sender_queue_test.go" target="_blank" rel="noopener"><code>TestSenderStopSendsTerminationToCollector</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_sender_queue_test.go#L562" title="internal/component/bgp/plugins/bmp/rfc7854_sender_queue_test.go" target="_blank" rel="noopener"><code>TestSenderStopSendsTerminationToCollector</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1120,7 +1119,7 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go#L98" title="internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go" target="_blank" rel="noopener"><code>TestRFC7854SessionPeerUpOnlyForEstablishedPeers</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go#L96" title="internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go" target="_blank" rel="noopener"><code>TestRFC7854SessionPeerUpOnlyForEstablishedPeers</code></a></td>
@@ -1285,7 +1284,7 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L337" title="internal/component/bgp/plugins/bmp/rfc7854_test.go" target="_blank" rel="noopener"><code>TestRFC7854ReservedFlagsTransmittedAsZero</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -1448,7 +1447,7 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_sender_queue_test.go#L568" title="internal/component/bgp/plugins/bmp/rfc7854_sender_queue_test.go" target="_blank" rel="noopener"><code>TestSenderStopSendsTerminationToCollector</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_sender_queue_test.go#L569" title="internal/component/bgp/plugins/bmp/rfc7854_sender_queue_test.go" target="_blank" rel="noopener"><code>TestSenderStopSendsTerminationToCollector</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1615,12 +1614,12 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L503" title="internal/component/bgp/plugins/bmp/rfc7854_test.go" target="_blank" rel="noopener"><code>TestRFC7854LFlagNotDecidedByBody</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L478" title="internal/component/bgp/plugins/bmp/rfc7854_test.go" target="_blank" rel="noopener"><code>TestRFC7854LFlagFollowsPolicy</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -1655,12 +1654,12 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L504" title="internal/component/bgp/plugins/bmp/rfc7854_test.go" target="_blank" rel="noopener"><code>TestRFC7854LFlagNotDecidedByBody</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L479" title="internal/component/bgp/plugins/bmp/rfc7854_test.go" target="_blank" rel="noopener"><code>TestRFC7854LFlagFollowsPolicy</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -1675,7 +1674,7 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_replay_test.go#L247" title="internal/component/bgp/plugins/bmp/rfc7854_replay_test.go" target="_blank" rel="noopener"><code>TestRFC7854ChangedAttributesCanReturnToEarlierValue</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -2109,7 +2108,7 @@ Focused execution, producer discrimination and third-party pmacct acceptance of 
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

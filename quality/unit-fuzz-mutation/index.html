@@ -49,13 +49,14 @@
     <h1 id="local-go-tests-fuzzing-and-gomu">Local Go Tests, Fuzzing, and gomu</h1>
     <p>Use this page for the local Go test layer: named <code>_test.go</code> cases, race runs, coverage, fuzz targets, and gomu mutation testing. These checks are one system. They all ask whether package-level behavior is proved well enough before the slower gates run.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#the-local-test-loop">The local test loop</a></li>
 <li><a href="#example-tests">Example tests</a></li>
 <li><a href="#fuzz-targets-are-still-tests">Fuzz targets are still tests</a></li>
 <li><a href="#gomu-checks-assertion-strength">gomu checks assertion strength</a></li>
 <li><a href="#choosing-the-proof">Choosing the proof</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <!-- source: ../main/internal/le/testunit/actions.go -- unit test actions -->
 <!-- source: ../main/internal/le/fuzz/actions.go -- fuzz actions -->
 <!-- source: ../main/.gomuignore -- gomu exclusions -->
@@ -123,7 +124,8 @@ go run github.com/sivchari/gomu/cmd/gomu run --incremental=false --fail-on-gate=
 <tr><td>Process or UI behavior</td><td>Functional transcript.</td><td>Normal tests only for helper logic behind the surface.</td></tr>
 </tbody>
 </table>
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Debugging</p>
@@ -153,7 +155,7 @@ go run github.com/sivchari/gomu/cmd/gomu run --incremental=false --fail-on-gate=
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

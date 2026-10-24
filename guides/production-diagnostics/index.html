@@ -52,7 +52,8 @@
     <h1 id="production-diagnostics-guide">Production Diagnostics Guide</h1>
     <p>Symptom-based troubleshooting using Ze's built-in diagnostic commands. <code>ze doctor</code>, health checks, warning/error reports, support bundles, crash capture, and runtime probes are part of the product, so operators can start from evidence before reaching for external Linux tools. The commands below also work on gokrazy appliances without a host shell toolbox.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#quick-reference">Quick Reference</a></li>
 <li><a href="#failure-categories">Failure Categories</a>
 <ol>
@@ -85,7 +86,7 @@
 </ol></li>
 <li><a href="#platform-detection">Platform Detection</a></li>
 <li><a href="#platform-notes">Platform Notes</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <h2 id="quick-reference">Quick Reference</h2>
 <table>
 <thead>
@@ -447,7 +448,8 @@ show system platform | json
 <p>Platform information is also included in <code>ze doctor</code> checks (e.g. gokrazy /perm writability) and <code>ze request support archive</code> archives (as the <code>platform</code> module).</p>
 <h2 id="platform-notes">Platform Notes</h2>
 <p>Commands that read <code>/proc</code> (sockets, kernel-log, file-descriptors, memory-map) are Linux-only. On other platforms they return "not available on this platform". The remaining commands (tcp-check, traceroute, goroutines, dns, profile) work on all platforms but traceroute requires CAP_NET_RAW.</p>
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -485,7 +487,7 @@ show system platform | json
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

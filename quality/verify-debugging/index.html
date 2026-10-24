@@ -49,14 +49,15 @@
     <h1 id="verify-and-debugging-workflow">Verify and Debugging Workflow</h1>
     <p>Use this page when <code>./le verify current</code> fails, when a test needs to be rerun narrowly, or when debug logging should be enabled without turning the whole run into noise.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#what-verify-does">What verify does</a></li>
 <li><a href="#reading-the-failure">Reading the failure</a></li>
 <li><a href="#trace-output">Trace output</a></li>
 <li><a href="#debug-logging">Debug logging</a></li>
 <li><a href="#skips-and-flakes">Skips and flakes</a></li>
 <li><a href="#debugging-order">Debugging order</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <!-- source: ../main/internal/le/verify/engine/run.go -- verify entry point -->
 <!-- source: ../main/internal/le/verify/lock/register.go -- verify lock -->
 <!-- source: ../main/internal/test/runner/failure_group.go -- failure grouping -->
@@ -110,7 +111,8 @@ VERIFY STEP: {"file":"test/web/foo.wb","step":13,"kind":"expect","status":"fail"
 <p>Flakes should be fixed at the source. Replace timing guesses with readiness checks, process waits, observable browser state, or protocol synchronization. If the test only passes after a sleep grows, the runner is missing a signal.</p>
 <h2 id="debugging-order">Debugging order</h2>
 <p>Use the failure index first, rerun the narrow command second, enable one debug log third, and escalate to QEMU or interop only when the contract needs that environment. After the fix, rerun the narrow command and then the gate that would have caught the regression.</p>
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Debugging</p>
@@ -136,7 +138,7 @@ VERIFY STEP: {"file":"test/web/foo.wb","step":13,"kind":"expect","status":"fail"
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

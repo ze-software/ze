@@ -49,12 +49,13 @@
     <h1 id="audit-trail">Audit Trail</h1>
     <p>Ze keeps a local structured audit log for operator actions that change state or fail authentication. The log is append-only from the user's point of view: there is a query command, but no command to delete or truncate records.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#what-is-recorded">What Is Recorded</a></li>
 <li><a href="#storage">Storage</a></li>
 <li><a href="#querying">Querying</a></li>
 <li><a href="#authorization-notes">Authorization Notes</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <h2 id="what-is-recorded">What Is Recorded</h2>
 <table>
 <thead>
@@ -123,7 +124,8 @@ ze show audit since 2026-05-24T10:00:00Z until 2026-05-24T11:00:00Z
 <p>REST and gRPC without a configured token or per-user authenticator use the built-in <code>api</code> identity in read-only mode. Read commands work. Command writes and config sessions return 403.</p>
 <!-- source: internal/component/web/handler_config.go -- authorizeWebConfigMutation -->
 <!-- source: internal/component/api/engine.go -- read-only caller enforcement -->
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -165,7 +167,7 @@ ze show audit since 2026-05-24T10:00:00Z until 2026-05-24T11:00:00Z
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 12 October 2026 10:25 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

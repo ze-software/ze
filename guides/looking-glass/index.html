@@ -49,7 +49,8 @@
     <h1 id="looking-glass">Looking Glass</h1>
     <p>Ze includes a built-in looking glass that provides public, read-only access to BGP session state and route information. It runs as a separate HTTP server from the authenticated web UI.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#configuration">Configuration</a>
 <ol>
 <li><a href="#tls-is-on-by-default">TLS is on by default</a></li>
@@ -60,7 +61,7 @@
 <li><a href="#birdwatcher-rest-api">Birdwatcher REST API</a></li>
 <li><a href="#alice-lg-integration">Alice-LG Integration</a></li>
 <li><a href="#security">Security</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <!-- source: internal/component/lg/server.go -- LGServer -->
 <h2 id="configuration">Configuration</h2>
 <p>Add the <code>looking-glass</code> block under <code>environment</code> in your Ze config:</p>
@@ -336,7 +337,8 @@ Section 7.2.</p>
 <p>When TLS is enabled, the server uses TLS 1.2 minimum. It reads its own
 <code>certificate</code> leaf, resolved against the same PKI store the web UI reads, and
 serves a self-signed certificate when that leaf is unset.</p>
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -378,7 +380,7 @@ serves a self-signed certificate when that leaf is unset.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 16 October 2026 06:29 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

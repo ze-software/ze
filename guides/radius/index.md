@@ -192,7 +192,11 @@ Ze signs each request with HMAC-MD5 over the whole packet, keyed with the shared
 secret and with the signature field taken as sixteen zero octets (§3.2). A reply
 whose Message-Authenticator does not verify is **silently discarded**, not
 rejected: the Access-Request stays outstanding and the client retransmits, so a
-forged packet cannot end a login. If the conversation then runs out of retries
+forged packet cannot end a login. A reply that carries an EAP-Message and no
+Message-Authenticator at all is discarded the same way (RFC 3579 §3.1), logged
+with that reason and counted on `ze_radius_unsigned_eap_discards_total` (see
+[Metrics](#metrics)); a
+reply with neither attribute is still accepted, as RFC 2869 §5.14 allows. If the conversation then runs out of retries
 the login fails as an infrastructure error and the chain tries the next backend.
 
 **The EAP header is checked in both directions** (RFC 3579 §2.2). A packet from
@@ -354,6 +358,7 @@ proofs runs the same paths against a real FreeRADIUS server at a pinned tag:
 | `radius-admin-chap-freeradius` | A server ze did not write reproduces ze's CHAP digest from its own `Cleartext-Password` entry, and its record shows a CHAP-Password with no User-Password beside it |
 | `radius-admin-chap-hashed-freeradius` | The §2.2 consequence above is real: the same entry stored hashed accepts the same password over PAP and refuses it over CHAP, and ze authenticates the operator through no backend at all |
 | `radius-admin-eap-freeradius` | `auth-method eap-mschapv2` completes against a server ze did not write: FreeRADIUS computes the Message-Authenticator, the MS-CHAPv2 challenge and the authenticator response from its own code, and its record shows an EAP-Message with neither password attribute beside it and at least one round that carried the State back |
+| `radius-admin-eap-unsigned-freeradius` | An EAP answer without a Message-Authenticator is discarded (RFC 3579 §3.1). FreeRADIUS always signs, so a relay in its container removes the attribute from its real answers: with the attribute left in place the same login completes, with it removed ze discards the Access-Challenge, logs the reason, steps `ze_radius_unsigned_eap_discards_total`, and the login fails |
 
 Run them with `./le test integration interop-radius`, or one at a time with
 `RADIUS_INTEROP_SCENARIO=<name>`. They need Docker and no kernel module.
@@ -378,6 +383,19 @@ bcrypt user accepted the credentials.
 <!-- source: internal/test/mock/radius/eap.go -- the mock's EAP branch: buildEAPResponse, verifyRequestSignature -->
 <!-- source: internal/le/interoplab/radius/checkers.go -- what each FreeRADIUS scenario asserts -->
 <!-- source: test/interop-radius/scenarios/ -- the four interop scenario directories -->
+
+## Metrics
+
+- `ze_radius_unsigned_eap_discards_total` -- answers that carried an
+  EAP-Message and no Message-Authenticator, discarded under RFC 3579
+  Section 3.1. One series serves every RADIUS client in the daemon, the admin
+  login backend and the subscriber authentication plugin alike. A discard
+  sends nothing to the server, so the client retransmits and the login
+  eventually fails as an infrastructure error; this counter and the
+  `radius: discarding the answer` warning are how an operator tells that
+  apart from an unreachable server. The series appears once telemetry is
+  enabled.
+<!-- source: internal/component/radius/metrics.go -- bindRadiusMetrics, countUnsignedEAPDiscard -->
 
 ## Operational notes
 

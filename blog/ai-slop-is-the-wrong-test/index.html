@@ -45,17 +45,21 @@
 
         <main id="top" class="site-main-wide" tabindex="-1">
             <section class="blog-article-shell has-visual" aria-labelledby="post-title">
+                <div class="blog-article-heading">
 <div class="journey-hero blog-article-hero reveal">
     <span class="journey-eyebrow">Article</span>
     <h1 id="post-title">AI slop is the wrong test</h1>
     <p>I am using AI to build a router, and I remain responsible for what gets released. I also expect our tools to improve, as they have before.</p>
 </div>
                 <div class="blog-article-meta"><time datetime="2026-08-03">2026-08-03</time><span>by Thomas Mangin</span></div>
+                </div>
 <figure class="blog-theme-image has-dark blog-article-visual reveal" role="img" aria-label="Generated code is checked against protocol requirements, fuzz tests, integration tests and benchmarks."><img class="blog-theme-image-light" src="../../assets/blog/ai-slop-is-the-wrong-test.svg" alt="" loading="eager" decoding="async" /><img class="blog-theme-image-dark" src="../../assets/blog/ai-slop-is-the-wrong-test-dark.svg" alt="" loading="eager" decoding="async" /></figure>
-                <p class="post-back"><a href="../">&larr; All articles</a></p>
             </section>
+            <div class="blog-reading-layout">
+                <aside class="blog-reading-rail" aria-label="Article navigation">
             <nav class="blog-article-toc reveal" aria-label="Article sections">
-                <p class="blog-article-toc-label">In this article</p>
+                <details class="reading-outline" open>
+                <summary class="blog-article-toc-label">In this article</summary>
                 <ol>
                     <li><a href="#we-have-changed-how-we-write-software-before">We have changed how we write software before</a></li>
                     <li><a href="#human-authorship-never-guaranteed-quality">Human authorship never guaranteed quality</a></li>
@@ -63,7 +67,15 @@
                     <li><a href="#i-still-have-to-understand-the-bug">I still have to understand the bug</a></li>
                     <li><a href="#there-is-plenty-worth-building">There is plenty worth building</a></li>
                 </ol>
+                </details>
             </nav>
+                    <nav class="blog-related-links" aria-label="Related links">
+                        <p class="post-back"><a href="../">&larr; All articles</a></p>
+                        <a href="../feed.xml">Subscribe to the blog</a>
+                        <a href="../../docs/">Explore the documentation</a>
+                    </nav>
+                </aside>
+                <div class="blog-reading-body">
             <section class="md-content blog-article-content reveal" data-table-columns="off" data-code-copy="off">
 <p>Ze is an AI-written network operating system. I decide the architecture and the trade-offs I am prepared to accept, and Claude writes the code. Quite often it writes better code than I could have written myself, and far more tests per feature than I ever did. That lets me attempt more than I could write alone, although the mistakes it makes can take much longer to find and correct than I had hoped.</p>
 <p>I use AI to help write these articles for much the same reason. Help putting my thoughts into words leaves more time for developing Ze, but that saving is of little use to a reader who cannot follow the result. I am responsible for what goes out under my name, whether it is an explanation someone struggles to read or code that fails in their router.</p>
@@ -96,6 +108,8 @@
 <p>That expectation does not change what I owe someone who uses Ze. I remain responsible for an outage, route leak or security hole in software I release, regardless of how the code was written. I expected Ze to be finished by now, but the issues we keep finding have taken longer to fix than I expected. The repository is open, with the tests and design notes available for scrutiny, and I would rather delay Ze than release it with problems I already know about.</p>
 <p><em>Last updated: 21 September 2026. The history of this article is available in the <a href="https://github.com/ze-software/ze/commits/main/website/blog/posts/ai-slop-is-the-wrong-test.md" target="_blank" rel="noopener">project's Git repository</a>.</em></p>
             </section>
+                </div>
+            </div>
         </main>
 
         <script src="../../assets/site.js" defer></script>
@@ -104,7 +118,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:22 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

@@ -45,16 +45,20 @@
 
         <main id="top" class="site-main-wide" tabindex="-1">
             <section class="blog-article-shell" aria-labelledby="post-title">
+                <div class="blog-article-heading">
 <div class="journey-hero blog-article-hero reveal">
     <span class="journey-eyebrow">Article</span>
     <h1 id="post-title">The proof is the expensive part</h1>
     <p>A test can correctly detect a malformed BGP message without checking what happens to the affected route. Ze’s RFC testing framework is intended to expose gaps like this.</p>
 </div>
                 <div class="blog-article-meta"><time datetime="2026-08-06">2026-08-06</time><span>by Thomas Mangin</span></div>
-                <p class="post-back"><a href="../">&larr; All articles</a></p>
+                </div>
             </section>
+            <div class="blog-reading-layout">
+                <aside class="blog-reading-rail" aria-label="Article navigation">
             <nav class="blog-article-toc reveal" aria-label="Article sections">
-                <p class="blog-article-toc-label">In this article</p>
+                <details class="reading-outline" open>
+                <summary class="blog-article-toc-label">In this article</summary>
                 <ol>
                     <li><a href="#detecting-an-error-is-only-the-beginning">Detecting an error is only the beginning</a></li>
                     <li><a href="#make-the-missing-check-visible">Make the missing check visible</a></li>
@@ -62,7 +66,15 @@
                     <li><a href="#the-requirements-need-review-too">The requirements need review too</a></li>
                     <li><a href="#be-clear-about-what-we-can-claim">Be clear about what we can claim</a></li>
                 </ol>
+                </details>
             </nav>
+                    <nav class="blog-related-links" aria-label="Related links">
+                        <p class="post-back"><a href="../">&larr; All articles</a></p>
+                        <a href="../feed.xml">Subscribe to the blog</a>
+                        <a href="../../docs/">Explore the documentation</a>
+                    </nav>
+                </aside>
+                <div class="blog-reading-body">
             <section class="md-content blog-article-content reveal" data-table-columns="off" data-code-copy="off">
 <p>When a unit test calls a function and checks its return value, a passing result tells us that the function produced the answer the test expected. It tells us nothing about whether the running daemon acts on that answer correctly. Ze can therefore pass its unit tests while still behaving incorrectly as an application, and the gap is harder to see when Claude writes both the code and its tests from the same misunderstanding of the protocol.</p>
 <p>Running the tests automatically in continuous integration, or CI, helps us repeat the checks whenever the code changes. But an assertion missing from a test is still missing when CI runs it. Before relying on a routing daemon, I need evidence that the running program responds as the protocol requires, including when another router sends it something malformed.</p>
@@ -100,6 +112,8 @@
 <p>Claude can write an implementation much faster than I could, but establishing that the running application behaves correctly takes longer and sometimes requires correcting the tests as well as the code. I expected Ze to be finished by now. A passing test run can hide unfinished verification such as the missing route observation in this example, and finding those omissions is part of the development still ahead of us.</p>
 <p><em>Last updated: 21 September 2026. The history of this article is available in the <a href="https://github.com/ze-software/ze/commits/main/website/blog/posts/the-proof-is-the-expensive-part.md" target="_blank" rel="noopener">project's Git repository</a>.</em></p>
             </section>
+                </div>
+            </div>
         </main>
 
         <script src="../../assets/site.js" defer></script>
@@ -108,7 +122,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 4 October 2026 23:22 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

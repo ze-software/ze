@@ -63,9 +63,9 @@
 .rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
 .rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
 .rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
-.rfc-ok { border-left: 7px solid var(--teal-base); }
+.rfc-ok { border-left: 7px solid var(--green); }
 .rfc-neutral { border-left: 7px solid var(--line-strong); }
-.rfc-warn { border-left: 7px solid var(--gold-base); }
+.rfc-warn { border-left: 7px solid var(--amber); }
 .rfc-bad { border-left: 7px solid var(--danger-deep); }
 .rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
 .rfc-tape span { width: var(--w); min-width: 0; display: block; }
@@ -80,11 +80,11 @@
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-partial-scope { background: var(--danger-deep); }
-.rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
+.rfc-tape-one_polarity_unexcused { background: var(--amber); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
-.rfc-swatch.rfc-ok { background: var(--teal-base); }
+.rfc-swatch.rfc-ok { background: var(--green); }
 .rfc-swatch.rfc-neutral { background: var(--line-strong); }
-.rfc-swatch.rfc-warn { background: var(--gold-base); }
+.rfc-swatch.rfc-warn { background: var(--amber); }
 .rfc-swatch.rfc-bad { background: var(--danger-deep); }
 .rfc-total td { border-top: 2px solid var(--line-strong); }
 .rfc-prose { max-width: 46rem; }
@@ -110,7 +110,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 .rfc-note-box { margin: 1rem 0; padding: 1rem 1.2rem; border-radius: 16px; background: var(--gold-tint); border: 1px solid var(--gold-chip); }
 .rfc-note-box h3 { margin-top: 0; }
 .rfc-note-box ul { margin-bottom: 0; }
-.rfc-check-ok strong { color: var(--teal-deep); }
+.rfc-check-ok strong { color: var(--green); }
 .rfc-check-bad strong { color: var(--danger-deep); }
 </style>
 <section><h2>Overview</h2>
@@ -122,7 +122,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 10 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 10 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 10 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>20.0%</strong><b>4 of 20 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>15.0%</strong><b>3 of 20 tagged units, 0 escaped and 1 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -320,8 +320,8 @@ No MUST is a gap. <a href="#rfc8671-6.2-1"><code>RFC8671-6.2-1</code></a>, the O
 <td>MUST</td>
 <td>5.1 - Post-policy</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8671-x-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L57" title="internal/component/bgp/plugins/bmp/event_test.go" target="_blank" rel="noopener"><code>TestPeerHeaderFromEventAdjRIBOut</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L80" title="internal/component/bgp/plugins/bmp/event_test.go" target="_blank" rel="noopener"><code>TestPeerHeaderFromEventAdjRIBIn</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L58" title="internal/component/bgp/plugins/bmp/event_test.go" target="_blank" rel="noopener"><code>TestPeerHeaderFromEventAdjRIBOut</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L81" title="internal/component/bgp/plugins/bmp/event_test.go" target="_blank" rel="noopener"><code>TestPeerHeaderFromEventAdjRIBIn</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8671-x-3">RFC8671-x-3</code></td><td colspan="3"><span class="rfc-subject">Peer Up and Down Notifications convey BGP peering session state to BMP receivers.  The state is independent of whether or not route monitoring or route mirroring messages will be sent for Adj-RIB-In, Adj-RIB-Out, or both. (§6.3)</span></td></tr>
@@ -330,8 +330,8 @@ No MUST is a gap. <a href="#rfc8671-6.2-1"><code>RFC8671-6.2-1</code></a>, the O
 <td>6.3 - Peer Up and Down Notifications</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8671-x-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_msg_test.go#L104" title="internal/component/bgp/plugins/bmp/rfc8671_msg_test.go" target="_blank" rel="noopener"><code>TestBMPPeerUpRoundTrip</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go#L356" title="internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go" target="_blank" rel="noopener"><code>TestRFC8671PeerDownDoesNotDependOnTheMonitoredRIB</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go#L411" title="internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go" target="_blank" rel="noopener"><code>TestRFC8671PeerUpDoesNotDependOnTheMonitoredRIB</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go#L357" title="internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go" target="_blank" rel="noopener"><code>TestRFC8671PeerDownDoesNotDependOnTheMonitoredRIB</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go#L412" title="internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go" target="_blank" rel="noopener"><code>TestRFC8671PeerUpDoesNotDependOnTheMonitoredRIB</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze builds every Peer Up from the peer&#39;s cached sent and received OPEN messages (cacheOpenPDU and recordPeerUp in internal/component/bgp/plugins/bmp/bmp_events.go, pair.sent/pair.received) regardless of the O flag, so an Adj-RIB-Out Peer Up carries the same OPENs as an Adj-RIB-In one by construction; there is no &#34;different OPENs for Adj-RIB-Out&#34; case to assert as a negative. The positive (a Peer Up round-trips its sent/received OPENs) is proven in TestBMPPeerUpRoundTrip, and the independence through the producer in TestRFC8671PeerUpDoesNotDependOnTheMonitoredRIB, which primes one collector per route-monitoring policy (pre-policy, post-policy, all) over the same Established peer and finds the same Peer Up on each. The Peer Down half is proven in TestRFC8671PeerDownDoesNotDependOnTheMonitoredRIB, which drives the same down event through a plugin per policy and finds the same Peer Down, header, reason and data, on each</p></td>
 </tr>
@@ -450,18 +450,18 @@ No MUST is a gap. <a href="#rfc8671-6.2-1"><code>RFC8671-6.2-1</code></a>, the O
 </div>
 <h3><a href="#rfc8671-x-2"><code>RFC8671-x-2</code></a></h3>
 <p>The L flag MUST be set to 1 to indicate post-policy. (§5.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-read 2026-09-27 against §5.1 &#39;The L flag MUST be set to 1 to indicate post-policy&#39;. Ze&#39;s Adj-RIB-Out is post-policy only. Forbidden: a post-policy Adj-RIB-Out header with L=0; TestPeerHeaderFromEventAdjRIBOut fails when the sent direction lacks PeerFlagL. TestPeerHeaderFromEventAdjRIBIn shows L is not set unconditionally.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-read 2026-10-23 against section 5.1 &#39;The L flag MUST be set to 1 to indicate post-policy.&#39; after peerHeaderFromEvent became (PeerHeader, error) and refuses an unknown peer AS. Both units changed only to build the AS as rpc.RemoteASOf(65001) and read the header through mustPeerHeader, which fails the test on any error, so the new refusal branch cannot satisfy or mask either assertion. TestPeerHeaderFromEventAdjRIBOut still fails if the sent (Adj-RIB-Out, post-policy only in ze) header lacks PeerFlagL; TestPeerHeaderFromEventAdjRIBIn shows L is not set unconditionally.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L80" title="internal/component/bgp/plugins/bmp/event_test.go" target="_blank" rel="noopener"><code>TestPeerHeaderFromEventAdjRIBIn</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L81" title="internal/component/bgp/plugins/bmp/event_test.go" target="_blank" rel="noopener"><code>TestPeerHeaderFromEventAdjRIBIn</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L57" title="internal/component/bgp/plugins/bmp/event_test.go" target="_blank" rel="noopener"><code>TestPeerHeaderFromEventAdjRIBOut</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L58" title="internal/component/bgp/plugins/bmp/event_test.go" target="_blank" rel="noopener"><code>TestPeerHeaderFromEventAdjRIBOut</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -470,7 +470,7 @@ No MUST is a gap. <a href="#rfc8671-6.2-1"><code>RFC8671-6.2-1</code></a>, the O
 </div>
 <h3><a href="#rfc8671-x-3"><code>RFC8671-x-3</code></a></h3>
 <p>Peer Up and Down Notifications convey BGP peering session state to BMP receivers.  The state is independent of whether or not route monitoring or route mirroring messages will be sent for Adj-RIB-In, Adj-RIB-Out, or both. (§6.3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-13. TestRFC8671PeerDownDoesNotDependOnTheMonitoredRIB changed by setup only: recordPeerUpFor seeds the Peer Up that RFC 7854 Section 3.3 now requires before a Peer Down, identically under pre-policy, post-policy and all, so the comparison of presence, per-peer header, reason and data across the three policies is unchanged and still runs through handleSenderState. TestRFC8671PeerUpDoesNotDependOnTheMonitoredRIB (identical header, both OPENs, transport fields through primeSender) and rfc8671_msg_test.go::TestBMPPeerUpRoundTrip unchanged. {single-polarity: positive} holds.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-23. TestRFC8671PeerDownDoesNotDependOnTheMonitoredRIB changed by one fixture line: PeerAS is now rpc.RemoteASOf(65001), the type StructuredEvent.PeerAS became, with the same known AS, so the event takes the same mirror path. The comparison of presence, per-peer header, reason and data across pre-policy, post-policy and all is unchanged and runs through handleSenderState. The other two units are unchanged. {single-polarity: positive} holds.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -481,12 +481,12 @@ No MUST is a gap. <a href="#rfc8671-6.2-1"><code>RFC8671-6.2-1</code></a>, the O
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go#L356" title="internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go" target="_blank" rel="noopener"><code>TestRFC8671PeerDownDoesNotDependOnTheMonitoredRIB</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go#L357" title="internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go" target="_blank" rel="noopener"><code>TestRFC8671PeerDownDoesNotDependOnTheMonitoredRIB</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go#L411" title="internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go" target="_blank" rel="noopener"><code>TestRFC8671PeerUpDoesNotDependOnTheMonitoredRIB</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go#L412" title="internal/component/bgp/plugins/bmp/rfc9069_verdict_test.go" target="_blank" rel="noopener"><code>TestRFC8671PeerUpDoesNotDependOnTheMonitoredRIB</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -495,7 +495,7 @@ No MUST is a gap. <a href="#rfc8671-6.2-1"><code>RFC8671-6.2-1</code></a>, the O
 </div>
 <h3><a href="#rfc8671-4-1"><code>RFC8671-4-1</code></a></h3>
 <p>The existing flags are defined in Section 4.2 of [RFC7854], and the remaining bits are reserved for future use.  They MUST be transmitted as 0, and their values MUST be ignored on receipt. (§4)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-read 2026-09-27. Transmit clause: TestRFC8671ReservedPeerFlagsTransmittedAsZero fails if peerHeaderFromEvent, locRIBPeerHeader or the byte writePeerHeader puts on the wire carries a reserved bit. Receipt clause: TestRFC8671ReservedPeerFlagsIgnoredOnReceipt fails if a header with every reserved bit set is refused or changes a defined flag, over two bases.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-read 2026-10-23 after peerHeaderFromEvent became (PeerHeader, error). Transmit clause: TestRFC8671ReservedPeerFlagsTransmittedAsZero, over a known AS and through mustPeerHeader (fatal on any error), still fails if peerHeaderFromEvent, locRIBPeerHeader or the byte writePeerHeader puts on the wire carries a reserved bit, for IPv4 and IPv6, both directions. Receipt clause: TestRFC8671ReservedPeerFlagsIgnoredOnReceipt fails if a header with every reserved bit set is refused or changes a defined flag, over two bases. The unit edits are the AS type change only; no assertion moved.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -852,7 +852,7 @@ No MUST is a gap. <a href="#rfc8671-6.2-1"><code>RFC8671-6.2-1</code></a>, the O
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 13 October 2026 20:14 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

@@ -49,7 +49,8 @@
     <h1 id="operations">Operations</h1>
     <p>Running Ze in production: SSH access, signals, health checks, environment variables, and troubleshooting.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#ssh-server">SSH Server</a>
 <ol>
 <li><a href="#setup">Setup</a></li>
@@ -89,7 +90,7 @@
 <li><a href="#crash-capture">Crash Capture</a></li>
 <li><a href="#collecting-debug-information">Collecting Debug Information</a></li>
 </ol></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <h2 id="ssh-server">SSH Server</h2>
 <p>Ze exposes its CLI over SSH. <code>ze cli</code>, <code>ze cli -c</code>, and <code>ze signal</code> commands connect to this server. Most <code>ze show</code> subcommands do too, except local ones (version, bgp decode/encode, env, schema, yang, completion) which run in-process.</p>
 <h3 id="setup">Setup</h3>
@@ -872,7 +873,8 @@ ze cli -c "show bgp"            # session summary
 ze env list -v                 # effective configuration
 ze signal quit                 # goroutine dump (kills daemon!)
 </code></pre>
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -914,7 +916,7 @@ ze signal quit                 # goroutine dump (kills daemon!)
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

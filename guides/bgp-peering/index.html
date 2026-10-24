@@ -49,7 +49,8 @@
     <h1 id="bgp-peering">BGP Peering</h1>
     <p>Use this guide after the quick start when a peer needs groups, multiple address families, capabilities, prefix limits, or an explicit relationship role.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#minimal-peer">Minimal peer</a></li>
 <li><a href="#groups-and-inheritance">Groups and inheritance</a></li>
 <li><a href="#dynamic-peer-groups">Dynamic peer groups</a></li>
@@ -67,7 +68,7 @@
 </ol></li>
 <li><a href="#verify-the-session">Verify the session</a></li>
 <li><a href="#related-guides">Related guides</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <h2 id="minimal-peer">Minimal peer</h2>
 <p>A peer needs local and remote addresses, AS numbers, a router ID, and at least one address family:</p>
 <pre><code class="language-text">bgp {
@@ -438,7 +439,8 @@ ze cli -c "show bgp rib status"
 <li><a href="../bgp-resilience/">BGP resilience</a> covers route refresh, restart, in-memory reconnect replay, and reflection.</li>
 <li><a href="../route-injection/">Route injection</a> covers on-demand announcements.</li>
 </ul>
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -480,7 +482,7 @@ ze cli -c "show bgp rib status"
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

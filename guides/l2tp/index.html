@@ -54,7 +54,8 @@ assigns peer IPs, and hands the kernel data plane to the <code>l2tp_ppp</code>
 module via netlink. Subscriber routes are tracked for redistribution
 into the protocol RIB.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#configuration">Configuration</a></li>
 <li><a href="#initiator-dial-targets-and-outgoing-calls">Initiator: dial targets and outgoing calls</a></li>
 <li><a href="#rejecting-a-malformed-sccrq">Rejecting a malformed SCCRQ</a></li>
@@ -96,7 +97,7 @@ into the protocol RIB.</p>
 <li><a href="#dead-peer-detection">Dead-peer detection</a></li>
 <li><a href="#environment-variables">Environment variables</a></li>
 <li><a href="#architecture">Architecture</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <p>This page covers operator-facing use: configuration, the CLI surface,
 PPP negotiation, authentication, IP pools, traffic shaping, RADIUS,
 metrics, the web UI, reload semantics, and how subscriber routes flow
@@ -1538,7 +1539,8 @@ goroutine-per-tunnel.</p>
 </ul>
 <!-- source: internal/component/l2tp/reactor.go -->
 <!-- source: internal/component/l2tp/observer.go -->
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -1580,7 +1582,7 @@ goroutine-per-tunnel.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

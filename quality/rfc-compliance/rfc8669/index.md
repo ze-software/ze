@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 20.8% | 5 of 24 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 24 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 24 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Proven by a recorded break | 68.7% | 57 of 83 tagged units, 0 escaped and 5 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 69.9% | 58 of 83 tagged units, 0 escaped and 4 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -418,14 +418,14 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestAnnounceRailKeepsPrefixSIDInsideTheSRDomain`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_forward_prefix_sid_announce_rail_test.go#L46) | unit/verify | revert, verified |
-| negative | [`TestStaleReadvertiseKeepsPrefixSIDInsideTheSRDomain`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_forward_prefix_sid_readvertise_rail_test.go#L138) | unit/verify | revert, verified |
+| negative | [`TestAnnounceRailKeepsPrefixSIDInsideTheSRDomain`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_forward_prefix_sid_announce_rail_test.go#L46) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestStaleReadvertiseKeepsPrefixSIDInsideTheSRDomain`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_forward_prefix_sid_readvertise_rail_test.go#L138) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
 | negative | [`TestPrefixSIDEgressBoundary`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_forward_prefix_sid_test.go#L156) | unit/verify | revert, verified |
 | negative | [`TestPrefixSIDOriginationBoundary`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_forward_prefix_sid_test.go#L289) | unit/verify | revert, verified |
 | negative | [`prefixsid-announce-rail-boundary.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/prefixsid-announce-rail-boundary.ci#L4) | functional/verify | revert, verified |
 | negative | [`prefixsid-ebgp-egress-boundary.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/prefixsid-ebgp-egress-boundary.ci#L4) | functional/verify | revert, verified |
-| positive | [`TestAnnounceRailKeepsPrefixSIDInsideTheSRDomain`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_forward_prefix_sid_announce_rail_test.go#L49) | unit/verify | revert, verified |
-| positive | [`TestStaleReadvertiseKeepsPrefixSIDInsideTheSRDomain`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_forward_prefix_sid_readvertise_rail_test.go#L141) | unit/verify | revert, verified |
+| positive | [`TestAnnounceRailKeepsPrefixSIDInsideTheSRDomain`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_forward_prefix_sid_announce_rail_test.go#L49) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestStaleReadvertiseKeepsPrefixSIDInsideTheSRDomain`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_forward_prefix_sid_readvertise_rail_test.go#L141) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
 | positive | [`TestPrefixSIDEgressBoundary`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_forward_prefix_sid_test.go#L155) | unit/verify | revert, verified |
 | positive | [`TestPrefixSIDOriginationBoundary`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_forward_prefix_sid_test.go#L288) | unit/verify | revert, verified |
 | positive | [`prefixsid-announce-rail-boundary.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/prefixsid-announce-rail-boundary.ci#L7) | functional/verify | revert, verified |
@@ -478,7 +478,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC8669EBGPAcceptedPrefixSIDNoErrorLog`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_error_log_test.go#L255) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC8669EBGPAcceptedPrefixSIDNoErrorLog`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_error_log_test.go#L255) | unit/verify | mutant, verified |
 | positive | [`TestRFC8669EBGPBoundaryDiscardLoggedAtDefaultLevel`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_error_log_test.go#L214) | unit/verify | revert, verified |
 | positive | [`TestRFC8669PrefixSIDDiscardBesideAnotherLogsBoth`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_error_log_test.go#L111) | unit/verify | mutant, verified |
 
@@ -490,9 +490,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC8669CleanPrefixSIDNoDiscardDiagnostic`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_discard_diagnostics_test.go#L94) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| negative | [`TestRFC8669CleanPrefixSIDNoErrorLog`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_error_log_test.go#L237) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC8669MalformedPrefixSIDDiscardDiagnostic`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_discard_diagnostics_test.go#L28) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC8669CleanPrefixSIDNoDiscardDiagnostic`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_discard_diagnostics_test.go#L94) | unit/verify | revert, verified |
+| negative | [`TestRFC8669CleanPrefixSIDNoErrorLog`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_error_log_test.go#L237) | unit/verify | mutant, verified |
+| positive | [`TestRFC8669MalformedPrefixSIDDiscardDiagnostic`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_discard_diagnostics_test.go#L28) | unit/verify | revert, verified |
 | positive | [`TestRFC8669PrefixSIDDiscardBesideAnotherLogsBoth`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_error_log_test.go#L110) | unit/verify | mutant, verified |
 | positive | [`TestRFC8669PrefixSIDDiscardLoggedAtDefaultLevel`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_error_log_test.go#L62) | unit/verify | revert, verified |
 
@@ -504,7 +504,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC8669CleanPrefixSIDNoErrorLog`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_error_log_test.go#L238) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC8669CleanPrefixSIDNoErrorLog`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_error_log_test.go#L238) | unit/verify | mutant, verified |
 | positive | [`TestRFC8669InvalidPrefixSIDDiscardBesideAnotherLogsBoth`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_error_log_test.go#L159) | unit/verify | mutant, verified |
 | positive | [`TestRFC8669InvalidPrefixSIDLoggedAtDefaultLevel`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_error_log_test.go#L194) | unit/verify | revert, verified |
 

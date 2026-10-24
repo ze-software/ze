@@ -49,7 +49,8 @@
     <h1 id="bgp-implementation-comparison">BGP implementation comparison</h1>
     <p>A feature comparison of open source BGP daemon implementations. This page keeps the BGP-specific matrix separate from the full Network OS comparison. It also carries an OSPF table against FRR and BIRD, the two other daemons here that implement it.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#overview">Overview</a></li>
 <li><a href="#address-families">Address Families</a></li>
 <li><a href="#core-protocol">Core Protocol</a></li>
@@ -65,7 +66,7 @@
 <li><a href="#where-ze-is-behind-today">Where Ze is behind today</a></li>
 <li><a href="#positioning">Positioning</a></li>
 <li><a href="#faq">FAQ</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <blockquote>
 <p><strong>Disclaimer and evidence:</strong> this comparison was generated with AI assistance and is provided for informational purposes only. All listed projects are under active development and their capabilities change over time. Verify current features against each project's own documentation before making decisions. Rows should be read as evidence-backed advice rather than marketing: code paths link to upstream source where the site can map them, official feature pages are preferred when source links are not practical, and <code>No</code> or <code>Partial</code> means the cited evidence did not support a stronger claim. Corrections and updates are welcome via the issue tracker.</p>
 </blockquote>
@@ -2394,8 +2395,8 @@ has been actively developed since 2012 with 4000+ functional test cases. It
 has no programmatic API, YANG model, or structured logging.</p>
 <h2 id="faq">FAQ</h2>
 <p><strong>Ze is pre-release. Why trust it yet?</strong></p>
-<p>Do not take that on faith: it is backed by <span data-ze-stat="tests.unit_display">38,000+</span> unit tests,
-<span data-ze-stat="tests.e2e_display">2,500+</span> end-to-end tests, <span data-ze-stat="tests.fuzz_display">90</span> fuzz targets, and
+<p>Do not take that on faith: it is backed by <span data-ze-stat="tests.unit_display">38,200+</span> unit tests,
+<span data-ze-stat="tests.e2e_display">2,500+</span> end-to-end tests, <span data-ze-stat="tests.fuzz_display">91</span> fuzz targets, and
 interop testing against <span data-ze-stat="interop.target_display">11</span> independent BGP
 implementations. That evidence can be checked. It is not a promise. Ze
 does not have operational mileage yet: real deployments over real time,
@@ -2421,7 +2422,8 @@ numbers measured so far.</p>
 BFD integration, no custom filter DSL, no privilege separation, and no
 embeddable library mode. The full-router comparison belongs on the
 <a href="../nos/">Open Source Network OS comparison</a>.</p>
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">BGP comparison</p>
@@ -2505,7 +2507,7 @@ embeddable library mode. The full-router comparison belongs on the
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

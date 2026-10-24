@@ -49,7 +49,8 @@
     <h1 id="configuration">Configuration</h1>
     <p>Ze uses a JUNOS-like hierarchical configuration format.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#syntax-rules">Syntax Rules</a></li>
 <li><a href="#file-format">File Format</a></li>
 <li><a href="#ospf">OSPF</a></li>
@@ -172,7 +173,7 @@
 <li><a href="#static-routes_1">Static Routes</a></li>
 <li><a href="#policy-routing">Policy Routing</a></li>
 <li><a href="#exabgp-migration">ExaBGP Migration</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <h2 id="syntax-rules">Syntax Rules</h2>
 <table>
 <thead>
@@ -3000,7 +3001,7 @@ list of backends that DO implement the feature:</p>
 <p>Fix: change <code>backend</code> back to <code>netlink</code> (the default on Linux), or remove the
 unsupported entries. The same gate runs at daemon reload (<code>SIGHUP</code>) and on
 first-apply at startup, so the daemon cannot boot into an unworkable state.</p>
-<!-- source: internal/component/config/backend_gate.go -- ValidateBackendFeatures, walkBackendNode -->
+<!-- source: internal/component/config/backend_gate.go -- validateBackendFeatures, walkBackendNode -->
 <!-- source: internal/component/config/yang/modules/ze-extensions.yang -- extension backend -->
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- ze:backend annotations on bridge/tunnel/wireguard/veth/mirror -->
 <h3 id="route-priority">Route Priority</h3>
@@ -5391,7 +5392,8 @@ match criteria, actions, reserved ranges, and CLI usage.</p>
 <pre><code>ze config migrate exabgp.conf &gt; ze.conf
 </code></pre>
 <!-- source: internal/component/config/cli/cmd_migrate.go -- cmdMigrate; internal/exabgp/migration/ -- ExaBGP config conversion -->
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -5433,7 +5435,7 @@ match criteria, actions, reserved ranges, and CLI usage.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

@@ -51,7 +51,8 @@
     <h1 id="filter-bgp-imports-with-irr">Filter BGP Imports with IRR</h1>
     <p>Ze can build a BGP import prefix-list from an ASN or IRR AS-SET. The <code>bgp-filter-irr</code> plugin resolves the AS-SET through an IRR whois server, keeps the resulting IPv4 and IPv6 prefixes in memory, and rejects received routes that are not in that list.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#complete-example">Complete example</a></li>
 <li><a href="#add-it-to-an-existing-stored-configuration">Add it to an existing stored configuration</a></li>
 <li><a href="#choose-the-as-set">Choose the AS-SET</a></li>
@@ -64,7 +65,7 @@
 </ol></li>
 <li><a href="#local-demonstration">Local demonstration</a></li>
 <li><a href="#troubleshooting">Troubleshooting</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <p>Use this for a customer or peer that should only announce prefixes registered to its network. It replaces a separate <code>bgpq4</code> job and static prefix-list deployment.</p>
 <!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- IRR resolution, refresh, and filter decisions -->
 <!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- handleConfigure, the in-memory prefix store -->
@@ -208,9 +209,13 @@ $ ze cli -c 'show bgp irr check customer-a 192.0.2.0/24 | no-more'
 $ ze cli -c 'update bgp irr asn 65001'
 $ ze cli -c 'update bgp irr as-set AS-CUSTOMER'
 </code></pre>
-<p>A refresh that returns prefixes atomically replaces the in-memory list. The firewall IRR plugin also writes its lists to ZeFS; the BGP filter does not (see "After a restart" below). Two other outcomes keep the last known good list instead, and both record the reason in <code>show bgp irr</code>:</p>
+<p>A refresh that returns prefixes atomically replaces the in-memory list. The firewall IRR plugin also writes its lists to ZeFS; the BGP filter does not (see "After a restart" below). Three other outcomes keep the last known good list instead, and each records the reason in <code>show bgp irr</code>:</p>
 <ul>
 <li>The refresh failed: the server was unreachable, refused the query, or sent a truncated reply.</li>
+<li>The refresh returned more than 500000 prefixes across both families. The BGP filter refuses the list whole rather than cutting it, because a cut kept the IPv4 half and lost IPv6; the error gives the IPv4 and IPv6 counts. Narrow the AS-SET.</li>
+</ul>
+<!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- prefixListFromIRR -->
+<ul>
 <li>The refresh succeeded and returned no prefixes at all. Ze treats "I have nothing" the same as a failure, because an empty allow-list rejects every route the peer sends. A server that answers <code>D</code> (key not found), answers with no records, or reports an error can therefore not empty a live list.</li>
 </ul>
 <p>The prefixes an empty answer left in place are still enforced. <code>show bgp irr</code> and <code>show firewall irr</code> mark the entry <code>stale</code> and give the age of the data, so enforcing data nobody has confirmed is visible rather than silent.</p>
@@ -382,7 +387,8 @@ The operational commands use Ze&#39;s default text format. Its key/value layout 
 </tr>
 </tbody>
 </table>
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -424,7 +430,7 @@ The operational commands use Ze&#39;s default text format. Its key/value layout 
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

@@ -5976,8 +5976,8 @@
         "name": "selector",
         "type": "string",
         "mandatory": true,
-        "short-help": "* for every peer, or an address, a peer name or an AS pattern",
-        "description": "The value is an IP address, a peer name, an AS pattern such as as65001, a\nglob, or * for every peer. Ze tears down and deletes each peer it matches."
+        "short-help": "One peer: its address or peer name",
+        "description": "The value is an IP address, a peer name, an AS pattern such as as65001, a\nglob. It names one peer: *, an exclusion such as !edge1, and a selector that\nmatches more than one peer are refused, and a pattern or glob that matches\nexactly one peer is accepted. Ze tears down and deletes that peer."
       }
     ],
     "usage": "delete bgp peer <selector>",
@@ -10948,9 +10948,62 @@
   },
   {
     "path": "request bgp watchdog announce",
-    "short-help": "Announce routes in watchdog group",
+    "short-help": "Announce the routes of a watchdog.",
+    "description": "Ze announces every route of the watchdog to each peer that carries it, and\nthe routes stay announced across a reconnect. The peer is every peer, *, or\nthe one address typed after the name. A watchdog whose routes a process gave\nrefuses med, because Ze cannot change the MED of an update text it did not\nwrite.",
     "mode": "daemon",
-    "usage": "request bgp watchdog announce",
+    "wire-method": "ze-bgp:watchdog-announce",
+    "args": [
+      {
+        "name": "name",
+        "type": "string",
+        "mandatory": true,
+        "short-help": "Watchdog name",
+        "description": "The watchdog's name. med is refused as a name, because it is the\nkeyword of the MED override."
+      },
+      {
+        "name": "med",
+        "type": "uint",
+        "short-help": "MED override",
+        "description": "The MED the configured routes are announced with, in place of their own.\nAbsent, each route keeps its configured MED."
+      },
+      {
+        "name": "peer",
+        "type": "string",
+        "short-help": "Peer address, or * for every peer",
+        "description": "The peer the routes are announced to, or * for every peer that carries\nthe watchdog. Absent, the peer the command was sent for."
+      }
+    ],
+    "usage": "request bgp watchdog announce <name> [med <med>] [peer <peer>]",
+    "grammar": [
+      {
+        "text": "request",
+        "kind": "keyword"
+      },
+      {
+        "text": "bgp",
+        "kind": "keyword"
+      },
+      {
+        "text": "watchdog",
+        "kind": "keyword"
+      },
+      {
+        "text": "announce",
+        "kind": "keyword"
+      },
+      {
+        "text": "name",
+        "kind": "value"
+      },
+      {
+        "text": "med",
+        "kind": "option"
+      },
+      {
+        "text": "peer",
+        "kind": "option"
+      }
+    ],
     "operators": [
       {
         "name": "json",
@@ -11047,9 +11100,42 @@
   },
   {
     "path": "request bgp watchdog forget",
-    "short-help": "Withdraw and forget the routes an owner gave watchdog groups",
+    "short-help": "Withdraw and forget the routes an owner gave watchdogs.",
+    "description": "Ze takes every route the owner gave any watchdog off it, and withdraws the\nones it holds announced. A later announce does not bring them back. The ExaBGP\nbridge sends it when the process that gave the routes exits.",
     "mode": "daemon",
-    "usage": "request bgp watchdog forget",
+    "wire-method": "ze-bgp:watchdog-forget",
+    "args": [
+      {
+        "name": "owner",
+        "type": "string",
+        "mandatory": true,
+        "short-help": "Owner of the given routes",
+        "description": "The owner named when the routes were given."
+      }
+    ],
+    "usage": "request bgp watchdog forget <owner>",
+    "grammar": [
+      {
+        "text": "request",
+        "kind": "keyword"
+      },
+      {
+        "text": "bgp",
+        "kind": "keyword"
+      },
+      {
+        "text": "watchdog",
+        "kind": "keyword"
+      },
+      {
+        "text": "forget",
+        "kind": "keyword"
+      },
+      {
+        "text": "owner",
+        "kind": "value"
+      }
+    ],
     "operators": [
       {
         "name": "json",
@@ -11146,9 +11232,53 @@
   },
   {
     "path": "request bgp watchdog give",
-    "short-help": "Give a route to a watchdog group, sent now or held",
+    "short-help": "Give a route to a watchdog, sent now or held.",
+    "description": "A process gives one route to a watchdog. The ExaBGP bridge sends it for an\nannounce that names a watchdog. The route is sent now, or with withdraw held\nuntil 'request bgp watchdog announce <name>'. The same route given again\nreplaces the first. The command reads:\ngive <name> owner <owner> selector <selector> [withdraw]\nannounce <n> <update text> withdrawal <update text>\nwhere n counts the words of the announce text, because update text has no word\nthat cannot appear in it. A route the engine refuses to send is not kept.",
     "mode": "daemon",
-    "usage": "request bgp watchdog give",
+    "wire-method": "ze-bgp:watchdog-give",
+    "args": [
+      {
+        "name": "name",
+        "type": "string",
+        "mandatory": true,
+        "short-help": "Watchdog name",
+        "description": "The watchdog the route is given to. med is refused as a name."
+      },
+      {
+        "name": "owner",
+        "type": "string",
+        "mandatory": true,
+        "short-help": "Owner, selector, announce and withdrawal of the route",
+        "description": "The owner, then selector <selector>, an optional withdraw, announce\n<n> <update text> and withdrawal <update text>. The owner names the process\nthat gave the route, so 'request bgp watchdog forget <owner>' takes it back."
+      }
+    ],
+    "usage": "request bgp watchdog give <name> <owner>",
+    "grammar": [
+      {
+        "text": "request",
+        "kind": "keyword"
+      },
+      {
+        "text": "bgp",
+        "kind": "keyword"
+      },
+      {
+        "text": "watchdog",
+        "kind": "keyword"
+      },
+      {
+        "text": "give",
+        "kind": "keyword"
+      },
+      {
+        "text": "name",
+        "kind": "value"
+      },
+      {
+        "text": "owner",
+        "kind": "value"
+      }
+    ],
     "operators": [
       {
         "name": "json",
@@ -11245,9 +11375,52 @@
   },
   {
     "path": "request bgp watchdog withdraw",
-    "short-help": "Withdraw routes in watchdog group",
+    "short-help": "Withdraw the routes of a watchdog.",
+    "description": "Ze withdraws every route of the watchdog from each peer that carries it, and\nholds them withdrawn across a reconnect until the next announce.",
     "mode": "daemon",
-    "usage": "request bgp watchdog withdraw",
+    "wire-method": "ze-bgp:watchdog-withdraw",
+    "args": [
+      {
+        "name": "name",
+        "type": "string",
+        "mandatory": true,
+        "short-help": "Watchdog name",
+        "description": "The watchdog's name. med is refused as a name."
+      },
+      {
+        "name": "peer",
+        "type": "string",
+        "short-help": "Peer address, or * for every peer",
+        "description": "The peer the routes are withdrawn from, or * for every peer that carries\nthe watchdog. Absent, the peer the command was sent for."
+      }
+    ],
+    "usage": "request bgp watchdog withdraw <name> [peer <peer>]",
+    "grammar": [
+      {
+        "text": "request",
+        "kind": "keyword"
+      },
+      {
+        "text": "bgp",
+        "kind": "keyword"
+      },
+      {
+        "text": "watchdog",
+        "kind": "keyword"
+      },
+      {
+        "text": "withdraw",
+        "kind": "keyword"
+      },
+      {
+        "text": "name",
+        "kind": "value"
+      },
+      {
+        "text": "peer",
+        "kind": "option"
+      }
+    ],
     "operators": [
       {
         "name": "json",
@@ -13599,8 +13772,8 @@
         "name": "selector",
         "type": "string",
         "mandatory": true,
-        "short-help": "* for every peer, or an address, a peer name or an AS pattern",
-        "description": "The value is an IP address, a peer name, an AS pattern such as as65001, a\nglob, or * for every peer. 'pause' and 'resume' refuse a selector that matches more than\none peer, and the other commands act on each peer it matches."
+        "short-help": "An address or peer name; * or a pattern for refresh, borr, eorr and flush",
+        "description": "The value is an IP address, a peer name, an AS pattern such as as65001, a\nglob, or * for every peer. 'refresh', 'borr', 'eorr' and 'flush' act on every peer\nit matches. 'teardown', 'notify', 'disable', 'enable', 'pause', 'resume' and\n'clear soft' act on one session: they refuse *, an exclusion such as !edge1,\nand a selector that matches more than one peer, and they accept a pattern or\nglob that matches exactly one peer."
       }
     ],
     "usage": "request peer <selector> borr",
@@ -13719,7 +13892,7 @@
   {
     "path": "request peer clear soft",
     "short-help": "Soft-clear a peer without dropping the session.",
-    "description": "Sends ROUTE-REFRESH for every negotiated AFI/SAFI, causing the peer\nto re-send all routes. No session bounce, no traffic impact.",
+    "description": "Sends ROUTE-REFRESH for every negotiated AFI/SAFI, causing the peer\nto re-send all routes. No session bounce, no traffic impact. The selector names\none peer: *, an exclusion and a selector matching several peers are refused.\nrefresh, borr and eorr act on every peer the selector matches.",
     "mode": "daemon",
     "wire-method": "ze-bgp:peer-clear-soft",
     "args": [
@@ -13727,8 +13900,8 @@
         "name": "selector",
         "type": "string",
         "mandatory": true,
-        "short-help": "* for every peer, or an address, a peer name or an AS pattern",
-        "description": "The value is an IP address, a peer name, an AS pattern such as as65001, a\nglob, or * for every peer. 'pause' and 'resume' refuse a selector that matches more than\none peer, and the other commands act on each peer it matches."
+        "short-help": "An address or peer name; * or a pattern for refresh, borr, eorr and flush",
+        "description": "The value is an IP address, a peer name, an AS pattern such as as65001, a\nglob, or * for every peer. 'refresh', 'borr', 'eorr' and 'flush' act on every peer\nit matches. 'teardown', 'notify', 'disable', 'enable', 'pause', 'resume' and\n'clear soft' act on one session: they refuse *, an exclusion such as !edge1,\nand a selector that matches more than one peer, and they accept a pattern or\nglob that matches exactly one peer."
       }
     ],
     "usage": "request peer <selector> clear soft",
@@ -13859,14 +14032,14 @@
         "name": "selector",
         "type": "string",
         "mandatory": true,
-        "short-help": "* for every peer, or an address, a peer name or an AS pattern",
-        "description": "The value is an IP address, a peer name, an AS pattern such as as65001, a\nglob, or * for every peer. 'pause' and 'resume' refuse a selector that matches more than\none peer, and the other commands act on each peer it matches."
+        "short-help": "An address or peer name; * or a pattern for refresh, borr, eorr and flush",
+        "description": "The value is an IP address, a peer name, an AS pattern such as as65001, a\nglob, or * for every peer. 'refresh', 'borr', 'eorr' and 'flush' act on every peer\nit matches. 'teardown', 'notify', 'disable', 'enable', 'pause', 'resume' and\n'clear soft' act on one session: they refuse *, an exclusion such as !edge1,\nand a selector that matches more than one peer, and they accept a pattern or\nglob that matches exactly one peer."
       },
       {
         "name": "message",
         "type": "string",
         "short-help": "Shutdown communication",
-        "description": "Every word after disable, joined by one space. Absent, the Cease carries\nno communication."
+        "description": "Every word after disable, joined by one space. Absent, the Cease carries\nAdministrative Shutdown as its communication."
       }
     ],
     "usage": "request peer <selector> disable [message <message>]",
@@ -13997,8 +14170,8 @@
         "name": "selector",
         "type": "string",
         "mandatory": true,
-        "short-help": "* for every peer, or an address, a peer name or an AS pattern",
-        "description": "The value is an IP address, a peer name, an AS pattern such as as65001, a\nglob, or * for every peer. 'pause' and 'resume' refuse a selector that matches more than\none peer, and the other commands act on each peer it matches."
+        "short-help": "An address or peer name; * or a pattern for refresh, borr, eorr and flush",
+        "description": "The value is an IP address, a peer name, an AS pattern such as as65001, a\nglob, or * for every peer. 'refresh', 'borr', 'eorr' and 'flush' act on every peer\nit matches. 'teardown', 'notify', 'disable', 'enable', 'pause', 'resume' and\n'clear soft' act on one session: they refuse *, an exclusion such as !edge1,\nand a selector that matches more than one peer, and they accept a pattern or\nglob that matches exactly one peer."
       }
     ],
     "usage": "request peer <selector> enable",
@@ -14125,8 +14298,8 @@
         "name": "selector",
         "type": "string",
         "mandatory": true,
-        "short-help": "* for every peer, or an address, a peer name or an AS pattern",
-        "description": "The value is an IP address, a peer name, an AS pattern such as as65001, a\nglob, or * for every peer. 'pause' and 'resume' refuse a selector that matches more than\none peer, and the other commands act on each peer it matches."
+        "short-help": "An address or peer name; * or a pattern for refresh, borr, eorr and flush",
+        "description": "The value is an IP address, a peer name, an AS pattern such as as65001, a\nglob, or * for every peer. 'refresh', 'borr', 'eorr' and 'flush' act on every peer\nit matches. 'teardown', 'notify', 'disable', 'enable', 'pause', 'resume' and\n'clear soft' act on one session: they refuse *, an exclusion such as !edge1,\nand a selector that matches more than one peer, and they accept a pattern or\nglob that matches exactly one peer."
       }
     ],
     "usage": "request peer <selector> eorr",
@@ -14253,8 +14426,8 @@
         "name": "selector",
         "type": "string",
         "mandatory": true,
-        "short-help": "* for every peer, or an address, a peer name or an AS pattern",
-        "description": "The value is an IP address, a peer name, an AS pattern such as as65001, a\nglob, or * for every peer. 'pause' and 'resume' refuse a selector that matches more than\none peer, and the other commands act on each peer it matches."
+        "short-help": "An address or peer name; * or a pattern for refresh, borr, eorr and flush",
+        "description": "The value is an IP address, a peer name, an AS pattern such as as65001, a\nglob, or * for every peer. 'refresh', 'borr', 'eorr' and 'flush' act on every peer\nit matches. 'teardown', 'notify', 'disable', 'enable', 'pause', 'resume' and\n'clear soft' act on one session: they refuse *, an exclusion such as !edge1,\nand a selector that matches more than one peer, and they accept a pattern or\nglob that matches exactly one peer."
       }
     ],
     "usage": "request peer <selector> flush",
@@ -14381,8 +14554,8 @@
         "name": "selector",
         "type": "string",
         "mandatory": true,
-        "short-help": "* for every peer, or an address, a peer name or an AS pattern",
-        "description": "The value is an IP address, a peer name, an AS pattern such as as65001, a\nglob, or * for every peer. 'pause' and 'resume' refuse a selector that matches more than\none peer, and the other commands act on each peer it matches."
+        "short-help": "An address or peer name; * or a pattern for refresh, borr, eorr and flush",
+        "description": "The value is an IP address, a peer name, an AS pattern such as as65001, a\nglob, or * for every peer. 'refresh', 'borr', 'eorr' and 'flush' act on every peer\nit matches. 'teardown', 'notify', 'disable', 'enable', 'pause', 'resume' and\n'clear soft' act on one session: they refuse *, an exclusion such as !edge1,\nand a selector that matches more than one peer, and they accept a pattern or\nglob that matches exactly one peer."
       },
       {
         "name": "code",
@@ -14551,8 +14724,8 @@
         "name": "selector",
         "type": "string",
         "mandatory": true,
-        "short-help": "* for every peer, or an address, a peer name or an AS pattern",
-        "description": "The value is an IP address, a peer name, an AS pattern such as as65001, a\nglob, or * for every peer. 'pause' and 'resume' refuse a selector that matches more than\none peer, and the other commands act on each peer it matches."
+        "short-help": "An address or peer name; * or a pattern for refresh, borr, eorr and flush",
+        "description": "The value is an IP address, a peer name, an AS pattern such as as65001, a\nglob, or * for every peer. 'refresh', 'borr', 'eorr' and 'flush' act on every peer\nit matches. 'teardown', 'notify', 'disable', 'enable', 'pause', 'resume' and\n'clear soft' act on one session: they refuse *, an exclusion such as !edge1,\nand a selector that matches more than one peer, and they accept a pattern or\nglob that matches exactly one peer."
       }
     ],
     "usage": "request peer <selector> pause",
@@ -14679,8 +14852,8 @@
         "name": "selector",
         "type": "string",
         "mandatory": true,
-        "short-help": "* for every peer, or an address, a peer name or an AS pattern",
-        "description": "The value is an IP address, a peer name, an AS pattern such as as65001, a\nglob, or * for every peer. 'pause' and 'resume' refuse a selector that matches more than\none peer, and the other commands act on each peer it matches."
+        "short-help": "An address or peer name; * or a pattern for refresh, borr, eorr and flush",
+        "description": "The value is an IP address, a peer name, an AS pattern such as as65001, a\nglob, or * for every peer. 'refresh', 'borr', 'eorr' and 'flush' act on every peer\nit matches. 'teardown', 'notify', 'disable', 'enable', 'pause', 'resume' and\n'clear soft' act on one session: they refuse *, an exclusion such as !edge1,\nand a selector that matches more than one peer, and they accept a pattern or\nglob that matches exactly one peer."
       },
       {
         "name": "session",
@@ -14825,8 +14998,8 @@
         "name": "selector",
         "type": "string",
         "mandatory": true,
-        "short-help": "* for every peer, or an address, a peer name or an AS pattern",
-        "description": "The value is an IP address, a peer name, an AS pattern such as as65001, a\nglob, or * for every peer. 'pause' and 'resume' refuse a selector that matches more than\none peer, and the other commands act on each peer it matches."
+        "short-help": "An address or peer name; * or a pattern for refresh, borr, eorr and flush",
+        "description": "The value is an IP address, a peer name, an AS pattern such as as65001, a\nglob, or * for every peer. 'refresh', 'borr', 'eorr' and 'flush' act on every peer\nit matches. 'teardown', 'notify', 'disable', 'enable', 'pause', 'resume' and\n'clear soft' act on one session: they refuse *, an exclusion such as !edge1,\nand a selector that matches more than one peer, and they accept a pattern or\nglob that matches exactly one peer."
       }
     ],
     "usage": "request peer <selector> refresh",
@@ -14953,8 +15126,8 @@
         "name": "selector",
         "type": "string",
         "mandatory": true,
-        "short-help": "* for every peer, or an address, a peer name or an AS pattern",
-        "description": "The value is an IP address, a peer name, an AS pattern such as as65001, a\nglob, or * for every peer. 'pause' and 'resume' refuse a selector that matches more than\none peer, and the other commands act on each peer it matches."
+        "short-help": "An address or peer name; * or a pattern for refresh, borr, eorr and flush",
+        "description": "The value is an IP address, a peer name, an AS pattern such as as65001, a\nglob, or * for every peer. 'refresh', 'borr', 'eorr' and 'flush' act on every peer\nit matches. 'teardown', 'notify', 'disable', 'enable', 'pause', 'resume' and\n'clear soft' act on one session: they refuse *, an exclusion such as !edge1,\nand a selector that matches more than one peer, and they accept a pattern or\nglob that matches exactly one peer."
       }
     ],
     "usage": "request peer <selector> resume",
@@ -15073,7 +15246,7 @@
   {
     "path": "request peer teardown",
     "short-help": "Tear down a peer session.",
-    "description": "The subcode is the NOTIFICATION subcode for error code 6 and it takes 0 to 255.\nZe sends an RFC 8203 shutdown communication message with subcode 2,\nadministrative shutdown, and with subcode 4, administrative reset, and with no\nother subcode. The message follows the subcode on the command line, and the\nanswer echoes the truncated text that went on the wire.",
+    "description": "The subcode is the NOTIFICATION subcode for error code 6 and it takes 0 to 255.\nZe sends an RFC 9003 Shutdown Communication with subcode 2, Administrative\nShutdown, and with subcode 4, Administrative Reset, and with no other subcode.\nThe message follows the subcode on the command line, and the answer echoes the\ntruncated text that went on the wire. With no message, Ze sends the subcode's\nname, such as Administrative Shutdown, as the communication. The selector names\none peer: *, an exclusion and a selector matching several peers are refused.",
     "mode": "daemon",
     "wire-method": "ze-bgp:peer-teardown",
     "args": [
@@ -15081,8 +15254,8 @@
         "name": "selector",
         "type": "string",
         "mandatory": true,
-        "short-help": "* for every peer, or an address, a peer name or an AS pattern",
-        "description": "The value is an IP address, a peer name, an AS pattern such as as65001, a\nglob, or * for every peer. 'pause' and 'resume' refuse a selector that matches more than\none peer, and the other commands act on each peer it matches."
+        "short-help": "An address or peer name; * or a pattern for refresh, borr, eorr and flush",
+        "description": "The value is an IP address, a peer name, an AS pattern such as as65001, a\nglob, or * for every peer. 'refresh', 'borr', 'eorr' and 'flush' act on every peer\nit matches. 'teardown', 'notify', 'disable', 'enable', 'pause', 'resume' and\n'clear soft' act on one session: they refuse *, an exclusion such as !edge1,\nand a selector that matches more than one peer, and they accept a pattern or\nglob that matches exactly one peer."
       },
       {
         "name": "cease-subcode",

@@ -88,6 +88,11 @@ from what the terminator carries:
 | a message over records | `aborted` |
 | no terminator at all | `truncated` |
 
+When the engine cannot build the answer to a `dispatch-command`, for example
+because the command's payload is not a JSON object or array, it still writes a
+head and a terminator whose message names the reason. Your plugin reads
+`error` with that message rather than waiting for its timeout.
+
 [ipc_protocol.md](https://github.com/ze-software/ze/blob/main/docs/architecture/api/ipc_protocol.md), "Answer Protocol",
 carries the same grammar with the buffering threshold and the failure cases
 beside it.
@@ -505,6 +510,18 @@ each wire method to its registered handler.
 | `ze-plugin-callback:post-startup` | `OnAllPluginsReady` | None | None | Signal that all plugins are ready |
 | No wire method (DirectBridge only) | `OnStructuredEvent` | `[]any` of `*rpc.StructuredEvent` | None | Deliver structured events without JSON |
 | `ze-plugin-callback:bye` | `OnBye` | `ByeInput` | None | Notify the plugin of its live removal or a subsystem stop. A daemon stop sends none: it closes the connection |
+
+A peer's AS is not always known when an event is written. A dynamic peer's AS
+comes from its OPEN, so the OPEN Ze sends, a NOTIFICATION Ze sends in
+OpenSent and the FSM changes before OpenConfirm carry none. The JSON peer
+object then omits `remote.as`, a text line says `remote as unknown`, and
+`StructuredEvent.PeerAS` is the zero `rpc.RemoteAS`, which means "not yet
+known" and never AS 0. Read it with `PeerAS.ASN()`, which answers
+`(uint32, bool)`, and branch on the bool. An UPDATE always names the AS.
+Rendered without a branch, it writes the number or `unknown` through `%v`, `%s`
+and `log/slog`, and the number or `null` through `encoding/json`, where a field
+tagged `omitzero` is omitted while the AS is unknown.
+<!-- source: pkg/plugin/rpc/remote_as.go -- RemoteAS, ASN, MarshalJSON, IsZero, String, LogValue -->
 
 ### The Filter Text an `OnFilterUpdate` Handler Reads
 

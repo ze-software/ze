@@ -49,7 +49,8 @@
     <h1 id="web-interface">Web Interface</h1>
     <p>Ze provides an HTTPS web interface for browsing configuration, editing values, and running commands through a browser. The web UI uses the same YANG schemas, user database, and command grammar as the SSH CLI.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#starting-the-web-server">Starting the Web Server</a>
 <ol>
 <li><a href="#command-line">Command Line</a></li>
@@ -94,7 +95,7 @@
 </ol></li>
 <li><a href="#admin-commands">Admin Commands</a></li>
 <li><a href="#resilience">Resilience</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <!-- source: internal/component/web/handler.go -- URL routing, three-tier scheme -->
 <!-- source: internal/component/web/auth.go -- authMiddleware, AuthMiddlewareWithAudit -->
 <!-- source: cmd/ze/hub/service_web.go -- buildWebService -->
@@ -581,7 +582,8 @@ data: &lt;html-fragment&gt;
 <!-- source: internal/component/cli/editor_draft.go -- readChangeFile -->
 <p><strong>Asset caching:</strong> Static assets (<code>/assets/</code>) are served with <code>Cache-Control: no-cache, must-revalidate</code> so browsers always pick up changes after binary updates without requiring a hard refresh.</p>
 <!-- source: internal/component/web/render.go -- AssetHandler -->
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -623,7 +625,7 @@ data: &lt;html-fragment&gt;
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 12 October 2026 10:25 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

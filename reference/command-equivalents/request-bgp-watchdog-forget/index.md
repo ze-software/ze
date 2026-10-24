@@ -1,13 +1,13 @@
 # `request bgp watchdog forget`
 
-Withdraw and forget the routes an owner gave watchdog groups
+Withdraw and forget the routes an owner gave watchdogs\.
 
 ## Ze command
 
 - Registry path: `request bgp watchdog forget`
-- Usage: `request bgp watchdog forget`
+- Usage: `request bgp watchdog forget <owner>`
 - Mode: Daemon
-- Wire method: `not listed`
+- Wire method: `ze-bgp:watchdog-forget`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
@@ -21,9 +21,13 @@ Withdraw and forget the routes an owner gave watchdog groups
 - Command pipes: none
 - Pipe aliases: none
 
+Ze takes every route the owner gave any watchdog off it\, and withdraws the ones it holds announced\. A later announce does not bring them back\. The ExaBGP bridge sends it when the process that gave the routes exits\.
+
 ## Arguments
 
-No command-specific arguments listed.
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `owner` | string | yes | any value of this type | Owner of the given routes | The owner named when the routes were given\. |
 
 ## Mapping intents
 

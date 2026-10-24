@@ -62,7 +62,8 @@ Adding <code>strict true</code> to that block runs
 negotiated, the BFD session opens before the BGP FSM starts, and the
 BGP session is held out of Established until BFD is Up.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#when-to-use-it">When to use it</a></li>
 <li><a href="#basic-configuration">Basic configuration</a>
 <ol>
@@ -95,7 +96,7 @@ BGP session is held out of Established until BFD is Up.</p>
 </ol></li>
 <li><a href="#what-is-not-yet-supported">What is not yet supported</a></li>
 <li><a href="#reference">Reference</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <!-- source: internal/component/bfd/bfd.go — runtimeState, loopFor, newUDPTransport, pluginService -->
 <!-- source: internal/component/bfd/api/registry.go — SetService, GetService -->
 <!-- source: internal/component/bfd/engine/loop.go — passesTTLGate, tick jitter -->
@@ -1054,6 +1055,13 @@ two links is two entries:</p>
 zone and the link in <code>interface</code>. A global IPv6 or an IPv4 peer needs no
 <code>interface</code>.</p>
 <!-- source: internal/component/bfd/config.go -- parseSingleHopSession -->
+<p>Any IPv6 peer also needs <code>bfd { bind-v6 true; }</code>. The leaf defaults to false,
+and then each session loop holds only an IPv4 socket. A protocol that asks for
+a session to an IPv6 neighbour (OSPFv3, a BGP peer over IPv6) is then refused
+with an error that names the leaf, rather than given a session that can never
+send. An IPv4-mapped address (<code>::ffff:192.0.2.1</code>) travels on the IPv4 socket
+and needs no IPv6 one.</p>
+<!-- source: internal/component/bfd/bfd.go -- pluginService.EnsureSession, newTransport -->
 <p>Single-hop pinned sessions may specify an <code>interface</code> leaf. When every
 pinned session in the same <code>(vrf, single-hop)</code> pair names the same
 interface, the plugin binds the socket to that interface via
@@ -1158,7 +1166,8 @@ document for the full gap list and the intended follow-up order.</p>
 <li>Internal architecture: <code>docs/architecture/bfd.md</code></li>
 <li>Implementation research: <code>docs/research/bfd-implementation-guide.md</code></li>
 </ul>
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -1200,7 +1209,7 @@ document for the full gap list and the intended follow-up order.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

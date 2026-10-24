@@ -15,8 +15,7 @@ what Ze has
 | One polarity, unexcused | 0.0% | 0 of 11 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0.0% | 0 of 11 gated MUSTs | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | No test at all | 0.0% | 0 of 11 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 95.5% | 21 of 22 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
-| Audit verdicts | 11 | of 11 gated MUSTs judged | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+| Proven by a recorded break | 86.4% | 19 of 22 tagged units, 0 escaped and 2 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -47,7 +46,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Proven by a recorded break | ok | green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above |
-| Audit verdicts | ok | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current |
 
 ## At a glance
 
@@ -235,12 +234,12 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 The Software Version Capability MUST only be used for displaying the version of a BGP speaker's router daemon to make troubleshooting easier. (§4)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Prior independent current judgment retained after evidence-scope comparison only. The complete Section 4 use restriction, both TestSoftwareVersionCapabilityDecidesNothing and TestSoftwareVersionCapabilityIsRecordedForDisplay units, and the inspected parseCapability/Negotiate/buildSubComponents producers have no scoped patch changes. The earlier judgment remains limited to opaque code-75 diagnostic retention and no negotiated protocol decision, not actual operator rendering or optional receive-feature implementation. No hashes were manufactured; native audit-stamp remains the sole fingerprint writer, and no new execution or foreign proof is claimed.
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/core/bgp/capability/negotiated.go::Negotiate moved. Prior independent current judgment retained after evidence-scope comparison only. The complete Section 4 use restriction, both TestSoftwareVersionCapabilityDecidesNothing and TestSoftwareVersionCapabilityIsRecordedForDisplay units, and the inspected parseCapability/Negotiate/buildSubComponents producers have no scoped patch changes. The earlier judgment remains limited to opaque code-75 diagnostic retention and no negotiated protocol decision, not actual operator rendering or optional receive-feature implementation. No hashes were manufactured; native audit-stamp remains the sole fingerprint writer, and no new execution or foreign proof is claimed.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestSoftwareVersionCapabilityDecidesNothing`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/draft_abraitis_bgp_version_capability_softver_test.go#L34) | unit/verify | revert, verified |
-| positive | [`TestSoftwareVersionCapabilityIsRecordedForDisplay`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/draft_abraitis_bgp_version_capability_softver_test.go#L58) | unit/verify | revert, verified |
+| negative | [`TestSoftwareVersionCapabilityDecidesNothing`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/draft_abraitis_bgp_version_capability_softver_test.go#L34) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestSoftwareVersionCapabilityIsRecordedForDisplay`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/draft_abraitis_bgp_version_capability_softver_test.go#L58) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-2`](#draft-abraitis-bgp-version-capability-4-2)
 

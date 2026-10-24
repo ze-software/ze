@@ -49,7 +49,8 @@
     <h1 id="bgp-performance-testing-with-ze">BGP performance testing with Ze</h1>
     <p>A route-server performance test is simple in outline: create a route source, connect it to a device under test, watch a monitor peer, and publish how many routes arrived and how long convergence took.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#what-a-good-test-answers">What a good test answers</a></li>
 <li><a href="#topology">Topology</a></li>
 <li><a href="#fastest-working-test">Fastest working test</a></li>
@@ -61,7 +62,7 @@
 <li><a href="#how-close-ze-is-to-the-full-route-server-test">How close Ze is to the full route-server test</a></li>
 <li><a href="#prior-art">Prior art</a></li>
 <li><a href="#lab-evidence">Lab evidence</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <p>AMS-IX used ExaBGP as a lightweight BGP route source. bgperf formalised the same idea with tester, target, and monitor containers. Ze can run that setup with <code>le perf</code>: Ze supplies the sender and receiver, the target is any BGP speaker you want to test, and the output is a repeatable report instead of a stopwatch and screenshots.</p>
 <p>This page shows Ze in the tester role. The device under test can be FRR, BIRD, GoBGP, OpenBGPD, a route-server appliance, or Ze itself.</p>
 <!-- source: ../main/internal/perf/cli/cmd_run.go -- le perf sender, receiver, repeat, JSON, and output flags -->
@@ -395,7 +396,8 @@ birdc show route count
 ./le perf report test/perf/results/*.json
 </code></pre>
 <p>The full benchmarking guide is at <a href="../../guides/benchmarking/">docs/guide/benchmarking</a>.</p>
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Use case</p>
@@ -436,7 +438,7 @@ birdc show route count
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 September 2026 05:14 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

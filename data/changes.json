@@ -16,7 +16,7 @@
       },
       {
         "label": "IPsec",
-        "category": "secure",
+        "category": "services",
         "key": "IPsec"
       },
       {
@@ -56,7 +56,7 @@
       },
       {
         "label": "Looking Glass",
-        "category": "observe",
+        "category": "operate",
         "key": "Looking Glass"
       },
       {
@@ -118,7 +118,7 @@
       },
       {
         "label": "IPsec",
-        "category": "secure",
+        "category": "services",
         "key": "IPsec"
       },
       {
@@ -205,7 +205,7 @@
       },
       {
         "label": "IPsec",
-        "category": "secure",
+        "category": "services",
         "key": "IPsec"
       },
       {
@@ -237,7 +237,7 @@
       },
       {
         "label": "IPsec",
-        "category": "secure",
+        "category": "services",
         "key": "IPsec"
       },
       {
@@ -277,12 +277,12 @@
       },
       {
         "label": "Interfaces",
-        "category": "platform",
+        "category": "services",
         "key": "Interfaces"
       },
       {
         "label": "Firewall",
-        "category": "secure",
+        "category": "services",
         "key": "Firewall"
       },
       {
@@ -329,7 +329,7 @@
       },
       {
         "label": "Interfaces",
-        "category": "platform",
+        "category": "services",
         "key": "Interfaces"
       },
       {
@@ -339,7 +339,7 @@
       },
       {
         "label": "IPsec",
-        "category": "secure",
+        "category": "services",
         "key": "IPsec"
       },
       {
@@ -411,7 +411,7 @@
       },
       {
         "label": "IPsec",
-        "category": "secure",
+        "category": "services",
         "key": "IPsec"
       },
       {
@@ -436,12 +436,12 @@
       },
       {
         "label": "Interfaces",
-        "category": "platform",
+        "category": "services",
         "key": "Interfaces"
       },
       {
         "label": "Firewall",
-        "category": "secure",
+        "category": "services",
         "key": "Firewall"
       },
       {
@@ -503,7 +503,7 @@
       },
       {
         "label": "IPsec",
-        "category": "secure",
+        "category": "services",
         "key": "IPsec"
       },
       {
@@ -523,12 +523,12 @@
       },
       {
         "label": "Firewall",
-        "category": "secure",
+        "category": "services",
         "key": "Firewall"
       },
       {
         "label": "Fleet",
-        "category": "platform",
+        "category": "automate",
         "key": "Fleet"
       },
       {
@@ -575,12 +575,12 @@
       },
       {
         "label": "IPsec",
-        "category": "secure",
+        "category": "services",
         "key": "IPsec"
       },
       {
         "label": "Firewall",
-        "category": "secure",
+        "category": "services",
         "key": "Firewall"
       },
       {
@@ -632,7 +632,7 @@
       },
       {
         "label": "IPsec",
-        "category": "secure",
+        "category": "services",
         "key": "IPsec"
       },
       {
@@ -652,7 +652,7 @@
       },
       {
         "label": "Looking Glass",
-        "category": "observe",
+        "category": "operate",
         "key": "Looking Glass"
       },
       {
@@ -662,7 +662,7 @@
       },
       {
         "label": "Interfaces",
-        "category": "platform",
+        "category": "services",
         "key": "Interfaces"
       },
       {
@@ -699,7 +699,7 @@
       },
       {
         "label": "IPsec",
-        "category": "secure",
+        "category": "services",
         "key": "IPsec"
       },
       {
@@ -719,7 +719,7 @@
       },
       {
         "label": "Interfaces",
-        "category": "platform",
+        "category": "services",
         "key": "Interfaces"
       },
       {
@@ -739,7 +739,7 @@
       },
       {
         "label": "Looking Glass",
-        "category": "observe",
+        "category": "operate",
         "key": "Looking Glass"
       },
       {
@@ -811,7 +811,7 @@
     "topics": [
       {
         "label": "IPsec",
-        "category": "secure",
+        "category": "services",
         "key": "IPsec"
       },
       {
@@ -846,7 +846,7 @@
       },
       {
         "label": "MRT",
-        "category": "observe",
+        "category": "routing",
         "key": "MRT"
       },
       {
@@ -881,7 +881,7 @@
       },
       {
         "label": "VPP",
-        "category": "platform",
+        "category": "services",
         "key": "VPP"
       },
       {
@@ -963,12 +963,12 @@
       },
       {
         "label": "IPsec",
-        "category": "secure",
+        "category": "services",
         "key": "IPsec"
       },
       {
         "label": "Firewall",
-        "category": "secure",
+        "category": "services",
         "key": "Firewall"
       },
       {
@@ -998,7 +998,7 @@
       },
       {
         "label": "Interfaces",
-        "category": "platform",
+        "category": "services",
         "key": "Interfaces"
       },
       {
@@ -1075,7 +1075,7 @@
       },
       {
         "label": "Looking Glass",
-        "category": "observe",
+        "category": "operate",
         "key": "Looking Glass"
       },
       {
@@ -1090,7 +1090,7 @@
       },
       {
         "label": "IPsec",
-        "category": "secure",
+        "category": "services",
         "key": "IPsec"
       },
       {
@@ -1100,7 +1100,7 @@
       },
       {
         "label": "Firewall",
-        "category": "secure",
+        "category": "services",
         "key": "Firewall"
       },
       {
@@ -1132,7 +1132,7 @@
     "topics": [
       {
         "label": "IPsec",
-        "category": "secure",
+        "category": "services",
         "key": "IPsec"
       },
       {
@@ -1157,7 +1157,7 @@
       },
       {
         "label": "VPP",
-        "category": "platform",
+        "category": "services",
         "key": "VPP"
       },
       {
@@ -1177,7 +1177,7 @@
       },
       {
         "label": "Looking Glass",
-        "category": "observe",
+        "category": "operate",
         "key": "Looking Glass"
       },
       {
@@ -1187,7 +1187,7 @@
       },
       {
         "label": "MRT",
-        "category": "observe",
+        "category": "routing",
         "key": "MRT"
       },
       {
@@ -1259,7 +1259,7 @@
       },
       {
         "label": "VPP",
-        "category": "platform",
+        "category": "services",
         "key": "VPP"
       },
       {
@@ -1415,7 +1415,7 @@
       },
       {
         "label": "Firewall",
-        "category": "secure",
+        "category": "services",
         "key": "Firewall"
       },
       {
@@ -1430,7 +1430,7 @@
       },
       {
         "label": "Interfaces",
-        "category": "platform",
+        "category": "services",
         "key": "Interfaces"
       }
     ]
@@ -1509,7 +1509,7 @@
       },
       {
         "label": "MRT",
-        "category": "observe",
+        "category": "routing",
         "key": "MRT"
       },
       {
@@ -1633,7 +1633,7 @@
       },
       {
         "label": "IPsec",
-        "category": "secure",
+        "category": "services",
         "key": "IPsec"
       },
       {
@@ -1700,7 +1700,7 @@
       },
       {
         "label": "Interfaces",
-        "category": "platform",
+        "category": "services",
         "key": "Interfaces"
       },
       {
@@ -1742,7 +1742,7 @@
       },
       {
         "label": "Firewall",
-        "category": "secure",
+        "category": "services",
         "key": "Firewall"
       },
       {
@@ -1752,7 +1752,7 @@
       },
       {
         "label": "Fleet",
-        "category": "platform",
+        "category": "automate",
         "key": "Fleet"
       },
       {
@@ -1762,7 +1762,7 @@
       },
       {
         "label": "VPP",
-        "category": "platform",
+        "category": "services",
         "key": "VPP"
       }
     ]
@@ -1809,7 +1809,7 @@
       },
       {
         "label": "Interfaces",
-        "category": "platform",
+        "category": "services",
         "key": "Interfaces"
       },
       {
@@ -1856,7 +1856,7 @@
       },
       {
         "label": "Firewall",
-        "category": "secure",
+        "category": "services",
         "key": "Firewall"
       },
       {
@@ -1871,7 +1871,7 @@
       },
       {
         "label": "VPP",
-        "category": "platform",
+        "category": "services",
         "key": "VPP"
       }
     ]
@@ -1903,7 +1903,7 @@
       },
       {
         "label": "Firewall",
-        "category": "secure",
+        "category": "services",
         "key": "Firewall"
       },
       {
@@ -1913,7 +1913,7 @@
       },
       {
         "label": "Interfaces",
-        "category": "platform",
+        "category": "services",
         "key": "Interfaces"
       },
       {
@@ -1928,7 +1928,7 @@
       },
       {
         "label": "VPP",
-        "category": "platform",
+        "category": "services",
         "key": "VPP"
       }
     ]
@@ -1970,7 +1970,7 @@
       },
       {
         "label": "Interfaces",
-        "category": "platform",
+        "category": "services",
         "key": "Interfaces"
       },
       {
@@ -2022,12 +2022,12 @@
       },
       {
         "label": "Looking Glass",
-        "category": "observe",
+        "category": "operate",
         "key": "Looking Glass"
       },
       {
         "label": "Interfaces",
-        "category": "platform",
+        "category": "services",
         "key": "Interfaces"
       },
       {
@@ -2084,7 +2084,7 @@
       },
       {
         "label": "Fleet",
-        "category": "platform",
+        "category": "automate",
         "key": "Fleet"
       },
       {

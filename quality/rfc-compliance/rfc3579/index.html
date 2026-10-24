@@ -63,9 +63,9 @@
 .rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
 .rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
 .rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
-.rfc-ok { border-left: 7px solid var(--teal-base); }
+.rfc-ok { border-left: 7px solid var(--green); }
 .rfc-neutral { border-left: 7px solid var(--line-strong); }
-.rfc-warn { border-left: 7px solid var(--gold-base); }
+.rfc-warn { border-left: 7px solid var(--amber); }
 .rfc-bad { border-left: 7px solid var(--danger-deep); }
 .rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
 .rfc-tape span { width: var(--w); min-width: 0; display: block; }
@@ -80,11 +80,11 @@
 .rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-partial-scope { background: var(--danger-deep); }
-.rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
+.rfc-tape-one_polarity_unexcused { background: var(--amber); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
-.rfc-swatch.rfc-ok { background: var(--teal-base); }
+.rfc-swatch.rfc-ok { background: var(--green); }
 .rfc-swatch.rfc-neutral { background: var(--line-strong); }
-.rfc-swatch.rfc-warn { background: var(--gold-base); }
+.rfc-swatch.rfc-warn { background: var(--amber); }
 .rfc-swatch.rfc-bad { background: var(--danger-deep); }
 .rfc-total td { border-top: 2px solid var(--line-strong); }
 .rfc-prose { max-width: 46rem; }
@@ -110,7 +110,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 .rfc-note-box { margin: 1rem 0; padding: 1rem 1.2rem; border-radius: 16px; background: var(--gold-tint); border: 1px solid var(--gold-chip); }
 .rfc-note-box h3 { margin-top: 0; }
 .rfc-note-box ul { margin-bottom: 0; }
-.rfc-check-ok strong { color: var(--teal-deep); }
+.rfc-check-ok strong { color: var(--green); }
 .rfc-check-bad strong { color: var(--danger-deep); }
 </style>
 <section><h2>Overview</h2>
@@ -121,7 +121,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 31 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 31 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0.0%</strong><b>0 of 31 gated MUSTs</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>95.7%</strong><b>45 of 47 tagged units, 2 escaped and 0 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>91.7%</strong><b>44 of 48 tagged units, 2 escaped and 2 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -230,16 +230,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>47</td>
+<td>48</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>47</td>
+<td>48</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>18</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>47</td>
+<td>48</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc3579.md</code></td>
@@ -260,7 +260,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <section><h2>What the public ledger says</h2>
 <p><strong>Status:</strong> Partial</p>
 <details class="rfc-fold"><summary>What the ledger says is covered</summary>
-Ze is the NAS and runs the RADIUS/EAP conversation for operator login, with <code>auth-method eap-md5</code> or <code>eap-mschapv2</code>. It encapsulates one EAP packet per RADIUS packet in consecutive EAP-Message attributes split at 253 octets (<code>appendEAPMessage</code>, <code>eapPacketFrom</code>, <a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/eap.go" target="_blank" rel="noopener"><code>internal/component/radius/eap.go</code></a>), signs every EAP-bearing Access-Request (<code>SignMessageAuthenticator</code>, <a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/packet.go" target="_blank" rel="noopener"><code>internal/component/radius/packet.go</code></a>), silently discards a reply whose Message-Authenticator does not verify (<code>(*Client).dispatchResponse</code>, <a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/client.go" target="_blank" rel="noopener"><code>internal/component/radius/client.go</code></a>), and answers each Access-Challenge with the peer&#39;s EAP-Response and the challenge&#39;s State unmodified (<code>authenticateEAP</code>, <a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap.go" target="_blank" rel="noopener"><code>internal/component/radius/authenticator_eap.go</code></a>). It copies the peer&#39;s own EAP-Response/Identity Type-Data into User-Name on every request of the conversation, validates each server EAP header before the peer sees it, processes the EAP-Message attributes before it reads the reply code, and never offers a password credential in place of the configured EAP method. Ze answers EAP itself, as the peer, rather than passing frames through.
+Ze is the NAS and runs the RADIUS/EAP conversation for operator login, with <code>auth-method eap-md5</code> or <code>eap-mschapv2</code>. It encapsulates one EAP packet per RADIUS packet in consecutive EAP-Message attributes split at 253 octets (<code>appendEAPMessage</code>, <code>eapPacketFrom</code>, <a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/eap.go" target="_blank" rel="noopener"><code>internal/component/radius/eap.go</code></a>), signs every EAP-bearing Access-Request (<code>SignMessageAuthenticator</code>, <a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/packet.go" target="_blank" rel="noopener"><code>internal/component/radius/packet.go</code></a>), silently discards a reply whose Message-Authenticator does not verify, and a reply that carries an EAP-Message with no Message-Authenticator, counting the latter on <code>ze_radius_unsigned_eap_discards_total</code> (<code>(*Client).dispatchResponse</code>, <a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/client.go" target="_blank" rel="noopener"><code>internal/component/radius/client.go</code></a>), and answers each Access-Challenge with the peer&#39;s EAP-Response and the challenge&#39;s State unmodified (<code>authenticateEAP</code>, <a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap.go" target="_blank" rel="noopener"><code>internal/component/radius/authenticator_eap.go</code></a>). It copies the peer&#39;s own EAP-Response/Identity Type-Data into User-Name on every request of the conversation, validates each server EAP header before the peer sees it, processes the EAP-Message attributes before it reads the reply code, and never offers a password credential in place of the configured EAP method. Ze answers EAP itself, as the peer, rather than passing frames through.
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
 Fourteen MUST requirements are unproven, unreached or unmet, none of which changes what an operator can configure. The EAP-bearing Access-Requests ze sends are the admin login&#39;s, built by <code>(*radiusAuthenticator).exchange</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator.go" target="_blank" rel="noopener"><code>internal/component/radius/authenticator.go</code></a>), and each carries NAS-Port-Id naming the access channel the login arrived on, taken from the login&#39;s <code>AuthRequest.Service</code>: <code>ssh</code> for an SSH login and <code>web</code> for a web login (<code>RFC3579-3-2</code>); the L2TP subscriber Access-Request, which carries no EAP-Message, sends NAS-Port as the L2TP session id (<code>buildAuthAttrs</code>, <a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/handler.go" target="_blank" rel="noopener"><code>internal/component/l2tp/plugins/authradius/handler.go</code></a>). The pass-through architecture accounts for most: ze answers EAP for the operator and forwards no EAP frame, so Section 2.1&#39;s EAP-Start and the Nak relay have no path, and the Section 2.2 Error-Cause 202 branch cannot fire because ze holds no queue of EAP-Responses for its antecedent to match. Four prohibitions hold by construction and are tagged by nothing, because a test would have to observe a packet no code path can build: Sections 2.1, 2.6.3 and 2.6.5. EAP-TLS is implemented in the peer (<code>internal/core/eap</code>) and not offered by <code>auth-method</code>, which needs an operator certificate and key. Ze&#39;s PPP NAS never negotiates EAP, so the Section 4.3.6 obligations that bind a NAS whose peers require EAP are unreached. The IPsec-for-RADIUS profile of Section 4.2 is absent: ze offers no way to run RADIUS over an IPsec SA and no zero-length shared secret. Section 4.3.4&#39;s ban on sharing a secret between an EAP NAS and a User-Password NAS is not checked at config load.
@@ -697,7 +697,7 @@ Fourteen MUST requirements are unproven, unreached or unmet, none of which chang
 <td>3.1 - EAP-Message</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3579-3.1-6">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_client_test.go#L75" title="internal/component/radius/rfc3579_client_test.go" target="_blank" rel="noopener"><code>TestRadiusDiscardsEAPAnswerWithoutMessageAuthenticator</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3579-4.2-4">RFC3579-4.2-4</code></td><td colspan="3"><span class="rfc-subject">To address the security vulnerabilities of RADIUS/EAP, implementations of this specification SHOULD support IPsec [RFC2401] along with IKE [RFC2409] for key management. IPsec ESP [RFC2406] with non-null transform SHOULD be supported, and IPsec ESP with a non-null encryption transform and authentication support SHOULD be used to provide per-packet confidentiality, authentication, integrity and replay protection. (§4.2)</span></td></tr>
@@ -1152,12 +1152,12 @@ Fourteen MUST requirements are unproven, unreached or unmet, none of which chang
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L501" title="internal/component/radius/authenticator_eap_test.go" target="_blank" rel="noopener"><code>TestRadiusAdminEapDiscardsUnauthenticatedChallenge</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L915" title="internal/component/radius/authenticator_eap_test.go" target="_blank" rel="noopener"><code>TestRadiusAdminEapVerifiedChallengeIsAccepted</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -1309,6 +1309,21 @@ Fourteen MUST requirements are unproven, unreached or unmet, none of which chang
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/aaa-radius-admin.ci#L5" title="test/plugin/aaa-radius-admin.ci" target="_blank" rel="noopener"><code>aaa-radius-admin.ci</code></a></td>
 <td>functional/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc3579-3.1-6"><code>RFC3579-3.1-6</code></a></h3>
+<p>Access-Challenge, Access-Accept, or Access-Reject packets including EAP-Message attribute(s) without a Message-Authenticator attribute SHOULD be silently discarded by the NAS. (§3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_client_test.go#L75" title="internal/component/radius/rfc3579_client_test.go" target="_blank" rel="noopener"><code>TestRadiusDiscardsEAPAnswerWithoutMessageAuthenticator</code></a></td>
+<td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 </tbody>
@@ -1760,7 +1775,7 @@ Fourteen MUST requirements are unproven, unreached or unmet, none of which chang
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

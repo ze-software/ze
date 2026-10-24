@@ -51,7 +51,8 @@
     <h1 id="developer-setup">Developer Setup</h1>
     <p>Set up a Ze development environment with all build, lint, and test dependencies.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#quick-start">Quick Start</a></li>
 <li><a href="#check-mode">Check Mode</a>
 <ol>
@@ -71,7 +72,7 @@
 </ol></li>
 <li><a href="#after-setup">After Setup</a></li>
 <li><a href="#drift-guard">Drift Guard</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <h2 id="quick-start">Quick Start</h2>
 <p><code>./le</code> is built from this repository with Go, so Go comes first. Install the
 release <code>go.mod</code> names on its <code>go</code> line from
@@ -337,7 +338,8 @@ kernel that lacks one.</p>
 <li><strong>macOS, the <code>ze</code> Colima profile:</strong> the labs run on the Colima profile <code>ze</code>,
 which boots Ze's docker-host image (Ze's runtime kernel, dockerd,
 containerd). <code>./le setup docker-host start</code> builds the image when needed and
-runs the profile, never touching Colima's <code>default</code> profile. With DOCKER_HOST
+runs the profile, never touching Colima's <code>default</code> profile, then makes
+<code>colima-ze</code> the current Docker context so a plain <code>docker</code> reaches it. With DOCKER_HOST
 unset, every lab names the profile's socket, <code>ze/docker.sock</code> under
 Colima's home (<code>$COLIMA_HOME</code> when that directory exists, else
 <code>~/.colima</code>), itself, whatever the current Docker context says; when that socket is absent
@@ -521,7 +523,7 @@ command fails.</p>
 <p>These changes require an explicit <code>setup install</code> or the commands above.
 <code>setup check</code> and test runners do not change host networking. Every command that
 starts a functional suite (<code>./le test functional</code>, <code>./le verify worktree</code>,
-<code>./le verify current</code>, <code>./le commit debt-clear</code>) runs this same check before it
+<code>./le verify current</code>) runs this same check before it
 builds or runs anything, and refuses to start when an address is missing. The
 refusal names each missing address and the commands above that add it
 (<code>FunctionalHostPreflight</code>). The runners' own per-test probes stay, and check
@@ -546,7 +548,8 @@ section governs each of them.</p>
 list. A Go test (<code>TestDevSetupMatchesDoctor</code> in
 <code>internal/appliance/dev_setup_drift_test.go</code>) fails if they disagree,
 preventing the lists from drifting apart.</p>
-
+</div>
+</div>
             </section>
         </main>
 
@@ -556,7 +559,7 @@ preventing the lists from drifting apart.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

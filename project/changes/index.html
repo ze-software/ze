@@ -74,25 +74,7 @@
                 border: 1px solid var(--acc, var(--line));
                 white-space: nowrap;
             }
-            .ch-chip.cat-meta {
-                background: var(--bg-soft);
-                color: var(--muted);
-                border-color: var(--line);
-                border-style: dashed;
-            }
-            /* The meta bucket has no accent hue, so the shared .legend button
-               style (white text over var(--acc)) renders invisible. Give the
-               filter button a readable neutral treatment instead. */
-            .ch-filters .cat-meta {
-                background: var(--bg-soft);
-                color: var(--muted);
-                border-color: var(--line);
-            }
-            .ch-filters .cat-meta:hover { color: var(--text); }
-            .ch-filters .cat-meta[aria-pressed="true"] {
-                border-color: var(--muted);
-                box-shadow: 0 0 0 2px var(--line);
-            }
+            .ch-chip.cat-meta { border-style: dashed; }
             .ch-draft { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--acc-deep, var(--muted)); margin-left: 0.5rem; }
         </style>
     </head>
@@ -132,7 +114,7 @@
                     <button class="cat-meta" data-cat="meta" aria-pressed="false">Meta</button>
                 </div>
                 <div class="ch-list reveal">
-                    <a class="ch-week" data-cats="operate routing automate observe secure platform meta" href="2026-10-05/" aria-label="Read Week of 2026-10-05">
+                    <a class="ch-week" data-cats="operate routing services automate observe platform meta" href="2026-10-05/" aria-label="Read Week of 2026-10-05">
                         <div class="ch-head">
                             <h2><span class="ch-week-title">Week of 2026-10-05</span></h2>
                         </div>
@@ -140,7 +122,7 @@
                         <div class="ch-chips">
                             <span class="ch-chip cat-routing">BGP</span>
                             <span class="ch-chip cat-routing">RSVP-TE</span>
-                            <span class="ch-chip cat-secure">IPsec</span>
+                            <span class="ch-chip cat-services">IPsec</span>
                             <span class="ch-chip cat-operate">Config</span>
                             <span class="ch-chip cat-operate">Config Editor</span>
                             <span class="ch-chip cat-operate">CLI</span>
@@ -148,13 +130,13 @@
                             <span class="ch-chip cat-operate">YANG</span>
                             <span class="ch-chip cat-platform">Appliance</span>
                             <span class="ch-chip cat-platform">Kernel</span>
-                            <span class="ch-chip cat-observe">Looking Glass</span>
+                            <span class="ch-chip cat-operate">Looking Glass</span>
                             <span class="ch-chip cat-observe">Diagnostics</span>
                             <span class="ch-chip cat-meta">RFC Compliance</span>
                             <span class="ch-chip cat-platform">Quality Improvement</span>
                         </div>
                     </a>
-                    <a class="ch-week" data-cats="routing services automate observe secure platform meta" href="2026-09-28/" aria-label="Read Week of 2026-09-28">
+                    <a class="ch-week" data-cats="routing services automate observe platform meta" href="2026-09-28/" aria-label="Read Week of 2026-09-28">
                         <div class="ch-head">
                             <h2><span class="ch-week-title">Week of 2026-09-28</span></h2>
                         </div>
@@ -167,7 +149,7 @@
                             <span class="ch-chip cat-services">L2TP</span>
                             <span class="ch-chip cat-services">PPP</span>
                             <span class="ch-chip cat-services">RADIUS</span>
-                            <span class="ch-chip cat-secure">IPsec</span>
+                            <span class="ch-chip cat-services">IPsec</span>
                             <span class="ch-chip cat-routing">RSVP-TE</span>
                             <span class="ch-chip cat-observe">Flow Export</span>
                             <span class="ch-chip cat-automate">API</span>
@@ -176,7 +158,7 @@
                             <span class="ch-chip cat-platform">Quality Improvement</span>
                         </div>
                     </a>
-                    <a class="ch-week" data-cats="operate routing automate secure platform meta" href="2026-09-21/" aria-label="Read Week of 2026-09-21">
+                    <a class="ch-week" data-cats="operate routing services automate platform meta" href="2026-09-21/" aria-label="Read Week of 2026-09-21">
                         <div class="ch-head">
                             <h2><span class="ch-week-title">Week of 2026-09-21</span></h2>
                         </div>
@@ -191,20 +173,20 @@
                             <span class="ch-chip cat-routing">Graceful Restart</span>
                             <span class="ch-chip cat-routing">VRRP</span>
                             <span class="ch-chip cat-routing">LDP</span>
-                            <span class="ch-chip cat-secure">IPsec</span>
+                            <span class="ch-chip cat-services">IPsec</span>
                             <span class="ch-chip cat-automate">ExaBGP Migration</span>
                             <span class="ch-chip cat-meta">RFC Compliance</span>
                             <span class="ch-chip cat-platform">Quality Improvement</span>
                         </div>
                     </a>
-                    <a class="ch-week" data-cats="routing automate observe secure platform meta" href="2026-09-14/" aria-label="Read Week of 2026-09-14">
+                    <a class="ch-week" data-cats="routing services automate observe secure platform meta" href="2026-09-14/" aria-label="Read Week of 2026-09-14">
                         <div class="ch-head">
                             <h2><span class="ch-week-title">Week of 2026-09-14</span></h2>
                         </div>
                         <p class="ch-intro">Ze measures the path MTU to a peer now, and sizes every IPsec tunnel from what it measured. Two of the week&#39;s fixes are worth a maintenance window: Graceful Restart told every peer that Ze preserved nothing, and RPKI reported origin validation as active with no cache server reachable. The release queue closed the week at 157 required work items and 183 nice-to-have, against 141 and 181 at the start. Four items left it when the path MTU work finished, and most of what joined is checking work. This is an inventory preview. It reads two endpoints, so an item added and finished inside the same week never appears in it, and the counts measure work items rather than readiness: https://ze-software.net/project/roadmap/</p>
                         <div class="ch-chips">
                             <span class="ch-chip cat-observe">Diagnostics</span>
-                            <span class="ch-chip cat-secure">IPsec</span>
+                            <span class="ch-chip cat-services">IPsec</span>
                             <span class="ch-chip cat-secure">Security</span>
                             <span class="ch-chip cat-routing">OSPF</span>
                             <span class="ch-chip cat-routing">IS-IS</span>
@@ -212,8 +194,8 @@
                             <span class="ch-chip cat-routing">Graceful Restart</span>
                             <span class="ch-chip cat-routing">RPKI</span>
                             <span class="ch-chip cat-routing">BFD</span>
-                            <span class="ch-chip cat-platform">Interfaces</span>
-                            <span class="ch-chip cat-secure">Firewall</span>
+                            <span class="ch-chip cat-services">Interfaces</span>
+                            <span class="ch-chip cat-services">Firewall</span>
                             <span class="ch-chip cat-automate">ExaBGP Migration</span>
                             <span class="ch-chip cat-meta">RFC Compliance</span>
                             <span class="ch-chip cat-platform">Quality Improvement</span>
@@ -229,9 +211,9 @@
                             <span class="ch-chip cat-routing">BFD</span>
                             <span class="ch-chip cat-routing">OSPF</span>
                             <span class="ch-chip cat-routing">VRRP</span>
-                            <span class="ch-chip cat-platform">Interfaces</span>
+                            <span class="ch-chip cat-services">Interfaces</span>
                             <span class="ch-chip cat-secure">Security</span>
-                            <span class="ch-chip cat-secure">IPsec</span>
+                            <span class="ch-chip cat-services">IPsec</span>
                             <span class="ch-chip cat-services">PPPoE</span>
                             <span class="ch-chip cat-services">RADIUS</span>
                             <span class="ch-chip cat-secure">DDoS</span>
@@ -252,20 +234,20 @@
                             <span class="ch-chip cat-routing">Redistribution</span>
                             <span class="ch-chip cat-automate">ExaBGP Migration</span>
                             <span class="ch-chip cat-secure">Security</span>
-                            <span class="ch-chip cat-secure">IPsec</span>
+                            <span class="ch-chip cat-services">IPsec</span>
                             <span class="ch-chip cat-services">RADIUS</span>
                             <span class="ch-chip cat-secure">AAA</span>
                             <span class="ch-chip cat-services">L2TP</span>
                             <span class="ch-chip cat-services">PPPoE</span>
-                            <span class="ch-chip cat-platform">Interfaces</span>
-                            <span class="ch-chip cat-secure">Firewall</span>
+                            <span class="ch-chip cat-services">Interfaces</span>
+                            <span class="ch-chip cat-services">Firewall</span>
                             <span class="ch-chip cat-operate">CLI</span>
                             <span class="ch-chip cat-operate">Config</span>
                             <span class="ch-chip cat-meta">RFC Compliance</span>
                             <span class="ch-chip cat-platform">Quality Improvement</span>
                         </div>
                     </a>
-                    <a class="ch-week" data-cats="operate routing services secure platform meta" href="2026-08-24/" aria-label="Read Week of 2026-08-24">
+                    <a class="ch-week" data-cats="operate routing services automate secure platform meta" href="2026-08-24/" aria-label="Read Week of 2026-08-24">
                         <div class="ch-head">
                             <h2><span class="ch-week-title">Week of 2026-08-24</span></h2>
                         </div>
@@ -277,17 +259,17 @@
                             <span class="ch-chip cat-routing">RSVP-TE</span>
                             <span class="ch-chip cat-routing">VRRP</span>
                             <span class="ch-chip cat-services">PPPoE</span>
-                            <span class="ch-chip cat-secure">IPsec</span>
+                            <span class="ch-chip cat-services">IPsec</span>
                             <span class="ch-chip cat-secure">TACACS+</span>
                             <span class="ch-chip cat-secure">AAA</span>
                             <span class="ch-chip cat-operate">Config</span>
-                            <span class="ch-chip cat-secure">Firewall</span>
-                            <span class="ch-chip cat-platform">Fleet</span>
+                            <span class="ch-chip cat-services">Firewall</span>
+                            <span class="ch-chip cat-automate">Fleet</span>
                             <span class="ch-chip cat-meta">RFC Compliance</span>
                             <span class="ch-chip cat-platform">Quality Improvement</span>
                         </div>
                     </a>
-                    <a class="ch-week" data-cats="operate routing automate observe secure platform meta" href="2026-08-17/" aria-label="Read Week of 2026-08-17">
+                    <a class="ch-week" data-cats="operate routing services automate observe secure platform meta" href="2026-08-17/" aria-label="Read Week of 2026-08-17">
                         <div class="ch-head">
                             <h2><span class="ch-week-title">Week of 2026-08-17</span></h2>
                         </div>
@@ -298,14 +280,14 @@
                             <span class="ch-chip cat-automate">API</span>
                             <span class="ch-chip cat-observe">Flow Export</span>
                             <span class="ch-chip cat-secure">DDoS</span>
-                            <span class="ch-chip cat-secure">IPsec</span>
-                            <span class="ch-chip cat-secure">Firewall</span>
+                            <span class="ch-chip cat-services">IPsec</span>
+                            <span class="ch-chip cat-services">Firewall</span>
                             <span class="ch-chip cat-platform">Appliance</span>
                             <span class="ch-chip cat-meta">RFC Compliance</span>
                             <span class="ch-chip cat-platform">Quality Improvement</span>
                         </div>
                     </a>
-                    <a class="ch-week" data-cats="operate routing services observe secure platform meta" href="2026-08-10/" aria-label="Read Week of 2026-08-10">
+                    <a class="ch-week" data-cats="operate routing services platform meta" href="2026-08-10/" aria-label="Read Week of 2026-08-10">
                         <div class="ch-head">
                             <h2><span class="ch-week-title">Week of 2026-08-10</span></h2>
                         </div>
@@ -316,13 +298,13 @@
                             <span class="ch-chip cat-routing">RPKI</span>
                             <span class="ch-chip cat-services">PPPoE</span>
                             <span class="ch-chip cat-services">BNG</span>
-                            <span class="ch-chip cat-secure">IPsec</span>
+                            <span class="ch-chip cat-services">IPsec</span>
                             <span class="ch-chip cat-services">DNS</span>
                             <span class="ch-chip cat-operate">Config</span>
                             <span class="ch-chip cat-operate">Web UI</span>
-                            <span class="ch-chip cat-observe">Looking Glass</span>
+                            <span class="ch-chip cat-operate">Looking Glass</span>
                             <span class="ch-chip cat-platform">Appliance</span>
-                            <span class="ch-chip cat-platform">Interfaces</span>
+                            <span class="ch-chip cat-services">Interfaces</span>
                             <span class="ch-chip cat-meta">RFC Compliance</span>
                             <span class="ch-chip cat-meta">Interop</span>
                             <span class="ch-chip cat-platform">Quality Improvement</span>
@@ -336,15 +318,15 @@
                         <div class="ch-chips">
                             <span class="ch-chip cat-routing">BGP</span>
                             <span class="ch-chip cat-routing">IS-IS</span>
-                            <span class="ch-chip cat-secure">IPsec</span>
+                            <span class="ch-chip cat-services">IPsec</span>
                             <span class="ch-chip cat-secure">DDoS</span>
                             <span class="ch-chip cat-services">RADIUS</span>
                             <span class="ch-chip cat-services">L2TP</span>
-                            <span class="ch-chip cat-platform">Interfaces</span>
+                            <span class="ch-chip cat-services">Interfaces</span>
                             <span class="ch-chip cat-services">DNS</span>
                             <span class="ch-chip cat-automate">gNMI</span>
                             <span class="ch-chip cat-automate">MCP</span>
-                            <span class="ch-chip cat-observe">Looking Glass</span>
+                            <span class="ch-chip cat-operate">Looking Glass</span>
                             <span class="ch-chip cat-operate">Web UI</span>
                             <span class="ch-chip cat-operate">CLI</span>
                             <span class="ch-chip cat-operate">Config</span>
@@ -365,21 +347,21 @@
                         </div>
                         <p class="ch-intro">IPsec was the centre of the week. Ze ran against strongSwan and twenty defects came out. EAP-TLS worked with another implementation for the first time. The BGP announce path went from two encoders to one. OSPF, BMP, MRT and the MCP server each took correctness work.</p>
                         <div class="ch-chips">
-                            <span class="ch-chip cat-secure">IPsec</span>
+                            <span class="ch-chip cat-services">IPsec</span>
                             <span class="ch-chip cat-secure">Security</span>
                             <span class="ch-chip cat-meta">Interop</span>
                             <span class="ch-chip cat-routing">BGP</span>
                             <span class="ch-chip cat-routing">Route Server</span>
                             <span class="ch-chip cat-routing">Flowspec</span>
                             <span class="ch-chip cat-routing">BMP</span>
-                            <span class="ch-chip cat-observe">MRT</span>
+                            <span class="ch-chip cat-routing">MRT</span>
                             <span class="ch-chip cat-routing">OSPF</span>
                             <span class="ch-chip cat-automate">MCP</span>
                             <span class="ch-chip cat-operate">CLI</span>
                             <span class="ch-chip cat-operate">Web UI</span>
                             <span class="ch-chip cat-automate">Plugins</span>
                             <span class="ch-chip cat-services">L2TP</span>
-                            <span class="ch-chip cat-platform">VPP</span>
+                            <span class="ch-chip cat-services">VPP</span>
                             <span class="ch-chip cat-platform">Storage</span>
                             <span class="ch-chip cat-observe">Diagnostics</span>
                             <span class="ch-chip cat-platform">Performance</span>
@@ -402,14 +384,14 @@
                             <span class="ch-chip cat-routing">BMP</span>
                             <span class="ch-chip cat-routing">OSPF</span>
                             <span class="ch-chip cat-services">L2TP</span>
-                            <span class="ch-chip cat-secure">IPsec</span>
-                            <span class="ch-chip cat-secure">Firewall</span>
+                            <span class="ch-chip cat-services">IPsec</span>
+                            <span class="ch-chip cat-services">Firewall</span>
                             <span class="ch-chip cat-secure">DDoS</span>
                             <span class="ch-chip cat-services">CoS</span>
                             <span class="ch-chip cat-secure">Security</span>
                             <span class="ch-chip cat-secure">AAA</span>
                             <span class="ch-chip cat-platform">Installer</span>
-                            <span class="ch-chip cat-platform">Interfaces</span>
+                            <span class="ch-chip cat-services">Interfaces</span>
                             <span class="ch-chip cat-operate">Config</span>
                             <span class="ch-chip cat-operate">CLI</span>
                             <span class="ch-chip cat-platform">Feature Gates</span>
@@ -420,7 +402,7 @@
                             <span class="ch-chip cat-platform">Quality Improvement</span>
                         </div>
                     </a>
-                    <a class="ch-week" data-cats="operate routing services observe secure platform meta" href="2026-07-13/" aria-label="Read Week of 2026-07-13">
+                    <a class="ch-week" data-cats="operate routing services secure platform meta" href="2026-07-13/" aria-label="Read Week of 2026-07-13">
                         <div class="ch-head">
                             <h2><span class="ch-week-title">Week of 2026-07-13</span></h2>
                         </div>
@@ -431,36 +413,36 @@
                             <span class="ch-chip cat-routing">RPKI</span>
                             <span class="ch-chip cat-routing">BMP</span>
                             <span class="ch-chip cat-operate">CLI</span>
-                            <span class="ch-chip cat-observe">Looking Glass</span>
+                            <span class="ch-chip cat-operate">Looking Glass</span>
                             <span class="ch-chip cat-secure">Security</span>
                             <span class="ch-chip cat-secure">AAA</span>
-                            <span class="ch-chip cat-secure">IPsec</span>
+                            <span class="ch-chip cat-services">IPsec</span>
                             <span class="ch-chip cat-services">L2TP</span>
-                            <span class="ch-chip cat-secure">Firewall</span>
+                            <span class="ch-chip cat-services">Firewall</span>
                             <span class="ch-chip cat-platform">Appliance</span>
                             <span class="ch-chip cat-meta">RFC Compliance</span>
                             <span class="ch-chip cat-platform">Performance</span>
                             <span class="ch-chip cat-platform">Under the Hood</span>
                         </div>
                     </a>
-                    <a class="ch-week" data-cats="operate services automate observe secure platform meta" href="2026-07-06/" aria-label="Read Week of 2026-07-06">
+                    <a class="ch-week" data-cats="operate routing services automate observe secure platform meta" href="2026-07-06/" aria-label="Read Week of 2026-07-06">
                         <div class="ch-head">
                             <h2><span class="ch-week-title">Week of 2026-07-06</span></h2>
                         </div>
                         <p class="ch-intro">A dense week across VPN, DNS, subscriber access, the VPP data plane, the web UI, and observability.</p>
                         <div class="ch-chips">
-                            <span class="ch-chip cat-secure">IPsec</span>
+                            <span class="ch-chip cat-services">IPsec</span>
                             <span class="ch-chip cat-services">DNS</span>
                             <span class="ch-chip cat-services">L2TP</span>
                             <span class="ch-chip cat-services">PPPoE</span>
                             <span class="ch-chip cat-secure">DDoS</span>
-                            <span class="ch-chip cat-platform">VPP</span>
+                            <span class="ch-chip cat-services">VPP</span>
                             <span class="ch-chip cat-operate">Web UI</span>
                             <span class="ch-chip cat-services">RADIUS</span>
                             <span class="ch-chip cat-secure">RBAC</span>
-                            <span class="ch-chip cat-observe">Looking Glass</span>
+                            <span class="ch-chip cat-operate">Looking Glass</span>
                             <span class="ch-chip cat-observe">Telemetry</span>
-                            <span class="ch-chip cat-observe">MRT</span>
+                            <span class="ch-chip cat-routing">MRT</span>
                             <span class="ch-chip cat-automate">MCP</span>
                             <span class="ch-chip cat-platform">Appliance</span>
                             <span class="ch-chip cat-meta">Interop</span>
@@ -481,7 +463,7 @@
                             <span class="ch-chip cat-routing">MPLS</span>
                             <span class="ch-chip cat-operate">CLI</span>
                             <span class="ch-chip cat-secure">Security</span>
-                            <span class="ch-chip cat-platform">VPP</span>
+                            <span class="ch-chip cat-services">VPP</span>
                             <span class="ch-chip cat-platform">Under the Hood</span>
                         </div>
                     </a>
@@ -520,7 +502,7 @@
                             <span class="ch-chip cat-platform">Kernel</span>
                         </div>
                     </a>
-                    <a class="ch-week" data-cats="operate routing secure platform" href="2026-06-15/" aria-label="Read Week of 2026-06-15">
+                    <a class="ch-week" data-cats="operate routing services platform" href="2026-06-15/" aria-label="Read Week of 2026-06-15">
                         <div class="ch-head">
                             <h2><span class="ch-week-title">Week of 2026-06-15</span></h2>
                         </div>
@@ -532,10 +514,10 @@
                             <span class="ch-chip cat-routing">IS-IS</span>
                             <span class="ch-chip cat-routing">MPLS</span>
                             <span class="ch-chip cat-routing">RSVP-TE</span>
-                            <span class="ch-chip cat-secure">Firewall</span>
+                            <span class="ch-chip cat-services">Firewall</span>
                             <span class="ch-chip cat-platform">Appliance</span>
                             <span class="ch-chip cat-platform">Installer</span>
-                            <span class="ch-chip cat-platform">Interfaces</span>
+                            <span class="ch-chip cat-services">Interfaces</span>
                         </div>
                     </a>
                     <a class="ch-week" data-cats="operate routing services platform meta" href="2026-06-08/" aria-label="Read Week of 2026-06-08">
@@ -553,7 +535,7 @@
                             <span class="ch-chip cat-meta">Presentation: LINX 126</span>
                         </div>
                     </a>
-                    <a class="ch-week" data-cats="operate routing services observe platform" href="2026-06-01/" aria-label="Read Week of 2026-06-01">
+                    <a class="ch-week" data-cats="operate routing services platform" href="2026-06-01/" aria-label="Read Week of 2026-06-01">
                         <div class="ch-head">
                             <h2><span class="ch-week-title">Week of 2026-06-01</span></h2>
                         </div>
@@ -564,7 +546,7 @@
                             <span class="ch-chip cat-routing">BGP</span>
                             <span class="ch-chip cat-routing">RPKI</span>
                             <span class="ch-chip cat-services">L2TP</span>
-                            <span class="ch-chip cat-observe">MRT</span>
+                            <span class="ch-chip cat-routing">MRT</span>
                             <span class="ch-chip cat-platform">Appliance</span>
                             <span class="ch-chip cat-platform">Installer</span>
                             <span class="ch-chip cat-platform">Quality Improvement</span>
@@ -588,7 +570,7 @@
                             <span class="ch-chip cat-platform">Installer</span>
                         </div>
                     </a>
-                    <a class="ch-week" data-cats="operate routing services observe secure platform" href="2026-05-18/" aria-label="Read Week of 2026-05-18">
+                    <a class="ch-week" data-cats="operate routing services observe platform" href="2026-05-18/" aria-label="Read Week of 2026-05-18">
                         <div class="ch-head">
                             <h2><span class="ch-week-title">Week of 2026-05-18</span></h2>
                         </div>
@@ -602,7 +584,7 @@
                             <span class="ch-chip cat-services">L2TP</span>
                             <span class="ch-chip cat-services">PPPoE</span>
                             <span class="ch-chip cat-observe">Diagnostics</span>
-                            <span class="ch-chip cat-secure">IPsec</span>
+                            <span class="ch-chip cat-services">IPsec</span>
                             <span class="ch-chip cat-platform">Appliance</span>
                             <span class="ch-chip cat-platform">Installer</span>
                             <span class="ch-chip cat-platform">Performance</span>
@@ -622,11 +604,11 @@
                             <span class="ch-chip cat-services">DHCP</span>
                             <span class="ch-chip cat-services">PPPoE</span>
                             <span class="ch-chip cat-observe">Telemetry</span>
-                            <span class="ch-chip cat-platform">Interfaces</span>
+                            <span class="ch-chip cat-services">Interfaces</span>
                             <span class="ch-chip cat-platform">Under the Hood</span>
                         </div>
                     </a>
-                    <a class="ch-week" data-cats="services observe secure platform" href="2026-05-04/" aria-label="Read Week of 2026-05-04">
+                    <a class="ch-week" data-cats="services automate observe platform" href="2026-05-04/" aria-label="Read Week of 2026-05-04">
                         <div class="ch-head">
                             <h2><span class="ch-week-title">Week of 2026-05-04</span></h2>
                         </div>
@@ -637,11 +619,11 @@
                             <span class="ch-chip cat-services">PPPoE</span>
                             <span class="ch-chip cat-services">RADIUS</span>
                             <span class="ch-chip cat-observe">Diagnostics</span>
-                            <span class="ch-chip cat-secure">Firewall</span>
+                            <span class="ch-chip cat-services">Firewall</span>
                             <span class="ch-chip cat-platform">Appliance</span>
-                            <span class="ch-chip cat-platform">Fleet</span>
+                            <span class="ch-chip cat-automate">Fleet</span>
                             <span class="ch-chip cat-platform">Kernel</span>
-                            <span class="ch-chip cat-platform">VPP</span>
+                            <span class="ch-chip cat-services">VPP</span>
                         </div>
                     </a>
                     <a class="ch-week" data-cats="operate routing services automate observe platform" href="2026-04-27/" aria-label="Read Week of 2026-04-27">
@@ -657,11 +639,11 @@
                             <span class="ch-chip cat-services">L2TP</span>
                             <span class="ch-chip cat-automate">API</span>
                             <span class="ch-chip cat-observe">Telemetry</span>
-                            <span class="ch-chip cat-platform">Interfaces</span>
+                            <span class="ch-chip cat-services">Interfaces</span>
                             <span class="ch-chip cat-platform">Under the Hood</span>
                         </div>
                     </a>
-                    <a class="ch-week" data-cats="operate routing automate observe secure platform" href="2026-04-20/" aria-label="Read Week of 2026-04-20">
+                    <a class="ch-week" data-cats="operate routing services automate observe secure platform" href="2026-04-20/" aria-label="Read Week of 2026-04-20">
                         <div class="ch-head">
                             <h2><span class="ch-week-title">Week of 2026-04-20</span></h2>
                         </div>
@@ -673,10 +655,10 @@
                             <span class="ch-chip cat-automate">MCP</span>
                             <span class="ch-chip cat-observe">Diagnostics</span>
                             <span class="ch-chip cat-observe">Telemetry</span>
-                            <span class="ch-chip cat-secure">Firewall</span>
+                            <span class="ch-chip cat-services">Firewall</span>
                             <span class="ch-chip cat-secure">Security</span>
                             <span class="ch-chip cat-platform">Performance</span>
-                            <span class="ch-chip cat-platform">VPP</span>
+                            <span class="ch-chip cat-services">VPP</span>
                         </div>
                     </a>
                     <a class="ch-week" data-cats="services secure platform" href="2026-04-13/" aria-label="Read Week of 2026-04-13">
@@ -689,12 +671,12 @@
                             <span class="ch-chip cat-services">L2TP</span>
                             <span class="ch-chip cat-services">PPP</span>
                             <span class="ch-chip cat-secure">AAA</span>
-                            <span class="ch-chip cat-secure">Firewall</span>
+                            <span class="ch-chip cat-services">Firewall</span>
                             <span class="ch-chip cat-secure">TACACS+</span>
-                            <span class="ch-chip cat-platform">Interfaces</span>
+                            <span class="ch-chip cat-services">Interfaces</span>
                             <span class="ch-chip cat-platform">Performance</span>
                             <span class="ch-chip cat-platform">Under the Hood</span>
-                            <span class="ch-chip cat-platform">VPP</span>
+                            <span class="ch-chip cat-services">VPP</span>
                         </div>
                     </a>
                     <a class="ch-week" data-cats="operate routing services automate platform meta" href="2026-04-06/" aria-label="Read Week of 2026-04-06">
@@ -709,11 +691,11 @@
                             <span class="ch-chip cat-services">DHCP</span>
                             <span class="ch-chip cat-automate">API</span>
                             <span class="ch-chip cat-platform">Appliance</span>
-                            <span class="ch-chip cat-platform">Interfaces</span>
+                            <span class="ch-chip cat-services">Interfaces</span>
                             <span class="ch-chip cat-meta">Presentation: Net Manchester</span>
                         </div>
                     </a>
-                    <a class="ch-week" data-cats="operate routing services automate observe platform" href="2026-03-30/" aria-label="Read Week of 2026-03-30">
+                    <a class="ch-week" data-cats="operate routing services automate platform" href="2026-03-30/" aria-label="Read Week of 2026-03-30">
                         <div class="ch-head">
                             <h2><span class="ch-week-title">Week of 2026-03-30</span></h2>
                         </div>
@@ -726,8 +708,8 @@
                             <span class="ch-chip cat-services">DHCP</span>
                             <span class="ch-chip cat-services">DNS</span>
                             <span class="ch-chip cat-automate">Plugins</span>
-                            <span class="ch-chip cat-observe">Looking Glass</span>
-                            <span class="ch-chip cat-platform">Interfaces</span>
+                            <span class="ch-chip cat-operate">Looking Glass</span>
+                            <span class="ch-chip cat-services">Interfaces</span>
                             <span class="ch-chip cat-platform">Under the Hood</span>
                         </div>
                     </a>
@@ -745,7 +727,7 @@
                             <span class="ch-chip cat-automate">Plugins</span>
                             <span class="ch-chip cat-observe">Telemetry</span>
                             <span class="ch-chip cat-secure">Security</span>
-                            <span class="ch-chip cat-platform">Fleet</span>
+                            <span class="ch-chip cat-automate">Fleet</span>
                             <span class="ch-chip cat-platform">Performance</span>
                         </div>
                     </a>
@@ -1003,7 +985,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 12 October 2026 10:25 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

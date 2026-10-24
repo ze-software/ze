@@ -50,7 +50,8 @@
     <p>Ze can automatically detect volumetric DDoS attacks on its interfaces, mitigate
 them locally or upstream, and report incidents to the Flowtriq cloud.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#overview">Overview</a></li>
 <li><a href="#quick-start">Quick Start</a>
 <ol>
@@ -78,7 +79,7 @@ them locally or upstream, and report incidents to the Flowtriq cloud.</p>
 <li><a href="#viewing-ddos-state">Viewing DDoS state</a></li>
 <li><a href="#flow-source-and-observability">Flow source and observability</a></li>
 </ol></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <h2 id="overview">Overview</h2>
 <p>The system has four independent components, each enabled separately:</p>
 <table>
@@ -885,7 +886,11 @@ in the ring.</li>
 incident the target vector (prefix / proto / port), attack family, top source
 addresses, peak pps/bps, start/end time, and whether it is still active. The
 ring is bounded by <code>incident-ring-size</code> and fed by the detector's
-<code>AttackDetected</code> / <code>AttackCleared</code> events.</li>
+<code>AttackDetected</code> / <code>AttackCleared</code> events. The clear names the victim the
+detection named, so it closes that incident as soon as the attack ends; only
+an incident whose clear never comes waits for <code>stale-incident-timeout</code>.
+<!-- source: internal/plugins/ddos/detect/detector.go -- emitCleared -->
+</li>
 <li><code>show ddos local</code> (<code>ddos-local</code>): whether an on-host nft drop is installed and
 the target vector it covers.</li>
 <li><code>show ddos flowspec</code> (<code>ddos-flowspec</code>): whether an upstream FlowSpec rule is
@@ -912,7 +917,8 @@ degrades to a coarse generic-flood drop.</p>
 <li><code>ze_flowexport_recent_ring_drops</code> -- recent-flow ring entries overwritten before being read.</li>
 </ul>
 <!-- source: internal/plugins/ddos/detect/metrics.go -- ze_ddos_detect_characterize_* -->
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -954,7 +960,7 @@ degrades to a coarse generic-flood drop.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

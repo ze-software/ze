@@ -645,7 +645,9 @@
     "optional_dependencies": [],
     "start_after": [],
     "source_dir": "internal/component/bgp/plugins/watchdog",
-    "yang_files": []
+    "yang_files": [
+      "internal/component/bgp/plugins/watchdog/yang/ze-watchdog-cmd.yang"
+    ]
   },
   {
     "name": "connected",

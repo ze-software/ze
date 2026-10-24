@@ -49,7 +49,8 @@
     <h1 id="plugins">Plugins</h1>
     <p>Ze uses a plugin architecture for all features beyond core BGP session management. Plugins handle RIB storage, route reflection, graceful restart, RPKI validation, NLRI encoding, and more.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#choosing-plugins">Choosing plugins</a></li>
 <li><a href="#config-driven-loading">Config-Driven Loading</a></li>
 <li><a href="#loading-plugins">Loading Plugins</a>
@@ -107,7 +108,7 @@
 <li><a href="#session-ready-report">Session-Ready Report</a></li>
 <li><a href="#startup-timing">Startup Timing</a></li>
 <li><a href="#debugging-plugins">Debugging Plugins</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <!-- source: internal/component/plugin/registry/registry.go -- plugin registry; internal/component/plugin/all/ -- blank imports -->
 <h2 id="choosing-plugins">Choosing plugins</h2>
 <table>
@@ -2011,7 +2012,8 @@ backend. Cycles among selected plugins are refused for order-only edges too.</p>
 </table>
 <p>Use <code>--name &lt;name&gt;</code> to set a custom plugin name for the session.</p>
 <!-- source: internal/component/bgp/cli/cmd_plugin.go -- cmdPluginCLI -->
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -2053,7 +2055,7 @@ backend. Cycles among selected plugins are refused for order-only edges too.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

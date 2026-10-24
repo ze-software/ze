@@ -669,7 +669,7 @@ never sums the two, because a nightly tier is not merge-gate proof.
 - **Audit letter and spirit with `/ze-rfc-audit <rfc>`.** The gate proves a link
   exists, but it cannot read the test. The audit reads the RFC itself and each
   tagged test. It then judges whether the test would fail if the code stopped
-  complying, and records a per-requirement verdict in `rfc/audit/<rfc>.json`.
+  complying, and records a per-requirement verdict in `rfc/audit/<rfc>/<requirement-id>.json`.
   The verdict uses the closed vocabulary the gate reads:
   - `enforced` is the only one that means whole-requirement proof.
   - `partial` means the declared tested scope is proven while the remainder is
@@ -745,6 +745,18 @@ answer from the owner behind
 it is a forgery, not a shortcut, so the reason names what the owner approved
 and why the tagged requirement is still proven after the change, quoting the
 requirement id.
+
+When the owner has not answered yet, `rfc-change-ok "<reason>"` on
+`./le commit create` admits the commit anyway and writes one trailer per
+unapproved unit, `RFC-approval-owed: <package>.<TestName>: <reason>`. The
+commit lands, and the push is refused while the trailer is open: a later commit
+carrying `RFC-approved:` for the same unit answers it, and so does the owner's
+attestation, `./le commit create subject "<subject>" attest <commit> "<owner
+words>"`, an empty commit carrying `Owner-attested: <stable patch-id>: <owner
+words>`. Nothing outside the commits records either
+(`docs/architecture/testing/verify-freshness-scope.md`).
+<!-- source: internal/le/commit/prepare.go -- admissionTrailer -->
+<!-- source: internal/le/commit/owed_trailers.go -- readPersonActs -->
 
 <!-- source: internal/le/test/weakened/proposed.go -- RFC-tagged carrier approval -->
 <!-- source: ai/skills/ze-rfc.md -- requirement id allocation and annotations -->

@@ -51,7 +51,8 @@
 tunnels with bandwidth reservation. It runs directly over IP as protocol 46 and
 requires <code>CAP_NET_RAW</code>.</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#configuration">Configuration</a>
 <ol>
 <li><a href="#what-a-commit-changes">What a commit changes</a></li>
@@ -66,7 +67,7 @@ requires <code>CAP_NET_RAW</code>.</p>
 <li><a href="#building-the-peer-artifacts">Building the peer artifacts</a></li>
 <li><a href="#ze-ingress-limitation-of-this-peer">Ze-ingress limitation of this peer</a></li>
 </ol></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <blockquote>
 <p><strong>Status: experimental.</strong> The engine emits push/swap/pop entries on the
 <code>mpls-fib</code> event bus. <code>fib-kernel</code> installs IP routes with labels for push and
@@ -295,7 +296,7 @@ make-before-break, admission/preemption or complete RFC conformance.</p>
 <code>test/interop-rsvpte/Dockerfile.freertr</code>. freeRouter publishes no stable
 release, so the pin follows upstream master and is moved at least monthly with
 <code>./le lab pin bump dockerfile test/interop-rsvpte/Dockerfile.freertr</code>: the image
-build refuses a pin more than one month old (owner decision M14,
+build refuses a pin more than one month old (see
 <code>docs/architecture/testing/interop.md</code>, "Source-built peers").
 <code>test/interop-rsvpte/Dockerfile.freertr</code> compiles the upstream Java sources for
 Java 21 and builds <code>misc/iface/tapInt.c</code> and <code>misc/iface/rawInt.c</code> with static
@@ -351,7 +352,8 @@ not enable protection or alter either implementation to bypass them.</p>
 path handles these messages and programs the kernel label through <code>fib-kernel</code>.</p>
 <!-- source: internal/plugins/rsvpte/freertr_interop_integration_linux_test.go -- TestRSVPFreeRouterInterop -->
 <!-- source: test/interop-rsvpte/Dockerfile.freertr -- pinned Java and static TAP artifacts -->
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -393,7 +395,7 @@ path handles these messages and programs the kernel label through <code>fib-kern
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 23 October 2026 06:18 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>

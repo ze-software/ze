@@ -218,15 +218,20 @@ metric, changing only the first metric TLV. Mixed legacy and MP announcements
 are split before this edit, so each uses its governing received next hop.
 Explicit withdrawals and unrelated attributes survive the split. When a direct
 next-hop-self increment has no non-zero distance, Ze withholds the announcement
-and sends a withdrawal instead of silently removing AIGP. That successful
-withdrawal retains the received generation and recipient for recomputation when
-a distance becomes available. A resolved recursive sum may be zero; it remains
-an announcement with the computed AIGP. A source withdrawal, replacement or
+and withdraws it instead of silently removing AIGP. The withdrawal reaches the
+wire only where the recipient was advertised the route (RFC 4271 Section 3.1),
+but every recipient it was withheld from is retained with the received
+generation, and is announced the route once a distance becomes available. A
+failed write discards that record, as it does for an announcement, and a
+withdrawal that decides nothing about AIGP, such as a relay recovery's
+withdrawal of an obsolete owner, leaves it in place. A resolved
+recursive sum may be zero; it remains an announcement with the computed AIGP. A source withdrawal, replacement or
 disconnect still invalidates the generation. A recursive BGP next hop with no
 AIGP is different: RFC 7311 Section 3.4.3 explicitly requires removal of the
 attribute in that case.
 <!-- source: internal/component/bgp/reactor/forward_aigp.go -- applyFactsAIGP -->
-<!-- source: internal/component/bgp/reactor/aigp_readvertise.go -- noteAIGPWrite, replayAIGP -->
+<!-- source: internal/component/bgp/reactor/aigp_readvertise.go -- noteAIGPWrite, commitAIGPWrites, replayAIGP -->
+<!-- source: internal/component/bgp/reactor/session_write.go -- writeUpdateBody -->
 
 The received metric is retained separately from MED in best-path events and the
 shared Loc-RIB. Selection resolves both legacy NEXT_HOP and MP_REACH next hops;

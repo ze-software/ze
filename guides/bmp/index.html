@@ -52,7 +52,8 @@
     <p>Ze implements RFC 7854 BMP in both directions: as a <strong>receiver</strong> (accepting
 feeds from routers) and as a <strong>sender</strong> (streaming state to collectors).</p>
 </div>
-<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<div class="doc-layout">
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#configuration">Configuration</a>
 <ol>
 <li><a href="#receiver">Receiver</a></li>
@@ -80,7 +81,7 @@ feeds from routers) and as a <strong>sender</strong> (streaming state to collect
 <li><a href="#route-lifecycle">Route Lifecycle</a></li>
 </ol></li>
 <li><a href="#limitations">Limitations</a></li>
-</ol></nav>
+</ol></details></nav><div class="doc-body">
 <p>Both halves follow a reload. A commit that adds, moves or disables a receiver
 listener rebinds it, and one that changes the sender bounces the collector
 sessions, so neither reports success over a change it did not make. A Peer Down
@@ -687,11 +688,16 @@ automatically excluded with zero filter code.</li>
 </ul>
 <h2 id="limitations">Limitations</h2>
 <ul>
-<li><strong>Loc-RIB Route Monitoring</strong> (RFC 9069) omits communities and LOCAL_PREF:
-the best-change feed it is built from does not carry them, and RFC 9069
-forbids a RIB back-door for the full attribute set.</li>
+<li><strong>Loc-RIB Route Monitoring</strong> (RFC 9069) carries the best path's own stored
+attributes (ORIGIN, LOCAL_PREF, MED, communities and the rest), which
+bgp-rib publishes on each best change, with the AS_PATH in four-octet form
+and the resolved next hop. A best change that arrives without its attribute
+set is not sent: a Warn log names the prefix, rather than a route with an
+invented ORIGIN. A change of attributes alone, with the same winning path,
+next hop and metrics, publishes no best change and so sends no update.</li>
 </ul>
-
+</div>
+</div>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -733,7 +739,7 @@ forbids a RIB back-door for the full attribute set.</li>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 October 2026 11:32 UTC</span>
+                    <span class="footer-published">Published 24 October 2026 05:09 UTC</span>
                 </div>
             </div>
         </footer>
