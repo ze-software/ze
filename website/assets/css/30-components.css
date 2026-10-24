@@ -1323,11 +1323,12 @@ pre.code-copy-wrap, .md-content pre.code-copy-wrap { position: relative; padding
 .site-home .screen-description a { color: #8fcff4; font-size: 0.8rem; }
 .site-home .screen-description .capture-caption { font-size: 0.7rem; color: #abc7dc; margin: 0.8rem 0 0; }
 .site-home .hero-action-row { display: flex; gap: 1.5rem; align-items: center; border-top: 1px solid #2c4564; padding: 1.25rem 0; margin: 0; }
-.site-home .hero-primary-actions { flex: 1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; }
-.site-home .hero-start-action { display: flex; flex-direction: column; gap: 0.4rem; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; color: var(--hero-text); }
+.site-home .hero-primary-actions { flex: 1; min-width: 0; max-width: none; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; }
+.site-home .hero-start-action { display: flex; flex-direction: column; align-items: center; min-width: 0; text-align: center; gap: 0.4rem; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; color: var(--hero-text); }
 .site-home .hero-start-action strong { display: block; color: var(--hero-text); font-size: 0.8rem; line-height: 1.4; }
 .site-home .hero-start-action small { display: block; color: var(--hero-muted); font-size: 0.72rem; line-height: 1.55; }
 .site-home .search-shortcut-hint { color: var(--hero-muted); font-size: 0.68rem; }
+.site-home .hero-start-action .search-shortcut-hint { margin-left: 0; }
 .site-home .hero-start-action .search-shortcut-hint kbd { color: var(--hero-muted); background: transparent; border-color: #426382; }
 .site-home .hero-release-callout { max-width: 15rem; gap: 0.5rem; }
 .site-home .hero-release-callout .hero-mascot { width: 2.8rem; height: auto; }
