@@ -54,13 +54,24 @@ Dependencies:
 - `./le verify current fast` widens to the whole tree when the last verify was
   interrupted, and prints nothing on the terminal for its whole run (45 minutes
   on 2026-10-23; owned by `spec-gates-report-cause-and-progress`). Check
-  `./le verify status check` first. Run scoped package tests under `./le job run`
-  while fixing, and the full verify once, after commit A.
+  `./le verify status check` first.
+- No whole-tree testing on this machine (owner order, later on 2026-10-23): no
+  verify of any kind, no staticcheck matrix piece, no full lint, no
+  `./le test unit all`, no repo-wide compile. Prove the work with scoped package
+  tests under `./le job run` and scoped lint; the full verify runs on another
+  host.
 - The disk fills fast when several sessions build at once. On ENOSPC run
   `./le scratch store-trim`, then `./le scratch cache-clean`.
-- The commit gate refuses on a carried staticcheck part 6/6 red from an older
-  verify. A commit that changes only plan markdown may pass `structural-red-ok`
-  with that reason. A commit carrying Go needs a real verify.
+- The carried "staticcheck part 6/6 red" was an interrupted run, not a finding.
+  Since 305a92cb6d the gate reports an interrupted stage as never judged and
+  charges nothing, so no override is needed. Refresh `bin/le` with
+  `./le --update` if it is older than the gate code. A real red still blocks.
+- Scoped lint refuses with "lint inputs changed during planning" while other
+  sessions edit the tree. Retry when it is quiet, and say in the commit body if
+  it never ran.
+- A stale `.git/index.lock` (empty, no owning process) happened twice. When a
+  commit script says the shared index could not be pointed at the commit, it
+  prints the repair; agents are refused it, so ask Thomas to run it.
 
 ## New journal rule (in force from 987bd0983a)
 
@@ -70,16 +81,17 @@ refused (`plan/journal/README.md`, "Owned rows"). When these specs fix a row,
 set its Fix cell to `fixed: <evidence>`. A defect found along the way gets a row
 and a table entry in the spec that fits.
 
-On 2026-10-23 an independent review found three issues in that check (a
-misleading fix message for a legacy same-date row, no check when a spec is
-removed, one stale spec). Session 895e52ca was fixing them; confirm the fix
-commit landed before relying on the check.
+The review findings on that check are fixed (110ed77106, a605b367e4,
+70cfbdba38). A two-commit closure is judged against the script's earlier
+blocks: when you close a spec, every row in its owned table must be
+`fixed: <evidence>` in commit A or re-homed to another spec's table, or
+commit B is refused.
 
 ## Other owed items from session 895e52ca
 
 - `docs/contributing/committing.md` owes a one-line pointer to the new
   ownership refusal. Another session's uncommitted edits held the file.
-- A full `./le verify current` over the 2026-10-23 commits has not run.
+- A full verify over the 2026-10-23 commits has not run; it needs another host.
 - About 46 open rows cite deleted scripts (`scripts/dev/`, `mk/`,
   `.claude/hooks/*.py`). Each belongs to a spec, which judges it on
   implementation.
