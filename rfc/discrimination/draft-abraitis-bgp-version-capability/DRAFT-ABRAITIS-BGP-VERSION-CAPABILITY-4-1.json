@@ -3,12 +3,12 @@
     "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1",
     "polarity": "negative",
     "unit": "internal/core/bgp/capability/draft_abraitis_bgp_version_capability_softver_test.go::TestSoftwareVersionCapabilityDecidesNothing",
-    "unit-sha": "70cfb2051dceb297",
-    "claim-sha": "9c92badce562e940",
-    "route": "revert",
+    "unit-sha": "ebb200c0193d8fb9",
+    "claim-sha": "fa981fe39ba4c1f7",
+    "route": "mutant",
     "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
     "producer-sha": "f5de8d610f57837f",
-    "break": "body of Negotiate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "line 210: \"remoteOrder = append(remoteOrder, f)\" -\u003e \"if neg.peerCodes[codeSoftwareVersion] { remoteOrder = append([]Family{f}, remoteOrder...) } else { remoteOrder = append(remoteOrder, f) }\""
   },
   {
     "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1",

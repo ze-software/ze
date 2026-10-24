@@ -44,6 +44,20 @@ YANG stems) and do not block this spec. Once the three records verify,
 `/ze-close` resumes at step 6: the Review Gate artifact is recorded and clean,
 and the full gate stays owed by owner decision (Implementation Summary).
 
+Progress (2026-10-24, tightened): the independent re-judge (177eaa7ce1) rated
+the negative unit weak, because it compared `Families()` with
+`assert.ElementsMatch` and left Session and Identity unchecked. With Thomas's
+approval for this RFC-tagged test, `TestSoftwareVersionCapabilityDecidesNothing`
+now compares `Families()` in order, Identity, Encoding and Session, and the whole
+`Negotiated` with `peerCodes` cleared on both sides; `softverSessionCaps` places
+the code-75 Unknown between the two Multiprotocol entries. The negative proof
+is re-recorded on the `mutant` route: in `Negotiate`, once code 75 has been
+seen, a later Multiprotocol family is prepended instead of appended, and the
+unit goes red on the family order. The positive unit is unchanged and its
+record still verifies. The audit verdict for
+DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1 is owed an independent re-judge with
+`ze-rfc-audit`, never from the session that tightened the test.
+
 ## Task
 
 Owner order (Thomas, ExaBGP's author, 2026-10-17): "Do the ExaBGP 6.0 work including

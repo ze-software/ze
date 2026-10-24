@@ -14,27 +14,33 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// softverSessionCaps returns the capability list a peer would advertise, with the
-// Software Version Capability appended when withVersion is set. Everything else
-// is held identical so a comparison of two Negotiated results isolates code 75.
+// softverSessionCaps returns the capability list a peer would advertise. When
+// withVersion is set, the Software Version Capability sits between the two
+// Multiprotocol entries, so a code-75 branch that touched the family order would
+// show in the order Families answers. Everything else is held identical so a
+// comparison of two Negotiated results isolates code 75.
 func softverSessionCaps(withVersion bool) []Capability {
-	caps := []Capability{
-		&Multiprotocol{AFI: AFIIPv4, SAFI: SAFIUnicast},
+	caps := []Capability{&Multiprotocol{AFI: AFIIPv4, SAFI: SAFIUnicast}}
+	if withVersion {
+		caps = append(caps, &Unknown{code: codeSoftwareVersion, Data: []byte{8, 'Z', 'e', '/', '0', '.', '1', '.', '0'}})
+	}
+	return append(caps,
 		&Multiprotocol{AFI: AFIIPv6, SAFI: SAFIUnicast},
 		&ASN4{ASN: 65002},
 		&RouteRefresh{},
 		&ExtendedMessage{},
-	}
-	if withVersion {
-		caps = append(caps, &Unknown{code: codeSoftwareVersion, Data: []byte{8, 'Z', 'e', '/', '0', '.', '1', '.', '0'}})
-	}
-	return caps
+	)
 }
 
 // RFC requirement: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1 negative -- the Software
-// Version Capability is used for no session decision: an OPEN carrying code 75 negotiates
-// exactly the families, ASN4, route-refresh and extended-message state that the same OPEN
-// without it negotiates, so nothing in ze's session behavior turns on the version.
+// Version Capability is used for no session decision: an OPEN carrying code 75 between its
+// two Multiprotocol capabilities negotiates the same families in the same order, the same
+// Identity, Encoding and Session, and every other negotiated field equal to the same OPEN
+// without it; the only difference is that the peer is recorded as having advertised code 75.
+//
+// Method: negotiate both OPENs against one local list, compare Families with its order,
+// Identity, Encoding and Session, then compare the whole Negotiated with the record of
+// advertised codes cleared on both sides.
 func TestSoftwareVersionCapabilityDecidesNothing(t *testing.T) {
 	t.Parallel()
 	local := softverSessionCaps(false)
@@ -42,17 +48,28 @@ func TestSoftwareVersionCapabilityDecidesNothing(t *testing.T) {
 	without := Negotiate(local, softverSessionCaps(false), PeerIdentity{LocalASN: 65001, PeerASN: 65002})
 	with := Negotiate(local, softverSessionCaps(true), PeerIdentity{LocalASN: 65001, PeerASN: 65002})
 
+	require.NotNil(t, without)
 	require.NotNil(t, with)
+	assert.Equal(t, without.Families(), with.Families(), "code 75 must not change the families or their order")
+	assert.Equal(t, without.Identity, with.Identity)
+	assert.Equal(t, without.Encoding, with.Encoding)
+	assert.Equal(t, without.Session, with.Session)
 	assert.Equal(t, without.ASN4, with.ASN4)
 	assert.Equal(t, without.RouteRefresh, with.RouteRefresh)
 	assert.Equal(t, without.ExtendedMessageRecv, with.ExtendedMessageRecv)
 	assert.Equal(t, without.ExtendedMessageSend, with.ExtendedMessageSend)
 	assert.Equal(t, without.EnhancedRouteRefresh, with.EnhancedRouteRefresh)
 	assert.Equal(t, without.BFDStrictMode, with.BFDStrictMode)
+	assert.Equal(t, without.LinkLocalNextHop, with.LinkLocalNextHop)
+	assert.Equal(t, without.HoldTime, with.HoldTime)
 	assert.Equal(t, without.GracefulRestart, with.GracefulRestart)
-	assert.ElementsMatch(t, without.Families(), with.Families())
-	assert.Equal(t, without.Encoding, with.Encoding)
 	assert.Empty(t, with.Mismatches, "an unrecognized capability is no mismatch")
+
+	// The record of advertised codes is the one field code 75 may change: the positive
+	// test below reads it. Every other field must be equal.
+	withoutCleared, withCleared := *without, *with
+	withoutCleared.peerCodes, withCleared.peerCodes = nil, nil
+	assert.Equal(t, withoutCleared, withCleared, "code 75 must change nothing negotiated")
 }
 
 // RFC requirement: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1 positive -- what ze does with
