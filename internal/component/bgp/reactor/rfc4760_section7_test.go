@@ -1,6 +1,6 @@
 // RFC: rfc/short/rfc4760.md — multiprotocol extensions, Section 7 error handling
 // RFC: rfc/short/rfc7606.md — revised UPDATE error handling, Section 3 clause (j)
-// Overview: session_validation.go — enforceRFC7606 and rfc7606SessionReset
+// Overview: session_validation.go — enforceRFC7606 and rfc7606ResetNotification
 // Related: rfc7606_session_structural_test.go — the same harness for the §3 rules
 //
 // RFC 4760 Section 7 states the obligation this file pins, quoted here as the RFC has it:
@@ -102,7 +102,7 @@ func requireSessionResetOnWire(t *testing.T, update []byte) {
 // RFC requirement: RFC4760-7-1 positive -- an incorrect MP_REACH_NLRI deletes all routes
 // received from that peer for the attribute's AFI/SAFI. ValidateNLRISyntaxAddPath
 // (message/rfc7606.go) returns RFC7606ActionSessionReset for the overrun. It is reached
-// for the MP attribute's own NLRI through validateMPNLRIField. rfc7606SessionReset
+// for the MP attribute's own NLRI through validateMPNLRIField. rfc7606ResetNotification
 // (session_validation.go) then performs the reset, so the session reaches Idle and carries
 // the peer's IPv4 unicast routes out with it.
 func TestRFC4760IncorrectMPReachDeletesTheNeighborsRoutes(t *testing.T) {

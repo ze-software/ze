@@ -2,9 +2,9 @@
   "note": "ZeroLengthAttributeMalformed supplies otherwise complete valid attributes and isolates zero-length COMMUNITY, MED and LARGE_COMMUNITY, asserting exact treat-as-withdraw and each offending code; ValidUpdate and the exact systematic EBGP baseline accept the specified zero-length AS_PATH and ATOMIC_AGGREGATE exceptions; severity-floor corruption sweeps are not relied upon as semantic proof",
   "requirement_sha": "4c2a9a9c45d4976a",
   "tests": {
-    "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606ZeroLengthAttributeMalformed": "669936946251c215",
-    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "b7acaf2569904b8f",
-    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ValidUpdate": "b7acaf2569904b8f"
+    "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606ZeroLengthAttributeMalformed": "f5b8bd82514f3d77",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "54f63ffca6a2c672",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ValidUpdate": "54f63ffca6a2c672"
   },
   "units": {
     "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606ZeroLengthAttributeMalformed": "232c90b703220ea8",

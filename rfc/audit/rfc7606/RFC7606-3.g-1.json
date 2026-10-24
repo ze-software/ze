@@ -2,9 +2,9 @@
   "note": "Duplicate MP_REACH and MP_UNREACH cases select reset, including duplicates encountered before an abandoned attribute walk with reachable NLRI preventing Section 5.2 from supplying a substitute verdict; real-session tests observe NOTIFICATION 3/1 and no route dispatch, including the separate MP_UNREACH wire carrier, while single-MP controls remain accepted",
   "requirement_sha": "e5e5758114e8c992",
   "tests": {
-    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachIPv4NextHopValid": "b7acaf2569904b8f",
-    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MultipleMPReach": "b7acaf2569904b8f",
-    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "b7acaf2569904b8f",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MPReachIPv4NextHopValid": "54f63ffca6a2c672",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MultipleMPReach": "54f63ffca6a2c672",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "54f63ffca6a2c672",
     "internal/component/bgp/reactor/rfc7606_session_validation_dupmp_test.go::TestRFC7606Section3gDuplicateMPBeatsAnAbandonedWalk": "25c96de03fee2bc0",
     "internal/component/bgp/reactor/rfc7606_session_validation_dupmp_test.go::TestRFC7606Section3gDuplicateMPUnreachBeatsAnAbandonedWalk": "25c96de03fee2bc0",
     "internal/component/bgp/reactor/rfc7606_session_validation_dupmp_unreach_test.go::TestRFC7606Section3gDuplicateMPUnreachResetsWithRoutesPresent": "63addcbc92d19c5a",

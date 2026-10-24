@@ -2,9 +2,9 @@
   "note": "MalformedCommunityLength requires exact treat-as-withdraw for length five and identifies COMMUNITY; the zero-length COMMUNITY case separately checks the nonzero requirement, and the exact valid EBGP baseline accepts a four-octet community; floor-only length-corruption cases are supplementary and are not used to establish the required action",
   "requirement_sha": "ab09b50f676f9da1",
   "tests": {
-    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606CommunityZeroLength": "b7acaf2569904b8f",
-    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MalformedCommunityLength": "b7acaf2569904b8f",
-    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "b7acaf2569904b8f"
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606CommunityZeroLength": "54f63ffca6a2c672",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MalformedCommunityLength": "54f63ffca6a2c672",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "54f63ffca6a2c672"
   },
   "units": {
     "internal/component/bgp/message/rfc7606_test.go::TestRFC7606CommunityZeroLength": "e3e2baba9dd5cacc",

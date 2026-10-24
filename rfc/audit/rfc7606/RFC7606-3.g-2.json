@@ -4,8 +4,8 @@
   "tests": {
     "internal/component/bgp/message/rfc7606_clause_test.go::TestRFC7606UnrecognizedDuplicateAttributeLaterOccurrenceDiscarded": "a8996fb398de9acf",
     "internal/component/bgp/message/rfc7606_clause_test.go::TestRFC7606UnrecognizedDuplicateAttributeLaterOccurrenceDiscarded#2": "a8996fb398de9acf",
-    "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606DuplicateAttributeFirstOccurrenceIsValidated": "669936946251c215",
-    "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606DuplicateAttributeFirstOccurrenceWins": "669936946251c215"
+    "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606DuplicateAttributeFirstOccurrenceIsValidated": "f5b8bd82514f3d77",
+    "internal/component/bgp/message/rfc7606_structural_test.go::TestRFC7606DuplicateAttributeFirstOccurrenceWins": "f5b8bd82514f3d77"
   },
   "units": {
     "internal/component/bgp/message/rfc7606_clause_test.go::TestRFC7606UnrecognizedDuplicateAttributeLaterOccurrenceDiscarded": "eb2bb0246d8e884e",

@@ -1421,6 +1421,7 @@ func TestRFC7606ASPath4ByteASN(t *testing.T) {
 // BOUNDARY: 2 (invalid, minimum is 3), 3 (valid).
 //
 // RFC requirement: RFC7606-3.j-1 negative — an MP_UNREACH too short to parse escalates to session reset.
+// RFC requirement: RFC7606-5.3-6 negative — an MP_UNREACH_NLRI of length 2, below the minimum of 3, is classified as session reset for attribute code 15 with a Section 5.3 description.
 func TestRFC7606MPUnreachTooShort(t *testing.T) {
 	// MP_UNREACH_NLRI with length 2 (needs at least 3: AFI=2 + SAFI=1)
 	pathAttrs := []byte{

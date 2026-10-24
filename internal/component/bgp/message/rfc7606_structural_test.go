@@ -112,7 +112,7 @@ func TestRFC7606MPNLRILengthConsistentWithAFIAccepted(t *testing.T) {
 // VALIDATES: an MP_REACH whose NLRI parses cleanly within the attribute is accepted.
 // PREVENTS: rejecting a well-formed multiprotocol announcement.
 //
-// Untagged: this is an IPv4 well-formed guard. validateMPNLRIField (rfc7606.go) now parses
+// This is an IPv4 well-formed guard. validateMPNLRIField (rfc7606.go) now parses
 // the NLRI carried inside the attribute (validateMPNLRISyntax -> ValidateNLRISyntax), so a
 // last NLRI that overruns, or an IPv4 length greater than 32, is a session reset per §3(j).
 // The §5.3-3 and §5.3-4 coverage tags live on the IPv6 production-path pair in

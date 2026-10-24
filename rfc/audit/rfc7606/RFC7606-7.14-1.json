@@ -4,8 +4,8 @@
   "tests": {
     "internal/component/bgp/message/rfc7606_clause_test.go::TestRFC7606ExtendedCommunityNonMultipleOf8IsMalformed": "a8996fb398de9acf",
     "internal/component/bgp/message/rfc7606_clause_test.go::TestRFC7606ExtendedCommunityNonMultipleOf8IsMalformed#2": "a8996fb398de9acf",
-    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ExtendedCommunityValid": "b7acaf2569904b8f",
-    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ExtendedCommunityZeroLength": "b7acaf2569904b8f"
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ExtendedCommunityValid": "54f63ffca6a2c672",
+    "internal/component/bgp/message/rfc7606_test.go::TestRFC7606ExtendedCommunityZeroLength": "54f63ffca6a2c672"
   },
   "units": {
     "internal/component/bgp/message/rfc7606_clause_test.go::TestRFC7606ExtendedCommunityNonMultipleOf8IsMalformed": "0e441ce429d2e920",

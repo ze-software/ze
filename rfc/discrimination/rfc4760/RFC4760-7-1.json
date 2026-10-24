@@ -53,5 +53,16 @@
     "producer": "internal/component/bgp/reactor/reactor_notify.go::notifyPeerClosed",
     "producer-sha": "9abb823ebd54cf98",
     "break": "body of notifyPeerClosed replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4760-7-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4760_section7_test.go::TestRFC4760IncorrectMPReachDeletesTheNeighborsRoutes",
+    "unit-sha": "5541cc417aa97cde",
+    "claim-sha": "0301364302e9b710",
+    "route": "revert",
+    "producer": "internal/component/bgp/reactor/session_validation.go::rfc7606ResetNotification",
+    "producer-sha": "40d1d1c9b91bf58f",
+    "break": "body of rfc7606ResetNotification replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   }
 ]
