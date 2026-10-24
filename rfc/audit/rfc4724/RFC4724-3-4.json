@@ -2,8 +2,8 @@
   "note": "two GR instances with distinct restart time and family; Negotiate must keep the second; fails on first-wins or merge. The negative tag is the complement of the positive's assertion on the same input (two hats), not an independent case",
   "requirement_sha": "ba1419c2df9e18e2",
   "tests": {
-    "internal/core/bgp/capability/negotiated_test.go::TestNegotiateGracefulRestartLastInstance": "70fe9e821d14e4f2",
-    "internal/core/bgp/capability/negotiated_test.go::TestNegotiateGracefulRestartLastInstance#2": "70fe9e821d14e4f2"
+    "internal/core/bgp/capability/negotiated_test.go::TestNegotiateGracefulRestartLastInstance": "327003dc982a5f22",
+    "internal/core/bgp/capability/negotiated_test.go::TestNegotiateGracefulRestartLastInstance#2": "327003dc982a5f22"
   },
   "units": {
     "internal/core/bgp/capability/negotiated_test.go::TestNegotiateGracefulRestartLastInstance": "2d73d79b2835b798",

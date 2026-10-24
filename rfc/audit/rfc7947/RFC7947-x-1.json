@@ -6,7 +6,7 @@
     "internal/component/bgp/reactor/rfc7947_forward_rs_test.go::TestReactorForwardRSTransparent": "8a8cb162fbac99e6",
     "internal/component/bgp/reactor/rfc7947_reactor_api_relay_test.go::TestRelayStoredRoutePlainEBGPPrependsLocalAS": "22497bb4493ee528",
     "internal/component/bgp/reactor/rfc7947_reactor_api_relay_test.go::TestRelayStoredRouteRSClientPreservesASPath": "22497bb4493ee528",
-    "internal/le/interoplab/bgp/check_rfc.go::checkRouteServerASPath": "9d03834af3f0f054",
+    "internal/le/interoplab/bgp/check_rfc.go::checkRouteServerASPath": "49a47285ee4a16ca",
     "test/plugin/bgp-rs-relay-aspath-transparency.ci": "04f9cb15a64d4a4c",
     "test/plugin/bgp-rs-relay-aspath-transparency.ci#2": "04f9cb15a64d4a4c"
   },

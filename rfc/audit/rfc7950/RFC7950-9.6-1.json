@@ -6,10 +6,10 @@
     "internal/component/config/rfc7950_isis_auth_algorithm_enum_test.go::TestISISAuthAlgorithmEnumAcceptsAll#2": "e4e161212a27bdf8",
     "internal/component/config/rfc7950_radius_auth_method_enum_test.go::TestRadiusAuthMethodEnum": "4c9eafc440ab45ec",
     "internal/component/config/rfc7950_radius_auth_method_enum_test.go::TestRadiusAuthMethodEnum#2": "4c9eafc440ab45ec",
-    "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_AddPathDirectionEnum": "ba2f54bedfde8139",
-    "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_AddPathDirectionEnum#2": "ba2f54bedfde8139",
-    "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_FamilyModeEnum": "ba2f54bedfde8139",
-    "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_FamilyModeEnum#2": "ba2f54bedfde8139"
+    "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_AddPathDirectionEnum": "de5079eed13aa928",
+    "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_AddPathDirectionEnum#2": "de5079eed13aa928",
+    "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_FamilyModeEnum": "de5079eed13aa928",
+    "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_FamilyModeEnum#2": "de5079eed13aa928"
   },
   "units": {
     "internal/component/config/rfc7950_isis_auth_algorithm_enum_test.go::TestISISAuthAlgorithmEnumAcceptsAll": "67fd8c00e1f8af3a",

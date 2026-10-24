@@ -2,8 +2,8 @@
   "note": "RFC 7432 \u00a79.2.1: \"The MAC Address Length field is in bits, and it is set to 48. MAC address length values other than 48 bits are outside the scope of this document. The encoding of a MAC address MUST be the 6-octet MAC address specified by [802.1Q] and [802.1D-REV].\" Read its sole tagged carrier internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNMACAddressLength and repaired shared helper evpnT2Body. The positive now supplies a complete Type-2 MAC-only route including mandatory Label1 00 01 01, requires decoded MAC 00:11:22:33:44:55, then independently pins the output length octet to 48 and the exact six MAC octets. The negative cases change only MAC length to 0/32/47/49/64/255 and require ErrEVPNInvalidAddress, preserving a valid zero-length optional IP field and label. types.go::parseEVPNType2 checks 48 before copying six bytes, and EVPNType2.WriteTo always emits 48 and the six-byte MAC. Thus the assertions implement the RFC's six-octet format, fail on altered width/content, isolate the MAC rule after the label repair, and cover the whole selected encoding obligation. One positive and one negative tag refer to distinct subcases, not the same assertion twice. Rejecting out-of-scope widths is a local validation boundary, not an invented RFC requirement for future MAC formats. Prior enforced judgment remains enforced after independent semantic rereading; no runtime execution or new discrimination record is claimed.",
   "requirement_sha": "f59e184b2629bfca",
   "tests": {
-    "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNMACAddressLength": "e95f85b8a1869210",
-    "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNMACAddressLength#2": "e95f85b8a1869210"
+    "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNMACAddressLength": "9064f27b3962feb7",
+    "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNMACAddressLength#2": "9064f27b3962feb7"
   },
   "units": {
     "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNMACAddressLength": "aa53c90d5461cd25",

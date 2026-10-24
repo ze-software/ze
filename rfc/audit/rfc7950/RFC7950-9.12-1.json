@@ -3,8 +3,8 @@
   "requirement_sha": "cecc88b3b36e0def",
   "tests": {
     "internal/component/config/rfc7950_validator_union_test.go::TestRFC7950UnionAcceptsEveryMemberType": "cded36b0838b1317",
-    "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_UnionViolation": "ba2f54bedfde8139",
-    "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_ValidConfig": "ba2f54bedfde8139"
+    "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_UnionViolation": "de5079eed13aa928",
+    "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_ValidConfig": "de5079eed13aa928"
   },
   "units": {
     "internal/component/config/rfc7950_validator_union_test.go::TestRFC7950UnionAcceptsEveryMemberType": "ad02f88c4bb32f5f",

@@ -5,9 +5,9 @@
     "internal/component/bgp/plugins/nlri/evpn/rfc9136_length_test.go::TestRFC9136IPPrefixRouteNeverSentWithAnotherLength": "c5763befe78ef7f1",
     "internal/component/bgp/plugins/nlri/evpn/rfc9136_length_test.go::TestRFC9136IPPrefixRouteReceivedWithAnotherLengthIsRefused": "c5763befe78ef7f1",
     "internal/component/bgp/plugins/nlri/evpn/rfc9136_length_test.go::TestRFC9136IPPrefixRouteSentWithLength34Or58": "c5763befe78ef7f1",
-    "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5IPv4": "e95f85b8a1869210",
-    "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5IPv6": "e95f85b8a1869210",
-    "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5InvalidLength": "e95f85b8a1869210"
+    "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5IPv4": "9064f27b3962feb7",
+    "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5IPv6": "9064f27b3962feb7",
+    "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNType5InvalidLength": "9064f27b3962feb7"
   },
   "units": {
     "internal/component/bgp/plugins/nlri/evpn/rfc9136_length_test.go::TestRFC9136IPPrefixRouteNeverSentWithAnotherLength": "e85a5a2266c1e17d",

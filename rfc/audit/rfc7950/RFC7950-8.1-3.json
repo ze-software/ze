@@ -2,13 +2,13 @@
   "note": "Re-judged 2026-10-12, second pass (independent auditor) after 60a74fc04b, 600996fb77, 975428e1b3, 3f1bec74f0 and 84382339ce. SHIFTED only: the tagged units are byte-identical (gate-verified). range: receive-hold-time 2 and port 0 refused ErrTypeRange, 1 and 2 refused and 0, 3, 180, 65535 accepted; pattern: router-id not-an-ip refused ErrTypePattern at errs[0] with session/asn/local supplied so no missing-mandatory error comes first, 192.0.2.1 accepted; length: a 256-char isis hostname refused ErrTypeLength and a within-length one raises no length error. The validateString record on TestValidateTree_PatternViolation is current again (no stale record). Base-type conformance is carried by the Section 9 rows. Re-run green 2026-10-12. Verdict stands.",
   "requirement_sha": "5a05032565e079ea",
   "tests": {
-    "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_LengthViolation": "ba2f54bedfde8139",
-    "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_PatternViolation": "ba2f54bedfde8139",
-    "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_RangeViolation": "ba2f54bedfde8139",
-    "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_HoldTimeRange": "ba2f54bedfde8139",
-    "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_HoldTimeRange#2": "ba2f54bedfde8139",
-    "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_ValidatePattern": "ba2f54bedfde8139",
-    "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_ValidatePattern#2": "ba2f54bedfde8139"
+    "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_LengthViolation": "de5079eed13aa928",
+    "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_PatternViolation": "de5079eed13aa928",
+    "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_RangeViolation": "de5079eed13aa928",
+    "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_HoldTimeRange": "de5079eed13aa928",
+    "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_HoldTimeRange#2": "de5079eed13aa928",
+    "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_ValidatePattern": "de5079eed13aa928",
+    "internal/component/config/rfc7950_validator_yang_test.go::TestValidator_ValidatePattern#2": "de5079eed13aa928"
   },
   "units": {
     "internal/component/config/rfc7950_validator_yang_test.go::TestValidateTree_LengthViolation": "12f5b76747db9ef4",

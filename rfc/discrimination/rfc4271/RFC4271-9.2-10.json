@@ -40,7 +40,7 @@
     "claim-sha": "71b8db6f0dd25d93",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/forward_body.go::buildFwdBody",
-    "producer-sha": "4fb1e47f2f5ded80",
+    "producer-sha": "b1884940483a7a78",
     "break": "body of buildFwdBody replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   }
 ]

@@ -5,11 +5,11 @@
     "unit": "test/plugin/rfc7606-receive-combinations.ci",
     "unit-sha": "06e6e7a017dffba0",
     "claim-sha": "40fa8f5b0d8b8ccf",
-    "route": "revert",
-    "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
-    "producer-sha": "66c0f3d227b0c731",
-    "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-    "citation": "expect=bgp:conn=1:seq=6:contains=180A2800"
+    "route": "mutant",
+    "producer": "internal/component/bgp/message/update_split.go::splitUpdateWithMP",
+    "producer-sha": "8b4096a039d1534a",
+    "break": "line 347: \"mpReachInfo.found\" -\u003e \"true\"",
+    "citation": "expect=bgp:conn=1:seq=6:contains=4020010DB800400000"
   },
   {
     "rid": "RFC7606-5.1-3",
@@ -17,10 +17,10 @@
     "unit": "test/plugin/rfc7606-relay-one-field.ci",
     "unit-sha": "d6fcda2a56ba426a",
     "claim-sha": "3d8ce1cc62058473",
-    "route": "revert",
-    "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
-    "producer-sha": "66c0f3d227b0c731",
-    "break": "body of applyRFC7606 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+    "route": "mutant",
+    "producer": "internal/component/bgp/message/update_split.go::splitUpdateIPv4",
+    "producer-sha": "a086ef9f99a78873",
+    "break": "line 502: \"\u003e\" -\u003e \"\u003c\"",
     "citation": "expect=bgp:conn=1:seq=4:contains=40020A02020000FDE80000FDE940030401010101"
   }
 ]

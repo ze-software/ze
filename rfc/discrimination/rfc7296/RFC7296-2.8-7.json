@@ -1,10 +1,10 @@
 [
   {
     "rid": "RFC7296-2.8-7",
-    "polarity": "positive",
+    "polarity": "negative",
     "unit": "internal/component/ike/engine/rfc7296_rekey_test.go::TestRkyResponderInstallsTheNewChildBeforeItAnswers",
     "unit-sha": "0d990aa3e1284e7d",
-    "claim-sha": "c89ff87787e1358e",
+    "claim-sha": "c78b06518d0df2fc",
     "route": "revert",
     "producer": "internal/component/ike/engine/rekey.go::respondChildRekey",
     "producer-sha": "5806e3ed91074346",
@@ -12,10 +12,10 @@
   },
   {
     "rid": "RFC7296-2.8-7",
-    "polarity": "negative",
+    "polarity": "positive",
     "unit": "internal/component/ike/engine/rfc7296_rekey_test.go::TestRkyResponderInstallsTheNewChildBeforeItAnswers",
     "unit-sha": "0d990aa3e1284e7d",
-    "claim-sha": "c78b06518d0df2fc",
+    "claim-sha": "c89ff87787e1358e",
     "route": "revert",
     "producer": "internal/component/ike/engine/rekey.go::respondChildRekey",
     "producer-sha": "5806e3ed91074346",

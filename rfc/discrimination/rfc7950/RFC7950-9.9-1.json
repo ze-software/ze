@@ -18,7 +18,7 @@
     "claim-sha": "8ff71da15905f506",
     "route": "revert",
     "producer": "internal/component/config/yang/loader_reference.go::checkLeafrefSchema",
-    "producer-sha": "f34265f2598667f0",
+    "producer-sha": "75bf1935c92c3c8d",
     "break": "body of checkLeafrefSchema replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   },
   {

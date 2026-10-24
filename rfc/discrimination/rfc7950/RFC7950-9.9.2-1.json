@@ -7,7 +7,7 @@
     "claim-sha": "b904fa82e3e38d94",
     "route": "revert",
     "producer": "internal/component/config/yang/reference_path.go::leafrefTarget",
-    "producer-sha": "9654bbc0d1d44aff",
+    "producer-sha": "aee0567d952bd686",
     "break": "body of leafrefTarget replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   },
   {
@@ -18,7 +18,7 @@
     "claim-sha": "34ff70ef18b6b248",
     "route": "revert",
     "producer": "internal/component/config/yang/reference_path.go::leafrefTarget",
-    "producer-sha": "9654bbc0d1d44aff",
+    "producer-sha": "aee0567d952bd686",
     "break": "body of leafrefTarget replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   }
 ]

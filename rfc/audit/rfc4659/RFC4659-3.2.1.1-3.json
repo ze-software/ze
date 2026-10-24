@@ -28,8 +28,8 @@
     "internal/component/bgp/reactor/rfc4659_vpn_link_local_test.go::TestRFC4659StaticVPNv6LinkLocalCommonSubnet#2": "ceacc5fad4c43817",
     "internal/component/bgp/reactor/rfc4659_vpn_next_hop_rewrite_test.go::TestRFC4659ForwardVPNv6NextHopRewriteCarriesRD": "7273db48e225dce7",
     "internal/component/bgp/reactor/rfc4659_vpn_next_hop_rewrite_test.go::TestRFC4659ForwardVPNv6NextHopRewriteCarriesRD#2": "7273db48e225dce7",
-    "internal/le/interoplab/bgp/check_rfc.go::checkVPNFRR": "9d03834af3f0f054",
-    "internal/le/interoplab/bgp/check_rfc.go::checkVPNFRR#2": "9d03834af3f0f054",
+    "internal/le/interoplab/bgp/check_rfc.go::checkVPNFRR": "49a47285ee4a16ca",
+    "internal/le/interoplab/bgp/check_rfc.go::checkVPNFRR#2": "49a47285ee4a16ca",
     "test/encode/rfc4659-vpnv6-link-local-off-subnet.ci": "3ee5ecb9b114c5f7"
   },
   "units": {

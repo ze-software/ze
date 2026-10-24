@@ -39,9 +39,9 @@
     "unit-sha": "60b15d2aefa9ff84",
     "claim-sha": "156ffed2369f0a9c",
     "route": "mutant",
-    "producer": "internal/component/bgp/reactor/forward_body.go::buildFwdBody",
-    "producer-sha": "4fb1e47f2f5ded80",
-    "break": "line 260: \"peerWire.MPAttributesTrail()\" -\u003e \"true\""
+    "producer": "internal/component/bgp/message/rfc7606_shape.go::MPAttributesTrail",
+    "producer-sha": "c2c3bd8a9c3d411f",
+    "break": "line 79: \"otherSeen\" -\u003e \"true\""
   },
   {
     "rid": "RFC7606-5.1-1",
@@ -50,9 +50,9 @@
     "unit-sha": "df44b7378927d294",
     "claim-sha": "fb021145f104965a",
     "route": "mutant",
-    "producer": "internal/component/bgp/reactor/forward_body.go::buildFwdBody",
-    "producer-sha": "4fb1e47f2f5ded80",
-    "break": "line 317: \"peerWire.MPAttributesTrail()\" -\u003e \"false\""
+    "producer": "internal/component/bgp/message/rfc7606_shape.go::MPAttributesTrail",
+    "producer-sha": "c2c3bd8a9c3d411f",
+    "break": "line 79: \"otherSeen\" -\u003e \"false\""
   },
   {
     "rid": "RFC7606-5.1-1",
@@ -61,9 +61,9 @@
     "unit-sha": "6cc9dc9e3babed9f",
     "claim-sha": "247113ee91cce32c",
     "route": "mutant",
-    "producer": "internal/component/bgp/reactor/forward_body.go::buildFwdBody",
-    "producer-sha": "4fb1e47f2f5ded80",
-    "break": "line 260: \"peerWire.MPAttributesTrail()\" -\u003e \"false\""
+    "producer": "internal/component/bgp/message/rfc7606_shape.go::MPAttributesTrail",
+    "producer-sha": "c2c3bd8a9c3d411f",
+    "break": "line 79: \"otherSeen\" -\u003e \"false\""
   },
   {
     "rid": "RFC7606-5.1-1",

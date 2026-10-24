@@ -3,8 +3,8 @@
   "requirement_sha": "fe025b9ee98e7850",
   "tests": {
     "internal/component/bgp/plugins/nlri/evpn/rfc7432_ip_length_send_test.go::TestRFC7432MACIPSenderUsesBitLengths": "c09f3bba72d552b2",
-    "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNIPAddressLength": "e95f85b8a1869210",
-    "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNIPAddressLength#2": "e95f85b8a1869210"
+    "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNIPAddressLength": "9064f27b3962feb7",
+    "internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNIPAddressLength#2": "9064f27b3962feb7"
   },
   "units": {
     "internal/component/bgp/plugins/nlri/evpn/rfc7432_ip_length_send_test.go::TestRFC7432MACIPSenderUsesBitLengths": "cad95612c9b73ef4",

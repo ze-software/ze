@@ -7,7 +7,7 @@
     "claim-sha": "56bbefaec2007825",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/session_connection.go::teardown",
-    "producer-sha": "6ccbdeb7b5473c77",
+    "producer-sha": "dea977caee9990b5",
     "break": "body of teardown replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   },
   {

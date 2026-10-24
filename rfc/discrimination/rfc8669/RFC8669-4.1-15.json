@@ -6,9 +6,9 @@
     "unit-sha": "359e26c296111fc4",
     "claim-sha": "081b25265afeffcd",
     "route": "mutant",
-    "producer": "internal/component/bgp/reactor/session_validation.go::applyRFC7606",
-    "producer-sha": "66c0f3d227b0c731",
-    "break": "line 187: \"return wu, message.RFC7606ActionNone, nil\" -\u003e \"s.logRFC7606Error(\\\"attribute-discard\\\", 40, \\\"spurious\\\"); return wu, message.RFC7606ActionNone, nil\""
+    "producer": "internal/core/bgp/attribute/prefixsid_classify.go::ClassifyPrefixSID",
+    "producer-sha": "00a49549792e5674",
+    "break": "line 168: \"len(tlvValue) != prefixSIDLabelIndexLen \u0026\u0026 discard == nil\" -\u003e \"true\""
   },
   {
     "rid": "RFC8669-4.1-15",

@@ -13,8 +13,8 @@
     "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestSendAnnounceWithholdsRouteWithPeerOwnNextHop#2": "8acb5d36c93abfec",
     "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestSendUpdateWithholdsOriginatedRouteWithPeerOwnNextHop": "8acb5d36c93abfec",
     "internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go::TestSendUpdateWithholdsOriginatedRouteWithPeerOwnNextHop#2": "8acb5d36c93abfec",
-    "internal/le/interoplab/bgp/check_rfc.go::checkSelfNextHopWithheld": "9d03834af3f0f054",
-    "internal/le/interoplab/bgp/check_rfc.go::checkSelfNextHopWithheld#2": "9d03834af3f0f054",
+    "internal/le/interoplab/bgp/check_rfc.go::checkSelfNextHopWithheld": "49a47285ee4a16ca",
+    "internal/le/interoplab/bgp/check_rfc.go::checkSelfNextHopWithheld#2": "49a47285ee4a16ca",
     "test/plugin/originated-nexthop-peer-own.ci": "6c87b12a0724809a",
     "test/plugin/originated-nexthop-peer-own.ci#2": "6c87b12a0724809a"
   },
