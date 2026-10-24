@@ -6,6 +6,18 @@ its first install named the v3 module path with `@latest` (2026-03-20), which
 resolves to the newest v3 although v4.0.0 shipped 2025-11-03; the review pin
 froze that.
 
+## Split, 2026-10-24
+
+The owner moved every remaining lab-peer item (the held BIRD 3 hunks, the
+FRR, IPsec, pmacct, ExaBGP, RSVP-TE and perf runs, the interop.md prose, the
+stale pins, the replay-labels check, the RFC3948 rejudge, the Linux-host
+images) to `plan/handover/25-lab-peers-latest-stable.md`. That file owns
+them now; the "Owed" lists below are history. This handover closes once the
+gates over its own code pass: the full verify, `./le test weakened check`,
+an independent review of 690c96d6bf, d4373233df and 34ad745067, and the
+owner's call on the ~11 commits that used `structural-red-ok` against
+staticcheck part 6.
+
 ## Landed with this handover
 
 The GoBGP port: `test/interop/Dockerfile.gobgp` builds gobgpd, gobgp and the
