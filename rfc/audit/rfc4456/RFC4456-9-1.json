@@ -5,7 +5,7 @@
     "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_ClusterListLength": "ae729071cdaf7dce",
     "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_ClusterListLength#2": "ae729071cdaf7dce",
     "internal/component/bgp/plugins/rib/bestpath_test.go::TestClusterListEntries": "ae729071cdaf7dce",
-    "internal/le/interoplab/bgp/check_rfc4456.go::checkClusterListLengthTieBreak": "0251439d85a73b59"
+    "internal/le/interoplab/bgp/check_rfc4456.go::checkClusterListLengthTieBreak": "56cbbb0d533fb0e9"
   },
   "units": {
     "internal/component/bgp/plugins/rib/bestpath_test.go::TestBestPath_ClusterListLength": "711ff3bcf17af982",

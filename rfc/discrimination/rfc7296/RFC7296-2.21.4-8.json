@@ -40,7 +40,7 @@
     "claim-sha": "7d2cb1a832680334",
     "route": "mutant",
     "producer": "internal/component/ike/engine/established.go::maintainSA",
-    "producer-sha": "f52db92f225348aa",
+    "producer-sha": "a4f7a05fb7fc52e8",
     "break": "line 274: \"ps.publishSAEndpoint(sa)\" -\u003e \"_ = sa\""
   },
   {

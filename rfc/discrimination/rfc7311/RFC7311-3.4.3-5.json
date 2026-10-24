@@ -1,10 +1,10 @@
 [
   {
     "rid": "RFC7311-3.4.3-5",
-    "polarity": "positive",
+    "polarity": "negative",
     "unit": "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire",
-    "unit-sha": "1911988133139e60",
-    "claim-sha": "8dfb468dc6236510",
+    "unit-sha": "443a5ce0f3a47862",
+    "claim-sha": "05ec0d02b49ee1b7",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/forward_aigp.go::applyFactsAIGP",
     "producer-sha": "247742f0406bce81",
@@ -12,10 +12,10 @@
   },
   {
     "rid": "RFC7311-3.4.3-5",
-    "polarity": "negative",
+    "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc7311_processing_test.go::TestAIGPForwardedMetricsReachFinalWire",
-    "unit-sha": "1911988133139e60",
-    "claim-sha": "05ec0d02b49ee1b7",
+    "unit-sha": "443a5ce0f3a47862",
+    "claim-sha": "8dfb468dc6236510",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/forward_aigp.go::applyFactsAIGP",
     "producer-sha": "247742f0406bce81",

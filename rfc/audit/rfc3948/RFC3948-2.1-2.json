@@ -7,10 +7,10 @@
     "internal/component/ike/engine/rfc3948_encap_port_test.go::TestRFC3948ChildSARefusesEncapWithoutAnIKEPort": "e2b486cfbbef3b4a",
     "internal/component/ike/engine/rfc3948_encap_port_test.go::TestRFC3948EAPResponderChildSAEncapsulatesToTheIKEPeerPort": "e2b486cfbbef3b4a",
     "internal/component/ike/engine/rfc3948_encap_port_test.go::TestRFC3948ResponderChildSAEncapsulatesToTheIKEPeerPort": "e2b486cfbbef3b4a",
-    "internal/component/ike/engine/rfc3948_rebind_test.go::TestRFC3948RebindMigratesTunnelChildSAs": "24523ecffcc42aaa",
-    "internal/component/ike/engine/rfc3948_rebind_test.go::TestRFC3948RebindNotRunWithoutAnAdoptedMove": "24523ecffcc42aaa",
-    "internal/component/ike/engine/rfc3948_rebind_test.go::TestRFC3948RebindRekeysTransportChildSA": "24523ecffcc42aaa",
-    "internal/component/ike/engine/rfc3948_rebind_test.go::TestRFC3948RebindRekeysWithoutAMigrator": "24523ecffcc42aaa"
+    "internal/component/ike/engine/rfc3948_rebind_test.go::TestRFC3948RebindMigratesTunnelChildSAs": "042d66a8b75e2927",
+    "internal/component/ike/engine/rfc3948_rebind_test.go::TestRFC3948RebindNotRunWithoutAnAdoptedMove": "042d66a8b75e2927",
+    "internal/component/ike/engine/rfc3948_rebind_test.go::TestRFC3948RebindRekeysTransportChildSA": "042d66a8b75e2927",
+    "internal/component/ike/engine/rfc3948_rebind_test.go::TestRFC3948RebindRekeysWithoutAMigrator": "042d66a8b75e2927"
   },
   "units": {
     "internal/component/ike/engine/child_test.go::TestChildSANATTEncapPorts": "a5b55eb59ce83dee",
