@@ -1223,6 +1223,12 @@ A D-8 fix adds `// RFC NNNN Section X.Y: "<quoted requirement>"` above the enfor
 | Discrimination records for tagged units nobody in this child changed (230 enforced verdicts not moved by this child; 424 tags over the rest of the 320 unrecorded units) | owner ruling 2026-10-21 ("move the 424 to D-7"): scheduled proof work as owed RFC coverage, not this child's | `plan/release/validation/spec-rfc-evidence-strength-0-umbrella.md` (D-7, counts and method written there) |
 | The five still-weak "Blocked by" verdicts | need another spec's producer fix (P-3) | the blocking specs named in the "Blocked by" table |
 
+## Owned journal rows
+
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+| `negative-test-asserts-the-verdict-not-the-reason.md` | 2026-10-24 | MP_REACH overrun substring oracle; RFC 8654 positive tag on a malformed subtest |
+
 ## Review Gate
 
 | Field | Value |
