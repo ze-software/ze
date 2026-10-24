@@ -81,7 +81,7 @@ var exaBGPPins = [...]exaBGPPin{
 	{Name: "5.0.15", Requirement: "exabgp==5.0.15"},
 	{
 		Name:        "main",
-		Requirement: "exabgp @ git+https://github.com/Exa-Networks/exabgp@685f772e4ede5c818d2ff5c84f4ae040afd37be6",
+		Requirement: "exabgp @ git+https://github.com/Exa-Networks/exabgp@f9bfb853b924e97deba646b0bd50693ab07c4f3e",
 	},
 }
 
