@@ -392,6 +392,55 @@ No new numeric input: `part i of m` keeps its existing parsing and tests; the ga
 | Audit finds a missing AC | Back to the relevant phase and implement |
 | 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
 
+## Implementation Status
+
+Implementation is complete through Phase 6 (2026-10-25). Commits: `1eb9e09b76`,
+`e915f3858b` (anchor), `ed18a29817`, `22c25a1f40`, `30fbd1f86e` (terminal gate),
+`711d82b4d2` (whole-tree full run, `changed` population), `bb30dbd92c` (push
+debt and commit text), `35421aae45` (Phase 6 surfaces, the `carryForward` fast
+mode fix), `a10bb89497` (the no-anchor race test's fixture, which `bb30dbd92c`'s
+detached-HEAD refusal left reading a detached HEAD), `96135d911c` (Phase 6 docs).
+
+Evidence run, which also fills the Status column of the TDD table: `go test
+-count=1 -v -run '^(<every test the TDD and Wiring tables name>)$'` over
+`repo/changed`, `le/human`, `verify`, `verify/evidence`, `verify/engine`,
+`commit` and `hookruntime`, through `./le job run label unit-pkg`: every package
+`ok`, 25 `--- PASS`, 0 `--- FAIL`. `TestRetiredKeywordsNameVerifyChanged` is
+named `TestRemovedKeywordsNameReplacement` in `internal/le/commit/push_test.go`
+and passes. The run used a `-overlay` holding `internal/le/setup` at HEAD,
+because another session's uncommitted `internal/le/setup/shims.go` does not
+compile. The whole-package runs of `commit`, `verify/...`, `hookruntime` and
+`setup` were all `ok` once `a10bb89497` landed.
+
+| AC | Status | Evidence |
+|----|--------|----------|
+| AC-1..AC-5 | met | `TestScopeAnchoredOnUpstreamWithNoCertificate`, `TestScopeHoldsCommittedAheadOfUpstream`, `TestScopeEmptyAtUpstream`, `TestAnchorFallsBackToOriginHead`, `TestAnchorRefusesWithNoUpstream`: PASS |
+| AC-6 | met | `greenBaseline` and `errNoGreenBaseline` deleted in `1eb9e09b76`; the selector page's last row is the anchor row |
+| AC-7 | met | `TestRaceGroupsAnchoredOnUpstream`: PASS |
+| AC-8..AC-11 | met | `TestGateRefusesEachNonTerminalStream`, `TestGateRefusesWhenQuestionErrors`, `TestGateAdmitsTwoTerminals`, `TestVerifyWorktreeRefusesWithoutTerminal`, `TestVerifyCurrentRefusesWithoutTerminal`, `TestSweepRefusesWithoutTerminal`, `TestEveryWholeTreeVerbIsGated`, `TestEvidenceRefusesBeforeDockerWithoutTerminal`, `TestEvidenceContainerHasTerminal`: PASS |
+| AC-12..AC-14 | met | `TestFullModePublishesWholeTree`, `TestChangedPopulationReadsScope`, `TestVerifyChangedWritesScopedRecord`, `TestCheckCertificateKnowsChangedMode`: PASS |
+| AC-15..AC-18 | met | `TestPushAdmitsScopedRecordCoveringHead`, `TestPushCarriesProseAfterScopedRecord`, `TestPushRefusesWhenUpstreamMovedPastAnchor`, `TestPushRefusalNamesVerifyChanged`: PASS |
+| AC-19 | met | `TestSessionStartDebtLineNamesVerifyChanged`: PASS |
+| AC-20 | met | `./le commit create` prepared every Phase 6 commit with `debt=14 commit(s) owe a scoped verify` and refused none for it |
+| AC-21 | met | `TestUnjudgedStageNamesNoAgentFullRun`, `TestRemovedKeywordsNameReplacement`: PASS; the live refusal over the carried `arch tier/check` red read `clears only when the release check reaches it, which you never run: give Thomas the command ./le verify worktree` |
+| AC-22 | met | `TestLossyPipeRefusalNamesTheScopedRun`, `TestAFastGreenKeepsAFullRedOnASharedStage`: PASS; a grep for an imperative full run over `ai`, `.claude/skills`, `plan/templates`, `docs/contributing` and `docs/functional-tests.md`, less the lines naming Thomas, a terminal, a ban or the release check, leaves only bans (`ai/agents/ze-work.md`, `ze-commit`) and descriptions (the `HEAD^` paragraph of `rfc-conformance-gates.md`, the `tmp/ze-verify-full.json` row of `functional-tests.md`); `./le doc check verify` PASSED |
+
+### Goal Validation
+
+| Goal | Evidence |
+|------|----------|
+| The change set is anchored on git and never widens for want of a green full verify | `TestScopeAnchoredOnUpstreamWithNoCertificate` and `TestRaceGroupsAnchoredOnUpstream` drive `./le repo changed scope` and `groups` with no certificate; `scopeFor` (`internal/le/verify/engine/scope.go`) resolves every non-full mode through `repochanged.Scope` |
+| A push owes scoped evidence from one run an agent may start | `TestVerifyChangedWritesScopedRecord` runs `./le verify changed` over pipes and gets the record; `TestPushAdmitsScopedRecordCoveringHead` admits the push on it; the live `debt=` line of every Phase 6 commit named `./le verify changed` |
+| The full verification refuses unless a person at a terminal starts it | `TestEveryWholeTreeVerbIsGated` over every registered verb and the three verb-level refusal tests, with no override keyword or variable (AC-11) |
+| Every surface that owed an agent the full run names the scoped run or the command for Thomas | The AC-22 row above |
+
+### Review Gate
+
+Round 1 ran before Phase 6. Round 2, over `35421aae45`, `a10bb89497` and
+`96135d911c`, is owed to the parent session, which runs it with an independent
+reviewer: the implementation agent did not review its own work. The scoped
+`./le verify changed` over the closing commits is owed with it.
+
 ## Design Insights
 
 - The certificate (`tmp/ze-verify.status`) is overwritten by every run, red or green, so anchoring scope on it made one interrupted run (exit 130) widen every later scoped run until someone ran a full verify. The anchor belongs to git, which no run can overwrite.
