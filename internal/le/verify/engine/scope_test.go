@@ -56,9 +56,9 @@ func writeVerifyScopeFixture(t *testing.T) string {
 	return root
 }
 
-// commitVerifyScopeFixture turns the fixture into a git checkout with a green
-// baseline, which is what lets the selector answer about the working tree
-// instead of widening for want of a proven commit.
+// commitVerifyScopeFixture turns the fixture into a git checkout whose
+// origin/HEAD is its one commit, which is the anchor the selector needs to
+// answer about the working tree (repochanged.ResolveAnchor) rather than refuse.
 func commitVerifyScopeFixture(t *testing.T, root string) {
 	t.Helper()
 	commands := [][]string{
@@ -68,6 +68,8 @@ func commitVerifyScopeFixture(t *testing.T, root string) {
 		{"config", "commit.gpgsign", "false"},
 		{"add", "-A"},
 		{"commit", "-q", "-m", "base"},
+		{"update-ref", "refs/remotes/origin/main", "HEAD"},
+		{"symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main"},
 	}
 	for _, args := range commands {
 		command := exec.CommandContext(t.Context(), "git", args...) //nolint:gosec // the argument lists are literals above
@@ -78,19 +80,6 @@ func commitVerifyScopeFixture(t *testing.T, root string) {
 			// broken machine rather than a case this test may decline to make.
 			t.Fatalf("git %s in the fixture checkout: %v\n%s", strings.Join(args, " "), err, out)
 		}
-	}
-	head := exec.CommandContext(t.Context(), "git", "rev-parse", "HEAD")
-	head.Dir = root
-	sha, err := head.Output()
-	if err != nil {
-		t.Fatalf("read the fixture HEAD: %v", err)
-	}
-	if err := os.MkdirAll(filepath.Join(root, "tmp"), 0o750); err != nil {
-		t.Fatalf("create the fixture status directory: %v", err)
-	}
-	status := "exit=0\nmode=full\ngit_sha=" + strings.TrimSpace(string(sha)) + "\n"
-	if err := os.WriteFile(filepath.Join(root, "tmp", "ze-verify.status"), []byte(status), 0o600); err != nil {
-		t.Fatalf("write the fixture verify status: %v", err)
 	}
 }
 
@@ -131,6 +120,7 @@ func readAnswerLines(t *testing.T, path string) []string {
 
 func TestVerifyRunNamesTheFeatureScopeToEveryStage(t *testing.T) {
 	root := writeVerifyScopeFixture(t)
+	commitVerifyScopeFixture(t, root)
 
 	report, seen := runWatchingScope(t, root)
 
@@ -154,6 +144,7 @@ func TestVerifyRunNamesTheFeatureScopeToEveryStage(t *testing.T) {
 
 func TestVerifyRunPublishesTheChangeSetPerRun(t *testing.T) {
 	root := writeVerifyScopeFixture(t)
+	commitVerifyScopeFixture(t, root)
 
 	_, firstRun := runWatchingScope(t, root)
 	_, secondRun := runWatchingScope(t, root)

@@ -4,8 +4,6 @@ package verifydeps
 import (
 	"context"
 	"io"
-	"os"
-	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -15,18 +13,19 @@ import (
 	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
 )
 
-// racePieceDeps answers dependencies for a clean tree with no green baseline,
-// whose changed population is therefore ./..., and whose `go list` of that
+// racePieceDeps answers dependencies for a clean tree under a full run's
+// published `./...` change set, whose `go list` of that
 // population answers the given packages.
 func racePieceDeps(t *testing.T, packages []string, executed *[][]string) (string, dependencies) {
 	t.Helper()
 	root := t.TempDir()
-	verifiedBaseline(t, root)
-	if err := os.Remove(filepath.Join(root, "tmp", "ze-verify.status")); err != nil {
-		t.Fatal(err)
-	}
+	anchoredCheckout(t, root)
+	publishWholeTree(t, root)
 	deps := fakeDependencies(root)
 	deps.execute = func(_ context.Context, plan CommandPlan, _ io.Writer) (string, ChildReport) {
+		if out, ok := anchorAnswer(plan); ok {
+			return out, childFrom(plan, 0)
+		}
 		if plan.Command[0] == "git" {
 			return "", childFrom(plan, 0)
 		}
@@ -129,6 +128,9 @@ func TestARacePieceRefusesAnUnreadablePopulation(t *testing.T) {
 	var executed [][]string
 	root, deps := racePieceDeps(t, nil, &executed)
 	deps.execute = func(_ context.Context, plan CommandPlan, _ io.Writer) (string, ChildReport) {
+		if out, ok := anchorAnswer(plan); ok {
+			return out, childFrom(plan, 0)
+		}
 		if plan.Command[1] == "list" {
 			return "", childFrom(plan, 5)
 		}

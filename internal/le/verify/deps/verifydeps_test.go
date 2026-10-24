@@ -149,6 +149,9 @@ func TestUnitCachedPreservesTheFirstFailureCode(t *testing.T) {
 	deps := fakeDependencies(root)
 	calls := 0
 	deps.execute = func(_ context.Context, plan CommandPlan, _ io.Writer) (string, ChildReport) {
+		if out, ok := anchorAnswer(plan); ok {
+			return out, childFrom(plan, 0)
+		}
 		calls++
 		code := 0
 		output := ""
@@ -177,7 +180,7 @@ func TestUnitCachedPreservesTheFirstFailureCode(t *testing.T) {
 // confusing a race run with the non-cgo cached pass.
 func TestRaceChangedDerivesTheExactPopulationAndEnvironment(t *testing.T) {
 	root := t.TempDir()
-	verifiedBaseline(t, root)
+	anchoredCheckout(t, root)
 	deps := fakeDependencies(root)
 	unmapped := filepath.Join(root, "internal", "le", "verify", "deps")
 	deps.execute = scriptedExecutor(map[string]scriptedResult{
@@ -210,11 +213,11 @@ func TestRaceChangedDerivesTheExactPopulationAndEnvironment(t *testing.T) {
 // PREVENTS: a failed git query being read as no changed Go files.
 func TestRaceChangedFailsClosedOnPopulationFailure(t *testing.T) {
 	root := t.TempDir()
-	verifiedBaseline(t, root)
+	anchoredCheckout(t, root)
 	deps := fakeDependencies(root)
 	deps.execute = func(_ context.Context, plan CommandPlan, _ io.Writer) (string, ChildReport) {
-		if strings.Join(plan.Command, " ") == "git cat-file -t verified" {
-			return "commit\n", childFrom(plan, 0)
+		if out, ok := anchorAnswer(plan); ok {
+			return out, childFrom(plan, 0)
 		}
 		return "", childFrom(plan, 7)
 	}
@@ -235,7 +238,7 @@ func TestRaceChangedFailsClosedOnPopulationFailure(t *testing.T) {
 // certificate holds.
 func TestRaceChangedEmptyPopulationRunsNoTests(t *testing.T) {
 	root := t.TempDir()
-	verifiedBaseline(t, root)
+	anchoredCheckout(t, root)
 	deps := fakeDependencies(root)
 	deps.execute = scriptedExecutor(map[string]scriptedResult{
 		"git diff --name-only -- *.go":                     {},
@@ -246,8 +249,8 @@ func TestRaceChangedEmptyPopulationRunsNoTests(t *testing.T) {
 	if code != 0 || report.Code != 0 {
 		t.Fatalf("empty population answered %d / %d", code, report.Code)
 	}
-	if len(report.Children) != 5 {
-		t.Fatalf("reported %d children, want baseline validation and four change queries", len(report.Children))
+	if len(report.Children) != 6 {
+		t.Fatalf("reported %d children, want the anchor's two queries and four change queries", len(report.Children))
 	}
 	if !report.Skipped || report.Reason == "" {
 		t.Fatalf("report says skipped=%v reason=%q, want a stated skip", report.Skipped, report.Reason)
@@ -261,7 +264,7 @@ func TestRaceChangedEmptyPopulationRunsNoTests(t *testing.T) {
 // (plan/journal/gate-excludes-part-of-its-population.md).
 func TestARaceChangedSkipIsNotReadableAsAPassOverTests(t *testing.T) {
 	root := t.TempDir()
-	verifiedBaseline(t, root)
+	anchoredCheckout(t, root)
 
 	quiet := fakeDependencies(root)
 	quiet.execute = scriptedExecutor(map[string]scriptedResult{
@@ -304,7 +307,7 @@ func TestARaceChangedSkipIsNotReadableAsAPassOverTests(t *testing.T) {
 // a package the toolchain failed on all reach the selector as an empty answer.
 func TestRaceChangedRefusesAChangeSetThatResolvedToNoPackage(t *testing.T) {
 	root := t.TempDir()
-	verifiedBaseline(t, root)
+	anchoredCheckout(t, root)
 	deps := fakeDependencies(root)
 	deps.execute = scriptedExecutor(map[string]scriptedResult{
 		"git diff --name-only -- *.go":                                      {output: "internal/le/gone/gone.go\n"},
@@ -332,6 +335,9 @@ func TestRaceChangedRefusesAChangeSetThatResolvedToNoPackage(t *testing.T) {
 func TestAStageThatPlannedNoCommandRefusesInsteadOfPassing(t *testing.T) {
 	root := t.TempDir()
 	refuse := func(_ context.Context, plan CommandPlan, _ io.Writer) (string, ChildReport) {
+		if out, ok := anchorAnswer(plan); ok {
+			return out, childFrom(plan, 0)
+		}
 		t.Fatalf("executed %v for a stage that planned nothing", plan.Command)
 		return "", ChildReport{}
 	}
@@ -461,6 +467,9 @@ func TestAllocRunLogsAndEnforcesTheSameOutput(t *testing.T) {
 	deps.ceilings = func() map[string]int { return map[string]int{"BenchmarkHot": 0} }
 	const benchmark = "BenchmarkHot-4 300 1 allocs/op\n"
 	deps.execute = func(_ context.Context, plan CommandPlan, writer io.Writer) (string, ChildReport) {
+		if out, ok := anchorAnswer(plan); ok {
+			return out, childFrom(plan, 0)
+		}
 		if writer != nil {
 			if _, err := io.WriteString(writer, benchmark); err != nil {
 				t.Fatalf("write benchmark output: %v", err)
@@ -507,10 +516,10 @@ type scriptedResult struct {
 
 func scriptedExecutor(results map[string]scriptedResult) commandExecutor {
 	return func(_ context.Context, plan CommandPlan, writer io.Writer) (string, ChildReport) {
-		key := strings.Join(plan.Command, " ")
-		if key == "git cat-file -t verified" {
-			return "commit\n", childFrom(plan, 0)
+		if out, ok := anchorAnswer(plan); ok {
+			return out, childFrom(plan, 0)
 		}
+		key := strings.Join(plan.Command, " ")
 		result, ok := results[key]
 		if !ok {
 			return "", childFrom(plan, 0)
@@ -585,17 +594,47 @@ func mkdir(t *testing.T, root, relative string) {
 	}
 }
 
-func verifiedBaseline(t *testing.T, root string) {
+// anchoredCheckout isolates root from the real checkout's published scope, so
+// the change set comes only from the fixture's git answers (anchorAnswer).
+func anchoredCheckout(t *testing.T, root string) {
 	t.Helper()
-	t.Setenv("ZE_VERIFY_STATUS_FILE", filepath.Join(root, "tmp", "ze-verify.status"))
 	t.Setenv("ZE_VERIFY_SCOPE_PACKAGES", "")
 	t.Setenv(repochanged.ScopeFileKey, "")
 	env.ResetCache()
 	t.Cleanup(env.ResetCache)
 	mkdir(t, root, "tmp")
-	if err := os.WriteFile(filepath.Join(root, "tmp", "ze-verify.status"), []byte("exit=0\ngit_sha=verified\n"), 0o600); err != nil {
+}
+
+// The fixture's upstream and the merge base the change set is anchored on
+// (repochanged.ResolveAnchor): the branch tracks "upstream", whose merge base
+// with HEAD is "anchor".
+const (
+	anchorUpstreamQuery = "git rev-parse --verify -q @{u}^{commit}"
+	anchorMergeQuery    = "git merge-base HEAD upstream"
+)
+
+// anchorAnswer answers the two git queries ResolveAnchor asks, so a scripted
+// executor stands for a checkout whose branch has an upstream.
+func anchorAnswer(plan CommandPlan) (string, bool) {
+	switch strings.Join(plan.Command, " ") {
+	case anchorUpstreamQuery:
+		return "upstream\n", true
+	case anchorMergeQuery:
+		return "anchor\n", true
+	}
+	return "", false
+}
+
+// publishWholeTree writes the change set a full verify run publishes, `./...`
+// for this checkout, which is the only way a race population is the whole tree.
+func publishWholeTree(t *testing.T, root string) {
+	t.Helper()
+	path := filepath.Join(root, "tmp", "scope-packages.txt")
+	if err := os.WriteFile(path, []byte("root "+root+"\n./...\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
+	t.Setenv(repochanged.ScopeFileKey, path)
+	env.ResetCache()
 }
 
 // VALIDATES: a red test stage says WHICH packages failed, in the answer the

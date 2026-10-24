@@ -64,7 +64,7 @@ func TestCheckJudgesTheUnpushedRange(t *testing.T) {
 }
 
 // TestCheckWithNoBaseExitsTwo proves a checkout with no upstream and no
-// origin/main is a run that judged nothing, never a pass.
+// origin/HEAD commit is a run that judged nothing, never a pass.
 func TestCheckWithNoBaseExitsTwo(t *testing.T) {
 	root := unpushedFixture(t)
 	gitIn(t, root, "update-ref", "-d", "refs/remotes/origin/main")
@@ -75,7 +75,8 @@ func TestCheckWithNoBaseExitsTwo(t *testing.T) {
 	}
 }
 
-// unpushedFixture builds a checkout whose origin/main holds pushedSource and
+// unpushedFixture builds a clone-shaped checkout, origin/HEAD naming
+// origin/main, whose origin/main holds pushedSource and
 // whose two local commits add the second guard and an unrelated file.
 func unpushedFixture(t *testing.T) string {
 	t.Helper()
@@ -87,6 +88,7 @@ func unpushedFixture(t *testing.T) string {
 	gitIn(t, root, "init", "-q", ".")
 	commitAll(t, root, "pushed")
 	gitIn(t, root, "update-ref", "refs/remotes/origin/main", "HEAD")
+	gitIn(t, root, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main")
 	writeSource(t, root, "internal/p/p.go", unpushedSource)
 	commitAll(t, root, "unpushed guard")
 	writeSource(t, root, "internal/q/q.go", "package q\n")

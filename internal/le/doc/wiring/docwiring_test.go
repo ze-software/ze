@@ -74,8 +74,8 @@ func tree(t *testing.T, files map[string]string) string {
 	return root
 }
 
-// pushedTree writes a fixture checkout, commits it, and points origin/main at
-// that commit, so the unpushed range Run judges starts from the fixture.
+// pushedTree writes a fixture checkout, commits it, and points origin/main,
+// and origin/HEAD through it as a clone has, at that commit, so the unpushed range Run judges starts from the fixture.
 func pushedTree(t *testing.T, files map[string]string) string {
 	t.Helper()
 	root := tree(t, files)
@@ -84,6 +84,7 @@ func pushedTree(t *testing.T, files map[string]string) string {
 		{"add", "-A"},
 		{"-c", "user.email=t@ze", "-c", "user.name=t", "commit", "-qm", "fixture"},
 		{"update-ref", "refs/remotes/origin/main", "HEAD"},
+		{"symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main"},
 	} {
 		gitIn(t, root, args...)
 	}

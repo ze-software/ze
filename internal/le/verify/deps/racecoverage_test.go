@@ -4,8 +4,6 @@ package verifydeps
 import (
 	"context"
 	"io"
-	"os"
-	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -13,50 +11,66 @@ import (
 	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
 )
 
-// TestRaceChangedExecutesTheWholeTreeWithoutGreenEvidence drives the stage's
-// execution seam, not just its plan, for a clean tree with no green baseline.
-func TestRaceChangedExecutesTheWholeTreeWithoutGreenEvidence(t *testing.T) {
-	for _, certificate := range []string{"", "exit=1\ngit_sha=verified\n", "exit=0\n"} {
-		t.Run(certificate, func(t *testing.T) {
-			root := t.TempDir()
-			verifiedBaseline(t, root)
-			status := filepath.Join(root, "tmp", "ze-verify.status")
-			if certificate == "" {
-				if err := os.Remove(status); err != nil {
-					t.Fatal(err)
-				}
-			} else if err := os.WriteFile(status, []byte(certificate), 0o600); err != nil {
-				t.Fatal(err)
-			}
-			deps := fakeDependencies(root)
-			var executed [][]string
-			deps.execute = func(_ context.Context, plan CommandPlan, _ io.Writer) (string, ChildReport) {
-				if plan.Command[0] == "git" {
-					return "", childFrom(plan, 0)
-				}
-				executed = append(executed, plan.Command)
-				if !slices.Contains(plan.Command, "-race") {
-					t.Fatalf("cold selection executed a non-race command: %v", plan.Command)
-				}
-				if !slices.Contains(plan.Environment, "CGO_ENABLED=1") {
-					t.Fatal("race execution has no cgo")
-				}
-				return "", childFrom(plan, 0)
-			}
-			report, code := run(context.Background(), root, VerbUnitRaceChanged, verifyengine.Uncut(), deps)
-			if code != 0 || report.Skipped {
-				t.Fatalf("cold tree answered code=%d skipped=%v: %+v", code, report.Skipped, report)
-			}
-			if len(executed) != 2 {
-				t.Fatalf("executed %v, want full race and compile-out populations", executed)
-			}
-			if !slices.Contains(executed[0], "./...") {
-				t.Fatalf("cold race population is %v", executed[0])
-			}
-			if !slices.Contains(executed[1], "./cmd/ze/hub") {
-				t.Fatalf("compile-out population is %v", executed[1])
-			}
-		})
+// TestRaceChangedExecutesTheWholeTreeAFullRunPublished drives the stage's
+// execution seam, not just its plan, for a clean tree under the `./...` change
+// set a full verify run publishes.
+func TestRaceChangedExecutesTheWholeTreeAFullRunPublished(t *testing.T) {
+	root := t.TempDir()
+	anchoredCheckout(t, root)
+	publishWholeTree(t, root)
+	deps := fakeDependencies(root)
+	var executed [][]string
+	deps.execute = func(_ context.Context, plan CommandPlan, _ io.Writer) (string, ChildReport) {
+		if plan.Command[0] == "git" {
+			return "", childFrom(plan, 0)
+		}
+		executed = append(executed, plan.Command)
+		if !slices.Contains(plan.Command, "-race") {
+			t.Fatalf("whole-tree selection executed a non-race command: %v", plan.Command)
+		}
+		if !slices.Contains(plan.Environment, "CGO_ENABLED=1") {
+			t.Fatal("race execution has no cgo")
+		}
+		return "", childFrom(plan, 0)
+	}
+	report, code := run(context.Background(), root, VerbUnitRaceChanged, verifyengine.Uncut(), deps)
+	if code != 0 || report.Skipped {
+		t.Fatalf("whole tree answered code=%d skipped=%v: %+v", code, report.Skipped, report)
+	}
+	if len(executed) != 2 {
+		t.Fatalf("executed %v, want full race and compile-out populations", executed)
+	}
+	if !slices.Contains(executed[0], "./...") {
+		t.Fatalf("whole-tree race population is %v", executed[0])
+	}
+	if !slices.Contains(executed[1], "./cmd/ze/hub") {
+		t.Fatalf("compile-out population is %v", executed[1])
+	}
+}
+
+// TestRaceChangedRefusesWithNoAnchor proves a checkout whose branch has no
+// upstream and no origin/HEAD races nothing: the stage fails naming the fixing
+// command, and never falls back to the whole tree.
+func TestRaceChangedRefusesWithNoAnchor(t *testing.T) {
+	root := t.TempDir()
+	anchoredCheckout(t, root)
+	deps := fakeDependencies(root)
+	var executed [][]string
+	deps.execute = func(_ context.Context, plan CommandPlan, _ io.Writer) (string, ChildReport) {
+		if plan.Command[0] != "git" {
+			executed = append(executed, plan.Command)
+		}
+		return "", childFrom(plan, 0)
+	}
+	report, code := run(context.Background(), root, VerbUnitRaceChanged, verifyengine.Uncut(), deps)
+	if code == 0 || report.Skipped {
+		t.Fatalf("no anchor answered code=%d skipped=%v, want a failure", code, report.Skipped)
+	}
+	if !strings.Contains(report.Error, "git branch --set-upstream-to=origin/") {
+		t.Fatalf("refusal %q names no fixing command", report.Error)
+	}
+	if len(executed) != 0 {
+		t.Fatalf("no anchor executed %v, want nothing", executed)
 	}
 }
 
@@ -64,14 +78,15 @@ func TestRaceChangedExecutesTheWholeTreeWithoutGreenEvidence(t *testing.T) {
 // empty and supplies the earlier Go edit only through the baseline-to-HEAD diff.
 func TestRaceChangedExecutesGoCommittedBeforeClosure(t *testing.T) {
 	root := t.TempDir()
-	verifiedBaseline(t, root)
+	anchoredCheckout(t, root)
 	deps := fakeDependencies(root)
 	var executed [][]string
 	deps.execute = func(_ context.Context, plan CommandPlan, _ io.Writer) (string, ChildReport) {
+		if out, ok := anchorAnswer(plan); ok {
+			return out, childFrom(plan, 0)
+		}
 		switch strings.Join(plan.Command, " ") {
-		case "git cat-file -t verified":
-			return "commit\n", childFrom(plan, 0)
-		case "git diff --name-only verified HEAD -- *.go":
+		case "git diff --name-only anchor HEAD -- *.go":
 			return "internal/component/bgp/wire/update.go\n", childFrom(plan, 0)
 		}
 		if slices.Contains(plan.Command, "-race") {
@@ -95,13 +110,14 @@ func TestRaceChangedExecutesGoCommittedBeforeClosure(t *testing.T) {
 // cannot hide the compile-out judgment or have its failure replaced by it.
 func TestRaceChangedRunsCompileOutAfterFailure(t *testing.T) {
 	root := t.TempDir()
-	verifiedBaseline(t, root)
-	if err := os.Remove(filepath.Join(root, "tmp", "ze-verify.status")); err != nil {
-		t.Fatal(err)
-	}
+	anchoredCheckout(t, root)
+	publishWholeTree(t, root)
 	deps := fakeDependencies(root)
 	calls := 0
 	deps.execute = func(_ context.Context, plan CommandPlan, _ io.Writer) (string, ChildReport) {
+		if out, ok := anchorAnswer(plan); ok {
+			return out, childFrom(plan, 0)
+		}
 		if plan.Command[0] == "git" {
 			return "", childFrom(plan, 0)
 		}
@@ -122,12 +138,13 @@ func TestRaceChangedRunsCompileOutAfterFailure(t *testing.T) {
 // beside a directory go list dropped and asserts that no test certifies it.
 func TestRaceChangedRefusesPartiallyUnresolvedPopulation(t *testing.T) {
 	root := t.TempDir()
-	verifiedBaseline(t, root)
+	anchoredCheckout(t, root)
 	deps := fakeDependencies(root)
 	deps.execute = func(_ context.Context, plan CommandPlan, _ io.Writer) (string, ChildReport) {
+		if out, ok := anchorAnswer(plan); ok {
+			return out, childFrom(plan, 0)
+		}
 		switch strings.Join(plan.Command, " ") {
-		case "git cat-file -t verified":
-			return "commit\n", childFrom(plan, 0)
 		case "git diff --name-only -- *.go":
 			return "internal/core/env/env.go\ninternal/le/gone/gone.go\n", childFrom(plan, 0)
 		}
@@ -146,13 +163,14 @@ func TestRaceChangedRefusesPartiallyUnresolvedPopulation(t *testing.T) {
 // query fail, so successful empty working-tree queries cannot certify a skip.
 func TestRaceChangedRefusesAnUnreadableCommittedRange(t *testing.T) {
 	root := t.TempDir()
-	verifiedBaseline(t, root)
+	anchoredCheckout(t, root)
 	deps := fakeDependencies(root)
 	deps.execute = func(_ context.Context, plan CommandPlan, _ io.Writer) (string, ChildReport) {
+		if out, ok := anchorAnswer(plan); ok {
+			return out, childFrom(plan, 0)
+		}
 		switch strings.Join(plan.Command, " ") {
-		case "git cat-file -t verified":
-			return "commit\n", childFrom(plan, 0)
-		case "git diff --name-only verified HEAD -- *.go":
+		case "git diff --name-only anchor HEAD -- *.go":
 			return "", childFrom(plan, 7)
 		}
 		if slices.Contains(plan.Command, "-race") {
