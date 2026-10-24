@@ -87,13 +87,6 @@ keeps"). Five differences remain.
   that only a route an ExaBGP script sends through the bridge may carry one.
   Until that lands, this is the remaining AS_SET difference, owned by
   `plan/release/fixes/spec-exabgp-bridge-refuses-untranslated.md`.
-- **A received AS_SET is kept where ExaBGP keeps it.** Both treat a route whose
-  AS_PATH or AS4_PATH holds a set as withdrawn by default (RFC 9774 Section 3).
-  ExaBGP's neighbor leaf `as-set accept` keeps it (`as_set`,
-  `src/exabgp/bgp/neighbor/settings.py`), and so does Ze's peer leaf
-  `session as-set accept`, which `ze exabgp migrate` writes for that leaf. An
-  AS_SET inside an ATTR_SET (RFC 6368) is not in the UPDATE's own paths, so Ze
-  keeps that route on every peer, as FRR and BIRD do.
 - **A generic attribute must carry flags RFC 4271 allows.** `attribute [ 0x99
   0x60 0x... ]` sends an attribute Ze knows no type for as a well-known one,
   and flags 0x60 or 0x70 on a well-known or optional non-transitive code set
@@ -103,6 +96,14 @@ keeps"). Five differences remain.
   refuses the line and names the flags to write. RFC 4271 Section 4.3: "For
   well-known attributes and for optional non-transitive attributes, the
   Partial bit MUST be set to 0."
+
+A received AS_SET is kept where ExaBGP keeps it, so it is no longer a
+difference. Both treat a route whose AS_PATH or AS4_PATH holds a set as
+withdrawn by default (RFC 9774 Section 3). ExaBGP's neighbor leaf `as-set
+accept` keeps it (`as_set`, `src/exabgp/bgp/neighbor/settings.py`), and so does
+Ze's peer leaf `session as-set accept`, which `ze exabgp migrate` writes for
+that leaf. An AS_SET inside an ATTR_SET (RFC 6368) is not in the UPDATE's own
+paths, so Ze keeps that route on every peer, as FRR and BIRD do.
 
 A value-less attribute (`path-information` alone) and a mask that is no number
 (`10.0.0.0/x`) are refused by both. ExaBGP 5.0 ignored the first and took the

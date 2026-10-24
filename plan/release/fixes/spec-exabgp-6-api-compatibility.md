@@ -309,6 +309,7 @@ CHANGELOG sentence of that producer.
 | `announce ipv4 mpls-vpn ...` | → | `bridgeSAFI` mpls-vpn → `mp ipv4/mpls-vpn add` | `test/exabgp-compat/api/api-mpls-vpn.ci` |
 | `announce ipv4 sr-policy ... preference ... segment-list ...` | → | `parseRegistryNLRISection` → `parseConfigRoute` | `test/exabgp-compat/api/api-sr-policy.ci`, `test/plugin/update-text-sr-policy-attributes.ci` |
 | Refusal lines (item 5) | → | bridge refusals | `test/exabgp-compat/api/api-refusals-v4.ci` |
+| peer leaf `session as-set accept` (what `ze exabgp migrate` writes for `as-set accept`) | → | `s.settings.AcceptASSet` → `message.ValidateUpdateRFC7606Peer` (`session_validation_receive.go`) | `TestRFC9774ReceiveASSetAcceptedByOperator`, `test/plugin/rfc9774-as-set-accept-migrated.ci` |
 | 4.2 / 5.0 recorded commands | → | `Translator.Line` + update text + encoder | `TestOldCommands50`, `TestOldCommands42` |
 | 4.2 / 5.0 recorded events | → | v4 text / v4 JSON encoders | `TestOldResponses50`, `TestOldResponses42` |
 
@@ -404,9 +405,9 @@ The f9bfb853b AS_SET item (Key Design Decisions): the receive half is AC-42, met
 | `TestExaBGPMainPinCommands` | `internal/le/test/functional/exabgp_test.go` | both pins appear, each with its Python and PYTHONPATH | |
 | `TestExaBGPStageClearsPythonPath` | same | a shell `PYTHONPATH` never reaches the child | |
 | `TestCommandAPIVersion` | `internal/exabgp/bridge/bridge_version_test.go` | X-1 table: every v6 root, `neighbor`, each v4 translation, undecided words | |
-| `TestScriptHeldToDetectedVersion` | `internal/plugins/exabgp/bridgerun/script_test.go` | X-2, X-3, reset on respawn | |
+| `TestScriptHeldToDetectedVersion` | `internal/plugins/exabgp/bridgerun/version_test.go` | X-2, X-3, reset on respawn | |
 | `TestGroupDispatchedWhateverTheVersion` | `bridge_version_test.go` | X-4 | |
-| `TestEncoderForVersion` | `internal/exabgp/bridge/bridge_encoder_test.go` | X-5 matrix (auto/4/6 × text/json/absent) | |
+| `TestEncoderForVersion` | `internal/exabgp/bridge/bridge_version_test.go` | X-5 matrix (auto/4/6 × text/json/absent) | |
 | `TestV4JSONEnvelopeAndCapabilitiesByCode` | `internal/exabgp/bridge/bridge_event_test.go` | X-6, X-9 | |
 | `TestV6JSONCapabilitiesByName` | same | X-10 | |
 | `TestV4NotificationDataReadable` | same | X-12 | |
@@ -427,7 +428,12 @@ The f9bfb853b AS_SET item (Key Design Decisions): the receive half is AC-42, met
 | `TestRepeatedAttributeKeepsFirstAndWarns`, `TestSplitShorterThanPrefixSendsPrefix`, `TestPathInformationWithoutValueRefused`, `TestPrefixMaskNotNumberRefused`, `TestOperationalRefusedByKind` | `internal/exabgp/bridge/bridge_attribute_test.go` | X-26 to X-30 | |
 | `TestOldCommands50`, `TestOldCommands42` | `internal/exabgp/bridge/old_commands_test.go` | X-35 commands | |
 | `TestOldResponses50`, `TestOldResponses42` | `internal/exabgp/bridge/old_responses_test.go` | X-35 responses | |
-| `TestMigrateOnExit`, `TestMigrateIPv4RouteIPv6NextHopAddsExtendedNextHop` | `internal/exabgp/migration/migrate_test.go` | AC-24, AC-39 | |
+| `TestMigrateOnExit` | `internal/exabgp/migration/migrate_process_leaves_test.go` | AC-24 | |
+| `TestMigrateIPv4RouteIPv6NextHopAddsExtendedNextHop` | `internal/exabgp/migration/migrate_test.go` | AC-39 | |
+| `TestV6TextScriptWarnedOnceByName` | `internal/exabgp/bridge/bridge_script_version_test.go` | AC-6 | |
+| `TestRFC9774ReceiveASSetAcceptedByOperator` | `internal/component/bgp/reactor/rfc9774_accept_test.go` | AC-42: a set kept on a peer with `session as-set accept`, withdrawn without it | |
+| `TestValidateUpdateAcceptASSetKeepsSetsOnly` | `internal/component/bgp/message/rfc9774_test.go` | AC-42: the accept flag keeps an AS_SET and changes no other RFC 7606 verdict | |
+| `TestMigrateASSetAcceptKeepsTheSet` | `internal/exabgp/migration/migrate_receive_policy_test.go` | AC-42: `ze exabgp migrate` writes `session as-set accept` for `as-set accept` | |
 | `TestEnvSurvivingKey`, `TestParseExaBGPCIEnvOption` | `internal/exabgp/migration/env_test.go`, `internal/test/cli/cmd_exabgp_test.go` | AC-10 | No `TestMigrateOnExitAndAPIVersion`: AC-10's migration half is `TestEnvSurvivingKey` (`api.version` carried, 0 written auto) and `test/parse/cli-exabgp-migrate-env-api-version.ci`; `TestParseExaBGPCIEnvOption` covers the `option=env:` directive the functional case needs |
 
 ### Boundary Tests (numeric inputs)
@@ -448,6 +454,7 @@ The f9bfb853b AS_SET item (Key Design Decisions): the receive half is AC-42, met
 | `api-refusals-v4`, `api-repeated-attributes-v4` | same | item 5 | |
 | `old-4.2/*`, `old-5.0/*` | `test/exabgp-compat/old-4.2/`, `old-5.0/` | BC | |
 | `update-text-sr-policy-attributes` | `test/plugin/` | SR Policy attributes through ze's own API | |
+| `rfc9774-as-set-accept-migrated` | `test/plugin/` | AC-42: a migrated ExaBGP neighbor with `as-set accept` keeps a received AS_SET, its segment bytes asserted | |
 
 Each `test/exabgp-compat` case is proven three ways in its phase: green against the ExaBGP-main
 daemon (AC-2), red against ze before the fix, green after. The red output is pasted in the spec's
@@ -790,7 +797,8 @@ refusal names RFC 7911 Section 3.
 | 4.2 and 5.0 helpers keep working (the corpora ExaBGP checks itself against) | functional and corpus | `TestOldCommands50` 4250/4250, `TestOldCommands42` 2541/2541, `TestOldResponses50` 23392/23392, `TestOldResponses42` 20930/20930; `old-4.2` and `old-5.0` populations in the same exabgp-test run |
 | RTC and MPLS VPN routes a helper announces reach another implementation | interop | `bgp-exabgp-bridge-rtc-gobgp` (GoBGP holds `65001:65001:100`), `bgp-exabgp-bridge-vpnv4-frr` (FRR holds RD 65001:100, label 100), each red at assertion 2 with its `bridgeSAFI` row overlaid away (7cec4fa82c) |
 | SR Policy with attributes from a helper reaches another implementation | interop and functional | `bgp-exabgp-bridge-sr-policy-gobgp` (65651c27e0, 440ee43f73), `test/plugin/update-text-sr-policy-attributes.ci` (9dea34f1b9) |
-| AS_SET receive half: a set kept on an operator-configured peer, withdrawn elsewhere, kept inside ATTR_SET | interop and functional | `bgp-as-set-accept-frr`: green (1 passed), red with the accept path forced off at `session_validation_receive.go` and the image rebuilt, failing at assertion 5, the ze RIB wait, both controls present and 10.98.0.0/16 absent; `bgp-attr-set-included-as-set-frr-bird` (375613b8a4); `test/plugin/rfc9774-as-set-accept-migrated.ci` asserts the kept segment bytes (5155557163) |
+| AS_SET receive half: a set kept on an operator-configured peer, withdrawn elsewhere, kept inside ATTR_SET | interop and functional | `bgp-as-set-accept-frr`: green (1 passed), red with the accept path forced off in `session_validation_receive.go` (the `s.settings.AcceptASSet` argument to `ValidateUpdateRFC7606Peer`, the only edit between the red tree and the green one) and the image rebuilt; the green run is over the restored tree; failing at assertion 5, the ze RIB wait, both controls present and 10.98.0.0/16 absent; `bgp-attr-set-included-as-set-frr-bird` (375613b8a4); `test/plugin/rfc9774-as-set-accept-migrated.ci` asserts the kept segment bytes (5155557163) |
+| J: the journaled bridge defects are gone | unit and source | `TestExaBGPStageClearsPythonPath` (`internal/le/test/functional/exabgp_test.go`): a shell `PYTHONPATH` never reaches the stage's child; the `Net` comment in `internal/exabgp/bridge/bridge_batch.go` (the doc comment on `Net`) states what `Net` does: `withdraw X` then `announce X` puts both on the wire, and `announce X` then `withdraw X` dispatches the withdrawal alone |
 
 ## Work Not Done
 
@@ -802,9 +810,9 @@ refusal names RFC 7911 Section 3.
 
 | Field | Value |
 |-------|-------|
-| Artifact | not yet recorded: round 2 is owed over the round 1 fixes |
+| Artifact | not yet recorded: round 3 is owed over the round 2 fixes |
 | `./le spec review check` | not run |
-| Rounds | 1 so far |
+| Rounds | 2 so far |
 | Reviewer lenses used | spec against code, docs, journal ownership, interop proof |
 
 ### Findings fixed
@@ -819,6 +827,17 @@ refusal names RFC 7911 Section 3.
 | I7 | ISSUE | Journal SR Policy row still open | `plan/journal/parser-refuses-a-form-its-producer-emits.md` | marked fixed (af18a709d8, 9dea34f1b9) |
 | I8 | ISSUE | `commands.md` Peer Selectors silent on single-peer verbs | `docs/architecture/api/commands.md` | paragraph added, anchored on `ResolveSinglePeer` and the `ze-peer-cmd.yang` selector |
 | I9 | ISSUE | Drifted test names in TDD, Wiring and Functional tables | this spec | `TestTranslateRTC`, `TestTranslateMPLSVPNFamily`, `api-error-answer-v4`/`-v6`, `api-refusals-v4`, `api-repeated-attributes-v4`; the removed test replaced by its successors |
+
+### Round 2 findings
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| R2-I1 | ISSUE | "Five differences remain" stood over six bullets, one of which ("A received AS_SET is kept where ExaBGP keeps it") states agreement | `docs/exabgp/exabgp-differences.md` | resolved: the agreement moved out of the list into a paragraph after it; five bullets remain |
+| R2-I2 | ISSUE | The single-peer verb list omitted `raw` (`handleRaw` calls `ResolveSinglePeer(ctx, "raw")`) | `docs/architecture/api/commands.md` | resolved: the paragraph defines a single-peer command by its handler calling `ResolveSinglePeer`, with a source anchor for every caller grep finds (`peer.go`, `admin.go`, `notify.go`, `raw.go`, `clear_soft.go`). The edit is in the working tree, not in the round 2 commit: the file also carries a live session's uncommitted `show config running` section whose `running_rpc.go` is not in HEAD, so it lands with or after that session's commit |
+| R2-N1 | NOTE | Goal Validation row 5 did not say the red tree differed from the green only at the forced-off argument | this spec | the row names the single edit (the `AcceptASSet` argument in `session_validation_receive.go`) and says the green run is the restored tree |
+| R2-N2 | NOTE | AC-42 tests missing from the TDD, Functional and Wiring tables | this spec | three unit rows, the `rfc9774-as-set-accept-migrated` functional row and the `session as-set accept` wiring row added |
+| R2-N3 | NOTE | TDD File cells named the wrong file for four tests | this spec | corrected after grep: `bridgerun/version_test.go`, `bridge_version_test.go`, `migrate_process_leaves_test.go`, `bridge_script_version_test.go` |
+| R2-N4 | NOTE | No Goal Validation row for item J | this spec | row added naming `TestExaBGPStageClearsPythonPath` and the `Net` comment in `bridge_batch.go` |
+| R2-N5 | NOTE | recorded by the round 2 reviewer | this spec | noted |
 
 ## Pre-Commit Verification
 
