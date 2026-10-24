@@ -1337,12 +1337,13 @@ pre.code-copy-wrap, .md-content pre.code-copy-wrap { position: relative; padding
 .site-home .hero-outcome-links { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); margin: 0; padding: 1rem 0 1.3rem; border: 0; border-top: 1px solid #2c4564; border-radius: 0; background: none; box-shadow: none; gap: 0.6rem 1.25rem; }
 .site-home .hero-outcome-links a { min-width: 0; justify-content: center; text-align: center; white-space: normal; padding: 0; border: 0; background: none; box-shadow: none; color: #d0e6f5; font: 400 0.78rem/1.6 Lato, sans-serif; }
 .site-home .hero-outcome-links a::before { flex-shrink: 0; background: var(--acc, var(--brand-bright)); box-shadow: none; width: 0.25rem; height: 0.25rem; }
-.site-home .home-section-panel { margin: 0; padding: 2rem 0; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; box-shadow: none; }
+.site-home .home-section-panel { margin: 0; padding: 2rem 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+body:has(.site-home) .footer-bottom { border-top: 0; }
 #top .site-home .home-section-panel { margin-top: 0; }
 .site-home .home-section-panel::before, .site-home .home-section-panel::after { content: none; }
 .site-home .section-head { gap: 2.5rem; margin-bottom: 1.5rem; }
 .site-home :is(.home-section-panel-map, .home-section-panel-usecases) .section-head { row-gap: 0.5rem; }
-.site-home .section-head h2 { font-size: 2rem; line-height: 1.25; color: var(--text); }
+.site-home :is(.section-head, .home-proof-head, .status-copy) h2 { margin-bottom: 0.5rem; font-size: 2rem; font-weight: 700; line-height: 1.25; color: var(--text); }
 .site-home .section-head p { font-size: 0.94rem; font-weight: 400; }
 .site-home .why-lead { margin-bottom: 1.25rem; padding: 1.8rem; border: 1px solid var(--line); border-radius: var(--radius-xl); background: linear-gradient(130deg, var(--sky-tint), var(--panel)); }
 .site-home .why-lead .eyebrow { color: #fff; background: var(--brand); border-color: var(--brand-bright); box-shadow: none; }
@@ -1369,7 +1370,7 @@ pre.code-copy-wrap, .md-content pre.code-copy-wrap { position: relative; padding
 .site-home .home-proof-block { margin: 0; padding: 3rem clamp(1rem, 3vw, 2.5rem); background: var(--bg-soft); border: 1px solid var(--line); border-radius: var(--radius-xl); box-shadow: none; clip-path: none; }
 .site-home .home-proof-head { display: flex; justify-content: space-between; align-items: start; gap: 2.5rem; margin-bottom: 1.5rem; }
 .site-home .home-proof-head > div:first-child { display: block; flex: 1; }
-.site-home .home-proof-head h2 { white-space: normal; margin-bottom: 0.8rem; font-size: 2rem; line-height: 1.25; }
+.site-home .home-proof-head h2 { white-space: normal; }
 .site-home .home-proof-head p { font-size: 0.9rem; font-weight: 400; }
 .site-home .proof-strip { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; border: 1px solid var(--line); border-radius: var(--radius-lg); overflow: hidden; background: var(--panel); }
 .site-home .proof { min-height: 0; padding: 1.4rem; border: 0; border-right: 1px solid var(--line); border-radius: 0; background: var(--panel); box-shadow: none; transform: none; }
