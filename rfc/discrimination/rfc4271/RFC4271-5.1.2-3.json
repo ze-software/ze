@@ -61,6 +61,20 @@
         "producer-sha": "dd422598bfe92228",
         "break": "line 562: \"!gate.advertises()\" -\u003e \"!gate.advertises() \u0026\u0026 (len(gate.payload) \u003c 2 || gate.payload[0]|gate.payload[1] == 0)\""
       }
+    ],
+    "solo": [
+      {
+        "producer": "internal/component/bgp/wireu/aspath_slot.go::Record",
+        "break": "line 159: \"!PayloadAdvertisesNLRI(payload)\" -\u003e \"false\"",
+        "seconds": 146,
+        "green": "interop: bgp-relay-withdraw-shape-frr: pass (1m2s)"
+      },
+      {
+        "producer": "internal/component/bgp/reactor/forward_build.go::planAttr",
+        "break": "line 562: \"!gate.advertises()\" -\u003e \"!gate.advertises() \u0026\u0026 (len(gate.payload) \u003c 2 || gate.payload[0]|gate.payload[1] == 0)\"",
+        "seconds": 136,
+        "green": "interop: bgp-relay-withdraw-shape-frr: pass (56s)"
+      }
     ]
   }
 ]
