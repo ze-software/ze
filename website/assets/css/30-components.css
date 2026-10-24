@@ -1290,7 +1290,7 @@ pre.code-copy-wrap, .md-content pre.code-copy-wrap { position: relative; padding
 .cli-reference-content .cli-pipes summary { font-size: 0.78rem; }
 
 /* Homepage: an authentic interface, practical reasons and linked evidence. */
-.site-home .hero { display: block; padding: 0; margin: 0; color: var(--hero-text); background: var(--hero-bg); box-shadow: 0 0 0 100vmax var(--hero-bg); clip-path: inset(0 -100vmax); border-bottom: 3px solid var(--brand-bright); overflow: visible; }
+.site-home .hero { display: block; padding: 0 clamp(1rem, 3vw, 2.5rem); margin: 0 0 2rem; color: var(--hero-text); background: var(--hero-bg); border-radius: var(--radius-xl); box-shadow: none; clip-path: none; border-bottom: 3px solid var(--brand-bright); overflow: visible; }
 .site-home .hero-start-panel { padding: 0; margin: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; overflow: visible; }
 .site-home .hero-start-panel::after { content: none; }
 .site-home .hero-start-intro.hero-grid { grid-template-columns: minmax(0, 0.98fr) minmax(0, 1.12fr); grid-template-areas: "copy preview"; gap: 2.75rem; align-items: center; padding: 3.25rem 0 2rem; }
@@ -1333,9 +1333,9 @@ pre.code-copy-wrap, .md-content pre.code-copy-wrap { position: relative; padding
 .site-home .hero-release-callout .hero-mascot { width: 2.8rem; height: auto; }
 .site-home .hero-release-callout p { min-width: 0; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; color: var(--hero-muted); font-size: 0.72rem; font-weight: 400; line-height: 1.5; }
 .site-home .hero-release-callout p::before, .site-home .hero-release-callout p::after { content: none; }
-.site-home .hero-outcome-links { margin: 0; padding: 1rem 0 1.3rem; border: 0; border-top: 1px solid #2c4564; border-radius: 0; background: none; box-shadow: none; gap: 0.6rem 1.25rem; }
-.site-home .hero-outcome-links a { padding: 0; border: 0; background: none; box-shadow: none; color: #d0e6f5; font: 400 0.78rem/1.6 Lato, sans-serif; }
-.site-home .hero-outcome-links a::before { background: var(--acc, var(--brand-bright)); box-shadow: none; width: 0.25rem; height: 0.25rem; }
+.site-home .hero-outcome-links { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); margin: 0; padding: 1rem 0 1.3rem; border: 0; border-top: 1px solid #2c4564; border-radius: 0; background: none; box-shadow: none; gap: 0.6rem 1.25rem; }
+.site-home .hero-outcome-links a { min-width: 0; justify-content: center; text-align: center; white-space: normal; padding: 0; border: 0; background: none; box-shadow: none; color: #d0e6f5; font: 400 0.78rem/1.6 Lato, sans-serif; }
+.site-home .hero-outcome-links a::before { flex-shrink: 0; background: var(--acc, var(--brand-bright)); box-shadow: none; width: 0.25rem; height: 0.25rem; }
 .site-home .home-section-panel { margin: 0; padding: 3.25rem 0; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; box-shadow: none; }
 .site-home .home-section-panel::before, .site-home .home-section-panel::after { content: none; }
 .site-home .section-head { gap: 2.5rem; margin-bottom: 1.5rem; }
@@ -1363,7 +1363,7 @@ pre.code-copy-wrap, .md-content pre.code-copy-wrap { position: relative; padding
 .site-home .capability-links a { color: var(--muted); text-decoration: none; border-bottom: 1px solid var(--line); font-size: 0.8rem; line-height: 1.65; }
 .site-home .capability-footer { color: var(--acc-deep); font-size: 0.8rem; font-weight: 700; margin-top: 1.2rem; }
 .site-home .capability-note { color: var(--muted); font-size: 0.88rem; }
-.site-home .home-proof-block { margin: 0; padding: 3rem 0; background: var(--bg-soft); border: 0; border-radius: 0; box-shadow: 0 0 0 100vmax var(--bg-soft); clip-path: inset(0 -100vmax); }
+.site-home .home-proof-block { margin: 0; padding: 3rem clamp(1rem, 3vw, 2.5rem); background: var(--bg-soft); border: 1px solid var(--line); border-radius: var(--radius-xl); box-shadow: none; clip-path: none; }
 .site-home .home-proof-head { display: flex; justify-content: space-between; align-items: start; gap: 2.5rem; margin-bottom: 1.5rem; }
 .site-home .home-proof-head > div:first-child { display: block; flex: 1; }
 .site-home .home-proof-head h2 { white-space: normal; margin-bottom: 0.8rem; font-size: 2rem; line-height: 1.25; }
