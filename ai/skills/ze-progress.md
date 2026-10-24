@@ -47,7 +47,7 @@ A spec is **done** only when stage 5 is complete. Stages 1 through 4 are checkpo
    - If uncommitted code exists AND no review has run since it was written: STAGE = 3. Go to step 9.
    - If a review ran but reported unresolved BLOCKER or ISSUE items that are not yet fixed: STAGE = 3.
 7. **Stage 4 -- Commit A:** Check:
-   - Did the targeted tests for what changed pass (the scoped package tests, component groups, functional suites and `./le verify current fast` named in session state or the phase handoffs)? A missing full gate run is not a gap at this stage.
+   - Did the targeted tests for what changed pass (the scoped package tests, component groups, functional suites and `./le verify changed` named in session state or the phase handoffs)? A missing full verification is not a gap: it is Thomas's release check.
    - Are there uncommitted files in the spec scope (code, tests, docs, or the spec file itself)?
    - If uncommitted spec-scoped files remain: STAGE = 4. Go to step 9.
 8. **Stage 5 -- Commit B (closure):** Check:
@@ -92,7 +92,7 @@ Or: "Every item this spec did not do names a spec that exists."
 ### Commit A (code + completed spec)
 - Uncommitted files in spec scope: [list, or "none"]
 - Targeted tests: [PASS / FAIL / not run, naming what ran]
-- Full gate (`./le verify current`, owed once after commit B): [PASS / FAIL with its fix commit / owed]
+- Scoped verify (`./le verify changed`, over the closing commits): [PASS / FAIL with its fix commit / owed]
 
 ### Commit B (closure -- spec removed)
 - `plan/<work-folder>/spec-<name>.md`: [still tracked / removed]

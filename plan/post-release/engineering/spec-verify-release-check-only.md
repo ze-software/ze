@@ -352,6 +352,7 @@ No new numeric input: `part i of m` keeps its existing parsing and tests; the ga
    - Verify: scoped package tests for `commit`, `hookruntime`.
 6. **Phase: Surfaces** -- every le message, hook text, rule, skill, template and doc in Files to Modify; `ai/INSTRUCTIONS.md`; `./le ai rules condensed-update`; grep proves AC-22.
    - Verify: `grep -rnE "verify (current|worktree)" ai .claude/skills plan/templates docs/contributing internal/le` shows only release-check wording addressed to Thomas or descriptions of what the release check runs; `./le ai rules render-check`.
+   - Walked-into defect fixed here, not journalled (our code, related, one condition): `carryForward` (`internal/le/verify/engine/artifacts.go`) let a fast run's green on a shared stage replace a red a full run judged, though a fast run publishes the change set's scope as a changed run does. The ChangedMode rule now covers FastMode (`mode == ChangedMode || mode == FastMode`, not `mode != Mode`, because a cut full run's mode is its part name). `TestAFastGreenKeepsAFullRedOnASharedStage` (engine/carry_test.go), red with the rule restricted to ChangedMode.
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |

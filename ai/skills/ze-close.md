@@ -138,8 +138,8 @@ The main thread sets the spec back to `in-progress` when the blocker clears.
 3. **Re-run what the step 2 fixes touched:** the scoped package test for each
    package a fix changed, under `./le job run`, and the functional test of the
    behavior it changed. Skip this step when step 2 changed nothing. Never run
-   `./le verify current` or `./le verify worktree` here: both judge HEAD, which
-   does not hold this work until commit A lands.
+   `./le verify current`, `current fast` or `./le verify worktree`: each is
+   Thomas's release check, and none of them sees this work before commit A.
 4. **Documentation review (BLOCKING):** This step VERIFIES the pages `/ze-implement` already updated, and finds the gaps it left. It is not where documentation starts (`ai/rules/documentation.md`). A page this step finds stale is a defect of the phase that changed the behavior. Repair it here. Record a Mistake Log row, so the next spec does not repeat it. Use the spec's **Documentation Update Checklist** table. For each row:
    - Answer Yes or No. Every Yes MUST name the file and the update, and MUST point at the commit or diff hunk that already made it.
    - Every No MUST be backed by source-aware evidence. At minimum, grep `docs/` for source anchors pointing at changed files and check the category does not apply.
@@ -260,13 +260,14 @@ The main thread sets the spec back to `in-progress` when the blocker clears.
       - **Commit B (spec closure):** run `./le commit create append remove <spec-path>` using the same actual path with the spec closure commit message. Leave the spec file on disk: once commit B succeeds, the script deletes it, because commit A's `file <spec-path>` committed exactly that content. A copy edited after `create` ran is kept and named on stderr (`NOTE: kept <path>`); decide about that copy, never delete it blind.
       - The native command owns the session ID, message files, executable script, ignored-path rejection, the commit itself, and journal-row checks.
    e. Run the generated script yourself, with `bash` and the path from its `script=` line. Then report the resulting commit SHA(s), the script path, message files, commit subjects, and included files.
-   f. **The full gate, once, over the closing commits.** This is the only full
-      run the spec gets: no phase, review round or fix before it ran one, because
-      `./le verify current` judges HEAD and HEAD did not hold the work until
-      commit A. The agent running this skill has done other work, so it MUST NOT
-      start the run itself (`ai/rules/commands.md`): name `./le verify current`
-      as owed in the report, and the main thread runs it, itself or through a
-      fresh `/ze-verify` agent. A red there gets a fix commit of its own. It does
+   f. **The scoped verify, once, over the closing commits.** `./le verify
+      changed` judges what the spec changed since the upstream, and is the
+      evidence a push owes. The agent running this skill has done other work, so
+      it MUST NOT start the run itself (`ai/rules/commands.md`): name `./le verify
+      changed` as owed in the report, and the main thread runs it, itself or
+      through a fresh `/ze-verify` agent. A full verification is not owed here:
+      it is Thomas's release check, and an agent only gives him its exact
+      command. A red there gets a fix commit of its own. It does
       not reopen the spec and does not hold the closing commits
       (`ai/rules/pre-release.md`).
 

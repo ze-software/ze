@@ -105,8 +105,8 @@ func (o Options) part() (verifyengine.Part, error) {
 // stopped early would leave stages of it unproven while reading as the piece
 // that was asked for.
 const firstRedWithPart = "first-red cannot be combined with part or all: a piece counts towards the green record " +
-	"only when every stage of it runs; use le verify worktree first-red for an early red " +
-	"over the whole population, or le verify worktree part <i> of <m> to run every stage of one piece"
+	"only when every stage of it runs; at a terminal, le verify worktree first-red gives an early red " +
+	"over the whole population, and le verify worktree part <i> of <m> runs every stage of one piece"
 
 // CleanupFailure is one failed cleanup operation. Cleanup attempts continue so
 // one failure cannot prevent prune or hide another failure.
@@ -418,7 +418,8 @@ func run(ctx context.Context, root string, options Options, actions verifyengine
 		report.Diagnostics = append(report.Diagnostics, text.Reset().
 			Str("verify-worktree: ").Str(population).Str(" stopped at ").Str(verification.StoppedAt).
 			Str(", ").Int(int64(len(verification.Unreached))).
-			Str(" stages not run; le verify worktree commit ").Str(sha).Str(" runs them all").String())
+			Str(" stages not run; le verify worktree commit ").Str(sha).
+			Str(" runs them all, a release check Thomas starts at a terminal, so an agent gives him that command").String())
 	}
 	// The verdict is published to the checkout that asked for it. The engine
 	// wrote the certificate under the worktree, which the deferred cleanup

@@ -72,6 +72,9 @@ func TestFirstRedReachesTheEngineFromBothEntryPoints(t *testing.T) {
 		!strings.Contains(worktree.Text(), "runs them all") {
 		t.Fatalf("the lifecycle does not print the stop and the command that runs every stage:\n%s", worktree.Text())
 	}
+	if !strings.Contains(worktree.Text(), "a release check Thomas starts at a terminal, so an agent gives him that command") {
+		t.Fatalf("the stop line does not say the full run is Thomas's to start:\n%s", worktree.Text())
+	}
 
 	inPlace := runFast(context.Background(), repo.root, true, failingRunner())
 	if inPlace.StoppedAt == "" || len(inPlace.Stages) != 1 {
@@ -216,5 +219,11 @@ func TestRedsNamesAStoppedRun(t *testing.T) {
 	if !strings.Contains(answer.Text(), "stopped at its first red, "+report.StoppedAt) ||
 		!strings.Contains(answer.Text(), "will never report") {
 		t.Fatalf("the answer does not name the stop:\n%s", answer.Text())
+	}
+	// AC-22: the answer names the scoped run an agent owes, and the full run
+	// only as the command it gives Thomas.
+	if !strings.Contains(answer.Text(), ChangedCommand+" judges what you changed") ||
+		!strings.Contains(answer.Text(), "./le verify worktree you give Thomas") {
+		t.Fatalf("the answer does not name the scoped run and the release check's owner:\n%s", answer.Text())
 	}
 }

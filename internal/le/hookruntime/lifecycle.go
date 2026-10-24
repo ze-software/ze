@@ -791,14 +791,14 @@ func validateSpecText(root, text string) ([]string, []string) {
 		}
 	}
 	// A spec names how its work is tested, not the full gate: agents run
-	// targeted tests while developing and the full gate runs once over the
-	// final commit (ai/META-DECISIONS.md, "Ze is pre-release"). Any `./le test`
-	// or `./le verify` command answers, so the specs that name
+	// targeted tests and `./le verify changed`, and the full run is the
+	// release check Thomas starts (ai/META-DECISIONS.md, "Ze is pre-release").
+	// Any `./le test` or `./le verify` command answers, so the specs that name
 	// `./le verify worktree` still validate.
 	if !strings.Contains(text, "./le test ") && !strings.Contains(text, "./le verify ") {
 		errors = append(errors, "Missing verification checklist item: the spec names no `./le test` or `./le verify` command, "+
 			"so nothing says how the work is proven. Name the targeted tests in the Checklist, for example "+
-			"`./le test unit <group>`, `./le test functional <suite>` or `./le verify current fast`")
+			"`./le test unit <group>`, `./le test functional <suite>` or `./le verify changed`")
 	}
 	if regexp.MustCompile("```(go|rust|java|c|cpp|javascript|typescript)").MatchString(text) {
 		errors = append(errors, "Specs MUST NOT contain code blocks. Use tables/prose instead")

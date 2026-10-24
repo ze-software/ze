@@ -219,7 +219,7 @@ func writeFailureIndex(root string, index artifactIndex) error {
 func unpublished(err error) error {
 	return fmt.Errorf("%w; the earlier failure index at %s was left unchanged, so this run's reds were not published "+
 		"and the commit gate still reads the earlier run: fix what refused the write, then rerun the verify "+
-		"(le verify worktree, or the same run)", err, FailuresJSONPath)
+		"that wrote it (./le verify changed for an agent; a release check is Thomas's to start)", err, FailuresJSONPath)
 }
 
 // copyBehind answers err for a reader's copy that could not be written after
@@ -228,7 +228,7 @@ func unpublished(err error) error {
 func copyBehind(path string, err error) error {
 	return fmt.Errorf("write verify artifact %s: %w; the failure index at %s holds this run's verdicts, "+
 		"but %s still shows the earlier run: fix what refused the write, then rerun the verify "+
-		"(le verify worktree, or the same run)", path, err, FailuresJSONPath, path)
+		"that wrote it (./le verify changed for an agent; a release check is Thomas's to start)", path, err, FailuresJSONPath, path)
 }
 
 // lockFailureIndex takes the checkout's failure-index lock and answers its
@@ -296,13 +296,14 @@ func earlierRun(commit, runDir string) string {
 // reached key comes from an index written before first-red existed, where
 // every stage ran, so it carries too.
 //
-// A changed run (mode ChangedMode) judges a stage it shares with the full
-// population only over its scope: the Staticcheck rows of the scope's tags,
-// the race of its groups, the suites its map selects. Its green, or its stage
-// left unreached, therefore says nothing about the rest of that stage, so it
-// MUST NOT replace a red that another population judged: that red is carried
-// as if the changed run had not held the stage. Only a red the changed
-// population itself judged is cleared by a later changed run.
+// A changed run (mode ChangedMode) or a fast run (mode FastMode) judges a
+// stage it shares with the full population only over the scope it published:
+// the Staticcheck rows of the scope's tags, the race of its groups, the suites
+// its map selects. Its green, or its stage left unreached, therefore says
+// nothing about the rest of that stage, so it MUST NOT replace a red that
+// another population judged: that red is carried as if the run had not held
+// the stage. Only a red its own population judged is cleared by a later run of
+// that population, and only a full run clears a full run's red.
 func carryForward(stages []artifactStage, prior artifactIndex, mode string) []artifactStage {
 	result := make([]artifactStage, 0, len(stages))
 	held := make(map[string]bool, len(stages))
@@ -314,7 +315,7 @@ func carryForward(stages []artifactStage, prior artifactIndex, mode string) []ar
 	origin := carriedOrigin{Commit: prior.Commit, RunDir: prior.RunDir, GeneratedAt: prior.GeneratedAt, Mode: prior.Mode}
 	legacy := prior.Format < FailureIndexFormat
 	shared := make(map[string]bool)
-	if mode == ChangedMode {
+	if mode == ChangedMode || mode == FastMode {
 		for _, stage := range StagesForMode(Mode) {
 			shared[stage.Identity.Name] = true
 		}
@@ -330,7 +331,7 @@ func carryForward(stages []artifactStage, prior artifactIndex, mode string) []ar
 		if shared[stages[index].Stage] && !redVerdict(stages[index]) {
 			// A full-population red stays charged: the loop below carries it.
 			if was, found := earlier[stages[index].Stage]; found && judged(was, legacy) &&
-				was.ExitCode != 0 && judgedBy(was, prior) != ChangedMode {
+				was.ExitCode != 0 && judgedBy(was, prior) != mode {
 				continue
 			}
 		}

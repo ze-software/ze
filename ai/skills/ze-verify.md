@@ -5,16 +5,18 @@ description: Verify
 
 # Verify
 
-Run the tests that cover what changed and report results clearly. The full gate
-runs only in full mode (below).
+Run the tests that cover what changed and report results clearly. A full
+verification is Thomas's release check, never run here (below).
 
 | Mode | When | What runs |
 |------|------|-----------|
-| targeted (the default) | during development: after a phase, a fix or a review round | the scoped package tests, component groups and functional suites for what changed, then `./le verify current fast` |
-| full | the caller is past the final commit of a piece of work (for a spec, after `/ze-close` landed commit A), or explicitly asks for the full gate | `./le verify current` |
+| targeted (the default) | during development: after a phase, a fix or a review round | the scoped package tests, component groups and functional suites for what changed |
+| scoped | the work is committed (for a spec, after `/ze-close` landed commit A), or a push is owed | `./le verify changed` |
+| full | the caller asks for the release check | nothing: give Thomas the exact command, `./le verify current` or `./le verify worktree commit <revision>` |
 
-The full gate judges HEAD in a fresh worktree, so it runs once per piece of
-work, over its final commit, and never between phases, review rounds or fixes.
+A full verification refuses an agent: it loads the whole shared machine, and
+only Thomas knows when that is safe (`docs/contributing/running-commands.md`,
+"A full verification is Thomas's to start").
 
 See also: `/ze-debug` (investigate failures), `/ze-commit` (prepare commit after passing)
 
@@ -55,12 +57,14 @@ phase itself.
      for each package (`./le test unit <group>`), and the functional suite for
      each behavior the change touched (`./le test functional <suite>`), picking
      the rungs of `docs/contributing/testing.md`, "The escalation ladder".
-     Then run `./le verify current fast`, which runs the changed-files stages
-     in place. Do not widen to `./le test unit all`, `./le test functional
-     gating` or the full gate.
-   - **Full:** run `./le verify current`, which judges HEAD in a fresh
-     worktree. `./le verify worktree commit <revision>` selects a commit other
-     than HEAD; `keep` retains a red worktree for inspection.
+     Do not widen to `./le test unit all`, `./le test functional gating` or a
+     full verification.
+   - **Scoped:** run `./le verify changed`, which judges the change set since
+     the upstream in a fresh worktree at HEAD; `commit <revision>` names
+     another commit. Its record is what a push owes.
+   - **Full:** run nothing. Report the exact command for Thomas to run at his
+     terminal: `./le verify current`, or `./le verify worktree commit
+     <revision>` for a commit other than HEAD.
 3. **Parse results:** On failure, search the log:
    - `grep -E "^--- FAIL|^FAIL|TEST FAILURE|✗|═══ FAIL" tmp/ze-verify.log`
    - Also check exit code

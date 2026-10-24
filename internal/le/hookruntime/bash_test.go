@@ -278,6 +278,7 @@ func TestLossyPipeReadsTheTwoWordArea(t *testing.T) {
 		{"qemu-run", `./le test qemu all | tail -5`, true},
 		{"go-other", `./le go extract symbols | head -5`, false},
 		{"verify-gate", `./le verify worktree | grep issues`, true},
+		{"verify-changed", `./le verify changed | tail -5`, true},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -292,6 +293,27 @@ func TestLossyPipeReadsTheTwoWordArea(t *testing.T) {
 					test.command, refused, code, test.blocked, message)
 			}
 		})
+	}
+}
+
+// TestLossyPipeRefusalNamesTheScopedRun is the example the refusal teaches.
+//
+// VALIDATES: the lossy-filter refusal's example command is the scoped
+// `./le verify changed`, the run an agent owes.
+// PREVENTS: the refusal teaching an agent to start a full verification, which
+// is Thomas's release check and refuses an agent anyway.
+func TestLossyPipeRefusalNamesTheScopedRun(t *testing.T) {
+	_, _, message := runHook(t, t.TempDir(), "pretool-bash", map[string]any{
+		"tool_name":  "Bash",
+		"tool_input": map[string]any{"command": "./le verify changed | tail -5"},
+	})
+	if !strings.Contains(message, `./le verify changed > "$dir/verify.log"`) {
+		t.Errorf("the refusal does not name the scoped run as its example: %s", message)
+	}
+	for _, full := range []string{"verify worktree", "verify current"} {
+		if strings.Contains(message, full) {
+			t.Errorf("the refusal tells an agent to run %q: %s", full, message)
+		}
 	}
 }
 

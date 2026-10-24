@@ -42,7 +42,7 @@ func verifyFirstRedRefusesACutDriver(ctx context.Context, args []string) error {
 	for _, want := range []string{
 		"first-red cannot be combined with part",
 		"counts towards the green record only when every stage of it runs",
-		"le verify worktree first-red",
+		"at a terminal, le verify worktree first-red",
 		"le verify worktree part <i> of <m>",
 	} {
 		if !strings.Contains(out, want) {

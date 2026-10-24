@@ -23,13 +23,13 @@
 
 **When a run leaves reds, you MUST write them into one list of known reds, and you MUST NOT start another full verify while a listed red is still open.** A full verify here is any run wider than the failure: lint over the tree, `./le test unit all`, a whole functional suite, `./le verify`.
 **Each fix MUST be proven by rerunning only the test that failed: the one Go test with `-run` over its package, or the one `.ci` selection, alone and under the load that broke it.** The package or the suite around it is the next step out, and only after the test itself passes. The recipes are `docs/contributing/running-commands.md` for a Go test and `docs/functional-tests.md`, "Run a single test", for a `.ci`.
-**When every listed red passes its targeted rerun, the full verify MUST run once, on a quiet machine with no other agent running tests beside it.** The reds it leaves become the next list.
+**When every listed red passes its targeted rerun, `./le verify changed` MUST run once over the commit that holds the fixes.** The reds it leaves become the next list. A full verification is Thomas's release check, run on a quiet machine: an agent never starts it, and gives him the exact command when one is owed.
 
 **During product implementation, test and gate repair MUST NOT displace the agreed product change.** Before a third unrelated scaffolding repair, return to that change and report the remaining failures. This limit governs incidental repairs. A commissioned baseline verification task MUST repair the scaffolding needed for its agreed proof, without adding absent features.
 **A new spec, compaction, or handoff MUST NOT reset the count of incidental repairs.**
 
 **A commit MUST NOT be held for a green gate.** A local commit reaches nobody, so it can cost nobody anything, and it protects finished work from the next crash or checkout.
-**The gate is owed before a push, which is the act that reaches a reader** (`ai/rules/git-safety.md` carries the push route). Verification debt is what a push still owes, derived from git and the last green full verification, and it MUST NOT be read as a reason to stop committing.
+**The gate is owed before a push, which is the act that reaches a reader** (`ai/rules/git-safety.md` carries the push route). Verification debt is what a push still owes, derived from git and the scoped record `./le verify changed` writes, and it MUST NOT be read as a reason to stop committing.
 
 ## What This Never Relaxes
 

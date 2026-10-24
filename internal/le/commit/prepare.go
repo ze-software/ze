@@ -104,7 +104,7 @@ func Create(root string, options *Options) (Prepared, error) {
 	attesting := options.Attest != ""
 	if attesting && len(slices.Concat(paths, removed))+len(options.Hunks) != 0 {
 		return result, errors.New("attest refused with a file or remove path: an attestation must not change the tree, " +
-			"because a changed tree moves HEAD off the green tree and owes the full verify the attestation exists to spare; " +
+			"because a changed tree moves HEAD off the green tree and owes the verify the attestation exists to spare; " +
 			"prepare the attestation alone with ./le commit create subject \"<subject>\" attest <commit> \"<owner words>\", " +
 			"and the files in a commit of their own")
 	}

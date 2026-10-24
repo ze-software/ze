@@ -414,7 +414,7 @@ func bashLossyPipe(ctx context) *verdict {
 			}
 			return &verdict{2, "❌ Blocked: piping an expensive command's output through a lossy filter (" + fields[0] + ")\n" +
 				"  -- The truncated output is what you would judge the run by.\n" +
-				"  -- Use: dir=$(./le session scratch ensure); ./le verify worktree > \"$dir/verify.log\" 2>&1\n" +
+				"  -- Use: dir=$(./le session scratch ensure); ./le verify changed > \"$dir/verify.log\" 2>&1\n" +
 				"  -- Or:  dir=$(./le session scratch ensure); <command> 2>&1 | tee \"$dir/out.log\"\n" +
 				"  -- Then: Read the log with offset/limit"}
 		}
@@ -542,7 +542,7 @@ func bashPollLoop(ctx context) *verdict {
 			"  -- A repeated event belongs to the Monitor tool. Leave persistent\n" +
 			"     false, or its timeout_ms deadline does not apply.\n" +
 			"  -- One watcher at a time. Each wake competes with QEMU, Docker and\n" +
-			"     ./le verify current for the same cores."}
+			"     every verify run for the same cores."}
 	}
 	return nil
 }

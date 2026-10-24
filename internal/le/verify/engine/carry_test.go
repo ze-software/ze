@@ -336,6 +336,7 @@ func TestAFailedIndexWriteSaysWhatItLeftAndTheFix(t *testing.T) {
 				"the earlier failure index at " + FailuresJSONPath + " was left unchanged",
 				"this run's reds were not published",
 				"then rerun the verify",
+				"./le verify changed for an agent; a release check is Thomas's to start",
 			} {
 				if !strings.Contains(err.Error(), want) {
 					t.Fatalf("error = %q, want it to contain %q", err, want)
@@ -374,6 +375,7 @@ func TestAFailedCopyAfterTheIndexSaysTheGateReadsThisRun(t *testing.T) {
 				"the failure index at " + FailuresJSONPath + " holds this run's verdicts",
 				"but " + path + " still shows the earlier run",
 				"then rerun the verify",
+				"./le verify changed for an agent; a release check is Thomas's to start",
 			} {
 				if !strings.Contains(err.Error(), want) {
 					t.Fatalf("error = %q, want it to contain %q", err, want)
@@ -460,5 +462,46 @@ func TestAChangedGreenKeepsAFullRedOnASharedStage(t *testing.T) {
 	entry = carriedEntry(t, readCarried(t, scoped), part)
 	if entry.ExitCode != 0 || entry.OutsideRun || entry.CarriedFrom != nil {
 		t.Fatalf("%s after a changed red then a changed green = %#v, want green, not carried", part, entry)
+	}
+}
+
+// TestAFastGreenKeepsAFullRedOnASharedStage is the same rule for the fast
+// population, which publishes the change set's scope as a changed run does:
+// a fast green on a Staticcheck part judged only that scope's rows.
+//
+// Method: publish a full index with the part red at aaa, then a fast index
+// holding it green at bbb, and require the red carried from aaa. Then publish
+// a fast red at ccc and a fast green at ddd over a fresh checkout, and require
+// the part green and not carried.
+// VALIDATES: a full-population verdict survives a fast run's partial judgement.
+// PREVENTS: a fast green erasing a red in the rows it never ran.
+func TestAFastGreenKeepsAFullRedOnASharedStage(t *testing.T) {
+	part := staticcheckStages()[0].Identity.Name
+	index := func(commit, mode string, exit int) artifactIndex {
+		return artifactIndex{Format: FailureIndexFormat, Mode: mode, Commit: commit, RunDir: "run-" + commit,
+			Stages: []artifactStage{{Stage: part, Reached: true, ExitCode: exit}}}
+	}
+	root := t.TempDir()
+	if err := writeFailureIndex(root, index("aaa", Mode, 1)); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeFailureIndex(root, index("bbb", FastMode, 0)); err != nil {
+		t.Fatal(err)
+	}
+	entry := carriedEntry(t, readCarried(t, root), part)
+	if entry.ExitCode != 1 || !entry.OutsideRun || entry.CarriedFrom == nil || entry.CarriedFrom.Commit != "aaa" {
+		t.Fatalf("%s after a green fast run = %#v, want the full run's red carried from aaa", part, entry)
+	}
+
+	scoped := t.TempDir()
+	if err := writeFailureIndex(scoped, index("ccc", FastMode, 1)); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeFailureIndex(scoped, index("ddd", FastMode, 0)); err != nil {
+		t.Fatal(err)
+	}
+	entry = carriedEntry(t, readCarried(t, scoped), part)
+	if entry.ExitCode != 0 || entry.OutsideRun || entry.CarriedFrom != nil {
+		t.Fatalf("%s after a fast red then a fast green = %#v, want green, not carried", part, entry)
 	}
 }

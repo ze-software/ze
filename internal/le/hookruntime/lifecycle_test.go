@@ -14,8 +14,8 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/le/derived"
-	"github.com/ze-software/ze/internal/le/rfc"
 	repochanged "github.com/ze-software/ze/internal/le/repo/changed"
+	"github.com/ze-software/ze/internal/le/rfc"
 	specpath "github.com/ze-software/ze/internal/le/spec/path"
 	"github.com/ze-software/ze/internal/le/verify"
 )

@@ -12,11 +12,11 @@ See also: `/ze-commit` (commit without verification), `/ze-commit-check` (commit
 ## Steps
 
 1. **Targeted verify (if Go code changed):** Check if any `.go` files are modified. If yes:
-   run `./le verify current fast` (foreground, largest timeout your harness allows), which judges the
-   changed-files stages over the working tree in place. If it fails, report all failures from
-   `tmp/ze-verify-failures.log`. If no `.go` files changed: skip. Never run `./le verify current` or
-   `./le verify worktree` here: the full gate judges HEAD, so it cannot see uncommitted changes, and it
-   runs once per piece of work, over its final commit.
+   run the scoped package test of each changed package under `./le job run`, the targeted set
+   `./le repo changed scope print both` names. If it fails, report every failure. If no `.go` files
+   changed: skip. Never run `./le verify current`, `current fast` or `./le verify worktree`: each is
+   Thomas's release check, which refuses an agent, so give him the exact command when one is owed.
+   `./le verify changed` judges the commit once the work lands.
 2. **Show scope:** Run `git status` and `git diff --stat` to identify all changed files.
 
 3. **Completeness check:** For each changed file, check whether companion artifacts

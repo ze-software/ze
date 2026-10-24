@@ -100,7 +100,7 @@ A handoff carries four things:
 |------|---------|
 | Files changed | one line per file, in the digest format `.claude/rules/post-compaction.md` already defines: `` - `path/to/file.go` (380L): what it holds. Key: `Run()`, `handleOpen()`. Uses `wire.SessionBuffer`. `` |
 | Acceptance criteria covered | each AC-N this phase now satisfies, with the test name or command that is its evidence |
-| Verified green | the exact targets run and their result (the scoped package test, the wiring test name, the phase's Verify line from the spec), then the targeted runs OWED and not run: the component group (`./le test unit <group>`) and the functional suite (`./le test functional <suite>`) for the behavior this phase touched, and `./le verify current fast`, which the main thread runs after this phase returns (`ai/rules/commands.md`). A phase never owes the full gate |
+| Verified green | the exact targets run and their result (the scoped package test, the wiring test name, the phase's Verify line from the spec), then the targeted runs OWED and not run: the component group (`./le test unit <group>`) and the functional suite (`./le test functional <suite>`) for the behavior this phase touched, and `./le verify changed` over the commit that lands the work, which the main thread runs (`ai/rules/commands.md`). A phase never owes the full verification |
 | Do not assume | what the next phase must NOT take for granted. A stub still standing, an A-N still `unvalidated`, a gate not yet run, a file left untouched |
 
 ### Work-package size (BLOCKING)
@@ -153,22 +153,22 @@ The spec carries only design-time sections while this skill runs. The closure
 half lives in `plan/templates/TEMPLATE-CLOSURE.md` and `/ze-close` appends it when it is
 first needed.
 
-**Verification: targeted during development, the full gate once.** Steps 6
+**Verification: targeted during development, the scoped verify over the commit.** Steps 6
 and 9 run only the tests that cover what changed. `./le repo changed scope
 print both` names them: the changed packages, two levels of their importers,
 and the feature tags the change reaches (`docs/contributing/running-commands.md`,
 "The changed-set selector"). From that answer, take the rungs of
 `docs/contributing/testing.md`, "The escalation ladder": the scoped package
-test, the component group, the functional suite for the behavior touched, and
-`./le verify current fast`, which runs the changed-files stages in place. WHO
-runs them depends on the context. A phase agent's prompt cache lives five
+test, the component group and the functional suite for the behavior touched.
+`./le verify changed` judges the commit that lands the work, in a fresh
+worktree, and is the evidence a push owes. WHO runs them depends on the context. A phase agent's prompt cache lives five
 minutes, so a phase agent runs only the scoped package test and names the rest
 as owed in its handoff; the main thread runs them after the phase agents
 return, itself or through a fresh `/ze-verify` agent, and dispatches findings to
-a fix agent (`ai/rules/commands.md`). The full gate (`./le verify current`)
-judges HEAD, so before the closing commit it judges a tree that does not hold
-this work. It runs once, over the closing commit, after `/ze-close` lands it,
-and never between phases, review rounds or fixes.
+a fix agent (`ai/rules/commands.md`). The full verification is a release
+check: no agent starts it, and when one is owed the agent gives Thomas the
+exact command (`docs/contributing/running-commands.md`, "A full verification is
+Thomas's to start").
 
 ## Steps
 
@@ -209,9 +209,9 @@ and never between phases, review rounds or fixes.
    - Implement minimal code to pass
    - Run the scoped package test until green: the `go test -race` recipe under
      `./le job run` in `docs/contributing/running-commands.md`, over the packages
-     this phase changed. The component group, the functional suite and
-     `./le verify current fast` are the main thread's, after the phase returns
-     (`ai/rules/commands.md`)
+     this phase changed. The component group and the functional suite are the
+     main thread's, after the phase returns, and so is `./le verify changed`
+     over the commit (`ai/rules/commands.md`)
    - Confirm the wiring test from step 4 now passes (or progresses) after each phase
    - Update the **Risks & Assumptions** tables: flip A-N statuses as evidence arrives;
      when an assumption breaks mid-phase, add the Mistake Log row immediately and STOP
@@ -240,13 +240,14 @@ and never between phases, review rounds or fixes.
 6. **Run targeted verification:** run `./le repo changed scope print both`,
    then the component group for each package it names (`./le test unit <group>`),
    the functional suite for each behavior the work touched
-   (`./le test functional <suite>`), and `./le verify current fast`.
-   In a phase agent this step is the scoped package test only; the rest is
+   (`./le test functional <suite>`), and `./le verify changed` once the work
+   is committed. In a phase agent this step is the scoped package test only; the rest is
    OWED, named in the handoff, and the main thread runs it after the phase
    agents return, itself or through a fresh `/ze-verify` agent
-   (`ai/rules/commands.md`). Do not run `./le verify current`,
-   `./le verify worktree`, `./le test unit all` or `./le test functional gating`
-   here: the full gate runs once, over the closing commit.
+   (`ai/rules/commands.md`). Never run `./le verify current`, `current fast`,
+   `./le verify worktree`, `./le test unit all` or `./le test functional gating`:
+   the full verification is Thomas's release check, and an agent gives him
+   the exact command when one is owed.
 7. **Critical review:** Use the spec's **Critical Review Checklist** table. For each row:
    - Verify the "What to verify" column against the actual implementation
    - Document pass/fail for each check
@@ -266,8 +267,8 @@ and never between phases, review rounds or fixes.
 9. **Re-run verification:** rerun only the tests that failed, each alone, until
    every one passes (`ai/rules/pre-release.md`). Then run step 6's targeted set
    once over what the fixes touched, under the same split as step 6: the scoped
-   package test in a phase agent, the group, suite and `./le verify current fast`
-   from the main thread.
+   package test in a phase agent, the group and the suite from the main
+   thread, and `./le verify changed` over the commit.
 10. **Repeat steps 7-9** until the review finds zero issues and all tests pass. There is no cap on the NUMBER of passes, because each fix is new code that needs a fresh review. Each pass covers LESS than the one before it: round 1 the whole diff, round N+1 only round N's fixes and what they touched. Stop when a pass finds no BLOCKER and no ISSUE inside its own scope. "Stop only when a pass finds nothing anywhere" has no state in which it stops, which is why finished work fails to close (`ai/rules/planning.md`, "Bounding the loop").
 11. **Stop here and hand off to `/ze-close`.** The implementation is done when
     steps 7-9 find nothing, every target is green, AND you have read the whole

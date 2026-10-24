@@ -214,13 +214,13 @@ func TestValidateSpecPlaceholderScopedToDesignOnward(t *testing.T) {
 // TestValidateSpecNeedsATestCommandNotTheFullGate drives validateSpecText with
 // the smallest accepted spec, its checklist line swapped for each spelling.
 //
-// VALIDATES: a spec naming only a targeted command (`./le verify current fast`,
-// `./le test unit <group>`) is accepted, the legacy `./le verify worktree` line
-// still is, and a spec naming no `./le test` or `./le verify` command is refused
-// with a message that says what to write.
-// PREVENTS: the validator keeping the full gate as a mandatory spec item. The
-// owner rule runs targeted tests while developing and the full gate once over
-// the final commit, so a spec names how it is tested, not the full gate.
+// VALIDATES: a spec naming only a targeted command (`./le verify changed`,
+// `./le test unit <group>`) is accepted, the legacy `./le verify worktree` and
+// `./le verify current fast` lines still are, and a spec naming no `./le test`
+// or `./le verify` command is refused with a message that names the scoped run.
+// PREVENTS: the validator keeping the full gate as a mandatory spec item, or
+// its refusal teaching an agent a full run. Agents run targeted tests and the
+// scoped verify, and the full run is the release check Thomas starts.
 func TestValidateSpecNeedsATestCommandNotTheFullGate(t *testing.T) {
 	const legacy = "- [ ] `./le verify worktree` passes\n"
 	base := specFixture("internal/probe/probe.go")
@@ -242,6 +242,7 @@ func TestValidateSpecNeedsATestCommandNotTheFullGate(t *testing.T) {
 	}{
 		{"legacy-full-gate", legacy},
 		{"verify-current-fast", "- [ ] `./le verify current fast` passes\n"},
+		{"verify-changed", "- [ ] `./le verify changed` passes\n"},
 		{"unit-group", "- [ ] `./le test unit hookruntime` passes\n"},
 		{"functional-suite", "- [ ] `./le test functional runner` passes\n"},
 	}
@@ -255,9 +256,14 @@ func TestValidateSpecNeedsATestCommandNotTheFullGate(t *testing.T) {
 	if got == "" {
 		t.Fatalf("a spec naming no ./le test or ./le verify command was accepted")
 	}
-	for _, want := range []string{"./le test unit", "./le verify current fast"} {
+	for _, want := range []string{"./le test unit", "./le verify changed"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("the refusal does not tell the author what to write (%q): %s", want, got)
+		}
+	}
+	for _, full := range []string{"verify current", "verify worktree"} {
+		if strings.Contains(got, full) {
+			t.Errorf("the refusal tells the author an agent's full run (%q): %s", full, got)
 		}
 	}
 }

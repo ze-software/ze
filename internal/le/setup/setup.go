@@ -192,7 +192,7 @@ func (s *Setup) Run() (*Report, int) {
 		return report, 1
 	}
 	if code == 0 {
-		report.Note("Verify with: ./le verify current fast")
+		report.Note("Verify with: ./le verify changed (a full verification, ./le verify current, starts only at a terminal)")
 	}
 	return report, code
 }

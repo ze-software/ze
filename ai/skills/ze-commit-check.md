@@ -43,9 +43,10 @@ See also: `/ze-commit` (commit without verification), `/ze-verify` (standalone v
      reported timestamp as evidence.
    - If it prints STALE and verification applies, run the scoped package test
      for each changed package under `./le job run`, the functional test of
-     each behavior the commit changed, and `./le verify current fast` once.
-     Never run `./le verify current` or `./le verify worktree` here: both judge
-     HEAD, which does not hold this commit yet.
+     each behavior the commit changed. `./le verify changed` judges the commit
+     once it lands. Never run `./le verify current`, `current fast` or
+     `./le verify worktree`: each is Thomas's release check, so give him the
+     exact command when one is owed.
 4. **Failure handling:** If verification fails, read
    `tmp/ze-verify-failures.log` first and ask of each red whether it says the
    product is wrong (`ai/rules/pre-release.md`). A red does not hold the

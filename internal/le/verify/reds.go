@@ -384,7 +384,9 @@ func (r Reds) Text() string {
 	text.Byte('\n')
 	if r.StoppedAt != "" {
 		text.Str("the run stopped at its first red, ").Str(r.StoppedAt).
-			Str(", so its pending stages will never report; le verify worktree runs every stage\n")
+			Str(", so its pending stages will never report; ").Str(ChangedCommand).
+			Str(" judges what you changed, and every stage runs only in the release check, ").
+			Str("whose command ./le verify worktree you give Thomas\n")
 	}
 	appendReds(&text, "reds naming this path:", r.Naming)
 	appendReds(&text, "reds naming no file, so any of them can be about this path:", r.Unattributed)
