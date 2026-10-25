@@ -75,6 +75,10 @@ ze-bgp:update-irr-all
 ze-bgp:update-irr-as-set
 ze-bgp:update-irr-asn
 ze-bgp:update-peer-prefix
+ze-bgp:watchdog-announce
+ze-bgp:watchdog-forget
+ze-bgp:watchdog-give
+ze-bgp:watchdog-withdraw
 ze-bgp:withdraw-all
 ze-bgp:withdraw-id
 ze-bgp:withdraw-tag
