@@ -99,12 +99,12 @@ phase itself.
 
 ## Fallback
 
-A slow run and admission contention are not failures. In full mode, fall back
-to individual native stages only when the worktree action cannot run for an
-environmental reason:
-1. `./le go lint run`
-2. `./le test unit all`
-3. `./le test functional gating`
+A slow run and admission contention are not failures. Full mode runs nothing,
+so it has no fallback: never substitute `./le go lint run`, `./le test unit all`
+or `./le test functional gating` for the release check, because each loads the
+whole shared machine the same way. In scoped mode, when `./le verify changed`
+cannot run for an environmental reason, fall back to the targeted runs of step
+2 for what changed.
 
 Report whichever stages completed and which one stopped the run. This gives partial results instead of no results.
 

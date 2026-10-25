@@ -1,10 +1,24 @@
 // VALIDATES: AC-22 of spec-verify-release-check-only -- no agent-facing surface
-// tells an agent to run a whole-tree verification. Every sentence in `ai/`,
-// `AGENTS.md` and `.claude/` that names a whole-tree verb either says the run is
-// Thomas's or bans running it.
+// tells an agent to run a whole-tree verification. Every sentence, table row or
+// code line in `ai/`, `AGENTS.md`, `.claude/` and the rest of the corpus below
+// that names a whole-tree verb is one a reviewer has read and listed in
+// testdata/wholetree-mentions.txt.
 // PREVENTS: a skill, a rule, a pattern or a plan that still tells an agent to
 // run `./le verify current` or `./le verify worktree`, which the terminal gate
 // then refuses, so the agent loses the turn or works around the gate.
+//
+// The ledger replaces a regex classifier that tried to tell, from the words of
+// an English sentence, whether it tells an agent to run a command. That cannot
+// be done soundly, and it failed open twice. A reviewed ratchet can: a new
+// mention is refused until a reader judges it, and a listed mention that no
+// longer occurs is refused too, so the ledger cannot rot.
+//
+// THE RULE FOR ADDING AN ENTRY: a reviewer reads the sentence in its file, and
+// lists it only when it does not tell an agent to run the verb. A sentence that
+// bans the run, ties it to Thomas, or describes the release check qualifies.
+// One that tells an agent to run the verb, in any wording, is rewritten
+// instead: an agent's evidence is `./le verify changed`, and the full run is the
+// command the agent hands Thomas.
 //
 // It runs in package le because the verb list is DERIVED from the action tables
 // the blank imports in register.go populate: every action that registers with
@@ -15,6 +29,7 @@ package le
 
 import (
 	"errors"
+	"fmt"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -41,18 +56,13 @@ import (
 // surface any agent inherits.
 var agentCorpus = []string{"ai", "AGENTS.md", ".claude", "plan/templates", "docs/contributing", "docs/functional-tests.md"}
 
-// ownedOrBanned is what a prose sentence naming a whole-tree verb must carry: a
-// form that ties the run to Thomas, or a form that bans an agent running it. A
-// bare "Thomas" or a bare ban word is not enough, because "Thomas says run it"
-// and "run it; do not skip it" are both instructions to run.
-var ownedOrBanned = regexp.MustCompile("(?i)" +
-	`\b(give|gives|hand|hands)\s+thomas\b` +
-	`|\bthomas\s+(runs|starts)\b` +
-	`|\bthomas's\s+release\s+check\b` +
-	`|\bnever\s+(run|runs|start|starts)\b` +
-	`|\b(must|do)\s+not\s+(run|start)\b` +
-	`|\b(run|runs)\s+no\b` +
-	`|\brefuses\b`)
+// mentionLedger is the reviewed list of every whole-tree mention the corpus
+// holds, one `<path> :: <normalized text>` entry per line, relative to this
+// package. A line opening with # is a comment.
+var mentionLedger = filepath.Join("testdata", "wholetree-mentions.txt")
+
+// ledgerSeparator splits an entry's corpus path from its text.
+const ledgerSeparator = " :: "
 
 // sentenceEnd ends a sentence: a terminal mark, any closing emphasis, code or
 // quote mark, then a space or the end of the paragraph.
@@ -63,14 +73,19 @@ var sentenceEnd = regexp.MustCompile("[.!?][*_`\"')\\]]*(\\s|$)")
 var paragraphBreak = regexp.MustCompile(`^\s*([-*+]\s|\d+\.\s|#|\[ \])`)
 
 // TestNoAgentSurfaceTellsAnAgentToRunAWholeTreeVerify reads the verb list from
-// the registered action tables, then walks the corpus. Prose is judged one
-// sentence at a time, after the wrapped lines of its paragraph are joined, so a
-// sentence that names Thomas on its next line is judged whole. A code-block line
-// and a table row are each a unit of their own: a command in a fence is an
-// instruction, whatever the prose around it says.
+// the registered action tables, walks the corpus, and holds every mention it
+// finds against the reviewed ledger: an unlisted mention is refused, and so is
+// a listed entry that no longer occurs.
 func TestNoAgentSurfaceTellsAnAgentToRunAWholeTreeVerify(t *testing.T) {
-	verbs := wholeTreeVerbs(t)
-	named := wholeTreePattern(verbs)
+	named := wholeTreePattern(wholeTreeVerbs(t))
+	ledger, err := os.ReadFile(mentionLedger)
+	if err != nil {
+		t.Fatalf("read the reviewed ledger: %v", err)
+	}
+	listed, err := parseMentionLedger(string(ledger))
+	if err != nil {
+		t.Fatalf("%s: %v", mentionLedger, err)
+	}
 
 	root, err := lepath.Root()
 	if err != nil {
@@ -84,6 +99,7 @@ func TestNoAgentSurfaceTellsAnAgentToRunAWholeTreeVerify(t *testing.T) {
 		t.Fatalf("list the tracked agent corpus: %v", err)
 	}
 	read := 0
+	var found []mention
 	for relative := range strings.SplitSeq(string(output), "\x00") {
 		if !corpusText(relative) {
 			continue
@@ -97,51 +113,171 @@ func TestNoAgentSurfaceTellsAnAgentToRunAWholeTreeVerify(t *testing.T) {
 			t.Fatalf("read %s: %v", relative, readErr)
 		}
 		read++
-		for _, hit := range unbannedRuns(string(content), named) {
-			t.Errorf("%s:%d tells an agent to run %q, a whole-tree verification only Thomas starts at a terminal: "+
-				"name `./le verify changed` as the agent's evidence, and give the full run as the command the agent hands Thomas",
-				relative, hit.line, hit.phrase)
-		}
+		found = append(found, corpusMentions(relative, string(content), named)...)
 	}
 	if read == 0 {
 		t.Fatalf("git tracks no markdown under %v, so the scan read nothing", agentCorpus)
 	}
+	reportJudgement(t, found, listed)
 }
 
-// TestUnbannedRunsJudgesTheSentence holds the scanner to its answers, so the
-// corpus test above cannot pass by reading nothing: a bare instruction is
-// refused; one that ties the run to Thomas or bans it is not; a sentence that
-// merely names Thomas, or bans something other than the run, is refused; and a
-// fenced command is refused even when the paragraph above names Thomas or its
-// own comment says never.
-func TestUnbannedRunsJudgesTheSentence(t *testing.T) {
+// TestWholeTreeMentionsRefusesAnUnlistedMention proves a mention nobody
+// reviewed is refused, whatever its wording: an imperative, a sentence that
+// names Thomas, a ban, a fenced command and a table row each fail against an
+// empty ledger, and each reports the line its verb starts on.
+func TestWholeTreeMentionsRefusesAnUnlistedMention(t *testing.T) {
 	named := wholeTreePattern([]string{"verify current", "verify worktree", "verify evidence"})
 	cases := []struct {
 		name string
 		text string
-		want []int
+		line int
 	}{
-		{"fenced instruction", "Thomas runs the release check.\n\n```bash\n./le verify current fast   # in place\n```\n", []int{4}},
-		{"wrapped sentence names Thomas", "The full run (`./le verify current`) is a\nrelease check Thomas runs.\n", nil},
-		{"ban", "Never run `./le verify worktree` from a tool call.\n", nil},
-		{"no list", "You run no command that can take longer: no `./le verify worktree`.\n", nil},
-		{"imperative", "Before closing, run `./le verify worktree`.\nThomas reads the report.\n", []int{1}},
-		{"area verb", "- Run `./le verify evidence release-candidate`.\n", []int{1}},
-		{"scoped verb", "Run `./le verify changed`.\n", nil},
-		{"Thomas named but not the runner", "Thomas says run ./le verify worktree before you commit.\n", []int{1}},
-		{"ban word on another verb", "Run ./le verify current now; do not skip it.\n", []int{1}},
-		{"fenced comment is no ban", "```bash\n./le verify current   # never skip this\n```\n", []int{2}},
-		{"agent never runs", "The release check is `./le verify current`, which an agent never runs.\n", nil},
+		{"imperative", "Before closing, run `./le verify worktree`.\n", 1},
+		{"names Thomas", "Some prose.\n\nThomas runs `./le\nverify current` at his terminal.\n", 3},
+		{"ban", "Never run `./le verify worktree` from a tool call.\n", 1},
+		{"fenced command", "Thomas runs this.\n\n```bash\n./le verify current fast\n```\n", 4},
+		{"table row", "| Release | `./le verify evidence release-candidate` |\n", 1},
 	}
 	for _, tc := range cases {
-		var got []int
-		for _, hit := range unbannedRuns(tc.text, named) {
-			got = append(got, hit.line)
+		unlisted, stale := judgeMentions(corpusMentions("ai/x.md", tc.text, named), nil)
+		if len(unlisted) != 1 || unlisted[0].line != tc.line {
+			t.Errorf("%s: unlisted %v, want one mention on line %d", tc.name, unlisted, tc.line)
 		}
-		if !slices.Equal(got, tc.want) {
-			t.Errorf("%s: refused lines %v, want %v", tc.name, got, tc.want)
+		if len(stale) != 0 {
+			t.Errorf("%s: stale %v, want none", tc.name, stale)
 		}
 	}
+	scoped := corpusMentions("ai/x.md", "Run `./le verify changed`.\n", named)
+	if len(scoped) != 0 {
+		t.Errorf("a scoped verb is no whole-tree mention, got %v", scoped)
+	}
+}
+
+// TestWholeTreeMentionsRefusesAStaleEntry proves a listed entry the corpus no
+// longer holds is refused, so a rewritten or deleted sentence takes its entry
+// with it.
+func TestWholeTreeMentionsRefusesAStaleEntry(t *testing.T) {
+	named := wholeTreePattern([]string{"verify current"})
+	listed, err := parseMentionLedger("# reviewed\n\nai/x.md :: Thomas runs `./le verify current`.\n")
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	unlisted, stale := judgeMentions(corpusMentions("ai/x.md", "Nothing names the verb now.\n", named), listed)
+	if len(unlisted) != 0 {
+		t.Errorf("unlisted %v, want none", unlisted)
+	}
+	if !slices.Equal(stale, []string{"ai/x.md :: Thomas runs `./le verify current`."}) {
+		t.Errorf("stale %v, want the one listed entry", stale)
+	}
+}
+
+// TestWholeTreeMentionsPassesAListedMention proves a reviewed mention passes:
+// a wrapped sentence is listed once with its whitespace normalized, and a
+// fenced line by its own text. A duplicate or malformed ledger line is refused.
+func TestWholeTreeMentionsPassesAListedMention(t *testing.T) {
+	named := wholeTreePattern([]string{"verify current"})
+	text := "The release check is `./le verify\ncurrent`, which an agent never runs.\n\n```sh\n./le verify current\n```\n"
+	listed, err := parseMentionLedger("ai/x.md :: The release check is `./le verify current`, which an agent never runs.\n" +
+		"ai/x.md :: ./le verify current\n")
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	unlisted, stale := judgeMentions(corpusMentions("ai/x.md", text, named), listed)
+	if len(unlisted) != 0 || len(stale) != 0 {
+		t.Errorf("unlisted %v, stale %v, want neither", unlisted, stale)
+	}
+	if _, err := parseMentionLedger("ai/x.md :: one\nai/x.md :: one\n"); err == nil {
+		t.Error("a duplicate entry was accepted")
+	}
+	if _, err := parseMentionLedger("no separator here\n"); err == nil {
+		t.Error("an entry with no separator was accepted")
+	}
+}
+
+// reportJudgement fails the test once per unlisted mention and once per stale
+// entry, each with the line a reviewer acts on.
+func reportJudgement(t *testing.T, found []mention, listed []string) {
+	t.Helper()
+	unlisted, stale := judgeMentions(found, listed)
+	for _, m := range unlisted {
+		t.Errorf("%s:%d names %q in text the reviewed ledger %s does not list. "+
+			"If it tells an agent to run the verb, rewrite it: the agent's evidence is `./le verify changed`, "+
+			"and the full run is the command it hands Thomas. If it bans the run, ties it to Thomas or "+
+			"describes the release check, a reviewer adds this entry:\n%s",
+			m.path, m.line, m.verb, mentionLedger, m.entry())
+	}
+	for _, entry := range stale {
+		t.Errorf("%s lists an entry the corpus no longer holds; remove it:\n%s", mentionLedger, entry)
+	}
+}
+
+// mention is one sentence, table row or code line of the corpus that names a
+// whole-tree verb, with the line the verb starts on.
+type mention struct {
+	path string
+	line int
+	verb string
+	text string
+}
+
+// entry is the ledger line that lists this mention.
+func (m mention) entry() string {
+	return m.path + ledgerSeparator + m.text
+}
+
+// String renders a mention for a test failure.
+func (m mention) String() string {
+	return fmt.Sprintf("%s:%d %q", m.path, m.line, m.text)
+}
+
+// parseMentionLedger answers the entries of a ledger, refusing a line with no
+// path or no text and an entry listed twice: two copies of one fact would let
+// one go stale behind the other.
+func parseMentionLedger(content string) ([]string, error) {
+	var entries []string
+	for index, line := range strings.Split(content, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		path, text, found := strings.Cut(trimmed, ledgerSeparator)
+		if !found {
+			return nil, fmt.Errorf("line %d has no %q between path and text: %s", index+1, ledgerSeparator, trimmed)
+		}
+		if strings.TrimSpace(path) == "" {
+			return nil, fmt.Errorf("line %d names no path: %s", index+1, trimmed)
+		}
+		if strings.TrimSpace(text) == "" {
+			return nil, fmt.Errorf("line %d carries no text: %s", index+1, trimmed)
+		}
+		if slices.Contains(entries, trimmed) {
+			return nil, fmt.Errorf("line %d lists an entry twice: %s", index+1, trimmed)
+		}
+		entries = append(entries, trimmed)
+	}
+	return entries, nil
+}
+
+// judgeMentions answers each distinct mention whose entry the ledger does not
+// list, and each listed entry no mention matches.
+func judgeMentions(found []mention, listed []string) (unlisted []mention, stale []string) {
+	occurs := map[string]bool{}
+	for _, m := range found {
+		entry := m.entry()
+		if occurs[entry] {
+			continue
+		}
+		occurs[entry] = true
+		if !slices.Contains(listed, entry) {
+			unlisted = append(unlisted, m)
+		}
+	}
+	for _, entry := range listed {
+		if !occurs[entry] {
+			stale = append(stale, entry)
+		}
+	}
+	return unlisted, stale
 }
 
 // wholeTreeVerbs answers every registered whole-tree verb as the words after
@@ -200,43 +336,40 @@ func corpusText(path string) bool {
 	return extension == ".md" || extension == ""
 }
 
-// runHit is one sentence that names a whole-tree verb and neither names Thomas
-// nor bans the run.
-type runHit struct {
-	line   int
-	phrase string
-}
-
-// unbannedRuns answers each whole-tree verb in text that a code line names, or
-// whose prose sentence carries no ownedOrBanned form, with the line the verb
-// starts on. A code line is never exempt: a comment beside a command does not
-// stop an agent copying the command.
-func unbannedRuns(text string, named *regexp.Regexp) []runHit {
-	var hits []runHit
+// corpusMentions answers each whole-tree verb in text with the unit that names
+// it: the whole sentence for prose, after the wrapped lines of its paragraph
+// are joined, and the whole line for a code-block line or a table row. The
+// text is whitespace-normalized, so rewrapping a paragraph does not stale its
+// entry.
+func corpusMentions(path, text string, named *regexp.Regexp) []mention {
+	var out []mention
 	for _, unit := range units(text) {
 		for _, match := range named.FindAllStringSubmatchIndex(unit.text, -1) {
-			if !unit.code && ownedOrBanned.MatchString(sentenceAround(unit.text, match[0], match[1])) {
-				continue
+			span := unit.text
+			if !unit.whole {
+				span = sentenceAround(unit.text, match[0], match[1])
 			}
-			hits = append(hits, runHit{
-				line:   unit.line + strings.Count(unit.text[:match[0]], "\n"),
-				phrase: "le " + strings.Join(strings.Fields(unit.text[match[2]:match[3]]), " "),
+			out = append(out, mention{
+				path: path,
+				line: unit.line + strings.Count(unit.text[:match[0]], "\n"),
+				verb: "le " + strings.Join(strings.Fields(unit.text[match[2]:match[3]]), " "),
+				text: strings.Join(strings.Fields(span), " "),
 			})
 		}
 	}
-	return hits
+	return out
 }
 
 // textUnit is a paragraph of prose with its wrapped lines joined, or one
-// code-block line or table row, with the line it starts on. code marks a line
-// inside a fence.
+// code-block line or table row, with the line it starts on. whole marks a unit
+// that is listed as one line rather than split into sentences.
 type textUnit struct {
-	line int
-	text string
-	code bool
+	line  int
+	text  string
+	whole bool
 }
 
-// units splits markdown into the units unbannedRuns judges.
+// units splits markdown into the units corpusMentions reads.
 func units(text string) []textUnit {
 	var out []textUnit
 	var paragraph []string
@@ -258,7 +391,7 @@ func units(text string) []textUnit {
 		}
 		if fenced || strings.HasPrefix(trimmed, "|") {
 			flush()
-			out = append(out, textUnit{line: number, text: line, code: fenced})
+			out = append(out, textUnit{line: number, text: line, whole: true})
 			continue
 		}
 		if trimmed == "" {

@@ -1001,9 +1001,13 @@ has finished, and answers one of four verdicts
 **It is a query, never a certificate.** Only `not-named` exits 0, and it demands
 a whole run. Every answer carries `stages`, `reported` and `pending`, so a
 reader can see how much of the run has judged nothing yet. The gate a commit
-passes is decided by `./le commit push` from the recorded verify runs
-(`ai/rules/precommit-verify.md`); this action tells you whether to keep working
-or to go and fix something, and it starts no run.
+passes is decided by `./le commit create` (`checkVerificationGates` in
+`internal/le/commit/prepare.go`): the commit lands when the verification
+certificate is FRESH for its paths, or when no deterministic structural gate is
+red or unreached for them. `./le commit push` only derives the verification
+debt from the recorded verify runs (`ai/rules/precommit-verify.md`). This action
+tells you whether to keep working or to go and fix something, and it starts no
+run.
 
 The answer is structured data, so `| json`, `| yaml` and `| table` each render
 it.

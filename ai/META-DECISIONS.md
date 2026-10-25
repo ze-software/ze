@@ -59,8 +59,8 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   guest runs another system is out of scope: the fix is moving that guest to
   Ze's system. Colima may manage the VM on macOS, booting Ze's image only.
 - The Linux host is too busy for full test runs: there, run scoped package
-  tests only, and never run `./le verify worktree`, a full functional suite or a full
-  `./le go lint run`. Full runs happen on another host.
+  tests only, and never run `./le verify worktree`, a full functional suite or
+  a full `./le go lint run`. Full runs happen on another host.
 - Kernel work uses the architecture of the machine the agent is on. Never
   cross-compile or emulate the other architecture's kernel locally; its proof
   comes from a host that runs it natively.

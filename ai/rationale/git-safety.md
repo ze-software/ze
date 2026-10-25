@@ -39,16 +39,22 @@ invocation inside the same foreground Bash call until a slot frees. There is
 no lock file: `internal/le/job/answer.go`, which keeps one entry per running job under
 `tmp/.ze-jobs/` and admits `ZE_RUN_SLOTS` of them at a time.
 
-Anti-patterns that look like "smart" backgrounding but break:
+An agent never starts this run, and never watches Thomas's: he reads its
+result at his terminal. The long run an agent does start is the scoped one,
+`./le verify changed`, and it breaks the same way when an agent backgrounds it
+and then tries to be "smart" about the wait:
 
 | Anti-pattern | What actually happens |
 |--------------|-----------------------|
-| `run_in_background: true` + `until pgrep -f 'verify current'; do sleep 2; done` | The polling loop becomes the "running" task; you never see the completion notification for the real run |
-| `run_in_background: true` + `stat -c %Y` mtime check on `tmp/ze-verify.log` | Log is written continuously during the run; mtime never "settles" reliably |
+| `run_in_background: true` + `until pgrep -f 'verify changed'; do sleep 2; done` | The polling loop becomes the "running" task; you never see the completion notification for the real run |
+| `run_in_background: true` + `stat -c %Y` mtime check on the run's log | Log is written continuously during the run; mtime never "settles" reliably |
 | `run_in_background: true` then assume you'll be notified | You will be, but a concurrent polling/sleep loop in Bash can swallow the notification |
+| `until pgrep -f 'verify current'; do sleep 2; done` while Thomas's run goes | The agent spends its turn on a run it does not own, and the result it waits for is Thomas's to read |
 
-There is no legitimate reason to background it: Thomas runs it in the
-foreground and waits, and nothing polls it.
+There is no legitimate reason to background a verification. This rationale
+serves `ai/rules/git-safety.md`, and `ai/skills/ze-verify.md` step 2 carries
+the instruction: run in the foreground, wait, never poll. A polling loop is
+also refused outright (`ai/rules/commands.md`).
 This paragraph used to carve out an exception for
 "genuinely independent work to do for >60s while it runs", contradicting the
 rule it exists to explain, and enumerating "both cases" under a single bullet.

@@ -8,11 +8,17 @@ directives, fuzz target list), see `docs/functional-tests.md`.
 
 ```sh
 ./le setup install
+./le setup check
+./le job run label unit-pkg command go test ./internal/core/textbuf/
 ```
 
-`./le verify current` is the full verification, which Thomas runs. It runs only when stdin and
-stdout are both terminals, so it is yours to start; an agent is refused and
-runs `./le verify changed` instead.
+`./le setup check` reports every tool setup installs, and the scoped package
+test proves the checkout builds and its tests run
+(`../guide/developer-setup.md`, "After Setup").
+
+`./le verify current` is the full verification, Thomas's release check. It runs
+only when stdin and stdout are both terminals, so Thomas starts it by hand at
+one; an agent is refused, and its evidence is `./le verify changed`.
 
 `./le` is the compiled repository development entry point. Each area exposes
 its own verbs, for example `./le test functional plugin`,
@@ -684,12 +690,12 @@ Reproducing a load-dependent flake is
 
 | I want to... | Run |
 |--------------|-----|
-| Check my setup (Thomas runs it at a terminal) | `./le verify current` |
+| Check my setup | `./le setup check`, then `./le job run label unit-pkg command go test ./internal/core/textbuf/` |
 | Run one Go test | `./le job run label one-test command go test ./pkg/... -run TestName` |
 | Run one functional test | `./le job run label plugin-42 command bin/le test bgp plugin 42` |
 | Run a component group | `./le test unit bgp` |
 | Judge my committed change set before a push | `./le verify changed` |
-| Run the release check (an agent gives Thomas the command for his terminal) | `./le verify current` |
+| Have the release check run: Thomas runs it at his terminal, and an agent only gives him the command | `./le verify current` |
 | Type-check every supported feature combination | `./le go staticcheck check` |
 | List native test actions | `./le help` |
 | List functional tests | `./le job run label encode-list command bin/le test bgp encode --list` |

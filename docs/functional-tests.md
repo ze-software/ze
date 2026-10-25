@@ -3643,7 +3643,7 @@ FUZZ=FuzzParseUpdate PKG=./internal/... TIME=30s ./le test fuzz run
 action.
 <!-- source: internal/le/test/fuzz/actions.go -- Actions -->
 
-Fuzz tests are not part of Thomas's release check, `./le verify current`, (they're time-bounded, not pass/fail
+Fuzz tests are not part of Thomas's release check, `./le verify current` (they're time-bounded, not pass/fail
 in the traditional sense). Run them periodically or before releases.
 
 ### Fuzz Target Areas
