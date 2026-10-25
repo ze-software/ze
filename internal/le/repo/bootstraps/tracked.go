@@ -19,7 +19,8 @@
 // failure cannot occur, but two other failures can occur:
 //
 //   - A tool package is committed and registers a command, but
-//     internal/le/register.go does not blank-import it.
+//     internal/le/register.go does not import it. A blank import and a named
+//     one both run the package's init(), so either one wires the tool.
 //   - A tool has an init() that panics or registers under an unexpected name. A
 //     compile-only check cannot detect this because it occurs at startup.
 //
@@ -107,33 +108,69 @@ func (v Verdict) Text() string {
 	return tb.Str("and absent from the commit is exactly what this finds.\n").String()
 }
 
-// toolImports returns the sorted short names of the tool packages that the
-// composition root blank-imports. Named imports support the root handler and
-// are not composition entries.
-func toolImports(src []byte) ([]string, error) {
+// rootImports is what the composition root imports from the le tree, split by
+// the form of the import.
+type rootImports struct {
+	// blank holds the composition entries. Each one exists only to run its
+	// package's init(), so each MUST register a command.
+	blank []string
+	// named holds the packages the root's own code calls (leroot, lepath,
+	// scratch). A named import runs the package's init() exactly as a blank
+	// one does, so a named package that registers a command is wired too.
+	named []string
+}
+
+// toolImports returns the sorted short names of the le packages that the
+// composition root imports, blank and named apart. A named import outside the
+// le tree (os, strings) supports the root handler and is no tool.
+func toolImports(src []byte) (rootImports, error) {
 	file, err := parser.ParseFile(token.NewFileSet(), registerPath, src, parser.ImportsOnly)
 	if err != nil {
-		return nil, err
+		return rootImports{}, err
 	}
 
-	names := make([]string, 0, len(file.Imports))
+	var imports rootImports
 	for _, spec := range file.Imports {
-		if spec.Name == nil || spec.Name.Name != "_" {
-			continue
-		}
 		path, unquoteErr := strconv.Unquote(spec.Path.Value)
 		if unquoteErr != nil {
-			return nil, unquoteErr
+			return rootImports{}, unquoteErr
 		}
-		if !strings.HasPrefix(path, leTree) {
+		blank := spec.Name != nil && spec.Name.Name == "_"
+		inTree := strings.HasPrefix(path, leTree)
+		if blank && !inTree {
 			var tb textbuf.Buffer
-			return nil, errors.New(tb.Str(registerPath).Str(" imports ").Str(path).
+			return rootImports{}, errors.New(tb.Str(registerPath).Str(" imports ").Str(path).
 				Str(", which is not an le tool package").String())
 		}
-		names = append(names, strings.TrimPrefix(path, leTree))
+		if !inTree {
+			continue
+		}
+		name := strings.TrimPrefix(path, leTree)
+		if blank {
+			imports.blank = append(imports.blank, name)
+			continue
+		}
+		imports.named = append(imports.named, name)
+	}
+	slices.Sort(imports.blank)
+	slices.Sort(imports.named)
+	return imports, nil
+}
+
+// wired returns the sorted short names of the packages the composition root
+// links and expects to produce a command: every blank import, and every named
+// import whose package registers one. A named support package that registers
+// nothing (leroot, lepath) is not a composition entry and is left out.
+func (r rootImports) wired(registering []string) []string {
+	registeringSet := setOf(registering)
+	names := slices.Clone(r.blank)
+	for _, name := range r.named {
+		if registeringSet[name] {
+			names = append(names, name)
+		}
 	}
 	slices.Sort(names)
-	return names, nil
+	return names
 }
 
 // registeringPackages returns the sorted short names of all tool packages under
@@ -360,16 +397,17 @@ func Run(ctx context.Context, repo, rev string) (Verdict, int, error) {
 		var tb textbuf.Buffer
 		return verdict, 2, errors.New(tb.Str(rev).Str(" holds no ").Str(registerPath).String())
 	}
-	imported, err := toolImports(src)
+	rootImported, err := toolImports(src)
 	if err != nil {
 		return verdict, 2, err
 	}
-	verdict.Areas = len(imported)
 
 	registering, err := registeringPackages(dest)
 	if err != nil {
 		return verdict, 2, err
 	}
+	imported := rootImported.wired(registering)
+	verdict.Areas = len(imported)
 
 	offered, err := buildAndList(ctx, dest)
 	if err != nil {

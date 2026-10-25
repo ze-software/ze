@@ -5,7 +5,7 @@
 // occur in a compiled binary.
 // PREVENTS: a tool that is committed and compiles but is absent from le. The
 // Python failure was an area that would not IMPORT. A Go area cannot fail in
-// that way. The corresponding failure is a blank import that nobody added.
+// that way. The corresponding failure is an import that nobody added.
 
 package repobootstraps
 
@@ -24,6 +24,7 @@ const registerGo = `package le
 import (
 	"os"
 	"github.com/ze-software/ze/internal/le/le/root"
+	"github.com/ze-software/ze/internal/le/gamma"
 	_ "github.com/ze-software/ze/internal/le/alpha"
 	_ "github.com/ze-software/ze/internal/le/beta"
 )
@@ -34,14 +35,17 @@ func TestTheToolImportsAreRead(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ToolImports: %v", err)
 	}
-	if !slices.Equal(got, []string{"alpha", "beta"}) {
-		t.Errorf("ToolImports = %v", got)
+	if !slices.Equal(got.blank, []string{"alpha", "beta"}) {
+		t.Errorf("blank imports = %v", got.blank)
+	}
+	if !slices.Equal(got.named, []string{"gamma", "le/root"}) {
+		t.Errorf("named imports = %v", got.named)
 	}
 }
 
 // TestAnImportThatIsNotAToolIsRefused keeps the composition root to its one
-// job. An import of anything but an le tool package means the file has stopped
-// being a list of tools.
+// job. A blank import of anything but an le tool package means the file has
+// stopped being a list of tools.
 func TestAnImportThatIsNotAToolIsRefused(t *testing.T) {
 	src := "package main\n\nimport _ \"github.com/ze-software/ze/internal/component/bgp\"\n"
 	if _, err := toolImports([]byte(src)); err == nil {
@@ -49,15 +53,35 @@ func TestAnImportThatIsNotAToolIsRefused(t *testing.T) {
 	}
 }
 
-// TestNamedSupportImportsAreIgnored separates root implementation imports from
-// the blank-import composition population.
+// TestNamedSupportImportsAreIgnored separates the root's own support
+// packages from the composition population: a named le import that registers
+// nothing (le/root) is no tool, and a named import outside le (os) is ignored.
 func TestNamedSupportImportsAreIgnored(t *testing.T) {
 	got, err := toolImports([]byte(registerGo))
 	if err != nil {
 		t.Fatalf("ToolImports: %v", err)
 	}
-	if !slices.Equal(got, []string{"alpha", "beta"}) {
-		t.Errorf("ToolImports included named support imports: %v", got)
+	if wired := got.wired([]string{"alpha", "beta"}); !slices.Equal(wired, []string{"alpha", "beta"}) {
+		t.Errorf("wired included a named support import: %v", wired)
+	}
+}
+
+// TestANamedImportOfARegisteringPackageIsWired is the case that reddened HEAD
+// on 2026-10-25: register.go imported scratch by name for its cache helpers.
+// A named import runs init() as a blank one does, so scratch's command is in
+// le, and the gate MUST count it as wired rather than report it unimported.
+func TestANamedImportOfARegisteringPackageIsWired(t *testing.T) {
+	got, err := toolImports([]byte(registerGo))
+	if err != nil {
+		t.Fatalf("ToolImports: %v", err)
+	}
+	registering := []string{"alpha", "beta", "gamma"}
+	wired := got.wired(registering)
+	if !slices.Equal(wired, []string{"alpha", "beta", "gamma"}) {
+		t.Fatalf("wired = %v, want alpha beta gamma", wired)
+	}
+	if broken := Compare(wired, registering, []string{"a", "b", "g"}); len(broken) != 0 {
+		t.Errorf("a named import of a registering package was reported broken: %v", broken)
 	}
 }
 
