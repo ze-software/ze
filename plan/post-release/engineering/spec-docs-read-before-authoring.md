@@ -44,7 +44,7 @@ implementation (the in-progress WIP cap is full).
 
 How it was measured, so the phase 2 coverage report can reproduce it (AC-15):
 
-1. `./le doc index write` regenerated `ai/CODE-TO-DOCS.md` and
+1. `./le doc index update` regenerated `ai/CODE-TO-DOCS.md` and
    `ai/DOCS-TO-CODE.md` (it reported 340 design docs, 3215 code paths, 672
    packages).
 2. A scratch walk read `git ls-files '*.go'`, dropped `vendor/`,
@@ -152,7 +152,7 @@ missing `// Design:` line, at warning severity only.
 - Every existing check in `nativeHookActions`, its order and its verdicts
 - `writeDesignEvidence` (source read before a spec) stays; the new check is in addition, judging pages rather than source
 - `writeStyleGuideRead` and its marker stay; the style guide is also a page, but its whole-read rule is its own
-- `./le doc index write` / `check` output and the two index renderings
+- `./le doc index update` / `check` output and the two index renderings
 - `./le spec citation anchors` verdicts, apart from now seeing every `// Design:` line rather than the first
 
 **Behavior to change:**

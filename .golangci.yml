@@ -31,7 +31,7 @@ run:
   # prevents their registry callers (e.g. registerService) from being reported
   # as unused.
   #
-  # golangci-lint cannot read feature-gates.txt, so `./le repo feature-tags write`
+  # golangci-lint cannot read feature-gates.txt, so `./le repo feature-tags update`
   # derives this list from the manifest. Do not edit it by hand.
   # `./le repo feature-tags check` rejects drift. See ai/rules/plugins.md.
   build-tags:

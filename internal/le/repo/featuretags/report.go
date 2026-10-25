@@ -30,13 +30,13 @@ func (r CheckReport) Text() string {
 	}
 
 	for _, file := range r.Stale {
-		tb.Str(file).Str(" is stale; run ./le repo feature-tags write\n")
+		tb.Str(file).Str(" is stale; run ./le repo feature-tags update\n")
 	}
 
 	return tb.String()
 }
 
-// WriteReport is what `le repo feature-tags write` answers: every derived file whose
+// WriteReport is what `le repo feature-tags update` answers: every derived file whose
 // bytes this run changed.
 type WriteReport struct {
 	// Updated names every file this run rewrote, relative to the tree. A file

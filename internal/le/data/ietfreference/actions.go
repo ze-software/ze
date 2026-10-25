@@ -23,7 +23,7 @@ const area = "data ietf-reference"
 
 var actions = leaction.New(area,
 	leaction.Action{
-		Verb:    "write",
+		Verb:    "update",
 		Summary: "download the IETF texts the reference tree holds",
 		Why: "read the IETF datatracker for every working group under reference/ietf/, download the texts the tree" +
 			" holds and lacks, and rewrite reference/ietf/INDEX.tsv. It reaches the network, never writes rfc/full" +

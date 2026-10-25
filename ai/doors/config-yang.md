@@ -60,7 +60,7 @@ A leaf rename breaks every saved config and every script that writes it.
   cannot apply exactly refuses at verify (`ai/rules/protocol.md`).
 - **Extend a container with `augment`, never with a second definition.** A
   redefinition replaces it (`DESIGN-HISTORY.md`, Configuration, invariant 334).
-- **The generated YANG glue is not hand-edited.** `./le yang glue write`
+- **The generated YANG glue is not hand-edited.** `./le yang glue update`
   regenerates each `yang/` package's `embed.go` and `register.go`.
 - **A tunable defaults to a YANG leaf, and env-only is the exception.** The leaf
   `description` names its env override (`ai/rules/config.md`).

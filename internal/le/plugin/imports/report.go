@@ -58,13 +58,13 @@ func (r CheckReport) Text() string {
 
 	if r.Stale != "" {
 		return tb.Str("./le plugin imports check: ").Str(r.Stale).Byte(' ').Str(r.Reason).
-			Str("; run ./le plugin imports write\n").String()
+			Str("; run ./le plugin imports update\n").String()
 	}
 
 	return tb.Str(allFile).Str(" is current (").Str(r.Counts.text()).Str(")\n").String()
 }
 
-// WriteReport is what `le plugin imports write` answers.
+// WriteReport is what `le plugin imports update` answers.
 type WriteReport struct {
 	Counts
 	// Written names every generated file whose bytes this run changed, relative

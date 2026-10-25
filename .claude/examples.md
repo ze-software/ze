@@ -61,4 +61,4 @@ Reference implementations for common patterns. Copy these when creating new inst
 | Pattern | Reference | Notes |
 |---------|-----------|-------|
 | Registry inventory | `internal/le/repo/inventory` | Registered `./le repo inventory` actions with structured answers |
-| Code generator | `internal/le/plugin/imports` | `./le plugin imports write` walks registrations and writes the composition root |
+| Code generator | `internal/le/plugin/imports` | `./le plugin imports update` walks registrations and writes the composition root |

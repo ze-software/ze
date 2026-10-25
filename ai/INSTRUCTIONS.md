@@ -1,4 +1,4 @@
-<!-- DO NOT EDIT GENERATED COPIES. Edit ai/INSTRUCTIONS.md and run: ./le ai sync write -->
+<!-- DO NOT EDIT GENERATED COPIES. Edit ai/INSTRUCTIONS.md and run: ./le ai sync update -->
 
 # Ze - Agent Instructions
 

@@ -24,7 +24,7 @@ var actions = leaction.New(area,
 		" A stale one leaves a gated package unlinted, unshipped, or unanalysed",
 		Answer: runCheckHere},
 	leaction.Action{
-		Verb:    "write",
+		Verb:    "update",
 		Summary: "rewrite the tag lists from feature-gates.txt",
 		Why:     "rewrite the four derived tag lists from feature-gates.txt",
 		Writes:  true,

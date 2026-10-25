@@ -23,7 +23,7 @@ const name = "verify status"
 // as they name, and the body reads every one with Values.
 var actions = leaction.New(name,
 	leaction.Action{
-		Verb:    "write",
+		Verb:    "record",
 		Summary: "record a verification verdict as the certificate",
 		Why:     "record the verdict of a verification run as this checkout's certificate",
 		Writes:  true,
@@ -31,7 +31,7 @@ var actions = leaction.New(name,
 			{Keyword: "exit-code", Kind: leaction.KindUint, Help: "the exit code the verification run answered", Value: "code", Requirement: leaction.Required},
 			{Keyword: "mode", Kind: leaction.KindString, Help: "the verification mode the verdict covers", Value: "name", Requirement: leaction.Optional},
 		},
-		AnswerArgs: write,
+		AnswerArgs: record,
 	},
 	leaction.Action{
 		Verb:    "check",
@@ -50,6 +50,7 @@ var actions = leaction.New(name,
 	},
 	leaction.Action{
 		Verb:    treeHashAction,
+		Does:    "report",
 		Summary: "print the hash of the tracked tree",
 		Why:     "print the hash of the tracked tree as it stands now",
 		Answer:  treeHash,
@@ -60,7 +61,7 @@ var actions = leaction.New(name,
 // second spelling of it drifts in silence.
 const treeHashAction = "tree-hash"
 
-// defaultMode is the mode a write records when the caller names none. It is
+// defaultMode is the mode record writes when the caller names none. It is
 // what this command has written since it replaced verify-status.sh.
 const defaultMode = "ze-verify"
 
@@ -95,12 +96,12 @@ func treeRoot() (string, int) {
 	return root, 0
 }
 
-// write records the verdict of one verification run. exit-code is declared
+// record records the verdict of one verification run. exit-code is declared
 // Required and refused here, because the table PUBLISHES requiredness and each
 // action's own body enforces it.
-func write(args leaction.Arguments) (any, int) {
+func record(args leaction.Arguments) (any, int) {
 	if !args.Has("exit-code") {
-		refuse("write requires exit-code <code>")
+		refuse("record requires exit-code <code>")
 		return nil, 2
 	}
 	exit, err := strconv.Atoi(args.One("exit-code"))

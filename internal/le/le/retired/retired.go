@@ -102,8 +102,8 @@ var renames = []Rename{
 	{Retired: "docs-to-code", Command: "doc index"},
 	{Retired: "docs-to-code", RetiredAction: "check", Command: "doc index", Action: "check"},
 	{Retired: "docs-to-code", RetiredAction: "index-check", Command: "doc index", Action: "check"},
-	{Retired: "docs-to-code", RetiredAction: "update", Command: "doc index", Action: "write"},
-	{Retired: "docs-to-code", RetiredAction: "index-update", Command: "doc index", Action: "write"},
+	{Retired: "docs-to-code", RetiredAction: "update", Command: "doc index", Action: "update"},
+	{Retired: "docs-to-code", RetiredAction: "index-update", Command: "doc index", Action: "update"},
 	{Retired: "docvalid", Command: "doc yang-contract"},
 	{Retired: "consistency", Command: "doc consistency"},
 	{Retired: "ste", Command: "doc ste"},
@@ -111,7 +111,7 @@ var renames = []Rename{
 	{Retired: "web-assets", Command: "web assets"},
 	{Retired: "vendor-web", Command: "web vendor"},
 	{Retired: "htmx-upgrade", Command: "web htmx"},
-	{Retired: "ai", RetiredAction: "skills-sync", Command: "ai sync", Action: "write"},
+	{Retired: "ai", RetiredAction: "skills-sync", Command: "ai sync", Action: "update"},
 	{Retired: "ai", RetiredAction: "sync-check", Command: "ai sync", Action: "check"},
 	{Retired: "ai", RetiredAction: "sync-preview", Command: "ai sync", Action: "preview"},
 	{Retired: "rules", Command: "ai rules"},
@@ -159,6 +159,21 @@ var renames = []Rename{
 	{Retired: "build-artifacts", RetiredAction: "installer-arm64", Command: "build installer", Action: "arm64"},
 	{Retired: "gokrazy-gosum", Command: "build gosum"},
 	{Retired: "iana-asn", Command: "data asn-delegation"},
+	// Phase 4: `update` regenerates a committed artifact from its source, and
+	// `write` left the vocabulary (owner ruling); a verdict is recorded; a
+	// rebase is not a regeneration.
+	{Retired: "ai sync write", Command: "ai sync", Action: "update"},
+	{Retired: "data asn-delegation write", Command: "data asn-delegation", Action: "update"},
+	{Retired: "data ietf-reference write", Command: "data ietf-reference", Action: "update"},
+	{Retired: "data ip-special-purpose write", Command: "data ip-special-purpose", Action: "update"},
+	{Retired: "doc index write", Command: "doc index", Action: "update"},
+	{Retired: "plugin gated-table write", Command: "plugin gated-table", Action: "update"},
+	{Retired: "plugin imports write", Command: "plugin imports", Action: "update"},
+	{Retired: "repo feature-tags write", Command: "repo feature-tags", Action: "update"},
+	{Retired: "web assets write", Command: "web assets", Action: "update"},
+	{Retired: "yang glue write", Command: "yang glue", Action: "update"},
+	{Retired: "verify status write", Command: "verify status", Action: "record"},
+	{Retired: "worktree update", Command: "worktree", Action: "rebase"},
 }
 
 // Renames answers a copy of the command half of the rename map, in

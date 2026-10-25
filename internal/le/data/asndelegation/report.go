@@ -8,7 +8,7 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// WriteReport is what `le data asn-delegation write` answers: the delegation table file it
+// WriteReport is what `le data asn-delegation update` answers: the delegation table file it
 // rewrote, and the two numbers that say what went into it.
 //
 // The numbers are published rather than implied. Records is what the five

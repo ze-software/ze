@@ -12,7 +12,7 @@ import (
 // VALIDATES: The three verbs reach the checkout that the environment names.
 // Each verb answers the exit code that its caller reads. Every unreadable or
 // unwritable path is an error rather than a silent partial sync.
-// PREVENTS: A swap from pointing `./le ai sync write` and the session hook at
+// PREVENTS: A swap from pointing `./le ai sync update` and the session hook at
 // a command whose verbs answer the wrong codes. It also prevents a copy failure
 // from reporting success.
 
@@ -42,7 +42,7 @@ func TestTheSyncVerbWritesTheCheckoutTheEnvironmentNames(t *testing.T) {
 	root := fixture(t)
 	useCheckout(t, root)
 
-	payload, code := Answer([]string{"write"})
+	payload, code := Answer([]string{"update"})
 	if code != 0 {
 		t.Fatalf("the sync verb exited %d", code)
 	}
@@ -62,7 +62,7 @@ func TestTheCheckVerbAnswersZeroForAFreshTreeAndOneForAStaleOne(t *testing.T) {
 	root := fixture(t)
 	useCheckout(t, root)
 
-	if _, code := Answer([]string{"write"}); code != 0 {
+	if _, code := Answer([]string{"update"}); code != 0 {
 		t.Fatalf("the sync verb exited %d", code)
 	}
 	if _, code := Answer([]string{"check"}); code != 0 {
@@ -97,7 +97,7 @@ func TestThePreviewVerbWritesNothing(t *testing.T) {
 func TestEveryVerbRefusesACheckoutWithNoSource(t *testing.T) {
 	useCheckout(t, t.TempDir())
 
-	for _, verb := range []string{"write", "check", "preview"} {
+	for _, verb := range []string{"update", "check", "preview"} {
 		if payload, code := Answer([]string{verb}); code == 0 {
 			t.Errorf("%q answered code 0 with payload %v over a tree holding no source", verb, payload)
 		}

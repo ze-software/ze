@@ -446,7 +446,7 @@ func (rr *routeReflector) sendPeerDown(source netip.Addr, byGroup map[withdrawal
 		for i := 0; i < len(prefixes); i += withdrawalBatchSize {
 			end := min(i+withdrawalBatchSize, len(prefixes))
 			if !group.wireForm {
-				rr.recoverRouteSel(excludeSel, nlriDelCmd(group.family.String(), textbuf.Join(prefixes[i:end], ",")), recoverySource)
+				rr.recoverRouteSel(excludeSel, nlriDelCmd(group.family.String(), prefixes[i:end]), recoverySource)
 				continue
 			}
 			// RFC 8277 Section 2.4: "When using an MP_UNREACH_NLRI
@@ -788,7 +788,13 @@ func (rr *routeReflector) signalSessionReady(peerAddr string, gen, initialReplay
 	}
 }
 
-func nlriDelCmd(fam, prefixes string) string {
+// nlriDelCmd is one text withdrawal of prefixes, each a complete NLRI
+// spelling ("prefix 10.0.0.0/24", or a labeled or VPN form with its
+// keywords). Each one takes its own del keyword, the form bgp-rs sends. A
+// comma-joined list ("del prefix 10.0.0.0/24,prefix 10.0.1.0/24") is read as
+// the one prefix "10.0.0.0/24,prefix", so the engine refused every departure
+// of more than one route and the client kept them all.
+func nlriDelCmd(fam string, prefixes []string) string {
 	var b textbuf.Buffer
 	// RFC 4271 Section 4.3: IPv4 unicast is withdrawn in the Withdrawn Routes
 	// field, ze's `nlri` section; every other family in MP_UNREACH_NLRI (`mp`).
@@ -798,7 +804,10 @@ func nlriDelCmd(fam, prefixes string) string {
 	} else {
 		b.Str(" mp ").Str(fam)
 	}
-	return b.Str(" del ").Str(prefixes).String()
+	for _, prefix := range prefixes {
+		b.Str(" del ").Str(prefix)
+	}
+	return b.String()
 }
 
 func rrEORCmd(fam string) string {

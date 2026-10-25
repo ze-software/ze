@@ -55,11 +55,11 @@ type generationAction struct {
 }
 
 var generationActions = []generationAction{
-	{area: "plugin imports", verb: verbWrite, answer: pluginimports.Answer},
-	{area: "plugin gated-table", verb: verbWrite, answer: gatedtable.Answer},
-	{area: "yang glue", verb: verbWrite, answer: yangglue.Answer},
-	{area: "feature-tags", verb: verbWrite, answer: repofeaturetags.Answer},
-	{area: "web assets", verb: verbWrite, answer: webassets.Answer},
+	{area: "plugin imports", verb: verbUpdate, answer: pluginimports.Answer},
+	{area: "plugin gated-table", verb: verbUpdate, answer: gatedtable.Answer},
+	{area: "yang glue", verb: verbUpdate, answer: yangglue.Answer},
+	{area: "feature-tags", verb: verbUpdate, answer: repofeaturetags.Answer},
+	{area: "web assets", verb: verbUpdate, answer: webassets.Answer},
 	{area: "web vendor", verb: "sync", answer: webvendor.Answer},
 	{area: areaRules, verb: "render-update", answer: airules.Answer},
 	{area: areaRules, verb: "condensed-update", answer: airules.Answer},
@@ -67,10 +67,10 @@ var generationActions = []generationAction{
 	{area: "rfc", verb: verbIndexUpdate, answer: rfc.Answer},
 	{area: "arch-map", verb: verbUpdate, answer: repoarchmap.Answer},
 	{area: "discovery-index", verb: verbUpdate, answer: repopackagemap.Answer},
-	{area: areaDocIndex, verb: verbWrite, answer: docindex.Answer},
+	{area: areaDocIndex, verb: verbUpdate, answer: docindex.Answer},
 	{area: "test health", verb: verbUpdate, answer: testhealth.Answer},
 	{area: "site facts", verb: verbUpdate, answer: sitefacts.Answer},
-	{area: "ai sync", verb: verbWrite, answer: aisync.Answer},
+	{area: "ai sync", verb: verbUpdate, answer: aisync.Answer},
 }
 
 var generationChecks = []generationAction{
@@ -94,7 +94,7 @@ var generationChecks = []generationAction{
 }
 
 func runGenerate() (any, int) {
-	return runGeneration(verbWrite, generationActions)
+	return runGeneration(verbUpdate, generationActions)
 }
 
 func runGeneratedCheck() (any, int) {
@@ -117,7 +117,6 @@ func runGeneration(mode string, actions []generationAction) (any, int) {
 // The generator verbs and the two areas that carry more than one of them.
 const (
 	verbCheck       = "check"
-	verbWrite       = "write"
 	verbUpdate      = "update"
 	verbIndexUpdate = "index-update"
 	areaRules       = "ai rules"

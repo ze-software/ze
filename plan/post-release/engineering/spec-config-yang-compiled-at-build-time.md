@@ -78,7 +78,7 @@ Symptoms this removes:
 - [ ] `internal/component/plugin/registry/registry.go` - `Registration.YANG string`; 98 non-test sites set it from a generated `<Var>YANG` text variable
 - [ ] `internal/component/config/schema/cli/main.go` - `ze schema`: `loadAPIRPCs` builds a loader; `registerInternalYANG` calls `ParseYANGMetadata(text)` (a goyang parse); `ze schema show` prints the module text
 - [ ] `internal/exabgp/migration/schema.go` - `exaBGPSchema` embeds `exabgp.yang` outside any `yang/` package and resolves it at runtime; answers nil on error
-- [ ] `internal/le/yang/glue/*.go` - `./le yang glue write|check` derives `embed.go` and `register.go` (blank imports from YANG `import`/`include`, `imports.go`) for every `yang/` package; `check` is the "yang glue" stage in `internal/le/verify/engine/stages.go` and a row of `generationActions` and `generationChecks` in `internal/le/repo/generate.go`
+- [ ] `internal/le/yang/glue/*.go` - `./le yang glue update|check` derives `embed.go` and `register.go` (blank imports from YANG `import`/`include`, `imports.go`) for every `yang/` package; `check` is the "yang glue" stage in `internal/le/verify/engine/stages.go` and a row of `generationActions` and `generationChecks` in `internal/le/repo/generate.go`
 - [ ] goyang, upstream with the patches under `internal/le/vendorpatch/patches/goyang-*.patch` applied to `vendor/` (no fork), `pkg/yang/entry.go`, `types.go`, `types_builtin.go` - `Entry`, `YangType`, `EnumType`, `Statement` shapes
 
 **Runtime functions that build a loader today (non-test):**
@@ -136,7 +136,7 @@ that goal reachable; `plan/post-release/features/spec-plugin-external-yang-at-st
 
 **Behavior to change:**
 - No runtime parse or resolve of a compiled-in module. The compiler stays in `ze`, because external plugin YANG will be compiled at startup (owner goal of 2026-10-16, below), but a start with no external plugin calls it zero times.
-- Schema defects fail `go generate` / `./le yang glue write` and the verify stage, never a daemon start.
+- Schema defects fail `go generate` / `./le yang glue update` and the verify stage, never a daemon start.
 - The three caches and every per-caller loader disappear; one linked schema value serves every reader.
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
@@ -146,7 +146,7 @@ that goal reachable; `plan/post-release/features/spec-plugin-external-yang-at-st
 - Run time: Go package init of each linked `yang/` package.
 
 ### Transformation Path
-1. Generation (`go:generate` directive, or `./le yang glue write`): discover every module in the tree; parse and resolve every module with goyang through the compiler package; run every Ze check; for each module emit the module's OWN resolved data tree (uses, groupings, typedefs expanded against its import closure), its RPCs and notifications, and each `augment` as a graft record (target path with prefixes resolved to module names, plus the subtree to graft). Emit `compiled.go` and `register.go` beside the `.yang`.
+1. Generation (`go:generate` directive, or `./le yang glue update`): discover every module in the tree; parse and resolve every module with goyang through the compiler package; run every Ze check; for each module emit the module's OWN resolved data tree (uses, groupings, typedefs expanded against its import closure), its RPCs and notifications, and each `augment` as a graft record (target path with prefixes resolved to module names, plus the subtree to graft). Emit `compiled.go` and `register.go` beside the `.yang`.
 2. Whole-set check at generation: link every module in the tree at once (the full tag set). Every tag set is a subset of it and per-module output does not depend on the set, so a graft conflict or a missing target that any subset could meet is met here.
 3. Init: each generated `register.go` registers its compiled module with the schema registry. Registration sets the current linked schema to `Link(current, module)`. `Link` is non-mutating: it copies the spine (the path from the root to each graft target, depth at most 8) and attaches the module's augment records to the copies, so the generated literals are never written and a reader holding the previous value keeps a complete, consistent tree. The target package is initialized first because of the blank import. `Link` compiles the module's patterns once. A target that is absent or a pattern that does not compile is a Ze defect (generation proved both) and panics with `BUG`. The same `Link` adds external modules later (follow-on spec `plan/post-release/features/spec-plugin-external-yang-at-startup.md`).
 4. Read: every reader takes the one linked schema value (the successor of `Resolved`) and reads Ze-owned nodes: `config.Schema` build, `BuildCommandTree`, validator, completer, metadata, RPC extraction, aihelp, authz, iface, MCP and web metadata.
@@ -248,11 +248,11 @@ Ze-owned type (Effort).
 
 | Item | Decision |
 |------|----------|
-| Generator | `./le yang glue write` (extended), backed by a library that imports only the compiler and the glue code, never a package holding generated output |
+| Generator | `./le yang glue update` (extended), backed by a library that imports only the compiler and the glue code, never a package holding generated output |
 | `go:generate` directive | One directive in `internal/component/config/yang/generate.go`. It runs `go run github.com/ze-software/ze/internal/le/yang/glue/gen`, a module path, because `go generate` runs in the package directory. The `main` finds the repository root from `go.mod`, the way `lepath.Root` does. It does not run `./le`: `le` links the generated output and the patched TLS, so a stale file would stop `le` from building (open question Q3) |
 | Core modules | `ze-extensions.yang` and `ze-types.yang` leave the `go:embed modules` in `loader.go` and move to their own package, `internal/component/config/yang/coreyang/`, which gets generated `compiled.go` and `register.go` like any `yang/` package. Every generated `register.go` blank-imports `coreyang` through the normal import derivation (glue `imports.go`), so the "embedded bootstrap module" special case is deleted. `internal/component/config/yang` (registry and compiled type, hand-written) and the compiler then hold no generated output |
 | `Registration.YANG` | The field changes from text to a pointer to the compiled module. Each generated `compiled.go` exports one variable per module, named after the module (`ZeDdosFlowspecConf` where the text variable was `ZeDdosFlowspecConfYANG`), whose `Source` field carries the text for display. The 98 sites change from the text variable to the module variable in C3. `registry.go` keeps the field. `YANGSchemas` and the schema CLI read name, namespace, imports and source from it, so `ParseYANGMetadata` is deleted. With Q1 = delete, `CollectPluginYANG` is deleted; `GetInternalPluginYANG` and `GetAllInternalPluginYANG` stay as display lookups for `ze schema`, returning the compiled module |
-| Output per module package | `compiled.go` (header "Code generated by ./le yang glue write; DO NOT EDIT.") and `register.go`; `embed.go` deleted |
+| Output per module package | `compiled.go` (header "Code generated by ./le yang glue update; DO NOT EDIT.") and `register.go`; `embed.go` deleted |
 | Freshness | `./le yang glue check` regenerates in memory and compares bytes for every generated file; the existing verify stage and the `./le repo generate` check run it |
 | Compiler location | `internal/component/config/yang/compiler` (today's Loader, Resolve and checks moved, unchanged in behavior). It takes YANG text as input (the generator reads files from disk) and imports only `internal/component/config/yang` for the compiled type, never `coreyang` or any `yang/` package. Importers: the generator, `internal/le` tools that read YANG text at a git revision, tests that compile fixture text, and (follow-on spec) `ze` startup compiling external plugin modules |
 | Compiler at runtime | The compiler stays linked into `ze`. Today it is reached only through `ze schema`, `le` and tests; the follow-on spec (External plugin schema) calls it at startup for external modules. The runtime proof that compiled-in modules are not parsed is a call counter on `compiler.Compile` asserted to be zero by `TestStartWithoutExternalPluginsCompilesNothing` (AC-7) |
@@ -313,7 +313,7 @@ today; AC-6 measures it.
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | `go generate ./internal/component/config/yang/` on a clean tree | Writes `compiled.go` and `register.go` beside every `yang/` module and in `internal/exabgp/migration/yang/`; a second run changes no byte; output equals `./le yang glue write` |
+| AC-1 | `go generate ./internal/component/config/yang/` on a clean tree | Writes `compiled.go` and `register.go` beside every `yang/` module and in `internal/exabgp/migration/yang/`; a second run changes no byte; output equals `./le yang glue update` |
 | AC-2 | A fixture module with an undeclared `ze:comand` extension | Generation exits non-zero and prints the `ErrUndeclaredExtension` text naming module, file and line; writes no file |
 | AC-3 | Fixture modules each carrying one of: uncompilable pattern, descending `length`, duplicate enum value, restricted enum the base lacks, bad extension substatement, unresolved import, invalid typedef default, default naming an `if-feature` enum, absent augment target, `deviation` | Each refused at generation with today's sentinel and location; the set-dependent ones with the new refusal naming the reason |
 | AC-4 | A `.yang` edited, generation not rerun | `./le yang glue check` exits non-zero and names each stale generated file |

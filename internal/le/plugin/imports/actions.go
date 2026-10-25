@@ -27,7 +27,7 @@ var actions = leaction.New(area,
 		" holds. A stale one is a feature that vanishes with no build error",
 		Answer: runCheckHere},
 	leaction.Action{
-		Verb:    "write",
+		Verb:    "update",
 		Summary: "regenerate the composition root and gated imports",
 		Why:     "regenerate the composition root and every feature-gated import group",
 		Writes:  true,

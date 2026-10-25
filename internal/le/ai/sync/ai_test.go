@@ -313,7 +313,7 @@ func TestEveryVerbOfTheAreaIsReachable(t *testing.T) {
 	if len(list.Actions) != 3 {
 		t.Fatalf("%d actions, want exactly 3: %v", len(list.Actions), list.Actions)
 	}
-	want := map[string]bool{"write": false, "check": false, "preview": false}
+	want := map[string]bool{"update": false, "check": false, "preview": false}
 	for _, row := range list.Actions {
 		if _, known := want[row.Verb]; !known {
 			t.Errorf("unexpected verb %q", row.Verb)

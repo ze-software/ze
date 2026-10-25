@@ -231,7 +231,7 @@ func TestBothReportsRenderNativeWording(t *testing.T) {
 	}
 
 	stale := CheckReport{Stale: []string{".golangci.yml"}}
-	if got := stale.Text(); got != ".golangci.yml is stale; run ./le repo feature-tags write\n" {
+	if got := stale.Text(); got != ".golangci.yml is stale; run ./le repo feature-tags update\n" {
 		t.Errorf("a stale check renders %q", got)
 	}
 

@@ -12,7 +12,7 @@ Records taken under `flock scratch/children/ledger-<stem>.lock`.
 ## Results
 - go test -race: attribute, plugins/mrt, wireu ok (job r34-race-attr). reactor + rib: see job r34-race-big (appended below when done).
 - ./le rfc check (log children/bgp/r34-rfccheck.log), my stems: STALE verdict lines for RFC8092-3-2, RFC8950-3-2, RFC6396-4.3.4-1 (expected, judge re-stamps); SHIFTED for RFC6396-4.2-2 and 4.3.1-3 (dump_test.go lines moved by the prose edit; judge runs ./le rfc reseal). No record refusal, no other line.
-- Owed by main thread: ./le doc index write (new file rfc8092_large_community.go carries a Design: header and docs <!-- source --> anchors); golangci-lint result see job r34-lint.
+- Owed by main thread: ./le doc index update (new file rfc8092_large_community.go carries a Design: header and docs <!-- source --> anchors); golangci-lint result see job r34-lint.
 
 ## Files changed (RFC6396-4.3.4-1)
 - internal/component/bgp/plugins/rib/rfc6396_mrt_aspath_test.go (new)

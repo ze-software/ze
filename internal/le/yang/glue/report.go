@@ -46,12 +46,12 @@ func (r CheckReport) Text() string {
 	for _, file := range r.Stale {
 		tb.Str("stale: ").Str(file).Byte('\n')
 	}
-	tb.Str("./le yang glue check: ").Int(int64(len(r.Stale))).Str(" generated files are stale; run ./le yang glue write\n")
+	tb.Str("./le yang glue check: ").Int(int64(len(r.Stale))).Str(" generated files are stale; run ./le yang glue update\n")
 
 	return tb.String()
 }
 
-// WriteReport is what `le yang glue write` answers: how many schema packages
+// WriteReport is what `le yang glue update` answers: how many schema packages
 // were read, and every generated file whose bytes changed.
 type WriteReport struct {
 	// Dirs is how many yang/ directories the walk read.
@@ -66,8 +66,8 @@ func (r WriteReport) Text() string {
 	var tb textbuf.Buffer
 
 	if r.Dirs == 0 {
-		return "./le yang glue write: no yang/ directories with .yang files found\n"
+		return "./le yang glue update: no yang/ directories with .yang files found\n"
 	}
 
-	return tb.Str("./le yang glue write: generated glue for ").Int(int64(r.Dirs)).Str(" yang/ directories\n").String()
+	return tb.Str("./le yang glue update: generated glue for ").Int(int64(r.Dirs)).Str(" yang/ directories\n").String()
 }

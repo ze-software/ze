@@ -4,6 +4,7 @@
 package reactor
 
 import (
+	"bytes"
 	"net/netip"
 	"testing"
 
@@ -13,7 +14,9 @@ import (
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
+	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/selector"
 )
 
@@ -181,4 +184,266 @@ func owedRailInitialReplay(t *testing.T, rail *owedRail, message uint64) {
 	api := &reactorAPIAdapter{r: rail.r}
 	sel := selector.ParseDefault(rail.destination.Settings().Address.String())
 	require.NoError(t, api.AnnounceNLRIBatch(t.Context(), sel, batch, plugin.OperatorSender()))
+}
+
+// owedRailEpoch reads the epoch of the rail's only owed record.
+func owedRailEpoch(t *testing.T, rail *owedRail) uint64 {
+	t.Helper()
+	table := &rail.destination.adjOut
+	table.mu.Lock()
+	defer table.mu.Unlock()
+	require.Len(t, table.owed, 1)
+	for _, record := range table.owed {
+		return record.epoch
+	}
+	return 0
+}
+
+// TestOwedKeyCurrentAnnouncerNotExcluded proves AC-18 under Q-3. Method: the
+// source A's route for P is installed at C, then A's session moves on and
+// A's departure and A's re-announcement on its current session reach C's
+// writer, in both orders, while a round is held. The epoch moves when the
+// excluded A enters the current-announcer set, the held answer is refused,
+// and the next round does not exclude A. After the announcing session in
+// turn departs, the round excludes A again.
+//
+// VALIDATES: adjOutOwed.electableExcluded, noteAnnouncer's epoch move.
+// PREVENTS: a departure of A's old session hiding A's live route from the
+// election, so C is given another source's worse route or a withdrawal.
+func TestOwedKeyCurrentAnnouncerNotExcluded(t *testing.T) {
+	p := []byte{24, 192, 0, 2}
+	for _, departureFirst := range []bool{true, false} {
+		name := "reannouncement-then-departure"
+		if departureFirst {
+			name = "departure-then-reannouncement"
+		}
+		t.Run(name, func(t *testing.T) {
+			rail := newOwedRail(t)
+			other := adjOutTestOtherSource(rail.r, rail.source)
+			attachRecoveryOwner(t, rail.r, rail.source, other)
+			address := rail.source.Settings().Address
+			adjOutTestForward(t, rail.destination, rail.source, p, 11)
+			rail.source.forwardGeneration.Add(1) // A's first session ended; A is up again.
+			var departures []chan error
+			if departureFirst {
+				departures = append(departures, rail.departure(t, address, "192.0.2.0/24"))
+				require.Equal(t, []netip.Addr{address}, rail.request(t).Keys[0].Excluded,
+					"the departed session's source is excluded")
+				epoch := owedRailEpoch(t, rail)
+				adjOutTestForward(t, rail.destination, rail.source, p, 12)
+				require.NotEqual(t, epoch, owedRailEpoch(t, rail),
+					"an excluded source entering the current-announcer set moves the epoch")
+			} else {
+				adjOutTestForward(t, rail.destination, other, p, 21)
+				rail.request(t)
+				adjOutTestForward(t, rail.destination, rail.source, p, 12)
+				epoch := owedRailEpoch(t, rail)
+				departures = append(departures, rail.departure(t, address, "192.0.2.0/24"))
+				lowEventually(t, func() bool { return owedRailEpoch(t, rail) != epoch }, "the departure merges")
+			}
+			written := len(recoveryWrittenUpdates(t, rail.conn.written()))
+			rail.release <- nil // The held round answered a stale question.
+			require.Empty(t, rail.request(t).Keys[0].Excluded,
+				"A's announcing session is current, so A is electable")
+			require.Len(t, recoveryWrittenUpdates(t, rail.conn.written()), written,
+				"an admission for a stale epoch writes nothing")
+
+			rail.source.forwardGeneration.Add(1) // The announcing session departs.
+			departures = append(departures, rail.departure(t, address, "192.0.2.0/24"))
+			epoch := owedRailEpoch(t, rail)
+			lowEventually(t, func() bool { return owedRailEpoch(t, rail) != epoch }, "the second departure merges")
+			rail.release <- nil
+			require.Equal(t, []netip.Addr{address}, rail.request(t).Keys[0].Excluded,
+				"once its announcing session departs, A is excluded again")
+			rail.release <- nil
+			for _, done := range departures {
+				require.NoError(t, departureResult(t, done))
+			}
+			require.Empty(t, rail.owed())
+		})
+	}
+}
+
+// TestOwedKeyAnnounceMoverWritesAndReowes proves AC-26 and the R-9
+// announcement half. Method: A's route for P is installed at C, B's
+// announcement owes P and the round is held, then an ANNOUNCE mover reaches
+// C's writer before the RIB answers. Whatever the answer (the mover's own
+// source elected, another source elected, the route C holds elected, or
+// WITHDRAW), the admission's write happens or is decided, the record stays
+// with its epoch moved, and the next round starts with no further UPDATE.
+//
+// VALIDATES: recoveryAdmission.settle's RE-OWED BY A MOVER branch.
+// PREVENTS: a newer, better route lost because the round that raced it
+// removed the record (round 11, B-2).
+func TestOwedKeyAnnounceMoverWritesAndReowes(t *testing.T) {
+	p := []byte{24, 192, 0, 2}
+	cases := []struct {
+		name   string
+		mover  bool // true: the mover is A, false: B.
+		answer func(a, b netip.Addr) owedAnswer
+		writes int
+	}{
+		{name: "non-chosen-mover-written-reowed", mover: true,
+			answer: func(_, b netip.Addr) owedAnswer { return owedSurvivorMessage(b, p, 21) }, writes: 1},
+		{name: "chosen-mover-written-reowed", mover: true,
+			answer: func(a, _ netip.Addr) owedAnswer { return owedSurvivorMessage(a, p, 13) }, writes: 1},
+		{name: "held-choice-nothing-written-reowed", mover: false,
+			answer: func(a, _ netip.Addr) owedAnswer { return owedSurvivorMessage(a, p, 11) }, writes: 0},
+		{name: "withdraw-answer-written-reowed", mover: false,
+			answer: func(_, _ netip.Addr) owedAnswer { return nil }, writes: 1},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			rail := newOwedRail(t)
+			other := adjOutTestOtherSource(rail.r, rail.source)
+			attachRecoveryOwner(t, rail.r, rail.source, other)
+			adjOutTestForward(t, rail.destination, rail.source, p, 11)
+			adjOutTestForward(t, rail.destination, other, p, 21)
+			rail.request(t) // The round is held.
+			if tc.mover {
+				adjOutTestForward(t, rail.destination, rail.source, p, 13)
+			} else {
+				adjOutTestForward(t, rail.destination, other, p, 22)
+			}
+			epoch := owedRailEpoch(t, rail)
+			before := len(recoveryWrittenUpdates(t, rail.conn.written()))
+			rail.release <- tc.answer(rail.source.Settings().Address, other.Settings().Address)
+			// No UPDATE reaches the writer from here: the next round is the
+			// mover's own re-owe.
+			request := rail.request(t)
+			require.Equal(t, p, request.Keys[0].NLRI)
+			require.Len(t, recoveryWrittenUpdates(t, rail.conn.written()), before+tc.writes)
+			require.NotEqual(t, epoch, owedRailEpoch(t, rail), "RE-OWED moves the epoch and keeps the record")
+			rail.release <- nil
+			lowEventually(t, func() bool { return len(rail.owed()) == 0 }, "the next round decided P")
+		})
+	}
+}
+
+// TestOwnerWithdrawalOwedWhileCandidateInFlight proves round 12, I-1 at C's
+// writer. Method: C holds A's uncontested route for P with a recovery owner
+// registered. A second candidate is in the RIB but its forward has not
+// reached C: held back (in flight) or never coming (dropped on a generation
+// move while GR keeps the path). A's owner withdrawal, or a lifecycle
+// removal, is owed; the round elects the candidate and C's wire carries it
+// and no withdrawal of P. An in-flight forward released later meets the
+// elected entry, whose bit is set, is owed, and the next round writes
+// nothing.
+//
+// VALIDATES: owesWithdrawal owes every source-owned removal, contested or
+// not, while a recovery owner is registered.
+// PREVENTS: a bare withdrawal first, losing the route C needs (red against
+// round 11's bit-clear owner withdrawal written bare).
+func TestOwnerWithdrawalOwedWhileCandidateInFlight(t *testing.T) {
+	p := []byte{24, 192, 0, 2}
+	for _, inFlight := range []bool{true, false} {
+		for _, lifecycle := range []bool{false, true} {
+			name := "dropped-on-generation-move"
+			if inFlight {
+				name = "in-flight"
+			}
+			if lifecycle {
+				name += "-lifecycle-removal"
+			}
+			t.Run(name, func(t *testing.T) {
+				rail := newOwedRail(t)
+				other := adjOutTestOtherSource(rail.r, rail.source)
+				attachRecoveryOwner(t, rail.r, rail.source, other)
+				adjOutTestForward(t, rail.destination, rail.source, p, 11)
+				if !inFlight {
+					other.forwardGeneration.Add(1) // X restarted: its queued forward was dropped.
+				}
+				if lifecycle {
+					owedRailExpected(t, rail.destination, ownershipRailBody(family.IPv4Unicast, true, p, 0), rail.revision(t))
+				} else {
+					rail.forward(t, true, p)
+				}
+				require.Len(t, recoveryWrittenUpdates(t, rail.conn.written()), 1, "the removal is owed, never bare")
+				rail.request(t)
+				rail.release <- owedSurvivorMessage(other.Settings().Address, p, 21)
+				lowEventually(t, func() bool { return len(rail.owed()) == 0 }, "the round elected the candidate")
+				if inFlight {
+					adjOutTestForward(t, rail.destination, other, p, 21) // The held forward arrives.
+					rail.request(t)
+					rail.release <- owedSurvivorMessage(other.Settings().Address, p, 21)
+					lowEventually(t, func() bool { return len(rail.owed()) == 0 }, "the late forward's round decided P")
+				}
+				written := recoveryWrittenUpdates(t, rail.conn.written())
+				require.Len(t, written, 2, "C's wire: A's route, then the candidate's, once")
+				require.Equal(t, p, written[1].NLRI)
+				for _, update := range written {
+					require.Empty(t, update.WithdrawnRoutes, "C's wire carries no withdrawal of P")
+				}
+				entry, _ := adjOutTestEntry(rail.destination)
+				require.Same(t, other, entry.owner.source)
+			})
+		}
+	}
+}
+
+// owedFramingThreeLabels is ownershipRailNative's announcement of fam with a
+// three-label stack, the bottom label's S bit set.
+func owedFramingThreeLabels(fam family.Family) []byte {
+	one := ownershipRailNative(fam, 0, 1, false, 0)[4:]
+	out := []byte{one[0] + 48, 0, 0x10, 0, 0, 0x20, 0}
+	return append(out, one[1:]...) // The original label, S set, then RD and prefix.
+}
+
+// TestOwedKeyAnnouncementWithdrawFraming proves round 11, I-6 and AC-22 (g).
+// Method: at C, a labelled route of the source with a THREE-label stack is
+// installed, then another source's announcement of the same route owes the
+// key. The record holds the withdrawal framing: the request names the
+// announced route, and the RIB's WITHDRAW answer reaches C's wire as an
+// MP_UNREACH_NLRI whose NLRI is exactly length, Compatibility 0x800000, RD
+// (SAFI 128) and prefix, with none of the three labels. For IPv4 unicast
+// the record's copy equals the announced NLRI.
+//
+// VALIDATES: stageAnnouncementOwe's conversion through
+// nlrisplit.WithdrawalNLRIFromKey, for SAFI 4 and SAFI 128.
+// PREVENTS: a WITHDRAW answer copying an announcement's label stack into
+// MP_UNREACH_NLRI, which FRR rejects with a session reset.
+func TestOwedKeyAnnouncementWithdrawFraming(t *testing.T) {
+	for _, fam := range []family.Family{
+		{AFI: family.AFIIPv4, SAFI: family.SAFIMPLSLabel},
+		{AFI: family.AFIIPv4, SAFI: family.SAFIVPN},
+		family.IPv4Unicast,
+	} {
+		t.Run(fam.String(), func(t *testing.T) {
+			rail := newOwedRail(t)
+			other := adjOutTestOtherSource(rail.r, rail.source)
+			attachRecoveryOwner(t, rail.r, rail.source, other)
+			rail.destination.negotiated.Load().families[fam] = true
+			announce := ownershipRailNative(fam, 0, 1, false, 0)[4:]
+			withdraw := announce
+			if fam.SAFI != family.SAFIUnicast {
+				announce = owedFramingThreeLabels(fam)
+				withdraw = ownershipRailNative(fam, 0, 1, true, 0x80)[4:]
+			}
+			require.NoError(t, ownershipWriterForward(t, rail.destination, rail.source, ownershipRailBody(fam, false, announce, 0), false))
+			require.NoError(t, ownershipWriterForward(t, rail.destination, other, ownershipRailBody(fam, false, announce, 0), false))
+			require.Len(t, recoveryWrittenUpdates(t, rail.conn.written()), 1, "the second source's route is owed")
+
+			request := rail.request(t)
+			require.Len(t, request.Keys, 1)
+			var askedScratch, announcedScratch [nlrisplit.PrefixKeyScratchSize]byte
+			asked, err := nlrisplit.GetPrefixKey(fam)(request.Keys[0].NLRI, askedScratch[:], false)
+			require.NoError(t, err, "the RIB reads the request's NLRI as an announcement")
+			announced, err := nlrisplit.GetPrefixKey(fam)(announce, announcedScratch[:], false)
+			require.NoError(t, err)
+			require.Equal(t, announced, asked, "the request names the announced route")
+			rail.release <- nil
+
+			lowEventually(t, func() bool {
+				return len(recoveryWrittenUpdates(t, rail.conn.written())) == 2
+			}, "the RIB's WITHDRAW decision is written")
+			update := recoveryWrittenUpdates(t, rail.conn.written())[1]
+			if fam == family.IPv4Unicast {
+				require.Equal(t, announce, update.WithdrawnRoutes, "a unicast record's copy is the announced NLRI")
+				return
+			}
+			require.True(t, bytes.Contains(update.PathAttributes, withdraw),
+				"MP_UNREACH_NLRI carries length, 0x800000, RD and prefix")
+			require.False(t, bytes.Contains(update.PathAttributes, announce[1:10]), "no label of the stack is withdrawn")
+		})
+	}
 }

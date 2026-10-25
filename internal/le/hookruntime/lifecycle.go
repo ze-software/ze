@@ -403,7 +403,7 @@ func buildDerivedArtifacts(deadline stdcontext.Context, state *sessionStart, rep
 func reportAgentFiles(_ stdcontext.Context, state *sessionStart, report *sessionStartReport) {
 	if mirror, err := (aisync.Mirror{Root: state.ctx.root}).Check(); err != nil || len(mirror.Stale) != 0 {
 		fmt.Fprintln(&report.out, "Warning: generated agent files are stale (AGENTS.md / a leftover CLAUDE.md / skills mirrors)") //nolint:errcheck // hook protocol
-		fmt.Fprintln(&report.out, "   -> run: ./le ai sync write")                                                                //nolint:errcheck // hook protocol
+		fmt.Fprintln(&report.out, "   -> run: ./le ai sync update")                                                               //nolint:errcheck // hook protocol
 	}
 }
 

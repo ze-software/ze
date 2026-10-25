@@ -51,7 +51,7 @@ func TestGatedPluginTableMatchesManifest(t *testing.T) {
 		t.Fatal(err)
 	}
 	if report.Reason != "" {
-		t.Fatalf("%s %s: run ./le plugin gated-table write", report.File, report.Reason)
+		t.Fatalf("%s %s: run ./le plugin gated-table update", report.File, report.Reason)
 	}
 	if len(report.Rows) == 0 {
 		t.Fatal("the table holds no gated plugin, so the test binary linked no gated registration")

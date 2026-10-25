@@ -24,7 +24,7 @@ copy.
 
 ## Refreshing
 
-`./le data ietf-reference write` rewrites `ietf/INDEX.tsv` from the datatracker.
+`./le data ietf-reference update` rewrites `ietf/INDEX.tsv` from the datatracker.
 The subdirectories of `ietf/` are the working groups it reads, so tracking a
 new group is creating its directory. For each group it selects every RFC whose
 category is BCP or Informational and every active draft, and it downloads the

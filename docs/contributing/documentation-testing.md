@@ -383,7 +383,7 @@ looking for `ze:command` extensions. For each extension it checks
 `registry.CollectRPCHandlers()` for a matching method name.
 
 `./le doc index check` scans every Markdown source anchor under `docs/` and
-refuses a missing source path or symbol. `./le doc index write` regenerates
+refuses a missing source path or symbol. `./le doc index update` regenerates
 the two documentation indexes.
 
 One walk of `docs/` feeds the path and symbol checks. An anchor is

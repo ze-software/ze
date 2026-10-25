@@ -761,7 +761,7 @@ func TestCodeQLKeepsOnlyTheShippedLanguagePopulation(t *testing.T) {
 	if !slices.Equal(languages, want) {
 		t.Errorf("codeql.yml languages = %v, want %v", languages, want)
 	}
-	if !strings.Contains(source, "./le repo feature-tags write") {
+	if !strings.Contains(source, "./le repo feature-tags update") {
 		t.Error("CodeQL tag provenance must name the current native producer")
 	}
 }

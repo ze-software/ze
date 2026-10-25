@@ -42,10 +42,10 @@ func (r CheckReport) Text() string {
 	var tb textbuf.Buffer
 
 	return tb.Str("web_assets: ").Str(r.Stale).
-		Str(" is stale: it disagrees with the markup its package renders; run: ./le web assets write\n").String()
+		Str(" is stale: it disagrees with the markup its package renders; run: ./le web assets update\n").String()
 }
 
-// WriteReport is what `le web assets write` answers.
+// WriteReport is what `le web assets update` answers.
 type WriteReport struct {
 	// Derived names every generated file the run produced, sorted.
 	Derived []string `json:"derived"`

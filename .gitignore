@@ -103,7 +103,7 @@ coverage.html
 
 # Generated AI tool config (canonical sources: ai/skills/, ai/agents/,
 # ai/INSTRUCTIONS.md)
-# Regenerate with: ./le ai sync write
+# Regenerate with: ./le ai sync update
 #
 # Both names are ANCHORED to the repository root, because only the root pair is
 # generated. An unanchored name matches at every depth, and it took two files
@@ -174,7 +174,7 @@ gokrazy/docker-host/builddir/github.com/ze-software/ze/go.sum
 gokrazy/docker-host/extrafiles_*.tar
 
 # Derived documentation indexes, generated on demand and never committed.
-# `./le doc index write` writes them
+# `./le doc index update` writes them
 # from Go design headers and source anchors, and `./le repo package-map update`
 # writes the package map from the package doc comments.
 #

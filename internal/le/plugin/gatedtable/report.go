@@ -37,13 +37,13 @@ func (r CheckReport) Text() string {
 	if r.Reason != "" {
 		return tb.Str("./le plugin gated-table check: ").Str(r.File).Byte(' ').Str(r.Reason).
 			Str(": a build without a plugin would name the wrong build tag for it, or none.\n").
-			Str("Fix: ./le plugin gated-table write (or ./le repo generate)\n").String()
+			Str("Fix: ./le plugin gated-table update (or ./le repo generate)\n").String()
 	}
 
 	return tb.Str(r.File).Str(" is current (").Int(int64(len(r.Rows))).Str(" gated plugins)\n").String()
 }
 
-// WriteReport is what `le plugin gated-table write` answers.
+// WriteReport is what `le plugin gated-table update` answers.
 type WriteReport struct {
 	// File is the generated table, relative to the tree.
 	File string `json:"file"`

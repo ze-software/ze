@@ -256,7 +256,7 @@ Reach for one of these before inventing a new mechanism.
 |------|------------------|
 | Changed-file-aware wiring, doc, command, and inventory gate | `./le doc wiring` |
 | Documentation drift and YANG command contracts | `./le doc check verify` |
-| Source-to-document reverse index | `./le doc index write`; read `ai/CODE-TO-DOCS.md` |
+| Source-to-document reverse index | `./le doc index update`; read `ai/CODE-TO-DOCS.md` |
 | Which tests enforce an RFC MUST, and what the backlog is | `./le rfc index-update`. Read `rfc/requirements/<stem>.md` for one RFC, `ai/RFC-REQUIREMENTS.md` for the rollup over all of them. Coverage is gated by `./le rfc check`, freshness by `./le doc check verify`. Which of those tests is PROVEN to discriminate its claim is `./le rfc discriminate stem <stem>` |
 | What each package does | grep `ai/PACKAGE-MAP.md`, which is derived and rebuilt when a Bash command names it. `./le repo package-map update` writes it on demand |
 | Which `.go` files implement a design doc | read `ai/DOCS-TO-CODE.md`, the inverse of `// Design:` |
@@ -665,7 +665,7 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | VPP semantics, linux-cp, LCP, LCP netns, lcp_itf_pair_create, default netns, binapi, lcp.ba.go, foreign system semantics | `third_party/vpp-linux-cp/` -- vendored VPP C (v25.10, read-only reference). Read this BEFORE claiming what VPP does; the generated stub `vendor/go.fd.io/govpp/binapi/lcp/lcp.ba.go` says a field exists, never what VPP does with it (`ai/rules/evidence.md`) |
 | .ci test prerequisite, option=needs-path, caps=net-raw, caps=net-admin, caps=bpf, test skips instead of failing, missing modcache, setup install prerequisite | `docs/architecture/testing/ci-format.md` (Options table), `ai/rules/platform-linux.md`, `internal/test/runner/caps.go`, `internal/test/runner/needs_path.go`, `./le setup install` |
 | test passes on macOS but fails in CI, works locally red in CI, unprivileged runner, 4-vCPU runner | `ai/rules/platform-linux.md` (skip-os is not a capability declaration), `ai/rules/completion.md` |
-| code-to-docs, reverse index, which docs | `ai/CODE-TO-DOCS.md` (generated, `./le doc index write`) |
+| code-to-docs, reverse index, which docs | `ai/CODE-TO-DOCS.md` (generated, `./le doc index update`) |
 | mutation testing, gomu, mutation score, mutant | `docs/contributing/testing.md` (Mutation tests), `./le test mutation`, `internal/le/test/mutation/` |
 | test health, testing dashboard, proof density, assert-nothing, tests that cannot fail, tag-orphan, test KPI, is our testing correct | `docs/features/test-health.md`, `docs/architecture/testing/test-health.md` (architecture), `test/health/README.md`, `internal/le/test/health.Answer`, `internal/le/test/sensitivity.Answer`, `ai/rules/testing.md` (Test Sensitivity Ratchets) |
 | find bugs, hunt bugs, bug classes, latent bugs, recurring traps, taxonomy sweep, silent fall-through, unwired feature | `ai/skills/ze-hunt.md`, `plan/learned/RECURRING-PATTERNS.md` |
@@ -701,7 +701,7 @@ All architecture docs in `docs/architecture/` unless noted.
 
 RFC summaries: `rfc/short/`. Full RFCs: `rfc/full/`. Non-normative IETF reference
 (IDR, GROW and OPSEC BCPs, Informational RFCs, active drafts): `reference/ietf/`, never a
-requirement source (`reference/README.md`), refreshed by `./le data ietf-reference write`. Each summary's `## Meta` table
+requirement source (`reference/README.md`), refreshed by `./le data ietf-reference update`. Each summary's `## Meta` table
 declares its own enrolment and its own row on `docs/features/rfc-status.md`.
 
 ## Session State

@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// VALIDATES: a worktree update refuses every tree it must not rewrite -- the
+// VALIDATES: a worktree rebase refuses every tree it must not rewrite -- the
 // main working tree, and a checkout with no branch checked out -- before it
 // stashes or rebases anything.
 // PREVENTS: the regression measured in internal/le/worktree/worktree.go on
@@ -210,8 +210,8 @@ func TestEveryVerbOfTheAreaIsReachable(t *testing.T) {
 	if len(list.Actions) != 1 {
 		t.Fatalf("%d actions, want exactly 1: %v", len(list.Actions), list.Actions)
 	}
-	if list.Actions[0].Verb != "update" {
-		t.Errorf("verb is %q, want update", list.Actions[0].Verb)
+	if list.Actions[0].Verb != "rebase" {
+		t.Errorf("verb is %q, want rebase", list.Actions[0].Verb)
 	}
 	if !list.Actions[0].Writes {
 		t.Error("the update does not declare that it writes, and it rebases a checkout")

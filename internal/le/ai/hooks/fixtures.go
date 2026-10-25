@@ -144,7 +144,7 @@ var (
 	// Re-sealed 2026-09-24 for spec-le-subject-first-command-tree:
 	// the hook sources import the moved packages under their new paths
 	// (internal/le/ai/sync, internal/le/ai/rules, internal/le/doc/ste,
-	// internal/le/doc/index) and name `le ai hooks` and `le ai sync write` in
+	// internal/le/doc/index) and name `le ai hooks` and `le ai sync update` in
 	// comments and messages. No hook decision changed.
 	// Re-sealed 2026-09-25 for the same spec: writeedit.go imports the
 	// weakened-test checker from internal/le/test/weakened, under the alias
@@ -246,11 +246,14 @@ var (
 	// Re-sealed 2026-10-25 for D-P7-short-long (AC-55): the weakened area's
 	// actions declare a one-line Summary and its keyword Help lines fit 60
 	// characters. Text only; no verdict changed.
+	// Re-sealed 2026-10-25 for the Phase 4 rename of `ai sync write` to `ai
+	// sync update`: the session-start hint names the new spelling. Text only;
+	// no verdict changed.
 	hookSourcesDigest = [sha256.Size]byte{
-		0x04, 0xb1, 0x61, 0x9e, 0x8e, 0xc3, 0x02, 0xae,
-		0x8d, 0x2c, 0xd9, 0x95, 0x02, 0x05, 0xfa, 0x20,
-		0x1a, 0x20, 0xca, 0x93, 0x6f, 0xc9, 0xb4, 0xfe,
-		0x89, 0xf3, 0xff, 0x66, 0x43, 0x6d, 0xc0, 0x66,
+		0xd5, 0x30, 0xd4, 0x9b, 0x0f, 0x43, 0x14, 0xec,
+		0xcc, 0x66, 0x62, 0x96, 0xb8, 0xe9, 0xe4, 0x98,
+		0xd1, 0xe8, 0xcc, 0x68, 0x5c, 0x34, 0x4d, 0x7b,
+		0x1c, 0x4e, 0x18, 0x24, 0x04, 0x72, 0xd4, 0x5b,
 	}
 )
 

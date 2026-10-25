@@ -6,15 +6,15 @@
 // internal/le/le/action supplies the shared dispatch, listing, help line, and every refusal.
 //
 // This area has one verb with a keyword before its value.
-// `le worktree update` updates the current checkout.
-// `le worktree update path <path>` updates a named checkout.
-// `le worktree update all` updates every linked worktree in this repository.
+// `le worktree rebase` rebases the current checkout.
+// `le worktree rebase path <path>` rebases a named checkout.
+// `le worktree rebase all` rebases every linked worktree in this repository.
 // The shell command took either a bare path or --all. Both conflict with the
 // CLI grammar (ai/rules/cli.md).
 //
 // Both keywords are DECLARED in the table below, so one parser reads the line.
 // The verb published zero parameters until 2026-09-12 and read `path` and `all`
-// itself. `le worktree update path -xh` therefore handed the option to git as a
+// itself. `le worktree rebase path -xh` therefore handed the option to git as a
 // checkout path instead of refusing it.
 
 package worktree
@@ -42,11 +42,11 @@ const (
 )
 
 // usageLine is what a refusal points at.
-const usageLine = "usage: le worktree update [path <path> | all]"
+const usageLine = "usage: le worktree rebase [path <path> | all]"
 
 var actions = leaction.New(area,
 	leaction.Action{
-		Verb:    "update",
+		Verb:    "rebase",
 		Summary: "rebase a linked worktree onto main",
 		Why: "rebase a linked worktree onto main, stashing and restoring its uncommitted work." +
 			" Refuses the main working tree and a checkout with no branch",
@@ -57,7 +57,7 @@ var actions = leaction.New(area,
 			{Keyword: pathKeyword, Kind: leaction.KindPath, Help: "the linked worktree to rebase", Value: "path", Requirement: leaction.Optional},
 			{Keyword: allKeyword, Kind: leaction.KindSwitch, Help: "rebase every linked worktree"},
 		},
-		AnswerArgs: update,
+		AnswerArgs: rebase,
 	},
 )
 
@@ -73,12 +73,12 @@ func Subs() string { return actions.Subs() }
 // a path goes.
 func Answer(args []string) (any, int) { return actions.Answer(args) }
 
-// update runs the shape of update the keywords name.
+// rebase runs the shape of rebase the keywords name.
 //
 // leaction has already read the line, so no git command and no checkout has
 // been reached yet. That order is what stops a mistyped keyword from touching
 // an unintended tree.
-func update(args leaction.Arguments) (any, int) {
+func rebase(args leaction.Arguments) (any, int) {
 	all := args.Has(allKeyword)
 	named := args.Has(pathKeyword)
 	if all && named {
@@ -89,7 +89,7 @@ func update(args leaction.Arguments) (any, int) {
 	}
 
 	if !all && !named {
-		return updateHere()
+		return rebaseHere()
 	}
 
 	updater, err := here()
@@ -118,9 +118,9 @@ func answer(report Report, err error) (any, int) {
 	return report, 0
 }
 
-// updateHere updates the checkout this command was run in, which is the shell
+// rebaseHere rebases the checkout this command was run in, which is the shell
 // half's no-argument form.
-func updateHere() (any, int) {
+func rebaseHere() (any, int) {
 	updater, err := here()
 	if err != nil {
 		leaction.ReportError(err)

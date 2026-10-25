@@ -40,7 +40,7 @@ func TestYANGGlueCurrent(t *testing.T) {
 		t.Fatalf("read the tree: %v", err)
 	}
 	if len(report.Stale) > 0 {
-		t.Fatalf("yang glue generated files are stale: %v\nRun `./le yang glue write` and commit the result.", report.Stale)
+		t.Fatalf("yang glue generated files are stale: %v\nRun `./le yang glue update` and commit the result.", report.Stale)
 	}
 
 	// Non-vacuity. Check answers an empty report with no error when derive

@@ -1,5 +1,5 @@
 // VALIDATES: `le doc index check` judges ai/DOCS-TO-CODE.md, ai/CODE-TO-DOCS.md
-// and the anchors in one run, and `le doc index write` regenerates both files
+// and the anchors in one run, and `le doc index update` regenerates both files
 // (AC-29, D-5 of spec-le-subject-first-command-tree).
 // PREVENTS: the merged check dropping one of the three judgments the four old
 // verbs made, or the write leaving one of the two files stale.
@@ -40,7 +40,7 @@ func TestDocIndexCheckCoversBothFilesAndAnchors(t *testing.T) {
 		}
 	}
 
-	if code := answer("write"); code != 0 {
+	if code := answer("update"); code != 0 {
 		t.Fatalf("write answered %d over a fresh tree", code)
 	}
 	for _, relative := range []string{OutputRel, CodeOutputRel} {
@@ -57,7 +57,7 @@ func TestDocIndexCheckCoversBothFilesAndAnchors(t *testing.T) {
 		if code := answer("check"); code != StaleExit {
 			t.Errorf("a stale %s answered %d, want %d", relative, code, StaleExit)
 		}
-		if code := answer("write"); code != 0 {
+		if code := answer("update"); code != 0 {
 			t.Fatalf("write answered %d over a stale %s", code, relative)
 		}
 		if code := answer("check"); code != 0 {
@@ -66,7 +66,7 @@ func TestDocIndexCheckCoversBothFilesAndAnchors(t *testing.T) {
 	}
 
 	edit("docs/architecture/y.md", "# Y\n\n<!-- source: internal/gone/gone.go -- Gone -->\n")
-	if code := answer("write"); code != 0 {
+	if code := answer("update"); code != 0 {
 		t.Fatalf("write answered %d with an unresolved anchor", code)
 	}
 	if code := answer("check"); code != 1 {

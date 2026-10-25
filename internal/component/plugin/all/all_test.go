@@ -199,7 +199,7 @@ func TestGeneratedPluginImportsCurrent(t *testing.T) {
 		t.Fatalf("read the tree: %v", err)
 	}
 	if report.Stale != "" {
-		t.Fatalf("plugin/all generated imports are stale: %s %s; run `./le plugin imports write`", report.Stale, report.Reason)
+		t.Fatalf("plugin/all generated imports are stale: %s %s; run `./le plugin imports update`", report.Stale, report.Reason)
 	}
 }
 

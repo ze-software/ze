@@ -93,9 +93,9 @@ var portedProducers = []portedProducer{
 	{Target: "ze-arch-map-check", Area: "repo arch-map", Verb: "check"},
 	{Target: "ze-arch-map-update", Area: "repo arch-map", Verb: "update"},
 	{Target: "ze-discovery-index-update", Area: "repo package-map", Verb: "update"},
-	{Target: "ze-ai-skills-sync", Area: "ai sync", Verb: "write"},
+	{Target: "ze-ai-skills-sync", Area: "ai sync", Verb: "update"},
 	{Target: "ze-ai-sync-check", Area: "ai sync", Verb: "check"},
-	{Target: "ze-ai-instructions-generate", Area: "ai sync", Verb: "write", Note: "ai sync write writes CLAUDE.md and AGENTS.md from ai/INSTRUCTIONS.md"},
+	{Target: "ze-ai-instructions-generate", Area: "ai sync", Verb: "update", Note: "ai sync update writes CLAUDE.md and AGENTS.md from ai/INSTRUCTIONS.md"},
 	{Target: "ze-proto-generate", Area: "setup", Verb: "proto-generate"},
 
 	// CLI and documentation gates.
@@ -115,7 +115,7 @@ var portedProducers = []portedProducer{
 	{Target: "ze-templ-orphan-check", Area: "doc wiring", Verb: "templ-orphans"},
 	{Target: "ze-doc-wiring-check", Area: "doc wiring", Verb: "check", Note: "the router is one action: `changed-file <path>` and `dry-run` are its keywords, and the whole-tree form the gate ran is the bare line"},
 	{Target: "ze-doc-index-check", Area: "doc index", Verb: "check"},
-	{Target: "ze-doc-index-update", Area: "doc index", Verb: "write"},
+	{Target: "ze-doc-index-update", Area: "doc index", Verb: "update"},
 	{Target: "ze-digest-check", Area: "ai digest", Verb: "check"},
 	{Target: "ze-consistency-check", Area: "doc consistency", Verb: "check"},
 	{Target: "ze-spec-citation-check", Area: "spec citation", Verb: "check"},

@@ -162,7 +162,7 @@ IPv4-mapped IPv6 endpoints remain IPv6 and match that registry's mapped block.
 Lookup distinguishes invalid input and an uninitialized registry from a valid
 address with no special-purpose entry; only successfully parsed data is used.
 
-`./le data ip-special-purpose write` deliberately refreshes the two fixed IANA
+`./le data ip-special-purpose update` deliberately refreshes the two fixed IANA
 sources, validating both complete datasets before writing either snapshot.
 It is not part of offline aggregate generation and does not run during BGP
 receipt or builds. Fetch/parse failure preserves both existing files; the two

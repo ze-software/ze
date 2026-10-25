@@ -31,7 +31,7 @@ var actions = leaction.New(area,
 			"`<!-- source: -->` anchor in docs/ resolves to a real file and symbol",
 		Answer: check,
 	},
-	leaction.Action{Verb: "write", Summary: "regenerate DOCS-TO-CODE.md and CODE-TO-DOCS.md", Why: "regenerate ai/DOCS-TO-CODE.md and ai/CODE-TO-DOCS.md",
+	leaction.Action{Verb: "update", Summary: "regenerate DOCS-TO-CODE.md and CODE-TO-DOCS.md", Why: "regenerate ai/DOCS-TO-CODE.md and ai/CODE-TO-DOCS.md",
 		Writes: true,
 		Answer: write},
 )

@@ -81,7 +81,7 @@ keeps its direct package and YANG imports behind the matching `ze_<feature>`
 build tag.
 
 `feature-gates.txt` at the repository root is the source of truth, declaring
-gates as `<tag> <pkg>` rows. `./le repo feature-tags write` updates the static
+gates as `<tag> <pkg>` rows. `./le repo feature-tags update` updates the static
 consumers and `./le repo feature-tags check` refuses drift.
 
 ## What the gate enforces

@@ -20,7 +20,7 @@ var actions = leaction.New(area,
 		" table names a wrong tag, or none, for a plugin a stripped build refuses",
 		Answer: runCheckHere},
 	leaction.Action{
-		Verb:    "write",
+		Verb:    "update",
 		Summary: "regenerate the gated-plugin table",
 		Why:     "regenerate the gated-plugin table from feature-gates.txt and every registration",
 		Writes:  true,

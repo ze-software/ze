@@ -88,10 +88,10 @@ func TestAKeywordThisVerbDoesNotTakeIsRefusedBeforeAnyCheckoutIsResolved(t *test
 	useCheckout(t, filepath.Join(t.TempDir(), "not-a-checkout"))
 
 	for _, args := range [][]string{
-		{"update", "everything"},
-		{"update", "path"},
-		{"update", "path", "a", "b"},
-		{"update", "all", "extra"},
+		{"rebase", "everything"},
+		{"rebase", "path"},
+		{"rebase", "path", "a", "b"},
+		{"rebase", "all", "extra"},
 	} {
 		payload, code := Answer(args)
 		if code != 2 {
@@ -288,9 +288,9 @@ func TestTheAllKeywordUpdatesEveryLinkedWorktreeAndNotTheMainOne(t *testing.T) {
 	commit(t, main, "moved.txt", "moved\n", "main moved on")
 
 	useCheckout(t, main)
-	payload, code := Answer([]string{"update", allKeyword})
+	payload, code := Answer([]string{"rebase", allKeyword})
 	if code != 0 {
-		t.Fatalf("`update all` exited %d", code)
+		t.Fatalf("`rebase all` exited %d", code)
 	}
 
 	report, isReport := payload.(Report)

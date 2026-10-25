@@ -95,7 +95,7 @@ page for verification and usage.
 
 Agents should use the existing inventory and verification surfaces:
 `./le repo inventory`, `./le cli list`, `./le doc check verify`,
-`./le doc index write`, and `./le doc wiring`.
+`./le doc index update`, and `./le doc wiring`.
 
 Commit preparation uses `internal/le/commit.Answer`: agents pass the vetted
 subject, body, and explicit file list, and the helper creates the session ID,

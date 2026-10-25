@@ -24,7 +24,7 @@ const area = "data asn-delegation"
 
 var actions = leaction.New(area,
 	leaction.Action{
-		Verb:    "write",
+		Verb:    "update",
 		Summary: "rewrite the ASN-to-RIR table from the five RIRs",
 		Why: "fetch the five RIR delegation files and rewrite the shipped ASN-to-RIR delegation table." +
 			" It reaches the network, so it is the one generator an offline checkout cannot run",

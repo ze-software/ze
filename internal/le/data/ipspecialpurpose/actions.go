@@ -15,7 +15,7 @@ const area = "data ip-special-purpose"
 
 var actions = leaction.New(area,
 	leaction.Action{
-		Verb:    "write",
+		Verb:    "update",
 		Summary: "refresh the shipped IANA special-purpose registries",
 		Why:     "fetch and validate both canonical IANA special-purpose IP registries before rewriting the shipped XML snapshots; deliberately reaches the network",
 		Writes:  true,

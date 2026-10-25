@@ -22,7 +22,7 @@
 # Four consumers cannot parse this manifest at runtime: .golangci.yml
 # build-tags, gokrazy/ze/config.json GoBuildTags, the go install command in
 # docs/guide/quickstart.md, and the shipped CodeQL build combinations.
-# `./le repo feature-tags write` regenerates those lists, and `./le repo feature-tags
+# `./le repo feature-tags update` regenerates those lists, and `./le repo feature-tags
 # check` rejects drift. Native stress, integration, and deployment actions read
 # their daemon tags through the same Go parser.
 #

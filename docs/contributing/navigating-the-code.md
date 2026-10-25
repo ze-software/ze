@@ -122,8 +122,8 @@ stash pop`, `git checkout`, and `./le repo generate`. Each of those leaves
 the index PRESENT and stale, and neither the read hook nor a session start
 rebuilds one that is present, so it stays stale until the next `Write` or `Edit`
 to one of its inputs. Run the writer yourself after a bulk rewrite:
-`./le repo package-map update`, `./le doc index write`,
-`./le doc index write`.
+`./le repo package-map update`, `./le doc index update`,
+`./le doc index update`.
 <!-- source: internal/le/hookruntime/runtime.go -- nativeHookActions -->
 <!-- source: internal/le/hookruntime/lifecycle.go -- buildDerivedArtifacts -->
 
@@ -141,7 +141,7 @@ them opens an index the last edit removed, and reports a missing file.
 
 Ask the question from Bash, or write the index yourself. The writers are
 `./le repo package-map update` for `ai/PACKAGE-MAP.md`, and
-`./le doc index write` and `./le doc index write` for the other
+`./le doc index update` and `./le doc index update` for the other
 two.
 <!-- source: internal/le/hookruntime/lifecycle.go -- buildDerivedArtifacts -->
 

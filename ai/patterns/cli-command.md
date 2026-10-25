@@ -402,7 +402,7 @@ func init() {
 ```
 
 The owner package needs its `init()` linked into the binary. Run
-`./le plugin imports write`: it finds every package that calls a `command` or
+`./le plugin imports update`: it finds every package that calls a `command` or
 `command/registry` registrar and blank-imports it from the generated
 `internal/component/plugin/all/all.go`, and `./le plugin imports check` reports
 an owner nothing reaches (`docs/architecture/command-ownership.md`).

@@ -24,7 +24,7 @@ var actions = leaction.New(area,
 		" the tree declares is refused as unknown",
 		Answer: runCheckHere},
 	leaction.Action{
-		Verb:    "write",
+		Verb:    "update",
 		Summary: "regenerate the YANG embed and register glue",
 		Why:     "regenerate the embed and register glue beside every .yang file",
 		Writes:  true,

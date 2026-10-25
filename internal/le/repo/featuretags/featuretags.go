@@ -12,7 +12,7 @@
 // feature-gates.txt is the single source of truth (ai/rules/plugins.md). The
 // native toolchain, test runner, plugin-imports generator, and dependency audit
 // derive from the manifest. The four files below are derived too: add a gate to
-// the manifest, run `./le repo feature-tags write`, and all four follow.
+// the manifest, run `./le repo feature-tags update`, and all four follow.
 //
 // Every edit is SURGICAL. Only the tag list moves; the indentation, the
 // neighboring keys and every other line of each file survive untouched, so

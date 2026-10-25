@@ -62,7 +62,7 @@ const TestPluginBuildTag = "zetest"
 
 // featureGatesFile is the feature-gate manifest (repo-relative): the single
 // source of truth for compile-out-able features, written by
-// `./le repo feature-tags write`. See ai/rules/plugins.md.
+// `./le repo feature-tags update`. See ai/rules/plugins.md.
 const featureGatesFile = "feature-gates.txt"
 
 // TestBuildTags returns ZE_TAGS plus the tags for functional test builds.

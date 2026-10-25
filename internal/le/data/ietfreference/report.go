@@ -9,7 +9,7 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// Report is what `le data ietf-reference write` answers: the index it wrote,
+// Report is what `le data ietf-reference update` answers: the index it wrote,
 // how each row compares with the previous index, and every file it fetched.
 //
 // A row is keyed "<wg>/<stem>". NoLongerListed names files under

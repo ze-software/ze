@@ -33,7 +33,7 @@ func TestTheCheckVerbDeclaresARepeatablePathKeyword(t *testing.T) {
 	for _, row := range list.Actions {
 		verbs[row.Verb] = row
 	}
-	for _, verb := range []string{"write", "check", "show", "tree-hash"} {
+	for _, verb := range []string{"record", "check", "show", "tree-hash"} {
 		if _, held := verbs[verb]; !held {
 			t.Errorf("the table holds no %q, so the verb is unreachable", verb)
 		}
@@ -69,11 +69,11 @@ func TestCheckAcceptsThePathKeywordTwice(t *testing.T) {
 // the migration onto the action table MUST NOT move one.
 func TestEveryRefusalKeepsTheCodeItAnsweredBeforeTheTable(t *testing.T) {
 	for _, args := range [][]string{
-		{"write"},
-		{"write", "exit-code"},
-		{"write", "exit-code", "not-a-number"},
-		{"write", "mode", "full"},
-		{"write", "exit-code", "0", "mode"},
+		{"record"},
+		{"record", "exit-code"},
+		{"record", "exit-code", "not-a-number"},
+		{"record", "mode", "full"},
+		{"record", "exit-code", "0", "mode"},
 		{"check", "path"},
 		{"check", "scope", "internal"},
 		{"show", "extra"},
@@ -103,7 +103,7 @@ func TestTheBareAreaListsItsActions(t *testing.T) {
 	}
 }
 
-// TestStatusWriteNeverWritesGreenRecord: `le verify status write exit-code 0
+// TestStatusWriteNeverWritesGreenRecord: `le verify status record exit-code 0
 // mode full` writes the certificate as it always has, and the green record is
 // neither written nor changed. The record is the verify lifecycle's alone: a
 // caller-declared exit code proves no run, so a push cannot be bought with one.
@@ -125,14 +125,14 @@ func TestStatusWriteNeverWritesGreenRecord(t *testing.T) {
 		}
 	})
 
-	if _, code := Answer([]string{"write", "exit-code", "0", "mode", "full"}); code != 0 {
-		t.Fatalf("status write answered %d", code)
+	if _, code := Answer([]string{"record", "exit-code", "0", "mode", "full"}); code != 0 {
+		t.Fatalf("status record answered %d", code)
 	}
 	if _, err := verifyengine.ReadCertificate(root); err != nil {
-		t.Fatalf("status write wrote no certificate: %v", err)
+		t.Fatalf("status record wrote no certificate: %v", err)
 	}
 	if _, err := verify.ReadGreenRecord(root); !errors.Is(err, os.ErrNotExist) {
-		t.Fatalf("status write made a green record (%v)", err)
+		t.Fatalf("status record made a green record (%v)", err)
 	}
 
 	held, err := verify.NewGreenRecord(strings.Repeat("a", 40), strings.Repeat("b", 40), 1,
@@ -143,11 +143,11 @@ func TestStatusWriteNeverWritesGreenRecord(t *testing.T) {
 	if err := verify.WriteGreenRecord(root, held); err != nil {
 		t.Fatal(err)
 	}
-	if _, code := Answer([]string{"write", "exit-code", "0", "mode", "full"}); code != 0 {
-		t.Fatalf("status write answered %d", code)
+	if _, code := Answer([]string{"record", "exit-code", "0", "mode", "full"}); code != 0 {
+		t.Fatalf("status record answered %d", code)
 	}
 	after, err := verify.ReadGreenRecord(root)
 	if err != nil || after != held {
-		t.Errorf("status write changed the green record to (%+v, %v), want %+v", after, err, held)
+		t.Errorf("status record changed the green record to (%+v, %v), want %+v", after, err, held)
 	}
 }
