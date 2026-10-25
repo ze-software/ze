@@ -23,7 +23,9 @@ func init() {
 // An optional second argument is the UPDATE count the destination is sent once
 // the source has left (default 4: two announcements, one withdrawal and one
 // peer-down withdrawal per surviving VPN route). Pairs may follow it:
-// `release <peer address>` holds back a peer whose script announces only once it
+// `gates <n>` sets how many source actions the fixture releases (default 3, at
+// most len(vpnWithdrawalGatePrefixes)), each gate after the first waiting until
+// the destination was sent one more UPDATE; `release <peer address>` holds back a peer whose script announces only once it
 // receives vpnWithdrawalReleasePrefix, which the fixture sends after that peer
 // and both inventory peers are up, so a destination is never still connecting
 // when the route arrives; `held <peer address>` then makes the source wait until
@@ -42,8 +44,8 @@ func vpnWithdrawalInventory(ctx context.Context, args []string) error {
 		if err != nil {
 			return fmt.Errorf("vpn-withdrawal-inventory final UPDATE count %q is not a number: %w", args[1], err)
 		}
-		if count < 3 {
-			return fmt.Errorf("vpn-withdrawal-inventory final UPDATE count %d is below 3, the count before the source leaves", count)
+		if count < peers.gates {
+			return fmt.Errorf("vpn-withdrawal-inventory final UPDATE count %d is below %d, the count before the source leaves", count, peers.gates)
 		}
 		finalCount = count
 	}
@@ -96,7 +98,7 @@ func vpnWithdrawalInventory(ctx context.Context, args []string) error {
 				return fmt.Errorf("bgp-rib never held a route received from %s; the source acts only once it does", address)
 			}
 		}
-		for index, prefix := range []string{"192.0.2.0/24", prefixTestNet2, "203.0.113.0/24"} {
+		for index, prefix := range vpnWithdrawalGatePrefixes[:peers.gates] {
 			if index > 0 {
 				if !vpnWithdrawalWaitSent(ctx, plugin, index) {
 					return fmt.Errorf("receiver was not sent VPN UPDATE %d", index)
@@ -118,11 +120,20 @@ func vpnWithdrawalInventory(ctx context.Context, args []string) error {
 // The peer's script expects it (NLRI bytes 18C61200) before it announces.
 const vpnWithdrawalReleasePrefix = "198.18.0.0/24"
 
+// vpnWithdrawalGatePrefixes are the routes the fixture sends the source
+// (127.0.0.1), one per gate, in order. A source script expects each one
+// (NLRI bytes 18C00002, 18C63364, 18CB0071, 18644000) before its next action.
+var vpnWithdrawalGatePrefixes = [...]string{"192.0.2.0/24", prefixTestNet2, "203.0.113.0/24", "100.64.0.0/24"}
+
+// vpnWithdrawalGatesDefault is the gate count when no `gates` pair is given.
+const vpnWithdrawalGatesDefault = 3
+
 // vpnWithdrawalPeers holds the addresses named in the `held` and `release`
-// pairs, each list in argument order.
+// pairs, each list in argument order, and the gate count of the `gates` pair.
 type vpnWithdrawalPeers struct {
 	held    []string
 	release []string
+	gates   int
 }
 
 // vpnWithdrawalPeerArgs reads the `held <peer address>` and `release <peer
@@ -132,7 +143,7 @@ type vpnWithdrawalPeers struct {
 // ahead of the source. A released peer announces only once the fixture sends
 // it vpnWithdrawalReleasePrefix, after the destination is up.
 func vpnWithdrawalPeerArgs(args []string) (vpnWithdrawalPeers, error) {
-	var peers vpnWithdrawalPeers
+	peers := vpnWithdrawalPeers{gates: vpnWithdrawalGatesDefault}
 	if len(args) <= 2 {
 		return peers, nil
 	}
@@ -142,6 +153,14 @@ func vpnWithdrawalPeerArgs(args []string) (vpnWithdrawalPeers, error) {
 			return vpnWithdrawalPeers{}, vpnWithdrawalPairError(args)
 		}
 		keyword, address := rest[index], rest[index+1]
+		if keyword == "gates" {
+			gates, err := vpnWithdrawalGateCount(address)
+			if err != nil {
+				return vpnWithdrawalPeers{}, err
+			}
+			peers.gates = gates
+			continue
+		}
 		if _, err := netip.ParseAddr(address); err != nil {
 			return vpnWithdrawalPeers{}, fmt.Errorf("vpn-withdrawal-inventory %s peer %q is not an IP address: %w", keyword, address, err)
 		}
@@ -158,9 +177,25 @@ func vpnWithdrawalPeerArgs(args []string) (vpnWithdrawalPeers, error) {
 	return peers, nil
 }
 
+// vpnWithdrawalGateCount reads the value of a `gates` pair: a number from the
+// default up to the number of gate prefixes the fixture can send.
+func vpnWithdrawalGateCount(value string) (int, error) {
+	gates, err := strconv.Atoi(value)
+	if err != nil {
+		return 0, fmt.Errorf("vpn-withdrawal-inventory gates %q is not a number: %w", value, err)
+	}
+	if gates < vpnWithdrawalGatesDefault {
+		return 0, fmt.Errorf("vpn-withdrawal-inventory gates %d is below %d", gates, vpnWithdrawalGatesDefault)
+	}
+	if gates > len(vpnWithdrawalGatePrefixes) {
+		return 0, fmt.Errorf("vpn-withdrawal-inventory gates %d is above %d, the number of gate prefixes it can send", gates, len(vpnWithdrawalGatePrefixes))
+	}
+	return gates, nil
+}
+
 // vpnWithdrawalPairError names the argument grammar a malformed pair broke.
 func vpnWithdrawalPairError(args []string) error {
-	return fmt.Errorf("vpn-withdrawal-inventory takes rs or rr, an optional final UPDATE count, then `held <peer address>` or `release <peer address>` pairs; got %q", args)
+	return fmt.Errorf("vpn-withdrawal-inventory takes rs or rr, an optional final UPDATE count, then `gates <n>`, `held <peer address>` or `release <peer address>` pairs; got %q", args)
 }
 
 // vpnWithdrawalWaitHeld polls bgp-rib's Adj-RIB-In until it holds a route row

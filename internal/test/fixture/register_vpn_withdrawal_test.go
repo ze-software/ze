@@ -61,3 +61,48 @@ func TestVPNWithdrawalPeerArgs(t *testing.T) {
 		}
 	}
 }
+
+// TestVPNWithdrawalGatesPair checks the `gates <n>` pair that sets how many
+// source actions the inventory fixture releases.
+//
+// VALIDATES: no pair gives the default of three gates, and 3 and 4 (the number
+// of gate prefixes) are read as given, beside the peer pairs.
+// PREVENTS: a gate count the fixture has no prefix for, or a malformed one,
+// being read as a count, which would index past the gate prefixes or wait for
+// a gate no peer script expects.
+func TestVPNWithdrawalGatesPair(t *testing.T) {
+	accepted := []struct {
+		args  []string
+		gates int
+	}{
+		{args: []string{"rr"}, gates: 3},
+		{args: []string{"rr", "5", "release", "127.0.0.5"}, gates: 3},
+		{args: []string{"rr", "5", "gates", "3"}, gates: 3},
+		{args: []string{"rr", "5", "gates", "4", "release", "127.0.0.5"}, gates: 4},
+	}
+	for _, tc := range accepted {
+		got, err := vpnWithdrawalPeerArgs(tc.args)
+		if err != nil {
+			t.Fatalf("vpnWithdrawalPeerArgs(%q): %v", tc.args, err)
+		}
+		if got.gates != tc.gates {
+			t.Fatalf("vpnWithdrawalPeerArgs(%q) gates = %d, want %d", tc.args, got.gates, tc.gates)
+		}
+	}
+
+	refused := []struct {
+		args []string
+		want string
+	}{
+		{args: []string{"rr", "5", "gates", "2"}, want: "gates 2 is below 3"},
+		{args: []string{"rr", "5", "gates", "5"}, want: "gates 5 is above 4"},
+		{args: []string{"rr", "5", "gates", "four"}, want: "gates \"four\" is not a number"},
+		{args: []string{"rr", "5", "gates"}, want: "`gates <n>`"},
+	}
+	for _, tc := range refused {
+		_, err := vpnWithdrawalPeerArgs(tc.args)
+		if err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Fatalf("vpnWithdrawalPeerArgs(%q) error = %v, want one containing %q", tc.args, err, tc.want)
+		}
+	}
+}
