@@ -130,7 +130,11 @@ var actions = leaction.New(area,
 		"that also carries another session's uncommitted edits",
 		Writes: true,
 		Parameters: []leaction.Parameter{
-			{Keyword: keyFrom, Kind: leaction.KindEnum, Help: "the source of the conversion", Value: "source", Values: []string{splitSourceHead}, Requirement: leaction.Optional},
+			{Keyword: keyFrom, Kind: leaction.KindEnum, Help: "the source of the conversion", Value: "source", Values: []string{splitSourceHead},
+				ValueHelp: map[string]string{
+					splitSourceHead: "convert what HEAD holds, not the working tree",
+				},
+				Requirement: leaction.Optional},
 		},
 		AnswerArgs: evidenceSplitAnswer},
 	leaction.Action{Verb: "audit-stamp", Why: "add the verdicts an author has just judged to rfc/audit/<stem>/<requirement-id>.json. " +
@@ -149,7 +153,12 @@ var actions = leaction.New(area,
 		Parameters: []leaction.Parameter{
 			{Keyword: keyStem, Kind: leaction.KindLabel, Help: "the RFC or draft stem the verdicts belong to", Value: keyStem, Requirement: leaction.Required},
 			{Keyword: keyFrom, Kind: leaction.KindPath, Help: "the file holding the judged verdicts", Value: keyPath, Requirement: leaction.Required},
-			{Keyword: keyMode, Kind: leaction.KindEnum, Help: "whether the verdicts are new or judged again", Value: "mode", Values: []string{"new", "rejudge"}, Requirement: leaction.Optional},
+			{Keyword: keyMode, Kind: leaction.KindEnum, Help: "whether the verdicts are new or judged again", Value: "mode", Values: []string{stampModeWordNew, stampModeWordRejudge},
+				ValueHelp: map[string]string{
+					stampModeWordNew:     "stamp ids that hold no verdict yet",
+					stampModeWordRejudge: "replace the verdicts of ids already judged",
+				},
+				Requirement: leaction.Optional},
 		},
 		AnswerArgs: auditStampAnswer},
 	leaction.Action{Verb: "rename", Why: "move tagged unit test files and carry their evidence with them: from <old> to " +

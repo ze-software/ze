@@ -48,7 +48,12 @@ var dockerHostActions = leaction.New(dockerHostArea,
 			" pins in " + PinFile + " into ~/.cache/ze/docker-host/<arch>/<key>/ and print its path; the same inputs" +
 			" reuse the cached image. `arch` defaults to this host's, `size` (GiB, 2-1024) to 16, `pins` names another pin file",
 		Parameters: []leaction.Parameter{
-			{Keyword: archKeyword, Kind: leaction.KindEnum, Help: "the architecture to build for; this host's when absent", Value: "arch", Values: []string{"amd64", "arm64"}, Requirement: leaction.Optional},
+			{Keyword: archKeyword, Kind: leaction.KindEnum, Help: "the architecture to build for; this host's when absent", Value: "arch", Values: []string{archAMD64, archARM64},
+				ValueHelp: map[string]string{
+					archAMD64: "the x86-64 image, for Intel and AMD hosts",
+					archARM64: "the 64-bit Arm image, for Apple silicon and Arm hosts",
+				},
+				Requirement: leaction.Optional},
 			{Keyword: sizeKeyword, Kind: leaction.KindUint, Help: "the image disk size in GiB", Value: "GiB", Requirement: leaction.Optional},
 			{Keyword: pinsKeyword, Kind: leaction.KindPath, Help: "the pin file the image is built from", Value: "pin-file", Requirement: leaction.Optional},
 		},

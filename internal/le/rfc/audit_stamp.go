@@ -50,8 +50,15 @@ const (
 	stampModeRejudge
 )
 
+// stampModeWordNew and stampModeWordRejudge are the words the `mode`
+// parameter takes, which its declaration in actions.go lists and describes.
+const (
+	stampModeWordNew     = "new"
+	stampModeWordRejudge = "rejudge"
+)
+
 // stampModeNames are the words the `mode` parameter takes, one per mode.
-var stampModeNames = map[string]stampMode{"new": stampModeNew, "rejudge": stampModeRejudge}
+var stampModeNames = map[string]stampMode{stampModeWordNew: stampModeNew, stampModeWordRejudge: stampModeRejudge}
 
 // parseStampMode reads the typed `mode` word. An absent word is the default,
 // `new`; any word that names no mode is refused, so a typo never falls back to

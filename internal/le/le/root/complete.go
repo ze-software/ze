@@ -189,16 +189,14 @@ func valueCount(parameter leaction.Parameter) int {
 }
 
 // valuesOf answers a value's candidates: its source's, then its declared
-// values. A source lists candidates and never runs an action.
+// values, each with the line that says what it does. A source lists
+// candidates and never runs an action.
 func valuesOf(parameter leaction.Parameter) []leaction.Candidate {
 	var out []leaction.Candidate
 	if parameter.Source != nil {
 		out = append(out, parameter.Source()...)
 	}
-	for _, value := range parameter.Values {
-		out = append(out, leaction.Candidate{Value: value})
-	}
-	return out
+	return append(out, parameter.ValueCandidates()...)
 }
 
 // withPrefix keeps the candidates that begin with the word being typed.

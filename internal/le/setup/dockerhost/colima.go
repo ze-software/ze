@@ -22,6 +22,9 @@ import (
 // archARM64 is the Go name of the arch Rosetta and aarch64 belong to.
 const archARM64 = "arm64"
 
+// archAMD64 is the Go name of the x86-64 arch.
+const archAMD64 = "amd64"
+
 // colimaRecordFileName holds the image key and path the ze profile was last
 // started with, under the docker-host cache root.
 const colimaRecordFileName = "colima-ze.started"

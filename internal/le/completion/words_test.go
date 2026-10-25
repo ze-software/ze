@@ -27,9 +27,9 @@ func probeArea() {
 		area := leaction.New("completionprobe", leaction.Action{
 			Verb: "run", Why: "run the probe",
 			Parameters: []leaction.Parameter{
-				{Kind: leaction.KindEnum, Value: "target", Values: []string{"alpha", "beta"}, Requirement: leaction.Optional, Help: "the target"},
+				{Kind: leaction.KindEnum, Value: "target", Values: []string{"alpha", "beta"}, ValueHelp: map[string]string{"alpha": "the first", "beta": "the second"}, Requirement: leaction.Optional, Help: "the target"},
 				{Keyword: "dry", Kind: leaction.KindSwitch, Help: "change nothing"},
-				{Keyword: "step", Kind: leaction.KindEnum, Value: "step", Values: []string{"build", "test"}, Requirement: leaction.Optional, Help: "the step"},
+				{Keyword: "step", Kind: leaction.KindEnum, Value: "step", Values: []string{"build", "test"}, ValueHelp: map[string]string{"build": "build only", "test": "test only"}, Requirement: leaction.Optional, Help: "the step"},
 				{Keyword: "file", Kind: leaction.KindPath, Value: "path", Requirement: leaction.Optional, Repeat: true, Help: "a file"},
 				{Keyword: "hunks", Kind: leaction.KindPath, Value: "path", Pair: "patch", Requirement: leaction.Optional, Help: "a patch"},
 				{Keyword: "old", Retired: "file"},

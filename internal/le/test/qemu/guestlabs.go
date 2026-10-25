@@ -54,6 +54,28 @@ var (
 	vrrpScenarioNames  = []string{vrrpQS1, vrrpQS2, vrrpQS3, vrrpTrackedUplink, vrrpOwnerKeepsTheAddress}
 	defaultNetnsSuites = []string{netnsFirewall, netnsPolicy, netnsOSPF, netnsOSPFv3}
 	netnsSuiteNames    = []string{netnsFirewall, netnsPolicy, netnsOSPF, netnsOSPFv3, netnsPPPoE, netnsPlugin}
+	// vrrpScenarioHelp says what each of vrrpScenarioNames proves. The report
+	// header and PASS line print it, and so do the scenarios keyword's help and
+	// completion, so le refuses to start while a scenario has no sentence here
+	// (leroot.requireEveryItemHasText).
+	vrrpScenarioHelp = map[string]string{
+		vrrpQS1:                  "v3 IPv4 election: ze prio 200 vs keepalived 100 (AC-1)",
+		vrrpQS2:                  "node-death failover and ze preempt return (AC-2)",
+		vrrpQS3:                  "graceful stop: Priority-0 skew path (AC-3)",
+		vrrpTrackedUplink:        "tracked uplink down: keepalived takes the VIP (AC-6, AC-7)",
+		vrrpOwnerKeepsTheAddress: "v2 owner keeps the address over keepalived prio 255",
+	}
+	// netnsSuiteHelp says what each subset of netnsSuiteNames runs, for the
+	// suites keyword's help and completion. The tests of each subset are
+	// netnsSelections (netns_linux.go).
+	netnsSuiteHelp = map[string]string{
+		netnsFirewall: "nftables firewall, NAT, CoPP and DDoS withdraw",
+		netnsPolicy:   "policy routing: tables, TCP flags and MSS, next hop",
+		netnsOSPF:     "OSPFv2: demux, multi-AF, NBMA, point-to-multipoint",
+		netnsOSPFv3:   "OSPFv3: virtual link, NBMA, point-to-multipoint",
+		netnsPPPoE:    "PPPoE: sessions, L2TP, service name, VLAN, floods",
+		netnsPlugin:   "RPKI ASPA validation and Adj-RIB-In replay",
+	}
 )
 
 // GuestScenario is one scenario or suite attempted by a guest-side proof.
@@ -85,12 +107,12 @@ func (r guestLabReport) Text() string {
 	switch r.Lab {
 	case labVRRPKeepalived:
 		for _, scenario := range r.Scenarios {
-			out.Str("\n=== ").Str(scenario.Name).Str(": ").Str(vrrpDescription(scenario.Name)).Str(" ===\n")
+			out.Str("\n=== ").Str(scenario.Name).Str(": ").Str(vrrpScenarioHelp[scenario.Name]).Str(" ===\n")
 			for _, detail := range scenario.Details {
 				out.Str(detail).Byte('\n')
 			}
 			if scenario.Verdict == VerdictPass {
-				out.Str("PASS: ").Str(scenario.Name).Byte(' ').Str(vrrpDescription(scenario.Name)).Byte('\n')
+				out.Str("PASS: ").Str(scenario.Name).Byte(' ').Str(vrrpScenarioHelp[scenario.Name]).Byte('\n')
 			}
 		}
 		if r.Verdict == VerdictPass {
@@ -120,27 +142,6 @@ func (r guestLabReport) Text() string {
 		}
 	}
 	return out.String()
-}
-
-func vrrpDescription(name string) string {
-	switch name {
-	case vrrpQS1:
-		return "v3 IPv4 election: ze prio 200 vs keepalived prio 100 (AC-1)"
-	case vrrpQS2:
-		return "node-death failover and ze preempt return (AC-2)"
-	case vrrpQS3:
-		return "graceful stop: Priority-0 skew path (AC-3)"
-	case vrrpTrackedUplink:
-		return "tracked veth down: ze drops to prio 50 and keepalived prio 100 takes the VIP (AC-6, AC-7)"
-	case vrrpOwnerKeepsTheAddress:
-		return "v2 owner: ze discards keepalived's conflicting prio 255 and keeps the address (RFC 3768 Section 7.1)"
-	default:
-		// Every name that reaches here passed parseClosedCSV against
-		// vrrpScenarioNames, so a missing case is a scenario added without its
-		// sentence. Answering the name keeps the header from going blank and
-		// says which case is absent, rather than printing "===  ===".
-		return name
-	}
 }
 
 func parseClosedCSV(raw, label string, allowed, defaults []string) ([]string, error) {

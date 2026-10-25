@@ -130,7 +130,8 @@ var actions = leaction.New(area,
 			// the run itself selects from. Spelled out here it went stale the
 			// day a fourth scenario was added, and the new one was then
 			// undiscoverable from `./le test qemu`.
-			{Keyword: "scenarios", Kind: leaction.KindList, Help: "the VRRP scenarios to run; every scenario when absent", Value: "scenario", Values: vrrpScenarioNames, Requirement: leaction.Optional},
+			{Keyword: "scenarios", Kind: leaction.KindList, Help: "the VRRP scenarios to run; every scenario when absent", Value: "scenario", Values: vrrpScenarioNames,
+				ValueHelp: vrrpScenarioHelp, Requirement: leaction.Optional},
 		},
 		AnswerArgs: runVRRPHere,
 	},
@@ -169,7 +170,7 @@ var actions = leaction.New(area,
 		Why: "run the selected functional subsets through the credential-dropped network" +
 			" namespace launcher and prove the guest root nftables state is unchanged",
 		Parameters: []leaction.Parameter{
-			{Keyword: "suites", Kind: leaction.KindList, Help: "the functional subsets to run", Value: "suite", Values: netnsSuiteNames, Requirement: leaction.Optional},
+			{Keyword: "suites", Kind: leaction.KindList, Help: "the functional subsets to run", Value: "suite", Values: netnsSuiteNames, ValueHelp: netnsSuiteHelp, Requirement: leaction.Optional},
 		},
 		AnswerArgs: runNetnsHere,
 	},
@@ -190,7 +191,11 @@ var actions = leaction.New(area,
 			" option=needs-linux, which is the tight loop for a change to a Linux-only path." +
 			" `test <path>` runs that one .ci through the suite that walks its directory, and nothing else",
 		Parameters: []leaction.Parameter{
-			{Keyword: onlyKeyword, Kind: leaction.KindEnum, Help: "run only the tests that need Linux", Value: "selection", Values: []string{linuxOnlySelection}, Requirement: leaction.Optional},
+			{Keyword: onlyKeyword, Kind: leaction.KindEnum, Help: "run only the tests that need Linux", Value: "selection", Values: []string{linuxOnlySelection},
+				ValueHelp: map[string]string{
+					linuxOnlySelection: "only the .ci tests marked option=needs-linux",
+				},
+				Requirement: leaction.Optional},
 			{Keyword: testKeyword, Kind: leaction.KindPath, Help: "one .ci test to run, as test/<dir>/<name>.ci", Value: "test/<dir>/<name>.ci", Requirement: leaction.Optional},
 		},
 		AnswerArgs: runAllTestsHere,

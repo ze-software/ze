@@ -144,9 +144,12 @@ func (r StressReport) Text() string {
 }
 
 type stressScenario struct {
-	name   string
-	config string
-	rounds []stressRound
+	name string
+	// summary is the one line that says what the scenario measures, which
+	// the scenario keyword's help and completion print (StressScenarioHelp).
+	summary string
+	config  string
+	rounds  []stressRound
 	// reach is nil for a scenario that measures the injector-to-DUT path
 	// alone. The profile scenario sets it, see stressProfileReach.
 	reach *stressReach
@@ -200,6 +203,7 @@ type stressRound struct {
 var stressScenarioRegistry = [...]stressScenario{
 	{
 		name: "01-bulk-ipv4", config: zeConfigFile,
+		summary: "one peer, 100k to 1M IPv4 prefixes, a round each",
 		rounds: []stressRound{
 			{prefixBase: stressPrefixBase, nexthop: stressBirdPeerIP, prefixes: 100_000, dwell: dwellFifteenSeconds, timeout: 120 * time.Second},
 			{prefixBase: "10.64.0.0/24", nexthop: stressBirdPeerIP, prefixes: 250_000, dwell: dwellFifteenSeconds, timeout: 180 * time.Second},
@@ -209,6 +213,7 @@ var stressScenarioRegistry = [...]stressScenario{
 	},
 	{
 		name: "02-multi-peer", config: zeConfigFile,
+		summary: "500k IPv4 from one peer, then 250k IPv6 from a second",
 		rounds: []stressRound{
 			{prefixBase: stressPrefixBase, nexthop: stressBirdPeerIP, prefixes: 500_000, dwell: "30s", timeout: 900 * time.Second},
 			{prefixBase: "2001:db8::/48", nexthop: "2001:db8::3", prefixes: 250_000, dwell: "30s", timeout: 600 * time.Second},
@@ -216,11 +221,16 @@ var stressScenarioRegistry = [...]stressScenario{
 	},
 	{
 		name: "03-session-flap", config: zeConfigFile,
-		rounds: stressFlapRounds(),
+		summary: "ten 100k IPv4 rounds with a pause after each",
+		rounds:  stressFlapRounds(),
 	},
-	{name: stressBirdScenario, config: "bird.conf"},
+	{
+		name: stressBirdScenario, config: "bird.conf",
+		summary: "BIRD in place of ze, 100k to 1M IPv4 prefixes",
+	},
 	{
 		name: scenarioProfile1M, config: zeConfigFile, reach: &stressProfileReach,
+		summary: "1M IPv4 prefixes, one per UPDATE, profiled",
 		rounds: []stressRound{
 			{
 				prefixBase: stressPrefixBase, nexthop: stressBirdPeerIP, prefixes: 1_000_000, dwell: "60s", timeout: 600 * time.Second,
@@ -261,6 +271,16 @@ func StressScenarios() []string {
 		names = append(names, scenario.name)
 	}
 	return names
+}
+
+// StressScenarioHelp answers the summary of every scenario StressScenarios
+// names, keyed by name, for the scenario keyword's ValueHelp.
+func StressScenarioHelp() map[string]string {
+	help := make(map[string]string, len(stressScenarioRegistry))
+	for _, scenario := range stressScenarioRegistry {
+		help[scenario.name] = scenario.summary
+	}
+	return help
 }
 
 // runStressAction runs every former stress checker, or one exact selected checker.

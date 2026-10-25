@@ -23,7 +23,7 @@ import (
 const PinFile = "gokrazy/docker-host/binaries.json"
 
 // pinArches are the image architectures a download can be pinned for.
-var pinArches = []string{"amd64", "arm64"}
+var pinArches = []string{archAMD64, archARM64}
 
 // Pin is one pinned third-party input: a release download (per arch) or a
 // source tarball (arch empty) built in the pinned builder container.

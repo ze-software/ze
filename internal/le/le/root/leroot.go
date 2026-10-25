@@ -142,14 +142,16 @@ func RegisterActions(name string, actions func() leaction.List) {
 var registrationsChecked sync.Once
 
 // checkRegistrations stops le before its first answer when an area registered
-// no action table and no pass-through declaration, or a namespace registered
-// no summary (requireEveryNamespaceHasASummary). MUST run after every init,
-// which the first Dispatch or Tree guarantees.
+// no action table and no pass-through declaration, a namespace registered
+// no summary (requireEveryNamespaceHasASummary), or an area, action, keyword
+// or declared value carries no text (requireEveryItemHasText). MUST run after
+// every init, which the first Dispatch or Tree guarantees.
 func checkRegistrations() {
 	registrationsChecked.Do(func() {
 		owned := Owned()
 		requireEveryAreaHasATable(owned)
 		requireEveryNamespaceHasASummary(owned)
+		requireEveryItemHasText(Commands())
 	})
 }
 

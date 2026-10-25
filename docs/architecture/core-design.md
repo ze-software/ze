@@ -158,6 +158,20 @@ summary, and the refusal names the namespace and the call that fixes it.
 <!-- source: internal/le/le/root/namespacesummary.go -- RegisterNamespace, requireEveryNamespaceHasASummary -->
 <!-- source: internal/le/le/root/tree.go -- nodeFor -->
 
+**Every word le offers says what it does.** An area carries its summary
+(`registry.Meta` ShortHelp), a pass-through area the program its words pass
+to, an action its `Why`, a keyword its `Help`, and each value an enum or a
+closed list declares a line in the parameter's `ValueHelp`, keyed by the
+value. Completion and the menu print that line beside the value, the
+keyword's page lists each value with it, and `le help ai commands` prints and
+publishes it as `value-help`. A registry that holds the values, such as the
+stress scenarios, fills `ValueHelp` from where each value is declared. le
+refuses to start while any of these is blank, or while `ValueHelp` describes a
+value the keyword does not declare, and the refusal names the item, what to
+fill in and the package it goes in.
+<!-- source: internal/le/le/root/describe.go -- requireEveryItemHasText -->
+<!-- source: internal/le/le/action/valuehelp.go -- ValueCandidates -->
+
 **A retired name runs as the command that replaced it.** The subject-first
 rename (`spec-le-subject-first-command-tree`) moves every le command to
 `le <subject> <action>`. `internal/le/doc/check/retirednames.go` declares the

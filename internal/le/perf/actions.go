@@ -50,7 +50,12 @@ var programVerbs = map[string]string{
 // run and the step selection that replaced the retired perf-run program's --build and --test.
 var runParameters = []leaction.Parameter{
 	{Keyword: dutKeyword, Kind: leaction.KindList, Help: "the DUTs to measure, comma-separated", Value: "names", Requirement: leaction.Optional},
-	{Keyword: stepKeyword, Kind: leaction.KindEnum, Help: "run only the build step or only the test step", Value: "step", Values: []string{stepBuild, stepTest}, Requirement: leaction.Optional},
+	{Keyword: stepKeyword, Kind: leaction.KindEnum, Help: "run only the build step or only the test step", Value: "step", Values: []string{stepBuild, stepTest},
+		ValueHelp: map[string]string{
+			stepBuild: "build the DUT images and measure nothing",
+			stepTest:  "measure with the existing DUT images, building none",
+		},
+		Requirement: leaction.Optional},
 }
 
 var actions = leaction.New(area,

@@ -143,14 +143,15 @@ func actionOf(row leaction.Row) reference.Action {
 			continue
 		}
 		action.Parameters = append(action.Parameters, reference.Parameter{
-			Keyword:  parameter.Keyword,
-			Value:    parameter.Value,
-			Kind:     parameter.Kind.String(),
-			Values:   parameter.Values,
-			Pair:     parameter.Pair,
-			Required: parameter.Requirement == leaction.Required,
-			Repeat:   parameter.Repeat,
-			Help:     parameter.Help,
+			Keyword:   parameter.Keyword,
+			Value:     parameter.Value,
+			Kind:      parameter.Kind.String(),
+			Values:    parameter.Values,
+			ValueHelp: parameter.ValueHelp,
+			Pair:      parameter.Pair,
+			Required:  parameter.Requirement == leaction.Required,
+			Repeat:    parameter.Repeat,
+			Help:      parameter.Help,
 		})
 	}
 	return action

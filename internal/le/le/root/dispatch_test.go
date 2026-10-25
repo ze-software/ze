@@ -256,6 +256,10 @@ func TestHelpNamesWhatANamespaceHolds(t *testing.T) {
 	const member = "help-namespace-probe member"
 	Register(member, GroupReport, func([]string) (any, int) { return nil, 0 },
 		registry.Meta{ShortHelp: "the member's own summary", Mode: "offline", Section: registry.SectionTest})
+	// The probe declares its table, as every area must: run alone, this
+	// test's Dispatch is the first, so it runs the startup check over it.
+	area := leaction.New(member, leaction.Action{Verb: "show", Why: "show the member", Answer: func() (any, int) { return nil, 0 }})
+	RegisterActions(member, area.Actions)
 	RegisterShape(member, command.ShapeDoc)
 
 	code := 0

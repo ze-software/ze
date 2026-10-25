@@ -309,12 +309,16 @@ func keywordFacts(parameter Parameter) string {
 	return tb.String()
 }
 
-// keywordDescription is the body of a keyword's page, one fact per line.
+// keywordDescription is the body of a keyword's page, one fact per line, and
+// each declared value on its own line with what it does.
 func keywordDescription(parameter Parameter) string {
 	var tb textbuf.Buffer
 	tb.Str("kind: ").Str(parameter.Kind.String()).Str(" (").Str(parameter.Kind.Meaning()).Str(")\n")
 	if len(parameter.Values) != 0 {
-		tb.Str("values: ").Join(parameter.Values, " ").Byte('\n')
+		tb.Str("values:\n")
+		for _, candidate := range parameter.ValueCandidates() {
+			tb.Str("  ").Str(candidate.Value).Str(": ").Str(candidate.Summary).Byte('\n')
+		}
 	}
 	tb.Str("required: ")
 	if parameter.Requirement == Required {

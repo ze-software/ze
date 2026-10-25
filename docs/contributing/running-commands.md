@@ -60,7 +60,10 @@ Four spellings ask for help, and the set is closed: `help`, `--help`, `-h` and
 keyword, so `./le test stress-repro run --help` and `./le test stress-repro run
 suite bgp --help` print the action's page and run nothing. Every area declares
 a table, or a pass-through one for an area whose words are another program's:
-le refuses to start while one declares neither, naming the area.
+le refuses to start while one declares neither, naming the area. It refuses
+as well while an area, an action, a keyword or a value an enum declares has no
+text, naming the item and the package the text goes in (`docs/architecture/core-design.md`,
+"Every word le offers says what it does").
 
 Every other option travels on. An area with a table refuses it, except after
 a keyword of kind `argv`, which ends the grammar: every word after it is

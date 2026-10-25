@@ -20,7 +20,8 @@ func treeProbe(t *testing.T) leaction.Area {
 		Verb: "run", Why: "run the probe. It takes every kind.",
 		Parameters: []leaction.Parameter{
 			{Keyword: "dry", Kind: leaction.KindSwitch, Help: "change nothing"},
-			{Keyword: "step", Kind: leaction.KindEnum, Value: "step", Values: []string{"build", "test"}, Requirement: leaction.Optional, Help: "the step to run"},
+			{Keyword: "step", Kind: leaction.KindEnum, Value: "step", Values: []string{"build", "test"},
+				ValueHelp: map[string]string{"build": "build only", "test": "test only"}, Requirement: leaction.Optional, Help: "the step to run"},
 			{Keyword: "count", Kind: leaction.KindUint, Value: "count", Requirement: leaction.Optional, Help: "how many"},
 			{Keyword: "file", Kind: leaction.KindPath, Value: "path", Requirement: leaction.Required, Help: "the file"},
 			{Keyword: "old", Retired: "file"},

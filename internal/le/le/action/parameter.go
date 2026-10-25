@@ -70,6 +70,11 @@ type Parameter struct {
 	// Values are the members an enum or a list may hold, in the order a reader
 	// sees them. Only those two kinds carry them.
 	Values []string `json:"values,omitempty"`
+	// ValueHelp is the one line that says what each of Values does, keyed by
+	// the value. Every declared value carries one and no other key is held:
+	// the startup check (leroot, requireEveryItemHasText) refuses le otherwise,
+	// because completion, the menu and help print it beside the value.
+	ValueHelp map[string]string `json:"value-help,omitempty"`
 	// Pair names a SECOND value the keyword takes after the first, as in
 	// `rename <old> <new>`. Usage renders both from the declaration. Arguments
 	// answers the two with Pairs.

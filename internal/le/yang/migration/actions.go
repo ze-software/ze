@@ -24,7 +24,13 @@ var actions = leaction.New(area,
 		Why:    "rewrite one removed, renamed, or moved YANG path across YANG, Go, .ci, and .et syntax",
 		Writes: true,
 		Parameters: []leaction.Parameter{
-			{Keyword: "operation", Kind: leaction.KindEnum, Help: "what happens to the YANG path", Value: "operation", Values: []string{"remove", "rename", "move"}, Requirement: leaction.Required},
+			{Keyword: "operation", Kind: leaction.KindEnum, Help: "what happens to the YANG path", Value: "operation", Values: []string{"remove", "rename", "move"},
+				ValueHelp: map[string]string{
+					"remove": "delete the node target under the path under",
+					"rename": "rename the node target under under to replacement",
+					"move":   "move the path source to the path destination",
+				},
+				Requirement: leaction.Required},
 			// Each of the five below is required by one operation and refused
 			// by another, which a flat keyword table cannot say: remove needs
 			// target and under, rename needs replacement as well, and move

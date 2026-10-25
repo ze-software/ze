@@ -125,9 +125,7 @@ func hintsOf(parameter leaction.Parameter) func() []command.Suggestion {
 		if parameter.Source != nil {
 			candidates = parameter.Source()
 		}
-		for _, value := range parameter.Values {
-			candidates = append(candidates, leaction.Candidate{Value: value})
-		}
+		candidates = append(candidates, parameter.ValueCandidates()...)
 		out := make([]command.Suggestion, 0, len(candidates))
 		for _, candidate := range candidates {
 			out = append(out, command.Suggestion{Text: candidate.Value, Description: candidate.Summary, Type: command.SuggestionValue})

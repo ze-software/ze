@@ -77,6 +77,10 @@ var actions = leaction.New("weekly", leaction.Action{
 		{Keyword: dirKeyword, Kind: leaction.KindPath, Value: "path", Requirement: leaction.Optional,
 			Help: "the posts directory a sweep reads; " + PostsDirRel + " when neither source nor dir is given"},
 		{Keyword: channelKeyword, Kind: leaction.KindEnum, Value: "channel", Values: channels[:],
+			ValueHelp: map[string]string{
+				"ze-news": "the public news channel; the default",
+				"ze-test": "the rehearsal channel, to check a post first",
+			},
 			Requirement: leaction.Optional, Help: "the channel to post to; ze-test is the rehearsal channel"},
 		{Keyword: confirmKeyword, Kind: leaction.KindSwitch, Help: "publish, rather than answer the plan"},
 		{Keyword: forceKeyword, Kind: leaction.KindSwitch,

@@ -74,6 +74,8 @@ type Parameter struct {
 	Kind string `json:"kind"`
 	// Values is the closed set an enum or a closed list accepts.
 	Values []string `json:"values,omitempty"`
+	// ValueHelp is the line that says what each of Values does, keyed by value.
+	ValueHelp map[string]string `json:"value-help,omitempty"`
 	// Pair names the second value of a keyword that takes two.
 	Pair     string `json:"pair,omitempty"`
 	Required bool   `json:"required"`
@@ -147,7 +149,8 @@ func (r Reference) writeCommands(tb *textbuf.Buffer) {
 }
 
 // writeParameter prints one parameter line: its spelling, kind, values and
-// whether it is required or repeats.
+// whether it is required or repeats, then one line per declared value saying
+// what it does.
 func writeParameter(tb *textbuf.Buffer, p Parameter) {
 	tb.Str("    ")
 	if p.Keyword != "" {
@@ -176,6 +179,11 @@ func writeParameter(tb *textbuf.Buffer, p Parameter) {
 		tb.Str("  ").Str(p.Help)
 	}
 	tb.Byte('\n')
+	for _, value := range p.Values {
+		if help, held := p.ValueHelp[value]; held {
+			tb.Str("      ").Str(value).Str("  ").Str(help).Byte('\n')
+		}
+	}
 }
 
 // writeEntries prints a titled list of named rows.

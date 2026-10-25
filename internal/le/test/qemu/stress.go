@@ -99,7 +99,7 @@ func stressAction() leaction.Action {
 			" directory, which must be empty. `prefixes` shortens every round for a smoke run, which" +
 			" is never a measurement; `pprof` captures the CPU, heap and goroutine profiles",
 		Parameters: []leaction.Parameter{
-			{Keyword: keywordScenario, Kind: leaction.KindEnum, Help: "the stress scenario to run", Value: "scenario", Values: testintegration.StressScenarios(), Requirement: leaction.Required},
+			{Keyword: keywordScenario, Kind: leaction.KindEnum, Help: "the stress scenario to run", Value: "scenario", Values: testintegration.StressScenarios(), ValueHelp: testintegration.StressScenarioHelp(), Requirement: leaction.Required},
 			{Keyword: keywordOutput, Kind: leaction.KindPath, Help: "the directory the results are written to", Value: "directory", Requirement: leaction.Required},
 			{Keyword: keywordPrefixes, Kind: leaction.KindUint, Help: "how many prefixes the scenario announces", Value: "count", Requirement: leaction.Optional},
 			{Keyword: keywordPprof, Kind: leaction.KindSwitch, Help: "capture profiles while the scenario runs"},
