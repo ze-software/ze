@@ -170,11 +170,11 @@ func (s *watchdogServer) handlePoolAction(args []string, peer string, announce b
 
 	// Wildcard: dispatch to all peers with this pool.
 	if peer == "*" {
-		status, data, err := s.handlePoolActionAll(name, announce, medOverride)
+		status, data := s.handlePoolActionAll(name, announce, medOverride)
 		if givenErr != nil {
 			return statusError, nil, givenErr
 		}
-		return status, data, err
+		return status, data, nil
 	}
 
 	status, data, err := s.handlePoolActionSingle(name, peer, announce, medOverride)
@@ -188,7 +188,9 @@ func (s *watchdogServer) handlePoolAction(args []string, peer string, announce b
 }
 
 // handlePoolActionAll dispatches a watchdog action to all peers that have the named pool.
-func (s *watchdogServer) handlePoolActionAll(name string, announce bool, medOverride *uint32) (string, any, error) {
+// A peer whose action fails is logged and left out of the count, so the
+// wildcard itself has no error to answer.
+func (s *watchdogServer) handlePoolActionAll(name string, announce bool, medOverride *uint32) (string, any) {
 	s.mu.RLock()
 	peers := make([]string, 0, len(s.peerPools))
 	for addr := range s.peerPools {
@@ -212,7 +214,7 @@ func (s *watchdogServer) handlePoolActionAll(name string, announce bool, medOver
 	if !announce {
 		action = "withdrawn"
 	}
-	return statusDone, watchdogAllResult{Watchdog: name, Peers: total, Action: action}, nil
+	return statusDone, watchdogAllResult{Watchdog: name, Peers: total, Action: action}
 }
 
 // handlePoolActionSingle handles announce/withdraw for a single peer.

@@ -1,6 +1,5 @@
 // Design: docs/architecture/behavior/signals.md -- the stop signal is announced once forceCh is registered
 
-
 package hub
 
 import (

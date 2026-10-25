@@ -4,6 +4,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -26,16 +27,16 @@ func (e *syntaxRefusal) Unwrap() error { return e.cause }
 // prependSyntaxPath preserves other parser errors verbatim. Each caller adds
 // exactly the node name or list key it owns as the refusal returns to the root.
 func prependSyntaxPath(err error, name string) error {
-	refusal, ok := err.(*syntaxRefusal)
-	if !ok {
+	var refusal *syntaxRefusal
+	if !errors.As(err, &refusal) {
 		return err
 	}
 	if refusal.path == "" {
 		refusal.path = name
-		return refusal
+		return err
 	}
 	refusal.path = name + "/" + refusal.path
-	return refusal
+	return err
 }
 
 // containerValueFix renders the immediate schema children, not a feature-specific
@@ -47,11 +48,12 @@ func containerValueFix(node *ContainerNode, name string) string {
 		b.Byte(' ')
 		switch field := node.Get(child).(type) {
 		case *LeafNode:
-			if len(field.Enums) != 0 {
+			switch {
+			case len(field.Enums) != 0:
 				b.Str(leafValueFix(field, child, ""))
-			} else if field.Type == TypeEmpty {
+			case field.Type == TypeEmpty:
 				b.Str(child).Byte(';')
-			} else {
+			default: // A leaf with no enumeration takes any VALUE.
 				b.Str(child).Str(" VALUE;")
 			}
 		case *MultiLeafNode, *BracketLeafListNode, *ValueOrArrayNode:

@@ -608,7 +608,7 @@ func TestTheTemplateAndTheProducerAgreeAboutEverySlot(t *testing.T) {
 // correct.
 func TestTheHeroReplaysTheRecordingTheManifestNames(t *testing.T) {
 	paths := homeFixture(t)
-	mount, err := newDemoCatalog(paths).heroMount(homeHeroDemo, homeRoot)
+	mount, err := newDemoCatalog(paths).heroMount(homeHeroDemo)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -643,7 +643,7 @@ func TestTheHeroReplaysTheRecordingTheManifestNames(t *testing.T) {
 	}
 	first["kind"] = "video"
 	writeDemoJSON(t, manifest, decoded)
-	if _, err := newDemoCatalog(video).heroMount(homeHeroDemo, homeRoot); err == nil {
+	if _, err := newDemoCatalog(video).heroMount(homeHeroDemo); err == nil {
 		t.Error("a video recording was mounted in the hero's terminal frame")
 	} else if !strings.Contains(err.Error(), "replays a terminal") {
 		t.Errorf("the refusal says %q, which does not say the frame replays a terminal", err)
@@ -697,7 +697,7 @@ func TestTheHomepageShowcaseKeepsItsImagesAndRecording(t *testing.T) {
 			t.Errorf("the screenshot %s is absent or hidden before JavaScript runs", panel)
 		}
 		if !strings.Contains(page, `aria-controls="`+panel+`"`) {
-			t.Errorf("the screenshot %s has no labelled selector", panel)
+			t.Errorf("the screenshot %s has no labeled selector", panel)
 		}
 	}
 	for _, target := range []string{"demos/terminal/", "guides/quickstart/"} {

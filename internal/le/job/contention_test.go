@@ -25,6 +25,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -495,8 +496,7 @@ func unset(t *testing.T, name string) {
 	original := os.Environ()
 	kept := env.Without(original, name)
 	// Cleanup is LIFO; remove in reverse so equivalent spellings regain their order.
-	for i := len(original) - 1; i >= 0; i-- {
-		entry := original[i]
+	for _, entry := range slices.Backward(original) {
 		if len(kept) > 0 && entry == kept[len(kept)-1] {
 			kept = kept[:len(kept)-1]
 			continue

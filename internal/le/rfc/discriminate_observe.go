@@ -365,7 +365,8 @@ func (o *observationRunner) requireProducerReachedIn(module, profile string) err
 // producerKeys answers every function one broken run breaks: the record's
 // producer, then each paired producer.
 func (o *observationRunner) producerKeys() []string {
-	keys := []string{o.record.Producer}
+	keys := make([]string, 0, 1+len(o.record.Paired))
+	keys = append(keys, o.record.Producer)
 	for _, paired := range o.record.Paired {
 		keys = append(keys, paired.Producer)
 	}

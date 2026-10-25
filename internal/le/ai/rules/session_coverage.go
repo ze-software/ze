@@ -332,9 +332,7 @@ var coverageFileKinds = []fileKind{
 	{name: "docs", matches: func(path string) bool { return strings.HasPrefix(path, "docs/") && strings.HasSuffix(path, ".md") }, keywords: []string{
 		"documentation", "docs", "doc", "prose", "user-visible behavior", "comment", "comments",
 	}},
-	{name: "spec", matches: func(path string) bool {
-		return specpath.IsSpec(path)
-	}, keywords: []string{
+	{name: "spec", matches: specpath.IsSpec, keywords: []string{
 		"spec", "specs", "acceptance criterion", "acceptance criteria",
 	}},
 	{name: "learned", matches: func(path string) bool { return strings.HasPrefix(path, "plan/learned/") }, keywords: []string{"learned", "learned summary"}},

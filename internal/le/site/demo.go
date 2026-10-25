@@ -52,9 +52,15 @@ var demoAssetExtensions = map[string]string{
 // replays. A browser recording has no byte stream and stays a video with a
 // poster frame. A demo that published both would show a reader two players.
 var demoKindAssets = map[string][]string{
-	"terminal": {demoCast, demoTranscript},
-	"browser":  {demoPoster, demoTranscript, demoVideo},
+	demoKindTerminal: {demoCast, demoTranscript},
+	demoKindBrowser:  {demoPoster, demoTranscript, demoVideo},
 }
+
+// The two kinds a demo declares: a terminal session or a browser recording.
+const (
+	demoKindTerminal = "terminal"
+	demoKindBrowser  = "browser"
+)
 
 // The nominal monospace cell, used only to reserve the demo box before the
 // player loads. They are JetBrains Mono's own metrics, so the reserved box has
@@ -238,13 +244,14 @@ func (catalog *demoCatalog) expand(body, mirror, root, docRel string) (string, s
 // hero frame is a terminal window, so a video in it would be a frame around the
 // wrong thing.
 //
-// The player's label is the recording's manifest title.
-func (catalog *demoCatalog) heroMount(id, root string) (string, error) {
+// The player's label is the recording's manifest title. The asset paths are
+// relative to the homepage, the only page that mounts a hero.
+func (catalog *demoCatalog) heroMount(id string) (string, error) {
 	demo, err := catalog.demo(id)
 	if err != nil {
 		return "", err
 	}
-	if demo.Kind != "terminal" {
+	if demo.Kind != demoKindTerminal {
 		return "", fmt.Errorf("hero demo %s is a %s recording, and the hero frame replays a terminal", id, demo.Kind)
 	}
 	entry, generated := catalog.built[id]
@@ -259,8 +266,8 @@ func (catalog *demoCatalog) heroMount(id, root string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return playerMount(html.EscapeString(demoAssetURL(root, id, entry, demoCast)),
-		html.EscapeString(demoAssetURL(root, id, entry, demoTranscript)),
+	return playerMount(html.EscapeString(demoAssetURL(homeRoot, id, entry, demoCast)),
+		html.EscapeString(demoAssetURL(homeRoot, id, entry, demoTranscript)),
 		facts, html.EscapeString(demo.Title)), nil
 }
 
@@ -568,7 +575,7 @@ func renderDemoHTML(render *demoRender) string {
 	label := html.EscapeString(demo.Title + " demonstration")
 	transcriptURL := html.EscapeString(demoAssetURL(root, id, entry, demoTranscript))
 	kindLabel := "Terminal"
-	if demo.Kind == "browser" {
+	if demo.Kind == demoKindBrowser {
 		kindLabel = "Browser"
 	}
 

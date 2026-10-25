@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -35,8 +36,7 @@ func useEnvironment(t *testing.T, name, value string) {
 	original := os.Environ()
 	kept := env.Without(original, name)
 	// Cleanup is LIFO; remove in reverse so equivalent spellings regain their order.
-	for i := len(original) - 1; i >= 0; i-- {
-		entry := original[i]
+	for _, entry := range slices.Backward(original) {
 		if len(kept) > 0 && entry == kept[len(kept)-1] {
 			kept = kept[:len(kept)-1]
 			continue

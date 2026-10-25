@@ -379,13 +379,15 @@ func validateIRR() error {
 	if err := requireNone(before, "bgp-filter-irr", "AS-TEST"); err != nil {
 		return err
 	}
+	// The IRR demo's one customer peer, and the direction its filter applies to.
+	const irrCustomer, irrDirection = "customer-a", "import"
 	sets := [][]string{
 		{"plugin", "internal", "bgp-filter-irr", "use", "bgp-filter-irr"},
 		{commandBGP, "policy", demoIRR, "server", "127.0.0.1:4343"},
 		{commandBGP, "policy", demoIRR, "refresh-interval", "3600"},
-		{commandBGP, ipPeer, "customer-a", "session", demoIRR, "as-set", "AS-TEST"},
-		{commandBGP, ipPeer, "customer-a", "filter", "import", "filters", "bgp-filter-irr:65001"},
-		{commandBGP, ipPeer, "customer-a", "filter", "import", "final", "accept"},
+		{commandBGP, ipPeer, irrCustomer, "session", demoIRR, "as-set", "AS-TEST"},
+		{commandBGP, ipPeer, irrCustomer, "filter", irrDirection, "filters", "bgp-filter-irr:65001"},
+		{commandBGP, ipPeer, irrCustomer, "filter", irrDirection, "final", "accept"},
 	}
 	edited, err := editStoredConfig(env, sets)
 	if err != nil {

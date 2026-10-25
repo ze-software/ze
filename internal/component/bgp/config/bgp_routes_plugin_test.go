@@ -139,7 +139,7 @@ func checkPluginRouteAttrs(t *testing.T, attrs, line string, want map[attribute.
 // VALIDATES: the IPv4 address-specific Route Target reaches the route as
 // EXTENDED_COMMUNITIES beside the Tunnel Encapsulation (RFC 9830 Section 1).
 // PREVENTS: an SR Policy route refused at load, or sent with no Route Target,
-// so no headend recognises it (bgp-sr-policy-gobgp interop).
+// so no headend recognizes it (bgp-sr-policy-gobgp interop).
 func TestSRPolicyRouteCarriesRouteTarget(t *testing.T) {
 	routes, err := pluginRouteFromConfig(t,
 		"extended-community [ target:172.30.0.5:0 ];",
@@ -152,6 +152,7 @@ func TestSRPolicyRouteCarriesRouteTarget(t *testing.T) {
 	}
 	var extComm, tunnel int
 	for _, a := range routes[0].Attrs {
+		//exhaustive:ignore // counts only the two attributes the route must carry; the others are not asserted here
 		switch attribute.AttributeCode(a.Code) {
 		case attribute.AttrExtCommunity:
 			extComm++

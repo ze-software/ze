@@ -89,7 +89,7 @@ func requireFRRRefusesDraftForm(ctx context.Context, lab interoplab.CheckerLab, 
 	if err := json.Unmarshal([]byte(state), &document); err != nil {
 		return fmt.Errorf("draft form: decode FRR neighbor %s: %w", zeAddress, err)
 	}
-	value, ok := findJSONField(document, "bgpState")
+	value, ok := findJSONField(document, frrSessionStateKey)
 	if !ok {
 		return fmt.Errorf("draft form: FRR shows no session state for ze at %s:\n%s", zeAddress, strings.TrimSpace(state))
 	}
@@ -198,7 +198,7 @@ func requireFRRShowsZeVersion(ctx context.Context, lab interoplab.CheckerLab, ze
 	var command textbuf.Buffer
 	session := []string{cmdVtysh, "-c", command.Str("show bgp neighbor ").Str(zeAddress).Str(" json").String()}
 	if err := waitJSONFields(ctx, lab, peerFRR, session, 90*time.Second,
-		map[string]string{"bgpState": stateEstablished}, nil); err != nil {
+		map[string]string{frrSessionStateKey: stateEstablished}, nil); err != nil {
 		return fmt.Errorf("%s: FRR never reached Established with ze at %s: %w", form, zeAddress, err)
 	}
 	answer, err := lab.Query(ctx, peerFRR, session, nil)

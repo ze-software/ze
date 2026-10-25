@@ -213,7 +213,7 @@ func homeMirror(page string) (string, error) {
 // recordings and their manifest entries. The management walkthrough keeps the
 // complete session available but opens at its SSH introduction.
 func homeHeroSlots(catalog *demoCatalog) ([]string, error) {
-	mount, err := catalog.heroMount(homeHeroDemo, homeRoot)
+	mount, err := catalog.heroMount(homeHeroDemo)
 	if err != nil {
 		return nil, err
 	}
@@ -233,14 +233,14 @@ func homeHeroSlots(catalog *demoCatalog) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	if web.Kind != "browser" {
+	if web.Kind != demoKindBrowser {
 		return nil, fmt.Errorf("homepage web preview %s is a %s recording, and needs a browser recording", homeWebDemo, web.Kind)
 	}
 	webEntry := catalog.built[homeWebDemo]
 	if _, err := catalog.verifyAssets(homeWebDemo, web.Kind, webEntry); err != nil {
 		return nil, err
 	}
-	management, err := catalog.heroMount(homeManagementDemo, homeRoot)
+	management, err := catalog.heroMount(homeManagementDemo)
 	if err != nil {
 		return nil, err
 	}

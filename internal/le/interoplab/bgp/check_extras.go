@@ -75,14 +75,14 @@ var scenarioExtras = map[string][]operation{
 	// line per path, so the two identifiers ze wrote as 0.0.0.1 and 0.0.0.2
 	// must arrive as 1 and 2.
 	scenarioAddPathFRR: {
-		{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show bgp ipv4 unicast 10.10.0.0/24"}, contains: []string{injectPrefixFirst, "Paths: (2 available", "AddPath ID: RX 1,", "AddPath ID: RX 2,"}},
+		{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show bgp ipv4 unicast 10.10.0.0/24"}, contains: []string{injectPrefixFirst, frrTwoPathsAvailable, "AddPath ID: RX 1,", "AddPath ID: RX 2,"}},
 	},
 	// RFC 7911 Section 3 reserves no Path Identifier value, so the identifier
 	// ze writes as 0.0.0.0 is a path of its own: FRR holds two paths for the
 	// prefix and prints "AddPath ID: RX 0," for the first. A sender that reads
 	// 0 as "no identifier" leaves FRR one path, or none.
 	scenarioAddPathZeroIDFRR: {
-		{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show bgp ipv4 unicast 10.10.0.0/24"}, contains: []string{injectPrefixFirst, "Paths: (2 available", "AddPath ID: RX 0,", "AddPath ID: RX 1,"}},
+		{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show bgp ipv4 unicast 10.10.0.0/24"}, contains: []string{injectPrefixFirst, frrTwoPathsAvailable, "AddPath ID: RX 0,", "AddPath ID: RX 1,"}},
 	},
 	scenarioECMPFRR: {
 		{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show bgp ipv4 unicast 10.100.0.0/24 json"}, contains: []string{ecmpPrefix, zeLabAddress, gobgpLabAddress}},

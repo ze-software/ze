@@ -102,7 +102,7 @@ type discriminationRecordReport struct {
 }
 
 // Text renders the record and the red it rests on.
-func (r discriminationRecordReport) Text() string {
+func (r *discriminationRecordReport) Text() string {
 	var tb textbuf.Buffer
 	tb.Str(r.Artifact).Str(": recorded ").Str(r.Record.RID).Byte(' ').Str(r.Record.Polarity).
 		Str(" at ").Str(r.Record.Unit).Str(" by ").Str(r.Record.Route).Byte('\n')
@@ -162,7 +162,7 @@ func discriminateRecordAnswer(args leaction.Arguments) (any, int) {
 		leaction.ReportError(err)
 		return nil, 2
 	}
-	return report, 0
+	return &report, 0
 }
 
 // recordDiscrimination is the whole record mode: check, observe, seal, write.

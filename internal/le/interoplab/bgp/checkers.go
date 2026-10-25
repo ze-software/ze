@@ -495,7 +495,7 @@ var scenarioOperations = map[string][]operation{
 	"bgp-addpath-departure-reflector-frr": {
 		{kind: opFRRSession, argument: zeLabAddress},
 		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show bgp ipv4 unicast " + addPathDeparturePrefix},
-			contains: []string{"Paths: (2 available"}, timeout: 90 * time.Second},
+			contains: []string{frrTwoPathsAvailable}, timeout: 90 * time.Second},
 		{kind: opSignal, peer: peerInject, argument: signalTERM},
 		{kind: opFRRRouteAbsent, argument: addPathDeparturePrefix, timeout: 60 * time.Second},
 		{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show bgp neighbor " + zeLabAddress},
@@ -752,7 +752,7 @@ var scenarioOperations = map[string][]operation{
 		// The session first, then the Identifier on its own, so a wrong one fails
 		// by naming the value FRR holds rather than as a timeout.
 		{kind: opWaitJSONFields, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowZeNeighborJSON}, timeout: 90 * time.Second,
-			fields: map[string]string{"bgpState": stateEstablished}},
+			fields: map[string]string{frrSessionStateKey: stateEstablished}},
 		{kind: opRequireJSONFields, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowZeNeighborJSON},
 			fields: map[string]string{"remoteRouterId": reloadRouterIDAfter}},
 	},

@@ -447,7 +447,7 @@ type DiscriminationVerdict struct {
 // Verified answers whether the tree still holds the code the red was observed
 // against. A reader outside this package publishes proof and escape apart, and
 // this is the one question that decides which.
-func (v DiscriminationVerdict) Verified() bool { return v.State == ProofVerified }
+func (v *DiscriminationVerdict) Verified() bool { return v.State == ProofVerified }
 
 // removable answers whether this record's TAG is gone from the tree.
 //
@@ -456,7 +456,7 @@ func (v DiscriminationVerdict) Verified() bool { return v.State == ProofVerified
 // refused (AC-4). A record whose tag is STILL THERE and no longer verifies is
 // the opposite -- a published claim the tree contradicts -- and that one is a
 // violation.
-func (v DiscriminationVerdict) removable() bool {
+func (v *DiscriminationVerdict) removable() bool {
 	return v.State == ProofUnitGone || v.State == ProofTagGone
 }
 

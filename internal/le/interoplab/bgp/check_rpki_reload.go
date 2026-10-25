@@ -344,7 +344,7 @@ func readRPKIReloadSource(ctx context.Context, check *interoplab.CheckContext) (
 		return result, fmt.Errorf("FRR source is not established: %v", peer)
 	}
 	result.Counters = make(map[string]int64, 8)
-	for _, key := range []string{"updates-received", "eor-received", "connections-established", "connections-dropped"} {
+	for _, key := range []string{"updates-received", "eor-received", zeFieldConnectionsEstablished, zeFieldConnectionsDropped} {
 		value, ok := number(peer[key])
 		if !ok || value < 0 {
 			return result, fmt.Errorf("FRR source has no %s counter", key)
@@ -432,7 +432,7 @@ func readRPKIReloadSink(ctx context.Context, check *interoplab.CheckContext) (rp
 	// UPDATEs must remain free to carry the acceptance and withdrawal. Only
 	// lifetime connection/drop and OPEN counters fence a reconnect/replay here.
 	result.Counters = make(map[string]int64, 4)
-	for _, key := range []string{"connections-established", "connections-dropped"} {
+	for _, key := range []string{zeFieldConnectionsEstablished, zeFieldConnectionsDropped} {
 		value, ok := number(peer[key])
 		if !ok || value < 0 {
 			return result, fmt.Errorf("BIRD sink has no %s counter", key)

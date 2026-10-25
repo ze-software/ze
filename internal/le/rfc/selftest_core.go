@@ -797,7 +797,7 @@ func runDiscriminationSelftest() ([]leroot.SelftestResult, error) {
 			stale[staleRenamed].verdict.State == ProofUnitGone && stale[staleTagless].verdict.State == ProofTagGone &&
 				len(staleErrs[staleRenamed]) == 0 && len(staleErrs[staleTagless]) == 0,
 			"a record whose tag is gone was refused rather than reported for removal"),
-		selftestResult("discrimination/comment-edit-keeps-proof", stale[staleCommented].verdict.Verified(),
+		selftestResult("discrimination/comment-edit-keeps-proof", stale[staleCommented].verdict.State == ProofVerified,
 			"a comment above the producer voided a proof; the key hashes BEHAVIOR, not text"),
 		selftestResult("discrimination/half-written-refusal", discriminationHalfWrittenRefused(records[0], records[1]),
 			"a record missing half of what its route needs, or an escape wearing a proof's fields, was accepted"),

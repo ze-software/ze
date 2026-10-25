@@ -22,6 +22,10 @@ const scenarioOpenExtendedParamsBoundaryFRR = "bgp-open-extended-params-boundary
 // session state under (bgpd/bgp_vty.c).
 const frrSessionStateKey = "bgpState"
 
+// frrTwoPathsAvailable is how FRR's `show bgp <prefix>` opens a prefix it
+// holds two paths for, the evidence that ADD-PATH delivered both.
+const frrTwoPathsAvailable = "Paths: (2 available"
+
 // boundaryHost is the hostname the scenario's ze.conf configures: 200 octets,
 // the padding that brings ze's capabilities to 254 octets. Its length is part
 // of the arithmetic in that file's header, so a change to one changes both.
