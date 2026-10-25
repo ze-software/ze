@@ -19,6 +19,9 @@ import (
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/le/derived"
 	leroot "github.com/ze-software/ze/internal/le/le/root"
+
+	// The spec namespace's summary: Dispatch refuses a namespace without one.
+	_ "github.com/ze-software/ze/internal/le/spec"
 	specpath "github.com/ze-software/ze/internal/le/spec/path"
 	specstatus "github.com/ze-software/ze/internal/le/spec/status"
 )
