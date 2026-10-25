@@ -53,8 +53,10 @@ and then tries to be "smart" about the wait:
 
 There is no legitimate reason to background a verification. This rationale
 serves `ai/rules/git-safety.md`, and `ai/skills/ze-verify.md` step 2 carries
-the instruction: run in the foreground, wait, never poll. A polling loop is
-also refused outright (`ai/rules/commands.md`).
+the instruction: run in the foreground, wait, never poll. A polling loop
+around a backgrounded run is banned too; the only poll `ai/rules/commands.md`
+allows is one that is genuinely the only signal, wrapped in `timeout` and
+waking no faster than every 30 seconds.
 This paragraph used to carve out an exception for
 "genuinely independent work to do for >60s while it runs", contradicting the
 rule it exists to explain, and enumerating "both cases" under a single bullet.

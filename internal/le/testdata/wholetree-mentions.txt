@@ -67,14 +67,12 @@ docs/contributing/testing.md :: When Thomas starts `./le verify current`, it run
 docs/contributing/testing.md :: with the shipped personality tags under `darwin`, `freebsd` and `openbsd`, and Thomas's release check, `./le verify worktree`, runs all three.
 docs/contributing/testing.md :: | Have the release check run: Thomas runs it at his terminal, and an agent only gives him the command | `./le verify current` |
 docs/contributing/ze-go-style-background.md :: The base reads refs only, so the detached worktree that Thomas's release check, `./le verify worktree`, makes answers the same range.
-docs/contributing/ze-go-style.md :: | `go test ./...` for verification | `./le verify worktree`, Thomas's release check (two-pass, plus functional and exabgp stages) | `ai/rules/testing.md` | Cached full run, race on the changed groups |
 docs/functional-tests.md :: Broadly, Thomas's release check, `./le verify current`, runs the static gates first, then `./le verify deps vulnerability` before unit, functional, and ExaBGP stages.
 docs/functional-tests.md :: Its fast form, `./le verify current fast`, is Thomas's release check too and substitutes changed-only lint and unit stages.
 docs/functional-tests.md :: | `tmp/ze-verify-full.json` | The same index, written by the FULL mode only. It is the record a commit carrying Go is gated on, and it is separate because a `./le verify current fast` run that Thomas starts elsewhere republishes the shared path |
 docs/functional-tests.md :: Thomas runs clean release-candidate evidence with `./le verify evidence release-candidate`.
 docs/functional-tests.md :: The action refuses a dirty worktree, clones the repository into an ephemeral Docker container, mirrors the CI dependency setup, and runs `./le verify current` there.
 docs/functional-tests.md :: That directory is live: every release check Thomas runs over the checkout (`./le verify current`) runs it, and so does every suite run by other sessions working on unrelated things, who then have to work out whether your half-written test is their regression.
-docs/functional-tests.md :: | `./le verify current` (Thomas's release check, at a terminal) | Every unit group plus repository gates | about 5 minutes |
 docs/functional-tests.md :: It is out of Thomas's release check, `./le verify current`, because it needs netlab installed, and that check must run on a machine that has neither netlab nor Jinja2.
 docs/functional-tests.md :: `./le verify current`, the full verification, is Thomas's release check: it runs only when stdin and stdout are both terminals, and an agent gives him the exact command instead of running it.
 docs/functional-tests.md :: `./le verify current` is the full verification, a release check Thomas starts only at a terminal.

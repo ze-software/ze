@@ -685,7 +685,7 @@ below. The buffer and pool rules are in "Performance" above.
 
 | Standard Go | Ze | Rule | Why |
 |---|---|---|---|
-| `go test ./...` for verification | `./le verify worktree`, Thomas's release check (two-pass, plus functional and exabgp stages) | `ai/rules/testing.md` | Cached full run, race on the changed groups |
+| `go test ./...` for verification | `./le verify changed`, scoped to the packages, feature tags and suites the change reaches | `ai/rules/testing.md` | Day-to-day evidence covers what the change can reach; the whole-tree run is the release check, not an agent's |
 | Unit tests prove correctness | Unit tests and `.ci` functional tests, both required | `ai/rules/completion.md` | A unit test proves the algorithm; a `.ci` test proves a user can reach the feature |
 | `testify/assert` | The standard library `testing` package | (convention) | No test framework dependencies |
 | `go test -race` once | `go test -race -count=20 ./internal/component/bgp/reactor/...` for reactor code | `ai/rules/testing.md` | A rare schedule needs repeated runs to surface |

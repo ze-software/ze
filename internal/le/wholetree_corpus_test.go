@@ -44,16 +44,17 @@ import (
 	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 
-// agentCorpus is the set of trees this scan judges, and exactly that set: the
-// shared rules, patterns, skills and INSTRUCTIONS.md under ai/, the generated
+// agentCorpus is the set of trees this scan judges, and exactly that set:
+// every tracked Markdown or extensionless file under ai/, the generated
 // AGENTS.md, the Claude copies and plans under .claude/, the spec templates
 // under plan/templates/, the contributor pages under docs/contributing/, and
 // docs/functional-tests.md, the test-running page the tooling door sends an
 // agent to. The rest of docs/ (architecture, guide) and the specs under plan/
-// are not judged. Only files git tracks are read: a gitignored derived file
-// (ai/RFC-REQUIREMENTS.md, rebuilt from internal/le/rfc/carriers.go) is judged
-// at its Go source, and a file another session has not committed is not yet a
-// surface any agent inherits.
+// are not judged. Only files git tracks are read, so a file another session has
+// not committed is not yet a surface any agent inherits. Not judged either: a
+// gitignored derived page such as ai/RFC-REQUIREMENTS.md, and the Go source
+// that writes it (internal/le/rfc/carriers.go), so a mention added there is
+// outside this guard.
 var agentCorpus = []string{"ai", "AGENTS.md", ".claude", "plan/templates", "docs/contributing", "docs/functional-tests.md"}
 
 // mentionLedger is the reviewed list of every whole-tree mention the corpus

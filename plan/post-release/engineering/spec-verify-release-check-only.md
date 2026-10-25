@@ -548,10 +548,31 @@ are fixed in the commit that carries this paragraph.
 The deletion of `TestUnbannedRunsJudgesTheSentence` goes with the deleted
 classifier, which is a test weakening and needs Thomas's approval.
 
-Rounds 6, 7 and 8 ran past the five-round review cap without Thomas's
-authorisation. Whether round 9 runs, and whether this spec closes, waits on his
-ruling. The scoped `./le verify changed` over the closing commits is owed with
-that ruling.
+Rounds 6 and 7 ran past the five-round review cap without Thomas's
+authorisation. He then authorised round 8 and round 9, and approved the
+deletion of `TestUnbannedRunsJudgesTheSentence` and `unbannedRuns`. The
+ledger commit is `9515bfa760`. Its stale-entry red was observed by the parent:
+a probe entry no file holds failed the corpus test, naming the entry, and was
+then removed.
+
+Round 9, over `9515bfa760`, ran in the parent session with an independent
+reviewer, who read all 80 ledger entries and flagged one. It found 0 BLOCKER,
+2 ISSUE and 6 NOTE. The ISSUEs and two NOTEs are fixed in the commit that
+carries this paragraph.
+
+| # | Finding | Fix | Test that goes red without it |
+|---|---------|-----|-------------------------------|
+| 29 | ISSUE: the `ze-go-style.md` Testing table mapped `go test ./...` to `./le verify worktree`, the "use X instead" shape, on a page every session reads before its first Go edit | The Ze cell is `./le verify changed`, scoped to what the change reaches, and the Why says the whole-tree run is the release check. Its ledger entry is removed | `TestNoAgentSurfaceTellsAnAgentToRunAWholeTreeVerify` refuses the old row as unlisted |
+| 30 | ISSUE: the `agentCorpus` comment said `ai/RFC-REQUIREMENTS.md` is judged at its Go source; no test scans `internal/le/rfc/carriers.go` | The comment states that neither the derived page nor its Go source is judged, and that a mention added there is outside this guard | None: comment |
+| 31 | NOTE: `functional-tests.md` listed `./le verify current` in the "during development" table | The row is `./le verify changed`; its ledger entry is removed | The corpus test refuses the old row as unlisted |
+| 32 | NOTE: `ai/rationale/git-safety.md` said a polling loop is refused outright | It says a poll around a backgrounded run is banned, and names the one poll `ai/rules/commands.md` allows | None: prose |
+
+Not fixed, recorded as NOTEs: `judgeMentions` admits a second copy of a listed
+sentence in the same file without review; `wholeTreePattern` misses a
+non-breaking space, markup between `le` and the verb, and a bare verb with no
+`le`; `running-commands.md` names `checkVerificationGates` without its
+`structural-red-ok` and `broken-head-fix` escapes. None lets an agent start a
+full verify, which the terminal gate refuses whatever any page says.
 
 ## Design Insights
 

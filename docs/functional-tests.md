@@ -698,7 +698,7 @@ component-group targets to test only the area you changed:
 | `./le test unit config` | `./internal/component/config/...` | about 20 seconds |
 | `./le test unit cli` | `./internal/component/cli/...` | about 10 seconds |
 | `./le test unit installer` | `./internal/install/...` behind the `ze_installer` tag | about 10 seconds |
-| `./le verify current` (Thomas's release check, at a terminal) | Every unit group plus repository gates | about 5 minutes |
+| `./le verify changed` | What the change reaches, in a throwaway worktree | depends on the change |
 
 The first five groups run with the test-only `CGO_ENABLED=1 go test -race` path
 on Linux and Darwin. These race-built test executables never ship or serve as
