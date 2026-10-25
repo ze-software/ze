@@ -34,7 +34,7 @@ var actions = leaction.New(area, leaction.Action{
 	Why:  "lint the full tree, a declared package scope, or the packages the change set reaches (changed) through the host, Linux integration, platform, capability, personality, and compile-out builds",
 	Parameters: []leaction.Parameter{
 		{Keyword: "scope", Value: "packages", Requirement: leaction.Optional},
-		{Keyword: keywordChanged},
+		{Keyword: keywordChanged, ReadsChangeScope: true},
 	},
 	AnswerArgs: runHere,
 })

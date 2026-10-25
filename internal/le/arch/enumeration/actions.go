@@ -33,9 +33,10 @@ const area = "arch enumeration"
 // actions is the whole command surface.
 var actions = leaction.New(area,
 	leaction.Action{
-		Verb:   "check",
-		Why:    "no literal this change set introduces enumerates what a live registry already holds, so the class stops growing while the copies already in the tree stay visible in report",
-		Answer: runCheck,
+		Verb:             "check",
+		Why:              "no literal this change set introduces enumerates what a live registry already holds, so the class stops growing while the copies already in the tree stay visible in report",
+		ReadsChangeScope: true,
+		Answer:           runCheck,
 	},
 	leaction.Action{
 		Verb:   "report",

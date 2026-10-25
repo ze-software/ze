@@ -12,6 +12,7 @@ package verifyengine
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -111,6 +112,42 @@ func TestAFullIdentityStageTakesAPartialRunsVerdict(t *testing.T) {
 	entry := carriedEntry(t, readCarried(t, root), "go lint/run")
 	if entry.ExitCode != 0 || entry.OutsideRun || entry.CarriedFrom != nil {
 		t.Fatalf("go lint/run after full red then fast green = %#v, want the fast green, not carried", entry)
+	}
+}
+
+// TestACutFullRunPieceIsAFullJudgement pins JudgesInPart for the mode a cut
+// full run writes (`full-part-i-of-n`, Part.Name). Each piece judges its
+// stages over the whole tree, because the full population publishes the whole
+// tree as its scope, so its verdict on a stage is a full judgement and replaces
+// the entry, a Scoped stage included.
+//
+// Method: name every piece of a six-way cut of the full population and ask
+// JudgesInPart about each stage that piece runs, the Scoped ones included.
+func TestACutFullRunPieceIsAFullJudgement(t *testing.T) {
+	const pieces = 6
+	scoped := 0
+	for index := 1; index <= pieces; index++ {
+		part := Part{Index: index, Of: pieces}
+		mode := part.Name(Mode)
+		if mode != "full-part-"+strconv.Itoa(index)+"-of-"+strconv.Itoa(pieces) {
+			t.Fatalf("Part{%d, %d}.Name(%q) = %q, want the cut full-run mode name", index, pieces, Mode, mode)
+		}
+		dealt, err := Dealt(Mode, part)
+		if err != nil {
+			t.Fatalf("Dealt(%s, %s): %v", Mode, mode, err)
+		}
+		for _, stage := range dealt {
+			if stage.Scoped {
+				scoped++
+			}
+			if JudgesInPart(mode, stage.Identity.Name) {
+				t.Errorf("JudgesInPart(%s, %s) = true, want false: a cut full-run piece judges the whole tree",
+					mode, stage.Identity.Name)
+			}
+		}
+	}
+	if scoped == 0 {
+		t.Fatal("no piece of the cut full run holds a Scoped stage, so this test asks nothing of them")
 	}
 }
 

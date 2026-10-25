@@ -145,12 +145,15 @@ func (s *session) release() {
 func areaActions(s *session) []leaction.Action {
 	return []leaction.Action{
 		{Verb: listVerb, Why: "every suite and its budget", Alone: true, Answer: s.runList},
+		// Both read the change scope a verify run publishes, through
+		// selectSuites (suitemap.go).
 		{Verb: gatingVerb, Why: "every gating suite, under its own budget", Alone: true,
-			Answer: s.runGating},
+			ReadsChangeScope: true, Answer: s.runGating},
 		{Verb: selectVerb,
-			Why:    "the suites a gating run would start for this checkout, and why the rest are absent",
-			Alone:  true,
-			Answer: s.runSelect},
+			Why:              "the suites a gating run would start for this checkout, and why the rest are absent",
+			Alone:            true,
+			ReadsChangeScope: true,
+			Answer:           s.runSelect},
 	}
 }
 

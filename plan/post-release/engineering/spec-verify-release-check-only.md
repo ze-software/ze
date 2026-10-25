@@ -465,9 +465,18 @@ After the fixes the scoped lint over `verify`, `repo/changed`, `commit` and
 the spec commit. Its fourth finding, `slicesbackward` in `useEnvironment`
 (`repo/changed/actions_test.go`), comes from `533c3080f3`, outside this spec.
 
-Round 3, over `bc6ade2c02` and the spec commit, is owed to the parent session,
-which runs it with an independent reviewer. The scoped `./le verify changed`
-over the closing commits is owed with it.
+Round 3, over `bc6ade2c02`, `1c6784bbc8` and `1476877e57`, ran in the parent
+session with an independent reviewer and found one ISSUE and one NOTE, both
+fixed in the commit that carries this paragraph.
+
+| # | Finding | Fix | Test that goes red without it |
+|---|---------|-----|-------------------------------|
+| 7 | ISSUE: `Stage.Scoped` was a second declaration. Whether a stage judges in part is decided inside its action, by whether it reads the published scope, and nothing tied the flag to those readers, so a stage that started reading the scope unmarked would let a partial green replace a full red | The action declares it where its verb registers: `leaction.Action.ReadsChangeScope`, or the same field on a keyword (`go lint run changed`), published on `Row`. `Scoped` stays as the stage-side copy and names that source, because the engine cannot read the registry: areas register only where the composition root links them, so a lookup from the engine would answer false in its own tests. Two checks compare the copies. `TestStageScopedIsTheActionsDeclaration` resolves every stage of every population through `leroot.ActionsOf` and requires its mark to equal the declaration. `TestEveryChangeScopeReaderDeclaresIt` parses the shipped Go under `internal/le` and requires every directory that calls `repochanged.Packages`, or reads `ScopeTagsKey` or `ScopeFileKey` through a `Get`, to be an area that declares a scope-reading action, and every declaring area to hold such a read | Forced red twice: `arch enumeration check` unmarked in `stages.go` reddened the first test (full and fast); its `ReadsChangeScope` removed reddened both, the second naming the `repochanged.Packages` call in the enumeration `runCheck` |
+| 8 | NOTE: nothing pinned `JudgesInPart` for a cut full-run mode name | `TestACutFullRunPieceIsAFullJudgement` names every piece of a six-way cut (`full-part-<i>-of-6`, `Part.Name`) and requires a full judgement for each stage it runs, Scoped ones included | The test itself, which also refuses a cut that holds no Scoped stage |
+
+Round 4, over the round-3 fix commit, is owed to the parent session, which runs
+it with an independent reviewer. The scoped `./le verify changed` over the
+closing commits is owed with it.
 
 ## Design Insights
 
@@ -489,6 +498,7 @@ over the closing commits is owed with it.
 | Whole-tree entries refuse unless stdin and stdout are terminals, with no override | An idle check at admission; an override keyword; a hook that blocks the command text | O-3: an idle check answers nothing about the run that follows. An override keyword is a bypass any agent can type. A pretool hook sees only the command a Claude tool call types, so a script that calls the verb evades it and another agent harness never meets it; the process's own streams are what the tool call cannot supply. Decisions Q-2, Q-3/Q-4 |
 | The whole-tree property is declared on each registered action | A list of gated verbs in the gate package | Registration over hardcoding: a new whole-tree verb is gated where it registers, and `TestEveryWholeTreeVerbIsGated` finds one that is not |
 | The declaration is the field `leaction.Action.WholeTree`, and `Area` runs the gate (`Area.admit`, which calls `human.RequireTerminal` with `./le <area> <words>`) before the body, on its own line and in a sweep; `Row.WholeTree` publishes it, and `leaction.SetWholeTreeAdmission` is the Go-only test seam (R-4). Landed in 22c25a1f40 | A wrapper over each handler; the gate called first inside `runHere`, `currentHere` and the evidence handler | One check in the one dispatcher reaches every verb that declares the field, so no handler can forget it; the listing carries the property, so `TestEveryWholeTreeVerbIsGated` reads `Actions()` instead of a list. The gate runs after the grammar parse, so a mistyped keyword still gets its usage refusal |
+| Whether an action reads the published change scope is declared where it registers (`leaction.Action.ReadsChangeScope`, or on a keyword), and `Stage.Scoped` is a checked copy of it | Derive `Scoped` in the engine from `leroot.ActionsOf`; keep the hand-set flag alone | The engine package cannot see the registry in its own tests or in a binary that links fewer areas, so a derived answer would be a silent false. The copy names its source, and `TestStageScopedIsTheActionsDeclaration` plus `TestEveryChangeScopeReaderDeclaresIt` tie the copy to the declaration and the declaration to the code that reads the scope (review round 3, finding 7) |
 | The evidence container gets `docker run -t` | A keyword the host passes to the inner run; running the inner stages without the whole-tree verb | The host side already proved a person started it; a pseudo-terminal carries that fact into the container without an override anyone else could pass. The inner run stays the same `./le verify current` Thomas would run |
 
 ## Known Limitations

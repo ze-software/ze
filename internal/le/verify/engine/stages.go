@@ -64,9 +64,19 @@ type Stage struct {
 	// (publishChangeScope) and judges only that part of its subject when the
 	// answer is narrow. The full population publishes the whole tree, so there
 	// it judges everything; a partial population's verdict on it covers its
-	// scope alone (JudgesInPart, carryForward). An action that starts reading
-	// the published scope MUST be marked here, or a partial green would replace
-	// a full red it never re-judged.
+	// scope alone (JudgesInPart, carryForward).
+	//
+	// It is a COPY, and its source is the action's registration: the action,
+	// or the keyword the stage names, declares leaction.ReadsChangeScope where
+	// the verb registers. The copy exists because this package cannot read the
+	// registry: the areas register only where the composition root links them,
+	// so a lookup from here would answer false in every test and in any binary
+	// that links fewer areas, which is the unmarked stage this flag guards
+	// against. TestStageScopedIsTheActionsDeclaration (internal/le) compares
+	// every stage of every population with its action's declaration, and
+	// TestEveryChangeScopeReaderDeclaresIt ties the declaration to the code
+	// that reads the scope, so an unmarked reader goes red there rather than
+	// letting a partial green replace a full red it never re-judged.
 	Scoped bool `json:"scoped,omitempty"`
 }
 
@@ -271,7 +281,8 @@ func changedStages() []Stage {
 	})
 }
 
-// scoped marks a stage whose action reads the run's published change set.
+// scoped marks a stage whose action reads the run's published change set, as
+// that action declares (leaction.Action.ReadsChangeScope, Stage.Scoped).
 func scoped(one Stage) Stage {
 	one.Scoped = true
 	return one
