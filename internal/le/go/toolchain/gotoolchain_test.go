@@ -617,7 +617,16 @@ func TestToolchainOverridesLeaveTheToolchainToTheProcess(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		stale := strings.Replace(string(patches[0].Body), "Ze-Reviewed-Against: go1.27.2", "Ze-Reviewed-Against: go1.26.0", 1)
+		// The stamp is read, never spelled: a Go bump restamps every patch,
+		// and a literal here then replaced nothing and staled no patch.
+		reviewed, err := gen.ReviewStamp(patches[0].Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		stale := strings.Replace(string(patches[0].Body), "Ze-Reviewed-Against: "+reviewed, "Ze-Reviewed-Against: go1.26.0", 1)
+		if stale == string(patches[0].Body) {
+			t.Fatalf("the stamp %s was not replaced, so the fixture patch is not stale", reviewed)
+		}
 		dir := filepath.Join(checkout, filepath.FromSlash(gen.PatchDir))
 		if err := os.MkdirAll(dir, 0o750); err != nil {
 			t.Fatal(err)
