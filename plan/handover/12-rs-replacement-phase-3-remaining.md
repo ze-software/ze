@@ -430,3 +430,14 @@ budget.
   buffer pool exhausted` and the worker resets sessions.
 - Under `-race`, a departure of 2000 keys over the live fixture takes up to
   20 seconds.
+- The four owed-key reds that time out on the recipient TCP causal marker
+  (`TestOwedKeyLookupChunked`, `TestOwedKeyBufferShortageDefersKeys`,
+  `TestOwedKeyStormKeepsSourceAndForwardWorkerMoving`,
+  `TestOwedKeyPartialRoundSkipsBackoff`) are explained. The admission decides
+  "write" and the writer accepts every announcement (900 in
+  `TestOwedKeyPartialRoundSkipsBackoff`), but recovery writes are never packed
+  into shared UPDATEs the way ordinary forwards are, so each key is one UPDATE.
+  The live-read capture keeps the first 64 frames, so the marker never shows.
+  Thomas's direction: pack recovery writes (the product fix), not a wider
+  capture. Found with temporary logging in `recoveryAdmission.admit` and the
+  recovery case of `adjOutWrite.allow`, since removed.
