@@ -141,7 +141,16 @@ func TestObservationProgressProcess(t *testing.T) {
 	if args[0] != "child" {
 		t.Fatalf("unknown subprocess role %q", args[0])
 	}
-	conn, err := net.DialTimeout("tcp4", args[1], 20*time.Second)
+	os.Exit(runObservationProgressChild(t, args[1], args[2]))
+}
+
+// runObservationProgressChild is the child's handshake, kept apart from
+// os.Exit so the deferred Close runs on every failure path. It answers the
+// exit code the parent asked for.
+func runObservationProgressChild(t *testing.T, address, exitArg string) int {
+	t.Helper()
+	dialer := net.Dialer{Timeout: 20 * time.Second}
+	conn, err := dialer.DialContext(t.Context(), "tcp4", address)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -167,15 +176,15 @@ func TestObservationProgressProcess(t *testing.T) {
 			t.Fatalf("invalid progress acknowledgment %d", acknowledgment[0])
 		}
 	}
-	if _, err := io.WriteString(os.Stdout, "child released\n"); err != nil {
+	if _, err := os.Stdout.WriteString("child released\n"); err != nil {
 		t.Fatal(err)
 	}
 	if err := conn.Close(); err != nil {
 		t.Fatal(err)
 	}
-	exitCode, err := strconv.Atoi(args[2])
+	exitCode, err := strconv.Atoi(exitArg)
 	if err != nil {
 		t.Fatal(err)
 	}
-	os.Exit(exitCode)
+	return exitCode
 }

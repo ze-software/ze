@@ -133,7 +133,7 @@ func TestPluginCardCategoriesKeepTheFilterBucketsSeparate(t *testing.T) {
 		t.Run(example.group, func(t *testing.T) {
 			groups := pluginGroups([]*pluginEntry{{
 				Group: example.group, Slug: example.group,
-				registryPlugin: registryPlugin{Name: example.group, Description: "A fixture plugin"},
+				Name: example.group, Description: "A fixture plugin",
 			}})
 			page := pluginGroupHTML(groups[0])
 			assertCardCategory(t, page, example.group+"/", example.category)

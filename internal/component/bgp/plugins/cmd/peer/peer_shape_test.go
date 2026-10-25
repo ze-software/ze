@@ -260,8 +260,8 @@ func TestDeclaredColumnsExistInPayload(t *testing.T) {
 		handler peerRowHandler
 		record  func(*testing.T, *plugin.Response) map[string]any
 	}{
-		{cmdBgpPeerList, handleBgpPeerList, keyedRowOf("peers")},
-		{cmdBgpPeerDetail, handleBgpPeerDetail, keyedRowOf("peers")},
+		{cmdBgpPeerList, handleBgpPeerList, keyedPeerRow},
+		{cmdBgpPeerDetail, handleBgpPeerDetail, keyedPeerRow},
 		{cmdBgpPeerCapabilities, handleBgpPeerCapabilities, arrayRowOf("peers")},
 		{cmdBgpPeerStatistics, handleBgpPeerStatistics, arrayRowOf("peers")},
 		{cmdBgpPeerHistory, handlePeerHistory, arrayRowOf("transitions")},
@@ -320,7 +320,7 @@ func TestDeclaredAddressFieldsHoldAnAddress(t *testing.T) {
 		handler peerRowHandler
 		record  func(*testing.T, *plugin.Response) map[string]any
 	}{
-		{cmdBgpPeerDetail, handleBgpPeerDetail, keyedRowOf("peers")},
+		{cmdBgpPeerDetail, handleBgpPeerDetail, keyedPeerRow},
 		{cmdBgpPeerCapabilities, handleBgpPeerCapabilities, arrayRowOf("peers")},
 		{cmdBgpPeerStatistics, handleBgpPeerStatistics, arrayRowOf("peers")},
 		{cmdBgpHealth, handleShowBGPHealth, arrayRowOf("peers")},
@@ -434,23 +434,22 @@ func fullyPopulatedPeer() plugin.PeerInfo {
 	}
 }
 
-// keyedRowOf answers the first row of an answer whose rows are a map keyed by
+// keyedPeerRow answers the first row of an answer whose rows are a map keyed by
 // peer address, which is what `show bgp peer list` and `show bgp peer detail`
-// answer.
-func keyedRowOf(envelope string) func(*testing.T, *plugin.Response) map[string]any {
-	return func(t *testing.T, resp *plugin.Response) map[string]any {
-		t.Helper()
-		rows := decodedEnvelope(t, resp, envelope)
-		keyed, isKeyed := rows.(map[string]any)
-		require.True(t, isKeyed, "%q holds %T, want a map keyed by peer address", envelope, rows)
-		require.NotEmpty(t, keyed)
-		for _, row := range keyed {
-			record, isRecord := row.(map[string]any)
-			require.True(t, isRecord)
-			return record
-		}
-		return nil
+// answer under their "peers" envelope.
+func keyedPeerRow(t *testing.T, resp *plugin.Response) map[string]any {
+	t.Helper()
+	const envelope = "peers"
+	rows := decodedEnvelope(t, resp, envelope)
+	keyed, isKeyed := rows.(map[string]any)
+	require.True(t, isKeyed, "%q holds %T, want a map keyed by peer address", envelope, rows)
+	require.NotEmpty(t, keyed)
+	for _, row := range keyed {
+		record, isRecord := row.(map[string]any)
+		require.True(t, isRecord)
+		return record
 	}
+	return nil
 }
 
 // arrayRowOf answers the first row of an answer whose rows are an array.
@@ -503,7 +502,7 @@ func TestPeerDetailShowsEmptyPolicyFinal(t *testing.T) {
 	resp, err := handleBgpPeerDetail(ctx, commandtest.Args())
 	require.NoError(t, err)
 	require.Equal(t, plugin.StatusDone, resp.Status)
-	row := keyedRowOf("peers")(t, resp)
+	row := keyedPeerRow(t, resp)
 	require.Equal(t, map[string]any{"filters": nil, "final": "reject"}, row["import-policy"])
 	require.Equal(t, map[string]any{"filters": []any{"rfc:no-self-as"}}, row["export-policy"])
 }

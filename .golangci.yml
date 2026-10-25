@@ -99,6 +99,20 @@ linters:
         linters:
           - misspell
         text: "`prefered`"
+      # The website's home page names the plugin page "Plugin catalogue", as
+      # its header does: published site wording is the owner's, not a lint fix.
+      - path: "internal/le/site/homebody\\.go"
+        linters:
+          - misspell
+        text: "`catalogue`"
+      # The site's plugin, concept and RFC-prose tables name plugins and
+      # directories as data ("gokrazy", "l2tp", "ike", ...). The same word
+      # means a different thing in each table (a plugin name, a feature
+      # category, a top-level directory), so one constant would tie unrelated
+      # tables together and hide which meaning a row uses.
+      - path: "internal/le/site/(plugins|concepts|rfcprose)\\.go"
+        linters:
+          - goconst
       # IANA service names copied verbatim from the registry: "commonspace",
       # "composit-server", "extensis", "fyre-messanger". They are the strings the
       # lookup must return, so "correcting" one breaks the table.
