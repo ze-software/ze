@@ -16,7 +16,7 @@ import (
 // mapping table names, and answers the area.
 func treeProbe(t *testing.T) leaction.Area {
 	t.Helper()
-	area := leaction.New("treeprobe area", leaction.Action{
+	area := leaction.New("treeprobe area", leaction.Action{Summary: "run the probe. It takes every kind.",
 		Verb: "run", Why: "run the probe. It takes every kind.",
 		Parameters: []leaction.Parameter{
 			{Keyword: "dry", Kind: leaction.KindSwitch, Help: "change nothing"},
@@ -27,8 +27,8 @@ func treeProbe(t *testing.T) leaction.Area {
 			{Keyword: "old", Retired: "file"},
 		},
 		AnswerArgs: func(leaction.Arguments) (any, int) { return nil, 0 },
-	}, leaction.Action{Verb: "show", Why: "show the probe", Answer: func() (any, int) { return nil, 0 }})
-	Register(area.Name(), GroupReport, area.Answer, registry.Meta{
+	}, leaction.Action{Summary: "show the probe", Verb: "show", Why: "show the probe", Answer: func() (any, int) { return nil, 0 }})
+	Register(area.Name(), GroupReport, area.Answer, registry.Meta{Description: "A probe area for this test.",
 		ShortHelp: "a probe area under a namespace", Mode: "offline", Section: registry.SectionTest,
 	})
 	RegisterActions(area.Name(), area.Actions)

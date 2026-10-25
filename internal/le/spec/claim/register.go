@@ -19,10 +19,11 @@ func init() {
 	// panics at init rather than on the first call.
 	table := spec.ClaimArea()
 	leroot.Register(commandName, leroot.GroupWorkflow, spec.Claim, registry.Meta{
-		ShortHelp: "claim a spec for this session and move a ready spec to in-progress",
-		Mode:      "offline",
-		Section:   registry.SectionTest,
-		SubsFunc:  table.Subs,
+		Description: "Claim a spec for this session and move a ready spec to in-progress. The claim names the per-session state file and drives recovery after compaction.",
+		ShortHelp:   "claim a spec for this session",
+		Mode:        "offline",
+		Section:     registry.SectionTest,
+		SubsFunc:    table.Subs,
 	})
 	leroot.RegisterActions(commandName, table.Actions)
 	leroot.RegisterShape(commandName, command.ShapeDoc)

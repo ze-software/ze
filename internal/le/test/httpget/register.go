@@ -16,7 +16,7 @@ import (
 const name = "test http-get"
 
 func init() {
-	leroot.Register(name, leroot.GroupSuite, harnesstool.Answer(cli.CmdHTTPGet), harnesstool.Meta("Fetch one HTTP URL to stdout for container-local test tooling"))
+	leroot.Register(name, leroot.GroupSuite, harnesstool.Answer(cli.CmdHTTPGet), harnesstool.Meta("fetch one URL for container test tooling"))
 	leroot.RegisterShape(name, command.ShapeDoc)
 
 	// Every word after the name is the harness's own command line, so a

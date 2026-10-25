@@ -120,10 +120,13 @@ func refuseHelpAI(program, why string) int {
 func fillCommands(ref *reference.Reference, program string) {
 	areas := manifestOf(program).Areas
 	for _, section := range (Manifest{Areas: areas}).sections()[1:] {
-		ref.Namespaces = append(ref.Namespaces, reference.Entry{Name: section.Title, Meaning: namespaceLine(section.Title, areas)})
+		description, _ := NamespaceDescription(section.Title)
+		ref.Namespaces = append(ref.Namespaces, reference.Namespace{
+			Name: section.Title, ShortHelp: namespaceLine(section.Title, areas), Description: description,
+		})
 	}
 	for _, area := range areas {
-		entry := reference.Command{Name: area.Name, Group: string(area.Group), Summary: area.Description, PassesTo: area.PassesTo}
+		entry := reference.Command{Name: area.Name, Group: string(area.Group), ShortHelp: area.ShortHelp, Description: area.Description, PassesTo: area.PassesTo}
 		if area.Group == "" {
 			entry.Group = ungroupedTag
 		}
@@ -137,7 +140,7 @@ func fillCommands(ref *reference.Reference, program string) {
 // actionOf projects one action row and its live parameters. A retired keyword
 // is refused, never offered, so it is not part of the grammar a reader learns.
 func actionOf(row leaction.Row) reference.Action {
-	action := reference.Action{Verb: row.Verb, Summary: row.Why, Writes: row.Writes}
+	action := reference.Action{Verb: row.Verb, ShortHelp: row.Summary, Description: row.Why, Writes: row.Writes}
 	for _, parameter := range row.Parameters {
 		if parameter.Retired != "" {
 			continue

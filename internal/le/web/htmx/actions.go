@@ -20,7 +20,8 @@ const area = "web htmx"
 var actions = leaction.New(
 	area,
 	leaction.Action{
-		Verb: "check",
+		Verb:    "check",
+		Summary: "refuse an unexplained htmx 4 upgrade issue",
 		Why: "the native Go scanner reports no htmx 4 issue that " +
 			"test/htmx-upgrade-explained.txt does not account for. It builds a DOM, " +
 			"so it reads inheritance carriers a text search cannot",
@@ -29,8 +30,9 @@ var actions = leaction.New(
 		},
 	},
 	leaction.Action{
-		Verb: "report",
-		Why:  "print every htmx 4 upgrade issue, explained or not, and exit 0",
+		Verb:    "report",
+		Summary: "print every htmx 4 upgrade issue",
+		Why:     "print every htmx 4 upgrade issue, explained or not, and exit 0",
 		Answer: func() (any, int) {
 			return run(true)
 		},

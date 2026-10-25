@@ -43,17 +43,17 @@ func fixtureToolchain() gotoolchain.Toolchain {
 // package patterns, reasons, and non-writing contract.
 func TestTablePinsEveryUnitGroup(t *testing.T) {
 	want := []Group{
-		{Verb: "bgp", Pattern: "./internal/component/bgp/...", Race: true,
+		{Verb: "bgp", Pattern: "./internal/component/bgp/...", Race: true, Summary: "test the BGP component group",
 			Why: "the BGP component group: reactor, fsm, wire, message, attribute (~1:30)"},
-		{Verb: "core", Pattern: "./internal/core/...", Race: true,
+		{Verb: "core", Pattern: "./internal/core/...", Race: true, Summary: "test the core leaf libraries",
 			Why: "the core leaf libraries every tier above depends on (~30s)"},
-		{Verb: "plugins", Pattern: "./internal/plugins/...", Race: true,
+		{Verb: "plugins", Pattern: "./internal/plugins/...", Race: true, Summary: "test the system plugins",
 			Why: "the system plugins: DHCP, NTP, static, firewall, the CLI verb providers (~40s)"},
-		{Verb: "config", Pattern: "./internal/component/config/...", Race: true,
+		{Verb: "config", Pattern: "./internal/component/config/...", Race: true, Summary: "test the config pipeline",
 			Why: "the YANG-modeled config pipeline: file, tree, resolve (~20s)"},
-		{Verb: "cli", Pattern: "./internal/component/cli/...", Race: true,
+		{Verb: "cli", Pattern: "./internal/component/cli/...", Race: true, Summary: "test the CLI group",
 			Why: "the CLI: modes, completion, diff, commit, dashboard (~10s)"},
-		{Verb: "installer", Pattern: "./internal/install/...", Tags: []string{"ze_installer"}, GOOS: "linux",
+		{Verb: "installer", Pattern: "./internal/install/...", Tags: []string{"ze_installer"}, GOOS: "linux", Summary: "test the installer initrd logic",
 			Why: "the installer initrd's own logic behind the ze_installer tag: bootstrap, console, fault, rescue, initrd (~10s)"},
 	}
 	if got := Table(); !reflect.DeepEqual(got, want) {
@@ -93,7 +93,7 @@ func TestAllSweepsTheCheckoutThenTheTagGuardedGroups(t *testing.T) {
 	want := []Group{
 		{Verb: "tree", Pattern: "./...", Race: true,
 			Why: "every package of the checkout, race-instrumented, under the feature tag set"},
-		{Verb: "installer", Pattern: "./internal/install/...", Tags: []string{"ze_installer"}, GOOS: "linux",
+		{Verb: "installer", Pattern: "./internal/install/...", Tags: []string{"ze_installer"}, GOOS: "linux", Summary: "test the installer initrd logic",
 			Why: "the installer initrd's own logic behind the ze_installer tag: bootstrap, console, fault, rescue, initrd (~10s)"},
 	}
 	got := allGroups()

@@ -13,8 +13,9 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupGate, Answer, registry.Meta{
-		ShortHelp: "the patched GOROOT every Go command compiles Ze with",
-		Mode:      "offline",
+		Description: "The patched GOROOT every Go command compiles Ze with: printed for plain go commands, and built on first use from the pinned toolchain and the patches under the repository.",
+		ShortHelp:   "print or build the patched GOROOT",
+		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command.
 		Section:  registry.SectionTest,
 		SubsFunc: Subs,

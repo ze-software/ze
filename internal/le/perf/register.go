@@ -13,8 +13,9 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupSuite, Answer, registry.Meta{
-		ShortHelp: "benchmark BGP against every DUT, track the history, and suggest a run when data-plane code changed",
-		Mode:      "offline",
+		Description: "Benchmark BGP against every DUT, track the history, and suggest a run when data-plane code changed.",
+		ShortHelp:   "benchmark BGP against every DUT",
+		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers le perf under it for the same reason.
 		Section:  registry.SectionTest,

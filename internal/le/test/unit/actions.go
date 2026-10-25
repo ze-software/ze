@@ -32,8 +32,9 @@ type toolchainLoader func(string) (gotoolchain.Toolchain, error)
 func table(tc gotoolchain.Toolchain, run actionRunner) leaction.Area {
 	actions := actionsFor(tc, Table(), run)
 	actions = append(actions, leaction.Action{
-		Verb: allVerb,
-		Why:  allWhy,
+		Verb:    allVerb,
+		Summary: "test the whole checkout, race-instrumented",
+		Why:     allWhy,
 		// `all` runs the population the groups are subsets of, so naming it
 		// beside a group runs that group twice: once inside the sweep `all`
 		// performs and once beside it. `le test unit all` on its own is
@@ -50,9 +51,10 @@ func actionsFor(tc gotoolchain.Toolchain, rows []Group, run actionRunner) []leac
 	actions := make([]leaction.Action, 0, len(rows)+1)
 	for _, group := range rows {
 		actions = append(actions, leaction.Action{
-			Verb:   group.Verb,
-			Why:    group.Why,
-			Answer: runner(tc, group, run),
+			Verb:    group.Verb,
+			Summary: group.Summary,
+			Why:     group.Why,
+			Answer:  runner(tc, group, run),
 		})
 	}
 	return actions

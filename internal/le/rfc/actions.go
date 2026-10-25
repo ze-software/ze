@@ -14,7 +14,7 @@ import (
 
 // actions is the whole command surface.
 var actions = leaction.New(area,
-	leaction.Action{Verb: "extraction-create", Why: "derive one RFC or draft's extraction skeleton, preserving authored classifications only " +
+	leaction.Action{Verb: "extraction-create", Summary: "derive one RFC's extraction skeleton", Why: "derive one RFC or draft's extraction skeleton, preserving authored classifications only " +
 		"where the same locator still carries the same sentence. It reaches rfc/extraction/ only when every " +
 		"site and section already carries a disposition; an unclassified skeleton goes to this session's " +
 		"scratch, because one unclassified artifact in the corpus fails `./le rfc check` for all of it",
@@ -23,7 +23,7 @@ var actions = leaction.New(area,
 			{Keyword: keyStem, Kind: leaction.KindLabel, Help: "the RFC or draft stem, such as rfc4271", Value: keyStem, Requirement: leaction.Required},
 		},
 		AnswerArgs: extractionCreateAnswer},
-	leaction.Action{Verb: "extraction-classify", Why: "apply ONE authored decision per site and per section to the skeleton, from a decisions " +
+	leaction.Action{Verb: "extraction-classify", Summary: "apply authored decisions to an extraction skeleton", Why: "apply ONE authored decision per site and per section to the skeleton, from a decisions " +
 		"file naming the stem it walks. It writes no disposition the file does not name and " +
 		"matches no locator pattern, so it transcribes a walk rather than performing one; a site " +
 		"the file leaves out stays unclassified and is named in the report. binds-another-role " +
@@ -34,11 +34,12 @@ var actions = leaction.New(area,
 			{Keyword: keyDecisions, Kind: leaction.KindPath, Help: "the decisions file to apply", Value: keyPath, Requirement: leaction.Required},
 		},
 		AnswerArgs: extractionClassifyAnswer},
-	leaction.Action{Verb: "extraction-status", Why: "the machine-readable extraction counts the umbrella's drain quota consumes: " +
+	leaction.Action{Verb: "extraction-status", Summary: "print the extraction counts the drain quota reads", Why: "the machine-readable extraction counts the umbrella's drain quota consumes: " +
 		"signed and enrolled counts, the per-register split, and the unsigned backlog",
 		Answer: extractionStatusAnswer},
 	leaction.Action{
-		Verb: "tagged-scope",
+		Verb:    "tagged-scope",
+		Summary: "judge a proposed file against its RFC-tagged tests",
 		Why: "judge one proposed file from stdin against its existing RFC-tagged test units, " +
 			"and return the carrier predicate, widened edit scope, and owner-approval decision",
 		Parameters: []leaction.Parameter{
@@ -47,7 +48,8 @@ var actions = leaction.New(area,
 		AnswerArgs: taggedScopeAnswer,
 	},
 	leaction.Action{
-		Verb: "discriminate",
+		Verb:    "discriminate",
+		Summary: "report what an RFC stem has proven and still owes",
 		Why: "report what one RFC stem or one requirement id has PROVEN and what it still owes: " +
 			"the recorded breaks under which a tagged unit goes red, and the tags carrying no such " +
 			"record. A tag's prose says what a test demonstrates and no gate can read a sentence, " +
@@ -62,7 +64,8 @@ var actions = leaction.New(area,
 		},
 		AnswerArgs: discriminateAnswer},
 	leaction.Action{
-		Verb: "discriminate-record",
+		Verb:    "discriminate-record",
+		Summary: "record one observed red of a tagged unit",
 		Why: "record ONE proof that a tagged unit was OBSERVED to fail under a named break of " +
 			"the code its claim rests on, or one escape saying no break exists. It applies the " +
 			"break through a Go overlay, runs the tagged unit, and requires a failure that NAMES " +
@@ -92,7 +95,8 @@ var actions = leaction.New(area,
 		},
 		AnswerArgs: discriminateRecordAnswer},
 	leaction.Action{
-		Verb: "approve",
+		Verb:    "approve",
+		Summary: "record the owner's approval of an RFC test change",
 		Why: "record the OWNER's approval of a change to one RFC-tagged test unit, as one row in " +
 			"this commit session's tmp/commit-rfc-approved-<session>.md. The edit hook and " +
 			"`./le commit create` read that file; the commit carries each row it used as an " +
@@ -103,25 +107,25 @@ var actions = leaction.New(area,
 			"the author's own reasoning about why the change is fine",
 		Writes: true,
 		Parameters: []leaction.Parameter{
-			{Keyword: keyUnit, Kind: leaction.KindString, Help: "the RFC-tagged test unit whose change the owner approved, as <package>.<TestName>", Value: "<package>.<TestName>", Requirement: leaction.Required},
+			{Keyword: keyUnit, Kind: leaction.KindString, Help: "the approved RFC-tagged unit, as <package>.<TestName>", Value: "<package>.<TestName>", Requirement: leaction.Required},
 			{Keyword: keyReason, Kind: leaction.KindString, Help: "the owner's words approving the change", Value: keyReason, Requirement: leaction.Required},
 		},
 		AnswerArgs: approveAnswer},
-	leaction.Action{Verb: "check", Why: "verify RFC requirement coverage, evidence strength, public status, audit " +
+	leaction.Action{Verb: "check", Summary: "check RFC coverage, evidence and sign-off", Why: "verify RFC requirement coverage, evidence strength, public status, audit " +
 		"verdicts and extraction sign-off, judged from the summaries and the tags and " +
 		"never from a generated page, without writing",
 		Answer: checkAnswer},
-	leaction.Action{Verb: "selftest", Why: "exercise every RFC engine concern against in-process fixtures and report one " +
+	leaction.Action{Verb: "selftest", Summary: "run every RFC engine check against fixtures", Why: "exercise every RFC engine concern against in-process fixtures and report one " +
 		"structured row per property",
 		Answer: selftestAnswer},
-	leaction.Action{Verb: "reseal", Why: "rewrite the file-level fingerprints of the audit verdicts a mechanical edit " +
+	leaction.Action{Verb: "reseal", Summary: "refresh audit fingerprints a mechanical edit staled", Why: "rewrite the file-level fingerprints of the audit verdicts a mechanical edit " +
 		"staled: the tagged unit is byte-identical and only the file around it moved, " +
 		"so nothing was re-judged and no human should be asked to re-read. A verdict " +
 		"whose unit, cited producer code, or requirement text MOVED is refused and " +
 		"stays stale: that one needs /ze-rfc-audit <rfc>, then ze-rfc-index-update",
 		Writes: true,
 		Answer: resealAnswer},
-	leaction.Action{Verb: "evidence-split", Why: "convert each per-stem evidence file of the retired layout, " +
+	leaction.Action{Verb: "evidence-split", Summary: "convert evidence files from the retired layout", Why: "convert each per-stem evidence file of the retired layout, " +
 		"rfc/discrimination/<stem>.json and rfc/audit/<stem>.json, into one file per requirement under " +
 		"<dir>/<stem>/<requirement-id>.json, so two sessions working different requirements never edit " +
 		"one file. Every loader refuses a per-stem file and names this command. It writes only the files " +
@@ -137,7 +141,7 @@ var actions = leaction.New(area,
 				Requirement: leaction.Optional},
 		},
 		AnswerArgs: evidenceSplitAnswer},
-	leaction.Action{Verb: "audit-stamp", Why: "add the verdicts an author has just judged to rfc/audit/<stem>/<requirement-id>.json. " +
+	leaction.Action{Verb: "audit-stamp", Summary: "add newly judged verdicts to an RFC audit file", Why: "add the verdicts an author has just judged to rfc/audit/<stem>/<requirement-id>.json. " +
 		"The author writes verdict, note, code keys with empty values and no_code_path in a " +
 		"pending file OUTSIDE rfc/audit/, an object of rfc and requirements keyed by id, because an unstamped verdict " +
 		"there stops every load of the audits. This computes requirement_sha from the row's " +
@@ -161,7 +165,7 @@ var actions = leaction.New(area,
 				Requirement: leaction.Optional},
 		},
 		AnswerArgs: auditStampAnswer},
-	leaction.Action{Verb: "rename", Why: "move tagged unit test files and carry their evidence with them: from <old> to " +
+	leaction.Action{Verb: "rename", Summary: "move tagged test files with their evidence", Why: "move tagged unit test files and carry their evidence with them: from <old> to " +
 		"<new> moves one file, plan <file> moves every `<old> <new>` line of a file, and propose <file> " +
 		"writes such a plan from the test file naming rule (under <dir> narrows it). The move is " +
 		"byte-pure, then every path key in rfc/discrimination/ and rfc/audit/ and every backtick or " +
@@ -177,14 +181,14 @@ var actions = leaction.New(area,
 			{Keyword: keyUnder, Kind: leaction.KindPath, Help: "the directory the proposal covers", Value: "dir", Requirement: leaction.Optional},
 		},
 		AnswerArgs: renameAnswer},
-	leaction.Action{Verb: "index-update", Why: "regenerate ai/RFC-REQUIREMENTS.md and one requirement table per RFC under " +
+	leaction.Action{Verb: "index-update", Summary: "regenerate the RFC requirement index and tables", Why: "regenerate ai/RFC-REQUIREMENTS.md and one requirement table per RFC under " +
 		"rfc/requirements/, from the summaries and the `RFC requirement:` tags the " +
 		"tests themselves carry. It DELETES a table the render no longer produces, " +
 		"so it refuses outright when a summary did not parse: that RFC's rows would " +
 		"be absent from the render and its file removed as an orphan",
 		Writes: true,
 		Answer: indexUpdateAnswer},
-	leaction.Action{Verb: "quote-backfill", Why: "rewrite the requirement rows of one RFC whose text can be the RFC's own " +
+	leaction.Action{Verb: "quote-backfill", Summary: "rewrite an RFC's rows to quote its own sentences", Why: "rewrite the requirement rows of one RFC whose text can be the RFC's own " +
 		"sentence mechanically: a row mapped to exactly one site that is not a lead-in, and whose " +
 		"paraphrase shares enough with the sentence. It keeps id, level, section and markers. " +
 		"Every other row is listed for a human to quote. Without apply it writes nothing",

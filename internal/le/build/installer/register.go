@@ -14,10 +14,11 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupWorkflow, Answer, registry.Meta{
-		ShortHelp: "cross-build the installer initrd PID 1 for amd64 or arm64",
-		Mode:      "offline",
-		Section:   registry.SectionTest,
-		SubsFunc:  Subs,
+		Description: "The installer initrd's PID 1, cross-built for amd64 or arm64 into bin/ze-installer-<arch>, which the appliance image and the installer ISO carry.",
+		ShortHelp:   "cross-build the installer initrd PID 1",
+		Mode:        "offline",
+		Section:     registry.SectionTest,
+		SubsFunc:    Subs,
 	})
 	leroot.RegisterActions(area, Actions)
 

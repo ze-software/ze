@@ -25,12 +25,13 @@ const area = "doc index"
 // actions is the whole command surface.
 var actions = leaction.New(area,
 	leaction.Action{
-		Verb: "check",
+		Verb:    "check",
+		Summary: "check the doc-to-code indexes and source anchors",
 		Why: "ai/DOCS-TO-CODE.md and ai/CODE-TO-DOCS.md match the tree, and every " +
 			"`<!-- source: -->` anchor in docs/ resolves to a real file and symbol",
 		Answer: check,
 	},
-	leaction.Action{Verb: "write", Why: "regenerate ai/DOCS-TO-CODE.md and ai/CODE-TO-DOCS.md",
+	leaction.Action{Verb: "write", Summary: "regenerate DOCS-TO-CODE.md and CODE-TO-DOCS.md", Why: "regenerate ai/DOCS-TO-CODE.md and ai/CODE-TO-DOCS.md",
 		Writes: true,
 		Answer: write},
 )

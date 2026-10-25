@@ -14,10 +14,11 @@ import (
 
 func init() {
 	leroot.Register(name, leroot.GroupWorkflow, Answer, registry.Meta{
-		ShortHelp: "analyze, filter, convert, replay and serve MRT files: `le mrt <subcommand> [options]`",
-		Mode:      "offline",
-		Section:   registry.SectionTest,
-		SubsFunc:  subcommands,
+		Description: "Analyze, filter, convert, replay and serve MRT files: `le mrt <subcommand> [options]`.",
+		ShortHelp:   "analyze, filter and replay MRT files",
+		Mode:        "offline",
+		Section:     registry.SectionTest,
+		SubsFunc:    subcommands,
 	})
 
 	// A bare `le mrt` answers one row per subcommand, so the table shape

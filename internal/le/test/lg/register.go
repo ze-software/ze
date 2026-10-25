@@ -16,7 +16,7 @@ import (
 const name = "test lg"
 
 func init() {
-	leroot.Register(name, leroot.GroupSuite, harnesstool.Answer(cli.CmdLG), harnesstool.Meta("Looking glass served with an engine that always fails (browser tests)"))
+	leroot.Register(name, leroot.GroupSuite, harnesstool.Answer(cli.CmdLG), harnesstool.Meta("serve a looking glass with a failing engine"))
 	leroot.RegisterShape(name, command.ShapeDoc)
 
 	// Every word after the name is the harness's own command line, so a

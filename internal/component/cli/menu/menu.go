@@ -18,6 +18,7 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/core/helpfmt"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -32,10 +33,13 @@ type Item struct {
 	Header   bool
 }
 
-// Level is one screen: its breadcrumb Title and its items, in display order.
+// Level is one screen: its breadcrumb Title, the long Description of the node
+// it shows (printed above the items, wrapped to the terminal; empty prints
+// nothing), and its items, in display order.
 type Level struct {
-	Title string
-	Items []Item
+	Title       string
+	Description string
+	Items       []Item
 }
 
 // Model is the menu's state. It is a value: every key answers a new Model, so
@@ -44,6 +48,7 @@ type Model struct {
 	title    string        // the program name the first breadcrumb shows
 	stack    []Level       // the levels walked, the first screen at the bottom
 	tree     *command.Node // the tree every drilled level is built from
+	levelOf  func(*command.Node, []string) Level
 	filter   string
 	cursor   int
 	offset   int
@@ -57,9 +62,35 @@ type Model struct {
 // title. Every level below it is LevelOf(tree, path), so a tree with no node at
 // a path opens an empty level rather than a guess.
 func New(title string, top Level, tree *command.Node) Model {
-	m := Model{title: title, stack: []Level{top}, tree: tree, width: 80, height: 24}
+	m := Model{title: title, stack: []Level{top}, tree: tree, levelOf: LevelOf, width: 80, height: 24}
 	m.cursor = m.firstVisible()
 	return m
+}
+
+// NewDeclared answers the menu over a tree whose every node declares its text:
+// a ShortHelp of one line, shown whole in the right column, and a Description
+// printed above the level the reader enters (DeclaredLevelOf). le's tree is
+// one; ze's YANG help is not, so ze opens New and keeps its derived lines.
+func NewDeclared(title string, tree *command.Node) Model {
+	m := Model{title: title, stack: []Level{DeclaredLevelOf(tree, nil)}, tree: tree, levelOf: DeclaredLevelOf, width: 80, height: 24}
+	m.cursor = m.firstVisible()
+	return m
+}
+
+// DeclaredLevelOf answers the screen for path in a tree that declares its
+// text: each item's Desc is the child's ShortHelp whole, and the level carries
+// the entered node's Description.
+func DeclaredLevelOf(tree *command.Node, path []string) Level {
+	level := LevelOf(tree, path)
+	node := command.FindNode(tree, path)
+	if node == nil {
+		return level
+	}
+	level.Description = node.Description
+	for i := range level.Items {
+		level.Items[i].Desc = node.Children[level.Items[i].Name].ShortHelp
+	}
+	return level
 }
 
 // Chosen answers the path of the terminal item the reader chose, and nil when
@@ -293,7 +324,7 @@ func (m Model) handleKey(km tea.KeyPressMsg) (tea.Model, tea.Cmd) { //nolint:cyc
 }
 
 func (m Model) drillInto(item Item) Model {
-	level := LevelOf(m.tree, item.Path)
+	level := m.levelOf(m.tree, item.Path)
 	m.stack = append(m.stack, level)
 	m.offset = 0
 	m.cursor = m.firstVisible()
@@ -351,6 +382,15 @@ func (m Model) View() tea.View {
 		}
 	}
 	b.Str("\n\n")
+	// The entered node's long text heads its options, so a reader learns what
+	// the level is for before choosing in it. ze's levels carry none.
+	if level.Description != "" {
+		for _, line := range helpfmt.Wrap(level.Description, m.width-2, 2) {
+			b.Str(menuDescStyle.Render(line))
+			b.Byte('\n')
+		}
+		b.Byte('\n')
+	}
 
 	var visible []int
 	for i, item := range level.Items {

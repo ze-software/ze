@@ -13,8 +13,9 @@ import (
 
 func init() {
 	leroot.Register(name, leroot.GroupReport, Answer, registry.Meta{
-		ShortHelp: "how wide the uncommitted tree is, grouped by area. Advisory unless max-areas names a ceiling",
-		Mode:      "offline",
+		Description: "How wide the uncommitted tree is, grouped by area. Advisory unless max-areas names a ceiling.",
+		ShortHelp:   "report how wide the uncommitted tree is",
+		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers le perf under it for the same reason.
 		Section: registry.SectionTest,

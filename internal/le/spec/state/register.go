@@ -19,10 +19,11 @@ func init() {
 	// panics at init rather than on the first call.
 	table := spec.StateArea()
 	leroot.Register(commandName, leroot.GroupWorkflow, spec.State, registry.Meta{
-		ShortHelp: "the path of a per-spec session state file",
-		Mode:      "offline",
-		Section:   registry.SectionTest,
-		SubsFunc:  table.Subs,
+		Description: "The path of a per-spec session state file: this session's own, or the newest any session wrote for one spec, which is where a handoff is read from.",
+		ShortHelp:   "print a per-spec session state file path",
+		Mode:        "offline",
+		Section:     registry.SectionTest,
+		SubsFunc:    table.Subs,
 	})
 	leroot.RegisterActions(commandName, table.Actions)
 	leroot.RegisterShape(commandName, command.ShapeDoc)

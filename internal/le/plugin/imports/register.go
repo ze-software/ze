@@ -13,8 +13,9 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupGenerate, Answer, registry.Meta{
-		ShortHelp: "the generated composition root: check that internal/component/plugin/all names every package the tree registers, or write it",
-		Mode:      "offline",
+		Description: "The generated composition root: check that internal/component/plugin/all names every package the tree registers, or write it.",
+		ShortHelp:   "check or write the plugin composition root",
+		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers le perf under it for the same reason.
 		Section: registry.SectionTest,

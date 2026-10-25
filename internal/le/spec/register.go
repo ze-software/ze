@@ -9,5 +9,7 @@ import (
 )
 
 func init() {
-	leroot.RegisterNamespace("spec", "the spec workflow: claim, track, review and release specs, with their journal and roadmap")
+	leroot.RegisterNamespace("spec",
+		"the spec workflow: claim, track, review and release",
+		"The spec workflow: claim, track, review and release specs, with their journal and roadmap.")
 }

@@ -118,7 +118,7 @@ func TestRunAllowsLocalSave(t *testing.T) {
 func TestAnAreaWithoutATableStopsLeNamingIt(t *testing.T) {
 	tabled := "zz-tablecheck-tabled"
 	setActions(tabled, func() leaction.List {
-		return leaction.New(tabled, leaction.Action{Verb: "run", Why: "w", Answer: func() (any, int) { return nil, 0 }}).Actions()
+		return leaction.New(tabled, leaction.Action{Summary: "w", Verb: "run", Why: "w", Answer: func() (any, int) { return nil, 0 }}).Actions()
 	})
 	requireEveryAreaHasATable([]string{tabled})
 

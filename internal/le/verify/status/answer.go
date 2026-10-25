@@ -23,9 +23,10 @@ const name = "verify status"
 // as they name, and the body reads every one with Values.
 var actions = leaction.New(name,
 	leaction.Action{
-		Verb:   "write",
-		Why:    "record the verdict of a verification run as this checkout's certificate",
-		Writes: true,
+		Verb:    "write",
+		Summary: "record a verification verdict as the certificate",
+		Why:     "record the verdict of a verification run as this checkout's certificate",
+		Writes:  true,
 		Parameters: []leaction.Parameter{
 			{Keyword: "exit-code", Kind: leaction.KindUint, Help: "the exit code the verification run answered", Value: "code", Requirement: leaction.Required},
 			{Keyword: "mode", Kind: leaction.KindString, Help: "the verification mode the verdict covers", Value: "name", Requirement: leaction.Optional},
@@ -33,22 +34,25 @@ var actions = leaction.New(name,
 		AnswerArgs: write,
 	},
 	leaction.Action{
-		Verb: "check",
-		Why:  "report whether the recorded PASS still covers the tree, or the paths named",
+		Verb:    "check",
+		Summary: "check the recorded PASS still covers the tree",
+		Why:     "report whether the recorded PASS still covers the tree, or the paths named",
 		Parameters: []leaction.Parameter{
 			{Keyword: "path", Kind: leaction.KindPath, Help: "a path whose coverage is checked; the whole tree when absent", Value: "path", Requirement: leaction.Optional, Repeat: true},
 		},
 		AnswerArgs: check,
 	},
 	leaction.Action{
-		Verb:   "show",
-		Why:    "print the certificate the last verification wrote",
-		Answer: show,
+		Verb:    "show",
+		Summary: "print the last verification certificate",
+		Why:     "print the certificate the last verification wrote",
+		Answer:  show,
 	},
 	leaction.Action{
-		Verb:   treeHashAction,
-		Why:    "print the hash of the tracked tree as it stands now",
-		Answer: treeHash,
+		Verb:    treeHashAction,
+		Summary: "print the hash of the tracked tree",
+		Why:     "print the hash of the tracked tree as it stands now",
+		Answer:  treeHash,
 	},
 )
 

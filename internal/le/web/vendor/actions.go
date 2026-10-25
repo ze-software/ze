@@ -29,12 +29,12 @@ const area = "web vendor"
 // actions is the whole command surface. A fourth gate would be a row here and
 // nothing else.
 var actions = leaction.New(area,
-	leaction.Action{Verb: "check", Why: "each consumer asset copy matches third_party/web/. It reads two directory trees and no network, so it runs in an offline CI and an offline checkout",
+	leaction.Action{Verb: "check", Summary: "check vendored web assets match third_party/web/", Why: "each consumer asset copy matches third_party/web/. It reads two directory trees and no network, so it runs in an offline CI and an offline checkout",
 		Answer: func() (any, int) { return runCheck(false) }},
-	leaction.Action{Verb: "sync", Why: "copy third_party/web/ into each consumer package that embeds it",
+	leaction.Action{Verb: "sync", Summary: "copy third_party/web/ into each consumer", Why: "copy third_party/web/ into each consumer package that embeds it",
 		Writes: true,
 		Answer: runSync},
-	leaction.Action{Verb: "update-report", Why: "ask the npm registry for newer versions of the vendored web assets. This is where the network query lives, and it is why check has none",
+	leaction.Action{Verb: "update-report", Summary: "ask npm for newer vendored web asset versions", Why: "ask the npm registry for newer versions of the vendored web assets. This is where the network query lives, and it is why check has none",
 		Answer: func() (any, int) { return runCheck(true) }},
 )
 

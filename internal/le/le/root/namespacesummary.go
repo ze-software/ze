@@ -17,37 +17,45 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// namespaceSummaries holds the summary every namespace registered.
+// namespaceText is what one namespace registered: its one-line summary and
+// its long description.
+type namespaceText struct {
+	summary     string
+	description string
+}
+
+// namespaceSummaries holds the text every namespace registered.
 // Registration runs in init() and every read happens after it, but help runs
 // on any goroutine, so the map is guarded. Safe for concurrent use.
 var namespaceSummaries struct {
 	sync.RWMutex
-	byName map[string]string
+	byName map[string]namespaceText
 }
 
-// RegisterNamespace records what the namespace name is for, in one sentence.
-// The package that owns the namespace calls it from its register.go: the
-// package at internal/le/<name>, the path the namespace's areas sit under.
+// RegisterNamespace records what the namespace name is for: summary in one
+// line of at most 60 characters (the menu's right column, the root page's
+// block heading), description in one to three sentences (printed above the
+// namespace's options once the menu enters it, and on its page). The package
+// that owns the namespace calls it from its register.go: the package at
+// internal/le/<name>, the path the namespace's areas sit under.
 //
 // A name registered twice is a programming error at init, so it panics. A name
-// that is also an area is refused by the startup check rather than here,
-// because the area's init may run after this one (requireEveryNamespaceHasASummary).
-func RegisterNamespace(name, summary string) {
+// that is also an area, and a summary or description the text rule refuses,
+// are refused by the startup check rather than here, because the area's init
+// may run after this one (requireEveryNamespaceHasASummary).
+func RegisterNamespace(name, summary, description string) {
 	if name == "" {
 		panic("BUG: leroot.RegisterNamespace: empty name; see the init frame above for the namespace")
-	}
-	if summary == "" {
-		panic("BUG: leroot.RegisterNamespace: empty summary for " + name + "; say in one sentence what the namespace is for")
 	}
 	namespaceSummaries.Lock()
 	defer namespaceSummaries.Unlock()
 	if namespaceSummaries.byName == nil {
-		namespaceSummaries.byName = make(map[string]string, 32)
+		namespaceSummaries.byName = make(map[string]namespaceText, 32)
 	}
 	if _, taken := namespaceSummaries.byName[name]; taken {
 		panic("BUG: leroot.RegisterNamespace: " + name + " is registered twice; one package owns a namespace")
 	}
-	namespaceSummaries.byName[name] = summary
+	namespaceSummaries.byName[name] = namespaceText{summary: summary, description: description}
 }
 
 // NamespaceSummary answers the summary a namespace registered, and whether it
@@ -55,8 +63,17 @@ func RegisterNamespace(name, summary string) {
 func NamespaceSummary(name string) (string, bool) {
 	namespaceSummaries.RLock()
 	defer namespaceSummaries.RUnlock()
-	summary, held := namespaceSummaries.byName[name]
-	return summary, held
+	text, held := namespaceSummaries.byName[name]
+	return text.summary, held
+}
+
+// NamespaceDescription answers the long description a namespace registered,
+// and whether it registered one.
+func NamespaceDescription(name string) (string, bool) {
+	namespaceSummaries.RLock()
+	defer namespaceSummaries.RUnlock()
+	text, held := namespaceSummaries.byName[name]
+	return text.description, held
 }
 
 // registeredNamespaces answers every name RegisterNamespace recorded.
@@ -97,12 +114,15 @@ func requireEveryNamespaceHasASummary(areas []string) {
 			if isArea[namespace] {
 				continue
 			}
-			if _, held := NamespaceSummary(namespace); held {
+			if summary, held := NamespaceSummary(namespace); held {
+				description, _ := NamespaceDescription(namespace)
+				requireShortAndLong("namespace \""+namespace+"\"", summary, description, namespace,
+					"its leroot.RegisterNamespace call in internal/le/"+strings.ReplaceAll(namespace, " ", "/")+"/register.go")
 				continue
 			}
 			var tb textbuf.Buffer
 			panic(tb.Str("BUG: le namespace \"").Str(namespace).Str("\" has no summary: call leroot.RegisterNamespace(\"").
-				Str(namespace).Str("\", \"<what it is for, in one sentence>\") from internal/le/").
+				Str(namespace).Str("\", \"<what it is for, in one line>\", \"<what it holds, in one to three sentences>\") from internal/le/").
 				Str(strings.ReplaceAll(namespace, " ", "/")).Str("/register.go").String())
 		}
 	}
@@ -114,7 +134,7 @@ func requireEveryNamespaceHasASummary(areas []string) {
 func namespaceLine(namespace string, areas []ManifestArea) string {
 	for _, area := range areas {
 		if area.Name == namespace {
-			return area.Description
+			return area.ShortHelp
 		}
 	}
 	summary, held := NamespaceSummary(namespace)

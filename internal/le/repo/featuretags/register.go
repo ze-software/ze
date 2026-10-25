@@ -13,8 +13,9 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupGenerate, Answer, registry.Meta{
-		ShortHelp: "the build-tag lists derived from feature-gates.txt: check the four files that carry one, or rewrite them",
-		Mode:      "offline",
+		Description: "The build-tag lists derived from feature-gates.txt: check the four files that carry one, or rewrite them.",
+		ShortHelp:   "check or rewrite the feature tag lists",
+		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers le perf under it for the same reason.
 		Section: registry.SectionTest,

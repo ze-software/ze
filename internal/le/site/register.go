@@ -9,8 +9,9 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupGenerate, Answer, registry.Meta{
-		ShortHelp: "build, check, and render the public website and presentation artifacts without an interpreter",
-		Mode:      "offline", Section: registry.SectionTest, SubsFunc: Subs,
+		Description: "Build, check and render the public website and its presentation artifacts with native Go renderers, without an interpreter.",
+		ShortHelp:   "build, check and render the website",
+		Mode:        "offline", Section: registry.SectionTest, SubsFunc: Subs,
 	})
 	leroot.RegisterActions(area, Actions)
 	leroot.RegisterShape(area, command.ShapeMap)

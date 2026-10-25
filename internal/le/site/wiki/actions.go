@@ -33,14 +33,16 @@ const (
 
 var actions = leaction.New(area,
 	leaction.Action{Verb: "update",
-		Why:    "derive the wiki page index from the committed HEAD of a wiki checkout and write website/data/wiki.json, the file the site build reads instead of opening the wiki",
-		Writes: true,
+		Summary: "write the wiki page index from a wiki checkout",
+		Why:     "derive the wiki page index from the committed HEAD of a wiki checkout and write website/data/wiki.json, the file the site build reads instead of opening the wiki",
+		Writes:  true,
 		Parameters: []leaction.Parameter{
 			{Keyword: keywordWiki, Kind: leaction.KindPath, Help: "the wiki checkout to read", Value: "directory", Requirement: leaction.Optional},
 			{Keyword: keywordBaseURL, Kind: leaction.KindString, Help: "the URL the wiki pages are served under", Value: "url", Requirement: leaction.Optional},
 		},
 		AnswerArgs: runUpdate},
 	leaction.Action{Verb: "check",
+		Summary:    "check the wiki index matches the wiki's HEAD",
 		Why:        "report whether the committed wiki index still states what the wiki checkout commits at HEAD",
 		Parameters: []leaction.Parameter{{Keyword: keywordWiki, Kind: leaction.KindPath, Help: "the wiki checkout to read", Value: "directory", Requirement: leaction.Optional}},
 		AnswerArgs: runCheck},

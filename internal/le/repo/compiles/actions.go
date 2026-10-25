@@ -22,17 +22,18 @@ const area = "repo compiles"
 
 // actions is the whole command surface.
 var actions = leaction.New(area,
-	leaction.Action{Verb: "check", Why: "the tree GIT HOLDS compiles in every shipped flavor, which is the one population every other gate misses because they all build the working tree",
+	leaction.Action{Verb: "check", Summary: "check the committed tree compiles in every flavor", Why: "the tree GIT HOLDS compiles in every shipped flavor, which is the one population every other gate misses because they all build the working tree",
 		Answer: runCheck},
-	leaction.Action{Verb: "selftest", Why: "the two vacuity guards still fire. `go build ./...` exits 0 over a pattern that matched nothing buildable, so a flavor compiling zero packages would otherwise report success",
+	leaction.Action{Verb: "selftest", Summary: "prove the compile check's vacuity guards fire", Why: "the two vacuity guards still fire. `go build ./...` exits 0 over a pattern that matched nothing buildable, so a flavor compiling zero packages would otherwise report success",
 		Answer: runSelftest},
 	leaction.Action{
 		// No Make target names this one: it is the script's --matrix, and it
 		// exists so a reader can see WHICH flavors a run compiles without
 		// waiting for six builds.
-		Verb:   "matrix",
-		Why:    "the build flavors this gate compiles, with the tags and the anchor file each one exists to select",
-		Answer: runMatrix,
+		Verb:    "matrix",
+		Summary: "list the build flavors the compile check judges",
+		Why:     "the build flavors this gate compiles, with the tags and the anchor file each one exists to select",
+		Answer:  runMatrix,
 	},
 )
 

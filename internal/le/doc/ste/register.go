@@ -13,9 +13,9 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupGate, Answer, registry.Meta{
-		ShortHelp: "the repository's writing, against ASD-STE100 Simplified Technical English: " +
-			"review every surface, and gate each changed file against its own HEAD version",
-		Mode: "offline",
+		Description: "The repository's writing, against ASD-STE100 Simplified Technical English: review every surface, and gate each changed file against its own HEAD version.",
+		ShortHelp:   "review prose against Simplified English",
+		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers le perf under it for the same reason.
 		Section: registry.SectionTest,

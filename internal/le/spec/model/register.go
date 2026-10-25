@@ -19,10 +19,11 @@ func init() {
 	// panics at init rather than on the first call.
 	table := spec.ModelArea()
 	leroot.Register(commandName, leroot.GroupWorkflow, spec.Model, registry.Meta{
-		ShortHelp: "the model a session transcript records",
-		Mode:      "offline",
-		Section:   registry.SectionTest,
-		SubsFunc:  table.Subs,
+		Description: "The model a session transcript records, read from the transcript itself rather than from what the session says about itself.",
+		ShortHelp:   "show the model a transcript records",
+		Mode:        "offline",
+		Section:     registry.SectionTest,
+		SubsFunc:    table.Subs,
 	})
 	leroot.RegisterActions(commandName, table.Actions)
 	leroot.RegisterShape(commandName, command.ShapeDoc)

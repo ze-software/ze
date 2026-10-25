@@ -24,24 +24,26 @@ const area = "arch tier"
 
 // actions is the whole command surface.
 var actions = leaction.New(area,
-	leaction.Action{Verb: "check", Why: "module-tier placement and plugin import ownership (ai/rules/architecture.md, ai/rules/plugins.md): enforce dependency direction without importing another plugin's implementation",
+	leaction.Action{Verb: "check", Summary: "check module-tier placement and plugin imports", Why: "module-tier placement and plugin import ownership (ai/rules/architecture.md, ai/rules/plugins.md): enforce dependency direction without importing another plugin's implementation",
 		Answer: runCheck},
-	leaction.Action{Verb: "selftest", Why: "isolated fixtures for placement, composition classification, and forbidden versus legitimate plugin imports",
+	leaction.Action{Verb: "selftest", Summary: "prove the tier check against its fixtures", Why: "isolated fixtures for placement, composition classification, and forbidden versus legitimate plugin imports",
 		Answer: runSelftest},
 	leaction.Action{
 		// This reverse-dependency report is an explicit native action for
 		// package moves.
-		Verb:   "report",
-		Why:    "who imports each subsystem from outside its own subtree, so a reader can see which packages could move and which the daemon wires",
-		Answer: runReport,
+		Verb:    "report",
+		Summary: "report who imports each subsystem from outside it",
+		Why:     "who imports each subsystem from outside its own subtree, so a reader can see which packages could move and which the daemon wires",
+		Answer:  runReport,
 	},
 	leaction.Action{
 		// The script's --write-baseline. ai/rules/architecture.md names it as
 		// the way to regenerate the baseline after a move.
-		Verb:   "write-baseline",
-		Why:    "regenerate the migration baseline from the engines currently in the wrong tier, which is what you run after moving one",
-		Writes: true,
-		Answer: runWriteBaseline,
+		Verb:    "write-baseline",
+		Summary: "regenerate the tier migration baseline",
+		Why:     "regenerate the migration baseline from the engines currently in the wrong tier, which is what you run after moving one",
+		Writes:  true,
+		Answer:  runWriteBaseline,
 	},
 )
 

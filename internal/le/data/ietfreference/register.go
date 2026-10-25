@@ -13,9 +13,9 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupGenerate, Answer, registry.Meta{
-		ShortHelp: "the non-normative IETF reference tree: fetch each working group's BCP and Informational RFCs " +
-			"and active drafts from the datatracker and rewrite reference/ietf/INDEX.tsv",
-		Mode: "offline",
+		Description: "The non-normative IETF reference tree: fetch each working group's BCP and Informational RFCs and active drafts from the datatracker and rewrite reference/ietf/INDEX.tsv.",
+		ShortHelp:   "refresh the IETF reference texts",
+		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers le perf under it for the same reason.
 		Section: registry.SectionTest,

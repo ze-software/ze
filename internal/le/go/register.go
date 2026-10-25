@@ -12,5 +12,7 @@ import (
 )
 
 func init() {
-	leroot.RegisterNamespace("go", "the Go toolchain: lint, type-checks across tags and platforms, the patched standard library, version pins and code moves")
+	leroot.RegisterNamespace("go",
+		"the Go toolchain: lint, type checks, pins and code moves",
+		"The Go toolchain: lint, type-checks across tags and platforms, the patched standard library, version pins and code moves.")
 }

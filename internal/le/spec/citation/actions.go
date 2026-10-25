@@ -19,9 +19,9 @@ const (
 	keywordSpec = "spec"
 )
 
-// shortHelp is what the gate judges. The help line and the check action's Why
+// areaDescription is what the gate judges. The area's long help and the check action's Why
 // both read it, so the two cannot drift.
-const shortHelp = "a spec citing a sibling spec absent on disk fails, unless the" +
+const areaDescription = "a spec citing a sibling spec absent on disk fails, unless the" +
 	" target is grandfathered in plan/.citation-baseline; a path:line citation" +
 	" whose backtick-quoted token drifted off that line warns"
 
@@ -31,13 +31,15 @@ const shortHelp = "a spec citing a sibling spec absent on disk fails, unless the
 func table() leaction.Area {
 	return leaction.New(name,
 		leaction.Action{
-			Verb:   verbCheck,
-			Why:    shortHelp,
-			Answer: answerCheck,
+			Verb:    verbCheck,
+			Summary: "check spec citations name real symbols",
+			Why:     areaDescription,
+			Answer:  answerCheck,
 		},
 		leaction.Action{
-			Verb: verbAnchors,
-			Why:  "the design documents whose source anchors name a file the spec changes",
+			Verb:    verbAnchors,
+			Summary: "list design docs anchored to the spec's files",
+			Why:     "the design documents whose source anchors name a file the spec changes",
 			Parameters: []leaction.Parameter{{
 				Keyword: keywordSpec, Kind: leaction.KindSpec, Value: "bucket/spec-name.md",
 				Help: "the spec whose files are audited", Requirement: leaction.Required,

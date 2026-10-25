@@ -20,7 +20,7 @@ func init() {
 	// (plugin { external record-plugin { run "le test record-plugin" } })
 	// to drive test/plugin/plugin-owned-command-streams.ci,
 	// plugin-reads-engine-answer.ci and plugin-command-partial-fault.ci.
-	leroot.Register(name, leroot.GroupSuite, harnesstool.Answer(cli.CmdRecordPlugin), harnesstool.Meta("Answer commands with a record walk and read one back (spawned by test daemons, not run directly)"))
+	leroot.Register(name, leroot.GroupSuite, harnesstool.Answer(cli.CmdRecordPlugin), harnesstool.Meta("answer commands with a record walk"))
 	leroot.RegisterShape(name, command.ShapeDoc)
 
 	// Every word after the name is the harness's own command line, so a

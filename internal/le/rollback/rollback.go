@@ -31,10 +31,11 @@ const codeUsage = 2
 
 var actions = leaction.New(area,
 	leaction.Action{
-		Verb:   newestVerb,
-		Why:    "set the newest le build aside so the previous one runs; use when the newest misbehaves",
-		Writes: true,
-		Answer: answerNewest,
+		Verb:    newestVerb,
+		Summary: "set the newest le build aside",
+		Why:     "set the newest le build aside so the previous one runs; use when the newest misbehaves",
+		Writes:  true,
+		Answer:  answerNewest,
 	},
 )
 

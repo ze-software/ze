@@ -42,8 +42,9 @@ const (
 
 var dockerHostActions = leaction.New(dockerHostArea,
 	leaction.Action{
-		Verb:   "build",
-		Writes: true,
+		Verb:    "build",
+		Writes:  true,
+		Summary: "build Ze's docker-host image",
 		Why: "build Ze's docker-host image (Ze's runtime kernel, dockerd, containerd, sshd, sudo, iptables) from the" +
 			" pins in " + PinFile + " into ~/.cache/ze/docker-host/<arch>/<key>/ and print its path; the same inputs" +
 			" reuse the cached image. `arch` defaults to this host's, `size` (GiB, 2-1024) to 16, `pins` names another pin file",
@@ -60,8 +61,9 @@ var dockerHostActions = leaction.New(dockerHostArea,
 		AnswerArgs: runBuild,
 	},
 	leaction.Action{
-		Verb:   "start",
-		Writes: true,
+		Verb:    "start",
+		Writes:  true,
+		Summary: "start the ze Colima profile on macOS",
 		Why: "macOS: build the image if needed, then run it as the `ze` Colima profile, whose Docker socket" +
 			" (ze/docker.sock under Colima's home: COLIMA_HOME, else ~/.colima) the labs use;" +
 			" a changed image stops, deletes and recreates the profile." +
@@ -69,13 +71,15 @@ var dockerHostActions = leaction.New(dockerHostArea,
 		Answer: runStart,
 	},
 	leaction.Action{
-		Verb:   "stop",
-		Writes: true,
-		Why:    "macOS: stop the `ze` Colima profile when it runs",
-		Answer: runStop,
+		Verb:    "stop",
+		Writes:  true,
+		Summary: "stop the ze Colima profile on macOS",
+		Why:     "macOS: stop the `ze` Colima profile when it runs",
+		Answer:  runStop,
 	},
 	leaction.Action{
-		Verb: "check",
+		Verb:    "check",
+		Summary: "report the docker-host tools, image and profile",
 		Why: "report the tools the docker-host image needs (colima, limactl, docker, mkfs.ext4), the image the `ze`" +
 			" profile was started with, whether the profile runs and whether its Docker socket exists; exits 1 naming each fix",
 		Answer: runCheck,

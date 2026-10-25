@@ -14,8 +14,9 @@ import (
 
 func init() {
 	leroot.Register(name, leroot.GroupWorkflow, Answer, registry.Meta{
-		ShortHelp: "run gokrazy's gok with the checked-in module cache, offline, from a prepared instance: `le build gokrazy <gok args>`",
-		Description: "Takes gok's own arguments, for example " +
+		ShortHelp: "run gokrazy's gok offline from a prepared instance",
+		Description: "Run gokrazy's gok with the checked-in module cache, offline, from a prepared instance. " +
+			"Takes gok's own arguments, for example " +
 			"`--parent_dir gokrazy -i ze overwrite --full ze.img`. " +
 			"`overwrite` builds from a prepared copy of the instance under tmp/, so the tracked gokrazy/ directory is never written.",
 		Mode:    "offline",

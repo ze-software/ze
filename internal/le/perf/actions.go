@@ -59,19 +59,21 @@ var runParameters = []leaction.Parameter{
 }
 
 var actions = leaction.New(area,
-	leaction.Action{Verb: suggestVerb, Why: "suggest a perf run when BGP data-plane code changed since the last one." +
+	leaction.Action{Verb: suggestVerb, Summary: "suggest a perf run when the data plane changed", Why: "suggest a perf run when BGP data-plane code changed since the last one." +
 		" A NUDGE, never a gate -- always exits 0. The heavy suite needs Docker and" +
 		" minutes, so it is not run every edit; this notices when a Docker perf run" +
 		" is overdue on THIS machine, beside the nightly Docker-free regression check",
 		Answer: suggestHere},
 	leaction.Action{
-		Verb:   recordVerb,
-		Why:    "record the current HEAD as the commit perf last ran at, which clears the suggestion",
-		Writes: true,
-		Answer: recordHere,
+		Verb:    recordVerb,
+		Summary: "record HEAD as the commit perf last ran at",
+		Why:     "record the current HEAD as the commit perf last ran at, which clears the suggestion",
+		Writes:  true,
+		Answer:  recordHere,
 	},
 	leaction.Action{
-		Verb: runVerb,
+		Verb:    runVerb,
+		Summary: "measure BGP convergence, throughput and latency",
 		Why: "build the DUT images and measure BGP convergence, UPDATE throughput and p99" +
 			" latency against every DUT, then record the run. Needs Docker and minutes." +
 			" `dut ze` measures one, `dut \"ze bird\"` measures several;" +
@@ -81,32 +83,37 @@ var actions = leaction.New(area,
 		AnswerArgs: runHere,
 	},
 	leaction.Action{
-		Verb: historyVerb,
+		Verb:    historyVerb,
+		Summary: "append the last results to the committed history",
 		Why: "append every result of the last measurement to its DUT's committed" +
 			" NDJSON history under " + historyDir + ", then record the run",
 		Writes: true,
 		Answer: historyHere,
 	},
 	leaction.Action{
-		Verb: evidenceVerb,
+		Verb:    evidenceVerb,
+		Summary: "run the release perf gate on the ze DUT",
 		Why: "the release evidence gate: measure the ze DUT, append its result to the" +
 			" committed history, and exit non-zero when that history shows a regression",
 		Writes: true,
 		Answer: evidenceHere,
 	},
 	leaction.Action{
-		Verb: sendVerb,
+		Verb:    sendVerb,
+		Summary: "send benchmark traffic at one DUT",
 		Why: "send benchmark traffic at one DUT and write the result, with the options" +
 			" typed after the verb. The perf runner calls it inside the sender container",
 		AnswerWords: func(words []string) (any, int) { return runProgram(sendVerb, words) },
 	},
 	leaction.Action{
 		Verb:        reportVerb,
+		Summary:     "compare benchmark result files",
 		Why:         "render benchmark result files as a comparison, with the options and files typed after the verb",
 		AnswerWords: func(words []string) (any, int) { return runProgram(reportVerb, words) },
 	},
 	leaction.Action{
-		Verb: trackVerb,
+		Verb:    trackVerb,
+		Summary: "report a benchmark history's trend",
 		Why: "read a benchmark history and report its trend; `--check <history>` exits" +
 			" non-zero on a regression",
 		AnswerWords: func(words []string) (any, int) { return runProgram(trackVerb, words) },

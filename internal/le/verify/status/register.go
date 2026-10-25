@@ -8,10 +8,11 @@ import (
 
 func init() {
 	leroot.Register(name, leroot.GroupWorkflow, Answer, registry.Meta{
-		ShortHelp: "read and write the verification certificate for the current checkout",
-		Mode:      "offline",
-		Section:   registry.SectionTest,
-		SubsFunc:  Subs,
+		Description: "The verification certificate for this checkout: record a run's verdict, check that a recorded PASS still covers the tree, print it, or print the tracked tree's hash.",
+		ShortHelp:   "read or write the verification certificate",
+		Mode:        "offline",
+		Section:     registry.SectionTest,
+		SubsFunc:    Subs,
 	})
 	leroot.RegisterActions(name, Actions)
 	leroot.RegisterShape(name, command.ShapeDoc)

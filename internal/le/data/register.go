@@ -12,5 +12,7 @@ import (
 )
 
 func init() {
-	leroot.RegisterNamespace("data", "fetch and refresh the external data Ze ships or cites: RIR delegations, IANA registries and IETF reference texts")
+	leroot.RegisterNamespace("data",
+		"fetch the external data Ze ships or cites",
+		"Fetch and refresh the external data Ze ships or cites: RIR delegations, IANA registries and IETF reference texts.")
 }

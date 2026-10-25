@@ -158,17 +158,23 @@ summary, and the refusal names the namespace and the call that fixes it.
 <!-- source: internal/le/le/root/namespacesummary.go -- RegisterNamespace, requireEveryNamespaceHasASummary -->
 <!-- source: internal/le/le/root/tree.go -- nodeFor -->
 
-**Every word le offers says what it does.** An area carries its summary
-(`registry.Meta` ShortHelp), a pass-through area the program its words pass
-to, an action its `Why`, a keyword its `Help`, and each value an enum or a
+**Every word le offers says what it does.** Each enterable word declares two
+texts: a short one, one line of at most 60 characters, which listings,
+completion and the menu's right column show whole, and a long one, one to three
+sentences, which its own page and the header of an entered menu level show. A
+namespace declares both in `RegisterNamespace`, an area in `registry.Meta`
+(ShortHelp and Description), an action in `Summary` and `Why`. A pass-through
+area carries the program its words pass to in place of the long text, a
+keyword its one-line `Help`, and each value an enum or a
 closed list declares a line in the parameter's `ValueHelp`, keyed by the
 value. Completion and the menu print that line beside the value, the
 keyword's page lists each value with it, and `le help ai commands` prints and
 publishes it as `value-help`. A registry that holds the values, such as the
 stress scenarios, fills `ValueHelp` from where each value is declared. le
 refuses to start while any of these is blank, or while `ValueHelp` describes a
-value the keyword does not declare, and the refusal names the item, what to
-fill in and the package it goes in.
+value the keyword does not declare, or while a short text is over 60
+characters or spans two lines, and the refusal names the item, what to fill in
+and the package it goes in.
 <!-- source: internal/le/le/root/describe.go -- requireEveryItemHasText -->
 <!-- source: internal/le/le/action/valuehelp.go -- ValueCandidates -->
 
@@ -207,10 +213,10 @@ the registry rather than from the command.** Every page is one `helpfmt.Page`,
 written to stdout with exit 0, and wrapped to the terminal's width, or to 100
 columns when stdout is not a terminal. `le`, `le help` and `le --help` print the
 root page, laid out by tree: one block for the single-word commands, then one
-per namespace, headed by the first sentence of what the namespace is for, each
-line the name, the purpose tag and the first sentence of the summary. `le <command> --help` and `le help <command>` print that node's
-page: its summary, the actions its table declares (each with `[writes]` or
-`[checks]` and the first sentence of its purpose), and the commands registered
+per namespace, headed by the namespace's short summary, each line the name, the
+purpose tag and the area's short summary whole. `le <command> --help` and `le help <command>` print that node's
+page: its long description, the actions its table declares (each with `[writes]` or
+`[checks]` and its one-line `Summary`), and the commands registered
 under it. An area with no table yet shows each alternative of its `Meta.Subs`
 grammar as a usage line. `le <command> <action> --help` and
 `le help <command> <action>` print that action's page: its whole purpose, its
@@ -262,9 +268,9 @@ read one, so it guards. A value spelled `help`, `-h` or `--help` is unreachable
 in that area until the area declares its table.
 
 **The root page is a rendering of a payload, so le publishes what it
-declares.** `Manifest` carries every registered area, its group and its
-description. An area that registered an action table also carries each action,
-with its verb, its purpose, its write flag and its keyword grammar. `./le '|'
+declares.** `Manifest` carries every registered area, its group, its short help
+and its description. An area that registered an action table also carries each action,
+with its verb, its summary, its purpose, its write flag and its keyword grammar. `./le '|'
 json` renders the manifest as data. A bare `./le` renders the same payload as
 the page a person reads, on stdout, with exit 0. The page is derived from the
 manifest rather than written beside it, so the text and the document name one

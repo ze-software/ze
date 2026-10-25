@@ -13,8 +13,9 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupGenerate, Answer, registry.Meta{
-		ShortHelp: "the shipped RIR delegation seed: fetch the five registries' files and rewrite the ASN-to-RIR delegation table",
-		Mode:      "offline",
+		Description: "The shipped RIR delegation seed: fetch the five registries' files and rewrite the ASN-to-RIR delegation table.",
+		ShortHelp:   "refresh the shipped ASN-to-RIR table",
+		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers le perf under it for the same reason.
 		Section: registry.SectionTest,

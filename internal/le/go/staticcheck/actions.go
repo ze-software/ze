@@ -24,11 +24,12 @@ const area = "go staticcheck"
 // actions is the whole command surface.
 var actions = leaction.New(area,
 	leaction.Action{
-		Verb: "check",
+		Verb:    "check",
+		Summary: "type-check every feature-tag combination",
 		Why: "the tree type-checks in every feature-tag combination Ze can be built in, so a package compiled out of the default build is still judged; " +
 			"part <index> of <count> judges one piece of the rows, and the pieces together judge every row",
 		Parameters: []leaction.Parameter{
-			{Keyword: "part", Kind: leaction.KindUint, Help: "which piece of the split matrix this run judges, read with of", Value: "index", Requirement: leaction.Optional},
+			{Keyword: "part", Kind: leaction.KindUint, Help: "which piece of the split matrix this run judges (see of)", Value: "index", Requirement: leaction.Optional},
 			{Keyword: "of", Kind: leaction.KindUint, Help: "how many pieces the matrix is split into, read with part", Value: "count", Requirement: leaction.Optional},
 		},
 		AnswerArgs: runCheck,
@@ -37,9 +38,10 @@ var actions = leaction.New(area,
 		// No Make target names this one: it is the script's --print-matrix, and
 		// it exists so a reader can see WHICH combinations a run judges without
 		// waiting for Staticcheck.
-		Verb:   "rows",
-		Why:    "the feature-tag combinations this run judges, derived from the feature manifest and narrowed to what the change set can move",
-		Answer: runRows,
+		Verb:    "rows",
+		Summary: "list the tag combinations this run judges",
+		Why:     "the feature-tag combinations this run judges, derived from the feature manifest and narrowed to what the change set can move",
+		Answer:  runRows,
 	},
 )
 

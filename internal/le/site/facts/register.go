@@ -13,8 +13,9 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupGenerate, Answer, registry.Meta{
-		ShortHelp: "the numbers the website publishes about this repository: derive them into website/data/repo-facts.json, or check what has gone stale in it",
-		Mode:      "offline",
+		Description: "The numbers the website publishes about this repository: derive them into website/data/repo-facts.json, or check what has gone stale in it.",
+		ShortHelp:   "derive or check the published repo facts",
+		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers le perf under it for the same reason.
 		Section: registry.SectionTest,

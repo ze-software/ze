@@ -12,10 +12,11 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupGate, Answer, registry.Meta{
-		ShortHelp: "type-check the shipped tree under GOOS darwin, freebsd and openbsd",
-		Mode:      "offline",
-		Section:   registry.SectionTest,
-		SubsFunc:  Subs,
+		Description: "The shipped tree type-checked under GOOS darwin, freebsd and openbsd, so code that only a Linux host build selects cannot hide a break on the owner's Mac or a BSD.",
+		ShortHelp:   "type-check the tree under other GOOSes",
+		Mode:        "offline",
+		Section:     registry.SectionTest,
+		SubsFunc:    Subs,
 	})
 	leroot.RegisterActions(area, Actions)
 

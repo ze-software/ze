@@ -32,7 +32,8 @@ const (
 // whose initializer names a function that reads it is an initialization cycle.
 func area() leaction.Area {
 	return leaction.New(name, leaction.Action{
-		Verb: runVerb,
+		Verb:    runVerb,
+		Summary: "admit one heavy job, run it and answer its code",
 		Why: "admit one heavy job, run it, and answer its exit code. Several sessions share this machine." +
 			" `quiet` before the command keyword writes the child's output to this session's scratch log" +
 			" instead of the terminal, and answers the verdict, that log's path and its failure lines",
@@ -40,9 +41,9 @@ func area() leaction.Area {
 			{Keyword: labelKeyword, Kind: leaction.KindLabel, Value: "label", Requirement: leaction.Required,
 				Help: "the name the job is admitted, logged and attached under"},
 			{Keyword: quietKeyword, Kind: leaction.KindSwitch,
-				Help: "write the child's output to this session's scratch log and answer its summary"},
+				Help: "log the child's output to scratch and answer its summary"},
 			{Keyword: commandKeyword, Kind: leaction.KindArgv, Value: "argv", Requirement: leaction.Required,
-				Help: "the program to run and its arguments: every word after this keyword is that command's"},
+				Help: "the command to run: every word after this keyword"},
 		},
 		AnswerArgs: answerRun,
 	})

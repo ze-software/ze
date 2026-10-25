@@ -9,6 +9,8 @@
 package reference
 
 import (
+	"strings"
+
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -24,7 +26,7 @@ type Reference struct {
 	Sections []Entry `json:"sections"`
 	// Namespaces is every first word several commands share, and what it is
 	// for. It is filled with Commands, by the same section.
-	Namespaces []Entry `json:"namespaces,omitempty"`
+	Namespaces []Namespace `json:"namespaces,omitempty"`
 	// Commands is every command the program registers.
 	Commands []Command `json:"commands,omitempty"`
 	// Groups is the purpose tags a command declares, and what each means.
@@ -41,14 +43,25 @@ type Entry struct {
 	Meaning string `json:"meaning"`
 }
 
+// Namespace is one first word several commands share: its one line and its
+// long description, the two texts every level of the command surface carries.
+type Namespace struct {
+	Name        string `json:"name"`
+	ShortHelp   string `json:"short-help"`
+	Description string `json:"description"`
+}
+
 // Command is one registered command and its whole grammar.
 type Command struct {
 	// Name is the word, or the words, typed after the program.
 	Name string `json:"name"`
 	// Group is the command's purpose tag.
 	Group string `json:"group"`
-	// Summary is the command's one line.
-	Summary string `json:"summary"`
+	// ShortHelp is the command's one line, at most 60 characters.
+	ShortHelp string `json:"short-help"`
+	// Description is the command's long account; for a pass-through command
+	// it is empty and PassesTo says where its words go.
+	Description string `json:"description,omitempty"`
 	// Actions is the command's action table. Absent for a pass-through command.
 	Actions []Action `json:"actions,omitempty"`
 	// PassesTo names the program that reads every word after the name, for a
@@ -58,10 +71,13 @@ type Command struct {
 
 // Action is one verb of a command and the parameters it takes.
 type Action struct {
-	Verb       string      `json:"verb"`
-	Summary    string      `json:"summary"`
-	Writes     bool        `json:"writes"`
-	Parameters []Parameter `json:"parameters,omitempty"`
+	Verb string `json:"verb"`
+	// ShortHelp is the action's one line, at most 60 characters.
+	ShortHelp string `json:"short-help"`
+	// Description is the action's long account of what it is for.
+	Description string      `json:"description"`
+	Writes      bool        `json:"writes"`
+	Parameters  []Parameter `json:"parameters,omitempty"`
 }
 
 // Parameter is one keyword, or the positional value, an action takes.
@@ -101,7 +117,7 @@ func (r Reference) Text() string {
 		r.writeIndex(&tb)
 		return tb.String()
 	}
-	writeEntries(&tb, "Namespaces", r.Namespaces)
+	r.writeNamespaces(&tb)
 	r.writeCommands(&tb)
 	writeEntries(&tb, "Groups", r.Groups)
 	writeEntries(&tb, "Verbs", r.Verbs)
@@ -126,6 +142,33 @@ func (r Reference) writeIndex(tb *textbuf.Buffer) {
 	tb.Str("  ").Str(r.Program).Str(" help ai commands | json every command, action and typed parameter\n")
 }
 
+// writeNamespaces prints one line per namespace with its one-line summary,
+// then its long description indented under it.
+func (r Reference) writeNamespaces(tb *textbuf.Buffer) {
+	if len(r.Namespaces) == 0 {
+		return
+	}
+	tb.Str("## Namespaces\n\n")
+	width := 0
+	for _, namespace := range r.Namespaces {
+		width = max(width, len(namespace.Name))
+	}
+	for _, namespace := range r.Namespaces {
+		tb.Str("  ").PadRight(namespace.Name, width).Str("  ").Str(namespace.ShortHelp).Byte('\n')
+		writeDescription(tb, "      ", namespace.Description)
+	}
+	tb.Byte('\n')
+}
+
+// writeDescription prints a long description on one line under the item it
+// describes, at indent; an empty one prints nothing.
+func writeDescription(tb *textbuf.Buffer, indent, description string) {
+	if description == "" {
+		return
+	}
+	tb.Str(indent).Str(strings.Join(strings.Fields(description), " ")).Byte('\n')
+}
+
 // writeCommands prints one block per command: its actions, each with its
 // parameters and their kinds.
 func (r Reference) writeCommands(tb *textbuf.Buffer) {
@@ -134,12 +177,14 @@ func (r Reference) writeCommands(tb *textbuf.Buffer) {
 	}
 	tb.Str("## Commands\n")
 	for _, command := range r.Commands {
-		tb.Str("\n").Str(r.Program).Byte(' ').Str(command.Name).Str("  [").Str(command.Group).Str("]  ").Str(command.Summary).Byte('\n')
+		tb.Str("\n").Str(r.Program).Byte(' ').Str(command.Name).Str("  [").Str(command.Group).Str("]  ").Str(command.ShortHelp).Byte('\n')
+		writeDescription(tb, "  ", command.Description)
 		if command.PassesTo != "" {
 			tb.Str("  <words>...  passed to ").Str(command.PassesTo).Byte('\n')
 		}
 		for _, action := range command.Actions {
-			tb.Str("  ").Str(action.Verb).Str("  ").Str(action.Summary).Byte('\n')
+			tb.Str("  ").Str(action.Verb).Str("  ").Str(action.ShortHelp).Byte('\n')
+			writeDescription(tb, "      ", action.Description)
 			for _, parameter := range action.Parameters {
 				writeParameter(tb, parameter)
 			}

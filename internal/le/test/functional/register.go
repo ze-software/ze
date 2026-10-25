@@ -14,8 +14,9 @@ import (
 
 func init() {
 	leroot.Register(Area, leroot.GroupSuite, Answer, registry.Meta{
-		ShortHelp: "functional suites, fail-open Docker-exec analysis, and ExaBGP compatibility",
-		Mode:      "offline",
+		Description: "Functional suites, fail-open Docker-exec analysis, and ExaBGP compatibility.",
+		ShortHelp:   "run the functional test suites",
+		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers le perf under it for the same reason.
 		Section: registry.SectionTest,

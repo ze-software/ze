@@ -15,15 +15,16 @@ import (
 const area = "plugin gated-table"
 
 var actions = leaction.New(area,
-	leaction.Action{Verb: "check", Why: "the generated table of gated plugins agrees with feature-gates.txt and every" +
+	leaction.Action{Verb: "check", Summary: "check the gated-plugin table is current", Why: "the generated table of gated plugins agrees with feature-gates.txt and every" +
 		" registration, so a build without a plugin names the tag that would carry it. A stale" +
 		" table names a wrong tag, or none, for a plugin a stripped build refuses",
 		Answer: runCheckHere},
 	leaction.Action{
-		Verb:   "write",
-		Why:    "regenerate the gated-plugin table from feature-gates.txt and every registration",
-		Writes: true,
-		Answer: runWriteHere,
+		Verb:    "write",
+		Summary: "regenerate the gated-plugin table",
+		Why:     "regenerate the gated-plugin table from feature-gates.txt and every registration",
+		Writes:  true,
+		Answer:  runWriteHere,
 	},
 )
 

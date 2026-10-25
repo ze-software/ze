@@ -52,10 +52,11 @@ const envString = "string"
 // callback or external toolchain command. Exactly one of Native, NativeArgs and
 // Argv is set.
 type Action struct {
-	Verb   string
-	Why    string
-	Native func(context.Context, string) (any, int)
-	Argv   func() []string
+	Verb    string
+	Summary string
+	Why     string
+	Native  func(context.Context, string) (any, int)
+	Argv    func() []string
 	// NativeArgs is a native callback for a verb with a keyword grammar,
 	// Parameters. It counts as Native for "exactly one runner".
 	NativeArgs func(context.Context, string, leaction.Arguments) (any, int)
@@ -131,36 +132,41 @@ func Table() []Action {
 	return []Action{
 		// ── Interop ──────────────────────────────────────────────────────
 		{
-			Verb:   "interop",
-			Native: runGeneralInterop,
+			Verb:    "interop",
+			Native:  runGeneralInterop,
+			Summary: "run BGP interop against FRR, BIRD and GoBGP",
 			Why: "BGP interop against the FRR, BIRD and GoBGP containers, every scenario" +
 				" under test/interop/scenarios/. Needs Docker. INTEROP_SCENARIO=<name>" +
 				" runs one of them",
 		},
 		{
-			Verb:   "interop-ipsec",
-			Native: runIPsecInterop,
+			Verb:    "interop-ipsec",
+			Native:  runIPsecInterop,
+			Summary: "run IKEv2 and IPsec interop against strongSwan",
 			Why: "IKEv2/IPsec interop against strongSwan. Needs Docker and privileged" +
 				" containers. IPSEC_INTEROP_SCENARIO=<name> runs one scenario",
 		},
 		{
-			Verb:   "interop-radius",
-			Native: runRADIUSInterop,
+			Verb:    "interop-radius",
+			Native:  runRADIUSInterop,
+			Summary: "run RADIUS admin-login interop with FreeRADIUS",
 			Why: "RADIUS admin-login interop against a real FreeRADIUS server, every" +
 				" scenario under test/interop-radius/scenarios/. Needs Docker and no" +
 				" kernel module. RADIUS_INTEROP_SCENARIO=<name> runs one scenario",
 		},
 		{
-			Verb:   "interop-radius-subscriber",
-			Native: runRADIUSSubscriberInterop,
+			Verb:    "interop-radius-subscriber",
+			Native:  runRADIUSSubscriberInterop,
+			Summary: "run subscriber RADIUS interop with FreeRADIUS",
 			Why: "subscriber RADIUS interop: FreeRADIUS accounting and radclient CoA/DM" +
 				" against ze's L2TP LNS with an xl2tpd + pppd LAC, every scenario under" +
 				" test/interop-radius-subscriber/scenarios/. Needs Docker, NET_ADMIN and" +
 				" the host's /dev/ppp. RADIUS_SUBSCRIBER_INTEROP_SCENARIO=<name> runs one scenario",
 		},
 		{
-			Verb:   "interop-rsvpte",
-			Native: runRSVPTEInterop,
+			Verb:    "interop-rsvpte",
+			Native:  runRSVPTEInterop,
+			Summary: "run RSVP-TE interop against freeRouter",
 			Why: "RSVP-TE interop between Ze and freeRouter in ingress, transit, relay and egress roles, every" +
 				" scenario under test/interop-rsvpte/scenarios/. Needs Docker, privileged" +
 				" containers and host MPLS routing. RSVPTE_INTEROP_SCENARIO=<name> runs one scenario",
@@ -169,29 +175,33 @@ func Table() []Action {
 			Verb:       cleanupVerb,
 			NativeArgs: runLabCleanup,
 			Parameters: []leaction.Parameter{{Keyword: "dry", Kind: leaction.KindSwitch, Help: "list what would be removed and remove nothing"}},
+			Summary:    "remove what a killed lab run left in Docker",
 			Why: "remove the Docker containers, networks and run-owned image tags a killed lab run left" +
 				" behind: only resources whose ze.lab owner labels prove the owner gone, never an unlabeled" +
 				" one, a volume or a cache tag. `dry` lists what would go and what stays, and why",
 		},
 		{
-			Verb:   dockerPeersVerb,
-			Native: runDockerPeers,
+			Verb:    dockerPeersVerb,
+			Native:  runDockerPeers,
+			Summary: "run every docker-tagged package test",
 			Why: "every package test tagged `docker` (a real peer container started through interoplab," +
 				" derived from the tree), with ZE_REQUIRE_DOCKER=1 so an absent Docker fails. Needs Docker" +
 				" and no Ze kernel",
 		},
 		// ── Stress ───────────────────────────────────────────────────────
 		{
-			Verb:   StressAction,
-			Native: runStressGate,
+			Verb:    StressAction,
+			Native:  runStressGate,
+			Summary: "run the complete BGP stress registry",
 			Why: "the complete native BGP stress registry: bulk IPv4, mixed families," +
 				" session flap, BIRD baseline, and 1M-route profiling. Needs root," +
 				" network namespaces, iproute2, ethtool, tcpdump, and BIRD." +
 				" STRESS_SCENARIO=<name> runs one scenario",
 		},
 		{
-			Verb:   "stress-bird",
-			Native: runStressBirdGate,
+			Verb:    "stress-bird",
+			Native:  runStressBirdGate,
+			Summary: "run the BIRD baseline for the stress numbers",
 			Why: "the BIRD baseline the ze bulk-IPv4 stress numbers are read against." +
 				" Needs root, bird2 and network namespaces",
 		},
@@ -200,6 +210,7 @@ func Table() []Action {
 			Argv: fixed(goTool, "test", "-tags", "ze_core stress", "-race", "-count=1",
 				"-timeout", "300s", "./internal/component/web/",
 				"-run", "TestWebConcurrentEditStress", "-v"),
+			Summary: "stress the web UI with concurrent editors",
 			Why: "50 or more concurrent editor sessions against the web UI," +
 				" race-instrumented. Evidence tier: the `stress` build tag keeps it out" +
 				" of ze-precommit-verify (R-6)",
@@ -209,39 +220,45 @@ func Table() []Action {
 			Argv: fixed(goTool, "test", "-tags", "ze_core fleetperf", "-count=1",
 				"-timeout", "300s", "./cmd/ze/hub/",
 				"-run", "TestFleetManyClientsPerf", "-v"),
+			Summary: "stress a hub with 128 managed clients",
 			Why: "128 managed clients against a real hub listener. Evidence tier: the" +
 				" `fleetperf` build tag keeps it out of ze-precommit-verify (R-6)",
 		},
 		// ── Live ─────────────────────────────────────────────────────────
 		{
-			Verb:   liveRPKIVerb,
-			Native: runLiveRPKI,
+			Verb:    liveRPKIVerb,
+			Native:  runLiveRPKI,
+			Summary: "test the RPKI validator against stayrtr",
 			Why: "the RPKI validator against a real stayrtr cache started through labtest, with" +
 				" ZE_REQUIRE_DOCKER=1 so an absent Docker or an unpullable image fails. Needs Docker" +
 				" and internet access",
 		},
 		// ── Integration (network namespace) ───────────────────────────────
 		{
-			Verb: "iface",
-			Argv: goTest("120s", "./internal/component/iface/..."),
+			Verb:    "iface",
+			Argv:    goTest("120s", "./internal/component/iface/..."),
+			Summary: "test the iface component against a real kernel",
 			Why: "the iface component against a real kernel: netlink link, address and" +
 				" route programming. Needs CAP_NET_ADMIN",
 		},
 		{
-			Verb: "fib",
-			Argv: goTest("120s", "./internal/plugins/fib/kernel/..."),
+			Verb:    "fib",
+			Argv:    goTest("120s", "./internal/plugins/fib/kernel/..."),
+			Summary: "test the kernel FIB backend",
 			Why: "the kernel FIB backend: what a route looks like once netlink has it, and" +
 				" which route the kernel selects for a destination. Needs CAP_NET_ADMIN",
 		},
 		{
-			Verb: "firewall",
-			Argv: goTest("120s", "./internal/plugins/firewall/nft/...", "./internal/plugins/copp/..."),
+			Verb:    "firewall",
+			Argv:    goTest("120s", "./internal/plugins/firewall/nft/...", "./internal/plugins/copp/..."),
+			Summary: "test the nft firewall backend and CoPP",
 			Why: "the nft firewall backend against a real nftables ruleset, and the CoPP" +
 				" chain policing a SYN flood through it. Needs CAP_NET_ADMIN",
 		},
 		{
-			Verb: "traffic",
-			Argv: goTest("120s", "./internal/plugins/traffic/netlink/..."),
+			Verb:    "traffic",
+			Argv:    goTest("120s", "./internal/plugins/traffic/netlink/..."),
+			Summary: "test the traffic-control netlink backend",
 			Why: "the traffic-control netlink backend: qdisc and filter programming." +
 				" Needs CAP_NET_ADMIN",
 		},
@@ -253,13 +270,15 @@ func Table() []Action {
 			// 120 s bound killed the binary every night before it could report.
 			Argv: goTest("600s", "./internal/core/network/...", "./internal/component/bgp/reactor/...",
 				"./internal/component/gtsm/..."),
+			Summary: "test BGP GTSM against a Linux kernel",
 			Why: "BGP GTSM and TTL-security, which live in a socket option only a Linux" +
 				" kernel can answer for, and the route metric and nftables filter of a" +
 				" GTSM peer's related ICMP messages, whose proofs need CAP_NET_ADMIN",
 		},
 		{
-			Verb: "as112",
-			Argv: goTest("60s", "./internal/plugins/as112/..."),
+			Verb:    "as112",
+			Argv:    goTest("60s", "./internal/plugins/as112/..."),
+			Summary: "test the AS112 plugin serving DNS on port 53",
 			Why: "the AS112 plugin serving DNS on privileged port 53. Needs" +
 				" CAP_NET_BIND_SERVICE or root",
 		},

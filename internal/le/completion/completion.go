@@ -17,8 +17,8 @@ import (
 // name is the word this command is typed as.
 const name = "completion"
 
-// shortHelp is the area's one line, which the help line and the listing read.
-const shortHelp = "shell completion for le: the bash, zsh and fish scripts, and the callback they run"
+// areaDescription is the area's long help, which its help page and the menu header read.
+const areaDescription = "Shell completion for le: the bash, zsh and fish scripts, and the callback they run to complete the word under the cursor."
 
 // verbWords is the callback the scripts run on every keystroke.
 const verbWords = "words"
@@ -33,13 +33,15 @@ func table() leaction.Area {
 	actions := make([]leaction.Action, 0, len(script.Shells())+1)
 	for _, shell := range script.Shells() {
 		actions = append(actions, leaction.Action{
-			Verb:   shell,
-			Why:    textbuf.New().Str("print the ").Str(shell).Str(" script that completes le and ./le; its first lines say how to install it").String(),
-			Answer: func() (any, int) { return scriptOf(shell) },
+			Verb:    shell,
+			Summary: textbuf.New().Str("print the ").Str(shell).Str(" completion script for le").String(),
+			Why:     textbuf.New().Str("print the ").Str(shell).Str(" script that completes le and ./le; its first lines say how to install it").String(),
+			Answer:  func() (any, int) { return scriptOf(shell) },
 		})
 	}
 	actions = append(actions, leaction.Action{
-		Verb: verbWords,
+		Verb:    verbWords,
+		Summary: "print completion candidates for an le command line",
 		Why: "print the candidates for the last word of an le command line, one `candidate<TAB>summary` record per line. " +
 			"The scripts call it; every word after the verb is the line as typed, the last one the word being completed",
 		AnswerWords: answerWords,

@@ -23,7 +23,7 @@ const stampsArea = "go patch-stamps"
 
 // stampsActions is the check's command surface.
 var stampsActions = leaction.New(stampsArea,
-	leaction.Action{Verb: "check", Why: "refuse a standard-library patch whose review stamp is not go.mod's pinned release and the activated GOVERSION, or a vendor patch whose stamp is not the version vendor/modules.txt lists",
+	leaction.Action{Verb: "check", Summary: "refuse a stdlib patch stamped for another release", Why: "refuse a standard-library patch whose review stamp is not go.mod's pinned release and the activated GOVERSION, or a vendor patch whose stamp is not the version vendor/modules.txt lists",
 		Answer: runPatchStampsCheck},
 )
 

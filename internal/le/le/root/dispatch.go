@@ -438,13 +438,13 @@ func childEntries(name string) []helpfmt.HelpEntry {
 }
 
 // entryText is one command's line in a listing: its purpose in brackets, then
-// the first sentence of its summary. A command registered without a group says
-// so rather than borrowing one.
+// its one-line summary. A command registered without a group says so rather
+// than borrowing one.
 func entryText(name, summary string) string {
 	tag := ungroupedTag
 	if group, declared := GroupOf(name); declared {
 		tag = string(group)
 	}
 	var tb textbuf.Buffer
-	return tb.Byte('[').Str(tag).Str("] ").Str(leaction.FirstSentence(summary)).String()
+	return tb.Byte('[').Str(tag).Str("] ").Str(summary).String()
 }

@@ -46,7 +46,8 @@ const usageLine = "usage: le worktree update [path <path> | all]"
 
 var actions = leaction.New(area,
 	leaction.Action{
-		Verb: "update",
+		Verb:    "update",
+		Summary: "rebase a linked worktree onto main",
 		Why: "rebase a linked worktree onto main, stashing and restoring its uncommitted work." +
 			" Refuses the main working tree and a checkout with no branch",
 		Writes: true,

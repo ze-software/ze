@@ -13,8 +13,9 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupGate, Answer, registry.Meta{
-		ShortHelp: "does le still work when built from what git holds, rather than from the working tree",
-		Mode:      "offline",
+		Description: "Build le from what git holds, rather than from the working tree, and check it still starts, so a commit that leaves out a file le needs is caught before every session loses its launcher.",
+		ShortHelp:   "check le builds from what git holds",
+		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers le perf under it for the same reason.
 		Section: registry.SectionTest,

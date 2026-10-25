@@ -19,10 +19,11 @@ func init() {
 	// panics at init rather than on the first call.
 	table := spec.ReleaseArea()
 	leroot.Register(commandName, leroot.GroupWorkflow, spec.Release, registry.Meta{
-		ShortHelp: "release this session's spec claim",
-		Mode:      "offline",
-		Section:   registry.SectionTest,
-		SubsFunc:  table.Subs,
+		Description: "Release this session's spec claim once the spec is closed or handed over, so the next session starts without it.",
+		ShortHelp:   "release this session's spec claim",
+		Mode:        "offline",
+		Section:     registry.SectionTest,
+		SubsFunc:    table.Subs,
 	})
 	leroot.RegisterActions(commandName, table.Actions)
 	leroot.RegisterShape(commandName, command.ShapeDoc)

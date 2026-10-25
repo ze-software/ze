@@ -12,5 +12,7 @@ import (
 )
 
 func init() {
-	leroot.RegisterNamespace("config", "gates over Ze's YANG config: every subtree delivered, every leaf coerced and read, port defaults agreed")
+	leroot.RegisterNamespace("config",
+		"gates over Ze's YANG config and how code reads it",
+		"Gates over Ze's YANG config: every subtree delivered, every leaf coerced and read, port defaults agreed.")
 }

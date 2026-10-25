@@ -167,7 +167,8 @@ func TestEveryCommandIsFoundAtThePathItsNamePredicts(t *testing.T) {
 			t.Errorf("namespace %q predicts internal/le/%s, which registers nothing: %v", namespace, directory, readErr)
 			continue
 		}
-		if !strings.Contains(string(source), `leroot.RegisterNamespace("`+namespace+`", `) {
+		// The summary and the description follow the name, on its line or the next.
+		if !strings.Contains(string(source), `leroot.RegisterNamespace("`+namespace+`",`) {
 			t.Errorf("internal/le/%s/register.go does not register namespace %q's summary", directory, namespace)
 		}
 	}

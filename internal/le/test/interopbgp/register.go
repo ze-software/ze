@@ -16,7 +16,7 @@ import (
 const name = "test interop-bgp"
 
 func init() {
-	leroot.Register(name, leroot.GroupSuite, harnesstool.Answer(interopbgp.Helper), harnesstool.Meta("Compiled BGP interop process, speaker, and collector personalities"))
+	leroot.Register(name, leroot.GroupSuite, harnesstool.Answer(interopbgp.Helper), harnesstool.Meta("run the compiled BGP interop personalities"))
 	leroot.RegisterShape(name, command.ShapeDoc)
 
 	// Every word after the name is the harness's own command line, so a

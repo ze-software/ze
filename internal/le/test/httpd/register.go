@@ -16,7 +16,7 @@ import (
 const name = "test httpd"
 
 func init() {
-	leroot.Register(name, leroot.GroupSuite, harnesstool.Answer(cli.CmdStaticHTTP), harnesstool.Meta("Serve a directory over HTTP for deterministic functional tests"))
+	leroot.Register(name, leroot.GroupSuite, harnesstool.Answer(cli.CmdStaticHTTP), harnesstool.Meta("serve a directory over HTTP for tests"))
 	leroot.RegisterShape(name, command.ShapeDoc)
 
 	// Every word after the name is the harness's own command line, so a

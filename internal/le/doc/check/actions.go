@@ -22,24 +22,28 @@ const area = "doc check"
 // judges the checkout, so the table refuses any word after the verb.
 var actions = []leaction.Action{
 	{
-		Verb:   "links",
-		Why:    "instruction links, tracked citations, suppression reasons, and Design references resolve",
-		Answer: atRoot(runLinks),
+		Verb:    "links",
+		Summary: "check instruction links and citations resolve",
+		Why:     "instruction links, tracked citations, suppression reasons, and Design references resolve",
+		Answer:  atRoot(runLinks),
 	},
 	{
-		Verb:   "verify",
-		Why:    "the complete ordered documentation gate passes",
-		Answer: atRoot(docwiring.Verify),
+		Verb:    "verify",
+		Summary: "run the complete ordered documentation gate",
+		Why:     "the complete ordered documentation gate passes",
+		Answer:  atRoot(docwiring.Verify),
 	},
 	{
-		Verb:   "templ-output",
-		Why:    "generated templ output matches its sources",
-		Answer: atRoot(docwiring.TemplOutput),
+		Verb:    "templ-output",
+		Summary: "check generated templ output matches its sources",
+		Why:     "generated templ output matches its sources",
+		Answer:  atRoot(docwiring.TemplOutput),
 	},
 	{
-		Verb:   "retired-commands",
-		Why:    "no tracked line names a form the subject-first rename retired",
-		Answer: atRoot(runRetiredCheck),
+		Verb:    "retired-commands",
+		Summary: "refuse a tracked line naming a retired command form",
+		Why:     "no tracked line names a form the subject-first rename retired",
+		Answer:  atRoot(runRetiredCheck),
 	},
 }
 

@@ -19,17 +19,17 @@ const area = "feature"
 const keyFeature = "feature"
 
 var actions = leaction.New(area,
-	leaction.Action{Verb: "check", Why: "refuse a feature declaration whose fields, paths or declared level its " +
+	leaction.Action{Verb: "check", Summary: "refuse a feature claim its evidence cannot support", Why: "refuse a feature declaration whose fields, paths or declared level its " +
 		"evidence does not support; the ceiling is computed from the real-path tests, the interop " +
 		"scenarios and their recorded green runs, the RFC ledger, the docs, the open immediate specs and the stub markers",
 		Answer: checkAnswer},
-	leaction.Action{Verb: "report", Why: "every declared feature with its kind, scope, level, evidence ceiling, " +
+	leaction.Action{Verb: "report", Summary: "report every declared feature and its evidence", Why: "every declared feature with its kind, scope, level, evidence ceiling, " +
 		"public status, and the unmet criteria between its level and the next one",
 		Parameters: []leaction.Parameter{
 			{Keyword: keyFeature, Kind: leaction.KindLabel, Help: "one feature id to report", Value: "id", Requirement: leaction.Optional},
 		},
 		AnswerArgs: reportAnswer},
-	leaction.Action{Verb: "record-run", Why: "run every real-path test and every counted interop scenario of one feature " +
+	leaction.Action{Verb: "record-run", Summary: "run one feature's real-path tests and interop", Why: "run every real-path test and every counted interop scenario of one feature " +
 		"through the repository's own runners and record a green run in features/runs/<id>.json only when " +
 		"each one was observed passing; a failure, a run that selected nothing, or a file or scenario " +
 		"directory that changed mid-run records nothing. `due <days>` does the same for every feature " +

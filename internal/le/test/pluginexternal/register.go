@@ -16,7 +16,7 @@ import (
 const name = "test plugin-external"
 
 func init() {
-	leroot.Register(name, leroot.GroupSuite, harnesstool.Answer(cli.CmdPluginExternal), harnesstool.Meta("Run a registered engine plugin's RunEngine externally (TLS connect-back) -- proves IsInternal()-guarded refuse/warn behavior; not a production plugin launcher"))
+	leroot.Register(name, leroot.GroupSuite, harnesstool.Answer(cli.CmdPluginExternal), harnesstool.Meta("run an engine plugin externally for tests"))
 	leroot.RegisterShape(name, command.ShapeDoc)
 
 	// Every word after the name is the harness's own command line, so a

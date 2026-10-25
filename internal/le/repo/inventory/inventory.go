@@ -449,9 +449,10 @@ const reportVerb = "report"
 // tree is the checkout, and the rendering is the operator's to choose with a
 // pipe operator (ai/rules/cli.md).
 var actions = leaction.New("repo inventory", leaction.Action{
-	Verb:   reportVerb,
-	Why:    "what ze is made of: plugins, families, YANG modules, RPCs, tests and package sizes",
-	Answer: answerReport,
+	Verb:    reportVerb,
+	Summary: "report what ze is made of",
+	Why:     "what ze is made of: plugins, families, YANG modules, RPCs, tests and package sizes",
+	Answer:  answerReport,
 })
 
 // Actions answers the command surface as data, so the listing, the Subs line

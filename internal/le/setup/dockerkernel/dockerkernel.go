@@ -67,7 +67,8 @@ const (
 
 var dockerKernelActions = leaction.New(dockerKernelArea,
 	leaction.Action{
-		Verb: dockerKernelCheckVerb,
+		Verb:    dockerKernelCheckVerb,
+		Summary: "check the Docker kernel carries every Ze feature",
 		Why: "ask the Docker daemon in hand whether its kernel carries every feature Ze enrolls," +
 			" probing with the linux ze at `ze`, or without `ze` with the one it cross-builds for the" +
 			" daemon's architecture at tmp/qemu/linux-<arch>/ze; exits 1 naming each missing feature",
@@ -77,8 +78,9 @@ var dockerKernelActions = leaction.New(dockerKernelArea,
 		AnswerArgs: runDockerKernelCheck,
 	},
 	leaction.Action{
-		Verb:   dockerKernelInstallVerb,
-		Writes: true,
+		Verb:    dockerKernelInstallVerb,
+		Writes:  true,
+		Summary: "install Ze's runtime kernel on this Linux host",
 		Why: "Linux only: install Ze's cached runtime kernel for this host's architecture under /boot" +
 			" and /lib/modules, rebuild the initramfs and the GRUB menu, and make it GRUB's saved" +
 			" default by title. `builder <docker|qemu>` names the backend the kernel was built with, which" +
@@ -93,8 +95,9 @@ var dockerKernelActions = leaction.New(dockerKernelArea,
 		AnswerArgs: runDockerKernelInstall,
 	},
 	leaction.Action{
-		Verb:   dockerKernelAppArmorVerb,
-		Writes: true,
+		Verb:    dockerKernelAppArmorVerb,
+		Writes:  true,
+		Summary: "install and load Ze's AppArmor lab profile",
 		Why: "Linux only: install and load a Ze AppArmor profile, which a lab container runs under on a daemon" +
 			" applying AppArmor where docker-default denies what it does (" + kernelcap.ProbeAppArmorProfileName +
 			" for the Docker kernel check's probe). Without `confirm <profile>` naming a registered profile it" +

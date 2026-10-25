@@ -13,8 +13,9 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupGate, Answer, registry.Meta{
-		ShortHelp: "module-tier placement and plugin import ownership: core import direction, compile-out dependencies, and production imports across plugin ownership boundaries",
-		Mode:      "offline",
+		Description: "Module-tier placement and plugin import ownership: core import direction, compile-out dependencies, and production imports across plugin ownership boundaries.",
+		ShortHelp:   "check module tiers and plugin import ownership",
+		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers le perf under it for the same reason.
 		Section: registry.SectionTest,

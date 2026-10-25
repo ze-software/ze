@@ -22,27 +22,32 @@ type actionRunner func(context.Context, string, string, verifyengine.Part) (Repo
 func actionTable(run actionRunner) leaction.Area {
 	return leaction.New(Area,
 		leaction.Action{
-			Verb:   VerbEvidenceVet,
-			Why:    "vet the Linux evidence-script package population without feature tags",
-			Answer: actionAnswer(VerbEvidenceVet, run),
+			Verb:    VerbEvidenceVet,
+			Summary: "vet the Linux evidence-script packages",
+			Why:     "vet the Linux evidence-script package population without feature tags",
+			Answer:  actionAnswer(VerbEvidenceVet, run),
 		},
 		leaction.Action{
-			Verb:   VerbVulnerability,
-			Why:    "scan the Linux/amd64 dependency graph with an installed govulncheck",
-			Answer: actionAnswer(VerbVulnerability, run),
+			Verb:    VerbVulnerability,
+			Summary: "scan the dependency graph with govulncheck",
+			Why:     "scan the Linux/amd64 dependency graph with an installed govulncheck",
+			Answer:  actionAnswer(VerbVulnerability, run),
 		},
 		leaction.Action{
-			Verb:   VerbUnitCached,
-			Why:    "run the full cacheable non-race package pass and bare-core compile-out checks",
-			Answer: actionAnswer(VerbUnitCached, run),
+			Verb:    VerbUnitCached,
+			Summary: "run the cacheable non-race package pass",
+			Why:     "run the full cacheable non-race package pass and bare-core compile-out checks",
+			Answer:  actionAnswer(VerbUnitCached, run),
 		},
 		leaction.Action{
-			Verb:   VerbUnitChanged,
-			Why:    "test and vet the packages the change set reaches and run the bare-core compile-out check",
-			Answer: actionAnswer(VerbUnitChanged, run),
+			Verb:    VerbUnitChanged,
+			Summary: "test and vet the packages the change reaches",
+			Why:     "test and vet the packages the change set reaches and run the bare-core compile-out check",
+			Answer:  actionAnswer(VerbUnitChanged, run),
 		},
 		leaction.Action{
-			Verb: VerbUnitRaceChanged,
+			Verb:    VerbUnitRaceChanged,
+			Summary: "run the changed groups with race and cgo",
 			Why: "derive changed Go groups and run them plus bare-core checks with race and cgo; " +
 				"part <index> of <count> runs one piece of the packages, and the pieces together run every package; " +
 				"it takes keywords, so it runs on its own and is never swept beside another verb",
@@ -60,9 +65,10 @@ func actionTable(run actionRunner) leaction.Area {
 			},
 		},
 		leaction.Action{
-			Verb:   VerbAlloc,
-			Why:    "measure registered hot-path benchmarks and enforce their allocs/op ceilings",
-			Answer: actionAnswer(VerbAlloc, run),
+			Verb:    VerbAlloc,
+			Summary: "enforce hot-path allocation ceilings",
+			Why:     "measure registered hot-path benchmarks and enforce their allocs/op ceilings",
+			Answer:  actionAnswer(VerbAlloc, run),
 		},
 	)
 }

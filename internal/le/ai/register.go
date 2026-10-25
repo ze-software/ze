@@ -12,5 +12,7 @@ import (
 )
 
 func init() {
-	leroot.RegisterNamespace("ai", "the agent tooling: native hooks, the rule corpus, generated agent files, digest anchors and token use")
+	leroot.RegisterNamespace("ai",
+		"agent tooling: hooks, rules, generated files, tokens",
+		"The agent tooling: native hooks, the rule corpus, generated agent files, digest anchors and token use.")
 }

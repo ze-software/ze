@@ -14,15 +14,17 @@ const area = "yang migration"
 var actions = leaction.New(area,
 	leaction.Action{
 		Verb:       "commands-to-plugins",
+		Summary:    "move owned -cmd YANG modules to plugin directories",
 		Why:        "move owned *-cmd.yang modules and their schema tests from components to plugin YANG directories",
 		Writes:     true,
 		Parameters: []leaction.Parameter{{Keyword: keywordApply, Kind: leaction.KindSwitch, Help: "perform the move; without it the action only previews"}},
 		AnswerArgs: runCommandsToPluginsHere,
 	},
 	leaction.Action{
-		Verb:   "path-refactor",
-		Why:    "rewrite one removed, renamed, or moved YANG path across YANG, Go, .ci, and .et syntax",
-		Writes: true,
+		Verb:    "path-refactor",
+		Summary: "rewrite one YANG path across the tree",
+		Why:     "rewrite one removed, renamed, or moved YANG path across YANG, Go, .ci, and .et syntax",
+		Writes:  true,
 		Parameters: []leaction.Parameter{
 			{Keyword: "operation", Kind: leaction.KindEnum, Help: "what happens to the YANG path", Value: "operation", Values: []string{"remove", "rename", "move"},
 				ValueHelp: map[string]string{
@@ -48,6 +50,7 @@ var actions = leaction.New(area,
 	},
 	leaction.Action{
 		Verb:       "schema-to-yang",
+		Summary:    "rename YANG schema directories and their paths",
 		Why:        "rename YANG-bearing schema directories and update Go syntax and documentation paths",
 		Writes:     true,
 		Parameters: []leaction.Parameter{{Keyword: keywordApply, Kind: leaction.KindSwitch, Help: "perform the rename; without it the action only previews"}},

@@ -34,7 +34,8 @@ var configured struct {
 }
 var actions = leaction.New(area,
 	leaction.Action{
-		Verb: actionName,
+		Verb:    actionName,
+		Summary: "verify a fixed commit in a fresh worktree",
 		Why: "run the full native verification population against a fixed commit in a fresh detached worktree; " +
 			"commit defaults to HEAD and keep leaves the worktree; part <i> of <m> runs one piece of a cut, " +
 			"all of <m> runs every piece not yet proven over the commit; a green full run writes the green record; " +
@@ -53,14 +54,16 @@ var actions = leaction.New(area,
 	},
 	leaction.Action{
 		Verb:       "current",
+		Summary:    "run the full verification of the tree",
 		Why:        "verify the tree: full (the default) runs the full population in a fresh detached worktree at HEAD, as worktree does; fast runs the changed-files population in place over the shared checkout; both are release checks only Thomas starts, refused unless stdin and stdout are terminals",
 		Writes:     true,
 		WholeTree:  true,
-		Parameters: []leaction.Parameter{{Keyword: keywordFull, Kind: leaction.KindSwitch, Help: "run the full population in a fresh worktree at HEAD (the default)"}, {Keyword: keywordFast, Kind: leaction.KindSwitch, Help: "run the changed-files population in this checkout"}, {Keyword: keywordFirstRed, Kind: leaction.KindSwitch, Help: "stop at the first red stage"}},
+		Parameters: []leaction.Parameter{{Keyword: keywordFull, Kind: leaction.KindSwitch, Help: "full population in a fresh worktree at HEAD (default)"}, {Keyword: keywordFast, Kind: leaction.KindSwitch, Help: "run the changed-files population in this checkout"}, {Keyword: keywordFirstRed, Kind: leaction.KindSwitch, Help: "stop at the first red stage"}},
 		AnswerArgs: currentHere,
 	},
 	leaction.Action{
-		Verb: verbChanged,
+		Verb:    verbChanged,
+		Summary: "verify what the change set reaches",
 		Why: "run the scoped population (the tests, vet, lint, Staticcheck rows, race groups and functional suites " +
 			"of what the change set reaches) against a fixed commit in a fresh detached worktree; commit defaults to HEAD; " +
 			"a green run writes the scoped record a push reads; an agent runs this for its own evidence",
@@ -70,6 +73,7 @@ var actions = leaction.New(area,
 	},
 	leaction.Action{
 		Verb:       "reds",
+		Summary:    "report whether a running verify has a red",
 		Why:        "read the stage logs a verification run has written so far and answer whether any red names one file; it never says a run passed",
 		Writes:     false,
 		Parameters: []leaction.Parameter{{Keyword: "file", Kind: leaction.KindPath, Help: "the file a red must name", Value: "path", Requirement: leaction.Required}},
@@ -77,6 +81,7 @@ var actions = leaction.New(area,
 	},
 	leaction.Action{
 		Verb:       "list",
+		Summary:    "list the stages of the full or fast population",
 		Why:        "list the native stages of the full population (the default) or the fast one",
 		Parameters: []leaction.Parameter{{Keyword: keywordFull, Kind: leaction.KindSwitch, Help: "list the stages of the full population (the default)"}, {Keyword: keywordFast, Kind: leaction.KindSwitch, Help: "list the stages of the fast population"}},
 		AnswerArgs: listHere,

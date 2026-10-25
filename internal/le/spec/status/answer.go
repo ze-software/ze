@@ -39,13 +39,15 @@ const (
 func table() leaction.Area {
 	return leaction.New(name,
 		leaction.Action{
-			Verb:   verbReport,
-			Why:    "the spec inventory: release bucket, status and stale-skeleton flag for every spec",
-			Answer: answerReport,
+			Verb:    verbReport,
+			Summary: "list every spec with its bucket and status",
+			Why:     "the spec inventory: release bucket, status and stale-skeleton flag for every spec",
+			Answer:  answerReport,
 		},
 		leaction.Action{
-			Verb: verbClosure,
-			Why:  "the closure detector: every spec whose closure is owed, or whether one spec may close",
+			Verb:    verbClosure,
+			Summary: "report which specs owe closure",
+			Why:     "the closure detector: every spec whose closure is owed, or whether one spec may close",
 			Parameters: []leaction.Parameter{
 				{Keyword: keywordList, Kind: leaction.KindSwitch, Help: "list every spec whose closure is owed"},
 				{Keyword: keywordCheck, Kind: leaction.KindSwitch, Help: "check the one spec that spec names"},

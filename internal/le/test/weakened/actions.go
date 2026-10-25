@@ -12,17 +12,19 @@ import (
 const area = "test weakened"
 
 var actions = leaction.New(area,
-	leaction.Action{Verb: "selftest", Why: "on a fixture repository whose answer is known, the checker still refuses a " +
+	leaction.Action{Verb: "selftest", Summary: "prove the weakening checker against a fixture repo", Why: "on a fixture repository whose answer is known, the checker still refuses a " +
 		"weakening with no row and accepts the same weakening once a row names it",
 		Answer: selftestAnswer},
 	leaction.Action{
-		Verb:   "proposed",
-		Why:    "judge one bounded stdin JSON Write/Edit/MultiEdit proposal against weakening and RFC approval ledgers",
-		Writes: false,
-		Answer: proposedAnswer,
+		Verb:    "proposed",
+		Summary: "judge one Write or Edit proposal for weakening",
+		Why:     "judge one bounded stdin JSON Write/Edit/MultiEdit proposal against weakening and RFC approval ledgers",
+		Writes:  false,
+		Answer:  proposedAnswer,
 	},
 	leaction.Action{
-		Verb: "approve",
+		Verb:    "approve",
+		Summary: "record the owner's approval of a test weakening",
 		Why: "record the OWNER's approval of one test weakening, as one row in this commit " +
 			"session's tmp/commit-weakening-approved-<session>.md. The edit hook and `./le commit " +
 			"create` read that file; the commit carries each row it used as a `Weakening-approved:` " +
@@ -31,7 +33,7 @@ var actions = leaction.New(area,
 			"reason: the reason is never the author's own reasoning about why the weakening is fine",
 		Writes: true,
 		Parameters: []leaction.Parameter{
-			{Keyword: keyUnit, Kind: leaction.KindString, Help: "the test unit whose weakening the owner approved, as <package>.<TestName>", Value: "<package>.<TestName>", Requirement: leaction.Required},
+			{Keyword: keyUnit, Kind: leaction.KindString, Help: "the approved weakened unit, as <package>.<TestName>", Value: "<package>.<TestName>", Requirement: leaction.Required},
 			{Keyword: keyReason, Kind: leaction.KindString, Help: "the owner's words approving the weakening", Value: keyReason, Requirement: leaction.Required},
 		},
 		AnswerArgs: approveAnswer,

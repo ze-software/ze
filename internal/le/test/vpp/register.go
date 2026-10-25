@@ -31,7 +31,7 @@ func init() {
 		}
 		return suite(args)
 	}
-	leroot.Register(name, leroot.GroupSuite, answer, harnesstool.Meta("Run VPP stub-backed functional tests (test/vpp/*.ci), or the stub itself"))
+	leroot.Register(name, leroot.GroupSuite, answer, harnesstool.Meta("run the VPP stub functional tests"))
 	leroot.RegisterShape(name, command.ShapeDoc)
 
 	// Every word after the name is the harness's own command line, so a

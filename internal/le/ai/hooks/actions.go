@@ -36,15 +36,17 @@ var actions = func() leaction.Area {
 	}
 	list := make([]leaction.Action, 0, 1+len(verbs))
 	list = append(list, leaction.Action{
-		Verb:   "unit",
-		Why:    "run every hook dispatcher golden row and every behavioral fixture category in-process",
-		Answer: runHere,
+		Verb:    "unit",
+		Summary: "run every hook golden row and behavioral fixture",
+		Why:     "run every hook dispatcher golden row and every behavioral fixture category in-process",
+		Answer:  runHere,
 	})
 	for _, verb := range verbs {
 		kind := verb
 		list = append(list, leaction.Action{
-			Verb: kind,
-			Why:  "run the " + kind + " hook JSON protocol in the native le process",
+			Verb:    kind,
+			Summary: "run the " + kind + " hook",
+			Why:     "run the " + kind + " hook JSON protocol in the native le process",
 			Answer: func() (any, int) {
 				in, waited := payloadReader(os.Stdin, payloadWait)
 				code := hookruntime.Run(kind, in, os.Stdout, os.Stderr)

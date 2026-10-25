@@ -22,9 +22,9 @@ const area = "repo arch-map"
 
 // actions is the whole command surface.
 var actions = leaction.New(area,
-	leaction.Action{Verb: "check", Why: "the architecture lists in ai/INSTRUCTIONS.md are current with the tree",
+	leaction.Action{Verb: "check", Summary: "check the architecture lists are current", Why: "the architecture lists in ai/INSTRUCTIONS.md are current with the tree",
 		Answer: func() (any, int) { return run(Check) }},
-	leaction.Action{Verb: "update", Why: "regenerate the architecture lists in ai/INSTRUCTIONS.md",
+	leaction.Action{Verb: "update", Summary: "regenerate the architecture lists", Why: "regenerate the architecture lists in ai/INSTRUCTIONS.md",
 		Writes: true,
 		Answer: func() (any, int) { return run(Update) }},
 )

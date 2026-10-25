@@ -15,24 +15,26 @@ import (
 // name is the word this command is typed as.
 const name = "cli list"
 
-// shortHelp is what the report holds. The help line and the action's Why both
+// areaDescription is what the report holds. The area's long help and the action's Why both
 // read it, so the two cannot drift.
-const shortHelp = "every registered command, by verb, read from the live handlers and schemas"
+const areaDescription = "every registered command, by verb, read from the live handlers and schemas"
 
 // reportVerb names the report, which is also what the bare command line runs.
 const reportVerb = "report"
 
 // table declares the whole command surface. The one action takes no value.
 var table = leaction.New(name, leaction.Action{
-	Verb:   reportVerb,
-	Why:    shortHelp,
-	Answer: answerReport,
+	Verb:    reportVerb,
+	Summary: "list every command the product registers",
+	Why:     areaDescription,
+	Answer:  answerReport,
 })
 
 func init() {
 	leroot.Register(name, leroot.GroupReport, Answer, registry.Meta{
-		ShortHelp: shortHelp,
-		Mode:      "offline",
+		ShortHelp:   "list every registered command by verb",
+		Description: areaDescription,
+		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers le perf under it for the same reason.
 		Section:  registry.SectionTest,

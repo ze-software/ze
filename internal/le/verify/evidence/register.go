@@ -13,8 +13,9 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupSuite, Answer, registry.Meta{
-		ShortHelp: "release-candidate evidence: run the verify gate over a clean clone of this checkout, inside a container",
-		Mode:      "offline",
+		Description: "Release-candidate evidence: run the verify gate over a clean clone of this checkout inside a container, so nothing in the developer's tree can make it pass.",
+		ShortHelp:   "verify a clean checkout in a container",
+		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers le perf under it for the same reason.
 		Section: registry.SectionTest,

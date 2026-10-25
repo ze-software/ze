@@ -17,9 +17,9 @@ const area = "config ports"
 
 // actions is the whole command surface.
 var actions = leaction.New(area,
-	leaction.Action{Verb: "check", Why: "the hand-written Go listener table and each service's YANG refine port default still agree, so the daemon binds the port the schema documents",
+	leaction.Action{Verb: "check", Summary: "check listener ports agree with YANG defaults", Why: "the hand-written Go listener table and each service's YANG refine port default still agree, so the daemon binds the port the schema documents",
 		Answer: runCheck},
-	leaction.Action{Verb: "selftest", Why: "the comparison itself still works, proved against eight synthetic cases rather than against the table it judges",
+	leaction.Action{Verb: "selftest", Summary: "prove the port comparison against synthetic cases", Why: "the comparison itself still works, proved against eight synthetic cases rather than against the table it judges",
 		Answer: runSelftest},
 )
 

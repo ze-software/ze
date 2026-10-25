@@ -16,7 +16,7 @@ import (
 const name = "test replay"
 
 func init() {
-	leroot.Register(name, leroot.GroupSuite, harnesstool.Answer(cli.CmdReplay), harnesstool.Meta("Replay a captured BGP session (le test replay <capture-file|->) through the real read path with a deterministic clock"))
+	leroot.Register(name, leroot.GroupSuite, harnesstool.Answer(cli.CmdReplay), harnesstool.Meta("replay a captured BGP session"))
 	leroot.RegisterShape(name, command.ShapeDoc)
 
 	// Every word after the name is the harness's own command line, so a

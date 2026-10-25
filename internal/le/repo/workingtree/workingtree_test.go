@@ -210,7 +210,8 @@ func TestAnswerRefusesAKeywordWithNoValue(t *testing.T) {
 func TestAnswerRefusesACeilingThatIsNotANumber(t *testing.T) {
 	payload, code := Answer([]string{"max-areas", "many"})
 
-	if payload != nil || code != 1 {
+	// A malformed value is a usage error (leroot exitCodes: code 2).
+	if payload != nil || code != 2 {
 		t.Fatalf("a non-numeric ceiling was accepted: payload=%v code=%d", payload, code)
 	}
 }

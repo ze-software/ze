@@ -13,8 +13,9 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupGate, Answer, registry.Meta{
-		ShortHelp: "changed code that cannot answer refuses: no default arm or miss answered as a value, no ADD-PATH identifier compared with zero, no state answered from a literal",
-		Mode:      "offline",
+		Description: "Changed code that cannot answer refuses: no default arm or miss answered as a value, no ADD-PATH identifier compared with zero, no state answered from a literal.",
+		ShortHelp:   "refuse code that answers a plausible default",
+		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command,
 		// as for le arch compound-guard.
 		Section: registry.SectionTest,

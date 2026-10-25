@@ -16,7 +16,7 @@ import (
 
 // probeMeta is the metadata every probe in this file registers with.
 func probeMeta(description string) registry.Meta {
-	return registry.Meta{ShortHelp: description, Mode: "offline", Section: registry.SectionTest}
+	return registry.Meta{Description: "A probe area for this test.", ShortHelp: description, Mode: "offline", Section: registry.SectionTest}
 }
 
 // registerProbe registers one command and reports the arguments it received.

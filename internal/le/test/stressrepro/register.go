@@ -17,10 +17,11 @@ func init() {
 	// pretool hook reads it as heavy.
 	leroot.RegisterAdmitted(area)
 	leroot.Register(area, leroot.GroupSuite, Answer, registry.Meta{
-		ShortHelp: "reproduce load-dependent functional-test failures under bounded CPU, GC, and process pressure",
-		Mode:      "offline",
-		Section:   registry.SectionTest,
-		SubsFunc:  Subs,
+		Description: "Reproduce load-dependent functional-test failures by running one selection repeatedly under bounded CPU, GC and process pressure, stopping at the first failure.",
+		ShortHelp:   "reproduce load-dependent test failures",
+		Mode:        "offline",
+		Section:     registry.SectionTest,
+		SubsFunc:    Subs,
 	})
 	leroot.RegisterActions(area, Actions)
 	leroot.RegisterShape(area, command.ShapeDoc)

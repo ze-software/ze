@@ -12,10 +12,11 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupGenerate, Answer, registry.Meta{
-		ShortHelp: "deterministic repository rewrites: rules, BGP expectations, replacements, and activity HTML",
-		Mode:      "offline",
-		Section:   registry.SectionTest,
-		SubsFunc:  Subs,
+		Description: "Deterministic repository rewrites: the rule corpus into its canonical format, BGP expectations reordered without changing bytes, literal or regex replacements, and the activity dashboard.",
+		ShortHelp:   "run deterministic repository rewrites",
+		Mode:        "offline",
+		Section:     registry.SectionTest,
+		SubsFunc:    Subs,
 	})
 	leroot.RegisterActions(area, Actions)
 	leroot.RegisterShape(area, command.ShapeMap)

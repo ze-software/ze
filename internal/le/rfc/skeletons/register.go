@@ -13,8 +13,9 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupReport, Answer, registry.Meta{
-		ShortHelp: "which protocol implementations are still a skeleton rather than a daemon, classified against ai/rules/protocol.md",
-		Mode:      "offline",
+		Description: "Which protocol implementations are still a skeleton rather than a daemon, classified against ai/rules/protocol.md.",
+		ShortHelp:   "report protocols that are still skeletons",
+		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers le perf under it for the same reason.
 		Section: registry.SectionTest,

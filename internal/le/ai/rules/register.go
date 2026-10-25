@@ -13,9 +13,9 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupGenerate, Answer, registry.Meta{
-		ShortHelp: "the rule corpus in ai/rules/: lint and render it, map hook enforcement, " +
-			"and report matched rules unread in a session transcript",
-		Mode: "offline",
+		Description: "The rule corpus in ai/rules/: lint and render it, map hook enforcement, and report matched rules unread in a session transcript.",
+		ShortHelp:   "lint, render and measure the rule corpus",
+		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers le perf under it for the same reason.
 		Section: registry.SectionTest,

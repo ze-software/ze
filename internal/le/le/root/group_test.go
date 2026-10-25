@@ -12,12 +12,12 @@ import (
 )
 
 func metaFor(description string) registry.Meta {
-	return registry.Meta{ShortHelp: description, Mode: "offline", Section: registry.SectionTest}
+	return registry.Meta{Description: "A probe area for this test.", ShortHelp: description, Mode: "offline", Section: registry.SectionTest}
 }
 
 // TestRootPageIsLaidOutByTree checks AC-4: the root page holds one block for
 // the single-word commands and one per namespace, each line carries the purpose
-// tag in brackets and the first sentence of the summary, no group heading line
+// tag in brackets and the declared short summary whole (AC-55), no group heading line
 // is left, and every area appears exactly once, a single word that is also a
 // namespace token inside its namespace. Method: build the sections over a
 // fixed command set and read each one.
@@ -28,7 +28,8 @@ func TestRootPageIsLaidOutByTree(t *testing.T) {
 	setGroup("probe-ns beta", GroupReport)
 
 	roots := []registry.RootCommand{
-		{Name: "probe-ns", Meta: metaFor("the namespace's own command. More words")},
+		{Name: "probe-ns", Meta: registry.Meta{ShortHelp: "the namespace's own command",
+			Description: "The namespace's own command. More words.", Mode: "offline", Section: registry.SectionTest}},
 		{Name: "probe-ns alpha", Meta: metaFor("a gate probe")},
 		{Name: "probe-ns beta", Meta: metaFor("a report probe")},
 		{Name: "probe-suite", Meta: metaFor("a suite probe")},
@@ -47,8 +48,8 @@ func TestRootPageIsLaidOutByTree(t *testing.T) {
 	if sections[1].Title != "probe-ns" || len(sections[1].Entries) != 3 {
 		t.Fatalf("the namespace block is %#v", sections[1])
 	}
-	if got := sections[1].Entries[0]; got.Name != "probe-ns" || got.Desc != "[workflow] the namespace's own command." {
-		t.Errorf("the namespace's own command reads %#v, want its first sentence in its namespace", got)
+	if got := sections[1].Entries[0]; got.Name != "probe-ns" || got.Desc != "[workflow] the namespace's own command" {
+		t.Errorf("the namespace's own command reads %#v, want its declared short, not its long, in its namespace", got)
 	}
 	seen := map[string]int{}
 	for _, section := range sections {

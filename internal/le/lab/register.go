@@ -12,5 +12,7 @@ import (
 )
 
 func init() {
-	leroot.RegisterNamespace("lab", "the interop and integration labs: their pinned peer releases against upstream")
+	leroot.RegisterNamespace("lab",
+		"the interop and integration labs and their peer pins",
+		"The interop and integration labs: their pinned peer releases against upstream.")
 }

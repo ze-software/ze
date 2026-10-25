@@ -47,18 +47,25 @@ func TestLeMenuItemsComeFromTheTree(t *testing.T) {
 // TestLeMenuArrowsAndEnterDrillToAnAction proves the menu le opens is walked
 // with the arrow keys and Enter: Down and Up move to an area, Enter on it
 // drills into its actions without choosing anything, and Enter on an action
-// chooses the line dispatch runs and quits the menu. Method: build the model
-// openMenu builds over Tree() and press the keys a reader presses.
+// chooses the line dispatch runs and quits the menu. AC-55 (D-P7-short-long):
+// the right column shows each item's declared short whole, and the area's long
+// description appears above its level only once Enter has drilled into it.
+// Method: build the model openMenu builds over Tree() and press the keys a
+// reader presses, reading the rendered view before and after Enter.
 func TestLeMenuArrowsAndEnterDrillToAnAction(t *testing.T) {
 	registerPromptProbe()
 	tree := Tree()
-	top := menu.LevelOf(tree, nil)
+	top := menu.DeclaredLevelOf(tree, nil)
 	at := slices.IndexFunc(top.Items, func(item menu.Item) bool { return item.Name == promptProbe })
 	if at < 0 {
 		t.Fatalf("the first screen %v does not list the probe area %q", top.Items, promptProbe)
 	}
+	probe := tree.Children[promptProbe]
+	if top.Items[at].Desc != probe.ShortHelp {
+		t.Errorf("the probe's right column reads %q, want its declared short %q whole", top.Items[at].Desc, probe.ShortHelp)
+	}
 
-	var model tea.Model = menu.New("le", top, tree)
+	var model tea.Model = menu.NewDeclared("le", tree)
 	press := func(code rune) tea.Cmd {
 		t.Helper()
 		var cmd tea.Cmd
@@ -73,14 +80,31 @@ func TestLeMenuArrowsAndEnterDrillToAnAction(t *testing.T) {
 		}
 		return m.Chosen()
 	}
+	view := func() string {
+		t.Helper()
+		m, ok := model.(menu.Model)
+		if !ok {
+			t.Fatalf("Update answered %T, want menu.Model", model)
+		}
+		return m.View().Content
+	}
 
 	// One past the area, then back up onto it, so both arrows are pressed.
 	for range at + 1 {
 		press(tea.KeyDown)
 	}
 	press(tea.KeyUp)
+	if screen := view(); !strings.Contains(screen, probe.ShortHelp) || strings.Contains(screen, probe.Description) {
+		t.Errorf("before Enter the screen should show the probe's short %q and not its long %q:\n%s",
+			probe.ShortHelp, probe.Description, screen)
+	}
 	if cmd := press(tea.KeyEnter); cmd != nil || len(chosen()) != 0 {
 		t.Fatalf("Enter on the area chose %v (quit cmd %v), want a drill into its actions", chosen(), cmd != nil)
+	}
+	action := probe.Children["run"]
+	if screen := view(); !strings.Contains(screen, probe.Description) || !strings.Contains(screen, action.ShortHelp) {
+		t.Errorf("after Enter the screen should show the area's long %q and the action's short %q:\n%s",
+			probe.Description, action.ShortHelp, screen)
 	}
 	if cmd := press(tea.KeyEnter); cmd == nil {
 		t.Error("Enter on the action did not quit the menu")

@@ -16,7 +16,7 @@ import (
 const name = "test dns"
 
 func init() {
-	leroot.Register(name, leroot.GroupSuite, harnesstool.Answer(dnsmock.Run), harnesstool.Meta("Deterministic DNS mock server (A/AAAA zone with NODATA, NXDOMAIN, SERVFAIL and REFUSED names)"))
+	leroot.Register(name, leroot.GroupSuite, harnesstool.Answer(dnsmock.Run), harnesstool.Meta("serve a deterministic DNS mock"))
 	leroot.RegisterShape(name, command.ShapeDoc)
 
 	// Every word after the name is the harness's own command line, so a

@@ -12,5 +12,7 @@ import (
 )
 
 func init() {
-	leroot.RegisterNamespace("web", "the web UI's assets: per-page asset sets, vendored copies and the htmx upgrade findings")
+	leroot.RegisterNamespace("web",
+		"the web UI's assets: page sets, vendored copies, htmx",
+		"The web UI's assets: per-page asset sets, vendored copies and the htmx upgrade findings.")
 }

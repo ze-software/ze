@@ -12,10 +12,11 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupReport, Answer, registry.Meta{
-		ShortHelp: "report committed journal classes and validate one edited shard",
-		Mode:      "offline",
-		Section:   registry.SectionTest,
-		SubsFunc:  Subs,
+		Description: "The defect journal under plan/journal/: report its committed classes, and validate one edited class file's header, rows and spec ownership.",
+		ShortHelp:   "report or validate the defect journal",
+		Mode:        "offline",
+		Section:     registry.SectionTest,
+		SubsFunc:    Subs,
 	})
 	leroot.RegisterActions(area, Actions)
 

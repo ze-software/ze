@@ -28,10 +28,10 @@ const area = "site facts"
 // identity for the migration census, and leaction derives the native verb
 // (internal/le/le/action, Area.verbOf).
 var actions = leaction.New(area,
-	leaction.Action{Verb: "update", Why: "derive the published numbers about this repository and write website/data/repo-facts.json, the file the site build reads instead of walking this tree",
+	leaction.Action{Verb: "update", Summary: "write the published repository facts", Why: "derive the published numbers about this repository and write website/data/repo-facts.json, the file the site build reads instead of walking this tree",
 		Writes: true,
 		Answer: runUpdate},
-	leaction.Action{Verb: "check", Why: "report which published facts the committed file and the last commit disagree about, and name the action that fixes them",
+	leaction.Action{Verb: "check", Summary: "report published facts that disagree with HEAD", Why: "report which published facts the committed file and the last commit disagree about, and name the action that fixes them",
 		Answer: runCheck},
 )
 

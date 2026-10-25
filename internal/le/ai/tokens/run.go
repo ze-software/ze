@@ -254,8 +254,9 @@ func phaseRows(agents []Agent, subContext int64) []PhaseRow {
 // initialization cycle.
 func table() leaction.Area {
 	return leaction.New(area, leaction.Action{
-		Verb: reportVerb,
-		Why:  shortHelp,
+		Verb:    reportVerb,
+		Summary: "report the tokens each session spent",
+		Why:     areaDescription,
 		Parameters: []leaction.Parameter{
 			{
 				Keyword: rootKeyword, Kind: leaction.KindPath, Value: "path",

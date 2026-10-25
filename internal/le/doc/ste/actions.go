@@ -26,7 +26,7 @@ const area = "doc ste"
 
 // actions is the whole command surface.
 var actions = leaction.New(area,
-	leaction.Action{Verb: "check", Why: "no ASD-STE100 habit grew against HEAD in a changed file. HEAD is the baseline, " +
+	leaction.Action{Verb: "check", Summary: "refuse a new plain-English habit in a changed file", Why: "no ASD-STE100 habit grew against HEAD in a changed file. HEAD is the baseline, " +
 		"so legacy prose stays until someone rewrites it, no baseline file exists to re-bless, " +
 		"and the one way to green is to fix the prose",
 		Parameters: []leaction.Parameter{{
@@ -37,9 +37,9 @@ var actions = leaction.New(area,
 			Requirement: leaction.Optional, Repeat: true,
 		}},
 		AnswerArgs: checkNamed},
-	leaction.Action{Verb: "review", Why: "every ASD-STE100 finding in the tree, with file:line and the fix",
+	leaction.Action{Verb: "review", Summary: "list every plain-English finding in the tree", Why: "every ASD-STE100 finding in the tree, with file:line and the fix",
 		Answer: reviewAnswer},
-	leaction.Action{Verb: "review-changed", Why: "the same findings, over the files this working tree changed",
+	leaction.Action{Verb: "review-changed", Summary: "list plain-English findings in changed files", Why: "the same findings, over the files this working tree changed",
 		Answer: changedAnswer},
 )
 

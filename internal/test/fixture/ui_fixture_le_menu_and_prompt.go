@@ -149,7 +149,8 @@ func leMenuAndPromptProgress(line string) {
 
 // leMenuAndPromptMenu checks AC-42: the menu drills from spec into spec
 // current and runs its action after echoing the whole line. It checks AC-53 on
-// the way: the spec row says what the namespace is for.
+// the way: the spec row says what the namespace is for, and AC-55: entering
+// spec heads its members with the namespace's long description.
 func leMenuAndPromptMenu(ctx context.Context, dir string, env []string, lePath, _ string) error {
 	run, err := leMenuAndPromptStart(ctx, dir, env, lePath)
 	if err != nil {
@@ -165,7 +166,10 @@ func leMenuAndPromptMenu(ctx context.Context, dir string, env []string, lePath, 
 		// matches text the step newly draws, never the cursor marker.
 		// The filtered spec row carries what the namespace is for (AC-53).
 		{"spec", regexp.MustCompile(`(?s)filter: spec.*the spec workflow|the spec workflow.*filter: spec`)},
-		{"\r", regexp.MustCompile(`claim`)},
+		// Enter opens spec's members under a header holding its long
+		// description (D-P7-short-long). The capital T is the long text's:
+		// the short in the row above reads "the spec workflow".
+		{"\r", regexp.MustCompile(`(?s)The spec workflow: claim, track, review.*current`)},
 		{"cu", regexp.MustCompile(`filter: cu`)},
 		{"\r", regexp.MustCompile(`show`)},
 		{"\r", regexp.MustCompile(`running: le spec current show\n`)},

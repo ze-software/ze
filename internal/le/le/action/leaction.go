@@ -39,7 +39,12 @@ func SetWholeTreeAdmission(admit func(commandLine string) error) (restore func()
 type Action struct {
 	// Verb is the word a developer types.
 	Verb string
-	// Why is what the action is for, printed by the listing and help.
+	// Summary is what the action does in one line of at most 60 characters:
+	// the menu's right column, the area page's listing, completion and the
+	// action page's heading show it.
+	Summary string
+	// Why is the long account of what the action is for: the action page and
+	// the menu, once the reader enters the action, print it whole.
 	Why string
 	// Writes says this action changes the tree.
 	Writes bool
@@ -169,9 +174,10 @@ func (a Area) TakesArguments(name string) bool {
 
 // Row is one row of the bare command's answer.
 type Row struct {
-	Verb   string `json:"verb"`
-	Writes bool   `json:"writes"`
-	Why    string `json:"why"`
+	Verb    string `json:"verb"`
+	Writes  bool   `json:"writes"`
+	Summary string `json:"summary"`
+	Why     string `json:"why"`
 	// Alone publishes that this verb cannot share a line with another, so a
 	// reader planning a multi-verb line learns it from the manifest rather than
 	// by typing the mistake. It is also what lets a test read the claim back:
@@ -242,7 +248,7 @@ func (a Area) Actions() List {
 	list := List{Area: a.name, Actions: make([]Row, 0, len(a.actions))}
 	for _, act := range a.actions {
 		list.Actions = append(list.Actions, Row{
-			Verb: act.Verb, Writes: act.Writes, Why: act.Why, Alone: act.Alone, WholeTree: act.WholeTree,
+			Verb: act.Verb, Writes: act.Writes, Summary: act.Summary, Why: act.Why, Alone: act.Alone, WholeTree: act.WholeTree,
 			// Cloned: the listing is a payload a caller may hold and a renderer
 			// may sort, and the declaration behind it belongs to the area.
 			// Retired keywords are left out: nothing renders or offers one.

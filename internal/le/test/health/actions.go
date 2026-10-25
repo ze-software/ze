@@ -21,15 +21,15 @@ const exitCollect = 2
 
 // actions is the whole command surface.
 var actions = leaction.New(area,
-	leaction.Action{Verb: "check", Why: "docs/features/test-health.md and test/health/latest.json are current." +
+	leaction.Action{Verb: "check", Summary: "check the test-health page and JSON are current", Why: "docs/features/test-health.md and test/health/latest.json are current." +
 		" Their output is a pure function of committed state, with no wall-clock" +
 		" value in it, so staleness can be checked like every other generated file",
 		Answer: checkAnswer},
-	leaction.Action{Verb: "update", Why: "regenerate docs/features/test-health.md, its structured sibling" +
+	leaction.Action{Verb: "update", Summary: "regenerate the test-health page and its JSON", Why: "regenerate docs/features/test-health.md, its structured sibling" +
 		" test/health/latest.json, and the ratchet baseline",
 		Writes: true,
 		Answer: updateAnswer},
-	leaction.Action{Verb: "record", Why: "append ONE KPI row to test/health/history.ndjson, after a mutation or" +
+	leaction.Action{Verb: "record", Summary: "append one KPI row to the test-health history", Why: "append ONE KPI row to test/health/history.ndjson, after a mutation or" +
 		" verify run. The page renders its trends from the committed history and" +
 		" never from live output",
 		Writes: true,

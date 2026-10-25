@@ -13,9 +13,10 @@ var _ leroot.Prose = (*Prepared)(nil)
 
 func init() {
 	leroot.Register(area, leroot.GroupWorkflow, Answer, registry.Meta{
-		ShortHelp: "prepare explicit commits without touching the shared staging index",
-		Mode:      "offline",
-		Section:   registry.SectionTest,
+		Description: "Prepare explicit commits without touching the shared staging index: validate a named file population, write the message and a commit script, and derive what a push of a verified commit still owes.",
+		ShortHelp:   "prepare commits without the shared index",
+		Mode:        "offline",
+		Section:     registry.SectionTest,
 		// Derived from the action table, so help cannot disagree with the
 		// listing about what each verb takes (actions.go, Subs).
 		SubsFunc: Subs,

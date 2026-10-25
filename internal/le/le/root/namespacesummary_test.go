@@ -18,7 +18,7 @@ func init() {
 		"action-shape", "help-namespace-probe", "probe-renamed", "treeprobe",
 		"probe-ns", "probe-deep", "probe-bare", "probe-members", "probe-lookup",
 	} {
-		RegisterNamespace(namespace, "a probe namespace")
+		RegisterNamespace(namespace, "a probe namespace", "what the probe namespace holds, at length.")
 	}
 }
 
@@ -31,7 +31,7 @@ func init() {
 // PREVENTS: a sub-menu with no description in the menu, on the root page and
 // in `le help ai`.
 func TestANamespaceWithoutASummaryStopsLeNamingIt(t *testing.T) {
-	RegisterNamespace("zz-nscheck-held", "a namespace that says what it is for")
+	RegisterNamespace("zz-nscheck-held", "a namespace that says what it is for", "what the probe namespace holds, at length.")
 	requireEveryNamespaceHasASummary([]string{"zz-nscheck-held member", "zz-nscheck-area", "zz-nscheck-area member"})
 
 	const missing = "zz-nscheck-missing"
@@ -57,7 +57,7 @@ func TestANamespaceWithoutASummaryStopsLeNamingIt(t *testing.T) {
 // the namespace, then run the check over an area of the same name.
 func TestANamespaceThatIsAlsoAnAreaIsDescribedOnce(t *testing.T) {
 	const both = "zz-nscheck-both"
-	RegisterNamespace(both, "a second description")
+	RegisterNamespace(both, "a second description", "what the probe namespace holds, at length.")
 	defer func() {
 		stop, _ := recover().(string)
 		if !strings.Contains(stop, `"`+both+`" is also an area`) {
@@ -74,8 +74,8 @@ func TestANamespaceThatIsAlsoAnAreaIsDescribedOnce(t *testing.T) {
 // it. Method: build the tree and the root page over pinned areas.
 func TestTheTreeAndTheRootPageShowANamespaceSummary(t *testing.T) {
 	const namespace, summary = "zz-nsshow", "the namespace's own line. More words"
-	RegisterNamespace(namespace, summary)
-	meta := registry.Meta{ShortHelp: "the area's own line", Mode: "offline", Section: registry.SectionTest}
+	RegisterNamespace(namespace, summary, "what the probe namespace holds, at length.")
+	meta := registry.Meta{Description: "A probe area for this test.", ShortHelp: "the area's own line", Mode: "offline", Section: registry.SectionTest}
 	tree := treeFrom([]registry.RootCommand{
 		{Name: namespace + " member", Meta: meta},
 		{Name: "zz-nsshow-area", Meta: meta},
@@ -88,7 +88,7 @@ func TestTheTreeAndTheRootPageShowANamespaceSummary(t *testing.T) {
 		t.Errorf("the area's node says %q, want the area's own %q", got, meta.ShortHelp)
 	}
 
-	page := Manifest{Program: "le", Areas: []ManifestArea{{Name: namespace + " member", Description: "a member"}}}.page()
+	page := Manifest{Program: "le", Areas: []ManifestArea{{Name: namespace + " member", ShortHelp: "a member", Description: "a member, at length"}}}.page()
 	var out strings.Builder
 	page.WriteTo(&out, false)
 	if want := namespace + ": the namespace's own line."; !strings.Contains(out.String(), want) {

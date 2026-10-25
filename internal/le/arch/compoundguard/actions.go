@@ -13,9 +13,9 @@ const area = "arch compound-guard"
 
 // actions is the whole command surface.
 var actions = leaction.New(area,
-	leaction.Action{Verb: "check", Why: "no changed line opens an if whose condition is a top-level || and whose body only leaves, so each guard a reader simulates holds one fact",
+	leaction.Action{Verb: "check", Summary: "refuse a changed terminating || guard", Why: "no changed line opens an if whose condition is a top-level || and whose body only leaves, so each guard a reader simulates holds one fact",
 		Answer: runCheck},
-	leaction.Action{Verb: "selftest", Why: "the guard still flags a splittable || guard and still leaves &&, else, a falling-through body and a for header alone, proved against fixtures rather than the tree it judges",
+	leaction.Action{Verb: "selftest", Summary: "prove the compound-guard check against its fixtures", Why: "the guard still flags a splittable || guard and still leaves &&, else, a falling-through body and a for header alone, proved against fixtures rather than the tree it judges",
 		Answer: runSelftest},
 )
 

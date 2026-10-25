@@ -20,7 +20,8 @@ const area = "verify evidence"
 
 var actions = leaction.New(area,
 	leaction.Action{
-		Verb: "release-candidate",
+		Verb:    "release-candidate",
+		Summary: "verify a clean checkout inside a container",
 		Why: "run verification over a clean checkout in a container, so developer-tree " +
 			"state cannot make it pass; a release check only Thomas starts, refused unless stdin and stdout are terminals",
 		WholeTree: true,

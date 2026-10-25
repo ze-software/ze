@@ -10,10 +10,11 @@ import (
 
 func init() {
 	leroot.Register(Area, leroot.GroupGate, Answer, registry.Meta{
-		ShortHelp: "the Go-tool and dependency stages used only by native pre-commit verification",
-		Mode:      "offline",
-		Section:   registry.SectionTest,
-		SubsFunc:  Subs,
+		Description: "The Go-tool and dependency stages that only native pre-commit verification runs: evidence vet, vulnerability scan, cached and changed unit passes, race groups and allocation ceilings.",
+		ShortHelp:   "run the dependency stages of verification",
+		Mode:        "offline",
+		Section:     registry.SectionTest,
+		SubsFunc:    Subs,
 	})
 	leroot.RegisterActions(Area, Actions)
 	leroot.RegisterShape(Area, command.ShapeDoc)

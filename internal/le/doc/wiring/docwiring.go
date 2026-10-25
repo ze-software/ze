@@ -41,21 +41,23 @@ const (
 // actions is the whole command surface.
 var actions = leaction.New(name,
 	leaction.Action{
-		Verb: checkVerb,
+		Verb:    checkVerb,
+		Summary: "run every check the changed files select",
 		Why: "run every wiring, documentation, command and inventory check the changed files select." +
 			" Naming no file reads the changed set from git, which is what the gate runs",
 		Parameters: []leaction.Parameter{
 			// Optional: a run that names no file asks git for the changed set.
 			// Repeat: a caller names every file of a commit, one keyword each.
-			{Keyword: changedFileKeyword, Kind: leaction.KindPath, Help: "a changed file to select checks for, in place of the change set", Value: "path", Requirement: leaction.Optional, Repeat: true},
+			{Keyword: changedFileKeyword, Kind: leaction.KindPath, Help: "a changed file to select checks for, not the change set", Value: "path", Requirement: leaction.Optional, Repeat: true},
 			{Keyword: dryRunKeyword, Kind: leaction.KindSwitch, Help: "list the checks the files select and run none"},
 		},
 		AnswerArgs: answerRouter,
 	},
 	leaction.Action{
-		Verb:   templOrphanVerb,
-		Why:    "report a .templ source outside internal/ or a generated templ Go file whose source is absent",
-		Answer: answerTemplOrphansHere,
+		Verb:    templOrphanVerb,
+		Summary: "report orphaned templ sources and generated files",
+		Why:     "report a .templ source outside internal/ or a generated templ Go file whose source is absent",
+		Answer:  answerTemplOrphansHere,
 	},
 )
 

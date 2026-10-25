@@ -19,10 +19,11 @@ func init() {
 	// panics at init rather than on the first call.
 	table := spec.CurrentArea()
 	leroot.Register(commandName, leroot.GroupWorkflow, spec.Current, registry.Meta{
-		ShortHelp: "the spec this session claimed",
-		Mode:      "offline",
-		Section:   registry.SectionTest,
-		SubsFunc:  table.Subs,
+		Description: "The spec this session claimed, read from its per-session marker; nothing is shared between sessions, so concurrent agents never collide.",
+		ShortHelp:   "show the spec this session claimed",
+		Mode:        "offline",
+		Section:     registry.SectionTest,
+		SubsFunc:    table.Subs,
 	})
 	leroot.RegisterActions(commandName, table.Actions)
 	leroot.RegisterShape(commandName, command.ShapeDoc)

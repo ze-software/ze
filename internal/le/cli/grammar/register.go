@@ -15,9 +15,9 @@ import (
 // name is the word this command is typed as.
 const name = "cli grammar"
 
-// shortHelp is what the gate judges. The help line and the action's Why both
+// areaDescription is what the gate judges. The area's long help and the action's Why both
 // read it, so the two cannot drift.
-const shortHelp = "every built-in command, every registered root, every demo call site and every offline flag still obeys the CLI grammar: keyword before value, no flag in the command model, no dead launch form, and each flag in its own register"
+const areaDescription = "every built-in command, every registered root, every demo call site and every offline flag still obeys the CLI grammar: keyword before value, no flag in the command model, no dead launch form, and each flag in its own register"
 
 // checkVerb names the gate, which is also what the bare command line runs.
 const checkVerb = "check"
@@ -25,15 +25,17 @@ const checkVerb = "check"
 // table declares the whole command surface. The one action takes no value: the
 // tree is the checkout and the rendering is a pipe operator.
 var table = leaction.New(name, leaction.Action{
-	Verb:   checkVerb,
-	Why:    shortHelp,
-	Answer: answerCheck,
+	Verb:    checkVerb,
+	Summary: "check every command against the grammar rules",
+	Why:     areaDescription,
+	Answer:  answerCheck,
 })
 
 func init() {
 	leroot.Register(name, leroot.GroupGate, Answer, registry.Meta{
-		ShortHelp: shortHelp,
-		Mode:      "offline",
+		ShortHelp:   "check every command obeys the CLI grammar",
+		Description: areaDescription,
+		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers the perf root under it for the same reason.
 		Section:  registry.SectionTest,

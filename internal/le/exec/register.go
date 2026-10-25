@@ -16,9 +16,10 @@ const name = "exec"
 
 func init() {
 	leroot.Register(name, leroot.GroupWorkflow, answer, registry.Meta{
-		ShortHelp: "run a program with its caches under the per-user cache, and Ze's patched GOROOT only inside a checkout",
-		Mode:      "offline",
-		Section:   registry.SectionTest,
+		Description: "Run a program with its caches under the per-user cache directory, and with Ze's patched GOROOT active when it runs inside a checkout.",
+		ShortHelp:   "run a program with Ze's caches and GOROOT",
+		Mode:        "offline",
+		Section:     registry.SectionTest,
 	})
 	leroot.RegisterShape(name, command.ShapeDoc)
 

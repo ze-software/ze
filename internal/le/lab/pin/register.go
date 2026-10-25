@@ -17,10 +17,11 @@ func init() {
 	// rewrites them, so the area owns a committed artifact. A report never
 	// writes (TestReportAreasWriteNothing).
 	leroot.Register(area, leroot.GroupGenerate, Answer, registry.Meta{
-		ShortHelp: "every pinned interop and integration lab peer compared with its upstream latest stable release (network)",
-		Mode:      "offline",
-		Section:   registry.SectionTest,
-		SubsFunc:  Subs,
+		Description: "Every pinned interop and integration lab peer compared with its upstream latest stable release (network).",
+		ShortHelp:   "compare lab peer pins with upstream",
+		Mode:        "offline",
+		Section:     registry.SectionTest,
+		SubsFunc:    Subs,
 	})
 	leroot.RegisterActions(area, Actions)
 	// Each answer carries one row set, the pins, so the row operators act on

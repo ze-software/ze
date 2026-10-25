@@ -22,9 +22,9 @@ const area = "config coercion"
 
 // actions is the whole command surface.
 var actions = leaction.New(area,
-	leaction.Action{Verb: "check", Why: "no config parser coerces a delivered value with a native-type assertion, which always fails because the framework delivers every leaf as a string",
+	leaction.Action{Verb: "check", Summary: "refuse a native-type assertion on a config value", Why: "no config parser coerces a delivered value with a native-type assertion, which always fails because the framework delivers every leaf as a string",
 		Answer: runCheck},
-	leaction.Action{Verb: "selftest", Why: "the guard itself still detects both shapes, proved against four fixtures rather than against the tree it judges",
+	leaction.Action{Verb: "selftest", Summary: "prove the coercion guard against its fixtures", Why: "the guard itself still detects both shapes, proved against four fixtures rather than against the tree it judges",
 		Answer: runSelftest},
 )
 

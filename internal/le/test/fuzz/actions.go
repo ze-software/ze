@@ -85,14 +85,16 @@ var timeoutEntry = env.MustRegister(env.EnvEntry{
 // This area therefore claims no census gate, and the parity count does not change.
 var actions = leaction.New(area,
 	leaction.Action{
-		Verb:   "run",
-		Why:    "fuzz every `func Fuzz` under internal/, 10s each, stopping at the first crash",
-		Answer: runSweep,
+		Verb:    "run",
+		Summary: "fuzz every target for 10s, stop at a crash",
+		Why:     "fuzz every `func Fuzz` under internal/, 10s each, stopping at the first crash",
+		Answer:  runSweep,
 	},
 	leaction.Action{
-		Verb:   "list",
-		Why:    "what a run would do: every target and its package, or the one argv a named run would exec",
-		Answer: runList,
+		Verb:    "list",
+		Summary: "list the fuzz targets a run would execute",
+		Why:     "what a run would do: every target and its package, or the one argv a named run would exec",
+		Answer:  runList,
 	},
 )
 

@@ -13,8 +13,9 @@ import (
 
 func init() {
 	leroot.Register(name, leroot.GroupGate, Answer, registry.Meta{
-		ShortHelp: "the changed-file wiring, documentation, command and inventory gate",
-		Mode:      "offline",
+		Description: "The changed-file gate: from the files a change touches, select and run every wiring, documentation, command and inventory check they reach.",
+		ShortHelp:   "run the checks the changed files select",
+		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers le perf under it for the same reason.
 		Section: registry.SectionTest,

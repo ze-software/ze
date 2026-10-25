@@ -38,9 +38,10 @@ const (
 // actions is the whole command surface, declared once, so the listing, the
 // usage, the help pages and the parse read one grammar (internal/le/le/action).
 var actions = leaction.New("go extract", leaction.Action{
-	Verb:   moveVerb,
-	Why:    "move named declarations from one Go file to another, comments and formatting intact",
-	Writes: true,
+	Verb:    moveVerb,
+	Summary: "move named declarations between Go files",
+	Why:     "move named declarations from one Go file to another, comments and formatting intact",
+	Writes:  true,
 	Parameters: []leaction.Parameter{
 		{Keyword: sourceKeyword, Kind: leaction.KindPath, Value: "file.go", Requirement: leaction.Required,
 			Help: "the file the declarations come out of"},

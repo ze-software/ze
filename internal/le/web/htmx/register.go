@@ -13,10 +13,11 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupGate, Answer, registry.Meta{
-		ShortHelp: "htmx 4 upgrade findings: check the explained list against every htmx-bearing package, or report every scanner issue",
-		Mode:      "offline",
-		Section:   registry.SectionTest,
-		SubsFunc:  Subs,
+		Description: "Htmx 4 upgrade findings: check the explained list against every htmx-bearing package, or report every scanner issue.",
+		ShortHelp:   "check htmx 4 upgrade findings",
+		Mode:        "offline",
+		Section:     registry.SectionTest,
+		SubsFunc:    Subs,
 	})
 	leroot.RegisterActions(area, Actions)
 	leroot.RegisterShape(area, command.ShapeMap)

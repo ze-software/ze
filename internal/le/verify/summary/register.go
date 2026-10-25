@@ -8,9 +8,10 @@ import (
 
 func init() {
 	leroot.Register(name, leroot.GroupWorkflow, Answer, registry.Meta{
-		ShortHelp: "append one stage failure block to the verification failure index",
-		Mode:      "offline",
-		Section:   registry.SectionTest,
+		Description: "Append one stage's failure block to the verification failure index, which a reader scans for the reds of a run.",
+		ShortHelp:   "append to the verification failure index",
+		Mode:        "offline",
+		Section:     registry.SectionTest,
 		// Derived from the action table, so help cannot disagree with the
 		// listing about what `append` takes (answer.go, Subs).
 		SubsFunc: Subs,

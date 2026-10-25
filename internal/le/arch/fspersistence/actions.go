@@ -18,9 +18,9 @@ const area = "arch fs-persistence"
 
 // actions is the whole command surface.
 var actions = leaction.New(area,
-	leaction.Action{Verb: "check", Why: "no runtime code persists daemon state with a raw filesystem write, so appliance state lives inside the managed zefs store and survives a reimage",
+	leaction.Action{Verb: "check", Summary: "refuse a raw filesystem write of daemon state", Why: "no runtime code persists daemon state with a raw filesystem write, so appliance state lives inside the managed zefs store and survives a reimage",
 		Answer: runCheck},
-	leaction.Action{Verb: "selftest", Why: "the guard itself still flags a write and still leaves a read alone, proved against eight fixtures rather than against the tree it judges",
+	leaction.Action{Verb: "selftest", Summary: "prove the persistence guard against its fixtures", Why: "the guard itself still flags a write and still leaves a read alone, proved against eight fixtures rather than against the tree it judges",
 		Answer: runSelftest},
 )
 

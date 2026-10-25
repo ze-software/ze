@@ -15,14 +15,15 @@ type actionRunner func() (any, int)
 
 func actionTable(runCheck, runUpdate actionRunner) leaction.Area {
 	return leaction.New(area,
-		leaction.Action{Verb: "render-check", Why: "render contrib/netlab with the installed netlab, compare every node with its golden file," +
+		leaction.Action{Verb: "render-check", Summary: "render netlab topologies and compare goldens", Why: "render contrib/netlab with the installed netlab, compare every node with its golden file," +
 			" and prove each golden is accepted by ze config validate",
 			Answer: runCheck},
 		leaction.Action{
-			Verb:   "render-update",
-			Why:    "rewrite contrib/netlab/golden from a real netlab render, then validate every rewritten file",
-			Writes: true,
-			Answer: runUpdate,
+			Verb:    "render-update",
+			Summary: "rewrite the netlab goldens from a real render",
+			Why:     "rewrite contrib/netlab/golden from a real netlab render, then validate every rewritten file",
+			Writes:  true,
+			Answer:  runUpdate,
 		},
 	)
 }

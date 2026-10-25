@@ -17,9 +17,10 @@ const area = "plugin declarations"
 // actions is the whole command surface.
 var actions = leaction.New(area,
 	leaction.Action{
-		Verb:   "check",
-		Why:    "a plugin's runner and its registry.Registration declare the same commands and pipe aliases, field for field and in both directions, so the published catalog names what the daemon serves and nothing more",
-		Answer: runCheck,
+		Verb:    "check",
+		Summary: "check a plugin's runner and registry declare alike",
+		Why:     "a plugin's runner and its registry.Registration declare the same commands and pipe aliases, field for field and in both directions, so the published catalog names what the daemon serves and nothing more",
+		Answer:  runCheck,
 	},
 )
 

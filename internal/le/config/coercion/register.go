@@ -13,8 +13,9 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupGate, Answer, registry.Meta{
-		ShortHelp: "config parsers coerce the string form every YANG leaf is delivered as, so an operator's value is never silently replaced by the default",
-		Mode:      "offline",
+		Description: "Config parsers coerce the string form every YANG leaf is delivered as, so an operator's value is never silently replaced by the default.",
+		ShortHelp:   "refuse native-type coercion of config values",
+		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers le perf under it for the same reason.
 		Section: registry.SectionTest,

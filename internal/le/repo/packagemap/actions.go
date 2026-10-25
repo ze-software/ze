@@ -27,7 +27,7 @@ const area = "repo package-map"
 
 // actions is the whole command surface.
 var actions = leaction.New(area,
-	leaction.Action{Verb: "update", Why: "regenerate ai/PACKAGE-MAP.md",
+	leaction.Action{Verb: "update", Summary: "regenerate ai/PACKAGE-MAP.md", Why: "regenerate ai/PACKAGE-MAP.md",
 		Writes: true,
 		Answer: runUpdate},
 )

@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/cli/menu"
-	leaction "github.com/ze-software/ze/internal/le/le/action"
 	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 
@@ -41,11 +40,13 @@ func liveNamespaces(t *testing.T) map[string]string {
 
 // TestEveryNamespaceIsDescribedInTheMenu proves the menu le opens describes
 // every sub-menu: each namespace's item on the first screen carries the
-// summary its package registered. Method: build the first screen over the
-// live tree, as openMenu does, and read each namespace's item.
+// summary its package registered, whole, and entering it heads the level with
+// the namespace's long description (D-P7-short-long). Method: build the first
+// screen and each namespace's level over the live tree, as openMenu does.
 func TestEveryNamespaceIsDescribedInTheMenu(t *testing.T) {
 	namespaces := liveNamespaces(t)
-	top := menu.LevelOf(leroot.Tree(), nil)
+	tree := leroot.Tree()
+	top := menu.DeclaredLevelOf(tree, nil)
 	seen := 0
 	for _, item := range top.Items {
 		summary, isNamespace := namespaces[item.Name]
@@ -53,8 +54,12 @@ func TestEveryNamespaceIsDescribedInTheMenu(t *testing.T) {
 			continue
 		}
 		seen++
-		if item.Desc == "" || item.Desc != menu.TruncateDesc(summary) {
-			t.Errorf("the menu item for namespace %q says %q, want %q", item.Name, item.Desc, menu.TruncateDesc(summary))
+		if item.Desc == "" || item.Desc != summary {
+			t.Errorf("the menu item for namespace %q says %q, want %q", item.Name, item.Desc, summary)
+		}
+		description, _ := leroot.NamespaceDescription(item.Name)
+		if level := menu.DeclaredLevelOf(tree, item.Path); description == "" || level.Description != description {
+			t.Errorf("entering namespace %q heads the level with %q, want its description %q", item.Name, level.Description, description)
 		}
 	}
 	if seen != len(namespaces) {
@@ -76,7 +81,7 @@ func TestEveryNamespaceIsDescribedOnTheRootPageAndInHelpAI(t *testing.T) {
 	// A heading wraps at the page width, so the page is read as words.
 	words := strings.Join(strings.Fields(page), " ")
 	for name, summary := range namespaces {
-		heading := name + ": " + leaction.FirstSentence(summary)
+		heading := name + ": " + summary
 		if !strings.Contains(page, "\n"+name+": ") || !strings.Contains(words, heading) {
 			t.Errorf("the root page does not head namespace %q with %q", name, heading)
 		}
@@ -88,20 +93,26 @@ func TestEveryNamespaceIsDescribedOnTheRootPageAndInHelpAI(t *testing.T) {
 	}
 	var reference struct {
 		Namespaces []struct {
-			Name    string `json:"name"`
-			Meaning string `json:"meaning"`
+			Name        string `json:"name"`
+			ShortHelp   string `json:"short-help"`
+			Description string `json:"description"`
 		} `json:"namespaces"`
 	}
 	if err := json.Unmarshal([]byte(out), &reference); err != nil {
 		t.Fatalf("help ai is not JSON: %v", err)
 	}
 	listed := map[string]string{}
+	long := map[string]string{}
 	for _, entry := range reference.Namespaces {
-		listed[entry.Name] = entry.Meaning
+		listed[entry.Name] = entry.ShortHelp
+		long[entry.Name] = entry.Description
 	}
 	for name, summary := range namespaces {
 		if listed[name] != summary {
 			t.Errorf("help ai lists namespace %q as %q, want %q", name, listed[name], summary)
+		}
+		if description, _ := leroot.NamespaceDescription(name); description == "" || long[name] != description {
+			t.Errorf("help ai describes namespace %q as %q, want %q", name, long[name], description)
 		}
 	}
 }

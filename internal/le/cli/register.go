@@ -12,5 +12,7 @@ import (
 )
 
 func init() {
-	leroot.RegisterNamespace("cli", "gates and reports over Ze's command surface: grammar, dispatch, ownership, file arguments and the command catalog")
+	leroot.RegisterNamespace("cli",
+		"gates and reports over Ze's command surface",
+		"Gates and reports over Ze's command surface: grammar, dispatch, ownership, file arguments and the command catalog.")
 }

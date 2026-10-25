@@ -16,7 +16,7 @@ import (
 const name = "test rpki"
 
 func init() {
-	leroot.Register(name, leroot.GroupSuite, harnesstool.Answer(rpki.Run), harnesstool.Meta("Deterministic RPKI mock server (IP modulo for validation state)"))
+	leroot.Register(name, leroot.GroupSuite, harnesstool.Answer(rpki.Run), harnesstool.Meta("serve a deterministic RPKI mock"))
 	leroot.RegisterShape(name, command.ShapeDoc)
 
 	// Every word after the name is the harness's own command line, so a

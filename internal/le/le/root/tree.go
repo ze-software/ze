@@ -32,6 +32,7 @@ func treeFrom(roots []registry.RootCommand) *command.Node {
 	for _, area := range roots {
 		node := nodeFor(root, strings.Fields(area.Name))
 		node.ShortHelp = area.Meta.ShortHelp
+		node.Description = area.Meta.Description
 		list, declared := ActionsOf(area.Name)
 		if !declared {
 			continue
@@ -54,16 +55,21 @@ func treeFrom(roots []registry.RootCommand) *command.Node {
 
 // nodeFor answers the node at words, creating each missing level. A level it
 // creates is a namespace until an area of that name claims it, so it carries
-// the summary the namespace registered (RegisterNamespace); treeFrom then
-// overwrites it with the area's own summary when the name is also an area.
+// the summary and description the namespace registered (RegisterNamespace);
+// treeFrom then overwrites both with the area's own when the name is also an
+// area.
 func nodeFor(root *command.Node, words []string) *command.Node {
 	node := root
 	for depth, word := range words {
 		next, held := node.Children[word]
 		if !held {
 			next = &command.Node{Name: word, Children: map[string]*command.Node{}}
-			if summary, named := NamespaceSummary(strings.Join(words[:depth+1], " ")); named {
+			namespace := strings.Join(words[:depth+1], " ")
+			if summary, named := NamespaceSummary(namespace); named {
 				next.ShortHelp = summary
+			}
+			if description, named := NamespaceDescription(namespace); named {
+				next.Description = description
 			}
 			node.Children[word] = next
 		}
@@ -78,7 +84,7 @@ func nodeFor(root *command.Node, words []string) *command.Node {
 // pair and retired are not projected: the completion callback applies them
 // from the action table itself.
 func actionNode(row leaction.Row) *command.Node {
-	node := &command.Node{Name: row.Verb, ShortHelp: row.Why}
+	node := &command.Node{Name: row.Verb, ShortHelp: row.Summary, Description: row.Why}
 	for _, parameter := range row.Parameters {
 		if parameter.Keyword == "" {
 			node.ValueHints = hintsOf(parameter)

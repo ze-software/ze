@@ -9,10 +9,11 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupGenerate, Answer, registry.Meta{
-		ShortHelp: "repository-wide YANG ownership and path migrations",
-		Mode:      "offline",
-		Section:   registry.SectionTest,
-		SubsFunc:  Subs,
+		Description: "Repository-wide YANG migrations: move owned command modules to their plugins, rewrite one path across every syntax, and rename schema directories.",
+		ShortHelp:   "run repository-wide YANG migrations",
+		Mode:        "offline",
+		Section:     registry.SectionTest,
+		SubsFunc:    Subs,
 	})
 	leroot.RegisterActions(area, Actions)
 	leroot.RegisterShape(area, command.ShapeDoc)

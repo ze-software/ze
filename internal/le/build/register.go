@@ -12,5 +12,7 @@ import (
 )
 
 func init() {
-	leroot.RegisterNamespace("build", "build the appliance pieces: gokrazy images, the installer initrd, the host driver and the packed go.sum files")
+	leroot.RegisterNamespace("build",
+		"build the appliance images, initrd and host driver",
+		"Build the appliance pieces: gokrazy images, the installer initrd, the host driver and the packed go.sum files.")
 }

@@ -13,8 +13,9 @@ import (
 
 func init() {
 	leroot.Register(stampsArea, leroot.GroupGate, Answer, registry.Meta{
-		ShortHelp: "check every patch's review stamp against what it patches",
-		Mode:      "offline",
+		Description: "Check every standard-library patch's review stamp against go.mod's pinned release and the activated toolchain, so a patch is never applied to a release nobody reviewed it against.",
+		ShortHelp:   "check the stdlib patch review stamps",
+		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command.
 		Section:  registry.SectionTest,
 		SubsFunc: Subs,

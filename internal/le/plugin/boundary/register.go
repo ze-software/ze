@@ -13,8 +13,9 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupGate, Answer, registry.Meta{
-		ShortHelp: "no plugin reaches engine state through a plain in-process call, so moving that plugin to an external subprocess cannot silently disable it",
-		Mode:      "offline",
+		Description: "No plugin reaches engine state through a plain in-process call, so moving that plugin to an external subprocess cannot silently disable it.",
+		ShortHelp:   "refuse plugin calls that break out of process",
+		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers le perf under it for the same reason.
 		Section: registry.SectionTest,

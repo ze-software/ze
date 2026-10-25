@@ -43,10 +43,11 @@ const (
 // Action defines one chaos action. Its command kind derives both argv and
 // environment, so a race flag cannot drift away from CGO_ENABLED=1.
 type Action struct {
-	Verb   string
-	Why    string
-	Writes bool
-	kind   commandKind
+	Verb    string
+	Summary string
+	Why     string
+	Writes  bool
+	kind    commandKind
 }
 
 // Argv returns the exact command line for this action.
@@ -102,19 +103,22 @@ func (g Action) environment(tc gotoolchain.Toolchain) []string {
 func Table() []Action {
 	return []Action{
 		{
-			Verb: "lint",
+			Verb:    "lint",
+			Summary: "lint the chaos orchestrator",
 			Why: "the chaos orchestrator lints clean, under the same two ceilings" +
 				" every run has",
 			kind: commandLint,
 		},
 		{
-			Verb: "unit",
+			Verb:    "unit",
+			Summary: "run the chaos simulator unit tests",
 			Why: "the chaos simulator: fault injection, scheduling, the in-process" +
 				" reactor",
 			kind: commandUnit,
 		},
 		{
-			Verb: "cli-unit",
+			Verb:    "cli-unit",
+			Summary: "test the orchestrator's CLI through le chaos run",
 			Why: "the orchestrator's CLI surface, driven through `le chaos run`;" +
 				" chaosPackages holds the orchestrator but not the le entry",
 			kind: commandCLI,
@@ -142,10 +146,11 @@ func table(tc gotoolchain.Toolchain, run actionRunner) leaction.Area {
 	tools := make([]string, 0, len(declared))
 	for _, action := range declared {
 		actions = append(actions, leaction.Action{
-			Verb:   action.Verb,
-			Why:    action.Why,
-			Writes: action.Writes,
-			Answer: actionAnswer(tc, run, action),
+			Verb:    action.Verb,
+			Summary: action.Summary,
+			Why:     action.Why,
+			Writes:  action.Writes,
+			Answer:  actionAnswer(tc, run, action),
 		})
 		tools = append(tools, action.Verb)
 	}
@@ -154,8 +159,9 @@ func table(tc gotoolchain.Toolchain, run actionRunner) leaction.Area {
 	// is a row of, and a second New would declare that table twice.
 	var area leaction.Area
 	actions = append(actions, leaction.Action{
-		Verb: allVerb,
-		Why:  "all three actions above, in table order, whatever any of them answers",
+		Verb:    allVerb,
+		Summary: "run all three chaos self-tests in order",
+		Why:     "all three actions above, in table order, whatever any of them answers",
 		// `all` names the whole table, so it runs on its own. Naming it beside
 		// a tool ran that tool twice, once inside the sweep `all` performs and
 		// once beside it, which is never what the line meant.

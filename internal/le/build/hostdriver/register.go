@@ -13,9 +13,9 @@ import (
 	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 
-// shortHelp is what the build makes. The help line and the action's Why both
+// areaDescription is what the build makes. The area's long help and the action's Why both
 // read it, so the two cannot drift.
-const shortHelp = "build ze-host, the `ze appliance ...` driver that runs on the build machine, at the checkout root"
+const areaDescription = "build ze-host, the `ze appliance ...` driver that runs on the build machine, at the checkout root"
 
 // runVerb names the build, which is also what the bare command line runs.
 const runVerb = "run"
@@ -23,17 +23,19 @@ const runVerb = "run"
 // table declares the whole command surface. The one action takes no value:
 // there is one host and one output path.
 var table = leaction.New(name, leaction.Action{
-	Verb:   runVerb,
-	Why:    shortHelp,
-	Answer: answerRun,
+	Verb:    runVerb,
+	Summary: "build the host driver",
+	Why:     areaDescription,
+	Answer:  answerRun,
 })
 
 func init() {
 	leroot.Register(name, leroot.GroupWorkflow, Answer, registry.Meta{
-		ShortHelp: shortHelp,
-		Mode:      "offline",
-		Section:   registry.SectionTest,
-		SubsFunc:  table.Subs,
+		ShortHelp:   "build ze-host, the appliance build driver",
+		Description: areaDescription,
+		Mode:        "offline",
+		Section:     registry.SectionTest,
+		SubsFunc:    table.Subs,
 	})
 	leroot.RegisterActions(name, table.Actions)
 

@@ -17,25 +17,29 @@ import (
 
 var actions = leaction.New(area,
 	leaction.Action{
-		Verb: "groups",
+		Verb:    "groups",
+		Summary: "list the test groups a change touches",
 		Why: "the test groups holding a changed .go file, one name per line." +
 			" Empty means nothing changed, and a checkout that cannot be read is an error",
 		Answer: groupNamesHere,
 	},
 	leaction.Action{
-		Verb:   "group-packages",
-		Why:    "the same selection as Go package patterns, which is what a test run takes as arguments",
-		Answer: groupPackagesHere,
+		Verb:    "group-packages",
+		Summary: "list the changed groups as Go package patterns",
+		Why:     "the same selection as Go package patterns, which is what a test run takes as arguments",
+		Answer:  groupPackagesHere,
 	},
 	leaction.Action{
-		Verb: "packages",
+		Verb:    "packages",
+		Summary: "list the packages a scoped verify must cover",
 		Why: "the packages a scoped verify stage must cover, from the one change-set selector." +
 			" Widens to ./... on every route it cannot answer",
 		Answer: scopePackagesHere,
 	},
 	leaction.Action{
-		Verb: "scope",
-		Why:  "the native scoped-verify selector, including feature tags and reverse-import depth",
+		Verb:    "scope",
+		Summary: "print the scoped-verify selector with its tags",
+		Why:     "the native scoped-verify selector, including feature tags and reverse-import depth",
 		Parameters: []leaction.Parameter{
 			{Keyword: "print", Kind: leaction.KindString, Help: "what the selector prints", Value: "mode", Requirement: leaction.Optional},
 			{Keyword: "depth", Kind: leaction.KindUint, Help: "how many levels of reverse imports to follow", Value: "n", Requirement: leaction.Optional},

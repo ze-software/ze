@@ -16,15 +16,17 @@ const area = "test mutation"
 
 var actions = leaction.New(area,
 	leaction.Action{
-		Verb:   "combine",
-		Why:    "combine package mutation reports deterministically into tmp/mutation-report.json",
-		Writes: true,
-		Answer: combineAnswer,
+		Verb:    "combine",
+		Summary: "combine package mutation reports",
+		Why:     "combine package mutation reports deterministically into tmp/mutation-report.json",
+		Writes:  true,
+		Answer:  combineAnswer,
 	},
 	leaction.Action{
-		Verb:   "record-history",
-		Why:    "append the report's package scores to test/mutation/history.ndjson",
-		Writes: true,
+		Verb:    "record-history",
+		Summary: "append mutation scores to the history",
+		Why:     "append the report's package scores to test/mutation/history.ndjson",
+		Writes:  true,
 		Parameters: []leaction.Parameter{
 			{Keyword: "report", Kind: leaction.KindPath, Help: "the mutation report to read", Value: "path", Requirement: leaction.Optional},
 		},

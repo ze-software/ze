@@ -12,5 +12,7 @@ import (
 )
 
 func init() {
-	leroot.RegisterNamespace("arch", "architecture gates over the Go source: import tiers, registries, guards, refusals and persisted state")
+	leroot.RegisterNamespace("arch",
+		"architecture gates over the Go source",
+		"Architecture gates over the Go source: import tiers, registries, guards, refusals and persisted state.")
 }

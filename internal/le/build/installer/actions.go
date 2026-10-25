@@ -16,10 +16,10 @@ import (
 const area = "build installer"
 
 var actions = leaction.New(area,
-	leaction.Action{Verb: "amd64", Why: "the installer initrd PID 1 for amd64, at bin/ze-installer-amd64",
+	leaction.Action{Verb: "amd64", Summary: "build the amd64 installer initrd PID 1", Why: "the installer initrd PID 1 for amd64, at bin/ze-installer-amd64",
 		Writes: true,
 		Answer: func() (any, int) { return buildcompile.Installer("amd64") }},
-	leaction.Action{Verb: "arm64", Why: "the installer initrd PID 1 for arm64, at bin/ze-installer-arm64",
+	leaction.Action{Verb: "arm64", Summary: "build the arm64 installer initrd PID 1", Why: "the installer initrd PID 1 for arm64, at bin/ze-installer-arm64",
 		Writes: true,
 		Answer: func() (any, int) { return buildcompile.Installer("arm64") }},
 )

@@ -9,10 +9,11 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupGate, Answer, registry.Meta{
-		ShortHelp: "run golangci-lint over every Go build flavor and prove tracked-file coverage",
-		Mode:      "offline",
-		Section:   registry.SectionTest,
-		SubsFunc:  Subs,
+		Description: "Run golangci-lint over every Go build flavor the matrix declares, and prove that every tracked Go file is covered by at least one row.",
+		ShortHelp:   "lint every Go build flavor",
+		Mode:        "offline",
+		Section:     registry.SectionTest,
+		SubsFunc:    Subs,
 	})
 	leroot.RegisterActions(area, Actions)
 	leroot.RegisterShape(area, command.ShapeDoc)

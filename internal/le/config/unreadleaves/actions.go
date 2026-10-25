@@ -18,9 +18,9 @@ const area = "config unread-leaves"
 
 // actions is the whole command surface.
 var actions = leaction.New(area,
-	leaction.Action{Verb: "report", Why: "which config leaves the owning package never names, as candidates to read; advisory, so it answers 0 whatever it finds",
+	leaction.Action{Verb: "report", Summary: "report config leaves no owning package reads", Why: "which config leaves the owning package never names, as candidates to read; advisory, so it answers 0 whatever it finds",
 		Answer: runReport},
-	leaction.Action{Verb: "selftest", Why: "the heuristic itself still tells a consumed leaf from an unconsumed one, proved against a fixture rather than against the tree it reports on",
+	leaction.Action{Verb: "selftest", Summary: "prove the unread-leaf heuristic against a fixture", Why: "the heuristic itself still tells a consumed leaf from an unconsumed one, proved against a fixture rather than against the tree it reports on",
 		Answer: runSelftest},
 )
 

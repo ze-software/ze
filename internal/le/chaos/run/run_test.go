@@ -12,6 +12,8 @@ import (
 	"strings"
 	"testing"
 
+	// The chaos namespace's summary: Dispatch refuses a namespace without one.
+	_ "github.com/ze-software/ze/internal/le/chaos"
 	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 

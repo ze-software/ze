@@ -20,8 +20,9 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupGenerate, Answer, registry.Meta{
-		ShortHelp: "the generated agent files: sync every tool's copy of the skills and instructions, or check them",
-		Mode:      "offline",
+		Description: "The generated agent files: sync every tool's copy of the skills and instructions, or check them.",
+		ShortHelp:   "sync or check the generated agent files",
+		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers le perf under it for the same reason.
 		Section: registry.SectionTest,

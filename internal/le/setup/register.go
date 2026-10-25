@@ -13,7 +13,8 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupWorkflow, Answer, registry.Meta{
-		ShortHelp: "install and verify every tool a Ze dev or test workflow needs",
+		Description: "Install and verify every tool a Ze development or test workflow needs, bring vendor/ in step with go.mod, and provision the generated files and servers those workflows use.",
+		ShortHelp:   "install and check the dev and test tools",
 		// The machine is what it reads and writes, so nothing here talks to a
 		// running daemon.
 		Mode: "offline",

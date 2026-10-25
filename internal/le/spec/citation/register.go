@@ -16,10 +16,11 @@ func init() {
 	// panics at init rather than on the first call.
 	actions := table()
 	leroot.Register(name, leroot.GroupGate, Answer, registry.Meta{
-		ShortHelp: shortHelp,
-		Mode:      "offline",
-		Section:   registry.SectionTest,
-		SubsFunc:  actions.Subs,
+		ShortHelp:   "check spec citations name real targets",
+		Description: areaDescription,
+		Mode:        "offline",
+		Section:     registry.SectionTest,
+		SubsFunc:    actions.Subs,
 	})
 	leroot.RegisterActions(name, actions.Actions)
 	leroot.RegisterShape(name, command.ShapeDoc)

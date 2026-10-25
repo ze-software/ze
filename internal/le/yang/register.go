@@ -12,5 +12,7 @@ import (
 )
 
 func init() {
-	leroot.RegisterNamespace("yang", "the YANG modules: the generated glue beside them, and repository-wide ownership and path migrations")
+	leroot.RegisterNamespace("yang",
+		"YANG modules, their generated glue and path migrations",
+		"The YANG modules: the generated glue beside them, and repository-wide ownership and path migrations.")
 }

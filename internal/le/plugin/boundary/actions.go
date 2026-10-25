@@ -18,17 +18,18 @@ const area = "plugin boundary"
 
 // actions is the whole command surface.
 var actions = leaction.New(area,
-	leaction.Action{Verb: "check", Why: "no plugin calls a same-process-effect function without a guard, so a plugin moved to an external subprocess fails loudly rather than silently no-opping",
+	leaction.Action{Verb: "check", Summary: "refuse an unguarded same-process call in a plugin", Why: "no plugin calls a same-process-effect function without a guard, so a plugin moved to an external subprocess fails loudly rather than silently no-opping",
 		Answer: runCheck},
-	leaction.Action{Verb: "selftest", Why: "the guard itself still resolves a renamed import and still leaves a guarded package alone, proved against fixtures rather than against the tree it judges",
+	leaction.Action{Verb: "selftest", Summary: "prove the boundary guard against its fixtures", Why: "the guard itself still resolves a renamed import and still leaves a guarded package alone, proved against fixtures rather than against the tree it judges",
 		Answer: runSelftest},
 	leaction.Action{
 		// No Make target names this one: it is the script's --print-roots, and
 		// it exists so a reader can see WHICH packages the gate judges without
 		// reading the generator.
-		Verb:   "roots",
-		Why:    "the plugin search roots this gate scans, derived from the composition-root generator rather than declared a second time",
-		Answer: runRoots,
+		Verb:    "roots",
+		Summary: "list the plugin roots the boundary gate scans",
+		Why:     "the plugin search roots this gate scans, derived from the composition-root generator rather than declared a second time",
+		Answer:  runRoots,
 	},
 )
 

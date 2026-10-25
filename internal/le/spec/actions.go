@@ -41,17 +41,19 @@ const (
 // CurrentArea is `le spec current`: the spec this session claimed.
 func CurrentArea() leaction.Area {
 	return leaction.New("spec current", leaction.Action{
-		Verb:   verbShow,
-		Why:    "the spec this session claimed",
-		Answer: answerCurrent,
+		Verb:    verbShow,
+		Summary: "show the spec this session claimed",
+		Why:     "the spec this session claimed",
+		Answer:  answerCurrent,
 	})
 }
 
 // ClaimArea is `le spec claim spec <spec>`: this session takes the spec.
 func ClaimArea() leaction.Area {
 	return leaction.New("spec claim", leaction.Action{
-		Verb: keywordSpec,
-		Why:  "claim a spec for this session and move a ready spec to in-progress",
+		Verb:    keywordSpec,
+		Summary: "claim a spec for this session",
+		Why:     "claim a spec for this session and move a ready spec to in-progress",
 		Parameters: []leaction.Parameter{{
 			Kind:        leaction.KindSpec,
 			Value:       keywordSpec,
@@ -65,19 +67,21 @@ func ClaimArea() leaction.Area {
 // ReleaseArea is `le spec release`: this session gives its claim back.
 func ReleaseArea() leaction.Area {
 	return leaction.New("spec release", leaction.Action{
-		Verb:   verbRun,
-		Why:    "release this session's spec claim",
-		Writes: true,
-		Answer: answerRelease,
+		Verb:    verbRun,
+		Summary: "release this session's spec claim",
+		Why:     "release this session's spec claim",
+		Writes:  true,
+		Answer:  answerRelease,
 	})
 }
 
 // WIPArea is `le spec wip`: the in-progress specs against the WIP cap.
 func WIPArea() leaction.Area {
 	return leaction.New("spec wip", leaction.Action{
-		Verb:   verbReport,
-		Why:    "the in-progress specs, against the work-in-progress cap",
-		Answer: answerWIP,
+		Verb:    verbReport,
+		Summary: "list in-progress specs against the WIP cap",
+		Why:     "the in-progress specs, against the work-in-progress cap",
+		Answer:  answerWIP,
 	})
 }
 
@@ -86,13 +90,15 @@ func WIPArea() leaction.Area {
 func StateArea() leaction.Area {
 	return leaction.New("spec state",
 		leaction.Action{
-			Verb:   verbCurrent,
-			Why:    "the path of this session's per-spec state file",
-			Answer: answerStateCurrent,
+			Verb:    verbCurrent,
+			Summary: "print this session's per-spec state file path",
+			Why:     "the path of this session's per-spec state file",
+			Answer:  answerStateCurrent,
 		},
 		leaction.Action{
-			Verb: verbLatest,
-			Why:  "the path of the newest state file any session wrote for one spec",
+			Verb:    verbLatest,
+			Summary: "print the newest state file for one spec",
+			Why:     "the path of the newest state file any session wrote for one spec",
 			Parameters: []leaction.Parameter{{
 				Keyword:     keywordSpec,
 				Kind:        leaction.KindLabel,
@@ -109,8 +115,9 @@ func StateArea() leaction.Area {
 // session transcript records.
 func ModelArea() leaction.Area {
 	return leaction.New("spec model", leaction.Action{
-		Verb: verbCurrent,
-		Why:  "the model a session transcript records",
+		Verb:    verbCurrent,
+		Summary: "print the model a session transcript records",
+		Why:     "the model a session transcript records",
 		Parameters: []leaction.Parameter{{
 			Keyword:     keywordTranscript,
 			Kind:        leaction.KindPath,
@@ -127,8 +134,9 @@ func ModelArea() leaction.Area {
 func ReviewArea() leaction.Area {
 	return leaction.New("spec review",
 		leaction.Action{
-			Verb: verbHash,
-			Why:  "the review hash of each named file",
+			Verb:    verbHash,
+			Summary: "print the review hash of each named file",
+			Why:     "the review hash of each named file",
 			Parameters: []leaction.Parameter{{
 				Keyword: keywordFile, Kind: leaction.KindPath, Value: valuePath,
 				Help: "a file to hash", Requirement: leaction.Required, Repeat: true,
@@ -137,14 +145,16 @@ func ReviewArea() leaction.Area {
 		},
 		leaction.Action{
 			Verb:       verbRecord,
+			Summary:    "record this session's review of a spec's files",
 			Why:        "record this session's independent review of a spec's files",
 			Writes:     true,
 			Parameters: reviewRecordParameters,
 			AnswerArgs: answerReviewRecordLine,
 		},
 		leaction.Action{
-			Verb: verbCheck,
-			Why:  "whether a recorded review still covers the spec's files as they are now",
+			Verb:    verbCheck,
+			Summary: "check a recorded review still covers the spec",
+			Why:     "whether a recorded review still covers the spec's files as they are now",
 			Parameters: []leaction.Parameter{
 				{
 					Keyword: keywordSpec, Kind: leaction.KindLabel, Value: valueStem,
@@ -176,7 +186,7 @@ var reviewRecordParameters = []leaction.Parameter{
 	},
 	{
 		Keyword: keywordFile, Kind: leaction.KindPath, Value: valuePath,
-		Help:        "a whole file the review covers; file or hunks names at least one",
+		Help:        "a whole file the review covers (file or hunks required)",
 		Requirement: leaction.Optional, Repeat: true,
 	},
 	{

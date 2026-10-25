@@ -19,10 +19,11 @@ func init() {
 	// panics at init rather than on the first call.
 	table := spec.WIPArea()
 	leroot.Register(commandName, leroot.GroupWorkflow, spec.WIP, registry.Meta{
-		ShortHelp: "the in-progress specs, against the work-in-progress cap",
-		Mode:      "offline",
-		Section:   registry.SectionTest,
-		SubsFunc:  table.Subs,
+		Description: "The in-progress specs, counted against the work-in-progress cap, which is lowered as specs close and never raised.",
+		ShortHelp:   "list in-progress specs against the cap",
+		Mode:        "offline",
+		Section:     registry.SectionTest,
+		SubsFunc:    table.Subs,
 	})
 	leroot.RegisterActions(commandName, table.Actions)
 	leroot.RegisterShape(commandName, command.ShapeDoc)

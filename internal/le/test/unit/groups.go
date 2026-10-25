@@ -22,6 +22,7 @@ const Area = "test unit"
 type Group struct {
 	Verb    string
 	Pattern string
+	Summary string
 	Why     string
 
 	// Tags are build tags the group needs beyond the feature manifest's set.
@@ -42,30 +43,35 @@ var groups = [...]Group{
 	{
 		Verb:    "bgp",
 		Pattern: "./internal/component/bgp/...",
+		Summary: "test the BGP component group",
 		Why:     "the BGP component group: reactor, fsm, wire, message, attribute (~1:30)",
 		Race:    true,
 	},
 	{
 		Verb:    "core",
 		Pattern: "./internal/core/...",
+		Summary: "test the core leaf libraries",
 		Why:     "the core leaf libraries every tier above depends on (~30s)",
 		Race:    true,
 	},
 	{
 		Verb:    "plugins",
 		Pattern: "./internal/plugins/...",
+		Summary: "test the system plugins",
 		Why:     "the system plugins: DHCP, NTP, static, firewall, the CLI verb providers (~40s)",
 		Race:    true,
 	},
 	{
 		Verb:    "config",
 		Pattern: "./internal/component/config/...",
+		Summary: "test the config pipeline",
 		Why:     "the YANG-modeled config pipeline: file, tree, resolve (~20s)",
 		Race:    true,
 	},
 	{
 		Verb:    "cli",
 		Pattern: "./internal/component/cli/...",
+		Summary: "test the CLI group",
 		Why:     "the CLI: modes, completion, diff, commit, dashboard (~10s)",
 		Race:    true,
 	},
@@ -79,6 +85,7 @@ var groups = [...]Group{
 		// They compile and pass; nothing was asking them to run.
 		Verb:    "installer",
 		Pattern: "./internal/install/...",
+		Summary: "test the installer initrd logic",
 		Why:     "the installer initrd's own logic behind the ze_installer tag: bootstrap, console, fault, rescue, initrd (~10s)",
 		Tags:    []string{"ze_installer"},
 		GOOS:    "linux",

@@ -59,6 +59,7 @@ type platformSpec struct {
 	platform Platform
 	goos     string
 	verb     string
+	summary  string
 	why      string
 }
 
@@ -67,6 +68,7 @@ var platformSpecs = [...]platformSpec{
 		platform: PlatformDarwin,
 		goos:     "darwin",
 		verb:     "darwin",
+		summary:  "type-check the shipped tree under GOOS=darwin",
 		why: "the shipped tree still compiles under GOOS=darwin. A Linux host build never " +
 			"selects default_other.go, backend_other.go or host/platform_other.go, so a stub " +
 			"that stops compiling rots silently",
@@ -75,6 +77,7 @@ var platformSpecs = [...]platformSpec{
 		platform: PlatformFreeBSD,
 		goos:     "freebsd",
 		verb:     "freebsd",
+		summary:  "type-check the shipped tree under GOOS=freebsd",
 		why: "the shipped tree under GOOS=freebsd. An int64-versus-uint64 syscall.Rlimit " +
 			"drift is the shape of break this catches",
 	},
@@ -82,6 +85,7 @@ var platformSpecs = [...]platformSpec{
 		platform: PlatformOpenBSD,
 		goos:     "openbsd",
 		verb:     "openbsd",
+		summary:  "type-check the shipped tree under GOOS=openbsd",
 		why: "the shipped tree under GOOS=openbsd, whose Statfs_t names its fields F_bavail " +
 			"and F_bsize, so code reading Bavail compiles everywhere else",
 	},

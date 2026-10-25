@@ -16,10 +16,11 @@ var (
 
 func init() {
 	leroot.Register(area, leroot.GroupWorkflow, Answer, registry.Meta{
-		ShortHelp: "preview or apply package-tree moves and repository Go module-path renames",
-		Mode:      "offline",
-		Section:   registry.SectionTest,
-		SubsFunc:  Subs,
+		Description: "Preview or apply a move of an internal package tree, or a rename of the repository's Go module path, with every import and spelling rewritten.",
+		ShortHelp:   "move package trees or rename the module",
+		Mode:        "offline",
+		Section:     registry.SectionTest,
+		SubsFunc:    Subs,
 	})
 	leroot.RegisterActions(area, Actions)
 	leroot.RegisterShape(area, command.ShapeMap)

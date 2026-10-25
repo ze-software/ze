@@ -13,8 +13,9 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupSuite, Answer, registry.Meta{
-		ShortHelp: "Ze against real peer daemons: native, container and appliance protocol proofs",
-		Mode:      "offline",
+		Description: "Ze against real peer daemons: native, container and appliance protocol proofs.",
+		ShortHelp:   "prove Ze against real peer daemons",
+		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers le perf under it for the same reason.
 		Section: registry.SectionTest,

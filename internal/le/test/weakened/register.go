@@ -12,10 +12,11 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupGate, Answer, registry.Meta{
-		ShortHelp: "detect committed and proposed test weakenings and record the owner approvals that admit them",
-		Mode:      "offline",
-		Section:   registry.SectionTest,
-		SubsFunc:  Subs,
+		Description: "Detect committed and proposed test weakenings, and record the owner approvals that admit them, so no test loses an assertion without his words.",
+		ShortHelp:   "detect test weakening and record approvals",
+		Mode:        "offline",
+		Section:     registry.SectionTest,
+		SubsFunc:    Subs,
 	})
 	leroot.RegisterActions(area, Actions)
 	leroot.RegisterShape(area, command.ShapeMap)

@@ -13,8 +13,9 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupGate, Answer, registry.Meta{
-		ShortHelp: "no plugin consumes what only a plugin under another build gate produces without a declared edge, so a stripped build cannot run a consumer that silently receives nothing",
-		Mode:      "offline",
+		Description: "No plugin consumes what only a plugin under another build gate produces without a declared edge, so a stripped build cannot run a consumer that silently receives nothing.",
+		ShortHelp:   "refuse undeclared edges between gated plugins",
+		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers le perf under it for the same reason.
 		Section: registry.SectionTest,

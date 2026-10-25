@@ -14,8 +14,9 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupSuite, Answer, registry.Meta{
-		ShortHelp: "proofs that boot a real appliance image in a virtual machine and ask it what it did",
-		Mode:      "offline",
+		Description: "Proofs that boot a real appliance image in a virtual machine and ask it what it did: installer, crash capture, OTA, VRRP, PPPoE, MOBIKE and the whole test suite under a Linux kernel.",
+		ShortHelp:   "boot appliance images in a VM and test them",
+		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers le perf under it for the same reason.
 		Section: registry.SectionTest,

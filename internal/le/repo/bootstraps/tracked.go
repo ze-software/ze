@@ -56,9 +56,11 @@ const registerPath = "internal/le/register.go"
 // toolsDir is where the tool packages live, relative to the checkout.
 const toolsDir = "internal/le"
 
-// registerCall is the source text that makes a package a tool.
-// Each call joins the shared local-data registry.
-const registerCall = "leroot.Register("
+// registerCalls are the source texts that put a package on le's root page.
+// leroot.Register joins the shared local-data registry as a tool, and
+// leroot.RegisterNamespace declares a namespace (`le ai`, `le go`) whose
+// package holds only its summary: both give the root page a row.
+var registerCalls = [...]string{"leroot.Register(", "leroot.RegisterNamespace("}
 
 // DefaultDeadline bounds the whole run. A wedged `git archive` or `go build`
 // would otherwise stall a post-commit check with no limit at all.
@@ -223,7 +225,7 @@ func registeringPackages(root string) ([]string, error) {
 }
 
 // packageRegisters reports whether any non-test file of one package calls
-// leroot.Register.
+// leroot.Register or leroot.RegisterNamespace.
 func packageRegisters(dir string) (bool, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
@@ -238,8 +240,10 @@ func packageRegisters(dir string) (bool, error) {
 		if readErr != nil {
 			return false, readErr
 		}
-		if bytes.Contains(raw, []byte(registerCall)) {
-			return true, nil
+		for _, call := range registerCalls {
+			if bytes.Contains(raw, []byte(call)) {
+				return true, nil
+			}
 		}
 	}
 	return false, nil

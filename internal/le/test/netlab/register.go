@@ -9,10 +9,11 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupGenerate, Answer, registry.Meta{
-		ShortHelp: "render and validate the netlab daemon integration",
-		Mode:      "offline",
-		Section:   registry.SectionTest,
-		SubsFunc:  Subs,
+		Description: "The netlab daemon integration: render contrib/netlab with the installed netlab, compare every node with its golden file, or rewrite the goldens from a real render.",
+		ShortHelp:   "render and validate the netlab integration",
+		Mode:        "offline",
+		Section:     registry.SectionTest,
+		SubsFunc:    Subs,
 	})
 	leroot.RegisterActions(area, Actions)
 	leroot.RegisterShape(area, command.ShapeMap)

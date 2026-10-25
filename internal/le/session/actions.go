@@ -17,6 +17,7 @@ const area = "session"
 var actions = leaction.New(area,
 	leaction.Action{
 		Verb:       "seed-store",
+		Summary:    "seed this session's isolated ze store",
 		Why:        "seed this session's isolated ze store once from a ze_core binary",
 		Writes:     true,
 		Parameters: []leaction.Parameter{{Keyword: "binary", Kind: leaction.KindPath, Help: "the ze_core binary to seed from", Value: "path", Requirement: leaction.Required}},
@@ -24,6 +25,7 @@ var actions = leaction.New(area,
 	},
 	leaction.Action{
 		Verb:       "scratch",
+		Summary:    "print this session's private scratch path",
 		Why:        "print this session's private scratch path; ensure creates it",
 		Writes:     true,
 		Parameters: []leaction.Parameter{{Keyword: "ensure", Kind: leaction.KindSwitch, Help: "create the directory when it is absent"}, {Keyword: "clean", Kind: leaction.KindSwitch, Help: "empty the directory"}},
@@ -31,16 +33,18 @@ var actions = leaction.New(area,
 	},
 	leaction.Action{
 		Verb:       "reap",
+		Summary:    "remove session directories whose owners are gone",
 		Why:        "remove only session directories whose owners are provably gone",
 		Writes:     true,
 		Parameters: []leaction.Parameter{{Keyword: "dry", Kind: leaction.KindSwitch, Help: "list what would be removed and remove nothing"}},
 		AnswerArgs: reapHere,
 	},
 	leaction.Action{
-		Verb:   "end-summary",
-		Why:    "write a compact recovery snapshot and preserve phase handoffs",
-		Writes: true,
-		Answer: endSummaryHere,
+		Verb:    "end-summary",
+		Summary: "write a recovery snapshot and keep phase handoffs",
+		Why:     "write a compact recovery snapshot and preserve phase handoffs",
+		Writes:  true,
+		Answer:  endSummaryHere,
 	},
 )
 

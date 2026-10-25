@@ -62,9 +62,10 @@ const checkVerb = "check"
 // actions is the whole command surface. The gate takes no arguments: the
 // commit it judges comes from ze.le.tracked.rev.
 var actions = leaction.New(area, leaction.Action{
-	Verb:   checkVerb,
-	Why:    "does le still work when built from what git holds, rather than from the working tree",
-	Answer: answerCheck,
+	Verb:    checkVerb,
+	Summary: "check le builds from what git holds",
+	Why:     "does le still work when built from what git holds, rather than from the working tree",
+	Answer:  answerCheck,
 })
 
 // Actions answers the command surface as data, so the listing, the Subs line

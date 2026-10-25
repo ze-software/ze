@@ -36,10 +36,11 @@ const leTestWord = "test"
 // Scaled selects derived concurrency. A suite with -p in Args has fixed concurrency.
 // A suite with neither setting uses the runner's default.
 type Suite struct {
-	Name   string
-	Args   []string
-	Why    string
-	Scaled bool
+	Name    string
+	Args    []string
+	Summary string
+	Why     string
+	Scaled  bool
 	// Warm compiles packages that this suite's .ci commands build inside
 	// their own deadlines before the suite starts.
 	Warm bool
@@ -167,91 +168,107 @@ var Gating = []string{
 var Suites = []Suite{
 	{
 		Name: suiteEncode, Args: []string{bgpVerb, "encode", allTests}, Scaled: true,
-		Why: "BGP wire encoding; one of the two suites whose concurrency was measured",
+		Summary: "run the BGP wire-encoding suite",
+		Why:     "BGP wire encoding; one of the two suites whose concurrency was measured",
 	},
 	{
 		Name: suitePlugin, Args: []string{bgpVerb, "plugin", allTests}, Scaled: true,
-		Why: "plugin behavior: 663 .ci files, and the one suite with a budget of its own",
+		Summary: "run the plugin behavior suite",
+		Why:     "plugin behavior: 663 .ci files, and the one suite with a budget of its own",
 	},
-	{Name: suiteParse, Args: []string{bgpVerb, "parse", allTests}, Why: "config parsing"},
-	{Name: suiteDecode, Args: []string{bgpVerb, "decode", allTests}, Why: "wire decoding"},
+	{Name: suiteParse, Args: []string{bgpVerb, "parse", allTests}, Summary: "run the config-parsing suite", Why: "config parsing"},
+	{Name: suiteDecode, Args: []string{bgpVerb, "decode", allTests}, Summary: "run the wire-decoding suite", Why: "wire decoding"},
 	{
 		Name: suiteReload, Args: []string{bgpVerb, "reload", allTests, "-p", "1"},
-		Why: "config reload; serial, because it shares the kernel routing table with managed",
+		Summary: "run the config-reload suite, serially",
+		Why:     "config reload; serial, because it shares the kernel routing table with managed",
 	},
 	{
 		Name: suiteUi, Args: []string{"ui", allTests, "-p", "8"},
-		Why: "CLI and completion, bounded because native le fixtures compile Go tools during their deadlines",
+		Summary: "run the CLI and completion suite",
+		Why:     "CLI and completion, bounded because native le fixtures compile Go tools during their deadlines",
 	},
-	{Name: suiteEditor, Args: []string{"editor", allTests}, Why: "the TUI editor (.et files)"},
+	{Name: suiteEditor, Args: []string{"editor", allTests}, Summary: "run the TUI editor suite (.et files)", Why: "the TUI editor (.et files)"},
 	{
 		Name: suiteManaged, Args: []string{"managed", allTests, "-p", "1"},
-		Why: "managed config; serial, because it shares the kernel routing table with reload",
+		Summary: "run the managed-config suite, serially",
+		Why:     "managed config; serial, because it shares the kernel routing table with reload",
 	},
-	{Name: suiteL2tp, Args: []string{"l2tp", allTests}, Why: "L2TP"},
-	{Name: suiteFirewall, Args: []string{"firewall", allTests}, Why: "firewall"},
-	{Name: suitePolicy, Args: []string{"policy", allTests}, Why: "policy routing"},
+	{Name: suiteL2tp, Args: []string{"l2tp", allTests}, Summary: "run the L2TP suite", Why: "L2TP"},
+	{Name: suiteFirewall, Args: []string{"firewall", allTests}, Summary: "run the firewall suite", Why: "firewall"},
+	{Name: suitePolicy, Args: []string{"policy", allTests}, Summary: "run the policy-routing suite", Why: "policy routing"},
 	{
 		Name: suiteIpsec, Args: []string{"ipsec", allTests},
+		Summary: "run the IPsec and IKEv2 suite",
 		Why: "IPsec/IKEv2 (test/ipsec/*.ci). It was declared gating and dispatched by" +
 			" nothing, so it counted toward the progress denominator, never ran, and" +
 			" still earned every tag in test/ipsec/ a merge-gate tier",
 	},
-	{Name: suiteLdp, Args: []string{"ldp", allTests}, Why: "LDP"},
-	{Name: suiteRsvpte, Args: []string{"rsvpte", allTests}, Why: "RSVP-TE"},
-	{Name: suiteIsis, Args: []string{"isis", allTests}, Why: "IS-IS config and doctor"},
-	{Name: suiteOspf, Args: []string{"ospf", allTests}, Warm: true, Why: "OSPF config and doctor"},
-	{Name: suiteOspfv3, Args: []string{"ospfv3", allTests}, Warm: true, Why: "OSPFv3 config and doctor"},
+	{Name: suiteLdp, Args: []string{"ldp", allTests}, Summary: "run the LDP suite", Why: "LDP"},
+	{Name: suiteRsvpte, Args: []string{"rsvpte", allTests}, Summary: "run the RSVP-TE suite", Why: "RSVP-TE"},
+	{Name: suiteIsis, Args: []string{"isis", allTests}, Summary: "run the IS-IS config and doctor suite", Why: "IS-IS config and doctor"},
+	{Name: suiteOspf, Args: []string{"ospf", allTests}, Warm: true, Summary: "run the OSPF config and doctor suite", Why: "OSPF config and doctor"},
+	{Name: suiteOspfv3, Args: []string{"ospfv3", allTests}, Warm: true, Summary: "run the OSPFv3 config and doctor suite", Why: "OSPFv3 config and doctor"},
 	{
 		Name: suiteWeb, Args: []string{"web", allTests},
-		Why: "the web UI; the only suite that starts the chaos dashboard (option=server:kind=chaos)",
+		Summary: "run the web UI suite",
+		Why:     "the web UI; the only suite that starts the chaos dashboard (option=server:kind=chaos)",
 	},
-	{Name: suiteInstall, Args: []string{"install", allTests}, Why: "installer, PXE, kernel config"},
+	{Name: suiteInstall, Args: []string{"install", allTests}, Summary: "run the installer, PXE and kernel config suite", Why: "installer, PXE, kernel config"},
 	{
 		Name: suiteAppliance, Args: []string{"appliance", allTests},
-		Why: "the appliance CLI: build, iso, list, serial-login",
+		Summary: "run the appliance CLI suite",
+		Why:     "the appliance CLI: build, iso, list, serial-login",
 	},
-	{Name: suiteL2tpWire, Args: []string{wireVerb, "l2tp", allTests}, Why: "L2TP wire level"},
-	{Name: suiteIsisWire, Args: []string{wireVerb, "isis", allTests}, Why: "IS-IS wire-level decode"},
-	{Name: suiteOspfWire, Args: []string{wireVerb, "ospf", allTests}, Why: "OSPFv2 wire-level decode"},
+	{Name: suiteL2tpWire, Args: []string{wireVerb, "l2tp", allTests}, Summary: "run the L2TP wire-level suite", Why: "L2TP wire level"},
+	{Name: suiteIsisWire, Args: []string{wireVerb, "isis", allTests}, Summary: "run the IS-IS wire-level decode suite", Why: "IS-IS wire-level decode"},
+	{Name: suiteOspfWire, Args: []string{wireVerb, "ospf", allTests}, Summary: "run the OSPFv2 wire-level decode suite", Why: "OSPFv2 wire-level decode"},
 	{
 		Name: suiteRunner, Args: []string{"runner", allTests},
+		Summary: "run the test-runner primitives suite",
 		Why: "the test-runner primitives (test/runner/*.ci). Host-safe: it spawns only" +
 			" sh and tail helpers, no ze daemon and no privileged tooling, which is why" +
 			" it stays in the gating run",
 	},
 	{
 		Name: suiteBfd, Args: []string{"bfd", allTests},
+		Summary: "run the BFD suite",
 		Why: "BFD (test/bfd/*.ci). Its own suite because RFC 5880, 5881 and 5883 own 98" +
 			" gated MUSTs whose only evidence was a Go unit test: a .ci needs a suite the" +
 			" run list names before it earns a verify tier at all (internal/le/rfc/carriers.go)",
 	},
 	{
 		Name: suiteDhcp, Args: []string{"dhcp", allTests},
+		Summary: "run the DHCP server suite",
 		Why: "the DHCP server (test/dhcp/*.ci). Its own suite for BFD's reason: RFC 2131" +
 			" and RFC 2132 own 28 gated MUSTs and test/parse only reaches the config surface",
 	},
 	{
 		Name: suiteVrrp, Args: []string{"vrrp", allTests},
+		Summary: "run the VRRP config, show and doctor suite",
 		Why: "VRRP config, show and doctor. The tests that boot a daemon carry" +
 			" option=needs-linux and skip off Linux; the config, show and doctor tests run" +
 			" on every host, so the suite gates rather than supplying release evidence only",
 	},
 	{
 		Name: suiteStatic, Args: []string{"static", allTests},
-		Why: "static routes; needs the Linux daemon (release evidence only)",
+		Summary: "run the static-route suite on Linux",
+		Why:     "static routes; needs the Linux daemon (release evidence only)",
 	},
 	{
 		Name: suiteTraffic, Args: []string{"traffic", allTests},
-		Why: "traffic control; needs the Linux daemon (release evidence only)",
+		Summary: "run the traffic-control suite on Linux",
+		Why:     "traffic control; needs the Linux daemon (release evidence only)",
 	},
 	{
 		Name: suiteFlowExport, Args: []string{"flow-export", allTests},
+		Summary: "run the sFlow, NetFlow and IPFIX export suite",
 		Why: "sFlow v5, NetFlow v9 and IPFIX export; needs the Linux daemon and, for" +
 			" packet sampling, CAP_NET_ADMIN plus kernel psample (release evidence only)",
 	},
 	{
 		Name: suiteVpp, Args: []string{"vpp", allTests},
+		Summary: "run the VPP stub suite",
 		Why: "the VPP stub; it carries no -p because its serial default lives in the" +
 			" command itself (release evidence only)",
 	},

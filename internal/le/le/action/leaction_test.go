@@ -19,15 +19,17 @@ func fixture(t *testing.T) (Area, *int) {
 	ran := 0
 	area := New("probe-area",
 		Action{
-			Verb:   "check",
-			Why:    "the generated file agrees with the markup",
-			Answer: func() (any, int) { ran++; return "checked", 0 },
+			Verb:    "check",
+			Summary: "check the generated file",
+			Why:     "the generated file agrees with the markup",
+			Answer:  func() (any, int) { ran++; return "checked", 0 },
 		},
 		Action{
-			Verb:   "write",
-			Why:    "regenerate it",
-			Writes: true,
-			Answer: func() (any, int) { ran++; return "written", 3 },
+			Verb:    "write",
+			Summary: "regenerate the file",
+			Why:     "regenerate it",
+			Writes:  true,
+			Answer:  func() (any, int) { ran++; return "written", 3 },
 		},
 	)
 
@@ -181,8 +183,9 @@ func TestNewRefusesATableItCouldNotDispatch(t *testing.T) {
 func TestArgumentAwareActionValidatesItsClosedGrammar(t *testing.T) {
 	var got Arguments
 	area := New("qemu", Action{
-		Verb: "run",
-		Why:  "boot a guest",
+		Verb:    "run",
+		Summary: "boot a guest",
+		Why:     "boot a guest",
 		Parameters: []Parameter{
 			{Keyword: "command", Value: "command", Requirement: Required, Kind: KindString, Help: "h"},
 			{Keyword: "timeout", Value: "duration", Requirement: Optional, Kind: KindString, Help: "h"},
@@ -622,8 +625,9 @@ func usageText(t *testing.T, list List, verb string) string {
 // a required value, an optional one, a repeatable one, and a boolean switch.
 func grammarArea(got *Arguments) Area {
 	return New("qemu", Action{
-		Verb: "run",
-		Why:  "boot a guest",
+		Verb:    "run",
+		Summary: "boot a guest",
+		Why:     "boot a guest",
 		Parameters: []Parameter{
 			{Keyword: "command", Value: "command", Requirement: Required, Kind: KindString, Help: "h"},
 			{Keyword: "timeout", Value: "duration", Requirement: Optional, Kind: KindString, Help: "h"},
@@ -1124,17 +1128,22 @@ func TestPairKeywordUsageIsDerived(t *testing.T) {
 }
 
 // wideArea is an area whose two actions carry purposes longer than one line,
-// of several sentences, so a listing has to wrap and to cut.
+// of several sentences, so a listing has to wrap and to cut. Each Summary is
+// its Why's first sentence, and check's is longer than a terminal line on
+// purpose: leaction renders whatever it is given, and the 60-character rule
+// is the startup check's (leroot.requireEveryItemHasText), not the listing's.
 func wideArea() Area {
 	answer := func() (any, int) { return nil, 0 }
 	return New("probe", Action{
-		Verb:   "check",
-		Why:    "judge every page the tree holds against the source anchors each one names, and answer a verdict with the first drift. A second sentence the listing never shows.",
-		Answer: answer,
+		Verb:    "check",
+		Summary: "judge every page the tree holds against the source anchors each one names, and answer a verdict with the first drift.",
+		Why:     "judge every page the tree holds against the source anchors each one names, and answer a verdict with the first drift. A second sentence the listing never shows.",
+		Answer:  answer,
 	}, Action{
 		Verb: "write", Writes: true,
-		Why:    "rewrite the index from the anchors. It never touches a page.",
-		Answer: answer,
+		Summary: "rewrite the index from the anchors.",
+		Why:     "rewrite the index from the anchors. It never touches a page.",
+		Answer:  answer,
 	})
 }
 
@@ -1153,9 +1162,10 @@ func renderAt(page helpfmtPage, width int) string {
 // continuation starts at column 0 and reads as a new action.
 func TestListingWrapsUnderTheDescriptionColumn(t *testing.T) {
 	area := New("probe", Action{
-		Verb:   "check",
-		Why:    strings.Repeat("judge the anchors and answer ", 8) + "a verdict",
-		Answer: func() (any, int) { return nil, 0 },
+		Verb:    "check",
+		Summary: strings.Repeat("judge the anchors and answer ", 8) + "a verdict",
+		Why:     strings.Repeat("judge the anchors and answer ", 8) + "a verdict",
+		Answer:  func() (any, int) { return nil, 0 },
 	})
 	text := renderAt(area.Actions().Page("le"), 100)
 	column := 2 + 16 + 1
@@ -1210,8 +1220,9 @@ func TestListingWrapsAtTheTerminalWidth(t *testing.T) {
 	}
 }
 
-// VALIDATES: AC-11 -- the listing shows a purpose's first sentence and the
-// action page shows the whole text.
+// VALIDATES: AC-11, D-P7-short-long -- the listing shows each action's
+// declared Summary (here its Why's first sentence) and the action page shows
+// the Summary as its heading and the whole Why below it.
 // PREVENTS: a listing that wraps a paragraph per action, and an action page
 // that hides the rest of its reason.
 func TestListingShowsTheFirstSentenceAndThePageTheWhole(t *testing.T) {
@@ -1230,8 +1241,8 @@ func TestListingShowsTheFirstSentenceAndThePageTheWhole(t *testing.T) {
 	if text := renderAt(page, 500); !strings.Contains(text, "A second sentence the listing never shows.") {
 		t.Errorf("the action page does not show the whole purpose:\n%s", text)
 	}
-	if got := FirstSentence("no full stop here"); got != "no full stop here" {
-		t.Errorf("FirstSentence of one clause = %q", got)
+	if page.ShortHelp != "judge every page the tree holds against the source anchors each one names, and answer a verdict with the first drift." {
+		t.Errorf("the action page's heading is %q, want the declared Summary", page.ShortHelp)
 	}
 }
 

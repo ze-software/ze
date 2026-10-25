@@ -13,8 +13,9 @@ import (
 
 func init() {
 	leroot.Register("weekly", leroot.GroupWorkflow, Answer, registry.Meta{
-		ShortHelp: "publish the weekly update to Discord; the bare command shows what would be sent",
-		Mode:      "offline",
+		Description: "Publish the weekly update to Discord. Without confirm it answers what would be published and posts nothing, so the bare command is always safe.",
+		ShortHelp:   "publish the weekly update to Discord",
+		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers le perf under it for the same reason.
 		Section: registry.SectionTest,

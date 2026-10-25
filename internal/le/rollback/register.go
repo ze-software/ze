@@ -11,10 +11,11 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupWorkflow, Answer, registry.Meta{
-		ShortHelp: "set the newest le build aside so the previous one runs; the ./le launcher in the checkout performs it",
-		Mode:      "offline",
-		Section:   registry.SectionTest,
-		SubsFunc:  Subs,
+		Description: "Set the newest le build aside so the previous one runs. The ./le launcher in the checkout performs it before le starts, so a build that misbehaves can always be stepped back from.",
+		ShortHelp:   "set the newest le build aside",
+		Mode:        "offline",
+		Section:     registry.SectionTest,
+		SubsFunc:    Subs,
 	})
 	leroot.RegisterActions(area, Actions)
 

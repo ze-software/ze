@@ -34,49 +34,50 @@ import (
 
 // actions is the whole command surface.
 var actions = leaction.New(area,
-	leaction.Action{Verb: "lint", Why: "every rule carries the **When:** / **Severity:** metadata block " +
+	leaction.Action{Verb: "lint", Summary: "check every rule carries its When and Severity block", Why: "every rule carries the **When:** / **Severity:** metadata block " +
 		"(ai/rules/rule-format.md), so tooling parses triggers rather than guessing them",
 		Answer: lintAnswer},
-	leaction.Action{Verb: "render-check", Why: "the rendered ai/rules/*.md agree with ai/rules/points/",
+	leaction.Action{Verb: "render-check", Summary: "check the rendered rules agree with their points", Why: "the rendered ai/rules/*.md agree with ai/rules/points/",
 		Answer: func() (any, int) { return renderAnswer(true) }},
-	leaction.Action{Verb: "render-update", Why: "render ai/rules/points/ into ai/rules/*.md",
+	leaction.Action{Verb: "render-update", Summary: "render the rule points into ai/rules/*.md", Why: "render ai/rules/points/ into ai/rules/*.md",
 		Writes: true,
 		Answer: func() (any, int) { return renderAnswer(false) }},
-	leaction.Action{Verb: "points-roundtrip-check", Why: "every rendered rule can be split back into points byte-identically; " +
+	leaction.Action{Verb: "points-roundtrip-check", Summary: "check every rule splits back into its points exactly", Why: "every rendered rule can be split back into points byte-identically; " +
 		"a lossy split is silent instruction loss",
 		Answer: roundTripAnswer},
-	leaction.Action{Verb: "gate-map-report", Why: "which rule point each hook check enforces. Gated and ungated are " +
+	leaction.Action{Verb: "gate-map-report", Summary: "report which rule point each hook check enforces", Why: "which rule point each hook check enforces. Gated and ungated are " +
 		"MEASUREMENTS and exit 0: an ungated point is a rule no machine enforces yet. " +
 		"Dangling FAILS, and so do a check that named a point at HEAD and declares none " +
 		"now while that point is still on disk, and a rationale or excepted-by naming nothing",
 		Answer: coverageAnswer},
-	leaction.Action{Verb: "index-check", Why: "ai/rules/INDEX.md names every rule and its trigger, so an agent can " +
+	leaction.Action{Verb: "index-check", Summary: "check INDEX.md names every rule and its trigger", Why: "ai/rules/INDEX.md names every rule and its trigger, so an agent can " +
 		"tell which rule covers a topic without opening all of them",
 		Answer: func() (any, int) { return indexAnswer(true) }},
-	leaction.Action{Verb: "index-update", Why: "regenerate ai/rules/INDEX.md from each rule's own heading and trigger",
+	leaction.Action{Verb: "index-update", Summary: "regenerate ai/rules/INDEX.md", Why: "regenerate ai/rules/INDEX.md from each rule's own heading and trigger",
 		Writes: true,
 		Answer: func() (any, int) { return indexAnswer(false) }},
-	leaction.Action{Verb: "condensed-check", Why: "ai/rules/TRIGGERS.md and ai/rules/CORE.md agree with the rules they are " +
+	leaction.Action{Verb: "condensed-check", Summary: "check TRIGGERS.md and CORE.md match the rules", Why: "ai/rules/TRIGGERS.md and ai/rules/CORE.md agree with the rules they are " +
 		"derived from; a stale trigger index routes a session to a rule that moved",
 		Answer: func() (any, int) { return condensedAnswer(true) }},
-	leaction.Action{Verb: "condensed-update", Why: "regenerate the trigger index and the always-on core from one parse of ai/rules/",
+	leaction.Action{Verb: "condensed-update", Summary: "regenerate the trigger index and the always-on core", Why: "regenerate the trigger index and the always-on core from one parse of ai/rules/",
 		Writes: true,
 		Answer: func() (any, int) { return condensedAnswer(false) }},
-	leaction.Action{Verb: "payload-report", Why: "what a session loads before it reads anything else, measured against the " +
+	leaction.Action{Verb: "payload-report", Summary: "measure what a session loads against the token budget", Why: "what a session loads before it reads anything else, measured against the " +
 		"token budget. A MEASUREMENT, except that a payload file which is not there " +
 		"fails: an absent file is not a smaller one",
 		Answer: payloadAnswer},
-	leaction.Action{Verb: "router-report", Why: "which blocking rule no past task description would surface. A MEASUREMENT " +
+	leaction.Action{Verb: "router-report", Summary: "report blocking rules no past task would surface", Why: "which blocking rule no past task description would surface. A MEASUREMENT " +
 		"and exit 0: each name it prints is a candidate for the always-on core. " +
 		"An unreadable precedence ladder FAILS, because the core this subtracts is " +
 		"derived from it",
 		Answer: routerAnswer},
 	leaction.Action{
-		Verb:   "coverage-report",
-		Why:    "which blocking rule matched this session's edited file types but was never read",
-		Writes: true,
+		Verb:    "coverage-report",
+		Summary: "report blocking rules matched but never read",
+		Why:     "which blocking rule matched this session's edited file types but was never read",
+		Writes:  true,
 		Parameters: []leaction.Parameter{
-			{Keyword: "quiet", Kind: leaction.KindSwitch, Help: "print one line, and only when the coverage changed since the last report; the record is still written"},
+			{Keyword: "quiet", Kind: leaction.KindSwitch, Help: "print one line, only when the coverage changed"},
 			{Keyword: "transcript", Kind: leaction.KindPath, Help: "the session transcript to read", Value: "path", Requirement: leaction.Optional},
 			{Keyword: "session", Kind: leaction.KindLabel, Help: "the session id whose transcript is read", Value: "id", Requirement: leaction.Optional},
 			{Keyword: "rules-dir", Kind: leaction.KindPath, Help: "the rules directory to judge against", Value: "path", Requirement: leaction.Optional},

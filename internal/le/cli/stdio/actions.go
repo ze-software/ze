@@ -18,9 +18,9 @@ const area = "cli stdio"
 
 // actions is the whole command surface.
 var actions = leaction.New(area,
-	leaction.Action{Verb: "check", Why: "no command reads or writes a user-supplied path with a raw os call, so the \"-\" token still means stdin and stdout everywhere it is typed",
+	leaction.Action{Verb: "check", Summary: "refuse a raw os call on a user-supplied path", Why: "no command reads or writes a user-supplied path with a raw os call, so the \"-\" token still means stdin and stdout everywhere it is typed",
 		Answer: runCheck},
-	leaction.Action{Verb: "selftest", Why: "the taint analysis itself still follows a path from the CLI edge through two helpers, proved against fourteen fixtures rather than against the tree it judges",
+	leaction.Action{Verb: "selftest", Summary: "prove the stdio taint analysis against its fixtures", Why: "the taint analysis itself still follows a path from the CLI edge through two helpers, proved against fourteen fixtures rather than against the tree it judges",
 		Answer: runSelftest},
 )
 

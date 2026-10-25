@@ -20,13 +20,13 @@ const area = "repo"
 
 // actions is the whole command surface.
 var actions = leaction.New(area,
-	leaction.Action{Verb: verbCheck, Why: "all six repository checks over your own tree: source anchors, cross-package wiring, CLI handler coverage, spec AC completeness and the 32-bit parse allowlist",
+	leaction.Action{Verb: verbCheck, Summary: "run all six repository checks over your tree", Why: "all six repository checks over your own tree: source anchors, cross-package wiring, CLI handler coverage, spec AC completeness and the 32-bit parse allowlist",
 		Answer: runCheck},
-	leaction.Action{Verb: "tree-check", Why: "the four tree-wide checks without the two changed-file checks",
+	leaction.Action{Verb: "tree-check", Summary: "run the four tree-wide repository checks", Why: "the four tree-wide checks without the two changed-file checks",
 		Answer: runTreeCheck},
-	leaction.Action{Verb: "generate", Why: "refresh every deterministic repository artifact from its canonical Go source",
+	leaction.Action{Verb: "generate", Summary: "refresh every generated repository artifact", Why: "refresh every deterministic repository artifact from its canonical Go source",
 		Writes: true, Answer: runGenerate},
-	leaction.Action{Verb: "generated-check", Why: "verify every deterministic repository artifact without writing",
+	leaction.Action{Verb: "generated-check", Summary: "check every generated artifact without writing", Why: "verify every deterministic repository artifact without writing",
 		Answer: runGeneratedCheck},
 )
 

@@ -144,13 +144,14 @@ func (s *session) release() {
 // they were rows.
 func areaActions(s *session) []leaction.Action {
 	return []leaction.Action{
-		{Verb: listVerb, Why: "every suite and its budget", Alone: true, Answer: s.runList},
-		{Verb: gatingVerb, Why: "every gating suite, under its own budget", Alone: true,
+		{Verb: listVerb, Summary: "list every functional suite and its budget", Why: "every suite and its budget", Alone: true, Answer: s.runList},
+		{Verb: gatingVerb, Summary: "run every gating suite under its own budget", Why: "every gating suite, under its own budget", Alone: true,
 			Answer: s.runGating},
 		{Verb: selectVerb,
-			Why:    "the suites a gating run would start for this checkout, and why the rest are absent",
-			Alone:  true,
-			Answer: s.runSelect},
+			Summary: "list the suites a gating run would start",
+			Why:     "the suites a gating run would start for this checkout, and why the rest are absent",
+			Alone:   true,
+			Answer:  s.runSelect},
 	}
 }
 
@@ -208,15 +209,17 @@ func table(s *session) leaction.Area {
 	rows = append(rows, areaActions(s)...)
 	for _, suite := range Suites {
 		rows = append(rows, leaction.Action{
-			Verb:   suite.Name,
-			Why:    suite.Why,
-			Answer: s.suiteRunner(suite),
+			Verb:    suite.Name,
+			Summary: suite.Summary,
+			Why:     suite.Why,
+			Answer:  s.suiteRunner(suite),
 		})
 	}
 	rows = append(rows, leaction.Action{
-		Verb:   "exabgp-test",
-		Why:    "build the isolated ze and le test subjects and run every ExaBGP compatibility case",
-		Answer: s.runExaBGP,
+		Verb:    "exabgp-test",
+		Summary: "run every ExaBGP compatibility case",
+		Why:     "build the isolated ze and le test subjects and run every ExaBGP compatibility case",
+		Answer:  s.runExaBGP,
 	})
 	return leaction.New(Area, rows...)
 }

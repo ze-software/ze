@@ -93,7 +93,8 @@ func (r *StressGuestReport) Text() string {
 // registry itself, so a new scenario is discoverable here with no edit.
 func stressAction() leaction.Action {
 	return leaction.Action{
-		Verb: stressVerb,
+		Verb:    stressVerb,
+		Summary: "run one stress scenario as root inside a guest",
 		Why: "boot the guest, run `le test integration stress` for one scenario inside it as root," +
 			" and copy the JSON report, every profile it lists and the DUT binary into the output" +
 			" directory, which must be empty. `prefixes` shortens every round for a smoke run, which" +

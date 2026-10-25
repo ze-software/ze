@@ -35,7 +35,8 @@ func TestAnswerRejectsOpenOrIncompleteGrammar(t *testing.T) {
 		{name: "unknown keyword", args: []string{"update", "destination", "catalog.md"}, code: 2},
 		{name: "missing value", args: []string{"update", "file"}, code: 2},
 		{name: "duplicate file", args: []string{"check", "file", "one", "file", "two"}, code: 2},
-		{name: "required file omitted", args: []string{"check"}, code: 1},
+		// A missing value is a usage error (leroot exitCodes: code 2).
+		{name: "required file omitted", args: []string{"check"}, code: 2},
 		{name: "blank file", args: []string{"update", "file", " "}, code: 1},
 	}
 	for _, test := range tests {

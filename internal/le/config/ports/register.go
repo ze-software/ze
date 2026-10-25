@@ -13,8 +13,9 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupGate, Answer, registry.Meta{
-		ShortHelp: "the Go listener-default table and the YANG refine port defaults still agree, service by service",
-		Mode:      "offline",
+		Description: "The Go listener-default table and the YANG refine port defaults still agree, service by service.",
+		ShortHelp:   "check listener ports match YANG defaults",
+		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers le perf under it for the same reason.
 		Section: registry.SectionTest,

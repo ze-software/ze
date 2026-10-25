@@ -13,8 +13,9 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupGate, Answer, registry.Meta{
-		ShortHelp: "daemon runtime state is persisted through the managed zefs store, never as a loose file a reimage would drop",
-		Mode:      "offline",
+		Description: "Daemon runtime state is persisted through the managed zefs store, never as a loose file a reimage would drop.",
+		ShortHelp:   "keep daemon state in the managed zefs store",
+		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers le perf under it for the same reason.
 		Section: registry.SectionTest,

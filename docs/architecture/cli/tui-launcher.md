@@ -6,7 +6,7 @@ see what they always saw. `le` opens the same menu over its derived command
 tree when stdin and stdout are both terminals, and prints its root page
 otherwise (`docs/contributing/running-commands.md`, "At a terminal").
 
-<!-- source: internal/component/cli/menu/menu.go -- the menu model, LevelOf, scrolling, filtering and styles -->
+<!-- source: internal/component/cli/menu/menu.go -- the menu model, LevelOf, NewDeclared, DeclaredLevelOf, scrolling, filtering and styles -->
 <!-- source: internal/component/cli/menu/prompt.go -- Ask, the one-value prompt with Tab completion -->
 <!-- source: cmd/ze/tui_menu.go -- buildTopLevel, ze's first screen, and runTUILauncher -->
 <!-- source: internal/le/le/root/prompt.go -- openMenu, le's first screen from Tree() -->
@@ -37,6 +37,13 @@ otherwise (`docs/contributing/running-commands.md`, "At a terminal").
 - **Drill-down walks the YANG command tree**, which already models the hierarchy
   and already classifies terminal against non-terminal by whether a node has
   children. Registry commands use the presence of sub-commands as the same test.
+- **A tree that declares its text opens with `NewDeclared`.** le's derived
+  tree gives every node a one-line ShortHelp and a long Description, so its
+  menu shows each item's ShortHelp whole in the right column, and prints the
+  entered node's Description, wrapped to the window, under the breadcrumb
+  (`DeclaredLevelOf`). ze's YANG help is not declared that way, so ze opens
+  `New` and `LevelOf`, whose right column is the derived line, and a level with
+  no Description prints no header: ze's screen is byte-identical.
 - **Scrolling is offset tracking against the window size**, not the framework's
   viewport component. The menu is a list, not a document.
 - Navigation keys: Left and Backspace go back one level, Escape goes back or

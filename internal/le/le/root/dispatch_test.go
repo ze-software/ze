@@ -64,7 +64,7 @@ func TestDispatchUsesTheDeclaredActionShapeWithoutReparsingArguments(t *testing.
 	const name = "action-shape probe"
 	report := NewSelftestReport("passed", "failed", Pass("accepted"), Fail("rejected", "owned failure"))
 	area := leaction.New(name,
-		leaction.Action{
+		leaction.Action{Summary: "answer per-case rows",
 			Verb: "selftest", Why: "answer per-case rows",
 			Parameters: []leaction.Parameter{
 				{Keyword: "path", Value: "text", Requirement: leaction.Optional, Kind: leaction.KindString, Help: "h"},
@@ -72,7 +72,7 @@ func TestDispatchUsesTheDeclaredActionShapeWithoutReparsingArguments(t *testing.
 			},
 			AnswerArgs: func(leaction.Arguments) (any, int) { return report, 3 },
 		},
-		leaction.Action{
+		leaction.Action{Summary: "answer a document holding two finding sets",
 			Verb: "report", Why: "answer a document holding two finding sets",
 			Answer: func() (any, int) {
 				return map[string]any{"first": []string{"one"}, "second": []string{"two"}}, 0
@@ -83,7 +83,7 @@ func TestDispatchUsesTheDeclaredActionShapeWithoutReparsingArguments(t *testing.
 	Register(name, GroupReport, func(args []string) (any, int) {
 		got = slices.Clone(args)
 		return area.Answer(args)
-	}, registry.Meta{ShortHelp: "action shape dispatch probe", Mode: "offline", Section: registry.SectionTest})
+	}, registry.Meta{Description: "A probe area for this test.", ShortHelp: "action shape dispatch probe", Mode: "offline", Section: registry.SectionTest})
 	RegisterActions(name, area.Actions)
 	RegisterShape(name, command.ShapeDoc)
 	RegisterShape(name+" selftest", command.ShapeMap)
@@ -141,7 +141,7 @@ func TestDispatchReachesRegisteredLocalDataAndPreservesNonzeroPayload(t *testing
 	Register(name, GroupReport, func(args []string) (any, int) {
 		got = args
 		return map[string]any{"probe": "ran", "code": 3}, 3
-	}, registry.Meta{ShortHelp: "a test probe", Mode: "offline", Section: registry.SectionTest})
+	}, registry.Meta{Description: "A probe area for this test.", ShortHelp: "a test probe", Mode: "offline", Section: registry.SectionTest})
 	RegisterShape(name, command.ShapeDoc)
 
 	code := 0
@@ -168,7 +168,7 @@ func TestDispatchUsesSharedPipeRenderers(t *testing.T) {
 			"actions":        2,
 			"native-actions": []string{"tier/check", "repository/check"},
 		}, 0
-	}, registry.Meta{ShortHelp: "a test probe", Mode: "offline", Section: registry.SectionTest})
+	}, registry.Meta{Description: "A probe area for this test.", ShortHelp: "a test probe", Mode: "offline", Section: registry.SectionTest})
 	RegisterShape(name, command.ShapeMap)
 
 	for _, format := range []string{"json", "yaml", "table"} {
@@ -197,7 +197,7 @@ func TestDispatchRefusesTwoFormatOperators(t *testing.T) {
 	const name = "pipe-refusal-local-data-probe"
 	Register(name, GroupReport, func([]string) (any, int) {
 		return map[string]string{"probe": "ran"}, 0
-	}, registry.Meta{ShortHelp: "a test probe", Mode: "offline", Section: registry.SectionTest})
+	}, registry.Meta{Description: "A probe area for this test.", ShortHelp: "a test probe", Mode: "offline", Section: registry.SectionTest})
 	RegisterShape(name, command.ShapeDoc)
 
 	code := 0
@@ -231,7 +231,7 @@ func TestHelpRendersTheNodeWithoutRunningIt(t *testing.T) {
 	Register(name, GroupReport, func([]string) (any, int) {
 		ran++
 		return map[string]string{"probe": "ran"}, 0
-	}, registry.Meta{
+	}, registry.Meta{Description: "A probe area for this test.",
 		ShortHelp: "a probe that must not run for a help word",
 		Mode:      "offline", Section: registry.SectionTest,
 		Subs: "alpha | beta (writes)",
@@ -258,10 +258,10 @@ func TestHelpRendersTheNodeWithoutRunningIt(t *testing.T) {
 func TestHelpNamesWhatANamespaceHolds(t *testing.T) {
 	const member = "help-namespace-probe member"
 	Register(member, GroupReport, func([]string) (any, int) { return nil, 0 },
-		registry.Meta{ShortHelp: "the member's own summary", Mode: "offline", Section: registry.SectionTest})
+		registry.Meta{Description: "A probe area for this test.", ShortHelp: "the member's own summary", Mode: "offline", Section: registry.SectionTest})
 	// The probe declares its table, as every area must: run alone, this
 	// test's Dispatch is the first, so it runs the startup check over it.
-	area := leaction.New(member, leaction.Action{Verb: "show", Why: "show the member", Answer: func() (any, int) { return nil, 0 }})
+	area := leaction.New(member, leaction.Action{Summary: "show the member", Verb: "show", Why: "show the member", Answer: func() (any, int) { return nil, 0 }})
 	RegisterActions(member, area.Actions)
 	RegisterShape(member, command.ShapeDoc)
 
@@ -304,7 +304,7 @@ func TestBareRootAnswersTheManifestAsAPayload(t *testing.T) {
 func TestRootManifestRendersThroughTheJSONOperator(t *testing.T) {
 	const name = "manifest-json-probe"
 	Register(name, GroupReport, func([]string) (any, int) { return nil, 0 },
-		registry.Meta{ShortHelp: "a probe the manifest names", Mode: "offline", Section: registry.SectionTest})
+		registry.Meta{Description: "A probe area for this test.", ShortHelp: "a probe the manifest names", Mode: "offline", Section: registry.SectionTest})
 
 	code := 1
 	out := captureStdout(t, func() { code = Dispatch("le", []string{"|", "json"}) })
@@ -317,6 +317,7 @@ func TestRootManifestRendersThroughTheJSONOperator(t *testing.T) {
 		Areas   []struct {
 			Name        string `json:"name"`
 			Group       string `json:"group"`
+			ShortHelp   string `json:"short-help"`
 			Description string `json:"description"`
 		} `json:"areas"`
 	}
@@ -330,7 +331,8 @@ func TestRootManifestRendersThroughTheJSONOperator(t *testing.T) {
 		if area.Name != name {
 			continue
 		}
-		if area.Group != string(GroupReport) || area.Description != "a probe the manifest names" {
+		if area.Group != string(GroupReport) || area.ShortHelp != "a probe the manifest names" ||
+			area.Description != "A probe area for this test." {
 			t.Errorf("the rendered area is %+v", area)
 		}
 		return
@@ -349,7 +351,7 @@ func TestATrailingHelpWordNeverReachesTheHandler(t *testing.T) {
 	Register(burner, GroupSuite, func([]string) (any, int) {
 		burns++
 		return map[string]string{"probe": "the burn started"}, 0
-	}, registry.Meta{
+	}, registry.Meta{Description: "A probe area for this test.",
 		ShortHelp: "a probe that starts work from its first argument",
 		Mode:      "offline", Section: registry.SectionTest,
 	})
@@ -381,7 +383,7 @@ func TestATrailingHelpWordNeverReachesTheHandler(t *testing.T) {
 
 	// The declared shape: the dispatcher renders the action's own grammar from
 	// the listing the area registered, and still calls nothing.
-	area := leaction.New("trailing-help-grammar-probe", leaction.Action{
+	area := leaction.New("trailing-help-grammar-probe", leaction.Action{Summary: "run the probe over one scope",
 		Verb: "run", Why: "run the probe over one scope",
 		Parameters: []leaction.Parameter{
 			{Keyword: "scope", Value: "packages", Requirement: leaction.Required, Kind: leaction.KindString, Help: "h"},
@@ -393,7 +395,7 @@ func TestATrailingHelpWordNeverReachesTheHandler(t *testing.T) {
 	Register(area.Name(), GroupSuite, func(args []string) (any, int) {
 		reached++
 		return area.Answer(args)
-	}, registry.Meta{
+	}, registry.Meta{Description: "A probe area for this test.",
 		ShortHelp: "an area that declares its actions",
 		Mode:      "offline", Section: registry.SectionTest,
 	})
@@ -428,7 +430,7 @@ func TestATrailingHelpWordNeverReachesTheHandler(t *testing.T) {
 // asked for (ai/rules/principles.md).
 func TestATrailingHelpWordInAValueSlotReachesTheHandler(t *testing.T) {
 	var got leaction.Arguments
-	area := leaction.New("trailing-help-value-probe", leaction.Action{
+	area := leaction.New("trailing-help-value-probe", leaction.Action{Summary: "replace one word in one file",
 		Verb: "replace", Why: "replace one word in one file", Writes: true,
 		Parameters: []leaction.Parameter{
 			{Keyword: "file", Value: "path", Requirement: leaction.Required, Kind: leaction.KindString, Help: "h"},
@@ -441,7 +443,7 @@ func TestATrailingHelpWordInAValueSlotReachesTheHandler(t *testing.T) {
 			return map[string]string{"new": args.One("new")}, 0
 		},
 	})
-	Register(area.Name(), GroupGenerate, area.Answer, registry.Meta{
+	Register(area.Name(), GroupGenerate, area.Answer, registry.Meta{Description: "A probe area for this test.",
 		ShortHelp: "an area whose last keyword takes a value",
 		Mode:      "offline", Section: registry.SectionTest,
 	})
@@ -489,7 +491,7 @@ func TestATrailingHelpWordInAValueSlotReachesTheHandler(t *testing.T) {
 // (TestAnOptionIsRefusedInAValueSlotAnywhereOnTheLine).
 func TestAFlagSpellingInAValueSlotNeverReachesTheHandler(t *testing.T) {
 	var got leaction.Arguments
-	area := leaction.New("flag-spelling-value-probe", leaction.Action{
+	area := leaction.New("flag-spelling-value-probe", leaction.Action{Summary: "check one path",
 		Verb: "check", Why: "check one path",
 		Parameters: []leaction.Parameter{
 			{Keyword: "path", Value: "path", Requirement: leaction.Required, Kind: leaction.KindString, Help: "h"},
@@ -499,7 +501,7 @@ func TestAFlagSpellingInAValueSlotNeverReachesTheHandler(t *testing.T) {
 			return map[string]string{"path": args.One("path")}, 0
 		},
 	})
-	Register(area.Name(), GroupReport, area.Answer, registry.Meta{
+	Register(area.Name(), GroupReport, area.Answer, registry.Meta{Description: "A probe area for this test.",
 		ShortHelp: "an area whose only keyword takes a value",
 		Mode:      "offline", Section: registry.SectionTest,
 	})
@@ -548,7 +550,7 @@ func TestAFlagSpellingInAValueSlotNeverReachesTheHandler(t *testing.T) {
 // spellings.
 func TestAnOptionIsRefusedInAValueSlotAnywhereOnTheLine(t *testing.T) {
 	var got leaction.Arguments
-	area := leaction.New("flag-spelling-anywhere-probe", leaction.Action{
+	area := leaction.New("flag-spelling-anywhere-probe", leaction.Action{Summary: "replace one word in one file",
 		Verb: "replace", Why: "replace one word in one file", Writes: true,
 		Parameters: []leaction.Parameter{
 			{Keyword: "file", Value: "path", Requirement: leaction.Required, Kind: leaction.KindString, Help: "h"},
@@ -561,7 +563,7 @@ func TestAnOptionIsRefusedInAValueSlotAnywhereOnTheLine(t *testing.T) {
 			return map[string]string{"new": args.One("new")}, 0
 		},
 	})
-	Register(area.Name(), GroupGenerate, area.Answer, registry.Meta{
+	Register(area.Name(), GroupGenerate, area.Answer, registry.Meta{Description: "A probe area for this test.",
 		ShortHelp: "an area whose keywords take values before the last word",
 		Mode:      "offline", Section: registry.SectionTest,
 	})
@@ -623,7 +625,7 @@ func TestATrailingOptionThatIsNotTheQuestionReachesATableLessArea(t *testing.T) 
 	Register(forwarder, GroupSuite, func(args []string) (any, int) {
 		carried = args
 		return map[string]int{"argv": len(args)}, 0
-	}, registry.Meta{
+	}, registry.Meta{Description: "A probe area for this test.",
 		ShortHelp: "an area that hands the words after its keyword to a child",
 		Mode:      "offline", Section: registry.SectionTest,
 	})
@@ -677,7 +679,7 @@ func TestAHelpWordAfterAForwardingCommandReachesTheProgram(t *testing.T) {
 	// A forwarding row: the words after `send` are the program's.
 	var rowWords []string
 	rowCalls := 0
-	area := leaction.New("forwarding-row-probe", leaction.Action{
+	area := leaction.New("forwarding-row-probe", leaction.Action{Summary: "hand the words to the sender program",
 		Verb: "send", Why: "hand the words to the sender program",
 		AnswerWords: func(words []string) (any, int) {
 			rowCalls++
@@ -685,7 +687,7 @@ func TestAHelpWordAfterAForwardingCommandReachesTheProgram(t *testing.T) {
 			return nil, 0
 		},
 	})
-	Register(area.Name(), GroupSuite, area.Answer, registry.Meta{
+	Register(area.Name(), GroupSuite, area.Answer, registry.Meta{Description: "A probe area for this test.",
 		ShortHelp: "an area with one forwarding row",
 		Mode:      "offline", Section: registry.SectionTest,
 	})
@@ -715,7 +717,7 @@ func TestAHelpWordAfterAForwardingCommandReachesTheProgram(t *testing.T) {
 		areaCalls++
 		areaWords = args
 		return nil, 0
-	}, registry.Meta{
+	}, registry.Meta{Description: "A probe area for this test.",
 		ShortHelp: "an area that forwards every word",
 		Mode:      "offline", Section: registry.SectionTest,
 	})
@@ -755,7 +757,7 @@ func TestAHelpWordAfterAForwardingCommandReachesTheProgram(t *testing.T) {
 // registerPageProbe registers one area with an action table, under name, whose
 // handler counts the times it ran.
 func registerPageProbe(name string, ran *int) {
-	area := leaction.New(name, leaction.Action{
+	area := leaction.New(name, leaction.Action{Summary: "create one thing",
 		Verb: "create", Why: "create one thing. The rest of the reason.",
 		Parameters: []leaction.Parameter{
 			{Keyword: "subject", Value: "text", Requirement: leaction.Required, Kind: leaction.KindString, Help: "the one-line subject"},
@@ -766,7 +768,7 @@ func registerPageProbe(name string, ran *int) {
 	Register(area.Name(), GroupWorkflow, func(args []string) (any, int) {
 		*ran++
 		return area.Answer(args)
-	}, registry.Meta{ShortHelp: "a probe with a table", Mode: "offline", Section: registry.SectionTest})
+	}, registry.Meta{Description: "A probe area for this test.", ShortHelp: "a probe with a table", Mode: "offline", Section: registry.SectionTest})
 	RegisterActions(area.Name(), area.Actions)
 	RegisterShape(area.Name(), command.ShapeDoc)
 }
@@ -815,7 +817,7 @@ func TestOneRendererForEveryPage(t *testing.T) {
 	registerPageProbe("one-renderer-probe", &ran)
 	listing := captureStdout(t, func() { Dispatch("le", []string{"one-renderer-probe"}) })
 	help := captureStdout(t, func() { Dispatch("le", []string{"one-renderer-probe", "--help"}) })
-	line := "\n  create           [checks] create one thing.\n"
+	line := "\n  create           [checks] create one thing\n"
 	for name, page := range map[string]string{"bare": listing, "help": help} {
 		if !strings.Contains(page, line) {
 			t.Errorf("the %s page lacks the action line %q:\n%s", name, line, page)
@@ -832,7 +834,7 @@ func TestOneRendererForEveryPage(t *testing.T) {
 		}
 	}
 
-	Register("one-renderer-tableless", GroupReport, func([]string) (any, int) { return nil, 0 }, registry.Meta{
+	Register("one-renderer-tableless", GroupReport, func([]string) (any, int) { return nil, 0 }, registry.Meta{Description: "A probe area for this test.",
 		ShortHelp: "a table-less probe", Mode: "offline", Section: registry.SectionTest, Subs: "spec <spec> | current",
 	})
 	page := captureStdout(t, func() { Dispatch("le", []string{"one-renderer-tableless", "--help"}) })

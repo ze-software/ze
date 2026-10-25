@@ -16,7 +16,7 @@ import (
 const name = "test peeringdb"
 
 func init() {
-	leroot.Register(name, leroot.GroupSuite, harnesstool.Answer(peeringdb.Run), harnesstool.Meta("Deterministic PeeringDB mock server (ASN-derived prefix counts)"))
+	leroot.Register(name, leroot.GroupSuite, harnesstool.Answer(peeringdb.Run), harnesstool.Meta("serve a deterministic PeeringDB mock"))
 	leroot.RegisterShape(name, command.ShapeDoc)
 
 	// Every word after the name is the harness's own command line, so a

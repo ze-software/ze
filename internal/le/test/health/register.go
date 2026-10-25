@@ -13,9 +13,9 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupGenerate, Answer, registry.Meta{
-		ShortHelp: "the project's testing state as one generated page: what is measured, " +
-			"what is ratcheted, and which structural facts are gated",
-		Mode: "offline",
+		Description: "The project's testing state as one generated page: what is measured, what is ratcheted, and which structural facts are gated.",
+		ShortHelp:   "check or update the test-health page",
+		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers le perf under it for the same reason.
 		Section: registry.SectionTest,

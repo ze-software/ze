@@ -25,15 +25,17 @@ const checkVerb = "check"
 // table declares the whole command surface. The one action takes no value: the
 // tree is the checkout and the rendering is a pipe operator.
 var table = leaction.New(name, leaction.Action{
-	Verb:   checkVerb,
-	Why:    "every file:line anchor in ai/digests/*.md resolves to a real file and an in-range line",
-	Answer: answerCheck,
+	Verb:    checkVerb,
+	Summary: "check that every digest file:line anchor resolves",
+	Why:     "every file:line anchor in ai/digests/*.md resolves to a real file and an in-range line",
+	Answer:  answerCheck,
 })
 
 func init() {
 	leroot.Register(name, leroot.GroupGate, Answer, registry.Meta{
-		ShortHelp: "every file:line anchor in ai/digests/*.md resolves to a real file and an in-range line",
-		Mode:      "offline",
+		Description: "Every file:line anchor in ai/digests/*.md resolves to a real file and an in-range line.",
+		ShortHelp:   "check the digest anchors resolve",
+		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers le perf under it for the same reason.
 		Section:  registry.SectionTest,

@@ -47,7 +47,7 @@ type Red struct {
 	Stage    string `json:"stage"`
 	ExitCode int    `json:"exit-code"`
 	Log      string `json:"log"`
-	Summary  string `json:"summary,omitempty"`
+	Summary  string `json:"areaDescription,omitempty"`
 }
 
 // Reds answers whether a verification run has so far reddened one path.
@@ -196,12 +196,12 @@ func scanStages(root, run, path string, answer *Reds) {
 			continue
 		}
 		red := Red{Stage: stage, ExitCode: code, Log: log}
-		said, summary := attributionOf(root, path, verifyengine.StageReport{
+		said, areaDescription := attributionOf(root, path, verifyengine.StageReport{
 			Identity: verifyengine.Identity{Name: stage}, Code: code, Log: log,
 		})
 		switch said {
 		case attributionPath:
-			red.Summary = summary
+			red.Summary = areaDescription
 			answer.Naming = append(answer.Naming, red)
 		case attributionNone:
 			answer.Unattributed = append(answer.Unattributed, red)
@@ -233,7 +233,7 @@ const (
 )
 
 // attributionOf asks one red stage what its declaration says about the path,
-// and answers the summary of the group that named it.
+// and answers the areaDescription of the group that named it.
 //
 // An incomplete declaration answers attributionNone rather than
 // attributionOther: a log read mid-write, or one whose producer died between

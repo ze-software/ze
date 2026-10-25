@@ -13,8 +13,9 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupGate, Answer, registry.Meta{
-		ShortHelp: "no Go literal, const block or switch enumerates what a live registry already holds, so a set has one declaration and cannot drift from a copy of itself",
-		Mode:      "offline",
+		Description: "No Go literal, const block or switch enumerates what a live registry already holds, so a set has one declaration and cannot drift from a copy of itself.",
+		ShortHelp:   "refuse a literal that copies a live registry",
+		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers le perf under it for the same reason.
 		Section: registry.SectionTest,

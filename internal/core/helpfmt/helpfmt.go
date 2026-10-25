@@ -200,6 +200,13 @@ const (
 	narrowIndent  = 4
 )
 
+// Wrap breaks text at spaces into lines of at most width columns, each
+// indented by indent spaces: the shape a block of prose takes under a heading,
+// such as the long description a menu prints above the level it enters.
+func Wrap(text string, width, indent int) []string {
+	return wrap(text, width, indent, indent)
+}
+
 // wrap breaks text at spaces into lines of at most width columns, the first
 // indented by first spaces and every later one by next. A width of zero or less
 // keeps the text on one line, so a page that sets no Width renders as it always

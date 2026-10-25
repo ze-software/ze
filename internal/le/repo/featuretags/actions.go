@@ -19,15 +19,16 @@ import (
 const area = "repo feature-tags"
 
 var actions = leaction.New(area,
-	leaction.Action{Verb: "check", Why: "the four files derived from feature-gates.txt are current: .golangci.yml," +
+	leaction.Action{Verb: "check", Summary: "check the files derived from feature-gates.txt", Why: "the four files derived from feature-gates.txt are current: .golangci.yml," +
 		" gokrazy/ze/config.json, docs/guide/quickstart.md and .github/workflows/codeql.yml." +
 		" A stale one leaves a gated package unlinted, unshipped, or unanalysed",
 		Answer: runCheckHere},
 	leaction.Action{
-		Verb:   "write",
-		Why:    "rewrite the four derived tag lists from feature-gates.txt",
-		Writes: true,
-		Answer: runWriteHere,
+		Verb:    "write",
+		Summary: "rewrite the tag lists from feature-gates.txt",
+		Why:     "rewrite the four derived tag lists from feature-gates.txt",
+		Writes:  true,
+		Answer:  runWriteHere,
 	},
 )
 

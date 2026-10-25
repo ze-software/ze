@@ -14,14 +14,14 @@ type helpfmtPage = helpfmt.Page
 // beside a second action the refusal must not name.
 func claimArea(ran *bool) Area {
 	return New("spec", Action{
-		Verb: "claim", Why: "claim a spec for this session.",
+		Verb: "claim", Summary: "claim a spec", Why: "claim a spec for this session.",
 		Parameters: []Parameter{
 			{Kind: KindSpec, Value: "spec", Requirement: Required, Help: "the spec file to claim"},
 			{Keyword: "quiet", Kind: KindSwitch, Help: "print nothing on success"},
 		},
 		AnswerArgs: func(Arguments) (any, int) { *ran = true; return nil, 0 },
 	}, Action{
-		Verb: "release", Why: "release the claim.",
+		Verb: "release", Summary: "release the claim", Why: "release the claim.",
 		Answer: func() (any, int) { *ran = true; return nil, 0 },
 	})
 }

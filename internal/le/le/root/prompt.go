@@ -270,7 +270,7 @@ func canceled(program string, err error) int {
 // runs nothing and answers 0: the reader asked what le holds and left.
 func openMenu(program string) int {
 	tree := Tree()
-	chosen, err := menu.Run(menu.New(program, menu.LevelOf(tree, nil), tree))
+	chosen, err := menu.Run(menu.NewDeclared(program, tree))
 	if err != nil {
 		return canceled(program, err)
 	}

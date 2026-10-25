@@ -14,9 +14,9 @@ const area = "arch refuse-by-default"
 
 // actions is the whole command surface.
 var actions = leaction.New(area,
-	leaction.Action{Verb: "check", Why: "no changed line answers a plausible value where the code has no answer: an unmatched switch value or a miss answered as a hit, an ADD-PATH identifier compared with zero, a state answered from a literal; an annotated shape names its guard and is listed",
+	leaction.Action{Verb: "check", Summary: "refuse a changed line that answers a plausible default", Why: "no changed line answers a plausible value where the code has no answer: an unmatched switch value or a miss answered as a hit, an ADD-PATH identifier compared with zero, a state answered from a literal; an annotated shape names its guard and is listed",
 		Answer: runCheck},
-	leaction.Action{Verb: "report", Why: "every such shape in the tree, refused and annotated alike, for a reader deciding which producer to fix first",
+	leaction.Action{Verb: "report", Summary: "list every refuse-by-default shape in the tree", Why: "every such shape in the tree, refused and annotated alike, for a reader deciding which producer to fix first",
 		Answer: runReport},
 )
 

@@ -15,9 +15,9 @@ const area = "go version-pin"
 
 // actions is the whole command surface.
 var actions = leaction.New(area,
-	leaction.Action{Verb: "check", Why: "every build carrier that copies this module in names the Go minor version go.mod declares, so no image builds Ze on a toolchain nobody chose",
+	leaction.Action{Verb: "check", Summary: "check every build carrier names go.mod's Go version", Why: "every build carrier that copies this module in names the Go minor version go.mod declares, so no image builds Ze on a toolchain nobody chose",
 		Answer: runCheck},
-	leaction.Action{Verb: "selftest", Why: "the comparison itself still works, proved against fifteen synthetic carriers rather than against the tree it judges",
+	leaction.Action{Verb: "selftest", Summary: "prove the version comparison against its fixtures", Why: "the comparison itself still works, proved against fifteen synthetic carriers rather than against the tree it judges",
 		Answer: runSelftest},
 )
 

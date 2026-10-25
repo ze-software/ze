@@ -13,8 +13,9 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupGate, Answer, registry.Meta{
-		ShortHelp: "a changed guard holds one fact: an if whose condition is a top-level || and whose body only leaves is split into one guard per fact",
-		Mode:      "offline",
+		Description: "A changed guard holds one fact: an if whose condition is a top-level || and whose body only leaves is split into one guard per fact.",
+		ShortHelp:   "split a terminating || guard into one per fact",
+		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers le perf under it for the same reason.
 		Section: registry.SectionTest,

@@ -67,7 +67,8 @@ const (
 // actions is the whole command surface, declared once, so the listing, the
 // usage, the help pages and the parse read one grammar (internal/le/le/action).
 var actions = leaction.New("weekly", leaction.Action{
-	Verb: updateVerb,
+	Verb:    updateVerb,
+	Summary: "publish the weekly update to Discord",
 	Why: "publish the weekly update to Discord; without confirm it answers what would be published" +
 		" and posts nothing",
 	Writes: true,
@@ -75,7 +76,7 @@ var actions = leaction.New("weekly", leaction.Action{
 		{Keyword: sourceKeyword, Kind: leaction.KindPath, Value: "path", Requirement: leaction.Optional,
 			Help: "the one post to publish"},
 		{Keyword: dirKeyword, Kind: leaction.KindPath, Value: "path", Requirement: leaction.Optional,
-			Help: "the posts directory a sweep reads; " + PostsDirRel + " when neither source nor dir is given"},
+			Help: "the posts directory to sweep; default " + PostsDirRel + ""},
 		{Keyword: channelKeyword, Kind: leaction.KindEnum, Value: "channel", Values: channels[:],
 			ValueHelp: map[string]string{
 				"ze-news": "the public news channel; the default",
@@ -84,9 +85,9 @@ var actions = leaction.New("weekly", leaction.Action{
 			Requirement: leaction.Optional, Help: "the channel to post to; ze-test is the rehearsal channel"},
 		{Keyword: confirmKeyword, Kind: leaction.KindSwitch, Help: "publish, rather than answer the plan"},
 		{Keyword: forceKeyword, Kind: leaction.KindSwitch,
-			Help: "publish the one post named by source even when the archive records it"},
+			Help: "publish the post named by source even if already archived"},
 		{Keyword: resumeFromKeyword, Kind: leaction.KindUint, Value: "n", Requirement: leaction.Optional,
-			Help: "the 1-based message of the post named by source to resume from"},
+			Help: "the 1-based message of the source post to resume from"},
 		{Keyword: dateStampKeyword, Kind: leaction.KindSwitch, Help: "stamp the post with its date"},
 		{Keyword: noDateStampKeyword, Kind: leaction.KindSwitch, Help: "post without the date stamp"},
 	},

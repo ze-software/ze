@@ -12,5 +12,7 @@ import (
 )
 
 func init() {
-	leroot.RegisterNamespace("test", "Ze's test suites and the helpers they run: functional, interop, integration, unit, fuzz and mutation suites, and mock servers")
+	leroot.RegisterNamespace("test",
+		"Ze's test suites and the helpers and mocks they run",
+		"Ze's test suites and the helpers they run: functional, interop, integration, unit, fuzz and mutation suites, and mock servers.")
 }

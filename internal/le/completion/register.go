@@ -13,10 +13,11 @@ import (
 func init() {
 	area := table()
 	leroot.Register(name, leroot.GroupWorkflow, area.Answer, registry.Meta{
-		ShortHelp: shortHelp,
-		Mode:      "offline",
-		Section:   registry.SectionTest,
-		SubsFunc:  area.Subs,
+		ShortHelp:   "shell completion scripts for le",
+		Description: areaDescription,
+		Mode:        "offline",
+		Section:     registry.SectionTest,
+		SubsFunc:    area.Subs,
 	})
 	leroot.RegisterActions(name, area.Actions)
 	// A script and a candidate list are each one document the shell reads.

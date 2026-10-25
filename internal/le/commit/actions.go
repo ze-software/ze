@@ -147,32 +147,37 @@ func table() leaction.Area {
 	return leaction.New(area,
 		leaction.Action{
 			Verb: keywordSession, Writes: true,
+			Summary:    "create or reuse this session's commit namespace",
 			Why:        "create or reuse this harness session's eight-hex commit namespace",
 			Parameters: []leaction.Parameter{sessionParameter},
 			AnswerArgs: withRoot(answerSession),
 		},
 		leaction.Action{
 			Verb: "create", Writes: true,
+			Summary:    "validate a file list and write its commit script",
 			Why:        "validate an explicit file/remove population and generate its message and executable commit script",
 			Parameters: createParameters,
 			AnswerArgs: withRoot(answerCreate),
 		},
 		leaction.Action{
 			Verb:       "message",
+			Summary:    "render and validate a commit message only",
 			Why:        "render and validate a commit message without preparing a script",
 			Parameters: []leaction.Parameter{subjectParameter, bodyParameter},
 			AnswerArgs: withRoot(answerMessage),
 		},
 		leaction.Action{
-			Verb: "audit",
-			Why:  "audit a branch range and worktree for unexplained test weakening",
+			Verb:    "audit",
+			Summary: "audit a range and worktree for test weakening",
+			Why:     "audit a branch range and worktree for unexplained test weakening",
 			Parameters: []leaction.Parameter{{Keyword: "base", Kind: leaction.KindRevision, Value: "revision",
 				Requirement: leaction.Optional, Help: "the revision the audited range starts from; without it, HEAD"}},
 			AnswerArgs: withRoot(answerAudit),
 		},
 		leaction.Action{
-			Verb: actionReviewCheck,
-			Why:  "re-check a hash-pinned independent review immediately before staging",
+			Verb:    actionReviewCheck,
+			Summary: "re-check a pinned review just before staging",
+			Why:     "re-check a hash-pinned independent review immediately before staging",
 			Parameters: []leaction.Parameter{
 				{Keyword: keywordSpec, Kind: leaction.KindLabel, Value: "stem", Requirement: leaction.Required,
 					Help: "the stem of the spec whose recorded review is checked"},
@@ -183,6 +188,7 @@ func table() leaction.Area {
 		},
 		leaction.Action{
 			Verb: keywordPush, Writes: true,
+			Summary: "prepare the script that pushes a verified commit",
 			Why: "derive what the verified commit P owes and prepare a script that re-derives against P and pushes P " +
 				"to the upstream branch; takes the owner's authorisation",
 			// The owner's words are the whole line, as typed: an argv, so words
@@ -193,11 +199,12 @@ func table() leaction.Area {
 			AnswerArgs: withRoot(answerPush),
 		},
 		leaction.Action{
-			Verb: keywordDebtStatus,
+			Verb:    keywordDebtStatus,
+			Summary: "report what a push of a verified commit still owes",
 			Why: "derive what a push of the verified commit P, or of commit <rev>, would still owe: " +
 				"exit 0 when nothing, 1 when anything, 2 when it cannot answer",
 			Parameters: []leaction.Parameter{{Keyword: keywordCommit, Kind: leaction.KindRevision, Value: "rev",
-				Requirement: leaction.Optional, Help: "the commit whose push is judged; without it, the verified commit P"}},
+				Requirement: leaction.Optional, Help: "the commit to judge a push of; default: verified commit P"}},
 			AnswerArgs: withRoot(answerDebtStatusArgs),
 		},
 	)
@@ -301,13 +308,13 @@ func answerDebtStatusArgs(root string, args leaction.Arguments) (any, int) {
 var (
 	sessionParameter = leaction.Parameter{Keyword: keywordSession, Kind: leaction.KindLabel, Value: "id",
 		Requirement: leaction.Optional,
-		Help:        "the eight-hex commit namespace; ./le commit session creates or reuses this harness session's"}
+		Help:        "the eight-hex commit namespace from ./le commit session"}
 	subjectParameter = leaction.Parameter{Keyword: keywordSubject, Kind: leaction.KindString, Value: keywordSubject,
 		Requirement: leaction.Required,
 		Help:        "the one-line commit subject, at most 72 characters"}
 	bodyParameter = leaction.Parameter{Keyword: keywordBody, Kind: leaction.KindString, Value: "text",
 		Requirement: leaction.Optional, Repeat: true,
-		Help: "one body chunk, wrapped to 72 characters; an empty chunk is a paragraph break"}
+		Help: "one body chunk, wrapped at 72; empty means a new paragraph"}
 )
 
 // reasonParameter declares one admission keyword: a reason the operator gives
@@ -326,31 +333,31 @@ var createParameters = []leaction.Parameter{
 	{Keyword: keywordFile, Kind: leaction.KindPath, Value: valuePath, Requirement: leaction.Optional, Repeat: true,
 		Help: "one explicit file to stage, never a directory"},
 	{Keyword: keywordFileList, Kind: leaction.KindPath, Value: "list", Requirement: leaction.Optional, Repeat: true,
-		Help: "a file holding one path to stage per line; blank lines and # comments are skipped"},
+		Help: "a file of paths to stage, one per line, # comments allowed"},
 	{Keyword: keywordHunks, Kind: leaction.KindPath, Value: valuePath, Pair: "patch-file",
 		Requirement: leaction.Optional, Repeat: true,
-		Help: "commit HEAD's blob of the path with only the patch file's hunks applied, leaving the working tree as it is"},
+		Help: "commit HEAD's blob plus only the patch file's hunks"},
 	{Keyword: keywordRemove, Kind: leaction.KindPath, Value: valuePath, Requirement: leaction.Optional, Repeat: true,
-		Help: "one tracked file to delete, named exactly; leave the file in place"},
+		Help: "one tracked file to delete; leave it in place for the script"},
 	{Keyword: keywordRemoveList, Kind: leaction.KindPath, Value: "list", Requirement: leaction.Optional, Repeat: true,
 		Help: "a file holding one tracked path to delete per line"},
 	{Keyword: keywordReplace, Kind: leaction.KindSwitch, Help: "start a fresh script"},
 	{Keyword: keywordAppend, Kind: leaction.KindSwitch, Help: "add another commit block to a script that already exists"},
 	{Keyword: keywordScript, Kind: leaction.KindPath, Value: keywordScript, Requirement: leaction.Optional,
-		Help: "the script to append to; without it create always gets a distinct path"},
+		Help: "the script to append to; else create picks a new path"},
 	sessionParameter,
 	{Keyword: keywordTag, Kind: leaction.KindLabel, Value: keywordTag, Requirement: leaction.Optional,
 		Help: "the block tag inside the script"},
 	{Keyword: keywordAttest, Kind: leaction.KindRevision, Value: keywordCommit, Pair: "owner words",
 		Requirement: leaction.Optional,
-		Help:        "prepare an empty commit carrying the owner's attestation of the named commit"},
+		Help:        "prepare an empty commit attesting the named commit"},
 	{Keyword: keywordLedgerCarried, Kind: leaction.KindString, Value: "row", Requirement: leaction.Optional, Repeat: true,
-		Help: "on the ledger-deletion commit only: one \"<sha> <gate key>: <reason>\" row, written as a Ledger-carried: trailer"},
+		Help: "a \"<sha> <gate key>: <reason>\" Ledger-carried: row"},
 	reasonParameter(keywordNoTest, "the reason the commit carries no test evidence"),
-	reasonParameter(keywordStructuralRedOK, "the reason a charged structural red does not hold this commit"),
-	reasonParameter(keywordReviewOverride, "the reason a closure commits with no clean review, recorded as Review-owed:"),
-	reasonParameter(keywordBrokenHeadFix, "the reason this commit fixes the sole compiles red of a broken HEAD"),
-	reasonParameter(keywordRFCChangeOK, "the reason the commit changes an RFC-tagged test unit the owner has not approved yet"),
+	reasonParameter(keywordStructuralRedOK, "why a charged structural red does not hold this commit"),
+	reasonParameter(keywordReviewOverride, "why a closure commits with no clean review (Review-owed:)"),
+	reasonParameter(keywordBrokenHeadFix, "why this commit fixes the sole compiles red of a broken HEAD"),
+	reasonParameter(keywordRFCChangeOK, "why the commit changes an unapproved RFC-tagged test unit"),
 	{Keyword: keywordDryRun, Kind: leaction.KindSwitch, Help: "print the message and the script and write neither"},
 	{Keyword: keywordPush, Retired: `./le commit push "<owner authorisation>"`},
 	{Keyword: "unverified", Retired: verify.ChangedCommand},

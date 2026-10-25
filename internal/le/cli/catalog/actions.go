@@ -11,17 +11,19 @@ const area = "cli catalog"
 
 var actions = leaction.New(area,
 	leaction.Action{
-		Verb: "check",
-		Why:  "compare a command-catalog Markdown file with the live product command registries",
+		Verb:    "check",
+		Summary: "compare a command catalog file with the live registry",
+		Why:     "compare a command-catalog Markdown file with the live product command registries",
 		Parameters: []leaction.Parameter{
 			{Keyword: "file", Kind: leaction.KindPath, Help: "the catalog Markdown file to compare", Value: "destination", Requirement: leaction.Required},
 		},
 		AnswerArgs: runCheck,
 	},
 	leaction.Action{
-		Verb:   "update",
-		Why:    "write the live product command catalog as exact Markdown",
-		Writes: true,
+		Verb:    "update",
+		Summary: "write the live command catalog as Markdown",
+		Why:     "write the live product command catalog as exact Markdown",
+		Writes:  true,
 		Parameters: []leaction.Parameter{
 			{Keyword: "file", Kind: leaction.KindPath, Help: "the catalog Markdown file to write", Value: "destination", Requirement: leaction.Required},
 		},

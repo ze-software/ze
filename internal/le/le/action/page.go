@@ -96,18 +96,8 @@ func PageWidth(file *os.File) int {
 	return width
 }
 
-// FirstSentence answers text up to its first full stop followed by a space, or
-// the whole text when it holds none. A listing shows this much of a purpose,
-// and the action's own page shows the whole.
-func FirstSentence(text string) string {
-	if before, _, found := strings.Cut(text, ". "); found {
-		return before + "."
-	}
-	return text
-}
-
 // Page answers the area page: the area's usage and one line per action, the
-// writes marker in brackets, then the first sentence of its purpose. A
+// writes marker in brackets, then the action's declared Summary. A
 // pass-through area's usage takes its program's words, not an action.
 func (l List) Page(program string) helpfmt.Page {
 	var tb textbuf.Buffer
@@ -143,7 +133,7 @@ func (l List) Section() helpfmt.HelpSection {
 		if row.Writes {
 			mark = "[writes] "
 		}
-		entries = append(entries, helpfmt.HelpEntry{Name: row.Verb, Desc: mark + FirstSentence(row.Why)})
+		entries = append(entries, helpfmt.HelpEntry{Name: row.Verb, Desc: mark + row.Summary})
 	}
 	return helpfmt.HelpSection{Title: "Actions", Entries: entries}
 }
@@ -218,7 +208,7 @@ func (l List) ActionPage(program, verb string) (helpfmt.Page, bool) {
 	var tb textbuf.Buffer
 	page := helpfmt.Page{
 		Command:     tb.Str(program).Byte(' ').Str(l.Area).Byte(' ').Str(row.Verb).String(),
-		ShortHelp:   FirstSentence(row.Why),
+		ShortHelp:   row.Summary,
 		Description: row.Why,
 		Usage:       []string{l.usageLine(program, row)},
 	}

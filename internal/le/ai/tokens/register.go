@@ -11,16 +11,17 @@ import (
 	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 
-// shortHelp is what the report answers. The help line and the action's Why
+// areaDescription is what the report answers. The area's long help and the action's Why
 // both read it, so the two cannot drift.
-const shortHelp = "where this repository's sessions spend their tokens: API calls, the context carried at each one, the size histogram and a capped-context counterfactual, read from the machine-local transcript store"
+const areaDescription = "where this repository's sessions spend their tokens: API calls, the context carried at each one, the size histogram and a capped-context counterfactual, read from the machine-local transcript store"
 
 func init() {
 	// The table is built once here, so a table that cannot be dispatched
 	// panics at init rather than on the first call.
 	actions := table()
 	leroot.Register(area, leroot.GroupReport, Answer, registry.Meta{
-		ShortHelp: shortHelp,
+		ShortHelp:   "report where sessions spend their tokens",
+		Description: areaDescription,
 		// Offline, and the word is exact for an unusual reason: the tool reads
 		// no network AND no checkout. Its corpus is ~/.claude/projects, which
 		// is written by another program on this machine.

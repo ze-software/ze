@@ -8,9 +8,9 @@ behave. The obligations that follow from this page are `ai/rules/commands.md`.
 ## Finding a command and what it takes
 
 `./le '|' json` answers le's whole surface as one document. It names every
-registered area, the group it renders under, and its description. An area that
-registered an action table also carries each action, with its verb, its purpose,
-its write flag and its keyword grammar. Each keyword carries its `kind` (such
+registered area, the group it renders under, its `short-help` and its
+`description`. An area that registered an action table also carries each action,
+with its verb, its one-line `summary`, its whole purpose, its write flag and its keyword grammar. Each keyword carries its `kind` (such
 as `switch`, `path`, `uint` or `enum`), its `help` line, whether it is
 `required` or may `repeat`, and an enum's `values`. The bar is quoted because a shell
 consumes an unquoted one. `| yaml` and `| table` render the same payload.
@@ -20,9 +20,12 @@ consumes an unquoted one. `| yaml` and `| table` render the same payload.
 and exit 0. The one exception is a person at a terminal: when stdin and stdout
 are both terminals, a bare `./le` opens the menu instead (below), so an agent,
 a pipe, CI or a redirection always gets the page. The page has one block for the single-word commands and one per
-namespace, its heading followed by the first sentence of what the namespace is
-for; each line is the name, the area's group as a tag in brackets, and the
-first sentence of its description. Every page wraps to the terminal's width, or
+namespace, its heading followed by the namespace's short summary; each line is
+the name, the area's group as a tag in brackets, and the area's short summary
+whole. Every short text le prints (an area's or a namespace's summary, an
+action's `Summary`, a keyword's `Help`, a value's line) is declared as one line
+of at most 60 characters, and every namespace, area and action also declares a
+long description, one to three sentences, that its own page and the menu print. Every page wraps to the terminal's width, or
 to 100 columns when stdout is a pipe, so a page read through a pipe is the same
 on every host.
 
@@ -89,8 +92,10 @@ tells le its own option from one you forward to a child.
 With stdin and stdout both terminals, a bare `./le` opens the drill-down menu
 ze opens for a bare `ze` (`docs/architecture/cli/tui-launcher.md`), over le's
 derived command tree: the first screen lists every first word with what it is
-for (a namespace's registered summary, an area's own), Enter on a
-namespace or an area opens its members, and Enter on an action runs it. Typing
+for, in the declared short summary shown whole in the right column. Enter on a
+namespace or an area opens its members under a header holding that node's long
+description, wrapped to the screen, and Enter on an action runs it. `ze`'s own
+menu prints no such header and is unchanged. Typing
 filters the level, Left and Backspace go back, Escape goes back or quits, and
 `q` quits while no filter is typed. Quitting runs nothing and exits 0.
 

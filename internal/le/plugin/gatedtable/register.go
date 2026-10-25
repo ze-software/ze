@@ -13,8 +13,9 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupGenerate, Answer, registry.Meta{
-		ShortHelp: "the generated table of gated plugins and their build tags: check it against feature-gates.txt and every registration, or write it",
-		Mode:      "offline",
+		Description: "The generated table of gated plugins and their build tags: check it against feature-gates.txt and every registration, or write it.",
+		ShortHelp:   "check or write the gated-plugin table",
+		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers le perf under it for the same reason.
 		Section: registry.SectionTest,

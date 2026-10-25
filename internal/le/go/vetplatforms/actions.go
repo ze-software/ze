@@ -21,8 +21,9 @@ func actionTable(run platformRun) leaction.Area {
 	for _, spec := range platformSpecs {
 		platform := spec.platform
 		rows = append(rows, leaction.Action{
-			Verb: spec.verb,
-			Why:  spec.why,
+			Verb:    spec.verb,
+			Summary: spec.summary,
+			Why:     spec.why,
 			Answer: func() (any, int) {
 				return run(platform)
 			},

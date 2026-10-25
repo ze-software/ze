@@ -13,8 +13,9 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupSuite, Answer, registry.Meta{
-		ShortHelp: "Go fuzzing: every `func Fuzz` under internal/, discovered at run time",
-		Mode:      "offline",
+		Description: "Go fuzzing: every func Fuzz under internal/, discovered at run time, run for a bounded time each and stopped at the first crash.",
+		ShortHelp:   "run every Go fuzz target",
+		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers le perf under it for the same reason.
 		Section: registry.SectionTest,

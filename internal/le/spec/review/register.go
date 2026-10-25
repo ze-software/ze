@@ -19,10 +19,11 @@ func init() {
 	// panics at init rather than on the first call.
 	table := spec.ReviewArea()
 	leroot.Register(commandName, leroot.GroupWorkflow, spec.Review, registry.Meta{
-		ShortHelp: "independent review artifacts: hash, record and check",
-		Mode:      "offline",
-		Section:   registry.SectionTest,
-		SubsFunc:  table.Subs,
+		Description: "Independent review artifacts: hash the files a review covers, record a session's review of them, and check that a recorded review still covers them as they are now.",
+		ShortHelp:   "hash, record and check independent reviews",
+		Mode:        "offline",
+		Section:     registry.SectionTest,
+		SubsFunc:    table.Subs,
 	})
 	leroot.RegisterActions(commandName, table.Actions)
 	leroot.RegisterShape(commandName, command.ShapeDoc)

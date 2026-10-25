@@ -12,5 +12,7 @@ import (
 )
 
 func init() {
-	leroot.RegisterNamespace("doc", "documentation gates and generated indexes: links, code and doc agreement, change wiring and writing style")
+	leroot.RegisterNamespace("doc",
+		"documentation gates and generated indexes",
+		"Documentation gates and generated indexes: links, code and doc agreement, change wiring and writing style.")
 }

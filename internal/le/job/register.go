@@ -19,8 +19,9 @@ import (
 
 func init() {
 	leroot.Register(name, leroot.GroupWorkflow, Answer, registry.Meta{
-		ShortHelp: "admit a heavy job before it runs, so the sessions sharing this machine do not oversubscribe it",
-		Mode:      "offline",
+		Description: "Admit a heavy job before it runs, so the sessions sharing this machine do not oversubscribe it, then run it and answer its exit code.",
+		ShortHelp:   "admit a heavy job before it runs",
+		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers le perf under it for the same reason.
 		Section: registry.SectionTest,

@@ -94,7 +94,7 @@ func childrenOf(node *command.Node) []leaction.Candidate {
 	slices.Sort(names)
 	out := make([]leaction.Candidate, 0, len(names))
 	for _, name := range names {
-		out = append(out, leaction.Candidate{Value: name, Summary: leaction.FirstSentence(node.Children[name].ShortHelp)})
+		out = append(out, leaction.Candidate{Value: name, Summary: node.Children[name].ShortHelp})
 	}
 	return out
 }

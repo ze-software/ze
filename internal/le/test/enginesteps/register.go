@@ -19,7 +19,7 @@ func init() {
 	// Spawned BY test daemons as an external plugin
 	// (plugin { external engine-steps { run "le test engine-steps ./engine-steps.json" } })
 	// to drive .ci command=/stream=/expect=output|event|stream directives.
-	leroot.Register(name, leroot.GroupSuite, harnesstool.Answer(cli.CmdEngineSteps), harnesstool.Meta("Execute .ci engine-step directives as an external plugin (spawned by test daemons, not run directly)"))
+	leroot.Register(name, leroot.GroupSuite, harnesstool.Answer(cli.CmdEngineSteps), harnesstool.Meta("run .ci engine steps as a plugin"))
 	leroot.RegisterShape(name, command.ShapeDoc)
 
 	// Every word after the name is the harness's own command line, so a

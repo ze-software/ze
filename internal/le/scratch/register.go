@@ -9,10 +9,11 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupWorkflow, Answer, registry.Meta{
-		ShortHelp: "keep disposable scratch and durable caches outside the checkout without overwriting existing work",
-		Mode:      "offline",
-		Section:   registry.SectionTest,
-		SubsFunc:  Subs,
+		Description: "Keep disposable scratch and durable build caches outside the checkout, behind the tmp/ and cache/ links, and trim or clean them without touching another session's work.",
+		ShortHelp:   "keep scratch and caches out of the checkout",
+		Mode:        "offline",
+		Section:     registry.SectionTest,
+		SubsFunc:    Subs,
 	})
 	leroot.RegisterActions(area, Actions)
 	leroot.RegisterShape(area, command.ShapeMap)

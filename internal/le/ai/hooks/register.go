@@ -12,10 +12,11 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupGate, Answer, registry.Meta{
-		ShortHelp: "native hook dispatcher golden and behavioral fixture selftests",
-		Mode:      "offline",
-		Section:   registry.SectionTest,
-		SubsFunc:  Subs,
+		Description: "The native hook dispatcher: one action per hook .claude/settings.json calls, each speaking the hook JSON protocol in the le process, and the golden and behavioral fixture selftests that prove them.",
+		ShortHelp:   "run the native hooks and their selftests",
+		Mode:        "offline",
+		Section:     registry.SectionTest,
+		SubsFunc:    Subs,
 	})
 	leroot.RegisterActions(area, Actions)
 	leroot.RegisterShape(area, command.ShapeMap)

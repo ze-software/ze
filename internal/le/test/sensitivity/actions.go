@@ -24,23 +24,25 @@ const area = "test sensitivity"
 
 // actions is the whole command surface.
 var actions = leaction.New(area,
-	leaction.Action{Verb: "check", Why: "no more tests than the committed floor assert nothing or sit behind a build tag nothing supplies, over the WORKING TREE so an inert test is caught before it is committed",
+	leaction.Action{Verb: "check", Summary: "refuse inert tests above the committed floor", Why: "no more tests than the committed floor assert nothing or sit behind a build tag nothing supplies, over the WORKING TREE so an inert test is caught before it is committed",
 		Answer: runCheck},
-	leaction.Action{Verb: "selftest", Why: "both detectors still tell an asserting test from an inert one and a reachable build tag from an orphan, proved against fixtures rather than against the tree they judge",
+	leaction.Action{Verb: "selftest", Summary: "prove both inert-test detectors against fixtures", Why: "both detectors still tell an asserting test from an inert one and a reachable build tag from an orphan, proved against fixtures rather than against the tree they judge",
 		Answer: runSelftest},
 	leaction.Action{
 		// No Make target names this one: it is the script's default mode, the
 		// page a person reads when they want the list rather than the verdict.
-		Verb:   "report",
-		Why:    "every assert-nothing test and every tag orphan in the working tree, listed rather than ratcheted",
-		Answer: runReport,
+		Verb:    "report",
+		Summary: "list every inert test and orphaned tag",
+		Why:     "every assert-nothing test and every tag orphan in the working tree, listed rather than ratcheted",
+		Answer:  runReport,
 	},
 	leaction.Action{
 		// No Make target names this one either: it is the script's
 		// --tracked-only, and the generated test-health page reads it.
-		Verb:   "tracked",
-		Why:    "the same lists over the files GIT holds, so a generated page is reproducible from a clean checkout whatever is uncommitted",
-		Answer: runTracked,
+		Verb:    "tracked",
+		Summary: "list inert tests over what git holds",
+		Why:     "the same lists over the files GIT holds, so a generated page is reproducible from a clean checkout whatever is uncommitted",
+		Answer:  runTracked,
 	},
 )
 

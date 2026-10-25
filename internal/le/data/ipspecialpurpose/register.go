@@ -9,10 +9,11 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupGenerate, Answer, registry.Meta{
-		ShortHelp: "the shipped IANA special-purpose IP registries: deliberately fetch and validate both canonical XML snapshots",
-		Mode:      "offline",
-		Section:   registry.SectionTest,
-		SubsFunc:  Subs,
+		Description: "The shipped IANA special-purpose IP registries: deliberately fetch and validate both canonical XML snapshots.",
+		ShortHelp:   "refresh the IANA special-purpose registries",
+		Mode:        "offline",
+		Section:     registry.SectionTest,
+		SubsFunc:    Subs,
 	})
 	leroot.RegisterActions(area, Actions)
 	leroot.RegisterShape(area, command.ShapeMap)

@@ -25,7 +25,7 @@ var registerProbe sync.Once
 func probeArea() {
 	registerProbe.Do(func() {
 		area := leaction.New("completionprobe", leaction.Action{
-			Verb: "run", Why: "run the probe",
+			Verb: "run", Summary: "run the probe", Why: "run the probe",
 			Parameters: []leaction.Parameter{
 				{Kind: leaction.KindEnum, Value: "target", Values: []string{"alpha", "beta"}, ValueHelp: map[string]string{"alpha": "the first", "beta": "the second"}, Requirement: leaction.Optional, Help: "the target"},
 				{Keyword: "dry", Kind: leaction.KindSwitch, Help: "change nothing"},
@@ -37,7 +37,8 @@ func probeArea() {
 			AnswerArgs: func(leaction.Arguments) (any, int) { return nil, 0 },
 		})
 		leroot.Register(area.Name(), leroot.GroupReport, area.Answer, registry.Meta{
-			ShortHelp: "a probe for the completion callback", Mode: "offline", Section: registry.SectionTest,
+			ShortHelp: "a probe for the completion callback", Description: "A probe area the completion callback is tested against.",
+			Mode: "offline", Section: registry.SectionTest,
 		})
 		leroot.RegisterActions(area.Name(), area.Actions)
 	})

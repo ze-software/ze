@@ -44,7 +44,11 @@ type ManifestArea struct {
 	// line's purpose tag. An area registered by a route other than Register
 	// declares none, and its tag reads ungrouped.
 	Group Group `json:"group"`
-	// Description is the one-line summary the registration carries.
+	// ShortHelp is the one-line summary the registration carries (Meta
+	// ShortHelp, at most 60 characters): the root page and the menu show it.
+	ShortHelp string `json:"short-help"`
+	// Description is the long account the registration carries (Meta
+	// Description): the area's own page and the menu, once entered, show it.
 	Description string `json:"description"`
 	// Actions is the area's whole action table, each row with its keyword
 	// grammar. An area that hand-rolls its dispatch registers no table, and the
@@ -77,7 +81,7 @@ func manifestFrom(program string, roots []registry.RootCommand) Manifest {
 		Areas:   make([]ManifestArea, 0, len(roots)),
 	}
 	for _, root := range roots {
-		area := ManifestArea{Name: root.Name, Description: root.Meta.ShortHelp}
+		area := ManifestArea{Name: root.Name, ShortHelp: root.Meta.ShortHelp, Description: root.Meta.Description}
 		if group, declared := GroupOf(root.Name); declared {
 			area.Group = group
 		}
@@ -146,7 +150,7 @@ func (m Manifest) sections() []helpfmt.HelpSection {
 			index = len(sections)
 			byNamespace[word] = index
 			sections = append(sections, helpfmt.HelpSection{
-				Title: word, Summary: leaction.FirstSentence(namespaceLine(word, m.Areas)),
+				Title: word, Summary: namespaceLine(word, m.Areas),
 			})
 		}
 		sections[index].Entries = append(sections[index].Entries, entry)
@@ -156,12 +160,12 @@ func (m Manifest) sections() []helpfmt.HelpSection {
 }
 
 // areaText is one area's line on the root page: the purpose tag the area
-// declared, then the first sentence of its summary.
+// declared, then its one-line summary.
 func areaText(area ManifestArea) string {
 	tag := ungroupedTag
 	if KnownGroup(area.Group) {
 		tag = string(area.Group)
 	}
 	var tb textbuf.Buffer
-	return tb.Byte('[').Str(tag).Str("] ").Str(leaction.FirstSentence(area.Description)).String()
+	return tb.Byte('[').Str(tag).Str("] ").Str(area.ShortHelp).String()
 }

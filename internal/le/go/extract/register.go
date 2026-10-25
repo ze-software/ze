@@ -13,8 +13,9 @@ import (
 
 func init() {
 	leroot.Register("go extract", leroot.GroupWorkflow, Answer, registry.Meta{
-		ShortHelp: "move named declarations from one Go file to another, comments and formatting intact",
-		Mode:      "offline",
+		Description: "Move named declarations from one Go file to another with their comments and formatting intact, so a file split is one mechanical step.",
+		ShortHelp:   "move Go declarations between files",
+		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers le perf under it for the same reason.
 		Section: registry.SectionTest,

@@ -12,9 +12,9 @@ import (
 	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 
-// shortHelp is what the gate judges. The help line and the action's Why both
+// areaDescription is what the gate judges. The area's long help and the action's Why both
 // read it, so the two cannot drift.
-const shortHelp = "each command is owned by exactly one plugin or component: owners are cmd/ze-free, root handlers are internal, and every central root states why it has no owner"
+const areaDescription = "each command is owned by exactly one plugin or component: owners are cmd/ze-free, root handlers are internal, and every central root states why it has no owner"
 
 // checkVerb names the gate, which is also what the bare command line runs.
 const checkVerb = "check"
@@ -22,15 +22,17 @@ const checkVerb = "check"
 // table declares the whole command surface. The one action takes no value: the
 // tree is the checkout and the rendering is a pipe operator.
 var table = leaction.New(name, leaction.Action{
-	Verb:   checkVerb,
-	Why:    shortHelp,
-	Answer: answerCheck,
+	Verb:    checkVerb,
+	Summary: "check each command has one owner outside cmd/ze",
+	Why:     areaDescription,
+	Answer:  answerCheck,
 })
 
 func init() {
 	leroot.Register(name, leroot.GroupGate, Answer, registry.Meta{
-		ShortHelp: shortHelp,
-		Mode:      "offline",
+		ShortHelp:   "check each command has exactly one owner",
+		Description: areaDescription,
+		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command.
 		Section:  registry.SectionTest,
 		SubsFunc: table.Subs,

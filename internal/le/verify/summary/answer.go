@@ -24,15 +24,16 @@ const (
 // initialization cycle.
 func area() leaction.Area {
 	return leaction.New(name, leaction.Action{
-		Verb: appendVerb,
-		Why:  "append one stage failure block to the verification failure index",
+		Verb:    appendVerb,
+		Summary: "append one stage failure to the failure index",
+		Why:     "append one stage failure block to the verification failure index",
 		Parameters: []leaction.Parameter{
 			{Keyword: failuresKeyword, Kind: leaction.KindPath, Value: "failures-log", Requirement: leaction.Required,
 				Help: "the verification failure index the block is appended to"},
 			{Keyword: stageKeyword, Kind: leaction.KindLabel, Value: "stage", Requirement: leaction.Required,
 				Help: "the name of the stage that failed"},
 			{Keyword: logKeyword, Kind: leaction.KindPath, Value: "stage-log", Requirement: leaction.Required,
-				Help: "the failed stage's own log, whose failure lines the block carries"},
+				Help: "the failed stage's own log, whose failure lines it carries"},
 		},
 		AnswerArgs: answerAppend,
 	})

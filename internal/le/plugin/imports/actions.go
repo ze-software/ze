@@ -22,15 +22,16 @@ import (
 const area = "plugin imports"
 
 var actions = leaction.New(area,
-	leaction.Action{Verb: "check", Why: "the blank imports in internal/component/plugin/all are current, so the composition" +
+	leaction.Action{Verb: "check", Summary: "check the plugin composition root is current", Why: "the blank imports in internal/component/plugin/all are current, so the composition" +
 		" root still registers every plugin, schema, RPC package and event namespace the tree" +
 		" holds. A stale one is a feature that vanishes with no build error",
 		Answer: runCheckHere},
 	leaction.Action{
-		Verb:   "write",
-		Why:    "regenerate the composition root and every feature-gated import group",
-		Writes: true,
-		Answer: runWriteHere,
+		Verb:    "write",
+		Summary: "regenerate the composition root and gated imports",
+		Why:     "regenerate the composition root and every feature-gated import group",
+		Writes:  true,
+		Answer:  runWriteHere,
 	},
 )
 

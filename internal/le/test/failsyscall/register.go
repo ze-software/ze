@@ -20,7 +20,7 @@ func init() {
 	// one errno for one syscall, then the launcher execs the daemon. A tracer
 	// charges the failing call to itself, which is what made the earlier
 	// failing-socket measurement unreadable (internal/test/failsyscall).
-	leroot.Register(name, leroot.GroupSuite, harnesstool.Answer(failsyscall.Run), harnesstool.Meta("Launch a command with one syscall failing in the kernel (seccomp SECCOMP_RET_ERRNO; Linux only)"))
+	leroot.Register(name, leroot.GroupSuite, harnesstool.Answer(failsyscall.Run), harnesstool.Meta("run a command with one syscall failing"))
 	leroot.RegisterShape(name, command.ShapeDoc)
 
 	// Every word after the name is the harness's own command line, so a

@@ -17,8 +17,9 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupWorkflow, Answer, registry.Meta{
-		ShortHelp: "bring a linked git worktree up to date with main, stashing and restoring its uncommitted work",
-		Mode:      "offline",
+		Description: "Bring a linked git worktree up to date with main by rebasing it, stashing and restoring its uncommitted work, and refusing the main working tree.",
+		ShortHelp:   "rebase a linked worktree onto main",
+		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers le perf under it for the same reason.
 		Section: registry.SectionTest,

@@ -12,8 +12,9 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupGenerate, Answer, registry.Meta{
-		ShortHelp: "the wiki page index the website references: derive it into website/data/wiki.json from a wiki checkout, or check what has gone stale in it",
-		Mode:      "offline",
+		Description: "The wiki page index the website references: derive it into website/data/wiki.json from a wiki checkout, or check what has gone stale in it.",
+		ShortHelp:   "derive or check the wiki page index",
+		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command,
 		// which is where internal/le/site/facts registers for the same reason.
 		Section: registry.SectionTest,

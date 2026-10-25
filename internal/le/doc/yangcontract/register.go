@@ -14,8 +14,9 @@ import (
 
 func init() {
 	leroot.Register(area, leroot.GroupGenerate, Answer, registry.Meta{
-		ShortHelp: "the documentation gates: the YANG command contract, the doc drift check, and the generated operator table",
-		Mode:      "offline",
+		Description: "The documentation gates: the YANG command contract, the doc drift check, and the generated operator table.",
+		ShortHelp:   "check the YANG command and doc contracts",
+		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers le perf under it for the same reason.
 		Section: registry.SectionTest,

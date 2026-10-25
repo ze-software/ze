@@ -14,9 +14,9 @@ const area = "cli dispatch"
 
 // actions is the whole command surface.
 var actions = leaction.New(area,
-	leaction.Action{Verb: "check", Why: "every command string a native Go call site sends to the daemon still resolves, so a command-tree migration cannot leave a caller sending a key that no longer exists",
+	leaction.Action{Verb: "check", Summary: "check every command a Go call site sends still routes", Why: "every command string a native Go call site sends to the daemon still resolves, so a command-tree migration cannot leave a caller sending a key that no longer exists",
 		Answer: runCheck},
-	leaction.Action{Verb: "selftest", Why: "the resolver and the emitter recogniser still tell a dead command from a live one, proved against fixtures rather than against the tree they judge",
+	leaction.Action{Verb: "selftest", Summary: "prove the dispatch resolver against its fixtures", Why: "the resolver and the emitter recogniser still tell a dead command from a live one, proved against fixtures rather than against the tree they judge",
 		Answer: runSelftest},
 )
 

@@ -29,7 +29,7 @@ var (
 // and records the arguments each run receives.
 func registerPromptProbe() {
 	promptProbeOnce.Do(func() {
-		area := leaction.New(promptProbe, leaction.Action{
+		area := leaction.New(promptProbe, leaction.Action{Summary: "run the probe over one target",
 			Verb: "run", Why: "run the probe over one target",
 			Parameters: []leaction.Parameter{
 				{Value: "target", Requirement: leaction.Required, Kind: leaction.KindPath, Help: "the target"},
@@ -41,7 +41,7 @@ func registerPromptProbe() {
 				return nil, 0
 			},
 		})
-		Register(area.Name(), GroupSuite, area.Answer, registry.Meta{
+		Register(area.Name(), GroupSuite, area.Answer, registry.Meta{Description: "A probe area for this test.",
 			ShortHelp: "an area whose action needs values",
 			Mode:      "offline", Section: registry.SectionTest,
 		})
@@ -197,7 +197,7 @@ func TestTabNamesADirectoryItCannotList(t *testing.T) {
 func TestAMenuLineForATablelessAreaIsEchoed(t *testing.T) {
 	const tableless = "prompt-tableless"
 	tablelessOnce.Do(func() {
-		Register(tableless, GroupSuite, func([]string) (any, int) { return nil, 0 }, registry.Meta{
+		Register(tableless, GroupSuite, func([]string) (any, int) { return nil, 0 }, registry.Meta{Description: "A probe area for this test.",
 			ShortHelp: "an area with no action table",
 			Mode:      "offline", Section: registry.SectionTest,
 		})

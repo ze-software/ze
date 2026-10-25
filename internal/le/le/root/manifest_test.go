@@ -23,9 +23,9 @@ func manifestProbeRoots(t *testing.T) []registry.RootCommand {
 	setGroup("manifest-probe-alpha", GroupWorkflow)
 	setGroup("manifest-probe-gate", GroupGate)
 	return []registry.RootCommand{
-		{Name: "manifest-probe-alpha", Meta: registry.Meta{ShortHelp: "the first probe"}},
-		{Name: "manifest-probe-gate", Meta: registry.Meta{ShortHelp: "the second probe"}},
-		{Name: "manifest-probe-loose", Meta: registry.Meta{ShortHelp: "a probe that named no group"}},
+		{Name: "manifest-probe-alpha", Meta: registry.Meta{Description: "A probe area for this test.", ShortHelp: "the first probe"}},
+		{Name: "manifest-probe-gate", Meta: registry.Meta{Description: "A probe area for this test.", ShortHelp: "the second probe"}},
+		{Name: "manifest-probe-loose", Meta: registry.Meta{Description: "A probe area for this test.", ShortHelp: "a probe that named no group"}},
 	}
 }
 
@@ -59,7 +59,7 @@ func TestManifestTextIsTheRootHelpAReaderSeesToday(t *testing.T) {
 }
 
 func TestManifestNamesEveryRegisteredAreaAndItsGroup(t *testing.T) {
-	area := leaction.New("manifest-area-probe", leaction.Action{
+	area := leaction.New("manifest-area-probe", leaction.Action{Summary: "run the probe over one scope",
 		Verb: "run", Why: "run the probe over one scope",
 		Parameters: []leaction.Parameter{
 			{Keyword: "scope", Value: "packages", Requirement: leaction.Required, Kind: leaction.KindString, Help: "h"},
@@ -67,7 +67,7 @@ func TestManifestNamesEveryRegisteredAreaAndItsGroup(t *testing.T) {
 		},
 		AnswerArgs: func(leaction.Arguments) (any, int) { return nil, 0 },
 	})
-	Register(area.Name(), GroupSuite, area.Answer, registry.Meta{
+	Register(area.Name(), GroupSuite, area.Answer, registry.Meta{Description: "A probe area for this test.",
 		ShortHelp: "an area that declares its actions",
 		Mode:      "offline", Section: registry.SectionTest,
 	})
@@ -94,7 +94,10 @@ func TestManifestNamesEveryRegisteredAreaAndItsGroup(t *testing.T) {
 	if found.Group != GroupSuite {
 		t.Errorf("the area's group is %q, want %q", found.Group, GroupSuite)
 	}
-	if found.Description != "an area that declares its actions" {
+	if found.ShortHelp != "an area that declares its actions" {
+		t.Errorf("the area's short help is %q", found.ShortHelp)
+	}
+	if found.Description != "A probe area for this test." {
 		t.Errorf("the area's description is %q", found.Description)
 	}
 	if len(found.Actions) != 1 || found.Actions[0].Verb != "run" {

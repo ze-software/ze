@@ -157,8 +157,9 @@ const reportVerb = "report"
 // number is refused: `ai/rules/cli.md` puts a keyword before every value, and a
 // tool that guesses at a lone positional is where that rule stops holding.
 var actions = leaction.New(name, leaction.Action{
-	Verb: reportVerb,
-	Why:  "how wide the uncommitted tree is, grouped by area. Advisory unless max-areas names a ceiling",
+	Verb:    reportVerb,
+	Summary: "report how wide the uncommitted tree is",
+	Why:     "how wide the uncommitted tree is, grouped by area. Advisory unless max-areas names a ceiling",
 	Parameters: []leaction.Parameter{
 		{Keyword: ceilingKeyword, Kind: leaction.KindUint, Value: "n", Requirement: leaction.Optional,
 			Help: "the most areas the tree may span; more answers 1"},

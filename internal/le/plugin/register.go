@@ -12,5 +12,7 @@ import (
 )
 
 func init() {
-	leroot.RegisterNamespace("plugin", "plugin gates: the process boundary, build-gate coupling, declarations and the generated plugin tables")
+	leroot.RegisterNamespace("plugin",
+		"plugin gates: process boundary, declarations, tables",
+		"Plugin gates: the process boundary, build-gate coupling, declarations and the generated plugin tables.")
 }

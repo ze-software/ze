@@ -15,7 +15,7 @@ import (
 const area = "plugin coupling"
 
 var actions = leaction.New(area,
-	leaction.Action{Verb: "check", Why: "no plugin consumes what only a plugin under another build gate produces" +
+	leaction.Action{Verb: "check", Summary: "refuse an undeclared edge between gated plugins", Why: "no plugin consumes what only a plugin under another build gate produces" +
 		" without a declared edge between them. A build without the producer otherwise runs the" +
 		" consumer, which receives nothing and says nothing",
 		Answer: runCheckHere},

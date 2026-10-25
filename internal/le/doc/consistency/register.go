@@ -15,9 +15,9 @@ import (
 // name is the word this command is typed as.
 const name = "doc consistency"
 
-// shortHelp is what the gate judges. The help line and the action's Why both
+// areaDescription is what the gate judges. The area's long help and the action's Why both
 // read it, so the two cannot drift.
-const shortHelp = "where the code and the documentation disagree: design refs, cross-refs, JSON tags, file sizes"
+const areaDescription = "where the code and the documentation disagree: design refs, cross-refs, JSON tags, file sizes"
 
 // checkVerb names the gate, which is also what the bare command line runs.
 const checkVerb = "check"
@@ -25,15 +25,17 @@ const checkVerb = "check"
 // table declares the whole command surface. The one action takes no value: the
 // tree is the checkout and the rendering is a pipe operator.
 var table = leaction.New(name, leaction.Action{
-	Verb:   checkVerb,
-	Why:    shortHelp,
-	Answer: answerCheck,
+	Verb:    checkVerb,
+	Summary: "check documentation agrees with the code it names",
+	Why:     areaDescription,
+	Answer:  answerCheck,
 })
 
 func init() {
 	leroot.Register(name, leroot.GroupGate, Answer, registry.Meta{
-		ShortHelp: shortHelp,
-		Mode:      "offline",
+		ShortHelp:   "report where code and documentation disagree",
+		Description: areaDescription,
+		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers le perf under it for the same reason.
 		Section:  registry.SectionTest,

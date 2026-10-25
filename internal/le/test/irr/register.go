@@ -16,7 +16,7 @@ import (
 const name = "test irr"
 
 func init() {
-	leroot.Register(name, leroot.GroupSuite, harnesstool.Answer(irr.Run), harnesstool.Meta("Deterministic IRR whois mock server (AS-SET expansion, prefix lookup)"))
+	leroot.Register(name, leroot.GroupSuite, harnesstool.Answer(irr.Run), harnesstool.Meta("serve a deterministic IRR whois mock"))
 	leroot.RegisterShape(name, command.ShapeDoc)
 
 	// Every word after the name is the harness's own command line, so a
