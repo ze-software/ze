@@ -1310,11 +1310,6 @@ Use with: ze cli -c "<dispatch-key>"
   Optional services started alongside the BGP daemon.
   Enable via config block or CLI flag. Web UI requires ze init (blob storage).
 
-  api-server: API engine settings (shared parent; merged across modules)
-    Config:    environment { api-server { } }
-    rest                 REST and HTTP transport for the API server.
-    Env vars:  ze.api-server.grpc.enabled, ze.api-server.grpc.listen, ze.api-server.rest.enabled, ze.api-server.rest.listen, ze.api-server.token
-
   api-server: API engine settings (shared parent for the REST/gRPC transports)
     Config:    environment { api-server { } }
     token                Bearer token for API authentication.
@@ -1324,6 +1319,11 @@ Use with: ze cli -c "<dispatch-key>"
     Config:    environment { api-server { } }
     grpc                 gRPC API transport. Authenticated non-loopback listeners
 require tls-cert and tls-key.
+    Env vars:  ze.api-server.grpc.enabled, ze.api-server.grpc.listen, ze.api-server.rest.enabled, ze.api-server.rest.listen, ze.api-server.token
+
+  api-server: API engine settings (shared parent; merged across modules)
+    Config:    environment { api-server { } }
+    rest                 REST and HTTP transport for the API server.
     Env vars:  ze.api-server.grpc.enabled, ze.api-server.grpc.listen, ze.api-server.rest.enabled, ze.api-server.rest.listen, ze.api-server.token
 
   bgp: BGP protocol environment settings, applied before any peer-level config.
@@ -1338,7 +1338,6 @@ require tls-cert and tls-key.
     max-sessions         Maximum concurrent BMP sessions (default: 100)
     route-action         Action for received BMP Route Monitoring messages (default: monitor)
     server               BMP receiver listen endpoints
-    Env vars:  ze.gnmi.enabled, ze.gnmi.listen, ze.gnmi.tls.cert, ze.gnmi.tls.key, ze.gnmi.token
 
   chaos: Chaos fault injection settings
     Config:    environment { chaos { rate 0.1; } }
@@ -1417,7 +1416,6 @@ require tls-cert and tls-key.
     persist-path         Path of the file that holds the time across a restart. (default: /perm/ze/timefile)
     server               The NTP servers Ze queries.
     slew-threshold       Maximum offset in milliseconds for a gradual clock slew. (default: 128)
-    Env vars:  ze.metrics.interval
 
   reactor: BGP reactor engine tuning.
     Config:    environment { reactor { cache-max 1000000; cache-ttl 60; forward-batch-limit 1024; forward-pool-headroom 0; forward-pool-max-bytes 0; forward-queue-size 256; forward-teardown-grace 5s; read-buffer-size 65536; speed 1.0; update-groups true; write-buffer-size 16384; } }

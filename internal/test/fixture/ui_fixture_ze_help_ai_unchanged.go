@@ -11,7 +11,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"slices"
 	"strings"
 )
 
@@ -19,26 +18,21 @@ import (
 // own help ai, relative to the repository root.
 const zeHelpAiGoldenDir = "internal/test/fixture/testdata"
 
-// zeHelpAiEnvVarsPrefix opens the services' env-var lines, which the
-// line-sorted comparison leaves out (zeHelpAiSortedLines).
-const zeHelpAiEnvVarsPrefix = "    Env vars:  "
-
 // zeHelpAiAll is the ze help ai section that prints every page, and the
 // name of its golden.
 const zeHelpAiAll = "all"
 
-// zeHelpAiForm is one output form of ze help ai and how it is compared.
+// zeHelpAiForm is one output form of ze help ai.
 type zeHelpAiForm struct {
-	name      string   // the golden is ze-help-ai-<name>.golden
-	args      []string // after "help ai"
-	byteExact bool     // false: compared as sorted lines, without the env-var lines
+	name string   // the golden is ze-help-ai-<name>.golden
+	args []string // after "help ai"
 }
 
-// zeHelpAiForms are the three forms AC-41 pins. The summary is compared byte
-// for byte. `all` and `--json` list RPCs in map-iteration order, so no byte
-// golden of them can hold, and they are compared as their sorted lines.
+// zeHelpAiForms are the three forms AC-41 pins, each compared byte for byte:
+// the reference orders its RPCs, notifications and services itself, so two
+// runs of one binary print the same bytes.
 var zeHelpAiForms = []zeHelpAiForm{
-	{name: "summary", byteExact: true},
+	{name: "summary"},
 	{name: zeHelpAiAll, args: []string{zeHelpAiAll}},
 	{name: renderJSON, args: []string{"--json"}},
 }
@@ -84,18 +78,10 @@ func zeHelpAiCompare(ctx context.Context, root, zePath string, form zeHelpAiForm
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("ze help ai %s: %w, stderr %q", strings.Join(form.args, " "), err, stderr.String())
 	}
-	if form.byteExact {
-		if !bytes.Equal(stdout.Bytes(), want) {
-			line, got, golden := zeHelpAiFirstDifference(stdout.String(), string(want))
-			return fmt.Errorf("ze help ai differs from %s byte for byte, first at line %d: now %q, golden %q",
-				goldenPath, line, got, golden)
-		}
-		return nil
-	}
-	gotLines, wantLines := zeHelpAiSortedLines(stdout.String()), zeHelpAiSortedLines(string(want))
-	if !slices.Equal(gotLines, wantLines) {
-		return fmt.Errorf("ze help ai %s differs from %s beyond line order: only now %q, only in the golden %q",
-			form.name, goldenPath, zeHelpAiMissing(wantLines, gotLines), zeHelpAiMissing(gotLines, wantLines))
+	if !bytes.Equal(stdout.Bytes(), want) {
+		line, got, golden := zeHelpAiFirstDifference(stdout.String(), string(want))
+		return fmt.Errorf("ze help ai %s differs from %s byte for byte, first at line %d: now %q, golden %q",
+			strings.Join(form.args, " "), goldenPath, line, got, golden)
 	}
 	return nil
 }
@@ -118,28 +104,4 @@ func zeHelpAiFirstDifference(got, want string) (int, string, string) {
 		}
 	}
 	return 0, "", ""
-}
-
-// zeHelpAiMissing answers up to five lines of have that the sorted want does
-// not hold.
-func zeHelpAiMissing(want, have []string) []string {
-	var out []string
-	for _, line := range have {
-		if _, found := slices.BinarySearch(want, line); !found && len(out) < 5 {
-			out = append(out, line)
-		}
-	}
-	return out
-}
-
-// zeHelpAiSortedLines answers text's lines, sorted, without the services'
-// env-var lines: a service whose leaves tie two env prefixes is listed with
-// either one, by map order (plan/journal/reference-output-depends-on-map-order.md).
-// The exclusion goes when that row is fixed.
-func zeHelpAiSortedLines(text string) []string {
-	lines := slices.DeleteFunc(strings.Split(text, "\n"), func(line string) bool {
-		return strings.HasPrefix(line, zeHelpAiEnvVarsPrefix)
-	})
-	slices.Sort(lines)
-	return lines
 }

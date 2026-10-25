@@ -14,8 +14,8 @@ package aihelp
 
 import (
 	"fmt"
+	"maps"
 	"slices"
-	"sort"
 	"strings"
 
 	gyang "github.com/openconfig/goyang/pkg/yang"
@@ -258,50 +258,18 @@ func Services() ([]Service, error) {
 		return nil, err
 	}
 
-	// Build env var groups keyed by second segment: "ze.web.listen" -> "web".
-	envByPrefix := make(map[string][]string)
+	envKeys := make([]string, 0, len(env.Entries()))
 	for _, e := range env.Entries() {
-		parts := strings.SplitN(e.Key, ".", 3) //nolint:mnd // ze.<group>.<leaf>
-		if len(parts) >= 2 {
-			envByPrefix[parts[1]] = append(envByPrefix[parts[1]], e.Key)
-		}
-	}
-
-	// Map YANG service container names to env prefixes. Most match directly
-	// (web->web, mcp->mcp, ssh->ssh); abbreviations are found by checking leaf
-	// names against env var leaf names.
-	matchEnvVars := func(svcName string, leafNames []string) []string {
-		if vars, ok := envByPrefix[svcName]; ok {
-			return vars
-		}
-		leafSet := make(map[string]bool, len(leafNames))
-		for _, n := range leafNames {
-			leafSet[n] = true
-		}
-		var bestPrefix string
-		var bestCount int
-		for prefix, vars := range envByPrefix {
-			count := 0
-			for _, v := range vars {
-				parts := strings.SplitN(v, ".", 3)        //nolint:mnd // ze.<group>.<leaf>
-				if len(parts) == 3 && leafSet[parts[2]] { //nolint:mnd // ze.<group>.<leaf>
-					count++
-				}
-			}
-			if count > bestCount {
-				bestCount = count
-				bestPrefix = prefix
-			}
-		}
-		if bestCount > 0 {
-			return envByPrefix[bestPrefix]
-		}
-		return nil
+		envKeys = append(envKeys, e.Key)
 	}
 
 	var services []Service
 
-	for _, mod := range yang.Modules() {
+	// Modules and containers are walked in name order, so services that share
+	// a name (api-server merges across modules) keep one order on every run.
+	modules := slices.Clone(yang.Modules()) // the registry's own slice: never sort it in place
+	slices.SortFunc(modules, func(a, b yang.Module) int { return strings.Compare(a.Name, b.Name) })
+	for _, mod := range modules {
 		if !strings.HasSuffix(mod.Name, "-conf.yang") {
 			continue
 		}
@@ -316,7 +284,8 @@ func Services() ([]Service, error) {
 			continue
 		}
 
-		for svcName, svcEntry := range envEntry.Dir {
+		for _, svcName := range slices.Sorted(maps.Keys(envEntry.Dir)) {
+			svcEntry := envEntry.Dir[svcName]
 			if svcEntry.Kind != gyang.DirectoryEntry {
 				continue
 			}
@@ -347,18 +316,35 @@ func Services() ([]Service, error) {
 				svc.Leaves = append(svc.Leaves, leaf)
 			}
 
-			svc.EnvVars = matchEnvVars(svcName, leafNames)
-			slices.Sort(svc.EnvVars)
+			svc.EnvVars = serviceEnvVars(svcName, envKeys)
 
 			services = append(services, svc)
 		}
 	}
 
-	sort.Slice(services, func(i, j int) bool {
-		return services[i].Name < services[j].Name
-	})
+	slices.SortStableFunc(services, func(a, b Service) int { return strings.Compare(a.Name, b.Name) })
 
 	return services, nil
+}
+
+// serviceEnvVars returns, sorted, the env var keys in one service's own group:
+// "ze.web.listen" is in group "web", and "ze.log" in group "log". A service
+// with no group of its own has none. Matching by leaf name instead (enabled,
+// interval) attributed another group's keys to it: bmp listed gnmi's and ntp
+// listed ze.metrics.interval, and a tie between groups fell to map order.
+func serviceEnvVars(service string, keys []string) []string {
+	var vars []string
+	for _, key := range keys {
+		parts := strings.SplitN(key, ".", 3) //nolint:mnd // ze.<group>.<leaf>
+		if len(parts) < 2 {                  //nolint:mnd // ze.<group>
+			continue
+		}
+		if parts[1] == service {
+			vars = append(vars, key)
+		}
+	}
+	slices.Sort(vars)
+	return vars
 }
 
 // Build assembles the full machine-readable reference from the live registries
@@ -406,6 +392,12 @@ func Build() (Reference, error) {
 		}
 		ref.RPCs = append(ref.RPCs, RPC{WireMethod: brpc.WireMethod})
 	}
+	// The schema registry holds RPCs and notifications in maps, so both are
+	// ordered here: two runs of the same binary print the same reference.
+	slices.SortFunc(ref.RPCs, func(a, b RPC) int { return strings.Compare(a.WireMethod, b.WireMethod) })
+	slices.SortFunc(ref.Notifications, func(a, b Notification) int {
+		return strings.Compare(a.WireMethod, b.WireMethod)
+	})
 
 	schema, err := yang.DefaultLoader()
 	if err != nil {
