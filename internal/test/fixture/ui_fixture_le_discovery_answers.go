@@ -628,11 +628,17 @@ func leDiscoveryWiringTree(ctx context.Context, root string) ([]string, error) {
 		}
 		return nil
 	}
+	// The baseline is published the way a clone lays it out: the remote
+	// branch, and refs/remotes/origin/HEAD naming it. The change set anchors
+	// on @{u} or on origin/HEAD (repochanged.ResolveAnchor), never on
+	// origin/main by name, so without origin/HEAD le refuses the checkout.
+	const originMain = "refs/remotes/origin/main"
 	for _, args := range [][]string{
 		{argInit, "-q"},
 		{argAdd, "-A"},
 		{"-c", "core.hooksPath=" + os.DevNull, "-c", gitCommitNoSign, argCommit, "-qm", "baseline"},
-		{"update-ref", "refs/remotes/origin/main", "HEAD"},
+		{"update-ref", originMain, "HEAD"},
+		{"symbolic-ref", "refs/remotes/origin/HEAD", originMain},
 	} {
 		if err := git(args...); err != nil {
 			return nil, err

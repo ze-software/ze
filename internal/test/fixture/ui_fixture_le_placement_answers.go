@@ -142,16 +142,19 @@ func lePlacementAnswers(ctx context.Context) error {
 		return err
 	}
 
-	// Refusals retain the boundary-specific status assigned by the command
-	// engine and identify the reason on stderr.
+	// Refusals retain the status the command engine assigns and identify the
+	// reason on stderr. A single-gate area runs its gate bare and publishes it
+	// as the `check` action (D-P3-bare), so a stray word reaches the action
+	// table, whose parser refuses it with the usage code 2 and names the area
+	// (D-P3-stray, spec-le-cli-usability).
 	refused, err := command(areaDigest, "nope")
 	if err != nil {
 		return err
 	}
-	if refused.code != 1 {
-		return fmt.Errorf("FAIL: a value after a single-gate command exited %d, want 1", refused.code)
+	if refused.code != 2 {
+		return fmt.Errorf("FAIL: a stray word after a single-gate command exited %d, want 2", refused.code)
 	}
-	if !strings.Contains(refused.stderr, "takes no arguments") {
+	if !strings.Contains(refused.stderr, "no such action in "+areaDigest) {
 		return fmt.Errorf("FAIL: the refusal does not say why: %s", refused.stderr)
 	}
 
