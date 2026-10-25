@@ -29,7 +29,8 @@ install/read-back therefore does not establish an operator-usable VPP tunnel.
 
 ## Flow
 1. **Plugin registration.** `init()` registers the `"ike"` plugin with
-   `ConfigRoots: ["vpn", "pki"]` and `RunEngine: runEngine` (`engine/register.go`,
+   `ConfigRoots: ["vpn"]`, `ConfigReads: ["pki"]` (a PKI-only config does not
+   auto-load it) and `RunEngine: runEngine` (`engine/register.go`,
    `engine/register.go`); it also registers the IPsec health check and the `"ipsec"`
    redistribute source (`engine/register.go`, `engine/register.go`).
 2. **Engine bring-up.** `runEngine` (`engine/register.go`) loads the XFRM dataplane

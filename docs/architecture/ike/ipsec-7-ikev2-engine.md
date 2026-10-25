@@ -52,14 +52,20 @@ and `AuthUnknown` still returns the unsupported-mode error.
 <!-- source: internal/component/ike/ipsec/spd_policy.go -- SPDDirection.String, parseSPDPolicy -->
 
 **The engine registers as a named plugin, it is not wired directly.** It
-registers as `ike` over the SDK protocol and claims the `vpn` and `pki` config
-roots, so it receives config through the standard plugin pipeline instead of a
-bespoke hook. Config-path auto-loading runs it as an internal plugin goroutine
-in the daemon, with a `DirectBridge` after the SDK handshake. The command
+registers as `ike` over the SDK protocol. It owns the `vpn` config root and
+reads `pki` (`ConfigReads`) for the certificates and keys a peer cites, so it
+receives both through the standard plugin pipeline instead of a bespoke hook.
+Config-path auto-loading runs it as an internal plugin goroutine in the daemon,
+with a `DirectBridge` after the SDK handshake, when the config holds `vpn`. A
+config with `pki` and no `vpn` does not start it: there is no IPsec to protect,
+and an engine started anyway would build an SPD (the catch-all entry) on a box
+that configured no IPsec. The command
 handlers read the same `ActiveTable`, peer map and dataplane backend that this
 engine updates. The XFRM interface id comes from peer config.
 
 <!-- source: internal/component/plugin/server/startup_autoload.go -- getConfigPathPlugins -->
+<!-- source: internal/component/plugin/registry/registry.go -- PluginsForConfigPaths -->
+<!-- source: internal/component/ike/engine/register.go -- init -->
 <!-- source: internal/component/plugin/process/process.go -- startInternal -->
 
 **An incoming packet reaches the IKE SA its full SPI pair names, and no other.**

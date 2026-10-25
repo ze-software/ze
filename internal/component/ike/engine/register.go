@@ -286,7 +286,13 @@ func init() {
 	reg := registry.Registration{
 		Name:        "ike",
 		Description: "IKEv2 engine for native IPsec VPN",
-		ConfigRoots: []string{configRootVPN, configRootPKI},
+		ConfigRoots: []string{configRootVPN},
+		// The engine reads `pki` for the certificates and keys a peer cites, and does not
+		// own it. A read root never auto-loads the plugin (registry.PluginsForConfigPaths):
+		// a config with PKI and no `vpn` has nothing for IPsec to protect, and an engine
+		// started for it would build an SPD (applyConfig) on a box that configured no
+		// IPsec, and refuse the daemon's start wherever the catch-all cannot be installed.
+		ConfigReads: []string{configRootPKI},
 		RunEngine:   runEngine,
 		// The SAME chain the runtime OnConfigVerify below runs, reached OFFLINE by
 		// ze config validate and by the web and hub commit paths
@@ -460,9 +466,9 @@ func runEngine(conn net.Conn) int {
 	// every peer on the box. That cannot happen while the runtime root set is
 	// WantsConfig ["vpn"] alone, because the plugin is then a participant only when
 	// `vpn` has diffs, and a removed root still arrives as `vpn` carrying "{}".
-	// ConfigRoots ["vpn","pki"] in the registry above is WIDER on purpose: it feeds
-	// the offline verifier, which never stages anything. Making the two agree would
-	// arm both hazards at once.
+	// The registry above is WIDER on purpose: ConfigRoots ["vpn"] plus ConfigReads
+	// ["pki"] feed the offline verifier, which never stages anything. Making the two
+	// agree would arm both hazards at once.
 	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
 		if err := validateIPsecSections(sections); err != nil {
 			return fmt.Errorf("ike config: %w", err)
