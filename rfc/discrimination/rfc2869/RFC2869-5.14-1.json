@@ -7,7 +7,7 @@
     "claim-sha": "6042b18065ec5b0d",
     "route": "revert",
     "producer": "internal/component/radius/packet.go::verifyResponseMessageAuthenticator",
-    "producer-sha": "ae7274a02dfc345d",
+    "producer-sha": "3bfc7b7ea875460e",
     "break": "body of verifyResponseMessageAuthenticator replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   },
   {
@@ -18,7 +18,7 @@
     "claim-sha": "aa6fd93d1a581a13",
     "route": "revert",
     "producer": "internal/component/radius/packet.go::verifyResponseMessageAuthenticator",
-    "producer-sha": "ae7274a02dfc345d",
+    "producer-sha": "3bfc7b7ea875460e",
     "break": "body of verifyResponseMessageAuthenticator replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   },
   {
@@ -29,7 +29,7 @@
     "claim-sha": "0d09b43d92d08cf3",
     "route": "revert",
     "producer": "internal/component/radius/packet.go::verifyResponseMessageAuthenticator",
-    "producer-sha": "ae7274a02dfc345d",
+    "producer-sha": "3bfc7b7ea875460e",
     "break": "body of verifyResponseMessageAuthenticator replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   },
   {
@@ -40,7 +40,7 @@
     "claim-sha": "65be99c614ffc587",
     "route": "revert",
     "producer": "internal/component/radius/packet.go::verifyResponseMessageAuthenticator",
-    "producer-sha": "ae7274a02dfc345d",
+    "producer-sha": "3bfc7b7ea875460e",
     "break": "body of verifyResponseMessageAuthenticator replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   }
 ]

@@ -14,22 +14,22 @@
     "rid": "RFC3031-3.14-1",
     "polarity": "positive",
     "unit": "internal/plugins/ldp/rfc3031_label_test.go::TestRFC3031LocalFECsGetDistinctLabels",
-    "unit-sha": "39da4f2388be0d51",
+    "unit-sha": "8052800b9b817f9e",
     "claim-sha": "62d35fd80926864a",
     "route": "mutant",
     "producer": "internal/plugins/ldp/lib.go::allocateLabelLocked",
-    "producer-sha": "231360435e40e6b1",
-    "break": "line 64: \"l.nextLabel > MaxLabel\" -> \"true\""
+    "producer-sha": "7b3749b76ce03026",
+    "break": "line 70: \"l.nextLabel \u003e MaxLabel\" -\u003e \"true\""
   },
   {
     "rid": "RFC3031-3.14-1",
     "polarity": "negative",
     "unit": "internal/plugins/ldp/rfc3031_label_test.go::TestRFC3031WrappedAllocatorNeverReissuesALabel",
-    "unit-sha": "f5808823f19f7d21",
+    "unit-sha": "e8a5b15d6bf9a3b9",
     "claim-sha": "43d27e0487945630",
     "route": "mutant",
     "producer": "internal/plugins/ldp/lib.go::allocateLabelLocked",
-    "producer-sha": "231360435e40e6b1",
-    "break": "line 67: \"!l.usedLabels[label]\" -> \"true\""
+    "producer-sha": "7b3749b76ce03026",
+    "break": "line 73: \"!l.usedLabels[label]\" -\u003e \"true\""
   }
 ]

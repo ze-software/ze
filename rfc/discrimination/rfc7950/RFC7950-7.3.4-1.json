@@ -7,7 +7,7 @@
     "claim-sha": "323098f54add3a43",
     "route": "revert",
     "producer": "internal/component/config/yang_schema.go::yangToLeaf",
-    "producer-sha": "c3c56abf7e9ea816",
+    "producer-sha": "5bcea484d06a8f15",
     "break": "body of yangToLeaf replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   },
   {
