@@ -4,6 +4,55 @@ Spec: `plan/immediate/spec-bgp-rs-replacement-on-withdrawal.md` (in-progress,
 Handoff `verify`). Earlier state: `plan/handover/03-session-2026-10-18-linux-continue.md`,
 sections "Item 8 continuation" and "RS replacement Phase 3 package (b)/(c)".
 
+## STATE 2026-10-25: reactor green, most of 3a landed, the rest listed here
+
+The spec now lives at `plan/release/fixes/spec-bgp-rs-replacement-on-withdrawal.md`.
+Every reactor red the 3a draft left is fixed. Landed, local and not yet pushed:
+`677b0a2b4f` (recovery writes packed into shared UPDATEs, tests rewritten to Q-3,
+reviewed), `df98369ed9` (initial-source-message chain, the read waits on a full
+pool instead of ending the session, fixture frame cap, AC-6, AC-18, RFC 7947
+test; reviewed, no blockers). The wide reactor `-race` set passes (299/299).
+
+Decided on 2026-10-25, do not reopen:
+- Recovery writes are packed (Thomas), never a wider capture.
+- A read pool at its budget makes the read wait, unbounded and silent, as FRR's
+  `bgp_process_reads` does. The hold timer still expires under RFC 4271 Section
+  8.2.2 Event 10: Thomas's 2026-08-03 ruling in
+  `docs/architecture/congestion-industry.md` ("Ze does not do this, by
+  decision") rules out BIRD's hold-timer deferral.
+
+Still owed in Phase 3a:
+- Sub-cases of `TestAdjOutAnnouncementOwedWhenEntryExists`: initial replay over
+  a contested entry, and over a tombstone with no entry; an initial-replay
+  withdrawal is refused (writer `if withdraw { return false, nil }` in `allow`'s
+  `adjOutInitial` case); an ADD-PATH destination is written; staged once when
+  `writeUpdateBody` filters twice.
+- The 11 step-3a TDD rows with no test (spec around lines 535-555 has each
+  contract): `TestOwedKeyCurrentAnnouncerNotExcluded`,
+  `TestOwedKeyAnnounceMoverWritesAndReowes`, `TestRSAnnouncementElectsOnCachedRail`,
+  `TestRSAnnouncementElectsOnFastPath`, `TestRSAnnouncementFirstArrivalConverges`,
+  `TestRSAnnouncementAddPathClientGetsEveryPath`, `TestRSPeerUpReplayElectsBest`,
+  `TestRSReconnectRibOutReplayElects`, `TestAdjOutContestedBitAndTombstone`,
+  `TestOwedKeyAnnouncementWithdrawFraming`, `TestOwnerWithdrawalOwedWhileCandidateInFlight`.
+- The RFC7947-x-5 record breaks `oweAnnouncement` with a panic, which fails the
+  test before any decision. Re-take it on the discriminating break
+  (`oweAnnouncement` answers false) through the mutant route: run gomu over
+  `internal/component/bgp/reactor/session_ownership.go` (`go run
+  github.com/sivchari/gomu/cmd/gomu run <file> --output json --incremental=false
+  --fail-on-gate=false`, under `./le job run`, long: the reactor suite runs per
+  mutant), then `./le rfc discriminate id RFC7947-x-5 report <path>` and
+  `./le rfc discriminate-record ... route mutant report <path> mutant <file:L:C#n>`.
+- Re-read the ~70 interop, perf and stress configs that load bgp-rs or bgp-rr
+  (the `.ci` scan found no forward-all expectation).
+- 3 needs-linux functional tests not run on darwin:
+  `adj-rib-in-replay-rfc2545-next-hop`, `linklocal-only-multihop-withdraw`,
+  `rfc2545-joint-subnet`.
+- Owned journal rows open in the spec: recovery builds each owed key's
+  replacement alone (`bound-too-small-for-its-own-burst`, 2026-10-25).
+
+Then Phases 4, 5 and 6, and the 2b second half once D1 of
+`spec-bgp-graceful-restart-rfc-defects.md` lands, in the spec's order.
+
 ## STATE 2026-10-22, 3a finishing agent: stopped on a full disk, nothing changed
 
 - Stopped at once: the disk fell to 257 MB free (the stop line is 1.5 GB)
