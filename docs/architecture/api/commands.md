@@ -1969,6 +1969,8 @@ An RPC's pair reaches an agent through the machine-readable reference.
 `RegisteredRPC.Description`. `aihelp.Build` then publishes them under `short-help`
 and `description`, the two keys `ze help command --json` uses for a command.
 `ze help ai --json` and the MCP `ze_reference` tool read that one projection.
+Build sorts the RPCs and the notifications by wire method, so the reference is
+the same bytes on every run rather than the schema registry's map order.
 The `show schema methods` and `ze schema methods` tables print one line for each
 RPC. Both read the summary alone, as every other one-line surface does.
 
@@ -2062,6 +2064,7 @@ name alone. The selected candidate's summary is on message line 2, whole
 <!-- source: internal/component/command/local.go -- ListLocal -->
 <!-- source: cmd/ze/command_help_page.go -- commandHelpPage -->
 <!-- source: internal/plugins/completion/words.go -- writeCompletionRecord -->
+<!-- source: internal/plugins/completion/script/script.go -- WriteRecord -->
 <!-- source: internal/component/cli/model_render.go -- (Model).renderDropdownBox, (Model).warningText -->
 <!-- source: internal/component/web/handler_admin.go -- buildAdminFragmentData, CommandFormData -->
 <!-- source: internal/component/web/cli.go -- HandleCLICompleteWithCommandCompleter -->

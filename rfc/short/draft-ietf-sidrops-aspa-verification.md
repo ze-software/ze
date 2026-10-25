@@ -24,7 +24,7 @@
 cached in `rfc/drafts/draft-ietf-sidrops-aspa-verification.txt`.
 The associated `rfc/extraction/draft-ietf-sidrops-aspa-verification.json` still
 records the earlier source walk. The discrimination records in
-`rfc/discrimination/draft-ietf-sidrops-aspa-verification.json` require separate
+`rfc/discrimination/draft-ietf-sidrops-aspa-verification/` require separate
 native observation against the current producers and tags. Updated citations
 and preserved test assertions do not establish a new execution result.
 

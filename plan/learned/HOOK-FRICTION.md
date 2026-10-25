@@ -838,7 +838,7 @@ package-qualifier rename in the tagged files triggered it.
 **Workaround used:** re-read both halves of the tagged test, confirm it still
 fails if the implementation stops complying (the negative feeds
 `message.SynthesizeWithdraw` of a malformed-ORIGIN re-announce and asserts
-`ribIn[peer].Len()==0`), then re-stamp `rfc/audit/rfc7606.json` with the new file
+`ribIn[peer].Len()==0`), then re-stamp the RFC 7606 verdicts (now `rfc/audit/rfc7606/`) with the new file
 sha, verdict unchanged.
 
 **Proposed fix:** keep the coarse hash, improve the message. When

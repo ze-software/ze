@@ -195,7 +195,7 @@ a test that no longer enforces its requirement.
 | `stale-unit` | the tagged unit itself, or a cited producer in a `code` map | `/ze-rfc-audit <rfc>` — read it again |
 | `stale-requirement` | the checklist line's own text | `/ze-rfc-audit <rfc>` — every judgement under it is void |
 
-`shifted` exists because six of the sixteen commits that have touched `rfc/audit/rfc7606.json`
+`shifted` exists because six of the sixteen commits that have touched the RFC 7606 verdicts (then one `rfc7606.json`, now `rfc/audit/rfc7606/`)
 were hand re-stamps in which no verdict changed. Each one cost a human a mechanical proof and a
 written note. And each one taught the reflex that re-stamping is what you do when this gate goes
 red. That is the failure mode at fleet scale, so the class is now automated away.

@@ -83,7 +83,7 @@ the tree.
 
 ## Why the key is a name and a behavior hash
 
-`rfc/audit/rfc7606.json` records the cost of the alternative. It hashed the
+The RFC 7606 verdict file of that time (now `rfc/audit/rfc7606/`) records the cost of the alternative. It hashed the
 enclosing FILE, so a 9-line inserted header shifted every key and two whole
 paragraphs of that artifact exist to describe the mechanical re-stamping.
 
