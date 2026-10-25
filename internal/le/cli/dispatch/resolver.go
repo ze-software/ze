@@ -214,10 +214,18 @@ func pluginCommandDecls(tree string) (names, unreadable []string, err error) {
 	// unreadable and fail the gate on a perfectly good pattern. Collect every
 	// package-level string constant first, keyed by package directory, and
 	// resolve identifier values against it.
-	constsByDir, err := stringConstsByDir(tree, fset)
+	constsByDir, packageByDir, err := stringConstsByDir(tree, fset)
 	if err != nil {
 		return nil, nil, err
 	}
+	// A shared name lives in the package both sides import
+	// (`{Name: ribevents.ReplayRoutesCommand}`), so a qualified constant
+	// resolves through the file's imports into that package's constants.
+	module, err := treeModulePath(tree)
+	if err != nil {
+		return nil, nil, err
+	}
+	qualified := qualifiedConsts{tree: tree, module: module, consts: constsByDir, packages: packageByDir}
 
 	for _, root := range declRoots {
 		walkErr := filepath.WalkDir(filepath.Join(tree, root), func(path string, entry os.DirEntry, err error) error {
@@ -242,7 +250,7 @@ func pluginCommandDecls(tree string) (names, unreadable []string, err error) {
 				return fmt.Errorf("parse %s: %w", path, parseErr)
 			}
 
-			found, unread := declNamesIn(fset, file, constsByDir[filepath.Dir(path)])
+			found, unread := declNamesIn(fset, file, constsByDir[filepath.Dir(path)], qualified.forFile(file))
 			names = append(names, found...)
 			unreadable = append(unreadable, unread...)
 			return nil
@@ -255,8 +263,11 @@ func pluginCommandDecls(tree string) (names, unreadable []string, err error) {
 }
 
 // declNamesIn answers the command names one file declares, plus the sites whose
-// Name is neither a literal nor a known package constant.
-func declNamesIn(fset *token.FileSet, file *ast.File, consts map[string]string) (names, unreadable []string) {
+// Name is neither a literal, a known constant of its own package, nor a known
+// constant of a package it imports (imported, keyed by the name the file uses).
+func declNamesIn(fset *token.FileSet, file *ast.File, consts map[string]string,
+	imported map[string]map[string]string,
+) (names, unreadable []string) {
 	ast.Inspect(file, func(node ast.Node) bool {
 		lit, ok := node.(*ast.CompositeLit)
 		if !ok || !isCommandDeclType(lit.Type) {
@@ -293,6 +304,10 @@ func declNamesIn(fset *token.FileSet, file *ast.File, consts map[string]string) 
 					continue
 				}
 			}
+			if value, known := selectorConst(pair.Value, imported); known {
+				names = append(names, value)
+				continue
+			}
 			position := fset.Position(pair.Value.Pos())
 			var tb textbuf.Buffer
 			unreadable = append(unreadable, tb.Str(position.Filename).Byte(':').Int(int64(position.Line)).String())
@@ -302,11 +317,79 @@ func declNamesIn(fset *token.FileSet, file *ast.File, consts map[string]string) 
 	return names, unreadable
 }
 
+// selectorConst answers the value of `pkg.Name` when pkg is a package the
+// file imports and Name is one of its string constants.
+func selectorConst(expr ast.Expr, imported map[string]map[string]string) (string, bool) {
+	selector, isSelector := expr.(*ast.SelectorExpr)
+	if !isSelector {
+		return "", false
+	}
+	pkg, isIdent := selector.X.(*ast.Ident)
+	if !isIdent {
+		return "", false
+	}
+	value, known := imported[pkg.Name][selector.Sel.Name]
+	return value, known
+}
+
+// qualifiedConsts maps the in-tree packages a file imports to their string
+// constants.
+type qualifiedConsts struct {
+	tree     string
+	module   string
+	consts   map[string]map[string]string
+	packages map[string]string
+}
+
+// forFile answers, for each in-tree package the file imports, the name the
+// file refers to it by and that package's string constants. The name is the
+// import alias, or else the package clause read from the package's own files,
+// never a guess from the import path's last element.
+func (q qualifiedConsts) forFile(file *ast.File) map[string]map[string]string {
+	out := make(map[string]map[string]string)
+	for _, spec := range file.Imports {
+		path, err := strconv.Unquote(spec.Path.Value)
+		if err != nil {
+			continue
+		}
+		rest, inTree := strings.CutPrefix(path, q.module+"/")
+		if !inTree {
+			continue
+		}
+		dir := filepath.Join(q.tree, filepath.FromSlash(rest))
+		name := q.packages[dir]
+		if spec.Name != nil {
+			name = spec.Name.Name
+		}
+		if consts, known := q.consts[dir]; known && name != "" {
+			out[name] = consts
+		}
+	}
+	return out
+}
+
+// treeModulePath answers the module path the tree's go.mod declares, so an
+// import path maps to a directory of the tree being checked.
+func treeModulePath(tree string) (string, error) {
+	raw, err := os.ReadFile(filepath.Join(tree, "go.mod")) //nolint:gosec // the go.mod of the tree the caller named
+	if err != nil {
+		return "", fmt.Errorf("read the module path: %w", err)
+	}
+	for line := range strings.SplitSeq(string(raw), "\n") {
+		if module, found := strings.CutPrefix(line, "module "); found {
+			return strings.TrimSpace(module), nil
+		}
+	}
+	return "", fmt.Errorf("read the module path: %s declares no module line", filepath.Join(tree, "go.mod"))
+}
+
 // stringConstsByDir collects package-level const and var string literals keyed
 // by package directory, so a CommandDecl naming its command with a constant
-// resolves instead of failing the gate.
-func stringConstsByDir(tree string, fset *token.FileSet) (map[string]map[string]string, error) {
+// resolves instead of failing the gate. It also answers each directory's
+// package clause, the name an unaliased import refers to it by.
+func stringConstsByDir(tree string, fset *token.FileSet) (map[string]map[string]string, map[string]string, error) {
 	out := make(map[string]map[string]string)
+	packages := make(map[string]string)
 	for _, root := range declRoots {
 		err := filepath.WalkDir(filepath.Join(tree, root), func(path string, entry os.DirEntry, err error) error {
 			if err != nil {
@@ -328,6 +411,9 @@ func stringConstsByDir(tree string, fset *token.FileSet) (map[string]map[string]
 			}
 
 			dir := filepath.Dir(path)
+			if !strings.HasSuffix(path, "_test.go") {
+				packages[dir] = file.Name.Name
+			}
 			for _, decl := range file.Decls {
 				general, isGeneral := decl.(*ast.GenDecl)
 				if !isGeneral || (general.Tok != token.CONST && general.Tok != token.VAR) {
@@ -356,10 +442,10 @@ func stringConstsByDir(tree string, fset *token.FileSet) (map[string]map[string]
 			return nil
 		})
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
-	return out, nil
+	return out, packages, nil
 }
 
 // isCommandDeclType reports whether a composite literal's type is

@@ -245,6 +245,11 @@ var notACommandRegistrar = map[string]string{
 	"RegisterColumns":       "records the column order of a command another registrar declared",
 	"RegisterPipeFilters":   "records the pipe filters of a command another registrar declared",
 	"RegisterArgDefSource":  "installs the source the argument judgment reads, for every command",
+	// The text renderers draw an ANSWER by its one envelope key
+	// (internal/component/command/text_renderer.go, textRenderers.byKey); the
+	// key names a payload, never a command path, and dispatch never reads it.
+	"RegisterTextRenderer":     "records the text rendering of an answer keyed by its envelope key, not a command path",
+	"MustRegisterTextRenderer": "records the text rendering of an answer keyed by its envelope key, not a command path",
 }
 
 // VALIDATES: commandRegistrars names every exported registrar of each
