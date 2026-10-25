@@ -12,25 +12,29 @@ import (
 	"net"
 	"net/netip"
 	"slices"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
+	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 )
 
 // TestRSOwnerWithdrawalAddPathSourceKeepsOtherPath proves AC-9 on C's wire.
 // Source A negotiates ADD-PATH send for IPv4 unicast with Ze and announces
 // 10.9.0.0/24 twice, as path 1 (AS_PATH 65002) and then path 2 (AS_PATH
-// 65002 65010). Client C has no ADD-PATH, so each write replaces C's one
-// route and path 2, written last, owns it. Then A withdraws one path:
+// 65002 65010). Client C has no ADD-PATH, so it holds one route: path 2
+// contests path 1, is owed to bgp-rib's election (owner, Q-3), and path 1,
+// the shorter AS_PATH, stays C's route; path 2 is never written. Then A
+// withdraws one path:
 //
-//   - other-path: A withdraws path 1. The writer matches the owner by A's
+//   - other-path: A withdraws path 2. The writer matches the owner by A's
 //     received path identifier, so the withdrawal of a path C does not hold
-//     reaches C as nothing, and C keeps path 2.
-//   - owner-path: A withdraws path 2. The withdrawal is owed to bgp-rib's
-//     recovery, which elects A's remaining path 1, and C receives it.
+//     reaches C as nothing, and C keeps path 1.
+//   - owner-path: A withdraws path 1. The withdrawal is owed to bgp-rib's
+//     recovery, which elects A's remaining path 2, and C receives it.
 //
 // Either way C ends holding one of A's paths and is never sent a withdrawal.
 // Each case runs on bgp-rs's cached rail and on the reactor fast path.
@@ -49,7 +53,7 @@ func TestRSOwnerWithdrawalAddPathSourceKeepsOtherPath(t *testing.T) {
 			name      string
 			withdrawn uint32
 			kept      int
-		}{{"other-path", 1, 1}, {"owner-path", 2, 0}} {
+		}{{"other-path", 2, 0}, {"owner-path", 1, 1}} {
 			t.Run(rail.name+"/"+tc.name, func(t *testing.T) {
 				addPathKeepsOtherPath(t, rail.fast, tc.withdrawn, tc.kept)
 			})
@@ -83,7 +87,35 @@ func addPathKeepsOtherPath(t *testing.T, fast bool, withdrawn uint32, kept int) 
 	addPathLiveSend(t, a, 0, paths[0], 1, prefix) // RFC 7911 Section 3.
 	ownershipLiveThrough(t, c, prefix, paths[0])
 	addPathLiveSend(t, a, 0, paths[1], 2, prefix) // RFC 7911 Section 3.
-	ownershipLiveThrough(t, c, prefix, paths[1])
+	// A's marker passes C's writer after path 2, and the election of the
+	// owed key settles before the history is read.
+	marker := netip.MustParsePrefix("10.9.253.0/24")
+	addPathLiveSend(t, a, 0, paths[0], 3, marker) // RFC 7911 Section 3.
+	ownershipLiveThrough(t, c, marker, paths[0])
+	lowEventually(t, func() bool { return adjOutOwedCount(c.peer) == 0 }, "C owes nothing after path 2")
+	// RFC 4271 Section 9.1.2.2, step a: path 1's shorter AS_PATH is
+	// elected, so C is never sent path 2 while path 1 stands.
+	elected := ownershipLiveRead(t, c)
+	ownershipLiveRoute(t, elected, prefix, paths[0])
+	ownershipLiveAnnouncements(t, elected, prefix, paths[0])
+
+	// Count the recovery lookups for C that name the prefix from here on:
+	// a withdrawal matched by Path ID owes nothing when it names a path C
+	// does not hold, so no election runs for it.
+	destination := c.peer.Settings().Address
+	prefixKey := ownershipLiveNLRI([]netip.Prefix{prefix})
+	var lookups atomic.Int32
+	publishLookupTap(t, func(request *ribevents.RecoveryRequest, outcomes []ribevents.RecoveryOutcome, err error) ([]ribevents.RecoveryOutcome, error) {
+		if request.Destination != destination {
+			return outcomes, err
+		}
+		for i := range request.Keys {
+			if bytes.Equal(request.Keys[i].NLRI, prefixKey) {
+				lookups.Add(1)
+			}
+		}
+		return outcomes, err
+	})
 
 	addPathLiveSend(t, a, withdrawn, nil, 0, prefix) // RFC 7911 Section 3.
 	deadline := time.Now().Add(5 * time.Second)
@@ -105,15 +137,23 @@ func addPathKeepsOtherPath(t *testing.T, fast bool, withdrawn uint32, kept int) 
 	ownershipLiveRoute(t, view, prefix, paths[kept])
 	ownershipLiveWithdrawals(t, view, prefix, 0)
 	// The history proves which rule decided. A withdrawal of a path C does
-	// not hold writes nothing, so C saw paths 1 and 2 only; an owner
-	// withdrawal is replaced once, by path 1. Were the owner matched by
-	// source alone, the other-path withdrawal would be owed and replaced too.
-	want := [][]byte{paths[0], paths[1]}
-	if kept == 0 {
-		want = append(want, paths[0])
+	// not hold writes nothing, so C saw path 1 only; an owner withdrawal is
+	// replaced once, by path 2. Were the owner matched by source alone, path
+	// 2 would have been written as the owner's own re-announcement, which the
+	// elected view above refuses.
+	want := [][]byte{paths[0]}
+	if kept == 1 {
+		want = append(want, paths[1])
 	}
 	if got := view.announcements[prefix]; !slices.EqualFunc(got, want, bytes.Equal) {
 		t.Errorf("C's announcements of %s = %x, want %x", prefix, got, want)
+	}
+	// The other-path withdrawal ran no election for the prefix at C, which
+	// proves the writer matched it by Path ID rather than owing it; the
+	// owner-path withdrawal is elected through recovery.
+	if got := lookups.Load(); (kept == 0) != (got == 0) {
+		t.Errorf("recovery lookups for %s at C after withdrawing path %d = %d, want none only for the other path",
+			prefix, withdrawn, got)
 	}
 	// A frame the session misread as plain NLRI would have ended A's
 	// session, so an Established A also shows ADD-PATH was negotiated.

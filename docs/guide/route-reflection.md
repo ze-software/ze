@@ -218,7 +218,7 @@ non-client (RFC 4456 Section 6), is stepped past for the next in election
 order. ADD-PATH
 destinations keep surviving source paths and withdraw only the departed source's
 advertised identifiers, including zero. Native VPN identity is preserved.
-This cold departure path does not change the steady-state forward-all model.
+A departure is decided by the same `bgp-rib` election as an owner withdrawal.
 Departure recovery remains owned until the destination operation completes or
 the plugin shuts down; ordinary command timeouts do not discard it. If the RIB
 cannot establish truthful sent ownership, the affected destination session is

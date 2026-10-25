@@ -36,11 +36,11 @@ const (
 
 // TestRouteServerWithdrawalKeepsTheReplacementRoute is the Evidence-shape probe
 // of spec-bgp-rs-replacement-on-withdrawal, recreated: sources A (10.0.0.1) and
-// B (10.0.0.2) announce 10.9.0.0/24 in the order B then A, so A owns the prefix
-// at client C (10.0.0.3, no ADD-PATH); A then withdraws. RFC 4271 Section 9.2
-// owes C B's route as the replacement, never a bare withdrawal. The order A, B,
-// A-withdraw is already green at HEAD (the final-writer ownership fence) and is
-// carried by TestRSWithdrawalKeepsCurrentDestinationOwner.
+// B (10.0.0.2) announce 10.9.0.0/24 in the order B then A; the election
+// prefers A, so A owns the prefix at client C (10.0.0.3, no ADD-PATH); A then
+// withdraws. RFC 4271 Section 9.2 owes C B's route as the replacement, never a
+// bare withdrawal. The order A then B, where B's route is owed and not
+// elected, is carried by TestRSWithdrawalKeepsCurrentDestinationOwner.
 //
 // VALIDATES: an owner withdrawal at a non-ADD-PATH client is answered with the
 // surviving source's route on every route-server rail.
@@ -78,8 +78,10 @@ type replacementRun struct {
 }
 
 // replacementScenario runs B announce, A announce, A withdraw over real
-// sessions. A's marker after its withdrawal is the causal fence: once C holds
-// the marker, the withdrawal has passed C's final writer on whichever rail.
+// sessions. A's announcement contests B's at C and the election writes it,
+// so the test waits for C to hold A's route. A's marker after its withdrawal
+// is the causal fence: once C holds the marker, the withdrawal has passed C's
+// final writer on whichever rail.
 func replacementScenario(t *testing.T, rail replacementRail, addressA, addressB, addressC string) replacementRun {
 	t.Helper()
 	settings := []*PeerSettings{
@@ -141,14 +143,20 @@ func (run replacementRun) expectReplacement(t *testing.T) {
 	ownershipLiveAnnouncements(t, view, run.prefix, run.attrsB, run.attrsA, run.attrsB)
 	// R-12: only the recovery write's sent event carries recovery-write, so
 	// bgp-rib checks that projection against a purge and no forwarded one.
-	// The sent event follows the write, so the third mark may trail C's view.
+	// B's first route is the key's first arrival and is forwarded. A's route
+	// contests it, is owed, and is written by the election (owner, Q-3): RFC
+	// 4271 Section 9.1.2.2, step f, "Remove from consideration all routes
+	// other than the route that was advertised by the BGP speaker with the
+	// lowest BGP Identifier value." A's identifier is the fixture's lowest.
+	// B's replacement is the recovery of A's withdrawal. The sent event
+	// follows the write, so the third mark may trail C's view.
 	marks := run.observer.recoveryMarks()
 	for len(marks) < 3 && time.Now().Before(deadline) {
 		time.Sleep(time.Millisecond)
 		marks = run.observer.recoveryMarks()
 	}
-	if !slices.Equal(marks, []bool{false, false, true}) {
-		t.Fatalf("recovery-write on C's sent announcements of %s = %v, want [false false true]", run.prefix, marks)
+	if !slices.Equal(marks, []bool{false, true, true}) {
+		t.Fatalf("recovery-write on C's sent announcements of %s = %v, want [false true true]", run.prefix, marks)
 	}
 }
 
@@ -328,9 +336,10 @@ func TestRSOwnerWithdrawalLookupFailureRetiresDestination(t *testing.T) {
 //
 //   - "owner-stays": A then B announce P, B owns C's route; A departs and
 //     nothing is written to C for P.
-//   - "owner-stays-preferred-third": E, A, then B announce P, B owns C's
-//     route and E's is the RIB's best; A departs and nothing is written to C
-//     for P either: forward-all is not overridden by an unrelated departure.
+//   - "owner-stays-preferred-third": E, A, then B announce P. E's route is
+//     the RIB's best, so A's and B's contest it, are owed to the election
+//     (owner, Q-3) and are never written: E owns C's route. A departs and
+//     nothing is written to C for P either.
 //   - "owner-departs": B then A announce P, A owns C's route; A departs and
 //     C receives B's route, never a withdrawal.
 //
@@ -382,11 +391,32 @@ func departureWritesOnlyWhereSourceOwns(t *testing.T, sourceOwns, withE bool) {
 		ownershipLiveThrough(t, c, prefix, attrsE)
 	}
 	ownershipLiveSend(t, first, nil, firstAttrs, prefix) // RFC 4271 Section 4.3.
-	ownershipLiveThrough(t, c, prefix, firstAttrs)
+	if withE {
+		// E stays elected, so each source's own marker is the fence that its
+		// announcement of P passed C's writer.
+		ownershipLiveSend(t, first, nil, firstAttrs, netip.MustParsePrefix("10.9.2.0/24")) // RFC 4271 Section 4.3.
+		ownershipLiveThrough(t, c, netip.MustParsePrefix("10.9.2.0/24"), firstAttrs)
+	} else {
+		ownershipLiveThrough(t, c, prefix, firstAttrs)
+	}
 	ownershipLiveSend(t, second, nil, secondAttrs, prefix) // RFC 4271 Section 4.3.
-	ownershipLiveThrough(t, c, prefix, secondAttrs)
+	if withE {
+		ownershipLiveSend(t, second, nil, secondAttrs, netip.MustParsePrefix("10.9.3.0/24")) // RFC 4271 Section 4.3.
+		ownershipLiveThrough(t, c, netip.MustParsePrefix("10.9.3.0/24"), secondAttrs)
+	} else {
+		ownershipLiveThrough(t, c, prefix, secondAttrs)
+	}
 	ownershipLiveSend(t, a, nil, attrsA, only) // RFC 4271 Section 4.3.
-	before := ownershipLiveThrough(t, c, only, attrsA)
+	ownershipLiveThrough(t, c, only, attrsA)
+	lowEventually(t, func() bool { return adjOutOwedCount(c.peer) == 0 }, "C's election of P settled")
+	before := ownershipLiveRead(t, c)
+	if withE {
+		// RFC 4271 Section 9.1.2.2, step a: E's one-AS path is the
+		// shortest, so the election keeps E and C is sent neither A's nor
+		// B's route.
+		ownershipLiveRoute(t, before, prefix, attrsE)
+		ownershipLiveAnnouncements(t, before, prefix, attrsE)
+	}
 
 	_ = a.remote.Close() // A's session ends with no NOTIFICATION: a departure.
 
@@ -493,15 +523,17 @@ func policyDeniedSurvivors(t *testing.T, withE, denyE bool) {
 	marker := netip.MustParsePrefix("10.9.255.0/24")
 
 	// Each source's UPDATE arrives on its own session, so the next source
-	// sends only once A, a client with no export policy, holds this one: the
-	// newest write owns C's entry, and C's forward queue keeps the order in
-	// which the sources' UPDATEs were processed. Without the wait, E's UPDATE
-	// could be processed after A's and own C's entry before A withdraws.
+	// sends only once A, a client with no export policy, holds a marker sent
+	// after it: C's forward queue then keeps the order in which the sources'
+	// UPDATEs were processed. Without the wait, E's UPDATE could be processed
+	// after A's. A holds B's route, the election's best of B and E, so E's
+	// own marker is the fence.
 	ownershipLiveSend(t, b, nil, attrsB, prefix) // RFC 4271 Section 4.3.
 	ownershipLiveThrough(t, a, prefix, attrsB)
 	if withE {
-		ownershipLiveSend(t, peers[3], nil, attrsE, prefix) // RFC 4271 Section 4.3.
-		ownershipLiveThrough(t, a, prefix, attrsE)
+		fence := netip.MustParsePrefix("10.9.250.0/24")
+		ownershipLiveSend(t, peers[3], nil, attrsE, prefix, fence) // RFC 4271 Section 4.3.
+		ownershipLiveThrough(t, a, fence, attrsE)
 	}
 	ownershipLiveSend(t, a, nil, attrsA, prefix) // RFC 4271 Section 4.3.
 	// A denied announcement reaches C as a withdrawal of a route C never
@@ -550,10 +582,12 @@ func policyDeniedSurvivors(t *testing.T, withE, denyE bool) {
 // stepped-past candidate. A owns 10.9.0.0/24 at C; C's export policy denies
 // B's two-AS route, and E's four-AS route is permitted. A withdraws and C's
 // lookup is held after bgp-rib answered B then E. Meanwhile B re-announces a
-// three-AS route C permits, which reaches C's writer before the admission.
-// The held answer would step past the denied B and write E over B's newer,
-// permitted route; B's write of the key is a mover, so the key is left owed
-// and the next round elects B's newer route, which C ends on.
+// three-AS route C permits, which reaches C's writer before the admission:
+// the key is owed, so the announcement is not written but merged into the
+// record (owner, Q-3), and C still holds A's route. The held answer steps
+// past the denied B and decides E; the record carries B's announcement, so
+// settle re-owes the key and the next round elects B's newer route, which C
+// ends on.
 //
 // VALIDATES: AC-5 with AC-26 (b): a candidate stepped past for policy that
 // rewrites the key since the snapshot makes the decision stale.
@@ -605,8 +639,11 @@ func TestRSOwnerWithdrawalDeniedCandidateReannounces(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("C's recovery lookup for the owed key never ran")
 	}
-	ownershipLiveSend(t, b, nil, attrsBNewer, prefix) // RFC 4271 Section 4.3.
-	ownershipLiveThrough(t, c, prefix, attrsBNewer)
+	fence := netip.MustParsePrefix("10.9.253.0/24")
+	ownershipLiveSend(t, b, nil, attrsBNewer, prefix, fence) // RFC 4271 Section 4.3.
+	merged := ownershipLiveThrough(t, c, fence, attrsBNewer)
+	// The owed key's election is held, so B's newer route is not written.
+	ownershipLiveRoute(t, merged, prefix, attrsA)
 	close(tap.hold)
 
 	lowEventually(t, func() bool { return adjOutOwedCount(c.peer) == 0 }, "C owes nothing")

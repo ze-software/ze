@@ -95,7 +95,7 @@
     "claim-sha": "ee6f7861020db813",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/reactor_wire.go::writeAnnounceUpdate",
-    "producer-sha": "26949561f7b18eaa",
+    "producer-sha": "faf3ed4513e2d69c",
     "break": "body of writeAnnounceUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   },
   {
@@ -227,7 +227,7 @@
     "claim-sha": "ca618164cec5e612",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/reactor_wire.go::writeAnnounceUpdate",
-    "producer-sha": "26949561f7b18eaa",
+    "producer-sha": "faf3ed4513e2d69c",
     "break": "body of writeAnnounceUpdate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
   },
   {

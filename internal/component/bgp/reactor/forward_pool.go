@@ -274,10 +274,12 @@ func fwdBatchHandler(key fwdKey, items []fwdItem) {
 	// and TCP write syscall count.
 	nc := peer.negotiated.Load()
 	extMsg := nc != nil && nc.ExtendedMessage
-	items = fwdBucketMerge(items, fwdBucketMaxBodySize(extMsg))
+	maxBodySize := fwdBucketMaxBodySize(extMsg)
+	items = fwdBucketMerge(items, maxBodySize)
 
 	for i := range items {
 		sections := items[i : i+1]
+		var staged [][]int
 		if recovery := items[i].recovery; recovery != nil {
 			if recovery.ctx != nil {
 				if err := recovery.ctx.Err(); err != nil {
@@ -291,20 +293,21 @@ func fwdBatchHandler(key fwdKey, items []fwdItem) {
 			if !recovery.admit(session) {
 				continue
 			}
-			sections = recovery.items
+			// Only the admitted keys' sections, packed as ordinary
+			// forwards are; staged maps each back to its keys.
+			sections, staged = recoveryBucketMerge(recovery, maxBodySize)
 		}
 		for j := range sections {
 			item := &sections[j]
-			if recovery := items[i].recovery; recovery != nil && !recovery.writes(j) {
-				continue
-			}
 			sourceCurrent := forwardSourceCurrent(item.receivedPeer, item.receivedGeneration)
 			if item.authority == adjOutInitial && !item.initialLocal {
 				sourceCurrent = initialSourceCurrent(item.receivedPeer, item.receivedGeneration, item.initialSourceState)
 			}
 			if item.authority != adjOutExpected && !sourceCurrent {
 				if recovery := items[i].recovery; recovery != nil {
-					recovery.reowe(j)
+					for _, k := range staged[j] {
+						recovery.reowe(k)
+					}
 				}
 				continue
 			}

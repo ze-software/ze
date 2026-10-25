@@ -124,8 +124,11 @@ refuted once, at the cost of hours.**
 
 Three facts refute driving forwarding from locrib:
 
-1. The route server in ze is forward-all, not a per-peer best-path computer.
-   There is no per-peer Change to subscribe to.
+1. The route server in ze forwards each received UPDATE; it is not a per-peer
+   best-path computer. Where sources contest a prefix at a client without
+   ADD-PATH, the reactor's writer owes that key and asks `bgp-rib`'s election
+   for that one destination on demand (a recovery lookup). There is no
+   per-peer Change to subscribe to.
 2. Per-peer egress work (egress filters, RFC 4456 route-reflector injection,
    next hop, AS override, eBGP prepend) is keyed off the per-received-UPDATE
    trigger, not off a best change.
@@ -133,6 +136,8 @@ Three facts refute driving forwarding from locrib:
    the in-process ingress filters with copy-on-modify and the external-plugin
    import policy chain. Retiring it would re-home the filter pipeline for no
    gain.
+<!-- source: internal/component/bgp/reactor/session_ownership.go -- oweAnnouncement -->
+<!-- source: internal/component/bgp/reactor/relay_recovery.go -- recoveryAdmission.admit -->
 
 They could collapse only if locrib stored every received path per peer, which is
 not a Loc-RIB.

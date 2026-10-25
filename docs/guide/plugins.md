@@ -498,7 +498,7 @@ A reason string reaches CLI output as data, so never put a secret in one.
 |--------|---------|----------------|
 | `bgp-rib` | Mandatory Route Information Base with in-memory sent-history replay on reconnect | `receive [ update state refresh ] send [ update refresh ]` |
 | `bgp-adj-rib-in` | Adj-RIB-In (raw hex replay, auto-replays on peer-up) | `receive [ update-received state ]` |
-| `bgp-rs` | Route server (forward-all) | `receive [ update-received state open-received refresh ] send [ update ]` |
+| `bgp-rs` | Route server (RFC 7947): forwards each UPDATE, and a client without ADD-PATH is sent the `bgp-rib`-elected route when sources contest a prefix | `receive [ update-received state open-received refresh ] send [ update ]` |
 | `bgp-rr` | Route reflector (RFC 4456) | `receive [ update-received state open-received ]` |
 | `bgp-watchdog` | Deferred route announcement | `receive [ state ] send [ update ]` |
 <!-- source: internal/component/bgp/plugins/rib/register.go -- bgp-rib registration -->

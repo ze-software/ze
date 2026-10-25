@@ -47,7 +47,7 @@ All families decode. Most encode. Use `ze show plugin list` to see the current s
 | Plugin | Status |
 |--------|--------|
 | bgp-rib (route storage) | Working -- mandatory received/sent route storage, best-path selection and eligible in-memory sent-history replay on peer reconnect; no durable daemon or plugin restart storage |
-| bgp-rs (route server) | Working -- forward-all model with zero-copy optimization |
+| bgp-rs (route server) | Working -- forwards each received UPDATE with zero-copy optimization; a client without ADD-PATH whose prefix several sources contest is sent the route `bgp-rib` elects |
 | bgp-gr (graceful restart) | Working -- stale route retention, restart marker, timer expiry |
 | bgp-rpki (RPKI validation) | Working -- RTR client, origin validation, fail-open safety |
 | bgp-adj-rib-in | Working -- raw hex replay for convergent replay |

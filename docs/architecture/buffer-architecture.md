@@ -472,6 +472,7 @@ none of them is a defect until this table names the new trigger.
 | Ingress AS4 reconciliation | A 2-octet speaker, or an UPDATE that carries AS4_PATH or AS4_AGGREGATOR, gets one canonical four-octet AS path | `(*Session).collapseASPathFamily` |
 | An external plugin reads the UPDATE | The plugin needs JSON text, not wire bytes | `appendParsedUpdateJSONDirect` |
 | A best change leaves bgp-rib | The winner's attributes cross to subscribers as bytes, because a pool handle points into bgp-rib's pool and a forked subscriber cannot read it. Once per published best change; an unchanged best publishes nothing | `storedAttributes` |
+| A recovery election writes several keys of one received UPDATE | Each owed key is staged as its own UPDATE; adjacent announcements of one source message with identical attributes are packed into one body, a fresh copy, so the staged items keep their buffers until the admission releases them | `recoveryBucketMerge` |
 | An owner withdrawal is owed to recovery | Twice. The writer stages the NLRI in its pooled staging storage, because a body that lost a path is copied over the session write buffer before the owe applies, and the owed path's bytes would then read as the emitted one. The owed record then copies them again, because it outlives the write and the pooled writer reuses that storage | `(*adjOutWrite).stageOwe`, `(*adjRIBOut).owe` |
 
 <!-- source: internal/component/bgp/attrpool/pool.go -- shard.intern -->
@@ -485,6 +486,7 @@ none of them is a defect until this table names the new trigger.
 <!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- storedAttributes -->
 <!-- source: internal/component/bgp/reactor/adj_rib_out.go -- adjRIBOut.owe -->
 <!-- source: internal/component/bgp/reactor/session_ownership.go -- stageOwe -->
+<!-- source: internal/component/bgp/reactor/forward_bucket.go -- recoveryBucketMerge -->
 
 ## The pools Ze runs
 

@@ -9,14 +9,14 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Priority | P1 |
 | Release reason | RS and RR clients must receive the elected surviving route on announcements and withdrawals. |
 | Scope | protocol |
 | Depends | `plan/release/fixes/spec-bgp-graceful-restart-rfc-defects.md` D1, for one sub-case only (round 5, I-2): the non-retention input of Phase 2b and the GR-capable half of AC-17 land once D1's reason producer exists; no other phase waits on D1. Landing order with `plan/release/fixes/spec-daemon-drain-before-stop.md` free, the second carries `TestDrainReplayRefusedAtOwedKey` (Blast Radius) |
 | Phase | 4/9 (Phases 1, 2, 2b first half and Phase 3 packages a, b, c landed by 2026-10-18, e.g. e30abc5e48, per `plan/handover/03-session-2026-10-18-linux-continue.md`; Phase 3 package d, 2026-10-21: `TestOwedKeyPurgeBetweenLookupAndAdmission`, `TestOwedKeyLookupChunked`, `TestRSOwnerWithdrawalSkipsDestinationOwnPath`, `TestRSOwnerWithdrawalLookupFailureRetiresDestination` (Design Insights); Phase 3 package e, 2026-10-21: AC-15 liveness fence fix, buffer-shortage deferral, AC-5 egress stepping and seven tests (Design Insights); next: Phase 3's remaining tests (`plan/handover/12-rs-replacement-phase-3-remaining.md`), then 3b, 3a, 4, 5, 6; 2b second half waits on D1) |
 | Handoff | verify |
-| Updated | 2026-10-21 |
+| Updated | 2026-10-25 |
 
 <!-- Handoff: `verify` splits the work over two sessions -- the implementation session commits and stops at Status `verification`, a later session reviews that commit and closes, on Opus when the model is an Anthropic one. `-` closes in the same session. -->
 

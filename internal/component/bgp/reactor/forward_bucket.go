@@ -252,3 +252,139 @@ func buildBucketBody(ref *bucketBodyParts, nlri []byte) []byte {
 func fwdBucketMaxBodySize(extendedMessage bool) int {
 	return int(message.MaxMessageLength(msgtype.TypeUPDATE, extendedMessage)) - message.HeaderLen
 }
+
+// recoveryBucketMerge returns the sections of a recovery admission that admit
+// decided to write, in staging order, with ADJACENT sections packed into
+// shared UPDATEs. Recovery stages one UPDATE per owed key, so without the
+// pack a burst of owed keys reaches the destination as one UPDATE per
+// prefix, where the ordinary rail forwards the source's single multi-prefix
+// UPDATE.
+//
+// Announcements of one candidate source's same received message (session
+// generation and message ID equal) with byte-identical attributes and the
+// same writer authority, session and AIGP send state pack. fwdBucketMerge
+// never sees these items: it takes only unowned forwards (authority
+// adjOutUnspecified, sourceMessageID 0, no recovery), because the item it
+// emits carries only the run head's peer, metadata and source fields. Here
+// a section is a full copy of its first member, every field its write
+// consults must be equal to join, and each key's ownership is settled per
+// staged key by the admission after the flush, never read from the section.
+// A withdrawal stays alone. Every owed key of an admission is a distinct
+// key, so a pack never moves one operation across another on the same
+// prefix. A section with provenance (an ADD-PATH source), more than one
+// UPDATE, an AIGP replay or MP framing stays alone too. A packed section is
+// written as one raw body.
+//
+// staged[k] holds the admission item indexes section k writes, so a source
+// that ends between admit and the write re-owes every key the section
+// carries. A packed body is a fresh copy of the staged pieces, so a returned
+// section releases nothing: the admission's own items keep their references
+// until releaseItem. Called on the destination's forward worker under
+// writeMu, after admit; not safe for concurrent use.
+//
+// RFC 4271 Section 4.3: "An UPDATE message is used to advertise feasible
+// routes that share common path attributes to a peer, or to withdraw
+// multiple unfeasible routes from service (see 3.1)."
+//
+// maxBodySize bounds each packed body. It is the negotiated message size
+// less the header (fwdBucketMaxBodySize):
+// RFC 4271 Section 4: "The maximum message size is 4096 octets."
+// RFC 8654 Section 2: "BGP Extended Messages have a maximum message size of
+// 65,535 octets."
+func recoveryBucketMerge(admission *recoveryAdmission, maxBodySize int) (sections []fwdItem, staged [][]int) {
+	var lead bucketBodyParts // Parts of the last section's first member.
+	var packed []byte        // The pieces the last section packs so far.
+	leadPacks := false
+	for j := range admission.items {
+		if !admission.writes(j) {
+			continue
+		}
+		item := &admission.items[j]
+		parts, piece, packs := recoveryPackParts(item)
+		last := len(sections) - 1
+		// RFC 4271 Section 4.3: one UPDATE carries the routes that share
+		// these path attributes. RFC 4271 Section 4 and RFC 8654 Section 2
+		// bound the packed body: 4 is the two length fields around the
+		// attributes.
+		if packs && leadPacks && recoveryPackJoins(&sections[last], item, &lead, &parts) &&
+			4+lead.attrLen+len(packed)+len(piece) <= maxBodySize {
+			packed = append(packed, piece...)
+			staged[last] = append(staged[last], j)
+			continue
+		}
+		if last >= 0 && len(staged[last]) > 1 {
+			sections[last].rawBodies = [][]byte{buildBucketBody(&lead, packed)}
+			sections[last].updates = nil
+		}
+		sections = append(sections, *item)
+		staged = append(staged, []int{j})
+		lead, leadPacks = parts, packs
+		packed = append(packed[:0], piece...)
+	}
+	if last := len(sections) - 1; last >= 0 && len(staged[last]) > 1 {
+		sections[last].rawBodies = [][]byte{buildBucketBody(&lead, packed)}
+		sections[last].updates = nil
+	}
+	return sections, staged
+}
+
+// recoveryPackParts parses a recovery section's body and reports whether it
+// can pack, with the piece it contributes: the NLRI field of an announcement
+// that carries no withdrawn routes.
+func recoveryPackParts(item *fwdItem) (bucketBodyParts, []byte, bool) {
+	var none bucketBodyParts
+	if !recoveryPackShape(item) {
+		return none, nil, false
+	}
+	parts, ok := recoveryPackBody(item)
+	if !ok {
+		return none, nil, false
+	}
+	if parts.wdLen != 0 {
+		return none, nil, false
+	}
+	if len(parts.nlri) == 0 {
+		return none, nil, false // MP framing: the prefixes live in the attributes.
+	}
+	return parts, parts.nlri, true
+}
+
+// recoveryPackJoins reports whether item says the same thing as the section
+// it would join: the same writer authority and session, the same candidate
+// source revision, the same AIGP send state, and the same attributes.
+func recoveryPackJoins(section, item *fwdItem, lead, parts *bucketBodyParts) bool {
+	same := section.authority == item.authority &&
+		section.session == item.session &&
+		section.receivedPeer == item.receivedPeer &&
+		section.receivedGeneration == item.receivedGeneration &&
+		section.sourceMessageID == item.sourceMessageID &&
+		section.sourcePeerStr == item.sourcePeerStr &&
+		section.aigpOrigin == item.aigpOrigin &&
+		section.aigpRevision == item.aigpRevision &&
+		section.aigpCostWithheld == item.aigpCostWithheld
+	return same && lead.attrHash == parts.attrHash && bytes.Equal(lead.attrs, parts.attrs)
+}
+
+// recoveryPackShape reports whether a section is one plain UPDATE the pack
+// can rewrite: one raw body or one re-encoded update, not originated (whose
+// write runs the export gate), no provenance, no AIGP replay ticket and no
+// End-of-RIB marker.
+func recoveryPackShape(item *fwdItem) bool {
+	one := len(item.rawBodies)+len(item.updates) == 1
+	return one && !item.originated && item.provenance == nil && item.aigpReplay == nil && item.endOfRIB == nil
+}
+
+// recoveryPackBody reads the section's one UPDATE body. A survivor whose
+// source's encoding context differs from the destination's is staged as a
+// re-encoded update; its sections are the wire fields, and an ungated write
+// of them is the write of the same body (writeUpdateGated).
+func recoveryPackBody(item *fwdItem) (bucketBodyParts, bool) {
+	if len(item.rawBodies) == 1 {
+		return parseBucketBody(item.rawBodies[0])
+	}
+	update := item.updates[0]
+	parts := bucketBodyParts{wdLen: len(update.WithdrawnRoutes), wd: update.WithdrawnRoutes,
+		attrLen: len(update.PathAttributes), attrs: update.PathAttributes, nlri: update.NLRI}
+	parts.attrHash = fnvHash(parts.attrs)
+	return parts, true
+}

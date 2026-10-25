@@ -68,9 +68,14 @@ func TestRSReturnedWithdrawalPreservesOtherSource(t *testing.T) {
 	ownershipLiveEstablished(t, peers)
 }
 
-// TestRSWithdrawalKeepsCurrentDestinationOwner observes A then B at C before
-// either source withdraws. Both distinct and identical attributes must transfer
-// destination ownership; remembered source membership alone is insufficient.
+// TestRSWithdrawalKeepsCurrentDestinationOwner sends A then B to C before
+// either source withdraws. B's later route contests A's at C, which has no
+// ADD-PATH, so it is owed to bgp-rib's election (owner, Q-3) and A, the
+// elected route, stays C's: B's announcement is never written, with distinct
+// or identical attributes. B, which C never held, then withdraws and C keeps
+// A; A's withdrawal then has no survivor and withdraws the prefix. Remembered
+// source membership alone is insufficient: the writer must match C's current
+// owner.
 func TestRSWithdrawalKeepsCurrentDestinationOwner(t *testing.T) {
 	for _, identical := range []bool{false, true} {
 		name := "distinct-attributes"
@@ -104,22 +109,27 @@ func TestRSWithdrawalKeepsCurrentDestinationOwner(t *testing.T) {
 
 			ownershipLiveSend(t, b, nil, attrsB, p)      // RFC 4271 Section 4.3.
 			ownershipLiveSend(t, b, nil, attrsB, second) // RFC 4271 Section 4.3.
-			view = ownershipLiveThrough(t, c, second, attrsB)
-			ownershipLiveRoute(t, view, p, attrsB)
-			// In the identical case, the second actual P announcement (not
-			// merely its later marker) proves B reached the recipient.
-			ownershipLiveAnnouncements(t, view, p, attrsA, attrsB)
-
-			ownershipLiveSend(t, a, []netip.Prefix{p}, nil) // RFC 4271 Section 4.3.
-			ownershipLiveSend(t, a, nil, attrsA, older)     // RFC 4271 Section 4.3.
-			view = ownershipLiveThrough(t, c, older, attrsA)
-			ownershipLiveRoute(t, view, p, attrsB)
-			ownershipLiveWithdrawals(t, view, p, 0)
-			ownershipLiveAnnouncements(t, view, p, attrsA, attrsB)
+			ownershipLiveThrough(t, c, second, attrsB)
+			lowEventually(t, func() bool { return adjOutOwedCount(c.peer) == 0 }, "C's election of P settled")
+			view = ownershipLiveRead(t, c)
+			// RFC 4271 Section 9.1.2.2, step f: "Remove from consideration
+			// all routes other than the route that was advertised by the BGP
+			// speaker with the lowest BGP Identifier value." A's identifier
+			// is the fixture's lowest, so A's route is elected and B's, even
+			// with identical attributes, is not written.
+			ownershipLiveRoute(t, view, p, attrsA)
+			ownershipLiveAnnouncements(t, view, p, attrsA)
 
 			ownershipLiveSend(t, b, []netip.Prefix{p}, nil) // RFC 4271 Section 4.3.
-			ownershipLiveSend(t, b, nil, attrsB, current)   // RFC 4271 Section 4.3.
-			ownershipLiveThrough(t, c, current, attrsB)
+			ownershipLiveSend(t, b, nil, attrsB, older)     // RFC 4271 Section 4.3.
+			view = ownershipLiveThrough(t, c, older, attrsB)
+			ownershipLiveRoute(t, view, p, attrsA)
+			ownershipLiveWithdrawals(t, view, p, 0)
+			ownershipLiveAnnouncements(t, view, p, attrsA)
+
+			ownershipLiveSend(t, a, []netip.Prefix{p}, nil) // RFC 4271 Section 4.3.
+			ownershipLiveSend(t, a, nil, attrsA, current)   // RFC 4271 Section 4.3.
+			ownershipLiveThrough(t, c, current, attrsA)
 			view = ownershipLiveDecided(t, c, p)
 			ownershipLiveAbsent(t, view, p)
 			ownershipLiveWithdrawals(t, view, p, 1)

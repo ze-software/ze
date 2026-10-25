@@ -670,3 +670,34 @@ for every destination that reads Path Identifiers.
 Merging uses pooled scratch buffers and FNV-64a for attribute grouping. A hash
 collision is caught by a `bytes.Equal` check against the actual attribute bytes
 before any merge happens.
+
+A recovery admission (a route-server or reflector election written by the
+destination's recovery worker) stages one UPDATE per owed key. Bucket merge
+never packs those sections: it takes only unowned forwards (writer authority
+unspecified, no source message ID, no recovery), because the item it emits for
+a run is a fresh item carrying only the run head's peer, metadata and source
+fields, and an owned item's write depends on more than that (its authority, its
+destination session, its AIGP send state). After `admit` decides which keys are
+written, `recoveryBucketMerge` packs them by its own rule: adjacent
+announcements of one candidate source's same received message, with
+byte-identical attributes and the same authority, session and AIGP send state,
+join into one raw body within the message size.
+
+Recovery may pack what bucket merge must not, for three reasons. Each packed
+section is a full copy of its first member, and a member joins only when every
+field its write consults is equal, so nothing the write reads is lost. Each
+key's ownership is settled per staged key by the admission after the flush,
+never read from the written section. And the packed body is a fresh copy of the
+staged pieces, so a re-encoded section (parsed `updates`, read through its wire
+fields) or a section whose bytes sit in a pooled per-destination copy gives up
+only its NLRI field: the admission's own items keep their buffers until they are
+released. The admission belongs to one destination, so every section it packs
+was already built for that destination's encoding context.
+
+A withdrawal, an MP-framed body, an ADD-PATH source's section (it carries
+provenance) and an AIGP replay stay alone. Each packed section names the staged
+items it carries, so a source that ends between `admit` and the write re-owes
+every key of that section. Without the pack, an election over the 900 prefixes
+of one received UPDATE reached the client as 900 UPDATEs.
+<!-- source: internal/component/bgp/reactor/forward_bucket.go -- recoveryBucketMerge -->
+<!-- source: internal/component/bgp/reactor/forward_pool.go -- fwdBatchHandler -->
