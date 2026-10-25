@@ -119,7 +119,6 @@ var gatedConfigRoots = map[string][]string{
 	"ldp":                      {"ldp"},
 	"mrt":                      {"mrt"},
 	"ospf":                     {"ospf"},
-	"pki":                      {"ike"},
 	"policy":                   {"policy-routes"},
 	"redistribute":             {"redistribute-orchestrator"},
 	"rsvp-te":                  {"rsvp-te"},

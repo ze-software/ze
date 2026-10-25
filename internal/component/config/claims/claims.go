@@ -159,10 +159,11 @@ func Allowlist() ([]Allow, error) {
 	return out, nil
 }
 
-// FromConfigRoots converts registry.ConfigRootsMap() into claims. The map is
-// plugin name to declared roots; Stage 1 registration copies those roots into
-// Registration.WantsConfigRoots (server/startup.go), which is what reloadConfig
-// matches against.
+// FromConfigRoots converts registry.ConfigSectionRootsMap() into claims. The map
+// is plugin name to every root the plugin receives, owned and read; Stage 1
+// registration copies both into Registration.WantsConfigRoots
+// (server/startup.go, joinConfigReads), which is what reloadConfig matches
+// against. A read root counts: a change under it reaches every running reader.
 func FromConfigRoots(m map[string][]string) []Claim {
 	names := make([]string, 0, len(m))
 	for name := range m {

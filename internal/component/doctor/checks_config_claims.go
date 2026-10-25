@@ -35,7 +35,7 @@ import (
 // component is the one place that reads both without importing either into
 // the other.
 func checkConfigClaims(tree *config.Tree) []diagnostic.Diagnostic {
-	cs := claims.FromConfigRoots(pluginregistry.ConfigRootsMap())
+	cs := claims.FromConfigRoots(pluginregistry.ConfigSectionRootsMap())
 
 	// The hub delivers a config path to a subsystem through
 	// SchemaRegistry.FindHandler, so a handler path claims as much as a plugin

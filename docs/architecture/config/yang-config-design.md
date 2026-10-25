@@ -693,7 +693,9 @@ config and the staged config the same config.
 
 Validation says a config value is well formed. It does not say the value reaches
 anything. Delivery is claimed per path: `Server.reloadConfig` selects the plugins
-whose `WantsConfigRoots` match the changed paths, and `Hub.RouteCommand` resolves
+whose `WantsConfigRoots` match the changed paths, and those hold both the roots a
+plugin owns (`ConfigRoots`) and the roots it only reads (`ConfigReads`), so a
+read root such as `pki` claims its subtree for every reader. `Hub.RouteCommand` resolves
 a path to a subsystem through `SchemaRegistry.FindHandler`. A path matched by
 neither is stored and delivered nowhere, with one Info log line.
 

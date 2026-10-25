@@ -17,9 +17,9 @@ import (
 
 // liveInventory resolves the config-schema tree and the claim union exactly as
 // the daemon produces them: the YANG loader for the schema, the plugin registry
-// for Registration.ConfigRoots (which becomes WantsConfigRoots at Stage 1,
-// internal/component/plugin/server/startup.go:871), and the schema registry for
-// hub handler paths.
+// for Registration.ConfigRoots and ConfigReads (both become WantsConfigRoots at
+// Stage 1, joinConfigReads in internal/component/plugin/server/startup.go), and
+// the schema registry for hub handler paths.
 //
 // The `all` package imports every registration by construction, so both sides
 // are the live inventories rather than a second list. Nothing here is written
@@ -48,7 +48,7 @@ func liveInventory(t *testing.T) (*claims.Node, []claims.Claim) {
 		t.Fatalf("build config schema tree: %v", err)
 	}
 
-	cs := claims.FromConfigRoots(registry.ConfigRootsMap())
+	cs := claims.FromConfigRoots(registry.ConfigSectionRootsMap())
 	handlers, err := schemacli.ConfigHandlerPaths()
 	if err != nil {
 		t.Fatalf("build schema handler paths: %v", err)

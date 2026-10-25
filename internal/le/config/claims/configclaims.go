@@ -72,7 +72,7 @@ func Audit() (Report, error) {
 		return report, err
 	}
 
-	claimed := claims.FromConfigRoots(pluginregistry.ConfigRootsMap())
+	claimed := claims.FromConfigRoots(pluginregistry.ConfigSectionRootsMap())
 	handlers, err := schemacli.ConfigHandlerPaths()
 	if err != nil {
 		return report, fmt.Errorf("build schema handler paths: %w", err)

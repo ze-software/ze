@@ -991,6 +991,28 @@ func ConfigRootsMap() map[string][]string {
 	return m
 }
 
+// ConfigSectionRootsMap returns a map from plugin name to every root the plugin
+// receives config for (ConfigSectionRoots): the roots it owns, then the roots it
+// only reads. Only includes plugins that receive at least one root.
+//
+// It is the delivery inventory. joinConfigReads (plugin/server/startup.go) adds
+// the read roots to WantsConfigRoots, which commit and reload select on, so a
+// change under a read root reaches every running reader. The config claim gate
+// counts from this map; auto-loading counts from ConfigRootsMap, because a root
+// a plugin only reads says nothing about whether the plugin is needed.
+func ConfigSectionRootsMap() map[string][]string {
+	mu.RLock()
+	defer mu.RUnlock()
+
+	m := make(map[string][]string)
+	for _, reg := range plugins {
+		if roots := reg.ConfigSectionRoots(); len(roots) > 0 {
+			m[reg.Name] = roots
+		}
+	}
+	return m
+}
+
 // PluginsForConfigPaths answers, sorted, every registered plugin that owns a
 // config root (Registration.ConfigRoots) among paths, the container paths a
 // config holds (config.CollectContainerPaths). It is the one answer to "which
