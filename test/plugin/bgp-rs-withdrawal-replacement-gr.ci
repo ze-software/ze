@@ -1,0 +1,174 @@
+# bgp-rs-withdrawal-replacement-gr: a Graceful Restart source whose route the
+# route server client holds restarts and does not re-announce the prefix; when
+# its stale route is purged, the client is sent the other source's route, not a
+# withdrawal.
+# RFC 4724 Section 4.2: "Once the End-of-RIB marker for an address family is
+# received from the peer, it MUST immediately remove any routes from the peer
+# that are still marked as stale for that address family."
+# VALIDATES: AC-19 of spec-bgp-rs-replacement-on-withdrawal from the operator
+# boundary. B announces 10.9.0.0/24, then A (GR-capable) announces it with a
+# shorter AS_PATH, so the client holds A's route. A's TCP session drops with
+# no NOTIFICATION: bgp-gr retains ipv4/unicast and the client is sent nothing.
+# A reconnects and sends End-of-RIB without the prefix: bgp-rib purges the
+# stale route, the purge is owed to the recovery worker, and the client is
+# sent B's exact received UPDATE and no withdrawal (the sentinel follows it).
+# PREVENTS: the purge written to the client as a bare withdrawal while B's
+# route still exists (owesWithdrawal, reactor/session_ownership.go).
+
+# The routes of 10.9.0.0/24 (NLRI 180A0900), each ORIGIN IGP, a 4-byte
+# AS_SEQUENCE, NEXT_HOP 192.0.2.x and MED 50 (80040400000032). Every peer is an
+# rs-client, so the client is sent each source's received bytes unchanged
+# (RFC 7947 Section 2.2.2.1), and the shortest AS_PATH is the RIB's best.
+#   A  [65001]                FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDE9400304C000020180040400000032180A0900
+#   A' [65001 65001 65001]    FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E02000000234001010040020E02030000FDE90000FDE90000FDE9400304C000020180040400000032180A0900
+#   B  [65005 65005]          FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003A020000001F4001010040020A02020000FDED0000FDED400304C000020580040400000032180A0900
+#   D  [65007 x3]             FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E02000000234001010040020E02030000FDEF0000FDEF0000FDEF400304C000020780040400000032180A0900
+#   E  [65009 x4]             FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004202000000274001010040021202040000FDF10000FDF10000FDF10000FDF1400304C000020980040400000032180A0900
+#   withdrawal of 10.9.0.0/24 FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001B020004180A09000000
+# The fixture (plugin/rs-source-sequence) releases each source action by
+# sending that source 192.0.2.0/24 (18C00002), then 198.51.100.0/24 (18C63364),
+# and only once the state the action depends on exists. Sources carry no relay
+# `send [ update ]`, so nothing is forwarded to them on the bgp-rs rail. A sentinel the fixture
+# sends the client directly (100.65.0.0/24, 18644100; 100.66.0.0/24, 18644200)
+# closes a stretch in which the client must be sent nothing more for the
+# prefix: any extra UPDATE lands where the sentinel is expected.
+
+stdin=sourcea:terminator=EOF_SOURCEA
+option=tcp_connections:value=2
+option=timeout:value=60s
+option=asn:value=65001
+option=linger:value=true
+option=open:value=router-id:id=127.0.0.1
+option=open:value=graceful-restart:restart-time=60
+expect=bgp:conn=1:seq=1:contains=18C00002
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDE9400304C000020180040400000032180A0900
+expect=bgp:conn=1:seq=3:contains=18C63364
+# A TCP close with no NOTIFICATION: RFC 4724 retention applies.
+action=close:conn=1:seq=4
+# A is back: End-of-RIB without 10.9.0.0/24.
+action=send:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_SOURCEA
+
+stdin=sourceb:terminator=EOF_SOURCEB
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65005
+option=linger:value=true
+option=open:value=router-id:id=127.0.0.5
+expect=bgp:conn=1:seq=1:contains=18C00002
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003A020000001F4001010040020A02020000FDED0000FDED400304C000020580040400000032180A0900
+EOF_SOURCEB
+
+stdin=client:terminator=EOF_CLIENT
+option=tcp_connections:value=1
+option=timeout:value=60s
+option=asn:value=65002
+option=linger:value=true
+option=open:value=router-id:id=127.0.0.2
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003A020000001F4001010040020A02020000FDED0000FDED400304C000020580040400000032180A0900
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDE9400304C000020180040400000032180A0900
+# A's stale route purged: B's route replaces it, never a withdrawal.
+expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003A020000001F4001010040020A02020000FDED0000FDED400304C000020580040400000032180A0900
+expect=bgp:conn=1:seq=4:contains=18644100
+EOF_CLIENT
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+    internal relay { use bgp-rs; }
+    internal gr { use bgp-gr; }
+    external sequence {
+        run "le test fixture plugin/rs-source-sequence 127.0.0.2 up 127.0.0.1 up 127.0.0.2 up 127.0.0.5 send 127.0.0.5 192.0.2.0/24 sent 1 send 127.0.0.1 192.0.2.0/24 sent 2 send 127.0.0.1 198.51.100.0/24 sent 3 send 127.0.0.2 100.65.0.0/24 sent 4"
+        encoder json
+    }
+}
+bgp {
+    peer sourcea {
+        connection {
+            remote { ip 127.0.0.1; }
+            local { ip 127.0.0.3; accept false; }
+        }
+        session {
+            asn { local 65000; remote 65001; }
+            router-id 1.2.3.4
+            rs-client true
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
+            capability { graceful-restart { restart-time 120; } }
+        }
+        behavior { group-updates disable; }
+        timer { connect-retry 1; }
+        attach process relay {
+            receive [ update-received state open-received refresh ]
+        }
+        attach process bgp-rib {
+            receive [ update state refresh ]
+            send [ update ]
+        }
+        attach process sequence { send [ update ]; }
+        attach process gr {
+            receive [ open-received state eor ]
+            send [ update ]
+        }
+    }
+    peer client {
+        connection {
+            remote { ip 127.0.0.2; }
+            local { ip 127.0.0.4; accept false; }
+        }
+        session {
+            asn { local 65000; remote 65002; }
+            router-id 1.2.3.4
+            rs-client true
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
+            capability { graceful-restart disable }
+        }
+        behavior { group-updates disable; }
+        attach process relay {
+            receive [ update-received state open-received refresh ]
+            send [ update ]
+        }
+        attach process bgp-rib {
+            receive [ update state refresh ]
+            send [ update ]
+        }
+        attach process sequence { send [ update ]; }
+    }
+    peer sourceb {
+        connection {
+            remote { ip 127.0.0.5; }
+            local { ip 127.0.0.6; accept false; }
+        }
+        session {
+            asn { local 65000; remote 65005; }
+            router-id 1.2.3.4
+            rs-client true
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
+            capability { graceful-restart disable }
+        }
+        behavior { group-updates disable; }
+        attach process relay {
+            receive [ update-received state open-received refresh ]
+        }
+        attach process bgp-rib {
+            receive [ update state refresh ]
+            send [ update ]
+        }
+        attach process sequence { send [ update ]; }
+    }
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=le test peer --bind 127.0.0.1 --port $PORT:stdin=sourcea
+cmd=background:seq=2:exec=le test peer --bind 127.0.0.2 --port $PORT:stdin=client
+cmd=background:seq=3:exec=le test peer --bind 127.0.0.5 --port $PORT:stdin=sourceb
+cmd=foreground:seq=4:exec=ze -:stdin=ze-bgp:timeout=60s
+expect=exit:code=0
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=forward-cached failed
