@@ -76,11 +76,11 @@ func init() {
 5. Delete domain files from core/events/ (bgp.go, interface.go, sysctl.go, etc.)
 6. Update events_test.go TestMain to import from sub-packages
 7. Use `./le repo rewrite replace` (`internal/le/repo/rewrite`) for deterministic bulk replacements
-8. `./le verify current mode full`
+8. `./le verify changed` (the full run is Thomas's release check)
 
 ## Verification
 
 ```
 go vet ./internal/...
-./le verify current mode full
+./le verify changed
 ```

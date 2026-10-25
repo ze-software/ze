@@ -94,8 +94,8 @@ tests) is not a rule: it goes in the spec or commit it applies to.
   packages it reaches, the feature tags those packages build under, and the
   functional suites that exercise them. A piece of work, its closure, a commit
   and a push owe that scoped evidence and nothing wider.
-- The full verification (`./le verify current`, `./le verify worktree`) is a
-  release check that proves no regression across the tree. It is not run day
+- The full verification (`./le verify current`, `./le verify worktree`) is
+  Thomas's release check, which proves no regression across the tree. It is not run day
   to day, and an agent never runs it: when one is owed, the agent gives Thomas
   the exact command and he runs it himself, so it runs once. The tooling
   refuses a full verification started without an interactive terminal.

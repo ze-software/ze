@@ -573,11 +573,15 @@ section governs each of them.
 
 ## After Setup
 
-Verify everything works:
+Verify everything works with the scoped run, which is the day-to-day evidence:
 
 ```bash
-./le verify current
+./le verify changed
 ```
+
+The full verification, `./le verify current`, is the release check. It refuses
+unless stdin and stdout are a terminal, so it is started by hand at one when a
+release needs it, never from an agent or a script.
 
 Check that appliance tools are detected:
 

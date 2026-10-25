@@ -198,8 +198,8 @@ review round count at `./le spec review record`, not here.
 ## Changed-file gates (`./le doc wiring`)
 
 <!-- source: internal/le/doc/wiring/docwiring.go -- checker.run -->
-These are native `./le` actions rather than Claude hooks, and `./le verify
-worktree` runs them.
+These are native `./le` actions rather than Claude hooks, and Thomas's release check,
+`./le verify worktree`, runs them.
 
 | Check | Name | What it refuses |
 |---|---|---|

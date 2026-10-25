@@ -157,7 +157,7 @@ func deriveDebt(root, candidate string) (derivedDebt, error) {
 	return derived, nil
 }
 
-// readGreen reads the scoped record. An absent record and one that does not
+// readScoped reads the scoped record. An absent record and one that does not
 // prove a push are answers, each recorded as a refusal naming the verify; any
 // other failure to read it is "cannot derive".
 func readScoped(root string, derived *derivedDebt) (verify.ScopedRecord, bool, error) {

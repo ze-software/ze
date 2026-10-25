@@ -277,9 +277,11 @@ Tests are named descriptively with kebab-case: `<feature>-<scenario>.ci`
 ```bash
 ./le test functional gating          # All gated functional tests
 ./le test unit all              # Component-group unit tests
-./le verify current fast   # Changed-files verification of the working tree, in place
-./le verify current        # Full verification of HEAD, in a fresh worktree
+./le verify changed        # Scoped verification of HEAD's change set, in a fresh worktree
 ```
+
+The full verification (`./le verify current`) is Thomas's release check, refused
+without a terminal. When one is owed, give him that command; never start it.
 
 ## Checklist
 

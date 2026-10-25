@@ -421,9 +421,9 @@ compile. The whole-package runs of `commit`, `verify/...`, `hookruntime` and
 | AC-12..AC-14 | met | `TestFullModePublishesWholeTree`, `TestChangedPopulationReadsScope`, `TestVerifyChangedWritesScopedRecord`, `TestCheckCertificateKnowsChangedMode`: PASS |
 | AC-15..AC-18 | met | `TestPushAdmitsScopedRecordCoveringHead`, `TestPushCarriesProseAfterScopedRecord`, `TestPushRefusesWhenUpstreamMovedPastAnchor`, `TestPushRefusalNamesVerifyChanged`: PASS |
 | AC-19 | met | `TestSessionStartDebtLineNamesVerifyChanged`: PASS |
-| AC-20 | met | `./le commit create` prepared every Phase 6 commit with `debt=14 commit(s) owe a scoped verify` and refused none for it |
+| AC-20 | met | `TestCreateReportsDerivedDebt` (`internal/le/commit/push_test.go`): PASS, create stages only the named paths and reports the derived count without refusing; live, `./le commit create` prepared every Phase 6 commit with `debt=14 commit(s) owe a scoped verify` and refused none for it |
 | AC-21 | met | `TestUnjudgedStageNamesNoAgentFullRun`, `TestRemovedKeywordsNameReplacement`: PASS; the live refusal over the carried `arch tier/check` red read `clears only when the release check reaches it, which you never run: give Thomas the command ./le verify worktree` |
-| AC-22 | met | `TestLossyPipeRefusalNamesTheScopedRun`, `TestAFastGreenKeepsAFullRedOnASharedStage`: PASS; a grep for an imperative full run over `ai`, `.claude/skills`, `plan/templates`, `docs/contributing` and `docs/functional-tests.md`, less the lines naming Thomas, a terminal, a ban or the release check, leaves only bans (`ai/agents/ze-work.md`, `ze-commit`) and descriptions (the `HEAD^` paragraph of `rfc-conformance-gates.md`, the `tmp/ze-verify-full.json` row of `functional-tests.md`); `./le doc check verify` PASSED |
+| AC-22 | met | `TestNoAgentSurfaceTellsAnAgentToRunAWholeTreeVerify` and `TestUnbannedRunsJudgesTheSentence` (`internal/le/wholetree_corpus_test.go`): PASS. The first reads every registered `WholeTree` verb from the action tables and refuses any sentence of a tracked file under `ai/`, `AGENTS.md` or `.claude/` that names one and neither says the run is Thomas's nor bans it; it went red with the original `ai/patterns/functional-test.md` lines restored. `TestLossyPipeRefusalNamesTheScopedRun`, `TestAFastGreenKeepsAFullRedOnASharedStage`: PASS. Before round 6 the evidence was a one-off grep for an imperative full run over `ai`, `.claude/skills`, `plan/templates`, `docs/contributing` and `docs/functional-tests.md`, less the lines naming Thomas, a terminal, a ban or the release check, leaves only bans (`ai/agents/ze-work.md`, `ze-commit`) and descriptions (the `HEAD^` paragraph of `rfc-conformance-gates.md`, the `tmp/ze-verify-full.json` row of `functional-tests.md`); `./le doc check verify` PASSED |
 
 ### Goal Validation
 
@@ -510,7 +510,17 @@ was put back.
 (`605ac0a373`) and `plan/doc-reviewed/a4042a10.md` (`f074233e43`), and two dangling
 references in `spec-prose-cites-symbols-not-facts.md`. None is this spec's.
 
-Round 6, over the round-5 fix commit, is owed to the parent session, which runs
+Round 6, over the round-5 fix commit, ran in the parent session with an
+independent reviewer and found one ISSUE and two NOTEs, all fixed in the commit
+that carries this paragraph.
+
+| # | Finding | Fix | Test that goes red without it |
+|---|---------|-----|-------------------------------|
+| 16 | ISSUE: AC-22 did not hold end to end and rested on a one-off grep. `ai/patterns/functional-test.md` still told an agent to run `./le verify current fast` and `./le verify current` | The pattern names `./le verify changed`, and the full run only as the command an agent gives Thomas. `TestNoAgentSurfaceTellsAnAgentToRunAWholeTreeVerify` (`internal/le/wholetree_corpus_test.go`) derives the verb list from the registered action tables (every `WholeTree` action as `<area> <verb>`, and an area whose every action is `WholeTree` as `<area>`, so `verify evidence`) and judges every sentence of the tracked `ai/`, `AGENTS.md` and `.claude/` files that names one after `le`; a code-block line and a table row are each judged alone. A sentence passes only when it names Thomas or bans the run. It found seventeen more hits, each fixed: `.claude/hooks/README.md`, three `.claude/plan` files, `ai/INDEX.md` (two), `ai/META-DECISIONS.md` (one sentence, both verbs), `ai/rationale/git-safety.md`, `ai/skills/ze-test.md`, and three rule points, re-rendered into `completion.md`, `platform-linux.md` and `writing.md`. `docs/architecture/overview.md` and `docs/guide/developer-setup.md` no longer call `./le verify current` the pre-commit check: each names `./le verify changed` as day-to-day evidence and the full run as the terminal-gated release check | Red with the original two `functional-test.md` lines restored; `TestUnbannedRunsJudgesTheSentence` holds the scanner to its seven cases |
+| 17 | NOTE: the doc comment above `readScoped` (`internal/le/commit/owed.go`) said `readGreen` | Renamed | None: a comment |
+| 18 | NOTE: the AC-20 closure row named no test | It names `TestCreateReportsDerivedDebt` (`internal/le/commit/push_test.go`) | None: the record |
+
+Round 7, over the round-6 fix commit, is owed to the parent session, which runs
 it with an independent reviewer. The scoped `./le verify changed` over the
 closing commits is owed with it.
 

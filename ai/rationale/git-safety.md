@@ -24,7 +24,7 @@ gh issue list
 gh issue create --title "..."
 ```
 
-## Why `./le verify current` Runs Foreground
+## Why Thomas's `./le verify current` Runs Foreground
 
 Running foreground means the tool result IS the completion signal -- no
 polling, no missed notifications, log is ready to read on return. The

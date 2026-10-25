@@ -264,8 +264,12 @@ plugin {
 
 ### Unit Tests
 ```bash
-./le verify current   # complete pre-commit verification
+./le verify changed   # day-to-day evidence: the scoped run over HEAD's change set
 ```
+
+The full verification, `./le verify current`, is the release check. It refuses
+unless stdin and stdout are a terminal, so Thomas starts it by hand when a
+release needs it; an agent never runs it.
 
 ### Functional Tests
 ```bash
