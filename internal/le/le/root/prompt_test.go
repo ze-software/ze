@@ -5,6 +5,8 @@
 package leroot
 
 import (
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
@@ -150,3 +152,65 @@ func TestPromptCandidatesAreTheCompletionCallbacks(t *testing.T) {
 		t.Errorf("the path prompt offered %v, want prompt_test.go", offered)
 	}
 }
+
+// TestTabNamesADirectoryItCannotList proves a path prompt whose Tab meets a
+// directory that cannot be listed tells the reader so once the prompt closes,
+// rather than offering nothing as an empty directory would, and that a
+// directory which does not exist yet offers nothing with no notice. Method:
+// Tab under a regular file (listing it fails with "not a directory") and
+// under a missing directory, then read stderr.
+func TestTabNamesADirectoryItCannotList(t *testing.T) {
+	registerPromptProbe()
+	file := filepath.Join(t.TempDir(), "plain")
+	if err := os.WriteFile(file, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		partial string
+		notice  bool
+	}{
+		{partial: file + "/x", notice: true},
+		{partial: filepath.Join(t.TempDir(), "absent") + "/x", notice: false},
+	} {
+		var offered []string
+		atTerminal(t, func(prompt menu.Prompt) (string, error) {
+			if prompt.Label == "target" {
+				offered = prompt.Complete(tc.partial)
+			}
+			return "x", nil
+		})
+		stderr := captureStderr(t, func() { Dispatch("le", []string{promptProbe, "run"}) })
+		if len(offered) != 0 {
+			t.Errorf("Tab on %q offered %v, want nothing", tc.partial, offered)
+		}
+		named := strings.Contains(stderr, "le: Tab offered no paths: cannot list "+file+"/")
+		if named != tc.notice {
+			t.Errorf("Tab on %q: stderr %q, notice naming the directory = %v, want %v", tc.partial, stderr, named, tc.notice)
+		}
+	}
+}
+
+// TestAMenuLineForATablelessAreaIsEchoed proves a line the reader chose at the
+// menu is echoed before it runs even when its area declares no action table,
+// so the reader still learns the command. Method: fill a menu line for an
+// area registered with no table.
+func TestAMenuLineForATablelessAreaIsEchoed(t *testing.T) {
+	const tableless = "prompt-tableless"
+	tablelessOnce.Do(func() {
+		Register(tableless, GroupSuite, func([]string) (any, int) { return nil, 0 }, registry.Meta{
+			ShortHelp: "an area with no action table",
+			Mode:      "offline", Section: registry.SectionTest,
+		})
+	})
+	var line filled
+	var err error
+	echo := captureStderr(t, func() { line, err = fillLine("le", tableless, []string{"go"}, true) })
+	if err != nil || line.asked || !slices.Equal(line.args, []string{"go"}) {
+		t.Errorf("fillLine = %+v, %v; want [go] unasked, no error", line, err)
+	}
+	if want := "running: le prompt-tableless go\n"; echo != want {
+		t.Errorf("echo = %q, want %q", echo, want)
+	}
+}
+
+var tablelessOnce sync.Once

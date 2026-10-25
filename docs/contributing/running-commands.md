@@ -91,10 +91,13 @@ filters the level, Left and Backspace go back, Escape goes back or quits, and
 At a terminal, a line that names an action but leaves out a value the action
 declares required is not refused: le asks for each missing value in turn, the
 positional one first, with Tab offering what `le completion words` offers at
-that place, and the paths on disk for a path or a spec file. Optional values
-are never asked. Enter on an empty answer keeps asking. Once every value is
-given, le prints the whole line to stderr after `running: `, so it is never
-read as the command's output, and runs it:
+that place, and the paths on disk for a path or a spec file. A directory Tab
+cannot list (it is a file, or cannot be read) is named on stderr once the
+prompt closes, with the command that shows why, so an empty offer is never
+read as an empty directory. Optional values are never asked. Enter on an
+empty answer keeps asking. Once every value is given, le prints the whole line
+to stderr after `running: `, so it is never read as the command's output, and
+runs it:
 
 ```
 $ ./le spec claim
@@ -111,7 +114,7 @@ program's. A prompt never answers the whole-tree gate: a full verification
 still asks its own terminal question once the line is complete
 (`internal/le/le/human`). `ze le` behaves identically under its own name.
 
-<!-- source: internal/le/le/root/prompt.go -- fillLine, missingIn, candidatesFor, openMenu -->
+<!-- source: internal/le/le/root/prompt.go -- fillLine, missingIn, candidatesFor, pathsFrom, noteUnlisted, openMenu -->
 <!-- source: internal/le/le/action/leaction.go -- Missing -->
 <!-- source: internal/component/cli/menu/prompt.go -- Ask -->
 

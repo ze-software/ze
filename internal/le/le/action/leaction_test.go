@@ -17,7 +17,7 @@ func fixture(t *testing.T) (Area, *int) {
 	t.Helper()
 
 	ran := 0
-	area := New("web-assets",
+	area := New("probe-area",
 		Action{
 			Verb:   "check",
 			Why:    "the generated file agrees with the markup",
@@ -106,7 +106,7 @@ func TestListingAndSubsAgreeAboutWhatWrites(t *testing.T) {
 	if !regexp.MustCompile(`\n {2}write +\[writes\] `).MatchString(text) {
 		t.Errorf("the listing does not mark write as writing:\n%s", text)
 	}
-	if !strings.HasPrefix(text, "le web-assets\n") {
+	if !strings.HasPrefix(text, "le probe-area\n") {
 		t.Errorf("the listing does not open with the area name:\n%s", text)
 	}
 

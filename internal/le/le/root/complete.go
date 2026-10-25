@@ -141,8 +141,11 @@ func afterVerb(row leaction.Row, rest []string, partial string) ([]leaction.Cand
 		out = append(out, valuesOf(positional)...)
 	}
 	for _, parameter := range row.Parameters {
-		if parameter.Keyword == "" || parameter.Retired != "" {
-			continue
+		if parameter.Keyword == "" {
+			continue // the positional, offered above
+		}
+		if parameter.Retired != "" {
+			continue // the parser refuses it, naming its successor
 		}
 		if used[parameter.Keyword] && !parameter.Repeat {
 			continue

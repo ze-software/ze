@@ -14,6 +14,8 @@ package leroot
 
 import (
 	"errors"
+	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"slices"
@@ -51,18 +53,15 @@ type filled struct {
 // fillLine asks for every Required value the line name toolArgs leaves out and
 // answers the completed words, which are toolArgs unchanged when nothing is
 // missing. When le asked, or when echo is set because the reader chose the line
-// at the menu, the completed line is echoed to stderr. Canceling a prompt
-// answers menu.ErrCanceled and nothing runs.
+// at the menu, the completed line is echoed to stderr, for an area with no
+// action table too. Canceling a prompt answers menu.ErrCanceled and nothing
+// runs.
 func fillLine(program, name string, toolArgs []string, echo bool) (filled, error) {
 	own, _ := splitChain(toolArgs)
 	tail := toolArgs[len(own):]
-	list, declared := ActionsOf(name)
-	if !declared {
-		return filled{args: toolArgs}, nil
-	}
-	verb, rest, missing := missingIn(list, own)
+	verb, rest, missing := missingIn(name, own)
 	if len(missing) != 0 {
-		line, err := askMissing(name, verb, rest, missing)
+		line, err := askMissing(program, name, verb, rest, missing)
 		if err != nil {
 			return filled{}, err
 		}
@@ -75,12 +74,17 @@ func fillLine(program, name string, toolArgs []string, echo bool) (filled, error
 }
 
 // missingIn answers the verb own names, the words after it, and the Required
-// parameters those words leave out. A bare line names the area's only action,
-// which is what its body runs. Nothing is missing on a pass-through area or a
-// forwarding action, whose words are another program's; on a line naming no
-// action of the area; or on a line the action's parser refuses, which then
-// runs and is refused as it always was.
-func missingIn(list leaction.List, own []string) (string, []string, []leaction.Parameter) {
+// parameters those words leave out, for the area called name. A bare line names
+// the area's only action, which is what its body runs. Nothing is missing on an
+// area with no action table, which declares no Required value and parses its
+// own words; on a pass-through area or a forwarding action, whose words are
+// another program's; on a line naming no action of the area; or on a line the
+// action's parser refuses, which then runs and is refused as it always was.
+func missingIn(name string, own []string) (string, []string, []leaction.Parameter) {
+	list, declared := ActionsOf(name)
+	if !declared {
+		return "", nil, nil
+	}
 	if list.PassesWords {
 		return "", nil, nil
 	}
@@ -107,11 +111,11 @@ func missingIn(list leaction.List, own []string) (string, []string, []leaction.P
 // askMissing asks for each missing parameter in declaration order and answers
 // the words after the verb with the answers in place: the positional value in
 // the first slot, each keyword with its value after the words already typed.
-func askMissing(name, verb string, rest []string, missing []leaction.Parameter) ([]string, error) {
+func askMissing(program, name, verb string, rest []string, missing []leaction.Parameter) ([]string, error) {
 	line := slices.Clone(rest)
 	for _, parameter := range missing {
 		if parameter.Keyword == "" {
-			words, err := askOne(parameter, parameter.Value, append(strings.Fields(name), verb))
+			words, err := askOne(program, parameter, parameter.Value, append(strings.Fields(name), verb))
 			if err != nil {
 				return nil, err
 			}
@@ -119,7 +123,7 @@ func askMissing(name, verb string, rest []string, missing []leaction.Parameter) 
 			continue
 		}
 		before := append(append(append(strings.Fields(name), verb), line...), parameter.Keyword)
-		words, err := askOne(parameter, parameter.Value, before)
+		words, err := askOne(program, parameter, parameter.Value, before)
 		if err != nil {
 			return nil, err
 		}
@@ -127,7 +131,7 @@ func askMissing(name, verb string, rest []string, missing []leaction.Parameter) 
 		if parameter.Pair == "" {
 			continue
 		}
-		second, err := askOne(parameter, parameter.Pair, nil)
+		second, err := askOne(program, parameter, parameter.Pair, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -139,19 +143,32 @@ func askMissing(name, verb string, rest []string, missing []leaction.Parameter) 
 // askOne asks for one value, named label, offering the completion callback's
 // candidates after the words before (none when before is nil). A list of words
 // (KindWords, KindArgv) is split where the reader put spaces; every other
-// value is one word.
-func askOne(parameter leaction.Parameter, label string, before []string) ([]string, error) {
+// value is one word. When Tab could not list a directory, the reader is told
+// once the prompt closes (noteUnlisted), so an empty offer is never read as an
+// empty directory.
+func askOne(program string, parameter leaction.Parameter, label string, before []string) ([]string, error) {
 	prompt := menu.Prompt{Label: label, Help: parameter.Help}
+	var unlisted error
 	if before != nil {
 		prompt.Complete = func(partial string) []string {
-			return candidatesFor(parameter.Kind, append(slices.Clone(before), partial))
+			candidates, err := candidatesFor(parameter.Kind, append(slices.Clone(before), partial))
+			if err != nil {
+				unlisted = err
+			}
+			return candidates
 		}
 	}
 	value, err := askValue(prompt)
+	if unlisted != nil {
+		noteUnlisted(program, unlisted)
+	}
 	if err != nil {
 		return nil, err
 	}
-	if parameter.Kind == leaction.KindWords || parameter.Kind == leaction.KindArgv {
+	if parameter.Kind == leaction.KindWords {
+		return strings.Fields(value), nil
+	}
+	if parameter.Kind == leaction.KindArgv {
 		return strings.Fields(value), nil
 	}
 	return []string{strings.TrimSpace(value)}, nil
@@ -159,8 +176,10 @@ func askOne(parameter leaction.Parameter, label string, before []string) ([]stri
 
 // candidatesFor answers what Tab offers for the last of words: the completion
 // callback's candidates, and for a path or a spec file, the paths on disk that
-// begin with it, which is what the shell offers for the same word.
-func candidatesFor(kind leaction.Kind, words []string) []string {
+// begin with it, which is what the shell offers for the same word. A directory
+// that cannot be listed answers its error beside the callback's candidates,
+// which stay offered.
+func candidatesFor(kind leaction.Kind, words []string) ([]string, error) {
 	var out []string
 	candidates, err := Complete(words)
 	if err == nil {
@@ -169,23 +188,31 @@ func candidatesFor(kind leaction.Kind, words []string) []string {
 		}
 	}
 	if kind == leaction.KindPath || kind == leaction.KindSpec {
-		out = append(out, pathsFrom(words[len(words)-1])...)
+		paths, err := pathsFrom(words[len(words)-1])
+		if err != nil {
+			return out, err
+		}
+		out = append(out, paths...)
 	}
-	return out
+	return out, nil
 }
 
 // pathsFrom answers the entries of partial's directory whose path begins with
 // partial, a directory with a trailing slash so the next Tab descends. A
-// directory that cannot be read offers nothing.
-func pathsFrom(partial string) []string {
+// directory that does not exist holds no entry, so none begins with partial;
+// one that exists and cannot be listed is an error naming it.
+func pathsFrom(partial string) ([]string, error) {
 	dir, base := filepath.Split(partial)
 	read := dir
 	if read == "" {
 		read = "."
 	}
 	entries, err := os.ReadDir(read)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, nil // the reader is still typing a directory's name
+	}
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("cannot list %s (%w); check it with: ls -ld %s", read, err, read)
 	}
 	var out []string
 	for _, entry := range entries {
@@ -198,7 +225,14 @@ func pathsFrom(partial string) []string {
 		}
 		out = append(out, path)
 	}
-	return out
+	return out, nil
+}
+
+// noteUnlisted tells the reader, on stderr, that Tab offered no paths because
+// a directory could not be listed, and how to look at it.
+func noteUnlisted(program string, err error) {
+	var tb textbuf.Buffer
+	tb.Str(program).Str(": Tab offered no paths: ").Str(err.Error()).Byte('\n').StdErr() //nolint:errcheck // CLI output
 }
 
 // echoLine writes the line about to run to stderr, after echoPrefix, quoting
