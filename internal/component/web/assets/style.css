@@ -836,6 +836,31 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
   white-space: nowrap;
 }
 
+/* A closed panel that still holds errors keeps its toggle on screen as a tab
+ * on the right edge, so the operator can reopen it. cli.js (syncErrorPanel)
+ * sets data-count only while #error-list holds an item, so an empty panel
+ * stays fully hidden and covers nothing (81c79729a1). The tab hangs off the
+ * panel's left edge, which is the viewport's right edge while collapsed, and
+ * sits at mid height: clear of the 2.5rem top bar (CLI button, breadcrumb
+ * actions), the notifications under it and the commit bar at the bottom. */
+.error-panel.collapsed .error-toggle[data-count] {
+  position: absolute;
+  right: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+  border: 2px solid var(--error);
+  border-right: none;
+  border-radius: 6px 0 0 6px;
+  box-shadow: -2px 0 8px rgba(0,0,0,0.3);
+  pointer-events: auto;
+}
+
+.error-toggle[data-count]::after {
+  content: " (" attr(data-count) ")";
+}
+
 .error-list {
   flex: 1;
   overflow-y: auto;

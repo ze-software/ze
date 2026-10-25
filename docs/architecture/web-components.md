@@ -250,8 +250,13 @@ On error:
 With no errors the panel carries `collapsed`, which `style.css` renders fully
 off screen (`translateX(100%)`, `pointer-events: none`), so it covers nothing.
 Its Errors toggle sits inside the panel: it closes an open panel, and dismissing
-the last error collapses it again. A collapsed panel's toggle is off screen with
-it, so once the operator closes the panel only a new error reopens it.
+the last error collapses it again. While `#error-list` holds an item,
+`syncErrorPanel` sets `data-count` on the toggle, which shows the count. A
+panel the operator closed with errors still listed keeps that toggle on screen:
+`style.css` hangs it off the panel's left edge, so it sits on the viewport's
+right edge as a tab at mid height, clear of the top bar's CLI button and
+breadcrumb actions, and clicking it reopens the panel. With no errors the toggle
+carries no `data-count` and the collapsed panel shows nothing.
 
 ## Commit Flow
 

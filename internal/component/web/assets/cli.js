@@ -302,11 +302,24 @@
   // when the last one is dismissed. A handler answers a rejected edit with the
   // oob_error fragment, whose only swap appends to #error-list. No htmx swap
   // can set a class, so the collapsed state is held here.
+  //
+  // The toggle carries data-count while the list holds an item. style.css keys
+  // on it to keep the toggle on screen as a tab when the operator closes a
+  // panel that still holds errors, and to show the count; with no errors the
+  // attribute is gone and the collapsed panel is fully hidden.
   function syncErrorPanel() {
     var panel = document.getElementById('error-panel');
     var list = document.getElementById('error-list');
     if (!panel || !list) return;
-    panel.classList.toggle('collapsed', list.querySelectorAll('.error-item').length === 0);
+    var count = list.querySelectorAll('.error-item').length;
+    panel.classList.toggle('collapsed', count === 0);
+    var toggle = document.getElementById('error-toggle');
+    if (!toggle) return;
+    if (count > 0) {
+      toggle.setAttribute('data-count', String(count));
+    } else {
+      toggle.removeAttribute('data-count');
+    }
   }
 
   function initErrorPanel() {

@@ -1,24 +1,27 @@
 # Test: the error drawer stays hidden with no errors, slides in when a refused
-#       edit adds one, and its own Errors toggle closes it
+#       edit adds one, its own Errors toggle closes it, and a closed drawer
+#       that still holds errors keeps the toggle on screen as a tab that
+#       reopens it
 # VALIDATES: with an empty #error-list the panel carries "collapsed", which
 #   style.css renders off screen (translateX(100%), pointer-events: none). A
 #   refused set appends an error out of band and cli.js (syncErrorPanel, on
-#   htmx:after:settle over #error-list) removes "collapsed". The toggle
-#   (data-action="toggle-error-panel") then closes it, a second refused set
-#   opens it again, and the toggle closes it again. The page keeps rendering.
+#   htmx:after:settle over #error-list) removes "collapsed" and sets data-count
+#   on the toggle. The toggle (data-action="toggle-error-panel") then closes
+#   it, a second refused set opens it again, and the toggle closes it again.
+#   Closed with errors listed, the toggle carries data-count, so style.css
+#   hangs it off the panel's left edge as a tab on the viewport's right edge;
+#   clicking that tab reopens the drawer. A fresh page has no errors, so no
+#   data-count and no tab. The page keeps rendering.
 # PREVENTS: a drawer that opens on page load and covers the CLI button
-#   (81c79729a1), a refused edit that never opens it, and a toggle that is not
-#   wired or does not close it.
+#   (81c79729a1), a refused edit that never opens it, a toggle that is not
+#   wired or does not close it, and a closed drawer that still holds errors
+#   but can no longer be reopened (agent-browser refuses a click on a toggle
+#   that went off screen with the panel: "outside the viewport").
 #
 # Every state is asserted POSITIVELY on the panel's own class attribute, so each
 # expectation polls until the state lands rather than judging one snapshot. The
 # open state is the attribute closing on "error-panel" alone; the closed state
 # carries "collapsed".
-#
-# Not asserted: reopening the drawer by its toggle once the operator closed it.
-# The toggle lives inside the panel, so the collapsed panel takes it off screen
-# and agent-browser refuses the click ("outside the viewport"). That is a
-# product gap, not a test choice.
 
 option=timeout:value=60s
 
@@ -52,9 +55,27 @@ action=press:key=Enter
 expect=element:text=99999999999
 expect=html:contains=id="error-panel" class="error-panel">
 
-# And the toggle closes it again.
+# And the toggle closes it again. Both errors are still listed, so the toggle
+# carries their count and stays on screen as the edge tab.
+action=click:id=error-toggle
+expect=html:contains=id="error-panel" class="error-panel collapsed">
+expect=html:contains=data-count="2"
+
+# The tab takes the click and reopens the drawer.
+action=click:id=error-toggle
+expect=html:contains=id="error-panel" class="error-panel">
+
+# And closes it once more.
 action=click:id=error-toggle
 expect=html:contains=id="error-panel" class="error-panel collapsed">
 
 # The page is still rendering its own content after the clicks.
 expect=element:id=input-system-sdns-sresolv--conf--path
+
+# A fresh page holds no errors: the drawer is collapsed and its toggle carries
+# no count, so no tab is shown.
+action=open:path=/show/system/dns/
+expect=element:id=input-system-sdns-stimeout
+expect=html:contains=id="error-panel" class="error-panel collapsed">
+expect=html:not-contains=data-count=
+expect=html:not-contains=class="error-item"
