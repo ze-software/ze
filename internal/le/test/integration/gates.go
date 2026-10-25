@@ -168,7 +168,7 @@ func Table() []Action {
 		{
 			Verb:       cleanupVerb,
 			NativeArgs: runLabCleanup,
-			Parameters: []leaction.Parameter{{Keyword: "dry"}},
+			Parameters: []leaction.Parameter{{Keyword: "dry", Kind: leaction.KindSwitch, Help: "list what would be removed and remove nothing"}},
 			Why: "remove the Docker containers, networks and run-owned image tags a killed lab run left" +
 				" behind: only resources whose ze.lab owner labels prove the owner gone, never an unlabeled" +
 				" one, a volume or a cache tag. `dry` lists what would go and what stays, and why",

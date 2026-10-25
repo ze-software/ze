@@ -24,15 +24,15 @@ const valueRef = "ref"
 
 var actions = leaction.New(area,
 	leaction.Action{Verb: "list", Why: "report a committed release inventory",
-		Parameters: []leaction.Parameter{{Keyword: "revision", Value: valueRef, Requirement: leaction.Optional}},
+		Parameters: []leaction.Parameter{{Keyword: "revision", Kind: leaction.KindRevision, Help: "the commit whose inventory is read; HEAD when absent", Value: valueRef, Requirement: leaction.Optional}},
 		AnswerArgs: runList},
 	leaction.Action{Verb: "update", Why: "regenerate " + OutputRel + " from a committed tree", Writes: true,
-		Parameters: []leaction.Parameter{{Keyword: "revision", Value: valueRef, Requirement: leaction.Optional}},
+		Parameters: []leaction.Parameter{{Keyword: "revision", Kind: leaction.KindRevision, Help: "the commit the inventory is regenerated from; HEAD when absent", Value: valueRef, Requirement: leaction.Optional}},
 		AnswerArgs: runUpdate},
 	leaction.Action{Verb: "compare", Why: "compare endpoint queues without inferring completion",
 		Parameters: []leaction.Parameter{
-			{Keyword: "from", Value: valueRef, Requirement: leaction.Required},
-			{Keyword: "to", Value: valueRef, Requirement: leaction.Required},
+			{Keyword: "from", Kind: leaction.KindRevision, Help: "the older endpoint of the comparison", Value: valueRef, Requirement: leaction.Required},
+			{Keyword: "to", Kind: leaction.KindRevision, Help: "the newer endpoint of the comparison", Value: valueRef, Requirement: leaction.Required},
 		}, AnswerArgs: runCompare},
 )
 

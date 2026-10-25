@@ -33,8 +33,8 @@ var actions = leaction.New(area, leaction.Action{
 	Verb: actionRun,
 	Why:  "lint the full tree, a declared package scope, or the packages the change set reaches (changed) through the host, Linux integration, platform, capability, personality, and compile-out builds",
 	Parameters: []leaction.Parameter{
-		{Keyword: "scope", Value: "packages", Requirement: leaction.Optional},
-		{Keyword: keywordChanged},
+		{Keyword: "scope", Kind: leaction.KindString, Help: "package patterns to lint instead of the whole tree", Value: "packages", Requirement: leaction.Optional},
+		{Keyword: keywordChanged, Kind: leaction.KindSwitch, Help: "lint only the packages the change set reaches"},
 	},
 	AnswerArgs: runHere,
 })

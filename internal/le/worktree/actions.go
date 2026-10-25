@@ -53,8 +53,8 @@ var actions = leaction.New(area,
 		Parameters: []leaction.Parameter{
 			// Optional: naming neither keyword updates the checkout the
 			// command was typed in, which is the form the shell half had.
-			{Keyword: pathKeyword, Value: "path", Requirement: leaction.Optional},
-			{Keyword: allKeyword},
+			{Keyword: pathKeyword, Kind: leaction.KindPath, Help: "the linked worktree to rebase", Value: "path", Requirement: leaction.Optional},
+			{Keyword: allKeyword, Kind: leaction.KindSwitch, Help: "rebase every linked worktree"},
 		},
 		AnswerArgs: update,
 	},

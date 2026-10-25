@@ -13,7 +13,7 @@ func wholeTreeArea(t *testing.T) (Area, *int) {
 	ran := 0
 	area := New("verify",
 		Action{Verb: "worktree", Why: "w", WholeTree: true,
-			Parameters: []Parameter{{Keyword: "keep"}},
+			Parameters: []Parameter{{Keyword: "keep", Kind: KindSwitch, Help: "h"}},
 			AnswerArgs: func(Arguments) (any, int) { ran++; return nil, 0 }},
 		Action{Verb: "bare", Why: "b", WholeTree: true,
 			Answer: func() (any, int) { ran++; return nil, 0 }},

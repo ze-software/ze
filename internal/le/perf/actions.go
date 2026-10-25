@@ -49,8 +49,8 @@ var programVerbs = map[string]string{
 // runParameters is the grammar of `perf run`: the DUT selection of perf-bench
 // run and the step selection that replaced the retired perf-run program's --build and --test.
 var runParameters = []leaction.Parameter{
-	{Keyword: dutKeyword, Value: "names", Requirement: leaction.Optional},
-	{Keyword: stepKeyword, Value: stepBuild + "|" + stepTest, Requirement: leaction.Optional},
+	{Keyword: dutKeyword, Kind: leaction.KindList, Help: "the DUTs to measure, comma-separated", Value: "names", Requirement: leaction.Optional},
+	{Keyword: stepKeyword, Kind: leaction.KindEnum, Help: "run only the build step or only the test step", Value: "step", Values: []string{stepBuild, stepTest}, Requirement: leaction.Optional},
 }
 
 var actions = leaction.New(area,

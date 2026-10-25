@@ -58,14 +58,14 @@ func defaultTunnelDiagnosticOptions() l2tpDiagnosticOptions {
 
 func pppoxDiagnosticParameters() []leaction.Parameter {
 	return []leaction.Parameter{
-		{Keyword: "local", Value: "addr", Requirement: leaction.Optional},
-		{Keyword: "remote", Value: "addr", Requirement: leaction.Optional},
-		{Keyword: "source-port", Value: "port", Requirement: leaction.Optional},
-		{Keyword: "destination-port", Value: "port", Requirement: leaction.Optional},
-		{Keyword: "tunnel-id", Value: "id", Requirement: leaction.Optional},
-		{Keyword: "peer-tunnel-id", Value: "id", Requirement: leaction.Optional},
-		{Keyword: "session-id", Value: "id", Requirement: leaction.Optional},
-		{Keyword: "peer-session-id", Value: "id", Requirement: leaction.Optional},
+		{Keyword: "local", Kind: leaction.KindString, Help: "the local tunnel address", Value: "addr", Requirement: leaction.Optional},
+		{Keyword: "remote", Kind: leaction.KindString, Help: "the remote tunnel address", Value: "addr", Requirement: leaction.Optional},
+		{Keyword: "source-port", Kind: leaction.KindUint, Help: "the local UDP port", Value: "port", Requirement: leaction.Optional},
+		{Keyword: "destination-port", Kind: leaction.KindUint, Help: "the remote UDP port", Value: "port", Requirement: leaction.Optional},
+		{Keyword: "tunnel-id", Kind: leaction.KindUint, Help: "the local L2TP tunnel identifier", Value: "id", Requirement: leaction.Optional},
+		{Keyword: "peer-tunnel-id", Kind: leaction.KindUint, Help: "the peer's L2TP tunnel identifier", Value: "id", Requirement: leaction.Optional},
+		{Keyword: "session-id", Kind: leaction.KindUint, Help: "the local L2TP session identifier", Value: "id", Requirement: leaction.Optional},
+		{Keyword: "peer-session-id", Kind: leaction.KindUint, Help: "the peer's L2TP session identifier", Value: "id", Requirement: leaction.Optional},
 	}
 }
 

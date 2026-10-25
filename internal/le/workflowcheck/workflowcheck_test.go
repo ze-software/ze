@@ -205,7 +205,7 @@ var nativeActionPattern = regexp.MustCompile(
 // `le build host-driver` is, is its own identity and carries no slash.
 //
 // An action whose keyword carries another le command line, as `test qemu
-// docker-lab lab "<words>"` does (leaction.ValueLeWords), runs that command
+// docker-lab lab "<words>"` does (leaction.KindWords), runs that command
 // too, so the nested command is answered after the wrapper.
 func nativeActionsIn(source string) []string {
 	matches := nativeActionPattern.FindAllStringSubmatchIndex(source, -1)

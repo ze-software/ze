@@ -211,6 +211,24 @@ An area that hand-rolls its own dispatch registers no table, and
 its actions key is then absent rather than empty. Absent says the area declared
 nothing, which is a different fact from an area that declared no action.
 
+**A keyword is typed, and its declaration is the only one.** Each
+`leaction.Parameter` declares a kind from the closed set in
+`internal/le/le/action/kind.go` (switch, string, enum, list, uint, duration,
+path, revision, spec, label, area, words), a one-line help, and for an enum or
+a list its values. It can also declare a value source for completion, a pair
+(`rename <old> <new>`), or the spelling that retired it, which is refused by
+name and never rendered. An action may take one positional value, in the first
+slot after its verb and of a kind other than string. The manifest publishes
+the kind, help, requiredness, repetition and values of every live keyword.
+`leroot.Tree` derives a read-only `command.Node` tree from the same registry
+for completion, help, the menu and `le help ai`: a switch maps to `ArgFlag`, an
+enum to `ArgEnum`, a uint to `ArgUint` and every other kind to `ArgString`.
+Dispatch still parses only through the action table, and a kind's syntax check
+is not yet applied there.
+<!-- source: internal/le/le/action/kind.go -- Kind, Kinds -->
+<!-- source: internal/le/le/action/parameter.go -- Parameter, checkParameters, parseArguments -->
+<!-- source: internal/le/le/root/tree.go -- Tree, argDefOf -->
+
 Several commands answer to more than one group, so the choice is a ladder.
 Read from the top and stop at the first row that matches.
 

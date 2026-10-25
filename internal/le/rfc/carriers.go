@@ -641,7 +641,7 @@ func stripYAMLComments(src string) string {
 func registeredCommand(name string) bool { return leroot.LookupCommand(name) != nil }
 
 // workflowNestedLe answers the keyword of a registered action whose value is
-// another le command line (leaction.ValueLeWords), so `./le test qemu docker-lab
+// another le command line (leaction.KindWords), so `./le test qemu docker-lab
 // lab "test integration interop"` credits the lab it runs as well as itself.
 // The registry answers it, so a new wrapper is read without an edit here.
 func workflowNestedLe(command, verb string) (string, bool) {

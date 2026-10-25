@@ -47,8 +47,8 @@ func actionTable(run actionRunner) leaction.Area {
 				"part <index> of <count> runs one piece of the packages, and the pieces together run every package; " +
 				"it takes keywords, so it runs on its own and is never swept beside another verb",
 			Parameters: []leaction.Parameter{
-				{Keyword: "part", Value: "index", Requirement: leaction.Optional},
-				{Keyword: "of", Value: "count", Requirement: leaction.Optional},
+				{Keyword: "part", Kind: leaction.KindUint, Help: "which piece of the groups this run judges, read with of", Value: "index", Requirement: leaction.Optional},
+				{Keyword: "of", Kind: leaction.KindUint, Help: "how many pieces the groups are split into, read with part", Value: "count", Requirement: leaction.Optional},
 			},
 			AnswerArgs: func(args leaction.Arguments) (any, int) {
 				part, err := partFrom(args)

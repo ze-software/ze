@@ -262,7 +262,7 @@ func asksForUsage(name string, args []string) bool {
 // (leroot.RegisterActions). An area that registered none still gets its page,
 // because guarding every area is what keeps a probe from running work, and an
 // area that hand-rolls its dispatch publishes no grammar until
-// plan/spec-le-every-area-dispatches-through-one-table.md migrates it.
+// plan/post-release/engineering/spec-le-cli-usability.md migrates it.
 //
 // Which areas those are is NOT stated here. It was, as a count, and the count
 // went stale the first time one migrated. areasWithoutAnActionTable

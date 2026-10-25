@@ -26,7 +26,7 @@ var actions = leaction.New(area,
 		Why:    "append the report's package scores to test/mutation/history.ndjson",
 		Writes: true,
 		Parameters: []leaction.Parameter{
-			{Keyword: "report", Value: "path", Requirement: leaction.Optional},
+			{Keyword: "report", Kind: leaction.KindPath, Help: "the mutation report to read", Value: "path", Requirement: leaction.Optional},
 		},
 		AnswerArgs: recordHistoryAnswer,
 	},

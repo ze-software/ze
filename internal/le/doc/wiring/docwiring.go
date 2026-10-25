@@ -47,8 +47,8 @@ var actions = leaction.New(name,
 		Parameters: []leaction.Parameter{
 			// Optional: a run that names no file asks git for the changed set.
 			// Repeat: a caller names every file of a commit, one keyword each.
-			{Keyword: changedFileKeyword, Value: "path", Requirement: leaction.Optional, Repeat: true},
-			{Keyword: dryRunKeyword},
+			{Keyword: changedFileKeyword, Kind: leaction.KindPath, Help: "a changed file to select checks for, in place of the change set", Value: "path", Requirement: leaction.Optional, Repeat: true},
+			{Keyword: dryRunKeyword, Kind: leaction.KindSwitch, Help: "list the checks the files select and run none"},
 		},
 		AnswerArgs: answerRouter,
 	},

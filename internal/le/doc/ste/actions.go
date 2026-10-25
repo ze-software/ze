@@ -30,7 +30,7 @@ var actions = leaction.New(area,
 		"so legacy prose stays until someone rewrites it, no baseline file exists to re-bless, " +
 		"and the one way to green is to fix the prose",
 		Parameters: []leaction.Parameter{{
-			Keyword: fileKeyword, Value: "path",
+			Keyword: fileKeyword, Kind: leaction.KindPath, Help: "a changed file to judge", Value: "path",
 			// Optional: a check that names no file reads the changed set from
 			// git, which is what the gate runs. Repeat: the commit helper names
 			// every file of the commit, one keyword for each.

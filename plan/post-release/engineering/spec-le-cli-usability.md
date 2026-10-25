@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Priority | P3 |
 | Release reason | Developer tooling only: `le` is never shipped (`TestNormalZeLinksNoInternalLe`), so its usability is release-independent engineering work |
 | Depends | - |
-| Phase | - |
+| Phase | 1/7 |
 | Handoff | - |
 | Updated | 2026-10-25 |
 
@@ -378,6 +378,9 @@ exit code.
 - → Decision D-help-ai-word: `le help ai` is the one reserved word after `le help`; every other `le help <path>` prints that node's page as today. `le ai`, `le ai help` and `le ai --help` print the `ai` namespace page (D-4)
 - → Decision D-keyword-help: per-keyword help is `le help <area> <verb> <keyword>`, extending the existing `le help <path>` form one level; it prints kind, values, required, repeat and description, exit 0. A trailing `--help` after a keyword that takes a value stays a refused dash-leading value (GNU syntax, `ai/rules/cli.md`)
 - → Decision D-why: listings show a `Why`'s first sentence (up to the first full stop followed by a space, or the whole text); the action page shows the whole `Why`. Wrapping is at render time: to the terminal width when stdout is a terminal, else 100 columns, the name column aligned (R-16)
+- → Decision D-P1-validate (Phase 1): each kind's syntax check is declared and tested (`TestKindValidatorsCheckSyntaxOnly`) but NOT applied by `parseArguments` until Phase 5. Applied at parse, a malformed value answers 2 where several bodies answer 1 today (`test qemu netns-test suites` refuses through `parseClosedCSV` with 1), and Phase 1 keeps exit codes unchanged (AC-17). Phase 5 applies `Kind.Check` in `parseArguments` with the other code changes
+- → Decision D-P1-kinds (Phase 1): the set gains `list` (comma-separated items, closed when `Values` are declared: `suites`, `scenarios`, `dut`, `files`) and `words` (a whole le command line). `words` replaces the `leaction.ValueLeWords` Value marker, which is deleted: `NestedLeKeyword` reads `Kind == KindWords`, so the nesting fact is declared once (`ai/rules/no-layering.md`). Enum and closed-list usage renders the members (`<amd64|arm64>`), so no usage line lost the values its old hand-written Value spelled
+- → Decision D-P1-tree (Phase 1): R-10 is proven twice: `TestEveryCompletedWordIsAcceptedByDispatch` (`internal/le/le/root/tree_test.go`) over a probe area, and `TestDerivedTreeLinesAreAcceptedForEveryRegisteredArea` (`internal/le/actions_test.go`) over every linked area, because only `internal/le` links them and a root-package test cannot import it. `command.TreeCompleter` offers an `ArgEnum`'s values at the action node, before any keyword; the Phase 6 callback must offer them only after their keyword. The grammar code moved from `leaction.go` (past 1000 lines) to `internal/le/le/action/parameter.go`
 - → Decision D-groups: the purpose tag set is one declared table in `group.go` (name, tag, one-line meaning), replacing the `GroupTitle` switch; `tool` is added for test-driving helpers. Every area still declares its group at `leroot.Register`, and `internal/le/group_test.go` keeps its meaning
 
 ### Data flow impact

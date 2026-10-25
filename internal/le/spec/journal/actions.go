@@ -27,7 +27,7 @@ var actions = leaction.New(area,
 	leaction.Action{
 		Verb:       "validate",
 		Why:        "validate one edited plan/journal class file's header, rows, dates, Spec keys, Fix markers, Captured: line, and the 600-character cap on a row added or rewritten against HEAD",
-		Parameters: []leaction.Parameter{{Keyword: "file", Value: "path", Requirement: leaction.Required}},
+		Parameters: []leaction.Parameter{{Keyword: "file", Kind: leaction.KindPath, Help: "the journal class file to validate", Value: "path", Requirement: leaction.Required}},
 		AnswerArgs: validateHere,
 	},
 )

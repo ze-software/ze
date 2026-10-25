@@ -65,8 +65,8 @@ func TestManifestNamesEveryRegisteredAreaAndItsGroup(t *testing.T) {
 	area := leaction.New("manifest-area-probe", leaction.Action{
 		Verb: "run", Why: "run the probe over one scope",
 		Parameters: []leaction.Parameter{
-			{Keyword: "scope", Value: "packages", Requirement: leaction.Required},
-			{Keyword: "timeout", Value: "duration", Requirement: leaction.Optional},
+			{Keyword: "scope", Value: "packages", Requirement: leaction.Required, Kind: leaction.KindString, Help: "h"},
+			{Keyword: "timeout", Value: "duration", Requirement: leaction.Optional, Kind: leaction.KindString, Help: "h"},
 		},
 		AnswerArgs: func(leaction.Arguments) (any, int) { return nil, 0 },
 	})
@@ -121,5 +121,65 @@ func TestManifestNamesEveryRegisteredAreaAndItsGroup(t *testing.T) {
 		if !strings.Contains(string(raw), key) {
 			t.Errorf("the encoded manifest carries no %s key", key)
 		}
+	}
+}
+
+// VALIDATES: AC-1 -- the manifest publishes each parameter typed: its kind by
+// name, its help, whether it is required and repeatable, and an enum's values.
+// PREVENTS: a manifest consumer (`le '|' json`, `le help ai`) reading a keyword
+// whose value it cannot type without opening the action body.
+func TestManifestCarriesTypedParameters(t *testing.T) {
+	area := treeProbe(t)
+
+	var published *ManifestArea
+	manifest := manifestOf("le")
+	for index := range manifest.Areas {
+		if manifest.Areas[index].Name == area.Name() {
+			published = &manifest.Areas[index]
+		}
+	}
+	if published == nil {
+		t.Fatalf("the manifest does not name %q", area.Name())
+	}
+	payload, err := json.Marshal(published)
+	if err != nil {
+		t.Fatalf("marshal the manifest area: %v", err)
+	}
+	var decoded struct {
+		Actions []struct {
+			Verb       string           `json:"verb"`
+			Parameters []map[string]any `json:"parameters"`
+		} `json:"actions"`
+	}
+	if err := json.Unmarshal(payload, &decoded); err != nil {
+		t.Fatalf("decode the manifest area: %v", err)
+	}
+	want := map[string]map[string]any{
+		"dry":   {"kind": "switch", "help": "change nothing", "required": false, "repeat": false},
+		"step":  {"kind": "enum", "help": "the step to run", "required": false, "repeat": false, "values": []any{"build", "test"}},
+		"count": {"kind": "uint", "help": "how many", "required": false, "repeat": false},
+		"file":  {"kind": "path", "help": "the file", "required": true, "repeat": false},
+	}
+	seen := 0
+	for _, action := range decoded.Actions {
+		for _, parameter := range action.Parameters {
+			keyword, _ := parameter["keyword"].(string)
+			expected, declared := want[keyword]
+			if !declared {
+				t.Errorf("the manifest publishes %q, which is retired or undeclared", keyword)
+				continue
+			}
+			seen++
+			for field, value := range expected {
+				got, _ := json.Marshal(parameter[field])
+				wanted, _ := json.Marshal(value)
+				if string(got) != string(wanted) {
+					t.Errorf("%s.%s = %s, want %s", keyword, field, got, wanted)
+				}
+			}
+		}
+	}
+	if seen != len(want) {
+		t.Errorf("the manifest publishes %d typed parameters, want %d", seen, len(want))
 	}
 }

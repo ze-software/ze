@@ -38,7 +38,7 @@ var actions = leaction.New(area,
 	leaction.Action{Verb: "bump", Writes: true,
 		Why: "move a source-built peer's ZE_SOURCE_COMMIT and ZE_SOURCE_DATE to upstream's latest default-branch commit;" +
 			" the next image build proves the source still builds and any Ze patch still applies",
-		Parameters: []leaction.Parameter{{Keyword: dockerfileKeyword, Value: "path", Requirement: leaction.Required}},
+		Parameters: []leaction.Parameter{{Keyword: dockerfileKeyword, Kind: leaction.KindPath, Help: "the Dockerfile whose source pin moves", Value: "path", Requirement: leaction.Required}},
 		AnswerArgs: runBump},
 )
 

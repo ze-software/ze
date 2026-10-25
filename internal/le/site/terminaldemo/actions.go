@@ -69,7 +69,7 @@ func actionTable() leaction.Area {
 			Answer: func() (any, int) { return runRenderer(rendererRenderMode, true) }},
 		leaction.Action{Verb: "render", Why: "re-record ONE website demo from its checked-in tape, for a developer iterating on that demo",
 			Writes:     true,
-			Parameters: []leaction.Parameter{{Keyword: demoKeyword, Value: "demo-id", Requirement: leaction.Required}},
+			Parameters: []leaction.Parameter{{Keyword: demoKeyword, Kind: leaction.KindLabel, Help: "the demo to re-record, by its manifest id", Value: "demo-id", Requirement: leaction.Required}},
 			AnswerArgs: runRenderOne},
 		leaction.Action{Verb: ptyVerb, Why: "record one tape, or drive a program through a PTY; the renderer container runs it",
 			AnswerWords: runPTYAction},

@@ -78,8 +78,8 @@ Docker kernel for every suite, so on the runner's kernel it would be refused.
 docker-host image", is the guest path.
 
 The RFC ledger credits a lab run this way to the workflow that schedules it.
-`docker-lab` declares its `lab` keyword as `le-words`
-(`leaction.ValueLeWords`), and the workflow reader in `internal/le/rfc`
+`docker-lab` declares its `lab` keyword of kind `words`
+(`leaction.KindWords`), and the workflow reader in `internal/le/rfc`
 credits the command in that value as well as `docker-lab` itself.
 
 The ASPA and RFC 2545 replay cases run through `qemu netns-test suites plugin`,

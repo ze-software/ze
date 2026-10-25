@@ -72,7 +72,7 @@ var dockerKernelActions = leaction.New(dockerKernelArea,
 			" probing with the linux ze at `ze`, or without `ze` with the one it cross-builds for the" +
 			" daemon's architecture at tmp/qemu/linux-<arch>/ze; exits 1 naming each missing feature",
 		Parameters: []leaction.Parameter{
-			{Keyword: dockerKernelZeKeyword, Value: "linux-ze-path", Requirement: leaction.Optional},
+			{Keyword: dockerKernelZeKeyword, Kind: leaction.KindPath, Help: "the linux-ze checkout whose feature list is read", Value: "linux-ze-path", Requirement: leaction.Optional},
 		},
 		AnswerArgs: runDockerKernelCheck,
 	},
@@ -87,8 +87,8 @@ var dockerKernelActions = leaction.New(dockerKernelArea,
 			" runs through sudo and is printed first; it never reboots. " +
 			"On macOS the labs run on the `ze` Colima profile, booted on Ze's kernel: ./le setup docker-host start",
 		Parameters: []leaction.Parameter{
-			{Keyword: dockerKernelBuilderKeyword, Value: "backend", Requirement: leaction.Optional},
-			{Keyword: dockerKernelConfirmKeyword, Value: "release", Requirement: leaction.Optional},
+			{Keyword: dockerKernelBuilderKeyword, Kind: leaction.KindString, Help: "the build backend that resolves the cached kernel", Value: "backend", Requirement: leaction.Optional},
+			{Keyword: dockerKernelConfirmKeyword, Kind: leaction.KindString, Help: "the kernel release this install places, typed to confirm it", Value: "release", Requirement: leaction.Optional},
 		},
 		AnswerArgs: runDockerKernelInstall,
 	},
@@ -100,7 +100,7 @@ var dockerKernelActions = leaction.New(dockerKernelArea,
 			" for the Docker kernel check's probe). Without `confirm <profile>` naming a registered profile it" +
 			" prints every profile's steps and runs none; every step runs through sudo and is printed first",
 		Parameters: []leaction.Parameter{
-			{Keyword: dockerKernelConfirmKeyword, Value: "profile", Requirement: leaction.Optional},
+			{Keyword: dockerKernelConfirmKeyword, Kind: leaction.KindString, Help: "the AppArmor profile this install loads, typed to confirm it", Value: "profile", Requirement: leaction.Optional},
 		},
 		AnswerArgs: runDockerKernelAppArmor,
 	},

@@ -20,7 +20,7 @@ var actions = leaction.New(area,
 		"scratch, because one unclassified artifact in the corpus fails `./le rfc check` for all of it",
 		Writes: true,
 		Parameters: []leaction.Parameter{
-			{Keyword: keyStem, Value: keyStem, Requirement: leaction.Required},
+			{Keyword: keyStem, Kind: leaction.KindLabel, Help: "the RFC or draft stem, such as rfc4271", Value: keyStem, Requirement: leaction.Required},
 		},
 		AnswerArgs: extractionCreateAnswer},
 	leaction.Action{Verb: "extraction-classify", Why: "apply ONE authored decision per site and per section to the skeleton, from a decisions " +
@@ -31,7 +31,7 @@ var actions = leaction.New(area,
 		"sentence that makes the feature optional, checked against the RFC's own text",
 		Writes: true,
 		Parameters: []leaction.Parameter{
-			{Keyword: keyDecisions, Value: keyPath, Requirement: leaction.Required},
+			{Keyword: keyDecisions, Kind: leaction.KindPath, Help: "the decisions file to apply", Value: keyPath, Requirement: leaction.Required},
 		},
 		AnswerArgs: extractionClassifyAnswer},
 	leaction.Action{Verb: "extraction-status", Why: "the machine-readable extraction counts the umbrella's drain quota consumes: " +
@@ -42,7 +42,7 @@ var actions = leaction.New(area,
 		Why: "judge one proposed file from stdin against its existing RFC-tagged test units, " +
 			"and return the carrier predicate, widened edit scope, and owner-approval decision",
 		Parameters: []leaction.Parameter{
-			{Keyword: keyPath, Value: keyPath, Requirement: leaction.Required},
+			{Keyword: keyPath, Kind: leaction.KindPath, Help: "the proposed file to judge", Value: keyPath, Requirement: leaction.Required},
 		},
 		AnswerArgs: taggedScopeAnswer,
 	},
@@ -56,9 +56,9 @@ var actions = leaction.New(area,
 			// Exactly one of stem and id selects the report, which a flat
 			// keyword table cannot say: naming both, or neither, is refused
 			// by discriminateAnswer.
-			{Keyword: keyStem, Value: keyStem, Requirement: leaction.Optional},
-			{Keyword: keyID, Value: keyID, Requirement: leaction.Optional},
-			{Keyword: keyReport, Value: keyPath, Requirement: leaction.Optional},
+			{Keyword: keyStem, Kind: leaction.KindLabel, Help: "the RFC or draft stem to report on", Value: keyStem, Requirement: leaction.Optional},
+			{Keyword: keyID, Kind: leaction.KindLabel, Help: "one requirement id to report on", Value: keyID, Requirement: leaction.Optional},
+			{Keyword: keyReport, Kind: leaction.KindPath, Help: "where the report is written", Value: keyPath, Requirement: leaction.Optional},
 		},
 		AnswerArgs: discriminateAnswer},
 	leaction.Action{
@@ -69,26 +69,26 @@ var actions = leaction.New(area,
 			"that unit: a red it did not observe is never written, and a green run refuses",
 		Writes: true,
 		Parameters: []leaction.Parameter{
-			{Keyword: keyID, Value: keyID, Requirement: leaction.Required},
-			{Keyword: keyPolarity, Value: keyPolarity, Requirement: leaction.Required},
-			{Keyword: keyUnit, Value: keyUnit, Requirement: leaction.Required},
-			{Keyword: keyRoute, Value: keyRoute, Requirement: leaction.Required},
+			{Keyword: keyID, Kind: leaction.KindLabel, Help: "the requirement id the proof is for", Value: keyID, Requirement: leaction.Required},
+			{Keyword: keyPolarity, Kind: leaction.KindString, Help: "the polarity of the break", Value: keyPolarity, Requirement: leaction.Required},
+			{Keyword: keyUnit, Kind: leaction.KindString, Help: "the tagged test unit observed to fail", Value: keyUnit, Requirement: leaction.Required},
+			{Keyword: keyRoute, Kind: leaction.KindString, Help: "the proof route", Value: keyRoute, Requirement: leaction.Required},
 			// The five below are each required by one route and refused by
 			// another: a proving route names its producer, the mutant route
 			// names the report and the mutant it applies, and the no-break
 			// route gives a reason instead. validateDiscrimination holds that
 			// rule, which a flat keyword table cannot state.
-			{Keyword: keyProducer, Value: keyProducer, Requirement: leaction.Optional},
-			{Keyword: keyReport, Value: keyPath, Requirement: leaction.Optional},
+			{Keyword: keyProducer, Kind: leaction.KindString, Help: "the producing function the break is applied to", Value: keyProducer, Requirement: leaction.Optional},
+			{Keyword: keyReport, Kind: leaction.KindPath, Help: "the discriminate report the break comes from", Value: keyPath, Requirement: leaction.Optional},
 			// Repeat: every mutant named is applied to the one broken run, for
 			// a property two checks guard on the same path (PairedBreak).
-			{Keyword: keyMutant, Value: "file:line:column#n", Requirement: leaction.Optional, Repeat: true},
-			{Keyword: keyCitation, Value: keyCitation, Requirement: leaction.Optional},
-			{Keyword: keyReason, Value: keyReason, Requirement: leaction.Optional},
+			{Keyword: keyMutant, Kind: leaction.KindString, Help: "one mutant, as file:line:column#n", Value: "file:line:column#n", Requirement: leaction.Optional, Repeat: true},
+			{Keyword: keyCitation, Kind: leaction.KindString, Help: "the citation the record carries", Value: keyCitation, Requirement: leaction.Optional},
+			{Keyword: keyReason, Kind: leaction.KindString, Help: "why the record is written this way", Value: keyReason, Requirement: leaction.Optional},
 			// Required only for a unit whose build constraints hold in the
 			// Linux guest alone, and refused for every other unit
 			// (requireGuestKernel).
-			{Keyword: keyKernel, Value: keyPath, Requirement: leaction.Optional},
+			{Keyword: keyKernel, Kind: leaction.KindPath, Help: "the kernel image the unit runs under", Value: keyPath, Requirement: leaction.Optional},
 		},
 		AnswerArgs: discriminateRecordAnswer},
 	leaction.Action{
@@ -103,8 +103,8 @@ var actions = leaction.New(area,
 			"the author's own reasoning about why the change is fine",
 		Writes: true,
 		Parameters: []leaction.Parameter{
-			{Keyword: keyUnit, Value: "<package>.<TestName>", Requirement: leaction.Required},
-			{Keyword: keyReason, Value: keyReason, Requirement: leaction.Required},
+			{Keyword: keyUnit, Kind: leaction.KindString, Help: "the RFC-tagged test unit whose change the owner approved, as <package>.<TestName>", Value: "<package>.<TestName>", Requirement: leaction.Required},
+			{Keyword: keyReason, Kind: leaction.KindString, Help: "the owner's words approving the change", Value: keyReason, Requirement: leaction.Required},
 		},
 		AnswerArgs: approveAnswer},
 	leaction.Action{Verb: "check", Why: "verify RFC requirement coverage, evidence strength, public status, audit " +
@@ -130,7 +130,7 @@ var actions = leaction.New(area,
 		"that also carries another session's uncommitted edits",
 		Writes: true,
 		Parameters: []leaction.Parameter{
-			{Keyword: keyFrom, Value: splitSourceHead, Requirement: leaction.Optional},
+			{Keyword: keyFrom, Kind: leaction.KindEnum, Help: "the source of the conversion", Value: "source", Values: []string{splitSourceHead}, Requirement: leaction.Optional},
 		},
 		AnswerArgs: evidenceSplitAnswer},
 	leaction.Action{Verb: "audit-stamp", Why: "add the verdicts an author has just judged to rfc/audit/<stem>/<requirement-id>.json. " +
@@ -147,9 +147,9 @@ var actions = leaction.New(area,
 		"verdict becomes enforced over byte-identical units and refuses on any other move",
 		Writes: true,
 		Parameters: []leaction.Parameter{
-			{Keyword: keyStem, Value: keyStem, Requirement: leaction.Required},
-			{Keyword: keyFrom, Value: keyPath, Requirement: leaction.Required},
-			{Keyword: keyMode, Value: "new|rejudge", Requirement: leaction.Optional},
+			{Keyword: keyStem, Kind: leaction.KindLabel, Help: "the RFC or draft stem the verdicts belong to", Value: keyStem, Requirement: leaction.Required},
+			{Keyword: keyFrom, Kind: leaction.KindPath, Help: "the file holding the judged verdicts", Value: keyPath, Requirement: leaction.Required},
+			{Keyword: keyMode, Kind: leaction.KindEnum, Help: "whether the verdicts are new or judged again", Value: "mode", Values: []string{"new", "rejudge"}, Requirement: leaction.Optional},
 		},
 		AnswerArgs: auditStampAnswer},
 	leaction.Action{Verb: "rename", Why: "move tagged unit test files and carry their evidence with them: from <old> to " +
@@ -161,11 +161,11 @@ var actions = leaction.New(area,
 		"a source that is untracked or differs from HEAD, and a plan with one refused pair",
 		Writes: true,
 		Parameters: []leaction.Parameter{
-			{Keyword: keyFrom, Value: keyPath, Requirement: leaction.Optional},
-			{Keyword: keyTo, Value: keyPath, Requirement: leaction.Optional},
-			{Keyword: keyPlan, Value: keyPath, Requirement: leaction.Optional},
-			{Keyword: keyPropose, Value: keyPath, Requirement: leaction.Optional},
-			{Keyword: keyUnder, Value: "dir", Requirement: leaction.Optional},
+			{Keyword: keyFrom, Kind: leaction.KindPath, Help: "the test file to move", Value: keyPath, Requirement: leaction.Optional},
+			{Keyword: keyTo, Kind: leaction.KindPath, Help: "where the test file goes", Value: keyPath, Requirement: leaction.Optional},
+			{Keyword: keyPlan, Kind: leaction.KindPath, Help: "a plan file listing several moves", Value: keyPath, Requirement: leaction.Optional},
+			{Keyword: keyPropose, Kind: leaction.KindPath, Help: "where a proposed plan is written", Value: keyPath, Requirement: leaction.Optional},
+			{Keyword: keyUnder, Kind: leaction.KindPath, Help: "the directory the proposal covers", Value: "dir", Requirement: leaction.Optional},
 		},
 		AnswerArgs: renameAnswer},
 	leaction.Action{Verb: "index-update", Why: "regenerate ai/RFC-REQUIREMENTS.md and one requirement table per RFC under " +
@@ -181,8 +181,8 @@ var actions = leaction.New(area,
 		"Every other row is listed for a human to quote. Without apply it writes nothing",
 		Writes: true,
 		Parameters: []leaction.Parameter{
-			{Keyword: keyStem, Value: keyStem, Requirement: leaction.Required},
-			{Keyword: keyApply},
+			{Keyword: keyStem, Kind: leaction.KindLabel, Help: "the RFC or draft stem whose rows are rewritten", Value: keyStem, Requirement: leaction.Required},
+			{Keyword: keyApply, Kind: leaction.KindSwitch, Help: "write the rows; without it the action only previews"},
 		},
 		AnswerArgs: quoteBackfillAnswer},
 )

@@ -5,6 +5,7 @@ package leaction
 import (
 	"encoding/json"
 	"os"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -129,30 +130,30 @@ func TestNewRefusesATableItCouldNotDispatch(t *testing.T) {
 		{"no why", []Action{{Verb: "check", Answer: answer}}},
 		{"both answer forms", []Action{{
 			Verb: "check", Why: "why",
-			Parameters: []Parameter{{Keyword: "name", Value: "name", Requirement: Required}},
+			Parameters: []Parameter{{Keyword: "name", Value: "name", Requirement: Required, Kind: KindString, Help: "h"}},
 			Answer:     answer, AnswerArgs: answerArgs,
 		}}},
 		{"zero-argument answer with parameters", []Action{{
 			Verb: "check", Why: "why",
-			Parameters: []Parameter{{Keyword: "name", Value: "name", Requirement: Required}},
+			Parameters: []Parameter{{Keyword: "name", Value: "name", Requirement: Required, Kind: KindString, Help: "h"}},
 			Answer:     answer,
 		}}},
 		{"argument answer with no parameters", []Action{{Verb: "check", Why: "why", AnswerArgs: answerArgs}}},
 		{"duplicate parameter", []Action{{
 			Verb: "check", Why: "why",
-			Parameters: []Parameter{{Keyword: "name"}, {Keyword: "name"}}, AnswerArgs: answerArgs,
+			Parameters: []Parameter{{Keyword: "name", Kind: KindSwitch, Help: "h"}, {Keyword: "name", Kind: KindSwitch, Help: "h"}}, AnswerArgs: answerArgs,
 		}}},
 		{"required switch", []Action{{
 			Verb: "check", Why: "why",
-			Parameters: []Parameter{{Keyword: "force", Requirement: Required}}, AnswerArgs: answerArgs,
+			Parameters: []Parameter{{Keyword: "force", Requirement: Required, Kind: KindSwitch, Help: "h"}}, AnswerArgs: answerArgs,
 		}}},
 		{"repeating switch", []Action{{
 			Verb: "check", Why: "why",
-			Parameters: []Parameter{{Keyword: "force", Repeat: true}}, AnswerArgs: answerArgs,
+			Parameters: []Parameter{{Keyword: "force", Repeat: true, Kind: KindSwitch, Help: "h"}}, AnswerArgs: answerArgs,
 		}}},
 		{"value parameter with no requirement", []Action{{
 			Verb: "check", Why: "why",
-			Parameters: []Parameter{{Keyword: "file", Value: "path"}}, AnswerArgs: answerArgs,
+			Parameters: []Parameter{{Keyword: "file", Value: "path", Kind: KindString, Help: "h"}}, AnswerArgs: answerArgs,
 		}}},
 		{"two actions one verb", []Action{
 			{Verb: "check", Why: "first", Answer: answer},
@@ -182,9 +183,9 @@ func TestArgumentAwareActionValidatesItsClosedGrammar(t *testing.T) {
 		Verb: "run",
 		Why:  "boot a guest",
 		Parameters: []Parameter{
-			{Keyword: "command", Value: "command", Requirement: Required},
-			{Keyword: "timeout", Value: "duration", Requirement: Optional},
-			{Keyword: "keep-alive"},
+			{Keyword: "command", Value: "command", Requirement: Required, Kind: KindString, Help: "h"},
+			{Keyword: "timeout", Value: "duration", Requirement: Optional, Kind: KindString, Help: "h"},
+			{Keyword: "keep-alive", Kind: KindSwitch, Help: "h"},
 		},
 		AnswerArgs: func(args Arguments) (any, int) {
 			got = args
@@ -348,7 +349,7 @@ func TestTakesArgumentsSeparatesGrammarFromActionNames(t *testing.T) {
 		Action{Verb: "plain", Why: "a probe", Answer: func() (any, int) { return nil, 0 }},
 		Action{
 			Verb: "typed", Why: "a probe that selects one member",
-			Parameters: []Parameter{{Keyword: "name", Value: "id", Requirement: Required}},
+			Parameters: []Parameter{{Keyword: "name", Value: "id", Requirement: Required, Kind: KindString, Help: "h"}},
 			AnswerArgs: func(Arguments) (any, int) { return nil, 0 },
 		},
 	)
@@ -374,7 +375,7 @@ func TestSweepRefusesAnArgumentAwareAction(t *testing.T) {
 		Action{Verb: "plain", Why: "a probe", Answer: func() (any, int) { ran = true; return nil, 0 }},
 		Action{
 			Verb: "typed", Why: "a probe that selects one member",
-			Parameters: []Parameter{{Keyword: "name", Value: "id", Requirement: Required}},
+			Parameters: []Parameter{{Keyword: "name", Value: "id", Requirement: Required, Kind: KindString, Help: "h"}},
 			AnswerArgs: func(Arguments) (any, int) { return nil, 0 },
 		},
 	)
@@ -442,7 +443,7 @@ func TestAHelpWordAnswersUsageAndRunsNothing(t *testing.T) {
 		Action{
 			Verb:       "run",
 			Why:        "run the probe over a scope",
-			Parameters: []Parameter{{Keyword: "scope", Value: "packages", Requirement: Optional}},
+			Parameters: []Parameter{{Keyword: "scope", Value: "packages", Requirement: Optional, Kind: KindString, Help: "h"}},
 			AnswerArgs: func(Arguments) (any, int) { ran++; return nil, 0 },
 		},
 	)
@@ -590,10 +591,10 @@ func grammarArea(got *Arguments) Area {
 		Verb: "run",
 		Why:  "boot a guest",
 		Parameters: []Parameter{
-			{Keyword: "command", Value: "command", Requirement: Required},
-			{Keyword: "timeout", Value: "duration", Requirement: Optional},
-			{Keyword: "share", Value: "path", Requirement: Optional, Repeat: true},
-			{Keyword: "keep-alive"},
+			{Keyword: "command", Value: "command", Requirement: Required, Kind: KindString, Help: "h"},
+			{Keyword: "timeout", Value: "duration", Requirement: Optional, Kind: KindString, Help: "h"},
+			{Keyword: "share", Value: "path", Requirement: Optional, Repeat: true, Kind: KindString, Help: "h"},
+			{Keyword: "keep-alive", Kind: KindSwitch, Help: "h"},
 		},
 		AnswerArgs: func(args Arguments) (any, int) {
 			*got = args
@@ -615,12 +616,12 @@ func TestRowCarriesTheParametersItsActionDeclares(t *testing.T) {
 	}
 
 	want := []Parameter{
-		{Keyword: "command", Value: "command", Requirement: Required},
-		{Keyword: "timeout", Value: "duration", Requirement: Optional},
-		{Keyword: "share", Value: "path", Requirement: Optional, Repeat: true},
-		{Keyword: "keep-alive"},
+		{Keyword: "command", Value: "command", Requirement: Required, Kind: KindString, Help: "h"},
+		{Keyword: "timeout", Value: "duration", Requirement: Optional, Kind: KindString, Help: "h"},
+		{Keyword: "share", Value: "path", Requirement: Optional, Repeat: true, Kind: KindString, Help: "h"},
+		{Keyword: "keep-alive", Kind: KindSwitch, Help: "h"},
 	}
-	if !slices.Equal(rows[0].Parameters, want) {
+	if !reflect.DeepEqual(rows[0].Parameters, want) {
 		t.Fatalf("the row carries %#v, want %#v", rows[0].Parameters, want)
 	}
 
@@ -752,7 +753,7 @@ func TestARequiredKeywordIsPublishedRatherThanNewlyEnforced(t *testing.T) {
 	reached := 0
 	area := New("probe", Action{
 		Verb: "run", Why: "run the probe over one file",
-		Parameters: []Parameter{{Keyword: "file", Value: "path", Requirement: Required}},
+		Parameters: []Parameter{{Keyword: "file", Value: "path", Requirement: Required, Kind: KindString, Help: "h"}},
 		AnswerArgs: func(args Arguments) (any, int) {
 			reached++
 			if !args.Has("file") {
@@ -943,7 +944,7 @@ func TestForwardingActionHandsItsWordsOverVerbatim(t *testing.T) {
 	New("probe", Action{
 		Verb:        "send",
 		Why:         "forward",
-		Parameters:  []Parameter{{Keyword: "dut", Value: "name", Requirement: Optional}},
+		Parameters:  []Parameter{{Keyword: "dut", Value: "name", Requirement: Optional, Kind: KindString, Help: "h"}},
 		AnswerWords: func([]string) (any, int) { return nil, 0 },
 	})
 }
@@ -957,11 +958,11 @@ func TestNestedLeKeywordIsReadFromTheDeclaredParameter(t *testing.T) {
 	answer := func(Arguments) (any, int) { return nil, 0 }
 	list := New("test vm",
 		Action{Verb: "lab", Why: "run a lab in the guest", AnswerArgs: answer, Parameters: []Parameter{
-			{Keyword: "timeout", Value: "duration", Requirement: Optional},
-			{Keyword: "run", Value: ValueLeWords, Requirement: Optional},
+			{Keyword: "timeout", Value: "duration", Requirement: Optional, Kind: KindString, Help: "h"},
+			{Keyword: "run", Kind: KindWords, Value: "le-words", Requirement: Optional, Help: "h"},
 		}},
 		Action{Verb: "boot", Why: "boot the guest", AnswerArgs: answer, Parameters: []Parameter{
-			{Keyword: "command", Value: "command", Requirement: Optional},
+			{Keyword: "command", Value: "command", Requirement: Optional, Kind: KindString, Help: "h"},
 		}},
 	).Actions()
 
@@ -973,5 +974,139 @@ func TestNestedLeKeywordIsReadFromTheDeclaredParameter(t *testing.T) {
 	}
 	if keyword, ok := list.NestedLeKeyword("absent"); ok {
 		t.Errorf("NestedLeKeyword(absent) = %q, true; a verb the listing does not hold nests nothing", keyword)
+	}
+}
+
+// VALIDATES: D-Q3 positional rule -- at most one positional value, in the
+// first slot after the verb, of a kind other than string, and New panics on
+// every other shape; the value is read under its Value name.
+// PREVENTS: a grammar where a free word could be a value or a keyword, which is
+// the ambiguity the keyword-before-value rule exists to remove.
+func TestPositionalParameterRules(t *testing.T) {
+	answerArgs := func(Arguments) (any, int) { return nil, 0 }
+	spec := Parameter{Kind: KindSpec, Value: "spec", Requirement: Required, Help: "the spec to claim"}
+	quiet := Parameter{Keyword: "quiet", Kind: KindSwitch, Help: "print nothing"}
+
+	var got Arguments
+	area := New("spec", Action{
+		Verb: "claim", Why: "claim a spec", Parameters: []Parameter{spec, quiet},
+		AnswerArgs: func(args Arguments) (any, int) { got = args; return nil, 0 },
+	})
+	if _, code := area.Answer([]string{"claim", "plan/x.md", "quiet"}); code != 0 {
+		t.Fatalf("claim plan/x.md quiet answered %d", code)
+	}
+	if got.One("spec") != "plan/x.md" || !got.Has("quiet") {
+		t.Errorf("the positional value was read as %q and quiet as %v", got.One("spec"), got.Has("quiet"))
+	}
+	usage, _ := area.Actions().UsageText("claim")
+	if !strings.Contains(usage, "claim <spec> [quiet]") {
+		t.Errorf("usage does not render the positional slot first:\n%s", usage)
+	}
+
+	cases := []struct {
+		name       string
+		parameters []Parameter
+	}{
+		{"two positionals", []Parameter{spec, {Kind: KindPath, Value: "path", Requirement: Optional, Help: "h"}}},
+		{"positional not first", []Parameter{quiet, spec}},
+		{"positional of kind string", []Parameter{{Kind: KindString, Value: "text", Requirement: Required, Help: "h"}}},
+		{"positional switch", []Parameter{{Kind: KindSwitch, Help: "h"}}},
+		{"positional repeat", []Parameter{{Kind: KindPath, Value: "path", Requirement: Optional, Repeat: true, Help: "h"}}},
+		{"positional named like a keyword", []Parameter{{Kind: KindPath, Value: "quiet", Requirement: Optional, Help: "h"}, quiet}},
+		{"no kind", []Parameter{{Keyword: "file", Value: "path", Requirement: Required, Help: "h"}}},
+		{"no help", []Parameter{{Keyword: "file", Kind: KindPath, Value: "path", Requirement: Required}}},
+		{"switch with a value", []Parameter{{Keyword: "file", Kind: KindSwitch, Value: "path", Requirement: Required, Help: "h"}}},
+		{"value kind with no value", []Parameter{{Keyword: "file", Kind: KindPath, Help: "h"}}},
+		{"enum with no values", []Parameter{{Keyword: "mode", Kind: KindEnum, Value: "mode", Requirement: Optional, Help: "h"}}},
+		{"values on a path", []Parameter{{Keyword: "file", Kind: KindPath, Value: "path", Values: []string{"a"}, Requirement: Optional, Help: "h"}}},
+	}
+	for _, one := range cases {
+		t.Run(one.name, func(t *testing.T) {
+			defer func() {
+				if recover() == nil {
+					t.Fatal("New accepted a parameter table the positional and kind rules refuse")
+				}
+			}()
+			New("a", Action{Verb: "check", Why: "why", Parameters: one.parameters, AnswerArgs: answerArgs})
+		})
+	}
+}
+
+// VALIDATES: D-Q3 Retired -- a retired keyword is refused naming its
+// successor, and no listing, usage line or spelling renders it.
+// PREVENTS: an old spelling answered "takes no argument keyword", which leaves
+// the reader to guess the new one, and a retired keyword offered by help.
+func TestRetiredKeywordIsRefusedNamingItsSuccessor(t *testing.T) {
+	ran := false
+	area := New("commit", Action{
+		Verb: "create", Why: "write a commit script",
+		Parameters: []Parameter{
+			{Keyword: "subject", Kind: KindString, Value: "text", Requirement: Required, Help: "the subject line"},
+			{Keyword: "push", Retired: "le commit push"},
+		},
+		AnswerArgs: func(Arguments) (any, int) { ran = true; return nil, 0 },
+	})
+
+	var code int
+	stderr := captureStderr(t, func() { _, code = area.Answer([]string{"create", "subject", "x", "push"}) })
+	if code != 2 {
+		t.Errorf("a retired keyword answered %d, want the usage code 2", code)
+	}
+	if ran {
+		t.Error("the action ran with a retired keyword on its line")
+	}
+	if !strings.Contains(stderr, "push") || !strings.Contains(stderr, "le commit push") {
+		t.Errorf("the refusal does not name the keyword and its successor:\n%s", stderr)
+	}
+
+	list := area.Actions()
+	usage, _ := list.UsageText("create")
+	if strings.Contains(usage, "push") {
+		t.Errorf("usage renders the retired keyword:\n%s", usage)
+	}
+	for _, parameter := range list.Actions[0].Parameters {
+		if parameter.Keyword == "push" {
+			t.Error("the listing publishes the retired keyword")
+		}
+	}
+	if spelled := spellings("le commit create", area.actions[0].Parameters); strings.Contains(spelled, "push") {
+		t.Errorf("the spellings offer the retired keyword: %s", spelled)
+	}
+}
+
+// VALIDATES: D-Q3 pair arity -- a pair keyword takes two values, usage renders
+// both value names from the declaration, and every pair given is kept.
+// PREVENTS: a hand-written usage string for a two-value keyword, and a second
+// value read as the next keyword.
+func TestPairKeywordUsageIsDerived(t *testing.T) {
+	var got Arguments
+	area := New("repo", Action{
+		Verb: "move", Why: "move files",
+		Parameters: []Parameter{{
+			Keyword: "rename", Kind: KindPath, Value: "old", Pair: "new",
+			Requirement: Optional, Repeat: true, Help: "one path and the path it becomes",
+		}},
+		AnswerArgs: func(args Arguments) (any, int) { got = args; return nil, 0 },
+	})
+
+	usage, _ := area.Actions().UsageText("move")
+	if !strings.Contains(usage, "move [rename <old> <new>]...") {
+		t.Errorf("usage does not derive the pair form:\n%s", usage)
+	}
+	if _, code := area.Answer([]string{"move", "rename", "a", "b", "rename", "c", "d"}); code != 0 {
+		t.Fatalf("two pairs answered %d", code)
+	}
+	want := [][2]string{{"a", "b"}, {"c", "d"}}
+	if pairs := got.Pairs("rename"); !slices.Equal(pairs, want) {
+		t.Errorf("Pairs(rename) = %v, want %v", pairs, want)
+	}
+
+	var code int
+	stderr := captureStderr(t, func() { _, code = area.Answer([]string{"move", "rename", "a"}) })
+	if code != 2 || !strings.Contains(stderr, "<new>") {
+		t.Errorf("a pair missing its second value answered %d with:\n%s", code, stderr)
+	}
+	if !trailingIsValue(area.actions[0].Parameters, []string{"rename", "a", "help"}) {
+		t.Error("the word in a pair's second slot is not read as its value")
 	}
 }

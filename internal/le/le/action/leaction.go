@@ -13,10 +13,7 @@
 package leaction
 
 import (
-	"encoding/json"
 	"errors"
-	"fmt"
-	"slices"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -35,103 +32,6 @@ func SetWholeTreeAdmission(admit func(commandLine string) error) (restore func()
 	previous := admitWholeTree
 	admitWholeTree = admit
 	return func() { admitWholeTree = previous }
-}
-
-// Requirement says whether an action can run without one of its keywords. It
-// is a DECLARATION and not a check: the action's own body refuses a missing
-// keyword, in the place and with the code it refuses it today, and usage and
-// the manifest publish what that body requires.
-//
-// The zero value is RequirementUnspecified, so a keyword whose author said
-// nothing is a table New refuses rather than a keyword published as optional
-// (docs/contributing/ze-go-style.md, "Types that cannot lie").
-type Requirement uint8
-
-const (
-	// RequirementUnspecified is what a Parameter holds before its author writes
-	// the field. New refuses it on a parameter that carries a Value, so it
-	// never reaches a reader. It is the state of a boolean switch, which has no
-	// requiredness to state because presence is a switch's whole meaning.
-	RequirementUnspecified Requirement = iota
-	// Optional says the action runs without the keyword, because its body holds
-	// a default for it or a path that does not need it.
-	Optional
-	// Required says the action cannot run without the keyword: its body refuses
-	// the invocation, or takes a path the reader did not ask for.
-	Required
-)
-
-// MarshalJSON publishes the one fact a consumer of the manifest reads: whether
-// the action can run without the keyword. The enum exists so the AUTHOR cannot
-// leave requiredness unsaid, and a reader is not made to learn a third state
-// for a question with two answers.
-//
-// Unspecified therefore publishes false, which is the truth for the one
-// parameter that holds it: a boolean switch is never required.
-func (r Requirement) MarshalJSON() ([]byte, error) {
-	return json.Marshal(r == Required)
-}
-
-// Parameter declares one closed keyword after an action. Value names the value
-// that must follow it. An empty Value makes the keyword a boolean switch.
-type Parameter struct {
-	Keyword string `json:"keyword"`
-	Value   string `json:"value"`
-	// Requirement says whether the action's body can run without this keyword.
-	Requirement Requirement `json:"required"`
-	// Repeat says the keyword may be given more than once, and that every value
-	// it introduces is kept. A keyword without it is refused on its second
-	// occurrence, which is what every parameter declared before this field
-	// existed still gets.
-	Repeat bool `json:"repeat"`
-}
-
-// Arguments is the parsed value of an argument-aware action: every keyword the
-// invocation named, and every value each one was given. Presence matters for a
-// boolean parameter, whose one value is the empty string.
-//
-// A keyword is read with One or with Values, and never by indexing the map:
-// One answers a keyword declared once and Values a keyword declared Repeat.
-// Nothing answers the values joined, so the shape a caller could not tell from
-// a value an operator typed has nowhere to live (ai/rules/principles.md).
-type Arguments map[string][]string
-
-// Has reports whether the invocation named a keyword.
-func (a Arguments) Has(keyword string) bool {
-	_, named := a[keyword]
-	return named
-}
-
-// One answers the value of a keyword the action declared once. A keyword the
-// invocation did not name answers the empty string, which a caller tells apart
-// from a keyword given an empty value with Has.
-//
-// A keyword carrying several values panics, because only a parameter declared
-// Repeat can carry them: answering the first would drop every value after it,
-// and the caller could not tell that from a keyword given once.
-func (a Arguments) One(keyword string) string {
-	values := a[keyword]
-	if len(values) > 1 {
-		panic("BUG: leaction: a repeated keyword is read as one value: " + keyword)
-	}
-	if len(values) == 0 {
-		return ""
-	}
-	return values[0]
-}
-
-// Values answers every value one keyword was given, in the order they were
-// typed. A keyword the invocation did not name answers nothing, which a caller
-// tells apart from a keyword given once with an empty value.
-func (a Arguments) Values(keyword string) []string {
-	return a[keyword]
-}
-
-// add records one occurrence of a keyword. A second occurrence of a Repeat
-// keyword is appended rather than replacing the first, so no value the operator
-// typed is lost.
-func (a Arguments) add(keyword, value string) {
-	a[keyword] = append(a[keyword], value)
 }
 
 // Action is one callable row in an area's command table.
@@ -207,36 +107,7 @@ func New(name string, actions ...Action) Area {
 			panic("BUG: leaction.New: two actions of one area share a verb, so one of them is unreachable")
 		}
 		seen[verb] = true
-		parameterSeen := make(map[string]bool, len(act.Parameters))
-		for _, parameter := range act.Parameters {
-			if parameter.Keyword == "" {
-				panic("BUG: leaction.New: an action parameter needs one keyword token")
-			}
-			if strings.ContainsAny(parameter.Keyword, " \t") {
-				panic("BUG: leaction.New: an action parameter needs one keyword token")
-			}
-			if strings.HasPrefix(parameter.Keyword, "-") {
-				panic("BUG: leaction.New: an action parameter uses flag syntax")
-			}
-			if parameterSeen[parameter.Keyword] {
-				panic("BUG: leaction.New: an action declares one parameter twice")
-			}
-			if parameter.Value != "" {
-				if parameter.Requirement == RequirementUnspecified {
-					panic("BUG: leaction.New: a parameter carrying a value leaves requiredness " +
-						"unspecified; declare leaction.Optional or leaction.Required")
-				}
-			}
-			if parameter.Value == "" {
-				if parameter.Requirement == Required {
-					panic("BUG: leaction.New: a boolean switch is declared required, and presence is its whole meaning")
-				}
-				if parameter.Repeat {
-					panic("BUG: leaction.New: a boolean switch is declared repeatable, and a second occurrence adds nothing")
-				}
-			}
-			parameterSeen[parameter.Keyword] = true
-		}
+		checkParameters(act.Parameters)
 	}
 
 	return area
@@ -334,7 +205,8 @@ func (a Area) Actions() List {
 			Verb: act.Verb, Writes: act.Writes, Why: act.Why, Alone: act.Alone, WholeTree: act.WholeTree,
 			// Cloned: the listing is a payload a caller may hold and a renderer
 			// may sort, and the declaration behind it belongs to the area.
-			Parameters: slices.Clone(act.Parameters),
+			// Retired keywords are left out: nothing renders or offers one.
+			Parameters: live(act.Parameters),
 			Forwards:   act.AnswerWords != nil,
 		})
 	}
@@ -396,6 +268,21 @@ func (l List) UsageText(verb string) (string, bool) {
 	return "", false
 }
 
+// Accepts reports whether verb's own parser takes args, the words after the
+// verb, without running the action. It is the check the derived command tree's
+// test asks of every line it completes, so completion cannot offer a line
+// dispatch refuses. A verb this listing does not hold is refused.
+func (l List) Accepts(verb string, args []string) error {
+	for _, row := range l.Actions {
+		if row.Verb != verb {
+			continue
+		}
+		_, err := parseArguments("le "+l.Area+" "+verb, row.Parameters, args)
+		return err
+	}
+	return errors.New("le " + l.Area + " holds no action " + verb)
+}
+
 // TrailingWordIsValue reports whether the LAST word of an invocation is the
 // value a declared keyword introduced. args starts at the verb, so
 // `replace file <path> old beta new help` answers true: `help` is what `new`
@@ -416,7 +303,7 @@ func (l List) UsageText(verb string) (string, bool) {
 // (internal/le/actions_test.go) now drives every published verb and is the
 // answer to "which areas are these", so a new one reddens the ratchet rather
 // than waiting for the next probe
-// (plan/spec-le-every-area-dispatches-through-one-table.md).
+// (plan/post-release/engineering/spec-le-cli-usability.md).
 //
 // A forwarding row (Row.Forwards) answers true for every word after its verb:
 // those words are another program's command line, so `perf send --help` asks
@@ -446,53 +333,26 @@ func (l List) TrailingWordIsValue(args []string) bool {
 	return false
 }
 
-// ValueLeWords is the Value of a parameter whose value is the words of another
-// le command line, which the action runs as `le <words>`, as `test qemu
-// docker-lab lab "<words>"` runs a Docker lab inside a guest. It is declared
-// here, beside the grammar, so a reader of workflow text asks the registry which
-// keyword nests a command (NestedLeKeyword) rather than holding a copy of the
-// wrapper's name: a scheduled workflow that runs a lab through a wrapper still
-// runs that lab (internal/le/rfc, carriers.go).
-const ValueLeWords = "le-words"
-
 // NestedLeKeyword answers the keyword of verb's parameter whose value is another
-// le command line (ValueLeWords), and false when the verb declares none or this
-// listing does not hold the verb.
+// le command line (KindWords), and false when the verb declares none or this
+// listing does not hold the verb. The kind is declared beside the grammar, so a
+// reader of workflow text asks the registry which keyword nests a command, as
+// `test qemu docker-lab lab "<words>"` runs a Docker lab inside a guest, rather
+// than holding a copy of the wrapper's name: a scheduled workflow that runs a
+// lab through a wrapper still runs that lab (internal/le/rfc, carriers.go).
 func (l List) NestedLeKeyword(verb string) (string, bool) {
 	for _, row := range l.Actions {
 		if row.Verb != verb {
 			continue
 		}
 		for _, parameter := range row.Parameters {
-			if parameter.Value == ValueLeWords {
+			if parameter.Kind == KindWords {
 				return parameter.Keyword, true
 			}
 		}
 		return "", false
 	}
 	return "", false
-}
-
-// parameterForm renders one keyword in the form that says what the reader owes:
-// `keyword <value>` for a keyword the action requires, the same in brackets for
-// one it does not, and a trailing ellipsis for one that may be given again.
-func parameterForm(parameter Parameter) string {
-	var tb textbuf.Buffer
-	optional := parameter.Requirement != Required
-	if optional {
-		tb.Byte('[')
-	}
-	tb.Str(parameter.Keyword)
-	if parameter.Value != "" {
-		tb.Str(" <").Str(parameter.Value).Byte('>')
-	}
-	if optional {
-		tb.Byte(']')
-	}
-	if parameter.Repeat {
-		tb.Str("...")
-	}
-	return tb.String()
 }
 
 // Subs is the one-line hint help renders under the command. It is derived from
@@ -557,7 +417,7 @@ func IsOption(word string) bool {
 // letter against le's declared options would refuse `command prog -xyz`, which
 // is argv forwarding itself. So the test is four exact words, and every other
 // option travels on
-// (plan/spec-le-every-area-dispatches-through-one-table.md).
+// (plan/post-release/engineering/spec-le-cli-usability.md).
 //
 // leroot dispatches on the same answer, so the vocabulary is declared here and
 // read there.
@@ -660,129 +520,6 @@ func (a Area) actionUsage(act Action) int {
 	var tb textbuf.Buffer
 	tb.Str(text).StdErr() //nolint:errcheck // CLI output
 	return 0
-}
-
-// parseArguments validates one action's closed keyword grammar. It consumes a
-// value only after the parameter that names its meaning, and it refuses an
-// option in every value slot it reads. command is the line that reaches the
-// action (`le verify current`): an unknown keyword is answered with every
-// complete spelling the action takes, so a reader who typed a removed one
-// copies the right one rather than guessing where the keyword goes.
-func parseArguments(command string, parameters []Parameter, args []string) (Arguments, error) {
-	declared := make(map[string]Parameter, len(parameters))
-	for _, parameter := range parameters {
-		declared[parameter.Keyword] = parameter
-	}
-
-	parsed := make(Arguments, len(parameters))
-	for index := 0; index < len(args); {
-		keyword := args[index]
-		parameter, ok := declared[keyword]
-		if !ok {
-			return nil, fmt.Errorf("%s takes no argument keyword %q; use one of: %s",
-				command, keyword, spellings(command, parameters))
-		}
-		// A keyword given twice is a mistake, unless the parameter declared that
-		// it may be given again and that every value it introduces is kept.
-		unexpectedRepeat := parsed.Has(keyword) && !parameter.Repeat
-		if unexpectedRepeat {
-			return nil, fmt.Errorf("argument keyword %q was provided more than once", keyword)
-		}
-		if parameter.Value == "" {
-			parsed.add(keyword, "")
-			index++
-			continue
-		}
-		if index+1 >= len(args) {
-			return nil, fmt.Errorf("argument keyword %q requires <%s>", keyword, parameter.Value)
-		}
-		value := args[index+1]
-		// An option is the question, so no value slot holds one, in any
-		// position on the line. A dash opens a long option, or a cluster of
-		// short ones. le declares four options, and `ai/rules/cli.md` bans
-		// every other flag from its grammar (IsOption). A help option typed
-		// LAST is answered before this parser runs, by rendering usage
-		// (Area.Answer). Every other one is answered here, by refusing.
-		if IsOption(value) {
-			return nil, fmt.Errorf(
-				"argument keyword %q cannot take %q, because a value never begins with a dash. "+
-					"Type the <%s> it takes, or --help on its own to see the grammar",
-				keyword, value, parameter.Value)
-		}
-		parsed.add(keyword, value)
-		index += 2
-	}
-	return parsed, nil
-}
-
-// trailingIsValue walks one action's grammar over the words after its verb. It
-// reports whether the LAST of them is DATA the operator typed. `new help` is a
-// keyword and the text it takes. `file <path> --help` is a keyword, its value,
-// and a word standing where the next keyword would.
-//
-// Two things make a word data, and both are required. Its SPELLING must be one
-// an operator can mean as text, which the bare word is and an option is not.
-// Its POSITION must be the value slot a declared keyword opened.
-//
-// It answers false as soon as a word is not a declared keyword, because the
-// grammar has ended and parseArguments refuses the invocation. Deciding the
-// question after that point would be a guess about a line the parser will not
-// accept.
-func trailingIsValue(parameters []Parameter, args []string) bool {
-	last := len(args) - 1
-	if last < 1 {
-		return false
-	}
-
-	// An option is never data, whatever it spells. `ai/rules/cli.md` bans a flag
-	// from being grammar or a value, so no value slot holds a dash-leading word
-	// (IsOption). `le verify status check path --help` asks what the action
-	// takes, and it names no path.
-	if IsOption(args[last]) {
-		return false
-	}
-
-	declared := make(map[string]Parameter, len(parameters))
-	for _, parameter := range parameters {
-		declared[parameter.Keyword] = parameter
-	}
-
-	for index := 0; index < last; {
-		parameter, known := declared[args[index]]
-		if !known {
-			return false
-		}
-		if parameter.Value == "" {
-			index++
-			continue
-		}
-		if index+1 == last {
-			return true
-		}
-		index += 2
-	}
-	return false
-}
-
-// spellings answers every keyword an action declares as the complete line that
-// types it, a value slot shown as <value>: `le go lint run scope <path>`. An
-// action that declares no keyword answers its bare line.
-func spellings(command string, parameters []Parameter) string {
-	if len(parameters) == 0 {
-		return command
-	}
-	var tb textbuf.Buffer
-	tb.Reset()
-	for index, parameter := range parameters {
-		if index > 0 {
-			tb.Str(", ")
-		}
-		tb.Str(command).Byte(' ').Str(parameter.Keyword)
-		if parameter.Value != "" {
-			tb.Str(" <").Str(parameter.Value).Byte('>')
-		}
-	}
-	return tb.String()
 }
 
 // ─── The sweep: several actions on one command line ─────────────────────────

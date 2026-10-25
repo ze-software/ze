@@ -67,8 +67,8 @@ func TestDispatchUsesTheDeclaredActionShapeWithoutReparsingArguments(t *testing.
 		leaction.Action{
 			Verb: "selftest", Why: "answer per-case rows",
 			Parameters: []leaction.Parameter{
-				{Keyword: "path", Value: "text", Requirement: leaction.Optional},
-				{Keyword: "select", Value: "text", Requirement: leaction.Optional},
+				{Keyword: "path", Value: "text", Requirement: leaction.Optional, Kind: leaction.KindString, Help: "h"},
+				{Keyword: "select", Value: "text", Requirement: leaction.Optional, Kind: leaction.KindString, Help: "h"},
 			},
 			AnswerArgs: func(leaction.Arguments) (any, int) { return report, 3 },
 		},
@@ -377,8 +377,8 @@ func TestATrailingHelpWordNeverReachesTheHandler(t *testing.T) {
 	area := leaction.New("trailing-help-grammar-probe", leaction.Action{
 		Verb: "run", Why: "run the probe over one scope",
 		Parameters: []leaction.Parameter{
-			{Keyword: "scope", Value: "packages", Requirement: leaction.Required},
-			{Keyword: "timeout", Value: "duration", Requirement: leaction.Optional},
+			{Keyword: "scope", Value: "packages", Requirement: leaction.Required, Kind: leaction.KindString, Help: "h"},
+			{Keyword: "timeout", Value: "duration", Requirement: leaction.Optional, Kind: leaction.KindString, Help: "h"},
 		},
 		AnswerArgs: func(leaction.Arguments) (any, int) { return nil, 0 },
 	})
@@ -422,10 +422,10 @@ func TestATrailingHelpWordInAValueSlotReachesTheHandler(t *testing.T) {
 	area := leaction.New("trailing-help-value-probe", leaction.Action{
 		Verb: "replace", Why: "replace one word in one file", Writes: true,
 		Parameters: []leaction.Parameter{
-			{Keyword: "file", Value: "path", Requirement: leaction.Required},
-			{Keyword: "old", Value: "text", Requirement: leaction.Required},
-			{Keyword: "new", Value: "text", Requirement: leaction.Required},
-			{Keyword: "apply"},
+			{Keyword: "file", Value: "path", Requirement: leaction.Required, Kind: leaction.KindString, Help: "h"},
+			{Keyword: "old", Value: "text", Requirement: leaction.Required, Kind: leaction.KindString, Help: "h"},
+			{Keyword: "new", Value: "text", Requirement: leaction.Required, Kind: leaction.KindString, Help: "h"},
+			{Keyword: "apply", Kind: leaction.KindSwitch, Help: "h"},
 		},
 		AnswerArgs: func(args leaction.Arguments) (any, int) {
 			got = args
@@ -483,7 +483,7 @@ func TestAFlagSpellingInAValueSlotNeverReachesTheHandler(t *testing.T) {
 	area := leaction.New("flag-spelling-value-probe", leaction.Action{
 		Verb: "check", Why: "check one path",
 		Parameters: []leaction.Parameter{
-			{Keyword: "path", Value: "path", Requirement: leaction.Required},
+			{Keyword: "path", Value: "path", Requirement: leaction.Required, Kind: leaction.KindString, Help: "h"},
 		},
 		AnswerArgs: func(args leaction.Arguments) (any, int) {
 			got = args
@@ -542,10 +542,10 @@ func TestAnOptionIsRefusedInAValueSlotAnywhereOnTheLine(t *testing.T) {
 	area := leaction.New("flag-spelling-anywhere-probe", leaction.Action{
 		Verb: "replace", Why: "replace one word in one file", Writes: true,
 		Parameters: []leaction.Parameter{
-			{Keyword: "file", Value: "path", Requirement: leaction.Required},
-			{Keyword: "old", Value: "text", Requirement: leaction.Required},
-			{Keyword: "new", Value: "text", Requirement: leaction.Required},
-			{Keyword: "apply"},
+			{Keyword: "file", Value: "path", Requirement: leaction.Required, Kind: leaction.KindString, Help: "h"},
+			{Keyword: "old", Value: "text", Requirement: leaction.Required, Kind: leaction.KindString, Help: "h"},
+			{Keyword: "new", Value: "text", Requirement: leaction.Required, Kind: leaction.KindString, Help: "h"},
+			{Keyword: "apply", Kind: leaction.KindSwitch, Help: "h"},
 		},
 		AnswerArgs: func(args leaction.Arguments) (any, int) {
 			got = args

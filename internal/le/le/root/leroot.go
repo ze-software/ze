@@ -126,7 +126,7 @@ func toolHandler(answer Answer) command.LocalDataHandler {
 //
 // It is a second call beside Register rather than a fifth argument to it: an
 // area that hand-rolls its own dispatch holds no action table yet, and
-// plan/spec-le-every-area-dispatches-through-one-table.md migrates them, after
+// plan/post-release/engineering/spec-le-cli-usability.md migrates them, after
 // which the table stops being optional.
 //
 // How MANY such areas there are is not stated here. It was, as a count of seven,

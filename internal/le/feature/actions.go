@@ -26,7 +26,7 @@ var actions = leaction.New(area,
 	leaction.Action{Verb: "report", Why: "every declared feature with its kind, scope, level, evidence ceiling, " +
 		"public status, and the unmet criteria between its level and the next one",
 		Parameters: []leaction.Parameter{
-			{Keyword: keyFeature, Value: "id", Requirement: leaction.Optional},
+			{Keyword: keyFeature, Kind: leaction.KindLabel, Help: "one feature id to report", Value: "id", Requirement: leaction.Optional},
 		},
 		AnswerArgs: reportAnswer},
 	leaction.Action{Verb: "record-run", Why: "run every real-path test and every counted interop scenario of one feature " +
@@ -35,8 +35,8 @@ var actions = leaction.New(area,
 		"directory that changed mid-run records nothing. `due <days>` does the same for every feature " +
 		"holding a recorded run older than <days> days (at most 30, the age a run goes stale)",
 		Parameters: []leaction.Parameter{
-			{Keyword: keyFeature, Value: "id", Requirement: leaction.Optional},
-			{Keyword: keyDue, Value: "days", Requirement: leaction.Optional},
+			{Keyword: keyFeature, Kind: leaction.KindLabel, Help: "one feature id to run", Value: "id", Requirement: leaction.Optional},
+			{Keyword: keyDue, Kind: leaction.KindUint, Help: "run only evidence older than this many days", Value: "days", Requirement: leaction.Optional},
 		},
 		AnswerArgs: recordRunAnswer},
 )

@@ -28,8 +28,8 @@ var actions = leaction.New(area,
 		Why: "the tree type-checks in every feature-tag combination Ze can be built in, so a package compiled out of the default build is still judged; " +
 			"part <index> of <count> judges one piece of the rows, and the pieces together judge every row",
 		Parameters: []leaction.Parameter{
-			{Keyword: "part", Value: "index", Requirement: leaction.Optional},
-			{Keyword: "of", Value: "count", Requirement: leaction.Optional},
+			{Keyword: "part", Kind: leaction.KindUint, Help: "which piece of the split matrix this run judges, read with of", Value: "index", Requirement: leaction.Optional},
+			{Keyword: "of", Kind: leaction.KindUint, Help: "how many pieces the matrix is split into, read with part", Value: "count", Requirement: leaction.Optional},
 		},
 		AnswerArgs: runCheck,
 	},

@@ -26,7 +26,7 @@ import (
 //
 // The list is a ratchet in both directions. An area that is not on it and
 // registers no table fails the test below, and so does a name on it whose area
-// now registers one. plan/spec-le-every-area-dispatches-through-one-table.md
+// now registers one. plan/post-release/engineering/spec-le-cli-usability.md
 // empties it.
 //
 // An area that forwards every word to another program (leroot.RegisterForwarding)
@@ -322,4 +322,122 @@ func referenceArea(t *testing.T, list leaction.List) leaction.Area {
 		rows = append(rows, action)
 	}
 	return leaction.New(list.Area, rows...)
+}
+
+// VALIDATES: AC-1 over every registered action -- each published parameter
+// declares a kind and a help line, and an enum lists its values.
+// PREVENTS: a keyword the manifest, help, completion or `le help ai` renders
+// with no type and no explanation, which sends the reader to the source.
+func TestEveryParameterHasAKindAndHelp(t *testing.T) {
+	if len(commandsAtStart) == 0 {
+		t.Fatal("le registered no local-data command")
+	}
+	checked := 0
+	for _, tool := range commandsAtStart {
+		list, declared := leroot.ActionsOf(tool.Name)
+		if !declared {
+			continue
+		}
+		for _, row := range list.Actions {
+			for _, parameter := range row.Parameters {
+				checked++
+				line := "le " + tool.Name + " " + row.Verb + " " + parameter.Keyword
+				if parameter.Kind == leaction.KindUnspecified {
+					t.Errorf("%s: no kind", line)
+				}
+				if strings.TrimSpace(parameter.Help) == "" {
+					t.Errorf("%s: no help", line)
+				}
+				if parameter.Kind == leaction.KindEnum && len(parameter.Values) == 0 {
+					t.Errorf("%s: an enum with no values", line)
+				}
+			}
+		}
+	}
+	if checked == 0 {
+		t.Fatal("no registered action publishes a parameter, so the check judged nothing")
+	}
+}
+
+// VALIDATES: R-10 over the real registry -- every action the derived tree
+// holds, typed with every keyword its node offers and a value of the
+// keyword's kind, passes that action's own parser.
+// PREVENTS: completion offering a keyword of a registered area that dispatch
+// refuses. internal/le/le/root/tree_test.go proves the walk over a probe; only
+// this package links every area.
+func TestDerivedTreeLinesAreAcceptedForEveryRegisteredArea(t *testing.T) {
+	root := leroot.Tree()
+	checked := 0
+	for _, tool := range commandsAtStart {
+		list, declared := leroot.ActionsOf(tool.Name)
+		if !declared {
+			continue
+		}
+		node := root
+		for _, word := range strings.Fields(tool.Name) {
+			node = node.Children[word]
+			if node == nil {
+				t.Fatalf("the derived tree has no node for %q", tool.Name)
+			}
+		}
+		for _, row := range list.Actions {
+			action := node.Children[row.Verb]
+			if action == nil {
+				t.Errorf("le %s %s: absent from the derived tree", tool.Name, row.Verb)
+				continue
+			}
+			if row.Forwards {
+				continue
+			}
+			offered := make(map[string]command.ArgKind, len(action.ArgDefs))
+			for _, def := range action.ArgDefs {
+				offered[def.Name()] = def.Kind()
+			}
+			var line []string
+			keywords := 0
+			for _, parameter := range row.Parameters {
+				if parameter.Keyword == "" {
+					line = append([]string{sampleOf(parameter)}, line...)
+					continue
+				}
+				if _, held := offered[parameter.Keyword]; !held {
+					t.Errorf("le %s %s: the tree does not offer keyword %q", tool.Name, row.Verb, parameter.Keyword)
+				}
+				keywords++
+				line = append(line, parameter.Keyword)
+				if parameter.Kind == leaction.KindSwitch {
+					continue
+				}
+				line = append(line, sampleOf(parameter))
+				if parameter.Pair != "" {
+					line = append(line, sampleOf(parameter))
+				}
+			}
+			if len(offered) != keywords {
+				t.Errorf("le %s %s: the tree offers a keyword the action does not declare", tool.Name, row.Verb)
+			}
+			checked++
+			if err := list.Accepts(row.Verb, line); err != nil {
+				t.Errorf("le %s %s %s: refused: %v", tool.Name, row.Verb, strings.Join(line, " "), err)
+			}
+		}
+	}
+	if checked == 0 {
+		t.Fatal("no registered action was checked")
+	}
+}
+
+// sampleOf answers a value the parameter's kind accepts.
+func sampleOf(parameter leaction.Parameter) string {
+	value := "x"
+	if len(parameter.Values) > 0 {
+		value = parameter.Values[0]
+	}
+	for _, candidate := range []string{value, "1", "1s", "HEAD", "plan/x.md"} {
+		if parameter.Kind.Check(candidate, parameter.Values) == nil {
+			value = candidate
+			break
+		}
+	}
+	return value
 }

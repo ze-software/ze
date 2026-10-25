@@ -75,9 +75,9 @@ var actions = leaction.New(area,
 		Why: "prove both MOBIKE initiator and responder address movement against packaged strongSwan" +
 			" in private Linux namespaces, retaining IKE/Child identities and encrypted traffic",
 		Parameters: []leaction.Parameter{
-			{Keyword: "daemon", Value: "prebuilt-ze-path", Requirement: leaction.Required},
-			{Keyword: "charon", Value: "path", Requirement: leaction.Optional},
-			{Keyword: "swanctl", Value: "path", Requirement: leaction.Optional},
+			{Keyword: "daemon", Kind: leaction.KindPath, Help: "the prebuilt ze binary under test", Value: "prebuilt-ze-path", Requirement: leaction.Required},
+			{Keyword: "charon", Kind: leaction.KindPath, Help: "the strongSwan charon binary to use", Value: "path", Requirement: leaction.Optional},
+			{Keyword: "swanctl", Kind: leaction.KindPath, Help: "the swanctl binary to use", Value: "path", Requirement: leaction.Optional},
 		},
 		AnswerArgs: runIPsecMOBIKEHere,
 	},

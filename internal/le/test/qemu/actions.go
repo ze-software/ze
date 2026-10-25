@@ -25,7 +25,6 @@ import (
 	"errors"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -44,6 +43,10 @@ const (
 
 // valueDuration is the value placeholder every timeout keyword shows in help.
 const valueDuration = "duration"
+
+// helpGuestTimeout is the help line of every timeout keyword a guest action
+// declares.
+const helpGuestTimeout = "how long the guest may run"
 
 // zeMainPackage is the package path of the ze binary each build here compiles.
 const zeMainPackage = "./cmd/ze"
@@ -90,11 +93,11 @@ var actions = leaction.New(area,
 			// A run needs command or keep-alive, and parseRunArguments is
 			// what refuses one carrying neither. The keyword is optional
 			// because the switch beside it can answer for it.
-			{Keyword: keywordCommand, Value: "command", Requirement: leaction.Optional},
-			{Keyword: keywordPackages, Value: "space-separated-packages", Requirement: leaction.Optional},
-			{Keyword: keywordTimeout, Value: valueDuration, Requirement: leaction.Optional},
-			{Keyword: keywordKernel, Value: "path", Requirement: leaction.Optional},
-			{Keyword: "keep-alive"},
+			{Keyword: keywordCommand, Kind: leaction.KindString, Help: "the shell command to run in the guest", Value: "command", Requirement: leaction.Optional},
+			{Keyword: keywordPackages, Kind: leaction.KindString, Help: "Alpine packages to install first, separated by spaces", Value: "space-separated-packages", Requirement: leaction.Optional},
+			{Keyword: keywordTimeout, Kind: leaction.KindDuration, Help: helpGuestTimeout, Value: valueDuration, Requirement: leaction.Optional},
+			{Keyword: keywordKernel, Kind: leaction.KindPath, Help: "the kernel image to boot instead of the default", Value: "path", Requirement: leaction.Optional},
+			{Keyword: "keep-alive", Kind: leaction.KindSwitch, Help: "leave the guest running after the command"},
 		},
 		AnswerArgs: runQEMUHere,
 	},
@@ -127,7 +130,7 @@ var actions = leaction.New(area,
 			// the run itself selects from. Spelled out here it went stale the
 			// day a fourth scenario was added, and the new one was then
 			// undiscoverable from `./le test qemu`.
-			{Keyword: "scenarios", Value: strings.Join(vrrpScenarioNames, ","), Requirement: leaction.Optional},
+			{Keyword: "scenarios", Kind: leaction.KindList, Help: "the VRRP scenarios to run; every scenario when absent", Value: "scenario", Values: vrrpScenarioNames, Requirement: leaction.Optional},
 		},
 		AnswerArgs: runVRRPHere,
 	},
@@ -136,8 +139,8 @@ var actions = leaction.New(area,
 		Why: "target-build Ze and the native runner, boot the supplied runtime kernel," +
 			" and prove both MOBIKE movement scenarios against Alpine strongSwan without Docker",
 		Parameters: []leaction.Parameter{
-			{Keyword: keywordKernel, Value: "vmlinuz-path", Requirement: leaction.Required},
-			{Keyword: keywordTimeout, Value: valueDuration, Requirement: leaction.Optional},
+			{Keyword: keywordKernel, Kind: leaction.KindPath, Help: "the runtime kernel image (vmlinuz) to boot", Value: "vmlinuz-path", Requirement: leaction.Required},
+			{Keyword: keywordTimeout, Kind: leaction.KindDuration, Help: helpGuestTimeout, Value: valueDuration, Requirement: leaction.Optional},
 		},
 		AnswerArgs: runIPsecMOBIKEHere,
 	},
@@ -150,9 +153,9 @@ var actions = leaction.New(area,
 			" selects one scenario). With no lab it stops after the check. A Ctrl-C reaches the lab's" +
 			" own teardown, then le lists what the guest still holds, then the VM stops",
 		Parameters: []leaction.Parameter{
-			{Keyword: keywordLab, Value: leaction.ValueLeWords, Requirement: leaction.Optional},
-			{Keyword: keywordEnv, Value: "NAME=value ...", Requirement: leaction.Optional},
-			{Keyword: keywordTimeout, Value: valueDuration, Requirement: leaction.Optional},
+			{Keyword: keywordLab, Kind: leaction.KindWords, Help: "the le command line of the Docker lab to run in the guest", Value: "le-words", Requirement: leaction.Optional},
+			{Keyword: keywordEnv, Kind: leaction.KindString, Help: "NAME=value pairs the lab runs with", Value: "NAME=value ...", Requirement: leaction.Optional},
+			{Keyword: keywordTimeout, Kind: leaction.KindDuration, Help: helpGuestTimeout, Value: valueDuration, Requirement: leaction.Optional},
 		},
 		AnswerArgs: runDockerLabHere,
 	},
@@ -166,7 +169,7 @@ var actions = leaction.New(area,
 		Why: "run the selected functional subsets through the credential-dropped network" +
 			" namespace launcher and prove the guest root nftables state is unchanged",
 		Parameters: []leaction.Parameter{
-			{Keyword: "suites", Value: "firewall,policy,ospf,ospfv3,pppoe,plugin", Requirement: leaction.Optional},
+			{Keyword: "suites", Kind: leaction.KindList, Help: "the functional subsets to run", Value: "suite", Values: netnsSuiteNames, Requirement: leaction.Optional},
 		},
 		AnswerArgs: runNetnsHere,
 	},
@@ -187,8 +190,8 @@ var actions = leaction.New(area,
 			" option=needs-linux, which is the tight loop for a change to a Linux-only path." +
 			" `test <path>` runs that one .ci through the suite that walks its directory, and nothing else",
 		Parameters: []leaction.Parameter{
-			{Keyword: onlyKeyword, Value: linuxOnlySelection, Requirement: leaction.Optional},
-			{Keyword: testKeyword, Value: "test/<dir>/<name>.ci", Requirement: leaction.Optional},
+			{Keyword: onlyKeyword, Kind: leaction.KindEnum, Help: "run only the tests that need Linux", Value: "selection", Values: []string{linuxOnlySelection}, Requirement: leaction.Optional},
+			{Keyword: testKeyword, Kind: leaction.KindPath, Help: "one .ci test to run, as test/<dir>/<name>.ci", Value: "test/<dir>/<name>.ci", Requirement: leaction.Optional},
 		},
 		AnswerArgs: runAllTestsHere,
 	},

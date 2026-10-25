@@ -18,7 +18,7 @@ var actions = leaction.New(area,
 		" sentinel: `go list ./...` skips a directory SYMLINK named tmp/ (verified)," +
 		" so no marker file is needed (plan/spec-relocate-scratch-and-cache.md)",
 		Writes:     true,
-		Parameters: []leaction.Parameter{{Keyword: "quiet"}},
+		Parameters: []leaction.Parameter{{Keyword: "quiet", Kind: leaction.KindSwitch, Help: "print nothing when the links are already right"}},
 		AnswerArgs: runEnsure},
 	leaction.Action{Verb: "cache-clean", Why: "clean EVERY build cache this checkout fills and report, for each, what it" +
 		" removed, what it kept and the disk space left: the one Go cache at cache/go-cache, which every le" +
@@ -41,7 +41,7 @@ var actions = leaction.New(area,
 		" which is a format flag on macOS and prints the path back" +
 		" (plan/journal/full-disk-false-red.md)",
 		Writes:     true,
-		Parameters: []leaction.Parameter{{Keyword: everythingMode}},
+		Parameters: []leaction.Parameter{{Keyword: everythingMode, Kind: leaction.KindSwitch, Help: "empty every cache, not only the entries older than three hours"}},
 		AnswerArgs: runCacheClean},
 	leaction.Action{Verb: storeTrimVerb, Why: "bound the build stores this checkout fills, now, without waiting for" +
 		" the hourly automatic trim every le invocation starts as a detached child" +
@@ -50,7 +50,7 @@ var actions = leaction.New(area,
 		" The automatic trim follows " + StoreTrimKey + ", on or off; a trim asked" +
 		" for by name runs either way and says which",
 		Writes:     true,
-		Parameters: []leaction.Parameter{{Keyword: backgroundKeyword}},
+		Parameters: []leaction.Parameter{{Keyword: backgroundKeyword, Kind: leaction.KindSwitch, Help: "run the trim in the background"}},
 		AnswerArgs: runStoreTrim},
 	leaction.Action{Verb: "migrate", Why: "the same cutover for a checkout whose tmp/ or cache/ is still a REAL" +
 		" directory: move its entries to the out-of-tree target and leave a symlink" +

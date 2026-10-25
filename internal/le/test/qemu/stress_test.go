@@ -112,18 +112,37 @@ func TestStressPrefixesLowerBound(t *testing.T) {
 
 // TestStressScenarioPlaceholderIsTheRegistry proves the help placeholder is
 // derived from the harness registry, so a new scenario is discoverable here
-// with no edit. Method: compare the declared value with StressScenarios.
+// with no edit. Method: compare the declared enum values with StressScenarios,
+// and read them back from the usage line the listing renders. The keyword is an
+// enum since plan/post-release/engineering/spec-le-cli-usability.md typed it,
+// so the registry lives in Values and usage renders it as `<a|b|...>`.
 func TestStressScenarioPlaceholderIsTheRegistry(t *testing.T) {
 	want := strings.Join(testintegration.StressScenarios(), ",")
-	for _, action := range Actions().Actions {
+	list := Actions()
+	found := false
+	for _, action := range list.Actions {
 		if action.Verb != stressVerb {
 			continue
 		}
 		for _, parameter := range action.Parameters {
-			if parameter.Keyword == keywordScenario && parameter.Value != want {
-				t.Fatalf("scenario placeholder %q, want %q", parameter.Value, want)
+			if parameter.Keyword != keywordScenario {
+				continue
+			}
+			found = true
+			if got := strings.Join(parameter.Values, ","); got != want {
+				t.Fatalf("scenario values %q, want %q", got, want)
+			}
+			if parameter.Kind != leaction.KindEnum {
+				t.Fatalf("scenario is of kind %s, want enum", parameter.Kind)
 			}
 		}
+	}
+	if !found {
+		t.Fatal("the stress action declares no scenario keyword")
+	}
+	usage, _ := list.UsageText(stressVerb)
+	if !strings.Contains(usage, strings.Join(testintegration.StressScenarios(), "|")) {
+		t.Fatalf("usage does not render every registered scenario:\n%s", usage)
 	}
 }
 

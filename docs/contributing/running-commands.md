@@ -10,7 +10,9 @@ behave. The obligations that follow from this page are `ai/rules/commands.md`.
 `./le '|' json` answers le's whole surface as one document. It names every
 registered area, the group it renders under, and its description. An area that
 registered an action table also carries each action, with its verb, its purpose,
-its write flag and its keyword grammar. The bar is quoted because a shell
+its write flag and its keyword grammar. Each keyword carries its `kind` (such
+as `switch`, `path`, `uint` or `enum`), its `help` line, whether it is
+`required` or may `repeat`, and an enum's `values`. The bar is quoted because a shell
 consumes an unquoted one. `| yaml` and `| table` render the same payload.
 
 `./le` with no argument prints that manifest as the root help page. It writes to

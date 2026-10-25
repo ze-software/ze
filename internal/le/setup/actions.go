@@ -73,10 +73,10 @@ var actions = leaction.New(area,
 		Writes: true,
 		Why:    "provision the pinned Ubuntu Claude development server",
 		Parameters: []leaction.Parameter{
-			{Keyword: "user", Value: "username", Requirement: leaction.Optional},
+			{Keyword: "user", Kind: leaction.KindLabel, Help: "the account to provision", Value: "username", Requirement: leaction.Optional},
 			// Needed only when the server holds no key yet: installKey refuses
 			// the run without it, and says so with this keyword in the line.
-			{Keyword: "ssh-key-dir", Value: "path", Requirement: leaction.Optional},
+			{Keyword: "ssh-key-dir", Kind: leaction.KindPath, Help: "the directory holding the SSH keys to install", Value: "path", Requirement: leaction.Optional},
 		},
 		AnswerArgs: runClaudeServer,
 	},
